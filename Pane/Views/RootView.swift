@@ -78,7 +78,7 @@ struct RootView: View {
 
     var body: some View {
         #if DEBUG
-        RenderProbe.count("RootView")
+        RenderProbe.count("RootView", context: context)
         #endif
         return imports(lifecycle(split)).newAppSheet()
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
@@ -368,6 +368,7 @@ struct RootView: View {
         #if os(iOS)
         trail.opened(new)
         #else
+        NotePageSandbox.navigationOccurred()
         history.opened(from: old, to: new)
         #endif
     }
@@ -377,9 +378,16 @@ struct RootView: View {
 
     /// Back and Forward over the note, like a browser (Emil, 11-01).
     private var historyActions: OpenedNotes.Actions {
-        OpenedNotes.Actions(canGoBack: history.canGoBack, canGoForward: history.canGoForward,
-                            back: { if let p = history.back(from: selectedNote, gone: isGone) { selectedNote = p } },
-                            forward: { if let n = history.forward(from: selectedNote, gone: isGone) { selectedNote = n } })
+        OpenedNotes.Actions(notes: history,
+                            back: { stepHistory(back: true) }, forward: { stepHistory(back: false) })
+    }
+    private func stepHistory(back: Bool) {
+        var instant = Transaction(animation: nil)
+        instant.disablesAnimations = true
+        withTransaction(instant) {
+            let target = back ? history.back(from: selectedNote, gone: isGone) : history.forward(from: selectedNote, gone: isGone)
+            if let target { selectedNote = target }
+        }
     }
     #endif
 
@@ -463,12 +471,12 @@ struct RootView: View {
             FileDetailView(file: file, onNewNote: newNote, onOpenFile: { selectedNote = $0 })
                 .id(id)
         } else {
-            // One stage for the note and for no note: a note opened from the empty pane only adds
-            // the note, not the stage and the window's toolbar again (that took the first note
-            // three times as long to show as the next one, 10-30). Without a note it has no items:
-            // the list has compose, and Notes shows only the page ground there.
+            // Keep the stage across selections. Native toolbar visibility hides the items and
+            // their glass without rebuilding the controls when a note opens again.
             let note = shownNote.flatMap { context.note($0) }.flatMap { $0.deletedAt == nil ? $0 : nil }
-            NoteToolbarStage(showsItems: note != nil, history: historyActions) {
+            NoteToolbarStage(showsItems: note != nil,
+                             showsWriting: note.map { ($0.isLocked || NoteApps.page($0.id) == nil) && $0.trashedAt == nil } ?? false,
+                             history: historyActions, controller: editor) {
                 if let note {
                     NoteDetailView(note: note, controller: editor, autofocus: justCreated == note.id, onNewNote: newNote) { target, edit in
                         if edit { justCreated = target }
@@ -587,7 +595,20 @@ struct RootView: View {
     private func discardIfEmpty(_ id: UUID?) {
         guard let id, id != selectedNote, let n = context.note(id), n.deletedAt == nil,
               n.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        #if os(macOS)
+        // Let the destination's first frame commit before saving and diffing the list. A main
+        // queue block can run before that commit; a run-loop timer follows it (as DetailHold does).
+        let timer = Timer(timeInterval: 0.001, repeats: false) { _ in
+            MainActor.assumeIsolated {
+                guard id != selectedNote, let note = context.note(id), note.deletedAt == nil,
+                      note.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                library.discardEmpty(note, in: context)
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        #else
         context.purge(n)
+        #endif
     }
 
     /// Test runs can open a note by title: `-uitest -open "Lisbon"`.
@@ -679,9 +700,14 @@ struct EmptyDetailView: View {
 /// The import actions, for the folders and the note list. They come through the environment, not
 /// the scene's focused values: those change whenever a view that publishes one updates (the open
 /// note does on every save while you type), and each change rebuilt the folders and the list again.
-struct ImportActions {
+/// Equal whatever its closures: they only set the window's own state, so one made on an earlier
+/// pass does what a new one would. As closures they counted as changed on every pass of RootView,
+/// and every view that reads them (the sidebar and the note list) was worked out again on each
+/// note open, seven times per open (NoteOpenProfile, 2026-11-02).
+struct ImportActions: Equatable {
     var appleNotes: () -> Void
     var from: (ImportKind) -> Void
+    static func == (a: ImportActions, b: ImportActions) -> Bool { true }
 }
 
 extension EnvironmentValues {

@@ -340,6 +340,7 @@
 		531806A23E0D60EA54460D8C /* ImportGuideTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4A6AEA3511E852CEB97E51D /* ImportGuideTests.swift */; };
 		533D2A7C30ABE59C3C26AABC /* confetti.js in Resources */ = {isa = PBXBuildFile; fileRef = 96E8277205CE8467252CB1A6 /* confetti.js */; };
 		5342430B766E247299E9D75E /* RecentlyDeletedUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB241E2DEAAB57918F8973B4 /* RecentlyDeletedUITests.swift */; };
+		53C0F204D4CF43989ADD33C5 /* BackForwardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD38656BCD103CC6D2D01B8F /* BackForwardTests.swift */; };
 		53FAB7BE6A0B731C0DCE88CD /* AppMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B255CC05106DC01C927C7CD /* AppMark.swift */; };
 		53FE9FE0EB63F016B9151CC9 /* ENEXReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65FB59D737154755BEABF6C8 /* ENEXReader.swift */; };
 		5412BD9D4BB407C05DA2D720 /* SharedItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F0CA0A157AFFD73FB9DEA75 /* SharedItem.swift */; };
@@ -1418,6 +1419,7 @@
 		BC1A686247652CA9E7C73EB4 /* KeyStartupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyStartupTests.swift; sourceTree = "<group>"; };
 		BC21DF51FFD468B83B80F5C1 /* firstopen-meal-plan.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "firstopen-meal-plan.jpg"; sourceTree = "<group>"; };
 		BC80E1068BA9CCCED6E975B6 /* BestAppsMacShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BestAppsMacShots.swift; sourceTree = "<group>"; };
+		BD38656BCD103CC6D2D01B8F /* BackForwardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackForwardTests.swift; sourceTree = "<group>"; };
 		BDC967E6E0078C8E1DC7378A /* template-cover-recipe-box.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-recipe-box.jpg"; sourceTree = "<group>"; };
 		BE138616AC9DDE47DC5537AD /* TableShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableShots.swift; sourceTree = "<group>"; };
 		BE58FBFB7169CFFC6987E06D /* FirstOpen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstOpen.swift; sourceTree = "<group>"; };
@@ -1954,6 +1956,7 @@
 			isa = PBXGroup;
 			children = (
 				EFD4E73BFE5865ABBA2D3DF4 /* AppPerfTests.swift */,
+				BD38656BCD103CC6D2D01B8F /* BackForwardTests.swift */,
 				29020B4DA13FDC017652C91F /* EditorPerfTests.swift */,
 				1805E7C32F1491EC4F48472E /* Fixtures.swift */,
 				E9B8C69CC99B48440E21655A /* HoverTests.swift */,
@@ -2973,6 +2976,7 @@
 				82A643926C79354BE36ABA85 /* ApplePinsTests.swift in Sources */,
 				0A3ED7AE8489C38C98E6CEED /* AppleSignInTests.swift in Sources */,
 				0897BB61E89D04A3E6D3BC73 /* AttachMenuTests.swift in Sources */,
+				53C0F204D4CF43989ADD33C5 /* BackForwardTests.swift in Sources */,
 				37E350F33282AA113CB2A108 /* BackendSessionTests.swift in Sources */,
 				1585F26162138C6FB956D7A1 /* BacklinksTests.swift in Sources */,
 				B2DFA27FEF257034184BF5F2 /* BestAppsMacShots.swift in Sources */,

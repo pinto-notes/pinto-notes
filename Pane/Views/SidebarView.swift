@@ -360,7 +360,7 @@ struct SidebarView: View {
 
     var body: some View {
         #if DEBUG
-        RenderProbe.count("SidebarView")
+        RenderProbe.count("SidebarView", context: context)
         #endif
         let files = self.files
         // In stages, in the same order: as one chain the body took the type checker about 8 s

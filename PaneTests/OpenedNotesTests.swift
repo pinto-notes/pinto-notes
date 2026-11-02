@@ -3,11 +3,11 @@ import Testing
 @testable import Pane
 
 /// Back and forward over the note (Mac, Emil 11-01): like a browser.
-struct OpenedNotesTests {
+@MainActor struct OpenedNotesTests {
     let a = UUID(), b = UUID(), c = UUID()
 
     @Test func backAndForward() {
-        var h = OpenedNotes()
+        let h = OpenedNotes()
         h.opened(from: nil, to: a)
         #expect(!h.canGoBack && !h.canGoForward, "the first note has nowhere to go")
         h.opened(from: a, to: b)
@@ -26,7 +26,7 @@ struct OpenedNotesTests {
     }
 
     @Test func openingANoteClearsForward() {
-        var h = OpenedNotes()
+        let h = OpenedNotes()
         h.opened(from: nil, to: a)
         h.opened(from: a, to: b)
         _ = h.back(from: b)
@@ -37,14 +37,14 @@ struct OpenedNotesTests {
     }
 
     @Test func deletedNotesAreSkipped() {
-        var h = OpenedNotes()
+        let h = OpenedNotes()
         h.opened(from: a, to: b)
         h.opened(from: b, to: c)
         #expect(h.back(from: c, gone: { $0 == b }) == a, "a deleted note is passed over")
     }
 
     @Test func closingTheNoteKeepsTheHistory() {
-        var h = OpenedNotes()
+        let h = OpenedNotes()
         h.opened(from: a, to: b)
         h.opened(from: b, to: nil)
         #expect(h.canGoBack)

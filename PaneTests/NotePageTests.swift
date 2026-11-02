@@ -285,7 +285,8 @@ import AppKit
     /// must still load the app: the note stayed blank.
     @Test func anAppOpensInASandboxTakenWhileItsBlankDocumentIsStillLoading() async throws {
         for round in 0..<4 {
-            _ = try await NotePageSandbox.make() // a spare starts behind this one
+            _ = try await NotePageSandbox.make()
+            NotePageSandbox.prewarm() // a spare starting now (make starts the next one later)
             for _ in 0..<(round * 3) { await Task.yield() }
             let sandbox = try await NotePageSandbox.make()
             var result: Bool?
@@ -295,6 +296,28 @@ import AppKit
             for _ in 0..<100 where result == nil { try await Task.sleep(for: .milliseconds(50)) }
             #expect(result == true, "round \(round): the app should draw, not be refused as a navigation (\(sandbox.blocked))")
         }
+    }
+
+    /// Opening an app note again takes no new picture of a page that has one: each open made a
+    /// full-size PNG on the main thread 400 ms after the page was ready, in the middle of the next
+    /// click (2026-11-02). Asked twice before the first is in, it's taken once.
+    @Test func aPageWithAPictureIsNotTakenAgain() async throws {
+        let sandbox = try await NotePageSandbox.make()
+        var ready = false
+        sandbox.onReady = { ready = true }
+        let html = "<main>Picture \(UUID().uuidString)</main>"
+        sandbox.load(html: html, body: Self.habits)
+        for _ in 0..<100 where !ready { try await Task.sleep(for: .milliseconds(50)) }
+        try #require(ready)
+        let shots = NotePageSnapshots.shared, id = UUID(), before = shots.taken
+        shots.take(sandbox.webView, id, html: html, dark: false)
+        shots.take(sandbox.webView, id, html: html, dark: false)
+        #expect(shots.taken == before + 1, "asked twice at once, taken once")
+        for _ in 0..<100 where shots.image(id, html: html, dark: false) == nil { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(shots.image(id, html: html, dark: false) != nil, "the picture is kept")
+        shots.take(sandbox.webView, id, html: html, dark: false)
+        #expect(shots.taken == before + 1, "a page with a picture isn't taken again")
+        #expect(shots.has(id, html: html, dark: true) == false, "the other appearance is its own picture")
     }
 
     @Test func aPageThatThrowsOrDrawsNothingIsReportedAsFailed() async throws {
