@@ -241,16 +241,17 @@ import Testing
     /// Emil, 2 November 2026: Connect your AI is two brand buttons, one click each, with a row
     /// under them; Other opens the address and its steps. Claude Code comes with Claude, Cursor and
     /// VS Code sit behind Other, never Mistral. Grok is live (Emil connected it, 2 November);
-    /// Gemini waits for a real connection.
+    /// Gemini is behind Another app.
     @Test func connectIsTwoBrandButtonsAndARow() throws {
         #expect(SetupCards.connectLook == .brandButtons)
         #expect(SetupCards.moreLook == .row)
         #expect(ConnectWebGuide.otherLook == .steps)
+        #expect(SetupCards.brands == [.chatgpt, .claude, .grok], "three brand buttons, top to bottom (Emil, 2 November 2026)")
         let row = SetupCards.rowAIs.map(\.name)
-        #expect(row == ["Grok", "Gemini", "Other"], "no Codex in the row (Emil, 2 November 2026)")
-        #expect(SetupCards.comingSoon == ["Gemini"], "coming soon until a real connection is proven")
+        #expect(row == ["Other"], "everything else, Gemini included, is Another app")
+        #expect(SetupCards.comingSoon.isEmpty)
         #expect(SetupCards.AI.grok.guide == .grok && !SetupCards.AI.grok.asks)
-        for never in ["Codex", "Claude Code", "Cursor", "VS Code", "Mistral", "Le Chat"] { #expect(!row.contains(never)) }
+        for never in ["Codex", "Claude Code", "Cursor", "VS Code", "Mistral", "Le Chat", "Gemini"] { #expect(!row.contains(never)) }
         #expect(SetupCards.AI.codex.guide == .codex && !SetupCards.AI.codex.asks, "Codex is added on this Mac; its ask is copied")
         #expect(SetupCards.connectReads.contains("read and edit") && SetupCards.connectReads.contains("Disconnect anytime"), "App Review: what it can do, before any AI")
         #expect(AIGlyph.asset("Codex") != nil && AIGlyph.asset("Grok") != nil && AIGlyph.asset("Gemini") != nil)

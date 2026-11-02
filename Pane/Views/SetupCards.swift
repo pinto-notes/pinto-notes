@@ -149,17 +149,27 @@ enum SetupCards {
     /// The row under the two (Emil, 2 November 2026): Claude Code comes with Claude, Codex and the
     /// code editors are behind Other ("I don't like having Codex as an option"). Grok and Gemini
     /// show as coming soon until a real connection to each is proven; never Mistral.
-    static let rowAIs: [OtherAI] = [.init(name: "Grok", line: ""), .init(name: "Gemini", line: ""), .init(name: "Other", line: "")]
-    /// In the row but not connectable yet: shown, marked Soon, not a button.
-    /// Grok went live 2 November 2026 (Emil connected it and it worked); Gemini waits.
-    static let comingSoon: Set<String> = ["Gemini"]
+    /// Under the three: everything else is Another app (Gemini included: Emil, 2 November 2026,
+    /// "let's assume it's one of the others"; Google only offers it in the US).
+    static let rowAIs: [OtherAI] = [.init(name: "Other", line: "")]
+    /// In the row but not connectable yet: shown, marked Soon, not a button. None now.
+    static let comingSoon: Set<String> = []
+    /// The brand buttons, top to bottom (Emil, 2 November 2026).
+    static let brands: [AI] = [.chatgpt, .claude, .grok]
+    static let anotherAppLink = "Another app"
     static let connectReads = "Your AI can read and edit your notes when you ask. Disconnect anytime."
     static let otherApps = "Cursor, VS Code or another app"
 
     /// The brands' own grounds: ChatGPT black, Claude's orange.
+    /// ChatGPT black, Claude's orange, Grok white (its mark is black on white).
     static func brandFill(_ ai: AI) -> Color {
-        ai == .claude ? AIGlyph.color("Claude") : Color(white: 0.04)
+        switch ai {
+        case .claude: AIGlyph.color("Claude")
+        case .grok: Color(white: 0.98)
+        default: Color(white: 0.04)
+        }
     }
+    static func brandInk(_ ai: AI) -> Color { ai == .grok ? Color(white: 0.04) : .white }
     static func finishTitle(_ ai: AI) -> String { "Finish in \(ai.name)." }
     static func connectedTitle(_ ai: AI) -> String { "\(ai.Name) is connected." }
     /// Another AI: the address is on the clipboard, to paste into it.
@@ -596,20 +606,21 @@ struct SetupCardsFlow: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("setup.reads")
             }
-            let brands: [SetupCards.AI] = [.chatgpt, .claude]
+            let brands = SetupCards.brands
             switch SetupCards.connectLook {
             case .brandButtons:
                 VStack(spacing: 8) {
                     ForEach(brands) { choice in
-                        Button { connect(choice) } label: {
+                        Button { brandPicked(choice) } label: {
                             HStack(spacing: 10) {
                                 AIGlyph(ai: choice.mark, size: 20, monochrome: true)
                                 Text(choice.button).font(.system(size: 15, weight: .semibold))
                             }
-                            .foregroundStyle(.white)
+                            .foregroundStyle(SetupCards.brandInk(choice))
                             .frame(maxWidth: .infinity, minHeight: 46)
                             .background(SetupCards.brandFill(choice), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(choice == .grok ? Color.black.opacity(0.14) : Color.white.opacity(0.08), lineWidth: 1))
                             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
                         .buttonStyle(.tile(radius: 12))
@@ -670,6 +681,11 @@ struct SetupCardsFlow: View {
 
     /// A pick in the row: Codex is added on this Mac; Other waits for any app while its page
     /// (the address and the steps) is open over the card.
+    /// A brand button: ChatGPT and Claude start at once; Grok opens its guide over the card.
+    private func brandPicked(_ choice: SetupCards.AI) {
+        if choice == .grok { rowPicked("Grok") } else { connect(choice) }
+    }
+
     private func rowPicked(_ name: String) {
         switch name {
         case "Codex": connect(.codex)
@@ -743,42 +759,15 @@ struct SetupCardsFlow: View {
                 .foregroundStyle(Color.muted)
             }
         case .row:
-            VStack(spacing: 14) {
-                HStack(spacing: 8) {
-                    ForEach(SetupCards.rowAIs) { other in
-                        if SetupCards.comingSoon.contains(other.name) {
-                            HStack(spacing: 7) {
-                                AIGlyph(ai: other.name, size: 15).opacity(0.55)
-                                Text(other.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
-                                Text("Soon").font(.system(size: 11)).foregroundStyle(Color.muted.opacity(0.8))
-                            }
-                            .fixedSize()
-                            .padding(.horizontal, 14)
-                            .frame(minHeight: 34)
-                            .background(SetupCards.soft.opacity(0.45), in: Capsule())
-                            .accessibilityElement(children: .combine)
-                            .accessibilityLabel("\(other.name), coming soon")
-                        } else {
-                        Button { rowPicked(other.name) } label: {
-                            HStack(spacing: 7) {
-                                AIGlyph(ai: other.name, size: 15)
-                                Text(other.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                            }
-                            .padding(.horizontal, 16)
-                            .frame(minWidth: 96, minHeight: 34)
-                            .background(SetupCards.soft, in: Capsule())
-                            .contentShape(Capsule())
-                        }
-                        .buttonStyle(.tile(radius: 17))
-                        .accessibilityLabel(other.name == "Other" ? "Other apps" : "Connect \(other.name)")
-                        .accessibilityIdentifier("setup.ai.\(other.name.lowercased())")
-                        }
-                    }
-                }
+            HStack(spacing: 22) {
+                Button(SetupCards.anotherAppLink) { rowPicked("Other") }
+                    .buttonStyle(.hoverLink)
+                    .accessibilityLabel("Connect another app")
+                    .accessibilityIdentifier("setup.ai.other")
                 notNowLink
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color.muted)
             }
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(Color.muted)
         case .chips:
             VStack(spacing: 12) {
                 LazyVGrid(columns: three, spacing: 8) {
