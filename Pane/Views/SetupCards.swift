@@ -175,6 +175,9 @@ enum SetupCards {
     }
     static func brandInk(_ ai: AI) -> Color { ai == .grok ? Color(white: 0.04) : .white }
     static func finishTitle(_ ai: AI) -> String { "Finish in \(ai.name)." }
+    /// Claude's connector directory still lists Pinto Notes under its old name (2 November 2026):
+    /// said on the wait, when the person sees it there.
+    static func oldNameLine(_ ai: AI) -> String? { ai == .claude ? "In Claude it\u{2019}s still called Amber Notes, our old name." : nil }
     static func connectedTitle(_ ai: AI) -> String { "\(ai.Name) is connected." }
     /// Another AI: the address is on the clipboard, to paste into it.
     static let otherLine = "The address is copied. Paste it into your AI\u{2019}s connector settings."
@@ -909,6 +912,10 @@ struct SetupCardsFlow: View {
         VStack(spacing: 14) {
             pair
             title(SetupCards.finishTitle(shownAI))
+            if let line = SetupCards.oldNameLine(shownAI) {
+                Text(line).font(.footnote).foregroundStyle(Color.muted).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("setup.oldName")
+            }
             if shownAI == .other {
                 Text(SetupCards.otherLine).font(.footnote).foregroundStyle(Color.muted).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
             }

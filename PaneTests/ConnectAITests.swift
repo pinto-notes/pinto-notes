@@ -603,6 +603,21 @@ import Testing
     }
 
     #if os(macOS)
+    /// Emil, 2 November 2026: Connect ChatGPT on the setup card opened the old custom MCP walk,
+    /// not the published plugin. It opens the plugin's page in ChatGPT.
+    @MainActor @Test func connectChatGPTOpensThePlugin() throws {
+        final class Opened { var urls: [URL] = [] }
+        let opened = Opened()
+        let run = ConnectRun()
+        run.address = "https://mcp.example.com"
+        let client = SupabaseClient(supabaseURL: URL(string: "http://localhost")!, supabaseKey: "test")
+        run.start(.chatgpt, client: client, open: { opened.urls.append($0) })
+        defer { run.stop() }
+        let listing = try #require(ChatGPTPlugin.listing)
+        #expect(opened.urls == [listing])
+        #expect(ConnectCopy.waiting(.chatgpt) == "Finish in ChatGPT: choose Connect.")
+    }
+
     /// Claude on a Mac with only Claude Code: once the command has added it, the row moves on to
     /// the sign-in. Found on the Air: the run was Claude's and the add Claude Code's, so the row
     /// stayed on "Adding it to Claude Code…" for good.

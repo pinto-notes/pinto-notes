@@ -280,8 +280,14 @@ final class ConnectRun {
         #if os(macOS)
         switch g {
         case .chatgpt:
-            copy(server)
-            open(WebConnectPlan.chatgpt.setupPage(server: server))
+            // The plugin's own page in ChatGPT (published 28 October 2026): Connect there is the
+            // whole step. Without it, the old walk with the address copied.
+            if let listing = ChatGPTPlugin.listing {
+                open(listing)
+            } else {
+                copy(server)
+                open(WebConnectPlan.chatgpt.setupPage(server: server))
+            }
             wait(client, ConnectCopy.waiting(.chatgpt))
         case .claude:
             if direct {
@@ -788,7 +794,7 @@ enum ConnectCopy {
 
     static func waiting(_ g: Guide) -> String {
         switch g {
-        case .chatgpt: "Finish on chatgpt.com. The link is copied."
+        case .chatgpt: ChatGPTPlugin.listing == nil ? "Finish on chatgpt.com. The link is copied." : "Finish in ChatGPT: choose Connect."
         case .claude: "Finish in Claude: choose Connect."
         case .grok: "Finish on grok.com. The link is copied."
         default: "Link copied. Paste it in your AI app."

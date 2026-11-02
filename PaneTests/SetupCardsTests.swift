@@ -233,6 +233,12 @@ import Testing
         }
     }
 
+    /// Claude's directory still lists Pinto Notes as Amber Notes: the wait says so, for Claude only.
+    @Test func claudesWaitExplainsTheOldName() {
+        #expect(SetupCards.oldNameLine(.claude) == "In Claude it\u{2019}s still called Amber Notes, our old name.")
+        for ai in [SetupCards.AI.chatgpt, .grok, .other, .codex] { #expect(SetupCards.oldNameLine(ai) == nil) }
+    }
+
     @Test func afterConnectingTheGalleryIsNext() {
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .connect, connected: false) == nil)
