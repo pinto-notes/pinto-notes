@@ -197,7 +197,9 @@ struct RowMenuButton<Items: View>: View {
     @State private var hovering = false
 
     var body: some View {
-        Menu(content: items) {
+        // Its items' icons in the label colour, as in Notes, not the app's accent (Emil,
+        // 2 November 2026); Delete keeps its red.
+        Menu(content: { items().tint(.primary) }) {
             Image(systemName: "ellipsis.circle")
                 .font(.system(size: 14))
                 .foregroundStyle(hovering ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))

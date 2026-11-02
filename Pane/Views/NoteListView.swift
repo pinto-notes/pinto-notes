@@ -263,7 +263,8 @@ struct NoteListView: View {
         // Right-click acts on the whole selection when the row is part of it, like Notes. On
         // iPhone each row has its own long-press menu, with the note as its preview (noteRow).
         .contextMenu(forSelectionType: UUID.self) { ids in
-            menu(for: ids, folders: foldersByName)
+            // Icons in the label colour, as in Notes, not the app's accent (Delete keeps its red).
+            menu(for: ids, folders: foldersByName).tint(.primary)
         }
         // Another folder or another library is another list, built new. Kept as one list,
         // SwiftUI worked out the difference row by row and sized every row that came or went:
@@ -889,7 +890,7 @@ struct NoteListView: View {
             }
             Menu("Move to", systemImage: "folder") {
                 ForEach(folders) { f in
-                    Button(f.name) { withAnimation(.snappy) { context.move(note, to: f) } }
+                    Button(f.name, systemImage: "folder") { withAnimation(.snappy) { context.move(note, to: f) } }
                         .disabled(note.folder?.id == f.id)
                 }
             }
@@ -919,7 +920,7 @@ struct NoteListView: View {
             }
             Menu("Move to", systemImage: "folder") {
                 ForEach(folders) { f in
-                    Button(f.name) { withAnimation(.snappy) { context.move(file, to: f) } }
+                    Button(f.name, systemImage: "folder") { withAnimation(.snappy) { context.move(file, to: f) } }
                         .disabled(file.folderID == f.id)
                 }
             }
@@ -1595,7 +1596,10 @@ enum RowMetrics {
     /// C and D: room the hairlines used to give, as air above and below each row.
     static var calmAir: CGFloat { DesignLook.calmList ? 3 : 0 }
     static let spacing: CGFloat = 3
-    static let leading: CGFloat = 18
+    /// The title's start past the list's own 16 pt: 26 pt in from the row's edge, 16 inside the
+    /// selected card. Apple Notes has 34; on the card that read as padded (Emil, 2 November 2026).
+    /// The unread dot keeps its room in front of the title.
+    static let leading: CGFloat = 10
     /// Room above and below a row's lines: less when it has a third line, its folder.
     static func top(folderLine: Bool) -> CGFloat { folderLine ? 4 : 7 }
     static func bottom(folderLine: Bool) -> CGFloat { folderLine ? 4 : 7 }
@@ -1693,6 +1697,9 @@ private struct ListRow: View, @MainActor Equatable {
 
     var body: some View {
         NoteRow(note: note, query: query, showFolder: showFolder, datedByCreation: datedByCreation)
+            // The row's full width, so the ••• over it sits at the row's right edge, not at the end
+            // of a short title (Emil, 2 November 2026). Before the drag, so the whole row drags.
+            .frame(maxWidth: .infinity, alignment: .leading)
             .draggable(PaneDragItem(kind: .note, id: note.id, others: dragWith)) {
                 Label(dragWith != nil ? "\(selectedCount) Notes" : note.title, systemImage: dragWith != nil ? "doc.on.doc" : "note.text")
                     .padding(.horizontal, 12).padding(.vertical, 8)
@@ -1880,7 +1887,8 @@ private struct NoteRowHover<Items: View>: ViewModifier {
         HoverRowReader(id: note.title, reach: Hover.noteRowReach, selected: selected, card: DesignLook.calmList, pointer: pointer) { hovering in
             content
                 #if os(macOS)
-                // Always the top right corner, on the title's line, whatever the row holds.
+                // Always the row's top right corner, on the title's line, whatever the row holds
+                // (ListRow fills the row's width, so the ••• is at its edge, not after the text).
                 .overlay(alignment: .topTrailing) {
                     HoverSwap(on: hovering, help: "Note options") { EmptyView() } items: { items() }
                         .padding(.top, top)

@@ -8,7 +8,7 @@ import Testing
 /// The note list's rows against Apple Notes on macOS 26, read through Accessibility in a 237 pt
 /// list column (owner, 2026-10-12: "still looks denser", "the note title and subtitle needs a bit
 /// of spacing"). Apple's rows: 68 pt with the folder line, 56 without; its section headings 40;
-/// the text 34 pt in from the row's left edge. Where a line's letters start is matched rather
+/// the text 26 pt in from the row's left edge (34 in Notes; tighter on the card, Emil 2026-11-02). Where a line's letters start is matched rather
 /// than its text box, since Apple's boxes are taller than SwiftUI's for the same line.
 @MainActor @Suite(.serialized) struct NoteListGeometryTests {
     /// The real note list in an offscreen window as wide as Apple Notes' list column.
@@ -85,17 +85,22 @@ import Testing
 
     /// Where a row's content (the note row with its padding) sits in its row: x from the row's
     /// left edge, y from its top.
+    static let listRowInset: CGFloat = 4
+
     static func content(_ table: NSTableView, _ row: Int) -> CGRect? {
         guard let rv = table.rowView(atRow: row, makeIfNecessary: true) else { return nil }
         func find(_ v: NSView) -> NSView? {
-            if String(describing: type(of: v)).contains("DraggingDestination") { return v }
+            // The row's SwiftUI content: the cell's hosting view. (It used to be a drag host
+            // inside it; SwiftUI no longer makes one, so this found nothing on release/1.3.)
+            if String(describing: type(of: v)).hasPrefix("CellHostingView") { return v }
             for s in v.subviews { if let f = find(s) { return f } }
             return nil
         }
         guard let v = find(rv) else { return nil }
         var f = v.convert(v.bounds, to: rv)
         if !rv.isFlipped { f.origin.y = rv.bounds.height - f.maxY }
-        return f
+        // The List sets a row's content 4 pt into its cell, as the drag host showed.
+        return f.insetBy(dx: 0, dy: listRowInset)
     }
 
     /// The height SwiftUI gives one line of text in `font`.
@@ -125,7 +130,7 @@ import Testing
             for r in notes {
                 #expect(abs(table.rect(ofRow: r).height - height) < 0.5, "note row \(r) in \(scope): \(table.rect(ofRow: r).height)")
                 let box = try #require(Self.content(table, r))
-                #expect(abs(box.minX + RowMetrics.leading - 34) < 0.5)
+                #expect(abs(box.minX + RowMetrics.leading - 26) < 0.5)
                 let folderLine = scope == .all
                 let top = box.minY + RowMetrics.top(folderLine: folderLine) + air
                 #expect(abs(top - titleTop) <= 0.5, "title line at \(top)")
