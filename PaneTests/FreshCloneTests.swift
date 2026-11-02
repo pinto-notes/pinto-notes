@@ -87,6 +87,12 @@ import Testing
         #expect(SidebarView.showsHeading(folders: 1, trashed: 0))
         #expect(SidebarView.showsHeading(folders: 0, trashed: 2))
     }
+
+    /// Under the sign-in form: short, and still says it never sends your notes and can be
+    /// turned off (Emil, 2 November 2026).
+    @Test func theSignInDisclosureIsShort() {
+        #expect(DiagnosticsCopy.signIn == "Sends error reports and a few counts, never your notes. Turn off in Settings.")
+    }
 }
 
 #endif
