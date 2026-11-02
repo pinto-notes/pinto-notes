@@ -1,4 +1,5 @@
 #if os(macOS)
+import AppKit
 import Foundation
 import Testing
 @testable import Pane
@@ -103,6 +104,19 @@ import Testing
             #expect(sentence.runs.filter { $0.link == nil }.allSatisfy { $0.underlineStyle == nil })
         }
     }
+
+    #if os(macOS)
+    /// On the Mac the sign-in footer's links carry the hand cursor and stay links.
+    @MainActor @Test func theFooterLinksShowAHand() {
+        let styled = LinkLabel.styled(Legal.consentSentence)
+        var hands = 0, links = 0
+        styled.enumerateAttributes(in: NSRange(location: 0, length: styled.length)) { attrs, _, _ in
+            if attrs[.link] != nil { links += 1; if (attrs[.cursor] as? NSCursor) == NSCursor.pointingHand { hands += 1 } }
+        }
+        #expect(links == 2 && hands == 2)
+        #expect(LinkLabel.View().acceptsFirstMouse(for: nil), "a link opens on the first click, the window behind or not")
+    }
+    #endif
 }
 
 #endif

@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 /// Amber Notes' terms and privacy policy, on the share site.
 enum Legal {
@@ -39,6 +42,14 @@ extension Legal {
 /// what the app reports about itself (DiagnosticsCopy). One paragraph for VoiceOver.
 struct ConsentFooter: View {
     var body: some View {
+        #if os(macOS)
+        // AppKit's label: the pointer turns to a hand over each link, which SwiftUI's Text
+        // doesn't do for links inside a sentence (Emil, 2 November 2026).
+        LinkLabel(text: Legal.consentSentence + AttributedString(" " + DiagnosticsCopy.signIn))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            .accessibilityIdentifier("signin.legal")
+        #else
         Text(Legal.consentSentence + AttributedString(" " + DiagnosticsCopy.signIn))
             .font(.footnote)
             .foregroundStyle(Color.muted)
@@ -48,8 +59,66 @@ struct ConsentFooter: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4) // a taller tap area for the links
             .accessibilityIdentifier("signin.legal")
+        #endif
     }
 }
+
+#if os(macOS)
+/// A small centred paragraph with links in it, drawn by AppKit so the pointer becomes a hand
+/// over a link and a link opens on the first click. Footnote size, muted, links in the accent and underlined.
+struct LinkLabel: NSViewRepresentable {
+    let text: AttributedString
+
+    /// A read-only text view: it follows a link on the first click, even with the window in the
+    /// background (a selectable label took one click to wake up first), and shows the hand.
+    final class View: NSTextView {
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        override var acceptsFirstResponder: Bool { false }
+    }
+
+    func makeNSView(context: Context) -> View {
+        let view = View()
+        view.isEditable = false
+        view.isSelectable = true
+        view.drawsBackground = false
+        view.textContainerInset = .zero
+        view.textContainer?.lineFragmentPadding = 0
+        view.textContainer?.widthTracksTextView = true
+        view.isVerticallyResizable = false
+        view.linkTextAttributes = [.foregroundColor: PColor.paneAccent, .underlineStyle: NSUnderlineStyle.single.rawValue,
+                                   .cursor: NSCursor.pointingHand]
+        return view
+    }
+
+    func updateNSView(_ view: View, context: Context) {
+        let styled = Self.styled(text)
+        if view.attributedString() != styled { view.textStorage?.setAttributedString(styled) }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView view: View, context: Context) -> CGSize? {
+        let width = proposal.width ?? 360
+        let height = Self.styled(text).boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude),
+                                                    options: [.usesLineFragmentOrigin, .usesFontLeading]).height
+        return CGSize(width: width, height: ceil(height) + 2)
+    }
+
+    static func styled(_ text: AttributedString) -> NSAttributedString {
+        let out = NSMutableAttributedString(attributedString: NSAttributedString(text))
+        let all = NSRange(location: 0, length: out.length)
+        let centred = NSMutableParagraphStyle()
+        centred.alignment = .center
+        out.addAttributes([.font: NSFont.preferredFont(forTextStyle: .footnote),
+                           .foregroundColor: Palette.muted,
+                           .paragraphStyle: centred], range: all)
+        out.enumerateAttribute(.link, in: all) { value, range, _ in
+            guard value != nil else { return }
+            out.addAttributes([.foregroundColor: PColor.paneAccent, .underlineStyle: NSUnderlineStyle.single.rawValue,
+                               .cursor: NSCursor.pointingHand], range: range)
+        }
+        return out
+    }
+}
+#endif
 
 /// "Terms of Service · Privacy Policy" for Settings › General, under About.
 struct LegalLinksRow: View {
