@@ -87,6 +87,16 @@ import Testing
         }
     }
 
+    /// Emil, 2 November 2026: the note's tools stood about 50 pt in from the window's right edge,
+    /// because the empty item that keeps the toolbar's column was last. It goes first.
+    @Test func theNoteToolsReachTheRightEdge() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views/NoteDetailView.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+        let anchor = try #require(source.range(of: "ToolbarItem { Color.clear.frame(width: 1, height: 1)"))
+        let tools = try #require(source.range(of: "Button(\"Checklist\", systemImage: \"checklist\", action: controller.checklist)"))
+        #expect(anchor.lowerBound < tools.lowerBound, "the empty anchor item comes before the tools, not after them")
+    }
+
     /// There is no sidebar-hidden state (Emil, 11-01): Toggle Sidebar (⌃⌘S) does nothing, and the
     /// window can't get narrower than the three columns, so it never folds away.
     @Test func nothingHidesTheSidebar() async throws {

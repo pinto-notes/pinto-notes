@@ -1535,6 +1535,11 @@ struct NoteToolbarStage<Pane: View>: View {
             }
         }
             .toolbar {
+                // Keep the column anchor in place even while every note item is hidden. First, at the
+                // left: last, its empty slot pushed the note's tools in from the window's right edge
+                // (Emil, 2 November 2026).
+                ToolbarItem { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
+                    .sharedBackgroundVisibility(.hidden)
                 if let shown = self.parts {
                     // Back and forward on the left, the note's tools on the right (Emil, 11-01: no
                     // breadcrumbs; the list already says which note and folder this is).
@@ -1575,9 +1580,6 @@ struct NoteToolbarStage<Pane: View>: View {
                     }
                     ToolbarItemGroup { shown.sharing.disabled(!showsItems) }.hidden(!showsItems)
                 }
-                // Keep the column anchor in place even while every note item is hidden.
-                ToolbarItem { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
-                    .sharedBackgroundVisibility(.hidden)
             }
     }
 }
