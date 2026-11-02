@@ -1,4 +1,5 @@
 import QuickLook
+import Observation
 import SwiftData
 import SwiftUI
 import TipKit
@@ -888,7 +889,7 @@ struct NoteDetailView: View {
         // Counted here, once per body: a statement in the body itself is more than the
         // compiler can type-check in time.
         #if DEBUG
-        RenderProbe.count("NoteDetailView")
+        RenderProbe.count("NoteDetailView", context: context)
         #endif
         return content
             .ignoresSafeArea(.container, edges: .bottom)
@@ -925,23 +926,8 @@ struct NoteDetailView: View {
     private var toolbarParts: NoteToolbarParts {
         NoteToolbarParts(
             // A note with an app is just the app: no writing tools. Nor in Recently Deleted, like Notes.
-            writing: notePage != nil || trashed ? nil : AnyView(Group {
-                FormatButton(controller: controller).disabled(hidden)
-                Button("Checklist", systemImage: "checklist", action: controller.checklist)
-                    .help("Checklist (⇧⌘L)")
-                    .disabled(hidden)
-                // In a table it's the table's menu, like Notes.
-                if let menu = controller.currentTableMenu {
-                    Menu { TableMenuItems(menu: menu) } label: { Label("Table", systemImage: "tablecells") }
-                        .help("Table")
-                        .disabled(hidden)
-                } else {
-                    Button("Table", systemImage: "tablecells", action: controller.insertTable)
-                        .help("Table (⌥⌘T)")
-                        .disabled(hidden)
-                }
-                attachMenu
-            }),
+            writingDisabled: hidden,
+            attachment: AnyView(attachMenu),
             people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
             // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
             sharing: AnyView(Group {
@@ -1379,7 +1365,7 @@ private struct NoteEditorText: View {
 
     var body: some View {
         #if DEBUG
-        let _ = RenderProbe.count("NoteEditorText")
+        let _ = RenderProbe.count("NoteEditorText", context: note.modelContext)
         #endif
         // A locked note that isn't open has no text to give the editor; its pane shows the lock.
         if let text = NoteVault.shared.text(of: note) {
@@ -1481,8 +1467,9 @@ private struct HostAskAlert: ViewModifier {
 /// `NoteToolbarStage` stands in the detail column for as long as a note is open and shows them
 /// in a toolbar that stays: the items are brought up to date in place, like any other view.
 struct NoteToolbarParts: Equatable, @unchecked Sendable {
-    /// Format, Checklist, Table, Attach; none for a note that is an app.
-    var writing: AnyView?
+    /// The writing controls belong to the persistent stage. Only Attach opens this pane's UI.
+    var writingDisabled: Bool
+    var attachment: AnyView
     /// Who else is in a shared note.
     var people: AnyView?
     /// Share and More.
@@ -1511,12 +1498,12 @@ struct NoteToolbarKey: PreferenceKey {
 /// be on a view around the pane: put on the pane itself, also from outside its `.id`, the
 /// column makes it again with every note.)
 struct NoteToolbarStage<Pane: View>: View {
-    /// A note is in the pane. Without one the last note's items stay in the toolbar, unseen and
-    /// out of reach: putting them back for the next note took longer than the note itself
-    /// (80 of 150 ms from the empty pane, 10-30).
+    /// Hide the native items, including their glass, while keeping the controls built.
     var showsItems = true
+    var showsWriting = true
     /// The notes opened before and after this one (back and forward).
     var history = OpenedNotes.Actions()
+    let controller: EditorController
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
 
@@ -1524,12 +1511,17 @@ struct NoteToolbarStage<Pane: View>: View {
         let parts = $parts
         ZStack {
             // A turn after the pane made them. A pane that has just gone leaves the items as they
-            // are: the next pane's are on their way, and without a note they stay unseen.
-            pane.onPreferenceChange(NoteToolbarKey.self) { if let made = $0 { parts.wrappedValue = made } }
+            // are: the next pane's are on their way. Native hidden items have no glass.
+            pane.onPreferenceChange(NoteToolbarKey.self) {
+                guard let made = $0 else { return }
+                // A different note replaces its tools in place, without a toolbar animation.
+                var instant = Transaction(animation: nil)
+                instant.disablesAnimations = true
+                withTransaction(instant) { parts.wrappedValue = made }
+            }
         }
             .toolbar {
                 if let shown = self.parts {
-                    let off = !showsItems
                     // Back and forward on the left, the note's tools on the right (Emil, 11-01: no
                     // breadcrumbs; the list already says which note and folder this is).
                     ToolbarItemGroup {
@@ -1537,48 +1529,42 @@ struct NoteToolbarStage<Pane: View>: View {
                             Button("Back", systemImage: "chevron.backward") { history.back() }
                                 .help("Back (⌘[)")
                                 .keyboardShortcut("[", modifiers: .command)
-                                .disabled(!history.canGoBack)
+                                .disabled(!showsItems || !history.canGoBack)
                             Button("Forward", systemImage: "chevron.forward") { history.forward() }
                                 .help("Forward (⌘])")
                                 .keyboardShortcut("]", modifiers: .command)
-                                .disabled(!history.canGoForward)
+                                .disabled(!showsItems || !history.canGoForward)
                         }
-                        .modifier(Unseen(off: off))
                     }
                     .sharedBackgroundVisibility(.hidden)
-                    ToolbarSpacer(.flexible)
-                    if let writing = shown.writing {
-                        ToolbarItemGroup { writing.modifier(Unseen(off: off)) }
-                            .sharedBackgroundVisibility(off ? .hidden : .automatic)
+                    .hidden(!showsItems)
+                    ToolbarSpacer(.flexible).hidden(!showsItems)
+                    ToolbarItemGroup {
+                        Group {
+                            FormatButton(controller: controller)
+                            Button("Checklist", systemImage: "checklist", action: controller.checklist)
+                                .help("Checklist (⇧⌘L)")
+                            if let menu = controller.currentTableMenu {
+                                Menu { TableMenuItems(menu: menu) } label: { Label("Table", systemImage: "tablecells") }
+                                    .help("Table")
+                            } else {
+                                Button("Table", systemImage: "tablecells", action: controller.insertTable)
+                                    .help("Table (⌥⌘T)")
+                            }
+                            shown.attachment
+                        }
+                        .disabled(!showsItems || !showsWriting || shown.writingDisabled)
                     }
+                    .hidden(!showsItems || !showsWriting)
                     if let people = shown.people {
-                        ToolbarItem { people.modifier(Unseen(off: off)) }
-                            .sharedBackgroundVisibility(off ? .hidden : .automatic)
+                        ToolbarItem { people.disabled(!showsItems) }.hidden(!showsItems)
                     }
-                    ToolbarItemGroup { shown.sharing.modifier(Unseen(off: off)) }
-                        .sharedBackgroundVisibility(off ? .hidden : .automatic)
-                } else {
-                    // No note yet: nothing to see, but an item of the column's own; without one the
-                    // list's items spread over the whole window.
-                    ToolbarItem { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
-                        .sharedBackgroundVisibility(.hidden)
+                    ToolbarItemGroup { shown.sharing.disabled(!showsItems) }.hidden(!showsItems)
                 }
+                // Keep the column anchor in place even while every note item is hidden.
+                ToolbarItem { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
+                    .sharedBackgroundVisibility(.hidden)
             }
-    }
-}
-#endif
-
-#if os(macOS)
-/// A toolbar item kept while it has nothing to do: not drawn, not clickable, not read out.
-private struct Unseen: ViewModifier {
-    let off: Bool
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(off ? 0 : 1)
-            .disabled(off)
-            .allowsHitTesting(!off)
-            .accessibilityHidden(off)
     }
 }
 #endif
@@ -1611,17 +1597,20 @@ final class LinkLanding {
 
 /// The notes you opened, in order, for Back and Forward over the note (Mac), like a browser:
 /// opening a note any way puts the one before on the back list and clears forward.
-struct OpenedNotes: Equatable {
+@MainActor @Observable
+final class OpenedNotes {
     private(set) var backList: [UUID] = []
     private(set) var forwardList: [UUID] = []
+    /// Clearing the history acknowledgement does not change what any view shows. With @State
+    /// value history it rebuilt RootView and the detail a second time for every step.
     /// The note Back or Forward is opening right now.
-    private var expected: UUID?
+    @ObservationIgnored private var expected: UUID?
 
     var canGoBack: Bool { !backList.isEmpty }
     var canGoForward: Bool { !forwardList.isEmpty }
 
     /// The open note changed from `old` to `new`.
-    mutating func opened(from old: UUID?, to new: UUID?) {
+    func opened(from old: UUID?, to new: UUID?) {
         guard let new else { return }
         if new == expected { expected = nil; return }
         expected = nil
@@ -1632,7 +1621,7 @@ struct OpenedNotes: Equatable {
     }
 
     /// Back from `current`: the note to open, skipping any `gone` (deleted since).
-    mutating func back(from current: UUID?, gone: (UUID) -> Bool = { _ in false }) -> UUID? {
+    func back(from current: UUID?, gone: (UUID) -> Bool = { _ in false }) -> UUID? {
         while let p = backList.popLast() {
             guard !gone(p) else { continue }
             if let current { forwardList.append(current) }
@@ -1643,7 +1632,7 @@ struct OpenedNotes: Equatable {
     }
 
     /// Forward from `current`.
-    mutating func forward(from current: UUID?, gone: (UUID) -> Bool = { _ in false }) -> UUID? {
+    func forward(from current: UUID?, gone: (UUID) -> Bool = { _ in false }) -> UUID? {
         while let n = forwardList.popLast() {
             guard !gone(n) else { continue }
             if let current { backList.append(current) }
@@ -1654,9 +1643,11 @@ struct OpenedNotes: Equatable {
     }
 
     /// What the toolbar needs: whether each way is open, and the actions.
-    struct Actions {
-        var canGoBack = false
-        var canGoForward = false
+    @MainActor struct Actions {
+        // Read by the toolbar, not RootView: history button state does not rebuild the pane.
+        var notes: OpenedNotes?
+        var canGoBack: Bool { notes?.canGoBack ?? false }
+        var canGoForward: Bool { notes?.canGoForward ?? false }
         var back: () -> Void = {}
         var forward: () -> Void = {}
     }

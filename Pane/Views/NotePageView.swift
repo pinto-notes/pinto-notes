@@ -44,7 +44,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// Compiles the rules and starts a spare sandbox. Called at launch and whenever the spare is taken.
     static func prewarm() {
         Task { @MainActor in
-            guard spare == nil, let rules = try? await prepare() else { return }
+            guard spare == nil, let rules = try? await prepare(), spare == nil else { return }
             let s = NotePageSandbox(rules: rules)
             s.expected.append("about:blank")
             s.webView.loadHTMLString("<!doctype html><title></title>", baseURL: nil)
@@ -52,9 +52,31 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         }
     }
 
-    /// The spare sandbox if there is one, else a new one; another spare starts behind it.
+    /// How long after a spare is taken the next one starts. Starting one launches a web content
+    /// process on the main thread (registering the Mac's fonts with it): about 18 ms, which landed
+    /// in the open of the app note that took the spare, or of the note clicked next (2026-11-02).
+    static let respareDelay: Duration = .seconds(2)
+
+    private(set) static var respareTask: Task<Void, Never>?
+
+    /// A spare starts only once navigation has been quiet for two seconds. Separate delayed
+    /// tasks from earlier app opens otherwise launched WebKit during a later Back/Forward step.
+    private static func scheduleSpare() {
+        respareTask?.cancel()
+        respareTask = Task { @MainActor in
+            do { try await Task.sleep(for: respareDelay) } catch { return }
+            respareTask = nil
+            prewarm()
+        }
+    }
+
+    static func navigationOccurred() {
+        if respareTask != nil { scheduleSpare() }
+    }
+
+    /// The spare sandbox if there is one, else a new one; another spare starts after navigation rests.
     static func make() async throws -> NotePageSandbox {
-        defer { prewarm() }
+        defer { scheduleSpare() }
         if let s = spare { spare = nil; return s }
         return NotePageSandbox(rules: try await prepare())
     }
@@ -107,6 +129,18 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         webView.setValue(false, forKey: "drawsBackground")
         webView.setAccessibilityIdentifier("notePage.web")
         #endif
+    }
+
+    /// A departed page must stop calling into the old SwiftUI state. These callbacks can hold
+    /// the view's state, which in turn owns the sandbox.
+    func disconnect() {
+        webView.stopLoading()
+        onReady = {}
+        onFailure = { _ in }
+        onFocus = { _ in }
+        onUpdate = { _ in }
+        onData = { _ in throw NotePage.OpError("Not available.") }
+        files = { _ in nil }
     }
 
     /// Shows `html` with `body` as its note. The document's own <!doctype> gives way to the policy.
@@ -548,6 +582,7 @@ struct NotePageView: View {
     @State private var sandbox: NotePageSandbox?
     @State private var failed: String?
     @State private var ready = false
+    @State private var snapshotTask: Task<Void, Never>?
     /// The version on screen, and a newer one waiting while you use this one.
     @State private var shown: String?
     @State private var pending: String?
@@ -582,39 +617,54 @@ struct NotePageView: View {
             carry = nil
             do {
                 let s = try await NotePageSandbox.make()
+                guard !Task.isCancelled else { s.disconnect(); return }
                 #if os(iOS)
                 s.webView.scrollView.isScrollEnabled = scrolls
                 #endif
                 s.onUpdate = onUpdate
                 s.isWidget = snapshotVariant == "widget"
                 ready = false
-                s.onReady = { [noteID, html, scheme, snapshotVariant] in
+                s.onReady = { [weak s, noteID, html, scheme, snapshotVariant] in
+                    guard let s else { return }
+                    s.onReady = {}
                     NotePageTiming.shown(noteID, "interactive")
                     withAnimation(.easeOut(duration: 0.15)) { ready = true }
                     // The picture for next time, once the page has settled.
-                    if preview == nil { Task { @MainActor in
-                        try? await Task.sleep(for: .milliseconds(400))
-                        NotePageSnapshots.shared.take(s.webView, noteID, html: html, dark: scheme == .dark, variant: snapshotVariant)
-                    } }
+                    snapshotTask?.cancel()
+                    if preview == nil {
+                        snapshotTask = Task { @MainActor [weak s] in
+                            do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+                            guard let s else { return }
+                            NotePageSnapshots.shared.take(s.webView, noteID, html: html, dark: scheme == .dark, variant: snapshotVariant)
+                        }
+                    }
                 }
                 s.onFailure = onFailure
                 s.onFocus = onFocus
                 s.onData = onData
                 s.files = files
                 s.load(html: html, body: text, data: preview ?? NotePageDataStore.shared.doc(noteID), restore: restore)
+                sandbox?.disconnect()
                 sandbox = s
                 // An app that hasn't drawn after 8 seconds didn't open (a module that never loads, an
                 // endless loop): the same as a script error.
                 if snapshotVariant == "full" {
                     let loaded = html
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .seconds(8))
-                        if sandbox === s, !ready, current == loaded { onFailure(["It didn't open within 8 seconds."]) }
-                    }
+                    // This task belongs to the view. Leaving or swapping versions cancels its
+                    // timeout, rather than keeping the departed web view alive for eight seconds.
+                    do { try await Task.sleep(for: .seconds(8)) } catch { return }
+                    if sandbox === s, !ready, current == loaded { onFailure(["It didn't open within 8 seconds."]) }
                 }
             } catch {
                 failed = error.localizedDescription
             }
+        }
+        .onDisappear {
+            snapshotTask?.cancel()
+            snapshotTask = nil
+            sandbox?.disconnect()
+            sandbox = nil
+            ready = false
         }
         .onChange(of: text) { _, now in sandbox?.push(body: now, data: preview ?? NotePageDataStore.shared.doc(noteID)) }
         .onChange(of: insetBottom) { _, now in sandbox?.setInsets(bottom: now) }
@@ -724,23 +774,51 @@ final class NotePageSnapshots {
         return i
     }
 
+    /// Pictures taken (for tests).
+    private(set) var taken = 0
+    /// Pictures being taken: asked twice before the first is in, the page is taken once.
+    private var taking: Set<String> = []
+
+    /// Whether there is a picture of this very page already, in memory or on disk.
+    func has(_ id: UUID, html: String, dark: Bool, variant: String = "full") -> Bool {
+        let k = key(id, html, dark, variant)
+        return images[k] != nil || taking.contains(k) || FileManager.default.fileExists(atPath: dir.appending(path: k + ".png").path)
+    }
+
+    /// Takes the page's picture, unless this very page has one. The PNG is made and written off the
+    /// main thread: on it, every open of an app note made a full-size PNG 400 ms after the page was
+    /// ready, in the middle of the next click (2026-11-02).
     func take(_ web: WKWebView, _ id: UUID, html: String, dark: Bool, variant: String = "full") {
         let k = key(id, html, dark, variant)
+        guard !has(id, html: html, dark: dark, variant: variant) else { return }
+        taken += 1
+        taking.insert(k)
         let config = WKSnapshotConfiguration()
         config.afterScreenUpdates = false
         web.takeSnapshot(with: config) { [weak self] image, _ in
-            guard let self, let image else { return }
+            guard let self else { return }
             Task { @MainActor in
+                self.taking.remove(k)
+                guard let image else { return }
                 self.images[k] = image
                 self.latest["\(id.uuidString)-\(dark)-\(variant)"] = image
                 #if os(iOS)
-                let png = image.pngData()
+                nonisolated(unsafe) let picture = image
                 #else
-                let png = image.tiffRepresentation.flatMap { NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:]) }
+                guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+                nonisolated(unsafe) let picture = cg
                 #endif
-                guard let png else { return }
-                try? FileManager.default.createDirectory(at: self.dir, withIntermediateDirectories: true)
-                try? png.write(to: self.dir.appending(path: k + ".png"), options: .atomic)
+                let file = self.dir.appending(path: k + ".png"), dir = self.dir
+                Task.detached(priority: .utility) {
+                    #if os(iOS)
+                    let png = picture.pngData()
+                    #else
+                    let png = NSBitmapImageRep(cgImage: picture).representation(using: .png, properties: [:])
+                    #endif
+                    guard let png else { return }
+                    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                    try? png.write(to: file, options: .atomic)
+                }
             }
         }
     }

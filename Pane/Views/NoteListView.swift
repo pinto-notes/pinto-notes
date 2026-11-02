@@ -161,7 +161,7 @@ struct NoteListView: View {
 
     var body: some View {
         #if DEBUG
-        RenderProbe.count("NoteListView")
+        RenderProbe.count("NoteListView", context: context)
         #endif
         // Worked out once per update and handed down: the list asks many times.
         library.publishesEveryChange = !search.trimmingCharacters(in: .whitespaces).isEmpty
@@ -266,6 +266,12 @@ struct NoteListView: View {
             // Icons in the label colour, as in Notes, not the app's accent (Delete keeps its red).
             menu(for: ids, folders: foldersByName).tint(.primary)
         }
+        #if DEBUG
+        .transaction { RenderProbe.noteListTransaction?(context, visible.map(\.id), $0) }
+        #endif
+        // Only the list animates an untouched note going away. The destination editor opens
+        // in the selection's original transaction, without a fade or a layout interpolation.
+        .animation(.easeOut(duration: 0.2), value: library.discardedEmptyNotes)
         // Another folder or another library is another list, built new. Kept as one list,
         // SwiftUI worked out the difference row by row and sized every row that came or went:
         // 3 to 4 s on the main thread going from a folder back to All Notes with 2,000. A search
@@ -1288,6 +1294,14 @@ struct ListIdentity: Hashable {
 /// Observation (`NoteEntry(untracked:)`).
 @MainActor @Observable
 final class LibraryNotes {
+    /// Drives just the list's removal animation, separately from the editor's selection.
+    private(set) var discardedEmptyNotes = 0
+
+    func discardEmpty(_ note: Note, in context: ModelContext) {
+        discardedEmptyNotes += 1
+        context.purge(note)
+    }
+
     /// Goes up with each change to the entries; reading it is what updates the list.
     private var generation = 0
     @ObservationIgnored private var sorted: [NoteEntry] = []

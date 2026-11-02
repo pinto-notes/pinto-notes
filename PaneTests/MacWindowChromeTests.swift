@@ -37,7 +37,7 @@ import Testing
         let split = try #require(w.contentView.flatMap { find(NSSplitView.self, in: $0) })
         let columns = split.arrangedSubviews.map { $0.isHidden ? CGRect.null : $0.convert($0.bounds, to: nil) }
         return (w.toolbar?.items ?? []).compactMap { item in
-            guard let view = item.view, view.window != nil else { return nil }
+            guard !item.isHidden, let view = item.view, view.window != nil else { return nil }
             let f = view.convert(view.bounds, to: nil)
             let column = columns.firstIndex { !$0.isNull && f.midX >= $0.minX && f.midX < $0.maxX } ?? -1
             return (item.label, column, f)

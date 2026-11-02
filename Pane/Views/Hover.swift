@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// What's under the pointer, on the Mac: rows take a light fill, icon buttons a soft rounded
 /// background, plain-text buttons an underline (links also the pointing hand, as macOS does
@@ -294,9 +295,19 @@ enum HoverProbe {
 @MainActor
 enum RenderProbe {
     static var counts: [String: Int] = [:]
-    static func count(_ name: String) {
-        guard HoverProbe.enabled else { return }
-        counts[name, default: 0] += 1
+    static var noteListTransaction: ((ModelContext, [UUID], Transaction) -> Void)?
+    private static var scoped: [ObjectIdentifier: [String: Int]] = [:]
+
+    /// Parallel window tests must count their own library, independently of the hover probe.
+    static func begin(in context: ModelContext) { scoped[ObjectIdentifier(context)] = [:] }
+    static func values(in context: ModelContext) -> [String: Int] { scoped[ObjectIdentifier(context)] ?? [:] }
+    static func end(in context: ModelContext) { scoped.removeValue(forKey: ObjectIdentifier(context)) }
+
+    static func count(_ name: String, context: ModelContext? = nil) {
+        if HoverProbe.enabled { counts[name, default: 0] += 1 }
+        if let context, scoped[ObjectIdentifier(context)] != nil {
+            scoped[ObjectIdentifier(context), default: [:]][name, default: 0] += 1
+        }
     }
 }
 #endif
