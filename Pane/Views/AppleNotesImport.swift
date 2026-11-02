@@ -635,6 +635,8 @@ struct AppleNotesImportView: View {
 
     /// The room inside the tree's card above its first row and below its last.
     static let treeInset: CGFloat = 12
+    /// The hover pill on a folder or note row: clearly rounded (Emil, 2 November 2026).
+    static let treeHoverRadius: CGFloat = 10
     /// The clear row above the first folder and below the last.
     static var treeEdge: some View {
         Color.clear.frame(height: treeInset).accessibilityHidden(true)
@@ -688,7 +690,7 @@ struct AppleNotesImportView: View {
         .padding(.horizontal, 6)
         .frame(maxWidth: .infinity, minHeight: 32)
         .contentShape(.rect)
-        .hoverHighlight(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .hoverHighlight(RoundedRectangle(cornerRadius: Self.treeHoverRadius, style: .continuous))
         .onTapGesture { if query.isEmpty { toggleOpen() } }
         .accessibilityElement(children: .contain)
         .accessibilityAction(named: open ? "Close \(node.name)" : "Open \(node.name)") { toggleOpen() }
@@ -724,7 +726,7 @@ struct AppleNotesImportView: View {
             .padding(.trailing, 4)
             .frame(maxWidth: .infinity, minHeight: 30)
             .contentShape(.rect)
-            .hoverHighlight(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .hoverHighlight(RoundedRectangle(cornerRadius: Self.treeHoverRadius, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(note.locked)

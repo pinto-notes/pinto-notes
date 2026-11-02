@@ -691,6 +691,8 @@ import Testing
         #expect(AppleNotesImportView.checkbox(.all) == "checkmark.square.fill" && AppleNotesImportView.checkbox(.some) == "minus.square.fill"
                 && AppleNotesImportView.checkbox(.none) == "square", "the Mac's square checkboxes, a dash for some")
         #expect(AppleNotesImportView.treeInset >= 10, "room above the first folder in the card")
+        #expect(AppleNotesImportView.treeHoverRadius >= 10, "the row hover is clearly rounded")
+        #expect(source.components(separatedBy: "cornerRadius: Self.treeHoverRadius").count - 1 == 2, "folder and note rows share one rounded hover")
         // .contentMargins does nothing on a macOS List, so the room is a clear row at both ends.
         #expect(source.components(separatedBy: "Self.treeEdge").count - 1 == 2, "a clear row above the first folder and below the last")
         #expect(!source.contains(".contentMargins(.vertical, Self.treeInset"), "contentMargins doesn't reach a List on macOS")
