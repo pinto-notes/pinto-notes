@@ -45,7 +45,7 @@ struct NoteWindowView: View {
     var body: some View {
         let id = shown ?? noteID
         let note = NoteWindows.note(id, in: context)
-        NoteToolbarStage(showsItems: note != nil, history: actions) {
+        NoteToolbarStage(showsItems: note != nil, history: actions, controller: editor) {
             if let note {
                 NoteDetailView(note: note, controller: editor, inOwnWindow: true, onNewNote: {}) { target, _ in
                     open(target)
@@ -69,7 +69,7 @@ struct NoteWindowView: View {
     private func isGone(_ id: UUID) -> Bool { NoteWindows.note(id, in: context) == nil }
 
     private var actions: OpenedNotes.Actions {
-        OpenedNotes.Actions(canGoBack: history.canGoBack, canGoForward: history.canGoForward,
+        OpenedNotes.Actions(notes: history,
                             back: { if let p = history.back(from: shown ?? noteID, gone: isGone) { shown = p } },
                             forward: { if let n = history.forward(from: shown ?? noteID, gone: isGone) { shown = n } })
     }
@@ -109,7 +109,7 @@ struct FolderWindowView: View {
 
     @ViewBuilder private var detail: some View {
         let note = selected.flatMap { NoteWindows.note($0, in: context) }
-        NoteToolbarStage(showsItems: note != nil) {
+        NoteToolbarStage(showsItems: note != nil, controller: editor) {
             if let note {
                 NoteDetailView(note: note, controller: editor, autofocus: justCreated == note.id, onNewNote: newNote) { target, edit in
                     if edit { justCreated = target }
