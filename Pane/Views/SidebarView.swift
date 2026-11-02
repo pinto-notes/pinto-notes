@@ -241,9 +241,12 @@ extension Notification.Name {
     static let paneNewFolder = Notification.Name("pane.newFolder")
     /// A folder's Rename (its id in `object`), from outside its menus: the Mac opens its name in its row.
     static let paneRenameFolder = Notification.Name("pane.renameFolder")
+    /// Delete Folder for the folder whose id is the object, as its menu does: asks first when it holds anything.
+    static let paneDeleteFolder = Notification.Name("pane.deleteFolder")
 }
 
 struct SidebarView: View {
+    @Environment(\.behindSetupCard) private var behindSetupCard
     @Environment(\.modelContext) private var context
     @Environment(\.openWindow) private var openWindow
     @Binding var scope: Scope?
@@ -405,7 +408,9 @@ struct SidebarView: View {
 
     /// The folders as you pick one: a tap opens it.
     private func selectList(_ files: (live: Int, trashed: Int, byFolder: [UUID: Int])) -> some View {
-        List(selection: $scope) {
+        // Behind a setup card the folders' own picks are ignored, as the notes list's are.
+        let behind = behindSetupCard
+        return List(selection: Binding(get: { scope }, set: { if !behind { scope = $0 } })) {
             Section {
                 // "All Notes" only earns its row once there's more than one folder.
                 if folders.count > 1 {
@@ -549,8 +554,9 @@ struct SidebarView: View {
                 SearchComposeBar.Compose(newNote: onNewNote, identifier: "sidebar.newNote")
             }
             #else
-            // Mac: the sidebar's three buttons at its trailing edge, in one group (Emil, 31 October
-            // 2026). Least used first, so Search, the most used, sits nearest the list, where its
+            // Mac: the sidebar's three buttons at its trailing edge, together (Emil, 31 October
+            // 2026), as plain glyphs with no glass capsule around them: macOS draws one round
+            // enabled items, so it showed only once onboarding ended (Emil, 2 November 2026). Least used first, so Search, the most used, sits nearest the list, where its
             // field opens. With the sidebar hidden they stay beside the window's buttons.
             ToolbarSpacer(.flexible)
             ToolbarItem {
@@ -558,8 +564,10 @@ struct SidebarView: View {
                     .help("New Folder (\u{21E7}\u{2318}N)")
                     .accessibilityIdentifier("sidebar.newFolder")
             }
+            .sharedBackgroundVisibility(.hidden)
             // Today's note in one press (DailyNotes).
             ToolbarItem { TodayButton(identifier: "sidebar.today") }
+            .sharedBackgroundVisibility(.hidden)
             ToolbarItem {
                 // The Spotlight-like panel, which finds notes by title and text and runs commands
                 // (Emil, 2 November 2026; it opened the list's search field). ⌘F keeps that field.
@@ -569,6 +577,7 @@ struct SidebarView: View {
                 .help(Self.searchButtonHelp)
                 .accessibilityIdentifier("sidebar.search")
             }
+            .sharedBackgroundVisibility(.hidden)
             #endif
         }
     }
@@ -643,6 +652,9 @@ struct SidebarView: View {
         .onReceive(NotificationCenter.default.publisher(for: .paneNewFolder)) { _ in startNewFolder(nil) }
         .onReceive(NotificationCenter.default.publisher(for: .paneRenameFolder)) { n in
             if let id = n.object as? UUID, let f = context.folder(id), f.deletedAt == nil { startRename(f) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .paneDeleteFolder)) { n in
+            if let id = n.object as? UUID, let f = context.folder(id), f.deletedAt == nil { deleteFolder(f) }
         }
         .alert("No room for another folder", isPresented: $folderLimitReached) {
             Button("OK", role: .cancel) {}

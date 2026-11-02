@@ -35,7 +35,9 @@ import Testing
                 .environment(SetupStore(progress: SetupProgress(connected: true, dismissed: true)))
             // `behindCard`: as the first run shows it, under a setup card (AppGate.notesBehind).
             let view = Group {
-                if behindCard { notes.modifier(BehindSetupCard(card: Text("A setup card").padding(40))) } else { notes }
+                if behindCard {
+                    notes.modifier(BehindSetupCard(card: Text("A setup card").padding(40)))
+                } else { notes }
             }
                 .modelContainer(container)
             window = NSWindow(contentRect: NSRect(x: -30000, y: -30000, width: 1180, height: 760),
@@ -50,7 +52,11 @@ import Testing
         }
 
         func settle() async {
-            for _ in 0..<8 { window.contentView?.layoutSubtreeIfNeeded(); window.displayIfNeeded(); try? await Task.sleep(for: .milliseconds(150)) }
+            // The popups' windows too (PopupPanel): they draw and update on their own.
+            for _ in 0..<8 {
+                for w in [window] + (window.childWindows ?? []) { w.contentView?.layoutSubtreeIfNeeded(); w.displayIfNeeded() }
+                try? await Task.sleep(for: .milliseconds(150))
+            }
         }
 
         func close() {
@@ -60,6 +66,30 @@ import Testing
 
         private var root: NSView { window.contentView! }
 
+
+        /// The notes list: the second list from the left.
+        var notesList: NSTableView? {
+            func tables(_ v: NSView) -> [NSTableView] { ((v as? NSTableView).map { [$0] } ?? []) + v.subviews.flatMap(tables) }
+            return tables(root).sorted { $0.convert($0.bounds, to: root).minX < $1.convert($1.bounds, to: root).minX }.dropFirst().first
+        }
+
+        /// The popups over the notes window (PopupPanel).
+        var popups: [PopupPanel] { PopupPanel.over(window) }
+
+        /// The accessibility element with `id`, in a popup or the notes.
+        func find(id: String) -> Any? {
+            func search(_ e: any NSAccessibilityProtocol, depth: Int) -> Any? {
+                if e.accessibilityIdentifier() == id { return e }
+                guard depth < 60 else { return nil }
+                for k in (e.accessibilityChildren() ?? []).compactMap({ $0 as? any NSAccessibilityProtocol }) {
+                    if let f = search(k, depth: depth + 1) { return f }
+                }
+                return nil
+            }
+            let roots: [NSView] = popups.compactMap(\.contentView) + [window.contentView].compactMap { $0 }
+            for r in roots { if let f = search(r, depth: 0) { return f } }
+            return nil
+        }
 
         /// The columns' widths, left to right.
         var columns: [Int] {
@@ -132,26 +162,60 @@ import Testing
         let buttonsBottom = host.window.contentView!.isFlipped ? below.maxY : contentHeight - below.minY
         #expect(rowTop >= buttonsBottom, "the first row starts at \(rowTop), the window's buttons end at \(buttonsBottom)")
         if behindCard {
-            // Behind a setup card a click on a folder, the list or the note lands on the sink, not
-            // on them (Emil, 2 November 2026: he could open notes behind the card).
-            let content = host.window.contentView!
-            for x in [row.midX, content.bounds.width * 0.4, content.bounds.width * 0.85] {
-                let hit = content.hitTest(NSPoint(x: x, y: content.bounds.height * 0.25))
-                #expect(hit is SetupClickSink.Sink, "a click at x \(Int(x)) reached \(String(describing: hit.map { type(of: $0) }))")
-            }
+            // Behind a setup card nothing in the notes takes a click (Emil, 2 November 2026: he
+            // could open notes behind the card): the card is a window of its own over them.
+            #expect(host.popups.count == 1, "the setup card is a popup over the notes")
         }
     }
 
-    /// Emil, 2 November 2026: the list behind the card still took clicks. The window's clicks are
-    /// caught outside the card, below the title bar; the card and the window's buttons still work.
-    @Test func clicksOutsideTheSetupCardNeverReachTheNotes() {
-        let card = NSRect(x: 300, y: 200, width: 400, height: 300)
-        let top: CGFloat = 700
-        #expect(SetupClickSink.swallows(NSPoint(x: 100, y: 400), card: card, contentTop: top), "the notes list")
-        #expect(SetupClickSink.swallows(NSPoint(x: 900, y: 100), card: card, contentTop: top), "the note")
-        #expect(!SetupClickSink.swallows(NSPoint(x: 500, y: 300), card: card, contentTop: top), "the card itself")
-        #expect(!SetupClickSink.swallows(NSPoint(x: 20, y: 710), card: card, contentTop: top), "the title bar and its buttons")
-        #expect(!SetupClickSink.swallows(NSPoint(x: 500, y: 300), card: nil, contentTop: top), "no card found: never risk a card that takes no clicks")
+    /// Every popup keeps the mouse to itself (Emil, 2 November 2026: "every single pop-up";
+    /// clicks went through the setup card and Templates to the list, Settings' tabs lit the
+    /// folders behind them, the note's text cursor showed over them). Each is a window of its own
+    /// laid over the whole notes window, title bar too: macOS gives the mouse, its hover and its
+    /// cursor to the window under the pointer, never the one behind. It goes with the window.
+    @Test(arguments: ["setup", "settings", "templates", "import", "connect"])
+    func everyPopupIsAWindowOverTheNotes(_ kind: String) async throws {
+        let host = try await Host(behindCard: kind == "setup")
+        defer { host.close(); SettingsRoute.shared.page = nil }
+        #expect(kind == "setup" || host.popups.isEmpty, "no popup until one is asked for")
+        switch kind {
+        case "settings": AccountButton.open()
+        case "templates": NotificationCenter.default.post(name: .paneTemplates, object: nil)
+        case "import": NotificationCenter.default.post(name: .paneImportNotes, object: nil)
+        case "connect": NotificationCenter.default.post(name: .paneConnectAI, object: nil)
+        default: break
+        }
+        await host.settle()
+        // Templates asks the server for the connected AIs first (none here: it fails fast or late).
+        for _ in 0..<20 where host.popups.isEmpty { await host.settle() }
+        let panel = try #require(host.popups.first, "\(kind) shows as a popup")
+        #expect(host.popups.count == 1, "one popup at a time")
+        #expect(panel.frame == host.window.frame, "it covers the whole notes window, title bar too: \(panel.frame) over \(host.window.frame)")
+        #expect(!panel.ignoresMouseEvents, "and takes the mouse there")
+        #expect(host.window.childWindows?.last === panel, "in front of the notes window")
+        #expect(panel.canBecomeKey, "its fields take typing")
+        // It follows the window's size.
+        host.window.setContentSize(CGSize(width: 1300, height: 820))
+        await host.settle()
+        #expect(panel.frame == host.window.frame, "resized with the window")
+        host.window.close()
+        #expect(!panel.isVisible && panel.parent == nil, "no popup window left behind")
+    }
+
+    /// Import notes and Connect an AI from the sidebar are popups now (Import opened Apple Notes'
+    /// import straight away, Connect an AI an older sheet): one at a time, the newer replacing
+    /// the older; no sheet.
+    @Test func importAndConnectArePopupsOneAtATime() async throws {
+        let host = try await Host()
+        defer { host.close() }
+        let sheets = { host.window.sheets.count }
+        NotificationCenter.default.post(name: .paneImportNotes, object: nil)
+        await host.settle()
+        _ = try #require(host.popups.first, "Import notes is a popup")
+        NotificationCenter.default.post(name: .paneConnectAI, object: nil)
+        await host.settle()
+        #expect(host.popups.count == 1, "Connect an AI takes its place")
+        #expect(sheets() == 0, "no sheet")
     }
 
     @Test func clickingOpensSettingsAtItsFirstPage() {

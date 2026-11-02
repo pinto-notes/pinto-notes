@@ -188,6 +188,39 @@ import Testing
         #expect(Self.nameField(in: w.contentView) == nil)
     }
 
+    /// Deleting a folder that holds notes asks first, as in Notes, and nothing goes until Delete
+    /// Folder is chosen; an empty folder goes at once (Emil, 2 November 2026).
+    @Test func deletingAFolderWithNotesAsksFirst() async throws {
+        let c = try Self.store()
+        let ctx = c.mainContext
+        let work = ctx.createFolder(named: "Work")
+        let empty = ctx.createFolder(named: "Empty")
+        _ = ctx.createNote(in: .folder(work.id), body: "Plans")
+        try ctx.save()
+        let box = Box()
+        let w = Self.sidebar(c, scope: Binding(get: { box.scope }, set: { box.scope = $0 }))
+        defer { w.attachedSheet.map { w.endSheet($0) }; w.orderOut(nil); w.close() }
+        try? await Task.sleep(for: .milliseconds(400))
+
+        NotificationCenter.default.post(name: .paneDeleteFolder, object: empty.id)
+        try? await Task.sleep(for: .milliseconds(500))
+        #expect(empty.deletedAt != nil, "an empty folder goes at once")
+        #expect(w.attachedSheet == nil, "without asking")
+
+        NotificationCenter.default.post(name: .paneDeleteFolder, object: work.id)
+        try? await Task.sleep(for: .milliseconds(700))
+        #expect(work.deletedAt == nil, "a folder with notes stays until Delete Folder is chosen")
+        #expect(work.liveNotes.count == 1)
+        let sheet = try #require(w.attachedSheet, "the confirmation shows")
+        let buttons = Self.buttons(in: sheet.contentView).map(\.title)
+        #expect(buttons.contains("Delete Folder"), "\(buttons)")
+    }
+
+    static func buttons(in view: NSView?) -> [NSButton] {
+        guard let view else { return [] }
+        return (view as? NSButton).map { [$0] } ?? [] + view.subviews.flatMap { buttons(in: $0) }
+    }
+
     static func nameField(in view: NSView?) -> NSTextField? {
         guard let view else { return nil }
         if let f = view as? InlineNameField.Field { return f }

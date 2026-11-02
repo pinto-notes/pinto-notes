@@ -457,6 +457,8 @@ extension Notification.Name {
     static let paneConnectAI = Notification.Name("pane.connectAI")
     /// Templates: every template, over the notes (the sidebar's row and card, the setup gallery).
     static let paneTemplates = Notification.Name("pane.templates")
+    /// Import notes: the choice of where from, as a card over the notes (Mac).
+    static let paneImportNotes = Notification.Name("pane.importNotes")
 }
 
 /// The note the Try it step has an AI write in. It has a title no imported note will have (an

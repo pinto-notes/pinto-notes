@@ -530,88 +530,135 @@ struct BehindSetupCard<Card: View>: ViewModifier {
             .accessibilityHidden(true)
             // Not `.allowsHitTesting(false)`, on the notes or on a column: with it the split view
             // gives the columns no room for the toolbar, and the folders, the list and the note
-            // start up under it (Emil, 2 November 2026, twice). A clear SwiftUI layer didn't stop
-            // clicks reaching the lists, so the layer over them is an AppKit view that takes every
-            // click, and a drag on it moves the window, as the top bar does. Dimmed, so the notes
-            // look as unusable as they are.
+            // start up under it (Emil, 2 November 2026, twice). The card and the dimmed notes
+            // round it are a popup (PopupHost): nothing behind them takes a click. The card at its own height, centred:
+            // a card whose content can stretch (the encryption step's) grew to the window's height.
             .overlay {
-                ZStack {
+                PopupHost(content: ZStack {
                     Color(Palette.page).opacity(SetupClickSink.dim)
-                    SetupClickSink()
-                }
-                .ignoresSafeArea()
-                .accessibilityHidden(true)
+                        .accessibilityHidden(true)
+                    card.fixedSize(horizontal: false, vertical: true)
+                })
             }
-            // At its own height, centred: a card whose content can stretch (the encryption
-            // step's) grew to the window's full height (Emil, 2 November 2026).
-            .overlay { card.fixedSize(horizontal: false, vertical: true).background(SetupCardRegion()) }
     }
 }
 
-/// Over the notes behind a setup card: an AppKit view that takes every click and scroll, so none
-/// reaches the lists or the note under it. A drag moves the window.
-struct SetupClickSink: NSViewRepresentable {
+/// How dim the notes look behind a setup card.
+enum SetupClickSink {
     static let dim = 0.55
+}
 
-    final class Sink: NSView {
-        private var monitor: Any?
+/// A popup over the notes window (a setup card, Settings, Templates, Import, Connect an AI), in a
+/// borderless window of its own laid over the notes window and moving with it. It covers the
+/// window, title bar too, and draws its own dimming. macOS gives every click, scroll, hover and
+/// cursor to the window under the pointer, so nothing behind a popup reacts to the mouse
+/// (Emil, 2 November 2026: clicks went through the setup card and Templates to the list,
+/// Settings' tabs lit the folders behind them, and the note's text cursor showed over every
+/// popup). In the notes' own view, SwiftUI handed clicks on a popup to the list under it,
+/// whatever was drawn on top. Like a sheet, it has the keys while it's up; a drag on its top
+/// strip moves the window.
+struct PopupHost<Content: View>: NSViewRepresentable {
+    let content: Content
 
-        // The split view's columns are AppKit views of their own and could still take a click
-        // over this layer (Emil, 2 November 2026: the list stayed clickable). So the window's
-        // clicks and scrolls are also caught before any view sees them: outside the card and
-        // below the title bar, none reaches the notes.
+    /// Where the popup is in the notes' view: it puts the popup's window over the notes' window.
+    final class Anchor: NSView {
+        let panel: PopupPanel
+        private var watching: [NSObjectProtocol] = []
+        init(panel: PopupPanel) { self.panel = panel; super.init(frame: .zero) }
+        required init?(coder: NSCoder) { fatalError() }
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            if let monitor { NSEvent.removeMonitor(monitor) }
-            monitor = nil
-            guard window != nil else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel]) { [weak self] event in
-                guard let self, let window = self.window, event.window === window else { return event }
-                let card = SetupCardRegion.frame(in: window)
-                guard SetupClickSink.swallows(event.locationInWindow, card: card, contentTop: window.contentLayoutRect.maxY) else { return event }
-                if event.type == .leftMouseDown { window.performDrag(with: event) }
-                return nil
-            }
+            if let parent = window { attach(to: parent) } else { detach() }
         }
 
+        func attach(to parent: NSWindow) {
+            guard panel.parent !== parent else { return }
+            detach()
+            panel.setFrame(parent.frame, display: false)
+            panel.appearance = parent.appearance
+            panel.alphaValue = 0
+            parent.addChildWindow(panel, ordered: .above)
+            panel.makeFirstResponder(panel.contentView)
+            if parent.isKeyWindow { panel.makeKey() }
+            NSAnimationContext.runAnimationGroup { $0.duration = 0.18; panel.animator().alphaValue = 1 }
+            let center = NotificationCenter.default
+            watching = [
+                center.addObserver(forName: NSWindow.didResizeNotification, object: parent, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { if let self, let parent = self.panel.parent { self.panel.setFrame(parent.frame, display: true) } }
+                },
+                // The notes window closing takes its popup with it: no window left behind.
+                center.addObserver(forName: NSWindow.willCloseNotification, object: parent, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.detach(); self?.empty() }
+                },
+            ]
+        }
 
-        override func hitTest(_ point: NSPoint) -> NSView? { frame.contains(point) ? self : nil }
-        override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
-        override func rightMouseDown(with event: NSEvent) {}
-        override func otherMouseDown(with event: NSEvent) {}
-        override func scrollWheel(with event: NSEvent) {}
-        override var acceptsFirstResponder: Bool { false }
+        /// What the popup showed goes too (its views would otherwise live on in the hidden window).
+        func empty() { (panel.contentView as? NSHostingView<AnyView>)?.rootView = AnyView(EmptyView()) }
+
+        func detach() {
+            watching.forEach(NotificationCenter.default.removeObserver)
+            watching = []
+            guard let parent = panel.parent else { panel.orderOut(nil); return }
+            let wasKey = panel.isKeyWindow
+            parent.removeChildWindow(panel)
+            panel.orderOut(nil)
+            if wasKey { parent.makeKey() }
+        }
     }
 
-    func makeNSView(context: Context) -> Sink { Sink() }
-    func updateNSView(_ view: Sink, context: Context) {}
-
-    /// A click or scroll at `point` (window coordinates) is kept from the notes: it's below the
-    /// title bar (the window's own buttons work) and not on the card. Nil card: not kept.
-    nonisolated static func swallows(_ point: NSPoint, card: NSRect?, contentTop: CGFloat) -> Bool {
-        // No card found: leave it to the layer, never risk a card that takes no clicks.
-        guard let card, point.y < contentTop else { return false }
-        return !card.contains(point)
+    private func root(_ env: EnvironmentValues) -> AnyView {
+        // Over the top bar too: the dimming reaches the window's top edge.
+        AnyView(content.ignoresSafeArea().environment(\.self, env))
     }
+
+    func makeNSView(context: Context) -> Anchor {
+        let host = NSHostingView(rootView: root(context.environment))
+        host.sizingOptions = []
+        host.sceneBridgingOptions = []
+        return Anchor(panel: PopupPanel(content: host))
+    }
+
+    func updateNSView(_ anchor: Anchor, context: Context) {
+        (anchor.panel.contentView as? NSHostingView<AnyView>)?.rootView = root(context.environment)
+    }
+
+    static func dismantleNSView(_ anchor: Anchor, coordinator: ()) { anchor.detach(); anchor.empty() }
 }
 
-/// Marks where the setup card is, so the click sink lets its clicks through.
-struct SetupCardRegion: NSViewRepresentable {
-    final class Marker: NSView {
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+/// The popup's window: clear, borderless, over its notes window and moving with it.
+final class PopupPanel: NSPanel {
+    init(content: NSView) {
+        super.init(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
+        isReleasedWhenClosed = false
+        isOpaque = false
+        backgroundColor = .clear
+        hasShadow = false
+        hidesOnDeactivate = false
+        animationBehavior = .none
+        contentView = content
     }
-    @MainActor private static var markers = NSHashTable<Marker>.weakObjects()
 
-    func makeNSView(context: Context) -> Marker {
-        let m = Marker()
-        Self.markers.add(m)
-        return m
+    /// Its fields take typing, as a sheet's do.
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+
+    /// How tall the strip at the top is that moves the notes window, as its title bar would.
+    static let dragStrip: CGFloat = 28
+
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown, event.locationInWindow.y > frame.height - Self.dragStrip, let parent {
+            parent.performDrag(with: event)
+            return
+        }
+        super.sendEvent(event)
     }
-    func updateNSView(_ view: Marker, context: Context) {}
 
-    /// The card's frame in `window`'s coordinates, if one is on it.
-    @MainActor static func frame(in window: NSWindow) -> NSRect? {
-        markers.allObjects.first { $0.window === window }.map { $0.convert($0.bounds, to: nil) }
+    /// The popups over `window`, front first.
+    @MainActor static func over(_ window: NSWindow) -> [PopupPanel] {
+        (window.childWindows ?? []).compactMap { $0 as? PopupPanel }.reversed()
     }
 }
 

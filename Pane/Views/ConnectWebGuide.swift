@@ -649,7 +649,7 @@ struct ConnectWebGuideSheet: View {
                                 Text(app.title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.ink)
                             }
                             .padding(.horizontal, 12).frame(height: 30)
-                            .background(SetupCards.soft, in: Capsule())
+                            .background(ConnectWebGuide.tileFill, in: Capsule())
                             .contentShape(Capsule())
                         }
                         .buttonStyle(.tile(radius: 15))
@@ -678,7 +678,7 @@ struct ConnectWebGuideSheet: View {
                 .font(.system(size: 12, weight: .bold)).monospacedDigit()
                 .foregroundStyle(Color.ink)
                 .frame(width: 22, height: 22)
-                .background(SetupCards.soft, in: Circle())
+                .background(ConnectWebGuide.tileFill, in: Circle())
             VStack(alignment: .leading, spacing: 10) {
                 Text(text).font(.system(size: 14, weight: .medium)).foregroundStyle(Color.ink)
                     .fixedSize(horizontal: false, vertical: true)
@@ -708,7 +708,7 @@ struct ConnectWebGuideSheet: View {
         }
         .padding(.leading, 16).padding(.trailing, 8)
         .frame(height: 50)
-        .background(SetupCards.soft, in: shape)
+        .background(ConnectWebGuide.tileFill, in: shape)
         .accessibilityIdentifier("connect.address")
     }
 
@@ -730,7 +730,7 @@ struct ConnectWebGuideSheet: View {
             }
             .padding(.horizontal, 14)
             .frame(maxWidth: .infinity, minHeight: 48)
-            .background(SetupCards.soft, in: shape)
+            .background(ConnectWebGuide.tileFill, in: shape)
             .contentShape(shape)
         }
         .buttonStyle(.tile(radius: 12))
@@ -1276,5 +1276,16 @@ struct ConnectDrawing: View {
             .foregroundStyle(filled ? .white : ink)
             .padding(.horizontal, 11).padding(.vertical, 5)
             .background(filled ? fill : Color.gray.opacity(0.14), in: .capsule)
+    }
+}
+
+extension ConnectWebGuide {
+    /// The soft fill of the guide's chips and rows: the setup cards' on the Mac.
+    static var tileFill: Color {
+        #if os(macOS)
+        SetupCards.soft
+        #else
+        Color(.secondarySystemFill)
+        #endif
     }
 }

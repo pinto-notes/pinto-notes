@@ -196,7 +196,13 @@ struct NoteListView: View {
             + (scope != .trash && search.isEmpty && (storage.usage.map { $0.level != .fine } ?? false) ? 1 : 0)
         #if os(macOS)
         // The list's own changes are told apart from code's in the click log (RowClickLog).
-        let listSelection = Binding(get: { selection }, set: { new in RowClickLog.listSet(selection, new); selection = new })
+        // Behind a setup card a click on the card could still reach a row (SwiftUI hands it past
+        // every layer, Emil, 2 November 2026): the list's own picks are ignored there.
+        let behind = behindSetupCard
+        let listSelection = Binding(get: { selection }, set: { new in
+            guard !behind else { return }
+            RowClickLog.listSet(selection, new); selection = new
+        })
         #else
         let listSelection = $selection
         #endif

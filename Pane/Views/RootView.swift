@@ -52,6 +52,10 @@ struct RootView: View {
     @State private var refusal: FileRefusal?
     /// Connect an AI, from the File menu, the list's menu or the card at the foot of the sidebar.
     @State private var connectingAI = false
+    #if os(macOS)
+    /// Import notes or Connect an AI, as the first run's card over the notes (Mac).
+    @State private var popup: SetupCardsFlow.Only?
+    #endif
     /// The import actions handed to the folders and the list: one box for the window's life (ImportActions).
     @State private var importBox = ImportActions.Box()
     #if os(macOS)
@@ -82,7 +86,7 @@ struct RootView: View {
         #if DEBUG
         RenderProbe.count("RootView", context: context)
         #endif
-        return imports(lifecycle(split)).newAppSheet()
+        return popups(imports(lifecycle(split)).newAppSheet())
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
             .onAppear { Telemetry.shared.notesShown() }
             .focusedSceneValue(\.newNoteAction, newNote)
@@ -92,21 +96,9 @@ struct RootView: View {
             .focusedSceneValue(\.deleteNoteAction, deleteAction)
             // A template or shared note to add, from a link.
             .noteSourceHandler()
-            .onReceive(NotificationCenter.default.publisher(for: .paneConnectAI)) { _ in connectingAI = true }
             // Today's Note, from the calendar button and the menus, in this window (DailyNotes).
             .environment(\.todaysNote, TodaysNoteAction(open: openTodaysNote))
             .focusedSceneValue(\.todaysNote, TodaysNoteAction(open: openTodaysNote))
-            #if os(macOS)
-            .onReceive(NotificationCenter.default.publisher(for: .paneQuickOpen)) { _ in
-                quickOpen = quickOpen == nil ? QuickOpen.noteItems(in: context) : nil
-            }
-            .overlay(alignment: .top) { quickOpenPanel }
-            .modifier(ExportAllNotes())
-            .onReceive(NotificationCenter.default.publisher(for: .paneTemplates)) { _ in openTemplates() }
-            .overlay { if let ais = templateAIs { templates(ais) } }
-            // Settings: a card over the notes, like Templates, on the window in front.
-            .settingsCard(backend: backendForConnect, sync: syncForSettings, opening: { templateAIs = nil })
-            #endif
             .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
                 if let client = backendForConnect?.client { ConnectAISheet(client: client) }
             }
@@ -121,6 +113,33 @@ struct RootView: View {
             #endif
     }
 
+    /// Connect an AI, and on the Mac the panel and the popups over the notes (apart, so the
+    /// compiler can check the body in time).
+    private func popups(_ content: some View) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .paneConnectAI)) { _ in
+                #if os(macOS)
+                openPopup(.connectAI)
+                #else
+                connectingAI = true
+                #endif
+            }
+            #if os(macOS)
+            .onReceive(NotificationCenter.default.publisher(for: .paneQuickOpen)) { _ in
+                quickOpen = quickOpen == nil ? QuickOpen.noteItems(in: context) : nil
+            }
+            .overlay(alignment: .top) { quickOpenPanel }
+            .modifier(ExportAllNotes())
+            .onReceive(NotificationCenter.default.publisher(for: .paneTemplates)) { _ in openTemplates() }
+            .onReceive(NotificationCenter.default.publisher(for: .paneImportNotes)) { _ in openPopup(.importNotes) }
+            // Every popup in a view of its own that has the mouse while it's up (PopupHost).
+            .overlay { if let ais = templateAIs { PopupHost(content: templates(ais)) } }
+            .overlay { if let popup { popupCard(popup) } }
+            // Settings: a card over the notes, like Templates, on the window in front.
+            .settingsCard(backend: backendForConnect, sync: syncForSettings, opening: { templateAIs = nil; popup = nil })
+            #endif
+    }
+
     #if os(macOS)
     /// Templates over the notes, with the AIs to make them with (nil: closed).
     @State private var templateAIs: [SetupCards.AI]?
@@ -132,11 +151,35 @@ struct RootView: View {
             if let client = backendForConnect?.client {
                 rows = (try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value) ?? []
             }
-            withAnimation(.snappy(duration: 0.2)) { templateAIs = TemplateMaking.ais(rows) }
+            withAnimation(.snappy(duration: 0.2)) { popup = nil; templateAIs = TemplateMaking.ais(rows) }
         }
     }
 
     @Environment(SyncEngine.self) private var syncForSettings: SyncEngine?
+
+    /// One of the first run's cards over the notes, dimmed around it; a click on the dimming, Cancel
+    /// or Escape closes it.
+    @ViewBuilder private func popupCard(_ only: SetupCardsFlow.Only) -> some View {
+        if let backend = backendForConnect {
+            let close = { withAnimation(.snappy(duration: 0.2)) { popup = nil } }
+            PopupHost(content: ZStack {
+                Color.black.opacity(0.28).onTapGesture(perform: close)
+                SetupCardsFlow(store: nil, backend: backend, setup: setupStore, only: only, finish: { _ in
+                    close()
+                    Task { await setupStore?.refresh(force: true) }
+                })
+                .id(only)
+            })
+            .ignoresSafeArea()
+        }
+    }
+
+    private func openPopup(_ only: SetupCardsFlow.Only) {
+        withAnimation(.snappy(duration: 0.2)) {
+            templateAIs = nil
+            popup = only
+        }
+    }
 
     private func templates(_ ais: [SetupCards.AI]) -> some View {
         TemplateLibraryView(ais: ais, make: { e, ai in
@@ -252,7 +295,12 @@ struct RootView: View {
                 case .importAppleNotes: showImport = true
                 case .importFrom(let kind): importFiles = []; importing = kind
                 case .exportNotes: NotificationCenter.default.post(name: .paneExportNotes, object: nil)
-                case .connectAI: connectingAI = true
+                case .connectAI:
+                    #if os(macOS)
+                    openPopup(.connectAI)
+                    #else
+                    connectingAI = true
+                    #endif
                 case .settings: SettingsRoute.shared.show()
                 }
             },

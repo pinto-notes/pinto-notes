@@ -59,7 +59,8 @@ struct SidebarStudyRows: View {
                 NotificationCenter.default.post(name: .paneConnectAI, object: nil)
             }
             SidebarActionRow(title: SidebarAIWords.importNotes, symbol: "square.and.arrow.down", id: "sidebar.import") {
-                imports?.appleNotes()
+                // The choice of where from, not Apple Notes' import straight away (Emil, 2 November 2026).
+                NotificationCenter.default.post(name: .paneImportNotes, object: nil)
             }
         }
     }

@@ -477,12 +477,20 @@ struct SetupCardsFlow: View {
         var pick: SetupCards.Pick?
     }
 
-    let store: OnboardingStore
+    /// Nil when the flow shows one card on its own (`only`).
+    let store: OnboardingStore?
     let backend: Backend
     var setup: SetupStore?
     var preview: Preview?
+    /// One card on its own, as a popup over the notes: Import notes and Connect an AI from the
+    /// sidebar and the menus show the first run's cards (Emil, 2 November 2026: Import opened
+    /// Apple Notes' import straight away, and Connect an AI an older sheet). It closes where the
+    /// first run would go on.
+    var only: Only? = nil
     /// The flow is over: the notes open on `landing`.
     let finish: (_ landing: Onboarding.Landing?) -> Void
+
+    enum Only: String, Identifiable { case importNotes, connectAI; var id: String { rawValue } }
 
     private enum Connecting: Equatable { case choosing, waiting, connected, set(connected: Bool) }
 
@@ -509,7 +517,17 @@ struct SetupCardsFlow: View {
         if let preview { return preview.card }
         if prompting != nil { return .prompt }
         if making != nil { return .making }
-        switch store.step ?? .bring {
+        switch only {
+        case .importNotes: return importingAppleNotes || importing != nil ? .importing : .bring
+        case .connectAI:
+            switch connecting {
+            case .choosing: return .connect
+            case .waiting: return .waiting
+            case .connected, .set: return .connected
+            }
+        case nil: break
+        }
+        switch store?.step ?? .bring {
         case .name, .bring: return importingAppleNotes || importing != nil ? .importing : .bring
         case .connect:
             switch connecting {
@@ -528,7 +546,7 @@ struct SetupCardsFlow: View {
 
     var body: some View {
         SetupCard(card: card) { content }
-            .task(id: store.step) { await skipName() }
+            .task(id: store?.step) { await skipName() }
             .sheet(isPresented: $importingAppleNotes, onDismiss: importClosed) {
                 AppleNotesImportView(onImported: { ids in notesBrought(ids.count) })
                     .environment(\.importDoneTitle, ImportGuideSheet.setupDoneTitle)
@@ -599,7 +617,8 @@ struct SetupCardsFlow: View {
                     .foregroundStyle(Color.muted)
             }
             HStack(spacing: 8) {
-                Button("Skip") { skipBring() }
+                Button(only == nil ? "Skip" : "Cancel") { skipBring() }
+                    .keyboardShortcut(only == nil ? nil : .cancelAction)
                     .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.skip")
                 Button(SetupCards.importTitle(shownSource)) { startImport() }
@@ -739,7 +758,7 @@ struct SetupCardsFlow: View {
     }
 
     private var notNowLink: some View {
-        Button("Not now") { withAnimation { connecting = .set(connected: false) } }
+        Button(only == nil ? "Not now" : "Cancel") { notNow() }
             .buttonStyle(.hoverLink)
             .accessibilityIdentifier("setup.notNow")
     }
@@ -846,7 +865,7 @@ struct SetupCardsFlow: View {
                 }
             }
             HStack(spacing: 8) {
-                Button("Not now") { withAnimation { connecting = .set(connected: false) } }
+                Button(only == nil ? "Not now" : "Cancel") { notNow() }
                     .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.notNow")
                 Button(shownAI.button) { startConnect() }
@@ -886,7 +905,7 @@ struct SetupCardsFlow: View {
                 }
             }
             HStack(spacing: 8) {
-                Button("Not now") { withAnimation { connecting = .set(connected: false) } }
+                Button(only == nil ? "Not now" : "Cancel") { notNow() }
                     .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.notNow")
                 Button(brandShown == .other ? "Connect another app" : brandShown.button) {
@@ -1020,7 +1039,7 @@ struct SetupCardsFlow: View {
 
     /// The name is never asked on the card: Apple's or Google's, else the Mac's own.
     private func skipName() async {
-        guard preview == nil, store.step == .name else { return }
+        guard preview == nil, let store, store.step == .name else { return }
         let profile = ProfileStore.shared
         await profile.bind(backend)
         if profile.name == nil, let mine = OnboardingFlow.macUserName() { await profile.setName(mine) }
@@ -1028,6 +1047,7 @@ struct SetupCardsFlow: View {
     }
 
     private func skipBring() {
+        guard let store else { finish(nil); return }
         store.advance(connected: false, skipped: true)
     }
 
@@ -1050,7 +1070,14 @@ struct SetupCardsFlow: View {
     private func importClosed() {
         guard moveOnAfterImport else { return }
         moveOnAfterImport = false
+        guard let store else { finish(nil); return }
         if store.step == .bring { store.advance(connected: false) }
+    }
+
+    /// Not now, on the first run: on to the next card. On its own, the card closes.
+    private func notNow() {
+        if only != nil { finish(nil); return }
+        withAnimation { connecting = .set(connected: false) }
     }
 
     private func startConnect() {
@@ -1071,14 +1098,16 @@ struct SetupCardsFlow: View {
         Task { await setup?.refresh(force: true) }
         Task {
             try? await Task.sleep(for: .seconds(1.4))
-            if connecting == .connected { withAnimation { connecting = .set(connected: true) } }
+            guard connecting == .connected else { return }
+            if only != nil { finish(nil); return }
+            withAnimation { connecting = .set(connected: true) }
         }
     }
 
     /// You're set: the gallery once an AI is connected, else the notes.
     private func done() {
         guard case .set(let connected) = connecting else { return }
-        if connected, store.advance(connected: true) { return }
+        if connected, store?.advance(connected: true) == true { return }
         finish(.newNote)
     }
 
