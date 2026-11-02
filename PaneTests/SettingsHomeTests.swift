@@ -231,5 +231,90 @@ import Testing
         let form = String(page.prefix(while: { $0 != "}" }))
         #expect(form.contains("OfflineSection()") && !form.contains("#if os(macOS)"), "OfflineSection on both platforms")
     }
+
+    // MARK: Layout (design/settings-layout-connect, 2 November 2026)
+
+    /// Where the card's parts land, as the probe reports them.
+    final class Frames { var all: [String: CGRect] = [:] }
+
+    /// Draws Settings offscreen (borderless, far off screen, never ordered front) and reads where
+    /// the title, the page and each tab land.
+    static func layout(_ start: SettingsPlace, window size: CGSize) async throws -> [String: CGRect] {
+        let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
+        let two = [Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "chatgpt.com")]
+        var view = SettingsView(backend: backend, sync: nil, connections: two, route: SettingsRoute(defaults: UserDefaults(suiteName: "settings-layout-\(UUID())")!))
+        view.start = start
+        view.close = {}
+        let frames = Frames()
+        let host = NSHostingView(rootView: view.environment(\.settingsLayoutProbe, { name, rect in frames.all[name] = rect }))
+        let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        defer { window.close() }
+        for _ in 0..<20 {
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(50))
+            if frames.all["page"] != nil, frames.all["title"] != nil { break }
+        }
+        try await Task.sleep(for: .milliseconds(150))
+        host.layoutSubtreeIfNeeded()
+        return frames.all
+    }
+
+    /// Every page is one column no wider than the cap, centred in the page area, and its title
+    /// starts where its content does; on a small window too.
+    @Test(arguments: [CGSize(width: 1180, height: 760), CGSize(width: 860, height: 600)])
+    func thePageIsACentredColumnUnderItsTitle(window: CGSize) async throws {
+        for place in [SettingsPlace.ai, .general, .appearance, .security, .help] {
+            let f = try await Self.layout(place, window: window)
+            let page = try #require(f["page"], "\(place): the page reports its frame")
+            let area = try #require(f["area"])
+            let title = try #require(f["title"])
+            #expect(page.width <= SettingsCard.pageWidth + 0.5, "\(place): the column is capped at \(SettingsCard.pageWidth), was \(page.width)")
+            #expect(abs(page.width - min(SettingsCard.pageWidth, area.width - 2 * SettingsCard.gutter)) < 0.5, "\(place): as wide as the cap or the room allows")
+            #expect(abs(page.midX - area.midX) < 0.5, "\(place): centred, page \(page) in area \(area)")
+            #expect(abs(title.minX - (page.minX + SettingsCard.pageInset)) < 0.5, "\(place): the title starts at the content's edge: \(title.minX) vs \(page.minX + SettingsCard.pageInset)")
+        }
+        #expect(SettingsCard.contentWidth >= 560 && SettingsCard.contentWidth <= 620)
+    }
+
+    /// Connect an AI's tiles fill the content column, their left edge under the title's.
+    @Test func connectTilesLineUpWithTheTitle() async throws {
+        let f = try await Self.layout(.ai, window: CGSize(width: 1180, height: 760))
+        let tiles = try #require(f["connect.tiles"], "the tiles are on the page")
+        let title = try #require(f["title"]), page = try #require(f["page"])
+        #expect(abs(tiles.minX - title.minX) < 0.5, "tiles \(tiles.minX), title \(title.minX)")
+        #expect(abs(tiles.width - (page.width - 2 * SettingsCard.pageInset)) < 0.5)
+        let list = try #require(f["connect.connected"], "what is connected is listed under them")
+        #expect(list.minY > tiles.maxY && abs(list.minX - tiles.minX) < 0.5)
+    }
+
+    /// Two tabs next to each other in the sidebar never touch, so their fills never merge.
+    @Test func adjacentTabsHaveAGap() async throws {
+        let f = try await Self.layout(.general, window: CGSize(width: 1180, height: 760))
+        var pairs = 0
+        for group in SettingsPlace.groups(available: Set(SettingsPlace.allCases)) {
+            for (a, b) in zip(group, group.dropFirst()) {
+                guard let upper = f["tab.\(a.rawValue)"], let lower = f["tab.\(b.rawValue)"] else { continue }
+                pairs += 1
+                let gap = lower.minY - upper.maxY
+                #expect(gap >= 2 && gap <= 4, "\(a) and \(b): \(gap) pt apart")
+            }
+        }
+        #expect(pairs >= 3, "measured \(pairs) pairs of tabs")
+    }
+
+    /// The page and the setup card build Connect your AI from the same views, not copies.
+    @Test func settingsConnectUsesTheSetupCardsPieces() throws {
+        let page = try Self.source("Pane/Views/ConnectAI.swift")
+        let setup = try Self.source("Pane/Views/SetupCards.swift")
+        for piece in ["ConnectTilePicker(", "ConnectWaitingPanel(", "ConnectedPanel(", "SetupCards.guidePage("] {
+            #expect(page.contains(piece) && setup.contains(piece), "\(piece) is shared")
+        }
+        #expect(SetupCards.guidePage(.grok) == .grok && SetupCards.guidePage(.other) == .other)
+        #expect(SetupCards.guidePage(.chatgpt) == nil && SetupCards.guidePage(.claude) == nil)
+        #expect(ConnectAIPage.more(offered: [.chatgpt, .claude, .grok, .codex, .incredible, .other]) == [.codex, .incredible], "Codex and Incredible stay reachable")
+        #expect(ConnectCopy.why.hasSuffix(ConnectCopy.shared), "the line on what is shared is the same words everywhere")
+    }
 }
 #endif

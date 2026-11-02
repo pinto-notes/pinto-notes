@@ -1740,6 +1740,214 @@ struct ConnectAISection: View {
     }
 }
 
+#if os(macOS)
+/// Settings › Connect an AI on the Mac, built from the setup card's pieces (Emil, 2 November 2026:
+/// the old list "sucks", the onboarding card is the look): one short line, the tiles for ChatGPT,
+/// Claude, Grok and Other with one Connect button, the card's wait while one connects (Grok's and
+/// Other's guides open over it), then what is connected, each with Disconnect. Codex, Incredible
+/// (where its app is) and Having trouble? are quiet links beside Connect.
+struct ConnectAIPage: View {
+    typealias Guide = ConnectAISection.Guide
+    let client: SupabaseClient
+    /// Captures: shows these instead of asking the server.
+    var preview: [Connection]? = nil
+    /// Captures: the page waiting for this AI.
+    var previewWaiting: SetupCards.AI? = nil
+
+    enum Stage: Equatable { case choosing, waiting, connected }
+
+    @State private var ai: SetupCards.AI = .chatgpt
+    @State private var stage: Stage = .choosing
+    @State private var run = ConnectRun()
+    /// Grok's or Other's guide, open over the wait.
+    @State private var guidePage: Guide?
+    @State private var connections: [Connection] = []
+    @State private var removing: Connection?
+    @State private var changesFor: Connection?
+    @State private var error: String?
+    @State private var center = ConnectCenter.shared
+    @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
+    @Environment(\.networkReach) private var reach
+    @Environment(\.openURL) private var openURL
+    @Environment(\.dismiss) private var dismissHost
+
+    private var active: [Connection] { (preview ?? connections).filter { $0.revoked_at == nil } }
+    /// Ways in besides the tiles: Codex, and Incredible where its app is.
+    static func more(offered: [Guide] = Guide.offered) -> [Guide] { offered.filter { $0 == .codex || $0 == .incredible } }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                if reach != .online {
+                    Label(OfflineCopy.settings, systemImage: OfflineCopy.symbol(reach))
+                        .foregroundStyle(Color.muted)
+                        .accessibilityIdentifier("settings.offline")
+                }
+                if let ask = center.waiting().first { ConnectWaitingRow(ask: ask) }
+                Text(SetupCards.connectReads)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("connect.reads")
+                start
+                    .disabled(reach != .online)
+                if let error { Text(error).font(.footnote).foregroundStyle(.red) }
+                if !active.isEmpty { connected }
+                if NoteApps.enabled, NoteApps.realPreviews { AppPreviewSection(client: client, plain: true) }
+            }
+            .padding(.horizontal, SettingsCard.pageInset)
+            .padding(.top, 12)
+            .padding(.bottom, 24)
+        }
+        .onAppear {
+            run.asksToFinish = true
+            run.connected = { _ in connectedNow() }
+            run.added = { _ in Task { await load() } }
+            if let previewWaiting { ai = previewWaiting; stage = .waiting }
+        }
+        .onDisappear { run.stop() }
+        .sheet(item: $guidePage, onDismiss: guideClosed) { ConnectWebGuideSheet(ai: $0, client: client) }
+        .sheet(item: $changesFor) { c in
+            if let store = AIChangesCenter.shared.store, let history = NoteHistory.shared {
+                AIChangesSheet(store: store, history: history, filter: c.name, connected: active.map(\.name), opened: { dismissHost() })
+            }
+        }
+        .task(id: "\(route?.closed ?? 0)\(reach == .online)") { await load() }
+        .confirmationDialog("Disconnect \(removing?.title ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
+            Button("Disconnect", role: .destructive) { if let r = removing { Task { await revoke(r) } } }
+        } message: {
+            Text("It loses access to your notes right away.")
+        }
+    }
+
+    /// The tiles and Connect; while one connects, the card's wait in their place; then its tick.
+    @ViewBuilder private var start: some View {
+        switch stage {
+        case .choosing:
+            VStack(alignment: .leading, spacing: 10) {
+                ConnectTilePicker(picked: $ai, wideButton: false, returnConnects: false, idPrefix: "connect", connect: begin) {
+                    links
+                    Spacer(minLength: 8)
+                }
+                Text(ConnectCopy.shared)
+                    .font(.footnote)
+                    .foregroundStyle(Color.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("connect.shared")
+            }
+        case .waiting:
+            panel { ConnectWaitingPanel(ai: ai, note: note, fix: fix, cancel: cancel) }
+        case .connected:
+            panel { ConnectedPanel(ai: ai) }
+        }
+    }
+
+    /// The wait in a card the tiles' width, its words as wide as the setup card's.
+    private func panel(@ViewBuilder _ inside: () -> some View) -> some View {
+        inside()
+            .frame(maxWidth: SetupCards.width(.waiting) - 52)
+            .padding(.vertical, 24)
+            .frame(maxWidth: .infinity)
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.primary.opacity(0.1), lineWidth: 1))
+            .transition(.opacity)
+    }
+
+    /// Codex, Incredible and Having trouble?, quiet, beside Connect.
+    private var links: some View {
+        HStack(spacing: 16) {
+            ForEach(Self.more()) { g in
+                Button { if g == .codex { begin(.codex) } else { route?.guide = g } } label: {
+                    Label { Text(g == .codex ? "Add to Codex" : "Connect Incredible") } icon: { AITile(ai: g.title, size: 16) }
+                }
+                .accessibilityIdentifier("connect.more.\(g.rawValue)")
+            }
+            Button(ConnectCopy.trouble) { route?.help = HelpTopic(guide: run.guide) }
+                .accessibilityIdentifier("connect.trouble")
+        }
+        .buttonStyle(.hoverLink)
+        .font(.system(size: 13, weight: .medium))
+        .foregroundStyle(Color.muted)
+    }
+
+    private var connected: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(ConnectCopy.connected).font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
+            ConnectedAIList(connections: active, changes: { changesFor = $0 }, disconnect: { removing = $0 })
+                .padding(.horizontal, 14)
+                .padding(.vertical, 4)
+                .background(SetupCards.soft, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .settingsProbe("connect.connected")
+        }
+    }
+
+    /// What the run says when it is more than a wait: Codex being added, added, or a failure.
+    private var note: String? {
+        switch run.phase {
+        case .waiting(let line)?: ai == .codex ? line : nil
+        case .added(let line, _)?, .failed(let line, _)?: line
+        case nil: nil
+        }
+    }
+
+    private var fix: (title: String, action: () -> Void)? {
+        guard case .failed(_, let title) = run.phase else { return nil }
+        return (title, { run.fix(client: client) { openURL($0) } })
+    }
+
+    /// The setup card's Connect: ChatGPT and Claude open in the browser; Grok's and Other's
+    /// guides open over the wait.
+    private func begin(_ choice: SetupCards.AI) {
+        ai = choice
+        error = nil
+        withAnimation { stage = .waiting }
+        run.start(choice.guide, client: client) { openURL($0) }
+        guidePage = SetupCards.guidePage(choice)
+    }
+
+    private func cancel() {
+        run.stop()
+        withAnimation { stage = .choosing }
+    }
+
+    /// A guide closed without connecting: back to the tiles, not a wait with nothing open.
+    private func guideClosed() {
+        if stage == .waiting { cancel() }
+        Task { await load() }
+    }
+
+    /// The tick a moment, then the tiles again, the new one in the list under them.
+    private func connectedNow() {
+        withAnimation { stage = .connected }
+        Task { await load() }
+        Task {
+            try? await Task.sleep(for: .seconds(1.4))
+            if stage == .connected { withAnimation { stage = .choosing } }
+        }
+    }
+
+    private func load() async {
+        guard preview == nil else { return }
+        do {
+            connections = try await Connection.list(client)
+            error = nil
+        } catch {
+            // Offline isn't a failure: it is asked again once the server answers.
+            self.error = reach == .online ? "Couldn\u{2019}t load what\u{2019}s connected. Check your connection." : nil
+        }
+    }
+
+    private func revoke(_ c: Connection) async {
+        do {
+            try await ConnectRevoke.revoke(client, id: c.id)
+            removing = nil
+            await load()
+        } catch {
+            self.error = "Couldn\u{2019}t disconnect \(c.name). Try again."
+        }
+    }
+}
+#endif
+
 /// Which connect guide is open. The form around Connect an AI holds it and presents the guide, not
 /// the section's rows: a form's rows come and go as it redraws and scrolls, and a sheet presented
 /// from one closes with it (the Connect Claude sheet that opened and closed itself on the first tap).

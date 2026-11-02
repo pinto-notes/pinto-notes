@@ -17,6 +17,26 @@ struct OpenSettingsPlace: Equatable {
 extension EnvironmentValues {
     /// Opens a page of Settings one level down (General's Keys for apps).
     @Entry var openSettingsPlace: OpenSettingsPlace? = nil
+    /// Tests: told where the card's parts land (the title, the page, each tab), in the card's space.
+    @Entry var settingsLayoutProbe: ((String, CGRect) -> Void)? = nil
+}
+
+extension View {
+    /// Reports this view's frame in the Settings card to `settingsLayoutProbe`, when a test set one.
+    func settingsProbe(_ name: String) -> some View { modifier(SettingsProbe(name: name)) }
+}
+
+private struct SettingsProbe: ViewModifier {
+    let name: String
+    @Environment(\.settingsLayoutProbe) private var probe
+
+    func body(content: Content) -> some View {
+        if let probe {
+            content.onGeometryChange(for: CGRect.self) { $0.frame(in: .named(SettingsCard.space)) } action: { probe(name, $0) }
+        } else {
+            content
+        }
+    }
 }
 
 /// Settings on the Mac: a big card over the notes window, like Templates, with a sidebar of pages
@@ -54,8 +74,20 @@ struct SettingsCard: View {
     static let sidebarWidth: CGFloat = 240
     /// Room around the card on a window smaller than it.
     static let margin: CGFloat = 24
-    /// A page's widest: the rows read as one column, not a stretch across the card.
-    static let pageWidth: CGFloat = 640
+    /// The content column's widest: the rows read as one column, centred in the page area, not a
+    /// stretch across the card (Emil, 2 November 2026).
+    static let contentWidth: CGFloat = 580
+    /// How far a page's own content sits in from its edges: a grouped form's boxes, and the custom
+    /// pages (Security, Connect an AI) pad the same.
+    static let pageInset: CGFloat = 20
+    /// A page's widest: the content column and the page's own inset each side.
+    static let pageWidth: CGFloat = contentWidth + 2 * pageInset
+    /// Between the page and the card's sides on a narrow card, room for Back left of the title.
+    static let gutter: CGFloat = 16
+    /// Between two tabs, so their hover and selection fills never touch.
+    static let tabGap: CGFloat = 3
+    /// The card's coordinate space, for `settingsProbe`.
+    static let space = "settings.card"
 
     /// The card's size in `space`: its own, or smaller on a small window, never too small to use.
     static func fitted(_ space: CGSize) -> CGSize {
@@ -122,16 +154,22 @@ struct SettingsCard: View {
                 .frame(maxHeight: .infinity)
                 .background(Color.soft, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .padding(8)
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(spacing: 0) {
                 header
+                // The page in one column, centred; its title above its left edge (header).
                 page(shown)
                     .environment(\.settingsAsPage, true)
                     .environment(\.openSettingsPlace, OpenSettingsPlace { path.append($0) })
-                    .frame(maxWidth: Self.pageWidth, maxHeight: .infinity, alignment: .topLeading)
+                    .frame(maxWidth: Self.pageWidth, maxHeight: .infinity, alignment: .top)
+                    .settingsProbe("page")
                     .id(shown)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.horizontal, Self.gutter)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .settingsProbe("area")
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+        .coordinateSpace(.named(Self.space))
         .background {
             if framed { shape.fill(SetupCards.ground).shadow(color: .black.opacity(0.2), radius: 30, y: 20) } else { SetupCards.ground }
         }
@@ -142,35 +180,44 @@ struct SettingsCard: View {
         .accessibilityAddTraits(.isModal)
     }
 
-    /// Back (on a page one level down), the page's name, and × (Esc).
+    /// The page's name over the left edge of its content, Back (one level down) just left of it,
+    /// and × (Esc) at the card's corner.
     private var header: some View {
-        HStack(alignment: .center, spacing: 6) {
-            if !path.isEmpty {
-                Button { path.removeLast() } label: {
-                    Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.ink)
-                        .frame(width: 28, height: 28).contentShape(Circle())
-                }
-                .buttonStyle(.quietIcon)
-                .keyboardShortcut("[", modifiers: .command)
-                .help("Back")
-                .accessibilityLabel("Back")
-                .accessibilityIdentifier("settings.back")
-            }
+        HStack(spacing: 0) {
             Text(shown.title)
                 .font(.system(size: 22, weight: .bold))
                 .foregroundStyle(Color.ink)
                 .lineLimit(1)
                 .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 16)
+                .settingsProbe("title")
+            Spacer(minLength: 0)
+        }
+        .frame(minHeight: 28)
+        .overlay(alignment: .leading) { if !path.isEmpty { back.offset(x: -34) } }
+        .padding(.horizontal, Self.pageInset)
+        .frame(maxWidth: Self.pageWidth)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, Self.gutter)
+        .overlay(alignment: .trailing) {
             // The cards' one close × (CardCloseButton), solid like the card (Emil, 2 November 2026).
             CardCloseButton(size: 28, action: closeNow)
                 .accessibilityIdentifier("settings.done")
+                .padding(.trailing, 16)
         }
-        // In line with the rows of the page's form under it.
-        .padding(.leading, path.isEmpty ? 30 : 22)
-        .padding(.trailing, 16)
         .padding(.top, 18)
         .padding(.bottom, 2)
+    }
+
+    private var back: some View {
+        Button { path.removeLast() } label: {
+            Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.ink)
+                .frame(width: 28, height: 28).contentShape(Circle())
+        }
+        .buttonStyle(.quietIcon)
+        .keyboardShortcut("[", modifiers: .command)
+        .help("Back")
+        .accessibilityLabel("Back")
+        .accessibilityIdentifier("settings.back")
     }
 
     private var sidebar: some View {
@@ -180,7 +227,7 @@ struct SettingsCard: View {
                 if available.contains(.profile) { you.padding(.bottom, 10) }
                 ForEach(Array(SettingsPlace.groups(available: available).enumerated()), id: \.offset) { i, group in
                     if i > 0 { Divider().padding(.vertical, 8).padding(.horizontal, 7) }
-                    ForEach(group) { row($0) }
+                    VStack(spacing: Self.tabGap) { ForEach(group) { row($0) } }
                 }
             } else {
                 results
@@ -219,7 +266,7 @@ struct SettingsCard: View {
                 .padding(.horizontal, 7)
         }
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: Self.tabGap) {
                 ForEach(found, id: \.self) { entry in
                     Button { open(entry.place) } label: {
                         HStack(spacing: 8) {
@@ -285,6 +332,7 @@ struct SettingsCard: View {
         .buttonStyle(.plain)
         .accessibilityAddTraits(current == p ? .isSelected : [])
         .accessibilityIdentifier("settings.\(p.rawValue)")
+        .settingsProbe("tab.\(p.rawValue)")
     }
 
     private func highlight(_ on: Bool) -> some View {

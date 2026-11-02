@@ -47,6 +47,10 @@ struct SettingsView: View {
     var devices: KeyDevices = .shared
     /// Captures: shows these instead of asking the server.
     var connections: [Connection]? = nil
+    #if os(macOS)
+    /// Captures: Connect an AI waiting for this AI.
+    var connectWaiting: SetupCards.AI? = nil
+    #endif
     var route: SettingsRoute = .shared
     #if os(macOS)
     /// Captures: the page to open on, and a search already typed.
@@ -136,7 +140,13 @@ struct SettingsView: View {
     func place(_ place: SettingsPlace) -> some View {
         switch place {
         case .profile: SettingsPage { ProfilePage(backend: backend, sync: sync) }
-        case .ai: page(.ai)
+        case .ai:
+            // The setup card's tiles and wait, on a page of its own (ConnectAIPage).
+            if let client = backend.client {
+                ConnectAIPage(client: client, preview: connections, previewWaiting: connectWaiting)
+                    .background(NoInitialFocus())
+                    .connectGuides(client: client)
+            }
         case .security: page(.security)
         case .storage: page(.storage)
         case .account: page(.account)

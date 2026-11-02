@@ -406,6 +406,13 @@ struct ConnectWebGuideSheet: View {
     static let compact = false
     #endif
 
+    /// The guide's soft fills: the setup card's on the Mac, the system's on iPhone.
+    #if os(macOS)
+    static let soft = SetupCards.soft
+    #else
+    static let soft = Color(.tertiarySystemFill)
+    #endif
+
     /// Between a picture and the marks under it, as between the import guides' picture and words.
     static let pictureGap: CGFloat = 28
 
@@ -649,7 +656,7 @@ struct ConnectWebGuideSheet: View {
                                 Text(app.title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.ink)
                             }
                             .padding(.horizontal, 12).frame(height: 30)
-                            .background(ConnectWebGuide.tileFill, in: Capsule())
+                            .background(ConnectWebGuideSheet.soft, in: Capsule())
                             .contentShape(Capsule())
                         }
                         .buttonStyle(.tile(radius: 15))
@@ -678,7 +685,7 @@ struct ConnectWebGuideSheet: View {
                 .font(.system(size: 12, weight: .bold)).monospacedDigit()
                 .foregroundStyle(Color.ink)
                 .frame(width: 22, height: 22)
-                .background(ConnectWebGuide.tileFill, in: Circle())
+                .background(ConnectWebGuideSheet.soft, in: Circle())
             VStack(alignment: .leading, spacing: 10) {
                 Text(text).font(.system(size: 14, weight: .medium)).foregroundStyle(Color.ink)
                     .fixedSize(horizontal: false, vertical: true)
@@ -708,7 +715,7 @@ struct ConnectWebGuideSheet: View {
         }
         .padding(.leading, 16).padding(.trailing, 8)
         .frame(height: 50)
-        .background(ConnectWebGuide.tileFill, in: shape)
+        .background(ConnectWebGuideSheet.soft, in: shape)
         .accessibilityIdentifier("connect.address")
     }
 
@@ -730,7 +737,7 @@ struct ConnectWebGuideSheet: View {
             }
             .padding(.horizontal, 14)
             .frame(maxWidth: .infinity, minHeight: 48)
-            .background(ConnectWebGuide.tileFill, in: shape)
+            .background(ConnectWebGuideSheet.soft, in: shape)
             .contentShape(shape)
         }
         .buttonStyle(.tile(radius: 12))
@@ -1276,16 +1283,5 @@ struct ConnectDrawing: View {
             .foregroundStyle(filled ? .white : ink)
             .padding(.horizontal, 11).padding(.vertical, 5)
             .background(filled ? fill : Color.gray.opacity(0.14), in: .capsule)
-    }
-}
-
-extension ConnectWebGuide {
-    /// The soft fill of the guide's chips and rows: the setup cards' on the Mac.
-    static var tileFill: Color {
-        #if os(macOS)
-        SetupCards.soft
-        #else
-        Color(.secondarySystemFill)
-        #endif
     }
 }
