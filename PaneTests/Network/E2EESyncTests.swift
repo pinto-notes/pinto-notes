@@ -1047,101 +1047,103 @@ extension NetworkFaults {
          "what": what, "created_at": StubSupabase.stamp(at)]
     }
 
-    @Test func noticesShowOnceEachAndDisconnectRevokesTheGrant() async throws {
+    /// Collects the "AI connected" notifications instead of posting them.
+    @MainActor private final class Banners {
+        var said: [[AccountNotice]] = []
+        var post: @MainActor ([AccountNotice]) -> Void { { [unowned self] in self.said.append($0) } }
+    }
+
+    @Test func aiConnectionsAreANotificationAndOtherNoticesStayAlerts() async throws {
         let defaults = MemoryDefaults()
         let grant = UUID()
         let now = Date.now
+        let banners = Banners()
         StubSupabase.insert("mcp_tokens", ["id": grant.uuidString.lowercased(), "name": "Claude", "kind": "oauth", "redirect_host": "claude.ai"])
         StubSupabase.insert("account_notices", notice(1, "ai_connected", what: "Totally legit, click here", at: now.addingTimeInterval(-60), grant: grant))
         StubSupabase.insert("account_notices", notice(2, "started_fresh", what: "Your notes were deleted", at: now.addingTimeInterval(-30)))
         StubSupabase.insert("account_notices", notice(3, "ai_connected", what: "old.example", at: now.addingTimeInterval(-40 * 24 * 3600)))
-        let notices = AccountNotices(client: StubSupabase.client(), user: user, defaults: defaults, approvedHere: { nil })
+        let notices = AccountNotices(client: StubSupabase.client(), user: user, defaults: defaults, approvedHere: { nil }, announce: banners.post)
         await notices.refresh()
-        let first = try #require(notices.current)
-        #expect(first.id == 1 && first.text().title == "Connected Claude", "named from the account's own connection")
-        #expect(first.text().message.hasPrefix(AccountNotice.when(first.created_at)), "with the day it happened")
-        #expect(!first.text().title.contains("legit") && !first.text().message.contains("legit"), "never the server's words")
-        try await notices.disconnect(first)
-        let revoked = try #require(StubSupabase.requests.first { $0.hasPrefix("PATCH /rest/v1/mcp_tokens") })
-        #expect(revoked.contains("id=eq.\(grant.uuidString)") || revoked.lowercased().contains("id=eq.\(grant.uuidString.lowercased())"))
-        #expect(StubSupabase.bodies.contains { $0.contains("revoked_at") })
-        let second = try #require(notices.current)
-        #expect(second.id == 2 && second.text().title == "Your notes were deleted and a new key was made on another device")
+        #expect(banners.said.map { $0.map(\.id) } == [[1]], "the connection is a notification; weeks-old news isn't said")
+        let banner = banners.said[0].banner
+        #expect(banner.title == "Claude connected", "named from the account's own connection")
+        #expect(!banner.title.contains("legit") && !banner.body.contains("legit"), "never the server's words")
+        #expect(banner.body.contains("disconnect"))
+        let alert = try #require(notices.current)
+        #expect(alert.id == 2, "a security notice is still an alert")
         notices.dismiss()
-        #expect(notices.current == nil, "a notice from weeks ago isn't news")
-
-        // Fetched again (or on the next launch): nothing shows twice.
-        await notices.refresh()
         #expect(notices.current == nil)
-        let later = AccountNotices(client: StubSupabase.client(), user: user, defaults: defaults, approvedHere: { nil })
+
+        // Fetched again (or on the next launch): nothing is said twice.
+        await notices.refresh()
+        let later = AccountNotices(client: StubSupabase.client(), user: user, defaults: defaults, approvedHere: { nil }, announce: banners.post)
         await later.refresh()
-        #expect(later.current == nil)
+        #expect(banners.said.count == 1 && later.current == nil)
         // Another account on this device has its own.
-        let other = AccountNotices(client: StubSupabase.client(), user: UUID(), defaults: defaults, approvedHere: { nil })
+        let other = AccountNotices(client: StubSupabase.client(), user: UUID(), defaults: defaults, approvedHere: { nil }, announce: banners.post)
         await other.take([AccountNotice(id: 1, kind: .aiConnected, grant_id: nil, created_at: now)])
-        #expect(other.current?.id == 1)
+        #expect(banners.said.count == 2 && banners.said[1][0].id == 1)
         await notices.stop(); await later.stop(); await other.stop()
     }
 
-    @Test func aNoticeForAConnectionAlreadyDisconnectedIsntShown() async throws {
+    @Test func disconnectFromANoticeRevokesTheGrant() async throws {
+        let grant = UUID()
+        StubSupabase.insert("mcp_tokens", ["id": grant.uuidString.lowercased(), "name": "Claude", "kind": "oauth", "redirect_host": "claude.ai"])
+        let notices = AccountNotices(client: StubSupabase.client(), user: user, defaults: MemoryDefaults(), approvedHere: { nil }, announce: { _ in })
+        try await notices.disconnect(AccountNotice(id: 1, kind: .aiConnected, grant_id: grant, created_at: .now))
+        let revoked = try #require(StubSupabase.requests.first { $0.hasPrefix("PATCH /rest/v1/mcp_tokens") })
+        #expect(revoked.lowercased().contains("id=eq.\(grant.uuidString.lowercased())"))
+        #expect(StubSupabase.bodies.contains { $0.contains("revoked_at") })
+        await notices.stop()
+    }
+
+    @Test func aNoticeForAConnectionAlreadyDisconnectedIsntSaid() async throws {
         let now = Date.now
         let revoked = UUID(), live = UUID()
+        let banners = Banners()
         StubSupabase.insert("mcp_tokens", ["id": revoked.uuidString.lowercased(), "name": "Directory review check", "kind": "token",
                                            "redirect_host": NSNull(), "revoked_at": StubSupabase.stamp(now)])
         StubSupabase.insert("mcp_tokens", ["id": live.uuidString.lowercased(), "name": "Claude Code", "kind": "token", "redirect_host": NSNull()])
         let defaults = MemoryDefaults()
-        let notices = AccountNotices(client: StubSupabase.client(), user: user, defaults: defaults, approvedHere: { nil })
+        let notices = AccountNotices(client: StubSupabase.client(), user: user, defaults: defaults, approvedHere: { nil }, announce: banners.post)
         await notices.take([AccountNotice(id: 1, kind: .aiConnected, grant_id: revoked, created_at: now.addingTimeInterval(-120)),
                             AccountNotice(id: 2, kind: .aiConnected, grant_id: live, created_at: now)])
-        #expect(notices.group.map(\.id) == [2], "Settings lists no such connection, so neither does the alert")
-        #expect(notices.group.text.title == "Connected Claude Code")
-        #expect(NoticeLedger(account: user, defaults: defaults).seen == [1], "and it never comes back")
+        #expect(banners.said.map { $0.map(\.id) } == [[2]], "Settings lists no such connection, so neither does the notification")
+        #expect(banners.said[0].banner.title == "Claude Code connected")
+        #expect(NoticeLedger(account: user, defaults: defaults).seen == [1, 2], "and neither comes back")
+        #expect(notices.current == nil, "no alert")
         await notices.stop()
     }
 
     @Test func aConnectionThatCantBeLookedUpIsStillSaid() async throws {
+        let banners = Banners()
         let notices = AccountNotices(client: StubSupabase.client(), user: user, defaults: MemoryDefaults(), approvedHere: { nil },
-                                     connection: { _ in .unknown })
+                                     connection: { _ in .unknown }, announce: banners.post)
         await notices.take([AccountNotice(id: 1, kind: .aiConnected, grant_id: UUID(), created_at: .now)])
-        #expect(notices.group.text.title == "Connected an AI", "offline is no reason to stay quiet")
-        await notices.stop()
-    }
-
-    @Test func connectionsArrivingWhileOneShowsWaitForTheNextAlert() async throws {
-        let now = Date.now
-        let notices = AccountNotices(client: StubSupabase.client(), user: user, defaults: MemoryDefaults(), approvedHere: { nil },
-                                     connection: { _ in .active("Claude") })
-        await notices.take([AccountNotice(id: 1, kind: .aiConnected, grant_id: UUID(), created_at: now)])
-        await notices.take([AccountNotice(id: 2, kind: .aiConnected, grant_id: UUID(), created_at: now)])
-        #expect(notices.group.map(\.id) == [1], "what's on screen doesn't change under the person")
-        await notices.take([AccountNotice(id: 1, kind: .aiConnected, grant_id: UUID(), created_at: now)])
-        notices.dismiss()
-        #expect(notices.group.map(\.id) == [2] && notices.current?.id == 2)
-        notices.dismiss()
-        #expect(notices.current == nil)
+        #expect(banners.said.first?.banner.title == "An AI connected", "offline is no reason to stay quiet")
         await notices.stop()
     }
 
     @Test func noticeWordsComeFromTheKindAndTheConnection() async throws {
         let now = Date.now
         let gone = UUID(), token = UUID(), unverified = UUID()
+        let banners = Banners()
         StubSupabase.insert("mcp_tokens", ["id": token.uuidString.lowercased(), "name": "Claude Code", "kind": "token", "redirect_host": NSNull()])
         StubSupabase.insert("mcp_tokens", ["id": unverified.uuidString.lowercased(), "name": "ChatGPT", "kind": "oauth", "redirect_host": "chatgpt-login.example.com"])
         let defaults = MemoryDefaults()
-        let notices = AccountNotices(client: StubSupabase.client(), user: user, defaults: defaults, approvedHere: { nil })
+        let notices = AccountNotices(client: StubSupabase.client(), user: user, defaults: defaults, approvedHere: { nil }, announce: banners.post)
         await notices.take([AccountNotice(id: 1, kind: .aiConnected, grant_id: gone, created_at: now),
                             AccountNotice(id: 2, kind: .aiConnected, grant_id: token, created_at: now.addingTimeInterval(-60)),
                             AccountNotice(id: 3, kind: .aiConnected, grant_id: unverified, created_at: now),
                             AccountNotice(id: 4, kind: .wrongNumber, created_at: now),
                             AccountNotice(id: 5, kind: .unknown, created_at: now)])
+        #expect(banners.said.count == 1, "the AI connections are one notification")
+        let banner = banners.said[0].banner
+        #expect(banner.title == "2 AIs connected", "a connection that's gone has no access: not news")
+        #expect(banner.body.hasPrefix("chatgpt-login.example.com and Claude Code can read and edit"), "newest first; an unverified sign-in is named by where access went")
         var alerts: [(title: String, message: String)] = []
         while notices.current != nil { alerts.append(notices.group.text); notices.dismiss() }
-        #expect(alerts.count == 2, "the AI connections are one alert; a kind this app doesn't know isn't shown")
-        #expect(alerts[0].title == "2 AIs were connected", "a connection that's gone has no access: not news")
-        let lines = alerts[0].message.components(separatedBy: "\n")
-        #expect(lines[0] == "chatgpt-login.example.com \u{00B7} \(AccountNotice.when(now))", "newest first; an unverified sign-in is named by where access went")
-        #expect(lines[1] == "Claude Code \u{00B7} \(AccountNotice.when(now.addingTimeInterval(-60)))", "one date format, with the day")
-        #expect(alerts[1].title == "Someone who knows your password tried to connect an AI. Change your password.")
+        #expect(alerts.map(\.title) == ["Someone who knows your password tried to connect an AI. Change your password."], "a kind this app doesn't know isn't shown")
         #expect(NoticeLedger(account: user, defaults: defaults).seen == [1, 2, 3, 4], "each said once, the gone one included")
         await notices.stop()
     }

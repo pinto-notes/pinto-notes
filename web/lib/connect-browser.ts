@@ -19,7 +19,7 @@
 import type { ConnectRequest } from "./connect";
 
 /// Who receives what a known AI opens: the company that makes it (ConnectTrust.makers in the app).
-export const MAKERS: Record<"ChatGPT" | "Claude", string> = { ChatGPT: "OpenAI", Claude: "Anthropic" };
+export const MAKERS: Record<"ChatGPT" | "Claude" | "Grok", string> = { ChatGPT: "OpenAI", Claude: "Anthropic", Grok: "xAI" };
 
 /// What the consent says, line by line, in reading order. The same words as the app's Allow sheet
 /// (ConsentSheet in Pane/Views/ConnectAI.swift): App Review and the ChatGPT plugin's reviewers read
@@ -48,20 +48,20 @@ export function consentWords(r: Pick<ConnectRequest, "verified_ai" | "redirect_h
       title: `Connect ${ai} to your notes?`,
       caution: null,
       sharedLead: `Shared with ${maker}.`,
-      sent: `The notes ${ai} opens, with their text and files, are sent to ${maker} and handled under ${maker}’s privacy policy.`,
+      sent: `The notes ${ai} opens are sent to ${maker}, under its privacy policy.`,
       lockedLead: "Locked notes stay private.",
-      lockedDetail: `${ai} can’t open them.`,
+      lockedDetail: "",
       started: `Allow it only if you just started connecting ${ai} yourself.`,
     };
   }
   const claim = r.claimed_name ? `It calls itself ${displayClaim(r.claimed_name)}. ` : "";
   return {
     title: `Connect ${who} to your notes?`,
-    caution: { lead: "Pinto doesn’t recognize this app.", detail: `${claim}Only allow it if you just started connecting it yourself.` },
+    caution: { lead: "Pinto doesn’t know this app.", detail: `${claim}Allow it only if you started connecting it.` },
     sharedLead: `Shared with ${where}.`,
-    sent: `The notes it opens, with their text and files, are sent to ${where}.`,
+    sent: "The notes it opens are sent there.",
     lockedLead: "Locked notes stay private.",
-    lockedDetail: "It can’t open them.",
+    lockedDetail: "",
     started: "Allow it only if you just started connecting it yourself.",
   };
 }

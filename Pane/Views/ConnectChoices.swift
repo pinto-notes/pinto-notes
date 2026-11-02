@@ -292,6 +292,9 @@ final class ConnectRun {
             }
         case .claudeCode, .codex:
             add(g, client: client)
+        case .grok:
+            copy(server)
+            wait(client, ConnectCopy.waiting(.grok))
         case .other, .incredible:
             copy(server)
             wait(client, ConnectCopy.waiting(.other))
@@ -474,6 +477,8 @@ final class ConnectRun {
     nonisolated static func isNew(_ rows: [Connection], for g: Guide, since: Date) -> Bool {
         let fresh = rows.filter { $0.revoked_at == nil && $0.created_at >= since }
         switch g {
+        case .grok:
+            return fresh.contains { owner(of: $0) == .grok }
         case .chatgpt, .claude:
             if fresh.contains(where: { owner(of: $0) == g }) { return true }
             // Claude straight to Claude Code: a sign-in from this computer.
@@ -500,7 +505,7 @@ final class ConnectRun {
     /// by the name they gave (shown as a hint on the row, never trusted for anything else).
     nonisolated static func owner(of c: Connection) -> Guide {
         if c.isOAuth, let ai = ConnectTrust.verifiedAI(host: c.redirect_host ?? "", loopback: false) {
-            return ai == "ChatGPT" ? .chatgpt : ai == "Claude" ? .claude : .other
+            return ai == "ChatGPT" ? .chatgpt : ai == "Claude" ? .claude : ai == "Grok" ? .grok : .other
         }
         let n = c.name.lowercased()
         if n.contains("codex") { return .codex }
@@ -785,6 +790,7 @@ enum ConnectCopy {
         switch g {
         case .chatgpt: "Finish on chatgpt.com. The link is copied."
         case .claude: "Finish in Claude: choose Connect."
+        case .grok: "Finish on grok.com. The link is copied."
         default: "Link copied. Paste it in your AI app."
         }
     }
@@ -1462,6 +1468,12 @@ struct ConnectHelpSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Button("Add as Custom Connector", systemImage: "plus.circle") { openURL(WebConnectPlan.installLink(server: server)) }
                     .accessibilityIdentifier("connect.help.custom")
+            }
+        case .grok:
+            Section("Grok") {
+                Text("On grok.com, open Connectors, choose New Connector, then Custom. Name it Pinto Notes and paste this under Server URL.")
+                    .fixedSize(horizontal: false, vertical: true)
+                copyRow(server, id: "grok")
             }
         case .claudeCode, .codex:
             Section(g == .codex ? "Codex" : "Claude Code") {

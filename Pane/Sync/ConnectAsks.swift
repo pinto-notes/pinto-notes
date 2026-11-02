@@ -333,11 +333,17 @@ extension ConnectCenter: UNUserNotificationCenterDelegate {
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        if ConnectionBanner.isOurs(response.notification.request.content.userInfo) {
+            await MainActor.run { ConnectionBanner.opened() }
+            return
+        }
         guard let ask = ConnectNotifier.ask(in: response.notification.request.content.userInfo) else { return }
         await MainActor.run { self.openedNotification(for: ask.id) }
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        // "Grok connected" shows in front of the app too: it replaced an alert there.
+        if ConnectionBanner.isOurs(notification.request.content.userInfo) { return [.banner, .list, .sound] }
         guard let ask = ConnectNotifier.ask(in: notification.request.content.userInfo) else { return [] }
         return await MainActor.run { self.presentation(for: ask.id, push: ask.push) }
     }

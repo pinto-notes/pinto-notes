@@ -2,6 +2,10 @@ import Foundation
 import Observation
 import OSLog
 import Supabase
+import UserNotifications
+#if os(macOS)
+import AppKit
+#endif
 
 // Things every device of the account should say (public.account_notices): an AI was connected,
 // the account started fresh, a device was added, or a wrong number was typed when connecting an AI. The server writes them; each device fetches them when the
@@ -76,6 +80,19 @@ struct AccountNotice: Decodable, Equatable, Identifiable, Sendable {
 }
 
 extension [AccountNotice] {
+    /// The notification for AI connections (newest first): "Grok connected". Not an alert: it's
+    /// news, not a question (Emil, 2 November 2026).
+    var banner: (title: String, body: String) {
+        let names = sorted { $0.created_at > $1.created_at }.map { $0.name ?? "An AI" }
+        let after = "Not you? Click to disconnect it in Settings."
+        guard names.count > 1 else {
+            return ("\(names.first ?? "An AI") connected", "It can read and edit your notes. " + after)
+        }
+        let list = names.count == 2 ? names.joined(separator: " and ")
+            : names.dropLast().joined(separator: ", ") + " and " + names.last!
+        return ("\(names.count) AIs connected", "\(list) can read and edit your notes. Not you? Click to disconnect one in Settings.")
+    }
+
     /// One alert for these: a notice on its own, or AI connections said together, newest first.
     var text: (title: String, message: String) { text(recoveryKey: true) }
 
@@ -173,6 +190,8 @@ final class AccountNotices {
     /// Told when the server says an AI connected, this device's own approvals included: connect
     /// guides waiting for it look at once (`ConnectCenter.connectionNews`).
     @ObservationIgnored private let aiConnected: @MainActor () -> Void
+    /// Says AI connections as a notification (`ConnectionBanner`), not an alert.
+    @ObservationIgnored private let announce: @MainActor ([AccountNotice]) -> Void
     @ObservationIgnored private var channel: RealtimeChannelV2?
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
     @ObservationIgnored private var stopped = false
@@ -183,11 +202,13 @@ final class AccountNotices {
     init(client: SupabaseClient, user: UUID, defaults: UserDefaults = .standard,
          approvedHere: @escaping () -> Date? = { ConnectCenter.shared.approved?.at },
          aiConnected: @escaping @MainActor () -> Void = { ConnectCenter.shared.connectionMayHaveAppeared() },
-         connection: ((UUID) async -> ConnectionLookup)? = nil) {
+         connection: ((UUID) async -> ConnectionLookup)? = nil,
+         announce: @escaping @MainActor ([AccountNotice]) -> Void = { ConnectionBanner.post($0) }) {
         self.client = client
         ledger = NoticeLedger(account: user, defaults: defaults)
         self.approvedHere = approvedHere
         self.aiConnected = aiConnected
+        self.announce = announce
         self.connection = connection ?? { grant in await Self.connection(client, grant: grant) }
     }
 
@@ -272,6 +293,13 @@ final class AccountNotices {
             fresh.append(n)
         }
         guard !stopped else { return }
+        // AI connections are news: a notification, said once, never an alert in the way.
+        let connected = fresh.filter { $0.kind == .aiConnected }
+        if !connected.isEmpty {
+            connected.forEach { ledger.markSeen($0.id) }
+            announce(connected)
+            fresh.removeAll { $0.kind == .aiConnected }
+        }
         let known = Set(queue.map(\.id)).union(group.map(\.id)).union(current.map { [$0.id] } ?? [])
         queue += fresh.filter { !known.contains($0.id) }
         showNext()
@@ -304,6 +332,42 @@ final class AccountNotices {
         }
         current = group.first
         shownThisLaunch = true
+    }
+}
+
+/// "Grok connected": the system notification for AI connections. Shown in front of the app too;
+/// clicking it opens Settings › Connect an AI, where Disconnect is.
+enum ConnectionBanner {
+    static let userInfoKey = "pane.aiConnected"
+    static let identifierPrefix = "ai-connected-"
+
+    static func isOurs(_ userInfo: [AnyHashable: Any]) -> Bool { userInfo[userInfoKey] as? Bool == true }
+
+    @MainActor
+    static func post(_ notices: [AccountNotice]) {
+        // Never a real banner from a test run on someone's Mac.
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+        let text = notices.banner
+        let content = UNMutableNotificationContent()
+        content.title = text.title
+        content.body = text.body
+        content.sound = .default
+        content.userInfo = [userInfoKey: true]
+        let id = identifierPrefix + (notices.map { String($0.id) }.joined(separator: "-"))
+        Task {
+            let center = UNUserNotificationCenter.current()
+            _ = try? await center.requestAuthorization(options: [.alert, .sound])
+            try? await center.add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
+        }
+    }
+
+    /// Clicked: Settings › Connect an AI.
+    @MainActor
+    static func opened() {
+        #if os(macOS)
+        NSApp.activate()
+        #endif
+        SettingsRoute.shared.open(.ai)
     }
 }
 

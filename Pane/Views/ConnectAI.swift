@@ -48,6 +48,7 @@ enum ConnectTrust {
         "chat.openai.com": "ChatGPT",
         "claude.ai": "Claude",
         "claude.com": "Claude",
+        "grok.com": "Grok",
     ]
 
     /// The exact addresses where ChatGPT and Claude receive their sign-in, as on the server
@@ -58,6 +59,8 @@ enum ConnectTrust {
         "https://platform.openai.com/apps-manage/oauth": "ChatGPT",
         "https://claude.ai/api/mcp/auth_callback": "Claude",
         "https://claude.com/api/mcp/auth_callback": "Claude",
+        "https://grok.com/connectors-oauth-exchange-code/": "Grok",
+        "https://grok.com/connectors-oauth-exchange-code": "Grok",
     ]
 
     /// The company that makes each AI the sheet can name: what the AI reads is sent to it.
@@ -66,6 +69,7 @@ enum ConnectTrust {
         "Codex": "OpenAI",
         "Claude": "Anthropic",
         "Claude Code": "Anthropic",
+        "Grok": "xAI",
     ]
 
     /// Who will receive access, in words for the consent sheet.
@@ -1646,13 +1650,15 @@ struct ConnectAISection: View {
     @State private var anyConnected = false
 
     enum Guide: String, Identifiable, CaseIterable {
-        case chatgpt, claude, claudeCode, codex, incredible, other
+        case chatgpt, claude, grok, claudeCode, codex, incredible, other
         var id: String { rawValue }
         /// The guide as the connect funnel names its AI.
         var funnel: ConnectAIKind {
             switch self {
             case .chatgpt: .chatgpt
             case .claude: .claude
+            // Counted with the other apps: the funnel's payload has no Grok yet.
+            case .grok: .other
             case .claudeCode: .claudeCode
             case .codex: .codex
             case .incredible: .incredible
@@ -1663,6 +1669,7 @@ struct ConnectAISection: View {
             switch self {
             case .chatgpt: "ChatGPT"
             case .claude: "Claude"
+            case .grok: "Grok"
             case .claudeCode: "Claude Code"
             case .codex: "Codex"
             case .incredible: "Incredible"
@@ -1676,6 +1683,7 @@ struct ConnectAISection: View {
             switch self {
             case .chatgpt: "Added once in ChatGPT on the web, then works in its apps"
             case .claude: "Added once in Claude on the web or desktop, then works in its apps"
+            case .grok: "Added once on grok.com, then works in its apps"
             case .claudeCode: "Adds Pinto Notes to Claude Code on this Mac"
             case .codex: "Adds Pinto Notes to Codex"
             case .incredible: "Connected once in Incredible on your computer"
@@ -1704,6 +1712,7 @@ struct ConnectAISection: View {
             switch self {
             case .chatgpt: "Chat with ChatGPT"
             case .claude: "Chat with Claude, and Claude Code"
+            case .grok: "Chat with Grok"
             case .claudeCode: "Claude for coding"
             case .codex: "OpenAI\u{2019}s coding agent, on this Mac"
             case .incredible: "Connects from the Incredible app"

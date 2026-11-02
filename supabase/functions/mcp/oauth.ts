@@ -233,13 +233,19 @@ async function formOrJson(req: Request): Promise<Record<string, string>> {
 
 // MARK: Who is asking
 
-/// The exact addresses where ChatGPT and Claude receive their sign-in. Only a request that returns
-/// to one of these may show that AI's name and mark; anyone can call themselves "Claude".
-export const KNOWN_CALLBACKS: Record<string, "ChatGPT" | "Claude"> = {
+/// The AIs the consent screen names and marks as themselves.
+export type KnownAI = "ChatGPT" | "Claude" | "Grok";
+
+/// The exact addresses where ChatGPT, Claude and Grok receive their sign-in. Only a request that
+/// returns to one of these may show that AI's name and mark; anyone can call themselves "Claude".
+export const KNOWN_CALLBACKS: Record<string, KnownAI> = {
   "https://chatgpt.com/connector_platform_oauth_redirect": "ChatGPT",
   "https://platform.openai.com/apps-manage/oauth": "ChatGPT",
   "https://claude.ai/api/mcp/auth_callback": "Claude",
   "https://claude.com/api/mcp/auth_callback": "Claude",
+  // Grok's custom connectors (grok.com › Connectors › Custom), seen 2 November 2026.
+  "https://grok.com/connectors-oauth-exchange-code/": "Grok",
+  "https://grok.com/connectors-oauth-exchange-code": "Grok",
 };
 
 /// ChatGPT's per-connector callback, used when a server doesn't send `iss` (this one does, so it's a
@@ -256,7 +262,7 @@ const GOOGLE_CONNECTED_APPS_CALLBACK = /^https:\/\/oauth-redirect(?:-sandbox)?\.
 export const keepsRefreshToken = (redirectURIs: string[]): boolean =>
   redirectURIs.length > 0 && redirectURIs.every((u) => GOOGLE_CONNECTED_APPS_CALLBACK.test(u));
 
-export const verifiedAI = (redirectURI: string): "ChatGPT" | "Claude" | null =>
+export const verifiedAI = (redirectURI: string): KnownAI | null =>
   KNOWN_CALLBACKS[redirectURI] ?? (CHATGPT_CONNECTOR_CALLBACK.test(redirectURI) ? "ChatGPT" : null);
 
 // Latin look-alikes from other scripts, so "Сlaude" (Cyrillic С) still reads as Claude.
@@ -265,16 +271,16 @@ const LOOKALIKES: Record<string, string> = {
   "α": "a", "ο": "o", "ρ": "p", "τ": "t", "ν": "v", "ι": "i", "κ": "k", "μ": "m",
 };
 
-/// Names only ChatGPT, Claude or Pinto Notes itself (once Amber Notes) may use.
+/// Names only ChatGPT, Claude, Grok or Pinto Notes itself (once Amber Notes) may use.
 export function claimsATrustedName(name: string): boolean {
   const flat = [...name.normalize("NFKC").toLowerCase()].map((c) => LOOKALIKES[c] ?? c).join("")
     .replace(/[^a-z0-9]/g, "").replace(/0/g, "o").replace(/1/g, "l").replace(/4/g, "a");
-  return ["chatgpt", "openai", "claude", "anthropic", "amber", "pinto"].some((w) => flat.includes(w));
+  return ["chatgpt", "openai", "claude", "anthropic", "grok", "amber", "pinto"].some((w) => flat.includes(w));
 }
 
 /// Where ChatGPT, Claude and Pinto Notes really receive sign-ins or serve pages: these domains and
 /// anything under them.
-const TRUSTED_DOMAINS = ["chatgpt.com", "openai.com", "claude.ai", "claude.com", "anthropic.com", "pintonotes.com", "ambernotes.app"];
+const TRUSTED_DOMAINS = ["chatgpt.com", "openai.com", "claude.ai", "claude.com", "anthropic.com", "grok.com", "x.ai", "pintonotes.com", "ambernotes.app"];
 
 /// A return address whose host spells one of their names without being on one of their domains
 /// (claude.ai.example.net, chatgpt-login.example). The consent screen titles an unverified app by
@@ -283,7 +289,7 @@ export function hostClaimsATrustedName(redirectURI: string): boolean {
   const host = new URL(redirectURI).hostname.toLowerCase().replace(/\.$/, "");
   if (LOOPBACK.has(host) || TRUSTED_DOMAINS.some((d) => host === d || host.endsWith("." + d))) return false;
   const flat = host.replace(/[^a-z0-9]/g, "").replace(/0/g, "o").replace(/1/g, "l").replace(/4/g, "a");
-  return ["chatgpt", "openai", "claude", "anthropic", "pintonotes", "ambernotes"].some((w) => flat.includes(w));
+  return ["chatgpt", "openai", "claude", "anthropic", "grok", "pintonotes", "ambernotes"].some((w) => flat.includes(w));
 }
 
 /// A registered name made safe to show: no control, format or direction characters, one line, short.

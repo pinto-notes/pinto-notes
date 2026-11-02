@@ -16,7 +16,7 @@ import styles from "./connect.module.css";
 
 /// Who connects, as every step shows it: the AI's mark for its own verified callback, else a plain
 /// chat glyph; then Pinto's icon. `done` puts a tick between them.
-export type Verified = "ChatGPT" | "Claude" | null;
+export type Verified = "ChatGPT" | "Claude" | "Grok" | null;
 
 /// The frame around every step: no card, no side panel, no picture.
 export function BrowserFrame({ ai, done = false, children }: { ai: Verified; done?: boolean; children: React.ReactNode }) {
@@ -137,7 +137,7 @@ export function ConsentScreen({ words, onAllow, onDeny, busy, failure, email, on
         </li>
         <li data-testid="connect-locked">
           <LockGlyph />
-          <p><b>{words.lockedLead}</b> {words.lockedDetail}</p>
+          <p><b>{words.lockedLead}</b>{words.lockedDetail && ` ${words.lockedDetail}`}</p>
         </li>
       </ul>
       <ErrorLine text={failure} />
@@ -166,6 +166,7 @@ function PairMark({ ai, done }: { ai: Verified; done: boolean }) {
       <span className={styles.pairTile} data-testid="connect-mark" data-ai={ai ?? "none"}>
         {ai === "ChatGPT" ? <AIGlyph name="openai" size={20} color="#000" />
           : ai === "Claude" ? <AIGlyph name="claude" size={20} color="#d97757" />
+          : ai === "Grok" ? <AIGlyph name="grok" size={20} color="#000" />
           : (
             <svg viewBox="0 0 20 20" width={18} height={18} focusable="false">
               <path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H9l-3.5 3v-3H4a1.5 1.5 0 0 1-1.5-1.5V6A1.5 1.5 0 0 1 4 4.5z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />

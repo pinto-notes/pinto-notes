@@ -203,6 +203,22 @@ import Testing
         #expect(TemplateCatalog.shipped.entries.filter { !$0.app }.allSatisfy { $0.appProject == nil && $0.note == nil })
     }
 
+    /// Grok: a two-step guide like ChatGPT's old one, recognised by its own callback only.
+    @Test func grokHasAGuideAndIsKnownByItsCallback() {
+        let g = ConnectWebGuide.grok(onWeb: true)
+        #expect(g.steps.count == 2 && g.steps[0].link == ConnectWebGuide.grokConnectors && g.steps[0].copiesAndMovesOn)
+        #expect(g.steps[0].text.contains("New Connector") && g.steps[0].text.contains("Custom"))
+        #expect(g.steps[1].text.contains("Server URL") && g.steps[1].text.contains("Add Connector") && g.steps[1].waits)
+        #expect(ConnectWebGuide.opensSheet(.grok))
+        #expect(ConnectTrust.verifiedAI(redirectURI: "https://grok.com/connectors-oauth-exchange-code/") == "Grok")
+        #expect(ConnectTrust.verifiedAI(redirectURI: "https://grok.com.evil.example/connectors-oauth-exchange-code/") == nil)
+        #expect(ConnectTrust.makers["Grok"] == "xAI")
+        let mine = Connection(id: UUID(), name: "Pinto Notes", kind: "oauth", created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: "grok.com")
+        let theirs = Connection(id: UUID(), name: "Grok", kind: "oauth", created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: "evil.example")
+        #expect(ConnectRun.owner(of: mine) == .grok && ConnectRun.owner(of: theirs) == .other, "by where access went, never by the name")
+        #expect(ConnectRun.isNew([mine], for: .grok, since: .distantPast) && !ConnectRun.isNew([theirs], for: .grok, since: .distantPast))
+    }
+
     @Test func afterConnectingTheGalleryIsNext() {
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .connect, connected: false) == nil)
@@ -210,21 +226,24 @@ import Testing
 
     /// Emil, 2 November 2026: Connect your AI is two brand buttons, one click each, with a row
     /// under them; Other opens the address and its steps. Claude Code comes with Claude, Cursor and
-    /// VS Code sit behind Other, Grok and Gemini wait for a real connection, never Mistral.
+    /// VS Code sit behind Other, never Mistral. Grok is live (Emil connected it, 2 November);
+    /// Gemini waits for a real connection.
     @Test func connectIsTwoBrandButtonsAndARow() throws {
         #expect(SetupCards.connectLook == .brandButtons)
         #expect(SetupCards.moreLook == .row)
         #expect(ConnectWebGuide.otherLook == .steps)
         let row = SetupCards.rowAIs.map(\.name)
         #expect(row == ["Grok", "Gemini", "Other"], "no Codex in the row (Emil, 2 November 2026)")
-        #expect(SetupCards.comingSoon == ["Grok", "Gemini"], "coming soon until a real connection is proven")
+        #expect(SetupCards.comingSoon == ["Gemini"], "coming soon until a real connection is proven")
+        #expect(SetupCards.AI.grok.guide == .grok && !SetupCards.AI.grok.asks)
         for never in ["Codex", "Claude Code", "Cursor", "VS Code", "Mistral", "Le Chat"] { #expect(!row.contains(never)) }
         #expect(SetupCards.AI.codex.guide == .codex && !SetupCards.AI.codex.asks, "Codex is added on this Mac; its ask is copied")
         #expect(SetupCards.connectReads.contains("read and edit") && SetupCards.connectReads.contains("Disconnect anytime"), "App Review: what it can do, before any AI")
         #expect(AIGlyph.asset("Codex") != nil && AIGlyph.asset("Grok") != nil && AIGlyph.asset("Gemini") != nil)
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views/SetupCards.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
-        #expect(source.contains("ConnectWebGuideSheet(ai: .other, client: client)"), "Other opens its page over the card")
+        #expect(source.contains("ConnectWebGuideSheet(ai: g, client: client)") && source.contains("guidePage = .grok") && source.contains("guidePage = .other"),
+                "Grok opens its guide over the card, Other its page")
     }
 
 }

@@ -73,7 +73,7 @@ enum SetupCards {
     // MARK: Your AI
 
     enum AI: String, CaseIterable, Identifiable {
-        case chatgpt, claude, codex, other
+        case chatgpt, claude, grok, codex, other
         var id: String { rawValue }
 
         /// The name in sentences ("Finish in ChatGPT.") and on its tile.
@@ -81,6 +81,7 @@ enum SetupCards {
             switch self {
             case .chatgpt: "ChatGPT"
             case .claude: "Claude"
+            case .grok: "Grok"
             case .codex: "Codex"
             case .other: "your AI"
             }
@@ -101,6 +102,7 @@ enum SetupCards {
             switch self {
             case .chatgpt: .chatgpt
             case .claude: .claude
+            case .grok: .grok
             case .codex: .codex
             case .other: .other
             }
@@ -149,7 +151,8 @@ enum SetupCards {
     /// show as coming soon until a real connection to each is proven; never Mistral.
     static let rowAIs: [OtherAI] = [.init(name: "Grok", line: ""), .init(name: "Gemini", line: ""), .init(name: "Other", line: "")]
     /// In the row but not connectable yet: shown, marked Soon, not a button.
-    static let comingSoon: Set<String> = ["Grok", "Gemini"]
+    /// Grok went live 2 November 2026 (Emil connected it and it worked); Gemini waits.
+    static let comingSoon: Set<String> = ["Gemini"]
     static let connectReads = "Your AI can read and edit your notes when you ask. Disconnect anytime."
     static let otherApps = "Cursor, VS Code or another app"
 
@@ -449,7 +452,8 @@ struct SetupCardsFlow: View {
     @State private var prompting: (pick: SetupCards.Pick, landing: Onboarding.Landing)?
     @State private var copied = false
     @State private var allAIs = false
-    @State private var otherPage = false
+    /// The guide open over the card: Grok's, or Other's page (the address and the steps).
+    @State private var guidePage: ConnectAISection.Guide?
     @State private var showingMore = false
     @State private var run = ConnectRun()
     @Environment(\.openURL) private var openURL
@@ -657,8 +661,8 @@ struct SetupCardsFlow: View {
         .sheet(isPresented: $allAIs) {
             if let client = backend.client { ConnectAISheet(client: client) }
         }
-        .sheet(isPresented: $otherPage) {
-            if let client = backend.client { ConnectWebGuideSheet(ai: .other, client: client) }
+        .sheet(item: $guidePage) { g in
+            if let client = backend.client { ConnectWebGuideSheet(ai: g, client: client) }
         }
     }
 
@@ -667,9 +671,12 @@ struct SetupCardsFlow: View {
     private func rowPicked(_ name: String) {
         switch name {
         case "Codex": connect(.codex)
+        case "Grok":
+            connect(.grok)
+            guidePage = .grok
         default:
             connect(.other)
-            otherPage = true
+            guidePage = .other
         }
     }
 

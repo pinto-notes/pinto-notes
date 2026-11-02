@@ -23,6 +23,9 @@ import UIKit
         }
         let done = r(.chatgpt, chatgpt, .intro)
         done.connected("ChatGPT")
+        let grok = ConnectWebGuide.grok(onWeb: true)
+        let grokDone = r(.grok, grok, .step(1), opened: [0])
+        grokDone.connected("Grok")
         let otherDone = r(.other, nil, .step(0), picked: .cursor)
         otherDone.connected(nil)
         return [
@@ -34,6 +37,10 @@ import UIKit
             ("chatgpt-9-connected", done),
             ("plugin-0-open", r(.chatgpt, live, .step(0))),
             ("plugin-1-waiting", r(.chatgpt, live, .step(0), opened: [0])),
+            ("grok-0-intro", r(.grok, grok, .intro)),
+            ("grok-1-open", r(.grok, grok, .step(0))),
+            ("grok-2-form-waiting", r(.grok, grok, .step(1), opened: [0])),
+            ("grok-9-connected", grokDone),
             ("other-0-apps", r(.other, nil, .step(0))),
             ("other-1-cursor-waiting", r(.other, nil, .step(0), picked: .cursor)),
             ("other-2-copied-waiting", r(.other, nil, .step(0), copied: true)),

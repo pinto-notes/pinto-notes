@@ -52,7 +52,29 @@ struct ConnectWebGuide {
     }
 
     /// The AIs that open a guide of their own instead of starting from the row.
-    static func opensSheet(_ g: Guide) -> Bool { g == .chatgpt || g == .other }
+    static func opensSheet(_ g: Guide) -> Bool { g == .chatgpt || g == .grok || g == .other }
+
+    /// Grok's custom connectors page (grok.com › Connectors).
+    static let grokConnectors = URL(string: "https://grok.com/connectors")!
+
+    /// Connect Grok: its connectors page with the address copied, then its Custom Connector form
+    /// (Name, Server URL, Add Connector), then Allow. Grok has no listing to open Pinto Notes from.
+    @MainActor static func grok() -> ConnectWebGuide { grok(onWeb: BrowserConnect.onWeb) }
+
+    static func grok(onWeb: Bool) -> ConnectWebGuide {
+        ConnectWebGuide(
+            ai: .grok, introTitle: "Connect Grok",
+            introLine: "You add Pinto Notes once on grok.com. It takes a minute, and the address is copied for you.",
+            steps: [
+                Step(title: "Open Grok\u{2019}s connectors",
+                     text: "\(click) New Connector, then Custom.",
+                     art: .grokConnectors, action: "Open Grok", link: grokConnectors, copiesAndMovesOn: true),
+                Step(title: "Name it, paste, add",
+                     text: "Name it Pinto Notes, \(paste) under Server URL, then Add Connector. \(BrowserConnect.allowWhere(onWeb: onWeb))",
+                     art: .grokForm, waits: true),
+            ],
+            doneTitle: "Grok is connected")
+    }
 
     #if os(macOS)
     static let click = "Click", paste = "press \u{2318}V"
@@ -205,7 +227,7 @@ final class ConnectGuideRun {
     init(ai: Guide, guide: ConnectWebGuide? = nil, apps: [App]? = nil, server: String = BackendConfig.mcpPublicURL?.absoluteString ?? "",
          stage: Stage? = nil, opened: Set<Int> = [], copied: Bool = false, picked: App? = nil) {
         self.ai = ai
-        let guide = ai == .other ? nil : (guide ?? .chatgpt())
+        let guide = ai == .other ? nil : (guide ?? (ai == .grok ? .grok() : .chatgpt()))
         self.guide = guide
         self.server = server
         self.apps = ai == .other ? (apps ?? App.here(server: server)) : []
@@ -920,7 +942,7 @@ struct ConsentHostIf: ViewModifier {
 /// ChatGPT's pages drawn plainly, as the import guides draw Google's: greys, the one thing to
 /// click as it is labelled there, ringed in amber. No other company's logo or screenshot.
 struct ConnectDrawing: View {
-    enum Kind { case plugins, addMenu, form, allow, listing }
+    enum Kind { case plugins, addMenu, form, allow, listing, grokConnectors, grokForm }
     var kind: Kind
     var server = "https://mcp.pintonotes.com"
 
@@ -1002,6 +1024,10 @@ struct ConnectDrawing: View {
                 .padding(.bottom, 2)
                 .environment(\.colorScheme, .light)
             }
+        case .grokConnectors:
+            grokConnectorsPage
+        case .grokForm:
+            grokFormPage
         case .listing:
             browser("chatgpt.com/plugins") {
                 VStack(alignment: .leading, spacing: 10) {
@@ -1015,6 +1041,49 @@ struct ConnectDrawing: View {
                         ring { pill("Connect", filled: true) }
                     }
                     bar(240, 6); bar(200, 6); bar(220, 6)
+                }
+            }
+        }
+    }
+
+    // Grok's Connectors page: the title and New Connector, with its menu open on Custom.
+    private var grokConnectorsPage: some View {
+        browser("grok.com/connectors") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Text("Connectors").font(.system(size: 14, weight: .bold)).foregroundStyle(ink)
+                    Spacer()
+                    pill("New Connector", filled: true)
+                }
+                pluginGrid
+            }
+            .overlay(alignment: .topTrailing) {
+                VStack(alignment: .leading, spacing: 8) {
+                    bar(70, 5).padding(.vertical, 2)
+                    bar(54, 5).padding(.vertical, 2)
+                    ring { menuItem("link", "Custom").fontWeight(.semibold) }
+                }
+                .padding(10)
+                .background(paper, in: .rect(cornerRadius: 9))
+                .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
+                .offset(y: 30)
+            }
+        }
+    }
+
+    // Grok's Custom Connector form, as it is labelled there.
+    private var grokFormPage: some View {
+        browser("grok.com/connectors") {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Custom Connector").font(.system(size: 12, weight: .semibold)).foregroundStyle(ink)
+                Text("Enter a custom name and an MCP server URL").font(.system(size: 9.5)).foregroundStyle(ink.opacity(0.6))
+                fieldRow("Name", "Pinto Notes")
+                Text("Server URL").font(.system(size: 9.5, weight: .medium)).foregroundStyle(ink.opacity(0.6))
+                ring { field(server, strong: true).frame(width: 250) }
+                HStack(spacing: 6) {
+                    Spacer()
+                    pill("Cancel", filled: false)
+                    pill("Add Connector", filled: true)
                 }
             }
         }

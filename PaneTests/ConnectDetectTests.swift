@@ -188,7 +188,7 @@ extension FunnelTests {
             guide.center = center
             guide.copy = { _ in }
             let notices = AccountNotices(client: list.supabase, user: UUID(), defaults: MemoryDefaults(), approvedHere: { nil },
-                                         aiConnected: { center.connectionMayHaveAppeared() }, connection: { _ in .active("ChatGPT") })
+                                         aiConnected: { center.connectionMayHaveAppeared() }, connection: { _ in .active("ChatGPT") }, announce: { _ in })
             try await steps.watch {
                 guide.watch(list.supabase)
                 try await Task.sleep(for: .milliseconds(300))
@@ -224,7 +224,7 @@ extension FunnelTests {
             final class Count { var heard = 0 }
             let count = Count()
             let notices = AccountNotices(client: ConnectionList().supabase, user: UUID(), defaults: MemoryDefaults(),
-                                         approvedHere: { .now }, aiConnected: { count.heard += 1 }, connection: { _ in .active("ChatGPT") })
+                                         approvedHere: { .now }, aiConnected: { count.heard += 1 }, connection: { _ in .active("ChatGPT") }, announce: { _ in })
             await notices.take([AccountNotice(id: 1, kind: .aiConnected, grant_id: UUID(), created_at: .now)])
             #expect(count.heard == 1)
             #expect(notices.current == nil, "this device's own approval isn't news to show")
