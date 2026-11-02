@@ -6,9 +6,17 @@ extension EnvironmentValues {
 }
 
 #if os(macOS)
+/// Navigation uses this card's State storage, so an earlier callback reads the current path.
+/// Comparing the closure itself rebuilt the unchanged page on every search-field edit.
+struct OpenSettingsPlace: Equatable {
+    var open: (SettingsPlace) -> Void
+    func callAsFunction(_ place: SettingsPlace) { open(place) }
+    static func == (a: Self, b: Self) -> Bool { true }
+}
+
 extension EnvironmentValues {
     /// Opens a page of Settings one level down (General's Keys for apps).
-    @Entry var openSettingsPlace: ((SettingsPlace) -> Void)? = nil
+    @Entry var openSettingsPlace: OpenSettingsPlace? = nil
 }
 
 /// Settings on the Mac: a big card over the notes window, like Templates, with a sidebar of pages
@@ -37,6 +45,9 @@ struct SettingsCard: View {
     @State private var query = ""
     @State private var profile = ProfileStore.shared
     @Environment(\.dismiss) private var dismiss
+    #if DEBUG
+    @Environment(\.modelContext) private var context
+    #endif
 
     /// The same card as Templates, so the two read as one kind of place.
     static let size = TemplateLibraryView.size
@@ -61,6 +72,9 @@ struct SettingsCard: View {
     private var current: SettingsPlace { selected ?? start.flatMap { available.contains($0) ? $0 : nil } ?? Self.first(available) }
 
     var body: some View {
+        #if DEBUG
+        let _ = RenderProbe.count("SettingsCard", context: context)
+        #endif
         Group {
             if let close {
                 GeometryReader { geo in
@@ -111,7 +125,7 @@ struct SettingsCard: View {
                 header
                 page(shown)
                     .environment(\.settingsAsPage, true)
-                    .environment(\.openSettingsPlace, { path.append($0) })
+                    .environment(\.openSettingsPlace, OpenSettingsPlace { path.append($0) })
                     .frame(maxWidth: Self.pageWidth, maxHeight: .infinity, alignment: .topLeading)
                     .id(shown)
             }

@@ -771,6 +771,7 @@
 		CFFBA770277EDBF69A6E8E8C /* AddDeviceSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 672F945AC1C85249447146D1 /* AddDeviceSync.swift */; };
 		D0049AC8EBF7B25CCA7DBCAD /* ListOrderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 743043273E1045605B8F012E /* ListOrderTests.swift */; };
 		D00E04EF91D1367F78D171D0 /* NetFaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527730BB3E3E09A863D6895A /* NetFaultTests.swift */; };
+		D046A5E225C5BFAA5AC02ADE /* MacRenderAuditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF2965D35A72773FAC7DC0F7 /* MacRenderAuditTests.swift */; };
 		D076BFB06EAF81B1176DAB74 /* AddDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB90883FB5418E63A15FD23 /* AddDevice.swift */; };
 		D0B10CCF4167D29E4467B478 /* purify.js in Resources */ = {isa = PBXBuildFile; fileRef = FA63BA9CC98D699F71D53B85 /* purify.js */; };
 		D0D9DEB51EB8764B3FFA6A0D /* WelcomeNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73124348FB5312C93E0184F /* WelcomeNoteView.swift */; };
@@ -1541,6 +1542,7 @@
 		ED7F107D0DDA0B69E2BCE603 /* AccountNotices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountNotices.swift; sourceTree = "<group>"; };
 		EE72D528EBDE663B26CDC39D /* E2EE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = E2EE.swift; sourceTree = "<group>"; };
 		EEF0851FCB14FCFAF85EB6EC /* ImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewer.swift; sourceTree = "<group>"; };
+		EF2965D35A72773FAC7DC0F7 /* MacRenderAuditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacRenderAuditTests.swift; sourceTree = "<group>"; };
 		EFCF2559532191C12C06E031 /* ImportSheetSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSheetSnapshots.swift; sourceTree = "<group>"; };
 		EFD4E73BFE5865ABBA2D3DF4 /* AppPerfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPerfTests.swift; sourceTree = "<group>"; };
 		EFDE9BAF7491846BB39F864F /* DailyNotesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesTests.swift; sourceTree = "<group>"; };
@@ -1962,6 +1964,7 @@
 				E9B8C69CC99B48440E21655A /* HoverTests.swift */,
 				746937C9DAE4700BDCEE8FCF /* LargeLibraryTests.swift */,
 				7E309D28E80265DB79E8CAC3 /* LinkedLibraryTests.swift */,
+				EF2965D35A72773FAC7DC0F7 /* MacRenderAuditTests.swift */,
 				F66C9398AFFB4C2850E7BD3E /* NoteOpenTests.swift */,
 				72E56EC524B81F167DEEFBA1 /* PerfBudget.swift */,
 				95DE547CFC93E05EB42F06C4 /* ScanPerfTests.swift */,
@@ -3087,6 +3090,7 @@
 				EEB15458B34B4C85EC6C9EDE /* MacEmptyDetailTests.swift in Sources */,
 				99D089BCC3EFA6AEA578D1EB /* MacFirstSnapshots.swift in Sources */,
 				26EE93D54AFBE6911882492D /* MacLookSnapshots.swift in Sources */,
+				D046A5E225C5BFAA5AC02ADE /* MacRenderAuditTests.swift in Sources */,
 				E4B766562642AAD7347C61F1 /* MacStoreShots.swift in Sources */,
 				364A03B667A51B2D5980B341 /* MacWindowChromeTests.swift in Sources */,
 				E853EF496274E5BFFF30826C /* MakeAppSheetTests.swift in Sources */,
