@@ -131,6 +131,15 @@ import Testing
         let rowTop = host.window.contentView!.isFlipped ? row.minY : contentHeight - row.maxY
         let buttonsBottom = host.window.contentView!.isFlipped ? below.maxY : contentHeight - below.minY
         #expect(rowTop >= buttonsBottom, "the first row starts at \(rowTop), the window's buttons end at \(buttonsBottom)")
+        if behindCard {
+            // Behind a setup card a click on a folder, the list or the note lands on the sink, not
+            // on them (Emil, 2 November 2026: he could open notes behind the card).
+            let content = host.window.contentView!
+            for x in [row.midX, content.bounds.width * 0.4, content.bounds.width * 0.85] {
+                let hit = content.hitTest(NSPoint(x: x, y: content.bounds.height * 0.25))
+                #expect(hit is SetupClickSink.Sink, "a click at x \(Int(x)) reached \(String(describing: hit.map { type(of: $0) }))")
+            }
+        }
     }
 
     @Test func clickingOpensSettingsAtItsFirstPage() {

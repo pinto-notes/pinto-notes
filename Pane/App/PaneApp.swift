@@ -528,20 +528,42 @@ struct BehindSetupCard<Card: View>: ViewModifier {
             // 2 November 2026): the toolbar takes this from the view that declares it.
             .disabled(true)
             .accessibilityHidden(true)
-            // Not `.allowsHitTesting(false)` on the notes: with it the split view gives the
-            // sidebar no room for the toolbar, and the folders start up under the window's
-            // buttons (Emil, 2 November 2026). A clear layer over them takes the clicks instead,
-            // and a drag on it moves the window, as the top bar does.
+            // Not `.allowsHitTesting(false)`, on the notes or on a column: with it the split view
+            // gives the columns no room for the toolbar, and the folders, the list and the note
+            // start up under it (Emil, 2 November 2026, twice). A clear SwiftUI layer didn't stop
+            // clicks reaching the lists, so the layer over them is an AppKit view that takes every
+            // click, and a drag on it moves the window, as the top bar does. Dimmed, so the notes
+            // look as unusable as they are.
             .overlay {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .gesture(WindowDragGesture())
-                    .accessibilityHidden(true)
+                ZStack {
+                    Color(Palette.page).opacity(SetupClickSink.dim)
+                    SetupClickSink()
+                }
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
             }
             // At its own height, centred: a card whose content can stretch (the encryption
             // step's) grew to the window's full height (Emil, 2 November 2026).
             .overlay { card.fixedSize(horizontal: false, vertical: true) }
     }
+}
+
+/// Over the notes behind a setup card: an AppKit view that takes every click and scroll, so none
+/// reaches the lists or the note under it. A drag moves the window.
+struct SetupClickSink: NSViewRepresentable {
+    static let dim = 0.55
+
+    final class Sink: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { frame.contains(point) ? self : nil }
+        override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
+        override func rightMouseDown(with event: NSEvent) {}
+        override func otherMouseDown(with event: NSEvent) {}
+        override func scrollWheel(with event: NSEvent) {}
+        override var acceptsFirstResponder: Bool { false }
+    }
+
+    func makeNSView(context: Context) -> Sink { Sink() }
+    func updateNSView(_ view: Sink, context: Context) {}
 }
 
 /// Signed out, the window is just the sign-in card: small, no title bar.

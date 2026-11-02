@@ -724,9 +724,7 @@ import Testing
         #expect(!String(closed.prefix(300)).contains("Task.sleep"), "no pause on the Bringing card after an import")
         #expect(!(try read("AppleNotesImport.swift")).contains("Text(\"Show My Notes\")"))
         #expect(!(try read("ImportGuide.swift")).contains("primary(\"Show My Notes\")"))
-        let root = try read("RootView.swift")
-        #expect(root.components(separatedBy: ".modifier(BehindCardColumn(on: behindSetupCard))").count - 1 == 3, "all three columns")
-        #expect(BehindCardColumn.dim < 0.6, "the notes behind a card look disabled")
+        #expect(SetupClickSink.dim >= 0.4, "the notes behind a card look disabled")
     }
 }
 #endif
