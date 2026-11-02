@@ -239,7 +239,7 @@ struct AppleNotesImportView: View {
     @State private var finished: AppleNotesImportSummary?
     /// Captures: the sheet at a given page without importing (`guided`).
     nonisolated(unsafe) static var demoPage: DemoPage?
-    enum DemoPage { case importing, finished }
+    enum DemoPage { case importing, finished, choosing, reading }
 
     private var shown: [AppleNote] {
         query.isEmpty ? notes : notes.filter { n in n.name.localizedStandardContains(query) || listing.destination(of: n).contains { $0.localizedStandardContains(query) } }
@@ -301,7 +301,7 @@ struct AppleNotesImportView: View {
     /// look as polished"): the × at the top, Apple Notes' icon and a large title, what will come
     /// in a card, one wide button. Picking notes one by one, and what couldn't be read, keep the
     /// list with its bar at the foot.
-    private var guided: Bool { !choosingNotes && unread == nil }
+    private var guided: Bool { unread == nil }
 
     private var sheet: some View {
         VStack(spacing: 0) {
@@ -319,6 +319,7 @@ struct AppleNotesImportView: View {
             }
         }
         .frame(width: 540, height: guided ? Self.guideHeight : sheetHeight)
+        .onChange(of: choosingNotes) { _, on in if !on { query = "" } }
         // Any change of height is one short, even move: never a jump.
         .animation(.easeInOut(duration: 0.22), value: sheetHeight)
         .foregroundStyle(Color.ink)
@@ -363,7 +364,7 @@ struct AppleNotesImportView: View {
     }
 
     /// Which page of the guide look shows.
-    private var pageKey: Int { finished != nil || Self.demoPage == .finished ? 2 : progress != nil || Self.demoPage == .importing ? 1 : 0 }
+    private var pageKey: Int { finished != nil || Self.demoPage == .finished ? 2 : progress != nil || Self.demoPage == .importing ? 1 : choosingNotes || Self.demoPage == .choosing ? 3 : loading || Self.demoPage == .reading ? 4 : 0 }
 
     private var guidePage: some View {
         ZStack {
@@ -371,6 +372,8 @@ struct AppleNotesImportView: View {
                 switch pageKey {
                 case 2: successPage
                 case 1: importingPage
+                case 3: chooseNotesPage
+                case 4: readingPage
                 default: choosePage
                 }
             }
@@ -429,17 +432,7 @@ struct AppleNotesImportView: View {
         let carded = !loading && failure == nil
         return Group {
             if loading {
-                VStack(spacing: 10) {
-                    ProgressView().controlSize(.small)
-                    Text("Reading Apple Notes\u{2026}").font(.system(size: 13, weight: .medium))
-                    // Said before macOS's own question, which only names the two apps.
-                    Text("If macOS asks whether Pinto Notes may use Notes, choose Allow.")
-                        .font(.footnote).foregroundStyle(Color.muted)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 320)
-                        .accessibilityIdentifier("import.permissionLine")
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Color.clear
             } else if let failure {
                 VStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 24)).foregroundStyle(Color(Palette.amber))
@@ -525,6 +518,112 @@ struct AppleNotesImportView: View {
             }
         }
         return rows
+    }
+
+    /// Picking notes one by one, in the guide's look: the count under a title, search and Select
+    /// All, the notes in the card by folder, and the one button. Back and × go back and close
+    /// (Emil, 2 November 2026: the old list with Cancel and Show Folders at its foot).
+    private var chooseNotesPage: some View {
+        let all = !pickable.isEmpty && pickable.allSatisfy { picked.contains($0.id) }
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        return VStack(spacing: 0) {
+            Text("Choose notes")
+                .font(.system(size: 21, weight: .bold)).tracking(-0.3)
+            Text(Self.count(picked.count, of: notes.count, locale: locale))
+                .font(.system(size: 14)).foregroundStyle(Color.muted).monospacedDigit()
+                .padding(.top, 6)
+                .accessibilityIdentifier("import.count")
+            HStack(spacing: 14) {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(Color.muted)
+                    TextField("Search", text: $query, prompt: Text("Search").foregroundStyle(Color(Palette.placeholder)))
+                        .textFieldStyle(.plain)
+                        .focusEffectDisabled()
+                        .focused($searchFocused)
+                }
+                .padding(.horizontal, 10)
+                .frame(height: 30)
+                .background(Color(Palette.field), in: .rect(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(searchFocused ? Color.accentColor.opacity(0.7) : Color(Palette.fieldHairline), lineWidth: searchFocused ? 1.5 : 1))
+                Button(all ? "Deselect All" : "Select All") {
+                    let ids = pickable.map(\.id)
+                    if all { picked.subtract(ids) } else { picked.formUnion(ids) }
+                }
+                .buttonStyle(.hoverLink)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.muted)
+                .disabled(pickable.isEmpty)
+                .fixedSize()
+                .accessibilityIdentifier("import.selectAll")
+            }
+            .padding(.top, 16)
+            Group {
+                if shown.isEmpty {
+                    Text("No notes match \u{201C}\(query)\u{201D}.")
+                        .font(.system(size: 13)).foregroundStyle(Color.muted)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                            ForEach(groups, id: \.0) { folder, items in
+                                Section {
+                                    ForEach(items) { note in row(note, inset: 16) }
+                                } header: {
+                                    if groups.count > 1 { folderHeader(folder, count: items.count, inset: 16, ground: Color(Palette.page)) }
+                                }
+                            }
+                        }
+                        .padding(.vertical, 6)
+                    }
+                    .scrollBounceBehavior(.basedOnSize)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(Palette.page), in: shape)
+            .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
+            .clipShape(shape)
+            .padding(.top, 12)
+            if !storeAccess {
+                HStack { checklistNote; Spacer() }.padding(.top, 8)
+            }
+            Button { Task { await runImport() } } label: {
+                Text(Self.importTitle(picked: picked.count, new: newCount, all: notes.count, locale: locale)).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.amberProminent(.regular, wide: true))
+            .keyboardShortcut(.defaultAction)
+            .frame(maxWidth: 320)
+            .disabled(picked.isEmpty)
+            .padding(.top, 18)
+            .accessibilityIdentifier("import.start")
+        }
+    }
+
+    /// While Apple Notes is read: a page of its own at the guide's sizes, as the import's own
+    /// progress page, not a small spinner in an empty sheet (Emil, 2 November 2026). macOS may ask
+    /// for permission now, so the line says what to choose.
+    private var readingPage: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            ImportSourceIcon(origin: .appleNotes, size: 76)
+                .padding(.bottom, 22)
+            Text("Reading your Apple Notes")
+                .font(.display(26))
+                .tracking(Palette.tracking(26))
+                .multilineTextAlignment(.center)
+            ProgressView()
+                .progressViewStyle(.linear)
+                .tint(Color(Palette.amber))
+                .frame(maxWidth: 300)
+                .padding(.top, 20)
+            Text("If macOS asks whether Pinto Notes may use Notes, choose Allow.")
+                .font(.system(size: 15))
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 380)
+                .padding(.top, 18)
+                .accessibilityIdentifier("import.permissionLine")
+            Spacer(minLength: 0)
+        }
     }
 
     /// Five folders without scrolling; more scroll inside the card.
@@ -762,19 +861,19 @@ struct AppleNotesImportView: View {
         return "\(picked.formatted(.number.locale(locale))) of \(t) \(total == 1 ? "note" : "notes") selected"
     }
 
-    private func folderHeader(_ folder: String, count: Int) -> some View {
+    private func folderHeader(_ folder: String, count: Int, inset: CGFloat = 20, ground: Color = Color(Palette.sheetGround)) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "folder").font(.system(size: 11)).foregroundStyle(Color.muted)
             Text(folder).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted).lineLimit(1)
             Text(count.formatted(.number.locale(locale))).font(.system(size: 12)).foregroundStyle(Color.muted.opacity(0.7)).monospacedDigit()
             Spacer()
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, inset)
         .padding(.vertical, 6)
-        .background(Color(Palette.sheetGround))
+        .background(ground)
     }
 
-    private func row(_ note: AppleNote) -> some View {
+    private func row(_ note: AppleNote, inset: CGFloat = 20) -> some View {
         let on = picked.contains(note.id)
         let already = AppleNotesListing.isHere(note, keys: existing)
         return Button {
@@ -801,7 +900,7 @@ struct AppleNotesImportView: View {
                         .background(Color.line.opacity(0.6), in: .capsule)
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, inset)
             .padding(.vertical, 7)
             .hoverHighlight(Rectangle())
             .contentShape(.rect)

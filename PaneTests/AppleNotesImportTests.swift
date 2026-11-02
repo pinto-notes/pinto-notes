@@ -659,6 +659,9 @@ import Testing
         let source = try String(contentsOf: url, encoding: .utf8)
         #expect(source.contains("CardCloseButton"), "the sheet closes with the cards' ×")
         #expect(source.contains("finished = summary"), "a whole import ends on the success page")
+        let choose = try #require(source.range(of: "private var chooseNotesPage"))
+        let page = source[choose.lowerBound...].prefix(4000)
+        #expect(!page.contains("\"Cancel\"") && !page.contains("Show Folders"), "Choose notes has Back and ×, no Cancel or Show Folders")
     }
 
     /// Folders inside folders show as a tree, by their own names (Emil, 2 November 2026).

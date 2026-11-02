@@ -139,7 +139,7 @@ import UIKit
             }
             AppleNotesImportView.demoWithoutAccess = false
             // The guide look's other pages: importing, and done.
-            for (name, page) in [("importing", AppleNotesImportView.DemoPage.importing), ("done", .finished)] {
+            for (name, page) in [("importing", AppleNotesImportView.DemoPage.importing), ("done", .finished), ("choose", .choosing), ("reading", .reading)] {
                 AppleNotesImportView.demoPage = page
                 defer { AppleNotesImportView.demoPage = nil }
                 let sheet = AppleNotesImportView().modelContainer(c).tint(Color(PColor.paneAccent)).environment(\.locale, Locale(identifier: "en_US"))
