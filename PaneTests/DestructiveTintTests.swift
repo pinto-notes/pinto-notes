@@ -23,7 +23,9 @@ import Testing
             let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)?.compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" } ?? []
             for file in files {
                 let lines = try String(contentsOf: file, encoding: .utf8).components(separatedBy: "\n")
-                for (i, line) in lines.enumerated() where line.contains("Button(") && line.contains("systemImage") && line.contains(".destructive") {
+                // DestructiveMenuButton tints its own icon (and its title, MenuLookTests).
+                checked += lines.filter { $0.contains("DestructiveMenuButton(") && !$0.contains("struct DestructiveMenuButton") }.count
+                for (i, line) in lines.enumerated() where line.contains("Button(") && !line.contains("DestructiveMenuButton(") && line.contains("systemImage") && line.contains(".destructive") {
                     checked += 1
                     // The button's own modifiers: up to the next Button, at most 10 lines on.
                     var after = String(line[line.range(of: "Button(")!.upperBound...])

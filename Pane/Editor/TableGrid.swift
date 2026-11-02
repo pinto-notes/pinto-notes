@@ -415,9 +415,8 @@ struct TableMenuItems: View {
         ForEach(Array(menu.sections.enumerated()), id: \.offset) { _, section in
             Section {
                 ForEach(section, id: \.title) { item in
-                    Button(item.title, systemImage: item.systemImage, role: item.destructive ? .destructive : nil, action: item.run)
+                    DestructiveMenuButton(item.title, systemImage: item.systemImage, destructive: item.destructive, action: item.run)
                         .disabled(!item.enabled)
-                        .destructiveTint(item.destructive)
                         .accessibilityIdentifier("table.menu.\(item.title)")
                 }
             }

@@ -98,7 +98,7 @@ import Testing
     }
 
     @Test func theMenuIsGroupedNewThenChangesThenDelete() {
-        let groups = SidebarView.folderMenu(isNotes: false)
+        let groups = SidebarView.folderMenu(isNotes: false, newWindow: false)
         #expect(groups == [[.newNote, .newFolder], [.rename, .duplicate, .move], [.delete]])
         #if os(macOS)
         #expect(groups.map { $0.map(\.title) } == [["New Note", "New Folder"], ["Rename", "Duplicate", "Move To"], ["Delete Folder…"]])
@@ -107,9 +107,24 @@ import Testing
         #endif
         #expect(groups.flatMap { $0 }.map(\.symbol) == ["square.and.pencil", "folder.badge.plus", "pencil", "plus.square.on.square", "folder", "trash"])
         #expect(!FolderAction.allCases.map(\.title).contains("New Subfolder"))
-        let notes = SidebarView.folderMenu(isNotes: true)
+        let notes = SidebarView.folderMenu(isNotes: true, newWindow: false)
         #expect(!notes.joined().contains(.move), "Notes stays first")
         #expect(notes == [[.newNote, .newFolder], [.rename, .duplicate], [.delete]])
+    }
+
+    /// On the Mac a folder opens in a window of its own, first in its menu, as in Apple Notes
+    /// (Emil, 2 November 2026); iPhone has no windows.
+    @Test func theMacMenuOpensTheFolderInANewWindowFirst() {
+        #if os(macOS)
+        #expect(FolderAction.opensWindows)
+        #expect(SidebarView.folderMenu(isNotes: false) == [[.openInNewWindow], [.newNote, .newFolder], [.rename, .duplicate, .move], [.delete]])
+        #expect(SidebarView.folderMenu(isNotes: true).first == [.openInNewWindow], "Notes opens in a window too")
+        #else
+        #expect(!FolderAction.opensWindows)
+        #expect(!SidebarView.folderMenu(isNotes: false).joined().contains(.openInNewWindow))
+        #endif
+        #expect(FolderAction.openInNewWindow.title == "Open in New Window")
+        #expect(FolderAction.openInNewWindow.symbol == NoteWindows.symbol)
     }
 
     @Test func newNoteFromAFolderLandsInItAndOpens() throws {

@@ -212,8 +212,7 @@ private struct FileEmbed: View {
         Button("Open", systemImage: "eye", action: open)
         restyle.items()
         Divider()
-        Button("Remove from Note", systemImage: "trash", role: .destructive, action: remove)
-            .destructiveTint()
+        DestructiveMenuButton("Remove from Note", systemImage: "trash", action: remove)
     }
 }
 
@@ -234,8 +233,7 @@ private struct NoteCardEmbed: View {
             Button("Open Note", systemImage: "arrow.up.right") { controller?.openWiki(title) }
             restyle.items()
             Divider()
-            Button("Remove from Note", systemImage: "trash", role: .destructive, action: remove)
-                .destructiveTint()
+            DestructiveMenuButton("Remove from Note", systemImage: "trash", action: remove)
         }
         .accessibilityIdentifier("noteCard.\(title)")
     }
@@ -286,8 +284,7 @@ private struct ImageEmbed: View {
                 ForEach(ImageSize.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             Divider()
-            Button("Remove from Note", systemImage: "trash", role: .destructive, action: remove)
-                .destructiveTint()
+            DestructiveMenuButton("Remove from Note", systemImage: "trash", action: remove)
         }
         .accessibilityLabel("Image, \((shown as NSString).deletingPathExtension)")
         .accessibilityHint("Opens it in Quick Look")
@@ -370,8 +367,7 @@ private struct EmbedMenu: View {
     var body: some View {
         Button("Open", systemImage: "eye", action: open)
         Divider()
-        Button("Remove from Note", systemImage: "trash", role: .destructive, action: remove)
-            .destructiveTint()
+        DestructiveMenuButton("Remove from Note", systemImage: "trash", action: remove)
     }
 }
 
@@ -417,8 +413,7 @@ private struct LinkEmbed: View {
         Button("Copy Link", systemImage: "doc.on.doc") { Clipboard.copy(url.absoluteString) }
         restyle.items(title: title)
         Divider()
-        Button("Remove from Note", systemImage: "trash", role: .destructive, action: remove)
-            .destructiveTint()
+        DestructiveMenuButton("Remove from Note", systemImage: "trash", action: remove)
     }
 }
 

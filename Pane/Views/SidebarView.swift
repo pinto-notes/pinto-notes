@@ -245,6 +245,7 @@ extension Notification.Name {
 
 struct SidebarView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.openWindow) private var openWindow
     @Binding var scope: Scope?
     let onNewNote: () -> Void
     /// A note found by the folders screen's search (iPhone): it opens in its folder.
@@ -747,11 +748,13 @@ struct SidebarView: View {
     }
 
     /// A folder's menu, the same on the Mac (right-click, or its •••) and on iPhone (long press, or
-    /// its ••• in Edit), in groups split by lines: what to make in it, what to do with it, and
-    /// Delete on its own at the end. Notes, the first folder, has no Move To: it stays first, where
-    /// new notes go. Pinto has no folder sharing, so no Share.
-    nonisolated static func folderMenu(isNotes: Bool) -> [[FolderAction]] {
-        [[.newNote, .newFolder], isNotes ? [.rename, .duplicate] : [.rename, .duplicate, .move], [.delete]]
+    /// its ••• in Edit), in groups split by lines, as Apple Notes groups it: on the Mac Open in New
+    /// Window first (Emil, 2 November 2026); what to make in it, what to do with it, and Delete on
+    /// its own at the end. Notes, the first folder, has no Move To: it stays first, where new notes
+    /// go. Pinto has no folder sharing, so no Share.
+    nonisolated static func folderMenu(isNotes: Bool, newWindow: Bool = FolderAction.opensWindows) -> [[FolderAction]] {
+        (newWindow ? [[.openInNewWindow]] : [])
+            + [[.newNote, .newFolder], isNotes ? [.rename, .duplicate] : [.rename, .duplicate, .move], [.delete]]
     }
 
     /// A place Move To lists for a folder: the top level, then every folder in the sidebar's
@@ -778,6 +781,7 @@ struct SidebarView: View {
     /// What the folder menus' items do here.
     private var folderMenuActions: FolderMenuActions {
         FolderMenuActions(
+            openInNewWindow: { [openWindow] in NoteWindows.open(folder: $0.id, with: openWindow) },
             newNote: { onNewNoteIn($0.id) },
             newFolder: startNewFolder,
             rename: startRename,
@@ -1204,12 +1208,22 @@ private struct FolderTree: View {
 
 /// An action on a folder in its menus (`SidebarView.folderMenu`).
 enum FolderAction: String, CaseIterable, Identifiable {
-    case newNote, newFolder, rename, duplicate, move, delete
+    case openInNewWindow, newNote, newFolder, rename, duplicate, move, delete
 
     var id: String { rawValue }
 
+    /// A folder opens in a window of its own on the Mac (FolderWindowView), as in Apple Notes.
+    nonisolated static var opensWindows: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
+    }
+
     var title: String {
         switch self {
+        case .openInNewWindow: NoteWindows.openFolderTitle
         case .newNote: "New Note"
         case .newFolder: "New Folder"
         case .rename: "Rename"
@@ -1225,6 +1239,7 @@ enum FolderAction: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .openInNewWindow: NoteWindows.symbol
         case .newNote: "square.and.pencil"
         case .newFolder: "folder.badge.plus"
         case .rename: "pencil"
@@ -1248,6 +1263,7 @@ extension FolderTree: @MainActor Equatable {
 
 /// What a folder's menu items do, given by the sidebar.
 struct FolderMenuActions {
+    var openInNewWindow: (Folder) -> Void = { _ in }
     var newNote: (Folder) -> Void = { _ in }
     var newFolder: (Folder) -> Void = { _ in }
     var rename: (Folder) -> Void = { _ in }
@@ -1259,8 +1275,8 @@ struct FolderMenuActions {
     var delete: (Folder) -> Void = { _ in }
 }
 
-/// A folder's menu, the same items on both platforms (`SidebarView.folderMenu`): New Note and
-/// New Folder; Rename, Duplicate and Move To; then Delete Folder. On the Mac Move To is a submenu
+/// A folder's menu, the same items on both platforms (`SidebarView.folderMenu`): on the Mac Open
+/// in New Window; New Note and New Folder; Rename, Duplicate and Move To; then Delete Folder. On the Mac Move To is a submenu
 /// of the folders; on iPhone it opens them in a sheet. Its icons are drawn in the menu's own
 /// colour, as Apple's menus draw them, not in the app's amber (the window's tint, set on the
 /// whole app in PaneApp, would reach them); Delete is red on iPhone.
@@ -1309,8 +1325,9 @@ private struct FolderActionsMenu: View {
     }
 
     private func button(_ action: FolderAction) -> some View {
-        Button(action.title, systemImage: action.symbol, role: action == .delete ? .destructive : nil) {
+        DestructiveMenuButton(action.title, systemImage: action.symbol, destructive: action == .delete) {
             switch action {
+            case .openInNewWindow: actions.openInNewWindow(folder)
             case .newNote: actions.newNote(folder)
             case .newFolder: actions.newFolder(folder)
             case .rename: actions.rename(folder)
@@ -1319,7 +1336,6 @@ private struct FolderActionsMenu: View {
             case .delete: actions.delete(folder)
             }
         }
-        .destructiveTint(action == .delete)
         .accessibilityIdentifier("folderMenu.\(action.rawValue)")
     }
 }

@@ -574,8 +574,7 @@ struct ShareLinkMenuSection: View {
                     // takes its copy away) and comes back if the note is restored. Nothing to
                     // share or copy; the link can be stopped for good.
                     if store.state.slug != nil {
-                        Button("Stop Sharing", systemImage: "xmark.circle", role: .destructive) { Task { await store.stopSharing() } }
-                            .destructiveTint()
+                        DestructiveMenuButton("Stop Sharing", systemImage: "xmark.circle") { Task { await store.stopSharing() } }
                             .accessibilityIdentifier("share.stop")
                     }
                 } else if store.state.slug == nil {
@@ -588,8 +587,7 @@ struct ShareLinkMenuSection: View {
                     if let url = store.url {
                         Link(destination: url) { Label("Open Shared Page", systemImage: "safari") }
                     }
-                    Button("Stop Sharing", systemImage: "xmark.circle", role: .destructive) { Task { await store.stopSharing() } }
-                        .destructiveTint()
+                    DestructiveMenuButton("Stop Sharing", systemImage: "xmark.circle") { Task { await store.stopSharing() } }
                         .accessibilityIdentifier("share.stop")
                 }
             }

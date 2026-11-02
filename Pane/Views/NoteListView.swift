@@ -13,9 +13,10 @@ struct NoteListView: View {
     @State private var editMode: EditMode = .inactive
     /// What Move (a long-press, Select Notes, Recently Deleted) is moving, while its sheet is up.
     @State private var moving: Set<UUID>?
-    /// Lock Note or Remove Lock from a note's long-press menu (ListLockFlow).
-    @State private var lockRequest: ListLockRequest?
     #endif
+    /// Lock Note or Remove Lock from a note's long-press or right-click menu (ListLockFlow).
+    @State private var lockRequest: ListLockRequest?
+    @Environment(\.openWindow) private var openWindow
 
     /// Every note, fetched again only when a save adds or deletes one (see LibraryNotes).
     @State private var ownLibrary = LibraryNotes()
@@ -271,6 +272,7 @@ struct NoteListView: View {
         // 3 to 4 s on the main thread going from a folder back to All Notes with 2,000. A search
         // stays the same list: a new one took the keys away from the search field.
         // A new list starts at its top: it shows the open note's row again.
+        .modifier(ListLockFlow(request: $lockRequest))
         .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil) { id in
             (noteSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }
                 ?? mixedSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }).map { leadingRows + $0 }
@@ -549,15 +551,7 @@ struct NoteListView: View {
             // Deleted, which holds no new notes, like Notes.
             if scope != .trash {
                 ToolbarItem {
-                    ComposeButton(newNote: onNewNote) {
-                        // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
-                        Label { Text("New Note") } icon: { ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift) }
-                    }
-                    .help("New Note (⌘N). Click and hold for New App.")
-                    .newAppTip()
-                    // The menu bar's quick capture is the other way to start a note.
-                    .paneTip(MenuBarTip(), arrowEdge: .top)
-                    .accessibilityIdentifier("list.newNote")
+                    ListCompose(selected: selection.count == 1 ? selection.first : nil, newNote: onNewNote)
                 }
             }
             #endif
@@ -695,8 +689,7 @@ struct NoteListView: View {
             Button("Move", systemImage: "folder") { moving = [note.id] }
                 .accessibilityIdentifier("row.move")
         case .delete:
-            Button("Delete", systemImage: "trash", role: .destructive) { remove(note) }
-                .destructiveTint()
+            DestructiveMenuButton("Delete", systemImage: "trash") { remove(note) }
                 .accessibilityIdentifier("row.delete")
         case .pin:
             Button(note.isPinned ? "Unpin Note" : "Pin Note", systemImage: note.isPinned ? "pin.slash" : "pin") {
@@ -717,6 +710,9 @@ struct NoteListView: View {
         case .recover:
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
                 .accessibilityIdentifier("row.recover")
+        case .openInNewWindow, .history:
+            // The Mac's (NoteRowMenu.macGroups).
+            EmptyView()
         }
     }
 
@@ -843,8 +839,7 @@ struct NoteListView: View {
 
     @ViewBuilder
     private func deleteButton(_ note: Note) -> some View {
-        Button(note.trashedAt == nil ? "Delete" : "Delete Forever…", systemImage: "trash", role: .destructive) { remove(note) }
-            .destructiveTint()
+        DestructiveMenuButton(note.trashedAt == nil ? "Delete" : "Delete Forever…", systemImage: "trash") { remove(note) }
     }
 
     @ViewBuilder
@@ -864,8 +859,7 @@ struct NoteListView: View {
                 Button("Recover \(notes.count) Notes", systemImage: "arrow.uturn.backward") {
                     withAnimation(.snappy) { notes.forEach(context.restore) }
                 }
-                Button("Delete \(notes.count) Notes Forever…", systemImage: "trash", role: .destructive) { remove(ids) }
-                    .destructiveTint()
+                DestructiveMenuButton("Delete \(notes.count) Notes Forever…", systemImage: "trash") { remove(ids) }
             } else {
                 Menu("Move \(notes.count) Notes to", systemImage: "folder") {
                     ForEach(folders) { f in
@@ -873,36 +867,61 @@ struct NoteListView: View {
                     }
                 }
                 Divider()
-                Button("Delete \(notes.count) Notes", systemImage: "trash", role: .destructive) { remove(ids) }
-                    .destructiveTint()
+                DestructiveMenuButton("Delete \(notes.count) Notes", systemImage: "trash") { remove(ids) }
             }
         }
     }
 
+    /// A note's right-click menu and its ••• on the Mac (NoteRowMenu.macGroups), in groups.
     @ViewBuilder
     private func menu(for note: Note, folders: [Folder]) -> some View {
-        if note.trashedAt != nil {
-            Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
-            deleteButton(note)
-        } else {
+        let groups = NoteRowMenu.macGroups(locked: note.isLocked, trashed: note.trashedAt != nil)
+        ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
+            if i > 0 { Divider() }
+            ForEach(group, id: \.self) { macItem($0, note, folders: folders) }
+        }
+    }
+
+    @ViewBuilder
+    private func macItem(_ item: NoteRowMenu.Item, _ note: Note, folders: [Folder]) -> some View {
+        switch item {
+        case .openInNewWindow:
+            Button(NoteWindows.openNoteTitle, systemImage: NoteWindows.symbol) { NoteWindows.open(note: note.id, with: openWindow) }
+                .accessibilityIdentifier("row.openInNewWindow")
+        case .pin:
             Button(note.isPinned ? "Unpin Note" : "Pin Note", systemImage: note.isPinned ? "pin.slash" : "pin") {
                 withAnimation(.snappy) { context.togglePin(note) }
             }
+        case .lock:
+            Button("Lock Note", systemImage: "lock") { lockRequest = ListLockRequest(note: note.id, removing: false) }
+                .accessibilityIdentifier("row.lock")
+        case .removeLock:
+            Button("Remove Lock", systemImage: "lock.open") { lockRequest = ListLockRequest(note: note.id, removing: true) }
+                .accessibilityIdentifier("row.removeLock")
+        case .duplicate:
+            Button("Duplicate Note", systemImage: "plus.square.on.square") {
+                let copy = context.createNote(in: note.folder.map { .folder($0.id) } ?? .all, body: note.body)
+                selection = [copy.id]
+            }
+        case .share:
+            ShareLink(item: note.body, preview: SharePreview(note.title))
+        case .move:
             Menu("Move to", systemImage: "folder") {
                 ForEach(folders) { f in
                     Button(f.name, systemImage: "folder") { withAnimation(.snappy) { context.move(note, to: f) } }
                         .disabled(note.folder?.id == f.id)
                 }
             }
-            // A locked note's text isn't here to send or copy.
-            if !note.isLocked {
-                ShareLink(item: note.body, preview: SharePreview(note.title))
-                Button("Duplicate", systemImage: "plus.square.on.square") {
-                    let copy = context.createNote(in: note.folder.map { .folder($0.id) } ?? .all, body: note.body)
-                    selection = [copy.id]
-                }
+        case .history:
+            // The note's own Version History: the note opens and shows it (AppPlaceCenter).
+            Button(NoteMoreMenu.historyTitle, systemImage: "clock.arrow.circlepath") {
+                selection = [note.id]
+                AppPlaceCenter.shared.historyFor = note.id
             }
-            Divider()
+            .accessibilityIdentifier("row.history")
+        case .recover:
+            Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
+        case .delete:
             deleteButton(note)
         }
     }
@@ -911,8 +930,7 @@ struct NoteListView: View {
     private func menu(for file: Attachment, folders: [Folder]) -> some View {
         if file.trashedAt != nil {
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(file) } }
-            Button("Delete Forever…", systemImage: "trash", role: .destructive) { remove([file.id]) }
-                .destructiveTint()
+            DestructiveMenuButton("Delete Forever…", systemImage: "trash") { remove([file.id]) }
         } else {
             Button("Rename…", systemImage: "pencil") {
                 fileNameDraft = FolderFileName.stem(file.filename)
@@ -929,8 +947,7 @@ struct NoteListView: View {
                 Button(FileOut.exportTitle, systemImage: FileOut.exportSymbol) { exportingFile = file }
             }
             Divider()
-            Button("Delete", systemImage: "trash", role: .destructive) { remove([file.id]) }
-                .destructiveTint()
+            DestructiveMenuButton("Delete", systemImage: "trash") { remove([file.id]) }
         }
     }
 
@@ -945,8 +962,7 @@ struct NoteListView: View {
                     files.forEach(context.restore)
                 }
             }
-            Button("Delete \(count) Items Forever…", systemImage: "trash", role: .destructive) { remove(ids) }
-                .destructiveTint()
+            DestructiveMenuButton("Delete \(count) Items Forever…", systemImage: "trash") { remove(ids) }
         } else {
             Menu("Move \(count) Items to", systemImage: "folder") {
                 ForEach(folders) { f in
@@ -954,8 +970,7 @@ struct NoteListView: View {
                 }
             }
             Divider()
-            Button("Delete \(count) Items", systemImage: "trash", role: .destructive) { remove(ids) }
-                .destructiveTint()
+            DestructiveMenuButton("Delete \(count) Items", systemImage: "trash") { remove(ids) }
         }
     }
 
@@ -1016,6 +1031,43 @@ struct NoteListView: View {
 /// The list is the same list while it shows the same folder: the selection reaches it through its
 /// binding, and the action is the same action. Hiding or showing the sidebar hands the split
 /// view's columns over again, and without this the list was worked out again on every toggle.
+#if os(macOS)
+/// The list's New Note. While the note open is an untouched new one, New Note would only put the
+/// cursor back in it (RootView.newNote), so it is off, and looks it: the pencil greyed, as a
+/// disabled toolbar button is (Emil, 2 November 2026). A view of its own: it reads the open note's
+/// text, and only it is worked out again as that note is written in.
+struct ListCompose: View {
+    let selected: UUID?
+    let newNote: () -> Void
+    @Environment(\.modelContext) private var context
+
+    var body: some View {
+        let off = Self.isOff(selected: selected, in: context)
+        ComposeButton(newNote: newNote, off: off) {
+            // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
+            Label { Text("New Note") } icon: {
+                ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift)
+                    .foregroundStyle(Self.iconStyle(off: off))
+            }
+        }
+        .disabled(off)
+        .help(off ? "This note is new and empty" : "New Note (⌘N). Click and hold for New App.")
+        .newAppTip()
+        // The menu bar's quick capture is the other way to start a note.
+        .paneTip(MenuBarTip(), arrowEdge: .top)
+        .accessibilityIdentifier("list.newNote")
+    }
+
+    /// Off on an untouched new note: one that is empty and not in Recently Deleted.
+    @MainActor static func isOff(selected: UUID?, in context: ModelContext) -> Bool {
+        guard let selected, let note = context.note(selected) else { return false }
+        return note.body.isEmpty && note.trashedAt == nil && note.deletedAt == nil
+    }
+
+    static func iconStyle(off: Bool) -> HierarchicalShapeStyle { off ? .tertiary : .primary }
+}
+#endif
+
 extension NoteListView: @MainActor Equatable {
     static func == (a: NoteListView, b: NoteListView) -> Bool { a.scope == b.scope }
 }
