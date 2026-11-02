@@ -209,17 +209,19 @@ describe("privacy copy", () => {
     expect(policy).toContain("None of this touches your notes or your computer");
   });
 
-  // docs/Technical/app-telemetry.md: versions after 1.2 report errors and a few usage counts.
+  // docs/Technical/app-telemetry.md: the App Store 1.2 and Mac download 1.2.3 and later report errors and a few usage counts.
   it("says what the apps report about themselves, where it goes and how to turn it off", () => {
     for (const text of [policy, page, FACTS.map((f) => f.text).join(" ")]) {
       expect(text).not.toMatch(/no third-party analytics/i);
       expect(text).not.toMatch(/no crash-reporting tools/i);
-      expect(text).toMatch(/[Vv]ersions (of the (iPhone and Mac )?apps )?after 1\.2/);
+      expect(text).toMatch(/App Store version 1\.2 and the Mac download 1\.2\.3/);
+      expect(text).not.toMatch(/[Vv]ersions (of the (iPhone and Mac )?apps )?after 1\.2[^.]/);
       expect(text).toMatch(/PostHog in the EU|PostHog, hosted in Frankfurt/);
       expect(text).toMatch(/never your notes/);
     }
     expect(policy).toContain("**Diagnostics and usage from the apps**");
-    expect(policy).toContain("Version 1.2 and earlier send none of this.");
+    expect(policy).toContain("This started with the App Store version 1.2 and the Mac download 1.2.3. Earlier versions send none of this.");
+    expect(policy).not.toContain("1.2 and earlier send none");
     expect(policy).toContain("**Settings → General → Share diagnostics and usage** turns all of it off");
     expect(policy).toContain("| Diagnostics and usage from the apps | To find and fix errors, and to learn where people get stuck | Legitimate interests.");
     // Delete Account doesn't reach PostHog, and the policy says so.
