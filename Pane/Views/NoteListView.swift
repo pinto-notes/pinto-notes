@@ -547,6 +547,9 @@ struct NoteListView: View {
                             .foregroundStyle(Color.muted)
                             .monospacedDigit()
                     }
+                    // Greyed with the buttons around it while the sign-in card is up (Emil,
+                    // 2 November 2026).
+                    .opacity(behindSetupCard ? 0.35 : 1)
                     // A long name ends in "…" before it gets near the buttons.
                     .frame(maxWidth: Self.titleRoom(listWidth: listWidth))
                 }

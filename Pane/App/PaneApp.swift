@@ -321,21 +321,19 @@ import AppKit
 /// The sign-in card is never remembered.
 enum WindowFrameMemory {
     static let key = "notesWindowFrame"
-    /// The default before it grew with the screen, and still the smallest default.
+    /// The default until 29 October 2026 ("no one would use it as small as it is by default"):
+    /// a saved frame of exactly this size is still treated as never chosen.
     static let smallDefault = CGSize(width: 1180, height: 760)
-    /// The largest default, for big displays: past this a notes window is mostly empty space.
-    static let largeDefault = CGSize(width: 1600, height: 1000)
+    /// The notes window's size when nothing is saved: one size on every screen. It grew with the
+    /// screen for a while (88% of its height), which read as far too tall; about 1200×780 was
+    /// "pretty good" (Emil, 2 November 2026).
+    static let standard = CGSize(width: 1200, height: 780)
 
-    /// The notes window's size when nothing is saved: like Notes, most of the screen, centred
-    /// (85% of its width, 88% of its height). 1285×835 on a 14" MacBook Pro, 1469×954 at its
-    /// More Space setting, 1600×1000 on a 27" display; never under 1180×760 unless the screen is.
+    /// The standard size, smaller only on a screen it doesn't fit (40 pt clear on each side).
     static func defaultSize(on screen: CGSize?) -> CGSize {
-        guard let screen, screen.width > 0, screen.height > 0 else { return smallDefault }
-        func side(_ length: CGFloat, _ share: CGFloat, _ small: CGFloat, _ large: CGFloat) -> CGFloat {
-            (min(max(length * share, small), large, length - 80)).rounded()
-        }
-        return CGSize(width: side(screen.width, 0.85, smallDefault.width, largeDefault.width),
-                      height: side(screen.height, 0.88, smallDefault.height, largeDefault.height))
+        guard let screen, screen.width > 0, screen.height > 0 else { return standard }
+        return CGSize(width: min(standard.width, screen.width - 80).rounded(),
+                      height: min(standard.height, screen.height - 80).rounded())
     }
 
     /// The notes window's smallest size (its contentMinSize, plus the title bar).

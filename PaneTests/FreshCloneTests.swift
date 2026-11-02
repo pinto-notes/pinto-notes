@@ -88,3 +88,5 @@ import Testing
         #expect(SidebarView.showsHeading(folders: 0, trashed: 2))
     }
 }
+
+#endif
