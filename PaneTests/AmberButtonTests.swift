@@ -224,12 +224,7 @@ import Testing
         "Views/SidebarCards.swift SidebarCardShell.body": "the label it wraps has .hoverOverlay, set a few lines up",
         "Views/ConnectChoices.swift Accessory.pressable": "ConnectChoices' pressable: both callers' labels have .choiceCard",
         // Leave the close × alone (lead, 2 November 2026): one shared solid close style replaces them all.
-        "Views/SidebarCards.swift MacCard.body": "close ×: shared .closeCircle style (lead); and iPhone only",
-        "Views/SettingsCard.swift SettingsCard.header": "close ×: shared .closeCircle style (lead)",
-        "Views/MakeAnApp.swift MakeAppSheet.close": "close ×: shared .closeCircle style (lead)",
-        "Views/ImportGuide.swift Action.topBar": "close ×: shared .closeCircle style (lead)",
-        "Views/ImportGuide.swift ImportNoticePage.page": "close ×: shared .closeCircle style (lead)",
-        "Views/ConnectWebGuide.swift ConnectWebGuideSheet.topBar": "close ×: shared .closeCircle style (lead)",
+        "Views/SidebarCards.swift MacCard.body": "iPhone only: the card the Mac no longer shows",
     ]
 
     /// Every clickable thing on the Mac looks different under the pointer (Emil, 2 November 2026:
