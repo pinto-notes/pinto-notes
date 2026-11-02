@@ -69,5 +69,14 @@ import Testing
         let plist = try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
         #expect(Set(plist.keys) == ["com.apple.security.application-groups", "keychain-access-groups"])
     }
+
+    /// A dev run (PANE_DEV_RUN=1) keeps its own library and Keychain items, still as the beta.
+    @Test func aDevRunHasItsOwnLibraryAndKeychain() {
+        #expect(AppIdentity.dataFolder(bundleID: "dev.emilwagman.pane.beta", devRun: true) == "Pane-devrun")
+        #expect(AppIdentity.dataFolder(bundleID: "dev.emilwagman.pane.beta", devRun: false) == "Pane")
+        let prefix = AppIdentity.keychainPrefix(bundleID: "dev.emilwagman.pane.beta", devRun: true)
+        #expect(prefix != "dev.emilwagman.pane.beta" && prefix.hasSuffix(".beta"))
+        #expect(AppIdentity.keychainPrefix(bundleID: "dev.emilwagman.pane", devRun: false) == "dev.emilwagman.pane")
+        #expect(!AppIdentity.devRun, "tests aren't a dev run")
+    }
 }
-#endif

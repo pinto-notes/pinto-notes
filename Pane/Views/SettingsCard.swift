@@ -146,11 +146,13 @@ struct SettingsCard: View {
                 .lineLimit(1)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 16)
+            // A round glass ×, as the system's own cards and sheets have (Emil, 2 November 2026).
             Button(action: closeNow) {
-                Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
-                    .frame(width: 28, height: 28).contentShape(Circle())
+                Image(systemName: "xmark").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink)
+                    .frame(width: 30, height: 30).contentShape(Circle())
             }
-            .buttonStyle(.quietIcon)
+            .buttonStyle(.plain)
+            .glassEffect(.regular.interactive(), in: .circle)
             .keyboardShortcut(.cancelAction)
             .help("Close")
             .accessibilityLabel("Close")
@@ -300,6 +302,8 @@ struct SettingsCardHost: ViewModifier {
             .overlay {
                 if showing, let backend {
                     SettingsView(backend: backend, sync: sync, route: route, close: { withAnimation(.snappy(duration: 0.2)) { showing = false } })
+                        // Over the top bar too: the card and its dimming reach the window's top edge.
+                        .ignoresSafeArea()
                         .transition(.opacity)
                 }
             }

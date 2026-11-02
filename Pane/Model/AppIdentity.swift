@@ -8,14 +8,33 @@ enum AppIdentity {
     static let scheme = info("PaneURLScheme") ?? "pintonotes"
     /// Keychain service names start with this: dev.emilwagman.pane, or dev.emilwagman.pane.beta, so
     /// Amber Notes Beta never reads or replaces the real app's session, keys or locks.
-    static let keychainPrefix = info("PaneBundleID") ?? "dev.emilwagman.pane"
+    static let keychainPrefix = keychainPrefix(bundleID: info("PaneBundleID"), devRun: devRun)
+
+    static func keychainPrefix(bundleID: String?, devRun: Bool) -> String {
+        let id = bundleID ?? "dev.emilwagman.pane"
+        // Still ending in .beta, so a dev run counts as the beta (telemetry's channel, note apps).
+        return devRun ? id + ".devrun.beta" : id
+    }
+
+    /// Debug builds launched with PANE_DEV_RUN=1 (`open --env PANE_DEV_RUN=1 …`): a library and
+    /// Keychain items of their own, so a dev build run next to the installed app never shares its
+    /// session or notes, and never stops at launch on a Keychain prompt for the installed app's
+    /// items (a Debug build is signed differently, so the Keychain asks, and the app waits).
+    static let devRun: Bool = {
+        #if DEBUG
+        ProcessInfo.processInfo.environment["PANE_DEV_RUN"] == "1"
+        #else
+        false
+        #endif
+    }()
     /// The app's folder in Application Support, and its library's name (Pane.store): "Pane" for
     /// Pinto Notes and its Beta. A build under a bundle id of its own (scripts/make-it-yours.sh) gets
     /// a folder named after that id: the Mac app runs outside the sandbox, so with "Pane" it would
     /// open an installed Pinto Notes' library, and signing in there as another account clears it.
-    static let dataFolder = dataFolder(bundleID: info("PaneBundleID"))
+    static let dataFolder = dataFolder(bundleID: info("PaneBundleID"), devRun: devRun)
 
-    static func dataFolder(bundleID: String?) -> String {
+    static func dataFolder(bundleID: String?, devRun: Bool = false) -> String {
+        if devRun { return "Pane-devrun" }
         guard let id = bundleID, id != "dev.emilwagman.pane", !id.hasPrefix("dev.emilwagman.pane.") else { return "Pane" }
         return id
     }

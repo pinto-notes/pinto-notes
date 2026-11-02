@@ -222,6 +222,9 @@ struct MenuBarPanel: View {
         highlighted ? AnyShapeStyle(.selection) : AnyShapeStyle(.clear)
     }
 
+    /// The footer's way out: a word, never the power symbol.
+    static let quitTitle = "Quit"
+
     private var footer: some View {
         HStack(spacing: 4) {
             Button("Open Pinto Notes") { showWindow() }
@@ -232,9 +235,12 @@ struct MenuBarPanel: View {
             Button { showWindow(); SettingsRoute.shared.show() } label: { Image(systemName: "gearshape").frame(width: 24, height: 24) }
                 .help("Settings…")
                 .accessibilityLabel("Settings")
-            Button { NSApp.terminate(nil) } label: { Image(systemName: "power").frame(width: 24, height: 24) }
-                .help("Quit Pinto Notes")
+            // Quit in words: a power symbol read as turning the Mac off (Emil, 2 November 2026).
+            Button(Self.quitTitle) { NSApp.terminate(nil) }
+                .buttonStyle(.quiet)
+                .help("Quit Pinto Notes (\u{2318}Q)")
                 .accessibilityLabel("Quit Pinto Notes")
+                .accessibilityIdentifier("menubar.quit")
         }
         .buttonStyle(.quietIcon)
         .padding(.horizontal, 10)
