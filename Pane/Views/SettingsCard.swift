@@ -69,7 +69,7 @@ struct SettingsCard: View {
                         .frame(width: fit.width, height: fit.height)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .background(Color.black.opacity(0.28).onTapGesture(perform: close))
+                .background(Color.black.opacity(0.18).onTapGesture(perform: close))
             } else {
                 // In a sheet: as big as the window under it allows.
                 let fit = Self.fitted((NSApp.mainWindow ?? NSApp.keyWindow)?.frame.size ?? Self.size)
@@ -99,13 +99,14 @@ struct SettingsCard: View {
     }
 
     @ViewBuilder private func card(framed: Bool) -> some View {
-        let shape = RoundedRectangle(cornerRadius: framed ? 20 : 0, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: framed ? 26 : 0, style: .continuous)
         HStack(spacing: 0) {
+            // The sidebar floats inside the card on glass, as System Settings' does in macOS 26.
             sidebar
                 .frame(width: Self.sidebarWidth)
                 .frame(maxHeight: .infinity)
-                .background(Color.primary.opacity(0.04))
-            Divider().opacity(0.6)
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .padding(8)
             VStack(alignment: .leading, spacing: 0) {
                 header
                 page(shown)
@@ -304,7 +305,8 @@ struct SettingsCardHost: ViewModifier {
                     SettingsView(backend: backend, sync: sync, route: route, close: { withAnimation(.snappy(duration: 0.2)) { showing = false } })
                         // Over the top bar too: the card and its dimming reach the window's top edge.
                         .ignoresSafeArea()
-                        .transition(.opacity)
+                        // Grows in a little as it fades, as a sheet does; leaves the same way.
+                        .transition(.opacity.combined(with: .scale(scale: 0.97)))
                 }
             }
             .onChange(of: route.presenting, initial: true) { take() }

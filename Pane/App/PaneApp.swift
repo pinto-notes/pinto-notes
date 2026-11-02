@@ -1222,18 +1222,19 @@ struct AppGate: View {
     /// The notes window as it is, not to be used yet, with `card` on it: signed out, adding this
     /// Mac, and the first run (SetupCards).
     private func notesBehind(@ViewBuilder card: () -> some View) -> some View {
-        ZStack {
-            RootView()
-                .environment(backend)
-                .environment(sync)
-                .environment(\.networkReach, sync.reach)
-                .environment(setup)
-                .environment(onboarding)
-                .environment(\.behindSetupCard, true)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-            card()
-        }
+        // The card over the notes, not beside them in a ZStack: a card that reaches under the
+        // title bar made the stack reach there too, and the sidebar's "Folders" went up under the
+        // window's buttons (Emil, 2 November 2026).
+        RootView()
+            .environment(backend)
+            .environment(sync)
+            .environment(\.networkReach, sync.reach)
+            .environment(setup)
+            .environment(onboarding)
+            .environment(\.behindSetupCard, true)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .overlay { card() }
         .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
         .transition(.opacity)
     }
