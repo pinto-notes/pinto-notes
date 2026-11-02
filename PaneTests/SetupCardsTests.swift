@@ -243,7 +243,7 @@ import Testing
     /// VS Code sit behind Other, never Mistral. Grok is live (Emil connected it, 2 November);
     /// Gemini is behind Another app.
     @Test func connectIsTwoBrandButtonsAndARow() throws {
-        #expect(SetupCards.connectLook == .brandButtons)
+        #expect(SetupCards.connectLook == .likeImport)
         #expect(SetupCards.moreLook == .row)
         #expect(ConnectWebGuide.otherLook == .steps)
         #expect(SetupCards.brands == [.chatgpt, .claude, .grok], "three brand buttons, top to bottom (Emil, 2 November 2026)")

@@ -121,9 +121,11 @@ enum SetupCards {
     /// Design study, 2 November 2026: Emil hates the white squares and weak marks ("these are well
     /// known brands, let's leverage") and the Another AI tile. Each new look connects in one click,
     /// says what the AI can do under the title, and moves other apps to a quiet line.
-    enum ConnectLook: String, CaseIterable { case current, brandTiles, bareMarks, brandButtons }
-    /// Emil picked the brand buttons with a row under them (2 November 2026).
-    nonisolated(unsafe) static var connectLook: ConnectLook = .brandButtons
+    enum ConnectLook: String, CaseIterable { case current, brandTiles, bareMarks, brandButtons, likeImport }
+    /// Emil, 2 November 2026: the three stacked brand buttons looked odd; the card now reads like
+    /// the import card before it (three tiles, Not now and one amber button), the tiles in each
+    /// brand's own colours.
+    nonisolated(unsafe) static var connectLook: ConnectLook = .likeImport
     /// With the brand buttons: how the other AIs show (Emil, 2 November 2026: "a More option").
     /// `sheet` opens the Connect AI list from Settings, `expand` opens the list in the card,
     /// `chips` shows them as small buttons under the two.
@@ -274,6 +276,22 @@ struct SetupCard<Content: View>: View {
 }
 
 /// One choice in a grid of three: the app's or the AI's own mark over its name.
+/// An AI's mark on its brand's own ground, like an app icon: ChatGPT black, Claude orange, Grok white.
+struct BrandMark: View {
+    let ai: SetupCards.AI
+    var size: CGFloat = 30
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
+        AIGlyph(ai: ai.mark, size: size * 0.6, monochrome: true)
+            .foregroundStyle(SetupCards.brandInk(ai))
+            .frame(width: size, height: size)
+            .background(SetupCards.brandFill(ai), in: shape)
+            .overlay(shape.strokeBorder(Color.black.opacity(ai == .grok ? 0.14 : 0), lineWidth: 1))
+            .accessibilityHidden(true)
+    }
+}
+
 private struct SetupTile<Mark: View>: View {
     let title: String
     let on: Bool
@@ -587,7 +605,11 @@ struct SetupCardsFlow: View {
     }
 
     @ViewBuilder private var connect: some View {
-        if SetupCards.connectLook == .current { connectNow } else { connectBranded }
+        switch SetupCards.connectLook {
+        case .current: connectNow
+        case .likeImport: connectLikeImport
+        default: connectBranded
+        }
     }
 
     private func connect(_ choice: SetupCards.AI) {
@@ -820,6 +842,46 @@ struct SetupCardsFlow: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("setup.reads")
+        }
+    }
+
+    /// The tile picked: one of the three brands (ChatGPT until another is picked).
+    private var brandShown: SetupCards.AI { SetupCards.brands.contains(shownAI) ? shownAI : .chatgpt }
+
+    /// Like the import card: the brands as tiles, Not now and the amber Connect for the one picked.
+    private var connectLikeImport: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 6) {
+                title(SetupCards.connectTitle)
+                Text(SetupCards.connectReads)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.muted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("setup.reads")
+            }
+            LazyVGrid(columns: three, spacing: 8) {
+                ForEach(SetupCards.brands) { choice in
+                    SetupTile(title: choice.name, on: brandShown == choice, id: "setup.ai.\(choice.rawValue)", action: { ai = choice }) {
+                        BrandMark(ai: choice, size: 30)
+                    }
+                }
+            }
+            HStack(spacing: 8) {
+                Button("Not now") { withAnimation { connecting = .set(connected: false) } }
+                    .buttonStyle(.secondary(.regular))
+                    .accessibilityIdentifier("setup.notNow")
+                Button(brandShown.button) { brandPicked(brandShown) }
+                    .buttonStyle(.amberProminent(.regular, wide: true))
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("setup.connect")
+            }
+            Button(SetupCards.anotherAppLink) { rowPicked("Other") }
+                .buttonStyle(.hoverLink)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.muted)
+                .accessibilityLabel("Connect another app")
+                .accessibilityIdentifier("setup.ai.other")
         }
     }
 

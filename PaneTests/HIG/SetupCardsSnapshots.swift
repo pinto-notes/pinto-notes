@@ -35,7 +35,7 @@ import Testing
         let full = try AppSnapshotTests.container()
         let backend = Backend()
         let store = OnboardingStore(defaults: TestDefaults())
-        defer { SetupCards.connectLook = .brandButtons }
+        defer { SetupCards.connectLook = .likeImport }
         for look in SetupCards.ConnectLook.allCases {
             SetupCards.connectLook = look
             try await shot(SetupCardsFlow(store: store, backend: backend, preview: .init(card: .connect), finish: { _ in }), "4-connect-\(look.rawValue)", library: full, dark: dark)
