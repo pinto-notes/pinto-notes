@@ -206,7 +206,7 @@ struct SettingsCard: View {
                 .accessibilityIdentifier("settings.search")
             if !query.isEmpty {
                 Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.quietIcon)
                     .accessibilityLabel("Clear search")
             }
         }
@@ -241,6 +241,7 @@ struct SettingsCard: View {
                         .padding(.vertical, 5)
                         .background(highlight(shown == entry.place))
                         .contentShape(.rect)
+                        .hoverRow(reach: EdgeInsets())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(entry.label), \(entry.place.title)")
@@ -266,6 +267,7 @@ struct SettingsCard: View {
             .padding(.vertical, 6)
             .background(highlight(current == .profile))
             .contentShape(.rect)
+            .hoverRow(reach: EdgeInsets())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(AccountName.shown(profile.name)). Name, photo and sign in")
@@ -285,6 +287,7 @@ struct SettingsCard: View {
             .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
             .background(highlight(current == p))
             .contentShape(.rect)
+            .hoverRow(reach: EdgeInsets())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(current == p ? .isSelected : [])

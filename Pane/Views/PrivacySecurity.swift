@@ -509,7 +509,7 @@ struct PrivacySecuritySection: View {
                     .foregroundStyle(.tint)
                     .contentShape(.rect)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.hoverText)
                 .font(.callout)
                 .padding(.horizontal, 4)
                 .accessibilityIdentifier("privacy.howItWorks")
@@ -531,7 +531,7 @@ struct PrivacySecuritySection: View {
     private func deviceTile(_ o: SecurityContent.Opener) -> some View {
         SecurityTile(opener: o) {
             if case .device(let id) = o.kind, o.canRemove, let d = devices.others.first(where: { $0.id == id }) {
-                removeButton(d).buttonStyle(.plain).foregroundStyle(.tint).font(.caption)
+                removeButton(d).buttonStyle(.hoverText).foregroundStyle(.tint).font(.caption)
             }
         }
         .accessibilityIdentifier(o.kind == .thisDevice ? "privacy.thisDevice" : "privacy.device")
@@ -916,7 +916,7 @@ struct SecurityAddTile: View {
             .overlay(shape.strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 3])).foregroundStyle(Color.primary.opacity(0.25)))
             .contentShape(shape)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tile(radius: SecurityLook.radius))
         .accessibilityLabel(label)
     }
 }
@@ -957,6 +957,7 @@ struct HowItWorksSheet: View {
                         .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
+                    .hoverRow()
                     .accessibilityIdentifier("privacy.learnMore")
                 }
             }

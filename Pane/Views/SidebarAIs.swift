@@ -39,6 +39,7 @@ struct SidebarActionRow: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .hoverRow(id, reach: Hover.sidebarReach())
         .accessibilityIdentifier(id)
     }
 }
