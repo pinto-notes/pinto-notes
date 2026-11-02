@@ -13,6 +13,9 @@ import Testing
         "BundleRename.swift: Amber Notes.app",
         // What a locked note's password is checked against: changing it locks people out.
         "NoteLock.swift: Amber Notes locked notes",
+        // Claude's directory still lists the connector under the old name until it's renamed
+        // there: the waiting card says so (Emil, 2 November 2026).
+        "SetupCards.swift: In Claude it\\u{2019}s still called Amber Notes, our old name.",
     ]
 
     /// The app's and the share extension's code, copied into the test bundle (project.yml).

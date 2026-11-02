@@ -702,7 +702,7 @@ import Testing
     }
 
     @Test func isInTheListAfterTheOthers() {
-        #expect(ConnectAISection.Guide.allCases.map(\.title) == ["ChatGPT", "Claude", "Claude Code", "Codex", "Incredible", "Another AI"])
+        #expect(ConnectAISection.Guide.allCases.map(\.title) == ["ChatGPT", "Claude", "Grok", "Claude Code", "Codex", "Incredible", "Another AI"])
         #expect(AIGlyph.asset("Incredible") == "AIGlyphIncredible")
         #expect(WebConnectPlan.forAI("Incredible") == nil, "Incredible is added in Incredible, not on a website")
     }
@@ -917,6 +917,6 @@ extension AIEditSnapshots {
         #expect(ConnectAISection.Guide.offered(incredibleInstalled: true).contains(.incredible))
         // Everything else stays, in the same order.
         // Everything else stays, in the same order. Claude Code rides on Claude's connection.
-        #expect(ConnectAISection.Guide.offered(incredibleInstalled: false) == [.chatgpt, .claude, .codex, .other])
+        #expect(ConnectAISection.Guide.offered(incredibleInstalled: false) == [.chatgpt, .claude, .grok, .codex, .other])
     }
 }

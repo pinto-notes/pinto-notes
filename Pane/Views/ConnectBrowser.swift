@@ -333,12 +333,8 @@ struct ConnectBrowserSheet: View {
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityIdentifier(run.stage == .connected ? "connect.connected" : "connect.browser.title")
                 Spacer()
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
-                        .frame(width: 26, height: 26)
-                        .background(Color.line.opacity(0.6), in: .circle)
-                }
-                .buttonStyle(.plain)
+                // The shared solid × with its hover, as every card closes.
+                CardCloseButton { dismiss() }
                 .keyboardShortcut(.cancelAction)
                 .accessibilityLabel("Close")
                 .accessibilityIdentifier("connect.browser.close")

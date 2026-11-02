@@ -1152,7 +1152,7 @@ struct ConnectDrawing: View {
                     Image(systemName: "arrow.left").font(.system(size: 9, weight: .medium)).foregroundStyle(grokInk.opacity(0.7))
                     grokText("Custom Connector", 11.5, .semibold)
                     Spacer()
-                    Image(systemName: "xmark").font(.system(size: 8, weight: .medium)).foregroundStyle(grokInk.opacity(0.6))
+                    Image(systemName: "multiply").font(.system(size: 8, weight: .medium)).foregroundStyle(grokInk.opacity(0.6))
                 }
                 grokText("Enter a custom name and an MCP server URL", 9, muted: true)
                 grokText("Name", 9, muted: true).padding(.top, 2)
