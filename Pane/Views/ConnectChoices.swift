@@ -771,7 +771,9 @@ enum ConnectShell {
 
 enum ConnectCopy {
     typealias Guide = ConnectAISection.Guide
-    static let why = "Your AI can then read and write your notes when you ask it to. The notes it opens are sent to the company that makes it, such as OpenAI or Anthropic. Nothing is shared until you allow it."
+    static let why = "Your AI can then read and write your notes when you ask it to. " + shared
+    /// What leaves and who gets it (App Review 5.1.1, 5.1.2): under Settings' Connect button.
+    static let shared = "The notes it opens are sent to the company that makes it, such as OpenAI or Anthropic. Nothing is shared until you allow it."
     #if os(macOS)
     static let here = "On this Mac"
     #else
@@ -1299,43 +1301,8 @@ struct ConnectChoices: View {
     private var connectedList: some View {
         VStack(alignment: .leading, spacing: 6) {
             header(ConnectCopy.connected)
-            VStack(spacing: 0) {
-                ForEach(Array(active.enumerated()), id: \.element.id) { i, c in
-                    if i > 0 { Divider().padding(.leading, Metrics.rowInset) }
-                    row(c)
-                }
-            }
+            ConnectedAIList(connections: active, changes: { changesFor = $0 }, disconnect: { removing = $0 })
         }
-    }
-
-    private func row(_ c: Connection) -> some View {
-        HStack(spacing: 10) {
-            // The mark comes from where the approval went, never from the name.
-            ConnectionTile(connection: c, size: 26)
-            VStack(alignment: .leading, spacing: 2) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(c.title).font(Metrics.rowTitle).foregroundStyle(Color.ink)
-                    Text(Self.detail(c)).font(.caption).foregroundStyle(Color.muted).monospacedDigit()
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                // The name and details read as one; the buttons stay their own for VoiceOver.
-                .accessibilityElement(children: .combine)
-                if AIChangesCenter.shared.store != nil {
-                    Button("Recent changes") { changesFor = c }
-                        .buttonStyle(.hoverLink)
-                        .font(.caption)
-                        .foregroundStyle(.tint)
-                        .accessibilityLabel("Recent changes by \(c.title)")
-                        .accessibilityIdentifier("connect.recentChanges")
-                }
-            }
-            Spacer(minLength: 8)
-            Button("Disconnect…") { removing = c }
-                .buttonStyle(.quiet)
-                .accessibilityLabel("Disconnect \(c.title)")
-                .accessibilityIdentifier("connect.disconnect")
-        }
-        .padding(.vertical, 8)
     }
 
     static func detail(_ c: Connection) -> String {
@@ -1398,6 +1365,53 @@ struct ConnectChoices: View {
         static let smallHeight: CGFloat = 50
         static let smallCheck: CGFloat = 17
         #endif
+    }
+}
+
+/// What is connected, each with Recent changes and Disconnect…: under the choices in
+/// `ConnectChoices`, and on the Mac's Settings › Connect an AI.
+struct ConnectedAIList: View {
+    let connections: [Connection]
+    let changes: (Connection) -> Void
+    let disconnect: (Connection) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(connections.enumerated()), id: \.element.id) { i, c in
+                if i > 0 { Divider().padding(.leading, ConnectChoices.Metrics.rowInset) }
+                row(c)
+            }
+        }
+    }
+
+    private func row(_ c: Connection) -> some View {
+        HStack(spacing: 10) {
+            // The mark comes from where the approval went, never from the name.
+            ConnectionTile(connection: c, size: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(c.title).font(ConnectChoices.Metrics.rowTitle).foregroundStyle(Color.ink)
+                    Text(ConnectChoices.detail(c)).font(.caption).foregroundStyle(Color.muted).monospacedDigit()
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                // The name and details read as one; the buttons stay their own for VoiceOver.
+                .accessibilityElement(children: .combine)
+                if AIChangesCenter.shared.store != nil {
+                    Button("Recent changes") { changes(c) }
+                        .buttonStyle(.hoverLink)
+                        .font(.caption)
+                        .foregroundStyle(.tint)
+                        .accessibilityLabel("Recent changes by \(c.title)")
+                        .accessibilityIdentifier("connect.recentChanges")
+                }
+            }
+            Spacer(minLength: 8)
+            Button("Disconnect…") { disconnect(c) }
+                .buttonStyle(.quiet)
+                .accessibilityLabel("Disconnect \(c.title)")
+                .accessibilityIdentifier("connect.disconnect")
+        }
+        .padding(.vertical, 8)
     }
 }
 

@@ -1261,7 +1261,6 @@ struct ImportDoneLine: View {
             .accessibilityIdentifier("import.doneLine")
     }
 }
-#endif
 
 /// A row of Choose notes' tree: tight, no separator, its own hover instead of the list's.
 private struct TreeRowLook: ViewModifier {
@@ -1272,3 +1271,4 @@ private struct TreeRowLook: ViewModifier {
             .listRowBackground(Color.clear)
     }
 }
+#endif

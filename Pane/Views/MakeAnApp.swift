@@ -662,6 +662,9 @@ import Supabase
 /// data shaped like the note. Hidden on a backend without the setting.
 struct AppPreviewSection: View {
     let client: SupabaseClient
+    /// On a page of its own rather than in a form (the Mac's Connect an AI): a heading, the toggle
+    /// in a soft box, the footnote.
+    var plain = false
     @State private var on = false
     @State private var available = false
     @State private var saving = false
@@ -670,19 +673,39 @@ struct AppPreviewSection: View {
 
     var body: some View {
         Group {
-            if available {
+            if available, plain {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Apps in Notes").font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                    HStack {
+                        Text(Self.label)
+                        Spacer(minLength: 12)
+                        toggle.labelsHidden().toggleStyle(.switch)
+                    }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(SecurityLook.fill, in: RoundedRectangle(cornerRadius: SecurityLook.radius, style: .continuous))
+                    Text(Self.footer).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+            } else if available {
                 Section {
-                    Toggle("Let AIs preview apps with my notes", isOn: Binding(get: { on }, set: { v in on = v; Task { await save(v) } }))
-                        .disabled(saving)
-                        .accessibilityIdentifier("settings.appPreviewsReal")
+                    toggle
                 } header: {
                     Text("Apps in Notes")
                 } footer: {
-                    Text("When your AI checks an app it made, it sees a picture of it. With this off, the picture uses made-up data shaped like your note. With it on, it shows your note's real data, decrypted for that check only.")
+                    Text(Self.footer)
                 }
             }
         }
         .task { await load() }
+    }
+
+    static let label = "Let AIs preview apps with my notes"
+    static let footer = "When your AI checks an app it made, it sees a picture of it. With this off, the picture uses made-up data shaped like your note. With it on, it shows your note's real data, decrypted for that check only."
+
+    private var toggle: some View {
+        Toggle(Self.label, isOn: Binding(get: { on }, set: { v in on = v; Task { await save(v) } }))
+            .disabled(saving)
+            .accessibilityIdentifier("settings.appPreviewsReal")
     }
 
     private func load() async {

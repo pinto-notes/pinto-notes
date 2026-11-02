@@ -149,6 +149,46 @@ import Testing
         }
     }
 
+    /// Every page of Settings in the card, light and dark, with two AIs connected: the content
+    /// column capped and centred, the title over its left edge, a gap between the tabs, and
+    /// Connect an AI built from the setup card's tiles (design/settings-layout-connect). Into
+    /// $PINTO_INTERNAL/evidence/settings-layout/after with `TEST_RUNNER_AMBER_HIG_SHOTS=$PINTO_INTERNAL/evidence/settings-layout/after
+    /// scripts/qa-test.sh 'PaneTests/SidebarStudySnapshots/settingsPages(dark:)'`.
+    @Test(arguments: [false, true])
+    func settingsPages(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let lib = try Self.library()
+        let fixture = try await AppSnapshotTests.settingsFixture()
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let two = [Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "chatgpt.com"),
+                   Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now.addingTimeInterval(-86_400 * 3), last_used_at: .now.addingTimeInterval(-3_600), revoked_at: nil, redirect_host: "claude.ai")]
+        let mode = dark ? "dark" : "light"
+        try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
+            for place in SettingsPlace.allCases where fixture.places.contains(place) {
+                var v = fixture
+                v.connections = two
+                v.start = place
+                v.close = {}
+                let view = window(SidebarStudy(), library: lib, over: v)
+                try await AppSnapshotTests.shoot(view, name: "mac-settings-\(place.rawValue)-\(mode)", size: Self.size, dark: dark, wait: 1.2)
+            }
+            // None connected yet: only the tiles.
+            var none = fixture
+            none.connections = []
+            none.start = .ai
+            none.close = {}
+            try await AppSnapshotTests.shoot(window(SidebarStudy(), library: lib, over: none), name: "mac-settings-ai-none-\(mode)", size: Self.size, dark: dark, wait: 1.2)
+            // Connecting Claude: the setup card's wait in the tiles' place.
+            var waiting = fixture
+            waiting.connections = two
+            waiting.connectWaiting = .claude
+            waiting.start = .ai
+            waiting.close = {}
+            try await AppSnapshotTests.shoot(window(SidebarStudy(), library: lib, over: waiting), name: "mac-settings-ai-waiting-\(mode)", size: Self.size, dark: dark, wait: 1.2)
+        }
+    }
+
     /// Settings › Security and Help and feedback (feature/settings-help), in the card over the
     /// notes and as whole pages, light and dark: Security with Pinto Notes keeping a copy of the
     /// key (most accounts) and without one, offline, and Help signed in and out. Into

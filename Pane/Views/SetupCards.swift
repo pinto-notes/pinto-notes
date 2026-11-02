@@ -160,6 +160,15 @@ enum SetupCards {
     static let brands: [AI] = [.chatgpt, .claude, .grok]
     /// The connect card's tiles: the brands, then Other (any other app, by its address).
     static let connectTiles: [AI] = brands + [.other]
+    /// The guide that opens over the wait for this AI: Grok's two steps, or Other's page (the
+    /// address and the steps). ChatGPT and Claude open in the browser with no guide.
+    static func guidePage(_ ai: AI) -> ConnectAISection.Guide? {
+        switch ai {
+        case .grok: .grok
+        case .other: .other
+        default: nil
+        }
+    }
     static let anotherAppLink = "Another app"
     static let connectReads = "Your AI can read and edit your notes when you ask. Disconnect anytime."
     static let otherApps = "Cursor, VS Code or another app"
@@ -338,6 +347,132 @@ private struct SetupTile<Mark: View>: View {
         .accessibilityLabel(title)
         .accessibilityAddTraits(on ? .isSelected : [])
         .accessibilityIdentifier(id)
+    }
+}
+
+// MARK: - Connect your AI, shared with Settings
+
+/// A setup card's title: bold, centred.
+struct SetupTitle: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 19, weight: .bold))
+            .tracking(-0.2)
+            .foregroundStyle(Color.ink)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier("setup.title")
+    }
+}
+
+/// The AIs as tiles (ChatGPT, Claude, Grok and Other) and one Connect button for the one picked.
+/// The setup card puts Not now beside the button; Settings › Connect an AI puts its quiet links.
+struct ConnectTilePicker<Beside: View>: View {
+    @Binding var picked: SetupCards.AI
+    /// The setup card's button fills the row beside Not now; Settings' sits at the trailing edge.
+    var wideButton = true
+    /// Return presses Connect: on the setup card, where it is the one thing to do.
+    var returnConnects = true
+    var idPrefix = "setup"
+    let connect: (SetupCards.AI) -> Void
+    @ViewBuilder var beside: Beside
+
+    /// The tile shown picked: a tile's AI, else ChatGPT.
+    static func shown(_ ai: SetupCards.AI) -> SetupCards.AI { SetupCards.connectTiles.contains(ai) ? ai : .chatgpt }
+    static func buttonTitle(_ ai: SetupCards.AI) -> String { ai == .other ? "Connect another app" : ai.button }
+
+    var body: some View {
+        let on = Self.shown(picked)
+        VStack(spacing: 16) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: SetupCards.connectTiles.count), spacing: 8) {
+                ForEach(SetupCards.connectTiles) { choice in
+                    SetupTile(title: choice == .other ? "Other" : choice.name, on: on == choice, id: "\(idPrefix).ai.\(choice.rawValue)", action: { picked = choice }) {
+                        BrandMark(ai: choice, size: 30)
+                    }
+                }
+            }
+            .settingsProbe("connect.tiles")
+            HStack(spacing: 8) {
+                beside
+                Button(Self.buttonTitle(on)) { connect(on) }
+                    .buttonStyle(.amberProminent(.regular, wide: wideButton))
+                    .keyboardShortcut(returnConnects ? .defaultAction : nil)
+                    .accessibilityIdentifier("\(idPrefix).connect")
+            }
+        }
+    }
+}
+
+/// Waiting for the AI picked: Pinto and the AI's marks, where to finish, and Cancel. The setup
+/// card's Waiting card, and Settings › Connect an AI while one connects.
+struct ConnectWaitingPanel: View {
+    let ai: SetupCards.AI
+    /// Settings: what the connection is doing, when it says more than waiting (Codex being added).
+    var note: String? = nil
+    /// A failed add's fix (Settings): shown instead of the wait.
+    var fix: (title: String, action: () -> Void)? = nil
+    let cancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 10) {
+                AppMark(size: 44)
+                Text("\u{00B7}\u{00B7}\u{00B7}").font(.system(size: 15)).foregroundStyle(.tertiary)
+                AITile(ai: ai.mark, size: 44)
+            }
+            .accessibilityHidden(true)
+            SetupTitle(text: SetupCards.finishTitle(ai))
+            if let line = SetupCards.oldNameLine(ai) {
+                Text(line).font(.footnote).foregroundStyle(Color.muted).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("setup.oldName")
+            }
+            if ai == .other {
+                Text(SetupCards.otherLine).font(.footnote).foregroundStyle(Color.muted).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+            }
+            if let note {
+                Text(note).font(.footnote).foregroundStyle(fix == nil ? Color.muted : .red).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("connect.note")
+            }
+            if let fix {
+                Button(fix.title, action: fix.action)
+                    .buttonStyle(.amberProminent(.regular, wide: true))
+                    .accessibilityIdentifier("connect.fix")
+            } else {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Waiting for \(ai.name)").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.muted)
+                }
+                .frame(maxWidth: .infinity, minHeight: 34)
+                .background(SetupCards.soft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            }
+            Button("Cancel", action: cancel)
+                .buttonStyle(.hoverLink)
+                .font(.footnote)
+                .foregroundStyle(Color.muted)
+                .accessibilityIdentifier("connect.cancel")
+        }
+    }
+}
+
+/// The AI's mark with a green tick, and "ChatGPT is connected."
+struct ConnectedPanel: View {
+    let ai: SetupCards.AI
+
+    var body: some View {
+        VStack(spacing: 14) {
+            AITile(ai: ai.mark, size: 52)
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.white, .green)
+                        .background(Circle().fill(SetupCards.ground).padding(-2.5))
+                        .offset(x: 6, y: 6)
+                }
+            SetupTitle(text: SetupCards.connectedTitle(ai))
+        }
     }
 }
 
@@ -570,16 +705,7 @@ struct SetupCardsFlow: View {
 
     // MARK: Cards
 
-    private func title(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 19, weight: .bold))
-            .tracking(-0.2)
-            .foregroundStyle(Color.ink)
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityAddTraits(.isHeader)
-            .accessibilityIdentifier("setup.title")
-    }
+    private func title(_ text: String) -> some View { SetupTitle(text: text) }
 
     private let three = Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
 
@@ -863,9 +989,6 @@ struct SetupCardsFlow: View {
         }
     }
 
-    /// The tile picked: a brand or Other (ChatGPT until another is picked).
-    private var brandShown: SetupCards.AI { SetupCards.connectTiles.contains(shownAI) ? shownAI : .chatgpt }
-
     /// Like the import card: the brands as tiles, Not now and the amber Connect for the one picked.
     private var connectLikeImport: some View {
         VStack(spacing: 16) {
@@ -878,73 +1001,22 @@ struct SetupCardsFlow: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("setup.reads")
             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: SetupCards.connectTiles.count), spacing: 8) {
-                ForEach(SetupCards.connectTiles) { choice in
-                    SetupTile(title: choice == .other ? "Other" : choice.name, on: brandShown == choice, id: "setup.ai.\(choice.rawValue)", action: { ai = choice }) {
-                        BrandMark(ai: choice, size: 30)
-                    }
-                }
-            }
-            HStack(spacing: 8) {
+            ConnectTilePicker(picked: Binding(get: { shownAI }, set: { ai = $0 }), connect: { choice in
+                connect(choice)
+                guidePage = SetupCards.guidePage(choice)
+            }) {
                 Button("Not now") { withAnimation { connecting = .set(connected: false) } }
                     .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.notNow")
-                Button(brandShown == .other ? "Connect another app" : brandShown.button) {
-                    if brandShown == .other { rowPicked("Other") } else { brandPicked(brandShown) }
-                }
-                    .buttonStyle(.amberProminent(.regular, wide: true))
-                    .keyboardShortcut(.defaultAction)
-                    .accessibilityIdentifier("setup.connect")
             }
         }
-    }
-
-    private var pair: some View {
-        HStack(spacing: 10) {
-            AppMark(size: 44)
-            Text("\u{00B7}\u{00B7}\u{00B7}").font(.system(size: 15)).foregroundStyle(.tertiary)
-            AITile(ai: shownAI.mark, size: 44)
-        }
-        .accessibilityHidden(true)
     }
 
     private var waiting: some View {
-        VStack(spacing: 14) {
-            pair
-            title(SetupCards.finishTitle(shownAI))
-            if let line = SetupCards.oldNameLine(shownAI) {
-                Text(line).font(.footnote).foregroundStyle(Color.muted).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("setup.oldName")
-            }
-            if shownAI == .other {
-                Text(SetupCards.otherLine).font(.footnote).foregroundStyle(Color.muted).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
-            }
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Waiting for \(shownAI.name)").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.muted)
-            }
-            .frame(maxWidth: .infinity, minHeight: 34)
-            .background(SetupCards.soft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            Button("Cancel") { run.stop(); withAnimation { connecting = .choosing } }
-                .buttonStyle(.hoverLink)
-                .font(.footnote)
-                .foregroundStyle(Color.muted)
-        }
+        ConnectWaitingPanel(ai: shownAI) { run.stop(); withAnimation { connecting = .choosing } }
     }
 
-    private var connectedCard: some View {
-        VStack(spacing: 14) {
-            AITile(ai: shownAI.mark, size: 52)
-                .overlay(alignment: .bottomTrailing) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(.white, .green)
-                        .background(Circle().fill(SetupCards.ground).padding(-2.5))
-                        .offset(x: 6, y: 6)
-                }
-            title(SetupCards.connectedTitle(shownAI))
-        }
-    }
+    private var connectedCard: some View { ConnectedPanel(ai: shownAI) }
 
     private var set: some View {
         VStack(spacing: 16) {
