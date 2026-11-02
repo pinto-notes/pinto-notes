@@ -85,7 +85,9 @@ it won't replace a copy that's running. TestFlight may later install a newer Tes
 - Website analytics and the `mcp.` alias.
 
 Emails from staging come from the production senders (hello@ for sign-in, emil@ for the onboarding
-emails) through the same Resend account. Their subjects start with "[Staging]".
+emails) through the same Resend account. Their subjects start with "[Staging]", and the account
+emails' sender name is "Pinto Notes Staging". The account emails' words come from the repo
+(`scripts/auth-emails.ts staging`, docs/Technical/auth-emails.md), not from production.
 
 ## Onboarding emails
 

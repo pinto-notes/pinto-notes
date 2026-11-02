@@ -42,13 +42,11 @@ page has to exist before that email is turned on.
 - **No code in the subject line.** It would show on a locked phone.
 - **Pictures are the mark and Emil's photo** from `https://pintonotes.com/email/`. With pictures
   blocked, their cells show "P" on amber and "E" on brown.
-- **The name is Pinto Notes** (renamed from Amber Notes on 8 October 2026), and every link is on
-  `pintonotes.com`. The footer says once "Pinto Notes was called Amber Notes until October 2026.",
-  for people who made their account under the old name (`RENAMED` in the script; take it out when
-  the old name is forgotten). The old name is never in a subject.
-- **The sender is `Pinto Notes <hello@ambernotes.app>`.** The name is new; the address stays until
-  pintonotes.com is a verified sending domain in Resend, because mail from a domain that isn't
-  verified is refused. Name and address are in `supabase/functions/_shared/sender.ts`.
+- **The name is Pinto Notes** (renamed from Amber Notes on 8 October 2026), and every link and
+  picture is on `pintonotes.com`. The old name is said nowhere, not even in the footer (the line
+  "Pinto Notes was called Amber Notes until October 2026." came out on 13 October 2026).
+- **The sender is `Pinto Notes <hello@pintonotes.com>`**, `Pinto Notes Staging` on staging. Name
+  and address are in `supabase/functions/_shared/sender.ts`.
 
 ## Production
 
@@ -69,6 +67,15 @@ back. With `site_url` on pintonotes.com the project's redirect list must hold
 `https://pintonotes.com/connect**` (sign-in on `/connect`, `web/lib/connect.ts`), and keep
 `https://ambernotes.app/connect**` and `pintonotes://auth-callback` for the apps and pages people
 already have. The reset link itself uses no redirect (`docs/Technical/password-reset.md`).
+
+## Staging
+
+Staging (`tswcrppnfzorhxhcnjvd`) gets the repo's emails, not production's, so it shows what the next
+release will send. `scripts/staging.sh auth` copies production's other auth settings and then adds
+`deno run --allow-read scripts/auth-emails.ts staging`: every subject and template, "[Staging] " in
+front of each subject, and the sender name `Pinto Notes Staging`. Staging keeps its own site URL.
+Until 2 November 2026 it copied production's templates and named the sender by hand, so staging
+kept sending "Amber Notes" emails after the rename.
 
 ## Testing
 

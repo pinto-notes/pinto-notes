@@ -9,7 +9,7 @@
 //                              deploy that adds them must be live, or the pictures are broken)
 //
 // Each email's subject starts with "[Test n/N]" and its unsubscribe link goes to a test address that
-// does nothing. Needs the ambernotes.app domain verified in the Resend account the key belongs to.
+// does nothing. Needs the pintonotes.com domain verified in the Resend account the key belongs to.
 import { KINDS, render } from "../supabase/functions/lifecycle/emails.ts";
 import type { Kind } from "../supabase/functions/lifecycle/logic.ts";
 import { APP_LINKS, FROM, REPLY_TO, SITE } from "../supabase/functions/lifecycle/logic.ts";
