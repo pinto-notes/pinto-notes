@@ -110,6 +110,19 @@ enum SetupCards {
     }
 
     static let connectTitle = "Connect your AI."
+
+    /// Design study, 2 November 2026: Emil hates the white squares and weak marks ("these are well
+    /// known brands, let's leverage") and the Another AI tile. Each new look connects in one click,
+    /// says what the AI can do under the title, and moves other apps to a quiet line.
+    enum ConnectLook: String, CaseIterable { case current, brandTiles, bareMarks, brandButtons }
+    nonisolated(unsafe) static var connectLook: ConnectLook = .current
+    static let connectReads = "Your AI can read and edit your notes when you ask. Disconnect anytime."
+    static let otherApps = "Cursor, VS Code or another app"
+
+    /// The brands' own grounds: ChatGPT black, Claude's orange.
+    static func brandFill(_ ai: AI) -> Color {
+        ai == .claude ? AIGlyph.color("Claude") : Color(white: 0.04)
+    }
     static func finishTitle(_ ai: AI) -> String { "Finish in \(ai.name)." }
     static func connectedTitle(_ ai: AI) -> String { "\(ai.Name) is connected." }
     /// Another AI: the address is on the clipboard, to paste into it.
@@ -512,7 +525,97 @@ struct SetupCardsFlow: View {
         }
     }
 
-    private var connect: some View {
+    @ViewBuilder private var connect: some View {
+        if SetupCards.connectLook == .current { connectNow } else { connectBranded }
+    }
+
+    private func connect(_ choice: SetupCards.AI) {
+        ai = choice
+        startConnect()
+    }
+
+    private var connectBranded: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 6) {
+                title(SetupCards.connectTitle)
+                Text(SetupCards.connectReads)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.muted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("setup.reads")
+            }
+            let brands: [SetupCards.AI] = [.chatgpt, .claude]
+            switch SetupCards.connectLook {
+            case .brandButtons:
+                VStack(spacing: 8) {
+                    ForEach(brands) { choice in
+                        Button { connect(choice) } label: {
+                            HStack(spacing: 10) {
+                                AIGlyph(ai: choice.mark, size: 20, monochrome: true)
+                                Text(choice.button).font(.system(size: 15, weight: .semibold))
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, minHeight: 46)
+                            .background(SetupCards.brandFill(choice), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
+                            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                        .buttonStyle(.tile(radius: 12))
+                        .accessibilityIdentifier("setup.ai.\(choice.rawValue)")
+                    }
+                }
+            case .brandTiles:
+                HStack(spacing: 10) {
+                    ForEach(brands) { choice in
+                        Button { connect(choice) } label: {
+                            VStack(spacing: 10) {
+                                AIGlyph(ai: choice.mark, size: 40, monochrome: true)
+                                Text(choice.name).font(.system(size: 15, weight: .semibold))
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, minHeight: 118)
+                            .background(SetupCards.brandFill(choice), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
+                            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.tile(radius: 14))
+                        .accessibilityLabel(choice.button)
+                        .accessibilityIdentifier("setup.ai.\(choice.rawValue)")
+                    }
+                }
+            default:
+                HStack(spacing: 10) {
+                    ForEach(brands) { choice in
+                        Button { connect(choice) } label: {
+                            VStack(spacing: 10) {
+                                AIGlyph(ai: choice.mark, size: 44)
+                                Text(choice.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.ink)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 118)
+                            .background(SetupCards.soft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.tile(radius: 14))
+                        .accessibilityLabel(choice.button)
+                        .accessibilityIdentifier("setup.ai.\(choice.rawValue)")
+                    }
+                }
+            }
+            HStack(spacing: 22) {
+                Button(SetupCards.otherApps) { connect(.other) }
+                    .buttonStyle(.hoverLink)
+                    .accessibilityIdentifier("setup.ai.other")
+                Button("Not now") { withAnimation { connecting = .set(connected: false) } }
+                    .buttonStyle(.hoverLink)
+                    .accessibilityIdentifier("setup.notNow")
+            }
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(Color.muted)
+        }
+    }
+
+    private var connectNow: some View {
         VStack(spacing: 16) {
             title(SetupCards.connectTitle)
             LazyVGrid(columns: three, spacing: 8) {

@@ -28,6 +28,20 @@ import Testing
         try await AppSnapshotTests.shoot(view, name: "setup-\(name)-\(dark ? "dark" : "light")", size: Self.size, dark: dark, wait: 1.0)
     }
 
+    /// The Connect your AI study (Emil, 2 November 2026): three looks beside today's.
+    @Test(arguments: [false, true])
+    func connectLooks(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let full = try AppSnapshotTests.container()
+        let backend = Backend()
+        let store = OnboardingStore(defaults: TestDefaults())
+        defer { SetupCards.connectLook = .current }
+        for look in SetupCards.ConnectLook.allCases {
+            SetupCards.connectLook = look
+            try await shot(SetupCardsFlow(store: store, backend: backend, preview: .init(card: .connect), finish: { _ in }), "4-connect-\(look.rawValue)", library: full, dark: dark)
+        }
+    }
+
     @Test(arguments: [false, true])
     func cards(dark: Bool) async throws {
         guard AppSnapshotTests.dir != nil else { return }
