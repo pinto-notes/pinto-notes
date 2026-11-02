@@ -105,8 +105,12 @@ struct SignInView: View {
         #endif
     }
 
-    private var shortHeading: Bool {
-        if case .short = shownHeading { return true }
+    /// On a setup card, whatever its step shows: the code step's "Check your email" heading kept
+    /// the welcome's blank error line and spacing, a gap above the small print (Emil, 2 November 2026).
+    private var shortHeading: Bool { Self.isCard(heading) }
+
+    static func isCard(_ heading: Heading) -> Bool {
+        if case .short = heading { return true }
         return false
     }
 

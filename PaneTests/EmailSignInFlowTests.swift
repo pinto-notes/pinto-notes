@@ -310,4 +310,11 @@ import Testing
         #expect(SignInView.shortTitle("Sign in to Pinto.", step: .signIn(fallback: false)) == "Sign in to Pinto.")
         #expect(SignInView.shortTitle("Sign in to Pinto.", step: .email) == "Sign in to Pinto.")
     }
+
+    /// The setup card lays out as a card on every step, the code step too: no welcome-sized gap.
+    @Test func theCardStaysACardOnTheCodeStep() {
+        #expect(SignInView.isCard(.short("Sign in to Pinto.")))
+        #expect(!SignInView.isCard(.card))
+        #expect(!SignInView.isCard(.beside(title: "Welcome", line: "")))
+    }
 }
