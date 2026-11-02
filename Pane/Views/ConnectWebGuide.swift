@@ -459,34 +459,23 @@ struct ConnectWebGuideSheet: View {
     private var topBar: some View {
         HStack {
             if case .step = run.stage, stepped {
-                Button { run.back() } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left").font(.system(size: 13, weight: .semibold))
-                        Text("Back")
-                    }
-                }
-                .buttonStyle(.hoverText)
-                .foregroundStyle(Color.muted)
-                .accessibilityIdentifier("connect.guide.back")
-            } else {
-                Color.clear.frame(width: 1, height: 1)
-            }
-            Spacer()
-            if run.stage != .connected, stepped {
-                HStack(spacing: 6) {
-                    ForEach(0...steps.count, id: \.self) { i in
-                        Capsule()
-                            .fill(i == pageIndex ? Color(Palette.amber) : Color.line)
-                            .frame(width: i == pageIndex ? 18 : 6, height: 6)
-                    }
-                }
-                .accessibilityHidden(true)
+                // The import guides' Back (ImportGuideSheet), so every guide has the same one.
+                Button { run.back() } label: { Label("Back", systemImage: "chevron.left") }
+                    .buttonStyle(.quiet)
+                    .padding(.leading, -QuietButtonStyle.inset)
+                    .accessibilityIdentifier("connect.guide.back")
             }
             Spacer()
             CardCloseButton { dismiss() }
                 .accessibilityIdentifier("connect.guide.close")
         }
         .frame(height: 30)
+        // Centered on the bar, not between Back and close: they don't move when Back appears.
+        .overlay {
+            if run.stage != .connected, stepped {
+                PageDots(count: steps.count + 1, current: pageIndex)
+            }
+        }
         .padding(.horizontal, Self.compact ? 20 : 18)
         .padding(.top, 14)
     }
@@ -937,6 +926,23 @@ struct ConsentHostIf: ViewModifier {
     }
 }
 
+/// A guide's pages as dots, the current one long and amber.
+struct PageDots: View {
+    let count: Int
+    let current: Int
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<count, id: \.self) { i in
+                Capsule()
+                    .fill(i == current ? Color(Palette.amber) : Color.line)
+                    .frame(width: i == current ? 18 : 6, height: 6)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
 // MARK: Drawn pictures
 
 /// ChatGPT's pages drawn plainly, as the import guides draw Google's: greys, the one thing to
@@ -1046,45 +1052,112 @@ struct ConnectDrawing: View {
         }
     }
 
-    // Grok's Connectors page: the title and New Connector, with its menu open on Custom.
-    private var grokConnectorsPage: some View {
-        browser("grok.com/connectors") {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Text("Connectors").font(.system(size: 14, weight: .bold)).foregroundStyle(ink)
-                    Spacer()
-                    pill("New Connector", filled: true)
-                }
-                pluginGrid
+    // Grok's pages are dark, so they are drawn dark: the same layout as grok.com/connectors
+    // (Emil's screenshots, 2 November 2026).
+    private let grokInk = Color(white: 0.93)
+    private let grokPaper = Color(white: 0.08)
+    private let grokRaised = Color(white: 0.14)
+
+    private func grokText(_ t: String, _ size: CGFloat, _ weight: Font.Weight = .regular, muted: Bool = false) -> some View {
+        Text(t).font(.system(size: size, weight: weight)).foregroundStyle(grokInk.opacity(muted ? 0.55 : 1)).lineLimit(1)
+    }
+
+    private func grokButton(_ t: String, filled: Bool) -> some View {
+        Text(t).font(.system(size: 9.5, weight: .medium))
+            .foregroundStyle(filled ? Color.black : grokInk)
+            .padding(.horizontal, 10).padding(.vertical, 4)
+            .background {
+                Capsule().fill(filled ? Color.white : Color.white.opacity(0.12))
             }
-            .overlay(alignment: .topTrailing) {
-                VStack(alignment: .leading, spacing: 8) {
-                    bar(70, 5).padding(.vertical, 2)
-                    bar(54, 5).padding(.vertical, 2)
-                    ring { menuItem("link", "Custom").fontWeight(.semibold) }
+            .fixedSize()
+    }
+
+    private func grokField(_ value: String, placeholder: Bool = false) -> some View {
+        Text(value).font(.system(size: 10, weight: .medium))
+            .foregroundStyle(grokInk.opacity(placeholder ? 0.45 : 1))
+            .lineLimit(1)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .frame(width: 250, alignment: .leading)
+            .background(Color.black.opacity(0.35), in: .rect(cornerRadius: 5))
+            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.white.opacity(0.12)))
+    }
+
+    // Connectors, with New Connector open: Custom is the first card.
+    private var grokConnectorsPage: some View {
+        browser("grok.com/connectors", dark: true) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    grokText("Connectors", 10, .medium)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(grokRaised, in: .capsule)
+                    grokText("Skills", 10, muted: true)
+                    Spacer()
+                    ring { grokButton("New Connector", filled: true) }
+                }
+                grokText("Connected", 10, .semibold)
+                HStack(spacing: 6) {
+                    RoundedRectangle(cornerRadius: 4).fill(grokRaised).frame(width: 16, height: 16)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Capsule().fill(Color.white.opacity(0.35)).frame(width: 50, height: 5)
+                        Capsule().fill(Color.white.opacity(0.18)).frame(width: 80, height: 4)
+                    }
+                }
+            }
+            .overlay(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 7) {
+                    grokText("New Connector", 11, .semibold)
+                    HStack(spacing: 5) {
+                        Image(systemName: "magnifyingglass").font(.system(size: 8))
+                        grokText("Search", 9.5, muted: true)
+                        Spacer()
+                    }
+                    .foregroundStyle(grokInk.opacity(0.5))
+                    .padding(.horizontal, 7).padding(.vertical, 4)
+                    .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.white.opacity(0.15)))
+                    ring {
+                        HStack(spacing: 7) {
+                            Image(systemName: "plus").font(.system(size: 9, weight: .medium)).foregroundStyle(grokInk)
+                                .frame(width: 18, height: 18)
+                                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.white.opacity(0.2)))
+                            VStack(alignment: .leading, spacing: 1) {
+                                grokText("Custom", 10, .semibold)
+                                grokText("Add your own custom connector", 8.5, muted: true)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                    }
                 }
                 .padding(10)
-                .background(paper, in: .rect(cornerRadius: 9))
-                .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
-                .offset(y: 30)
+                .frame(width: 230)
+                .background(Color(white: 0.11), in: .rect(cornerRadius: 9))
+                .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.white.opacity(0.1)))
+                .shadow(color: .black.opacity(0.5), radius: 10, y: 3)
+                .offset(y: 46)
             }
         }
     }
 
     // Grok's Custom Connector form, as it is labelled there.
     private var grokFormPage: some View {
-        browser("grok.com/connectors") {
+        browser("grok.com/connectors", dark: true) {
             VStack(alignment: .leading, spacing: 5) {
-                Text("Custom Connector").font(.system(size: 12, weight: .semibold)).foregroundStyle(ink)
-                Text("Enter a custom name and an MCP server URL").font(.system(size: 9.5)).foregroundStyle(ink.opacity(0.6))
-                fieldRow("Name", "Pinto Notes")
-                Text("Server URL").font(.system(size: 9.5, weight: .medium)).foregroundStyle(ink.opacity(0.6))
-                ring { field(server, strong: true).frame(width: 250) }
                 HStack(spacing: 6) {
+                    Image(systemName: "arrow.left").font(.system(size: 9, weight: .medium)).foregroundStyle(grokInk.opacity(0.7))
+                    grokText("Custom Connector", 11.5, .semibold)
                     Spacer()
-                    pill("Cancel", filled: false)
-                    pill("Add Connector", filled: true)
+                    Image(systemName: "xmark").font(.system(size: 8, weight: .medium)).foregroundStyle(grokInk.opacity(0.6))
                 }
+                grokText("Enter a custom name and an MCP server URL", 9, muted: true)
+                grokText("Name", 9, muted: true).padding(.top, 2)
+                grokField("Pinto Notes")
+                grokText("Server URL", 9, muted: true)
+                ring { grokField(server) }
+                HStack {
+                    grokButton("Cancel", filled: false)
+                    Spacer()
+                    grokButton("Add Connector", filled: true)
+                }
+                .frame(width: 250)
             }
         }
     }
@@ -1157,25 +1230,25 @@ struct ConnectDrawing: View {
     }
 
     // A browser window, drawn plainly: the address, and the page under it.
-    private func browser(_ address: String, @ViewBuilder _ page: () -> some View) -> some View {
+    private func browser(_ address: String, dark: Bool = false, @ViewBuilder _ page: () -> some View) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
                 ForEach(0..<3, id: \.self) { _ in Circle().fill(Color.gray.opacity(0.35)).frame(width: 7, height: 7) }
                 Text(address)
-                    .font(.system(size: 10, weight: .medium)).foregroundStyle(ink.opacity(0.6))
+                    .font(.system(size: 10, weight: .medium)).foregroundStyle(dark ? grokInk.opacity(0.6) : ink.opacity(0.6))
                     .padding(.horizontal, 10).padding(.vertical, 3)
                     .frame(maxWidth: .infinity)
-                    .background(Color.gray.opacity(0.14), in: .capsule)
+                    .background(Color.gray.opacity(dark ? 0.22 : 0.14), in: .capsule)
                     .padding(.horizontal, 26)
             }
             .padding(.horizontal, 10)
             .frame(height: 26)
-            .background(Color.gray.opacity(0.08))
+            .background(dark ? Color(white: 0.13) : Color.gray.opacity(0.08))
             page()
                 .padding(16)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .background(paper)
+        .background(dark ? grokPaper : paper)
         .clipShape(.rect(cornerRadius: 9))
         .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
         .padding(.horizontal, 28)

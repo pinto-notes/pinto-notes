@@ -219,6 +219,20 @@ import Testing
         #expect(ConnectRun.isNew([mine], for: .grok, since: .distantPast) && !ConnectRun.isNew([theirs], for: .grok, since: .distantPast))
     }
 
+    /// Emil, 2 November 2026: the connect guide's Back was a different (underlined) one, and the
+    /// page dots jumped when Back appeared. Both guides use the quiet Back and centered dots.
+    @Test func guidesShareTheirBackAndKeepTheDotsStill() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views")
+        for file in ["ConnectWebGuide.swift", "ImportGuide.swift"] {
+            let src = try String(contentsOf: root.appending(path: file), encoding: .utf8)
+            let bar = try #require(src.range(of: "private var topBar: some View {"))
+            let rest = String(src[bar.lowerBound...].prefix(1400))
+            #expect(rest.contains("Label(\"Back\", systemImage: \"chevron.left\")") && rest.contains(".buttonStyle(.quiet)"), "\(file)")
+            #expect(!rest.contains(".hoverText"), "\(file)")
+            #expect(rest.contains(".overlay {") && rest.contains("PageDots("), "\(file): dots centered on the bar")
+        }
+    }
+
     @Test func afterConnectingTheGalleryIsNext() {
         #expect(Onboarding.next(after: .connect, connected: true) == .tryIt)
         #expect(Onboarding.next(after: .connect, connected: false) == nil)

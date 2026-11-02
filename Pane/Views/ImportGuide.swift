@@ -331,20 +331,13 @@ struct ImportGuideSheet: View {
                 .padding(.leading, -QuietButtonStyle.inset)
             }
             Spacer()
-            if pageIndex <= pageCount - 1, !guide.steps.isEmpty {
-                HStack(spacing: 6) {
-                    ForEach(0..<pageCount, id: \.self) { i in
-                        Capsule()
-                            .fill(i == pageIndex ? Color(Palette.amber) : Color.line)
-                            .frame(width: i == pageIndex ? 18 : 6, height: 6)
-                    }
-                }
-                .accessibilityHidden(true)
-            }
-            Spacer()
             CardCloseButton { act(.close) }
         }
         .frame(height: 30)
+        // Centered on the bar, not between Back and close: they don't move when Back appears.
+        .overlay {
+            if pageIndex <= pageCount - 1, !guide.steps.isEmpty { PageDots(count: pageCount, current: pageIndex) }
+        }
         .padding(.horizontal, Self.compact ? 20 : 18)
         .padding(.top, Self.compact ? 14 : 14)
     }
