@@ -116,6 +116,28 @@ enum SetupCards {
     /// says what the AI can do under the title, and moves other apps to a quiet line.
     enum ConnectLook: String, CaseIterable { case current, brandTiles, bareMarks, brandButtons }
     nonisolated(unsafe) static var connectLook: ConnectLook = .current
+    /// With the brand buttons: how the other AIs show (Emil, 2 November 2026: "a More option").
+    /// `sheet` opens the Connect AI list from Settings, `expand` opens the list in the card,
+    /// `chips` shows them as small buttons under the two.
+    enum MoreLook: String, CaseIterable { case sheet, expand, chips }
+    nonisolated(unsafe) static var moreLook: MoreLook = .sheet
+    static let moreTitle = "More AIs"
+
+    /// The other AIs, as named on their own sites. Never Mistral (Emil, 2 November 2026).
+    struct OtherAI: Identifiable {
+        let name: String
+        let line: String
+        var id: String { name }
+    }
+    static let others: [OtherAI] = [
+        .init(name: "Codex", line: "OpenAI's coding agent"),
+        .init(name: "Claude Code", line: "Claude in your terminal"),
+        .init(name: "Gemini", line: "Google's assistant"),
+        .init(name: "Grok", line: "xAI's assistant"),
+        .init(name: "Cursor", line: "The AI code editor"),
+        .init(name: "VS Code", line: "With GitHub Copilot"),
+    ]
+    static let anotherApp = OtherAI(name: "Another app", line: "Copy the address into it")
     static let connectReads = "Your AI can read and edit your notes when you ask. Disconnect anytime."
     static let otherApps = "Cursor, VS Code or another app"
 
@@ -388,6 +410,8 @@ struct SetupCardsFlow: View {
         var source: ImportOrigin = .appleNotes
         var ai: SetupCards.AI = .chatgpt
         var progress = 0.62
+        /// The study's More list, open.
+        var more = false
         var brought = 0
         var pick: SetupCards.Pick?
     }
@@ -412,6 +436,8 @@ struct SetupCardsFlow: View {
     /// Another AI's template: its note is added, and the ask waits to be copied.
     @State private var prompting: (pick: SetupCards.Pick, landing: Onboarding.Landing)?
     @State private var copied = false
+    @State private var allAIs = false
+    @State private var showingMore = false
     @State private var run = ConnectRun()
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var context
@@ -602,16 +628,108 @@ struct SetupCardsFlow: View {
                     }
                 }
             }
+            if SetupCards.connectLook == .brandButtons {
+                moreAIs
+            } else {
+                HStack(spacing: 22) {
+                    Button(SetupCards.otherApps) { connect(.other) }
+                        .buttonStyle(.hoverLink)
+                        .accessibilityIdentifier("setup.ai.other")
+                    notNowLink
+                }
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.muted)
+            }
+        }
+        .sheet(isPresented: $allAIs) {
+            if let client = backend.client { ConnectAISheet(client: client) }
+        }
+    }
+
+    private var notNowLink: some View {
+        Button("Not now") { withAnimation { connecting = .set(connected: false) } }
+            .buttonStyle(.hoverLink)
+            .accessibilityIdentifier("setup.notNow")
+    }
+
+    private var moreOpen: Bool { preview?.more ?? showingMore }
+
+    /// The study's ways to the other AIs. Their rows open the other-app guide for now.
+    @ViewBuilder private var moreAIs: some View {
+        switch SetupCards.moreLook {
+        case .sheet:
             HStack(spacing: 22) {
-                Button(SetupCards.otherApps) { connect(.other) }
+                Button(SetupCards.moreTitle + "\u{2026}") { allAIs = true }
                     .buttonStyle(.hoverLink)
-                    .accessibilityIdentifier("setup.ai.other")
-                Button("Not now") { withAnimation { connecting = .set(connected: false) } }
-                    .buttonStyle(.hoverLink)
-                    .accessibilityIdentifier("setup.notNow")
+                    .accessibilityIdentifier("setup.ai.more")
+                notNowLink
             }
             .font(.system(size: 13, weight: .medium))
             .foregroundStyle(Color.muted)
+        case .expand:
+            VStack(spacing: 10) {
+                if moreOpen {
+                    VStack(spacing: 0) {
+                        ForEach(SetupCards.others + [SetupCards.anotherApp]) { other in
+                            Button { connect(.other) } label: {
+                                HStack(spacing: 12) {
+                                    AIGlyph(ai: other.name, size: 20).frame(width: 24)
+                                    Text(other.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink)
+                                    Text(other.line).font(.system(size: 12)).foregroundStyle(Color.muted).lineLimit(1)
+                                    Spacer(minLength: 0)
+                                    Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(Color.muted)
+                                }
+                                .padding(.horizontal, 10)
+                                .frame(minHeight: 36)
+                                .contentShape(.rect)
+                            }
+                            .buttonStyle(.tile(radius: 9))
+                        }
+                    }
+                    .padding(4)
+                    .background(SetupCards.soft, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                HStack(spacing: 22) {
+                    Button {
+                        withAnimation(.snappy(duration: 0.2)) { showingMore.toggle() }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(moreOpen ? "Fewer" : SetupCards.moreTitle)
+                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+                                .rotationEffect(.degrees(moreOpen ? 180 : 0))
+                        }
+                    }
+                    .buttonStyle(.hoverLink)
+                    .accessibilityIdentifier("setup.ai.more")
+                    notNowLink
+                }
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.muted)
+            }
+        case .chips:
+            VStack(spacing: 12) {
+                LazyVGrid(columns: three, spacing: 8) {
+                    ForEach(SetupCards.others) { other in
+                        Button { connect(.other) } label: {
+                            HStack(spacing: 7) {
+                                AIGlyph(ai: other.name, size: 15)
+                                Text(other.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 34)
+                            .background(SetupCards.soft, in: Capsule())
+                            .contentShape(Capsule())
+                        }
+                        .buttonStyle(.tile(radius: 17))
+                    }
+                }
+                HStack(spacing: 22) {
+                    Button(SetupCards.anotherApp.name) { connect(.other) }
+                        .buttonStyle(.hoverLink)
+                    notNowLink
+                }
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.muted)
+            }
         }
     }
 

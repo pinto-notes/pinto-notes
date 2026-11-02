@@ -40,6 +40,14 @@ import Testing
             SetupCards.connectLook = look
             try await shot(SetupCardsFlow(store: store, backend: backend, preview: .init(card: .connect), finish: { _ in }), "4-connect-\(look.rawValue)", library: full, dark: dark)
         }
+        // With the brand buttons, the three ways to the other AIs.
+        SetupCards.connectLook = .brandButtons
+        defer { SetupCards.moreLook = .sheet }
+        for more in SetupCards.MoreLook.allCases {
+            SetupCards.moreLook = more
+            try await shot(SetupCardsFlow(store: store, backend: backend, preview: .init(card: .connect, more: more == .expand), finish: { _ in }), "4-more-\(more.rawValue)", library: full, dark: dark)
+        }
+        try await shot(ConnectAISheet(client: CaptureScreen.client, preview: [], previewFound: []).frame(width: 560, height: 620), "4-more-sheet-list", library: full, dark: dark)
     }
 
     @Test(arguments: [false, true])

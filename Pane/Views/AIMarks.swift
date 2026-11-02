@@ -66,6 +66,10 @@ struct AIGlyph: View {
         case "ChatGPT", "Codex": "AIGlyphOpenAI"
         case "Claude", "Claude Code": "AIGlyphClaude"
         case "Incredible": "AIGlyphIncredible"
+        case "Gemini": "AIGlyphGemini"
+        case "Grok": "AIGlyphGrok"
+        case "Cursor": "AIGlyphCursor"
+        case "VS Code": "AIGlyphVSCode"
         default: nil
         }
     }
@@ -74,6 +78,8 @@ struct AIGlyph: View {
         switch ai {
         case "Claude", "Claude Code": Color(red: 0.851, green: 0.467, blue: 0.341)
         case "Incredible": Color(red: 1, green: 0.435, blue: 0.129) // #FF6F21, Incredible's mark
+        case "VS Code": Color(red: 0, green: 0.478, blue: 0.8) // #007ACC
+        case "Gemini": Color(red: 0.259, green: 0.522, blue: 0.957) // #4285F4, Google blue
         default: .primary
         }
     }
