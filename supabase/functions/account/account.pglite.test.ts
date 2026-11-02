@@ -184,6 +184,9 @@ Deno.test("the export has everything the server can read, no note text or names,
   const files = Object.fromEntries(Object.entries(unzipSync(zip(e))).map(([p, b]) => [p, strFromU8(b)]));
   assertEquals(Object.keys(files).sort(), ["README.txt", "data.json"]);
   assertStringIncludes(files["README.txt"], "Export Your Notes");
+  // Questions go to the current address, never the old name's.
+  assertStringIncludes(files["README.txt"], "Questions: hello@pintonotes.com");
+  assertEquals(/amber/i.test(files["README.txt"]), false);
 
   const data = JSON.parse(files["data.json"]);
   assertEquals(data.account.id, a);

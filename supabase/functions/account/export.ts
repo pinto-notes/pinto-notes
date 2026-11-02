@@ -9,6 +9,7 @@
 // date, without their encrypted text, which nobody but the account's devices can open.
 import { strToU8, zipSync } from "npm:fflate@0.8.3";
 import type { Sql } from "npm:postgres@3.4.5";
+import { HELLO } from "../_shared/sender.ts";
 
 export type Export = { name: string; files: Record<string, string> };
 
@@ -26,7 +27,7 @@ Pinto Notes and choose Settings > Account > Export Your Notes.
 
 Access tokens and passwords are never stored in readable form, so they aren't included.
 
-Questions: hello@ambernotes.app
+Questions: ${HELLO}
 `;
 
 type Row = Record<string, unknown>;

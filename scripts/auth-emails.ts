@@ -10,6 +10,8 @@
 //                                               the sender name, the subjects and templates
 //                                               (scripts/auth-email-config.sh; "config setup" adds
 //                                               the first-time SMTP settings and limits)
+//   deno run -A scripts/auth-emails.ts staging  print the staging project's body: "[Staging] " on
+//                                               each subject, sender "Pinto Notes Staging", no site URL
 //   deno run -A scripts/auth-emails.ts confirm  print the body that turns on email confirmation
 //                                               with a 6-digit code (docs/Technical/email-confirmation.md)
 //
@@ -299,6 +301,15 @@ export function config(setup = false): Record<string, string | number | boolean>
   };
 }
 
+/// The body of PATCH /v1/projects/<ref>/config/auth for the staging project (scripts/staging.sh auth):
+/// the same subjects and templates with "[Staging] " in front of each subject, and the sender name
+/// "Pinto Notes Staging". Staging keeps its own site URL, so this leaves site_url alone.
+export function stagingPatch(subjectPrefix = "[Staging] "): Record<string, string> {
+  const out: Record<string, string> = { smtp_sender_name: `${SENDER_NAME} Staging` };
+  for (const [k, v] of Object.entries(patch())) out[k] = k.startsWith("mailer_subjects_") ? subjectPrefix + v : v;
+  return out;
+}
+
 /// The body of PATCH /v1/projects/<ref>/config/auth that turns on email confirmation for email
 /// sign-ups, with the code email. Apple and Google sign-ups arrive confirmed and skip it.
 export function confirmPatch(subjectPrefix = ""): Record<string, string | number | boolean> {
@@ -317,6 +328,7 @@ if (import.meta.main) {
   if (Deno.args[0] === "write") for (const e of EMAILS) Deno.writeTextFileSync(new URL(e.file, dir), html(e));
   else if (Deno.args[0] === "patch") console.log(JSON.stringify(patch(), null, 2));
   else if (Deno.args[0] === "config") console.log(JSON.stringify(config(Deno.args[1] === "setup"), null, 2));
+  else if (Deno.args[0] === "staging") console.log(JSON.stringify(stagingPatch(), null, 2));
   else if (Deno.args[0] === "confirm") console.log(JSON.stringify(confirmPatch(Deno.args[1] ?? ""), null, 2));
-  else throw new Error("Usage: deno run -A scripts/auth-emails.ts write|patch|config [setup]|confirm [subject prefix]");
+  else throw new Error("Usage: deno run -A scripts/auth-emails.ts write|patch|config [setup]|staging|confirm [subject prefix]");
 }

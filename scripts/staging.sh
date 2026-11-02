@@ -120,15 +120,18 @@ EOF
   echo "Secrets set: $(cut -d= -f1 "$f" | tr '\n' ' ')"
 }
 
-# Production's auth settings (providers, SMTP, templates, limits), read and never changed, with
-# staging's addresses, the beta app's bundle id and "[Staging]" on every subject.
+# Production's auth settings (providers, SMTP, limits), read and never changed, with staging's
+# addresses and the beta app's bundle id. The account emails' subjects, templates and sender name
+# come from the repo (scripts/auth-emails.ts staging), not from production, so staging shows what the
+# next release will send, with "[Staging]" on every subject.
 cmd_auth() {
   need_ref
-  local prod body; prod=$(mktemp); body=$(mktemp); trap "rm -f '$prod' '$body'" EXIT
+  local prod body emails; prod=$(mktemp); body=$(mktemp); emails=$(mktemp); trap "rm -f '$prod' '$body' '$emails'" EXIT
   (umask 077; api GET "/v1/projects/$PROD_REF/config/auth" > "$prod")
-  python3 - "$prod" "$body" "$SITE" "$SCHEME" "$BETA_BUNDLE" <<'PY'
+  deno run --allow-read scripts/auth-emails.ts staging > "$emails"
+  python3 - "$prod" "$body" "$SITE" "$SCHEME" "$BETA_BUNDLE" "$emails" <<'PY'
 import json, sys
-src, out, site, scheme, bundle = sys.argv[1:]
+src, out, site, scheme, bundle, emails = sys.argv[1:]
 prod = json.load(open(src))
 keep = ("external_apple_", "external_google_", "external_email_enabled", "mailer_", "smtp_", "password_", "rate_limit_",
         "security_", "sessions_", "jwt_exp", "refresh_token_rotation_enabled", "disable_signup", "external_anonymous_users_enabled")
@@ -140,7 +143,7 @@ c["external_apple_client_id"] = f"app.ambernotes.signin,{bundle}"
 for k, v in list(c.items()):
     if k.startswith("mailer_subjects_") and isinstance(v, str) and not v.startswith("[Staging]"):
         c[k] = "[Staging] " + v
-c["smtp_sender_name"] = "Amber Notes Staging"
+c.update(json.load(open(emails)))
 json.dump(c, open(out, "w"))
 PY
   api PATCH "/v1/projects/$REF/config/auth" "$body" >/dev/null

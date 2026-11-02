@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { config, confirmPatch, EMAILS, html, patch } from "./auth-emails.ts";
+import { config, confirmPatch, EMAILS, html, patch, stagingPatch } from "./auth-emails.ts";
 
 const dir = new URL("../supabase/templates/", import.meta.url);
 
@@ -77,4 +77,21 @@ Deno.test("turning confirmation on: only the confirmation fields, a 6-digit code
   assertEquals([body.mailer_autoconfirm, body.mailer_otp_length, body.mailer_otp_exp], [false, 6, 3600]);
   assertEquals(body.mailer_templates_confirmation_content, patch().mailer_templates_confirmation_content);
   assertEquals(confirmPatch("[Staging] ").mailer_subjects_confirmation, "[Staging] Confirm your email for Pinto Notes");
+});
+
+Deno.test("staging gets the repo's emails, not production's: \"[Staging] \" on each subject, its own sender name, and its own site URL", () => {
+  const body = stagingPatch();
+  assertEquals(body.smtp_sender_name, "Pinto Notes Staging");
+  assertEquals("site_url" in body, false);
+  for (const [k, v] of Object.entries(patch())) {
+    if (k.startsWith("mailer_subjects_")) assertEquals(body[k], "[Staging] " + v, k);
+    else assertEquals(body[k], v, k);
+  }
+  assertEquals(Object.keys(body).length, Object.keys(patch()).length + 1);
+  for (const v of Object.values(body)) assertEquals(/amber/i.test(v), false);
+  // scripts/staging.sh auth sends this body; it used to copy production's templates and name the
+  // sender "Amber Notes Staging" by hand, which is how staging kept the old name after the rename.
+  const sh = Deno.readTextFileSync(new URL("./staging.sh", import.meta.url));
+  assert(sh.includes("scripts/auth-emails.ts staging"));
+  assertEquals(/Amber Notes Staging/.test(sh), false);
 });
