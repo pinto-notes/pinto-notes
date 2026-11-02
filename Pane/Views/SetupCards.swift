@@ -492,6 +492,14 @@ struct SetupCardsFlow: View {
                     .environment(\.importDoneTitle, ImportGuideSheet.setupDoneTitle)
             }
             .connectGuides(client: backend.client)
+            // On the card, not on the choice inside it: picking an AI turns the card to Waiting,
+            // and a sheet on the choice closed with it (Grok's guide showed only after Cancel).
+            .sheet(isPresented: $allAIs) {
+                if let client = backend.client { ConnectAISheet(client: client) }
+            }
+            .sheet(item: $guidePage, onDismiss: guideClosed) { g in
+                if let client = backend.client { ConnectWebGuideSheet(ai: g, client: client) }
+            }
             .onAppear {
                 run.asksToFinish = false
                 run.connected = { _ in connectedNow() }
@@ -657,12 +665,6 @@ struct SetupCardsFlow: View {
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Color.muted)
             }
-        }
-        .sheet(isPresented: $allAIs) {
-            if let client = backend.client { ConnectAISheet(client: client) }
-        }
-        .sheet(item: $guidePage) { g in
-            if let client = backend.client { ConnectWebGuideSheet(ai: g, client: client) }
         }
     }
 
@@ -986,6 +988,13 @@ struct SetupCardsFlow: View {
         guard let client = backend.client else { return }
         withAnimation { connecting = .waiting }
         run.start(ai.guide, client: client, open: { openURL($0) })
+    }
+
+    /// The guide closed without connecting: back to the choice, not a wait with nothing open.
+    private func guideClosed() {
+        guard connecting == .waiting else { return }
+        run.stop()
+        withAnimation { connecting = .choosing }
     }
 
     private func connectedNow() {

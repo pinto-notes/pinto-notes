@@ -244,6 +244,11 @@ import Testing
         let source = try String(contentsOf: url, encoding: .utf8)
         #expect(source.contains("ConnectWebGuideSheet(ai: g, client: client)") && source.contains("guidePage = .grok") && source.contains("guidePage = .other"),
                 "Grok opens its guide over the card, Other its page")
+        // The guide hangs off the card, not the choice the Waiting card replaces.
+        let card = try #require(source.range(of: "SetupCard(card: card) { content }"))
+        let sheet = try #require(source.range(of: ".sheet(item: $guidePage, onDismiss: guideClosed)"))
+        let choice = try #require(source.range(of: "private var connectBranded: some View"))
+        #expect(card.lowerBound < sheet.lowerBound && sheet.lowerBound < choice.lowerBound, "Grok's guide showed only after Cancel")
     }
 
 }
