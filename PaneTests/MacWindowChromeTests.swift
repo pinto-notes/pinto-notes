@@ -226,10 +226,9 @@ import Testing
         }
     }
 
-    /// Search opens at the top of the list, from the sidebar's Search button or ⌘F, and Escape closes
-    /// it; the button again closes it too.
+    /// ⌘F from the list opens its field, while the sidebar's Search opens QuickOpen.
     /// In the note's text ⌘F finds in the note, as in Notes.
-    @Test func searchOpensAtTheTopOfTheList() async throws {
+    @Test func searchOpensInTheListOrPanel() async throws {
         let c = try AppSnapshotTests.container()
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
             let w = Self.window(c, size: CGSize(width: 1469, height: 920))
@@ -253,6 +252,7 @@ import Testing
             #expect(table.tryToPerform(#selector(NSTextView.performFindPanelAction(_:)), with: find), "the window answers ⌘F")
             await Self.settle(w, 5)
             let search = try #require(field(), "⌘F opens the search field")
+            #expect(search.focusRingType == .none, "the list field has no amber focus ring")
             let list = try #require(table.enclosingScrollView).convert(table.enclosingScrollView!.bounds, to: nil)
             let f = search.convert(search.bounds, to: nil)
             #expect(f.minX >= list.minX && f.maxX <= list.maxX, "the field is in the list column")
@@ -271,34 +271,47 @@ import Testing
             if let editing = w.firstResponder as? NSTextView { editing.doCommand(by: #selector(NSResponder.cancelOperation(_:))) }
             await Self.settle(w, 3)
 
-            // The sidebar's button: opens the field with the keys in it.
+            // The sidebar's Search button opens Go to Note instead of the list field.
+            @MainActor func panelField() -> NSTextField? {
+                w.contentView.flatMap { Self.find(NSTextField.self, in: $0) {
+                    $0.isEditable && $0.placeholderString == "Go to a note, or type a command"
+                } }
+            }
             let button = try #require(Self.toolbarItem(w, "Search"), "a Search button at the sidebar's top")
             #expect(Self.press(button))
             await Self.settle(w, 5)
-            let opened = try #require(field(), "the button opens the field")
-            #expect((w.firstResponder as? NSTextView)?.delegate === opened, "the keys go to the field")
-            // Without a focus ring in the app's amber.
-            #expect(opened.focusRingType == .none)
-            // Pressed again, it closes.
+            _ = try #require(panelField(), "the button opens Go to Note")
+            #expect(field() == nil, "the panel does not open the list's search")
             #expect(Self.press(button))
             await Self.settle(w, 3)
-            #expect(field() == nil, "the button again closes the field")
+            #expect(panelField() == nil, "the button again closes the panel")
         }
     }
 
-    /// The sidebar's New Folder asks for the new folder's name, as ⇧⌘N does.
-    @Test func sidebarNewFolderAsksForAName() async throws {
+    /// New Folder makes and selects the folder, then edits its name in the sidebar row.
+    @Test func sidebarNewFolderNamesItsRow() async throws {
         let c = try AppSnapshotTests.container()
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
             let w = Self.window(c, size: CGSize(width: 1469, height: 920))
             defer { w.close() }
             await Self.settle(w)
-            #expect(w.attachedSheet == nil)
+            let before = Set(c.mainContext.allFolders().map(\.id))
             #expect(Self.press(try #require(Self.toolbarItem(w, "New Folder"), "New Folder at the sidebar's top")))
             await Self.settle(w, 5)
-            let sheet = try #require(w.attachedSheet, "the name prompt opens")
-            #expect(sheet.contentView.flatMap { Self.find(NSTextField.self, in: $0) { $0.isEditable } } != nil, "with a field for the name")
-            w.endSheet(sheet)
+            let made = try #require(c.mainContext.allFolders().first { !before.contains($0.id) })
+            #expect(made.name == "New Folder")
+            #expect(w.attachedSheet == nil, "the name is edited inline")
+            let field = try #require(w.contentView.flatMap { Self.find(NSTextField.self, in: $0) {
+                $0.isEditable && $0.accessibilityIdentifier() == "folder.nameField"
+            } })
+            #expect(field.stringValue == "New Folder")
+            let editor = try #require(w.firstResponder as? NSTextView)
+            #expect(editor.delegate === field)
+            #expect(editor.selectedRange() == NSRange(location: 0, length: ("New Folder" as NSString).length))
+            editor.insertText("Audit folder", replacementRange: editor.selectedRange())
+            editor.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+            await Self.settle(w, 3)
+            #expect(made.name == "Audit folder", "Return commits the name")
         }
     }
 

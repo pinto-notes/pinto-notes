@@ -1,4 +1,7 @@
 import SwiftUI
+#if DEBUG && os(macOS)
+import SwiftData
+#endif
 import os
 
 /// Notes dropped into a note's text, in the system log ("drop"), so a real drag can be checked
@@ -1863,6 +1866,9 @@ private struct PlatformEditor: NSViewRepresentable {
         scroll.autohidesScrollers = true
         scroll.scrollerStyle = .overlay
         let view = PaneTextView(frame: .zero)
+        #if DEBUG && os(macOS)
+        view.renderContext = context.environment.modelContext
+        #endif
         view.core.styler.firstLineIsTitle = titleLine
         view.core.styler.wiki = controller.wiki
         view.configure(text: initialText, header: header)
@@ -1905,6 +1911,9 @@ final class GridHostingView: NSHostingView<AnyView> {
 }
 
 final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
+    #if DEBUG
+    weak var renderContext: ModelContext?
+    #endif
     let core = EditorCore()
     weak var controller: EditorController?
     private let headerLabel = NSTextField(labelWithString: "")
@@ -1927,11 +1936,27 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     private var cardHosts: [String: NSHostingView<AnyView>] = [:]
+    #if DEBUG
+    var renderedCardKeys: Set<String> { Set(cardHosts.keys) }
+    #endif
+    private var cardLayoutQueued = false
+    private var queuedCardAnimation = true
+
+    /// Styling, selection and frame changes can all request overlays in the same turn.
+    private func queueCardLayout(animated: Bool = true) {
+        queuedCardAnimation = queuedCardAnimation && animated
+        guard !cardLayoutQueued else { return }
+        cardLayoutQueued = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.cardLayoutQueued else { return }
+            self.layoutCards(animated: self.queuedCardAnimation)
+        }
+    }
 
     func configure(text: String, header: String) {
         textLayoutManager?.delegate = core.layoutDelegate
         delegate = self
-        core.onCardsChanged = { [weak self] in DispatchQueue.main.async { self?.layoutCards() } }
+        core.onCardsChanged = { [weak self] in self?.queueCardLayout() }
         drawsBackground = false
         isRichText = false
         allowsUndo = true
@@ -2005,7 +2030,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
         // Straight to their new places: while the width changes (the sidebar sliding, the window
         // being resized) the cards follow the text instead of gliding after it.
-        DispatchQueue.main.async { [weak self] in self?.layoutCards(animated: false) }
+        queueCardLayout(animated: false)
     }
 
     /// Pictures fit the text's width and at most 60% of the window's height (ImageSizes).
@@ -2088,6 +2113,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// unchanged only moves: giving every card its view again, and animating each one, on every
     /// frame of a width change made a note of tables stall.
     func layoutCards(animated: Bool = true) {
+        cardLayoutQueued = false
+        queuedCardAnimation = true
+        #if DEBUG
+        RenderProbe.count("PaneTextView.layoutCards", context: renderContext)
+        #endif
         guard let storage = textStorage else { return }
         let items = core.overlays(layout: textLayoutManager, origin: textContainerOrigin,
                                   target: self, storage: storage, controller: controller) { [weak self] in self?.editingSelection }
@@ -2097,8 +2127,17 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             cardHosts[k] = nil
             cardContent[k] = nil
         }
+        let viewport = enclosingScrollView?.documentVisibleRect ?? visibleRect
         for item in items {
+            // Keep visited hosts alive, including a table being edited while scrolled away.
+            // A new offscreen table needs a host only when it has a pending focus request.
+            let wantsFocus: Bool
+            if case .grid(_, let request, _) = item.content { wantsFocus = request != nil } else { wantsFocus = false }
+            guard cardHosts[item.key] != nil || wantsFocus || item.frame.intersects(viewport) else { continue }
             let host = cardHosts[item.key] ?? {
+                #if DEBUG
+                RenderProbe.count("CardHost.created", context: renderContext)
+                #endif
                 let h: NSHostingView<AnyView>
                 if case .grid(let g, _, _) = item.content {
                     let grid = GridHostingView(rootView: item.view)
@@ -2170,7 +2209,14 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         watchingScroll = true
         clip.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.fadeDate() }
+            MainActor.assumeIsolated {
+                self?.fadeDate()
+                // Geometry can change during TextKit layout. Merge this with the queued frame
+                // pass instead of creating a SwiftUI host reentrantly inside that layout.
+                if let self, !self.core.grids.isEmpty || !self.core.embeds.isEmpty {
+                    self.queueCardLayout(animated: false)
+                }
+            }
         }
     }
 

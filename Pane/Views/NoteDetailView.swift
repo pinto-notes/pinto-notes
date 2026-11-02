@@ -1514,8 +1514,14 @@ struct NoteToolbarStage<Pane: View>: View {
     let controller: EditorController
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
+    #if DEBUG
+    @Environment(\.modelContext) private var context
+    #endif
 
     var body: some View {
+        #if DEBUG
+        let _ = RenderProbe.count("NoteToolbarStage", context: context)
+        #endif
         let parts = $parts
         ZStack {
             // A turn after the pane made them. A pane that has just gone leaves the items as they
