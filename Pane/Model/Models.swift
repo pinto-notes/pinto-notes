@@ -7,6 +7,23 @@ final class Folder {
     /// The most live folders an account can have; the server refuses one more ('folders' in
     /// pane_limit).
     static let serverLimit = 2000
+
+    /// The name a new folder starts with: "New Folder", else the first of "New Folder 2", "New
+    /// Folder 3"… that no folder in `names` has (the folders beside it; case aside), as Notes does.
+    nonisolated static func untitledName(among names: [String], base: String = "New Folder") -> String {
+        let taken = Set(names.map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
+        guard taken.contains(base.lowercased()) else { return base }
+        var n = 2
+        while taken.contains("\(base) \(n)".lowercased()) { n += 1 }
+        return "\(base) \(n)"
+    }
+
+    /// What typing a name into a folder's row leaves it named: the typed name, trimmed, or nil
+    /// (keep `previous`) when it's empty or unchanged.
+    nonisolated static func typedName(_ typed: String, previous: String) -> String? {
+        let name = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty || name == previous ? nil : name
+    }
     @Attribute(.unique) var id: UUID
     var name: String
     var createdAt: Date

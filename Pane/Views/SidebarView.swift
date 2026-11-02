@@ -239,6 +239,8 @@ extension View {
 extension Notification.Name {
     /// Asks the sidebar to start a new folder (from the list's "⋯" menu).
     static let paneNewFolder = Notification.Name("pane.newFolder")
+    /// A folder's Rename (its id in `object`), from outside its menus: the Mac opens its name in its row.
+    static let paneRenameFolder = Notification.Name("pane.renameFolder")
 }
 
 struct SidebarView: View {
@@ -267,6 +269,10 @@ struct SidebarView: View {
     @Environment(LibraryNotes.self) private var windowLibrary: LibraryNotes?
     @State private var ownLibrary = LibraryNotes()
     @State private var renaming: Folder?
+    /// Mac: the folder whose name is being typed in its row (a new one, or Rename).
+    @State private var namingFolder: UUID?
+    /// Mac: New Folder found the account at the server's folder limit.
+    @State private var folderLimitReached = false
     @State private var newFolderParent: Folder??
     @State private var nameDraft = ""
     @State private var dropTarget: UUID?
@@ -325,6 +331,12 @@ struct SidebarView: View {
         for f in found { if let id = f.folderID { byFolder[id, default: 0] += 1 } }
         return (live, trashed, byFolder)
     }
+    #if os(macOS)
+    /// What the Mac sidebar's Search button opens: Go to Note… (QuickOpen).
+    static let searchButtonOpens: Notification.Name = .paneQuickOpen
+    static let searchButtonHelp = "Search notes and commands (\u{2318}O)"
+    #endif
+
     /// The title of the alert that asks for a folder's name.
     nonisolated static func nameAlertTitle(renaming: Bool, inside: Bool) -> String {
         renaming ? "Rename Folder" : "New Folder"
@@ -398,7 +410,7 @@ struct SidebarView: View {
                         .accessibilityIdentifier("sidebar.all")
                 }
                 ForEach(roots) { folder in
-                    FolderTree(folder: folder, files: files.byFolder, selection: $scope, dropTarget: dropTarget, targeted: folderTargeted, actions: folderMenuActions, notesID: roots.first?.id)
+                    FolderTree(folder: folder, files: files.byFolder, selection: $scope, naming: $namingFolder, dropTarget: dropTarget, targeted: folderTargeted, actions: folderMenuActions, notesID: roots.first?.id)
                 }
                 // Last in the same list, like Notes, and like Notes only while something is in it.
                 CountedRow(title: "Recently Deleted", icon: "trash", trash: true, files: files.trashed, selection: $scope)
@@ -541,10 +553,12 @@ struct SidebarView: View {
             // Today's note in one press (DailyNotes).
             ToolbarItem { TodayButton(identifier: "sidebar.today") }
             ToolbarItem {
+                // The Spotlight-like panel, which finds notes by title and text and runs commands
+                // (Emil, 2 November 2026; it opened the list's search field). ⌘F keeps that field.
                 Button("Search", systemImage: "magnifyingglass") {
-                    NotificationCenter.default.post(name: .paneToggleSearch, object: nil)
+                    NotificationCenter.default.post(name: Self.searchButtonOpens, object: nil)
                 }
-                .help("Search (\u{2318}F)")
+                .help(Self.searchButtonHelp)
                 .accessibilityIdentifier("sidebar.search")
             }
             #endif
@@ -619,6 +633,14 @@ struct SidebarView: View {
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sidebarHeight = $0 }
         .onReceive(NotificationCenter.default.publisher(for: .paneNewFolder)) { _ in startNewFolder(nil) }
+        .onReceive(NotificationCenter.default.publisher(for: .paneRenameFolder)) { n in
+            if let id = n.object as? UUID, let f = context.folder(id), f.deletedAt == nil { startRename(f) }
+        }
+        .alert("No room for another folder", isPresented: $folderLimitReached) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(Self.folderLimitMessage)
+        }
         #endif
         #if os(iOS)
         .sheet(isPresented: $showSettings) {
@@ -827,9 +849,30 @@ struct SidebarView: View {
         withAnimation(.snappy(duration: 0.18)) { dropTarget = over ? id : (dropTarget == id ? nil : dropTarget) }
     }
 
-    private func startRename(_ f: Folder) { nameDraft = f.name; renaming = f }
+    /// Rename: on the Mac the name is typed in the folder's row, as in Notes; on iPhone in an alert.
+    private func startRename(_ f: Folder) {
+        #if os(macOS)
+        namingFolder = f.id
+        #else
+        nameDraft = f.name; renaming = f
+        #endif
+    }
     private func startMove(_ f: Folder) { movingFolder = f }
-    private func startNewFolder(_ parent: Folder?) { nameDraft = ""; newFolderParent = .some(parent) }
+    /// New Folder: on the Mac, as in Notes, a folder named "New Folder" is made at once in
+    /// `parent`, selected, and its name is ready to type over in its row. On iPhone an alert asks.
+    private func startNewFolder(_ parent: Folder?) {
+        #if os(macOS)
+        guard let f = context.createUntitledFolder(parent: parent) else { folderLimitReached = true; return }
+        scope = .folder(f.id)
+        namingFolder = f.id
+        #else
+        nameDraft = ""; newFolderParent = .some(parent)
+        #endif
+    }
+
+    static var folderLimitMessage: String {
+        "An account keeps up to \(Folder.serverLimit.formatted()) folders. Delete one to make room."
+    }
 
     private func commitName() {
         let name = nameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1028,19 +1071,45 @@ private struct FolderTree: View {
     var depth = 0
     @State private var expanded = true
 
+    init(folder: Folder, files: [UUID: Int], selection: Binding<Scope?>, naming: Binding<UUID?>, dropTarget: UUID?, targeted: @escaping (Bool, UUID) -> Void,
+         actions: FolderMenuActions, notesID: UUID? = nil, depth: Int = 0) {
+        self.folder = folder
+        self.files = files
+        _selection = selection
+        _naming = naming
+        self.dropTarget = dropTarget
+        self.targeted = targeted
+        self.actions = actions
+        self.notesID = notesID
+        self.depth = depth
+    }
+
+    /// Mac: the folder whose name is being typed in its row.
+    @Binding var naming: UUID?
+
     var body: some View {
         #if DEBUG
         let _ = RenderProbe.count("FolderTree")
         #endif
-        if folder.liveChildren.isEmpty {
-            label
-        } else {
+        Group {
+            if folder.liveChildren.isEmpty {
+                label
+            } else {
+                tree
+            }
+        }
+        // A folder made inside this one shows its row, open for its name.
+        .onChange(of: naming) { _, id in
+            if let id, folder.liveChildren.contains(where: { $0.id == id }) { expanded = true }
+        }
+    }
+
+    private var tree: some View {
             DisclosureGroup(isExpanded: $expanded) {
                 ForEach(folder.liveChildren) { child in
-                    FolderTree(folder: child, files: files, selection: $selection, dropTarget: dropTarget, targeted: targeted, actions: actions, notesID: notesID, depth: depth + 1)
+                    FolderTree(folder: child, files: files, selection: $selection, naming: $naming, dropTarget: dropTarget, targeted: targeted, actions: actions, notesID: notesID, depth: depth + 1)
                 }
             } label: { label }
-        }
     }
 
     private var label: some View {
@@ -1049,15 +1118,21 @@ private struct FolderTree: View {
         let listed = library.map { $0.listedCount(inFolder: folder.id, context: context) } ?? SidebarView.listedNotes(in: folder, context: context)
         return HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth), selected: selected) { hovering in
             Label {
-                SidebarRowText(title: folder.name, selected: selected) {
-                    HoverSwap(on: hovering, help: "Folder options") {
-                        if let listed {
-                            Text(listed + (files[folder.id] ?? 0), format: .number)
-                                .monospacedDigit()
-                                .foregroundStyle(.secondary)
-                        }
-                    } items: { macMenu }
+                #if os(macOS)
+                if naming == folder.id {
+                    InlineNameField(initial: folder.name,
+                                    commit: { typed in
+                                        context.finishNaming(folder, typed: typed)
+                                        if naming == folder.id { naming = nil }
+                                    },
+                                    cancel: { if naming == folder.id { naming = nil } })
+                        .padding(.trailing, SidebarStyle.trailingInset)
+                } else {
+                    rowText(selected: selected, hovering: hovering, listed: listed)
                 }
+                #else
+                rowText(selected: selected, hovering: hovering, listed: listed)
+                #endif
             } icon: {
                 SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder", selected: selected)
                     .contentTransition(.symbolEffect(.replace))
@@ -1106,6 +1181,19 @@ private struct FolderTree: View {
         #else
         .contextMenu { macMenu }
         #endif
+    }
+
+    /// The name, and its count (••• under the pointer).
+    private func rowText(selected: Bool, hovering: Bool, listed: Int?) -> some View {
+        SidebarRowText(title: folder.name, selected: selected) {
+            HoverSwap(on: hovering, help: "Folder options") {
+                if let listed {
+                    Text(listed + (files[folder.id] ?? 0), format: .number)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            } items: { macMenu }
+        }
     }
 
     /// The folder's menu on the Mac: a right-click, or its ••• under the pointer.

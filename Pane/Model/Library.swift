@@ -122,6 +122,27 @@ extension ModelContext {
         return f
     }
 
+    /// New Folder on the Mac, as in Notes: a folder named "New Folder" (or "New Folder 2", and on,
+    /// when one beside it has that name) made at once, its name then typed in its row. Nil when
+    /// the account has as many folders as the server keeps.
+    @MainActor func createUntitledFolder(parent: Folder? = nil) -> Folder? {
+        let folders = allFolders()
+        guard folders.count < Folder.serverLimit else { return nil }
+        let beside = folders.filter { $0.parent?.id == parent?.id }.map(\.name)
+        return createFolder(named: Folder.untitledName(among: beside), parent: parent)
+    }
+
+    /// A folder's name typed in its row: the new name kept and saved, or, empty or the same, the
+    /// name it had (Escape never calls this). Whether the name changed.
+    @discardableResult
+    @MainActor func finishNaming(_ folder: Folder, typed: String) -> Bool {
+        guard let name = Folder.typedName(typed, previous: folder.name) else { return false }
+        folder.name = name
+        folder.touch()
+        saveOrReport()
+        return true
+    }
+
     /// The note to open at launch: the one you were on, otherwise the one edited last. A blank
     /// note you left open (the app was closed before you typed) is discarded, as leaving it
     /// would have done, instead of opening on an empty page.

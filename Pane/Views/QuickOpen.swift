@@ -4,7 +4,8 @@ import SwiftUI
 
 /// Go to Note… (⌘O): a Spotlight-like panel over the notes window. Type part of a title and
 /// Return opens it; the same field runs the app's commands (New Note, Pin, Move, Import, Connect
-/// an AI, Settings) and, last, searches every note for what you typed. The arrows move the
+/// an AI, Settings), finds notes by their text (the line that holds it shown under the title), and,
+/// last, searches every note for what you typed. The sidebar's Search button opens it too. The arrows move the
 /// highlight, Esc closes. ⌘K stays Add Link, as in Notes; ⌘O is Obsidian's quick switcher.
 enum QuickOpen {
     /// A note as the panel lists it, read once when the panel opens.
@@ -33,9 +34,28 @@ enum QuickOpen {
         var id: String { title }
     }
 
+    /// The line of a note that holds the text: before it, the text as written there, after it.
+    struct Snippet: Equatable, Sendable {
+        let before: String
+        let match: String
+        let after: String
+        var text: String { before + match + after }
+    }
+
+    /// A note found by its text (not its title), with the line that holds it.
+    struct TextHit: Identifiable, Equatable, Sendable {
+        let id: UUID
+        let title: String
+        let folder: String?
+        let date: Date
+        let snippet: Snippet
+    }
+
     enum Row: Identifiable, Equatable, Sendable {
         case note(NoteItem)
         case command(CommandItem)
+        /// A note whose text holds the query.
+        case text(TextHit)
         /// Search every note for the text.
         case search(String)
 
@@ -43,6 +63,7 @@ enum QuickOpen {
             switch self {
             case .note(let n): "note.\(n.id)"
             case .command(let c): "command.\(c.id)"
+            case .text(let t): "text.\(t.id)"
             case .search: "search"
             }
         }
@@ -50,6 +71,12 @@ enum QuickOpen {
 
     /// How many notes the panel lists at most.
     static let noteLimit = 8
+    /// How many notes found by their text it lists at most.
+    static let textLimit = 8
+    /// The shortest query that searches the notes' text: one letter is in every note.
+    static let textMinLength = 2
+    /// How long typing rests before the text is searched.
+    static let textDelay: Duration = .milliseconds(120)
 
     // MARK: Matching
 
@@ -124,16 +151,80 @@ enum QuickOpen {
     }
 
     /// Every row, in the order shown: the notes and the commands (the commands first when one of
-    /// them answers the query better than any title), then searching every note for the text.
-    static func rows(notes all: [NoteItem], commands: [CommandItem], query: String) -> [Row] {
+    /// them answers the query better than any title), then the notes found by their text (none
+    /// already listed by its title or folder), then searching every note for the text.
+    static func rows(notes all: [NoteItem], commands: [CommandItem], query: String, textHits: [TextHit] = []) -> [Row] {
         let q = query.trimmingCharacters(in: .whitespaces)
         let found = notes(all, matching: q), runs = self.commands(commands, matching: q)
         let bestNote = found.first.flatMap { score($0.title, q) } ?? 9
         let bestCommand = runs.first.flatMap { c in [score(c.title, q), c.keywords.contains { $0.range(of: q, options: options.union(.anchored)) != nil } ? 2 : nil].compactMap { $0 }.min() } ?? 9
         let noteRows = found.map(Row.note), commandRows = runs.map(Row.command)
         var out = bestCommand < bestNote ? commandRows + noteRows : noteRows + commandRows
-        if !q.isEmpty { out.append(.search(q)) }
+        if !q.isEmpty {
+            let listed = Set(found.map(\.id))
+            out += textHits.filter { !listed.contains($0.id) && score($0.title, q) == nil }.prefix(textLimit).map(Row.text)
+            out.append(.search(q))
+        }
         return out
+    }
+
+    // MARK: Text
+
+    /// The line of `body` that holds `query` (case and accents aside), its markup taken out, cut
+    /// to show the text near its start. Nil when no line holds it.
+    static func snippet(in body: String, query: String, lead: Int = 28, length: Int = 120) -> Snippet? {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return nil }
+        for raw in body.split(separator: "\n", omittingEmptySubsequences: true) {
+            guard raw.range(of: q, options: options) != nil else { continue }
+            // The line as the list shows text, else as written (the text spans some markup).
+            for candidate in [WikiLinks.plain(NoteText.stripMarkup(String(raw))), String(raw)] {
+                let line = candidate.trimmingCharacters(in: .whitespaces)
+                guard let r = line.range(of: q, options: options) else { continue }
+                var before = line[..<r.lowerBound]
+                var cut = false
+                if before.count > lead {
+                    before = before.suffix(lead)
+                    // Start at a word, not inside one.
+                    if let space = before.firstIndex(where: \.isWhitespace), before.distance(from: before.startIndex, to: space) < lead / 2 {
+                        before = before[before.index(after: space)...]
+                    }
+                    cut = true
+                }
+                let after = line[r.upperBound...].prefix(max(length - before.count - line[r].count, 0))
+                return Snippet(before: (cut ? "\u{2026}" : "") + before, match: String(line[r]), after: String(after))
+            }
+        }
+        return nil
+    }
+
+    /// The notes whose text holds `query`, newest first, each with its line: read off the main
+    /// thread from a context of its own, so typing stays instant. Locked notes are left out (their
+    /// text is sealed; what's stored in the clear is the title), and so are notes whose title
+    /// already answers the query.
+    static func textHits(for query: String, in container: ModelContainer, limit: Int = textLimit) async -> [TextHit] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard q.count >= textMinLength else { return [] }
+        return await Task.detached(priority: .userInitiated) {
+            let context = ModelContext(container)
+            let holds = #Predicate<Note> { (n: Note) -> Bool in
+                n.deletedAt == nil && n.trashedAt == nil && n.lockedBody == nil && n.body.localizedStandardContains(q)
+            }
+            var fetch = FetchDescriptor<Note>(predicate: holds)
+            fetch.sortBy = [SortDescriptor(\Note.updatedAt, order: .reverse)]
+            // Some found ones are listed by their title already: room for them.
+            fetch.fetchLimit = limit * 4
+            let notes = (try? context.fetch(fetch)) ?? []
+            var out: [TextHit] = []
+            for n in notes {
+                if out.count == limit || Task.isCancelled { break }
+                guard !n.isLocked else { continue }
+                let title = n.title
+                guard score(title, q) == nil, let snippet = snippet(in: n.body, query: q) else { continue }
+                out.append(TextHit(id: n.id, title: title, folder: n.folder?.name, date: n.updatedAt, snippet: snippet))
+            }
+            return out
+        }.value
     }
 
     /// Where an arrow key takes the highlight, stopping at the ends.
@@ -158,6 +249,7 @@ enum QuickOpen {
     static func choose(_ row: Row, with actions: Actions) {
         switch row {
         case .note(let n): actions.open(n.id)
+        case .text(let t): actions.open(t.id)
         case .command(let c): actions.run(c.action)
         case .search(let q): actions.search(q)
         }
@@ -189,30 +281,38 @@ struct QuickOpenPanel: View {
     let commands: [QuickOpen.CommandItem]
     let choose: (QuickOpen.Row) -> Void
     let close: () -> Void
+    /// Finds notes by their text, off the main thread (`QuickOpen.textHits`). Nil: titles only.
+    let searchText: (@Sendable (String) async -> [QuickOpen.TextHit])?
 
     @State private var query: String
     @State private var highlighted = 0
+    @State private var textHits: [QuickOpen.TextHit]
     @FocusState private var focused: Bool
 
-    /// `query`: snapshots start with text typed.
+    /// `initialQuery`, `initialTextHits`: snapshots start with text typed and found.
     init(notes: [QuickOpen.NoteItem], commands: [QuickOpen.CommandItem], choose: @escaping (QuickOpen.Row) -> Void, close: @escaping () -> Void,
-         initialQuery: String = "") {
+         searchText: (@Sendable (String) async -> [QuickOpen.TextHit])? = nil,
+         initialQuery: String = "", initialTextHits: [QuickOpen.TextHit] = []) {
         self.notes = notes
         self.commands = commands
         self.choose = choose
         self.close = close
+        self.searchText = searchText
         _query = State(initialValue: initialQuery)
+        _textHits = State(initialValue: initialTextHits)
     }
 
     enum Metrics {
         static let width: CGFloat = 600
         static let field: CGFloat = 54
         static let row: CGFloat = 36
+        /// A note found by its text: its title, and the line under it.
+        static let textRow: CGFloat = 48
         static let header: CGFloat = 26
         static let maxList: CGFloat = 392
     }
 
-    private var rows: [QuickOpen.Row] { QuickOpen.rows(notes: notes, commands: commands, query: query) }
+    private var rows: [QuickOpen.Row] { QuickOpen.rows(notes: notes, commands: commands, query: query, textHits: textHits) }
 
     var body: some View {
         let rows = rows
@@ -248,7 +348,22 @@ struct QuickOpenPanel: View {
         .clipShape(shape)
         .raised(in: shape)
         .onAppear { focused = true }
-        .onChange(of: query) { _, _ in highlighted = 0 }
+        .onChange(of: query) { _, q in
+            highlighted = 0
+            // While the store is read, the lines found so far that still hold the text stay.
+            let t = q.trimmingCharacters(in: .whitespaces)
+            textHits = t.isEmpty ? [] : textHits.filter { $0.snippet.text.range(of: t, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
+        }
+        // The notes' text, once typing rests (each key cancels the read before it).
+        .task(id: query) {
+            guard let searchText, query.trimmingCharacters(in: .whitespaces).count >= QuickOpen.textMinLength else { return }
+            try? await Task.sleep(for: QuickOpen.textDelay)
+            guard !Task.isCancelled else { return }
+            let q = query
+            let found = await searchText(q)
+            guard !Task.isCancelled, q == query else { return }
+            textHits = found
+        }
         .onExitCommand { close() }
         .accessibilityIdentifier("quickOpen")
     }
@@ -280,18 +395,20 @@ struct QuickOpenPanel: View {
         }
     }
 
-    /// A section's name above its first row: Recent notes, Notes, Commands.
+    /// A section's name above its first row: Recent notes, Notes, Commands, In note text.
     private func header(before i: Int, in rows: [QuickOpen.Row]) -> String? {
-        func kind(_ r: QuickOpen.Row) -> Int { switch r { case .note: 0; case .command: 1; case .search: 2 } }
+        func kind(_ r: QuickOpen.Row) -> Int { switch r { case .note: 0; case .command: 1; case .search: 2; case .text: 3 } }
         let k = kind(rows[i])
         guard k != 2, i == 0 || kind(rows[i - 1]) != k else { return nil }
         if k == 1 { return "Commands" }
+        if k == 3 { return "In note text" }
         return query.trimmingCharacters(in: .whitespaces).isEmpty ? "Recent notes" : "Notes"
     }
 
     private func height(_ rows: [QuickOpen.Row]) -> CGFloat {
         let headers = rows.indices.filter { header(before: $0, in: rows) != nil }.count
-        return CGFloat(rows.count) * Metrics.row + CGFloat(headers) * (Metrics.header + 2) + 12
+        let texts = rows.filter { if case .text = $0 { true } else { false } }.count
+        return CGFloat(rows.count - texts) * Metrics.row + CGFloat(texts) * Metrics.textRow + CGFloat(headers) * (Metrics.header + 2) + 12
     }
 
     @ViewBuilder private func rowView(_ row: QuickOpen.Row, on: Bool) -> some View {
@@ -306,6 +423,19 @@ struct QuickOpenPanel: View {
                 }
                 Spacer(minLength: 8)
                 Text(QuickOpen.dateText(n)).foregroundStyle(Color.muted).monospacedDigit()
+            case .text(let t):
+                icon("text.magnifyingglass", on: on)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 10) {
+                        Text(t.title.isEmpty ? "New Note" : t.title).foregroundStyle(Color.ink).lineLimit(1)
+                        if let f = t.folder {
+                            Text(f).foregroundStyle(Color.muted).lineLimit(1).layoutPriority(-1)
+                        }
+                    }
+                    snippetText(t.snippet)
+                }
+                Spacer(minLength: 8)
+                Text(DateBucket.rowDate(t.date)).foregroundStyle(Color.muted).monospacedDigit()
             case .command(let c):
                 icon(c.symbol, on: on)
                 highlightedTitle(c.title)
@@ -326,7 +456,7 @@ struct QuickOpenPanel: View {
         }
         .font(.system(size: 14))
         .padding(.horizontal, 10)
-        .frame(height: Metrics.row)
+        .frame(height: { if case .text = row { Metrics.textRow } else { Metrics.row } }())
         .background(on ? Color.amberSoft : .clear, in: shape)
         .contentShape(shape)
     }
@@ -347,6 +477,16 @@ struct QuickOpenPanel: View {
             text[lower..<upper].font = .system(size: 14, weight: .semibold)
         }
         return Text(text).foregroundStyle(Color.ink).lineLimit(1)
+    }
+
+    /// The line that holds the text, the text itself in the ink's semibold and the rest muted.
+    private func snippetText(_ s: QuickOpen.Snippet) -> some View {
+        (Text(s.before) + Text(s.match).foregroundStyle(Color.ink).fontWeight(.semibold) + Text(s.after))
+            .font(.system(size: 12.5))
+            .foregroundStyle(Color.muted)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .accessibilityLabel(s.text)
     }
 
     private var hints: some View {

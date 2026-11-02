@@ -224,7 +224,8 @@ struct RootView: View {
                                    quickOpen = nil
                                    QuickOpen.choose(row, with: quickOpenActions)
                                },
-                               close: { quickOpen = nil })
+                               close: { quickOpen = nil },
+                               searchText: { [container = context.container] q in await QuickOpen.textHits(for: q, in: container) })
                     .padding(.top, 72)
             }
         }
