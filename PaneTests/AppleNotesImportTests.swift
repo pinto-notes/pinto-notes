@@ -684,7 +684,8 @@ import Testing
         #expect(AppleNotesImportView.folderTree([(["Recipes", "Italian"], 1, 1)]).map(\.path) == [["Recipes"], ["Recipes", "Italian"]])
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views/AppleNotesImport.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
-        #expect(source.contains("@State private var expanded: Set<[String]> = []"), "folders start closed")
+        #expect(source.contains("pickedBefore = picked\n        picked = []"), "Choose notes starts with nothing picked")
+        #expect(AppleNotesImportView.pickerSize.width > 540, "Choose notes is wider, folders beside notes")
         #expect(source.contains("ListSearchField(text: $query"), "the system search field, as the note list")
     }
 }

@@ -143,8 +143,9 @@ import UIKit
                 AppleNotesImportView.demoPage = page
                 defer { AppleNotesImportView.demoPage = nil }
                 let sheet = AppleNotesImportView().modelContainer(c).tint(Color(PColor.paneAccent)).environment(\.locale, Locale(identifier: "en_US"))
+                let size = page == .choosing ? AppleNotesImportView.pickerSize : CGSize(width: 540, height: AppleNotesImportView.guideHeight)
                 try await VersionHistorySnapshots.shoot(sheet, to: dir.appending(path: "mac-apple-notes-\(name)-\(dark ? "dark" : "light").png"),
-                                                        size: CGSize(width: 540, height: AppleNotesImportView.guideHeight), dark: dark)
+                                                        size: size, dark: dark)
             }
             let line = ImportDoneLine(text: "Imported 35 notes").padding(20).background(Color(Palette.page))
             try await VersionHistorySnapshots.shoot(line, to: dir.appending(path: "mac-import-done-line-\(dark ? "dark" : "light").png"),
