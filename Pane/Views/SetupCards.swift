@@ -144,10 +144,12 @@ enum SetupCards {
         .init(name: "VS Code", line: "With GitHub Copilot"),
     ]
     static let anotherApp = OtherAI(name: "Another app", line: "Copy the address into it")
-    /// The row under the two (Emil, 2 November 2026): Claude Code comes with Claude, and Cursor and
-    /// VS Code are for coders, behind Other. Grok and Gemini join once a real connection works
-    /// (Gemini also needs refresh tokens that don't rotate); never Mistral.
-    static let rowAIs: [OtherAI] = [.init(name: "Codex", line: ""), .init(name: "Other", line: "")]
+    /// The row under the two (Emil, 2 November 2026): Claude Code comes with Claude, Codex and the
+    /// code editors are behind Other ("I don't like having Codex as an option"). Grok and Gemini
+    /// show as coming soon until a real connection to each is proven; never Mistral.
+    static let rowAIs: [OtherAI] = [.init(name: "Grok", line: ""), .init(name: "Gemini", line: ""), .init(name: "Other", line: "")]
+    /// In the row but not connectable yet: shown, marked Soon, not a button.
+    static let comingSoon: Set<String> = ["Grok", "Gemini"]
     static let connectReads = "Your AI can read and edit your notes when you ask. Disconnect anytime."
     static let otherApps = "Cursor, VS Code or another app"
 
@@ -735,6 +737,19 @@ struct SetupCardsFlow: View {
             VStack(spacing: 14) {
                 HStack(spacing: 8) {
                     ForEach(SetupCards.rowAIs) { other in
+                        if SetupCards.comingSoon.contains(other.name) {
+                            HStack(spacing: 7) {
+                                AIGlyph(ai: other.name, size: 15).opacity(0.55)
+                                Text(other.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
+                                Text("Soon").font(.system(size: 11)).foregroundStyle(Color.muted.opacity(0.8))
+                            }
+                            .fixedSize()
+                            .padding(.horizontal, 14)
+                            .frame(minHeight: 34)
+                            .background(SetupCards.soft.opacity(0.45), in: Capsule())
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("\(other.name), coming soon")
+                        } else {
                         Button { rowPicked(other.name) } label: {
                             HStack(spacing: 7) {
                                 AIGlyph(ai: other.name, size: 15)
@@ -748,6 +763,7 @@ struct SetupCardsFlow: View {
                         .buttonStyle(.tile(radius: 17))
                         .accessibilityLabel(other.name == "Other" ? "Other apps" : "Connect \(other.name)")
                         .accessibilityIdentifier("setup.ai.\(other.name.lowercased())")
+                        }
                     }
                 }
                 notNowLink

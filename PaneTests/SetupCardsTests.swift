@@ -216,8 +216,9 @@ import Testing
         #expect(SetupCards.moreLook == .row)
         #expect(ConnectWebGuide.otherLook == .steps)
         let row = SetupCards.rowAIs.map(\.name)
-        #expect(row == ["Codex", "Other"])
-        for never in ["Claude Code", "Cursor", "VS Code", "Mistral", "Le Chat"] { #expect(!row.contains(never)) }
+        #expect(row == ["Grok", "Gemini", "Other"], "no Codex in the row (Emil, 2 November 2026)")
+        #expect(SetupCards.comingSoon == ["Grok", "Gemini"], "coming soon until a real connection is proven")
+        for never in ["Codex", "Claude Code", "Cursor", "VS Code", "Mistral", "Le Chat"] { #expect(!row.contains(never)) }
         #expect(SetupCards.AI.codex.guide == .codex && !SetupCards.AI.codex.asks, "Codex is added on this Mac; its ask is copied")
         #expect(SetupCards.connectReads.contains("read and edit") && SetupCards.connectReads.contains("Disconnect anytime"), "App Review: what it can do, before any AI")
         #expect(AIGlyph.asset("Codex") != nil && AIGlyph.asset("Grok") != nil && AIGlyph.asset("Gemini") != nil)
