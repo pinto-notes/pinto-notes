@@ -310,7 +310,8 @@ struct AppleNotesImportView: View {
     private var sheet: some View {
         VStack(spacing: 0) {
             if guided {
-                topBar
+                // Choose notes has its Back and × in its title row.
+                if pageKey != 3 { topBar }
                 guidePage
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -550,7 +551,12 @@ struct AppleNotesImportView: View {
     private var chooseNotesPage: some View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         return VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 16) {
+            HStack(alignment: .center, spacing: 14) {
+                // Back beside the title, as System Settings has it, the × at the other end
+                // (Emil, 2 November 2026: Back above the title sat oddly).
+                CardBackButton { leaveChoosing() }
+                    .disabled(progress != nil)
+                    .accessibilityIdentifier("import.back")
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Choose notes").font(.system(size: 21, weight: .bold)).tracking(-0.3)
                     Text(Self.count(picked.count, of: notes.count, locale: locale))
@@ -558,15 +564,22 @@ struct AppleNotesImportView: View {
                         .accessibilityIdentifier("import.count")
                 }
                 Spacer(minLength: 0)
-                // The system's search field, as the note list has, at its regular size.
-                ListSearchField(text: $query, focus: 0, close: {})
-                    .controlSize(.large)
+                SoftSearchField(text: $query, identifier: "import.search")
                     .frame(width: 280)
+                CardCloseButton(size: 28) { dismiss() }
+                    .disabled(progress != nil)
+                    .accessibilityIdentifier("import.close")
             }
+            .padding(.top, 18)
             HStack(spacing: 0) {
-                List(selection: $focusFolder) {
+                // Not the list's own selection: its accent fill under grey text didn't read (Emil,
+                // 2 November 2026). The open folder gets a soft fill, its text stays ink.
+                List {
                     ForEach(chooseTree, id: \.path) { node in
-                        folderPickRow(node).tag(Optional(node.path))
+                        folderPickRow(node)
+                            .listRowInsets(EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                     }
                 }
                 .listStyle(.sidebar)
@@ -636,7 +649,7 @@ struct AppleNotesImportView: View {
                 List {
                     ForEach(items) { note in
                         row(note, inset: 8)
-                            .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
+                            .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
                             .listRowSeparator(.hidden)
                     }
                 }
@@ -649,6 +662,7 @@ struct AppleNotesImportView: View {
 
     /// A folder on the left: its tick picks or clears every note in it and inside it.
     private func folderPickRow(_ node: TreeRow) -> some View {
+        let open = query.isEmpty && (focusFolder ?? chooseTree.first?.path) == node.path
         let under = notesUnder(node.path).filter { !$0.locked }
         let count = under.filter { picked.contains($0.id) }.count
         let state = Self.folderPick(picked: count, pickable: under.count)
@@ -665,14 +679,28 @@ struct AppleNotesImportView: View {
             .buttonStyle(.quietIcon(padding: 2))
             .disabled(under.isEmpty)
             .accessibilityLabel(state == .all ? "Clear \(node.name)" : "Pick all of \(node.name)")
-            Image(systemName: "folder").font(.system(size: 12)).foregroundStyle(Color.muted)
-            Text(node.name).font(.system(size: 13)).lineLimit(1)
-            Spacer(minLength: 4)
-            Text(count == 0 ? notesUnder(node.path).count.formatted(.number.locale(locale)) : "\(count.formatted(.number.locale(locale)))/\(notesUnder(node.path).count.formatted(.number.locale(locale)))")
-                .font(.system(size: 11)).foregroundStyle(Color.muted).monospacedDigit()
+            Button { focusFolder = node.path } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "folder").font(.system(size: 12)).foregroundStyle(Color.muted)
+                    Text(node.name).font(.system(size: 13, weight: open ? .semibold : .regular)).foregroundStyle(Color.ink).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(count == 0 ? notesUnder(node.path).count.formatted(.number.locale(locale)) : "\(count.formatted(.number.locale(locale)))/\(notesUnder(node.path).count.formatted(.number.locale(locale)))")
+                        .font(.system(size: 11)).foregroundStyle(Color.muted).monospacedDigit()
+                }
+                .frame(maxWidth: .infinity, minHeight: 30)
+                .contentShape(.rect)
+                .hoverHighlight(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(open ? .isSelected : [])
         }
-        .padding(.leading, CGFloat(node.depth) * 14)
+        .padding(.leading, 6 + CGFloat(node.depth) * 14)
+        .padding(.trailing, 8)
+        .background(open ? Color.primary.opacity(Self.openFolderFill) : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
+
+    /// The open folder's fill on the left: soft, so its ink text reads in light and dark.
+    static let openFolderFill = 0.08
 
     /// Choose notes' folders as a tree, from the notes shown (a search narrows it).
     private var chooseTree: [TreeRow] {
@@ -1001,7 +1029,9 @@ struct AppleNotesImportView: View {
             }
             .padding(.horizontal, inset)
             .padding(.vertical, 7)
-            .hoverHighlight(Rectangle())
+            // A rounded pill inset from the edges, as the folders' (Emil, 2 November 2026: a hard
+            // grey band read oddly).
+            .hoverHighlight(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(.rect)
         }
         .buttonStyle(.plain)

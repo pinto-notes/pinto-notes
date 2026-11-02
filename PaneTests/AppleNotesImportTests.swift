@@ -686,7 +686,11 @@ import Testing
         let source = try String(contentsOf: url, encoding: .utf8)
         #expect(source.contains("pickedBefore = picked\n        picked = []"), "Choose notes starts with nothing picked")
         #expect(AppleNotesImportView.pickerSize.width > 540, "Choose notes is wider, folders beside notes")
-        #expect(source.contains("ListSearchField(text: $query"), "the system search field, as the note list")
+        #expect(!source.contains("List(selection: $focusFolder)"), "the open folder isn't the list's accent selection")
+        #expect(AppleNotesImportView.openFolderFill < 0.15, "a soft fill under ink text")
+        #expect(source.contains("SoftSearchField(text: $query"), "the app's own soft search field")
+        #expect(source.contains("CardBackButton { leaveChoosing() }"), "Back beside the title")
+        #expect(!source.contains(".hoverHighlight(Rectangle())"), "rows hover as rounded pills")
     }
 }
 #endif

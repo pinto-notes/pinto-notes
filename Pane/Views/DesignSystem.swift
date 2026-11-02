@@ -557,6 +557,56 @@ struct CardCloseButton: View {
     }
 }
 
+/// Back in a card, beside its title: the close ×'s circle with a ‹, so the two read as a pair.
+struct CardBackButton: View {
+    var size: CGFloat = 28
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "chevron.left")
+                .font(.system(size: (size * 0.46).rounded(), weight: .semibold))
+                .frame(width: size, height: size)
+                .contentShape(.circle)
+        }
+        .buttonStyle(CloseCircleStyle())
+        .accessibilityLabel("Back")
+        #if os(macOS)
+        .help("Back")
+        #endif
+    }
+}
+
+/// A search field in the app's own soft fill (as Settings' search), not the system's bezel, which
+/// read as a different colour on our sheets (Emil, 2 November 2026).
+struct SoftSearchField: View {
+    @Binding var text: String
+    var height: CGFloat = 32
+    var identifier = "search"
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "magnifyingglass").foregroundStyle(Color.muted)
+            TextField("Search", text: $text, prompt: Text("Search").foregroundStyle(Color(Palette.placeholder)))
+                .textFieldStyle(.plain)
+                .focusEffectDisabled()
+                .focused($focused)
+                .accessibilityIdentifier(identifier)
+            if !text.isEmpty {
+                Button { text = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Color.muted) }
+                    .buttonStyle(.quietIcon)
+                    .accessibilityLabel("Clear search")
+            }
+        }
+        .font(.system(size: 14))
+        .padding(.horizontal, 10)
+        .frame(height: height)
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(Palette.searchFill)))
+        .onExitCommand { text = "" }
+    }
+}
+
 struct CloseCircleStyle: ButtonStyle {
     /// How strong the circle's ground (`Color.line`) is: at rest, under the pointer, pressed.
     static func ground(hovering: Bool, pressed: Bool) -> Double { pressed ? 1 : hovering ? 0.95 : 0.6 }
