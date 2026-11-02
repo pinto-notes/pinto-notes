@@ -33,17 +33,11 @@ import Testing
 
     /// The sidebar's foot as the signed-in app draws it: Templates and Import, then you. Drawn
     /// over the sidebar because a signed-in sidebar draws no folders offscreen (the Mac look's
-    /// own signed-in shots are blank too, 2026-10-30).
+    /// own signed-in shots are blank too, 2026-10-30). The app's own `SidebarFoot`, never a copy:
+    /// a copy here kept the account row's old padding and the shots showed it off again.
     static var foot: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            SidebarStudyRows()
-            .padding(.leading, SidebarStyle.edge(nested: true))
-            .padding(.bottom, 4)
-            AccountButton(backend: backend)
-                .padding(.leading, SidebarStyle.edge(nested: true) - 8)
-        }
-        .padding(.trailing, 10)
-        .padding(.bottom, 8)
+        SidebarFoot(backend: backend, nested: true, rows: true)
+            .padding(.bottom, 8)
     }
 
     /// Signed in, so the foot shows you.
@@ -105,6 +99,32 @@ import Testing
         // Templates in the sidebar opens the same gallery as the last setup card.
         let gallery = SetupCardsFlow(store: OnboardingStore(defaults: TestDefaults()), backend: Backend(), preview: .init(card: .gallery), finish: { _ in })
         try await AppSnapshotTests.shoot(window(both, library: lib, over: gallery), name: "study-templates-\(mode)", size: Self.size, dark: dark, wait: 1.0)
+    }
+
+    /// The foot (Templates, Connect an AI, Import, the account) under the folder rows, at rest and
+    /// with a folder, a row and the account under the pointer, light and dark: every pill the same
+    /// shape, in the same place, the icons and names on one line. Into a folder with
+    /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh 'PaneTests/SidebarStudySnapshots/foot(dark:)'`.
+    @Test(arguments: [false, true])
+    func foot(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let mode = dark ? "dark" : "light"
+        let lib = try Self.library()
+        let ideas = try #require(lib.mainContext.allFolders().first { $0.name == "Ideas" })
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        func sidebar(_ hover: Set<String>) -> some View {
+            NavigationStack { SidebarView(scope: .constant(.folder(ideas.id)), onNewNote: {}) }
+                .overlay(alignment: .bottomLeading) { Self.foot }
+                .environment(\.hoverPreview, hover)
+                .frame(width: 260, height: 520)
+                .environment(\.controlActiveState, .key)
+                .tint(Color(PColor.paneAccent))
+                .modelContainer(lib)
+        }
+        try await AppSnapshotTests.render(sidebar([]), name: "sidebar-foot-rest-\(mode)", dark: dark)
+        try await AppSnapshotTests.render(sidebar(["Travel", "sidebar.connectAI", "sidebar.account"]), name: "sidebar-foot-hover-\(mode)", dark: dark)
+        try await AppSnapshotTests.render(sidebar(["*"]), name: "sidebar-foot-hover-all-\(mode)", dark: dark)
     }
 
     /// Settings, the card over the notes (SettingsCard): Appearance in Default light and dark and
