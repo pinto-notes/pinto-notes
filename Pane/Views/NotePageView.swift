@@ -1057,8 +1057,7 @@ struct NoteAppWidget: View {
         .contextMenu {
             Button("Open", systemImage: "arrow.right") { controller?.openNote(id) }
             Divider()
-            Button("Remove Link", systemImage: "link.badge.plus", role: .destructive, action: remove)
-                .destructiveTint()
+            DestructiveMenuButton("Remove Link", systemImage: "link.badge.plus", action: remove)
         }
     }
 

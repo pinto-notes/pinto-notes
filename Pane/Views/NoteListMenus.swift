@@ -4,7 +4,17 @@ import SwiftUI
 /// A note's long-press menu in the iPhone list, as in Apple Notes (iOS 26): Share, Move and
 /// Delete across the top, then Pin, Lock and Duplicate. Pinto has no other note actions there.
 enum NoteRowMenu {
-    enum Item: Hashable { case share, move, delete, pin, lock, removeLock, duplicate, recover }
+    enum Item: Hashable { case openInNewWindow, share, move, history, delete, pin, lock, removeLock, duplicate, recover }
+
+    /// The Mac's right-click on a note's row (and the row's •••), grouped as Apple Notes groups it
+    /// (Emil, 2 November 2026): Open Note in New Window; Pin and Lock; Duplicate; Share; Move to
+    /// and Version History, as in the note's own ••• menu (NoteMoreMenu); then Delete on its own.
+    /// A locked note's text isn't here to send, copy or look back through.
+    static func macGroups(locked: Bool, trashed: Bool) -> [[Item]] {
+        if trashed { return [[.recover, .delete]] }
+        if locked { return [[.openInNewWindow], [.pin, .removeLock], [.move], [.delete]] }
+        return [[.openInNewWindow], [.pin, .lock], [.duplicate], [.share], [.move, .history], [.delete]]
+    }
 
     /// The first group is the row of three. A locked note's text isn't here to send or copy, so it
     /// has no Share and no Duplicate. In Recently Deleted a note can only come back or go for good.
@@ -172,8 +182,10 @@ struct MoveNotesSheet: View {
     }
 }
 
-/// Lock Note and Remove Lock from a note's long-press menu: the same steps as the note's own •••
-/// menu (setting the password up, asking for it, confirming).
+#endif
+
+/// Lock Note and Remove Lock from a note's long-press or right-click menu: the same steps as the
+/// note's own ••• menu (setting the password up, asking for it, confirming).
 struct ListLockRequest: Equatable {
     let note: UUID
     let removing: Bool
@@ -261,4 +273,3 @@ struct ListLockFlow: ViewModifier {
         request = nil
     }
 }
-#endif

@@ -8,6 +8,7 @@ struct NoteDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openWindow) private var openWindow
     @State private var confirmingPurge = false
     /// Typing, clicking or tapping into a note in Recently Deleted: Notes' "can't be edited" prompt.
     @State private var askingRecover = false
@@ -94,6 +95,8 @@ struct NoteDetailView: View {
     @Bindable var note: Note
     let controller: EditorController
     var autofocus = false
+    /// In a window of its own (Open Note in New Window): its menu doesn't offer another.
+    var inOwnWindow = false
     let onNewNote: () -> Void
     /// Opens another note; `edit` puts the keyboard in it.
     var onOpenNote: (UUID, Bool) -> Void = { _, _ in }
@@ -746,6 +749,9 @@ struct NoteDetailView: View {
     @ViewBuilder
     private func moreItem(_ item: NoteMoreMenu.Item) -> some View {
         switch item {
+        case .openInNewWindow:
+            Button(NoteWindows.openNoteTitle, systemImage: NoteWindows.symbol) { NoteWindows.open(note: note.id, with: openWindow) }
+                .accessibilityIdentifier("editor.openInNewWindow")
         case .pin:
             Button(note.isPinned ? "Unpin Note" : "Pin Note", systemImage: note.isPinned ? "pin.slash" : "pin") {
                 withAnimation(.snappy) { context.togglePin(note) }
@@ -791,14 +797,12 @@ struct NoteDetailView: View {
                 .accessibilityIdentifier("editor.recover")
         case .delete:
             if trashed {
-                Button("Delete Now…", systemImage: "trash", role: .destructive) { confirmingPurge = true }
-                    .destructiveTint()
+                DestructiveMenuButton("Delete Now…", systemImage: "trash") { confirmingPurge = true }
                     .accessibilityIdentifier("editor.deleteNow")
             } else {
-                Button("Delete Note", systemImage: "trash", role: .destructive) {
+                DestructiveMenuButton("Delete Note", systemImage: "trash") {
                     withAnimation(.snappy) { context.trash(note) }
                 }
-                .destructiveTint()
             }
         }
     }
@@ -1285,7 +1289,7 @@ struct NoteDetailView: View {
     private var moreMenu: some View {
         Menu {
             let groups = NoteMoreMenu.groups(locked: note.isLocked, vaultOpen: vault.isUnlocked, trashed: note.trashedAt != nil,
-                                             hasApp: notePage != nil, appsEnabled: NoteApps.enabled)
+                                             hasApp: notePage != nil, appsEnabled: NoteApps.enabled, inOwnWindow: inOwnWindow)
             ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
                 if index > 0 { Divider() }
                 ForEach(group, id: \.self) { moreItem($0) }
@@ -1314,9 +1318,9 @@ struct NoteDetailView: View {
     }
 }
 
-/// What the note's More (…) menu holds, in order: two groups, like the owner drew them on
-/// 2026-10-11. What the note is (pinned, locked, an app) first; then where it goes, what it
-/// was and deleting it.
+/// What the note's More (…) menu holds, in order. The owner's two groups of 2026-10-11 (what the
+/// note is; where it goes and what it was), with Open Note in New Window above them on the Mac
+/// and Delete in a group of its own below, as in Apple Notes (2 November 2026).
 enum NoteMoreMenu {
     /// The history item's name, as in Notes' more menu. On the Mac it opens a sheet, so "…".
     static var historyTitle: String {
@@ -1343,12 +1347,17 @@ enum NoteMoreMenu {
         #endif
     }
 
-    enum Item: Hashable { case pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, share, history, recover, delete }
+    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, share, history, recover, delete }
 
+    /// In groups split by lines, as Apple Notes groups a note's menu (Emil, 2 November 2026): Open
+    /// Note in New Window on the Mac (not in the note's own window); what the note is (pinned,
+    /// locked, an app); where it goes and what it was; then Delete on its own.
     static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool,
-                       phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild) -> [[Item]] {
+                       phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild, inOwnWindow: Bool = false) -> [[Item]] {
         // A note in Recently Deleted can only come back or go for good, like Notes.
         if trashed { return [[.recover, .delete]] }
+        var out: [[Item]] = []
+        if !phone, !inOwnWindow { out.append([.openInNewWindow]) }
         var about: [Item] = [.pin]
         if locked {
             if vaultOpen { about += [.lockNow, .removeLock] }
@@ -1362,8 +1371,7 @@ enum NoteMoreMenu {
         var rest: [Item] = [.moveTo]
         // Sharing has its own button beside More, on iPhone and iPad as on the Mac.
         if !locked { rest.append(.history) }
-        rest.append(.delete)
-        return [about, rest]
+        return out + [about, rest, [.delete]]
     }
 }
 

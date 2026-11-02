@@ -412,12 +412,10 @@ struct FileDetailView: View {
                     }
                     #endif
                     Divider()
-                    Button("Delete", systemImage: "trash", role: .destructive) { withAnimation(.snappy) { context.trash(file) } }
-                        .destructiveTint()
+                    DestructiveMenuButton("Delete", systemImage: "trash") { withAnimation(.snappy) { context.trash(file) } }
                 } else {
                     Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(file) } }
-                    Button("Delete Forever…", systemImage: "trash", role: .destructive) { confirmForever = true }
-                        .destructiveTint()
+                    DestructiveMenuButton("Delete Forever…", systemImage: "trash") { confirmForever = true }
                 }
             } label: {
                 Label("More", systemImage: "ellipsis")

@@ -244,6 +244,26 @@ struct PaneApp: App {
         #endif
 
         #if os(macOS)
+        // Open Note in New Window and a folder's Open in New Window (NoteWindows).
+        WindowGroup(id: NoteWindows.noteScene, for: UUID.self) { $id in
+            if let id {
+                NoteWindowView(noteID: id).modifier(SideWindow(backend: backend, sync: sync))
+            }
+        }
+        .modelContainer(container)
+        .defaultSize(width: 640, height: 720)
+        .restorationBehavior(.disabled)
+        .windowToolbarStyle(.unified)
+        WindowGroup(id: NoteWindows.folderScene, for: UUID.self) { $id in
+            if let id {
+                FolderWindowView(folderID: id).modifier(SideWindow(backend: backend, sync: sync))
+            }
+        }
+        .modelContainer(container)
+        .defaultSize(width: 1040, height: 720)
+        .restorationBehavior(.disabled)
+        .windowToolbarStyle(.unified)
+
         // Settings is a card over the notes window (RootView), not a window of its own.
 
         MenuBarItem(backend: backend, sync: sync, container: container)
@@ -252,6 +272,22 @@ struct PaneApp: App {
 }
 
 #if os(macOS)
+/// What a note's or a folder's own window shares with the notes window: the account, sync, the
+/// theme and the appearance.
+private struct SideWindow: ViewModifier {
+    let backend: Backend
+    let sync: SyncEngine
+
+    func body(content: Content) -> some View {
+        content
+            .environment(backend)
+            .environment(sync)
+            .environment(\.networkReach, sync.reach)
+            .followsTheme()
+            .followsAppearanceMode(pinned: nil)
+    }
+}
+
 /// Amber Notes in the menu bar: quick capture, search, pinned and recent notes. A scene of its own,
 /// with inputs that don't change: the menu bar item is given its label again whenever its scene is
 /// worked out again, and setting the status item's image asks the windows for another layout pass.

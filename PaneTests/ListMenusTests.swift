@@ -28,6 +28,20 @@ import Testing
         }
     }
 
+    /// The Mac's right-click on a note, grouped as in Apple Notes (Emil, 2 November 2026), with
+    /// Lock Note and Version History as in the note's own ••• menu (NoteMoreMenu).
+    @Test func theMacRightClickIsGroupedLikeNotes() {
+        #expect(NoteRowMenu.macGroups(locked: false, trashed: false)
+                == [[.openInNewWindow], [.pin, .lock], [.duplicate], [.share], [.move, .history], [.delete]])
+        // A locked note's text isn't here to share, copy or look back through; its lock can come off.
+        #expect(NoteRowMenu.macGroups(locked: true, trashed: false) == [[.openInNewWindow], [.pin, .removeLock], [.move], [.delete]])
+        #expect(NoteRowMenu.macGroups(locked: false, trashed: true) == [[.recover, .delete]])
+        // The two menus of a note agree: what the ••• menu has (but Make It an App), the row has too.
+        let more = Set(NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: false, appsEnabled: true, phone: false, dev: false).joined())
+        #expect(more.contains(.openInNewWindow) && more.contains(.lock) && more.contains(.history))
+        for locked in [false, true] { #expect(NoteRowMenu.macGroups(locked: locked, trashed: false).last == [.delete]) }
+    }
+
     @Test func theMoreMenuIsInNotesOrder() {
         #expect(ListMoreMenu.groups(connectNudge: false) == [[.selectNotes], [.sortBy, .groupByDate], [.addFiles]])
         #expect(ListMoreMenu.groups(connectNudge: true).last == [.connectAI], "Connect an AI, when it shows, comes last")

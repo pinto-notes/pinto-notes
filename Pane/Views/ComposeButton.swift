@@ -7,10 +7,23 @@ import TipKit
 /// (MakeAppSheet, `init(newApp:)`); on the Mac it is also File › New App.
 struct ComposeButton<Label: View>: View {
     let newNote: () -> Void
+    /// Off: a plain button, disabled. A menu with a primary action becomes a segmented control in
+    /// the Mac's toolbar, and `.disabled` stopped its clicks but left it drawn as on (Emil, 2
+    /// November 2026: "only interaction is disabled"); a disabled button is drawn greyed.
+    var off = false
     @ViewBuilder let label: () -> Label
     @Environment(\.todaysNote) private var todaysNote
 
     var body: some View {
+        if off {
+            Button(action: {}, label: label)
+                .disabled(true)
+        } else {
+            menu
+        }
+    }
+
+    private var menu: some View {
         Menu {
             Button("New Note", systemImage: "square.and.pencil", action: newNote)
             Button("Today\u{2019}s Note", systemImage: "calendar") { todaysNote?.open() }
