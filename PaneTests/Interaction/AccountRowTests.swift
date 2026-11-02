@@ -15,7 +15,7 @@ import Testing
         let window: NSWindow
         let container: ModelContainer
 
-        init(nested: Bool = false, foldersLater: Bool = false) async throws {
+        init(nested: Bool = false, foldersLater: Bool = false, behindCard: Bool = false) async throws {
             container = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
             let ctx = container.mainContext
             if !foldersLater {
@@ -29,10 +29,14 @@ import Testing
             try ctx.save()
             let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com", userID: UUID())
             ProfileStore.shared.showForPreview(name: "Emil Wagman", photo: nil)
-            let view = RootView()
+            let notes = RootView()
                 .environment(backend)
                 .environment(SyncEngine(backend: backend, context: ctx))
                 .environment(SetupStore(progress: SetupProgress(connected: true, dismissed: true)))
+            // `behindCard`: as the first run shows it, under a setup card (AppGate.notesBehind).
+            let view = Group {
+                if behindCard { notes.modifier(BehindSetupCard(card: Text("A setup card").padding(40))) } else { notes }
+            }
                 .modelContainer(container)
             window = NSWindow(contentRect: NSRect(x: -30000, y: -30000, width: 1180, height: 760),
                               styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
@@ -106,14 +110,16 @@ import Testing
     }
 
     /// A first sync brings the first folder into an empty sidebar: the rows still start below the
-    /// window's buttons, not up under them (Emil, 2 November 2026, a new account's "Notes").
-    @Test(arguments: [false, true])
-    func theFirstRowIsBelowTheWindowsButtons(foldersLater: Bool) async throws {
-        let host = try await Host(foldersLater: foldersLater)
+    /// window's buttons, not up under them (Emil, 2 November 2026, a new account's "Notes"). Also
+    /// under a setup card, where the notes once ignored clicks with `.allowsHitTesting(false)` and
+    /// the sidebar lost its room for the toolbar ("very messed up", the same day).
+    @Test(arguments: [(false, false), (true, false), (true, true)])
+    func theFirstRowIsBelowTheWindowsButtons(foldersLater: Bool, behindCard: Bool) async throws {
+        let host = try await Host(foldersLater: foldersLater, behindCard: behindCard)
         defer { host.close() }
         if foldersLater {
-            let notes = host.container.mainContext.createFolder(named: "Notes")
-            _ = host.container.mainContext.createNote(in: .folder(notes.id), body: "Hello\n\ntext")
+            // A new account: one folder, no notes in it, so the note pane is empty.
+            _ = host.container.mainContext.createFolder(named: "Notes")
             try host.container.mainContext.save()
             await host.settle()
         }

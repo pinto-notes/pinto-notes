@@ -514,6 +514,36 @@ enum NotesChrome {
     }
 }
 
+/// The notes window under a setup card (signed out, adding this Mac, the first run): there, but
+/// not to be used yet, with the card over it at the card's own height.
+struct BehindSetupCard<Card: View>: ViewModifier {
+    let card: Card
+
+    func body(content: Content) -> some View {
+        // The card over the notes, not beside them in a ZStack: a card that reaches under the
+        // title bar made the stack reach there too (Emil, 2 November 2026).
+        content
+            .environment(\.behindSetupCard, true)
+            // Its top bar's buttons too look and act disabled until you're signed in (Emil,
+            // 2 November 2026): the toolbar takes this from the view that declares it.
+            .disabled(true)
+            .accessibilityHidden(true)
+            // Not `.allowsHitTesting(false)` on the notes: with it the split view gives the
+            // sidebar no room for the toolbar, and the folders start up under the window's
+            // buttons (Emil, 2 November 2026). A clear layer over them takes the clicks instead,
+            // and a drag on it moves the window, as the top bar does.
+            .overlay {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(WindowDragGesture())
+                    .accessibilityHidden(true)
+            }
+            // At its own height, centred: a card whose content can stretch (the encryption
+            // step's) grew to the window's full height (Emil, 2 November 2026).
+            .overlay { card.fixedSize(horizontal: false, vertical: true) }
+    }
+}
+
 /// Signed out, the window is just the sign-in card: small, no title bar.
 /// Signed in, it becomes the normal three-column window, back where you left it.
 private struct WindowShaper: NSViewRepresentable {
@@ -1228,24 +1258,13 @@ struct AppGate: View {
     /// The notes window as it is, not to be used yet, with `card` on it: signed out, adding this
     /// Mac, and the first run (SetupCards).
     private func notesBehind(@ViewBuilder card: () -> some View) -> some View {
-        // The card over the notes, not beside them in a ZStack: a card that reaches under the
-        // title bar made the stack reach there too, and the sidebar's "Folders" went up under the
-        // window's buttons (Emil, 2 November 2026).
         RootView()
             .environment(backend)
             .environment(sync)
             .environment(\.networkReach, sync.reach)
             .environment(setup)
             .environment(onboarding)
-            .environment(\.behindSetupCard, true)
-            // Its top bar's buttons too look and act disabled until you're signed in (Emil,
-            // 2 November 2026): the toolbar takes this from the view that declares it.
-            .disabled(true)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-            // At its own height, centred: a card whose content can stretch (the encryption
-            // step's) grew to the window's full height (Emil, 2 November 2026).
-            .overlay { card().fixedSize(horizontal: false, vertical: true) }
+            .modifier(BehindSetupCard(card: card()))
         .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
         .transition(.opacity)
     }
