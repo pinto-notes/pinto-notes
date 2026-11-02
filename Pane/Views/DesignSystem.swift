@@ -531,6 +531,63 @@ private struct TileButton: View {
     }
 }
 
+/// A card's or a sheet's close ×, the same everywhere (Settings, the import and connect guides,
+/// Make an app, Templates): a muted × on a soft solid circle, deeper with an ink × under the
+/// pointer, deeper still pressed. Solid, not glass: inside our own cards glass has nothing behind
+/// it to show and read as a flat grey disc (Emil, 2 November 2026). Esc closes too.
+///
+///     CardCloseButton { dismiss() }.accessibilityIdentifier("…close")
+struct CardCloseButton: View {
+    var size: CGFloat = 26
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: (size * 0.46).rounded(), weight: .semibold))
+                .frame(width: size, height: size)
+                .contentShape(.circle)
+        }
+        .buttonStyle(CloseCircleStyle())
+        .keyboardShortcut(.cancelAction)
+        .accessibilityLabel("Close")
+        #if os(macOS)
+        .help("Close")
+        #endif
+    }
+}
+
+struct CloseCircleStyle: ButtonStyle {
+    /// How strong the circle's ground (`Color.line`) is: at rest, under the pointer, pressed.
+    static func ground(hovering: Bool, pressed: Bool) -> Double { pressed ? 1 : hovering ? 0.95 : 0.6 }
+    /// Pressed, a little ink over the ground as well.
+    static func pressedWash(_ pressed: Bool) -> Double { pressed ? 0.08 : 0 }
+
+    func makeBody(configuration: Configuration) -> some View {
+        CloseCircle(configuration: configuration)
+    }
+}
+
+private struct CloseCircle: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.hoverPreview) private var preview
+    @State private var hovering = false
+
+    var body: some View {
+        let on = isEnabled && (hovering || preview.contains("*"))
+        let pressed = configuration.isPressed
+        configuration.label
+            .foregroundStyle(on || pressed ? Color.ink : Color.muted)
+            .background {
+                Circle().fill(Color.line.opacity(CloseCircleStyle.ground(hovering: on, pressed: pressed)))
+                    .overlay(Circle().fill(Color.primary.opacity(CloseCircleStyle.pressedWash(pressed))))
+            }
+            .opacity(isEnabled ? 1 : 0.5)
+            .modifier(HoverTracking(hovering: $hovering))
+    }
+}
+
 extension View {
     /// A bar of our own icon buttons (the image viewer's): borderless in today's look; in C and D
     /// (DesignLook.calmList) quiet icons, a soft fill under the pointer. Native toolbars stay native.

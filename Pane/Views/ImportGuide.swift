@@ -341,14 +341,7 @@ struct ImportGuideSheet: View {
                 .accessibilityHidden(true)
             }
             Spacer()
-            Button { act(.close) } label: {
-                Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
-                    .frame(width: 26, height: 26)
-                    .background(Color.line.opacity(0.6), in: .circle)
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut(.cancelAction)
-            .accessibilityLabel("Close")
+            CardCloseButton { act(.close) }
         }
         .frame(height: 30)
         .padding(.horizontal, Self.compact ? 20 : 18)
@@ -1101,14 +1094,7 @@ struct ImportNoticePage: View {
         VStack(spacing: 0) {
             HStack {
                 Spacer()
-                Button { act(.close) } label: {
-                    Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
-                        .frame(width: 26, height: 26)
-                        .background(Color.line.opacity(0.6), in: .circle)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.cancelAction)
-                .accessibilityLabel("Close")
+                CardCloseButton { act(.close) }
             }
             .frame(height: 30)
             .padding(.horizontal, 18)

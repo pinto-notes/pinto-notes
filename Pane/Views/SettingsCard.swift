@@ -115,11 +115,12 @@ struct SettingsCard: View {
     @ViewBuilder private func card(framed: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: framed ? 26 : 0, style: .continuous)
         HStack(spacing: 0) {
-            // The sidebar floats inside the card on glass, as System Settings' does in macOS 26.
+            // The sidebar sits inside the card on a soft solid ground: glass only where macOS puts
+            // it (the window's toolbar and sidebar), solid inside our own cards (Emil, 2 November 2026).
             sidebar
                 .frame(width: Self.sidebarWidth)
                 .frame(maxHeight: .infinity)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .background(Color.soft, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .padding(8)
             VStack(alignment: .leading, spacing: 0) {
                 header
@@ -161,17 +162,9 @@ struct SettingsCard: View {
                 .lineLimit(1)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 16)
-            // A round glass ×, as the system's own cards and sheets have (Emil, 2 November 2026).
-            Button(action: closeNow) {
-                Image(systemName: "xmark").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink)
-                    .frame(width: 30, height: 30).contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: .circle)
-            .keyboardShortcut(.cancelAction)
-            .help("Close")
-            .accessibilityLabel("Close")
-            .accessibilityIdentifier("settings.done")
+            // The cards' one close × (CardCloseButton), solid like the card (Emil, 2 November 2026).
+            CardCloseButton(size: 28, action: closeNow)
+                .accessibilityIdentifier("settings.done")
         }
         // In line with the rows of the page's form under it.
         .padding(.leading, path.isEmpty ? 30 : 22)

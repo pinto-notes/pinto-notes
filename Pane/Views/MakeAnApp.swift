@@ -402,18 +402,7 @@ struct MakeAppSheet: View {
     }
 
     private var close: some View {
-        Button { dismiss() } label: {
-            Image(systemName: "xmark")
-                .font(.system(size: Metrics.closeGlyph, weight: .semibold))
-                .foregroundStyle(Color.muted)
-                .frame(width: Metrics.closeSize, height: Metrics.closeSize)
-                .background(Color(Palette.sheetGround).opacity(0.9), in: .circle)
-                .overlay(Circle().strokeBorder(Color.line, lineWidth: 1))
-                .contentShape(.circle)
-        }
-        .buttonStyle(.plain)
-        .keyboardShortcut(.cancelAction)
-        .accessibilityLabel("Close")
+        CardCloseButton { dismiss() }
         .accessibilityIdentifier("makeApp.close")
     }
 

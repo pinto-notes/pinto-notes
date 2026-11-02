@@ -170,13 +170,7 @@ struct TemplateLibraryView: View {
                 .padding(.horizontal, 10)
                 .frame(width: 200, height: 30)
                 .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 8, style: .continuous))
-                Button(action: close) {
-                    Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
-                        .frame(width: 28, height: 28).contentShape(Circle())
-                }
-                .buttonStyle(.quietIcon)
-                .keyboardShortcut(.cancelAction)
-                .accessibilityLabel("Close")
+                CardCloseButton(action: close)
             }
             Picker("Kind", selection: $filter) {
                 ForEach(TemplateCatalog.filters, id: \.self) { Text($0).tag($0) }

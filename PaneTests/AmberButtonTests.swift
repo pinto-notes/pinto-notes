@@ -183,6 +183,22 @@ import Testing
         #expect(body.contains(".buttonStyle(.tile(") && !body.contains(".buttonStyle(.plain)"), "the import tiles use the tile style")
     }
 
+    /// One close × for every card, solid, deeper under the pointer and pressed; no glass inside
+    /// our own cards (Emil, 2 November 2026: "we are mixing styles a bit weirdly").
+    @Test func everyCardClosesWithTheSameSolidX() throws {
+        #expect(CloseCircleStyle.ground(hovering: true, pressed: false) > CloseCircleStyle.ground(hovering: false, pressed: false))
+        #expect(CloseCircleStyle.ground(hovering: true, pressed: true) >= CloseCircleStyle.ground(hovering: true, pressed: false))
+        #expect(CloseCircleStyle.pressedWash(true) > 0)
+        let sources = try Self.appSources()
+        for name in ["Views/SettingsCard.swift", "Views/ConnectWebGuide.swift", "Views/ImportGuide.swift", "Views/MakeAnApp.swift", "Views/TemplateLibrary.swift"] {
+            let text = try #require(sources.first { $0.name == name }).text
+            #expect(text.contains("CardCloseButton"), "\(name) closes with CardCloseButton")
+            #expect(!text.contains("Image(systemName: \"xmark\")"), "\(name) draws its own ×")
+        }
+        let settings = try #require(sources.first { $0.name == "Views/SettingsCard.swift" }).text
+        #expect(!settings.contains(".glassEffect("), "Settings is solid inside")
+    }
+
     @Test func everyButtonStyleLivesInTheDesignSystem() throws {
         let sources = try Self.appSources()
         #expect(sources.count > 100)

@@ -446,15 +446,8 @@ struct ConnectWebGuideSheet: View {
                 .accessibilityHidden(true)
             }
             Spacer()
-            Button { dismiss() } label: {
-                Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.muted)
-                    .frame(width: 26, height: 26)
-                    .background(Color.line.opacity(0.6), in: .circle)
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut(.cancelAction)
-            .accessibilityLabel("Close")
-            .accessibilityIdentifier("connect.guide.close")
+            CardCloseButton { dismiss() }
+                .accessibilityIdentifier("connect.guide.close")
         }
         .frame(height: 30)
         .padding(.horizontal, Self.compact ? 20 : 18)
