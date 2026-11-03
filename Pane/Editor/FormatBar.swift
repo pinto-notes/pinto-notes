@@ -15,10 +15,14 @@ struct FormatBar: View {
     var body: some View {
         GlassEffectContainer(spacing: 10) {
             HStack(spacing: 10) {
-                if inTable { tableTools } else if controller.wikiSuggestions.isEmpty { tools } else {
+                if inTable { tableTools } else if !controller.wikiSuggestions.isEmpty {
                     WikiSuggestionRow(controller: controller)
                         .glassEffect(.regular.interactive(), in: .capsule)
-                }
+                } else if !controller.slashCommands.isEmpty {
+                    // While a `/query` is typed: the commands it names (SlashCommands).
+                    SlashCommandRow(controller: controller)
+                        .glassEffect(.regular.interactive(), in: .capsule)
+                } else { tools }
 
                 Spacer(minLength: 0)
 

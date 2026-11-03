@@ -2351,6 +2351,15 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             default: break
             }
         }
+        if let c = controller, !c.slashCommands.isEmpty {
+            switch selector {
+            case #selector(moveDown(_:)): c.moveSlashChoice(by: 1); return true
+            case #selector(moveUp(_:)): c.moveSlashChoice(by: -1); return true
+            case #selector(insertNewline(_:)), #selector(insertTab(_:)): c.runSlashChoice(); layoutSlashCommands(); return true
+            case #selector(cancelOperation(_:)): c.dismissSlash(); layoutSlashCommands(); return true
+            default: break
+            }
+        }
         switch selector {
         case #selector(insertNewline(_:)):
             if let e = ListEditing.returnKey(in: string, selection: selectedRange()) { apply(e); return true }
@@ -2521,6 +2530,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Shows the titles for the `[[link` being typed just under it, or takes them away.
     func layoutWikiSuggestions() {
+        layoutSlashCommands()
         guard let controller, let q = controller.wikiQuery, !controller.wikiSuggestions.isEmpty else {
             wikiHost?.removeFromSuperview()
             wikiHost = nil
@@ -2547,6 +2557,57 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let x = min(max(caret.minX + textContainerOrigin.x - 8, 0), max(bounds.width - size.width, 0))
         host.frame = CGRect(origin: CGPoint(x: x, y: bottom + 4), size: size)
     }
+
+    // MARK: The / menu
+
+    private var slashHost: NSHostingView<SlashCommandList>?
+
+    /// Shows the commands for the `/query` being typed under its line (over it when there's no
+    /// room below in the visible part of the note), or takes them away.
+    func layoutSlashCommands() {
+        guard let controller, let q = controller.slashQuery, !controller.slashCommands.isEmpty else {
+            slashHost?.removeFromSuperview()
+            slashHost = nil
+            return
+        }
+        let host = slashHost ?? {
+            let h = NSHostingView(rootView: SlashCommandList(controller: controller))
+            h.sizingOptions = []
+            addSubview(h)
+            slashHost = h
+            return h
+        }()
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager,
+              let loc = tcm.location(tcm.documentRange.location, offsetBy: q.location) else { return }
+        // A slash on a new last line isn't laid out yet while the text changes: the list went
+        // under the line above and covered the slash.
+        tlm.ensureLayout(for: NSTextRange(location: loc))
+        var caret: CGRect?
+        tlm.enumerateTextSegments(in: NSTextRange(location: loc), type: .standard, options: []) { _, r, _, _ in caret = r; return false }
+        guard let caret, let frag = tlm.textLayoutFragment(for: loc) else { return }
+        let inFrag = tcm.offset(from: frag.rangeInElement.location, to: loc)
+        let lines = frag.textLineFragments
+        let line = lines.first { NSLocationInRange(inFrag, $0.characterRange) } ?? lines.last
+        let top = frag.layoutFragmentFrame.minY + (line?.typographicBounds.minY ?? 0) + textContainerOrigin.y
+        let bottom = frag.layoutFragmentFrame.minY + (line?.typographicBounds.maxY ?? frag.layoutFragmentFrame.height) + textContainerOrigin.y
+        let size = SlashCommandList.size(rows: controller.slashCommands.count)
+        let x = min(max(caret.minX + textContainerOrigin.x - 8, 0), max(bounds.width - size.width, 0))
+        let visible = visibleRect
+        let below = bottom + 4 + size.height <= visible.maxY || top - 4 - size.height < visible.minY
+        host.frame = CGRect(origin: CGPoint(x: x, y: below ? bottom + 4 : top - 4 - size.height), size: size)
+        // Lines above can still move once the edit's styling is laid out (a checklist line grew
+        // and the list sat over the slash): placed again once that has happened.
+        if !slashRelayoutQueued {
+            slashRelayoutQueued = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.layoutSlashCommands()
+                self.slashRelayoutQueued = false
+            }
+        }
+    }
+
+    private var slashRelayoutQueued = false
 
     private var editingSelection: NSRange? { window?.firstResponder === self ? selectedRange() : nil }
 
