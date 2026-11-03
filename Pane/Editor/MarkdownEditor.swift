@@ -2594,7 +2594,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let size = SlashCommandList.size(rows: controller.slashCommands.count)
         let x = min(max(caret.minX + textContainerOrigin.x - 8, 0), max(bounds.width - size.width, 0))
         let visible = visibleRect
-        let below = bottom + 4 + size.height <= visible.maxY || top - 4 - size.height < visible.minY
+        // Under the line when it fits; else over it when that fits; else the side with more room.
+        let roomBelow = visible.maxY - bottom - 4, roomAbove = top - 4 - visible.minY
+        let below = size.height <= roomBelow || (size.height > roomAbove && roomBelow >= roomAbove)
         host.frame = CGRect(origin: CGPoint(x: x, y: below ? bottom + 4 : top - 4 - size.height), size: size)
         // Lines above can still move once the edit's styling is laid out (a checklist line grew
         // and the list sat over the slash): placed again once that has happened.

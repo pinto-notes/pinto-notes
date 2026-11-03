@@ -134,14 +134,17 @@ import Testing
         #expect(list.map { $0.frame.minY >= line.maxY - 1 } == true, "under the line: \(String(describing: list?.frame)) \(line)")
 
         let tall = (1...60).map { "Line \($0)" }.joined(separator: "\n")
-        let b = await EditorHarness(tall + "\n", height: 400)
+        let b = await EditorHarness(tall + "\n", height: 500)
         defer { b.close() }
         await b.select(end(b))
         b.view.scrollRangeToVisible(b.selection)
         await b.type("/")
+        await b.settle(0.1)
         let l = b.view.subviews.first { $0 is NSHostingView<SlashCommandList> }
         let visible = b.view.visibleRect
-        #expect(l.map { $0.frame.maxY <= visible.maxY + 1 } == true, "kept inside the visible part: \(String(describing: l?.frame)) \(visible)")
+        let slashLine = b.lineRect(at: end(b) - 1)
+        #expect(l.map { $0.frame.maxY <= slashLine.minY + 1 && $0.frame.minY >= visible.minY - 1 } == true,
+                "over the line, inside the visible part: \(String(describing: l?.frame)) line \(slashLine) in \(visible)")
     }
 }
 #endif
