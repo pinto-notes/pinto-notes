@@ -315,6 +315,23 @@ final class EditorController {
         }
     }
 
+    /// Format › Date: today's date at the caret. The note stores `2026-11-03`; the editor shows a
+    /// chip that says Today (NoteDates).
+    func insertDate() {
+        guard cell == nil else { return }
+        perform { text, sel in NoteDates.insertToday(in: text, selection: sel) }
+    }
+
+    /// Picking another day for a date chip: the date's text becomes that day.
+    func changeDate(at range: NSRange, to day: Date) {
+        perform { text, _ in
+            let ns = text as NSString
+            guard NSMaxRange(range) <= ns.length, NoteDates.date(at: range.location, in: text)?.range == range else { return nil }
+            let body = NoteDates.text(for: day)
+            return TextEdit(range: range, replacement: body, caret: range.location + (body as NSString).length)
+        }
+    }
+
     func insertLink() {
         perform { text, sel in
             let selected = (text as NSString).substring(with: sel)

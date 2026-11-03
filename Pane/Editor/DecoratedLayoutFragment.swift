@@ -76,7 +76,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
 
     override var renderingSurfaceBounds: CGRect {
         let base = super.renderingSurfaceBounds
-        guard decoration != nil || highlighted else { return base }
+        guard decoration != nil || highlighted || hasDates else { return base }
         let left = -layoutFragmentFrame.minX
         return base.union(CGRect(x: left - 4, y: -14, width: containerWidth + 8, height: layoutFragmentFrame.height + 28))
     }
@@ -171,6 +171,54 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             context.restoreGState()
         }
         super.draw(at: point, in: context)
+        if hasDates {
+            context.saveGState()
+            drawDates(at: point, in: context)
+            context.restoreGState()
+        }
+    }
+
+    /// Whether the paragraph has a date chip (NoteDates).
+    private var hasDates: Bool {
+        guard let p = textElement as? NSTextParagraph, p.attributedString.length >= 10 else { return false }
+        var found = false
+        p.attributedString.enumerateAttribute(.paneDate, in: NSRange(location: 0, length: p.attributedString.length)) { v, _, stop in
+            if v != nil { found = true; stop.pointee = true }
+        }
+        return found
+    }
+
+    /// The chips, in this fragment's coordinates, each with what it shows.
+    func dateChipRects() -> [(CGRect, DateChip)] { dateChips().map { ($0.rect, $0.chip) } }
+
+    /// The chips with their characters, counted from the paragraph's start.
+    func dateChips() -> [(rect: CGRect, chip: DateChip, range: NSRange)] {
+        guard let p = textElement as? NSTextParagraph else { return [] }
+        let text = p.attributedString
+        var out: [(rect: CGRect, chip: DateChip, range: NSRange)] = []
+        text.enumerateAttribute(.paneDate, in: NSRange(location: 0, length: text.length)) { v, r, _ in
+            guard let chip = v as? DateChip else { return }
+            guard let line = textLineFragments.first(where: { NSLocationInRange(r.location, $0.characterRange) }) else { return }
+            let x = line.typographicBounds.minX + line.locationForCharacter(at: r.location).x + DateChip.gap
+            let baseline = line.typographicBounds.minY + line.glyphOrigin.y
+            let f = PFont.systemFont(ofSize: chip.fontSize)
+            let h = ceil(f.ascender - f.descender) + 2
+            let mid = baseline - f.capHeight / 2
+            out.append((CGRect(x: x, y: mid - h / 2, width: chip.chipWidth, height: h), chip, r))
+        }
+        return out
+    }
+
+    private func drawDates(at o: CGPoint, in ctx: CGContext) {
+        for (rect, chip) in dateChipRects() {
+            let r = rect.offsetBy(dx: o.x, dy: o.y)
+            ctx.addPath(CGPath(roundedRect: r, cornerWidth: r.height * 0.3, cornerHeight: r.height * 0.3, transform: nil))
+            ctx.setFillColor(chip.fill.cgColor)
+            ctx.fillPath()
+            let label = NSAttributedString(string: chip.label, attributes: [.font: chip.font, .foregroundColor: chip.ink])
+            let size = label.size()
+            Self.draw(label, at: CGPoint(x: r.minX + DateChip.padding, y: r.midY - size.height / 2), in: ctx)
+        }
     }
 
     private func drawDecoration(_ d: LineDecoration, at o: CGPoint, in ctx: CGContext) {

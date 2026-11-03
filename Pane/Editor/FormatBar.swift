@@ -74,6 +74,7 @@ struct FormatBar: View {
                 .accessibilityIdentifier("editor.format")
             BarButton("Checklist", "checklist", action: controller.checklist)
             BarButton("Table", "tablecells", action: controller.insertTable)
+            BarButton("Date", "calendar", action: controller.insertDate)
             attachMenu
         }
         .padding(.horizontal, Self.inset * 4)

@@ -174,7 +174,13 @@ final class EditorCore {
         if let selection, ns.length > 0 {
             line = ns.lineRange(for: NSRange(location: min(selection.location, ns.length), length: min(selection.length, ns.length - min(selection.location, ns.length))))
         }
-        if !force, dirty == nil, !needsFull, line == lastActiveLine { return }
+        // A date shows as written while the caret is inside it, so moving into or out of one
+        // restyles its line too.
+        let dateEdit = selection.flatMap { sel in
+            line.location == NSNotFound ? nil : NoteDates.dates(in: storage.string, range: line).first { NoteDates.editing($0.range, selection: sel) }?.range
+        }
+        if !force, dirty == nil, !needsFull, line == lastActiveLine, dateEdit == lastDateEdit { return }
+        lastDateEdit = dateEdit
         let previous = lastActiveLine
         lastActiveLine = line
         let structure = self.structure(of: storage.string)
@@ -229,6 +235,24 @@ final class EditorCore {
         styler.wiki = wiki
         needsFull = true
         restyle(storage, selection: selection, force: true)
+    }
+
+    /// The date the caret was last inside (it shows as written).
+    private var lastDateEdit: NSRange?
+
+    /// A new day: every date chip's label is worked out again (Today becomes Yesterday).
+    func dayChanged(storage: NSTextStorage, selection: NSRange?) {
+        needsFull = true
+        restyle(storage, selection: selection, force: true)
+    }
+
+    private var dayObserver: NSObjectProtocol?
+    /// Calls `restyle` when the calendar day changes (also on waking past midnight).
+    func watchDays(_ restyle: @escaping @MainActor () -> Void) {
+        guard dayObserver == nil else { return }
+        dayObserver = NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { restyle() }
+        }
     }
 
     /// The last few restyle regions, for tests that check incremental styling.
@@ -757,6 +781,10 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.restyle(textStorage, selection: nil, force: true)
         typingAttributes = core.typingAttributes(text, at: selectedRange.location)
         observeChangeHighlight()
+        core.watchDays { [weak self] in
+            guard let self else { return }
+            self.core.dayChanged(storage: self.textStorage, selection: self.editingSelection)
+        }
 
         // The welcome note's date line: small, regular, in the muted colour.
         headerLabel.font = .systemFont(ofSize: 13)
@@ -1425,6 +1453,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
                 return false
             }
         }
+        // A date chip goes in one press, like an attachment.
+        if text.isEmpty, range.length == 1, selectedRange.length == 0,
+           let edit = NoteDates.delete(in: self.text, selection: selectedRange, forward: range.location == selectedRange.location, isChip: { [textStorage] r in textStorage.attribute(.paneDate, at: r.location, effectiveRange: nil) != nil }) {
+            apply(edit); return false
+        }
         if text.isEmpty, range.length == 1, selectedRange.length == 0,
            let edit = ListEditing.backspace(in: self.text, selection: NSRange(location: range.location + 1, length: 0)) {
             apply(edit); return false
@@ -1956,6 +1989,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         remember(text)
         core.observe(textStorage!)
         observeChangeHighlight()
+        core.watchDays { [weak self] in
+            guard let self, let storage = self.textStorage else { return }
+            self.core.dayChanged(storage: storage, selection: self.editingSelection)
+        }
         core.restyle(textStorage!, selection: nil, force: true)
         typingAttributes = core.typingAttributes(text, at: selectedRange().location)
 
@@ -2326,6 +2363,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 }
                 return true
             }
+            // A date chip goes in one press, like an attachment.
+            if let e = NoteDates.delete(in: string, selection: selectedRange(), forward: forward, isChip: { [weak self] r in self?.textStorage?.attribute(.paneDate, at: r.location, effectiveRange: nil) != nil }) { apply(e); return true }
             if !forward, let e = ListEditing.backspace(in: string, selection: selectedRange()) { apply(e); return true }
         case #selector(insertTab(_:)):
             if let e = ListEditing.indent(in: string, selection: selectedRange(), outdent: false) { apply(e); return true }
@@ -2713,6 +2752,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             NSCursor.arrow.set()
             return
         }
+        // A date chip is a button: a click picks another day.
+        if controller?.readOnly != true, dateChip(at: point) != nil {
+            NSCursor.pointingHand.set()
+            return
+        }
         super.mouseMoved(with: event)
     }
 
@@ -2746,7 +2790,46 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) }
             return
         }
+        if event.clickCount == 1, let chip = dateChip(at: point) {
+            showDatePicker(for: chip.range, rect: chip.rect.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
+            return
+        }
         super.mouseDown(with: event)
+    }
+
+    /// The date chip under a point of the text container: its rect there and its characters.
+    func dateChip(at point: CGPoint) -> (rect: CGRect, range: NSRange)? {
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager,
+              let frag = tlm.textLayoutFragment(for: point) as? DecoratedLayoutFragment,
+              let start = frag.textElement?.elementRange?.location else { return nil }
+        let base = tcm.offset(from: tcm.documentRange.location, to: start)
+        let f = frag.layoutFragmentFrame
+        for c in frag.dateChips() {
+            let rect = c.rect.offsetBy(dx: f.minX, dy: f.minY)
+            if rect.insetBy(dx: -2, dy: -2).contains(point) {
+                return (rect, NSRange(location: base + c.range.location, length: c.range.length))
+            }
+        }
+        return nil
+    }
+
+    private var datePopover: NSPopover?
+
+    /// A calendar under the chip; picking a day changes the date and closes it.
+    func showDatePicker(for range: NSRange, rect: CGRect) {
+        guard let found = NoteDates.date(at: range.location, in: string), found.range == range,
+              let day = NoteDates.date(found) else { return }
+        datePopover?.close()
+        let picker = DatePickerPopover(day: day) { [weak self] picked in
+            guard let self else { return }
+            self.controller?.changeDate(at: range, to: picked)
+            self.datePopover?.close()
+        }
+        let pop = NSPopover()
+        pop.behavior = .transient
+        pop.contentViewController = picker
+        pop.show(relativeTo: rect, of: self, preferredEdge: .maxY)
+        datePopover = pop
     }
 
     /// Whether a point of this view is on a link's text.

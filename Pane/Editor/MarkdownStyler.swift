@@ -88,6 +88,8 @@ struct MarkdownStyler {
     var firstLineIsTitle = true
     /// Which wiki links lead to a note (nil: show them all as links).
     var wiki: WikiScope?
+    /// What "today" is for date chips (tests set a fixed day).
+    var dateNow: () -> Date = { .now }
 
     var bodyFont: PFont {
         #if os(iOS)
@@ -323,6 +325,7 @@ struct MarkdownStyler {
 
         styleUnderlines(storage, in: full, isActive: isActive, skip: walker.codeRanges)
         styleWikiLinks(storage, in: full, isActive: isActive)
+        styleDates(storage, in: full, selection: active, skip: walker.codeRanges + walker.inlineCodeRanges)
         let grids = styleGrids(storage, in: full, grids: structure.grids)
         let embeds = styleEmbeds(storage, in: full, embeds: structure.embeds)
         return StyledBlocks(embeds: embeds, grids: grids)
@@ -418,6 +421,39 @@ struct MarkdownStyler {
             if link.aliasRange == nil, let h = link.headingRange.map(shift), h.length > 0 {
                 storage.addAttribute(.foregroundColor, value: PColor.paneTertiary, range: NSRange(location: h.location, length: 1))
             }
+        }
+    }
+
+    /// Dates (`2026-11-03`) show as a chip that says Today, Tomorrow, a weekday or "3 Nov"
+    /// (NoteDates). The digits stay in the text, clear, kerned to the chip's width, in the line's
+    /// own font so the line keeps its height; DecoratedLayoutFragment draws the chip over them.
+    /// With the caret inside one, it shows as written. Not in code, links or the title.
+    private func styleDates(_ storage: NSTextStorage, in scope: NSRange, selection: NSRange, skip: [NSRange]) {
+        let ns = storage.string as NSString
+        let found = NoteDates.dates(in: storage.string, range: scope)
+        guard !found.isEmpty else { return }
+        let title = Self.titleLocation(ns)
+        let titleLine = title < ns.length ? ns.lineRange(for: NSRange(location: title, length: 0)) : NSRange(location: NSNotFound, length: 0)
+        let now = dateNow()
+        for f in found {
+            let r = f.range
+            if skip.contains(where: { NSIntersectionRange($0, r).length > 0 }) { continue }
+            if storage.attribute(.link, at: r.location, effectiveRange: nil) != nil { continue }
+            if NSLocationInRange(r.location, titleLine), (storage.attribute(.font, at: r.location, effectiveRange: nil) as? PFont) == Self.titleFont { continue }
+            if (storage.attribute(.foregroundColor, at: r.location, effectiveRange: nil) as? PColor) == PColor.clear { continue }
+            if NoteDates.editing(r, selection: selection) {
+                storage.addAttribute(.foregroundColor, value: PColor.paneAccent, range: r)
+                continue
+            }
+            let font = storage.attribute(.font, at: r.location, effectiveRange: nil) as? PFont ?? PFont.systemFont(ofSize: bodySize)
+            let bold = font.fontDescriptor.symbolicTraits.contains(PFontDescriptor.SymbolicTraits.paneBold)
+            let chip = DateChip(label: NoteDates.label(for: f, now: now), tone: NoteDates.tone(for: f, now: now), fontSize: font.pointSize, weight: bold ? .bold : .regular)
+            let natural = ns.substring(with: r).size(withAttributes: [.font: font]).width
+            storage.addAttributes([.paneDate: chip, .foregroundColor: PColor.clear,
+                                   .kern: (chip.width - natural) / CGFloat(r.length)], range: r)
+            // A ticked item's line stops at the chip: drawn over the hidden digits it stuck out past it.
+            storage.removeAttribute(.strikethroughStyle, range: r)
+            storage.removeAttribute(.underlineStyle, range: r)
         }
     }
 
@@ -724,6 +760,7 @@ private struct StyleWalker: MarkupWalker {
     var tableLineStarts = IndexSet()
     var tables: [NSRange] = []
     var codeRanges: [NSRange] = []
+    var inlineCodeRanges: [NSRange] = []
 
     private var ns: NSString { storage.string as NSString }
 
@@ -811,6 +848,7 @@ private struct StyleWalker: MarkupWalker {
     mutating func visitInlineCode(_ code: InlineCode) {
         guard let r = map.range(code.range), safe(r) else { return }
         let n = delimiterLength(r, char: 0x60)
+        inlineCodeRanges.append(r)
         storage.addAttributes([.font: styler.monoFont, .backgroundColor: PColor.paneFill, .foregroundColor: PColor.paneLabel], range: r)
         markDelimiters(r, lead: n, trail: n)
     }

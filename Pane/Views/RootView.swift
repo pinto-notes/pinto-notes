@@ -839,6 +839,8 @@ struct PaneCommands: Commands {
                 Button("Block Quote") { editor?.blockQuote() }.keyboardShortcut("'", modifiers: .command)
                 Divider()
                 Button("Table") { editor?.insertTable() }.keyboardShortcut("t", modifiers: [.command, .option])
+                // Today's date, shown as a chip that says Today (NoteDates).
+                Button("Date") { editor?.insertDate() }.keyboardShortcut("d", modifiers: [.command, .shift])
                 Button("Link") { editor?.insertLink() }.keyboardShortcut("k")
             }
             .disabled(editor == nil)
