@@ -89,6 +89,9 @@ import Testing
             n.updatedAt = i < 8 ? .now.addingTimeInterval(-Double(i + 1) * 60) : .now.addingTimeInterval(-Double(i) * 86_400 / 3)
             notes.append(n)
         }
+        // A second folder, for a press in the sidebar.
+        let work = ctx.createFolder(named: "Work")
+        _ = ctx.createNote(in: .folder(work.id), body: "Work note")
         try ctx.save()
         let d = UserDefaults.standard
         let keep = (d.object(forKey: "lastNote"), d.object(forKey: "lastScope"))
@@ -179,6 +182,42 @@ import Testing
             _ = await rig.opens("Note \(i)", settle: true)
         }
         #expect(openWhileHeld == ["Note 2", "Note 5", "Note 1"], "open while the button was still down: \(openWhileHeld)")
+    }
+
+    /// A folder opens on the press too: its notes are listed while the button is still down
+    /// (3 November 2026, "fix that on folders too").
+    @Test func aFolderOpensOnThePress() async throws {
+        let (rig, _, done) = try await Self.rig()
+        defer { done() }
+        // The note list is an outline too.
+        let sidebar = try #require(MacWindowChromeTests.find(NSOutlineView.self, in: rig.window.contentView!) { $0 !== rig.list }, "the sidebar")
+        // Notes is selected; Work is the folder under it.
+        let row = sidebar.selectedRow + 1
+        try #require(sidebar.selectedRow >= 0 && row < sidebar.numberOfRows)
+        let r = sidebar.rect(ofRow: row)
+        let p = sidebar.convert(NSPoint(x: r.midX, y: r.midY), to: nil)
+        func event(_ type: NSEvent.EventType) -> NSEvent {
+            NSEvent.mouseEvent(with: type, location: p, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                               windowNumber: rig.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1,
+                               pressure: type == .leftMouseDown ? 1 : 0)!
+        }
+        func listed() -> Int { (try? MacEmptyDetailTests.list(rig.window)).map { l in (0 ..< l.numberOfRows).filter { !l.isHeadingRow($0) }.count } ?? -1 }
+        #expect(listed() == 16)
+        var whileHeld = -1
+        let check = Timer(timeInterval: 0.25, repeats: false) { _ in
+            MainActor.assumeIsolated {
+                rig.window.displayIfNeeded()
+                whileHeld = listed()
+                NSApp.postEvent(event(.leftMouseUp), atStart: false)
+            }
+        }
+        RunLoop.main.add(check, forMode: .common)
+        NSApp.postEvent(event(.leftMouseDown), atStart: false)
+        let clock = ContinuousClock(), start = clock.now
+        while whileHeld == -1, clock.now - start < .seconds(4) { try? await Task.sleep(for: .milliseconds(20)) }
+        #expect(whileHeld == 1, "Work's one note listed while the button was down (listed: \(whileHeld))")
+        await MacWindowChromeTests.settle(rig.window, 4)
+        #expect(listed() == 1, "and still after the lift")
     }
 
     /// Quick clicks, the next before the last note is built: the last one clicked is the one open.

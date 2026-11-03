@@ -17,8 +17,8 @@ import QuartzCore
 /// Only a plain press on a row that isn't selected yet: ⌘ and ⇧ clicks and a press on a row of a
 /// multi-selection (it may start dragging them all) are left to the list. A quick second click on
 /// another note counts as a double click (clickCount 2), and the list selects nothing for those:
-/// it is still a press on a note that isn't open, so it selects here. Not the sidebar: a folder's
-/// press stays a click.
+/// it is still a press on a note that isn't open, so it selects here. Folders in the sidebar too
+/// (3 November 2026, "fix that on folders too"), but not a press on a folder's open or close arrow.
 @MainActor
 enum PressSelect {
     /// The press that selected a row, and the rows selected before it.
@@ -29,7 +29,7 @@ enum PressSelect {
         if pressed != nil { lifted() }
         guard event.clickCount >= 1,
               event.modifierFlags.intersection([.command, .shift, .control, .option]).isEmpty,
-              !isSidebar(table), !table.selectedRowIndexes.contains(row),
+              !table.selectedRowIndexes.contains(row), !onArrow(event, table, row: row),
               let window = event.window, accepts(table, row: row) else { return }
         let before = table.selectedRowIndexes
         table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
@@ -52,9 +52,16 @@ enum PressSelect {
         table.selectRowIndexes(before, byExtendingSelection: false)
     }
 
-    /// The folders' list, by its style (SwiftUI's `.sidebar`) or its name.
-    private static func isSidebar(_ table: NSTableView) -> Bool {
-        table.style == .sourceList || table.accessibilityLabel() == "Sidebar"
+    /// Whether the press is on a folder's open or close arrow: that opens or closes the folder, and
+    /// selects nothing.
+    static func onArrow(_ event: NSEvent, _ table: NSTableView, row: Int) -> Bool {
+        guard let outline = table as? NSOutlineView else { return false }
+        let p = outline.convert(event.locationInWindow, from: nil)
+        if outline.frameOfOutlineCell(atRow: row).insetBy(dx: -4, dy: -4).contains(p) { return true }
+        // SwiftUI draws the arrow as a button in the row.
+        return outline.window?.contentView?.hitTest(event.locationInWindow).map { hit in
+            sequence(first: hit, next: \.superview).prefix { $0 !== outline }.contains { $0 is NSButton }
+        } ?? false
     }
 
     /// Whether the list would select this row by itself: never a heading, a tip or anything marked

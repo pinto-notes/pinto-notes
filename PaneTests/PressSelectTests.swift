@@ -74,10 +74,30 @@ import Testing
         #expect(table.selectedRowIndexes == [4])
     }
 
-    @Test func theSidebarIsLeftAlone() {
+    /// A folder opens on the press too, like a note (3 November 2026, "fix that on folders too").
+    @Test func aFolderSelectsOnThePressToo() {
         let (table, _, window) = list(style: .sourceList)
         PressSelect.press(press(window), on: table, row: 3)
-        #expect(table.selectedRowIndexes == [0])
+        #expect(table.selectedRowIndexes == [3])
+        PressSelect.lifted()
+    }
+
+    /// A press on a folder's arrow opens or closes it and selects nothing.
+    @Test func aPressOnAFoldersArrowSelectsNothing() {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
+        let outline = Arrows(frame: window.contentView!.bounds)
+        window.contentView!.addSubview(outline)
+        let at = { (p: NSPoint) in
+            NSEvent.mouseEvent(with: .leftMouseDown, location: outline.convert(p, to: nil), modifierFlags: [], timestamp: 0,
+                               windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+        }
+        #expect(PressSelect.onArrow(at(NSPoint(x: 10, y: 10)), outline, row: 1))
+        #expect(!PressSelect.onArrow(at(NSPoint(x: 150, y: 10)), outline, row: 1))
+    }
+
+    /// An outline whose arrow sits in the first 20 pt of each row.
+    final class Arrows: NSOutlineView {
+        override func frameOfOutlineCell(atRow row: Int) -> NSRect { NSRect(x: 0, y: 0, width: 20, height: 20) }
     }
 }
 #endif
