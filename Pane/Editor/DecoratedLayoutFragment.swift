@@ -284,9 +284,12 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
                 ctx.fill(CGRect(x: o.x + 10, y: o.y + h - 0.5, width: w - 20, height: 0.5))
             }
 
-        case .rule:
+        case .rule(let editing):
+            // With the caret on it the dashes show, and the line starts after them instead of
+            // running through them.
+            let start = editing ? (textLineFragments.first.map { $0.typographicBounds.width } ?? 0) + 8 : 0
             ctx.setFillColor(PColor.paneSeparator.cgColor)
-            ctx.fill(CGRect(x: o.x, y: o.y + firstLineMidY, width: containerWidth, height: 1))
+            ctx.fill(CGRect(x: o.x + start, y: o.y + firstLineMidY, width: max(0, containerWidth - start), height: 1))
         }
     }
 

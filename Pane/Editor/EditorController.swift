@@ -274,6 +274,8 @@ final class EditorController {
             perform { ListEditing.toggleLineStyle(in: $0, selection: $1, control.lineStyle!) }
         case .indent, .outdent:
             perform { ListEditing.indentLines(in: $0, selection: $1, outdent: control == .outdent) }
+        case .divider:
+            perform { Dividers.insert(in: $0, selection: $1) }
         }
         refreshFormat()
     }
@@ -313,6 +315,13 @@ final class EditorController {
         } else {
             t.insertGrid()
         }
+    }
+
+    /// Format › Divider: a line across the note, under the caret's line (Dividers).
+    func insertDivider() {
+        guard cell == nil else { return }
+        if let t = host, FormatState.at(t.currentText, selection: t.currentSelection).monostyled { return }
+        perform { Dividers.insert(in: $0, selection: $1) }
     }
 
     /// Format › Date: today's date at the caret. The note stores `2026-11-03`; the editor shows a

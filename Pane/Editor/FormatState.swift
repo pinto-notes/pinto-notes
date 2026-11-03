@@ -9,7 +9,7 @@ enum FormatControl: String, CaseIterable, Identifiable, Sendable {
     case bold, italic, underline, strikethrough
     case bulleted, dashed, numbered
     case outdent, indent
-    case quote
+    case quote, divider
 
     var id: String { rawValue }
 
@@ -18,7 +18,7 @@ enum FormatControl: String, CaseIterable, Identifiable, Sendable {
     /// The rows under the styles; each inner list is one pill of segments side by side.
     static let rows: [[[FormatControl]]] = [
         [[.bold, .italic, .underline, .strikethrough]],
-        [[.bulleted, .dashed, .numbered], [.outdent, .indent], [.quote]],
+        [[.bulleted, .dashed, .numbered], [.outdent, .indent], [.quote, .divider]],
     ]
 
     /// What it's called, on screen and to VoiceOver.
@@ -39,6 +39,7 @@ enum FormatControl: String, CaseIterable, Identifiable, Sendable {
         case .outdent: "Decrease Indent"
         case .indent: "Increase Indent"
         case .quote: "Block Quote"
+        case .divider: "Divider"
         }
     }
 
@@ -55,6 +56,7 @@ enum FormatControl: String, CaseIterable, Identifiable, Sendable {
         case .outdent: "decrease.indent"
         case .indent: "increase.indent"
         case .quote: "text.quote"
+        case .divider: "minus"
         default: "textformat"
         }
     }
@@ -123,7 +125,7 @@ struct FormatState: Equatable, Sendable {
         case .numbered: !monostyled && paragraph == .numbered
         case .quote: !monostyled && paragraph == .quote
         case .bold, .italic, .underline, .strikethrough: inline.contains(control.inline!)
-        case .outdent, .indent: false
+        case .outdent, .indent, .divider: false
         }
     }
 
@@ -138,6 +140,8 @@ struct FormatState: Equatable, Sendable {
         case .monostyled: !firstLine || monostyled
         // Markdown inside a code block is shown as written.
         case .bold, .italic, .underline, .strikethrough: !monostyled
+        // In a code block `---` is code.
+        case .divider: !monostyled
         default: true
         }
     }

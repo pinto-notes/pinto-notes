@@ -25,7 +25,8 @@ final class LineDecoration: NSObject {
         /// `open`: an edge line shows text (a fence written out, a block not closed yet), so the
         /// block's padding is drawn past it.
         case code(first: Bool, last: Bool, label: String? = nil, open: Bool = false)
-        case rule
+        /// A divider. `editing`: the caret is on it, so its dashes show and the line starts after them.
+        case rule(editing: Bool = false)
         case table(header: Bool, first: Bool, last: Bool, columns: [CGFloat], width: CGFloat)
     }
     let kind: Kind
@@ -294,8 +295,9 @@ struct MarkdownStyler {
             }
 
             if trimmed.count >= 3, ["-", "*", "_"].contains(where: { c in trimmed.replacingOccurrences(of: " ", with: "").allSatisfy { String($0) == c } }) {
-                storage.addAttribute(.paneLine, value: LineDecoration(.rule), range: enclosing)
-                storage.addAttributes(isActive(lineRange) ? [.foregroundColor: PColor.paneTertiary] : hidden, range: lineRange)
+                let editing = isActive(lineRange)
+                storage.addAttribute(.paneLine, value: LineDecoration(.rule(editing: editing)), range: enclosing)
+                storage.addAttributes(editing ? [.foregroundColor: PColor.paneTertiary] : hidden, range: lineRange)
                 return
             }
 

@@ -837,6 +837,8 @@ struct PaneCommands: Commands {
                 Button("Dashed List") { editor?.dashedList() }.keyboardShortcut("8", modifiers: [.command, .shift])
                 Button("Numbered List") { editor?.numberedList() }.keyboardShortcut("9", modifiers: [.command, .shift])
                 Button("Block Quote") { editor?.blockQuote() }.keyboardShortcut("'", modifiers: .command)
+                // A line across the note (`---`). No shortcut, as in Pages.
+                Button("Divider") { editor?.insertDivider() }
                 Divider()
                 Button("Table") { editor?.insertTable() }.keyboardShortcut("t", modifiers: [.command, .option])
                 // Today's date, shown as a chip that says Today (NoteDates).
