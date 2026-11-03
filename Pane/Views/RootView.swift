@@ -72,6 +72,8 @@ struct RootView: View {
     #if os(macOS)
     /// Import notes or Connect an AI, as the first run's card over the notes (Mac).
     @State private var popup: SetupCardsFlow.Only?
+    /// Keyboard Shortcuts, open (nil: closed).
+    @State private var shortcuts: [Shortcuts.Group]?
     #endif
     /// The import actions handed to the folders and the list: one box for the window's life (ImportActions).
     @State private var importBox = ImportActions.Box()
@@ -150,6 +152,13 @@ struct RootView: View {
             // One sheet for Import and Connect an AI: asking for the other swaps what it shows.
             .sheet(isPresented: Binding(get: { popup != nil }, set: { if !$0 { popup = nil } })) {
                 if let popup { popupCard(popup).popupSheet(popup.rawValue) }
+            }
+            // Help › Keyboard Shortcuts, read from the menu bar as it is when asked.
+            .onReceive(NotificationCenter.default.publisher(for: .paneShowShortcuts)) { _ in
+                shortcuts = Shortcuts.groups(in: NSApp.mainMenu)
+            }
+            .sheet(isPresented: Binding(get: { shortcuts != nil }, set: { if !$0 { shortcuts = nil } })) {
+                if let shortcuts { ShortcutsSheet(groups: shortcuts) { self.shortcuts = nil }.popupSheet("shortcuts") }
             }
             // Settings: a card over the notes, like Templates, on the window in front.
             .settingsCard(backend: backendForConnect, sync: syncForSettings, opening: { templateAIs = nil; popup = nil })
@@ -1099,6 +1108,8 @@ struct PaneCommands: Commands {
         }
         CommandGroup(after: .help) {
             // The website's changes page: release notes are never shown in the app by themselves.
+            Button(Shortcuts.title) { NotificationCenter.default.post(name: .paneShowShortcuts, object: nil) }
+                .keyboardShortcut("/", modifiers: .command)
             Button("\(WhatsNew.title)\u{2026}") { NSWorkspace.shared.open(WhatsNew.changelogURL) }
             Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil) }
         }
