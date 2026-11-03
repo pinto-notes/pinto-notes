@@ -2,14 +2,21 @@
   {
     "version": "1.3",
     "date": "2026-11-02",
-    "title": "Tables, themes and links",
+    "title": "Tags, callouts and the / menu",
     "major": true,
     "highlights": [
-      "Tables you can really edit, on iPhone too.",
-      "Pick a colour theme and an accent.",
-      "Link notes with [[Title]] and see what links back."
+      "Type / for lists, tables, callouts, dates and more.",
+      "Tag notes with #, and find them under Tags in the sidebar.",
+      "Link notes with [[Title]] and see what links back.",
+      "Pick a colour theme and an accent."
     ],
     "items": [
+      "Type / at the start of a line to add a title, list, table, code block, callout, divider, date or file",
+      "Tags: write #work in a note to tag it. Tags in the sidebar lists them with counts, and #work/clients counts under #work",
+      "Callouts and highlights: coloured boxes with an icon and a title, the same format as Obsidian, and ==text== to highlight",
+      "Dates show as Today, Tomorrow or a weekday, and on the Mac a click picks another day",
+      "Fold a section under its heading, and add divider lines from Format",
+      "On iPad: folders, notes and the open note side by side",
       "Tables are easier to edit: taller rows, add bars, bigger handles, and a Table panel on iPhone to add or delete rows and columns",
       "Colour themes (Paper, Sepia, Slate, Forest, High contrast) and an accent colour, in Settings, General, Appearance",
       "Link to another note with [[Title]]. Each note lists what links to it, and renaming a note updates the links",
@@ -22,7 +29,8 @@
       "See every change an AI made across your notes",
       "On iPhone: folders you can edit and reorder, a new Format panel, and Help and feedback in Settings",
       "On Mac: Settings as a card, a cleaner sidebar and top bar, and back and forward between notes",
-      "Shortcuts can create a note or add to one. Thanks to @sameer-dhande"
+      "Shortcuts can create a note or add to one. Thanks to @sameer-dhande",
+      "On Mac: Go to Note (⌘O) suggests notes and commands before you type, and signing in is one card over your notes"
     ]
   },
   {
