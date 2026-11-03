@@ -187,7 +187,7 @@ enum KeyCopyWords {
     static var signInAgainMessage: String { "This \(InstallID.kind) has been signed in for a while without your notes. To open them here, sign in once more." }
     static let signInAgain = "Sign In Again"
     static let askFetchTitle = "Open your notes by signing in?"
-    static var askFetchWasStrict: String { "Advanced protection was on for this account, and it is off now. Signing in can open your notes on this \(InstallID.kind). If you didn\u{2019}t turn it off, don\u{2019}t continue: reset your password and check your devices in Settings \u{203A} Security." }
+    static var askFetchWasStrict: String { "Advanced protection was on for this account, and it is off now. Signing in can open your notes on this \(InstallID.kind). If you didn\u{2019}t turn it off, don\u{2019}t continue: reset your password and check your devices in \(PrivacyCopy.settingsPath)." }
     static var askFetchOtherKey: String { "This \(InstallID.kind) holds a different key from the one your account uses now. Signing in can open your notes with the account\u{2019}s key. If you didn\u{2019}t start fresh or change anything, don\u{2019}t continue: reset your password." }
     static let askFetch = "Open My Notes"
     static let reauthStrict = "Sign out and sign in again, then try again within 10 minutes. That check keeps an old session from changing how your key is kept."

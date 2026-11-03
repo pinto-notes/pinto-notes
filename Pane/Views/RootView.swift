@@ -1119,6 +1119,14 @@ struct PaneCommands: Commands {
                 .keyboardShortcut("/", modifiers: .command)
             Button("\(WhatsNew.title)\u{2026}") { NSWorkspace.shared.open(WhatsNew.changelogURL) }
             Button("Show Setup Guide") { NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil) }
+            // What the Help and feedback page in Settings held (MacHelp).
+            Divider()
+            Button(MacHelp.questionsTitle) { MacHelp.questions() }
+            Button(MacHelp.feedbackTitle) { MacHelp.sendFeedback() }
+            Button(MacHelp.reportTitle) { MacHelp.reportIssue() }
+            Button(MacHelp.githubTitle) { MacHelp.github() }
+            Divider()
+            Button(MacHelp.connectHelp) { MacHelp.helpConnecting() }
         }
         CommandGroup(replacing: .importExport) {
             // Not inside Settings: a home anyone finds, beside Import.

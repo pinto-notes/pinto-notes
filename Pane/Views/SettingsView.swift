@@ -128,10 +128,12 @@ struct SettingsView: View {
     }
 
     #if os(macOS)
-    /// The pages there is something on: those of `tabs` (General's things are on Appearance and
-    /// Help now), and the keys for apps when apps are on.
+    /// The pages there is something on: Account, Appearance, and Privacy and security (Share
+    /// diagnostics and the terms are there, signed out too); Connect an AI signed in; the keys for
+    /// apps when apps are on.
     var places: Set<SettingsPlace> {
-        var out = Set(tabs.map(SettingsPlace.init))
+        var out: Set<SettingsPlace> = [.account, .appearance, .security]
+        if tabs.contains(.ai) { out.insert(.ai) }
         if NoteApps.enabled, isSignedIn { out.insert(.appKeys) }
         return out
     }
@@ -139,7 +141,7 @@ struct SettingsView: View {
     @ViewBuilder
     func place(_ place: SettingsPlace) -> some View {
         switch place {
-        case .account: AccountSettingsPage(backend: backend, sync: sync)
+        case .account: AccountSettingsPage(backend: backend, sync: sync, close: closeSettings)
         case .ai:
             if let client = backend.client {
                 ConnectAIPage(client: client, preview: connections, previewWaiting: connectWaiting)
@@ -151,16 +153,12 @@ struct SettingsView: View {
             if isSignedIn, crypto.isReady {
                 securityPage
             } else {
-                // Signed out with a notes password: only locked notes.
-                SettingsStack { SettingsGroup { LockedNotesCard(sync: sync).buttonStyle(.settings).padding(.vertical, 12) } }
+                // Signed out: the notes password, if there is one, diagnostics and the terms.
+                SettingsStack {
+                    if NoteVault.shared.isSetUp { SettingsGroup { LockedNotesPassword(sync: sync) } }
+                    PrivacyFoot(how: nil)
+                }
             }
-        case .storage:
-            if isSignedIn, let client = backend.client {
-                StorageSettingsPage(client: client)
-            } else {
-                StorageSettingsPage(client: nil)
-            }
-        case .help: HelpSettingsPage(signedIn: isSignedIn, close: closeSettings)
         // A form of its own, one level down; the card scrolls, so it takes a height.
         case .appKeys: SettingsPage { APIKeysSection() }.frame(height: 460)
         }

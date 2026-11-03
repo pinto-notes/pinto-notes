@@ -204,7 +204,7 @@ import Testing
         let (container, _) = try AppPerfTests().library(notes: 1, big: false)
         let route = SettingsRoute()
         let navigation = SettingsNavigation()
-        let card = SettingsCard(backend: Backend(), available: [.account, .appearance, .help, .appKeys],
+        let card = SettingsCard(backend: Backend(), available: [.account, .appearance, .security, .appKeys],
                                 page: { AnyView(SettingsPage(place: $0, navigation: navigation)) }, route: route, start: .account, close: {})
         let (window, _) = AppPerfTests().window(card.modelContainer(container), width: 1100)
         defer { window.close() }

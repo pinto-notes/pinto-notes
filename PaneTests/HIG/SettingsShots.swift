@@ -5,8 +5,8 @@ import SwiftUI
 import Testing
 @testable import Pane
 
-/// Settings on the Mac as built (direction A of the 3 November 2026 study): every page over the
-/// notes window, light and dark, then a contact sheet of them. Windows far off screen, never
+/// Settings on the Mac as built (3 November 2026, four pages: Account, Connect an AI, Appearance,
+/// Privacy and security): every page over the notes window, light and dark, then a contact sheet. Windows far off screen, never
 /// ordered in.
 /// `TEST_RUNNER_PANE_SETTINGS_SHOTS=/path LIMIT=900 scripts/qa-test.sh PaneTests/SettingsShots`
 @MainActor @Suite(.serialized) struct SettingsShots {
@@ -83,8 +83,7 @@ import Testing
             v.close = {}
             return v
         }
-        let pages: [(SettingsPlace, String)] = [(.account, "account"), (.ai, "connect"), (.appearance, "appearance"),
-                                                 (.security, "security"), (.storage, "storage"), (.help, "help")]
+        let pages: [(SettingsPlace, String)] = [(.account, "account"), (.ai, "connect"), (.appearance, "appearance"), (.security, "privacy")]
         var rows: [[(String, NSBitmapImageRep)]] = []
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
             for (place, name) in pages {
@@ -96,12 +95,21 @@ import Testing
                 }
                 rows.append(row)
             }
-            // Before any AI is connected, and signed out.
+            // Before any AI is connected, signed out, and nearly full.
             let none = try await shoot(window(view(.ai, connections: []), library: lib), dark: false)
             try save(none, "connect-none-light", in: dir)
             let out = try await shoot(window(view(.account, backend: Backend()), library: lib), dark: false)
             try save(out, "account-signed-out-light", in: dir)
             rows.append([("Connect an AI, nothing connected", none), ("Account, signed out", out)])
+            let privacyOut = try await shoot(window(view(.security, backend: Backend()), library: lib), dark: true)
+            try save(privacyOut, "privacy-signed-out-dark", in: dir)
+            let kept = StorageStore.shared.usage
+            let g: Int64 = 1_073_741_824
+            StorageStore.shared.usage = StorageUsage(used: 2 * g - g / 10, limit: 2 * g, notes: 41_000_000, files: g, apps: 0, deleted: 400_000_000, versions: 60_000_000)
+            let full = try await shoot(window(view(.account), library: lib), dark: false)
+            StorageStore.shared.usage = kept
+            try save(full, "account-almost-full-light", in: dir)
+            rows.append([("Privacy and security, signed out", privacyOut), ("Account, almost full", full)])
         }
         // Each page whole, as it scrolls, so nothing under the card's edge goes unseen.
         for (place, name) in pages {
@@ -124,7 +132,7 @@ import Testing
                 w.close()
             }
         }
-        try ThemeShots.sheet("Settings, direction A as built", rows: rows, scale: 0.5).write(to: dir.appending(path: "sheet.png"))
+        try ThemeShots.sheet("Settings, four pages", rows: rows, scale: 0.5).write(to: dir.appending(path: "sheet.png"))
     }
 }
 #endif

@@ -28,6 +28,11 @@ struct AppearanceSection: View {
     /// The accent row shows for every theme but High contrast.
     static func showsAccent(_ look: ThemeLook) -> Bool { look.theme != .contrast }
 
+    /// The Mac's page says only what High contrast changes; nothing under the other themes.
+    static func macFooter(_ look: ThemeLook) -> String? {
+        look.theme == .contrast ? "High contrast uses its own blue and yellow." : nil
+    }
+
     static func footer(_ look: ThemeLook) -> String {
         look.theme == .contrast ? "High contrast uses its own blue and yellow. Set on each device." : "Set on each device."
     }

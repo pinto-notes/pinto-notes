@@ -8,11 +8,11 @@ import UIKit
 #if os(macOS)
 
 /// The pages of Settings on the Mac (SettingsCard), in its sidebar's order: Account, Connect an
-/// AI and Appearance; Security and Storage; Help and feedback (Emil, 3 November 2026: no General
-/// page; Show in menu bar is on Appearance, diagnostics on Help and feedback). Keys for apps is one
-/// level down from Connect an AI.
+/// AI, Appearance, Privacy and security (Emil, 3 November 2026: "simplify and cut things"). No
+/// Storage page (its bar is on Account) and no Help and feedback page (its links are in the Help
+/// menu). Keys for apps is one level down from Connect an AI.
 enum SettingsPlace: String, Hashable, CaseIterable, Identifiable {
-    case account, ai, appearance, security, storage, help, appKeys
+    case account, ai, appearance, security, appKeys
     var id: String { rawValue }
 
     var title: String {
@@ -20,9 +20,7 @@ enum SettingsPlace: String, Hashable, CaseIterable, Identifiable {
         case .account: "Account"
         case .ai: "Connect an AI"
         case .appearance: "Appearance"
-        case .security: PrivacyCopy.title
-        case .storage: "Storage"
-        case .help: "Help and feedback"
+        case .security: "Privacy and security"
         case .appKeys: "Keys for apps"
         }
     }
@@ -30,12 +28,10 @@ enum SettingsPlace: String, Hashable, CaseIterable, Identifiable {
     /// The line under the page's title: what the page is for, in one plain sentence.
     var intro: String {
         switch self {
-        case .account: "Who you are here, and how you sign in."
+        case .account: "Your name, your sync and the space your notes take."
         case .ai: "Let your AI read and edit your notes when you ask."
         case .appearance: "How Pinto Notes looks on this Mac."
-        case .security: "Who can open your notes, and how they stay private."
-        case .storage: "What your notes take up in your account."
-        case .help: "Answers, feedback and what\u{2019}s new."
+        case .security: "Who can open your notes, and what is shared."
         case .appKeys: "Keys the apps in your notes use to reach other services."
         }
     }
@@ -47,60 +43,94 @@ enum SettingsPlace: String, Hashable, CaseIterable, Identifiable {
         case .ai: "sparkles"
         case .appearance: "circle.lefthalf.filled"
         case .security: "lock"
-        case .storage: "externaldrive"
-        case .help: "questionmark.circle"
         case .appKeys: "key"
         }
     }
 
-    /// Where a link into Settings lands (the account menu, a card, the storage warning). General's
-    /// things moved: its link opens Appearance, where Show in menu bar is now.
+    /// Where a link into Settings lands (a card, the storage warning, an alert). Pages that went:
+    /// Storage's bar is on Account; General's switch is on Appearance; Help's links are in the Help
+    /// menu, so a link to it opens Account.
     init(_ tab: SettingsTab) {
         switch tab {
-        case .account: self = .account
+        case .account, .storage, .help: self = .account
         case .ai: self = .ai
         case .security: self = .security
-        case .storage: self = .storage
-        case .general: self = .appearance
-        case .appearance: self = .appearance
-        case .help: self = .help
+        case .general, .appearance: self = .appearance
         }
     }
 
-    /// The sidebar's groups, in order, from the places there is something on. Keys for apps sits
+    /// The sidebar's pages, in order, from the places there is something on. Keys for apps sits
     /// under Connect an AI, not in the sidebar.
     static func groups(available: Set<SettingsPlace>) -> [[SettingsPlace]] {
-        [[.account, .ai, .appearance], [.security, .storage], [.help]]
+        [[.account, .ai, .appearance, .security]]
             .map { $0.filter(available.contains) }
             .filter { !$0.isEmpty }
     }
 }
 
-/// Every setting by the words on it, for the search field. Each word leads to its page.
+/// Things that left Settings for a menu, still found by Settings search: a result runs the menu
+/// item, and says which menu it is in.
+enum SettingsMenuLink: String, Hashable, CaseIterable, Sendable {
+    case export, setupGuide, whatsNew, questions, feedback, reportIssue, github, connectHelp
+
+    var menu: String { self == .export ? "File menu" : "Help menu" }
+    var symbol: String { self == .export ? "square.and.arrow.up" : "questionmark.circle" }
+
+    /// Runs it once Settings has closed, so what it opens isn't under the card.
+    @MainActor func run() {
+        switch self {
+        case .export: NotificationCenter.default.post(name: .paneExportNotes, object: nil)
+        case .setupGuide: NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil)
+        case .whatsNew: NSWorkspace.shared.open(WhatsNew.changelogURL)
+        case .questions: MacHelp.questions()
+        case .feedback: MacHelp.sendFeedback()
+        case .reportIssue: MacHelp.reportIssue()
+        case .github: MacHelp.github()
+        case .connectHelp: MacHelp.helpConnecting()
+        }
+    }
+
+    /// Connect an AI's help opens over Settings itself; the rest close it first.
+    var closesSettings: Bool { self != .connectHelp }
+}
+
+/// Every setting by the words on it, for the search field. Each word leads to its page, or to the
+/// menu item it moved to.
 enum SettingsIndex {
     struct Entry: Hashable {
         let label: String
+        /// Its page; for a menu item, the page whose presence it goes with.
         let place: SettingsPlace
         /// Other words it goes by, found but not shown.
         var also: [String] = []
+        /// Set: it is a menu item now, and the result runs it.
+        var menu: SettingsMenuLink? = nil
+
+        /// The line under the result: its page, or the menu it is in.
+        var whereItIs: String { menu?.menu ?? place.title }
     }
 
     static let all: [Entry] = ([
         ("Name", .account), ("Photo", .account), ("Sign Out", .account), ("Remove notes from this Mac", .account),
-        ("Sync", .account), ("Sync Now", .account), ("Sign in with Apple", .account), ("Export notes", .account), ("Delete account", .account),
+        ("Sync now", .account), ("Storage used", .account), ("Delete account", .account),
         ("Connect ChatGPT", .ai), ("Connect Claude", .ai), ("Connect Grok", .ai), ("Connect Codex", .ai), ("Connected AIs", .ai),
         ("Disconnect", .ai), ("App previews", .ai), ("Keys for apps", .appKeys),
         (recoveryKey, .security), ("Devices", .security), ("Add a device", .security), (advancedProtection, .security),
         ("Locked notes password", .security), ("Touch ID", .security), ("Lock Now", .security),
-        ("Storage used", .storage), ("Recently Deleted", .storage), ("Earlier versions", .storage),
+        ("Share diagnostics and usage", .security), ("Terms of Service", .security), ("Privacy Policy", .security), ("How it works", .security),
         ("Light or dark mode", .appearance), ("Theme", .appearance), ("Show in menu bar", .appearance),
-        ("Share diagnostics and usage", .help), ("Show Setup Guide", .help), ("Questions and answers", .help), ("Report an issue", .help),
-        ("Contribute", .help), ("Star on GitHub", .help), ("Terms", .help), ("Privacy policy", .help), ("Version", .help),
     ] as [(String, SettingsPlace)]).map { Entry(label: $0.0, place: $0.1) }
         + [Entry(label: "Accent colour", place: .appearance, also: ["Accent color"]),
-           Entry(label: WhatsNew.title, place: .help, also: ["What's new", "Changelog"]),
-           Entry(label: "Send feedback", place: .help, also: ["Email", "Contact", "Support", "Help"]),
-           Entry(label: "Your account", place: .account, also: ["Profile", "Email", "Signed in with"])]
+           Entry(label: "Your account", place: .account, also: ["Profile", "Email", "Signed in with", "Sync"]),
+           Entry(label: "Storage", place: .account, also: ["Space", "Recently Deleted", "Earlier versions", "Full"]),
+           Entry(label: "Export All Notes", place: .account, also: ["Export notes", "Markdown", "Backup"], menu: .export),
+           Entry(label: "Show Setup Guide", place: .account, menu: .setupGuide),
+           Entry(label: WhatsNew.title, place: .account, also: ["What's new", "Changelog", "Version"], menu: .whatsNew),
+           Entry(label: "Questions and Answers", place: .account, also: ["Help", "Support"], menu: .questions),
+           Entry(label: "Send Feedback", place: .account, also: ["Email", "Contact", "Support", "Help"], menu: .feedback),
+           Entry(label: "Report an Issue", place: .account, also: ["Bug"], menu: .reportIssue),
+           Entry(label: "Pinto Notes on GitHub", place: .account, also: ["Contribute", "Star", "Open source"], menu: .github),
+           Entry(label: "Help Connecting an AI", place: .ai, also: ["Having trouble", "Connector address", "Access token"], menu: .connectHelp)]
 
     static let advancedProtection = "Advanced protection"
     /// Only for an account offered a recovery key (RecoveryKeyOffer): signing in opens a standard account's notes.

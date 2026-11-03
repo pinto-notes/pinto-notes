@@ -242,12 +242,12 @@ import Testing
         }
     }
 
-    /// Clicking yourself opens a native menu (Emil, 3 November 2026): you, then Settings… (⌘,),
-    /// Account, Help and feedback, and Sign Out…. Never Connect an AI.
+    /// Clicking yourself opens a native menu (Emil, 3 November 2026, "simplify and cut things"):
+    /// you, then Settings… (⌘,), Send Feedback… and Sign Out…. Never Connect an AI.
     @Test func clickingOpensTheAccountMenu() throws {
         var done: [AccountMenu.Action] = []
         let menu = AccountMenu.make(name: "Sara Lind", email: "sara@example.com", signedIn: true) { done.append($0) }
-        #expect(menu.items.map { $0.isSeparatorItem ? "-" : $0.title } == ["Sara Lind, sara@example.com", "-", "Settings\u{2026}", "Account", "Help and feedback", "-", "Sign Out\u{2026}"])
+        #expect(menu.items.map { $0.isSeparatorItem ? "-" : $0.title } == ["Sara Lind, sara@example.com", "-", "Settings\u{2026}", "Send Feedback\u{2026}", "-", "Sign Out\u{2026}"])
         #expect(!menu.items[0].isEnabled, "you are a heading, not a command")
         #expect(menu.items[0].attributedTitle?.string == "Sara Lind\nsara@example.com")
         let settings = menu.items[2]
@@ -257,7 +257,7 @@ import Testing
             #expect(item.image != nil, "\(item.title) has its symbol")
             _ = (item.target as? NSObject)?.perform(item.action)
         }
-        #expect(done == [.settings, .account, .help, .signOut])
+        #expect(done == [.settings, .feedback, .signOut])
         // Signed out there's nothing to sign out of.
         let out = AccountMenu.make(name: AccountName.fallback, email: nil, signedIn: false) { _ in }
         #expect(!out.items.contains { $0.title.hasPrefix("Sign Out") })
@@ -265,10 +265,6 @@ import Testing
         let route = SettingsRoute(defaults: UserDefaults(suiteName: "account-menu-\(UUID())")!)
         AccountMenu.perform(.settings, route: route)
         #expect(route.presenting && route.target == nil, "Settings… is ⌘,: at its first page, Account")
-        AccountMenu.perform(.account, route: route)
-        #expect(route.target == .account && SettingsPlace(route.target!) == .account)
-        AccountMenu.perform(.help, route: route)
-        #expect(route.target == .help)
         #expect(SettingsCard.first(Set(SettingsPlace.allCases)) == .account, "Settings never opens at Connect an AI")
         // The row opens the menu, natively; Sign Out… asks with the same alert as Settings.
         let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -293,7 +289,7 @@ import Testing
         #expect(host.columns == columns, "the columns keep their widths")
         #expect(host.toolbar == toolbar, "the toolbar keeps its items")
         // Links into Settings open their page in the card.
-        for (tab, place) in [(SettingsTab.account, SettingsPlace.account), (.storage, .storage), (.general, .appearance), (.appearance, .appearance), (.ai, .ai), (.help, .help)] {
+        for (tab, place) in [(SettingsTab.account, SettingsPlace.account), (.storage, .account), (.general, .appearance), (.appearance, .appearance), (.ai, .ai), (.help, .account), (.security, .security)] {
             SettingsRoute.shared.open(tab)
             await host.settle()
             #expect(SettingsRoute.shared.page == place, "\(tab) opens \(place)")
@@ -304,10 +300,10 @@ import Testing
         await host.settle()
         // At least once: a sheet that can't go on a screen here is laid out again by SwiftUI.
         #expect(AppearancePage.onScreen >= 1, "Appearance's page shows its mode, theme and accent")
-        SettingsRoute.shared.open(.help)
+        SettingsRoute.shared.open(.security)
         await host.settle()
-        #expect(SettingsRoute.shared.page == .help)
-        #expect(AppearancePage.onScreen == 0, "Help has no theme, mode or accent")
+        #expect(SettingsRoute.shared.page == .security)
+        #expect(AppearancePage.onScreen == 0, "Privacy and security has no theme, mode or accent")
     }
 
     /// The foot (the study's rows and the account) at rest and under the pointer in a sidebar-wide

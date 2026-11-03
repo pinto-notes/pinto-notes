@@ -158,6 +158,17 @@ struct SettingsCard: View {
         selected = place
     }
 
+    /// A result: its page, or the menu item it moved to, run once Settings has closed.
+    private func pick(_ entry: SettingsIndex.Entry) {
+        guard let menu = entry.menu else { open(entry.place); return }
+        if menu.closesSettings {
+            closeNow()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { menu.run() }
+        } else {
+            menu.run()
+        }
+    }
+
     private func closeNow() {
         if let close { close() } else { dismiss() }
     }
@@ -271,6 +282,14 @@ struct SettingsCard: View {
                 results
             }
             Spacer(minLength: 0)
+            // The version, small, where it's found when something goes wrong (Help's page went).
+            Text("Version \(AboutSection.version)")
+                .font(.system(size: 11))
+                .foregroundStyle(SettingsInk.muted)
+                .monospacedDigit()
+                .textSelection(.enabled)
+                .padding(.horizontal, 8)
+                .accessibilityIdentifier("settings.version")
         }
         .padding(.top, 18)
         .padding(.horizontal, 12)
@@ -309,24 +328,28 @@ struct SettingsCard: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Self.tabGap) {
                 ForEach(found, id: \.self) { entry in
-                    Button { open(entry.place) } label: {
+                    Button { pick(entry) } label: {
                         HStack(spacing: 9) {
-                            icon(entry.place, on: shown == entry.place)
+                            if let menu = entry.menu {
+                                Image(systemName: menu.symbol).font(.system(size: 13)).foregroundStyle(SettingsInk.icon).frame(width: 20)
+                            } else {
+                                icon(entry.place, on: shown == entry.place)
+                            }
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(entry.label).font(.system(size: 13)).foregroundStyle(SettingsInk.text).lineLimit(1)
-                                Text(entry.place.title).font(.system(size: 11)).foregroundStyle(SettingsInk.muted).lineLimit(1)
+                                Text(entry.whereItIs).font(.system(size: 11)).foregroundStyle(SettingsInk.muted).lineLimit(1)
                             }
                             Spacer(minLength: 0)
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
-                        .background(highlight(shown == entry.place))
+                        .background(highlight(entry.menu == nil && shown == entry.place))
                         .contentShape(.rect)
                         .hoverRow(reach: EdgeInsets())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("\(entry.label), \(entry.place.title)")
-                    .accessibilityIdentifier("settings.result.\(entry.place.rawValue)")
+                    .accessibilityLabel("\(entry.label), \(entry.whereItIs)")
+                    .accessibilityIdentifier(entry.menu.map { "settings.result.menu.\($0.rawValue)" } ?? "settings.result.\(entry.place.rawValue)")
                 }
             }
         }

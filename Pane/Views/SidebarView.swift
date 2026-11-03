@@ -20,8 +20,8 @@ enum AccountName {
 #if os(macOS)
 /// The account at the foot of the sidebar, like the Mac App Store's: your photo (or initials) in a
 /// circle and your name. Clicking it opens a native menu (Emil, 3 November 2026, as ChatGPT, Claude
-/// and Slack do): you at the top, then Settings… (⌘,), Account, Help and feedback, and Sign Out…,
-/// which asks first, so a slip of the mouse here can never sign you out. It never opens Connect
+/// and Slack do): you at the top, then Settings… (⌘,), Send Feedback… and Sign Out…, which asks
+/// first, so a slip of the mouse here can never sign you out. It never opens Connect
 /// an AI.
 struct AccountButton: View {
     let backend: Backend
@@ -97,10 +97,10 @@ struct AccountButton: View {
 }
 
 /// The account menu's items, as NSMenu draws them: you (not a command), then Settings… (⌘,),
-/// Account, Help and feedback, and Sign Out….
+/// Send Feedback… and Sign Out… (Emil, 3 November 2026: "simplify and cut things").
 @MainActor
 enum AccountMenu {
-    enum Action: Equatable { case settings, account, help, signOut }
+    enum Action: Equatable { case settings, feedback, signOut }
 
     static func make(name: String, email: String?, signedIn: Bool, perform: @escaping (Action) -> Void) -> NSMenu {
         let menu = NSMenu()
@@ -116,8 +116,7 @@ enum AccountMenu {
         menu.addItem(you)
         menu.addItem(.separator())
         menu.addItem(Item("Settings\u{2026}", symbol: "gearshape", key: ",") { perform(.settings) })
-        menu.addItem(Item("Account", symbol: "person.crop.circle") { perform(.account) })
-        menu.addItem(Item("Help and feedback", symbol: "questionmark.circle") { perform(.help) })
+        menu.addItem(Item(MacHelp.feedbackTitle, symbol: "envelope") { perform(.feedback) })
         if signedIn {
             menu.addItem(.separator())
             menu.addItem(Item("Sign Out\u{2026}", symbol: "rectangle.portrait.and.arrow.right") { perform(.signOut) })
@@ -129,8 +128,7 @@ enum AccountMenu {
     static func perform(_ action: Action, route: SettingsRoute = .shared) {
         switch action {
         case .settings: route.show()
-        case .account: route.open(.account)
-        case .help: route.open(.help)
+        case .feedback: MacHelp.sendFeedback()
         case .signOut: break
         }
     }

@@ -12,10 +12,19 @@ import PDFKit
 /// What Settings › Security says, in one place.
 enum PrivacyCopy {
     static let title = "Security"
+    /// Where the page is, in a sentence: the Mac calls it Privacy and security (3 November 2026).
+    #if os(macOS)
+    static let settingsPath = "Settings \u{203A} Privacy and security"
+    #else
+    static let settingsPath = "Settings \u{203A} Security"
+    #endif
     /// The page's question and its one-line answer. "Encrypted", never "end-to-end": that's said
     /// only in "How it works" with Advanced protection on.
     static let whoCanOpen = "Who can open your notes"
     static let status = "Encrypted on your devices before they sync."
+    /// The Mac's page in one line: how the notes are kept, and with a copy kept by Pinto Notes,
+    /// that Pinto Notes can open them too.
+    static func summary(serverCopy: Bool) -> String { status + " " + backInFooter(serverCopy: serverCopy) }
     static let devicesHeader = "Your devices"
     static let backInHeader = "To help you back in"
     static let aiHeader = "While connected"
@@ -74,7 +83,7 @@ enum PrivacyCopy {
         if recovery {
             out.append(("key.horizontal", "Recovery key", "Opens your notes if you lose your devices. Keep it somewhere safe."))
         }
-        out.append(("lock.doc", "Locked notes", "Each locked note needs your notes password. A connected AI sees the title, not what\u{2019}s inside."))
+        out.append(("lock.doc", "Locked notes", "Each locked note needs your notes password. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu. A connected AI sees the title, not what\u{2019}s inside."))
         return out
     }
 
@@ -97,7 +106,7 @@ enum PrivacyCopy {
     /// `recovery`: the recovery key is offered (RecoveryKeyOffer). Without it, signing in brings the key back.
     static func notSavedMessage(recovery: Bool) -> String {
         recovery
-            ? "Your notes are open now, but this \(InstallID.kind) will ask for your key again the next time Pinto Notes opens. Save your recovery key first, in Settings \u{203A} Security, or keep another device at hand to add this one."
+            ? "Your notes are open now, but this \(InstallID.kind) will ask for your key again the next time Pinto Notes opens. Save your recovery key first, in \(settingsPath), or keep another device at hand to add this one."
             : "Your notes are open now, but this \(InstallID.kind) will need your key again the next time Pinto Notes opens. Signing in gets it back."
     }
     static let showRecovery = "Show Recovery Key"
@@ -108,7 +117,7 @@ enum PrivacyCopy {
     static let fileName = "Pinto Notes Recovery Key"
     static let recoveryChangedTitle = "Your recovery key changed"
     static let recoveryChanged = "Your account started fresh on another device, so a recovery key you saved before no longer opens your notes. The new one is here."
-    static let recoveryChangedAlert = "Your account started fresh on another device, so it has a new recovery key. If you keep one, the new one is in Settings › Security."
+    static let recoveryChangedAlert = "Your account started fresh on another device, so it has a new recovery key. If you keep one, the new one is in \(settingsPath)."
     static let exportFooter = "Every note as a Markdown file in its folder, with its files. Your notes are encrypted, so the export is made on this device."
     static let exportFooterLocal = "Every note on this device as a Markdown file in its folder, with its files."
 }
@@ -419,38 +428,31 @@ struct PrivacySecuritySection: View {
     // MARK: Mac
 
     #if os(macOS)
-    /// Settings › Security on the Mac, in the System Settings form (3 November 2026): a summary
-    /// of how your notes are kept, then who can open them as rows (each device, Pinto Notes'
-    /// copy, each AI) with Add a device under them, the recovery key, locked notes, and How it works.
+    /// Settings › Privacy and security on the Mac (Emil, 3 November 2026: "simplify and cut
+    /// things"): one line on how your notes are kept (an account where Pinto Notes keeps a copy of
+    /// the key is told so; never "end-to-end"), who can open them (each device, Pinto Notes' copy,
+    /// each AI) with Add a device, the recovery key, the notes password once there is one, Share
+    /// diagnostics and usage, How it works (locked notes are explained there), and the terms.
     private var page: some View {
         let c = content
         return SettingsStack {
-            SettingsSummary {
-                HStack(alignment: .top, spacing: 14) {
-                    Image(systemName: "lock.fill").font(.system(size: 22)).foregroundStyle(SettingsInk.icon)
-                        .frame(width: 40, height: 40)
-                        .background(Circle().fill(SettingsInk.selection))
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(PrivacyCopy.status).font(.system(size: 15, weight: .semibold)).foregroundStyle(SettingsInk.text)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .accessibilityIdentifier("privacy.summary")
-                        Text(c.backInFooter + (c.ais.isEmpty ? "" : " " + PrivacyCopy.aiFooter))
-                            .font(.system(size: 12.5)).foregroundStyle(SettingsInk.muted)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .accessibilityIdentifier("privacy.backInFooter")
-                        if c.onlyThisDevice {
-                            Label(PrivacyCopy.onlyTitle + ". " + PrivacyCopy.onlyDetail, systemImage: "exclamationmark.circle.fill")
-                                .font(.system(size: 12.5))
-                                .foregroundStyle(.orange)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .accessibilityIdentifier("privacy.onlyThisDevice")
-                        }
-                        if let problem { Text(problem).font(.system(size: 12.5)).foregroundStyle(.red) }
-                    }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(PrivacyCopy.summary(serverCopy: c.serverCopy))
+                    .font(.system(size: 13))
+                    .foregroundStyle(SettingsInk.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("privacy.summary")
+                if c.onlyThisDevice {
+                    Label(PrivacyCopy.onlyTitle + ". " + PrivacyCopy.onlyDetail, systemImage: "exclamationmark.circle.fill")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("privacy.onlyThisDevice")
                 }
+                if let problem { Text(problem).font(.system(size: 12.5)).foregroundStyle(.red) }
             }
-            SettingsGroup(header: PrivacyCopy.whoCanOpen) {
+            .padding(.horizontal, 4)
+            SettingsGroup(header: PrivacyCopy.whoCanOpen, footer: c.ais.isEmpty ? nil : PrivacyCopy.aiFooter) {
                 ForEach(c.devices) { o in opener(o) }
                 if let p = c.pintoNotes { opener(p).accessibilityIdentifier("privacy.serverCopy") }
                 ForEach(c.ais) { opener($0) }
@@ -467,69 +469,59 @@ struct PrivacySecuritySection: View {
                     }
                 }
             }
-            if let recovery = c.recovery {
-                SettingsGroup {
-                    SettingsLine(title: recovery == .saved ? PrivacyCopy.recoveryKey : PrivacyCopy.saveARecoveryKey,
-                                 detail: recovery == .saved ? PrivacyCopy.recoverySaved + ". " + PrivacyCopy.saveARecoveryKeyLine : PrivacyCopy.saveARecoveryKeyLine) {
-                        Image(systemName: "key.horizontal").font(.system(size: 14)).foregroundStyle(SettingsInk.icon).frame(width: 28)
-                    } trailing: {
-                        HStack(spacing: 6) {
-                            if recovery == .saved {
-                                // Short words on the row; VoiceOver hears the full names.
-                                if shown != nil {
-                                    Button("Hide") { self.shown = nil }
-                                        .buttonStyle(.hoverText).foregroundStyle(SettingsInk.muted)
-                                        .accessibilityLabel(PrivacyCopy.hideRecovery)
-                                        .accessibilityIdentifier("privacy.hideRecovery")
-                                } else {
-                                    Button("Show") { Task { await reveal(reason: PrivacyCopy.showReason) { shown = $0 } } }
-                                        .buttonStyle(.hoverText).foregroundStyle(SettingsInk.muted)
-                                        .accessibilityLabel(PrivacyCopy.showRecovery)
-                                        .accessibilityIdentifier("privacy.showRecovery")
-                                }
-                                Button("Save\u{2026}") { save() }
-                                    .buttonStyle(.settings)
-                                    .accessibilityLabel(PrivacyCopy.saveRecovery)
-                                    .accessibilityIdentifier("privacy.saveRecoveryAgain")
-                                    .modifier(saveSheet)
-                            } else {
-                                Button("Save\u{2026}") { save() }
-                                    .buttonStyle(.settings)
-                                    .accessibilityLabel(PrivacyCopy.saveARecoveryKey)
-                                    .accessibilityIdentifier("privacy.saveRecovery")
-                                    .modifier(saveSheet)
-                            }
-                        }
-                    }
-                    .accessibilityIdentifier(recovery == .saved ? "privacy.recoveryStatus" : "privacy.recoveryRow")
-                    if shown != nil || crypto.recoveryKeyChanged {
-                        VStack(alignment: .leading, spacing: 8) { recoveryExtras }
-                            .padding(.vertical, 10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-            }
+            if let recovery = c.recovery { recoveryGroup(recovery) }
             if c.showsProtection {
                 SettingsGroup(header: KeyCopyWords.strictTitle, footer: protectionFooter) {
                     protectionToggle.padding(.vertical, 10)
                 }
             }
-            SettingsGroup {
-                LockedNotesCard(sync: sync).buttonStyle(.settings).padding(.vertical, 12)
+            if NoteVault.shared.isSetUp {
+                SettingsGroup { LockedNotesPassword(sync: sync) }
             }
-            Button { showsHow = true } label: {
+            PrivacyFoot(how: { showsHow = true })
+        }
+    }
+
+    private func recoveryGroup(_ recovery: SecurityContent.Recovery) -> some View {
+        SettingsGroup {
+            SettingsLine(title: recovery == .saved ? PrivacyCopy.recoveryKey : PrivacyCopy.saveARecoveryKey,
+                         detail: recovery == .saved ? PrivacyCopy.recoverySaved + ". " + PrivacyCopy.saveARecoveryKeyLine : PrivacyCopy.saveARecoveryKeyLine) {
+                Image(systemName: "key.horizontal").font(.system(size: 14)).foregroundStyle(SettingsInk.icon).frame(width: 28)
+            } trailing: {
                 HStack(spacing: 6) {
-                    Image(systemName: "info.circle").accessibilityHidden(true)
-                    Text(PrivacyCopy.howItWorks)
-                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).accessibilityHidden(true)
+                    if recovery == .saved {
+                        // Short words on the row; VoiceOver hears the full names.
+                        if shown != nil {
+                            Button("Hide") { self.shown = nil }
+                                .buttonStyle(.hoverText).foregroundStyle(SettingsInk.muted)
+                                .accessibilityLabel(PrivacyCopy.hideRecovery)
+                                .accessibilityIdentifier("privacy.hideRecovery")
+                        } else {
+                            Button("Show") { Task { await reveal(reason: PrivacyCopy.showReason) { shown = $0 } } }
+                                .buttonStyle(.hoverText).foregroundStyle(SettingsInk.muted)
+                                .accessibilityLabel(PrivacyCopy.showRecovery)
+                                .accessibilityIdentifier("privacy.showRecovery")
+                        }
+                        Button("Save\u{2026}") { save() }
+                            .buttonStyle(.settings)
+                            .accessibilityLabel(PrivacyCopy.saveRecovery)
+                            .accessibilityIdentifier("privacy.saveRecoveryAgain")
+                            .modifier(saveSheet)
+                    } else {
+                        Button("Save\u{2026}") { save() }
+                            .buttonStyle(.settings)
+                            .accessibilityLabel(PrivacyCopy.saveARecoveryKey)
+                            .accessibilityIdentifier("privacy.saveRecovery")
+                            .modifier(saveSheet)
+                    }
                 }
-                .contentShape(.rect)
             }
-            .buttonStyle(.hoverText)
-            .font(.system(size: 12.5))
-            .foregroundStyle(SettingsInk.muted)
-            .padding(.horizontal, 4)
-            .accessibilityIdentifier("privacy.howItWorks")
+            .accessibilityIdentifier(recovery == .saved ? "privacy.recoveryStatus" : "privacy.recoveryRow")
+            if shown != nil || crypto.recoveryKeyChanged {
+                VStack(alignment: .leading, spacing: 8) { recoveryExtras }
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
@@ -1131,3 +1123,44 @@ struct PDFFile: FileDocument {
         FileWrapper(regularFileWithContents: data)
     }
 }
+
+#if os(macOS)
+/// The foot of Privacy and security: Share diagnostics and usage with what it sends, How it
+/// works, then the terms and the privacy policy. There signed out too.
+struct PrivacyFoot: View {
+    /// Nil: no How it works (signed out, there's no key to explain).
+    var how: (() -> Void)?
+    @AppStorage(Telemetry.consentKey) private var share = true
+
+    var body: some View {
+        SettingsGroup(footer: DiagnosticsCopy.footer) {
+            SettingsLine(title: DiagnosticsCopy.title) {
+                Toggle(DiagnosticsCopy.title, isOn: Binding(get: { share }, set: { share = $0; Telemetry.shared.consent = $0 }))
+                    .settingsSwitch()
+                    .accessibilityIdentifier("settings.diagnostics")
+            }
+        }
+        VStack(alignment: .leading, spacing: 8) {
+            if let how {
+                Button(action: how) {
+                    HStack(spacing: 4) {
+                        Text(PrivacyCopy.howItWorks)
+                        Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).accessibilityHidden(true)
+                    }
+                }
+                .buttonStyle(.hoverLink)
+                .font(.system(size: 12.5))
+                .foregroundStyle(SettingsInk.text)
+                .accessibilityIdentifier("privacy.howItWorks")
+            }
+            // At the left edge, with the rest of the foot.
+            LegalLinksRow().fixedSize(horizontal: true, vertical: false)
+            Text(HelpCopy.trademarks)
+                .font(.system(size: 11))
+                .foregroundStyle(SettingsInk.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 4)
+    }
+}
+#endif

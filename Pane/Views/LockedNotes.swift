@@ -420,39 +420,37 @@ struct LockedNotesHowTo: View {
 }
 
 #if os(macOS)
-/// Locked notes on the Mac's Security page, a card of its own: how to lock one, then the
-/// password's controls once there is one.
-struct LockedNotesCard: View {
+/// The notes password on the Mac's Privacy and security page, once there is one: Change
+/// Password…, Lock Now while notes are open, and Touch ID. How locking works is in How it works.
+struct LockedNotesPassword: View {
     let sync: SyncEngine?
     @State private var changing = false
     private var vault: NoteVault { .shared }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            LockedNotesHowTo()
-            if LockedNotesSection.shown(setUp: vault.isSetUp) == .controls {
-                HStack(spacing: 10) {
-                    Button("Change Password\u{2026}") { changing = true }
-                        .accessibilityIdentifier("settings.changeNotesPassword")
-                    if vault.isUnlocked {
-                        Button("Lock Now") { vault.lockNow() }
-                            .accessibilityIdentifier("settings.lockNow")
-                    }
-                    Spacer(minLength: 8)
-                    if let name = vault.keyStore.biometryName {
-                        Toggle("Use \(name)", isOn: Binding(get: { vault.usesBiometrics }, set: { vault.usesBiometrics = $0 }))
-                            .toggleStyle(.switch)
-                            .tint(Color(Palette.switchOn))
-                            .accessibilityIdentifier("settings.notesBiometrics")
-                    }
+        SettingsLine(title: "Notes password", detail: "Opens your locked notes.") {
+            Image(systemName: "lock.doc").font(.system(size: 14)).foregroundStyle(SettingsInk.icon).frame(width: 28)
+        } trailing: {
+            HStack(spacing: 6) {
+                if vault.isUnlocked {
+                    Button("Lock Now") { vault.lockNow() }
+                        .buttonStyle(.hoverText).foregroundStyle(SettingsInk.muted)
+                        .accessibilityIdentifier("settings.lockNow")
                 }
-                .padding(.leading, 32)
-                Text(LockedNotesCopy.footer).font(.callout).foregroundStyle(Color.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.leading, 32)
+                Button("Change\u{2026}") { changing = true }
+                    .buttonStyle(.settings)
+                    .accessibilityLabel("Change Notes Password")
+                    .accessibilityIdentifier("settings.changeNotesPassword")
             }
         }
         .sheet(isPresented: $changing) { ChangeNotesPasswordSheet(sync: sync) }
+        if let name = vault.keyStore.biometryName {
+            SettingsLine(title: "Use \(name) for locked notes") {
+                Toggle("Use \(name)", isOn: Binding(get: { vault.usesBiometrics }, set: { vault.usesBiometrics = $0 }))
+                    .settingsSwitch()
+                    .accessibilityIdentifier("settings.notesBiometrics")
+            }
+        }
     }
 }
 #endif

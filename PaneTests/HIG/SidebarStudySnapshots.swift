@@ -156,7 +156,7 @@ import Testing
             ("appearance-default-light", .appearance, "", .standard, false),
             ("appearance-default-dark", .appearance, "", .standard, true),
             ("appearance-sepia-dark", .appearance, "", .sepia, true),
-            ("help-light", .help, "", .standard, false),
+            ("account-light", .account, "", .standard, false),
             ("search-theme-light", .appearance, "theme", .standard, false),
             ("ai-light", .ai, "", .standard, false),
         ]
@@ -234,7 +234,7 @@ import Testing
         }
         let cards: [(String, SettingsView, SettingsPlace)] = [
             ("security-copy", copy, .security), ("security-nocopy", fixture, .security),
-            ("help", fixture, .help), ("help-signedout", signedOut, .help),
+            ("account", fixture, .account), ("account-signedout", signedOut, .account),
         ]
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
             for (name, v, start) in cards {
