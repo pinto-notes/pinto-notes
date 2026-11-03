@@ -520,228 +520,47 @@ struct BehindSetupCard<Card: View>: ViewModifier {
     let card: Card
 
     func body(content: Content) -> some View {
-        // The card over the notes, not beside them in a ZStack: a card that reaches under the
-        // title bar made the stack reach there too (Emil, 2 November 2026).
         content
             .environment(\.behindSetupCard, true)
             // Its top bar's buttons too look and act disabled until you're signed in (Emil,
             // 2 November 2026): the toolbar takes this from the view that declares it.
             .disabled(true)
             .accessibilityHidden(true)
-            // Not `.allowsHitTesting(false)`, on the notes or on a column: with it the split view
-            // gives the columns no room for the toolbar, and the folders, the list and the note
-            // start up under it (Emil, 2 November 2026, twice). The card and the dimmed notes
-            // round it are a popup (PopupHost): nothing behind them takes a click. The card at its own height, centred:
-            // a card whose content can stretch (the encryption step's) grew to the window's height.
-            .overlay {
-                PopupHost(content: ZStack {
-                    Color(Palette.page).opacity(SetupClickSink.dim)
-                        .accessibilityHidden(true)
-                    card.fixedSize(horizontal: false, vertical: true)
-                })
+            // A sheet on the notes window, as Mac apps do it (Emil, 11-03): macOS dims the window,
+            // keeps every click, hover and cursor from the notes behind, gives the card the keys
+            // and leaves the window's shape and buttons alone. It stays until the step is done.
+            .sheet(isPresented: .constant(true)) {
+                card
+                    .fixedSize(horizontal: false, vertical: true)
+                    .popupSheet("setup")
+                    .interactiveDismissDisabled()
             }
     }
 }
 
-/// How dim the notes look behind a setup card.
-enum SetupClickSink {
-    static let dim = 0.55
+extension EnvironmentValues {
+    /// In a sheet: a card leaves its own panel, shadow and dimming to the sheet.
+    @Entry var inSheet = false
 }
 
-/// A popup over the notes window (a setup card, Settings, Templates, Import, Connect an AI), in a
-/// borderless window of its own laid over the notes window and moving with it. It covers the
-/// window, title bar too, and draws its own dimming. macOS gives every click, scroll, hover and
-/// cursor to the window under the pointer, so nothing behind a popup reacts to the mouse
-/// (Emil, 2 November 2026: clicks went through the setup card and Templates to the list,
-/// Settings' tabs lit the folders behind them, and the note's text cursor showed over every
-/// popup). In the notes' own view, SwiftUI handed clicks on a popup to the list under it,
-/// whatever was drawn on top. Like a sheet, it has the keys while it's up; a drag on its top
-/// strip moves the window.
-struct PopupHost<Content: View>: View {
-    let content: Content
-
-    @Environment(\.self) private var env
-    @Environment(SyncEngine.self) private var sync: SyncEngine?
-    @Environment(Backend.self) private var backend: Backend?
-    @Environment(LibraryNotes.self) private var library: LibraryNotes?
-    @Environment(SetupStore.self) private var setup: SetupStore?
-    @Environment(OnboardingStore.self) private var onboarding: OnboardingStore?
-    @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
-
-    var body: some View {
-        PopupWindow(content: content
-            // What the popup's views read from the notes, one by one. Never the notes' whole
-            // environment: it carries the notes window's focus, so a field in the popup asked
-            // for the cursor never got it (Emil, 11-03: the password after the email, on the
-            // sign-in card).
-            .environment(sync)
-            .environment(backend)
-            .environment(library)
-            .environment(setup)
-            .environment(onboarding)
-            .environment(route)
-            .environment(\.modelContext, env.modelContext)
-            .environment(\.colorScheme, env.colorScheme)
-            .environment(\.locale, env.locale)
-            .environment(\.dynamicTypeSize, env.dynamicTypeSize)
-            .environment(\.networkReach, env.networkReach)
-            .environment(\.hoverPreview, env.hoverPreview)
-            .environment(\.connectStudy, env.connectStudy)
-            .environment(\.sidebarStudy, env.sidebarStudy)
-            .environment(\.behindSetupCard, env.behindSetupCard)
-            .environment(\.todaysNote, env.todaysNote)
-            .environment(\.importDoneTitle, env.importDoneTitle)
-            .environment(\.importActions, env.importActions)
-            .environment(\.settingsAsPage, env.settingsAsPage)
-            .environment(\.openSettingsPlace, env.openSettingsPlace)
-            .environment(\.settingsLayoutProbe, env.settingsLayoutProbe)
-            .environment(\.amberBusy, env.amberBusy))
+extension View {
+    /// A card shown as a sheet (setup cards, Templates, Import, Connect an AI, Settings): the
+    /// card's ground behind it, and the card told it's in a sheet.
+    func popupSheet(_ name: String) -> some View {
+        environment(\.inSheet, true)
+            .presentationBackground(SetupCards.ground)
+            #if DEBUG
+            .onChange(of: name, initial: true) { SheetProbe.last = name }
+            #endif
     }
 }
 
-/// The popup's own window, laid over the notes window (PopupHost).
-struct PopupWindow<Content: View>: NSViewRepresentable {
-    let content: Content
-
-    /// Where the popup is in the notes' view: it puts the popup's window over the notes' window.
-    final class Anchor: NSView {
-        let panel: PopupPanel
-        private var watching: [NSObjectProtocol] = []
-        init(panel: PopupPanel) { self.panel = panel; super.init(frame: .zero) }
-        required init?(coder: NSCoder) { fatalError() }
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            if let parent = window { attach(to: parent) } else { detach() }
-        }
-
-        func attach(to parent: NSWindow) {
-            guard panel.parent !== parent else { return }
-            detach()
-            panel.setFrame(parent.frame, display: false)
-            panel.appearance = parent.appearance
-            panel.fitShape(to: parent)
-            panel.alphaValue = 0
-            parent.addChildWindow(panel, ordered: .above)
-            panel.makeFirstResponder(panel.contentView)
-            if parent.isKeyWindow { panel.makeKey() }
-            NSAnimationContext.runAnimationGroup { $0.duration = 0.18; panel.animator().alphaValue = 1 }
-            let center = NotificationCenter.default
-            watching = [
-                center.addObserver(forName: NSWindow.didResizeNotification, object: parent, queue: .main) { [weak self] _ in
-                    MainActor.assumeIsolated {
-                        if let self, let parent = self.panel.parent { self.panel.setFrame(parent.frame, display: true); self.panel.fitShape(to: parent) }
-                    }
-                },
-                // The notes window closing takes its popup with it: no window left behind.
-                center.addObserver(forName: NSWindow.willCloseNotification, object: parent, queue: .main) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.detach(); self?.empty() }
-                },
-            ]
-        }
-
-        /// What the popup showed goes too (its views would otherwise live on in the hidden window).
-        func empty() { (panel.contentView as? NSHostingView<AnyView>)?.rootView = AnyView(EmptyView()) }
-
-        func detach() {
-            watching.forEach(NotificationCenter.default.removeObserver)
-            watching = []
-            guard let parent = panel.parent else { panel.orderOut(nil); return }
-            let wasKey = panel.isKeyWindow
-            parent.removeChildWindow(panel)
-            panel.orderOut(nil)
-            if wasKey { parent.makeKey() }
-        }
-    }
-
-    private var root: AnyView {
-        // Over the top bar too: the dimming reaches the window's top edge.
-        AnyView(content.ignoresSafeArea())
-    }
-
-    func makeNSView(context: Context) -> Anchor {
-        let host = NSHostingView(rootView: root)
-        host.sizingOptions = []
-        host.sceneBridgingOptions = []
-        return Anchor(panel: PopupPanel(content: host))
-    }
-
-    func updateNSView(_ anchor: Anchor, context: Context) {
-        (anchor.panel.contentView as? NSHostingView<AnyView>)?.rootView = root
-        // The window's toolbar comes and goes with sign-in, and its corners with it.
-        if let parent = anchor.panel.parent { anchor.panel.fitShape(to: parent) }
-    }
-
-    static func dismantleNSView(_ anchor: Anchor, coordinator: ()) { anchor.detach(); anchor.empty() }
+#if DEBUG
+/// The popup sheet that showed last, for tests: their windows never go on a screen there.
+@MainActor enum SheetProbe {
+    static var last: String?
 }
-
-/// The popup's window: clear, borderless, over its notes window and moving with it.
-final class PopupPanel: NSPanel {
-    init(content: NSView) {
-        super.init(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
-        isReleasedWhenClosed = false
-        isOpaque = false
-        backgroundColor = .clear
-        hasShadow = false
-        hidesOnDeactivate = false
-        animationBehavior = .none
-        contentView = content
-    }
-
-    /// Its fields take typing, as a sheet's do.
-    override var canBecomeKey: Bool { true }
-
-    /// The notes window's shape: its rounded corners, and a hole over its close, minimise and
-    /// zoom buttons. A plain rectangle dimmed past the corners and over the buttons (Emil, 11-03).
-    func fitShape(to parent: NSWindow) {
-        guard let view = contentView else { return }
-        view.wantsLayer = true
-        let path = Self.shape(size: frame.size, corner: Self.cornerRadius(of: parent), holes: Self.windowButtons(of: parent))
-        let mask = (view.layer?.mask as? CAShapeLayer) ?? CAShapeLayer()
-        mask.frame = CGRect(origin: .zero, size: frame.size)
-        mask.fillRule = .evenOdd
-        mask.path = path
-        view.layer?.mask = mask
-    }
-
-    /// macOS 26's window corners, measured: 26 pt with a toolbar, 16 pt without.
-    static func cornerRadius(of window: NSWindow) -> CGFloat {
-        window.toolbar?.isVisible == true ? 26 : 16
-    }
-
-    /// Where the window's three buttons are, in its own coordinates, a little larger than drawn.
-    static func windowButtons(of window: NSWindow) -> [CGRect] {
-        [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].compactMap { type in
-            guard let b = window.standardWindowButton(type), !b.isHidden, b.window != nil else { return nil }
-            return b.convert(b.bounds, to: nil).insetBy(dx: -2, dy: -2)
-        }
-    }
-
-    static func shape(size: CGSize, corner: CGFloat, holes: [CGRect]) -> CGPath {
-        let path = CGMutablePath()
-        path.addRoundedRect(in: CGRect(origin: .zero, size: size), cornerWidth: corner, cornerHeight: corner)
-        for hole in holes { path.addEllipse(in: hole) }
-        return path
-    }
-    override var canBecomeMain: Bool { false }
-
-    /// How tall the strip at the top is that moves the notes window, as its title bar would.
-    static let dragStrip: CGFloat = 28
-
-    override func sendEvent(_ event: NSEvent) {
-        if event.type == .leftMouseDown, event.locationInWindow.y > frame.height - Self.dragStrip, let parent {
-            parent.performDrag(with: event)
-            return
-        }
-        super.sendEvent(event)
-    }
-
-    /// The popups over `window`, front first.
-    @MainActor static func over(_ window: NSWindow) -> [PopupPanel] {
-        (window.childWindows ?? []).compactMap { $0 as? PopupPanel }.reversed()
-    }
-}
+#endif
 
 /// Signed out, the window is just the sign-in card: small, no title bar.
 /// Signed in, it becomes the normal three-column window, back where you left it.

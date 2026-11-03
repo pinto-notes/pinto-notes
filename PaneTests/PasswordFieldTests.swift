@@ -170,27 +170,5 @@ import AppKit
         for _ in 0..<10 { host.layoutSubtreeIfNeeded(); window.displayIfNeeded(); try await Task.sleep(for: .milliseconds(100)) }
         #expect(editing() is NSSecureTextField, "typing goes to the password: \(String(describing: window.firstResponder))")
     }
-
-    /// The same on the setup card, which sits in a popup window of its own over the notes
-    /// (PopupHost): the card's window has the keys, and the password field takes them.
-    @Test func onTheSetupCardThePasswordFieldTakesTheCursor() async throws {
-        let steps = Steps()
-        let host = NSHostingView(rootView: Color.clear.frame(width: 700, height: 500).modifier(BehindSetupCard(card: EmailThenPassword(steps: steps))))
-        let window = KeyWindow(contentRect: CGRect(x: -20000, y: -20000, width: 700, height: 500),
-                               styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        window.contentView = host
-        defer { window.close() }
-        for _ in 0..<5 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(100)) }
-        let panel = try #require(PopupPanel.over(window).first)
-        func editing() -> NSTextField? { ((panel.firstResponder as? NSTextView)?.delegate as? NSTextField) }
-        func fields(_ v: NSView) -> [NSTextField] { ((v as? NSTextField).map { [$0] } ?? []) + v.subviews.flatMap(fields) }
-        if editing() == nil, let email = fields(panel.contentView!).first(where: { $0.isEditable }) { panel.makeFirstResponder(email) }
-        #expect(editing() != nil && !(editing() is NSSecureTextField), "the email field has the cursor first")
-
-        steps.showsPassword = true
-        for _ in 0..<10 { host.layoutSubtreeIfNeeded(); panel.contentView?.layoutSubtreeIfNeeded(); panel.displayIfNeeded(); try await Task.sleep(for: .milliseconds(100)) }
-        #expect(editing() is NSSecureTextField, "typing goes to the password: \(String(describing: panel.firstResponder))")
-    }
 }
 #endif

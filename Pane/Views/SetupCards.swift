@@ -265,6 +265,7 @@ struct SetupCard<Content: View>: View {
     let card: SetupCards.Card
     @ViewBuilder var content: Content
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.inSheet) private var inSheet
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -278,11 +279,14 @@ struct SetupCard<Content: View>: View {
             // The shadow is the card's shape's alone: on the whole card SwiftUI casts it again under
             // every tile, word and button inside, a grey smear on the white (2026-10-30).
             .background {
-                shape.fill(SetupCards.ground)
-                    .shadow(color: .black.opacity(0.16), radius: 25, y: 18)
-                    .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
+                // In a sheet the sheet is the panel (popupSheet).
+                if !inSheet {
+                    shape.fill(SetupCards.ground)
+                        .shadow(color: .black.opacity(0.16), radius: 25, y: 18)
+                        .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
+                }
             }
-            .overlay(shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
+            .overlay { if !inSheet { shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5) } }
             .animation(reduceMotion ? .easeOut(duration: 0.2) : SetupCards.resize, value: card)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("setup.card")

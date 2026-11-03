@@ -53,15 +53,15 @@ import Testing
         }
 
         func settle() async {
-            // The popups' windows too (PopupPanel): they draw and update on their own.
             for _ in 0..<8 {
-                for w in [window] + (window.childWindows ?? []) { w.contentView?.layoutSubtreeIfNeeded(); w.displayIfNeeded() }
+                for w in [window] { w.contentView?.layoutSubtreeIfNeeded(); w.displayIfNeeded() }
                 try? await Task.sleep(for: .milliseconds(150))
             }
         }
 
         func close() {
             window.close()
+            SheetProbe.last = nil
             ProfileStore.shared.showForPreview(name: nil, photo: nil)
         }
 
@@ -74,8 +74,9 @@ import Testing
             return tables(root).sorted { $0.convert($0.bounds, to: root).minX < $1.convert($1.bounds, to: root).minX }.dropFirst().first
         }
 
-        /// The popups over the notes window (PopupPanel).
-        var popups: [PopupPanel] { PopupPanel.over(window) }
+        /// The popups on the notes window: sheets (popupSheet). Never ordered in here (a sheet on a
+        /// window that's on the screen shows on the screen), so counted as SwiftUI shows them.
+        var popup: String? { SheetProbe.last }
 
         /// The accessibility element with `id`, in a popup or the notes.
         func find(id: String) -> Any? {
@@ -87,7 +88,7 @@ import Testing
                 }
                 return nil
             }
-            let roots: [NSView] = popups.compactMap(\.contentView) + [window.contentView].compactMap { $0 }
+            let roots: [NSView] = [window.contentView].compactMap { $0 }
             for r in roots { if let f = search(r, depth: 0) { return f } }
             return nil
         }
@@ -164,21 +165,21 @@ import Testing
         #expect(rowTop >= buttonsBottom, "the first row starts at \(rowTop), the window's buttons end at \(buttonsBottom)")
         if behindCard {
             // Behind a setup card nothing in the notes takes a click (Emil, 2 November 2026: he
-            // could open notes behind the card): the card is a window of its own over them.
-            #expect(host.popups.count == 1, "the setup card is a popup over the notes")
+            // could open notes behind the card): the card is a sheet on the window.
+            #expect(host.popup == "setup", "the setup card is a sheet on the notes window")
         }
     }
 
     /// Every popup keeps the mouse to itself (Emil, 2 November 2026: "every single pop-up";
     /// clicks went through the setup card and Templates to the list, Settings' tabs lit the
-    /// folders behind them, the note's text cursor showed over them). Each is a window of its own
-    /// laid over the whole notes window, title bar too: macOS gives the mouse, its hover and its
-    /// cursor to the window under the pointer, never the one behind. It goes with the window.
+    /// folders behind them, the note's text cursor showed over them). Each is a sheet on the notes
+    /// window, as Mac apps do it (Emil, 11-03: an overlay window of our own got the window's
+    /// corners and buttons wrong): macOS keeps the mouse from the window behind a sheet.
     @Test(arguments: ["setup", "settings", "templates", "import", "connect"])
-    func everyPopupIsAWindowOverTheNotes(_ kind: String) async throws {
+    func everyPopupIsASheetOnTheNotes(_ kind: String) async throws {
         let host = try await Host(behindCard: kind == "setup")
         defer { host.close(); SettingsRoute.shared.page = nil }
-        #expect(kind == "setup" || host.popups.isEmpty, "no popup until one is asked for")
+        #expect(kind == "setup" || host.popup == nil, "no popup until one is asked for")
         switch kind {
         case "settings": AccountButton.open()
         case "templates": NotificationCenter.default.post(name: .paneTemplates, object: nil)
@@ -188,35 +189,24 @@ import Testing
         }
         await host.settle()
         // Templates asks the server for the connected AIs first (none here: it fails fast or late).
-        for _ in 0..<20 where host.popups.isEmpty { await host.settle() }
-        let panel = try #require(host.popups.first, "\(kind) shows as a popup")
-        #expect(host.popups.count == 1, "one popup at a time")
-        #expect(panel.frame == host.window.frame, "it covers the whole notes window, title bar too: \(panel.frame) over \(host.window.frame)")
-        #expect(!panel.ignoresMouseEvents, "and takes the mouse there")
-        #expect(host.window.childWindows?.last === panel, "in front of the notes window")
-        #expect(panel.canBecomeKey, "its fields take typing")
-        // It follows the window's size.
-        host.window.setContentSize(CGSize(width: 1300, height: 820))
-        await host.settle()
-        #expect(panel.frame == host.window.frame, "resized with the window")
-        host.window.close()
-        #expect(!panel.isVisible && panel.parent == nil, "no popup window left behind")
+        let name = ["import": "importNotes", "connect": "connectAI"][kind] ?? kind
+        for _ in 0..<20 where host.popup != name { await host.settle() }
+        #expect(host.popup == name, "\(kind) shows as a sheet")
+        #expect(host.window.childWindows?.isEmpty ?? true, "no window of our own over the notes")
     }
 
-    /// Import notes and Connect an AI from the sidebar are popups now (Import opened Apple Notes'
-    /// import straight away, Connect an AI an older sheet): one at a time, the newer replacing
-    /// the older; no sheet.
+    /// Import notes and Connect an AI from the sidebar are popups (Import opened Apple Notes'
+    /// import straight away): one at a time, the newer replacing the older.
     @Test func importAndConnectArePopupsOneAtATime() async throws {
         let host = try await Host()
         defer { host.close() }
-        let sheets = { host.window.sheets.count }
         NotificationCenter.default.post(name: .paneImportNotes, object: nil)
         await host.settle()
-        _ = try #require(host.popups.first, "Import notes is a popup")
+        #expect(host.popup == "importNotes", "Import notes is a sheet")
         NotificationCenter.default.post(name: .paneConnectAI, object: nil)
         await host.settle()
-        #expect(host.popups.count == 1, "Connect an AI takes its place")
-        #expect(sheets() == 0, "no sheet")
+        for _ in 0..<10 where host.popup != "connectAI" { await host.settle() }
+        #expect(host.popup == "connectAI", "Connect an AI takes its place")
     }
 
     /// Measured in the real window, not worked out: the account's highlight as far in on the left as
@@ -265,20 +255,18 @@ import Testing
     }
 
     /// Opening Settings from the account row leaves the notes window as it was: the same columns,
-    /// the same toolbar. (The old sheet's `.toolbar(.hidden)` once hid the window's toolbar.) The
-    /// card shows over the notes at its first page, and links open theirs in it.
+    /// the same toolbar. (An older sheet's `.toolbar(.hidden)` once hid the window's toolbar.)
+    /// Settings shows as a sheet at its first page, and links open theirs in it.
     @Test func openingSettingsKeepsTheWindowAsItWas() async throws {
         let host = try await Host()
         defer { host.close(); SettingsRoute.shared.page = nil }
         let columns = host.columns, toolbar = host.toolbar
         #expect(columns.count == 3 && !toolbar.isEmpty)
-        let sheets = { NSApp.windows.filter { String(describing: type(of: $0)).contains("Sheet") }.count }
-        let before = sheets()
         AccountButton.open()
         await host.settle()
         #expect(!SettingsRoute.shared.presenting, "the notes window took it")
         #expect(SettingsRoute.shared.page == .ai, "the card shows, at its first page")
-        #expect(sheets() == before, "a card over the notes, not a sheet")
+        #expect(host.popup == "settings", "a sheet on the notes window")
         #expect(host.columns == columns, "the columns keep their widths")
         #expect(host.toolbar == toolbar, "the toolbar keeps its items")
         // Links into Settings open their page in the card.
@@ -291,7 +279,8 @@ import Testing
         // Appearance is its own page, and not part of General any more.
         SettingsRoute.shared.open(.appearance)
         await host.settle()
-        #expect(AppearancePage.onScreen == 1, "Appearance's page shows its mode, theme and accent")
+        // At least once: a sheet that can't go on a screen here is laid out again by SwiftUI.
+        #expect(AppearancePage.onScreen >= 1, "Appearance's page shows its mode, theme and accent")
         SettingsRoute.shared.open(.general)
         await host.settle()
         #expect(SettingsRoute.shared.page == .general)

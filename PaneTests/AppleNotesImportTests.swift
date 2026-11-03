@@ -767,7 +767,7 @@ import Testing
         #expect(!String(closed.prefix(300)).contains("Task.sleep"), "no pause on the Bringing card after an import")
         #expect(!(try read("AppleNotesImport.swift")).contains("Text(\"Show My Notes\")"))
         #expect(!(try read("ImportGuide.swift")).contains("primary(\"Show My Notes\")"))
-        #expect(SetupClickSink.dim >= 0.4, "the notes behind a card look disabled")
+        // The notes behind a card: a sheet, so macOS dims them and keeps their clicks (AccountRowTests).
     }
 }
 #endif

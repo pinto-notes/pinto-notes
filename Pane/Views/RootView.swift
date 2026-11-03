@@ -126,9 +126,14 @@ struct RootView: View {
             .modifier(ExportAllNotes())
             .onReceive(NotificationCenter.default.publisher(for: .paneTemplates)) { _ in openTemplates() }
             .onReceive(NotificationCenter.default.publisher(for: .paneImportNotes)) { _ in openPopup(.importNotes) }
-            // Every popup in a view of its own that has the mouse while it's up (PopupHost).
-            .overlay { if let ais = templateAIs { PopupHost(content: templates(ais)) } }
-            .overlay { if let popup { popupCard(popup) } }
+            // Every popup a sheet on this window (popupSheet).
+            .sheet(isPresented: Binding(get: { templateAIs != nil }, set: { if !$0 { templateAIs = nil } })) {
+                if let ais = templateAIs { templates(ais).popupSheet("templates") }
+            }
+            // One sheet for Import and Connect an AI: asking for the other swaps what it shows.
+            .sheet(isPresented: Binding(get: { popup != nil }, set: { if !$0 { popup = nil } })) {
+                if let popup { popupCard(popup).popupSheet(popup.rawValue) }
+            }
             // Settings: a card over the notes, like Templates, on the window in front.
             .settingsCard(backend: backendForConnect, sync: syncForSettings, opening: { templateAIs = nil; popup = nil })
             #endif
@@ -151,20 +156,17 @@ struct RootView: View {
 
     @Environment(SyncEngine.self) private var syncForSettings: SyncEngine?
 
-    /// One of the first run's cards over the notes, dimmed around it; a click on the dimming, Cancel
-    /// or Escape closes it.
+    /// One of the first run's cards, as a sheet; Cancel or Escape closes it.
     @ViewBuilder private func popupCard(_ only: SetupCardsFlow.Only) -> some View {
         if let backend = backendForConnect {
             let close = { withAnimation(.snappy(duration: 0.2)) { popup = nil } }
-            PopupHost(content: ZStack {
-                Color.black.opacity(0.28).onTapGesture(perform: close)
-                SetupCardsFlow(store: nil, backend: backend, setup: setupStore, only: only, finish: { _ in
-                    close()
-                    Task { await setupStore?.refresh(force: true) }
-                })
-                .id(only)
+            SetupCardsFlow(store: nil, backend: backend, setup: setupStore, only: only, finish: { _ in
+                close()
+                Task { await setupStore?.refresh(force: true) }
             })
-            .ignoresSafeArea()
+            .id(only)
+            .fixedSize(horizontal: false, vertical: true)
+            .onExitCommand(perform: close)
         }
     }
 
@@ -185,7 +187,7 @@ struct RootView: View {
                 if let note { selection = [note] }
             }
         }, close: { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } })
-        .transition(.opacity)
+        .onExitCommand { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } }
     }
     #endif
 

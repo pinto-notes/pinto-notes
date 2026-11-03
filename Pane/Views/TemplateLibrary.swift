@@ -128,6 +128,7 @@ struct TemplateLibraryView: View {
 
     static let size = CGSize(width: 1040, height: 680)
     static let panel: CGFloat = 440
+    @Environment(\.inSheet) private var inSheet
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -145,11 +146,10 @@ struct TemplateLibraryView: View {
             }
         }
         .frame(width: Self.size.width, height: Self.size.height)
-        .background { shape.fill(SetupCards.ground).shadow(color: .black.opacity(0.2), radius: 30, y: 20) }
-        .clipShape(shape)
-        .overlay(shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.opacity(0.28).onTapGesture(perform: close))
+        // In a sheet the sheet is the panel and macOS dims the window (popupSheet).
+        .background { if !inSheet { shape.fill(SetupCards.ground).shadow(color: .black.opacity(0.2), radius: 30, y: 20) } }
+        .clipShape(inSheet ? RoundedRectangle(cornerRadius: 0) : shape)
+        .overlay { if !inSheet { shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5) } }
     }
 
     private var header: some View {

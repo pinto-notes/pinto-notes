@@ -358,15 +358,11 @@ struct SettingsCardHost: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .overlay {
-                if showing, let backend {
-                    // In a view of its own that has the mouse while it's up (PopupHost): its tabs
-                    // lit the folders behind them, and the note's text cursor showed over it.
-                    PopupHost(content: SettingsView(backend: backend, sync: sync, route: route, close: { withAnimation(.snappy(duration: 0.2)) { showing = false } }))
-                        // Over the top bar too: the card and its dimming reach the window's top edge.
-                        .ignoresSafeArea()
-                        // Grows in a little as it fades, as a sheet does; leaves the same way.
-                        .transition(.opacity.combined(with: .scale(scale: 0.97)))
+            // A sheet on this window (popupSheet): nothing behind it takes the mouse.
+            .sheet(isPresented: $showing) {
+                if let backend {
+                    SettingsView(backend: backend, sync: sync, route: route, close: nil)
+                        .popupSheet("settings")
                 }
             }
             .onChange(of: route.presenting, initial: true) { take() }
