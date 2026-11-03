@@ -2086,7 +2086,6 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     func configure(text: String, header: String) {
         textLayoutManager?.delegate = core.layoutDelegate
         (textLayoutManager?.textContentManager as? NSTextContentStorage)?.delegate = core.foldDelegate
-        delegate = self
         core.onCardsChanged = { [weak self] in self?.queueCardLayout() }
         drawsBackground = false
         isRichText = false
@@ -2128,6 +2127,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         setHeader(header)
         setAccessibilityIdentifier("editor")
         placeCaretFromLaunchArguments()
+        // Assigning string sends a selection notification. Listen after the initial styling,
+        // so that notification doesn't style the whole note a second time.
+        delegate = self
     }
 
     /// Test runs can start editing at some text: `-uitest -caret "Manteigaria"`.

@@ -47,6 +47,7 @@ struct CalloutTypeList: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .hoverRow("callout.\(kind.rawValue)", reach: EdgeInsets())
                 .accessibilityLabel(kind.title)
                 .accessibilityAddTraits(kind == current ? .isSelected : [])
             }
