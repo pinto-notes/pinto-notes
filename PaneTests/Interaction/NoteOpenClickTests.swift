@@ -148,6 +148,39 @@ import Testing
         #expect(misses.isEmpty, "the top note of a scrolled list: \(misses)")
     }
 
+    /// The note opens on the press, as in Apple Notes, not when the button comes up: it waited for
+    /// the lift, so a note took as long as the button was held (Emil, 3 November 2026: "it feels
+    /// too slow"). The press is held 250 ms; what's open is read while it's held, from a timer that
+    /// runs during the list's own tracking of the press, which then lets go.
+    @Test func aNoteOpensOnThePressNotTheLift() async throws {
+        let (rig, _, done) = try await Self.rig()
+        defer { done() }
+        // The list at its top, so every row pressed is on screen.
+        rig.scrollList(toRow: rig.rows[0], below: 60)
+        await MacWindowChromeTests.settle(rig.window, 2)
+        var openWhileHeld: [String] = []
+        for i in [2, 5, 1] {
+            let r = rig.list.rect(ofRow: rig.rows[i])
+            let p = rig.list.convert(NSPoint(x: r.midX, y: r.midY), to: nil)
+            func event(_ type: NSEvent.EventType) -> NSEvent {
+                NSEvent.mouseEvent(with: type, location: p, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                   windowNumber: rig.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1,
+                                   pressure: type == .leftMouseDown ? 1 : 0)!
+            }
+            let check = Timer(timeInterval: 0.25, repeats: false) { _ in
+                MainActor.assumeIsolated {
+                    rig.window.displayIfNeeded()
+                    openWhileHeld.append(rig.open)
+                    NSApp.postEvent(event(.leftMouseUp), atStart: false)
+                }
+            }
+            RunLoop.main.add(check, forMode: .common)
+            NSApp.postEvent(event(.leftMouseDown), atStart: false)
+            _ = await rig.opens("Note \(i)", settle: true)
+        }
+        #expect(openWhileHeld == ["Note 2", "Note 5", "Note 1"], "open while the button was still down: \(openWhileHeld)")
+    }
+
     /// Quick clicks, the next before the last note is built: the last one clicked is the one open.
     /// The system counts quick clicks as double and triple clicks, so they come both ways.
     @Test func fastClicksEndOnTheLastNoteClicked() async throws {

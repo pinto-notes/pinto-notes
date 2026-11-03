@@ -72,14 +72,8 @@ struct RootView: View {
         nonmutating set { selection = newValue.map { [$0] } ?? [] }
     }
 
-    #if os(macOS)
-    /// For a pass after a press on a row, the note pane keeps what it showed (PressSelect).
-    @State private var hold = DetailHold.shared
-    /// What the note pane shows: the selection, or what it had while a pressed row's fill goes out.
-    private var shown: Set<UUID> { hold.held ?? selection }
-    #else
+    /// What the note pane shows: the selection, from the press on its row (PressSelect).
     private var shown: Set<UUID> { selection }
-    #endif
     private var shownNote: UUID? { shown.count == 1 ? shown.first : nil }
 
     var body: some View {
@@ -351,9 +345,6 @@ struct RootView: View {
                 #endif
             }
             .onChange(of: selectedNote) { old, new in noteChanged(from: old, to: new) }
-            #if os(macOS)
-            .onChange(of: selection, initial: true) { _, new in DetailHold.shared.current = new }
-            #endif
             // The first-run flow just ended: the notes open on what it left ready.
             .task(id: onboarding?.landing) { openLanding() }
             // A note opened from the menu bar.
@@ -653,7 +644,7 @@ struct RootView: View {
               n.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         #if os(macOS)
         // Let the destination's first frame commit before saving and diffing the list. A main
-        // queue block can run before that commit; a run-loop timer follows it (as DetailHold does).
+        // queue block can run before that commit; a run-loop timer follows it.
         let timer = Timer(timeInterval: 0.001, repeats: false) { _ in
             MainActor.assumeIsolated {
                 guard id != selectedNote, let note = context.note(id), note.deletedAt == nil,

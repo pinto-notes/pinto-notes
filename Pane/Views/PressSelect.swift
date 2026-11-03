@@ -3,16 +3,16 @@ import AppKit
 import Observation
 import QuartzCore
 
-/// A press on a note row selects it at once, as in Apple Notes: its fill is on screen the frame
-/// after the press, and the note opens when the button comes up.
+/// A press on a note row opens it at once, as in Apple Notes: the fill and the note are on screen
+/// on the press, not when the button comes up.
 ///
-/// The list itself selects when the button comes up (its click recognizer), and the fill came with
-/// the note: in 30 fps films of the window on the Air (2026-10-12) nothing changed for 170 to 190 ms
-/// after a press, in every build, and a click that shows nothing reads as a click that was lost.
-/// Here the row is selected on the press while the note pane keeps the note it had (`DetailHold`),
-/// so the list's pass is small and its frame is sent at once. On the lift the pane opens the note,
-/// with the list's work already done. A press that becomes a drag puts the selection back as it
-/// was, so a note dragged into the open note's text finds that note still open.
+/// The list itself selects when the button comes up (its click recognizer): in 30 fps films of the
+/// window on the Air (2026-10-12) nothing changed for 170 to 190 ms after a press, and a click that
+/// shows nothing reads as a click that was lost. Until 3 November 2026 the row was selected on the
+/// press but the note pane waited for the lift (`DetailHold`), so a note still took as long as the
+/// button was held, about a tenth of a second (Emil: "it feels too slow"); drawing a note takes
+/// about 30 ms. Now the note opens on the press too. A press that becomes a drag puts the
+/// selection back as it was, so a note dragged into the open note's text finds that note open again.
 ///
 /// Only a plain press on a row that isn't selected yet: ⌘ and ⇧ clicks and a press on a row of a
 /// multi-selection (it may start dragging them all) are left to the list. A quick second click on
@@ -32,31 +32,24 @@ enum PressSelect {
               !isSidebar(table), !table.selectedRowIndexes.contains(row),
               let window = event.window, accepts(table, row: row) else { return }
         let before = table.selectedRowIndexes
-        DetailHold.shared.hold()
         table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-        guard table.selectedRowIndexes == IndexSet(integer: row) else {
-            DetailHold.shared.release()
-            return
-        }
+        guard table.selectedRowIndexes == IndexSet(integer: row) else { return }
         pressed = (table, before)
-        // The list's pass now, with the note pane held: the fill, and nothing else, goes out.
+        // The fill now; the note follows in the same turn, not on the lift.
         window.displayIfNeeded()
         CATransaction.flush()
     }
 
-    /// The button came up: the note opens.
+    /// The button came up: the press is over (the note opened on it).
     static func lifted() {
-        guard pressed != nil else { return }
         pressed = nil
-        DetailHold.shared.releaseAfterCommit()
     }
 
-    /// The press became a drag: the selection goes back to what it was, and the pane never changed.
+    /// The press became a drag: the selection, and so the open note, go back to what they were.
     static func dragged() {
         guard let (table, before) = pressed else { return }
         pressed = nil
         table.selectRowIndexes(before, byExtendingSelection: false)
-        DetailHold.shared.releaseAfterCommit()
     }
 
     /// The folders' list, by its style (SwiftUI's `.sidebar`) or its name.
@@ -76,48 +69,6 @@ enum PressSelect {
             return allowed
         }
         return delegate.tableView?(table, shouldSelectRow: row) ?? true
-    }
-}
-
-/// What the note pane shows while a row is pressed: the selection it had before the press
-/// (PressSelect). Nil the rest of the time: the pane shows the selection.
-@MainActor @Observable
-final class DetailHold {
-    static let shared = DetailHold()
-
-    private(set) var held: Set<UUID>?
-    /// The selection the pane shows now, kept by RootView.
-    @ObservationIgnored var current: Set<UUID> = []
-    @ObservationIgnored private var timer: Timer?
-
-    func hold() {
-        timer?.invalidate()
-        held = current
-        // The lift doesn't always reach PressSelect: a menu or a drag that starts from the press
-        // runs its own event loop and takes it, and the pane stayed on the old note until the next
-        // click. So the pane also lets go once the button is up, whoever took the lift.
-        let t = Timer(timeInterval: 0.05, repeats: true) { _ in
-            MainActor.assumeIsolated {
-                if NSEvent.pressedMouseButtons & 1 == 0 { DetailHold.shared.release() }
-            }
-        }
-        RunLoop.main.add(t, forMode: .common)
-        timer = t
-    }
-
-    func release() {
-        timer?.invalidate()
-        timer = nil
-        held = nil
-    }
-
-    /// Lets go once the run loop has drawn and sent what's pending: a timer, which fires only after
-    /// the loop's wait (and the commit before it), where a block on the main queue can run first.
-    func releaseAfterCommit() {
-        timer?.invalidate()
-        let t = Timer(timeInterval: 0.001, repeats: false) { _ in MainActor.assumeIsolated { DetailHold.shared.release() } }
-        RunLoop.main.add(t, forMode: .common)
-        timer = t
     }
 }
 #endif
