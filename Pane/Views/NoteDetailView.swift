@@ -1521,6 +1521,10 @@ struct NoteToolbarStage<Pane: View>: View {
     /// browser, not where a detail column would start.
     var ownWindow = false
     let controller: EditorController
+    /// The open note, for the breadcrumbs beside back and forward.
+    var place: Note? = nil
+    /// A breadcrumb's folder, shown in the list.
+    var openScope: (Scope) -> Void = { _ in }
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
     #if DEBUG
@@ -1545,8 +1549,9 @@ struct NoteToolbarStage<Pane: View>: View {
         }
             .toolbar {
                 if self.parts != nil {
-                    // Back and forward on the left, the note's tools on the right (Emil, 11-01: no
-                    // breadcrumbs; the list already says which note and folder this is).
+                    // Back and forward on the left, then where the note is (Emil, 11-03:
+                    // breadcrumbs back), the note's tools on the right. In a note's own window
+                    // they sit beside the window's buttons.
                     ToolbarItemGroup(placement: ownWindow ? .navigation : .automatic) {
                         Group {
                             Button("Back", systemImage: "chevron.backward") { history.back() }
@@ -1561,6 +1566,11 @@ struct NoteToolbarStage<Pane: View>: View {
                     }
                     .sharedBackgroundVisibility(.hidden)
                     .hidden(!showsItems)
+                    if let place {
+                        ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, open: openScope) }
+                            .sharedBackgroundVisibility(.hidden)
+                            .hidden(!showsItems)
+                    }
                 }
                 // Keeps the column anchor in place even while every note item is hidden. Between
                 // back and forward and the tools, where its empty slot moves neither: last, it
@@ -1768,4 +1778,66 @@ struct TrashBanner: View {
     }
 
     static let text = "This note is in Recently Deleted."
+
+/// Where the open note is, right of back and forward (Mac) or the list button (iPad, the Duo
+/// open): its folders, outermost first, each opening in the list; on the Mac its title too once
+/// the big title has scrolled out of view (Emil, 3 November 2026: breadcrumbs back, now that the
+/// left side often shows the folders and not the note's own list).
+struct NoteBreadcrumbs: View {
+    let note: Note
+    var controller: EditorController? = nil
+    let open: (Scope) -> Void
+
+    /// The note's place, outermost first: Recently Deleted, its folders, or All Notes.
+    static func path(_ note: Note) -> [(scope: Scope, name: String)] {
+        if note.trashedAt != nil { return [(.trash, "Recently Deleted")] }
+        var folders: [Folder] = []
+        var next = note.folder
+        while let f = next, folders.count < 32 {
+            if f.deletedAt == nil { folders.insert(f, at: 0) }
+            next = f.parent
+        }
+        guard !folders.isEmpty else { return [(.all, "All Notes")] }
+        // Deep folders: the outermost, then the two nearest the note.
+        let shown = folders.count > 3 ? [folders[0]] + folders.suffix(2) : folders
+        return shown.map { (.folder($0.id), $0.name) }
+    }
+
+    var body: some View {
+        let path = Self.path(note)
+        let titled = controller?.titleScrolledAway == true
+        HStack(spacing: 0) {
+            ForEach(Array(path.enumerated()), id: \.offset) { i, step in
+                if i > 0 { chevron }
+                Button(step.name) { open(step.scope) }
+                    .buttonStyle(.quiet)
+                    .accessibilityHint("Shows the folder in the list")
+                    .accessibilityIdentifier("note.crumb.\(i)")
+                    #if os(macOS)
+                    .help("Show \(step.name)")
+                    #endif
+            }
+            if titled {
+                chevron
+                Text(note.title.isEmpty ? "New note" : note.title)
+                    .font(.system(size: ButtonSize.compact.textSize, weight: .semibold))
+                    .foregroundStyle(Color.ink)
+                    .padding(.horizontal, ButtonSize.compact.padding * 0.75)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.snappy(duration: 0.2), value: titled)
+        .lineLimit(1)
+        // Its own width: a toolbar item is otherwise given too little, and showed only "…".
+        .fixedSize()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Location")
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.forward")
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(Color.muted.opacity(0.7))
+            .accessibilityHidden(true)
+    }
 }

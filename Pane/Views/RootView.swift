@@ -234,9 +234,8 @@ struct RootView: View {
         .environment(\.stackedNotes, sizeClass == .compact)
         .modifier(NoteFirstStyle(on: noteFirst))
         .onGeometryChange(for: CGSize.self) { $0.size } action: { windowSize = $0 }
-        // Columns too narrow to share (the Duo held upright, an iPad mini upright): the note takes
-        // the whole width and the list slides over it from the button at the top left, closing
-        // when a note is picked. The folders stay behind the list's own button.
+        // Columns too narrow to share (the Duo held upright, an iPad mini upright): one screen at
+        // a time, as on the iPhone (twoColumns).
         .onChange(of: noteFirst, initial: true) { _, on in
             if on { visibility = selectedNote == nil ? .doubleColumn : .detailOnly } else if sizeClass != .compact { visibility = .all }
         }
@@ -263,6 +262,10 @@ struct RootView: View {
         // Not a split view: its sidebar is a floating glass panel that greys the iPhone's white
         // cards, and it decides itself when the left side shows.
         let listOpen = visibility != .detailOnly
+        // Columns too narrow to share (the Duo held upright, an iPad mini upright): one screen at a
+        // time, as on the iPhone. The list fills the window, a note opens over it, and Back
+        // closes the note (Emil, 3 November 2026: the list slid over a greyed window).
+        let listAlone = noteFirst && (selection.isEmpty || openNotes.editing)
         return ZStack(alignment: .leading) {
             HStack(spacing: 0) {
                 if listOpen && !noteFirst {
@@ -275,7 +278,12 @@ struct RootView: View {
                     detail
                         .toolbar {
                             ToolbarItem(placement: .topBarLeading) {
-                                if !listOpen || noteFirst {
+                                if noteFirst {
+                                    Button("Back", systemImage: "chevron.backward") {
+                                        withAnimation(.snappy(duration: 0.3)) { selection = [] }
+                                    }
+                                    .accessibilityIdentifier("columns.back")
+                                } else if !listOpen {
                                     Button("Show Notes", systemImage: "sidebar.left") {
                                         withAnimation(.snappy(duration: 0.3)) { visibility = .all }
                                     }
@@ -287,19 +295,23 @@ struct RootView: View {
                                     .accessibilityIdentifier("columns.hideNotes")
                                 }
                             }
+                            // Where the note is, beside the list button: a folder opens on the left.
+                            if let id = shownNote, let note = context.note(id), note.deletedAt == nil {
+                                ToolbarItem(placement: .topBarLeading) {
+                                    NoteBreadcrumbs(note: note) { s in
+                                        withAnimation(.snappy(duration: 0.3)) {
+                                            scope = s
+                                            if noteFirst { selection = [] } else { visibility = .all }
+                                        }
+                                    }
+                                }
+                                .sharedBackgroundVisibility(.hidden)
+                            }
                         }
                 }
             }
-            // Columns too narrow to share (the Duo held upright): the list comes over the note,
-            // and goes when a note is picked or the note is tapped.
-            if noteFirst && listOpen {
-                Color.black.opacity(0.18).ignoresSafeArea()
-                    .onTapGesture { withAnimation(.snappy(duration: 0.3)) { visibility = .detailOnly } }
-                    .transition(.opacity)
-                phoneScreens
-                    .frame(width: min(windowSize.width - 56, 420))
-                    .shadow(color: .black.opacity(0.2), radius: 16)
-                    .transition(.move(edge: .leading))
+            if listAlone {
+                phoneScreens.transition(.move(edge: .leading))
             }
         }
     }
@@ -327,6 +339,7 @@ struct RootView: View {
                         .phoneScreen()
                 }
         }
+        .environment(\.sideWidth, noteFirst ? windowSize.width : leftWidth)
     }
     #endif
 
@@ -677,7 +690,11 @@ struct RootView: View {
             let note = shownNote.flatMap { context.note($0) }.flatMap { $0.deletedAt == nil ? $0 : nil }
             NoteToolbarStage(showsItems: note != nil,
                              showsWriting: note.map { ($0.isLocked || NoteApps.page($0.id) == nil) && $0.trashedAt == nil } ?? false,
-                             history: historyActions, controller: editor) {
+                             history: historyActions, controller: editor, place: note,
+                             openScope: { s in
+                                 scope = s
+                                 if visibility == .detailOnly { visibility = .doubleColumn }
+                             }) {
                 if let note {
                     NoteDetailView(note: note, controller: editor, autofocus: justCreated == note.id, onNewNote: newNote) { target, edit in
                         if edit { justCreated = target }
@@ -946,6 +963,8 @@ extension EnvironmentValues {
     @Entry var stackedNotes = true
     /// iOS: the iPhone's screens beside the note (iPad, iPhone Duo open), where a note stays selected.
     @Entry var besideNote = false
+    /// The left side's width, for the search field drawn in its bottom bar (BarSearchField).
+    @Entry var sideWidth: CGFloat = 0
     @Entry var importActions: ImportActions? = nil
 }
 
@@ -955,6 +974,8 @@ extension EnvironmentValues {
 /// (NoteListView's `==`).
 @Observable final class OpenNotes {
     var ids: Set<UUID> = []
+    /// The list is picking notes (Select): its selection isn't a note to open.
+    var editing = false
 }
 
 extension View {

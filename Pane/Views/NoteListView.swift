@@ -318,6 +318,8 @@ struct NoteListView: View {
         .modifier(ColumnListStyle(cards: stacked))
         .tint(stacked ? nil : Color(Palette.columnSelection))
         .environment(\.editMode, $editMode)
+        // The Duo upright shows the list alone while it picks notes, not the note they open.
+        .onChange(of: editMode.isEditing) { _, on in openNotes?.editing = on }
         .sheet(isPresented: Binding(get: { moving != nil }, set: { if !$0 { moving = nil } })) {
             MoveNotesSheet(current: movingFrom) { f in
                 if let ids = moving { withAnimation(.snappy) { move(ids, to: f) } }
@@ -383,8 +385,8 @@ struct NoteListView: View {
         // iOS 26 Notes and Mail: a full search field in the bottom bar, beside compose. As a
         // column (iPad, iPhone Duo open) at the column's top instead, as iPad does by itself:
         // in the open Duo's narrow list the bar's field was squeezed to "S…" (WideLayoutTests).
-        .searchable(text: $search, placement: stacked ? .automatic : .navigationBarDrawer(displayMode: .always), prompt: "Search")
-        .searchToolbarBehavior(.automatic)
+        .modifier(SystemSearch(text: $search, placement: stacked ? .automatic : .navigationBarDrawer(displayMode: .always),
+                               off: BarSearchField.drawn(besideNote: besideNote)))
         #else
         // With the sidebar hidden the window's buttons and the sidebar's Today take the header's
         // first part. Covered or not, never partly: the list's edge passes through that part on
@@ -545,7 +547,7 @@ struct NoteListView: View {
             } else {
                 // Search and New Note, as on the folders screen (SearchComposeBar). Recently Deleted
                 // holds no new notes: the note it made went elsewhere.
-                SearchComposeBar(newNote: onNewNote, hidesCompose: scope == .trash, tip: true)
+                SearchComposeBar(newNote: onNewNote, hidesCompose: scope == .trash, tip: true, search: $search)
             }
             #else
             // Emil's draft (10-29): the list's round "⋯" on the left, the folder's name and count

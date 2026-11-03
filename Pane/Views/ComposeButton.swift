@@ -115,12 +115,20 @@ struct SearchComposeBar: ToolbarContent {
     /// New App's one-off tip, shown on one of the two buttons only.
     var tip = false
     var identifier = "list.newNote"
+    /// The screen's search words, for the field iPad needs drawn here (BarSearchField).
+    var search: Binding<String>? = nil
     @Environment(\.stackedNotes) private var stacked
+    @Environment(\.besideNote) private var besideNote
+    @Environment(\.sideWidth) private var sideWidth
 
     var body: some ToolbarContent {
         // As a column (iPad, iPhone Duo open) search is at the column's top (NoteListView), not
         // here; compose then belongs at the trailing edge.
-        if stacked {
+        if let search, BarSearchField.drawn(besideNote: besideNote) {
+            ToolbarItem(placement: .bottomBar) {
+                BarSearchField(text: search, width: BarSearchField.width(side: sideWidth, compose: !hidesCompose))
+            }
+        } else if stacked {
             DefaultToolbarItem(kind: .search, placement: .bottomBar)
         }
         if !stacked {
@@ -163,6 +171,67 @@ private struct NewAppTipHere: ViewModifier {
 
     func body(content: Content) -> some View {
         if on { content.newAppTip() } else { content }
+    }
+}
+#endif
+
+#if os(iOS)
+/// iPad: the search field at the foot of the left side, beside Today and compose, where the
+/// iPhone has it (Emil, 3 November 2026). Given to `.searchable`, iPad puts it up in the top bar
+/// whatever placement it's asked for, so it's drawn here; the iPhone Duo keeps the system's own.
+/// `.searchable`, unless the bar draws the field itself (BarSearchField).
+struct SystemSearch: ViewModifier {
+    @Binding var text: String
+    let placement: SearchFieldPlacement
+    let off: Bool
+
+    func body(content: Content) -> some View {
+        if off {
+            content
+        } else {
+            content.searchable(text: $text, placement: placement, prompt: "Search").searchToolbarBehavior(.automatic)
+        }
+    }
+}
+
+struct BarSearchField: View {
+    @Binding var text: String
+    let width: CGFloat
+    @FocusState private var focused: Bool
+
+    static func drawn(besideNote: Bool) -> Bool {
+        besideNote && UIDevice.current.userInterfaceIdiom == .pad
+    }
+
+    /// The left side's width less Today, compose and the bar's margins.
+    static func width(side: CGFloat, compose: Bool) -> CGFloat {
+        max(150, side - (compose ? 140 : 40))
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            TextField("Search", text: $text)
+                .focused($focused)
+                .submitLabel(.search)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+            if !text.isEmpty {
+                Button("Clear", systemImage: "xmark.circle.fill") { text = "" }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(width: width, height: 36)
+        .contentShape(.capsule)
+        .onTapGesture { focused = true }
+        .hoverEffect(.highlight)
+        .accessibilityIdentifier("bar.search")
     }
 }
 #endif

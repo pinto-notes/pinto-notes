@@ -176,5 +176,75 @@ import UIKit
         Self.shoot(window, "duo-folded-start")
         #expect(PhoneRenderTests.editor(in: window) == nil, "no note opened by itself")
     }
+    /// The note's top bar views of a kind (by class name), left to right, in window points.
+    static func barViews(_ kind: String, in window: UIWindow) -> [UIView] {
+        PhoneRenderTests.all(UINavigationBar.self, in: window).filter { $0.window != nil && !$0.isHidden }
+            .flatMap { PhoneRenderTests.all(UIView.self, in: $0) }
+            .filter { String(describing: type(of: $0)).hasPrefix(kind) && $0.window != nil }
+            .sorted { $0.convert($0.bounds, to: nil).minX < $1.convert($1.bounds, to: nil).minX }
+    }
+
+    /// The first button at the top left of the window, pressed as a tap does.
+    static func pressTopLeft(in window: UIWindow) async throws {
+        let button = try #require(barViews("_UIButtonBarButton", in: window).first as? UIControl, "a button at the top left")
+        #expect(button.convert(button.bounds, to: nil).minX < 80, "at the left")
+        button.sendActions(for: .touchUpInside)
+        await PhoneRenderTests.settle(window)
+    }
+
+    /// Held upright the Duo is one screen at a time, as on the iPhone: Back closes the note and
+    /// the list fills the window (Emil, 3 November 2026: the list slid over a greyed window).
+    @Test func duoUprightBackShowsTheListAlone() async throws {
+        let (window, _, _, notes) = try Self.window(Self.duoOpen)
+        defer { window.isHidden = true }
+        await PhoneRenderTests.settle(window, seconds: 1)
+        try await PhoneRenderTests.open(notes[2], in: window)
+        await PhoneRenderTests.settle(window)
+        try await Self.pressTopLeft(in: window)
+        Self.shoot(window, "duo-upright-back")
+        #expect(PhoneRenderTests.editor(in: window) == nil, "Back closed the note")
+        let lists = PhoneRenderTests.all(UICollectionView.self, in: window).filter { $0.window != nil && !$0.isHidden && !$0.visibleCells.isEmpty }
+        let widest = try #require(lists.map { $0.convert($0.bounds, to: nil) }.max { $0.width < $1.width })
+        #expect(widest.minX < 2 && widest.width > window.bounds.width - 2, "the list fills the window")
+    }
+
+    /// Where the note is, in the top bar beside the list button (Emil, 3 November 2026).
+    @Test func theNoteBarSaysWhichFolderTheNoteIsIn() async throws {
+        let (window, _, c, notes) = try Self.window(Self.duoOpenWide)
+        defer { window.isHidden = true }
+        let travel = Folder(name: "Travel")
+        c.mainContext.insert(travel)
+        notes[2].folder = travel
+        try c.mainContext.save()
+        await PhoneRenderTests.settle(window, seconds: 1)
+        try await PhoneRenderTests.open(notes[2], in: window)
+        await PhoneRenderTests.settle(window)
+        Self.shoot(window, "duo-open-wide-crumbs")
+        // Right of the list button, over the note, wide enough for the name (it showed "…").
+        let editor = try #require(PhoneRenderTests.editor(in: window))
+        let noteLeft = editor.convert(editor.bounds, to: nil).minX
+        let hosted = Self.barViews("UIKitBarItemHost", in: window).map { $0.convert($0.bounds, to: nil) }.filter { $0.minX > noteLeft }
+        let crumb = try #require(hosted.first, "a breadcrumb over the note")
+        let listButton = try #require(Self.barViews("_UIButtonBarButton", in: window).map { $0.convert($0.bounds, to: nil) }.first { $0.minX > noteLeft })
+        #expect(crumb.minX > listButton.maxX, "right of the list button")
+        #expect(crumb.width > 44, "the folder's name, not a squeezed …")
+    }
+
+    @Test func breadcrumbsWalkTheFolders() throws {
+        let (c, notes) = try PhoneRenderTests.library(notes: 1)
+        let work = Folder(name: "Work"), q4 = Folder(name: "Q4", parent: work)
+        c.mainContext.insert(work); c.mainContext.insert(q4)
+        let note = notes[0]
+        #expect(NoteBreadcrumbs.path(note).map { $0.name } == (note.folder.map { [$0.name] } ?? ["All Notes"]))
+        note.folder = q4
+        #expect(NoteBreadcrumbs.path(note).map { $0.name } == ["Work", "Q4"])
+        #expect(NoteBreadcrumbs.path(note).last?.scope == .folder(q4.id))
+        let a = Folder(name: "A"), b = Folder(name: "B", parent: a), d = Folder(name: "D", parent: b), e = Folder(name: "E", parent: d)
+        [a, b, d, e].forEach { c.mainContext.insert($0) }
+        note.folder = e
+        #expect(NoteBreadcrumbs.path(note).map { $0.name } == ["A", "D", "E"], "deep: the outermost and the two nearest")
+        note.trashedAt = .now
+        #expect(NoteBreadcrumbs.path(note).map { $0.scope } == [.trash])
+    }
 }
 #endif

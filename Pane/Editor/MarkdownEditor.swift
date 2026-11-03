@@ -2353,11 +2353,17 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// The date fades as the note scrolls past it, so none of it shows under the toolbar.
     private func fadeDate() {
-        guard DesignLook.readingPage, let scroll = enclosingScrollView else { return }
+        guard let scroll = enclosingScrollView else { return }
         let past = scroll.contentView.bounds.origin.y + scroll.contentInsets.top
+        // Past the title line: the breadcrumbs in the top bar add the note's title (Emil, 11-03).
+        let away = past > Self.fold + Self.titleAway
+        if let controller, controller.titleScrolledAway != away { controller.titleScrolledAway = away }
+        guard DesignLook.readingPage else { return }
         let alpha = min(1, max(0, 1 - past / (Self.fold * 0.8)))
         if abs(headerLabel.alphaValue - alpha) > 0.01 { headerLabel.alphaValue = alpha }
     }
+    /// How far past the fold the title has to scroll before it counts as out of view.
+    static let titleAway: CGFloat = 40
     private var watchingScroll = false
 
     override func viewDidMoveToWindow() {

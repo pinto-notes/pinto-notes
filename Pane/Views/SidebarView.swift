@@ -308,6 +308,7 @@ struct SidebarView: View {
     @State private var search = ""
     /// One screen at a time (iPhone), or the folders as a column beside the list (iPad, iPhone Duo open).
     @Environment(\.stackedNotes) private var stacked
+    @Environment(\.besideNote) private var besideNote
     #endif
     @Environment(SetupStore.self) private var setup: SetupStore?
     @Environment(\.dynamicTypeSize) private var templatesTypeSize
@@ -575,7 +576,7 @@ struct SidebarView: View {
                 .accessibilityIdentifier(editingFolders ? "sidebar.done" : "sidebar.edit")
             }
             if stacked {
-                SearchComposeBar(newNote: onNewNote, identifier: "sidebar.newNote")
+                SearchComposeBar(newNote: onNewNote, identifier: "sidebar.newNote", search: $search)
             }
             // iPad: the notes' list is always beside the folders, with Today and New Note at its
             // foot; a second pair here was the same two buttons twice, side by side.
@@ -634,8 +635,7 @@ struct SidebarView: View {
             Group {
                 if query.isEmpty { folders } else { FolderSearchResults(query: query, open: onOpenNote) }
             }
-            .searchable(text: $search, prompt: "Search")
-            .searchToolbarBehavior(.automatic)
+            .modifier(SystemSearch(text: $search, placement: .automatic, off: BarSearchField.drawn(besideNote: besideNote)))
         } else {
             folders
         }
