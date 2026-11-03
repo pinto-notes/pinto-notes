@@ -225,6 +225,7 @@ import Testing
         "Views/SidebarCards.swift SidebarCardShell.body": "the label it wraps has .hoverOverlay, set a few lines up",
         "Views/ConnectChoices.swift Accessory.pressable": "ConnectChoices' pressable: both callers' labels have .choiceCard",
         "Views/SidebarView.swift AccountButton.body": "its label has .sidebarFootPill, a .hoverRow with a folder row's reach",
+        "Views/SidebarAIs.swift SidebarActionRow.body": "its label has .sidebarFootPill, a .hoverRow with a folder row's reach",
         // Leave the close × alone (lead, 2 November 2026): one shared solid close style replaces them all.
         "Views/SidebarCards.swift MacCard.body": "iPhone only: the card the Mac no longer shows",
     ]
@@ -235,6 +236,17 @@ import Testing
     /// .hoverHighlight, .hoverRow, .hoverOverlay, .choiceCard, HoverTracking, .onHover), or sits in
     /// iPhone-only code, or is on `hoverAllowed` with its reason. Otherwise pick .tile(radius:),
     /// .quietIcon, .hoverText or .hoverLink.
+    /// A row whose label has the foot pill hovers once: a .hoverRow on top drew a second fill
+    /// over a bigger area (Emil, 3 November 2026: Templates, Connect an AI, Import).
+    @Test func aFootRowHoversOnce() throws {
+        let file = try String(contentsOf: TestFiles.url("Views").appending(path: "SidebarAIs.swift"), encoding: .utf8)
+        let start = try #require(file.range(of: "struct SidebarActionRow: View {"))
+        let end = try #require(file.range(of: "\n}\n", range: start.upperBound..<file.endIndex))
+        let row = file[start.upperBound..<end.lowerBound]
+        #expect(row.contains(".sidebarFootPill("))
+        #expect(!row.contains(".hoverRow("), "the pill is the row's hover; no second one")
+    }
+
     @Test func everyMacButtonShowsItsHover() throws {
         let style = try Regex(#"\.buttonStyle\((\.plain|PressScale\(\)|CardPress\(\))\)"#)
         let member = try Regex(#"^\s*(?:@\w+\s+|private\s+|fileprivate\s+|static\s+|override\s+)*(?:func|var)\s+(\w+)"#)

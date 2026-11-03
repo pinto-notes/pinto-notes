@@ -41,7 +41,7 @@ struct SidebarActionRow: View {
             .sidebarFootPill(id)
         }
         .buttonStyle(.plain)
-        .hoverRow(id, reach: Hover.sidebarReach())
+        // The pill above is its hover: a second one here drew two fills (Emil, 3 November 2026).
         .accessibilityIdentifier(id)
     }
 }
