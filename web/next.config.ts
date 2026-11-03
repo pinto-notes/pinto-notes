@@ -3,7 +3,6 @@ import { OLD_DMG_NAMES } from "./lib/downloads";
 import { posthogSettings } from "./lib/posthog";
 import { REMOVED_POSTS } from "./lib/removed-posts";
 import { pastLastPageRedirects } from "./lib/posts";
-import { appPagesOnlyEnv, appPagesOnlyRewrites } from "./lib/app-pages-only";
 
 // Note content is sanitized; this is the second line. Next.js needs its own inline
 // scripts, so scripts stay same-origin + inline, and everything else is pinned down:
@@ -50,8 +49,6 @@ const config: NextConfig = {
   // tracker returned 500 to Google on 25 Oct 2026. The index and its pages show cards too.
   outputFileTracingIncludes: Object.fromEntries(["/blog", "/blog/**"].map((route) => [route, BLOG_SOURCES])),
   poweredByHeader: false,
-  // APP_PAGES_ONLY=1: the app's links follow the site's own address (lib/app-pages-only.ts).
-  env: appPagesOnlyEnv(),
   // The MCP proxy (middleware.ts) forwards the query exactly as sent. Without this, req.url in
   // middleware has 127.0.0.1 and [::1] turned into "localhost", query included.
   skipMiddlewareUrlNormalize: true,
@@ -91,8 +88,7 @@ const config: NextConfig = {
     return {
       // /templates/<slug>.json is the template's data (app/api/templates/[slug]), checked before the
       // template's page so the page's [slug] never sees the ".json".
-      // APP_PAGES_ONLY=1 (a build of your own, docs/MAKE-IT-YOURS.md): Pinto Notes' own pages are 404s.
-      beforeFiles: [{ source: "/templates/:slug.json", destination: "/api/templates/:slug" }, ...appPagesOnlyRewrites()],
+      beforeFiles: [{ source: "/templates/:slug.json", destination: "/api/templates/:slug" }],
       afterFiles: [],
       // The DMG's names from before the rename (lib/downloads.ts), once no file has them.
       fallback: OLD_DMG_NAMES,
@@ -104,9 +100,10 @@ const config: NextConfig = {
         // Shared notes (and everything else not listed) are private-by-link: never indexed.
         // The home page, download, privacy policy, terms and support pages may be indexed, and
         // robots.txt, the sitemap and llms.txt are for crawlers. So are the templates' pages; their
-        // .json data isn't. Blog posts carry their own robots meta
+        // .json data isn't. So is every image of the site's own (icons, the share image, pictures), or
+        // Google shows no favicon and picks a thumbnail from what's left; pictures in shared notes, reports and the API stay out. Blog posts carry their own robots meta
         // (drafts say noindex). A new page for search is added here too.
-        source: "/((?!privacy|terms|support|help|download|changelog|blog|amber-notes$|templates(?!/[^/]+\\.json$)|connect$|connect/start$|open/connect$|reset-password$|\\.well-known/apple-app-site-association$|robots\\.txt$|sitemap\\.xml$|llms\\.txt$|llms-full\\.txt$).+)",
+        source: "/((?!privacy|terms|support|help|download|changelog|blog|amber-notes$|templates(?!/[^/]+\\.json$)|connect$|connect/start$|open/connect$|reset-password$|\\.well-known/apple-app-site-association$|robots\\.txt$|sitemap\\.xml$|llms\\.txt$|llms-full\\.txt$|opengraph-image$|(?!n/|s/|t/|report/|api/)[^?]*\\.(?:png|jpe?g|webp|gif|svg|ico)$).+)",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, ...security],
       },
       { source: "/connect", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, { key: "Cache-Control", value: "no-store" }, ...connectSecurity] },

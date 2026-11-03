@@ -56,6 +56,21 @@ export const website: Thing = {
   publisher: { "@id": ORG_ID },
 };
 
+/// The home page itself. Its main image is the hero (a woman at dusk, ChatGPT filling in her note), cut
+/// square, so Google's result thumbnail is that rather than whichever picture on the page it finds first.
+export const SEARCH_THUMBNAIL = `${SITE_URL}/search-thumbnail.jpg`;
+export const homePage: Thing = {
+  "@type": "WebPage",
+  "@id": `${SITE_URL}/#page`,
+  url: SITE_URL,
+  name: "Pinto Notes: one notes app for every AI you use",
+  inLanguage: "en",
+  isPartOf: { "@id": `${SITE_URL}/#website` },
+  about: { "@id": APP_ID },
+  primaryImageOfPage: { "@type": "ImageObject", url: SEARCH_THUMBNAIL, width: 880, height: 880 },
+  thumbnailUrl: SEARCH_THUMBNAIL,
+};
+
 export function app(version: string | null): Thing {
   return {
     "@type": "SoftwareApplication",
@@ -80,7 +95,7 @@ export function app(version: string | null): Thing {
     screenshot: `${SITE_URL}/demo/lisbon/lisbon-1-faded.webp`,
     featureList: [
       "Connect ChatGPT, Claude, Claude Code, Codex or Incredible over MCP",
-      "Approve each AI connection on your iPhone or Mac",
+      "Approve each AI connection before it can open your notes",
       "Version history for every change an AI makes",
       "Import from Apple Notes",
       ...(APP_STORE_LIVE ? ["Sync between iPhone and Mac"] : []),
