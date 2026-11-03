@@ -675,7 +675,7 @@ struct NoteListView: View {
     /// Room in the list's header between More and New Note for the name: the column less the
     /// two buttons, their margins and the spacers' least widths. Recently Deleted has no New
     /// Note, and its name takes that room too (Emil, 11-03: it read "Rec…" over "41 no…").
-    private static func headerRoom(listWidth: CGFloat, compose: Bool) -> CGFloat { max(0, listWidth - (compose ? 112 : 68)) }
+    private static func headerRoom(listWidth: CGFloat, compose: Bool) -> CGFloat { max(0, listWidth - (compose ? 122 : 78)) }
     /// The most room the name takes before it ends in "…".
     /// None when less than 40 pt is left (the sidebar hidden beside a narrow list): the buttons
     /// keep their places inside the column.
