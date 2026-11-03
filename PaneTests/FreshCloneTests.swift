@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import SwiftUI
 import Foundation
 import Testing
 @testable import Pane
@@ -95,7 +96,8 @@ import Testing
         #expect(DiagnosticsCopy.signIn == "Sends error reports and a few counts, never your notes. Turn off in Settings.")
     }
 
-    /// The terms and privacy links in the sign-in sentence are underlined, so they look clickable.
+    /// The terms and privacy links in the sentence carry an underline (shown on iPhone, where
+    /// there's no pointer; the Mac's LinkLabel shows it only under the pointer).
     @Test func theConsentLinksAreUnderlined() {
         for sentence in [Legal.consentSentence, Legal.shortConsent] {
             let links = sentence.runs.filter { $0.link != nil }
@@ -115,6 +117,38 @@ import Testing
         }
         #expect(links == 2 && hands == 2)
         #expect(LinkLabel.View().acceptsFirstMouse(for: nil), "a link opens on the first click, the window behind or not")
+    }
+
+    /// Emil (11-03): the links didn't underline under the pointer; the fix was an underline that
+    /// was always there. Now like "Forgot password?": plain at rest, underlined while hovered.
+    @MainActor @Test func theFooterLinksUnderlineUnderThePointer() async throws {
+        let host = NSHostingView(rootView: LinkLabel(text: Legal.consentSentence).frame(width: 360))
+        let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 360, height: 80), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        defer { window.close() }
+        host.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(100))
+        func find(_ v: NSView) -> LinkLabel.View? { (v as? LinkLabel.View) ?? v.subviews.lazy.compactMap(find).first }
+        let label = try #require(find(host))
+        let storage = try #require(label.textStorage), layout = try #require(label.layoutManager), container = try #require(label.textContainer)
+        let terms = (storage.string as NSString).range(of: "Terms of Service")
+        func underlined(_ range: NSRange) -> Bool {
+            (storage.attribute(.underlineStyle, at: range.location, effectiveRange: nil) as? Int ?? 0) != 0
+                || (layout.temporaryAttribute(.underlineStyle, atCharacterIndex: range.location, effectiveRange: nil) as? Int ?? 0) != 0
+        }
+        #expect(!underlined(terms), "no underline at rest")
+
+        let glyphs = layout.glyphRange(forCharacterRange: terms, actualCharacterRange: nil)
+        let rect = layout.boundingRect(forGlyphRange: glyphs, in: container)
+        label.hover(at: NSPoint(x: rect.midX + label.textContainerOrigin.x, y: rect.midY + label.textContainerOrigin.y))
+        #expect(label.hovered == terms)
+        #expect(underlined(terms), "underlined under the pointer")
+        let privacy = (storage.string as NSString).range(of: "Privacy Policy")
+        #expect(!underlined(privacy), "only the link under the pointer")
+
+        label.hover(at: nil)
+        #expect(!underlined(terms), "and plain again when it leaves")
     }
     #endif
 

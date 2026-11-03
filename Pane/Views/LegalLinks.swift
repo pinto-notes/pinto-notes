@@ -17,8 +17,8 @@ enum Legal {
         return underliningLinks(s)
     }
 
-    /// Links inside a sentence are underlined, so they read as links before the pointer finds
-    /// them: colour alone didn't (Emil, 2 November 2026).
+    /// Links inside a sentence are underlined on iPhone, where there's no pointer to show them.
+    /// On the Mac the label underlines a link while the pointer is on it (LinkLabel.View).
     static func underliningLinks(_ text: AttributedString) -> AttributedString {
         var text = text
         for run in text.runs where run.link != nil { text[run.range].underlineStyle = .single }
@@ -65,15 +65,59 @@ struct ConsentFooter: View {
 
 #if os(macOS)
 /// A small centred paragraph with links in it, drawn by AppKit so the pointer becomes a hand
-/// over a link and a link opens on the first click. Footnote size, muted, links in the accent and underlined.
+/// over a link and a link opens on the first click. Footnote size, muted, links in the accent, underlined under the pointer.
 struct LinkLabel: NSViewRepresentable {
     let text: AttributedString
 
     /// A read-only text view: it follows a link on the first click, even with the window in the
     /// background (a selectable label took one click to wake up first), and shows the hand.
+    /// A link is underlined while the pointer is on it, like the card's other links ("Forgot
+    /// password?", HoverTextButtonStyle), not all the time (Emil, 11-03).
     final class View: NSTextView {
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
         override var acceptsFirstResponder: Bool { false }
+
+        /// The link under the pointer, underlined.
+        private(set) var hovered: NSRange?
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            trackingAreas.filter { $0.owner === self }.forEach(removeTrackingArea)
+            addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                           owner: self))
+        }
+
+        override func mouseMoved(with event: NSEvent) {
+            super.mouseMoved(with: event)
+            hover(at: convert(event.locationInWindow, from: nil))
+        }
+
+        override func mouseExited(with event: NSEvent) {
+            super.mouseExited(with: event)
+            hover(at: nil)
+        }
+
+        /// The link at `point` (in the view), or none.
+        func link(at point: NSPoint) -> NSRange? {
+            guard let layout = layoutManager, let container = textContainer, let storage = textStorage, storage.length > 0 else { return nil }
+            let inText = NSPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
+            var fraction: CGFloat = 0
+            let glyph = layout.glyphIndex(for: inText, in: container, fractionOfDistanceThroughGlyph: &fraction)
+            // Only on the glyph itself, not anywhere on its line.
+            guard layout.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container).contains(inText) else { return nil }
+            let index = layout.characterIndexForGlyph(at: glyph)
+            var range = NSRange()
+            guard storage.attribute(.link, at: index, effectiveRange: &range) != nil else { return nil }
+            return range
+        }
+
+        func hover(at point: NSPoint?) {
+            let now = point.flatMap(link(at:))
+            guard now != hovered, let layout = layoutManager else { return }
+            if let old = hovered { layout.removeTemporaryAttribute(.underlineStyle, forCharacterRange: old) }
+            if let now { layout.addTemporaryAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, forCharacterRange: now) }
+            hovered = now
+        }
     }
 
     func makeNSView(context: Context) -> View {
@@ -85,8 +129,7 @@ struct LinkLabel: NSViewRepresentable {
         view.textContainer?.lineFragmentPadding = 0
         view.textContainer?.widthTracksTextView = true
         view.isVerticallyResizable = false
-        view.linkTextAttributes = [.foregroundColor: PColor.paneAccent, .underlineStyle: NSUnderlineStyle.single.rawValue,
-                                   .cursor: NSCursor.pointingHand]
+        view.linkTextAttributes = [.foregroundColor: PColor.paneAccent, .cursor: NSCursor.pointingHand]
         return view
     }
 
@@ -112,8 +155,9 @@ struct LinkLabel: NSViewRepresentable {
                            .paragraphStyle: centred], range: all)
         out.enumerateAttribute(.link, in: all) { value, range, _ in
             guard value != nil else { return }
-            out.addAttributes([.foregroundColor: PColor.paneAccent, .underlineStyle: NSUnderlineStyle.single.rawValue,
-                               .cursor: NSCursor.pointingHand], range: range)
+            out.addAttributes([.foregroundColor: PColor.paneAccent, .cursor: NSCursor.pointingHand], range: range)
+            // Underlined only under the pointer (View.hover).
+            out.removeAttribute(.underlineStyle, range: range)
         }
         return out
     }
