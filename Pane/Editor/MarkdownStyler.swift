@@ -28,6 +28,8 @@ final class LineDecoration: NSObject {
         /// A divider. `editing`: the caret is on it, so its dashes show and the line starts after them.
         case rule(editing: Bool = false)
         case table(header: Bool, first: Bool, last: Bool, columns: [CGFloat], width: CGFloat)
+        /// A callout's line (Callouts): its share of the tinted panel; the header line has the symbol.
+        case callout(CalloutLook, first: Bool, last: Bool)
     }
     let kind: Kind
     /// A bullet's radius and a dash's width, as drawn (DecoratedLayoutFragment).
@@ -224,6 +226,7 @@ struct MarkdownStyler {
         // Two states (Emil, 1 November 2026): with the caret anywhere in a block, the whole block
         // is being edited, so both fences show as written inside it and the label goes away.
         let editingBlocks = walker.codeRanges.map { ns.lineRange(for: $0) }.filter { isActive($0) }
+        let callouts = part.contains("[!") || full != whole ? Callouts.lines(in: ns, range: full) : [:]
         ns.enumerateSubstrings(in: full, options: [.byParagraphs, .substringNotRequired]) { _, lineRange, enclosing, _ in
             let line = ns.substring(with: lineRange)
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -306,6 +309,11 @@ struct MarkdownStyler {
                 return
             }
 
+            if let c = callouts[lineRange.location] {
+                styleCallout(c, lineRange: lineRange, enclosing: enclosing, storage: storage, active: isActive(lineRange))
+                return
+            }
+
             if let q = line.range(of: #"^[ \t]*>[ \t]?"#, options: .regularExpression) {
                 let len = (line[q.lowerBound..<q.upperBound] as Substring).utf16.count
                 let prefix = NSRange(location: lineRange.location, length: len)
@@ -327,6 +335,7 @@ struct MarkdownStyler {
 
         styleUnderlines(storage, in: full, isActive: isActive, skip: walker.codeRanges)
         styleWikiLinks(storage, in: full, isActive: isActive)
+        styleHighlights(storage, in: full, isActive: isActive, skip: walker.codeRanges + walker.inlineCodeRanges)
         styleDates(storage, in: full, selection: active, skip: walker.codeRanges + walker.inlineCodeRanges)
         let grids = styleGrids(storage, in: full, grids: structure.grids)
         let embeds = styleEmbeds(storage, in: full, embeds: structure.embeds)
