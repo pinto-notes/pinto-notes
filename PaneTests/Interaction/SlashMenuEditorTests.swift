@@ -147,5 +147,19 @@ import Testing
         #expect(l.map { $0.frame.maxY <= slashLine.minY + 1 && $0.frame.minY >= visible.minY - 1 } == true,
                 "over the line, inside the visible part: \(String(describing: l?.frame)) line \(slashLine) in \(visible)")
     }
+
+    /// `/warn` names a type: the Callout row says so, and Return inserts a warning callout.
+    @Test func aTypedCalloutTypeInsertsThatType() async {
+        let h = await EditorHarness("Plan\n")
+        defer { h.close() }
+        await h.select(end(h))
+        await h.type("/warn")
+        #expect(h.controller.slashCommands == [.callout])
+        #expect(h.controller.slashName(.callout) == "Warning callout")
+        #expect(h.controller.slashSymbol(.callout) == Callouts.Kind.warning.symbol)
+        await h.press(EditorHarness.returnKey)
+        #expect(h.text == "Plan\n> [!warning]\n> ")
+        #expect(h.controller.slashName(.callout) == "Callout", "back to plain once the menu closes")
+    }
 }
 #endif

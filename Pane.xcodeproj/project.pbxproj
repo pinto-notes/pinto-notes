@@ -358,6 +358,7 @@
 		5464191780D6BA417D2ADA56 /* anime.js in Resources */ = {isa = PBXBuildFile; fileRef = CFFEC0432D36C47F49C28AEB /* anime.js */; };
 		553F154D89EA2D3D0072301A /* TableChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FDB2F2130F537884D8B99BB /* TableChart.swift */; };
 		5543DE564761370169E018A1 /* template-cover-budget-log.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 9E0FBB79D2E22997C4DD1502 /* template-cover-budget-log.jpg */; };
+		5618776291D1F61568C88D48 /* CalloutTypePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65B140DD3577791185D0152B /* CalloutTypePicker.swift */; };
 		5619E67CFC231B9156BA0844 /* three.js in Resources */ = {isa = PBXBuildFile; fileRef = DECBA8160361EDF621DEF177 /* three.js */; };
 		56295473CED9A7D6C9828F25 /* template-app-study-flashcards-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 7FFCC88CB19BF7AB1F88EB91 /* template-app-study-flashcards-light.jpg */; };
 		563A6EA348703923FFB358FD /* VersionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90CC0B378983D3F5A7E49012 /* VersionHistoryView.swift */; };
@@ -635,6 +636,7 @@
 		A4E5F8D6483FDF064391E9F8 /* LegalLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43C8835EE05529FC6C66B17 /* LegalLinks.swift */; };
 		A50C0FAD1144F7132ADA1FC1 /* AppSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3595708C4A80422C798DEB09 /* AppSnapshotTests.swift */; };
 		A57F38039DCFD1089D606728 /* WikiSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6437AEF31BCCDC5E8092B053 /* WikiSuggestions.swift */; };
+		A5DFC5FA78B581E0AFF00B71 /* CalloutTypePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65B140DD3577791185D0152B /* CalloutTypePicker.swift */; };
 		A64D7D4950EFCE103608A867 /* AccountGoneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111E9C358E5C2A6E9AB85F10 /* AccountGoneTests.swift */; };
 		A67D4B828B91319CE55B1758 /* template-app-trip-plan.project.json in Resources */ = {isa = PBXBuildFile; fileRef = ED4414876743DEDD0A6D7728 /* template-app-trip-plan.project.json */; };
 		A69C708456FD48416A38AB25 /* amber-base.ts in Resources */ = {isa = PBXBuildFile; fileRef = B4F477A1E4497D29C03E3092 /* amber-base.ts */; };
@@ -1252,6 +1254,7 @@
 		65052FE76C0F2BF131DDA2C7 /* PushTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTests.swift; sourceTree = "<group>"; };
 		6511DF6067471C42808C09B2 /* template-app-study-flashcards-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-study-flashcards-dark.jpg"; sourceTree = "<group>"; };
 		65292B8EBC120078BAD72028 /* SlashBarShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashBarShots.swift; sourceTree = "<group>"; };
+		65B140DD3577791185D0152B /* CalloutTypePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalloutTypePicker.swift; sourceTree = "<group>"; };
 		65EEB5FD3156BCA4D843A68C /* Telemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Telemetry.swift; sourceTree = "<group>"; };
 		65FB59D737154755BEABF6C8 /* ENEXReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ENEXReader.swift; sourceTree = "<group>"; };
 		66122A2F372A20CB63D5C4E5 /* ChecklistTickReorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistTickReorderTests.swift; sourceTree = "<group>"; };
@@ -2332,6 +2335,7 @@
 			isa = PBXGroup;
 			children = (
 				002FCBD927EFCE23CCDAB4A8 /* Callouts.swift */,
+				65B140DD3577791185D0152B /* CalloutTypePicker.swift */,
 				7637BBECC7048C6C96F739D2 /* CellText.swift */,
 				FE699D273DBCBF0FBF3A885A /* ChangeHighlight.swift */,
 				BE674CEBF2979E842FF6221C /* CheckPop.swift */,
@@ -3310,6 +3314,7 @@
 				C4F35A71EEF833908127290E /* Backlinks.swift in Sources */,
 				0ED845C9D35EA0852A7477A5 /* BlurMotion.swift in Sources */,
 				C2BE09056520338EBE726005 /* BundleRename.swift in Sources */,
+				A5DFC5FA78B581E0AFF00B71 /* CalloutTypePicker.swift in Sources */,
 				B354439E976FD34CF3636F74 /* Callouts.swift in Sources */,
 				05B78ACCABC34029545D70D7 /* Capture.swift in Sources */,
 				CAB01CDDDC766A30F3AC9024 /* CaptureBestApps.swift in Sources */,
@@ -3602,6 +3607,7 @@
 				A703E267FE7461E0AC360247 /* Backlinks.swift in Sources */,
 				812D91A3545C6151CE8E7631 /* BlurMotion.swift in Sources */,
 				1BCF71078355965AC9313B22 /* BundleRename.swift in Sources */,
+				5618776291D1F61568C88D48 /* CalloutTypePicker.swift in Sources */,
 				1D23E0981B03C260519CC31F /* Callouts.swift in Sources */,
 				85CE6CEEC52E3B261A4B199E /* Capture.swift in Sources */,
 				7FBD5A13A103939FE62E07D7 /* CaptureBestApps.swift in Sources */,

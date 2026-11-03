@@ -85,6 +85,9 @@ enum Callouts {
             }
         }
 
+        /// Its name in the type menu.
+        var title: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
+
         var symbol: String {
             switch self {
             case .note: "pencil"
@@ -210,7 +213,35 @@ enum Callouts {
     /// The caret's line (or every selected line) in a note callout, or out of the callout it's in.
     /// An empty line becomes a callout with an empty line in it for the caret; lines that are
     /// already a quote get the header above them.
-    static func toggle(in text: String, selection: NSRange) -> TextEdit {
+    /// The types the type menu offers, in its order. The rest (summary, to-do, failure) still
+    /// show when written, as Obsidian has them; they're close enough to one of these not to crowd it.
+    static let menuKinds: [Kind] = [.note, .info, .tip, .success, .question, .warning, .danger, .bug, .example, .quote]
+
+    /// The callout's type changed to `kind`: its `[!type]` is rewritten, the title kept.
+    /// `line`: where the callout's first line starts. Nil when that line isn't a callout's header.
+    static func setKind(_ kind: Kind, in text: String, line: Int) -> TextEdit? {
+        let ns = text as NSString
+        guard line >= 0, line < ns.length else { return nil }
+        var r = ns.lineRange(for: NSRange(location: line, length: 0))
+        guard r.location == line else { return nil }
+        if r.length > 0, ns.character(at: NSMaxRange(r) - 1) == 0x0A { r.length -= 1 }
+        let content = ns.substring(with: r)
+        guard let m = headerRegex.firstMatch(in: content, range: NSRange(location: 0, length: (content as NSString).length)) else { return nil }
+        let name = m.range(at: 1)
+        return TextEdit(range: NSRange(location: line + name.location, length: name.length), replacement: kind.rawValue, caret: -1)
+    }
+
+    /// The type a typed word names, for the `/` menu (`/warn` → Warning): the start of a menu
+    /// type's name, or one of Obsidian's other names for a type. Nil for "callout" itself.
+    static func kind(typed: String) -> Kind? {
+        let q = typed.lowercased().trimmingCharacters(in: .whitespaces)
+        guard q.count >= 2, !"callout".hasPrefix(q), !q.hasPrefix("callout") else { return nil }
+        if let k = menuKinds.first(where: { $0.rawValue.hasPrefix(q) }) { return k }
+        let k = Kind(name: q)
+        return k == .note ? nil : k
+    }
+
+    static func toggle(in text: String, selection: NSRange, kind: Kind = .note) -> TextEdit {
         let ns = text as NSString
         let loc = min(max(0, selection.location), ns.length)
         let sel = NSRange(location: loc, length: min(max(0, selection.length), ns.length - loc))
@@ -258,11 +289,11 @@ enum Callouts {
         if content.length > 0, ns.character(at: NSMaxRange(content) - 1) == 0x0A { content.length -= 1 }
         let written = ns.substring(with: content)
         if written.trimmingCharacters(in: .whitespaces).isEmpty {
-            let body = "> [!note]\n> "
+            let body = "> [!\(kind.rawValue)]\n> "
             return TextEdit(range: content, replacement: body, caret: content.location + (body as NSString).length)
         }
         let quoted = written.components(separatedBy: "\n").map { l in quotePrefix(l) != nil ? l : (l.isEmpty ? ">" : "> " + l) }
-        let body = "> [!note]\n" + quoted.joined(separator: "\n")
+        let body = "> [!\(kind.rawValue)]\n" + quoted.joined(separator: "\n")
         return TextEdit(range: content, replacement: body, caret: content.location + (body as NSString).length)
     }
 }
@@ -331,6 +362,17 @@ extension MarkdownStyler {
 }
 
 extension DecoratedLayoutFragment {
+    /// A callout header's icon, in this fragment's coordinates: a click opens the type menu.
+    /// Nil on other lines, and while the header is being edited (its `[!type]` shows instead).
+    func calloutIconRect() -> CGRect? {
+        guard let d = decoration, case .callout(let look, let first, _) = d.kind, first, look.symbol != nil,
+              let line = textLineFragments.first else { return nil }
+        let font = PFont.systemFont(ofSize: EditorMetrics.body, weight: .bold)
+        let mid = line.typographicBounds.minY + line.glyphOrigin.y - font.capHeight / 2
+        let size = MarkdownStyler.calloutIcon
+        return CGRect(x: -layoutFragmentFrame.minX + MarkdownStyler.calloutPad, y: mid - size / 2, width: size, height: size)
+    }
+
     private var calloutColumnWidth: CGFloat {
         let w = textLayoutManager?.textContainer?.size.width ?? layoutFragmentFrame.width
         let pad = textLayoutManager?.textContainer?.lineFragmentPadding ?? 0
@@ -433,3 +475,11 @@ extension DecoratedLayoutFragment {
         #endif
     }
 }
+
+#if os(macOS)
+/// A row of a callout's type menu: the type and the callout it changes.
+final class CalloutMenuItem: NSMenuItem {
+    var kind: Callouts.Kind?
+    var line = 0
+}
+#endif

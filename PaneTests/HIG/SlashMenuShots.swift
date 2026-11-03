@@ -66,7 +66,7 @@ import Testing
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         for dark in [false, true] {
             let mode = dark ? "dark" : "light"
-            for (name, typed, height) in [("open", "/", 600.0), ("filtered", "/ch", 360.0), ("lists", "/li", 400.0)] {
+            for (name, typed, height) in [("open", "/", 600.0), ("filtered", "/ch", 360.0), ("lists", "/li", 400.0), ("warn", "/warn", 300.0)] {
                 let h = await EditorHarness(Self.note, width: 720, height: 900, dark: dark)
                 defer { h.close() }
                 await h.select((h.text as NSString).length)

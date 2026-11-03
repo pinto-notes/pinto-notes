@@ -255,6 +255,24 @@ final class EditorCore {
     /// The date the caret was last inside (it shows as written).
     private var lastDateEdit: NSRange?
 
+    /// The callout icon under a point of the text container: its rect there and where its line
+    /// starts. A tap or click on it opens the callout's type menu.
+    func calloutIcon(at point: CGPoint, layout tlm: NSTextLayoutManager?) -> (rect: CGRect, line: Int)? {
+        guard let tlm, let tcm = tlm.textContentManager,
+              let frag = tlm.textLayoutFragment(for: point) as? DecoratedLayoutFragment,
+              let icon = frag.calloutIconRect(), let start = frag.textElement?.elementRange?.location else { return nil }
+        let f = frag.layoutFragmentFrame
+        let rect = icon.offsetBy(dx: f.minX, dy: f.minY)
+        // A finger needs more room than a pointer.
+        #if os(iOS)
+        let slop: CGFloat = 12
+        #else
+        let slop: CGFloat = 4
+        #endif
+        guard rect.insetBy(dx: -slop, dy: -slop).contains(point) else { return nil }
+        return (rect, tcm.offset(from: tcm.documentRange.location, to: start))
+    }
+
     /// A new day: every date chip's label is worked out again (Today becomes Yesterday).
     func dayChanged(storage: NSTextStorage, selection: NSRange?) {
         needsFull = true
@@ -1766,6 +1784,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     func takesTap(at p: CGPoint) -> Bool {
         if foldToggle(at: CGPoint(x: p.x - textContainerInset.left, y: p.y - textContainerInset.top), onlyShown: true) != nil { return true }
         if controller?.readOnly == true { return !onLink(at: p) }
+        if calloutIcon(atView: p) != nil { return true }
         return checkboxLine(for: p) != nil
     }
 
@@ -1797,7 +1816,31 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             return
         }
         if controller?.readOnly == true { controller?.askToRecover(); return }
+        if let icon = calloutIcon(atView: point) {
+            showCalloutTypes(line: icon.line, rect: icon.rect.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top))
+            return
+        }
         tapCheckbox(at: point)
+    }
+
+    /// The callout icon under a point of this view.
+    func calloutIcon(atView p: CGPoint) -> (rect: CGRect, line: Int)? {
+        core.calloutIcon(at: CGPoint(x: p.x - textContainerInset.left, y: p.y - textContainerInset.top), layout: textLayoutManager)
+    }
+
+    /// The callout's types in a small popover over the icon, like a menu.
+    func showCalloutTypes(line: Int, rect: CGRect) {
+        let ns = text as NSString
+        guard line < ns.length, var top = window?.rootViewController else { return }
+        while let p = top.presentedViewController { top = p }
+        let current = Callouts.header(ns.substring(with: ns.lineRange(for: NSRange(location: line, length: 0))).trimmingCharacters(in: .newlines))?.kind
+        let picker = CalloutTypePicker(current: current) { [weak self] kind in
+            self?.controller?.setCalloutKind(kind, line: line)
+        }
+        picker.popoverPresentationController?.sourceView = self
+        picker.popoverPresentationController?.sourceRect = rect
+        UISelectionFeedbackGenerator().selectionChanged()
+        top.present(picker, animated: true)
     }
 
     /// Where a checkbox's circle is, in the view, for the line starting at `line` (tests).
@@ -2862,8 +2905,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             NSCursor.arrow.set()
             return
         }
-        // A date chip is a button: a click picks another day.
-        if controller?.readOnly != true, dateChip(at: point) != nil {
+        // A date chip is a button: a click picks another day. A callout's icon picks its type.
+        if controller?.readOnly != true, dateChip(at: point) != nil || calloutIcon(at: point) != nil {
             NSCursor.pointingHand.set()
             return
         }
@@ -2905,6 +2948,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) }
             return
         }
+        if event.clickCount == 1, let icon = calloutIcon(at: point) {
+            showCalloutMenu(line: icon.line, rect: icon.rect.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
+            return
+        }
         if event.clickCount == 1, let chip = dateChip(at: point) {
             showDatePicker(for: chip.range, rect: chip.rect.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
             return
@@ -2926,6 +2973,32 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             }
         }
         return nil
+    }
+
+    func calloutIcon(at point: CGPoint) -> (rect: CGRect, line: Int)? { core.calloutIcon(at: point, layout: textLayoutManager) }
+
+    /// The callout's types, each with its icon in its colour; the current one ticked.
+    func showCalloutMenu(line: Int, rect: CGRect) {
+        let ns = string as NSString
+        guard line < ns.length else { return }
+        let current = Callouts.header(ns.substring(with: ns.lineRange(for: NSRange(location: line, length: 0))).trimmingCharacters(in: .newlines))?.kind
+        let menu = NSMenu()
+        for kind in Callouts.menuKinds {
+            let item = CalloutMenuItem(title: kind.title, action: #selector(pickCalloutKind(_:)), keyEquivalent: "")
+            item.target = self
+            item.kind = kind
+            item.line = line
+            item.state = kind == current ? .on : .off
+            let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold).applying(.init(paletteColors: [kind.tone.ink]))
+            item.image = NSImage(systemSymbolName: kind.symbol, accessibilityDescription: nil)?.withSymbolConfiguration(config)
+            menu.addItem(item)
+        }
+        menu.popUp(positioning: nil, at: CGPoint(x: rect.minX, y: rect.maxY + 4), in: self)
+    }
+
+    @objc private func pickCalloutKind(_ item: CalloutMenuItem) {
+        guard let kind = item.kind else { return }
+        controller?.setCalloutKind(kind, line: item.line)
     }
 
     private var datePopover: NSPopover?

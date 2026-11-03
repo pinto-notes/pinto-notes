@@ -17,11 +17,11 @@ struct SlashCommandList: View {
             ForEach(Array(controller.slashCommands.enumerated()), id: \.element) { i, command in
                 Button { controller.runSlash(command) } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: command.symbol)
+                        Image(systemName: controller.slashSymbol(command))
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(.secondary)
                             .frame(width: 18)
-                        Text(command.name)
+                        Text(controller.slashName(command))
                             .font(.system(size: 13))
                             .foregroundStyle(Color.ink)
                             .lineLimit(1)
@@ -39,7 +39,7 @@ struct SlashCommandList: View {
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(command.name)
+                .accessibilityLabel(controller.slashName(command))
                 .accessibilityAddTraits(i == controller.slashChoice ? .isSelected : [])
                 .accessibilityIdentifier("slash.command.\(command.rawValue)")
             }
@@ -66,10 +66,10 @@ struct SlashCommandRow: View {
                 ForEach(controller.slashCommands) { command in
                     Button { controller.runSlash(command) } label: {
                         HStack(spacing: 6) {
-                            Image(systemName: command.symbol)
+                            Image(systemName: controller.slashSymbol(command))
                                 .font(.system(size: 22, weight: .regular))
                                 .frame(width: 26)
-                            Text(command.name)
+                            Text(controller.slashName(command))
                                 .font(.system(size: 16, weight: .medium))
                                 .lineLimit(1)
                         }
@@ -79,7 +79,7 @@ struct SlashCommandRow: View {
                         .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(command.name)
+                    .accessibilityLabel(controller.slashName(command))
                     .accessibilityIdentifier("slash.command.\(command.rawValue)")
                 }
             }

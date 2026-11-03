@@ -268,4 +268,44 @@ import AppKit
         let e = ListEditing.returnKey(in: text, selection: NSRange(location: 12, length: 0))
         #expect(e.map { (text as NSString).replacingCharacters(in: $0.range, with: $0.replacement) } == "Pack ==light==\n")
     }
+
+    // MARK: Choosing a type (Emil, 3 November 2026: typing `[!warning]` "doesn't seem like great UX")
+
+    @Test func theTypeMenuRewritesOnlyTheType() {
+        let text = "Trip\n\n> [!note] Passport\n> It expires in March."
+        let line = (text as NSString).range(of: "> [!note]").location
+        let e = Callouts.setKind(.warning, in: text, line: line)
+        #expect(e.map { (text as NSString).replacingCharacters(in: $0.range, with: $0.replacement) } == "Trip\n\n> [!warning] Passport\n> It expires in March.")
+        // A line that isn't a callout's header: nothing.
+        #expect(Callouts.setKind(.tip, in: text, line: (text as NSString).range(of: "> It").location) == nil)
+        #expect(Callouts.setKind(.tip, in: text, line: 0) == nil)
+        // Foldable markers and Obsidian's other names are rewritten too.
+        let folded = "> [!FAQ]- Why\n> Because."
+        #expect(Callouts.setKind(.tip, in: folded, line: 0).map { (folded as NSString).replacingCharacters(in: $0.range, with: $0.replacement) } == "> [!tip]- Why\n> Because.")
+    }
+
+    @Test func theMenuOffersTenTypesStartingWithNote() {
+        #expect(Callouts.menuKinds.first == .note)
+        #expect(Callouts.menuKinds.count == 10)
+        #expect(Set(Callouts.menuKinds).count == 10)
+        #expect(Callouts.Kind.warning.title == "Warning")
+    }
+
+    @Test func insertingACalloutOfAType() {
+        let e = Callouts.toggle(in: "", selection: NSRange(location: 0, length: 0), kind: .warning)
+        #expect(e.replacement == "> [!warning]\n> ")
+    }
+
+    @Test func aTypedWordNamesAType() {
+        #expect(Callouts.kind(typed: "warn") == .warning)
+        #expect(Callouts.kind(typed: "Tip") == .tip)
+        #expect(Callouts.kind(typed: "error") == .danger, "Obsidian's other names")
+        #expect(Callouts.kind(typed: "qu") == .question, "the menu's order decides a tie")
+        #expect(Callouts.kind(typed: "callout") == nil)
+        #expect(Callouts.kind(typed: "call") == nil)
+        #expect(Callouts.kind(typed: "w") == nil, "one letter is too little")
+        #expect(Callouts.kind(typed: "table") == nil)
+        #expect(SlashCommands.matches("warning") == [.callout])
+        #expect(SlashCommands.matches("danger").contains(.callout))
+    }
 }

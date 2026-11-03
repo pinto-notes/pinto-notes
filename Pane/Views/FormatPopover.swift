@@ -59,7 +59,7 @@ struct FormatPopover: View {
             row("1. Numbered List", .numbered, title: "Numbered List", action: controller.numberedList)
             rule
             row("Block Quote", inCallout ? nil : .quote, mark: .bar, action: controller.blockQuote)
-            row("Callout", nil, ticked: inCallout, mark: .callout, action: controller.insertCallout)
+            row("Callout", nil, ticked: inCallout, mark: .callout) { controller.insertCallout() }
             row("Divider", nil, mark: .line, action: controller.insertDivider)
         }
         .padding(.vertical, 6)

@@ -67,7 +67,8 @@ enum SlashCommand: String, CaseIterable, Identifiable, Sendable {
         case .dashed: ["dash"]
         case .numbered: ["number", "ol", "ordered"]
         case .quote: ["blockquote"]
-        case .callout: ["note", "info", "tip", "warning", "admonition", "box"]
+        // Every type's name, so `/warning` finds it and inserts that type (Callouts.kind(typed:)).
+        case .callout: ["note", "info", "tip", "success", "question", "warning", "danger", "bug", "example", "quote", "error", "caution", "hint", "faq", "admonition", "box"]
         case .highlight: ["marker", "mark", "yellow"]
         case .codeBlock: ["monostyled", "pre", "snippet", "fence"]
         case .table: ["grid", "columns"]

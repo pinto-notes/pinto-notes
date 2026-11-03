@@ -333,10 +333,15 @@ final class EditorController {
 
     /// Format › Callout: the caret's lines in a note callout (`> [!note]`), or out of the one
     /// they're in (Callouts).
-    func insertCallout() {
+    func insertCallout(_ kind: Callouts.Kind = .note) {
         guard cell == nil else { return }
         if let t = host, FormatState.at(t.currentText, selection: t.currentSelection).monostyled { return }
-        perform { Callouts.toggle(in: $0, selection: $1) }
+        perform { Callouts.toggle(in: $0, selection: $1, kind: kind) }
+    }
+
+    /// The callout whose first line starts at `line` becomes `kind` (its icon's type menu).
+    func setCalloutKind(_ kind: Callouts.Kind, line: Int) {
+        perform { text, _ in Callouts.setKind(kind, in: text, line: line) }
     }
 
     /// Format › Date: today's date at the caret. The note stores `2026-11-03`; the editor shows a
@@ -488,6 +493,13 @@ final class EditorController {
     private(set) var slashCommands: [SlashCommand] = []
     /// The one Return takes (Mac).
     var slashChoice = 0
+    /// The callout type the `/query` names (`/warn`): the Callout row says "Warning callout" and
+    /// inserts one.
+    private(set) var slashCalloutKind: Callouts.Kind?
+
+    /// A row's name and symbol, with the callout's type when the query names one.
+    func slashName(_ c: SlashCommand) -> String { c == .callout ? slashCalloutKind.map { "\($0.title) callout" } ?? c.name : c.name }
+    func slashSymbol(_ c: SlashCommand) -> String { c == .callout ? slashCalloutKind?.symbol ?? c.symbol : c.symbol }
     /// Where the `/query` is, slash included.
     @ObservationIgnored private(set) var slashQuery: NSRange?
     /// A slash whose menu was put away (Escape): not offered again while typing after it.
@@ -502,6 +514,9 @@ final class EditorController {
         }
         guard found.query.location != slashDismissed else { clearSlash(); return }
         slashQuery = found.query
+        let typed = (text as NSString).substring(with: NSRange(location: found.query.location + 1, length: found.query.length - 1))
+        let kind = Callouts.kind(typed: typed)
+        if kind != slashCalloutKind { slashCalloutKind = kind }
         if found.commands != slashCommands {
             slashCommands = found.commands
             slashChoice = 0
@@ -511,6 +526,8 @@ final class EditorController {
     /// Takes the `/query` out of the line and runs `command` there.
     func runSlash(_ command: SlashCommand) {
         guard let q = slashQuery else { return }
+        // Read before the query goes: taking it out of the text closes the menu and forgets it.
+        let kind = slashCalloutKind ?? .note
         perform { text, _ in
             guard NSMaxRange(q) <= (text as NSString).length, (text as NSString).character(at: q.location) == 0x2F else { return nil }
             return TextEdit(range: q, replacement: "", caret: q.location)
@@ -526,7 +543,7 @@ final class EditorController {
         case .dashed: apply(.dashed)
         case .numbered: apply(.numbered)
         case .quote: apply(.quote)
-        case .callout: insertCallout()
+        case .callout: insertCallout(kind)
         case .highlight: highlight()
         case .codeBlock: apply(.monostyled)
         case .table: insertTable()
@@ -555,6 +572,7 @@ final class EditorController {
 
     private func clearSlash() {
         slashQuery = nil
+        if slashCalloutKind != nil { slashCalloutKind = nil }
         if !slashCommands.isEmpty { slashCommands = [] }
     }
     // MARK: Tables
