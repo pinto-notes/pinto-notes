@@ -2530,6 +2530,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Shows the titles for the `[[link` being typed just under it, or takes them away.
     func layoutWikiSuggestions() {
+        // The `/` menu follows the same edits and caret moves.
         layoutSlashCommands()
         guard let controller, let q = controller.wikiQuery, !controller.wikiSuggestions.isEmpty else {
             wikiHost?.removeFromSuperview()
