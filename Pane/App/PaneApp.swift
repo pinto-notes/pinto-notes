@@ -621,6 +621,7 @@ struct PopupWindow<Content: View>: NSViewRepresentable {
             detach()
             panel.setFrame(parent.frame, display: false)
             panel.appearance = parent.appearance
+            panel.fitShape(to: parent)
             panel.alphaValue = 0
             parent.addChildWindow(panel, ordered: .above)
             panel.makeFirstResponder(panel.contentView)
@@ -629,7 +630,9 @@ struct PopupWindow<Content: View>: NSViewRepresentable {
             let center = NotificationCenter.default
             watching = [
                 center.addObserver(forName: NSWindow.didResizeNotification, object: parent, queue: .main) { [weak self] _ in
-                    MainActor.assumeIsolated { if let self, let parent = self.panel.parent { self.panel.setFrame(parent.frame, display: true) } }
+                    MainActor.assumeIsolated {
+                        if let self, let parent = self.panel.parent { self.panel.setFrame(parent.frame, display: true); self.panel.fitShape(to: parent) }
+                    }
                 },
                 // The notes window closing takes its popup with it: no window left behind.
                 center.addObserver(forName: NSWindow.willCloseNotification, object: parent, queue: .main) { [weak self] _ in
@@ -666,6 +669,8 @@ struct PopupWindow<Content: View>: NSViewRepresentable {
 
     func updateNSView(_ anchor: Anchor, context: Context) {
         (anchor.panel.contentView as? NSHostingView<AnyView>)?.rootView = root
+        // The window's toolbar comes and goes with sign-in, and its corners with it.
+        if let parent = anchor.panel.parent { anchor.panel.fitShape(to: parent) }
     }
 
     static func dismantleNSView(_ anchor: Anchor, coordinator: ()) { anchor.detach(); anchor.empty() }
@@ -686,6 +691,39 @@ final class PopupPanel: NSPanel {
 
     /// Its fields take typing, as a sheet's do.
     override var canBecomeKey: Bool { true }
+
+    /// The notes window's shape: its rounded corners, and a hole over its close, minimise and
+    /// zoom buttons. A plain rectangle dimmed past the corners and over the buttons (Emil, 11-03).
+    func fitShape(to parent: NSWindow) {
+        guard let view = contentView else { return }
+        view.wantsLayer = true
+        let path = Self.shape(size: frame.size, corner: Self.cornerRadius(of: parent), holes: Self.windowButtons(of: parent))
+        let mask = (view.layer?.mask as? CAShapeLayer) ?? CAShapeLayer()
+        mask.frame = CGRect(origin: .zero, size: frame.size)
+        mask.fillRule = .evenOdd
+        mask.path = path
+        view.layer?.mask = mask
+    }
+
+    /// macOS 26's window corners, measured: 26 pt with a toolbar, 16 pt without.
+    static func cornerRadius(of window: NSWindow) -> CGFloat {
+        window.toolbar?.isVisible == true ? 26 : 16
+    }
+
+    /// Where the window's three buttons are, in its own coordinates, a little larger than drawn.
+    static func windowButtons(of window: NSWindow) -> [CGRect] {
+        [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].compactMap { type in
+            guard let b = window.standardWindowButton(type), !b.isHidden, b.window != nil else { return nil }
+            return b.convert(b.bounds, to: nil).insetBy(dx: -2, dy: -2)
+        }
+    }
+
+    static func shape(size: CGSize, corner: CGFloat, holes: [CGRect]) -> CGPath {
+        let path = CGMutablePath()
+        path.addRoundedRect(in: CGRect(origin: .zero, size: size), cornerWidth: corner, cornerHeight: corner)
+        for hole in holes { path.addEllipse(in: hole) }
+        return path
+    }
     override var canBecomeMain: Bool { false }
 
     /// How tall the strip at the top is that moves the notes window, as its title bar would.
