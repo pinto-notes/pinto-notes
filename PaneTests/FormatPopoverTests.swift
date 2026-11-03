@@ -29,4 +29,17 @@ import Testing
         // A caret past the end (the text changed under it) is the last line.
         #expect(ListEditing.paragraphStyle(in: "Title\nbody", selection: NSRange(location: 99, length: 0)) == .body)
     }
+
+    #if os(macOS)
+    /// A callout's lines are a quote to Markdown; the Aa popover ticks Callout for them, not Block Quote.
+    @Test func aCalloutTicksCallout() {
+        let note = "Trip\n\n> [!warning] Passport\n> It expires in March.\n\n> Just a quote"
+        func at(_ needle: String) -> Bool { FormatButton.inCallout(note, NSRange(location: (note as NSString).range(of: needle).location, length: 0)) }
+        #expect(at("Passport"))
+        #expect(at("expires"))
+        #expect(!at("Just a quote"))
+        #expect(!at("Trip"))
+        #expect(!FormatButton.inCallout("", NSRange(location: 0, length: 0)))
+    }
+    #endif
 }

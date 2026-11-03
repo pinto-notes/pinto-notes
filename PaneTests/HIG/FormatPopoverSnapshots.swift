@@ -14,6 +14,8 @@ import Testing
         let controller = EditorController()
         try await AppSnapshotTests.render(FormatPopover(controller: controller, current: .body, close: {}), name: "mac-look-format-\(mode)", dark: dark)
         try await AppSnapshotTests.render(FormatPopover(controller: controller, current: .heading, close: {}), name: "mac-look-format-heading-\(mode)", dark: dark)
+        // The caret in a callout: Callout is ticked, not Block Quote.
+        try await AppSnapshotTests.render(FormatPopover(controller: controller, current: .quote, inCallout: true, close: {}), name: "mac-look-format-callout-\(mode)", dark: dark)
     }
 
     /// Attach › Link to a Note…: the picker with a few titles, and with nothing found.
