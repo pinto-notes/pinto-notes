@@ -24,10 +24,12 @@ struct MarkdownEditor: View {
     var dateShown = false
     /// What sits under the note's last line and scrolls with it: the notes that link here.
     var foot: NoteLinks? = nil
+    /// The note whose collapsed sections this device keeps (HeadingFolds); nil keeps them only while open.
+    var foldsID: UUID? = nil
     let onChange: (String) -> Void
 
     var body: some View {
-        PlatformEditor(initialText: initialText, header: header, controller: controller, autofocus: autofocus, identifier: identifier, titleLine: titleLine, followsInitialText: followsInitialText, dateShown: dateShown, foot: foot, onChange: onChange)
+        PlatformEditor(initialText: initialText, header: header, controller: controller, autofocus: autofocus, identifier: identifier, titleLine: titleLine, followsInitialText: followsInitialText, dateShown: dateShown, foot: foot, foldsID: foldsID, onChange: onChange)
     }
 }
 
@@ -41,6 +43,9 @@ enum EditorFoot {
 final class EditorCore {
     var styler = MarkdownStyler()
     let layoutDelegate = DecoratingLayoutDelegate()
+    /// Collapsed sections (HeadingFolds), and what leaves their lines out of layout.
+    let folds = FoldState()
+    let foldDelegate = FoldingContentDelegate()
     var onChange: (String) -> Void = { _ in }
     var applyingEdit = false
     /// Checklist lines ticked since the last sort. Each tick starts the wait again, so quick
@@ -115,7 +120,7 @@ final class EditorCore {
             }
         }
         var out: [(String, CGRect, AnyView, CardContent)] = []
-        for g in grids {
+        for g in grids where !folds.isHidden(g.range.location) {
             // The row handles sit in the margin, so the grid lines up with the text.
             guard var f = frame(at: g.range.location, height: GridMetrics.height(g)) else { continue }
             f.origin.x -= GridMetrics.handle
@@ -139,7 +144,7 @@ final class EditorCore {
             }
             out.append(("g\(g.index)", f, AnyView(view), .grid(g, request: request, selected: isSelected)))
         }
-        for e in embeds {
+        for e in embeds where !folds.isHidden(e.range.location) {
             // Cards and pictures run the text's width, like the text (no max width, Emil 10-31).
             var maxW = CGFloat.infinity
             if case .note(let id, _) = e.kind, NoteWidgets.isApp(id) { maxW = NoteWidgets.maxWidth }
@@ -179,7 +184,7 @@ final class EditorCore {
         let dateEdit = selection.flatMap { sel in
             line.location == NSNotFound ? nil : NoteDates.dates(in: storage.string, range: line).first { NoteDates.editing($0.range, selection: sel) }?.range
         }
-        if !force, dirty == nil, !needsFull, line == lastActiveLine, dateEdit == lastDateEdit { return }
+        if !force, dirty == nil, !needsFull, !folds.dirty, line == lastActiveLine, dateEdit == lastDateEdit { return }
         lastDateEdit = dateEdit
         let previous = lastActiveLine
         lastActiveLine = line
@@ -206,7 +211,17 @@ final class EditorCore {
         lastRegions.append(region.map { "\($0)" } ?? "full")
         if lastRegions.count > 6 { lastRegions.removeFirst() }
         let blocks = styler.apply(to: storage, active: selection ?? NSRange(location: NSNotFound, length: 0), region: region, structure: structure)
+        folds.apply(to: storage, code: structure.code, selection: selection)
         publish(blocks)
+    }
+
+    /// Collapsed sections changed (a chevron, the pointer over a heading, a menu command): hides
+    /// and shows their lines and places the live views again. Returns whether what's hidden changed.
+    @discardableResult
+    func applyFolds(_ storage: NSTextStorage, selection: NSRange?) -> Bool {
+        let changed = folds.apply(to: storage, code: structure(of: storage.string).code, selection: selection)
+        if changed { onCardsChanged() }
+        return changed
     }
 
     /// Images of this note arrived (EditorController.imagesArrived): their sizes can be read now,
@@ -311,6 +326,7 @@ final class EditorCore {
         let r = chunk(ns, structure: structure, from: unstyledFrom, including: NSRange(location: NSNotFound, length: 0))
         let active = lastActiveLine.flatMap { $0.location == NSNotFound ? nil : $0 } ?? NSRange(location: NSNotFound, length: 0)
         let blocks = styler.apply(to: storage, active: active, region: r, structure: structure)
+        folds.apply(to: storage, code: structure.code, selection: lastActiveLine.flatMap { $0.location == NSNotFound ? nil : NSRange(location: $0.location, length: 0) })
         unstyledFrom = NSMaxRange(r) >= ns.length ? Int.max : NSMaxRange(r)
         publish(blocks)
         if unstyledFrom != Int.max { scheduleChunk() }
@@ -340,6 +356,7 @@ final class EditorCore {
 
     func noteEdit(_ edited: NSRange, delta: Int) {
         version += 1
+        folds.noteEdit(edited, delta: delta)
         func shift(_ r: NSRange) -> NSRange {
             // Ranges after the edit move with it; ranges it overlaps grow to cover it.
             let oldEnd = edited.location + edited.length - delta
@@ -488,6 +505,10 @@ final class EditorCore {
     func caretFix(_ text: String, _ selection: NSRange, byKeyboard: Bool) -> CaretFix? {
         defer { lastSelection = selection }
         guard selection.length == 0 else { return nil }
+        // Never in a collapsed section: past it going down, else at the end of its heading.
+        if let to = HeadingFolds.caret(selection.location, previous: lastSelection?.location, hidden: folds.hidden, length: (text as NSString).length) {
+            return .move(to)
+        }
         if let b = blocks(in: text).first(where: { $0.contains(selection.location) }) {
             let fromBelow = (lastSelection?.location ?? -1) > NSMaxRange(b.range)
             let fromAbove = lastSelection.map { $0.location < b.range.location } ?? false
@@ -628,6 +649,7 @@ private struct PlatformEditor: UIViewRepresentable {
     let followsInitialText: Bool
     let dateShown: Bool
     let foot: NoteLinks?
+    let foldsID: UUID?
     let onChange: (String) -> Void
 
     func makeUIView(context: Context) -> PaneTextView {
@@ -635,6 +657,7 @@ private struct PlatformEditor: UIViewRepresentable {
         view.core.styler.firstLineIsTitle = titleLine
         view.core.styler.wiki = controller.wiki
         view.dateShown = dateShown
+        view.core.folds.noteID = foldsID
         view.configure(text: initialText, header: header)
         view.accessibilityIdentifier = identifier
         view.core.onChange = onChange
@@ -755,6 +778,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func configure(text: String, header: String) {
         textLayoutManager?.delegate = core.layoutDelegate
+        (textLayoutManager?.textContentManager as? NSTextContentStorage)?.delegate = core.foldDelegate
+        core.folds.showsAtCaret = true
         delegate = self
         textDropDelegate = self
         // A text view only looks at drops of what it can paste: notes dragged from the list
@@ -1438,6 +1463,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
         guard !core.applyingEdit else { return true }
+        core.folds.open(for: range)
+        if text == "\n", foldReturn(range) { return false }
         if text == "\n", let edit = ListEditing.returnKey(in: self.text, selection: range) {
             apply(edit); return false
         }
@@ -1588,6 +1615,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func textViewDidChangeSelection(_ textView: UITextView) {
         guard markedTextRange == nil else { return }
+        revealFolds()
         if core.disarm(unless: selectedRange) { layoutCards() }
         if isFirstResponder, let fix = core.caretFix(text, selectedRange, byKeyboard: false) {
             resolve(fix)
@@ -1735,6 +1763,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     /// one on a link, which asks to recover the note (tap(at:)), like Notes. A long press still
     /// selects there, to copy.
     func takesTap(at p: CGPoint) -> Bool {
+        if foldToggle(at: CGPoint(x: p.x - textContainerInset.left, y: p.y - textContainerInset.top), onlyShown: true) != nil { return true }
         if controller?.readOnly == true { return !onLink(at: p) }
         return checkboxLine(for: p) != nil
     }
@@ -1761,6 +1790,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     @objc private func handleTap(_ g: UITapGestureRecognizer) { tap(at: g.location(in: self)) }
 
     func tap(at point: CGPoint) {
+        if let h = foldToggle(at: CGPoint(x: point.x - textContainerInset.left, y: point.y - textContainerInset.top), onlyShown: true) {
+            toggleFold(h)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            return
+        }
         if controller?.readOnly == true { controller?.askToRecover(); return }
         tapCheckbox(at: point)
     }
@@ -1887,6 +1921,7 @@ private struct PlatformEditor: NSViewRepresentable {
     let followsInitialText: Bool
     let dateShown: Bool
     let foot: NoteLinks?
+    let foldsID: UUID?
     let onChange: (String) -> Void
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -1898,6 +1933,7 @@ private struct PlatformEditor: NSViewRepresentable {
         let view = PaneTextView(frame: .zero)
         view.core.styler.firstLineIsTitle = titleLine
         view.core.styler.wiki = controller.wiki
+        view.core.folds.noteID = foldsID
         view.configure(text: initialText, header: header)
         view.setAccessibilityIdentifier(identifier)
         view.core.onChange = onChange
@@ -1963,6 +1999,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     func configure(text: String, header: String) {
         textLayoutManager?.delegate = core.layoutDelegate
+        (textLayoutManager?.textContentManager as? NSTextContentStorage)?.delegate = core.foldDelegate
         delegate = self
         core.onCardsChanged = { [weak self] in DispatchQueue.main.async { self?.layoutCards() } }
         drawsBackground = false
@@ -2353,6 +2390,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
         switch selector {
         case #selector(insertNewline(_:)):
+            if foldReturn(selectedRange()) { return true }
             if let e = ListEditing.returnKey(in: string, selection: selectedRange()) { apply(e); return true }
         case #selector(deleteBackward(_:)), #selector(deleteForward(_:)):
             let forward = selector == #selector(deleteForward(_:))
@@ -2499,6 +2537,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     func textViewDidChangeSelection(_ notification: Notification) {
         guard !hasMarkedText(), let storage = textStorage else { return }
+        revealFolds()
         if core.disarm(unless: selectedRange()) { layoutCards() }
         if window?.firstResponder === self,
            let fix = core.caretFix(string, selectedRange(), byKeyboard: inKeyDown) {
@@ -2748,6 +2787,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let p = convert(event.locationInWindow, from: nil)
         if card(at: p) != nil { return }
         let point = CGPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y)
+        // Over a heading its chevron shows; on the chevron the pointer is an arrow.
+        if hoverFolds(at: point) {
+            NSCursor.arrow.set()
+            return
+        }
         if core.tickTarget(at: point, viewY: p.y, layout: textLayoutManager) != nil {
             NSCursor.arrow.set()
             return
@@ -2763,6 +2807,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
         let point = CGPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y)
+        // A heading's chevron collapses or opens its section; the caret stays where it is.
+        if event.clickCount == 1, let h = foldToggle(at: point) {
+            toggleFold(h)
+            return
+        }
         // The row drawn under the pointer, even while rows slide; then they stop where they're going.
         let target = core.tickTarget(at: point, viewY: p.y, layout: textLayoutManager)
         core.endSlides()

@@ -75,7 +75,8 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     }
 
     override var renderingSurfaceBounds: CGRect {
-        let base = super.renderingSurfaceBounds
+        // A heading's chevron sits in the margin (HeadingFolds).
+        let base = super.renderingSurfaceBounds.union(foldSurface)
         guard decoration != nil || highlighted || hasDates else { return base }
         let left = -layoutFragmentFrame.minX
         return base.union(CGRect(x: left - 4, y: -14, width: containerWidth + 8, height: layoutFragmentFrame.height + 28))
@@ -176,6 +177,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             drawDates(at: point, in: context)
             context.restoreGState()
         }
+        drawFold(at: point, in: context)
     }
 
     /// Whether the paragraph has a date chip (NoteDates).
