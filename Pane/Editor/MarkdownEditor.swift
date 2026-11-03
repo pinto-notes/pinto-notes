@@ -1669,6 +1669,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         case .open(let url): return UIAction { _ in UIApplication.shared.open(url) }
         case .note(let id): return UIAction { [weak self] _ in self?.controller?.openNote(id) }
         case .wiki(let target): return UIAction { [weak self] _ in self?.controller?.openWiki(target) }
+        case .tag(let name): return UIAction { [weak self] _ in self?.controller?.openTag(name) }
         case .nothing: return nil
         }
     }
@@ -2333,6 +2334,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         case .open(let url): NSWorkspace.shared.open(url)
         case .note(let id): controller?.openNote(id)
         case .wiki(let target): controller?.openWiki(target)
+        case .tag(let name): controller?.openTag(name)
         case .nothing: NSSound.beep()
         }
         return true

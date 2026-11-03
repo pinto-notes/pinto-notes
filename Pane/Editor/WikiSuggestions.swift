@@ -20,7 +20,7 @@ struct WikiSuggestionList: View {
                         if controller.wikiHeadings {
                             Image(systemName: "number").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
                         }
-                        Text(controller.wikiHeadings ? title : WikiLinks.suggestionLabel(title))
+                        Text(controller.wikiTags ? "#" + title : controller.wikiHeadings ? title : WikiLinks.suggestionLabel(title))
                             .font(.system(size: 13))
                             .foregroundStyle(Color.ink)
                             .lineLimit(1)
@@ -41,7 +41,7 @@ struct WikiSuggestionList: View {
         .background(Color(PColor.panePanel), in: .rect(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(PColor.paneSeparator)))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(controller.wikiHeadings ? "Link to a heading" : "Link to a note")
+        .accessibilityLabel(controller.wikiTags ? "Tags" : controller.wikiHeadings ? "Link to a heading" : "Link to a note")
     }
 }
 #endif
@@ -56,7 +56,7 @@ struct WikiSuggestionRow: View {
             HStack(spacing: 2) {
                 ForEach(Array(controller.wikiSuggestions.enumerated()), id: \.offset) { i, title in
                     Button { controller.completeWiki(title) } label: {
-                        Text(controller.wikiHeadings ? "# " + title : WikiLinks.suggestionLabel(title))
+                        Text(controller.wikiTags ? "#" + title : controller.wikiHeadings ? "# " + title : WikiLinks.suggestionLabel(title))
                             .font(.system(size: 16, weight: .medium))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
@@ -70,7 +70,7 @@ struct WikiSuggestionRow: View {
             }
             .padding(.horizontal, 4)
         }
-        .accessibilityLabel(controller.wikiHeadings ? "Link to a heading" : "Link to a note")
+        .accessibilityLabel(controller.wikiTags ? "Tags" : controller.wikiHeadings ? "Link to a heading" : "Link to a note")
     }
 }
 #endif

@@ -2,7 +2,7 @@ import Foundation
 
 /// What clicking a link in a note may do. Notes can be written by anyone the account lets
 /// in (an AI connection, an import, a paste), so a link only ever opens a web page, a mail
-/// or a call, or another note (by id, or by title through a wiki link). file:, smb: (which
+/// or a call, another note (by id, or by title through a wiki link) or a tag's notes. file:, smb: (which
 /// hands the Mac's login to a stranger's server), other apps' schemes and Amber Notes' own
 /// pintonotes: are never opened.
 enum LinkPolicy {
@@ -11,6 +11,8 @@ enum LinkPolicy {
         case note(UUID)
         /// A wiki link, by the target written in it ("Projects/Kitchen remodel").
         case wiki(String)
+        /// A tag (`#work/clients`), by its name without the `#`: the notes that have it.
+        case tag(String)
         case nothing
     }
 
@@ -21,6 +23,9 @@ enum LinkPolicy {
         case wikiScheme:
             let target = url.absoluteString.dropFirst(wikiScheme.count + 1).removingPercentEncoding ?? ""
             return target.isEmpty ? .nothing : .wiki(target)
+        case tagScheme:
+            let name = url.absoluteString.dropFirst(tagScheme.count + 1).removingPercentEncoding ?? ""
+            return name.isEmpty ? .nothing : .tag(name)
         case "pane-note":
             let id = url.absoluteString.dropFirst("pane-note:".count).prefix(36)
             return UUID(uuidString: String(id)).map(Action.note) ?? .nothing
@@ -34,6 +39,13 @@ enum LinkPolicy {
 
     static func wikiURL(_ target: String) -> URL? {
         target.addingPercentEncoding(withAllowedCharacters: .alphanumerics).flatMap { URL(string: "\(wikiScheme):\($0)") }
+    }
+
+    /// The editor's own address for a tag (its name, without the `#`); it never leaves the app.
+    static let tagScheme = "pane-tag"
+
+    static func tagURL(_ name: String) -> URL? {
+        name.addingPercentEncoding(withAllowedCharacters: .alphanumerics).flatMap { URL(string: "\(tagScheme):\($0)") }
     }
 
     /// Links that arrive as strings (NSTextView passes either).

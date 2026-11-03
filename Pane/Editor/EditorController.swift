@@ -362,6 +362,10 @@ final class EditorController {
     var wiki: WikiScope?
     /// Follows a wiki link by its target, or offers to make the note (set by the note screen).
     @ObservationIgnored var openWiki: (String) -> Void = { _ in }
+    /// Shows the notes with a tag, by its name without the `#` (set by the notes window).
+    @ObservationIgnored var openTag: (String) -> Void = { _ in }
+    /// Tags offered while one is typed after `#`, for what's typed (set by the notes window).
+    @ObservationIgnored var suggestTags: (String) -> [String] = { _ in [] }
     /// A note's first lines and folder, for its card (`![[Title]]`; set by the note screen).
     @ObservationIgnored var notePreview: (UUID) -> (preview: String, folder: String?)? = { _ in nil }
 
@@ -377,6 +381,8 @@ final class EditorController {
     @ObservationIgnored var suggestHeadings: (_ target: String, _ typed: String) -> [String] = { _, _ in [] }
     /// The suggestions are headings of a note, not titles.
     private(set) var wikiHeadings = false
+    /// The suggestions are tags, for a `#tag` being typed (Tags.typingQuery).
+    private(set) var wikiTags = false
     /// Where the typed part of the link is.
     @ObservationIgnored private(set) var wikiQuery: NSRange?
     /// A link whose suggestions were put away (Escape): not offered again while typing it.
@@ -393,31 +399,48 @@ final class EditorController {
         }
         let q: NSRange
         let offered: () -> [String]
+        var tags = false
         if let t = WikiLinks.typingQuery(in: text, caret: sel.location) {
             q = t
             offered = { self.suggestTitles((text as NSString).substring(with: t)) }
         } else if let h = WikiLinks.typingHeading(in: text, caret: sel.location) {
             q = h.query
             offered = { self.suggestHeadings(h.target, (text as NSString).substring(with: h.query)) }
+        } else if let t = Tags.typingQuery(in: text, caret: sel.location) {
+            q = t
+            tags = true
+            offered = { self.suggestTags((text as NSString).substring(with: t)) }
         } else {
             wikiDismissed = nil
             clearWikiSuggestions()
             return
         }
         guard q.location != wikiDismissed else { clearWikiSuggestions(); return }
-        let headings = q.location > 0 && (text as NSString).character(at: q.location - 1) == 0x23
+        let headings = !tags && q.location > 0 && (text as NSString).character(at: q.location - 1) == 0x23
         wikiQuery = q
         let titles = offered()
-        if titles != wikiSuggestions || headings != wikiHeadings {
+        if titles != wikiSuggestions || headings != wikiHeadings || tags != wikiTags {
             wikiSuggestions = titles
             wikiHeadings = headings
+            wikiTags = tags
             wikiChoice = 0
         }
     }
 
-    /// Finishes the link being typed with `title`, and puts the caret after it.
+    /// Finishes the link being typed with `title`, and puts the caret after it. A tag is finished
+    /// with a space after it, so the next word can follow.
     func completeWiki(_ title: String) {
         guard let q = wikiQuery else { return }
+        if wikiTags {
+            perform { text, _ in
+                let ns = text as NSString
+                guard NSMaxRange(q) <= ns.length else { return nil }
+                let spaced = NSMaxRange(q) < ns.length && ns.character(at: NSMaxRange(q)) == 0x20
+                return TextEdit(range: q, replacement: title + (spaced ? "" : " "), caret: q.location + (title as NSString).length + 1)
+            }
+            clearWikiSuggestions()
+            return
+        }
         perform { text, _ in
             let ns = text as NSString
             guard NSMaxRange(q) <= ns.length else { return nil }
@@ -436,6 +459,7 @@ final class EditorController {
         wikiQuery = nil
         if !wikiSuggestions.isEmpty { wikiSuggestions = [] }
         if wikiHeadings { wikiHeadings = false }
+        if wikiTags { wikiTags = false }
     }
     // MARK: Tables
 

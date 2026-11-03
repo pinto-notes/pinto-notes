@@ -327,6 +327,7 @@ struct MarkdownStyler {
 
         styleUnderlines(storage, in: full, isActive: isActive, skip: walker.codeRanges)
         styleWikiLinks(storage, in: full, isActive: isActive)
+        styleTags(storage, in: full, selection: active, skip: walker.codeRanges + walker.inlineCodeRanges)
         styleDates(storage, in: full, selection: active, skip: walker.codeRanges + walker.inlineCodeRanges)
         let grids = styleGrids(storage, in: full, grids: structure.grids)
         let embeds = styleEmbeds(storage, in: full, embeds: structure.embeds)
@@ -423,6 +424,30 @@ struct MarkdownStyler {
             if link.aliasRange == nil, let h = link.headingRange.map(shift), h.length > 0 {
                 storage.addAttribute(.foregroundColor, value: PColor.paneTertiary, range: NSRange(location: h.location, length: 1))
             }
+        }
+    }
+
+    /// Tags (`#work`, `#work/clients`) show in the accent colour, as in Notes and Obsidian; the text
+    /// stays as written, since it's the tag's name. Clicking one shows every note with it
+    /// (LinkPolicy's `.tag`). Not in code, links or the title. While the caret is in one, it's being
+    /// written: no link then, so a click there places the caret. A ticked item keeps its muted look.
+    private func styleTags(_ storage: NSTextStorage, in scope: NSRange, selection: NSRange, skip: [NSRange]) {
+        let ns = storage.string as NSString
+        let found = Tags.find(in: storage.string, range: scope, blocks: false)
+        guard !found.isEmpty else { return }
+        let title = Self.titleLocation(ns)
+        let titleLine = title < ns.length ? ns.lineRange(for: NSRange(location: title, length: 0)) : NSRange(location: NSNotFound, length: 0)
+        for tag in found {
+            let r = tag.range
+            if skip.contains(where: { NSIntersectionRange($0, r).length > 0 }) { continue }
+            if storage.attribute(.link, at: r.location, effectiveRange: nil) != nil { continue }
+            if NSLocationInRange(r.location, titleLine), (storage.attribute(.font, at: r.location, effectiveRange: nil) as? PFont) == Self.titleFont { continue }
+            if (storage.attribute(.foregroundColor, at: r.location, effectiveRange: nil) as? PColor) == PColor.clear { continue }
+            if storage.attribute(.strikethroughStyle, at: r.location, effectiveRange: nil) == nil {
+                storage.addAttribute(.foregroundColor, value: PColor.paneAccent, range: r)
+            }
+            let writing = selection.location != NSNotFound && selection.location > r.location && selection.location <= NSMaxRange(r)
+            if !writing, let url = LinkPolicy.tagURL(tag.name) { storage.addAttribute(.link, value: url, range: r) }
         }
     }
 

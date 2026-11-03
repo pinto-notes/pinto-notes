@@ -19,6 +19,8 @@ struct RootView: View {
     @State private var editor = EditorController()
     /// The library's notes as the list keeps them, for the list and the sidebar's folder counts.
     @State private var library = LibraryNotes()
+    /// Every tag in the library, for the sidebar's Tags and the tags offered while one is typed.
+    @State private var tags = TagIndex()
     @State private var justCreated: UUID?
     #if os(iOS)
     /// The notes links opened, for Back to the note or app a link was in.
@@ -159,6 +161,7 @@ struct RootView: View {
                 .equatable()
                 #endif
                 .environment(library)
+                .environment(tags)
                 #if os(macOS)
                 // No sidebar button (Emil, 10-29), and no way to hide it at all (11-01): it can't
                 // collapse (SidebarPin; the split view's own ⌃⌘S does nothing), and the window can't
@@ -259,6 +262,7 @@ struct RootView: View {
     private func lifecycle(_ content: some View) -> some View {
         content
             .onAppear {
+                wireTags()
                 #if os(iOS)
                 // On iPhone restoring the folder pushes the note list; doing that after the first
                 // layout lets the list open with its large title showing, as it does when you tap in.
@@ -310,6 +314,23 @@ struct RootView: View {
                 Button("OK") {}
             } message: { Text("To bring everything at once, use Import from Apple Notes in Pinto Notes on your Mac. It syncs here a second later.") }
             #endif
+    }
+
+    /// A tag clicked in a note shows its notes, and typing one offers the library's tags.
+    private func wireTags() {
+        let context = self.context
+        let tags = self.tags
+        editor.suggestTags = { typed in tags.suggestions(typed, in: context) }
+        editor.openTag = { name in showTag(name) }
+    }
+
+    /// The notes with a tag, in the list. On the Mac the note stays open beside them (it has the
+    /// tag, so it's in the list); on iPhone the list comes back into view.
+    private func showTag(_ name: String) {
+        scope = .tag(tags.listedName(name, in: context))
+        #if os(iOS)
+        if sizeClass == .compact { selection = [] }
+        #endif
     }
 
     /// Opens the place an email linked to, if it's one this view owns, then clears it.
