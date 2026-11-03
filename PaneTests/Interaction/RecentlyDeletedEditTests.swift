@@ -11,6 +11,36 @@ import Testing
 @MainActor @Suite(.serialized) struct RecentlyDeletedEditTests {
     // MARK: The editor
 
+    /// Deleting a blank note removes it for good: Recently Deleted never holds an empty row that
+    /// opens to nothing but its banner (Emil, 3 November 2026).
+    @Test func aBlankNoteIsntKeptInRecentlyDeleted() throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let blank = ctx.createNote(in: .all, body: "  \n")
+        let written = ctx.createNote(in: .all, body: "Milk")
+        ctx.trash(blank)
+        ctx.trash(written)
+        #expect(blank.deletedAt != nil && blank.trashedAt == nil, "gone for good")
+        #expect(written.trashedAt != nil && written.deletedAt == nil, "a note with text goes to Recently Deleted")
+    }
+
+    /// What each list holds, for closing a note the new list doesn't show.
+    @Test func eachListKnowsItsNotes() throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let note = ctx.createNote(in: .all, body: "Milk")
+        let folder = try #require(note.folder)
+        #expect(ModelContext.lists(.all, note) == true)
+        #expect(ModelContext.lists(.folder(folder.id), note) == true)
+        #expect(ModelContext.lists(.folder(UUID()), note) == false)
+        #expect(ModelContext.lists(.trash, note) == false)
+        ctx.trash(note)
+        #expect(ModelContext.lists(.trash, note) == true)
+        #expect(ModelContext.lists(.all, note) == false && ModelContext.lists(.folder(folder.id), note) == false,
+                "a deleted note isn't in Notes: switching there closes it")
+        #expect(ModelContext.lists(.tag("work"), note) == nil)
+    }
+
     @Test func typingIntoADeletedNoteAsksToRecoverAndChangesNothing() async {
         let h = await EditorHarness("Plan\nMilk and eggs")
         defer { h.close() }
@@ -190,23 +220,33 @@ import Testing
 
     /// Emil (11-03): the list's name read "Rec…" over "41 no…" in Recently Deleted, where there
     /// is no New Note beside it. It shows whole, centred in the column's header.
+    /// The list's name in the bar after switching lists. The bar measures the name's slot only
+    /// when its buttons change (New Note coming or going), so the slot used to keep the width of
+    /// the name it first held: "Notes" left Recently Deleted as "Rec…" (Emil, 3 November 2026).
+    /// The slot is now as wide as the room the name may take, whatever list is showing.
     @Test func theListsNameFitsInRecentlyDeleted() async throws {
         let c = try AppSnapshotTests.container()
         let note = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Groceries" })
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
-            let w = await Self.deletedNoteWindow(c, note)
+            let w = MacWindowChromeTests.window(c, size: CGSize(width: 1000, height: 700))
             defer { w.close() }
-            // As in Emil's window: the sidebar hidden, its buttons in the list's header.
-            let split = try #require(w.contentView.flatMap { MacWindowChromeTests.find(NSSplitView.self, in: $0) })
-            split.setPosition(0, ofDividerAt: 0)
             await MacWindowChromeTests.settle(w, 8)
-            split.setPosition(split.arrangedSubviews[0].frame.maxX + 280, ofDividerAt: 1)
+            // The list's header holds More, the name (a slot with no label) and New Note.
+            @MainActor func nameSlot() -> CGFloat {
+                ((try? MacWindowChromeTests.items(w)) ?? []).filter { $0.column == 1 && $0.label.isEmpty }.map(\.frame.width).max() ?? 0
+            }
+            let bold = NSFont.systemFont(ofSize: 14, weight: .bold)
+            func needs(_ s: String) -> CGFloat { (s as NSString).size(withAttributes: [.font: bold]).width }
+            let inNotes = nameSlot()
+            #expect(inNotes >= 120, "Notes gets the room, not the width of its short name: \(inNotes)")
+            c.mainContext.trash(note)
+            NoteOpener.shared.request = note.id
             await MacWindowChromeTests.settle(w, 8)
-            let items = try MacWindowChromeTests.items(w)
-            print("toolbar in Recently Deleted: " + items.map { "\($0.label.isEmpty ? "(blank)" : $0.label)@\($0.column) \(Int($0.frame.minX))-\(Int($0.frame.maxX))" }.joined(separator: ", "))
-            let title = try #require(items.first { $0.label.isEmpty && $0.column == 1 && $0.frame.width > 20 })
-            let needs = ("Recently Deleted" as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 14, weight: .bold)]).width
-            #expect(title.frame.width >= needs, "the whole name: \(title.frame.width) pt for \(needs)")
+            #expect(nameSlot() >= needs("Recently Deleted"), "the whole name after switching: \(nameSlot()) pt for \(needs("Recently Deleted"))")
+            let long = c.mainContext.createFolder(named: "Weekend errands")
+            NoteOpener.shared.request = c.mainContext.createNote(in: .folder(long.id), body: "Bread").id
+            await MacWindowChromeTests.settle(w, 8)
+            #expect(nameSlot() >= needs("Weekend errands"), "a longer folder's name, switched to from Recently Deleted: \(nameSlot())")
         }
     }
 
