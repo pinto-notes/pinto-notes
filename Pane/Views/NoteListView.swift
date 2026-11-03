@@ -544,7 +544,7 @@ struct NoteListView: View {
                 .accessibilityIdentifier("list.more")
             }
             ToolbarSpacer(.flexible)
-            if Self.titleRoom(listWidth: listWidth) > 0 {
+            if Self.titleRoom(listWidth: listWidth, compose: scope != .trash) > 0 {
                 ToolbarItem {
                     VStack(spacing: 0) {
                         Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
@@ -557,7 +557,7 @@ struct NoteListView: View {
                     // 2 November 2026).
                     .opacity(behindSetupCard ? 0.35 : 1)
                     // A long name ends in "…" before it gets near the buttons.
-                    .frame(maxWidth: Self.titleRoom(listWidth: listWidth))
+                    .frame(maxWidth: Self.titleRoom(listWidth: listWidth, compose: scope != .trash))
                 }
                 .sharedBackgroundVisibility(.hidden)
                 ToolbarSpacer(.flexible)
@@ -633,13 +633,14 @@ struct NoteListView: View {
     }
 
     /// Room in the list's header between More and New Note for the name: the column less the
-    /// two buttons, their margins and the spacers' least widths.
-    private static func headerRoom(listWidth: CGFloat) -> CGFloat { max(0, listWidth - 112) }
+    /// two buttons, their margins and the spacers' least widths. Recently Deleted has no New
+    /// Note, and its name takes that room too (Emil, 11-03: it read "Rec…" over "41 no…").
+    private static func headerRoom(listWidth: CGFloat, compose: Bool) -> CGFloat { max(0, listWidth - (compose ? 112 : 68)) }
     /// The most room the name takes before it ends in "…".
     /// None when less than 40 pt is left (the sidebar hidden beside a narrow list): the buttons
     /// keep their places inside the column.
-    static func titleRoom(listWidth: CGFloat) -> CGFloat {
-        let room = min(titleWidth, headerRoom(listWidth: listWidth))
+    static func titleRoom(listWidth: CGFloat, compose: Bool = true) -> CGFloat {
+        let room = min(titleWidth, headerRoom(listWidth: listWidth, compose: compose))
         return room < 40 ? 0 : room
     }
     #endif

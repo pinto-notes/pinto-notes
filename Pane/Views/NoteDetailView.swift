@@ -896,10 +896,16 @@ struct NoteDetailView: View {
         RenderProbe.count("NoteDetailView", context: context)
         #endif
         return content
+            // A deleted note says so at its top, with Recover (Emil, 11-03); typing, clicking or
+            // tapping into it still asks to recover it, like Notes (Emil, 10-30).
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if note.trashedAt != nil {
+                    TrashBanner { Self.recover(note, in: context, editor: controller) }
+                        .transition(.opacity)
+                }
+            }
             .ignoresSafeArea(.container, edges: .bottom)
             .background(Color.notePage.ignoresSafeArea())
-            // A deleted note shows like any other, read-only, with no banner; typing, clicking or
-            // tapping into it asks to recover it, like Notes (Emil, 10-30).
             .onChange(of: note.trashedAt, initial: true) { _, at in controller.readOnly = at != nil }
             .alert(Self.recoverTitle, isPresented: $askingRecover) {
                 Button("Cancel", role: .cancel) {}
@@ -1726,3 +1732,37 @@ struct LinkBackButton: ViewModifier {
     }
 }
 #endif
+
+/// The line at the top of a note in Recently Deleted: what it is, and Recover.
+struct TrashBanner: View {
+    var recover: () -> Void
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        HStack(spacing: 10) {
+            Image(systemName: "trash")
+                .foregroundStyle(Color.muted)
+                .accessibilityHidden(true)
+            Text(Self.text)
+                .font(.callout)
+                .foregroundStyle(Color.ink)
+                .lineLimit(2)
+            Spacer(minLength: 8)
+            Button("Recover", action: recover)
+                .buttonStyle(.amberProminent)
+                .fixedSize()
+                .accessibilityIdentifier("editor.bannerRecover")
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 8)
+        .padding(.vertical, 8)
+        .background(Color(Palette.soft), in: shape)
+        .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("editor.trashBanner")
+    }
+
+    static let text = "This note is in Recently Deleted."
+}

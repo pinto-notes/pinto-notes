@@ -5,8 +5,8 @@ import SwiftUI
 import Testing
 @testable import Pane
 
-/// A note in Recently Deleted on the Mac, the Notes way (Emil, 10-30): no banner over it, no
-/// writing tools, compose or Share; typing or clicking into it asks to recover it and changes
+/// A note in Recently Deleted on the Mac (Emil, 10-30; banner back 11-03): a banner at its top
+/// that says so, with Recover; no writing tools, compose or Share; typing or clicking into it asks to recover it and changes
 /// nothing; Recover puts it back in its folder, open and editable. Offscreen windows only.
 @MainActor @Suite(.serialized) struct RecentlyDeletedEditTests {
     // MARK: The editor
@@ -96,9 +96,8 @@ import Testing
             let editor = try Self.editor(w)
             #expect(editor.string.contains("Groceries"), "the deleted note is open")
             #expect(!editor.isEditable, "read-only")
-            // No banner: the text sits where a live note's does, running under the toolbar.
-            let frame = editor.enclosingScrollView.map { $0.convert($0.bounds, to: nil) }
-            #expect(frame == liveFrame, "no banner pushes the note down: \(String(describing: frame)) vs \(String(describing: liveFrame))")
+            // The banner says it's deleted (theBannersRecoverPutsItBackAndGoes).
+            #expect(liveFrame != nil)
             let items = try MacWindowChromeTests.items(w)
             print("toolbar in Recently Deleted: " + items.map { "\($0.label.isEmpty ? "(blank)" : $0.label)@\($0.column)" }.joined(separator: ", "))
             for label in ["Format", "Checklist", "Table", "Attach", "Share", "New Note"] {
@@ -140,6 +139,74 @@ import Testing
             #expect(NoteOpener.shared.request == nil, "the window showed it where it lives")
             editor.keyDown(with: e)
             #expect(asked == 1, "no more asking")
+        }
+    }
+
+    /// The colour the window draws at `x` from the note column's right edge and `y` down from
+    /// the window's top: where the banner's ground is, clear of its text and Recover.
+    static func bannerSpot(_ w: NSWindow) throws -> NSColor? {
+        w.contentView?.layoutSubtreeIfNeeded()
+        w.displayIfNeeded()
+        let split = try #require(w.contentView.flatMap { MacWindowChromeTests.find(NSSplitView.self, in: $0) })
+        let note = split.arrangedSubviews[2].convert(split.arrangedSubviews[2].bounds, to: nil)
+        let frame = try #require(w.contentView?.superview)
+        let rep = try #require(frame.bitmapImageRepForCachingDisplay(in: frame.bounds))
+        frame.cacheDisplay(in: frame.bounds, to: rep)
+        let scale = CGFloat(rep.pixelsWide) / frame.bounds.width
+        return rep.colorAt(x: Int((note.maxX - 140) * scale), y: Int(66 * scale))?.usingColorSpace(.sRGB)
+    }
+
+    static func same(_ a: NSColor?, _ b: NSColor?) -> Bool {
+        guard let a, let b else { return false }
+        return abs(a.redComponent - b.redComponent) < 0.02 && abs(a.greenComponent - b.greenComponent) < 0.02 && abs(a.blueComponent - b.blueComponent) < 0.02
+    }
+
+    /// Emil (11-03): "add back a UI in the note that makes it clear that it's in the trash, and a
+    /// button to recover." The banner draws at the note's top; Recover puts it back and it goes.
+    @Test func theBannersRecoverPutsItBackAndGoes() async throws {
+        let c = try AppSnapshotTests.container()
+        let ctx = c.mainContext
+        let note = try #require(try ctx.fetch(FetchDescriptor<Note>()).first { $0.title == "Groceries" })
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            let w = await Self.deletedNoteWindow(c, note)
+            defer { w.close() }
+            let banner = try Self.bannerSpot(w)
+            var soft: NSColor?
+            w.effectiveAppearance.performAsCurrentDrawingAppearance { soft = Palette.soft.usingColorSpace(.sRGB) }
+            #expect(Self.same(banner, soft), "the banner's ground: \(String(describing: banner))")
+            // Recover, as the banner's button does.
+            var pressed = false
+            let view = TrashBanner { pressed = true }
+            view.recover()
+            #expect(pressed)
+            NoteDetailView.recover(note, in: ctx, editor: try #require(try Self.editor(w).controller))
+            await MacWindowChromeTests.settle(w)
+            #expect(note.trashedAt == nil, "recovered")
+            #expect(try Self.editor(w).isEditable, "and editable")
+            let after = try Self.bannerSpot(w)
+            #expect(!Self.same(after, banner), "the banner goes: \(String(describing: after))")
+        }
+    }
+
+    /// Emil (11-03): the list's name read "Rec…" over "41 no…" in Recently Deleted, where there
+    /// is no New Note beside it. It shows whole, centred in the column's header.
+    @Test func theListsNameFitsInRecentlyDeleted() async throws {
+        let c = try AppSnapshotTests.container()
+        let note = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Groceries" })
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            let w = await Self.deletedNoteWindow(c, note)
+            defer { w.close() }
+            // As in Emil's window: the sidebar hidden, its buttons in the list's header.
+            let split = try #require(w.contentView.flatMap { MacWindowChromeTests.find(NSSplitView.self, in: $0) })
+            split.setPosition(0, ofDividerAt: 0)
+            await MacWindowChromeTests.settle(w, 8)
+            split.setPosition(split.arrangedSubviews[0].frame.maxX + 280, ofDividerAt: 1)
+            await MacWindowChromeTests.settle(w, 8)
+            let items = try MacWindowChromeTests.items(w)
+            print("toolbar in Recently Deleted: " + items.map { "\($0.label.isEmpty ? "(blank)" : $0.label)@\($0.column) \(Int($0.frame.minX))-\(Int($0.frame.maxX))" }.joined(separator: ", "))
+            let title = try #require(items.first { $0.label.isEmpty && $0.column == 1 && $0.frame.width > 20 })
+            let needs = ("Recently Deleted" as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 14, weight: .bold)]).width
+            #expect(title.frame.width >= needs, "the whole name: \(title.frame.width) pt for \(needs)")
         }
     }
 
@@ -232,7 +299,7 @@ import Testing
                 frame.cacheDisplay(in: frame.bounds, to: rep)
                 try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-recently-deleted-window-\(dark ? "dark" : "light").png"))
             }
-            // The note itself, read-only, as the editor draws it: no banner over it.
+            // The note itself, read-only, as the editor draws it (the banner sits above, in the window).
             let h = await EditorHarness(note.body, width: 900, height: 700, dark: dark, focus: false)
             h.controller.readOnly = true
             h.view.isEditable = false
