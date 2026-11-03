@@ -49,7 +49,7 @@ for name in $DEVICES; do
   shoot 2-list light
   shoot 3-groceries light -open Groceries
   shoot 4-note-dark dark -open Lisbon
-  shoot 5-folders light -showFolders
+  shoot 5-folders light -showFolders -open Lisbon
   xcrun simctl ui $SIM appearance light
   xcrun simctl terminate $SIM $APP 2>/dev/null || true
   PANE_SHOTS=$OUT TEST_RUNNER_PANE_SHOTS=$OUT xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" \
