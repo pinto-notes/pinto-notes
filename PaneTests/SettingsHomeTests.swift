@@ -7,27 +7,34 @@ import Testing
 /// Settings on the Mac, a card with its pages in a sidebar: few pages in a few groups, every
 /// setting found by its words, links landing on their page, and how you sign in said plainly.
 @MainActor @Suite(.serialized) struct SettingsHomeTests {
-    @Test func theSidebarHasFewGroupsWithAppearanceUnderGeneral() {
+    /// Direction A (3 November 2026): Account, Connect an AI and Appearance; Security and Storage;
+    /// Help and feedback. No General page: its switches are on Appearance and Help.
+    @Test func theSidebarIsAccountFirstWithNoGeneral() {
         let all = Set(SettingsPlace.allCases)
         let groups = SettingsPlace.groups(available: all)
-        #expect(groups == [[.ai, .general, .appearance], [.security, .storage, .account], [.help]])
-        #expect(!groups.joined().contains(.profile) && !groups.joined().contains(.appKeys), "Profile sits above the groups, Keys for apps under General")
-        #expect(groups.last == [.help], "Help and feedback is the last single row")
+        #expect(groups == [[.account, .ai, .appearance], [.security, .storage], [.help]])
+        #expect(!groups.joined().contains(.appKeys), "Keys for apps sits under Connect an AI")
+        #expect(!SettingsPlace.allCases.map(\.rawValue).contains("general") && !SettingsPlace.allCases.map(\.rawValue).contains("profile"))
         // Signed out: only what there is.
-        #expect(SettingsPlace.groups(available: [.general, .appearance, .help]) == [[.general, .appearance], [.help]])
-        #expect(SettingsCard.first(all) == .ai, "Settings opens at Connect an AI")
-        #expect(SettingsCard.first([.general, .appearance, .help]) == .general, "or at General, signed out")
+        #expect(SettingsPlace.groups(available: [.account, .appearance, .help]) == [[.account, .appearance], [.help]])
+        #expect(SettingsCard.first(all) == .account, "Settings opens at Account, never at Connect an AI")
+        #expect(SettingsCard.first([.appearance, .help]) == .appearance)
+        for place in SettingsPlace.allCases {
+            #expect(!place.intro.isEmpty && place.intro.hasSuffix(".") && !place.intro.contains("\u{2014}"), "\(place) has one plain line under its title")
+        }
+        #expect(SettingsPlace.account.intro == "Who you are here, and how you sign in.")
     }
 
-    /// iPhone's Settings rows come in the Mac sidebar's groups and order, less Account (it sits
-    /// under you on iPhone): Help and feedback is the last group on both. The iPhone list draws
-    /// from them.
-    @Test func iPhoneGroupsMatchTheMac() throws {
-        let mac = SettingsPlace.groups(available: Set(SettingsPlace.allCases))
-            .map { $0.filter { $0 != .account } }.filter { !$0.isEmpty }
-        #expect(SettingsTab.phoneGroups.map { $0.map(SettingsPlace.init) } == mac)
+    /// iPhone keeps its own list (General is still a page there); the pages both have come in the
+    /// same order.
+    @Test func iPhoneGroupsFollowTheMacsOrder() throws {
+        let mac = SettingsPlace.groups(available: Set(SettingsPlace.allCases)).joined()
+        let phone = SettingsTab.phoneGroups.joined().map(SettingsPlace.init)
+        let shared = phone.filter(mac.contains)
+        var seen: [SettingsPlace] = []
+        for p in shared where !seen.contains(p) { seen.append(p) }
+        #expect(seen == mac.filter(seen.contains), "the iPhone's pages come in the Mac's order: \(seen)")
         #expect(SettingsTab.phoneGroups.last == [.help], "Help and feedback, alone and last, as on the Mac")
-        #expect(Set(SettingsTab.phoneGroups.joined()) == Set(SettingsTab.allCases).subtracting([.account]), "every page but Account (your row) has a row")
         let source = try Self.source("Pane/Views/SettingsView.swift")
         #expect(source.contains("ForEach(Array(SettingsTab.phoneGroups.enumerated())"), "the iPhone list is built from phoneGroups")
     }
@@ -37,11 +44,11 @@ import Testing
     }
 
     @Test func linksIntoSettingsLandOnTheirPage() {
-        #expect(SettingsPlace(.account) == .profile, "the account row opens Profile")
+        #expect(SettingsPlace(.account) == .account, "the account menu's Account opens Account")
         #expect(SettingsPlace(.ai) == .ai)
         #expect(SettingsPlace(.storage) == .storage)
         #expect(SettingsPlace(.security) == .security)
-        #expect(SettingsPlace(.general) == .general)
+        #expect(SettingsPlace(.general) == .appearance, "General's switches moved: Show in menu bar is on Appearance")
         #expect(SettingsPlace(.appearance) == .appearance)
         #expect(SettingsPlace(.help) == .help)
     }
@@ -54,21 +61,21 @@ import Testing
             #expect(found.contains(.appearance), "\(word) finds Appearance")
             #expect(Set(found) == [.appearance], "\(word) finds only Appearance: \(found)")
         }
-        #expect(SettingsIndex.matches("theme", available: [.general, .help]).isEmpty, "not when the page isn't there")
-        #expect(!SettingsIndex.all.contains { $0.place == .general && ["Theme", "Accent colour", "Light or dark mode"].contains($0.label) },
-                "nothing of Appearance is on General any more")
+        #expect(SettingsIndex.matches("theme", available: [.account, .help]).isEmpty, "not when the page isn't there")
     }
 
     /// Every setting that existed before is in the index, so search finds it, on its page.
     @Test func searchFindsEverySettingByItsWords() {
         let all = Set(SettingsPlace.allCases)
-        #expect(SettingsIndex.matches("menu bar", available: all).map(\.place) == [.general])
+        #expect(SettingsIndex.matches("menu bar", available: all).map(\.place) == [.appearance], "Show in menu bar moved to Appearance")
+        #expect(SettingsIndex.matches("diagnostics", available: all).map(\.place) == [.help], "diagnostics moved to Help and feedback")
         #expect(SettingsIndex.matches("recovery", available: all, recoveryKey: true).map(\.place) == [.security])
         #expect(SettingsIndex.matches("export", available: all).map(\.place) == [.account])
-        #expect(SettingsIndex.matches("sign out", available: all).map(\.place) == [.profile])
+        #expect(SettingsIndex.matches("sign out", available: all).map(\.place) == [.account])
+        #expect(SettingsIndex.matches("name", available: all).map(\.place).contains(.account))
         #expect(SettingsIndex.matches("STORAGE", available: all).allSatisfy { $0.place == .storage })
         #expect(SettingsIndex.matches("", available: all).isEmpty)
-        #expect(SettingsIndex.matches("recovery", available: [.general, .help], recoveryKey: true).isEmpty, "not on a page that isn't there")
+        #expect(SettingsIndex.matches("recovery", available: [.account, .help], recoveryKey: true).isEmpty, "not on a page that isn't there")
     }
 
     /// Advanced protection is retired (AdvancedProtection): search finds it only for an account
@@ -184,6 +191,9 @@ import Testing
         let src = try Self.source("Pane/Views/SettingsHome.swift")
         #expect(src.contains("if Self.offersSetupGuide(signedIn: signedIn)") && src.contains("Self.playSetupGuide(close: close)")
                 && src.contains("noMail = Self.mailed(accepted: accepted, copy: copy)"))
+        let mac = try Self.source("Pane/Views/SettingsPages.swift")
+        #expect(mac.contains("if HelpPage.offersSetupGuide(signedIn: signedIn)") && mac.contains("HelpPage.playSetupGuide(close: close)")
+                && mac.contains("noMail = HelpPage.mailed(accepted: accepted, copy: copy)"), "the Mac's page uses the same steps")
     }
 
     // MARK: Security
@@ -265,7 +275,7 @@ import Testing
     /// starts where its content does; on a small window too.
     @Test(arguments: [CGSize(width: 1180, height: 760), CGSize(width: 860, height: 600)])
     func thePageIsACentredColumnUnderItsTitle(window: CGSize) async throws {
-        for place in [SettingsPlace.ai, .general, .appearance, .security, .help] {
+        for place in [SettingsPlace.account, .ai, .appearance, .security, .storage, .help] {
             let f = try await Self.layout(place, window: window)
             let page = try #require(f["page"], "\(place): the page reports its frame")
             let area = try #require(f["area"])
@@ -278,20 +288,21 @@ import Testing
         #expect(SettingsCard.contentWidth >= 560 && SettingsCard.contentWidth <= 620)
     }
 
-    /// Connect an AI's tiles fill the content column, their left edge under the title's.
-    @Test func connectTilesLineUpWithTheTitle() async throws {
+    /// Connect an AI's boxes fill the content column, their left edge under the title's; what is
+    /// connected comes before what there is to add.
+    @Test func connectBoxesLineUpWithTheTitle() async throws {
         let f = try await Self.layout(.ai, window: CGSize(width: 1180, height: 760))
-        let tiles = try #require(f["connect.tiles"], "the tiles are on the page")
+        let add = try #require(f["connect.add"], "the AIs to add are on the page")
         let title = try #require(f["title"]), page = try #require(f["page"])
-        #expect(abs(tiles.minX - title.minX) < 0.5, "tiles \(tiles.minX), title \(title.minX)")
-        #expect(abs(tiles.width - (page.width - 2 * SettingsCard.pageInset)) < 0.5)
-        let list = try #require(f["connect.connected"], "what is connected is listed under them")
-        #expect(list.minY > tiles.maxY && abs(list.minX - tiles.minX) < 0.5)
+        #expect(abs(add.minX - title.minX) < 0.5, "add \(add.minX), title \(title.minX)")
+        #expect(abs(add.width - (page.width - 2 * SettingsCard.pageInset)) < 0.5)
+        let list = try #require(f["connect.connected"], "what is connected is listed")
+        #expect(list.maxY < add.minY && abs(list.minX - add.minX) < 0.5)
     }
 
     /// Two tabs next to each other in the sidebar never touch, so their fills never merge.
     @Test func adjacentTabsHaveAGap() async throws {
-        let f = try await Self.layout(.general, window: CGSize(width: 1180, height: 760))
+        let f = try await Self.layout(.storage, window: CGSize(width: 1180, height: 760))
         var pairs = 0
         for group in SettingsPlace.groups(available: Set(SettingsPlace.allCases)) {
             for (a, b) in zip(group, group.dropFirst()) {
@@ -301,20 +312,86 @@ import Testing
                 #expect(gap >= 2 && gap <= 4, "\(a) and \(b): \(gap) pt apart")
             }
         }
-        #expect(pairs >= 3, "measured \(pairs) pairs of tabs")
+        #expect(pairs >= 2, "measured \(pairs) pairs of tabs")
     }
 
-    /// The page and the setup card build Connect your AI from the same views, not copies.
+    /// The page and the setup card run the same connect flows, not copies.
     @Test func settingsConnectUsesTheSetupCardsPieces() throws {
         let page = try Self.source("Pane/Views/ConnectAI.swift")
         let setup = try Self.source("Pane/Views/SetupCards.swift")
-        for piece in ["ConnectTilePicker(", "ConnectWaitingPanel(", "ConnectedPanel(", "SetupCards.guidePage("] {
+        for piece in ["ConnectWaitingPanel(", "ConnectedPanel(", "SetupCards.guidePage("] {
             #expect(page.contains(piece) && setup.contains(piece), "\(piece) is shared")
         }
         #expect(SetupCards.guidePage(.grok) == .grok && SetupCards.guidePage(.other) == .other)
         #expect(SetupCards.guidePage(.chatgpt) == nil && SetupCards.guidePage(.claude) == nil)
         #expect(ConnectAIPage.more(offered: [.chatgpt, .claude, .grok, .codex, .incredible, .other]) == [.codex, .incredible], "Codex and Incredible stay reachable")
         #expect(ConnectCopy.why.hasSuffix(ConnectCopy.shared), "the line on what is shared is the same words everywhere")
+    }
+
+    /// Connect an AI says what is sent and to which company, by name, always in view (App Review
+    /// rejected 1.2 for hiding it); every AI there is to add has a row, less those connected, and
+    /// never Mistral.
+    @Test func connectSaysWhatIsSentAndToWhom() throws {
+        #expect(ConnectAIPage.sent(["ChatGPT", "Claude"]) == "The notes ChatGPT opens go to OpenAI and the notes Claude opens go to Anthropic. Nothing is shared until you allow it.")
+        #expect(ConnectAIPage.sent(["Grok"]) == "The notes Grok opens go to xAI. Nothing is shared until you allow it.")
+        #expect(ConnectAIPage.sent([]) == ConnectCopy.shared, "before any is connected, the general line")
+        #expect(ConnectAIPage.sent(["ChatGPT", "An app on this computer"]).contains("Other connected apps get only the notes they open."))
+        #expect(ConnectAIPage.headline([]) == "No AI can open your notes yet")
+        #expect(ConnectAIPage.headline(["ChatGPT", "Claude"]) == "ChatGPT and Claude can open your notes")
+        #expect(ConnectAIPage.headline(["ChatGPT", "Claude", "Grok"]) == "ChatGPT, Claude and Grok can open your notes")
+        let all: [ConnectAISection.Guide] = [.chatgpt, .claude, .grok, .codex, .incredible, .other]
+        #expect(ConnectAIPage.addable(offered: all, connected: ["ChatGPT", "Claude"]) == [.grok, .codex, .incredible, .other])
+        #expect(ConnectAIPage.addable(offered: all, connected: []) == all)
+        for g in all { #expect(!ConnectAIPage.line(g).isEmpty && !ConnectAIPage.line(g).contains("\u{2014}")) }
+        let src = try Self.source("Pane/Views/ConnectAI.swift")
+        let page = try #require(src.range(of: "struct ConnectAIPage").map { src[$0.lowerBound...] })
+        let body = String(page.prefix(while: { _ in true }).prefix(9000))
+        #expect(body.contains("Text(Self.sent(names))") && !body.contains("DisclosureGroup"), "the line is on the page, not behind a disclosure")
+        #expect(!ConnectAISection.Guide.allCases.contains { $0.title.localizedCaseInsensitiveContains("mistral") || $0.title.localizedCaseInsensitiveContains("le chat") }, "never Mistral")
+    }
+
+    // MARK: The card's size (3 November 2026: "the popup changes size when the app loses focus")
+
+    @MainActor @Observable final class Active { var on = true }
+
+    /// In a sheet the card measures the window under it once, when it opens. Before, it read the
+    /// main or key window on every redraw, and that changed as the app lost and regained focus.
+    @Test func theCardKeepsItsSizeWhenTheAppLosesFocus() async throws {
+        let keptFront = SettingsCard.frontWindowSize
+        defer { SettingsCard.frontWindowSize = keptFront }
+        SettingsCard.frontWindowSize = { CGSize(width: 1100, height: 720) }
+        let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
+        let active = Active()
+        struct Flip: View {
+            let active: Active
+            let backend: Backend
+            var body: some View {
+                SettingsView(backend: backend, sync: nil, connections: [], route: SettingsRoute(defaults: UserDefaults(suiteName: "settings-size-\(UUID())")!))
+                    .environment(\.appearsActive, active.on)
+                    .environment(\.controlActiveState, active.on ? .key : .inactive)
+            }
+        }
+        let frames = Frames()
+        let host = NSHostingView(rootView: Flip(active: active, backend: backend).environment(\.settingsLayoutProbe, { name, rect in frames.all[name] = rect }))
+        let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 1300, height: 900), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        defer { window.close() }
+        func settle() async throws {
+            for _ in 0..<6 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(60)) }
+        }
+        try await settle()
+        let first = try #require(frames.all["card"], "the card reports its frame")
+        #expect(first.size == SettingsCard.fitted(CGSize(width: 1100, height: 720)))
+        // The app loses focus: the main window is gone and only another one is key, a smaller one.
+        SettingsCard.frontWindowSize = { CGSize(width: 700, height: 500) }
+        for on in [false, true, false, true] {
+            active.on = on
+            try await settle()
+            #expect(frames.all["card"]?.size == first.size, "active \(on): \(String(describing: frames.all["card"]))")
+        }
+        let src = try Self.source("Pane/Views/SettingsCard.swift")
+        #expect(!src.contains("Self.fitted((NSApp.mainWindow"), "no reading the front window on a redraw")
     }
 }
 #endif

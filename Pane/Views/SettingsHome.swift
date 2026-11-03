@@ -7,57 +7,70 @@ import UIKit
 
 #if os(macOS)
 
-/// The pages of Settings on the Mac (SettingsCard): you at the top, then a few groups of pages in
-/// its sidebar. Rarely used and technical things sit one level down.
+/// The pages of Settings on the Mac (SettingsCard), in its sidebar's order: Account, Connect an
+/// AI and Appearance; Security and Storage; Help and feedback (Emil, 3 November 2026: no General
+/// page; Show in menu bar is on Appearance, diagnostics on Help and feedback). Keys for apps is one
+/// level down from Connect an AI.
 enum SettingsPlace: String, Hashable, CaseIterable, Identifiable {
-    case profile, ai, security, storage, account, general, appearance, help, appKeys
+    case account, ai, appearance, security, storage, help, appKeys
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .profile: "Profile"
+        case .account: "Account"
         case .ai: "Connect an AI"
+        case .appearance: "Appearance"
         case .security: PrivacyCopy.title
         case .storage: "Storage"
-        case .account: "Account"
-        case .general: "General"
-        case .appearance: "Appearance"
         case .help: "Help and feedback"
         case .appKeys: "Keys for apps"
         }
     }
 
+    /// The line under the page's title: what the page is for, in one plain sentence.
+    var intro: String {
+        switch self {
+        case .account: "Who you are here, and how you sign in."
+        case .ai: "Let your AI read and edit your notes when you ask."
+        case .appearance: "How Pinto Notes looks on this Mac."
+        case .security: "Who can open your notes, and how they stay private."
+        case .storage: "What your notes take up in your account."
+        case .help: "Answers, feedback and what\u{2019}s new."
+        case .appKeys: "Keys the apps in your notes use to reach other services."
+        }
+    }
+
+    /// Monochrome, like System Settings' sidebar in its plain form. Account shows your photo instead.
     var symbol: String {
         switch self {
-        case .profile: "person.crop.circle"
+        case .account: "person.crop.circle"
         case .ai: "sparkles"
-        case .security: "lock.shield"
-        case .storage: "externaldrive"
-        case .account: "person.text.rectangle"
-        case .general: "gearshape"
         case .appearance: "circle.lefthalf.filled"
+        case .security: "lock"
+        case .storage: "externaldrive"
         case .help: "questionmark.circle"
         case .appKeys: "key"
         }
     }
 
-    /// Where a link into Settings lands (the account row, a card, the storage warning).
+    /// Where a link into Settings lands (the account menu, a card, the storage warning). General's
+    /// things moved: its link opens Appearance, where Show in menu bar is now.
     init(_ tab: SettingsTab) {
         switch tab {
-        case .account: self = .profile
+        case .account: self = .account
         case .ai: self = .ai
         case .security: self = .security
         case .storage: self = .storage
-        case .general: self = .general
+        case .general: self = .appearance
         case .appearance: self = .appearance
         case .help: self = .help
         }
     }
 
-    /// The sidebar's groups, in order, from the places there is something on: what you do most
-    /// first, then you and your data, then help. Profile sits above them, Keys for apps under General.
+    /// The sidebar's groups, in order, from the places there is something on. Keys for apps sits
+    /// under Connect an AI, not in the sidebar.
     static func groups(available: Set<SettingsPlace>) -> [[SettingsPlace]] {
-        [[.ai, .general, .appearance], [.security, .storage, .account], [.help]]
+        [[.account, .ai, .appearance], [.security, .storage], [.help]]
             .map { $0.filter(available.contains) }
             .filter { !$0.isEmpty }
     }
@@ -73,20 +86,21 @@ enum SettingsIndex {
     }
 
     static let all: [Entry] = ([
-        ("Name", .profile), ("Photo", .profile), ("Signed in with", .profile), ("Sign Out", .profile), ("Remove notes from this Mac", .profile),
-        ("Connect ChatGPT", .ai), ("Connect Claude", .ai), ("Connected AIs", .ai), ("App previews", .ai),
+        ("Name", .account), ("Photo", .account), ("Sign Out", .account), ("Remove notes from this Mac", .account),
+        ("Sync", .account), ("Sync Now", .account), ("Sign in with Apple", .account), ("Export notes", .account), ("Delete account", .account),
+        ("Connect ChatGPT", .ai), ("Connect Claude", .ai), ("Connect Grok", .ai), ("Connect Codex", .ai), ("Connected AIs", .ai),
+        ("Disconnect", .ai), ("App previews", .ai), ("Keys for apps", .appKeys),
         (recoveryKey, .security), ("Devices", .security), ("Add a device", .security), (advancedProtection, .security),
         ("Locked notes password", .security), ("Touch ID", .security), ("Lock Now", .security),
         ("Storage used", .storage), ("Recently Deleted", .storage), ("Earlier versions", .storage),
-        ("Sync", .account), ("Sync Now", .account), ("Sign in with Apple", .account), ("Export notes", .account), ("Delete account", .account),
-        ("Light or dark mode", .appearance), ("Theme", .appearance),
-        ("Show in menu bar", .general), ("Share diagnostics and usage", .general), ("Keys for apps", .appKeys),
-        ("Show Setup Guide", .help), ("Questions and answers", .help), ("Report an issue", .help), ("Contribute", .help), ("Star on GitHub", .help),
-        ("Terms", .help), ("Privacy policy", .help), ("Version", .help),
+        ("Light or dark mode", .appearance), ("Theme", .appearance), ("Show in menu bar", .appearance),
+        ("Share diagnostics and usage", .help), ("Show Setup Guide", .help), ("Questions and answers", .help), ("Report an issue", .help),
+        ("Contribute", .help), ("Star on GitHub", .help), ("Terms", .help), ("Privacy policy", .help), ("Version", .help),
     ] as [(String, SettingsPlace)]).map { Entry(label: $0.0, place: $0.1) }
         + [Entry(label: "Accent colour", place: .appearance, also: ["Accent color"]),
            Entry(label: WhatsNew.title, place: .help, also: ["What's new", "Changelog"]),
-           Entry(label: "Send feedback", place: .help, also: ["Email", "Contact", "Support", "Help"])]
+           Entry(label: "Send feedback", place: .help, also: ["Email", "Contact", "Support", "Help"]),
+           Entry(label: "Your account", place: .account, also: ["Profile", "Email", "Signed in with"])]
 
     static let advancedProtection = "Advanced protection"
     /// Only for an account offered a recovery key (RecoveryKeyOffer): signing in opens a standard account's notes.
@@ -153,158 +167,6 @@ struct SheetParentReader: NSViewRepresentable {
         }
 
         deinit { if let watch { NotificationCenter.default.removeObserver(watch) } }
-    }
-}
-
-/// Settings' rows: taller than a form's own, like WhatsApp's.
-enum SettingsRows {
-    static let padding: CGFloat = 7
-    static let text: CGFloat = 14
-}
-
-/// Profile: your photo large, with Edit photo under it; your name and how you sign in, each a
-/// row of its own; Sign Out at the end, in red, with the sign-out choices it always had.
-struct ProfilePage: View {
-    let backend: Backend
-    let sync: SyncEngine?
-    @State private var profile = ProfileStore.shared
-    @State private var draft = ""
-    @State private var importing = false
-    @FocusState private var editing: Bool
-
-    private var email: String {
-        if case .signedIn(let e) = backend.state { return backend.displayEmail ?? e }
-        return ""
-    }
-
-    var body: some View {
-        // Each field a row of its own under its label, like WhatsApp's Profile.
-        Section {
-            TextField("Name", text: $draft, prompt: Text("Add your name"))
-                .labelsHidden()
-                .textFieldStyle(.plain)
-                .focused($editing)
-                .onSubmit { Task { await profile.setName(draft) } }
-                .font(.system(size: SettingsRows.text))
-                .padding(.vertical, SettingsRows.padding)
-                .accessibilityLabel("Name")
-                .accessibilityIdentifier("settings.profileName")
-        } header: {
-            // Your photo with Edit photo under it, on the page itself rather than in a card, then
-            // the field's label.
-            VStack(alignment: .leading, spacing: 0) {
-                photo
-                Text("Name")
-            }
-        } footer: {
-            Text("Shown in the app and on notes you share.")
-        }
-        Section {
-            Text(SignInShown.label(email: email, apple: backend.apple != nil, google: backend.google))
-                .textSelection(.enabled)
-                .font(.system(size: SettingsRows.text))
-                .padding(.vertical, SettingsRows.padding)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityLabel("Signed in with \(SignInShown.label(email: email, apple: backend.apple != nil, google: backend.google))")
-                .accessibilityIdentifier("settings.signedInWith")
-        } header: {
-            Text("Signed in with")
-        }
-        Section {
-            // Alone at the end, in red, like Log out in WhatsApp; the same sign-out choices.
-            SignOutButton(backend: backend, sync: sync)
-                .buttonStyle(.plain)
-                .font(.system(size: SettingsRows.text))
-                .padding(.vertical, SettingsRows.padding)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .hoverRow()
-        } header: {
-            Color.clear.frame(height: 22).accessibilityHidden(true)
-        }
-        .onAppear { draft = profile.name ?? "" }
-        // The name as it arrives, unless you are typing a different one.
-        .onChange(of: profile.name) { _, new in if !editing || draft.isEmpty { draft = new ?? "" } }
-        .onChange(of: editing) { _, now in if !now { Task { await profile.setName(draft) } } }
-        .onChange(of: draft) { _, new in if new.count > ProfileName.maxLength { draft = String(new.prefix(ProfileName.maxLength)) } }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.jpeg, .png, .heic, .image]) { result in
-            guard case .success(let url) = result else { return }
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            guard let data = try? Data(contentsOf: url) else { return }
-            Task { await profile.setPhoto(data) }
-        }
-    }
-
-    private var photo: some View {
-        VStack(spacing: 10) {
-            AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 96)
-                .dropDestination(for: URL.self) { urls, _ in
-                    guard let url = urls.first, let data = try? Data(contentsOf: url) else { return false }
-                    Task { await profile.setPhoto(data) }
-                    return true
-                }
-            Menu("Edit photo") {
-                Button(profile.photo == nil ? "Choose Photo…" : "Change Photo…") { importing = true }
-                    .accessibilityIdentifier("settings.choosePhoto")
-                if profile.photo != nil {
-                    Button("Remove Photo", role: .destructive) { Task { await profile.removePhoto() } }
-                        .accessibilityIdentifier("settings.removePhoto")
-                }
-            }
-            .menuStyle(.button)
-            .buttonStyle(.hoverText)
-            .menuIndicator(.hidden)
-            .font(.system(size: 14, weight: .medium))
-            .foregroundStyle(.tint)
-            .fixedSize()
-            if profile.working { ProgressView().controlSize(.small) }
-            if let problem = profile.problem { Text(problem).font(.footnote).foregroundStyle(.secondary) }
-        }
-        .textCase(nil)
-        .frame(maxWidth: .infinity)
-        .padding(.top, 8)
-        .padding(.bottom, 26)
-    }
-}
-
-/// General: the menu bar and diagnostics, one switch each, and (when apps are on) the keys for
-/// apps one level down. Appearance has a page of its own.
-struct GeneralPage: View {
-    @AppStorage(MenuBarSettings.key) private var menuBar = true
-    @AppStorage(Telemetry.consentKey) private var share = true
-    @Environment(\.openSettingsPlace) private var openPlace
-
-    var body: some View {
-        Section {
-            Toggle("Show in menu bar", isOn: $menuBar)
-                .tint(Color(Palette.switchOn))
-                .accessibilityIdentifier("settings.menuBar")
-        } footer: {
-            Text("Capture or find a note from the menu bar.")
-        }
-        Section {
-            Toggle(DiagnosticsCopy.title, isOn: Binding(get: { share }, set: { share = $0; Telemetry.shared.consent = $0 }))
-                .tint(Color(Palette.switchOn))
-                .accessibilityIdentifier("settings.diagnostics")
-        } footer: {
-            Text("Error reports and a few counts. Never your notes.")
-        }
-        if NoteApps.enabled {
-            Section {
-                // One level down, with Back in the card's header.
-                Button { openPlace?(.appKeys) } label: {
-                    LabeledContent {
-                        Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(.tertiary)
-                    } label: {
-                        Label("Keys for apps", systemImage: SettingsPlace.appKeys.symbol)
-                    }
-                    .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .hoverRow()
-                .accessibilityIdentifier("settings.appKeys")
-            }
-        }
     }
 }
 

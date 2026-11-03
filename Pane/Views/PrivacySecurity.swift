@@ -419,119 +419,128 @@ struct PrivacySecuritySection: View {
     // MARK: Mac
 
     #if os(macOS)
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: 4)
-
+    /// Settings › Security on the Mac, in the System Settings form (3 November 2026): a summary
+    /// of how your notes are kept, then who can open them as rows (each device, Pinto Notes'
+    /// copy, each AI) with Add a device under them, the recovery key, locked notes, and How it works.
     private var page: some View {
         let c = content
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                if reach != .online {
-                    Label(OfflineCopy.settings, systemImage: OfflineCopy.symbol(reach))
-                        .foregroundStyle(Color.muted)
-                        .accessibilityIdentifier("settings.offline")
-                }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(PrivacyCopy.whoCanOpen).font(.title3.weight(.semibold))
-                    Text(PrivacyCopy.status).font(.callout).foregroundStyle(.secondary)
-                        .accessibilityIdentifier("privacy.summary")
-                }
-                .padding(.horizontal, 4)
-
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
-                    ForEach(c.devices) { o in deviceTile(o) }
-                    if let p = c.pintoNotes { SecurityTile(opener: p).accessibilityIdentifier("privacy.serverCopy") }
-                    ForEach(c.ais) { SecurityTile(opener: $0) }
-                    if c.recovery == .notSaved {
-                        SecurityAddTile(title: PrivacyCopy.recoveryKey, caption: PrivacyCopy.recoveryNotSaved, label: PrivacyCopy.saveARecoveryKey) { save() }
-                            .accessibilityIdentifier("privacy.saveRecovery")
-                            .modifier(saveSheet)
-                    } else if c.recovery == .saved {
-                        SecurityTile(opener: nil, symbol: "key.horizontal.fill", name: PrivacyCopy.recoveryKey, caption: PrivacyCopy.recoverySaved)
-                            .accessibilityIdentifier("privacy.recoveryStatus")
+        return SettingsStack {
+            SettingsSummary {
+                HStack(alignment: .top, spacing: 14) {
+                    Image(systemName: "lock.fill").font(.system(size: 22)).foregroundStyle(SettingsInk.icon)
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(SettingsInk.selection))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(PrivacyCopy.status).font(.system(size: 15, weight: .semibold)).foregroundStyle(SettingsInk.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("privacy.summary")
+                        Text(c.backInFooter + (c.ais.isEmpty ? "" : " " + PrivacyCopy.aiFooter))
+                            .font(.system(size: 12.5)).foregroundStyle(SettingsInk.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("privacy.backInFooter")
+                        if c.onlyThisDevice {
+                            Label(PrivacyCopy.onlyTitle + ". " + PrivacyCopy.onlyDetail, systemImage: "exclamationmark.circle.fill")
+                                .font(.system(size: 12.5))
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("privacy.onlyThisDevice")
+                        }
+                        if let problem { Text(problem).font(.system(size: 12.5)).foregroundStyle(.red) }
                     }
-                    if c.addsDevices {
-                        SecurityAddTile(title: "Add a device", caption: "From this Mac", label: PrivacyCopy.addDevice) { adding = true }
+                }
+            }
+            SettingsGroup(header: PrivacyCopy.whoCanOpen) {
+                ForEach(c.devices) { o in opener(o) }
+                if let p = c.pintoNotes { opener(p).accessibilityIdentifier("privacy.serverCopy") }
+                ForEach(c.ais) { opener($0) }
+                if c.addsDevices {
+                    SettingsLine(title: "Add a device", detail: "Your iPhone, iPad or another Mac, approved from this Mac.") {
+                        Image(systemName: "plus").font(.system(size: 13, weight: .medium)).foregroundStyle(SettingsInk.icon).frame(width: 28)
+                    } trailing: {
+                        Button("Add\u{2026}") { adding = true }
+                            .buttonStyle(.settings)
+                            .accessibilityLabel(PrivacyCopy.addDevice)
                             .accessibilityIdentifier("privacy.addDevice")
                             .disabled(reach != .online)
                             .modifier(addDeviceSheet)
                     }
                 }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(c.backInFooter + (c.ais.isEmpty ? "" : " " + PrivacyCopy.aiFooter))
-                        .accessibilityIdentifier("privacy.backInFooter")
-                    if c.onlyThisDevice {
-                        Label(PrivacyCopy.onlyTitle + ". " + PrivacyCopy.onlyDetail, systemImage: "exclamationmark.circle.fill")
-                            .foregroundStyle(.orange)
-                            .accessibilityIdentifier("privacy.onlyThisDevice")
-                    }
-                    if let problem { Text(problem).foregroundStyle(.red) }
-                }
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 4)
-
-                if c.recovery == .saved || shown != nil || crypto.recoveryKeyChanged && c.recovery != nil {
-                    card {
-                        VStack(alignment: .leading, spacing: 10) {
-                            recoveryExtras
-                            HStack(spacing: 10) {
-                                showOrHide
-                                if c.recovery == .saved { saveButton }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-
-                if c.showsProtection {
-                    card {
-                        VStack(alignment: .leading, spacing: 8) {
-                            protectionToggle
-                            if let protectionFooter {
-                                Text(protectionFooter).font(.callout).foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .accessibilityIdentifier("privacy.strictFooter")
-                            }
-                        }
-                    }
-                }
-
-                card { LockedNotesCard(sync: sync) }
-
-                Button { showsHow = true } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "info.circle").accessibilityHidden(true)
-                        Text(PrivacyCopy.howItWorks)
-                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
-                    }
-                    .foregroundStyle(.tint)
-                    .contentShape(.rect)
-                }
-                .buttonStyle(.hoverText)
-                .font(.callout)
-                .padding(.horizontal, 4)
-                .accessibilityIdentifier("privacy.howItWorks")
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 24)
+            if let recovery = c.recovery {
+                SettingsGroup {
+                    SettingsLine(title: recovery == .saved ? PrivacyCopy.recoveryKey : PrivacyCopy.saveARecoveryKey,
+                                 detail: recovery == .saved ? PrivacyCopy.recoverySaved + ". " + PrivacyCopy.saveARecoveryKeyLine : PrivacyCopy.saveARecoveryKeyLine) {
+                        Image(systemName: "key.horizontal").font(.system(size: 14)).foregroundStyle(SettingsInk.icon).frame(width: 28)
+                    } trailing: {
+                        HStack(spacing: 6) {
+                            if recovery == .saved {
+                                // Short words on the row; VoiceOver hears the full names.
+                                if shown != nil {
+                                    Button("Hide") { self.shown = nil }
+                                        .buttonStyle(.hoverText).foregroundStyle(SettingsInk.muted)
+                                        .accessibilityLabel(PrivacyCopy.hideRecovery)
+                                        .accessibilityIdentifier("privacy.hideRecovery")
+                                } else {
+                                    Button("Show") { Task { await reveal(reason: PrivacyCopy.showReason) { shown = $0 } } }
+                                        .buttonStyle(.hoverText).foregroundStyle(SettingsInk.muted)
+                                        .accessibilityLabel(PrivacyCopy.showRecovery)
+                                        .accessibilityIdentifier("privacy.showRecovery")
+                                }
+                                Button("Save\u{2026}") { save() }
+                                    .buttonStyle(.settings)
+                                    .accessibilityLabel(PrivacyCopy.saveRecovery)
+                                    .accessibilityIdentifier("privacy.saveRecoveryAgain")
+                                    .modifier(saveSheet)
+                            } else {
+                                Button("Save\u{2026}") { save() }
+                                    .buttonStyle(.settings)
+                                    .accessibilityLabel(PrivacyCopy.saveARecoveryKey)
+                                    .accessibilityIdentifier("privacy.saveRecovery")
+                                    .modifier(saveSheet)
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier(recovery == .saved ? "privacy.recoveryStatus" : "privacy.recoveryRow")
+                    if shown != nil || crypto.recoveryKeyChanged {
+                        VStack(alignment: .leading, spacing: 8) { recoveryExtras }
+                            .padding(.vertical, 10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            if c.showsProtection {
+                SettingsGroup(header: KeyCopyWords.strictTitle, footer: protectionFooter) {
+                    protectionToggle.padding(.vertical, 10)
+                }
+            }
+            SettingsGroup {
+                LockedNotesCard(sync: sync).buttonStyle(.settings).padding(.vertical, 12)
+            }
+            Button { showsHow = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle").accessibilityHidden(true)
+                    Text(PrivacyCopy.howItWorks)
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).accessibilityHidden(true)
+                }
+                .contentShape(.rect)
+            }
+            .buttonStyle(.hoverText)
+            .font(.system(size: 12.5))
+            .foregroundStyle(SettingsInk.muted)
+            .padding(.horizontal, 4)
+            .accessibilityIdentifier("privacy.howItWorks")
         }
     }
 
-    private func card(@ViewBuilder _ inside: () -> some View) -> some View {
-        inside()
-            .padding(.vertical, 12)
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(SecurityLook.fill, in: RoundedRectangle(cornerRadius: SecurityLook.radius, style: .continuous))
-    }
-
-    private func deviceTile(_ o: SecurityContent.Opener) -> some View {
-        SecurityTile(opener: o) {
+    /// One thing that can open your notes: its mark, its name, a short grey line; Remove… for a
+    /// device that can be removed.
+    private func opener(_ o: SecurityContent.Opener) -> some View {
+        SettingsLine(title: o.name, detail: o.detail) {
+            SecurityMark(opener: o, size: 16, scales: false).frame(width: 28)
+        } trailing: {
             if case .device(let id) = o.kind, o.canRemove, let d = devices.others.first(where: { $0.id == id }) {
-                removeButton(d).buttonStyle(.hoverText).foregroundStyle(.tint).font(.caption)
+                removeButton(d).buttonStyle(.settings)
             }
         }
         .accessibilityIdentifier(o.kind == .thisDevice ? "privacy.thisDevice" : "privacy.device")
@@ -861,66 +870,6 @@ struct SecurityMarkStack: View {
 }
 #endif
 
-#if os(macOS)
-/// One thing that can open your notes, as a tile: its mark, its name, a short grey line.
-struct SecurityTile<Below: View>: View {
-    let opener: SecurityContent.Opener?
-    var symbol: String? = nil
-    var name: String? = nil
-    var caption: String? = nil
-    @ViewBuilder var below: Below
-
-    var body: some View {
-        VStack(spacing: 4) {
-            SecurityMark(opener: opener, symbol: symbol, size: 20, scales: false).frame(height: 30)
-            Text(name ?? opener?.name ?? "").font(.callout.weight(.medium)).foregroundStyle(Color.ink)
-                .lineLimit(2).multilineTextAlignment(.center)
-            Text(caption ?? opener?.short ?? "").font(.caption).foregroundStyle(.secondary)
-                .lineLimit(2).multilineTextAlignment(.center)
-            below
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, minHeight: SecurityLook.tileHeight)
-        .background(SecurityLook.fill, in: RoundedRectangle(cornerRadius: SecurityLook.radius, style: .continuous))
-        .accessibilityElement(children: .contain)
-    }
-}
-
-extension SecurityTile where Below == EmptyView {
-    init(opener: SecurityContent.Opener?, symbol: String? = nil, name: String? = nil, caption: String? = nil) {
-        self.init(opener: opener, symbol: symbol, name: name, caption: caption) { EmptyView() }
-    }
-}
-
-/// Something you could add: an outline to fill, in the tint, with a plus.
-struct SecurityAddTile: View {
-    let title: String
-    let caption: String
-    let label: String
-    let action: () -> Void
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: SecurityLook.radius, style: .continuous)
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: "plus").font(.system(size: 18, weight: .medium)).frame(height: 30)
-                Text(title).font(.callout.weight(.medium)).lineLimit(2).multilineTextAlignment(.center)
-                Text(caption).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            }
-            .foregroundStyle(.tint)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, minHeight: SecurityLook.tileHeight)
-            .overlay(shape.strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 3])).foregroundStyle(Color.primary.opacity(0.25)))
-            .contentShape(shape)
-        }
-        .buttonStyle(.tile(radius: SecurityLook.radius))
-        .accessibilityLabel(label)
-    }
-}
-#endif
 
 /// "How it works": every fact the page stands on, in a sheet, and the website's longer page.
 struct HowItWorksSheet: View {

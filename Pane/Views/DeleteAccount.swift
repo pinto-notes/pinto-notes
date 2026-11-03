@@ -6,6 +6,8 @@ import Supabase
 /// this device. The App Store requires it for apps where you can create an account.
 struct DeleteAccountButton: View {
     let backend: Backend
+    /// The button's words; the Mac's Account row says it shorter.
+    var title = "Delete Account\u{2026}"
     @Environment(\.networkReach) private var reach
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -16,7 +18,7 @@ struct DeleteAccountButton: View {
     var body: some View {
         Button(role: .destructive) { asking = true } label: {
             HStack(spacing: 8) {
-                Text(working ? "Deleting Account…" : "Delete Account…").foregroundStyle(.red)
+                Text(working ? "Deleting Account\u{2026}" : title).foregroundStyle(.red)
                 if working { ProgressView().controlSize(.small) }
             }
         }
@@ -179,6 +181,8 @@ struct ExportNotesButton: View {
     /// the Mac's Settings window is a scene of its own with no sync engine in its environment,
     /// so there nothing was fetched and those files were left out of the export.
     let sync: SyncEngine?
+    /// The button's words; the Mac's Account row says it shorter.
+    var title = "Export Your Notes\u{2026}"
     @Environment(\.modelContext) private var context
     @State private var exporter = NoteExporter()
 
@@ -187,7 +191,7 @@ struct ExportNotesButton: View {
             Task { await exporter.export(context, sync: sync) }
         } label: {
             HStack(spacing: 8) {
-                Text(exporter.working ? "Exporting Your Notes…" : "Export Your Notes…")
+                Text(exporter.working ? "Exporting\u{2026}" : title)
                 if exporter.working { ProgressView().controlSize(.small) }
             }
         }

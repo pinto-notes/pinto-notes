@@ -1,5 +1,6 @@
 import PhotosUI
 import Supabase
+import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -127,33 +128,41 @@ struct SettingsView: View {
     }
 
     #if os(macOS)
-    /// The pages there is something on: those of `tabs`, and Profile and the keys for apps.
+    /// The pages there is something on: those of `tabs` (General's things are on Appearance and
+    /// Help now), and the keys for apps when apps are on.
     var places: Set<SettingsPlace> {
         var out = Set(tabs.map(SettingsPlace.init))
-        // `.account` maps to Profile (where the account row lands); Account is its own page too.
-        if isSignedIn { out.insert(.account) } else { out.remove(.profile) }
-        if NoteApps.enabled { out.insert(.appKeys) }
+        if NoteApps.enabled, isSignedIn { out.insert(.appKeys) }
         return out
     }
 
     @ViewBuilder
     func place(_ place: SettingsPlace) -> some View {
         switch place {
-        case .profile: SettingsPage { ProfilePage(backend: backend, sync: sync) }
+        case .account: AccountSettingsPage(backend: backend, sync: sync)
         case .ai:
-            // The setup card's tiles and wait, on a page of its own (ConnectAIPage).
             if let client = backend.client {
                 ConnectAIPage(client: client, preview: connections, previewWaiting: connectWaiting)
                     .background(NoInitialFocus())
                     .connectGuides(client: client)
             }
-        case .security: page(.security)
-        case .storage: page(.storage)
-        case .account: page(.account)
-        case .general: SettingsPage { GeneralPage() }
-        case .appearance: SettingsPage { AppearancePage() }
-        case .help: page(.help)
-        case .appKeys: SettingsPage { APIKeysSection() }
+        case .appearance: AppearanceSettingsPage()
+        case .security:
+            if isSignedIn, crypto.isReady {
+                securityPage
+            } else {
+                // Signed out with a notes password: only locked notes.
+                SettingsStack { SettingsGroup { LockedNotesCard(sync: sync).buttonStyle(.settings).padding(.vertical, 12) } }
+            }
+        case .storage:
+            if isSignedIn, let client = backend.client {
+                StorageSettingsPage(client: client)
+            } else {
+                StorageSettingsPage(client: nil)
+            }
+        case .help: HelpSettingsPage(signedIn: isSignedIn, close: closeSettings)
+        // A form of its own, one level down; the card scrolls, so it takes a height.
+        case .appKeys: SettingsPage { APIKeysSection() }.frame(height: 460)
         }
     }
     #endif
@@ -326,7 +335,7 @@ private struct OfflineSection: View {
 /// A page opens with nothing focused. AppKit hands a window's keyboard to its first text field
 /// when the window becomes key or a tab's page comes in, which put a caret in your name, ready
 /// for a stray keystroke. Clicking a field still focuses it.
-private struct NoInitialFocus: NSViewRepresentable {
+struct NoInitialFocus: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView { Resigner() }
     func updateNSView(_ nsView: NSView, context: Context) {}
 
@@ -449,6 +458,8 @@ struct SignOutButton: View {
     var crypto: AccountCrypto = .shared
     var devices: KeyDevices = .shared
     var route: SettingsRoute = .shared
+    /// Red, as at the end of a list; on the Mac's Account summary, ink, beside your name.
+    var red = true
     @Environment(\.modelContext) private var context
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var asking = false
@@ -466,7 +477,7 @@ struct SignOutButton: View {
             #endif
         } label: {
             HStack(spacing: 8) {
-                Text(removing ? SignOutCopy.removing() : "Sign Out\u{2026}").foregroundStyle(.red)
+                Text(removing ? SignOutCopy.removing() : "Sign Out\u{2026}").foregroundStyle(red ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
                 if removing { ProgressView().controlSize(.small) }
             }
         }
@@ -499,30 +510,9 @@ struct SignOutButton: View {
     }
 
     #if os(macOS)
-    /// The Mac asks with an alert of its own: Sign Out, Cancel, and a box to remove the notes too.
     private func askOnMac(_ offer: SignOutRemoval.Offer) {
-        let words = SignOutCopy.macAlert(offer)
-        let alert = NSAlert()
-        alert.messageText = words.title
-        alert.informativeText = words.message
-        let signOut = alert.addButton(withTitle: SignOutCopy.signOut)
-        signOut.hasDestructiveAction = true
-        if let recovery = words.recoveryButton { alert.addButton(withTitle: recovery) }
-        alert.addButton(withTitle: "Cancel").keyEquivalent = "\u{1b}"
-        if let box = words.removeBox {
-            alert.showsSuppressionButton = true
-            alert.suppressionButton?.title = box
-            alert.suppressionButton?.state = .off
-        }
-        let answer: (NSApplication.ModalResponse) -> Void = { response in
-            let removeToo = alert.suppressionButton?.state == .on && words.removeBox != nil
-            switch response {
-            case .alertFirstButtonReturn: Task { if removeToo { await remove() } else { await backend.signOut() } }
-            case .alertSecondButtonReturn where words.recoveryButton != nil: showSecurity()
-            default: break
-            }
-        }
-        if let window = NSApp.keyWindow { alert.beginSheetModal(for: window, completionHandler: answer) } else { answer(alert.runModal()) }
+        MacSignOut.ask(offer: offer, backend: backend, sync: sync, context: context, route: route,
+                       removing: { removing = $0 }, refused: { refusal = $0 })
     }
     #endif
 
@@ -539,6 +529,10 @@ struct SignOutButton: View {
 
     /// Security, where the recovery key is saved.
     private func showSecurity() {
+        Self.showSecurity(route)
+    }
+
+    static func showSecurity(_ route: SettingsRoute) {
         #if os(macOS)
         route.open(.security)
         #else
@@ -546,6 +540,68 @@ struct SignOutButton: View {
         #endif
     }
 }
+
+#if os(macOS)
+/// Sign Out… on the Mac, from Settings › Account and from the account menu at the foot of the
+/// sidebar: one alert, Sign Out and Cancel, and a box to remove the notes from this Mac too
+/// (SignOutCopy.macAlert).
+@MainActor
+enum MacSignOut {
+    static func ask(offer: SignOutRemoval.Offer, backend: Backend, sync: SyncEngine?, context: ModelContext,
+                    route: SettingsRoute = .shared, removing: @escaping (Bool) -> Void = { _ in },
+                    refused: ((SignOutRemoval.Refusal) -> Void)? = nil) {
+        let words = SignOutCopy.macAlert(offer)
+        let alert = NSAlert()
+        alert.messageText = words.title
+        alert.informativeText = words.message
+        let signOut = alert.addButton(withTitle: SignOutCopy.signOut)
+        signOut.hasDestructiveAction = true
+        if let recovery = words.recoveryButton { alert.addButton(withTitle: recovery) }
+        alert.addButton(withTitle: "Cancel").keyEquivalent = "\u{1b}"
+        if let box = words.removeBox {
+            alert.showsSuppressionButton = true
+            alert.suppressionButton?.title = box
+            alert.suppressionButton?.state = .off
+        }
+        let answer: (NSApplication.ModalResponse) -> Void = { response in
+            let removeToo = alert.suppressionButton?.state == .on && words.removeBox != nil
+            switch response {
+            case .alertFirstButtonReturn:
+                Task {
+                    if removeToo {
+                        await remove(backend: backend, sync: sync, context: context, removing: removing, refused: refused)
+                    } else {
+                        await backend.signOut()
+                    }
+                }
+            case .alertSecondButtonReturn where words.recoveryButton != nil: SignOutButton.showSecurity(route)
+            default: break
+            }
+        }
+        if let window = NSApp.keyWindow { alert.beginSheetModal(for: window, completionHandler: answer) } else { answer(alert.runModal()) }
+    }
+
+    /// Signs out and removes the notes from this Mac; a refusal is said where it was asked, or in
+    /// an alert of its own when nothing there can show it (the account menu).
+    private static func remove(backend: Backend, sync: SyncEngine?, context: ModelContext,
+                               removing: (Bool) -> Void, refused: ((SignOutRemoval.Refusal) -> Void)?) async {
+        guard let account = backend.userID else { return }
+        removing(true)
+        defer { removing(false) }
+        do {
+            try await SignOutRemoval.live(backend: backend, sync: sync, context: context).run(account: account)
+        } catch {
+            let why = error as? SignOutRemoval.Refusal ?? .offline
+            if let refused { refused(why) } else {
+                let alert = NSAlert()
+                alert.messageText = "Couldn\u{2019}t remove your notes"
+                alert.informativeText = SignOutCopy.refusal(why)
+                alert.runModal()
+            }
+        }
+    }
+}
+#endif
 
 #if os(iOS)
 /// Settings' first row on iPhone: your photo, name and email, opening Account.
@@ -664,12 +720,38 @@ private struct ProfileSection: View {
 }
 
 /// Sign in with Apple for this account: connect it once, then Apple is how you sign in.
-private struct AppleIDRow: View {
+struct AppleIDRow: View {
     let backend: Backend
     @State private var working = false
     @State private var error: String?
 
     var body: some View {
+        #if os(macOS)
+        // A row of Settings › Account: the standard Apple button on the right.
+        if let apple = backend.apple {
+            SettingsLine(title: "Sign in with Apple", detail: apple.email.map { "Connected as \($0)" } ?? "Connected") {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(SettingsInk.muted)
+            }
+            .accessibilityIdentifier("settings.appleConnected")
+        } else {
+            SettingsLine(title: "Sign in with Apple", detail: error ?? "Sign in on every device without a password.", red: false) {
+                AppleAuthButton(label: .continue, height: 26, title: "Continue with Apple", web: webLink) { result in
+                    switch result {
+                    case .success(let credential): link(credential)
+                    case .failure(let failure): error = AppleSignIn.message(for: failure)
+                    }
+                }
+                .frame(width: 180)
+                .disabled(working)
+                .accessibilityIdentifier("settings.connectApple")
+            }
+        }
+        #else
+        phone
+        #endif
+    }
+
+    @ViewBuilder private var phone: some View {
         if let apple = backend.apple {
             LabeledContent("Sign in with Apple") {
                 Label(apple.email ?? "Connected", systemImage: "checkmark.circle.fill")
