@@ -2,14 +2,14 @@ import Foundation
 import Markdown
 
 /// One control of the iPhone Format panel, laid out like Notes' own: the paragraph styles in one
-/// scrolling row, then rows of grouped pills. Only what a note's markdown can hold: no highlight
-/// and no text colour, which Notes has and a markdown note can't store.
+/// scrolling row, then rows of grouped pills. Only what a note's markdown can hold: no text colour,
+/// which Notes has and a markdown note can't store. Highlight is Obsidian's `==text==`.
 enum FormatControl: String, CaseIterable, Identifiable, Sendable {
     case title, heading, subheading, body, monostyled
-    case bold, italic, underline, strikethrough
+    case bold, italic, underline, strikethrough, highlight
     case bulleted, dashed, numbered
     case outdent, indent
-    case quote
+    case quote, divider, callout
 
     var id: String { rawValue }
 
@@ -17,8 +17,11 @@ enum FormatControl: String, CaseIterable, Identifiable, Sendable {
     static let styles: [FormatControl] = [.title, .heading, .subheading, .body, .monostyled]
     /// The rows under the styles; each inner list is one pill of segments side by side.
     static let rows: [[[FormatControl]]] = [
-        [[.bold, .italic, .underline, .strikethrough]],
-        [[.bulleted, .dashed, .numbered], [.outdent, .indent], [.quote]],
+        // Highlight sits beside the four, as Notes' highlighter does.
+        [[.bold, .italic, .underline, .strikethrough], [.highlight]],
+        [[.bulleted, .dashed, .numbered], [.outdent, .indent]],
+        // Callout on the quote's row: eight segments on one row were under 44 pt wide.
+        [[.quote, .divider], [.callout]],
     ]
 
     /// What it's called, on screen and to VoiceOver.
@@ -33,12 +36,15 @@ enum FormatControl: String, CaseIterable, Identifiable, Sendable {
         case .italic: "Italic"
         case .underline: "Underline"
         case .strikethrough: "Strikethrough"
+        case .highlight: "Highlight"
         case .bulleted: "Bulleted List"
         case .dashed: "Dashed List"
         case .numbered: "Numbered List"
         case .outdent: "Decrease Indent"
         case .indent: "Increase Indent"
         case .quote: "Block Quote"
+        case .divider: "Divider"
+        case .callout: "Callout"
         }
     }
 
@@ -49,12 +55,15 @@ enum FormatControl: String, CaseIterable, Identifiable, Sendable {
         case .italic: "italic"
         case .underline: "underline"
         case .strikethrough: "strikethrough"
+        case .highlight: "highlighter"
         case .bulleted: "list.bullet"
         case .dashed: "list.dash"
         case .numbered: "list.number"
         case .outdent: "decrease.indent"
         case .indent: "increase.indent"
         case .quote: "text.quote"
+        case .divider: "minus"
+        case .callout: "text.bubble"
         default: "textformat"
         }
     }
@@ -76,6 +85,7 @@ enum FormatControl: String, CaseIterable, Identifiable, Sendable {
         case .italic: .italic
         case .underline: .underline
         case .strikethrough: .strikethrough
+        case .highlight: .highlight
         default: nil
         }
     }
@@ -94,7 +104,7 @@ enum FormatControl: String, CaseIterable, Identifiable, Sendable {
 /// What the Format panel shows as on, for the caret's line and the selection: the line's style
 /// (Title, Heading…), whether it's in a code block, and the inline formats around the selection.
 struct FormatState: Equatable, Sendable {
-    enum Inline: Hashable, Sendable { case bold, italic, underline, strikethrough }
+    enum Inline: Hashable, Sendable { case bold, italic, underline, strikethrough, highlight }
 
     var paragraph: ListEditing.ParagraphStyle = .body
     /// The caret's line is in a fenced code block (Monostyled).
@@ -104,8 +114,10 @@ struct FormatState: Equatable, Sendable {
     var inline: Set<Inline> = []
     var canIndent = false
     var canOutdent = false
-    /// In a table cell: only what a cell can hold (bold, italic, underline, strikethrough).
+    /// In a table cell: only what a cell can hold (bold, italic, underline, strikethrough, highlight).
     var inCell = false
+    /// The caret's line is in a callout (Callouts).
+    var callout = false
 
     func isOn(_ control: FormatControl) -> Bool {
         // A cell's text is body text: its style row shows Body, never the note line's style
@@ -121,9 +133,11 @@ struct FormatState: Equatable, Sendable {
         case .bulleted: !monostyled && paragraph == .bulleted
         case .dashed: !monostyled && paragraph == .dashed
         case .numbered: !monostyled && paragraph == .numbered
-        case .quote: !monostyled && paragraph == .quote
-        case .bold, .italic, .underline, .strikethrough: inline.contains(control.inline!)
-        case .outdent, .indent: false
+        // A callout is a quote underneath; it shows as Callout, not Block Quote.
+        case .quote: !monostyled && paragraph == .quote && !callout
+        case .callout: !monostyled && callout
+        case .bold, .italic, .underline, .strikethrough, .highlight: inline.contains(control.inline!)
+        case .outdent, .indent, .divider: false
         }
     }
 
@@ -137,7 +151,9 @@ struct FormatState: Equatable, Sendable {
         // A fence above the first line would become the note's title.
         case .monostyled: !firstLine || monostyled
         // Markdown inside a code block is shown as written.
-        case .bold, .italic, .underline, .strikethrough: !monostyled
+        case .bold, .italic, .underline, .strikethrough, .highlight: !monostyled
+        // In a code block `---` is code, and `> [!note]` too.
+        case .divider, .callout: !monostyled
         default: true
         }
     }
@@ -153,6 +169,9 @@ struct FormatState: Equatable, Sendable {
         ns.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: NSRange(location: location, length: 0))
         let line = ns.substring(with: NSRange(location: start, length: contentsEnd - start))
         s.firstLine = ns.substring(to: start).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if !s.monostyled, Callouts.quotePrefix(line) != nil {
+            s.callout = Callouts.lines(in: ns, range: NSRange(location: start, length: contentsEnd - start))[start] != nil
+        }
         if !s.monostyled, let list = ListPrefix(line: line) {
             s.canIndent = true
             s.canOutdent = !list.indent.isEmpty
@@ -163,7 +182,7 @@ struct FormatState: Equatable, Sendable {
         return s
     }
 
-    /// An inline format written around some text: `**…**`, `*…*`, `~~…~~` or `<u>…</u>`.
+    /// An inline format written around some text: `**…**`, `*…*`, `~~…~~`, `==…==` or `<u>…</u>`.
     struct Span: Equatable {
         var kind: Inline
         /// With its delimiters.
@@ -195,6 +214,9 @@ struct FormatState: Equatable, Sendable {
         for m in underline.matches(in: line, range: NSRange(location: 0, length: (line as NSString).length)) {
             found.append(Span(kind: .underline, outer: NSRange(location: base + m.range.location, length: m.range.length), lead: 3, trail: 4))
         }
+        for h in Highlights.spans(in: line) {
+            found.append(Span(kind: .highlight, outer: NSRange(location: base + h.outer.location, length: h.outer.length), lead: 2, trail: 2))
+        }
         // A pair with nothing in it yet (B with no word under the caret): the next letters typed are bold.
         if selection.length == 0 {
             let c = selection.location
@@ -207,6 +229,7 @@ struct FormatState: Equatable, Sendable {
             if around("**", "**") { found.append(Span(kind: .bold, outer: NSRange(location: c - 2, length: 4), lead: 2, trail: 2)) }
             else if around("*", "*") { found.append(Span(kind: .italic, outer: NSRange(location: c - 1, length: 2), lead: 1, trail: 1)) }
             if around("~~", "~~") { found.append(Span(kind: .strikethrough, outer: NSRange(location: c - 2, length: 4), lead: 2, trail: 2)) }
+            if around("==", "==") { found.append(Span(kind: .highlight, outer: NSRange(location: c - 2, length: 4), lead: 2, trail: 2)) }
             if around("<u>", "</u>") { found.append(Span(kind: .underline, outer: NSRange(location: c - 3, length: 7), lead: 3, trail: 4)) }
         }
         return found.filter { $0.covers(selection) }
@@ -214,7 +237,7 @@ struct FormatState: Equatable, Sendable {
 
     private static let underline = try! NSRegularExpression(pattern: #"<u>(.*?)</u>"#, options: [.caseInsensitive])
 
-    /// Bold, italic, underline or strikethrough, on or off, for the selection (or the word under
+    /// Bold, italic, underline, strikethrough or highlight, on or off, for the selection (or the word under
     /// the caret). Taking it off removes the marks around the text it's in. What was selected stays
     /// selected, on the same letters, so the panel shows it on and a second tap takes it off.
     static func toggle(_ kind: Inline, in text: String, selection: NSRange) -> TextEdit {
@@ -231,6 +254,7 @@ struct FormatState: Equatable, Sendable {
         case .bold: ("**", "**")
         case .italic: ("*", "*")
         case .strikethrough: ("~~", "~~")
+        case .highlight: ("==", "==")
         }
         let ns = text as NSString
         var target = selection

@@ -25,8 +25,11 @@ final class LineDecoration: NSObject {
         /// `open`: an edge line shows text (a fence written out, a block not closed yet), so the
         /// block's padding is drawn past it.
         case code(first: Bool, last: Bool, label: String? = nil, open: Bool = false)
-        case rule
+        /// A divider. `editing`: the caret is on it, so its dashes show and the line starts after them.
+        case rule(editing: Bool = false)
         case table(header: Bool, first: Bool, last: Bool, columns: [CGFloat], width: CGFloat)
+        /// A callout's line (Callouts): its share of the tinted panel; the header line has the symbol.
+        case callout(CalloutLook, first: Bool, last: Bool)
     }
     let kind: Kind
     /// A bullet's radius and a dash's width, as drawn (DecoratedLayoutFragment).
@@ -88,6 +91,8 @@ struct MarkdownStyler {
     var firstLineIsTitle = true
     /// Which wiki links lead to a note (nil: show them all as links).
     var wiki: WikiScope?
+    /// What "today" is for date chips (tests set a fixed day).
+    var dateNow: () -> Date = { .now }
 
     var bodyFont: PFont {
         #if os(iOS)
@@ -221,6 +226,7 @@ struct MarkdownStyler {
         // Two states (Emil, 1 November 2026): with the caret anywhere in a block, the whole block
         // is being edited, so both fences show as written inside it and the label goes away.
         let editingBlocks = walker.codeRanges.map { ns.lineRange(for: $0) }.filter { isActive($0) }
+        let callouts = part.contains("[!") || full != whole ? Callouts.lines(in: ns, range: full) : [:]
         ns.enumerateSubstrings(in: full, options: [.byParagraphs, .substringNotRequired]) { _, lineRange, enclosing, _ in
             let line = ns.substring(with: lineRange)
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -292,13 +298,19 @@ struct MarkdownStyler {
             }
 
             if trimmed.count >= 3, ["-", "*", "_"].contains(where: { c in trimmed.replacingOccurrences(of: " ", with: "").allSatisfy { String($0) == c } }) {
-                storage.addAttribute(.paneLine, value: LineDecoration(.rule), range: enclosing)
-                storage.addAttributes(isActive(lineRange) ? [.foregroundColor: PColor.paneTertiary] : hidden, range: lineRange)
+                let editing = isActive(lineRange)
+                storage.addAttribute(.paneLine, value: LineDecoration(.rule(editing: editing)), range: enclosing)
+                storage.addAttributes(editing ? [.foregroundColor: PColor.paneTertiary] : hidden, range: lineRange)
                 return
             }
 
             if let list = ListPrefix(line: line) {
                 styleList(list, lineRange: lineRange, enclosing: enclosing, storage: storage)
+                return
+            }
+
+            if let c = callouts[lineRange.location] {
+                styleCallout(c, lineRange: lineRange, enclosing: enclosing, storage: storage, active: isActive(lineRange))
                 return
             }
 
@@ -323,6 +335,9 @@ struct MarkdownStyler {
 
         styleUnderlines(storage, in: full, isActive: isActive, skip: walker.codeRanges)
         styleWikiLinks(storage, in: full, isActive: isActive)
+        styleTags(storage, in: full, selection: active, skip: walker.codeRanges + walker.inlineCodeRanges)
+        styleHighlights(storage, in: full, isActive: isActive, skip: walker.codeRanges + walker.inlineCodeRanges)
+        styleDates(storage, in: full, selection: active, skip: walker.codeRanges + walker.inlineCodeRanges)
         let grids = styleGrids(storage, in: full, grids: structure.grids)
         let embeds = styleEmbeds(storage, in: full, embeds: structure.embeds)
         return StyledBlocks(embeds: embeds, grids: grids)
@@ -418,6 +433,63 @@ struct MarkdownStyler {
             if link.aliasRange == nil, let h = link.headingRange.map(shift), h.length > 0 {
                 storage.addAttribute(.foregroundColor, value: PColor.paneTertiary, range: NSRange(location: h.location, length: 1))
             }
+        }
+    }
+
+    /// Tags (`#work`, `#work/clients`) show in the accent colour, as in Notes and Obsidian; the text
+    /// stays as written, since it's the tag's name. Clicking one shows every note with it
+    /// (LinkPolicy's `.tag`). Not in code, links or the title. While the caret is in one, it's being
+    /// written: no link then, so a click there places the caret. A ticked item keeps its muted look.
+    private func styleTags(_ storage: NSTextStorage, in scope: NSRange, selection: NSRange, skip: [NSRange]) {
+        let ns = storage.string as NSString
+        let found = Tags.find(in: storage.string, range: scope, blocks: false)
+        guard !found.isEmpty else { return }
+        let title = Self.titleLocation(ns)
+        let titleLine = title < ns.length ? ns.lineRange(for: NSRange(location: title, length: 0)) : NSRange(location: NSNotFound, length: 0)
+        for tag in found {
+            let r = tag.range
+            if skip.contains(where: { NSIntersectionRange($0, r).length > 0 }) { continue }
+            if storage.attribute(.link, at: r.location, effectiveRange: nil) != nil { continue }
+            if NSLocationInRange(r.location, titleLine), (storage.attribute(.font, at: r.location, effectiveRange: nil) as? PFont) == Self.titleFont { continue }
+            if (storage.attribute(.foregroundColor, at: r.location, effectiveRange: nil) as? PColor) == PColor.clear { continue }
+            if storage.attribute(.strikethroughStyle, at: r.location, effectiveRange: nil) == nil {
+                storage.addAttribute(.foregroundColor, value: PColor.paneAccent, range: r)
+            }
+            let writing = selection.location != NSNotFound && selection.location > r.location && selection.location <= NSMaxRange(r)
+            if !writing, let url = LinkPolicy.tagURL(tag.name) { storage.addAttribute(.link, value: url, range: r) }
+        }
+    }
+
+    /// Dates (`2026-11-03`) show as a chip that says Today, Tomorrow, a weekday or "3 Nov"
+    /// (NoteDates). The digits stay in the text, clear, kerned to the chip's width, in the line's
+    /// own font so the line keeps its height; DecoratedLayoutFragment draws the chip over them.
+    /// With the caret inside one, it shows as written. Not in code, links or the title.
+    private func styleDates(_ storage: NSTextStorage, in scope: NSRange, selection: NSRange, skip: [NSRange]) {
+        let ns = storage.string as NSString
+        let found = NoteDates.dates(in: storage.string, range: scope)
+        guard !found.isEmpty else { return }
+        let title = Self.titleLocation(ns)
+        let titleLine = title < ns.length ? ns.lineRange(for: NSRange(location: title, length: 0)) : NSRange(location: NSNotFound, length: 0)
+        let now = dateNow()
+        for f in found {
+            let r = f.range
+            if skip.contains(where: { NSIntersectionRange($0, r).length > 0 }) { continue }
+            if storage.attribute(.link, at: r.location, effectiveRange: nil) != nil { continue }
+            if NSLocationInRange(r.location, titleLine), (storage.attribute(.font, at: r.location, effectiveRange: nil) as? PFont) == Self.titleFont { continue }
+            if (storage.attribute(.foregroundColor, at: r.location, effectiveRange: nil) as? PColor) == PColor.clear { continue }
+            if NoteDates.editing(r, selection: selection) {
+                storage.addAttribute(.foregroundColor, value: PColor.paneAccent, range: r)
+                continue
+            }
+            let font = storage.attribute(.font, at: r.location, effectiveRange: nil) as? PFont ?? PFont.systemFont(ofSize: bodySize)
+            let bold = font.fontDescriptor.symbolicTraits.contains(PFontDescriptor.SymbolicTraits.paneBold)
+            let chip = DateChip(label: NoteDates.label(for: f, now: now), tone: NoteDates.tone(for: f, now: now), fontSize: font.pointSize, weight: bold ? .bold : .regular)
+            let natural = ns.substring(with: r).size(withAttributes: [.font: font]).width
+            storage.addAttributes([.paneDate: chip, .foregroundColor: PColor.clear,
+                                   .kern: (chip.width - natural) / CGFloat(r.length)], range: r)
+            // A ticked item's line stops at the chip: drawn over the hidden digits it stuck out past it.
+            storage.removeAttribute(.strikethroughStyle, range: r)
+            storage.removeAttribute(.underlineStyle, range: r)
         }
     }
 
@@ -724,6 +796,7 @@ private struct StyleWalker: MarkupWalker {
     var tableLineStarts = IndexSet()
     var tables: [NSRange] = []
     var codeRanges: [NSRange] = []
+    var inlineCodeRanges: [NSRange] = []
 
     private var ns: NSString { storage.string as NSString }
 
@@ -811,6 +884,7 @@ private struct StyleWalker: MarkupWalker {
     mutating func visitInlineCode(_ code: InlineCode) {
         guard let r = map.range(code.range), safe(r) else { return }
         let n = delimiterLength(r, char: 0x60)
+        inlineCodeRanges.append(r)
         storage.addAttributes([.font: styler.monoFont, .backgroundColor: PColor.paneFill, .foregroundColor: PColor.paneLabel], range: r)
         markDelimiters(r, lead: n, trail: n)
     }

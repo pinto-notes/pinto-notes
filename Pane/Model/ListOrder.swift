@@ -104,6 +104,7 @@ final class ListOrderStore {
         case .all: "all"
         case .trash: "trash"
         case .folder(let id): id.uuidString
+        case .tag(let name): "tag:" + name.lowercased()
         }
     }
 }

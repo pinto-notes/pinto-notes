@@ -27,10 +27,12 @@ struct MarkdownEditor: View {
     var dateShown = false
     /// What sits under the note's last line and scrolls with it: the notes that link here.
     var foot: NoteLinks? = nil
+    /// The note whose collapsed sections this device keeps (HeadingFolds); nil keeps them only while open.
+    var foldsID: UUID? = nil
     let onChange: (String) -> Void
 
     var body: some View {
-        PlatformEditor(initialText: initialText, header: header, controller: controller, autofocus: autofocus, identifier: identifier, titleLine: titleLine, followsInitialText: followsInitialText, dateShown: dateShown, foot: foot, onChange: onChange)
+        PlatformEditor(initialText: initialText, header: header, controller: controller, autofocus: autofocus, identifier: identifier, titleLine: titleLine, followsInitialText: followsInitialText, dateShown: dateShown, foot: foot, foldsID: foldsID, onChange: onChange)
     }
 }
 
@@ -44,6 +46,9 @@ enum EditorFoot {
 final class EditorCore {
     var styler = MarkdownStyler()
     let layoutDelegate = DecoratingLayoutDelegate()
+    /// Collapsed sections (HeadingFolds), and what leaves their lines out of layout.
+    let folds = FoldState()
+    let foldDelegate = FoldingContentDelegate()
     var onChange: (String) -> Void = { _ in }
     var applyingEdit = false
     /// Checklist lines ticked since the last sort. Each tick starts the wait again, so quick
@@ -118,7 +123,7 @@ final class EditorCore {
             }
         }
         var out: [(String, CGRect, AnyView, CardContent)] = []
-        for g in grids {
+        for g in grids where !folds.isHidden(g.range.location) {
             // The row handles sit in the margin, so the grid lines up with the text.
             guard var f = frame(at: g.range.location, height: GridMetrics.height(g)) else { continue }
             f.origin.x -= GridMetrics.handle
@@ -142,7 +147,7 @@ final class EditorCore {
             }
             out.append(("g\(g.index)", f, AnyView(view), .grid(g, request: request, selected: isSelected)))
         }
-        for e in embeds {
+        for e in embeds where !folds.isHidden(e.range.location) {
             // Cards and pictures run the text's width, like the text (no max width, Emil 10-31).
             var maxW = CGFloat.infinity
             if case .note(let id, _) = e.kind, NoteWidgets.isApp(id) { maxW = NoteWidgets.maxWidth }
@@ -177,7 +182,13 @@ final class EditorCore {
         if let selection, ns.length > 0 {
             line = ns.lineRange(for: NSRange(location: min(selection.location, ns.length), length: min(selection.length, ns.length - min(selection.location, ns.length))))
         }
-        if !force, dirty == nil, !needsFull, line == lastActiveLine { return }
+        // A date shows as written while the caret is inside it, so moving into or out of one
+        // restyles its line too.
+        let dateEdit = selection.flatMap { sel in
+            line.location == NSNotFound ? nil : NoteDates.dates(in: storage.string, range: line).first { NoteDates.editing($0.range, selection: sel) }?.range
+        }
+        if !force, dirty == nil, !needsFull, !folds.dirty, line == lastActiveLine, dateEdit == lastDateEdit { return }
+        lastDateEdit = dateEdit
         let previous = lastActiveLine
         lastActiveLine = line
         let structure = self.structure(of: storage.string)
@@ -203,7 +214,17 @@ final class EditorCore {
         lastRegions.append(region.map { "\($0)" } ?? "full")
         if lastRegions.count > 6 { lastRegions.removeFirst() }
         let blocks = styler.apply(to: storage, active: selection ?? NSRange(location: NSNotFound, length: 0), region: region, structure: structure)
+        folds.apply(to: storage, code: structure.code, selection: selection)
         publish(blocks)
+    }
+
+    /// Collapsed sections changed (a chevron, the pointer over a heading, a menu command): hides
+    /// and shows their lines and places the live views again. Returns whether what's hidden changed.
+    @discardableResult
+    func applyFolds(_ storage: NSTextStorage, selection: NSRange?) -> Bool {
+        let changed = folds.apply(to: storage, code: structure(of: storage.string).code, selection: selection)
+        if changed { onCardsChanged() }
+        return changed
     }
 
     /// Images of this note arrived (EditorController.imagesArrived): their sizes can be read now,
@@ -232,6 +253,42 @@ final class EditorCore {
         styler.wiki = wiki
         needsFull = true
         restyle(storage, selection: selection, force: true)
+    }
+
+    /// The date the caret was last inside (it shows as written).
+    private var lastDateEdit: NSRange?
+
+    /// The callout icon under a point of the text container: its rect there and where its line
+    /// starts. A tap or click on it opens the callout's type menu.
+    func calloutIcon(at point: CGPoint, layout tlm: NSTextLayoutManager?) -> (rect: CGRect, line: Int)? {
+        guard let tlm, let tcm = tlm.textContentManager,
+              let frag = tlm.textLayoutFragment(for: point) as? DecoratedLayoutFragment,
+              let icon = frag.calloutIconRect(), let start = frag.textElement?.elementRange?.location else { return nil }
+        let f = frag.layoutFragmentFrame
+        let rect = icon.offsetBy(dx: f.minX, dy: f.minY)
+        // A finger needs more room than a pointer.
+        #if os(iOS)
+        let slop: CGFloat = 12
+        #else
+        let slop: CGFloat = 4
+        #endif
+        guard rect.insetBy(dx: -slop, dy: -slop).contains(point) else { return nil }
+        return (rect, tcm.offset(from: tcm.documentRange.location, to: start))
+    }
+
+    /// A new day: every date chip's label is worked out again (Today becomes Yesterday).
+    func dayChanged(storage: NSTextStorage, selection: NSRange?) {
+        needsFull = true
+        restyle(storage, selection: selection, force: true)
+    }
+
+    private var dayObserver: NSObjectProtocol?
+    /// Calls `restyle` when the calendar day changes (also on waking past midnight).
+    func watchDays(_ restyle: @escaping @MainActor () -> Void) {
+        guard dayObserver == nil else { return }
+        dayObserver = NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { restyle() }
+        }
     }
 
     /// The last few restyle regions, for tests that check incremental styling.
@@ -290,6 +347,7 @@ final class EditorCore {
         let r = chunk(ns, structure: structure, from: unstyledFrom, including: NSRange(location: NSNotFound, length: 0))
         let active = lastActiveLine.flatMap { $0.location == NSNotFound ? nil : $0 } ?? NSRange(location: NSNotFound, length: 0)
         let blocks = styler.apply(to: storage, active: active, region: r, structure: structure)
+        folds.apply(to: storage, code: structure.code, selection: lastActiveLine.flatMap { $0.location == NSNotFound ? nil : NSRange(location: $0.location, length: 0) })
         unstyledFrom = NSMaxRange(r) >= ns.length ? Int.max : NSMaxRange(r)
         publish(blocks)
         if unstyledFrom != Int.max { scheduleChunk() }
@@ -319,6 +377,7 @@ final class EditorCore {
 
     func noteEdit(_ edited: NSRange, delta: Int) {
         version += 1
+        folds.noteEdit(edited, delta: delta)
         func shift(_ r: NSRange) -> NSRange {
             // Ranges after the edit move with it; ranges it overlaps grow to cover it.
             let oldEnd = edited.location + edited.length - delta
@@ -467,6 +526,10 @@ final class EditorCore {
     func caretFix(_ text: String, _ selection: NSRange, byKeyboard: Bool) -> CaretFix? {
         defer { lastSelection = selection }
         guard selection.length == 0 else { return nil }
+        // Never in a collapsed section: past it going down, else at the end of its heading.
+        if let to = HeadingFolds.caret(selection.location, previous: lastSelection?.location, hidden: folds.hidden, length: (text as NSString).length) {
+            return .move(to)
+        }
         if let b = blocks(in: text).first(where: { $0.contains(selection.location) }) {
             let fromBelow = (lastSelection?.location ?? -1) > NSMaxRange(b.range)
             let fromAbove = lastSelection.map { $0.location < b.range.location } ?? false
@@ -607,6 +670,7 @@ private struct PlatformEditor: UIViewRepresentable {
     let followsInitialText: Bool
     let dateShown: Bool
     let foot: NoteLinks?
+    let foldsID: UUID?
     let onChange: (String) -> Void
 
     func makeUIView(context: Context) -> PaneTextView {
@@ -614,6 +678,7 @@ private struct PlatformEditor: UIViewRepresentable {
         view.core.styler.firstLineIsTitle = titleLine
         view.core.styler.wiki = controller.wiki
         view.dateShown = dateShown
+        view.core.folds.noteID = foldsID
         view.configure(text: initialText, header: header)
         view.accessibilityIdentifier = identifier
         view.core.onChange = onChange
@@ -734,6 +799,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func configure(text: String, header: String) {
         textLayoutManager?.delegate = core.layoutDelegate
+        (textLayoutManager?.textContentManager as? NSTextContentStorage)?.delegate = core.foldDelegate
+        core.folds.showsAtCaret = true
         delegate = self
         textDropDelegate = self
         // A text view only looks at drops of what it can paste: notes dragged from the list
@@ -760,6 +827,10 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.restyle(textStorage, selection: nil, force: true)
         typingAttributes = core.typingAttributes(text, at: selectedRange.location)
         observeChangeHighlight()
+        core.watchDays { [weak self] in
+            guard let self else { return }
+            self.core.dayChanged(storage: self.textStorage, selection: self.editingSelection)
+        }
 
         // The welcome note's date line: small, regular, in the muted colour.
         headerLabel.font = .systemFont(ofSize: 13)
@@ -1413,6 +1484,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
         guard !core.applyingEdit else { return true }
+        core.folds.open(for: range)
+        if text == "\n", foldReturn(range) { return false }
         if text == "\n", let edit = ListEditing.returnKey(in: self.text, selection: range) {
             apply(edit); return false
         }
@@ -1427,6 +1500,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
                 }
                 return false
             }
+        }
+        // A date chip goes in one press, like an attachment.
+        if text.isEmpty, range.length == 1, selectedRange.length == 0,
+           let edit = NoteDates.delete(in: self.text, selection: selectedRange, forward: range.location == selectedRange.location, isChip: { [textStorage] r in textStorage.attribute(.paneDate, at: r.location, effectiveRange: nil) != nil }) {
+            apply(edit); return false
         }
         if text.isEmpty, range.length == 1, selectedRange.length == 0,
            let edit = ListEditing.backspace(in: self.text, selection: NSRange(location: range.location + 1, length: 0)) {
@@ -1558,6 +1636,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func textViewDidChangeSelection(_ textView: UITextView) {
         guard markedTextRange == nil else { return }
+        revealFolds()
         if core.disarm(unless: selectedRange) { layoutCards() }
         if isFirstResponder, let fix = core.caretFix(text, selectedRange, byKeyboard: false) {
             resolve(fix)
@@ -1639,6 +1718,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         case .open(let url): return UIAction { _ in UIApplication.shared.open(url) }
         case .note(let id): return UIAction { [weak self] _ in self?.controller?.openNote(id) }
         case .wiki(let target): return UIAction { [weak self] _ in self?.controller?.openWiki(target) }
+        case .tag(let name): return UIAction { [weak self] _ in self?.controller?.openTag(name) }
         case .nothing: return nil
         }
     }
@@ -1705,7 +1785,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     /// one on a link, which asks to recover the note (tap(at:)), like Notes. A long press still
     /// selects there, to copy.
     func takesTap(at p: CGPoint) -> Bool {
+        if foldToggle(at: CGPoint(x: p.x - textContainerInset.left, y: p.y - textContainerInset.top), onlyShown: true) != nil { return true }
         if controller?.readOnly == true { return !onLink(at: p) }
+        if calloutIcon(atView: p) != nil { return true }
         return checkboxLine(for: p) != nil
     }
 
@@ -1731,8 +1813,37 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     @objc private func handleTap(_ g: UITapGestureRecognizer) { tap(at: g.location(in: self)) }
 
     func tap(at point: CGPoint) {
+        if let h = foldToggle(at: CGPoint(x: point.x - textContainerInset.left, y: point.y - textContainerInset.top), onlyShown: true) {
+            toggleFold(h)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            return
+        }
         if controller?.readOnly == true { controller?.askToRecover(); return }
+        if let icon = calloutIcon(atView: point) {
+            showCalloutTypes(line: icon.line, rect: icon.rect.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top))
+            return
+        }
         tapCheckbox(at: point)
+    }
+
+    /// The callout icon under a point of this view.
+    func calloutIcon(atView p: CGPoint) -> (rect: CGRect, line: Int)? {
+        core.calloutIcon(at: CGPoint(x: p.x - textContainerInset.left, y: p.y - textContainerInset.top), layout: textLayoutManager)
+    }
+
+    /// The callout's types in a small popover over the icon, like a menu.
+    func showCalloutTypes(line: Int, rect: CGRect) {
+        let ns = text as NSString
+        guard line < ns.length, var top = window?.rootViewController else { return }
+        while let p = top.presentedViewController { top = p }
+        let current = Callouts.header(ns.substring(with: ns.lineRange(for: NSRange(location: line, length: 0))).trimmingCharacters(in: .newlines))?.kind
+        let picker = CalloutTypePicker(current: current) { [weak self] kind in
+            self?.controller?.setCalloutKind(kind, line: line)
+        }
+        picker.popoverPresentationController?.sourceView = self
+        picker.popoverPresentationController?.sourceRect = rect
+        UISelectionFeedbackGenerator().selectionChanged()
+        top.present(picker, animated: true)
     }
 
     /// Where a checkbox's circle is, in the view, for the line starting at `line` (tests).
@@ -1857,6 +1968,7 @@ private struct PlatformEditor: NSViewRepresentable {
     let followsInitialText: Bool
     let dateShown: Bool
     let foot: NoteLinks?
+    let foldsID: UUID?
     let onChange: (String) -> Void
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -1871,6 +1983,7 @@ private struct PlatformEditor: NSViewRepresentable {
         #endif
         view.core.styler.firstLineIsTitle = titleLine
         view.core.styler.wiki = controller.wiki
+        view.core.folds.noteID = foldsID
         view.configure(text: initialText, header: header)
         view.setAccessibilityIdentifier(identifier)
         view.core.onChange = onChange
@@ -1972,6 +2085,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     func configure(text: String, header: String) {
         textLayoutManager?.delegate = core.layoutDelegate
+        (textLayoutManager?.textContentManager as? NSTextContentStorage)?.delegate = core.foldDelegate
         delegate = self
         core.onCardsChanged = { [weak self] in self?.queueCardLayout() }
         drawsBackground = false
@@ -1999,6 +2113,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         remember(text)
         core.observe(textStorage!)
         observeChangeHighlight()
+        core.watchDays { [weak self] in
+            guard let self, let storage = self.textStorage else { return }
+            self.core.dayChanged(storage: storage, selection: self.editingSelection)
+        }
         core.restyle(textStorage!, selection: nil, force: true)
         typingAttributes = core.typingAttributes(text, at: selectedRange().location)
 
@@ -2394,6 +2512,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         case .open(let url): NSWorkspace.shared.open(url)
         case .note(let id): controller?.openNote(id)
         case .wiki(let target): controller?.openWiki(target)
+        case .tag(let name): controller?.openTag(name)
         case .nothing: NSSound.beep()
         }
         return true
@@ -2412,8 +2531,18 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             default: break
             }
         }
+        if let c = controller, !c.slashCommands.isEmpty {
+            switch selector {
+            case #selector(moveDown(_:)): c.moveSlashChoice(by: 1); return true
+            case #selector(moveUp(_:)): c.moveSlashChoice(by: -1); return true
+            case #selector(insertNewline(_:)), #selector(insertTab(_:)): c.runSlashChoice(); layoutSlashCommands(); return true
+            case #selector(cancelOperation(_:)): c.dismissSlash(); layoutSlashCommands(); return true
+            default: break
+            }
+        }
         switch selector {
         case #selector(insertNewline(_:)):
+            if foldReturn(selectedRange()) { return true }
             if let e = ListEditing.returnKey(in: string, selection: selectedRange()) { apply(e); return true }
         case #selector(deleteBackward(_:)), #selector(deleteForward(_:)):
             let forward = selector == #selector(deleteForward(_:))
@@ -2424,6 +2553,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 }
                 return true
             }
+            // A date chip goes in one press, like an attachment.
+            if let e = NoteDates.delete(in: string, selection: selectedRange(), forward: forward, isChip: { [weak self] r in self?.textStorage?.attribute(.paneDate, at: r.location, effectiveRange: nil) != nil }) { apply(e); return true }
             if !forward, let e = ListEditing.backspace(in: string, selection: selectedRange()) { apply(e); return true }
         case #selector(insertTab(_:)):
             if let e = ListEditing.indent(in: string, selection: selectedRange(), outdent: false) { apply(e); return true }
@@ -2558,6 +2689,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     func textViewDidChangeSelection(_ notification: Notification) {
         guard !hasMarkedText(), let storage = textStorage else { return }
+        revealFolds()
         if core.disarm(unless: selectedRange()) { layoutCards() }
         if window?.firstResponder === self,
            let fix = core.caretFix(string, selectedRange(), byKeyboard: inKeyDown) {
@@ -2580,6 +2712,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Shows the titles for the `[[link` being typed just under it, or takes them away.
     func layoutWikiSuggestions() {
+        // The `/` menu follows the same edits and caret moves.
+        layoutSlashCommands()
         guard let controller, let q = controller.wikiQuery, !controller.wikiSuggestions.isEmpty else {
             wikiHost?.removeFromSuperview()
             wikiHost = nil
@@ -2606,6 +2740,59 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let x = min(max(caret.minX + textContainerOrigin.x - 8, 0), max(bounds.width - size.width, 0))
         host.frame = CGRect(origin: CGPoint(x: x, y: bottom + 4), size: size)
     }
+
+    // MARK: The / menu
+
+    private var slashHost: NSHostingView<SlashCommandList>?
+
+    /// Shows the commands for the `/query` being typed under its line (over it when there's no
+    /// room below in the visible part of the note), or takes them away.
+    func layoutSlashCommands() {
+        guard let controller, let q = controller.slashQuery, !controller.slashCommands.isEmpty else {
+            slashHost?.removeFromSuperview()
+            slashHost = nil
+            return
+        }
+        let host = slashHost ?? {
+            let h = NSHostingView(rootView: SlashCommandList(controller: controller))
+            h.sizingOptions = []
+            addSubview(h)
+            slashHost = h
+            return h
+        }()
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager,
+              let loc = tcm.location(tcm.documentRange.location, offsetBy: q.location) else { return }
+        // A slash on a new last line isn't laid out yet while the text changes: the list went
+        // under the line above and covered the slash.
+        tlm.ensureLayout(for: NSTextRange(location: loc))
+        var caret: CGRect?
+        tlm.enumerateTextSegments(in: NSTextRange(location: loc), type: .standard, options: []) { _, r, _, _ in caret = r; return false }
+        guard let caret, let frag = tlm.textLayoutFragment(for: loc) else { return }
+        let inFrag = tcm.offset(from: frag.rangeInElement.location, to: loc)
+        let lines = frag.textLineFragments
+        let line = lines.first { NSLocationInRange(inFrag, $0.characterRange) } ?? lines.last
+        let top = frag.layoutFragmentFrame.minY + (line?.typographicBounds.minY ?? 0) + textContainerOrigin.y
+        let bottom = frag.layoutFragmentFrame.minY + (line?.typographicBounds.maxY ?? frag.layoutFragmentFrame.height) + textContainerOrigin.y
+        let size = SlashCommandList.size(rows: controller.slashCommands.count)
+        let x = min(max(caret.minX + textContainerOrigin.x - 8, 0), max(bounds.width - size.width, 0))
+        let visible = visibleRect
+        // Under the line when it fits; else over it when that fits; else the side with more room.
+        let roomBelow = visible.maxY - bottom - 4, roomAbove = top - 4 - visible.minY
+        let below = size.height <= roomBelow || (size.height > roomAbove && roomBelow >= roomAbove)
+        host.frame = CGRect(origin: CGPoint(x: x, y: below ? bottom + 4 : top - 4 - size.height), size: size)
+        // Lines above can still move once the edit's styling is laid out (a checklist line grew
+        // and the list sat over the slash): placed again once that has happened.
+        if !slashRelayoutQueued {
+            slashRelayoutQueued = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.layoutSlashCommands()
+                self.slashRelayoutQueued = false
+            }
+        }
+    }
+
+    private var slashRelayoutQueued = false
 
     private var editingSelection: NSRange? { window?.firstResponder === self ? selectedRange() : nil }
 
@@ -2807,8 +2994,18 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let p = convert(event.locationInWindow, from: nil)
         if card(at: p) != nil { return }
         let point = CGPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y)
+        // Over a heading its chevron shows; on the chevron the pointer is an arrow.
+        if hoverFolds(at: point) {
+            NSCursor.arrow.set()
+            return
+        }
         if core.tickTarget(at: point, viewY: p.y, layout: textLayoutManager) != nil {
             NSCursor.arrow.set()
+            return
+        }
+        // A date chip is a button: a click picks another day. A callout's icon picks its type.
+        if controller?.readOnly != true, dateChip(at: point) != nil || calloutIcon(at: point) != nil {
+            NSCursor.pointingHand.set()
             return
         }
         super.mouseMoved(with: event)
@@ -2817,6 +3014,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
         let point = CGPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y)
+        // A heading's chevron collapses or opens its section; the caret stays where it is.
+        if event.clickCount == 1, let h = foldToggle(at: point) {
+            toggleFold(h)
+            return
+        }
         // The row drawn under the pointer, even while rows slide; then they stop where they're going.
         let target = core.tickTarget(at: point, viewY: p.y, layout: textLayoutManager)
         core.endSlides()
@@ -2844,7 +3046,76 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) }
             return
         }
+        if event.clickCount == 1, let icon = calloutIcon(at: point) {
+            showCalloutMenu(line: icon.line, rect: icon.rect.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
+            return
+        }
+        if event.clickCount == 1, let chip = dateChip(at: point) {
+            showDatePicker(for: chip.range, rect: chip.rect.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
+            return
+        }
         super.mouseDown(with: event)
+    }
+
+    /// The date chip under a point of the text container: its rect there and its characters.
+    func dateChip(at point: CGPoint) -> (rect: CGRect, range: NSRange)? {
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager,
+              let frag = tlm.textLayoutFragment(for: point) as? DecoratedLayoutFragment,
+              let start = frag.textElement?.elementRange?.location else { return nil }
+        let base = tcm.offset(from: tcm.documentRange.location, to: start)
+        let f = frag.layoutFragmentFrame
+        for c in frag.dateChips() {
+            let rect = c.rect.offsetBy(dx: f.minX, dy: f.minY)
+            if rect.insetBy(dx: -2, dy: -2).contains(point) {
+                return (rect, NSRange(location: base + c.range.location, length: c.range.length))
+            }
+        }
+        return nil
+    }
+
+    func calloutIcon(at point: CGPoint) -> (rect: CGRect, line: Int)? { core.calloutIcon(at: point, layout: textLayoutManager) }
+
+    /// The callout's types, each with its icon in its colour; the current one ticked.
+    func showCalloutMenu(line: Int, rect: CGRect) {
+        let ns = string as NSString
+        guard line < ns.length else { return }
+        let current = Callouts.header(ns.substring(with: ns.lineRange(for: NSRange(location: line, length: 0))).trimmingCharacters(in: .newlines))?.kind
+        let menu = NSMenu()
+        for kind in Callouts.menuKinds {
+            let item = CalloutMenuItem(title: kind.title, action: #selector(pickCalloutKind(_:)), keyEquivalent: "")
+            item.target = self
+            item.kind = kind
+            item.line = line
+            item.state = kind == current ? .on : .off
+            let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold).applying(.init(paletteColors: [kind.tone.ink]))
+            item.image = NSImage(systemSymbolName: kind.symbol, accessibilityDescription: nil)?.withSymbolConfiguration(config)
+            menu.addItem(item)
+        }
+        menu.popUp(positioning: nil, at: CGPoint(x: rect.minX, y: rect.maxY + 4), in: self)
+    }
+
+    @objc private func pickCalloutKind(_ item: CalloutMenuItem) {
+        guard let kind = item.kind else { return }
+        controller?.setCalloutKind(kind, line: item.line)
+    }
+
+    private var datePopover: NSPopover?
+
+    /// A calendar under the chip; picking a day changes the date and closes it.
+    func showDatePicker(for range: NSRange, rect: CGRect) {
+        guard let found = NoteDates.date(at: range.location, in: string), found.range == range,
+              let day = NoteDates.date(found) else { return }
+        datePopover?.close()
+        let picker = DatePickerPopover(day: day) { [weak self] picked in
+            guard let self else { return }
+            self.controller?.changeDate(at: range, to: picked)
+            self.datePopover?.close()
+        }
+        let pop = NSPopover()
+        pop.behavior = .transient
+        pop.contentViewController = picker
+        pop.show(relativeTo: rect, of: self, preferredEdge: .maxY)
+        datePopover = pop
     }
 
     /// Whether a point of this view is on a link's text.

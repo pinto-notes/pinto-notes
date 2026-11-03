@@ -451,6 +451,8 @@ struct SidebarView: View {
             #if os(iOS)
             .listRowBackground(Color(Palette.row))
             #endif
+            // The library's #tags, once a note has one.
+            SidebarTags(selection: $scope, nested: nested)
             #if os(iOS)
             // The Mac card docks right under the folders, where it reads as part of the list.
             if sidebarCard == .mac {

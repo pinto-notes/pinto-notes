@@ -71,12 +71,15 @@ struct NoteListView: View {
 
     /// The notes a scope lists, in the order they came in.
     static func scoped(_ all: [NoteEntry], to scope: Scope, context: ModelContext) -> [NoteEntry] {
-        all.filter { e in
+        // A tag's notes: the store finds the few whose text has it.
+        let tagged: Set<PersistentIdentifier> = if case .tag(let name) = scope { Tags.noteIDs(tagged: name, in: context) } else { [] }
+        return all.filter { e in
             guard !e.deleted else { return false }
             switch scope {
             case .all: return !e.trashed
             case .trash: return e.trashed
             case .folder(let id): return !e.trashed && e.folderID == id
+            case .tag: return !e.trashed && tagged.contains(e.pid)
             }
         }
     }
@@ -92,6 +95,7 @@ struct NoteListView: View {
             case .all: return f.trashedAt == nil
             case .trash: return f.trashedAt != nil
             case .folder(let id): return f.trashedAt == nil && f.folderID == id
+            case .tag: return false
             }
         }
     }
@@ -157,6 +161,7 @@ struct NoteListView: View {
         case .all: "All Notes"
         case .trash: "Recently Deleted"
         case .folder(let id): context.folder(id)?.name ?? "Notes"
+        case .tag(let name): "#" + name
         }
     }
 
@@ -165,7 +170,8 @@ struct NoteListView: View {
         RenderProbe.count("NoteListView", context: context)
         #endif
         // Worked out once per update and handed down: the list asks many times.
-        library.publishesEveryChange = !search.trimmingCharacters(in: .whitespaces).isEmpty
+        // A tag's list too: a note's text decides whether it's in it.
+        library.publishesEveryChange = !search.trimmingCharacters(in: .whitespaces).isEmpty || { if case .tag = scope { true } else { false } }()
         let all = entries
         let scopedNotes = scoped(from: all)
         let visible = filtered(from: scopedNotes, all: all)
@@ -823,6 +829,9 @@ struct NoteListView: View {
             ContentUnavailableView.search(text: search)
         } else if scope == .trash {
             ContentUnavailableView("No Deleted Notes", systemImage: "trash", description: Text("Notes and files you delete stay here for 30 days."))
+        } else if case .tag(let name) = scope {
+            // The last note with the tag lost it (or went to Recently Deleted).
+            ContentUnavailableView("No Notes", systemImage: "number", description: Text("No notes have #\(name)."))
         } else if Self.offersWaysToStart(scope: scope) {
             // Nothing in the whole library (a new account, or one whose first run didn't come):
             // the two ways to start, in place (newcomer audit #19), New Note the one in the accent.

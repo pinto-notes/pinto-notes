@@ -36,6 +36,9 @@ struct FormatPopover: View {
     let controller: EditorController
     /// The style of the line the caret is on, ticked.
     let current: ListEditing.ParagraphStyle?
+    /// The caret's line is in a callout (a quote with a `[!type]` header): Callout is ticked, not
+    /// Block Quote.
+    var inCallout = false
     let close: () -> Void
 
     static let width: CGFloat = 192
@@ -55,7 +58,9 @@ struct FormatPopover: View {
             row("– Dashed List", .dashed, title: "Dashed List", action: controller.dashedList)
             row("1. Numbered List", .numbered, title: "Numbered List", action: controller.numberedList)
             rule
-            row("Block Quote", .quote, bar: true, action: controller.blockQuote)
+            row("Block Quote", inCallout ? nil : .quote, mark: .bar, action: controller.blockQuote)
+            row("Callout", nil, ticked: inCallout, mark: .callout) { controller.insertCallout() }
+            row("Divider", nil, mark: .line, action: controller.insertDivider)
         }
         .padding(.vertical, 6)
         .frame(width: Self.width)
@@ -67,8 +72,14 @@ struct FormatPopover: View {
     }
 
     /// One choice: it applies to the caret's line (or the selected lines) and the popover closes.
-    private func row(_ shown: String, _ style: ListEditing.ParagraphStyle?, title: String? = nil, font: Font = .system(size: 13), height: CGFloat = 27, bar: Bool = false,
+    /// A small picture of the block before its name: the quote's bar, the callout's tinted box,
+    /// the divider's line.
+    enum Mark { case bar, callout, line }
+
+    private func row(_ shown: String, _ style: ListEditing.ParagraphStyle?, title: String? = nil, font: Font = .system(size: 13), height: CGFloat = 27, ticked: Bool = false, mark: Mark? = nil,
                      action: @escaping () -> Void) -> some View {
+        let on = ticked || (style != nil && style == current)
+        return
         Button {
             action()
             close()
@@ -76,10 +87,20 @@ struct FormatPopover: View {
             HStack(spacing: 0) {
                 Image(systemName: "checkmark")
                     .font(.system(size: 11, weight: .semibold))
-                    .opacity(style != nil && style == current ? 1 : 0)
+                    .opacity(on ? 1 : 0)
                     .frame(width: Self.inset - 10, alignment: .center)
-                if bar {
-                    RoundedRectangle(cornerRadius: 1).fill(.secondary).frame(width: 2.5, height: 15).padding(.trailing, 5)
+                switch mark {
+                case .bar:
+                    RoundedRectangle(cornerRadius: 1).fill(.secondary).frame(width: 2.5, height: 15)
+                        .frame(width: 15, alignment: .leading).padding(.trailing, 5)
+                case .callout:
+                    RoundedRectangle(cornerRadius: 3, style: .continuous).fill(Color.secondary.opacity(0.18))
+                        .overlay(Image(systemName: "info.circle.fill").font(.system(size: 8, weight: .semibold)).foregroundStyle(.secondary))
+                        .frame(width: 15, height: 15).padding(.trailing, 5)
+                case .line:
+                    Rectangle().fill(.secondary).frame(width: 13, height: 1).frame(width: 15).padding(.trailing, 5)
+                case nil:
+                    EmptyView()
                 }
                 Text(shown).font(font)
                 Spacer(minLength: 0)
@@ -91,7 +112,7 @@ struct FormatPopover: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title ?? shown)
-        .accessibilityAddTraits(style != nil && style == current ? .isSelected : [])
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 
     /// Bold, italic, underline and strikethrough: plain glyphs on one line, no boxes. They act on
@@ -104,6 +125,9 @@ struct FormatPopover: View {
             format("Italic", "italic", "⌘I", action: controller.italic)
             format("Underline", "underline", "⌘U", action: controller.underline)
             format("Strikethrough", "strikethrough", "⇧⌘X", action: controller.strikethrough)
+            // The highlighter, after a short rule: a colour on the text, not a change of type.
+            Divider().frame(height: 16).padding(.horizontal, 6)
+            format("Highlight", "highlighter", "⇧⌘E", action: controller.highlight)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 10)
@@ -130,19 +154,29 @@ struct FormatButton: View {
     let controller: EditorController
     @State private var showing = false
     @State private var current: ListEditing.ParagraphStyle?
+    @State private var inCallout = false
 
     var body: some View {
         Button {
             current = controller.target.map { ListEditing.paragraphStyle(in: $0.currentText, selection: $0.currentSelection) }
+            inCallout = controller.target.map { Self.inCallout($0.currentText, $0.currentSelection) } ?? false
             showing.toggle()
         } label: {
             Label("Format", systemImage: "textformat")
         }
         .help("Format")
         .popover(isPresented: $showing, arrowEdge: .bottom) {
-            FormatPopover(controller: controller, current: current) { showing = false }
+            FormatPopover(controller: controller, current: current, inCallout: inCallout) { showing = false }
         }
         .accessibilityIdentifier("editor.format")
+    }
+
+    /// Whether the caret's line belongs to a callout.
+    static func inCallout(_ text: String, _ selection: NSRange) -> Bool {
+        let ns = text as NSString
+        guard ns.length > 0 else { return false }
+        let line = ns.lineRange(for: NSRange(location: min(selection.location, ns.length - 1), length: 0))
+        return Callouts.lines(in: ns, range: line)[line.location] != nil
     }
 }
 #endif

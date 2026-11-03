@@ -263,7 +263,7 @@ final class EditorController {
             perform { ListEditing.paragraph(in: $0, selection: $1, level: control.headingLevel!) }
         case .monostyled:
             perform { ListEditing.toggleCodeBlock(in: $0, selection: $1) }
-        case .bold, .italic, .underline, .strikethrough:
+        case .bold, .italic, .underline, .strikethrough, .highlight:
             perform { FormatState.toggle(control.inline!, in: $0, selection: $1) }
         case .bulleted, .dashed, .numbered, .quote:
             // A code block or a heading becomes body text first: a list item is body text.
@@ -274,6 +274,13 @@ final class EditorController {
             perform { ListEditing.toggleLineStyle(in: $0, selection: $1, control.lineStyle!) }
         case .indent, .outdent:
             perform { ListEditing.indentLines(in: $0, selection: $1, outdent: control == .outdent) }
+        case .divider:
+            perform { Dividers.insert(in: $0, selection: $1) }
+        case .callout:
+            if ListEditing.touchesHeading(in: t.currentText, selection: t.currentSelection) {
+                perform { ListEditing.paragraph(in: $0, selection: $1, level: 0) }
+            }
+            perform { Callouts.toggle(in: $0, selection: $1) }
         }
         refreshFormat()
     }
@@ -292,6 +299,8 @@ final class EditorController {
     func underline() { perform { ListEditing.underline(in: $0, selection: $1) } }
     func strikethrough() { perform { ListEditing.wrap(in: $0, selection: $1, with: "~~") } }
     func code() { perform { ListEditing.wrap(in: $0, selection: $1, with: "`") } }
+    /// Format › Highlight: `==text==` on the selection or the word under the caret, or off again.
+    func highlight() { perform { FormatState.toggle(.highlight, in: $0, selection: $1) } }
     func checklist() {
         if cell != nil { toggleTickColumn(); return }
         perform { ListEditing.toggleChecklist(in: $0, selection: $1) }
@@ -315,6 +324,43 @@ final class EditorController {
         }
     }
 
+    /// Format › Divider: a line across the note, under the caret's line (Dividers).
+    func insertDivider() {
+        guard cell == nil else { return }
+        if let t = host, FormatState.at(t.currentText, selection: t.currentSelection).monostyled { return }
+        perform { Dividers.insert(in: $0, selection: $1) }
+    }
+
+    /// Format › Callout: the caret's lines in a note callout (`> [!note]`), or out of the one
+    /// they're in (Callouts).
+    func insertCallout(_ kind: Callouts.Kind = .note) {
+        guard cell == nil else { return }
+        if let t = host, FormatState.at(t.currentText, selection: t.currentSelection).monostyled { return }
+        perform { Callouts.toggle(in: $0, selection: $1, kind: kind) }
+    }
+
+    /// The callout whose first line starts at `line` becomes `kind` (its icon's type menu).
+    func setCalloutKind(_ kind: Callouts.Kind, line: Int) {
+        perform { text, _ in Callouts.setKind(kind, in: text, line: line) }
+    }
+
+    /// Format › Date: today's date at the caret. The note stores `2026-11-03`; the editor shows a
+    /// chip that says Today (NoteDates).
+    func insertDate() {
+        guard cell == nil else { return }
+        perform { text, sel in NoteDates.insertToday(in: text, selection: sel) }
+    }
+
+    /// Picking another day for a date chip: the date's text becomes that day.
+    func changeDate(at range: NSRange, to day: Date) {
+        perform { text, _ in
+            let ns = text as NSString
+            guard NSMaxRange(range) <= ns.length, NoteDates.date(at: range.location, in: text)?.range == range else { return nil }
+            let body = NoteDates.text(for: day)
+            return TextEdit(range: range, replacement: body, caret: range.location + (body as NSString).length)
+        }
+    }
+
     func insertLink() {
         perform { text, sel in
             let selected = (text as NSString).substring(with: sel)
@@ -324,6 +370,10 @@ final class EditorController {
     }
 
     func focus() { target?.focusEditor() }
+
+    /// View › Collapse All Sections and Expand All Sections, as in Notes (HeadingFolds).
+    func collapseAllSections() { target?.collapseAllSections() }
+    func expandAllSections() { target?.expandAllSections() }
 
     /// Scrolls the text to the line at `location` (a link to a heading).
     func reveal(_ location: Int) { target?.reveal(location) }
@@ -336,6 +386,10 @@ final class EditorController {
     var wiki: WikiScope?
     /// Follows a wiki link by its target, or offers to make the note (set by the note screen).
     @ObservationIgnored var openWiki: (String) -> Void = { _ in }
+    /// Shows the notes with a tag, by its name without the `#` (set by the notes window).
+    @ObservationIgnored var openTag: (String) -> Void = { _ in }
+    /// Tags offered while one is typed after `#`, for what's typed (set by the notes window).
+    @ObservationIgnored var suggestTags: (String) -> [String] = { _ in [] }
     /// A note's first lines and folder, for its card (`![[Title]]`; set by the note screen).
     @ObservationIgnored var notePreview: (UUID) -> (preview: String, folder: String?)? = { _ in nil }
 
@@ -351,6 +405,8 @@ final class EditorController {
     @ObservationIgnored var suggestHeadings: (_ target: String, _ typed: String) -> [String] = { _, _ in [] }
     /// The suggestions are headings of a note, not titles.
     private(set) var wikiHeadings = false
+    /// The suggestions are tags, for a `#tag` being typed (Tags.typingQuery).
+    private(set) var wikiTags = false
     /// Where the typed part of the link is.
     @ObservationIgnored private(set) var wikiQuery: NSRange?
     /// A link whose suggestions were put away (Escape): not offered again while typing it.
@@ -360,6 +416,7 @@ final class EditorController {
     func typingChanged(text: String, selection: NSRange?) {
         // The panel follows the caret: bold on, Heading lit, as it moves.
         if formatPanelShown { refreshFormat() }
+        updateSlash(text: text, selection: selection)
         guard let sel = selection, sel.length == 0 else {
             wikiDismissed = nil
             clearWikiSuggestions()
@@ -367,31 +424,48 @@ final class EditorController {
         }
         let q: NSRange
         let offered: () -> [String]
+        var tags = false
         if let t = WikiLinks.typingQuery(in: text, caret: sel.location) {
             q = t
             offered = { self.suggestTitles((text as NSString).substring(with: t)) }
         } else if let h = WikiLinks.typingHeading(in: text, caret: sel.location) {
             q = h.query
             offered = { self.suggestHeadings(h.target, (text as NSString).substring(with: h.query)) }
+        } else if let t = Tags.typingQuery(in: text, caret: sel.location) {
+            q = t
+            tags = true
+            offered = { self.suggestTags((text as NSString).substring(with: t)) }
         } else {
             wikiDismissed = nil
             clearWikiSuggestions()
             return
         }
         guard q.location != wikiDismissed else { clearWikiSuggestions(); return }
-        let headings = q.location > 0 && (text as NSString).character(at: q.location - 1) == 0x23
+        let headings = !tags && q.location > 0 && (text as NSString).character(at: q.location - 1) == 0x23
         wikiQuery = q
         let titles = offered()
-        if titles != wikiSuggestions || headings != wikiHeadings {
+        if titles != wikiSuggestions || headings != wikiHeadings || tags != wikiTags {
             wikiSuggestions = titles
             wikiHeadings = headings
+            wikiTags = tags
             wikiChoice = 0
         }
     }
 
-    /// Finishes the link being typed with `title`, and puts the caret after it.
+    /// Finishes the link being typed with `title`, and puts the caret after it. A tag is finished
+    /// with a space after it, so the next word can follow.
     func completeWiki(_ title: String) {
         guard let q = wikiQuery else { return }
+        if wikiTags {
+            perform { text, _ in
+                let ns = text as NSString
+                guard NSMaxRange(q) <= ns.length else { return nil }
+                let spaced = NSMaxRange(q) < ns.length && ns.character(at: NSMaxRange(q)) == 0x20
+                return TextEdit(range: q, replacement: title + (spaced ? "" : " "), caret: q.location + (title as NSString).length + 1)
+            }
+            clearWikiSuggestions()
+            return
+        }
         perform { text, _ in
             let ns = text as NSString
             guard NSMaxRange(q) <= ns.length else { return nil }
@@ -410,6 +484,96 @@ final class EditorController {
         wikiQuery = nil
         if !wikiSuggestions.isEmpty { wikiSuggestions = [] }
         if wikiHeadings { wikiHeadings = false }
+        if wikiTags { wikiTags = false }
+    }
+
+    // MARK: The / menu
+
+    /// Commands offered while a `/query` is typed (SlashCommands), best first.
+    private(set) var slashCommands: [SlashCommand] = []
+    /// The one Return takes (Mac).
+    var slashChoice = 0
+    /// The callout type the `/query` names (`/warn`): the Callout row says "Warning callout" and
+    /// inserts one.
+    private(set) var slashCalloutKind: Callouts.Kind?
+
+    /// A row's name and symbol, with the callout's type when the query names one.
+    func slashName(_ c: SlashCommand) -> String { c == .callout ? slashCalloutKind.map { "\($0.title) callout" } ?? c.name : c.name }
+    func slashSymbol(_ c: SlashCommand) -> String { c == .callout ? slashCalloutKind?.symbol ?? c.symbol : c.symbol }
+    /// Where the `/query` is, slash included.
+    @ObservationIgnored private(set) var slashQuery: NSRange?
+    /// A slash whose menu was put away (Escape): not offered again while typing after it.
+    @ObservationIgnored private var slashDismissed: Int?
+
+    private func updateSlash(text: String, selection: NSRange?) {
+        guard let sel = selection, !readOnly, cell == nil, WikiLinks.typingQuery(in: text, caret: sel.location) == nil,
+              let found = SlashCommands.active(in: text, selection: sel) else {
+            slashDismissed = nil
+            clearSlash()
+            return
+        }
+        guard found.query.location != slashDismissed else { clearSlash(); return }
+        slashQuery = found.query
+        let typed = (text as NSString).substring(with: NSRange(location: found.query.location + 1, length: found.query.length - 1))
+        let kind = Callouts.kind(typed: typed)
+        if kind != slashCalloutKind { slashCalloutKind = kind }
+        if found.commands != slashCommands {
+            slashCommands = found.commands
+            slashChoice = 0
+        }
+    }
+
+    /// Takes the `/query` out of the line and runs `command` there.
+    func runSlash(_ command: SlashCommand) {
+        guard let q = slashQuery else { return }
+        // Read before the query goes: taking it out of the text closes the menu and forgets it.
+        let kind = slashCalloutKind ?? .note
+        perform { text, _ in
+            guard NSMaxRange(q) <= (text as NSString).length, (text as NSString).character(at: q.location) == 0x2F else { return nil }
+            return TextEdit(range: q, replacement: "", caret: q.location)
+        }
+        clearSlash()
+        switch command {
+        case .title: apply(.title)
+        case .heading: apply(.heading)
+        case .subheading: apply(.subheading)
+        case .body: apply(.body)
+        case .checklist: checklist()
+        case .bulleted: apply(.bulleted)
+        case .dashed: apply(.dashed)
+        case .numbered: apply(.numbered)
+        case .quote: apply(.quote)
+        case .callout: insertCallout(kind)
+        case .highlight: highlight()
+        case .codeBlock: apply(.monostyled)
+        case .table: insertTable()
+        case .divider: insertDivider()
+        case .date: insertDate()
+        case .link: insertLink()
+        case .attach: attach()
+        }
+    }
+
+    /// Return or Tab on the Mac: the highlighted command.
+    func runSlashChoice() {
+        guard !slashCommands.isEmpty else { return }
+        runSlash(slashCommands[min(max(slashChoice, 0), slashCommands.count - 1)])
+    }
+
+    func moveSlashChoice(by step: Int) {
+        guard !slashCommands.isEmpty else { return }
+        slashChoice = min(max(slashChoice + step, 0), slashCommands.count - 1)
+    }
+
+    func dismissSlash() {
+        slashDismissed = slashQuery?.location
+        clearSlash()
+    }
+
+    private func clearSlash() {
+        slashQuery = nil
+        if slashCalloutKind != nil { slashCalloutKind = nil }
+        if !slashCommands.isEmpty { slashCommands = [] }
     }
     // MARK: Tables
 
@@ -596,6 +760,9 @@ protocol EditorTarget: TextHost {
     func undoStep(redo: Bool)
     /// Puts the keyboard in a cell of table `index`.
     func focusGrid(_ index: Int, cell: GridCell)
+    /// Collapses or opens every section (HeadingFolds).
+    func collapseAllSections()
+    func expandAllSections()
     /// A table cell's field just took the keyboard (the iPhone gives it the table toolbar).
     func gridFieldFocused()
     /// Shows a handle's menu by its handle.
@@ -620,6 +787,8 @@ extension EditorTarget {
 
 extension EditorTarget {
     func reveal(_ location: Int) {}
+    func collapseAllSections() {}
+    func expandAllSections() {}
     /// Tints, then fades on its own.
     func tintChanges(from previous: String) { tintChanges(from: previous, untilCleared: false) }
 }

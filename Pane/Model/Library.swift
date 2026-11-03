@@ -8,6 +8,9 @@ enum Scope: Hashable, Codable {
     case all
     case folder(UUID)
     case trash
+    /// The notes with a tag (`#work`), or one nested under it (Tags). Picked in the sidebar's
+    /// Tags, or by clicking a tag in a note.
+    case tag(String)
 
     /// Where the sidebar should point, given the folders that exist. A folder that's gone
     /// (deleted here, with a parent, or on another device) falls back to All Notes, and with a
