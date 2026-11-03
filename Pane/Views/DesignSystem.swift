@@ -603,7 +603,9 @@ struct SoftSearchField: View {
         .padding(.horizontal, 10)
         .frame(height: height)
         .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(Palette.searchFill)))
+        #if os(macOS)
         .onExitCommand { text = "" }
+        #endif
     }
 }
 
