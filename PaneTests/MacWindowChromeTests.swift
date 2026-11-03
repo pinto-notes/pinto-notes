@@ -99,17 +99,6 @@ import Testing
         #expect(forward.lowerBound < anchor.lowerBound && anchor.lowerBound < tools.lowerBound, "the empty anchor item sits between back and forward and the tools")
     }
 
-    /// The bar over the list and the note is the columns' own ground in every folder, never the
-    /// system's grey band. Left to AppKit, it put a hard band behind the whole toolbar in some
-    /// folders and not others (Emil, 3 November 2026: "why did the top bar change on specifically
-    /// this folder?", in a folder with a long name). Windows that are never shown get no such band,
-    /// so this reads that the notes window asks for none.
-    @Test func theBarNeverGetsTheSystemBand() throws {
-        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views/RootView.swift")
-        let source = try String(contentsOf: url, encoding: .utf8)
-        #expect(source.contains(".toolbarBackgroundVisibility(.hidden, for: .windowToolbar)"))
-    }
-
     /// There is no sidebar-hidden state (Emil, 11-01): Toggle Sidebar (⌃⌘S) does nothing, and the
     /// window can't get narrower than the three columns, so it never folds away.
     @Test func nothingHidesTheSidebar() async throws {

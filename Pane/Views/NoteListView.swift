@@ -599,6 +599,13 @@ struct NoteListView: View {
                     .textCase(nil)
                     .padding(.top, NoteListView.headingTop)
                     .padding(.bottom, NoteListView.headingBottom)
+                    // A heading stays pinned at the top while its notes scroll under it, as in
+                    // Notes, on the list's own ground: the note under it is hidden, not showing
+                    // through and seeming clickable (Emil, 3 November 2026: "they're sticky").
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background { Color(Palette.listGround).padding(.horizontal, -60) }
+                    // No rule under it where it pins: the notes just pass under.
+                    .listRowSeparator(.hidden)
                 #endif
             }
         }
@@ -1273,7 +1280,6 @@ struct ShowsSelectedRow: ViewModifier {
                 let at = selected.flatMap(row)
                 // A turn later: the rows are there by then.
                 DispatchQueue.main.async {
-                    finder.keepHeadingsInPlace()
                     if let at, at >= Self.firstRows { finder.center(row: at) }
                 }
             }
@@ -1283,7 +1289,7 @@ struct ShowsSelectedRow: ViewModifier {
         let probe: Probe
 
         func makeNSView(context: Context) -> Probe { probe }
-        func updateNSView(_ view: Probe, context: Context) { view.keepHeadingsInPlace() }
+        func updateNSView(_ view: Probe, context: Context) {}
 
         final class Probe: NSView {
             private weak var table: NSTableView?
@@ -1303,22 +1309,6 @@ struct ShowsSelectedRow: ViewModifier {
                 walk(root)
                 table = found
                 return found
-            }
-
-            /// The date headings scroll with the notes instead of staying pinned at the top.
-            ///
-            /// A pinned heading has no ground of its own: it sat over the top of the first note
-            /// on screen, the note showing through it, and took every click there. A click on the
-            /// upper half of the top row selected nothing whenever the list was scrolled at all
-            /// (Emil, 11-02: "clicking a note sometimes doesn't open it").
-            func keepHeadingsInPlace() {
-                guard let table = find(), table.floatsGroupRows else { return }
-                table.floatsGroupRows = false
-            }
-
-            override func viewDidMoveToWindow() {
-                super.viewDidMoveToWindow()
-                DispatchQueue.main.async { [weak self] in self?.keepHeadingsInPlace() }
             }
 
             /// Centres `row` in what shows of the table, if it has that row. The list's top is at

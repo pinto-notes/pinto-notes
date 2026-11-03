@@ -134,12 +134,14 @@ import Testing
         }
         #expect(misses.isEmpty, "clicks with the list at its top: \(misses)")
 
-        // Scrolled: the top note on screen, a few points under the toolbar.
+        // Scrolled: the top note on screen, a few points under the date heading pinned under
+        // the toolbar. What the heading covers is the heading's.
         misses = []
+        let heading = rig.list.rect(ofRow: (0 ..< rig.list.numberOfRows).first { rig.list.isHeadingRow($0) } ?? 0).height
         for i in [2, 5, 9, 12] {
             let row = rig.rows[i]
             for fy in [0.1, 0.4, 0.8] {
-                rig.scrollList(toRow: row, below: 6)
+                rig.scrollList(toRow: row, below: heading + 6)
                 await MacWindowChromeTests.settle(rig.window, 2)
                 rig.click(row: row, fx: 0.5, fy: fy)
                 if await !rig.opens("Note \(i)") { misses.append("Note \(i), the top row, at \(fy) opened \(rig.open)") }
@@ -149,6 +151,15 @@ import Testing
             }
         }
         #expect(misses.isEmpty, "the top note of a scrolled list: \(misses)")
+    }
+
+    /// The date headings stay pinned at the top while their notes scroll under them, as in Notes,
+    /// on the list's own ground. They scrolled away for a day (2 November 2026) and Emil missed
+    /// them; with them gone, AppKit also put a grey band behind the whole toolbar in some folders.
+    @Test func dateHeadingsStayPinned() async throws {
+        let (rig, _, done) = try await Self.rig()
+        defer { done() }
+        #expect(rig.list.floatsGroupRows, "the date headings pin at the top")
     }
 
     /// The note opens on the press, as in Apple Notes, not when the button comes up: it waited for
