@@ -40,6 +40,13 @@ import Testing
         #expect(body(t, hs[0]) == "#tag\n## \n#### Deep\nx\n    # indented code")
     }
 
+    @Test func blankLinesAtASectionsEndStayInSight() {
+        let t = "## A\nx\n\ny\n\n\n## B\nz\n\n"
+        let hs = headings(t)
+        #expect(body(t, hs[0]) == "x\n\ny\n")
+        #expect(body(t, hs[1]) == "z\n")
+    }
+
     @Test func nothingUnderneathIsNothingToCollapse() {
         let hs = headings("# A\n\n  \n# B\n# C")
         #expect(hs.map(\.foldable) == [false, false, false])

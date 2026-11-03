@@ -25,7 +25,8 @@ enum HeadingFolds {
         var level: Int
         var title: String
         /// What collapsing hides: the lines after the heading, to the next heading of the same or
-        /// a higher level (or the note's end).
+        /// a higher level (or the note's end). Blank lines at its end stay: they keep the gap to
+        /// the next heading, as in the open note.
         var body: NSRange
         /// There is something under it to hide (not only blank lines).
         var foldable: Bool
@@ -75,8 +76,18 @@ enum HeadingFolds {
             let start = NSMaxRange(h.line)
             var end = len
             for next in found[(i + 1)...] where next.level <= h.level { end = next.line.location; break }
-            let body = NSRange(location: start, length: max(0, end - start))
-            let foldable = body.length > 0 && ns.substring(with: body).contains { !$0.isWhitespace }
+            // Back over blank lines, to just after the last line with text.
+            var k = end
+            while k > start {
+                let c = ns.character(at: k - 1)
+                if c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D { k -= 1 } else { break }
+            }
+            if k > start, k < end {
+                let lineEnd = NSMaxRange(ns.lineRange(for: NSRange(location: k - 1, length: 0)))
+                k = min(lineEnd, end)
+            }
+            let body = NSRange(location: start, length: max(0, k - start))
+            let foldable = body.length > 0
             out.append(Heading(line: h.line, level: h.level, title: h.title, body: body, foldable: foldable))
         }
         return out

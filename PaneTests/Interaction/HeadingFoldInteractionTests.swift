@@ -52,11 +52,11 @@ import Testing
         h.view.toggleFold(location(h, "## Packing"))
         await h.settle()
         #expect(h.text == before)
-        // Passport and Charger (and the blank line) take no room: Days moved up by their lines.
+        // Passport and Charger take no room: Days moved up by their two lines (the blank line stays).
         #expect(!fragmentStarts(h).contains(location(h, "Passport")))
         #expect(!fragmentStarts(h).contains(location(h, "Charger")))
         #expect(fragmentStarts(h).contains(days))
-        #expect(h.lineRect(at: days).minY < yBefore - 40)
+        #expect(h.lineRect(at: days).minY < yBefore - 30)
         // Opened again: back where it was.
         h.view.toggleFold(location(h, "## Packing"))
         await h.settle()
@@ -87,11 +87,12 @@ import Testing
         let end = packing + ("## Packing" as NSString).length
         await h.select(end)
         await h.press(EditorHarness.right)
-        #expect(h.selection.location == location(h, "## Days"))
+        // The blank line after the section stays in sight: the caret lands there.
+        #expect(h.selection.location == location(h, "## Days") - 1)
         await h.press(EditorHarness.left)
         #expect(h.selection.location == end)
         await h.press(EditorHarness.down)
-        #expect(NSLocationInRange(h.selection.location, (h.text as NSString).lineRange(for: NSRange(location: location(h, "## Days"), length: 0))))
+        #expect(h.selection.location == location(h, "## Days") - 1)
         await h.press(EditorHarness.up)
         #expect(NSLocationInRange(h.selection.location, (h.text as NSString).lineRange(for: NSRange(location: packing, length: 0))))
     }
@@ -103,12 +104,12 @@ import Testing
         h.view.toggleFold(packing)
         await h.caret(after: "## Packing")
         await h.press(EditorHarness.returnKey)
-        // The new line comes before Days, after Charger and the blank line; Packing stays collapsed.
+        // The new line comes right after Charger, the section's last line; Packing stays collapsed.
         #expect(h.text.contains("Charger\n\n\n## Days"))
-        #expect(h.selection.location == location(h, "## Days") - 1)
+        #expect(h.selection.location == location(h, "## Days") - 2)
         #expect(h.view.core.folds.collapsed == [packing])
         await h.type("Tickets")
-        #expect(h.text.contains("Charger\n\nTickets\n## Days"))
+        #expect(h.text.contains("Charger\nTickets\n\n## Days"))
         #expect(fragmentStarts(h).contains(location(h, "Tickets")))
         #expect(!fragmentStarts(h).contains(location(h, "Passport")))
     }
@@ -143,7 +144,8 @@ import Testing
         let h = await harness()
         defer { h.close() }
         h.view.toggleFold(location(h, "## Packing"))
-        await h.select(location(h, "## Days"))
+        // On the blank line after it: Backspace would take Charger's line break.
+        await h.select(location(h, "## Days") - 1)
         await h.press(EditorHarness.delete)
         #expect(h.view.core.folds.collapsed.isEmpty)
         #expect(fragmentStarts(h).contains(location(h, "Passport")))
