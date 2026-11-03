@@ -263,7 +263,7 @@ final class EditorController {
             perform { ListEditing.paragraph(in: $0, selection: $1, level: control.headingLevel!) }
         case .monostyled:
             perform { ListEditing.toggleCodeBlock(in: $0, selection: $1) }
-        case .bold, .italic, .underline, .strikethrough:
+        case .bold, .italic, .underline, .strikethrough, .highlight:
             perform { FormatState.toggle(control.inline!, in: $0, selection: $1) }
         case .bulleted, .dashed, .numbered, .quote:
             // A code block or a heading becomes body text first: a list item is body text.
@@ -276,6 +276,11 @@ final class EditorController {
             perform { ListEditing.indentLines(in: $0, selection: $1, outdent: control == .outdent) }
         case .divider:
             perform { Dividers.insert(in: $0, selection: $1) }
+        case .callout:
+            if ListEditing.touchesHeading(in: t.currentText, selection: t.currentSelection) {
+                perform { ListEditing.paragraph(in: $0, selection: $1, level: 0) }
+            }
+            perform { Callouts.toggle(in: $0, selection: $1) }
         }
         refreshFormat()
     }
@@ -294,6 +299,8 @@ final class EditorController {
     func underline() { perform { ListEditing.underline(in: $0, selection: $1) } }
     func strikethrough() { perform { ListEditing.wrap(in: $0, selection: $1, with: "~~") } }
     func code() { perform { ListEditing.wrap(in: $0, selection: $1, with: "`") } }
+    /// Format › Highlight: `==text==` on the selection or the word under the caret, or off again.
+    func highlight() { perform { FormatState.toggle(.highlight, in: $0, selection: $1) } }
     func checklist() {
         if cell != nil { toggleTickColumn(); return }
         perform { ListEditing.toggleChecklist(in: $0, selection: $1) }
@@ -322,6 +329,14 @@ final class EditorController {
         guard cell == nil else { return }
         if let t = host, FormatState.at(t.currentText, selection: t.currentSelection).monostyled { return }
         perform { Dividers.insert(in: $0, selection: $1) }
+    }
+
+    /// Format › Callout: the caret's lines in a note callout (`> [!note]`), or out of the one
+    /// they're in (Callouts).
+    func insertCallout() {
+        guard cell == nil else { return }
+        if let t = host, FormatState.at(t.currentText, selection: t.currentSelection).monostyled { return }
+        perform { Callouts.toggle(in: $0, selection: $1) }
     }
 
     /// Format › Date: today's date at the caret. The note stores `2026-11-03`; the editor shows a

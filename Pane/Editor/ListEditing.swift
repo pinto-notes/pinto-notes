@@ -49,7 +49,7 @@ enum ListEditing {
     }
 
     /// The closing markers Bold, Italic and the rest put after the caret.
-    private static let closers = ["**", "~~", "</u>", "`", "*"]
+    private static let closers = ["**", "~~", "==", "</u>", "`", "*"]
 
     /// Return typed just inside a style's closing marker, at the end of the line ("**bold|**"):
     /// the new line starts after the marker. Left where it was, the marker moved down to the

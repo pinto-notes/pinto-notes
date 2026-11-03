@@ -851,6 +851,8 @@ struct PaneCommands: Commands {
                 Button("Italic") { editor?.italic() }.keyboardShortcut("i")
                 Button("Underline") { editor?.underline() }.keyboardShortcut("u")
                 Button("Strikethrough") { editor?.strikethrough() }.keyboardShortcut("x", modifiers: [.command, .shift])
+                // ⇧⌘E, as Notes' Highlight.
+                Button("Highlight") { editor?.highlight() }.keyboardShortcut("e", modifiers: [.command, .shift])
                 Button("Monostyled") { editor?.code() }.keyboardShortcut("m", modifiers: [.command, .shift])
                 Divider()
                 Button("Checklist") { editor?.checklist() }.keyboardShortcut("l", modifiers: [.command, .shift])
@@ -860,6 +862,8 @@ struct PaneCommands: Commands {
                 Button("Block Quote") { editor?.blockQuote() }.keyboardShortcut("'", modifiers: .command)
                 // A line across the note (`---`). No shortcut, as in Pages.
                 Button("Divider") { editor?.insertDivider() }
+                // A tinted panel with a title (`> [!note]`, as in Obsidian). No shortcut.
+                Button("Callout") { editor?.insertCallout() }
                 Divider()
                 Button("Table") { editor?.insertTable() }.keyboardShortcut("t", modifiers: [.command, .option])
                 // Today's date, shown as a chip that says Today (NoteDates).
