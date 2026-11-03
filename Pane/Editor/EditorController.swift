@@ -526,6 +526,8 @@ final class EditorController {
         case .dashed: apply(.dashed)
         case .numbered: apply(.numbered)
         case .quote: apply(.quote)
+        case .callout: insertCallout()
+        case .highlight: highlight()
         case .codeBlock: apply(.monostyled)
         case .table: insertTable()
         case .divider: insertDivider()

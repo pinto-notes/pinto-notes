@@ -91,13 +91,14 @@ struct FormatPopover: View {
                     .frame(width: Self.inset - 10, alignment: .center)
                 switch mark {
                 case .bar:
-                    RoundedRectangle(cornerRadius: 1).fill(.secondary).frame(width: 2.5, height: 15).padding(.trailing, 5)
+                    RoundedRectangle(cornerRadius: 1).fill(.secondary).frame(width: 2.5, height: 15)
+                        .frame(width: 15, alignment: .leading).padding(.trailing, 5)
                 case .callout:
                     RoundedRectangle(cornerRadius: 3, style: .continuous).fill(Color.secondary.opacity(0.18))
                         .overlay(Image(systemName: "info.circle.fill").font(.system(size: 8, weight: .semibold)).foregroundStyle(.secondary))
                         .frame(width: 15, height: 15).padding(.trailing, 5)
                 case .line:
-                    Rectangle().fill(.secondary).frame(width: 13, height: 1).padding(.leading, 1).padding(.trailing, 6)
+                    Rectangle().fill(.secondary).frame(width: 13, height: 1).frame(width: 15).padding(.trailing, 5)
                 case nil:
                     EmptyView()
                 }

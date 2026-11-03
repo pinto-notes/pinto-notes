@@ -4,9 +4,8 @@ import Foundation
 /// the line becomes or what goes in (Notion's habit). Each runs what the Format menu runs.
 enum SlashCommand: String, CaseIterable, Identifiable, Sendable {
     case title, heading, subheading, body
-    case checklist, bulleted, dashed, numbered, quote, codeBlock
+    case checklist, bulleted, dashed, numbered, quote, callout, codeBlock, highlight
     case table, divider, date, link, attach
-    // Callouts and highlight go here once they exist (a case, its name, symbol, aliases and run).
 
     var id: String { rawValue }
 
@@ -22,6 +21,8 @@ enum SlashCommand: String, CaseIterable, Identifiable, Sendable {
         case .dashed: "Dashed list"
         case .numbered: "Numbered list"
         case .quote: "Block quote"
+        case .callout: "Callout"
+        case .highlight: "Highlight"
         case .codeBlock: "Code block"
         case .table: "Table"
         case .divider: "Divider"
@@ -43,6 +44,8 @@ enum SlashCommand: String, CaseIterable, Identifiable, Sendable {
         case .dashed: "list.dash"
         case .numbered: "list.number"
         case .quote: "text.quote"
+        case .callout: "info.square"
+        case .highlight: "highlighter"
         case .codeBlock: "chevron.left.forwardslash.chevron.right"
         case .table: "tablecells"
         case .divider: "minus"
@@ -64,6 +67,8 @@ enum SlashCommand: String, CaseIterable, Identifiable, Sendable {
         case .dashed: ["dash"]
         case .numbered: ["number", "ol", "ordered"]
         case .quote: ["blockquote"]
+        case .callout: ["note", "info", "tip", "warning", "admonition", "box"]
+        case .highlight: ["marker", "mark", "yellow"]
         case .codeBlock: ["monostyled", "pre", "snippet", "fence"]
         case .table: ["grid", "columns"]
         case .divider: ["hr", "line", "rule", "separator"]
@@ -85,11 +90,12 @@ enum SlashCommand: String, CaseIterable, Identifiable, Sendable {
         case .dashed: "\u{21E7}\u{2318}8"
         case .numbered: "\u{21E7}\u{2318}9"
         case .quote: "\u{2318}'"
+        case .highlight: "\u{21E7}\u{2318}E"
         case .table: "\u{2325}\u{2318}T"
         case .date: "\u{21E7}\u{2318}D"
         case .link: "\u{2318}K"
         case .attach: "\u{21E7}\u{2318}A"
-        case .codeBlock, .divider: nil
+        case .codeBlock, .divider, .callout: nil
         }
     }
 

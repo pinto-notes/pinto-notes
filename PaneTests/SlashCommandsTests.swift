@@ -53,13 +53,17 @@ import Testing
         #expect(SlashCommands.matches("today", in: all) == [.date])
         #expect(SlashCommands.matches("file", in: all) == [.attach])
         #expect(SlashCommands.matches("xyz", in: all).isEmpty)
+        #expect(SlashCommands.matches("call", in: all) == [.callout])
+        #expect(SlashCommands.matches("warning", in: all) == [.callout])
+        #expect(SlashCommands.matches("high", in: all) == [.highlight])
+        #expect(SlashCommands.matches("marker", in: all) == [.highlight])
     }
 
     @Test func rankingNamesBeforeWordsBeforeAliases() {
         let all = SlashCommand.allCases
         // "Link" starts with it; the lists have a word that does; "line" is Divider's alias.
         #expect(SlashCommands.matches("li", in: all) == [.link, .bulleted, .dashed, .numbered, .divider])
-        #expect(SlashCommands.matches("h", in: all).prefix(2) == [.heading, .title], "Heading by name, then Title by h1")
+        #expect(SlashCommands.matches("h", in: all).prefix(3) == [.heading, .highlight, .title], "Heading and Highlight by name, then Title by h1")
         #expect(SlashCommands.matches("bulleted l", in: all) == [.bulleted], "a two-word name")
         #expect(SlashCommands.matches("che ", in: all) == [.checklist], "a trailing space keeps a match")
     }
