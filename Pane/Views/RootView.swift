@@ -205,6 +205,12 @@ struct RootView: View {
         }
         .environment(editor)
         .environment(\.importActions, importActions)
+        #if os(iOS)
+        // Whether the window shows one screen at a time (iPhone, iPhone Duo closed, a narrow iPad
+        // window) or the columns side by side. The columns themselves can't tell: inside the split
+        // view each reports a compact width, even on a 13-inch iPad.
+        .environment(\.stackedNotes, sizeClass == .compact)
+        #endif
         #if os(macOS)
         // The list column shows its own title; no window title in the bar.
         .toolbar(removing: .title)
@@ -740,6 +746,9 @@ struct ImportActions: Equatable {
 }
 
 extension EnvironmentValues {
+    /// iOS: the notes show one screen at a time (a stack), not as columns. Set by RootView from
+    /// the window's width class; read this, not `horizontalSizeClass`, inside the columns.
+    @Entry var stackedNotes = true
     @Entry var importActions: ImportActions? = nil
 }
 

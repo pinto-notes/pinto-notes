@@ -1801,6 +1801,13 @@ struct NoteRow: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.sidebarStudy) private var study
+    /// iPad's selected row is filled with the accent while the list has focus: the row's words
+    /// turn white on it, as in Mail and Notes. (iPhone never shows a selected row; the Mac draws
+    /// its own neutral one.)
+    @Environment(\.backgroundProminence) private var prominence
+    private var onAccent: Bool { prominence == .increased }
+    private var ink: Color { onAccent ? .white : .ink }
+    private var muted: Color { onAccent ? .white.opacity(0.8) : .muted }
 
     /// Whether the row has its third line, the note's folder.
     private var folderLine: Bool { showFolder && note.folder != nil }
@@ -1825,7 +1832,7 @@ struct NoteRow: View {
                     Text(title)
                         .font(RowMetrics.title)
                         .tracking(DesignLook.isCandidate ? -0.15 : 0)
-                        .foregroundStyle(Color.ink)
+                        .foregroundStyle(ink)
                         .lineLimit(large ? 3 : 1)
                     if app {
                         AppMarkView(size: RowMetrics.markSize)
@@ -1841,7 +1848,7 @@ struct NoteRow: View {
                 // An AI changed this note and you haven't opened it since, like Mail's unread dot.
                 .overlay(alignment: .leading) {
                     if ai != nil {
-                        Circle().fill(.tint).frame(width: 8, height: 8)
+                        Circle().fill(onAccent ? AnyShapeStyle(.white) : AnyShapeStyle(.tint)).frame(width: 8, height: 8)
                             .offset(x: RowMetrics.dotOffset)
                             .transition(.scale.combined(with: .opacity))
                     }
@@ -1851,13 +1858,13 @@ struct NoteRow: View {
                         if shared {
                             Image(systemName: "link")
                                 .imageScale(.small)
-                                .foregroundStyle(Color.muted)
+                                .foregroundStyle(muted)
                                 .accessibilityHidden(true)
                                 .accessibilityIdentifier("note.shared")
                         }
                         Text(DateBucket.rowDate(Self.shownDate(of: note, byCreation: datedByCreation)))
                             .monospacedDigit()
-                            .foregroundStyle(Color.ink.opacity(0.85))
+                            .foregroundStyle(ink.opacity(0.85))
                     }
                     // Never wrapped or cut: the preview gives way first ("10:10 A / M" beside a
                     // picture, 11-01).
@@ -1865,23 +1872,23 @@ struct NoteRow: View {
                     .fixedSize()
                     .accessibilityIdentifier("note.date")
                     // C and D: "date · preview", one quiet line under the title.
-                    if calm { Text("·").foregroundStyle(Color.muted).accessibilityHidden(true) }
+                    if calm { Text("·").foregroundStyle(muted).accessibilityHidden(true) }
                     if note.isLocked {
                         // Like Notes: the title and a lock, nothing of the text.
                         Label("Locked", systemImage: "lock.fill")
                             .labelStyle(LockedRowLabel())
-                            .foregroundStyle(Color.muted)
+                            .foregroundStyle(muted)
                             .lineLimit(1)
                     } else if let ai {
                         HStack(spacing: 4) {
                             AIGlyph(ai: ai, size: 11)
                             Text(AIEdit.listLine(note, by: ai))
                         }
-                        .foregroundStyle(Color.amberInk)
+                        .foregroundStyle(onAccent ? Color.white : Color.amberInk)
                         .lineLimit(1)
                     } else {
                         Text(snippet)
-                            .foregroundStyle(Color.muted)
+                            .foregroundStyle(muted)
                             .lineLimit(large ? 2 : 1)
                     }
                 }
@@ -1896,7 +1903,7 @@ struct NoteRow: View {
                     }
                     // C and D: a size smaller again, a quiet tag under the row.
                     .font(DesignLook.calmList ? RowMetrics.folder : RowMetrics.detail)
-                    .foregroundStyle(Color.muted)
+                    .foregroundStyle(muted)
                 }
             }
             // The note's first picture at the row's end, as Notes shows it.

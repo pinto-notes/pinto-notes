@@ -209,6 +209,8 @@ struct SidebarIcon: View {
     var selected = false
     #if os(macOS)
     @Environment(\.controlActiveState) private var active
+    #else
+    @Environment(\.backgroundProminence) private var prominence
     #endif
 
     var body: some View {
@@ -220,7 +222,8 @@ struct SidebarIcon: View {
             .frame(minWidth: DesignLook.isCandidate ? 20 : nil)
             #else
             .font(SidebarStyle.iconFont)
-            .foregroundStyle(SidebarStyle.icon)
+            // On iPad's accent-filled selected row, white like the row's name.
+            .foregroundStyle(prominence == .increased ? AnyShapeStyle(.white) : AnyShapeStyle(SidebarStyle.icon))
             #endif
     }
 }
@@ -289,7 +292,8 @@ struct SidebarView: View {
     #if os(iOS)
     /// The folders screen's search: every note, as in Notes.
     @State private var search = ""
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// One screen at a time (iPhone), or the folders as a column beside the list (iPad, iPhone Duo open).
+    @Environment(\.stackedNotes) private var stacked
     #endif
     @Environment(SetupStore.self) private var setup: SetupStore?
     @Environment(\.dynamicTypeSize) private var templatesTypeSize
@@ -376,8 +380,8 @@ struct SidebarView: View {
             if editingFolders { editList } else { selectList(files) }
         }
         .listStyle(.sidebar)
-        .scrollContentBackground(.hidden)
-        .background(Color(Palette.foldersGround).ignoresSafeArea())
+        .scrollContentBackground(stacked ? .hidden : .automatic)
+        .background { if stacked { Color(Palette.foldersGround).ignoresSafeArea() } }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 if let card = sidebarCard, card != .mac, !editingFolders {
@@ -432,7 +436,9 @@ struct SidebarView: View {
                 #endif
             }
             #if os(iOS)
-            .listRowBackground(Color(Palette.row))
+            // iPhone: the folders on a card, like Notes. iPad: the sidebar's own rows, so its
+            // rounded selection shows (a card under it showed only a square focus ring).
+            .listRowBackground(stacked ? Color(Palette.row) : nil)
             #endif
             #if os(iOS)
             // The Mac card docks right under the folders, where it reads as part of the list.
@@ -541,13 +547,11 @@ struct SidebarView: View {
                 .tint(.primary)
                 .accessibilityIdentifier(editingFolders ? "sidebar.done" : "sidebar.edit")
             }
-            if sizeClass == .compact {
+            if stacked {
                 SearchComposeBar(newNote: onNewNote, identifier: "sidebar.newNote")
-            } else {
-                // iPad: the notes' list beside this one has the search.
-                ToolbarSpacer(.flexible, placement: .bottomBar)
-                SearchComposeBar.Compose(newNote: onNewNote, identifier: "sidebar.newNote")
             }
+            // iPad: the notes' list is always beside the folders, with Today and New Note at its
+            // foot; a second pair here was the same two buttons twice, side by side.
             #else
             // Mac: the sidebar's three buttons at its trailing edge, in one group (Emil, 31 October
             // 2026). Least used first, so Search, the most used, sits nearest the list, where its
@@ -594,7 +598,7 @@ struct SidebarView: View {
     /// the folders. (On iPad the notes' list beside this one searches.)
     @ViewBuilder private func searchable(_ folders: some View) -> some View {
         #if os(iOS)
-        if sizeClass == .compact {
+        if stacked {
             let query = search.trimmingCharacters(in: .whitespaces)
             Group {
                 if query.isEmpty { folders } else { FolderSearchResults(query: query, open: onOpenNote) }

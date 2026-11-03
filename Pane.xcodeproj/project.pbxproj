@@ -476,6 +476,7 @@
 		7F4A0D6B6E2D3812E179E48B /* OnboardingArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 574EE2DEFC4559FC36B6B7CC /* OnboardingArt.swift */; };
 		7F5698AE45E9BD06553405E7 /* HoverSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = F41E8AB3DDD768F22B750F3E /* HoverSnapshots.swift */; };
 		7F6BFCC3E30CB53BB780058D /* RichTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F02A8CE43D7031D271CA25B /* RichTextTests.swift */; };
+		7F7719A994AC26C9B3F35AC7 /* WideLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2CF2B6E9416FE61C538C398 /* WideLayoutTests.swift */; };
 		7F9DED7F4A6D72014F374AF0 /* ShareExtensionUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC822E0A1ABBCCDB65B943A /* ShareExtensionUITests.swift */; };
 		7FBD5A13A103939FE62E07D7 /* CaptureBestApps.swift in Sources */ = {isa = PBXBuildFile; fileRef = D790820F09B164806F11F8B4 /* CaptureBestApps.swift */; };
 		8053D090FB2A6F564DBA4479 /* CollabGallery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D7294BFFF6A6FCC7F16EF89 /* CollabGallery.swift */; };
@@ -646,6 +647,7 @@
 		ADE87078E8EB51FDBDB28D54 /* AppPlace.swift in Sources */ = {isa = PBXBuildFile; fileRef = D66F73D19D6FC8E877D5EDCA /* AppPlace.swift */; };
 		AE0A5ACAA53EB13E8281F0A6 /* AIChanges.swift in Sources */ = {isa = PBXBuildFile; fileRef = E69565802EB312CF1CA65A52 /* AIChanges.swift */; };
 		AE3FF3E403181E37E11CEB64 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C2F5BCCDFA4A6D60E39708 /* Platform.swift */; };
+		AE8DED5C0881EE472EE95C2B /* TabletShotsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05B258D25986D3D7ADFB30B8 /* TabletShotsTests.swift */; };
 		AE91492604F59BF6D5967A21 /* PasswordField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D93AD7A45E15447614E5242 /* PasswordField.swift */; };
 		AEEBD00FED377FC0BC3000C4 /* PrivacySecurity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0FD9CDD3DAFE1CEB8218DCB /* PrivacySecurity.swift */; };
 		AF3EC843D0D9764524D62116 /* AddDeviceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 771098B839C991EC03A312C3 /* AddDeviceView.swift */; };
@@ -977,6 +979,7 @@
 		025496AD1008785E931A6425 /* HeardFrom.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeardFrom.swift; sourceTree = "<group>"; };
 		04902FC432C162C34F9F9439 /* CodexConnectSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexConnectSnapshots.swift; sourceTree = "<group>"; };
 		0576293C73580899E39EEDE1 /* FreshCloneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreshCloneTests.swift; sourceTree = "<group>"; };
+		05B258D25986D3D7ADFB30B8 /* TabletShotsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabletShotsTests.swift; sourceTree = "<group>"; };
 		06388D3FCFEAEAE87C8C2620 /* CollabCryptoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabCryptoTests.swift; sourceTree = "<group>"; };
 		06F885F11369967DA92A32CE /* CaretFixTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaretFixTests.swift; sourceTree = "<group>"; };
 		07F39A5C43FC5474BC9B28E4 /* MarkdownStyler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownStyler.swift; sourceTree = "<group>"; };
@@ -1433,6 +1436,7 @@
 		C0AC25F37C1666CBB35BBB0C /* NoteStructure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStructure.swift; sourceTree = "<group>"; };
 		C0BF05AC42703752FBAE6D6D /* WhatsNewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewTests.swift; sourceTree = "<group>"; };
 		C1C50C228D538B5E390EF49D /* TableGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableGrid.swift; sourceTree = "<group>"; };
+		C2CF2B6E9416FE61C538C398 /* WideLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WideLayoutTests.swift; sourceTree = "<group>"; };
 		C3E45D9F4A1C01EDA2629F7A /* ListOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListOrder.swift; sourceTree = "<group>"; };
 		C48FDD0CD9435FF308CB4B27 /* guide-obsidian-reveal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "guide-obsidian-reveal.png"; sourceTree = "<group>"; };
 		C4C97E6585116F850850E7D8 /* E2EETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = E2EETests.swift; sourceTree = "<group>"; };
@@ -2033,6 +2037,7 @@
 				F7B3FEBC5E8B405D61B40897 /* TableInteractionTests.swift */,
 				272C6F5EA1562BD7EA619A8E /* TableMenuTests.swift */,
 				0C3A8366D588DAAE997477B8 /* TickUndoTests.swift */,
+				C2CF2B6E9416FE61C538C398 /* WideLayoutTests.swift */,
 				7EE3FF188D09E62B4A68D47F /* WikiLinkEditorTests.swift */,
 			);
 			path = Interaction;
@@ -2529,6 +2534,7 @@
 				887E29254FECA87E7240D624 /* SlowNetworkUITests.swift */,
 				E5FF211616E406434EE7DC37 /* SyncTests.swift */,
 				477ACA457C7563F360F21E9B /* TableEditingUITests.swift */,
+				05B258D25986D3D7ADFB30B8 /* TabletShotsTests.swift */,
 				3A7256E614CEFF0684BB4C92 /* WelcomeEmailUITests.swift */,
 				14F9F8FBEB782DAC56C7A390 /* WikiLinksUITests.swift */,
 				557A4247FD23A754D4334747 /* WritingBarUITests.swift */,
@@ -3197,6 +3203,7 @@
 				0A1ACD933DAE00CD5397ADF3 /* WelcomeSnapshots.swift in Sources */,
 				FE516722EB37A2A5BB47F10E /* WelcomeTests.swift in Sources */,
 				6708B2A9CBDE23F60B70CDFF /* WhatsNewTests.swift in Sources */,
+				7F7719A994AC26C9B3F35AC7 /* WideLayoutTests.swift in Sources */,
 				C31386DEDF93E0340E99476A /* WikiLinkEditorTests.swift in Sources */,
 				4266FC1FB2941E32BE168DF1 /* WikiLinksTests.swift in Sources */,
 				519784AF828861ADDC7EA1B2 /* WindowFrameTests.swift in Sources */,
@@ -3483,6 +3490,7 @@
 				9230A169024D28C76C191874 /* SlowNetworkUITests.swift in Sources */,
 				4F2E162B27450D4C56EACFF6 /* SyncTests.swift in Sources */,
 				F77885AA135AFC57A9D55F0C /* TableEditingUITests.swift in Sources */,
+				AE8DED5C0881EE472EE95C2B /* TabletShotsTests.swift in Sources */,
 				0DF10BFEAD1A3237F73111BD /* WelcomeEmailUITests.swift in Sources */,
 				486F06F685010C3279CCBA3E /* WikiLinksUITests.swift in Sources */,
 				C38156137BA5E5E7624DC5F0 /* WritingBarUITests.swift in Sources */,
