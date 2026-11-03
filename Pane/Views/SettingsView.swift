@@ -459,7 +459,11 @@ struct SignOutButton: View {
         let offer = SignOutRemoval.offer(crypto: crypto, devices: devices)
         Button(role: .destructive) {
             refusal = nil
+            #if os(macOS)
+            askOnMac(offer)
+            #else
             asking = true
+            #endif
         } label: {
             HStack(spacing: 8) {
                 Text(removing ? SignOutCopy.removing() : "Sign Out\u{2026}").foregroundStyle(.red)
@@ -493,6 +497,34 @@ struct SignOutButton: View {
                 .accessibilityIdentifier("settings.signOutRefused")
         }
     }
+
+    #if os(macOS)
+    /// The Mac asks with an alert of its own: Sign Out, Cancel, and a box to remove the notes too.
+    private func askOnMac(_ offer: SignOutRemoval.Offer) {
+        let words = SignOutCopy.macAlert(offer)
+        let alert = NSAlert()
+        alert.messageText = words.title
+        alert.informativeText = words.message
+        let signOut = alert.addButton(withTitle: SignOutCopy.signOut)
+        signOut.hasDestructiveAction = true
+        if let recovery = words.recoveryButton { alert.addButton(withTitle: recovery) }
+        alert.addButton(withTitle: "Cancel").keyEquivalent = "\u{1b}"
+        if let box = words.removeBox {
+            alert.showsSuppressionButton = true
+            alert.suppressionButton?.title = box
+            alert.suppressionButton?.state = .off
+        }
+        let answer: (NSApplication.ModalResponse) -> Void = { response in
+            let removeToo = alert.suppressionButton?.state == .on && words.removeBox != nil
+            switch response {
+            case .alertFirstButtonReturn: Task { if removeToo { await remove() } else { await backend.signOut() } }
+            case .alertSecondButtonReturn where words.recoveryButton != nil: showSecurity()
+            default: break
+            }
+        }
+        if let window = NSApp.keyWindow { alert.beginSheetModal(for: window, completionHandler: answer) } else { answer(alert.runModal()) }
+    }
+    #endif
 
     private func remove() async {
         guard let account = backend.userID else { return }
