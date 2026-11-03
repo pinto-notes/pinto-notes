@@ -557,7 +557,50 @@ enum SetupClickSink {
 /// popup). In the notes' own view, SwiftUI handed clicks on a popup to the list under it,
 /// whatever was drawn on top. Like a sheet, it has the keys while it's up; a drag on its top
 /// strip moves the window.
-struct PopupHost<Content: View>: NSViewRepresentable {
+struct PopupHost<Content: View>: View {
+    let content: Content
+
+    @Environment(\.self) private var env
+    @Environment(SyncEngine.self) private var sync: SyncEngine?
+    @Environment(Backend.self) private var backend: Backend?
+    @Environment(LibraryNotes.self) private var library: LibraryNotes?
+    @Environment(SetupStore.self) private var setup: SetupStore?
+    @Environment(OnboardingStore.self) private var onboarding: OnboardingStore?
+    @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
+
+    var body: some View {
+        PopupWindow(content: content
+            // What the popup's views read from the notes, one by one. Never the notes' whole
+            // environment: it carries the notes window's focus, so a field in the popup asked
+            // for the cursor never got it (Emil, 11-03: the password after the email, on the
+            // sign-in card).
+            .environment(sync)
+            .environment(backend)
+            .environment(library)
+            .environment(setup)
+            .environment(onboarding)
+            .environment(route)
+            .environment(\.modelContext, env.modelContext)
+            .environment(\.colorScheme, env.colorScheme)
+            .environment(\.locale, env.locale)
+            .environment(\.dynamicTypeSize, env.dynamicTypeSize)
+            .environment(\.networkReach, env.networkReach)
+            .environment(\.hoverPreview, env.hoverPreview)
+            .environment(\.connectStudy, env.connectStudy)
+            .environment(\.sidebarStudy, env.sidebarStudy)
+            .environment(\.behindSetupCard, env.behindSetupCard)
+            .environment(\.todaysNote, env.todaysNote)
+            .environment(\.importDoneTitle, env.importDoneTitle)
+            .environment(\.importActions, env.importActions)
+            .environment(\.settingsAsPage, env.settingsAsPage)
+            .environment(\.openSettingsPlace, env.openSettingsPlace)
+            .environment(\.settingsLayoutProbe, env.settingsLayoutProbe)
+            .environment(\.amberBusy, env.amberBusy))
+    }
+}
+
+/// The popup's own window, laid over the notes window (PopupHost).
+struct PopupWindow<Content: View>: NSViewRepresentable {
     let content: Content
 
     /// Where the popup is in the notes' view: it puts the popup's window over the notes' window.
@@ -609,20 +652,20 @@ struct PopupHost<Content: View>: NSViewRepresentable {
         }
     }
 
-    private func root(_ env: EnvironmentValues) -> AnyView {
+    private var root: AnyView {
         // Over the top bar too: the dimming reaches the window's top edge.
-        AnyView(content.ignoresSafeArea().environment(\.self, env))
+        AnyView(content.ignoresSafeArea())
     }
 
     func makeNSView(context: Context) -> Anchor {
-        let host = NSHostingView(rootView: root(context.environment))
+        let host = NSHostingView(rootView: root)
         host.sizingOptions = []
         host.sceneBridgingOptions = []
         return Anchor(panel: PopupPanel(content: host))
     }
 
     func updateNSView(_ anchor: Anchor, context: Context) {
-        (anchor.panel.contentView as? NSHostingView<AnyView>)?.rootView = root(context.environment)
+        (anchor.panel.contentView as? NSHostingView<AnyView>)?.rootView = root
     }
 
     static func dismantleNSView(_ anchor: Anchor, coordinator: ()) { anchor.detach(); anchor.empty() }
