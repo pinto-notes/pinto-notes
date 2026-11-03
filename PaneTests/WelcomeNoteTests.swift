@@ -427,6 +427,20 @@ import UIKit
         #expect(!AppGate.welcomesSilently(handingOff: false, phase: .checking, needsWelcome: true, arrivedHow: nil), "only once the key is open")
     }
 
+    /// Emil (11-03): signing in on the Mac went card, window gone, a card with only a spinner,
+    /// window gone, notes. A key being checked or opened by itself shows no card: sign in, then
+    /// the notes. A card only when there's something to do, or the server can't be reached.
+    @Test func theMacShowsAKeyCardOnlyWhenThereIsSomethingToDo() {
+        for phase in [AccountCrypto.Phase.off, .checking, .ready] {
+            #expect(!AppGate.keyCardShown(phase: phase, asksBeforeFetch: false, needsSignIn: false), "\(phase): no card")
+        }
+        for phase in [AccountCrypto.Phase.waiting, .mismatch, .accountGone, .unreachable] {
+            #expect(AppGate.keyCardShown(phase: phase, asksBeforeFetch: false, needsSignIn: false), "\(phase): a card")
+        }
+        #expect(AppGate.keyCardShown(phase: .checking, asksBeforeFetch: true, needsSignIn: false), "asked before the key is fetched")
+        #expect(AppGate.keyCardShown(phase: .checking, asksBeforeFetch: false, needsSignIn: true), "a fresh sign-in")
+    }
+
     @Test func anAccountThatNeedsItsRecoveryKeyGetsTheGateAndTheNoteStepsAside() {
         let h = WelcomeHandoff()
         h.arm(ticked: [], way: .google)

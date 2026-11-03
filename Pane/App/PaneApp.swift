@@ -520,20 +520,31 @@ struct BehindSetupCard<Card: View>: ViewModifier {
     let card: Card
 
     func body(content: Content) -> some View {
+        content.modifier(SetupGate(locked: true, card: AnyView(card)))
+    }
+}
+
+/// The notes window before it's yours to use: `locked`, it's there but takes nothing, and its
+/// top bar's buttons look and act disabled (Emil, 2 November 2026). `card`, when there is one, is
+/// a sheet on the window, as Mac apps do it (Emil, 11-03): macOS dims the window, keeps every
+/// click, hover and cursor from the notes behind, gives the card the keys and leaves the window's
+/// shape and buttons alone. One sheet for every step: a new card replaces what it shows.
+struct SetupGate: ViewModifier {
+    let locked: Bool
+    let card: AnyView?
+
+    func body(content: Content) -> some View {
         content
-            .environment(\.behindSetupCard, true)
-            // Its top bar's buttons too look and act disabled until you're signed in (Emil,
-            // 2 November 2026): the toolbar takes this from the view that declares it.
-            .disabled(true)
-            .accessibilityHidden(true)
-            // A sheet on the notes window, as Mac apps do it (Emil, 11-03): macOS dims the window,
-            // keeps every click, hover and cursor from the notes behind, gives the card the keys
-            // and leaves the window's shape and buttons alone. It stays until the step is done.
-            .sheet(isPresented: .constant(true)) {
-                card
-                    .fixedSize(horizontal: false, vertical: true)
-                    .popupSheet("setup")
-                    .interactiveDismissDisabled()
+            .environment(\.behindSetupCard, locked)
+            .disabled(locked)
+            .accessibilityHidden(locked)
+            .sheet(isPresented: .constant(card != nil)) {
+                if let card {
+                    card
+                        .fixedSize(horizontal: false, vertical: true)
+                        .popupSheet("setup")
+                        .interactiveDismissDisabled()
+                }
             }
     }
 }
@@ -1102,87 +1113,159 @@ struct AppGate: View {
         }
     }
 
-    private var gate: some View {
-        Group {
-            switch backend.state {
-            case .signedOut:
-                #if os(macOS)
-                if SetupCards.on {
-                    // Round 7: the notes window, empty, with one small card on it.
-                    notesBehind { SetupSignInCard(backend: backend) }
-                } else {
-                    WelcomeFlow(backend: backend)
-                        .cardWindow()
-                        .transition(.opacity)
-                }
-                #else
-                WelcomeFlow(backend: backend)
-                    .transition(.opacity)
-                #endif
-            case .signedIn where keyGateShown:
-                #if os(macOS)
-                if SetupCards.on {
-                    notesBehind {
-                        SetupCard(card: .signIn) { KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context)) }
-                    }
-                } else {
-                    // The welcome's window, picture and all, until the notes open: nothing moves or
-                    // changes size between signing in and adding this Mac.
-                    CardLayout { KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context)) }
-                        .cardWindow()
-                        .transition(.opacity)
-                }
-                #else
-                KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context))
-                    .transition(.opacity)
-                #endif
+    /// The screens one after another: the iPhone, and the Mac without setup cards.
+    @ViewBuilder private var screens: some View {
+        switch backend.state {
+        case .signedOut:
             #if os(macOS)
-            case .signedIn where onboardingShown && SetupCards.on:
-                // Round 7: the notes, filling in behind one card at a time.
-                notesBehind {
-                    if onboarding.step != nil {
-                        SetupCardsFlow(store: onboarding, backend: backend, setup: setup, finish: finishSetupCards)
-                            .environment(backend)
-                            .environment(sync)
-                    }
-                }
+            if SetupCards.on {
+                // Round 7: the notes window, empty, with one small card on it.
+                notesBehind { SetupSignInCard(backend: backend) }
+            } else {
+                WelcomeFlow(backend: backend)
+                    .cardWindow()
+                    .transition(.opacity)
+            }
+            #else
+            WelcomeFlow(backend: backend)
+                .transition(.opacity)
             #endif
-            case .signedIn where onboardingShown:
-                // The first-run flow has the whole window, in the welcome's card on the Mac,
-                // until it ends in the notes.
-                Group {
-                    if onboarding.step != nil {
-                        OnboardingFlow(store: onboarding, backend: backend, setup: setup,
-                                       prepareTryIt: prepareTryIt, finish: finishOnboarding)
-                    } else {
-                        OnboardingWait(store: onboarding)
-                    }
+        case .signedIn where keyGateShown:
+            #if os(macOS)
+            if SetupCards.on {
+                notesBehind {
+                    SetupCard(card: .signIn) { KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context)) }
                 }
-                #if os(macOS)
-                .cardWindow()
-                #endif
+            } else {
+                // The welcome's window, picture and all, until the notes open: nothing moves or
+                // changes size between signing in and adding this Mac.
+                CardLayout { KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context)) }
+                    .cardWindow()
+                    .transition(.opacity)
+            }
+            #else
+            KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context))
+                .transition(.opacity)
+            #endif
+        #if os(macOS)
+        case .signedIn where onboardingShown && SetupCards.on:
+            // Round 7: the notes, filling in behind one card at a time.
+            notesBehind {
+                if onboarding.step != nil {
+                    SetupCardsFlow(store: onboarding, backend: backend, setup: setup, finish: finishSetupCards)
+                        .environment(backend)
+                        .environment(sync)
+                }
+            }
+        #endif
+        case .signedIn where onboardingShown:
+            // The first-run flow has the whole window, in the welcome's card on the Mac,
+            // until it ends in the notes.
+            Group {
+                if onboarding.step != nil {
+                    OnboardingFlow(store: onboarding, backend: backend, setup: setup,
+                                   prepareTryIt: prepareTryIt, finish: finishOnboarding)
+                } else {
+                    OnboardingWait(store: onboarding)
+                }
+            }
+            #if os(macOS)
+            .cardWindow()
+            #endif
+            .environment(backend)
+            .environment(sync)
+            .environment(\.networkReach, sync.reach)
+            .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
+            .transition(.opacity)
+        case .disabled, .signedIn:
+            RootView()
                 .environment(backend)
                 .environment(sync)
                 .environment(\.networkReach, sync.reach)
+                .environment(setup)
+                .environment(onboarding)
+                .shareAskSheet(shareAsk)
+                .heardFromSheet(heardFrom)
+                .task {
+                    try? await Task.sleep(for: .seconds(1.2))
+                    shareAsk.showIfForced()
+                    heardFrom.showIfForced()
+                }
                 .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
                 .transition(.opacity)
-            case .disabled, .signedIn:
-                RootView()
-                    .environment(backend)
-                    .environment(sync)
-                    .environment(\.networkReach, sync.reach)
-                    .environment(setup)
-                    .environment(onboarding)
-                    .shareAskSheet(shareAsk)
-                    .heardFromSheet(heardFrom)
-                    .task {
-                        try? await Task.sleep(for: .seconds(1.2))
-                        shareAsk.showIfForced()
-                        heardFrom.showIfForced()
-                    }
-                    .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
-                    .transition(.opacity)
+        }
+    }
+
+    #if os(macOS)
+    /// The Mac with setup cards: one notes window from signed out to signed in, never built
+    /// again, with the step's card in one sheet on it. Signing in was five states: the sign-in
+    /// card, the window gone, a card with only a spinner, the window gone again, the notes
+    /// (Emil, 11-03). Now: the sign-in card, then the notes, with a card only when there's
+    /// something to do (adding this Mac, the first run).
+    private var cardGate: some View {
+        RootView()
+            .environment(backend)
+            .environment(sync)
+            .environment(\.networkReach, sync.reach)
+            .environment(setup)
+            .environment(onboarding)
+            .modifier(SetupGate(locked: notesLocked, card: setupCard))
+            .shareAskSheet(shareAsk)
+            .heardFromSheet(heardFrom)
+            .task {
+                try? await Task.sleep(for: .seconds(1.2))
+                shareAsk.showIfForced()
+                heardFrom.showIfForced()
             }
+            .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
+    }
+
+    /// The notes aren't to be used yet: signed out, the key not open, or the first run.
+    private var notesLocked: Bool {
+        switch backend.state {
+        case .signedOut: true
+        case .disabled: false
+        case .signedIn: keyGateShown || onboardingShown
+        }
+    }
+
+    /// The card on the notes, if there's one to show now (`SetupGate`).
+    private var setupCard: AnyView? {
+        switch backend.state {
+        case .signedOut:
+            return AnyView(SetupSignInCard(backend: backend))
+        case .signedIn where keyGateShown:
+            // Checking or opening the key by itself needs nobody: no card for it, the notes
+            // fill in when it's open.
+            guard Self.keyCardShown(crypto) else { return nil }
+            return AnyView(SetupCard(card: .signIn) { KeyGateView(crypto: crypto, backend: backend, notesHere: KeyGateView.countNotes(context)) })
+        case .signedIn where onboardingShown:
+            guard onboarding.step != nil else { return nil }
+            return AnyView(SetupCardsFlow(store: onboarding, backend: backend, setup: setup, finish: finishSetupCards)
+                .environment(backend)
+                .environment(sync))
+        default:
+            return nil
+        }
+    }
+    #endif
+
+    /// The key screen has something to say: the person is needed, or the server can't be reached.
+    static func keyCardShown(_ crypto: AccountCrypto) -> Bool {
+        keyCardShown(phase: crypto.phase, asksBeforeFetch: crypto.asksBeforeFetch != nil, needsSignIn: crypto.needsSignIn)
+    }
+
+    static func keyCardShown(phase: AccountCrypto.Phase, asksBeforeFetch: Bool, needsSignIn: Bool) -> Bool {
+        keyNeedsPerson(phase: phase, asksBeforeFetch: asksBeforeFetch, needsSignIn: needsSignIn) || phase == .unreachable
+    }
+
+    private var gate: some View {
+        Group {
+            #if os(macOS)
+            if SetupCards.on { cardGate } else { screens }
+            #else
+            screens
+            #endif
         }
         #if os(macOS)
         .background(WindowShaper(compact: !SetupCards.on && (cardShown || onboardingShown), cardSize: WelcomeFlow.size))
