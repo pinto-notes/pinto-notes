@@ -1741,11 +1741,12 @@ struct ConnectAISection: View {
 }
 
 #if os(macOS)
-/// Settings › Connect an AI on the Mac, built from the setup card's pieces (Emil, 2 November 2026:
-/// the old list "sucks", the onboarding card is the look): one short line, the tiles for ChatGPT,
-/// Claude, Grok and Other with one Connect button, the card's wait while one connects (Grok's and
-/// Other's guides open over it), then what is connected, each with Disconnect. Codex, Incredible
-/// (where its app is) and Having trouble? are quiet links beside Connect.
+/// Settings › Connect an AI on the Mac, in the System Settings form (Emil, 3 November 2026): a
+/// summary of who can open your notes, with the line on what is sent and to which company always
+/// in view (App Review rejected 1.2 for hiding it), then what is connected, each with Changes and
+/// Disconnect…, then every AI there is to add, each with Connect…. Connect runs the setup card's
+/// flows: ChatGPT and Claude open the browser's connect page, Grok's and Another AI's guides open
+/// over the wait, Codex is added on this Mac, Incredible connects from its app.
 struct ConnectAIPage: View {
     typealias Guide = ConnectAISection.Guide
     let client: SupabaseClient
@@ -1769,35 +1770,75 @@ struct ConnectAIPage: View {
     @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
     @Environment(\.networkReach) private var reach
     @Environment(\.openURL) private var openURL
+    @Environment(\.openSettingsPlace) private var openPlace
     @Environment(\.dismiss) private var dismissHost
 
     private var active: [Connection] { (preview ?? connections).filter { $0.revoked_at == nil } }
-    /// Ways in besides the tiles: Codex, and Incredible where its app is.
+
+    /// The AIs to add, in the setup card's order, less those already connected. Never Mistral.
+    static func addable(offered: [Guide] = Guide.offered, connected: [String]) -> [Guide] {
+        offered.filter { !connected.contains($0.title) }
+    }
+
+    /// Ways in besides the browser's: Codex, and Incredible where its app is.
     static func more(offered: [Guide] = Guide.offered) -> [Guide] { offered.filter { $0 == .codex || $0 == .incredible } }
 
+    /// Who can open your notes, by name, at the top of the page.
+    static func headline(_ names: [String]) -> String {
+        switch names.count {
+        case 0: "No AI can open your notes yet"
+        case 1: "\(names[0]) can open your notes"
+        default: "\(names.dropLast().joined(separator: ", ")) and \(names.last!) can open your notes"
+        }
+    }
+
+    /// What is sent and to which company, always in view (App Review, 1.2): each connected AI's
+    /// maker by name, or the general line before any is connected.
+    static func sent(_ names: [String]) -> String {
+        let known = names.compactMap { n in ConnectTrust.makers[n].map { (n, $0) } }
+        guard !known.isEmpty else { return ConnectCopy.shared }
+        let parts = known.map { "the notes \($0.0) opens go to \($0.1)" }
+        let joined = parts.count == 1 ? parts[0] : parts.dropLast().joined(separator: ", ") + " and " + parts.last!
+        let others = known.count < names.count ? " Other connected apps get only the notes they open." : ""
+        return joined.prefix(1).uppercased() + joined.dropFirst() + "." + others + " Nothing is shared until you allow it."
+    }
+
+    /// The line under an AI to add: who makes it, or what it is.
+    static func line(_ g: Guide) -> String {
+        switch g {
+        case .chatgpt, .claude, .grok: "Made by \(ConnectTrust.makers[g.title] ?? g.title)"
+        case .other: "Cursor, VS Code or any app that can add a connector"
+        default: g.line
+        }
+    }
+
+    private var names: [String] {
+        var seen = Set<String>()
+        return active.map(\.title).filter { seen.insert($0).inserted }
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                if reach != .online {
-                    Label(OfflineCopy.settings, systemImage: OfflineCopy.symbol(reach))
-                        .foregroundStyle(Color.muted)
-                        .accessibilityIdentifier("settings.offline")
-                }
-                if let ask = center.waiting().first { ConnectWaitingRow(ask: ask) }
-                Text(SetupCards.connectReads)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("connect.reads")
-                start
-                    .disabled(reach != .online)
-                if let error { Text(error).font(.footnote).foregroundStyle(.red) }
-                if !active.isEmpty { connected }
-                if NoteApps.enabled, NoteApps.realPreviews { AppPreviewSection(client: client, plain: true) }
+        SettingsStack {
+            if let ask = center.waiting().first { ConnectWaitingRow(ask: ask) }
+            summary
+            if let error { Text(error).font(.system(size: 12)).foregroundStyle(.red).padding(.horizontal, 4) }
+            if !active.isEmpty { connected }
+            switch stage {
+            case .choosing: add.disabled(reach != .online)
+            case .waiting: panel { ConnectWaitingPanel(ai: ai, note: note, fix: fix, cancel: cancel) }
+            case .connected: panel { ConnectedPanel(ai: ai) }
             }
-            .padding(.horizontal, SettingsCard.pageInset)
-            .padding(.top, 12)
-            .padding(.bottom, 24)
+            if NoteApps.enabled {
+                SettingsGroup(header: "Apps in your notes") {
+                    Button { openPlace?(.appKeys) } label: {
+                        SettingsLinkLine(title: SettingsPlace.appKeys.title, detail: SettingsPlace.appKeys.intro, trailing: "chevron.right")
+                    }
+                    .buttonStyle(.plain)
+                    .hoverRow(reach: HelpSettingsPage.rowReach)
+                    .accessibilityIdentifier("settings.appKeys")
+                }
+                if NoteApps.realPreviews { AppPreviewSection(client: client, plain: true) }
+            }
         }
         .onAppear {
             run.asksToFinish = true
@@ -1820,63 +1861,118 @@ struct ConnectAIPage: View {
         }
     }
 
-    /// The tiles and Connect; while one connects, the card's wait in their place; then its tick.
-    @ViewBuilder private var start: some View {
-        switch stage {
-        case .choosing:
+    /// Who has access, and what is sent where. Never behind a disclosure.
+    private var summary: some View {
+        SettingsSummary {
             VStack(alignment: .leading, spacing: 10) {
-                ConnectTilePicker(picked: $ai, wideButton: false, returnConnects: false, idPrefix: "connect", connect: begin) {
-                    links
-                    Spacer(minLength: 8)
+                HStack(spacing: 12) {
+                    if names.isEmpty {
+                        Image(systemName: "sparkles").font(.system(size: 18)).foregroundStyle(SettingsInk.icon)
+                            .frame(width: 34, height: 34)
+                    } else {
+                        HStack(spacing: -8) { ForEach(names.prefix(4), id: \.self) { AITile(ai: $0, size: 34) } }
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(Self.headline(names)).font(.system(size: 15, weight: .semibold)).foregroundStyle(SettingsInk.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(names.isEmpty ? SetupCards.connectReads : "Only when you ask them to. Disconnect anytime.")
+                            .font(.system(size: 12.5)).foregroundStyle(SettingsInk.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("connect.reads")
+                    }
                 }
-                Text(ConnectCopy.shared)
-                    .font(.footnote)
-                    .foregroundStyle(Color.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("connect.shared")
+                SettingsInk.hairline.frame(height: 0.5)
+                Label {
+                    Text(Self.sent(names)).fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "arrow.up.forward.circle")
+                }
+                .font(.system(size: 12.5))
+                .foregroundStyle(SettingsInk.muted)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("connect.sent")
             }
-        case .waiting:
-            panel { ConnectWaitingPanel(ai: ai, note: note, fix: fix, cancel: cancel) }
-        case .connected:
-            panel { ConnectedPanel(ai: ai) }
         }
     }
 
-    /// The wait in a card the tiles' width, its words as wide as the setup card's.
+    private var connected: some View {
+        SettingsGroup(header: ConnectCopy.connected) {
+            ForEach(active) { c in
+                SettingsLine(title: c.title, detail: ConnectChoices.detail(c)) {
+                    ConnectionTile(connection: c, size: 26)
+                } trailing: {
+                    HStack(spacing: 6) {
+                        if AIChangesCenter.shared.store != nil {
+                            Button("Changes") { changesFor = c }
+                                .buttonStyle(.hoverText)
+                                .foregroundStyle(SettingsInk.muted)
+                                .accessibilityLabel("Recent changes by \(c.title)")
+                                .accessibilityIdentifier("connect.recentChanges")
+                        }
+                        Button("Disconnect\u{2026}") { removing = c }
+                            .buttonStyle(.settings)
+                            .accessibilityLabel("Disconnect \(c.title)")
+                            .accessibilityIdentifier("connect.disconnect")
+                    }
+                }
+            }
+        }
+        .settingsProbe("connect.connected")
+    }
+
+    private var add: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            SettingsGroup(header: active.isEmpty ? "Choose your AI" : "Add an AI") {
+                ForEach(Self.addable(connected: names)) { g in
+                    SettingsLine(title: g.shown, detail: Self.line(g)) {
+                        mark(g)
+                    } trailing: {
+                        Button("Connect\u{2026}") { connect(g) }
+                            .buttonStyle(.settings)
+                            .accessibilityLabel("Connect \(g.shown)")
+                            .accessibilityIdentifier(Self.more().contains(g) ? "connect.more.\(g.rawValue)" : "connect.add.\(g.rawValue)")
+                    }
+                }
+            }
+            Button(ConnectCopy.trouble) { route?.help = HelpTopic(guide: run.guide) }
+                .buttonStyle(.hoverLink)
+                .font(.system(size: 12))
+                .foregroundStyle(SettingsInk.muted)
+                .padding(.horizontal, 4)
+                .accessibilityIdentifier("connect.trouble")
+        }
+        .settingsProbe("connect.add")
+    }
+
+    @ViewBuilder private func mark(_ g: Guide) -> some View {
+        if g == .other {
+            Image(systemName: "plus").font(.system(size: 12, weight: .medium)).foregroundStyle(SettingsInk.icon)
+                .frame(width: 26, height: 26)
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(SettingsInk.hairline, style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+        } else {
+            AITile(ai: g.title, size: 26)
+        }
+    }
+
+    /// The wait in a box of its own, where the list of AIs to add was.
     private func panel(@ViewBuilder _ inside: () -> some View) -> some View {
         inside()
             .frame(maxWidth: SetupCards.width(.waiting) - 52)
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.primary.opacity(0.1), lineWidth: 1))
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(SettingsInk.group))
             .transition(.opacity)
     }
 
-    /// Codex, Incredible and Having trouble?, quiet, beside Connect.
-    private var links: some View {
-        HStack(spacing: 16) {
-            ForEach(Self.more()) { g in
-                Button { if g == .codex { begin(.codex) } else { route?.guide = g } } label: {
-                    Label { Text(g == .codex ? "Add to Codex" : "Connect Incredible") } icon: { AITile(ai: g.title, size: 16) }
-                }
-                .accessibilityIdentifier("connect.more.\(g.rawValue)")
-            }
-            Button(ConnectCopy.trouble) { route?.help = HelpTopic(guide: run.guide) }
-                .accessibilityIdentifier("connect.trouble")
-        }
-        .buttonStyle(.hoverLink)
-        .font(.system(size: 13, weight: .medium))
-        .foregroundStyle(Color.muted)
-    }
-
-    private var connected: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(ConnectCopy.connected).font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
-            ConnectedAIList(connections: active, changes: { changesFor = $0 }, disconnect: { removing = $0 })
-                .padding(.horizontal, 14)
-                .padding(.vertical, 4)
-                .background(SetupCards.soft, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .settingsProbe("connect.connected")
+    /// Connect… on a row: the setup card's flow for that AI.
+    private func connect(_ g: Guide) {
+        switch g {
+        case .chatgpt: begin(.chatgpt)
+        case .claude, .claudeCode: begin(.claude)
+        case .grok: begin(.grok)
+        case .codex: begin(.codex)
+        case .other: begin(.other)
+        case .incredible: route?.guide = .incredible
         }
     }
 
@@ -1909,13 +2005,13 @@ struct ConnectAIPage: View {
         withAnimation { stage = .choosing }
     }
 
-    /// A guide closed without connecting: back to the tiles, not a wait with nothing open.
+    /// A guide closed without connecting: back to the list, not a wait with nothing open.
     private func guideClosed() {
         if stage == .waiting { cancel() }
         Task { await load() }
     }
 
-    /// The tick a moment, then the tiles again, the new one in the list under them.
+    /// The tick a moment, then the list again, the new one under Connected.
     private func connectedNow() {
         withAnimation { stage = .connected }
         Task { await load() }
@@ -1942,7 +2038,7 @@ struct ConnectAIPage: View {
             removing = nil
             await load()
         } catch {
-            self.error = "Couldn\u{2019}t disconnect \(c.name). Try again."
+            self.error = "Couldn\u{2019}t disconnect \(c.title). Try again."
         }
     }
 }

@@ -156,7 +156,7 @@ import Testing
             ("appearance-default-light", .appearance, "", .standard, false),
             ("appearance-default-dark", .appearance, "", .standard, true),
             ("appearance-sepia-dark", .appearance, "", .sepia, true),
-            ("general-light", .general, "", .standard, false),
+            ("help-light", .help, "", .standard, false),
             ("search-theme-light", .appearance, "theme", .standard, false),
             ("ai-light", .ai, "", .standard, false),
         ]

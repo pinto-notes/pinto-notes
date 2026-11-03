@@ -39,9 +39,10 @@ private struct SettingsProbe: ViewModifier {
     }
 }
 
-/// Settings on the Mac: a big card over the notes window, like Templates, with a sidebar of pages
-/// (search, you, then the groups) and the page beside it, as System Settings has (Emil picked it
-/// on 2026-10-30). Closes with ×, Esc or a click outside.
+/// Settings on the Mac: a big card over the notes window, like Templates, in the System Settings
+/// form Emil picked on 3 November 2026: a flat sidebar on the card's own white or pure black (search,
+/// then the groups of pages), a hairline, and the page beside it with its title and one plain line
+/// on what it's for. Closes with ×, Esc or a click outside.
 struct SettingsCard: View {
     let backend: Backend
     let available: Set<SettingsPlace>
@@ -60,34 +61,43 @@ struct SettingsCard: View {
     var search = ""
 
     @State private var selected: SettingsPlace?
-    /// Pages one level down from the selected one (General's Keys for apps).
+    /// Pages one level down from the selected one (Connect an AI's Keys for apps).
     @State private var path: [SettingsPlace] = []
     @State private var query = ""
     @State private var profile = ProfileStore.shared
+    /// In a sheet: the size of the window it hangs on, measured once when it opens and again only
+    /// when that window is resized. Measuring the main or key window on every redraw made the card
+    /// change size when the app lost and regained focus (the sheet's own window became key, then
+    /// none was).
+    @State private var parent: CGSize?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.networkReach) private var reach
     #if DEBUG
     @Environment(\.modelContext) private var context
     #endif
 
     /// The same card as Templates, so the two read as one kind of place.
     static let size = TemplateLibraryView.size
-    static let sidebarWidth: CGFloat = 240
+    static let sidebarWidth: CGFloat = 232
     /// Room around the card on a window smaller than it.
     static let margin: CGFloat = 24
     /// The content column's widest: the rows read as one column, centred in the page area, not a
     /// stretch across the card (Emil, 2 November 2026).
     static let contentWidth: CGFloat = 580
-    /// How far a page's own content sits in from its edges: a grouped form's boxes, and the custom
-    /// pages (Security, Connect an AI) pad the same.
+    /// How far a page's own content sits in from its edges.
     static let pageInset: CGFloat = 20
     /// A page's widest: the content column and the page's own inset each side.
     static let pageWidth: CGFloat = contentWidth + 2 * pageInset
     /// Between the page and the card's sides on a narrow card, room for Back left of the title.
     static let gutter: CGFloat = 16
-    /// Between two tabs, so their hover and selection fills never touch.
+    /// Between two tabs, so their selection fill never touches the hover of the next.
     static let tabGap: CGFloat = 3
     /// The card's coordinate space, for `settingsProbe`.
     static let space = "settings.card"
+
+    /// The window under a sheet, as first seen: the main window, else the key one. Tests stand in
+    /// for it. Read once, when the card first shows (`parent`), never on a redraw.
+    @MainActor static var frontWindowSize: () -> CGSize? = { (NSApp.mainWindow ?? NSApp.keyWindow)?.frame.size }
 
     /// The card's size in `space`: its own, or smaller on a small window, never too small to use.
     static func fitted(_ space: CGSize) -> CGSize {
@@ -95,9 +105,9 @@ struct SettingsCard: View {
                height: min(size.height, max(420, space.height - 2 * margin)))
     }
 
-    /// Where Settings opens: Connect an AI when it's there, else the first page there is.
+    /// Where Settings opens: Account, else the first page there is.
     static func first(_ available: Set<SettingsPlace>) -> SettingsPlace {
-        SettingsPlace.groups(available: available).first?.first ?? .general
+        SettingsPlace.groups(available: available).first?.first ?? .appearance
     }
 
     private var shown: SettingsPlace { path.last ?? current }
@@ -117,13 +127,21 @@ struct SettingsCard: View {
                 }
                 .background(Color.black.opacity(0.18).onTapGesture(perform: close))
             } else {
-                // In a sheet: as big as the window under it allows.
-                let fit = Self.fitted((NSApp.mainWindow ?? NSApp.keyWindow)?.frame.size ?? Self.size)
-                card(framed: false).frame(width: fit.width, height: fit.height)
+                // In a sheet: as big as the window under it allows, measured once (`parent`).
+                let fit = Self.fitted(parent ?? Self.size)
+                card(framed: false)
+                    .frame(width: fit.width, height: fit.height)
+                    .settingsProbe("card")
+                    .background(SheetParentReader { window in
+                        if let size = window?.frame.size, size != parent { parent = size }
+                    })
             }
         }
-        .onAppear { if !search.isEmpty { query = search } }
-        // A link into Settings (the account row, a card, the storage warning) opens its page.
+        .onAppear {
+            if parent == nil { parent = Self.frontWindowSize() }
+            if !search.isEmpty { query = search }
+        }
+        // A link into Settings (the account menu, a card, the storage warning) opens its page.
         .onChange(of: route.target, initial: true) { _, target in
             guard let target else { return }
             open(SettingsPlace(target))
@@ -145,72 +163,93 @@ struct SettingsCard: View {
     }
 
     @ViewBuilder private func card(framed: Bool) -> some View {
-        let shape = RoundedRectangle(cornerRadius: framed ? 26 : 0, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: framed ? 22 : 0, style: .continuous)
         HStack(spacing: 0) {
-            // The sidebar sits inside the card on a soft solid ground: glass only where macOS puts
-            // it (the window's toolbar and sidebar), solid inside our own cards (Emil, 2 November 2026).
+            // Flat, on the card's own ground, like System Settings' sidebar (direction A).
             sidebar
                 .frame(width: Self.sidebarWidth)
-                .frame(maxHeight: .infinity)
-                .background(Color.soft, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .padding(8)
+                .frame(maxHeight: .infinity, alignment: .top)
+            SettingsInk.hairline.frame(width: 0.5)
             VStack(spacing: 0) {
                 header
-                // The page in one column, centred; its title above its left edge (header).
-                page(shown)
-                    .environment(\.settingsAsPage, true)
-                    .environment(\.openSettingsPlace, OpenSettingsPlace { path.append($0) })
-                    .frame(maxWidth: Self.pageWidth, maxHeight: .infinity, alignment: .top)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if reach != .online {
+                            Label(OfflineCopy.settings, systemImage: OfflineCopy.symbol(reach))
+                                .font(.system(size: 12.5))
+                                .foregroundStyle(SettingsInk.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.horizontal, 4)
+                                .accessibilityIdentifier("settings.offline")
+                        }
+                        page(shown)
+                            .environment(\.settingsAsPage, true)
+                            .environment(\.openSettingsPlace, OpenSettingsPlace { path.append($0) })
+                    }
+                    .padding(.horizontal, Self.pageInset)
+                    .padding(.top, 14)
+                    .padding(.bottom, 28)
+                    .frame(maxWidth: Self.pageWidth, alignment: .top)
                     .settingsProbe("page")
-                    .id(shown)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .frame(maxWidth: .infinity, alignment: .top)
                     .padding(.horizontal, Self.gutter)
+                }
+                .scrollIndicators(.automatic)
+                .scrollBounceBehavior(.basedOnSize)
+                .background(NoInitialFocus())
+                .id(shown)
             }
             .settingsProbe("area")
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .coordinateSpace(.named(Self.space))
         .background {
-            if framed { shape.fill(SetupCards.ground).shadow(color: .black.opacity(0.2), radius: 30, y: 20) } else { SetupCards.ground }
+            if framed { shape.fill(SettingsInk.ground).shadow(color: .black.opacity(0.22), radius: 30, y: 18) } else { SettingsInk.ground }
         }
         .clipShape(shape)
-        .overlay { if framed { shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5) } }
+        .overlay { if framed { shape.strokeBorder(SettingsInk.edge, lineWidth: 0.5) } }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Settings")
         .accessibilityAddTraits(.isModal)
     }
 
-    /// The page's name over the left edge of its content, Back (one level down) just left of it,
-    /// and × (Esc) at the card's corner.
+    /// The page's name over the left edge of its content, the one line on what it's for under it,
+    /// Back (one level down) just left of it, and × (Esc) at the card's corner.
     private var header: some View {
-        HStack(spacing: 0) {
-            Text(shown.title)
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(Color.ink)
-                .lineLimit(1)
-                .accessibilityAddTraits(.isHeader)
-                .settingsProbe("title")
-            Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 0) {
+                Text(shown.title)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(SettingsInk.text)
+                    .lineLimit(1)
+                    .accessibilityAddTraits(.isHeader)
+                    .settingsProbe("title")
+                Spacer(minLength: 0)
+            }
+            .frame(minHeight: 28)
+            .overlay(alignment: .leading) { if !path.isEmpty { back.offset(x: -34) } }
+            Text(shown.intro)
+                .font(.system(size: 13))
+                .foregroundStyle(SettingsInk.muted)
+                .lineLimit(2)
+                .accessibilityIdentifier("settings.intro")
         }
-        .frame(minHeight: 28)
-        .overlay(alignment: .leading) { if !path.isEmpty { back.offset(x: -34) } }
         .padding(.horizontal, Self.pageInset)
         .frame(maxWidth: Self.pageWidth)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, Self.gutter)
-        .overlay(alignment: .trailing) {
+        .overlay(alignment: .topTrailing) {
             // The cards' one close × (CardCloseButton), solid like the card (Emil, 2 November 2026).
             CardCloseButton(size: 28, action: closeNow)
                 .accessibilityIdentifier("settings.done")
                 .padding(.trailing, 16)
         }
         .padding(.top, 18)
-        .padding(.bottom, 2)
     }
 
     private var back: some View {
         Button { path.removeLast() } label: {
-            Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.ink)
+            Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold)).foregroundStyle(SettingsInk.text)
                 .frame(width: 28, height: 28).contentShape(Circle())
         }
         .buttonStyle(.quietIcon)
@@ -222,11 +261,10 @@ struct SettingsCard: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            searchField.padding(.bottom, 12)
+            searchField.padding(.bottom, 14)
             if query.isEmpty {
-                if available.contains(.profile) { you.padding(.bottom, 10) }
                 ForEach(Array(SettingsPlace.groups(available: available).enumerated()), id: \.offset) { i, group in
-                    if i > 0 { Divider().padding(.vertical, 8).padding(.horizontal, 7) }
+                    if i > 0 { Color.clear.frame(height: 14) }
                     VStack(spacing: Self.tabGap) { ForEach(group) { row($0) } }
                 }
             } else {
@@ -234,15 +272,18 @@ struct SettingsCard: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.top, 16)
-        .padding(.horizontal, 10)
+        .padding(.top, 18)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 12)
     }
 
-    /// Search, in a fill of its own so it never reads as one of the rows.
+    /// Search on the sidebar's own ground: a hairline, no fill of its own.
     private var searchField: some View {
         HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("Search", text: $query).textFieldStyle(.plain)
+            Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(SettingsInk.muted)
+            TextField("Search", text: $query, prompt: Text("Search").foregroundStyle(SettingsInk.muted))
+                .textFieldStyle(.plain)
+                .focusEffectDisabled()
                 .accessibilityIdentifier("settings.search")
             if !query.isEmpty {
                 Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
@@ -252,8 +293,8 @@ struct SettingsCard: View {
         }
         .font(.system(size: 13))
         .padding(.horizontal, 9)
-        .frame(height: 30)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(Palette.searchFill)))
+        .frame(height: 28)
+        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(SettingsInk.hairline, lineWidth: 1))
     }
 
     /// What search finds: each setting by its words, with the page it's on; a click opens the page.
@@ -262,22 +303,22 @@ struct SettingsCard: View {
         if found.isEmpty {
             Text("No settings match \u{201C}\(query)\u{201D}")
                 .font(.system(size: 12))
-                .foregroundStyle(Color.muted)
-                .padding(.horizontal, 7)
+                .foregroundStyle(SettingsInk.muted)
+                .padding(.horizontal, 8)
         }
         ScrollView {
             VStack(alignment: .leading, spacing: Self.tabGap) {
                 ForEach(found, id: \.self) { entry in
                     Button { open(entry.place) } label: {
-                        HStack(spacing: 8) {
-                            SidebarIcon(name: entry.place.symbol, selected: shown == entry.place)
+                        HStack(spacing: 9) {
+                            icon(entry.place, on: shown == entry.place)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(entry.label).font(.system(size: 13)).foregroundStyle(Color.ink).lineLimit(1)
-                                Text(entry.place.title).font(.system(size: 11)).foregroundStyle(Color.muted).lineLimit(1)
+                                Text(entry.label).font(.system(size: 13)).foregroundStyle(SettingsInk.text).lineLimit(1)
+                                Text(entry.place.title).font(.system(size: 11)).foregroundStyle(SettingsInk.muted).lineLimit(1)
                             }
                             Spacer(minLength: 0)
                         }
-                        .padding(.horizontal, 7)
+                        .padding(.horizontal, 8)
                         .padding(.vertical, 5)
                         .background(highlight(shown == entry.place))
                         .contentShape(.rect)
@@ -292,51 +333,43 @@ struct SettingsCard: View {
         .scrollBounceBehavior(.basedOnSize)
     }
 
-    /// You, at the top: photo and name, opening Profile.
-    private var you: some View {
-        Button { open(.profile) } label: {
-            HStack(spacing: 10) {
-                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 34)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(AccountName.shown(profile.name)).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                    Text("Name, photo and sign in").font(.system(size: 11)).foregroundStyle(Color.muted).lineLimit(1)
-                }
-                Spacer(minLength: 0)
+    /// A page's icon: monochrome; Account is your photo.
+    @ViewBuilder private func icon(_ p: SettingsPlace, on: Bool) -> some View {
+        Group {
+            if p == .account, case .signedIn = backend.state {
+                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 20)
+            } else {
+                Image(systemName: p.symbol).font(.system(size: 13)).foregroundStyle(on ? SettingsInk.text : SettingsInk.icon)
             }
-            .padding(.horizontal, 7)
-            .padding(.vertical, 6)
-            .background(highlight(current == .profile))
-            .contentShape(.rect)
-            .hoverRow(reach: EdgeInsets())
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(AccountName.shown(profile.name)). Name, photo and sign in")
-        .accessibilityAddTraits(current == .profile ? .isSelected : [])
-        .accessibilityIdentifier("settings.profile")
+        .frame(width: 20)
     }
 
     private func row(_ p: SettingsPlace) -> some View {
-        Button { open(p) } label: {
-            Label {
-                Text(p.title).foregroundStyle(Color.ink)
-            } icon: {
-                SidebarIcon(name: p.symbol, selected: current == p)
+        let on = current == p
+        return Button { open(p) } label: {
+            HStack(spacing: 9) {
+                icon(p, on: on)
+                Text(p.title)
+                    .font(.system(size: 13, weight: on ? .semibold : .regular))
+                    .foregroundStyle(SettingsInk.text)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
             }
-            .sidebarRowLabel()
-            .padding(.horizontal, 7)
+            .padding(.horizontal, 8)
             .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
-            .background(highlight(current == p))
+            .background(highlight(on))
             .contentShape(.rect)
             .hoverRow(reach: EdgeInsets())
         }
         .buttonStyle(.plain)
-        .accessibilityAddTraits(current == p ? .isSelected : [])
+        .accessibilityAddTraits(on ? .isSelected : [])
         .accessibilityIdentifier("settings.\(p.rawValue)")
         .settingsProbe("tab.\(p.rawValue)")
     }
 
     private func highlight(_ on: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 8, style: .continuous).fill(on ? Color.primary.opacity(0.08) : .clear)
+        RoundedRectangle(cornerRadius: 7, style: .continuous).fill(on ? SettingsInk.selection : .clear)
     }
 }
 

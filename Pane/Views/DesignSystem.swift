@@ -741,3 +741,44 @@ struct LinkButtonStyle: ButtonStyle {
             .contentShape(.rect)
     }
 }
+
+#if os(macOS)
+/// A row's button: the card's own ground with a hairline, so it reads on a grey box and on the
+/// page alike, and a light wash under the pointer (HoverTracking).
+struct SettingsButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { Face(configuration: configuration) }
+
+    /// The wash over the button: none at rest, a little under the pointer, more pressed.
+    static func wash(hovering: Bool, pressed: Bool) -> Double { pressed ? 0.1 : hovering ? 0.05 : 0 }
+
+    private struct Face: View {
+        let configuration: Configuration
+        @State private var hovering = false
+        @Environment(\.hoverPreview) private var preview
+        @Environment(\.isEnabled) private var enabled
+
+        var body: some View {
+            let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
+            let on = hovering || preview.contains("*")
+            configuration.label
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(SettingsInk.text)
+                .lineLimit(1)
+                .padding(.horizontal, 11)
+                .frame(height: 26)
+                .background(shape.fill(SettingsInk.raised))
+                .overlay(shape.fill(Color.primary.opacity(SettingsButtonStyle.wash(hovering: on && enabled, pressed: configuration.isPressed))))
+                .overlay(shape.strokeBorder(SettingsInk.edge, lineWidth: 0.5))
+                .shadow(color: .black.opacity(0.06), radius: 0.5, y: 0.5)
+                .opacity(enabled ? 1 : 0.5)
+                .contentShape(shape)
+                .modifier(HoverTracking(hovering: $hovering))
+        }
+    }
+}
+
+extension ButtonStyle where Self == SettingsButtonStyle {
+    /// A button on a Settings row.
+    static var settings: SettingsButtonStyle { .init() }
+}
+#endif

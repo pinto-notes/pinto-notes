@@ -19,14 +19,18 @@ enum AccountName {
 
 #if os(macOS)
 /// The account at the foot of the sidebar, like the Mac App Store's: your photo (or initials) in a
-/// circle and your name. Clicking it opens Settings at its first page, as ⌘, does (owner,
-/// 2026-10-29: not straight onto Profile). Your name, how you sign in and Sign Out… are on its
-/// Profile page; signing out asks first, so a slip of the mouse here can never sign you out.
+/// circle and your name. Clicking it opens a native menu (Emil, 3 November 2026, as ChatGPT, Claude
+/// and Slack do): you at the top, then Settings… (⌘,), Account, Help and feedback, and Sign Out…,
+/// which asks first, so a slip of the mouse here can never sign you out. It never opens Connect
+/// an AI.
 struct AccountButton: View {
     let backend: Backend
     /// Captures: a second line with the email, when it is a real one (the alternative look).
     var email: String?
     @State private var profile = ProfileStore.shared
+    @State private var anchor = MenuAnchor()
+    @Environment(SyncEngine.self) private var sync: SyncEngine?
+    @Environment(\.modelContext) private var context
 
     static let avatar: CGFloat = 28
     /// Inside its highlight: the photo starts as far in as a folder row's icon starts inside its pill.
@@ -39,7 +43,7 @@ struct AccountButton: View {
 
     var body: some View {
         Button {
-            Self.open()
+            showMenu()
         } label: {
             HStack(spacing: 9) {
                 AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? name : nil, size: Self.avatar)
@@ -63,13 +67,105 @@ struct AccountButton: View {
             // A folder row's pill: the same fill, corners and reach (`Hover.sidebarReach`), so the
             // photo starts on the folder icons' line and the highlight lines up with theirs.
             .sidebarFootPill("sidebar.account")
+            .background(MenuAnchorView(anchor: anchor))
         }
         .buttonStyle(.plain)
-        .help("Settings")
-        .accessibilityLabel("Settings")
+        .help("Your account and Settings")
+        .accessibilityLabel("\(name), account menu")
         .accessibilityIdentifier("sidebar.account")
         .task(id: backend.state) { await profile.bind(backend) }
     }
+
+    private func showMenu() {
+        let address: String? = {
+            guard case .signedIn(let e) = backend.state else { return nil }
+            return AccountSettingsPage.shownEmail(backend.displayEmail ?? e, apple: backend.apple != nil, google: backend.google)
+        }()
+        let signedIn = address != nil
+        let menu = AccountMenu.make(name: name, email: address, signedIn: signedIn) { action in
+            switch action {
+            case .signOut:
+                MacSignOut.ask(offer: SignOutRemoval.offer(crypto: .shared, devices: .shared), backend: backend, sync: sync, context: context)
+            default:
+                AccountMenu.perform(action)
+            }
+        }
+        guard let view = anchor.view else { return }
+        // Just above the row, its left edge on the row's: the row sits at the window's foot.
+        menu.popUp(positioning: menu.items.last, at: NSPoint(x: 0, y: view.isFlipped ? -6 : view.bounds.height + 6), in: view)
+    }
+}
+
+/// The account menu's items, as NSMenu draws them: you (not a command), then Settings… (⌘,),
+/// Account, Help and feedback, and Sign Out….
+@MainActor
+enum AccountMenu {
+    enum Action: Equatable { case settings, account, help, signOut }
+
+    static func make(name: String, email: String?, signedIn: Bool, perform: @escaping (Action) -> Void) -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let you = NSMenuItem()
+        let title = NSMutableAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 13, weight: .semibold)])
+        if let email {
+            title.append(NSAttributedString(string: "\n" + email, attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.secondaryLabelColor]))
+        }
+        you.attributedTitle = title
+        you.title = email.map { "\(name), \($0)" } ?? name
+        you.isEnabled = false
+        menu.addItem(you)
+        menu.addItem(.separator())
+        menu.addItem(Item("Settings\u{2026}", symbol: "gearshape", key: ",") { perform(.settings) })
+        menu.addItem(Item("Account", symbol: "person.crop.circle") { perform(.account) })
+        menu.addItem(Item("Help and feedback", symbol: "questionmark.circle") { perform(.help) })
+        if signedIn {
+            menu.addItem(.separator())
+            menu.addItem(Item("Sign Out\u{2026}", symbol: "rectangle.portrait.and.arrow.right") { perform(.signOut) })
+        }
+        return menu
+    }
+
+    /// Every action but Sign Out…, which asks on the window (MacSignOut).
+    static func perform(_ action: Action, route: SettingsRoute = .shared) {
+        switch action {
+        case .settings: route.show()
+        case .account: route.open(.account)
+        case .help: route.open(.help)
+        case .signOut: break
+        }
+    }
+
+    /// A menu item that runs a closure.
+    final class Item: NSMenuItem {
+        private let run: () -> Void
+
+        init(_ title: String, symbol: String, key: String = "", run: @escaping () -> Void) {
+            self.run = run
+            super.init(title: title, action: #selector(fire), keyEquivalent: key)
+            target = self
+            image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+            if !key.isEmpty { keyEquivalentModifierMask = .command }
+        }
+
+        required init(coder: NSCoder) { fatalError("not used") }
+
+        @objc func fire() { run() }
+    }
+}
+
+/// Where a native menu opens from: the NSView behind a SwiftUI row.
+@MainActor final class MenuAnchor {
+    weak var view: NSView?
+}
+
+struct MenuAnchorView: NSViewRepresentable {
+    let anchor: MenuAnchor
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView()
+        anchor.view = v
+        return v
+    }
+    func updateNSView(_ view: NSView, context: Context) { anchor.view = view }
 }
 #endif
 

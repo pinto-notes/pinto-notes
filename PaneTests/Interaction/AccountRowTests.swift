@@ -242,16 +242,39 @@ import Testing
         }
     }
 
-    @Test func clickingOpensSettingsAtItsFirstPage() {
-        let route = SettingsRoute(defaults: UserDefaults(suiteName: "account-row-\(UUID())")!)
-        route.tab = .storage
-        AccountButton.open(route)
-        #expect(route.presenting, "Settings shows on the notes window, as with ⌘,")
-        #expect(route.target == nil, "on its first page, not straight onto Profile")
-        #expect(SettingsPlace.groups(available: Set(SettingsPlace.allCases)).joined().contains(.account), "the account's page is on that first page")
-        #expect(SettingsIndex.matches("Name", available: [.profile]).map(\.place) == [.profile])
-        #expect(SettingsIndex.matches("Signed in with", available: [.profile]).map(\.place) == [.profile])
-        #expect(SettingsIndex.matches("Sign Out", available: [.profile]).map(\.place) == [.profile], "name, how you sign in and Sign Out… stay in Settings, on Profile")
+    /// Clicking yourself opens a native menu (Emil, 3 November 2026): you, then Settings… (⌘,),
+    /// Account, Help and feedback, and Sign Out…. Never Connect an AI.
+    @Test func clickingOpensTheAccountMenu() throws {
+        var done: [AccountMenu.Action] = []
+        let menu = AccountMenu.make(name: "Sara Lind", email: "sara@example.com", signedIn: true) { done.append($0) }
+        #expect(menu.items.map { $0.isSeparatorItem ? "-" : $0.title } == ["Sara Lind, sara@example.com", "-", "Settings\u{2026}", "Account", "Help and feedback", "-", "Sign Out\u{2026}"])
+        #expect(!menu.items[0].isEnabled, "you are a heading, not a command")
+        #expect(menu.items[0].attributedTitle?.string == "Sara Lind\nsara@example.com")
+        let settings = menu.items[2]
+        #expect(settings.keyEquivalent == "," && settings.keyEquivalentModifierMask == .command)
+        #expect(!menu.items.contains { $0.title.localizedCaseInsensitiveContains("connect") }, "never Connect an AI")
+        for item in menu.items where item.isEnabled && !item.isSeparatorItem {
+            #expect(item.image != nil, "\(item.title) has its symbol")
+            _ = (item.target as? NSObject)?.perform(item.action)
+        }
+        #expect(done == [.settings, .account, .help, .signOut])
+        // Signed out there's nothing to sign out of.
+        let out = AccountMenu.make(name: AccountName.fallback, email: nil, signedIn: false) { _ in }
+        #expect(!out.items.contains { $0.title.hasPrefix("Sign Out") })
+        // Each opens Settings where it says.
+        let route = SettingsRoute(defaults: UserDefaults(suiteName: "account-menu-\(UUID())")!)
+        AccountMenu.perform(.settings, route: route)
+        #expect(route.presenting && route.target == nil, "Settings… is ⌘,: at its first page, Account")
+        AccountMenu.perform(.account, route: route)
+        #expect(route.target == .account && SettingsPlace(route.target!) == .account)
+        AccountMenu.perform(.help, route: route)
+        #expect(route.target == .help)
+        #expect(SettingsCard.first(Set(SettingsPlace.allCases)) == .account, "Settings never opens at Connect an AI")
+        // The row opens the menu, natively; Sign Out… asks with the same alert as Settings.
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Pane/Views/SidebarView.swift"), encoding: .utf8)
+        let button = try #require(src.range(of: "struct AccountButton").map { String(src[$0.lowerBound...].prefix(4000)) })
+        #expect(button.contains("menu.popUp(") && button.contains("MacSignOut.ask(") && !button.contains("paneConnectAI"))
     }
 
     /// Opening Settings from the account row leaves the notes window as it was: the same columns,
@@ -265,12 +288,12 @@ import Testing
         AccountButton.open()
         await host.settle()
         #expect(!SettingsRoute.shared.presenting, "the notes window took it")
-        #expect(SettingsRoute.shared.page == .ai, "the card shows, at its first page")
+        #expect(SettingsRoute.shared.page == .account, "the card shows, at its first page: Account")
         #expect(host.popup == "settings", "a sheet on the notes window")
         #expect(host.columns == columns, "the columns keep their widths")
         #expect(host.toolbar == toolbar, "the toolbar keeps its items")
         // Links into Settings open their page in the card.
-        for (tab, place) in [(SettingsTab.account, SettingsPlace.profile), (.storage, .storage), (.general, .general), (.appearance, .appearance), (.ai, .ai)] {
+        for (tab, place) in [(SettingsTab.account, SettingsPlace.account), (.storage, .storage), (.general, .appearance), (.appearance, .appearance), (.ai, .ai), (.help, .help)] {
             SettingsRoute.shared.open(tab)
             await host.settle()
             #expect(SettingsRoute.shared.page == place, "\(tab) opens \(place)")
@@ -281,16 +304,10 @@ import Testing
         await host.settle()
         // At least once: a sheet that can't go on a screen here is laid out again by SwiftUI.
         #expect(AppearancePage.onScreen >= 1, "Appearance's page shows its mode, theme and accent")
-        SettingsRoute.shared.open(.general)
+        SettingsRoute.shared.open(.help)
         await host.settle()
-        #expect(SettingsRoute.shared.page == .general)
-        #expect(AppearancePage.onScreen == 0, "General has no theme, mode or accent any more")
-        let views = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views")
-        for (file, start, end) in [("SettingsHome.swift", "struct GeneralPage", "struct HelpPage"), ("SettingsView.swift", "struct GeneralSettings", "struct AccountSettings")] {
-            let src = try String(contentsOf: views.appending(path: file), encoding: .utf8)
-            let general = try #require(src.range(of: start).flatMap { a in src.range(of: end, range: a.upperBound..<src.endIndex).map { src[a.lowerBound..<$0.lowerBound] } })
-            #expect(!general.contains("AppearanceSection") && !general.contains("AppearancePage"), "\(start) leaves Appearance to its own page")
-        }
+        #expect(SettingsRoute.shared.page == .help)
+        #expect(AppearancePage.onScreen == 0, "Help has no theme, mode or accent")
     }
 
     /// The foot (the study's rows and the account) at rest and under the pointer in a sidebar-wide
