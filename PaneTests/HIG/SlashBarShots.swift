@@ -1,13 +1,29 @@
+import Foundation
+import Testing
 #if os(iOS)
 import SwiftUI
-import Testing
 import UIKit
+#endif
 @testable import Pane
 
 /// The iPhone keyboard bar while a `/query` is typed: the commands in the tools' place, drawn
-/// from the simulator's test host (nothing on the Mac's screen), light and dark.
+/// from the simulator's test host (nothing on the Mac's screen), light and dark. On the Mac the
+/// suite checks what the controller offers (the bar and the list read the same commands).
 /// `TEST_RUNNER_PANE_SLASH_SHOTS=/path xcodebuild test … -only-testing:PaneTests/SlashBarShots`
 @MainActor @Suite(.serialized) struct SlashBarShots {
+    @Test func theControllerOffersAndTakesBackCommands() {
+        let c = EditorController()
+        c.typingChanged(text: "Plan\n/li", selection: NSRange(location: 8, length: 0))
+        #expect(c.slashCommands.first == .link)
+        #expect(c.slashQuery == NSRange(location: 5, length: 3))
+        c.typingChanged(text: "Plan\n/li", selection: nil)
+        #expect(c.slashCommands.isEmpty, "editing ended: the commands go")
+        c.readOnly = true
+        c.typingChanged(text: "Plan\n/", selection: NSRange(location: 6, length: 0))
+        #expect(c.slashCommands.isEmpty, "nothing to offer in Recently Deleted")
+    }
+
+    #if os(iOS)
     @Test func barStates() async throws {
         // Without a folder the bar is still made, so the test checks it builds and shows commands.
         let dir = ProcessInfo.processInfo.environment["PANE_SLASH_SHOTS"].map { URL(fileURLWithPath: $0) }
@@ -46,5 +62,5 @@ import UIKit
             }
         }
     }
+    #endif
 }
-#endif
