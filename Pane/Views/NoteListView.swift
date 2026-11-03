@@ -573,7 +573,8 @@ struct NoteListView: View {
             }
             ToolbarSpacer(.flexible)
             if Self.titleRoom(listWidth: listWidth, compose: scope != .trash) > 0 {
-                ToolbarItem {
+                // A new slot when the room changes: the bar keeps a slot's first width otherwise.
+                ToolbarItem(id: "list.title.\(Int(Self.titleRoom(listWidth: listWidth, compose: scope != .trash)))") {
                     VStack(spacing: 0) {
                         Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
                         Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: false))
@@ -584,8 +585,11 @@ struct NoteListView: View {
                     // Greyed with the buttons around it while the sign-in card is up (Emil,
                     // 2 November 2026).
                     .opacity(behindSetupCard ? 0.35 : 1)
-                    // A long name ends in "…" before it gets near the buttons.
-                    .frame(maxWidth: Self.titleRoom(listWidth: listWidth, compose: scope != .trash))
+                    // Always the room it may take, whatever the name: the bar measures this slot
+                    // only when its set of buttons changes (New Note coming or going), so a slot as
+                    // wide as "Notes" kept that width for "Recently Deleted", "Rec…" (Emil,
+                    // 3 November 2026). A long name still ends in "…" before the buttons.
+                    .frame(width: Self.titleRoom(listWidth: listWidth, compose: scope != .trash))
                 }
                 .sharedBackgroundVisibility(.hidden)
                 ToolbarSpacer(.flexible)

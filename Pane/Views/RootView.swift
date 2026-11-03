@@ -489,6 +489,13 @@ struct RootView: View {
             }
             .onChange(of: scope) { _, new in
                 rememberScope(new)
+                #if os(macOS)
+                // Another folder: a note that isn't in its list closes, so the note side never
+                // shows one the list doesn't (Emil, 3 November 2026: a deleted note stayed open
+                // beside Notes, its Recover banner over nothing).
+                if let new, let id = selectedNote, let note = context.note(id),
+                   ModelContext.lists(new, note) == false { selection = [] }
+                #endif
                 #if os(iOS)
                 // Back on the iPhone folder list nothing is open: a note left selected would keep
                 // its toolbar on this screen. Leaving an empty new note this way discards it. Beside

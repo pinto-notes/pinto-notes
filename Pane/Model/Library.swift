@@ -212,10 +212,29 @@ extension ModelContext {
     }
 
     func trash(_ note: Note) {
+        // A blank note has nothing to recover: deleting it removes it for good, as leaving one
+        // does, never an empty row in Recently Deleted (Emil, 3 November 2026).
+        if Self.isBlank(note) { purge(note); return }
         note.trashedAt = .now
         note.isPinned = false
         note.touch()
         saveOrReport()
+    }
+
+    /// No text and nothing locked: what leaving or deleting a note throws away.
+    static func isBlank(_ note: Note) -> Bool {
+        !note.isLocked && note.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Whether `note` is in `scope`'s list (a folder's list holds its own notes, not those of the
+    /// folders inside it). Tags aren't worked out here: nil.
+    static func lists(_ scope: Scope, _ note: Note) -> Bool? {
+        switch scope {
+        case .all: return note.trashedAt == nil
+        case .folder(let id): return note.trashedAt == nil && note.folder?.id == id
+        case .trash: return note.trashedAt != nil
+        case .tag: return nil
+        }
     }
 
     func restore(_ note: Note) {
