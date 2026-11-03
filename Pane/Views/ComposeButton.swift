@@ -118,9 +118,11 @@ struct SearchComposeBar: ToolbarContent {
     @Environment(\.stackedNotes) private var stacked
 
     var body: some ToolbarContent {
-        DefaultToolbarItem(kind: .search, placement: .bottomBar)
-        // As columns (iPad, iPhone Duo open) search moves to the top of the column; compose then
-        // belongs at the trailing edge. By width, not device: the open Duo is an iPhone.
+        // As a column (iPad, iPhone Duo open) search is at the column's top (NoteListView), not
+        // here; compose then belongs at the trailing edge.
+        if stacked {
+            DefaultToolbarItem(kind: .search, placement: .bottomBar)
+        }
         if !stacked {
             ToolbarSpacer(.flexible, placement: .bottomBar)
         } else {

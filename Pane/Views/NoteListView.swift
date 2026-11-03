@@ -56,6 +56,10 @@ struct NoteListView: View {
     /// Notes waiting for "Delete Forever" to be confirmed.
     @State private var pendingForever: Set<UUID>?
     @Environment(\.importActions) private var imports
+    #if os(iOS)
+    /// One screen at a time (iPhone) or a column beside the note (iPad, iPhone Duo open).
+    @Environment(\.stackedNotes) private var stacked
+    #endif
     @Environment(\.behindSetupCard) private var behindSetupCard
     @Environment(SetupStore.self) private var setup: SetupStore?
     @Environment(Backend.self) private var backend: Backend?
@@ -350,8 +354,10 @@ struct NoteListView: View {
             withAnimation(.easeOut(duration: 0.15)) { fileDropTargeted = t }
         }
         #if os(iOS)
-        // iOS 26 Notes and Mail: a full search field in the bottom bar, beside compose.
-        .searchable(text: $search, prompt: "Search")
+        // iOS 26 Notes and Mail: a full search field in the bottom bar, beside compose. As a
+        // column (iPad, iPhone Duo open) at the column's top instead, as iPad does by itself:
+        // in the open Duo's narrow list the bar's field was squeezed to "S…" (WideLayoutTests).
+        .searchable(text: $search, placement: stacked ? .automatic : .navigationBarDrawer(displayMode: .always), prompt: "Search")
         .searchToolbarBehavior(.automatic)
         #else
         // With the sidebar hidden the window's buttons and the sidebar's Today take the header's
