@@ -600,12 +600,9 @@ struct NoteListView: View {
                     .padding(.top, NoteListView.headingTop)
                     .padding(.bottom, NoteListView.headingBottom)
                     // A heading stays pinned at the top while its notes scroll under it, as in
-                    // Notes, on the list's own ground: the note under it is hidden, not showing
-                    // through and seeming clickable (Emil, 3 November 2026: "they're sticky").
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background { Color(Palette.listGround).padding(.horizontal, -60) }
-                    // No rule under it where it pins: the notes just pass under.
-                    .listRowSeparator(.hidden)
+                    // Notes (Emil, 3 November 2026: "they're sticky"), on the same blur as the bar
+                    // above it: the system's scroll edge reaches down over a pinned heading. A
+                    // solid ground there read as a second, different bar.
                 #endif
             }
         }

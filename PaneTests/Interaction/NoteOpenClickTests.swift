@@ -154,7 +154,7 @@ import Testing
     }
 
     /// The date headings stay pinned at the top while their notes scroll under them, as in Notes,
-    /// on the list's own ground. They scrolled away for a day (2 November 2026) and Emil missed
+    /// on the bar's blur. They scrolled away for a day (2 November 2026) and Emil missed
     /// them; with them gone, AppKit also put a grey band behind the whole toolbar in some folders.
     @Test func dateHeadingsStayPinned() async throws {
         let (rig, _, done) = try await Self.rig()
