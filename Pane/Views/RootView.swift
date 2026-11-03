@@ -16,6 +16,19 @@ struct RootView: View {
     /// The list's selection; one note opens in the editor, several show a summary like Notes.
     @State private var selection: Set<UUID> = []
     @State private var visibility: NavigationSplitViewVisibility = .all
+    #if os(iOS)
+    /// The window's size, for the two layouts the columns can't choose by width class alone.
+    @State private var windowSize: CGSize = .zero
+    /// iPhone Duo open like a book (about 951 × 669 pt): half the window, so the list ends at the fold.
+    private var bookHalf: CGFloat? {
+        guard sizeClass != .compact, windowSize.width > windowSize.height, windowSize.width < 1000 else { return nil }
+        return (windowSize.width / 2).rounded(.down)
+    }
+    /// Columns too narrow to share: an upright window under 760 pt (the Duo upright, about 669).
+    private var noteFirst: Bool {
+        sizeClass != .compact && windowSize.width > 0 && windowSize.width < 760 && windowSize.width <= windowSize.height
+    }
+    #endif
     @State private var editor = EditorController()
     /// The library's notes as the list keeps them, for the list and the sidebar's folder counts.
     @State private var library = LibraryNotes()
@@ -189,7 +202,12 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 260, ideal: 330, max: 440)
                 #else
                 // Large text needs the room more here than in the note beside it.
-                .navigationSplitViewColumnWidth(min: typeSize.isAccessibilitySize ? 340 : 260, ideal: typeSize.isAccessibilitySize ? 380 : 310, max: 420)
+                // A window wider than tall and under 1,000 pt (iPhone Duo open like a book): the list is
+                // the left half and the note the right, so the fold runs between them, not through
+                // the note's text (Emil, 3 November 2026).
+                .navigationSplitViewColumnWidth(min: bookHalf ?? (typeSize.isAccessibilitySize ? 340 : 260),
+                                                ideal: bookHalf ?? (typeSize.isAccessibilitySize ? 380 : 310),
+                                                max: bookHalf ?? 420)
                 #endif
                 #if os(iOS)
                 // Each visit to a folder starts at the top with its large title, as in Notes.
@@ -210,6 +228,17 @@ struct RootView: View {
         // window) or the columns side by side. The columns themselves can't tell: inside the split
         // view each reports a compact width, even on a 13-inch iPad.
         .environment(\.stackedNotes, sizeClass == .compact)
+        .modifier(NoteFirstStyle(on: noteFirst))
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { windowSize = $0 }
+        // Columns too narrow to share (the Duo held upright, an iPad mini upright): the note takes
+        // the whole width and the list slides over it from the button at the top left, closing
+        // when a note is picked. The folders stay behind the list's own button.
+        .onChange(of: noteFirst, initial: true) { _, on in
+            if on { visibility = selectedNote == nil ? .doubleColumn : .detailOnly } else if sizeClass != .compact { visibility = .all }
+        }
+        .onChange(of: selectedNote) { _, id in
+            if noteFirst, id != nil { visibility = .detailOnly }
+        }
         #endif
         #if os(macOS)
         // The list column shows its own title; no window title in the bar.
@@ -997,3 +1026,12 @@ struct SidebarPin: NSViewRepresentable {
 }
 #endif
 
+#if os(iOS)
+/// The note first, the list over it (`RootView.noteFirst`); otherwise the system's own choice.
+private struct NoteFirstStyle: ViewModifier {
+    let on: Bool
+    func body(content: Content) -> some View {
+        if on { content.navigationSplitViewStyle(.prominentDetail) } else { content.navigationSplitViewStyle(.automatic) }
+    }
+}
+#endif

@@ -103,6 +103,9 @@ struct SidebarRowText<Trailing: View>: View {
     var selected = false
     @ViewBuilder var trailing: Trailing
     @Environment(\.dynamicTypeSize) private var typeSize
+    #if os(iOS)
+    @Environment(\.stackedNotes) private var stacked
+    #endif
 
     var body: some View {
         #if os(iOS)
@@ -125,7 +128,8 @@ struct SidebarRowText<Trailing: View>: View {
             #if os(macOS)
             Text(title).foregroundStyle(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
             #else
-            Text(title)
+            // As columns, the Mac's: the selected folder's name in the accent on a grey pill.
+            Text(title).foregroundStyle(!stacked && selected ? AnyShapeStyle(Color(PColor.paneAccent)) : AnyShapeStyle(.primary))
             #endif
             Spacer()
             #if os(macOS)
@@ -210,7 +214,7 @@ struct SidebarIcon: View {
     #if os(macOS)
     @Environment(\.controlActiveState) private var active
     #else
-    @Environment(\.backgroundProminence) private var prominence
+    @Environment(\.stackedNotes) private var stacked
     #endif
 
     var body: some View {
@@ -222,8 +226,8 @@ struct SidebarIcon: View {
             .frame(minWidth: DesignLook.isCandidate ? 20 : nil)
             #else
             .font(SidebarStyle.iconFont)
-            // On iPad's accent-filled selected row, white like the row's name.
-            .foregroundStyle(prominence == .increased ? AnyShapeStyle(.white) : AnyShapeStyle(SidebarStyle.icon))
+            // As columns, the Mac's: grey icons, the selected folder's in the accent.
+            .foregroundStyle(stacked ? AnyShapeStyle(SidebarStyle.icon) : selected ? AnyShapeStyle(Color(PColor.paneAccent)) : AnyShapeStyle(Color.muted))
             #endif
     }
 }
@@ -380,6 +384,8 @@ struct SidebarView: View {
             if editingFolders { editList } else { selectList(files) }
         }
         .listStyle(.sidebar)
+        // As columns the selection is the Mac's grey pill, not the accent.
+        .tint(stacked ? nil : Color(Palette.columnSelection))
         .scrollContentBackground(stacked ? .hidden : .automatic)
         .background { if stacked { Color(Palette.foldersGround).ignoresSafeArea() } }
         .safeAreaInset(edge: .bottom, spacing: 0) {

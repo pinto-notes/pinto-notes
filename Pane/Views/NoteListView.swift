@@ -59,6 +59,9 @@ struct NoteListView: View {
     #if os(iOS)
     /// One screen at a time (iPhone) or a column beside the note (iPad, iPhone Duo open).
     @Environment(\.stackedNotes) private var stacked
+    #else
+    /// The Mac keeps its own list grounds (Palette's macOS `listGround`).
+    private let stacked = true
     #endif
     @Environment(\.behindSetupCard) private var behindSetupCard
     @Environment(SetupStore.self) private var setup: SetupStore?
@@ -211,7 +214,7 @@ struct NoteListView: View {
                 Section {
                     ConnectWaitingRow(ask: ask).selectionDisabled()
                 }
-                .listRowBackground(Color(Palette.row))
+                .listRowBackground(stacked ? Color(Palette.row) : nil)
                 #else
                 ConnectWaitingRow(ask: ask)
                     .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 10, trailing: 10))
@@ -222,7 +225,7 @@ struct NoteListView: View {
             if scope != .trash, search.isEmpty, let usage = storage.usage, usage.level != .fine {
                 #if os(iOS)
                 Section { StorageWarningRow(usage: usage, open: openStorage).selectionDisabled() }
-                    .listRowBackground(Color(Palette.row))
+                    .listRowBackground(stacked ? Color(Palette.row) : nil)
                 #else
                 StorageWarningRow(usage: usage, open: openStorage)
                     .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 10, trailing: 10))
@@ -254,7 +257,7 @@ struct NoteListView: View {
                                 .quietSelection()
                                 #if os(iOS)
                                 .contextMenu { menu(for: file, folders: foldersByName) }
-                                .listRowBackground(Color(Palette.row))
+                                .listRowBackground(stacked ? Color(Palette.row) : nil)
                                 #else
                                 .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
                                 #endif
@@ -290,7 +293,10 @@ struct NoteListView: View {
         .id(ListIdentity(scope: scope, library: library.wholesale))
         #endif
         #if os(iOS)
-        .listStyle(.insetGrouped)
+        // iPhone: grouped cards on a grey ground. As columns: the Mac's list, rows on white with a
+        // grey pill for the selected note (Emil, 3 November 2026: the iPad "feels like a different app").
+        .modifier(ColumnListStyle(stacked: stacked))
+        .tint(stacked ? nil : Color(Palette.columnSelection))
         .environment(\.editMode, $editMode)
         .sheet(isPresented: Binding(get: { moving != nil }, set: { if !$0 { moving = nil } })) {
             MoveNotesSheet(current: movingFrom) { f in
@@ -304,7 +310,7 @@ struct NoteListView: View {
         #endif
         // Less warmth than the sidebar, more than the note.
         .scrollContentBackground(.hidden)
-        .background(Color(Palette.listGround).ignoresSafeArea())
+        .background(Color(stacked ? Palette.listGround : Palette.page).ignoresSafeArea())
         #if os(macOS)
         // Soft under the toolbar, as the sidebar and Notes: a list's own edge is hard, the window's
         // grey title bar with a line under it (Emil, 10-30, in Recently Deleted).
@@ -373,7 +379,7 @@ struct NoteListView: View {
                     .padding(.horizontal, 12)
                     .padding(.top, 6)
                     .padding(.bottom, 8)
-                    .background(Color(Palette.listGround))
+                    .background(Color(stacked ? Palette.listGround : Palette.page))
             }
         }
         // "Search all notes for …" from Go to Note (⌘O) carries the text to search for.
@@ -587,9 +593,17 @@ struct NoteListView: View {
                 #if os(iOS)
                 // The system's prominent header: large and bold, as in Notes. No indent of its own:
                 // it lines up with the large title, not with the rows' text (28 October 2026).
-                Text(section.0)
-                    .foregroundStyle(Color.ink)
-                    .listRowInsets(.leading, 0)
+                if stacked {
+                    Text(section.0)
+                        .foregroundStyle(Color.ink)
+                        .listRowInsets(.leading, 0)
+                } else {
+                    // As columns, the Mac's heading: small, semibold and muted, over the rows.
+                    Text(section.0)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.muted)
+                        .textCase(nil)
+                }
                 #else
                 // One weight lighter than before, in a 40 pt row like Notes' (NoteListGeometryTests).
                 // C and D: small, semibold and muted, a label over the rows rather than a title.
@@ -603,7 +617,7 @@ struct NoteListView: View {
             }
         }
         #if os(iOS)
-        .headerProminence(.increased)
+        .headerProminence(stacked ? .increased : .standard)
         #else
         // C and D: no rule under a heading; spacing does the work.
         .listSectionSeparator(DesignLook.calmList ? .hidden : .automatic)
@@ -779,7 +793,7 @@ struct NoteListView: View {
     private var listTip: some View {
         // One grouped card, like What's new: the tip is the row, on the row's own surface.
         Section { CompactTip(tip: ShareExtensionTip(), card: false).selectionDisabled() }
-            .listRowBackground(Color(Palette.row))
+            .listRowBackground(stacked ? Color(Palette.row) : nil)
     }
     #endif
 
@@ -1715,6 +1729,9 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
     let togglePin: (Note) -> Void
     let remove: (Note) -> Void
     @ViewBuilder let menu: (Note) -> Menu
+    #if os(iOS)
+    @Environment(\.stackedNotes) private var stacked
+    #endif
     @Environment(\.modelContext) private var context
 
     static func == (a: NoteListItem, b: NoteListItem) -> Bool {
@@ -1745,7 +1762,7 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
                 // Long-press: the note itself as a tall card, its menu under it (Apple Notes).
                 // Its icons in the label colour, Delete in red, as in Notes (not the app's amber).
                 .contextMenu { menu(note).tint(.primary) } preview: { NotePreviewCard(note: note) }
-                .listRowBackground(Color(Palette.row))
+                .listRowBackground(stacked ? Color(Palette.row) : nil)
                 #endif
         }
     }
@@ -1807,13 +1824,8 @@ struct NoteRow: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.sidebarStudy) private var study
-    /// iPad's selected row is filled with the accent while the list has focus: the row's words
-    /// turn white on it, as in Mail and Notes. (iPhone never shows a selected row; the Mac draws
-    /// its own neutral one.)
-    @Environment(\.backgroundProminence) private var prominence
-    private var onAccent: Bool { prominence == .increased }
-    private var ink: Color { onAccent ? .white : .ink }
-    private var muted: Color { onAccent ? .white.opacity(0.8) : .muted }
+    private var ink: Color { .ink }
+    private var muted: Color { .muted }
 
     /// Whether the row has its third line, the note's folder.
     private var folderLine: Bool { showFolder && note.folder != nil }
@@ -1854,7 +1866,7 @@ struct NoteRow: View {
                 // An AI changed this note and you haven't opened it since, like Mail's unread dot.
                 .overlay(alignment: .leading) {
                     if ai != nil {
-                        Circle().fill(onAccent ? AnyShapeStyle(.white) : AnyShapeStyle(.tint)).frame(width: 8, height: 8)
+                        Circle().fill(Color(PColor.paneAccent)).frame(width: 8, height: 8)
                             .offset(x: RowMetrics.dotOffset)
                             .transition(.scale.combined(with: .opacity))
                     }
@@ -1890,7 +1902,7 @@ struct NoteRow: View {
                             AIGlyph(ai: ai, size: 11)
                             Text(AIEdit.listLine(note, by: ai))
                         }
-                        .foregroundStyle(onAccent ? Color.white : Color.amberInk)
+                        .foregroundStyle(Color.amberInk)
                         .lineLimit(1)
                     } else {
                         Text(snippet)
@@ -2046,6 +2058,18 @@ struct ListSearchField: NSViewRepresentable {
             parent.close()
             return true
         }
+    }
+}
+#endif
+
+#if os(iOS)
+/// The notes list's style: grouped cards one screen at a time (iPhone), the Mac's plain list as a
+/// column beside the note (iPad, iPhone Duo open).
+private struct ColumnListStyle: ViewModifier {
+    let stacked: Bool
+    func body(content: Content) -> some View {
+        // The sidebar style for its rounded selection pill, the Mac's; no lines between rows.
+        if stacked { content.listStyle(.insetGrouped) } else { content.listStyle(.sidebar).listRowSeparator(.hidden) }
     }
 }
 #endif

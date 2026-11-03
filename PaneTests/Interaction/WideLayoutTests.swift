@@ -68,18 +68,37 @@ import UIKit
         PhoneRenderTests.all(UISearchTextField.self, in: window).filter { $0.window != nil && !$0.isHidden }.map(\.bounds.width).max()
     }
 
-    @Test func duoOpenShowsTheListBesideTheNote() async throws {
+    /// Open like a book (wider than tall): the list is the left half and the note the right, so
+    /// the fold runs between them and not through the note's text (Emil, 3 November 2026).
+    @Test func duoOpenSplitsAtTheFold() async throws {
+        let (window, _, _, notes) = try Self.window(Self.duoOpenWide)
+        defer { window.isHidden = true }
+        await PhoneRenderTests.settle(window, seconds: 1)
+        try await PhoneRenderTests.open(notes[2], in: window)
+        await PhoneRenderTests.settle(window)
+        Self.shoot(window, "duo-open-wide-note")
+        #expect(Self.showing(notes[2], in: window), "the note is open")
+        #expect(PhoneRenderTests.navigation(in: window) == nil, "as columns, not pushed onto a stack")
+        #expect(Self.listBesideNote(in: window), "the list is beside it")
+        let editor = try #require(PhoneRenderTests.editor(in: window))
+        let noteLeft = editor.convert(editor.bounds, to: nil).minX
+        #expect(abs(noteLeft - Self.duoOpenWide.size.width / 2) <= 2, "the note starts at the fold (\(noteLeft) pt)")
+        let search = Self.searchFieldWidth(in: window)
+        #expect(search.map { $0 >= 120 } ?? true, "search isn't squeezed to \"S…\" (\(search ?? 0) pt)")
+    }
+
+    /// Held upright the columns are too narrow to share: the note takes the whole width, and the
+    /// list comes over it from the button at the top left.
+    @Test func duoUprightShowsTheNoteWhole() async throws {
         let (window, _, _, notes) = try Self.window(Self.duoOpen)
         defer { window.isHidden = true }
         await PhoneRenderTests.settle(window, seconds: 1)
         try await PhoneRenderTests.open(notes[2], in: window)
         await PhoneRenderTests.settle(window)
-        Self.shoot(window, "duo-open-note")
-        #expect(Self.showing(notes[2], in: window), "the note is open")
-        #expect(PhoneRenderTests.navigation(in: window) == nil, "as columns, not pushed onto a stack")
-        #expect(Self.listBesideNote(in: window), "the list is beside it")
-        let search = Self.searchFieldWidth(in: window)
-        #expect(search.map { $0 >= 120 } ?? true, "search isn't squeezed to \"S…\" (\(search ?? 0) pt)")
+        Self.shoot(window, "duo-upright-note")
+        let editor = try #require(PhoneRenderTests.editor(in: window))
+        #expect(editor.convert(editor.bounds, to: nil).minX < 2, "the note from the window's left edge")
+        #expect(!Self.listBesideNote(in: window), "no list squeezed beside it")
     }
 
     @Test func unfoldingKeepsTheOpenNote() async throws {
