@@ -245,6 +245,11 @@ struct RootView: View {
         #if os(macOS)
         // The list column shows its own title; no window title in the bar.
         .toolbar(removing: .title)
+        // Never the system's grey band behind the bar: each column's own ground runs up under it.
+        // Left to AppKit, the band came and went by folder (Emil, 3 November 2026: "why did the
+        // top bar change on specifically this folder?"): in a folder with a long name it put a
+        // hard scroll edge (NSHardPocketView) behind the whole toolbar, list and note.
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         // ⌘F (Edit › Find › Find…) opens the notes search, unless the note's text has the keys:
         // then the text view takes it first and finds in the note, as in Notes.
         .onCommand(#selector(NSTextView.performFindPanelAction(_:))) {
