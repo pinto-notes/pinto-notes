@@ -222,6 +222,55 @@ import Testing
         #expect(buttons.contains("Delete Folder"), "\(buttons)")
     }
 
+    /// ⌘ picks folders beside the one shown, and Delete takes them all with one question, never
+    /// Notes (Emil, 3 November 2026: "I wanna be able to shift click multiple folders too, delete
+    /// them").
+    @Test func severalPickedFoldersAreDeletedTogether() async throws {
+        let c = try Self.store()
+        let ctx = c.mainContext
+        let notes = ctx.createFolder(named: "Notes")
+        let work = ctx.createFolder(named: "Work")
+        let trips = ctx.createFolder(named: "Trips")
+        let ideas = ctx.createFolder(named: "Ideas")
+        _ = ctx.createNote(in: .folder(work.id), body: "Plans")
+        try ctx.save()
+        let box = Box()
+        box.scope = .folder(work.id)
+        let w = Self.sidebar(c, scope: Binding(get: { box.scope }, set: { box.scope = $0 }))
+        defer { w.attachedSheet.map { w.endSheet($0) }; w.orderOut(nil); w.close() }
+        try? await Task.sleep(for: .milliseconds(500))
+        let outline = try #require(MacWindowChromeTests.find(NSOutlineView.self, in: w.contentView!))
+        let workRow = outline.selectedRow
+        try #require(workRow >= 0, "Work is shown")
+        #expect(outline.allowsMultipleSelection, "the folders pick several")
+        let press = NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: .command, timestamp: 0,
+                                       windowNumber: w.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+        #expect(PressSelect.pick(press, on: outline, row: workRow + 2), "⌘ picks Ideas")
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(box.scope == .folder(work.id), "Work is still the one shown")
+        #expect(outline.selectedRowIndexes == [workRow, workRow + 2])
+
+        _ = outline.tryToPerform(#selector(NSText.delete(_:)), with: nil)
+        try? await Task.sleep(for: .milliseconds(700))
+        #expect(work.deletedAt == nil, "Work holds a note: nothing goes before the question")
+        let sheet = try #require(w.attachedSheet, "one question for both")
+        let delete = try #require(Self.buttons(in: sheet.contentView).first { $0.title == "Delete Folders" })
+        delete.performClick(nil)
+        try? await Task.sleep(for: .milliseconds(500))
+        #expect(work.deletedAt != nil && ideas.deletedAt != nil, "both picked folders are gone")
+        #expect(trips.deletedAt == nil && notes.deletedAt == nil, "the others stay")
+        #expect(work.liveNotes.isEmpty, "Work's note went to Recently Deleted")
+    }
+
+    @Test func pickingFoldersKeepsTheOneShown() {
+        let a = UUID(), b = UUID()
+        #expect(SidebarView.picking([.folder(a)], scope: .folder(b)) == (.folder(a), []), "a plain pick shows that folder")
+        let two = SidebarView.picking([.folder(a), .folder(b)], scope: .folder(b))
+        #expect(two.scope == .folder(b) && two.picked == [a, b])
+        #expect(SidebarView.picking([], scope: .folder(b)) == (.folder(b), []), "⌘ on the last keeps it shown")
+        #expect(SidebarView.selection(scope: .folder(b), picked: [a]) == [.folder(a), .folder(b)])
+    }
+
     static func buttons(in view: NSView?) -> [NSButton] {
         guard let view else { return [] }
         return (view as? NSButton).map { [$0] } ?? [] + view.subviews.flatMap { buttons(in: $0) }
