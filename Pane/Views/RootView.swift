@@ -806,6 +806,14 @@ struct PaneCommands: Commands {
         }
         // View › AI Changes: everything an AI changed, across all notes.
         CommandGroup(after: .sidebar) {
+            // As in Notes. The shortcuts are Xcode's Fold All and Unfold All.
+            Button("Collapse All Sections") { editor?.collapseAllSections() }
+                .keyboardShortcut(.leftArrow, modifiers: [.command, .option, .shift])
+                .disabled(editor == nil)
+            Button("Expand All Sections") { editor?.expandAllSections() }
+                .keyboardShortcut(.rightArrow, modifiers: [.command, .option, .shift])
+                .disabled(editor == nil)
+            Divider()
             Button("\(AIChangeCopy.title)\u{2026}") { AIChangesCenter.shared.show() }
                 .keyboardShortcut("a", modifiers: [.command, .option])
                 .disabled(AIChangesCenter.shared.store == nil)

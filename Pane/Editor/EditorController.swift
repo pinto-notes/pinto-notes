@@ -366,6 +366,10 @@ final class EditorController {
 
     func focus() { target?.focusEditor() }
 
+    /// View › Collapse All Sections and Expand All Sections, as in Notes (HeadingFolds).
+    func collapseAllSections() { target?.collapseAllSections() }
+    func expandAllSections() { target?.expandAllSections() }
+
     /// Scrolls the text to the line at `location` (a link to a heading).
     func reveal(_ location: Int) { target?.reveal(location) }
 
@@ -661,6 +665,9 @@ protocol EditorTarget: TextHost {
     func undoStep(redo: Bool)
     /// Puts the keyboard in a cell of table `index`.
     func focusGrid(_ index: Int, cell: GridCell)
+    /// Collapses or opens every section (HeadingFolds).
+    func collapseAllSections()
+    func expandAllSections()
     /// A table cell's field just took the keyboard (the iPhone gives it the table toolbar).
     func gridFieldFocused()
     /// Shows a handle's menu by its handle.
@@ -685,6 +692,8 @@ extension EditorTarget {
 
 extension EditorTarget {
     func reveal(_ location: Int) {}
+    func collapseAllSections() {}
+    func expandAllSections() {}
     /// Tints, then fades on its own.
     func tintChanges(from previous: String) { tintChanges(from: previous, untilCleared: false) }
 }

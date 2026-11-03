@@ -1386,7 +1386,7 @@ private struct NoteEditorText: View {
             // The note the welcome becomes opens as the welcome showed it, date and all.
             let handoff = WelcomeHandoff.shared.opening == note.id
             MarkdownEditor(initialText: text, header: DateBucket.header(note.updatedAt), controller: controller, autofocus: autofocus,
-                           followsInitialText: followsInitialText, dateShown: handoff, foot: foot, onChange: onChange)
+                           followsInitialText: followsInitialText, dateShown: handoff, foot: foot, foldsID: note.id, onChange: onChange)
         }
     }
 }
