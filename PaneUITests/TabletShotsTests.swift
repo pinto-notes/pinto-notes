@@ -1,3 +1,4 @@
+#if os(iOS)
 import XCTest
 
 /// Pictures of the app on iPad in both orientations, for the iPad and iPhone Duo work (Emil,
@@ -54,3 +55,4 @@ final class TabletShotsTests: XCTestCase {
         shot("landscape-groceries")
     }
 }
+#endif
