@@ -57,11 +57,11 @@ import Testing
         }
 
         /// A press and a lift at `fx`, `fy` of the row (0 to 1 across and down), queued for the window.
-        func click(row: Int, fx: CGFloat = 0.5, fy: CGFloat = 0.5, clickCount: Int = 1) {
+        func click(row: Int, fx: CGFloat = 0.5, fy: CGFloat = 0.5, clickCount: Int = 1, flags: NSEvent.ModifierFlags = []) {
             let r = list.rect(ofRow: row)
             let p = list.convert(NSPoint(x: r.minX + r.width * fx, y: r.minY + r.height * fy), to: nil)
             for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-                NSApp.postEvent(NSEvent.mouseEvent(with: type, location: p, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                NSApp.postEvent(NSEvent.mouseEvent(with: type, location: p, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
                                                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: clickCount,
                                                    pressure: type == .leftMouseDown ? 1 : 0)!, atStart: false)
             }
@@ -160,6 +160,97 @@ import Testing
         let (rig, _, done) = try await Self.rig()
         defer { done() }
         #expect(rig.list.floatsGroupRows, "the date headings pin at the top")
+    }
+
+    /// ⇧-click picks every note from the open one to the one clicked, and ⌘-click adds or drops one,
+    /// as in Notes, wherever on the row the click lands (Emil, 3 November 2026: shift-clicks
+    /// didn't register).
+    @Test func shiftAndCommandClicksPickNotes() async throws {
+        let (rig, _, done) = try await Self.rig()
+        defer { done() }
+        rig.scrollList(toRow: rig.rows[0], below: 60)
+        await MacWindowChromeTests.settle(rig.window, 2)
+        func picked() -> [Int] { rig.list.selectedRowIndexes.compactMap { rig.rows.firstIndex(of: $0) }.sorted() }
+        var misses: [String] = []
+        for (k, (fx, fy)) in [(0.5, 0.5), (0.03, 0.5), (0.5, 0.1), (0.5, 0.9), (0.97, 0.2)].enumerated() {
+            rig.click(row: rig.rows[1])
+            _ = await rig.opens("Note 1")
+            let end = 3 + k % 3
+            rig.click(row: rig.rows[end], fx: fx, fy: fy, flags: .shift)
+            await MacWindowChromeTests.settle(rig.window, 3)
+            try? await Task.sleep(for: .milliseconds(300))
+            if picked() != Array(1...end) { misses.append("⇧ Note \(end) at (\(fx), \(fy)): \(picked())") }
+            rig.click(row: rig.rows[7], fx: fx, fy: fy, flags: .command)
+            await MacWindowChromeTests.settle(rig.window, 3)
+            try? await Task.sleep(for: .milliseconds(300))
+            if picked() != Array(1...end) + [7] { misses.append("⌘ Note 7 at (\(fx), \(fy)): \(picked())") }
+        }
+        #expect(misses.isEmpty, "\(misses)")
+    }
+
+    /// With every folder deleted (Emil, 3 November 2026), New Note makes the Notes folder and opens
+    /// the note there: it went to Recently Deleted, the one row left in the sidebar.
+    @Test func aNewNoteWithNoFoldersOpensInNotes() async throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let old = ctx.createFolder(named: "Old")
+        for i in 0..<3 { _ = ctx.createNote(in: .folder(old.id), body: "Gone \(i)\n\nbody") }
+        ctx.trash(old)
+        try ctx.save()
+        let d = UserDefaults.standard
+        let keep = (d.object(forKey: "lastNote"), d.object(forKey: "lastScope"))
+        defer {
+            if let v = keep.0 { d.set(v, forKey: "lastNote") } else { d.removeObject(forKey: "lastNote") }
+            if let v = keep.1 { d.set(v, forKey: "lastScope") } else { d.removeObject(forKey: "lastScope") }
+        }
+        d.set(try JSONEncoder().encode(Scope.all), forKey: "lastScope")
+        d.removeObject(forKey: "lastNote")
+        let w = ClickWindow(contentRect: CGRect(x: -20000, y: -20000, width: 1180, height: 760),
+                            styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        w.isReleasedWhenClosed = false
+        w.contentViewController = NSHostingController(rootView: RootView().modelContainer(c).environment(SetupStore()))
+        w.setContentSize(CGSize(width: 1180, height: 760))
+        defer { w.close() }
+        await MacWindowChromeTests.settle(w, 15)
+        // A blank note left without a folder (one was in Emil's library) is in no list: New Note
+        // makes a note instead of reopening it.
+        let stray = ctx.createNote(in: .all)
+        stray.folder = nil
+        #expect(!RootView.reusesForNewNote(stray))
+        let kept = ctx.createNote(in: .all)
+        #expect(RootView.reusesForNewNote(kept), "a blank note in a folder is reopened")
+        let made = try #require(kept.folder)
+        ctx.delete(kept)
+        ctx.delete(stray)
+        ctx.trash(made)
+        try ctx.save()
+        await MacWindowChromeTests.settle(w, 5)
+        let before = try JSONDecoder().decode(Scope.self, from: d.data(forKey: "lastScope") ?? Data())
+        #expect(before != .trash, "with no folders the window opens on All Notes, not Recently Deleted (shown: \(before))")
+        // What New Note does to the library with no folder: the note goes in a new Notes folder.
+        _ = ctx.createNote(in: .all)
+        await MacWindowChromeTests.settle(w, 15)
+        try? await Task.sleep(for: .milliseconds(400))
+        await MacWindowChromeTests.settle(w, 5)
+        let live = try ctx.fetch(FetchDescriptor<Note>()).filter { $0.trashedAt == nil && $0.deletedAt == nil }
+        try #require(live.count == 1, "⌘N made a note (live notes: \(live.count))")
+        let notes = try #require(live[0].folder, "in a folder")
+        let scope = try JSONDecoder().decode(Scope.self, from: d.data(forKey: "lastScope") ?? Data())
+        #expect(scope == .folder(notes.id), "the new note's folder is the one shown (shown: \(scope))")
+    }
+
+    /// The empty library's two buttons stay inside the list column: side by side where they fit,
+    /// one above the other where they don't (Emil, 3 November 2026: Bring Your Notes ran past
+    /// the column's edge).
+    @Test func theEmptyLibrarysButtonsFitTheColumn() {
+        let imports = ImportActions(box: ImportActions.Box())
+        let view = NSHostingController(rootView: EmptyLibraryActions(onNewNote: {}, imports: imports))
+        let wide = view.sizeThatFits(in: CGSize(width: 2000, height: 400))
+        let narrow = view.sizeThatFits(in: CGSize(width: 220, height: 400))
+        #expect(narrow.width <= 220, "inside a narrow column (\(narrow))")
+        #expect(narrow.height > wide.height * 1.5, "one above the other there (\(narrow) vs \(wide))")
+        let roomy = view.sizeThatFits(in: CGSize(width: wide.width + 40, height: 400))
+        #expect(abs(roomy.height - wide.height) < 1, "side by side where they fit")
     }
 
     /// The note opens on the press, as in Apple Notes, not when the button comes up: it waited for

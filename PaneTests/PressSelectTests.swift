@@ -74,6 +74,38 @@ import Testing
         #expect(table.selectedRowIndexes == [4])
     }
 
+    /// ⌘ adds a note or takes it out, ⇧ picks every note from the last one picked, on the press,
+    /// and the list never sees the click (Emil, 3 November 2026: shift-clicks didn't register).
+    @Test func commandAndShiftPressesPickNotes() {
+        let (table, rows, window) = list()
+        table.allowsMultipleSelection = true
+        rows.unselectable = [2]
+        PressSelect.press(press(window), on: table, row: 1)
+        PressSelect.lifted()
+        #expect(PressSelect.pick(press(window, flags: .shift), on: table, row: 4))
+        #expect(table.selectedRowIndexes == [1, 3, 4], "from the note picked last to this one, a heading left out")
+        #expect(PressSelect.pick(press(window, flags: .command), on: table, row: 3))
+        #expect(table.selectedRowIndexes == [1, 4], "⌘ takes a picked note out")
+        #expect(PressSelect.pick(press(window, flags: .command), on: table, row: 5))
+        #expect(table.selectedRowIndexes == [1, 4, 5], "and adds one")
+        #expect(PressSelect.pick(press(window, flags: .shift), on: table, row: 3))
+        #expect(table.selectedRowIndexes == [3, 4, 5], "⇧ runs from the note ⌘ added last")
+        // A plain click on one of them: it alone is picked when the button comes up, and a drag
+        // takes them all.
+        PressSelect.press(press(window), on: table, row: 4)
+        #expect(table.selectedRowIndexes == [3, 4, 5], "still all picked while the button is down")
+        PressSelect.dragged()
+        PressSelect.lifted()
+        #expect(table.selectedRowIndexes == [3, 4, 5], "a drag takes them all")
+        PressSelect.press(press(window), on: table, row: 4)
+        PressSelect.lifted()
+        #expect(table.selectedRowIndexes == [4], "a click picks that one alone")
+        #expect(!PressSelect.pick(press(window), on: table, row: 0), "a plain press is the list's")
+        #expect(!PressSelect.pick(press(window, flags: .command), on: table, row: 2), "nor a heading")
+        table.allowsMultipleSelection = false
+        #expect(!PressSelect.pick(press(window, flags: .command), on: table, row: 1), "nor a list that picks one at a time")
+    }
+
     /// A folder opens on the press too, like a note (3 November 2026, "fix that on folders too").
     @Test func aFolderSelectsOnThePressToo() {
         let (table, _, window) = list(style: .sourceList)

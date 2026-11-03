@@ -584,7 +584,7 @@ struct RootView: View {
         let target: Scope = scope == .trash ? .all : (scope ?? .all)
         if scope == .trash { scope = .all }
         // Reuse an untouched empty note instead of stacking blanks.
-        if scope != nil, let id = selectedNote, let n = context.note(id), n.body.isEmpty, n.trashedAt == nil {
+        if scope != nil, let id = selectedNote, Self.reusesForNewNote(context.note(id)) {
             editor.focus()
             return
         }
@@ -597,6 +597,14 @@ struct RootView: View {
         #endif
         justCreated = note.id
         selectedNote = note.id
+    }
+
+    /// Whether New Note opens this note instead of making another: an untouched empty note that is
+    /// in a folder you can see. A blank note without a live folder is in no list, and New Note
+    /// reusing it made nothing at all (Emil, 3 November 2026, with every folder deleted).
+    static func reusesForNewNote(_ n: Note?) -> Bool {
+        guard let n, n.body.isEmpty, n.trashedAt == nil, n.deletedAt == nil, let folder = n.folder else { return false }
+        return folder.deletedAt == nil
     }
 
     /// New Note from a folder's menu: a note in that folder, the folder selected and the note open

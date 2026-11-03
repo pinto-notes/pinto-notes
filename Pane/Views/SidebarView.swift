@@ -774,10 +774,12 @@ struct SidebarView: View {
     /// its ••• in Edit), in groups split by lines, as Apple Notes groups it: on the Mac Open in New
     /// Window first (Emil, 2 November 2026); what to make in it, what to do with it, and Delete on
     /// its own at the end. Notes, the first folder, has no Move To: it stays first, where new notes
-    /// go. Pinto has no folder sharing, so no Share.
+    /// go. Nor Delete, as in Notes: with every folder gone the sidebar had only Recently Deleted
+    /// (Emil, 3 November 2026). Pinto has no folder sharing, so no Share.
     nonisolated static func folderMenu(isNotes: Bool, newWindow: Bool = FolderAction.opensWindows) -> [[FolderAction]] {
         (newWindow ? [[.openInNewWindow]] : [])
-            + [[.newNote, .newFolder], isNotes ? [.rename, .duplicate] : [.rename, .duplicate, .move], [.delete]]
+            + [[.newNote, .newFolder], isNotes ? [.rename, .duplicate] : [.rename, .duplicate, .move]]
+            + (isNotes ? [] : [[.delete]])
     }
 
     /// A place Move To lists for a folder: the top level, then every folder in the sidebar's
@@ -947,6 +949,8 @@ struct SidebarView: View {
 
     /// Asks first when the folder holds notes, like Notes: they move to Recently Deleted.
     private func deleteFolder(_ f: Folder) {
+        // Notes stays, as in Apple Notes (its menu has no Delete; this is for ⌫ and other ways in).
+        guard f.id != roots.first?.id else { return }
         if f.liveNotes.isEmpty && f.liveChildren.isEmpty && context.files(in: f.id).isEmpty { performDelete(f) } else { deletingFolder = f }
     }
 

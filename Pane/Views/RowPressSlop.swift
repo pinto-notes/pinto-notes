@@ -16,6 +16,8 @@ enum RowPressSlop {
     static let distance: CGFloat = 4
 
     private static var monitor: Any?
+    /// A ⌘ or ⇧ press PressSelect picked with: the list doesn't see it, nor its drag or lift.
+    private static var picked = false
     /// Where the press now held began, when it began on a row and hasn't become a drag.
     private static var origin: NSPoint?
 
@@ -24,7 +26,17 @@ enum RowPressSlop {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { event in
             let through = MainActor.assumeIsolated {
+                if picked, event.type != .leftMouseDown {
+                    if event.type == .leftMouseUp { picked = false }
+                    return false
+                }
+                picked = false
                 let pressed = event.type == .leftMouseDown ? row(under: event) : nil
+                // A ⌘ or ⇧ press on a note picks it now, and the list never sees the click.
+                if let pressed, PressSelect.pick(event, on: pressed.table, row: pressed.row) {
+                    picked = true
+                    return false
+                }
                 // A plain press on a note selects it now (PressSelect), before the list sees it.
                 if let pressed { PressSelect.press(event, on: pressed.table, row: pressed.row) }
                 let through = passes(event.type, at: event.locationInWindow, onRow: pressed != nil)

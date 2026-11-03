@@ -830,15 +830,9 @@ struct NoteListView: View {
             } description: {
                 Text(Self.emptyLine)
             } actions: {
-                Button("New Note", action: onNewNote)
-                    .buttonStyle(.amberProminent)
-                    .accessibilityIdentifier("empty.newNote")
-                if let imports {
-                    // In the ink: one orange control on the screen.
-                    Button(Self.bringNotes, action: imports.appleNotes)
-                        .tint(Color.ink)
-                        .accessibilityIdentifier("empty.bringNotes")
-                }
+                // Side by side, or one above the other when the column is too narrow for both
+                // (Emil, 3 November 2026: Bring Your Notes ran past the column's edge).
+                EmptyLibraryActions(onNewNote: onNewNote, imports: imports)
             }
         } else {
             // The leaf and "No Notes", like Notes: the compose button is the one way to start a note.
@@ -2053,3 +2047,39 @@ struct ListSearchField: NSViewRepresentable {
     }
 }
 #endif
+
+/// The empty library's two ways to start: side by side, or one above the other when the column
+/// is too narrow for both (Emil, 3 November 2026: Bring Your Notes ran past the column's edge).
+struct EmptyLibraryActions: View {
+    let onNewNote: () -> Void
+    let imports: ImportActions?
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) { buttons }
+            VStack(spacing: 10) { buttons }
+        }
+    }
+
+    @ViewBuilder
+    private var buttons: some View {
+        Button("New Note", action: onNewNote)
+            .buttonStyle(.amberProminent)
+            .fixedSize()
+            .accessibilityIdentifier("empty.newNote")
+        if let imports {
+            // In the ink: one orange control on the screen. On the Mac it opens the choice of
+            // sources, as Import notes in the sidebar does, not Apple Notes' import alone.
+            Button(NoteListView.bringNotes) {
+                #if os(macOS)
+                NotificationCenter.default.post(name: .paneImportNotes, object: nil)
+                #else
+                imports.appleNotes()
+                #endif
+            }
+            .tint(Color.ink)
+            .fixedSize()
+            .accessibilityIdentifier("empty.bringNotes")
+        }
+    }
+}

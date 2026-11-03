@@ -193,6 +193,8 @@ import Testing
     @Test func deletingAFolderWithNotesAsksFirst() async throws {
         let c = try Self.store()
         let ctx = c.mainContext
+        // The first folder is Notes, which stays, as in Apple Notes.
+        let notes = ctx.createFolder(named: "Notes")
         let work = ctx.createFolder(named: "Work")
         let empty = ctx.createFolder(named: "Empty")
         _ = ctx.createNote(in: .folder(work.id), body: "Plans")
@@ -201,6 +203,10 @@ import Testing
         let w = Self.sidebar(c, scope: Binding(get: { box.scope }, set: { box.scope = $0 }))
         defer { w.attachedSheet.map { w.endSheet($0) }; w.orderOut(nil); w.close() }
         try? await Task.sleep(for: .milliseconds(400))
+
+        NotificationCenter.default.post(name: .paneDeleteFolder, object: notes.id)
+        try? await Task.sleep(for: .milliseconds(500))
+        #expect(notes.deletedAt == nil && w.attachedSheet == nil, "Notes can't be deleted")
 
         NotificationCenter.default.post(name: .paneDeleteFolder, object: empty.id)
         try? await Task.sleep(for: .milliseconds(500))

@@ -109,7 +109,7 @@ import Testing
         #expect(!FolderAction.allCases.map(\.title).contains("New Subfolder"))
         let notes = SidebarView.folderMenu(isNotes: true, newWindow: false)
         #expect(!notes.joined().contains(.move), "Notes stays first")
-        #expect(notes == [[.newNote, .newFolder], [.rename, .duplicate], [.delete]])
+        #expect(notes == [[.newNote, .newFolder], [.rename, .duplicate]], "Notes can't be deleted, as in Apple Notes")
     }
 
     /// On the Mac a folder opens in a window of its own, first in its menu, as in Apple Notes
