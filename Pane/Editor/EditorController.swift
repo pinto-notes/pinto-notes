@@ -411,6 +411,7 @@ final class EditorController {
     func typingChanged(text: String, selection: NSRange?) {
         // The panel follows the caret: bold on, Heading lit, as it moves.
         if formatPanelShown { refreshFormat() }
+        updateSlash(text: text, selection: selection)
         guard let sel = selection, sel.length == 0 else {
             wikiDismissed = nil
             clearWikiSuggestions()
@@ -479,6 +480,80 @@ final class EditorController {
         if !wikiSuggestions.isEmpty { wikiSuggestions = [] }
         if wikiHeadings { wikiHeadings = false }
         if wikiTags { wikiTags = false }
+    }
+
+    // MARK: The / menu
+
+    /// Commands offered while a `/query` is typed (SlashCommands), best first.
+    private(set) var slashCommands: [SlashCommand] = []
+    /// The one Return takes (Mac).
+    var slashChoice = 0
+    /// Where the `/query` is, slash included.
+    @ObservationIgnored private(set) var slashQuery: NSRange?
+    /// A slash whose menu was put away (Escape): not offered again while typing after it.
+    @ObservationIgnored private var slashDismissed: Int?
+
+    private func updateSlash(text: String, selection: NSRange?) {
+        guard let sel = selection, !readOnly, cell == nil, WikiLinks.typingQuery(in: text, caret: sel.location) == nil,
+              let found = SlashCommands.active(in: text, selection: sel) else {
+            slashDismissed = nil
+            clearSlash()
+            return
+        }
+        guard found.query.location != slashDismissed else { clearSlash(); return }
+        slashQuery = found.query
+        if found.commands != slashCommands {
+            slashCommands = found.commands
+            slashChoice = 0
+        }
+    }
+
+    /// Takes the `/query` out of the line and runs `command` there.
+    func runSlash(_ command: SlashCommand) {
+        guard let q = slashQuery else { return }
+        perform { text, _ in
+            guard NSMaxRange(q) <= (text as NSString).length, (text as NSString).character(at: q.location) == 0x2F else { return nil }
+            return TextEdit(range: q, replacement: "", caret: q.location)
+        }
+        clearSlash()
+        switch command {
+        case .title: apply(.title)
+        case .heading: apply(.heading)
+        case .subheading: apply(.subheading)
+        case .body: apply(.body)
+        case .checklist: checklist()
+        case .bulleted: apply(.bulleted)
+        case .dashed: apply(.dashed)
+        case .numbered: apply(.numbered)
+        case .quote: apply(.quote)
+        case .codeBlock: apply(.monostyled)
+        case .table: insertTable()
+        case .divider: insertDivider()
+        case .date: insertDate()
+        case .link: insertLink()
+        case .attach: attach()
+        }
+    }
+
+    /// Return or Tab on the Mac: the highlighted command.
+    func runSlashChoice() {
+        guard !slashCommands.isEmpty else { return }
+        runSlash(slashCommands[min(max(slashChoice, 0), slashCommands.count - 1)])
+    }
+
+    func moveSlashChoice(by step: Int) {
+        guard !slashCommands.isEmpty else { return }
+        slashChoice = min(max(slashChoice + step, 0), slashCommands.count - 1)
+    }
+
+    func dismissSlash() {
+        slashDismissed = slashQuery?.location
+        clearSlash()
+    }
+
+    private func clearSlash() {
+        slashQuery = nil
+        if !slashCommands.isEmpty { slashCommands = [] }
     }
     // MARK: Tables
 
