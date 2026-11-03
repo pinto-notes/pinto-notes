@@ -1517,6 +1517,9 @@ struct NoteToolbarStage<Pane: View>: View {
     var showsWriting = true
     /// The notes opened before and after this one (back and forward).
     var history = OpenedNotes.Actions()
+    /// A note in a window of its own: back and forward beside the window's buttons, as in a
+    /// browser, not where a detail column would start.
+    var ownWindow = false
     let controller: EditorController
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
@@ -1544,7 +1547,7 @@ struct NoteToolbarStage<Pane: View>: View {
                 if self.parts != nil {
                     // Back and forward on the left, the note's tools on the right (Emil, 11-01: no
                     // breadcrumbs; the list already says which note and folder this is).
-                    ToolbarItemGroup {
+                    ToolbarItemGroup(placement: ownWindow ? .navigation : .automatic) {
                         Group {
                             Button("Back", systemImage: "chevron.backward") { history.back() }
                                 .help("Back (⌘[)")

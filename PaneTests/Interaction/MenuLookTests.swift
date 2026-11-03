@@ -219,6 +219,24 @@ import Testing
         #expect(w.toolbar?.items.contains { $0.label == "New Note" } != true, "no list, so no compose")
     }
 
+    /// At its first size a note's window shows every tool: no » menu holding Share and More
+    /// (Emil, 3 November 2026: the window's hidden title took their room).
+    @Test func aNoteWindowFitsItsWholeBar() async throws {
+        let c = try AppSnapshotTests.container()
+        let note = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Groceries" })
+        let w = Self.offscreenWindow(CGSize(width: 640, height: 500), styled: true)
+        w.toolbarStyle = .unified
+        w.contentViewController = NSHostingController(rootView: NoteWindowView(noteID: note.id).modelContainer(c).environment(SetupStore()))
+        w.setContentSize(CGSize(width: 640, height: 500))
+        defer { w.close() }
+        await MacWindowChromeTests.settle(w, 10)
+        let visible = w.toolbar?.visibleItems?.map(\.label) ?? []
+        for label in ["Back", "Forward", "Format", "Share", "More"] {
+            #expect(visible.contains(label), "\(label) is in the bar, not in a » menu: \(visible)")
+        }
+        #expect(w.titleVisibility == .hidden || w.toolbar?.items.contains { $0.itemIdentifier.rawValue.contains("title") } != true, "no title taking the bar's room")
+    }
+
     @Test func aNoteWindowForADeletedNoteSaysSo() async throws {
         let c = try AppSnapshotTests.container()
         let w = Self.offscreenWindow(CGSize(width: 640, height: 600), styled: true)

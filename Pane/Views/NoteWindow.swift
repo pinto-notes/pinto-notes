@@ -45,7 +45,7 @@ struct NoteWindowView: View {
     var body: some View {
         let id = shown ?? noteID
         let note = NoteWindows.note(id, in: context)
-        NoteToolbarStage(showsItems: note != nil, history: actions, controller: editor) {
+        NoteToolbarStage(showsItems: note != nil, history: actions, ownWindow: true, controller: editor) {
             if let note {
                 NoteDetailView(note: note, controller: editor, inOwnWindow: true, onNewNote: {}) { target, _ in
                     open(target)
@@ -57,6 +57,9 @@ struct NoteWindowView: View {
         }
         .environment(editor)
         .focusedSceneValue(\.editorController, editor)
+        // The window keeps its name (the Window menu, Mission Control) but doesn't show it: shown,
+        // it took the bar's room and pushed Share and More into a » menu (Emil, 3 November 2026).
+        .toolbar(removing: .title)
         .navigationTitle(note.map { $0.title.isEmpty ? "New Note" : $0.title } ?? "")
         .frame(minWidth: 480, minHeight: 360)
     }
