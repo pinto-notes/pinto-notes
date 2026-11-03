@@ -63,7 +63,7 @@ struct AccountNotice: Decodable, Equatable, Identifiable, Sendable {
             return ("Connected \(name ?? "an AI")", "\(Self.when(created_at)). It can use your notes. If you didn't connect it, disconnect it.")
         case .startedFresh:
             return ("Your notes were deleted and a new key was made on another device",
-                    recoveryKey ? "Save your new recovery key in Settings \u{203A} Security." : "If that wasn\u{2019}t you, change your password.")
+                    recoveryKey ? "Save your new recovery key in \(PrivacyCopy.settingsPath)." : "If that wasn\u{2019}t you, change your password.")
         case .wrongNumber:
             return ("Someone who knows your password tried to connect an AI. Change your password.",
                     "The number typed didn't match, so it was declined. Pinto Notes takes no new requests to connect an AI for an hour.")

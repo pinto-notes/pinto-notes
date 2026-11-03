@@ -3,20 +3,31 @@ import AppKit
 import Supabase
 import SwiftUI
 
-// The pages of Settings on the Mac, in the System Settings form (SettingsForm): a summary box at
-// the top, then boxes of rows, names on the left and controls on the right.
+// The pages of Settings on the Mac, in the System Settings form (SettingsForm). Four pages since
+// 3 November 2026 ("simplify and cut things"): Account, Connect an AI, Appearance, Privacy and
+// security. What left Settings is in a menu (MacHelp, the Help menu, the account menu).
 
 // MARK: Account
 
-/// Account: you (photo, name, email, sync, Sign Out…), then your profile, signing in and syncing,
-/// and your notes (export, delete).
+/// Account: one card (Emil, 3 November 2026: "simplify and cut things"). Your photo (click it to
+/// change or remove it), your name (edit it on the card), your email, the sync status (click it to
+/// sync now) and the space used. Under the card, Sign Out… and a quiet Delete Account…. Export is
+/// File › Export All Notes…; Sign in with Apple is offered only when signing in.
 struct AccountSettingsPage: View {
     let backend: Backend
     let sync: SyncEngine?
+    /// Tests: what clicking the sync status runs, in place of a real sync.
+    var syncNow: (() async -> Void)? = nil
+    /// Signed out: Sign In… closes Settings, which covers the sign-in card.
+    var close: () -> Void = {}
     @State private var profile = ProfileStore.shared
+    @State private var storage = StorageStore.shared
     @State private var draft = ""
     @State private var importing = false
+    @State private var photoMenu = MenuAnchor()
+    @State private var nameHover = false
     @FocusState private var editing: Bool
+    @Environment(\.networkReach) private var reach
 
     var body: some View {
         SettingsStack {
@@ -26,6 +37,7 @@ struct AccountSettingsPage: View {
             }
         }
         .task(id: backend.state) { await profile.bind(backend) }
+        .task(id: backend.state) { await storage.refresh(backend.client, force: false) }
         .onAppear { draft = profile.name ?? "" }
         // The name as it arrives, unless you are typing a different one.
         .onChange(of: profile.name) { _, new in if !editing || draft.isEmpty { draft = new ?? "" } }
@@ -46,76 +58,178 @@ struct AccountSettingsPage: View {
         return how == email ? email : "Signed in with \(how)"
     }
 
+    /// The status under your email, short: "Synced just now", "Synced 5 minutes ago", "Syncing…".
+    /// Offline, or refused, it says why, as SyncStatusLabel does.
+    static func syncLine(_ status: SyncEngine.Status, reach: SyncEngine.Reach, now: Date = .now) -> String {
+        if let away = SyncStatusLabel.away(status, reach: reach) { return away }
+        switch status {
+        case .idle: return "Not synced yet"
+        case .syncing: return "Syncing\u{2026}"
+        case .synced(let d):
+            return now.timeIntervalSince(d) < 60 ? "Synced just now" : "Synced \(d.formatted(.relative(presentation: .named, unitsStyle: .wide)))"
+        case .offline(let why): return why
+        }
+    }
+
+    /// Signed out, where Export went: the File menu, signed in or not.
+    static let exportHint = "File \u{203A} Export All Notes\u{2026} saves a copy of the notes on this Mac."
+
+    /// The space used, short: "1.2 GB of 2 GB".
+    static func storageLine(_ u: StorageUsage) -> String { "\(StorageUsage.size(u.used)) of \(StorageUsage.size(u.limit))" }
+
+    private func runSync() { Self.syncNow(sync, override: syncNow) }
+
+    /// What clicking the sync status does: a sync, now.
+    static func syncNow(_ sync: SyncEngine?, override: (() async -> Void)? = nil) {
+        Task { if let override { await override() } else { await sync?.sync() } }
+    }
+
     @ViewBuilder private func signedIn(email: String) -> some View {
         SettingsSummary {
-            HStack(spacing: 14) {
-                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 54)
-                    .dropDestination(for: URL.self) { urls, _ in
-                        guard let url = urls.first, let data = try? Data(contentsOf: url) else { return false }
-                        Task { await profile.setPhoto(data) }
-                        return true
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 14) {
+                    photo
+                    VStack(alignment: .leading, spacing: 2) {
+                        name
+                        Text(Self.shownEmail(email, apple: backend.apple != nil, google: backend.google))
+                            .font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
+                            .lineLimit(1).truncationMode(.middle)
+                            .textSelection(.enabled)
+                            .padding(.leading, 4)
+                            .accessibilityIdentifier("settings.signedInWith")
+                        syncStatus.padding(.leading, 4)
+                        if let problem = profile.problem {
+                            Text(problem).font(.system(size: 12)).foregroundStyle(.red).padding(.leading, 4)
+                        }
                     }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(AccountName.shown(profile.name)).font(.system(size: 17, weight: .semibold)).foregroundStyle(SettingsInk.text)
-                        .lineLimit(1)
-                    Text(Self.shownEmail(email, apple: backend.apple != nil, google: backend.google))
-                        .font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
-                        .lineLimit(1).truncationMode(.middle)
-                        .textSelection(.enabled)
-                        .accessibilityIdentifier("settings.signedInWith")
-                    HStack(spacing: 5) {
-                        Image(systemName: "icloud").font(.system(size: 11)).accessibilityHidden(true)
-                        SyncStatusLabel(status: sync?.status ?? .idle, reach: sync?.reach ?? .online)
-                    }
-                    .font(.system(size: 12))
-                    .foregroundStyle(SettingsInk.muted)
-                    .lineLimit(1)
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 12)
-                VStack(alignment: .trailing, spacing: 6) {
-                    SignOutButton(backend: backend, sync: sync, red: false).buttonStyle(.settings)
+                if let u = storage.usage {
+                    SettingsInk.hairline.frame(height: 0.5)
+                    storageBar(u)
                 }
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings.accountSummary")
-        SettingsGroup(header: "Profile", footer: "Shown in the app and on notes you share.") {
-            SettingsLine(title: "Name") {
-                TextField("Name", text: $draft, prompt: Text("Add your name"))
-                    .labelsHidden()
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
-                    .font(.system(size: 13))
-                    .foregroundStyle(SettingsInk.text)
-                    .focused($editing)
-                    .onSubmit { Task { await profile.setName(draft) } }
-                    .frame(maxWidth: 240)
-                    .accessibilityLabel("Name")
-                    .accessibilityIdentifier("settings.profileName")
+        HStack(spacing: 12) {
+            SignOutButton(backend: backend, sync: sync, red: false).buttonStyle(.settings)
+            Spacer(minLength: 12)
+            // Quiet, but there: the App Store asks for deleting an account inside the app.
+            DeleteAccountButton(backend: backend, title: "Delete Account\u{2026}")
+                .buttonStyle(.hoverText)
+                .font(.system(size: 12.5))
+                .settingsProbe("account.delete")
+        }
+        .padding(.horizontal, 4)
+    }
+
+    /// Your photo: click it for Choose Photo… and Remove Photo. A photo can be dropped on it too.
+    private var photo: some View {
+        Button { showPhotoMenu() } label: {
+            ZStack {
+                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 54)
+                if profile.working { ProgressView().controlSize(.small) }
             }
-            SettingsLine(title: "Photo", detail: profile.problem) {
-                HStack(spacing: 8) {
-                    if profile.working { ProgressView().controlSize(.small) }
-                    if profile.photo != nil {
-                        Button("Remove") { Task { await profile.removePhoto() } }
-                            .buttonStyle(.hoverText)
-                            .foregroundStyle(SettingsInk.muted)
-                            .accessibilityIdentifier("settings.removePhoto")
+            .background(MenuAnchorView(anchor: photoMenu))
+        }
+        .buttonStyle(.tile(radius: 30))
+        .help(profile.photo == nil ? "Choose a photo" : "Change your photo")
+        .accessibilityLabel(profile.photo == nil ? "Choose photo" : "Change photo")
+        .accessibilityIdentifier("settings.photo")
+        .settingsProbe("account.photo")
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first, let data = try? Data(contentsOf: url) else { return false }
+            Task { await profile.setPhoto(data) }
+            return true
+        }
+    }
+
+    private func showPhotoMenu() {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.addItem(AccountMenu.Item("Choose Photo\u{2026}", symbol: "photo") { importing = true })
+        if profile.photo != nil {
+            menu.addItem(AccountMenu.Item("Remove Photo", symbol: "trash") { Task { await profile.removePhoto() } })
+        }
+        guard let view = photoMenu.view else { importing = true; return }
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: view.isFlipped ? view.bounds.height + 4 : -4), in: view)
+    }
+
+    /// Your name, edited where it is: a click puts the caret in it, Return or a click away keeps it.
+    private var name: some View {
+        TextField("Name", text: $draft, prompt: Text("Add your name").foregroundStyle(SettingsInk.muted))
+            .labelsHidden()
+            .textFieldStyle(.plain)
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(SettingsInk.text)
+            .focused($editing)
+            .onSubmit { Task { await profile.setName(draft) } }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .background(RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .fill(editing ? SettingsInk.ground : nameHover ? SettingsInk.selection : .clear))
+            .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(editing ? SettingsInk.edge : .clear, lineWidth: 1))
+            .onHover { nameHover = $0 }
+            .frame(maxWidth: 300, alignment: .leading)
+            .accessibilityLabel("Name")
+            .accessibilityIdentifier("settings.profileName")
+            .settingsProbe("account.name")
+    }
+
+    /// "Synced 2 minutes ago": click it to sync now.
+    private var syncStatus: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { context in
+            Button { runSync() } label: {
+                HStack(spacing: 5) {
+                    if case .syncing = sync?.status { ProgressView().controlSize(.mini) } else {
+                        Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 10.5)).accessibilityHidden(true)
                     }
-                    Button(profile.photo == nil ? "Choose\u{2026}" : "Change\u{2026}") { importing = true }
-                        .buttonStyle(.settings)
-                        .accessibilityIdentifier("settings.choosePhoto")
+                    Text(Self.syncLine(sync?.status ?? .idle, reach: sync?.reach ?? .online, now: context.date))
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(SettingsInk.muted)
+                .lineLimit(1)
+            }
+            .buttonStyle(.hoverText)
+            .disabled(reach != .online)
+            .help("Sync now")
+            .accessibilityHint("Syncs now")
+            .accessibilityIdentifier("settings.syncStatus")
+            .settingsProbe("account.syncStatus")
+        }
+    }
+
+    private func storageBar(_ u: StorageUsage) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(Self.storageLine(u)).font(.system(size: 13)).monospacedDigit().foregroundStyle(SettingsInk.text)
+                Spacer()
+                if u.level != .fine {
+                    Text(u.level == .full ? "Full" : "Almost full")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(u.level == .full ? Color.red : Color.orange)
                 }
             }
-        }
-        SettingsGroup(header: "Sign in and sync") {
-            SettingsLine(title: "Sync", detail: "Your notes are the same on every device you sign in on.") {
-                Button("Sync Now") { Task { await sync?.sync() } }
-                    .buttonStyle(.settings)
-                    .accessibilityIdentifier("settings.syncNow")
+            // A bar of its own: the Mac's progress bar doesn't take a tint.
+            Capsule().fill(SettingsInk.selection)
+                .frame(height: 6)
+                .overlay(alignment: .leading) {
+                    GeometryReader { g in
+                        Capsule().fill(u.level == .full ? Color.red : u.level == .nearlyFull ? Color.orange : SettingsInk.text)
+                            .frame(width: max(6, g.size.width * u.fraction))
+                    }
+                }
+                .accessibilityElement()
+                .accessibilityLabel("Storage used")
+                .accessibilityValue(u.summary)
+            if let warning = u.warning {
+                Text(warning.detail)
+                    .font(.system(size: 12)).foregroundStyle(SettingsInk.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            AppleIDRow(backend: backend)
         }
-        notes(signedIn: true)
+        .accessibilityIdentifier("settings.storage")
     }
 
     @ViewBuilder private var signedOut: some View {
@@ -129,33 +243,18 @@ struct AccountSettingsPage: View {
                         .font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 0)
-            }
-        }
-        notes(signedIn: false)
-    }
-
-    private func notes(signedIn: Bool) -> some View {
-        SettingsGroup(header: "Your notes") {
-            SettingsLine(title: "Export your notes", detail: signedIn ? PrivacyCopy.exportFooter : PrivacyCopy.exportFooterLocal) {
-                VStack(alignment: .trailing, spacing: 4) {
-                    ExportNotesButton(sync: signedIn ? sync : nil, title: "Export\u{2026}")
+                Spacer(minLength: 12)
+                if backend.state != .disabled {
+                    Button("Sign In\u{2026}", action: close)
                         .buttonStyle(.settings)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(SettingsInk.muted)
-                }
-            }
-            if signedIn {
-                SettingsLine(title: "Delete account", detail: "Deletes your account and every note in it. Export first to keep a copy.") {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        DeleteAccountButton(backend: backend, title: "Delete Account\u{2026}")
-                            .buttonStyle(.settings)
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(SettingsInk.muted)
-                    }
+                        .accessibilityIdentifier("settings.signIn")
                 }
             }
         }
+        Text(AccountSettingsPage.exportHint)
+            .font(.system(size: 12)).foregroundStyle(SettingsInk.muted)
+            .padding(.horizontal, 4)
+            .accessibilityIdentifier("settings.exportHint")
     }
 }
 
@@ -182,7 +281,7 @@ struct AppearanceSettingsPage: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Mode")
             }
-            SettingsGroup(header: "Theme", footer: AppearanceSection.footer(look)) {
+            SettingsGroup(header: "Theme", footer: AppearanceSection.macFooter(look)) {
                 HStack(spacing: 10) {
                     ForEach(Theme.allCases) { t in
                         WindowChoice(title: t.title, selected: look.theme == t, orange: false, height: 46, id: "settings.theme.\(t.rawValue)") {
@@ -203,7 +302,7 @@ struct AppearanceSettingsPage: View {
                     }
                 }
             }
-            SettingsGroup(header: "Menu bar") {
+            SettingsGroup {
                 SettingsLine(title: "Show in menu bar", detail: "Capture or find a note from the menu bar, even with the window closed.") {
                     Toggle("Show in menu bar", isOn: $menuBar)
                         .settingsSwitch()
@@ -331,166 +430,50 @@ struct ThemeWindowPicture: View {
     }
 }
 
-// MARK: Storage
+// MARK: Help menu
 
-/// Storage: the space used against the account's limit, then what takes it, largest first.
-struct StorageSettingsPage: View {
-    /// Nil: captures without an account, which show what the store holds.
-    let client: SupabaseClient?
-    @State private var store = StorageStore.shared
-    @Environment(\.networkReach) private var reach
+/// What the Help and feedback page held, now in the Help menu (RootView's PaneCommands) and the
+/// account menu: answers on the website, feedback by email, the project on GitHub, and Connect an
+/// AI's "Having trouble?".
+@MainActor
+enum MacHelp {
+    /// The Help menu's items after Keyboard Shortcuts, What's New… and Show Setup Guide, in order.
+    static let menu = [questionsTitle, feedbackTitle, reportTitle, githubTitle, connectHelp]
+    static let questionsTitle = "Questions and Answers"
+    static let feedbackTitle = "Send Feedback\u{2026}"
+    static let reportTitle = "Report an Issue\u{2026}"
+    static let githubTitle = "Pinto Notes on GitHub"
+    static let connectHelp = "Help Connecting an AI\u{2026}"
 
-    static let footer = "Notes, files and apps count as stored, encrypted. Recently Deleted and earlier versions count until they\u{2019}re deleted for good, after 30 days. Files can be up to 100 MB each."
+    static func questions() { NSWorkspace.shared.open(HelpCopy.supportPage) }
+    static func reportIssue() { NSWorkspace.shared.open(ShareAsk.newIssue) }
+    static func github() { NSWorkspace.shared.open(ShareAsk.repository) }
 
-    var body: some View {
-        SettingsStack {
-            SettingsSummary { summary }
-                .accessibilityIdentifier("settings.storage")
-            if let u = store.usage {
-                SettingsGroup(header: "What takes the space", footer: Self.footer) {
-                    ForEach(u.parts.sorted { $0.bytes > $1.bytes }, id: \.name) { part in
-                        SettingsLine(title: part.name, detail: Self.detail(part.name)) {
-                            Text(StorageUsage.size(part.bytes)).font(.system(size: 13)).monospacedDigit().foregroundStyle(SettingsInk.muted)
-                        }
-                    }
-                }
-            }
-        }
-        .task { if let client { await store.refresh(client, force: false) } }
+    /// A message to us in the mail app. With no mail app the address is copied, and an alert says so.
+    static func sendFeedback(open: (URL) -> Bool = { NSWorkspace.shared.open($0) }, copy: (String) -> Void = { HelpPage.toClipboard($0) },
+                             tell: (String) -> Void = { tellNoMail($0) }) {
+        let mailed = open(HelpCopy.mail(version: AboutSection.version, system: HelpCopy.system))
+        if HelpPage.mailed(accepted: mailed, copy: copy) { tell(HelpCopy.noMailApp) }
     }
 
-    /// What each kind is, where it isn't plain from its name.
-    static func detail(_ part: String) -> String? {
-        switch part {
-        case "Recently Deleted": "Deleted notes and files, kept for 30 days."
-        case "Earlier versions": "Older versions of your notes, kept for 30 days."
-        case "Files": "Pictures, PDFs and other files in your notes."
-        case "Apps": "The apps in your notes."
-        default: nil
-        }
+    private static func tellNoMail(_ line: String) {
+        let alert = NSAlert()
+        alert.messageText = "No mail app opened"
+        alert.informativeText = line
+        alert.runModal()
     }
 
-    @ViewBuilder private var summary: some View {
-        if let u = store.usage {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(u.summary).font(.system(size: 17, weight: .semibold)).monospacedDigit().foregroundStyle(SettingsInk.text)
-                    Spacer()
-                    if u.level != .fine {
-                        Text(u.level == .full ? "Full" : "Almost full")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(u.level == .full ? Color.red : Color.orange)
-                    }
-                }
-                // A bar of its own: the Mac's progress bar doesn't take a tint.
-                Capsule().fill(SettingsInk.selection)
-                    .frame(height: 8)
-                    .overlay(alignment: .leading) {
-                        GeometryReader { g in
-                            Capsule().fill(u.level == .full ? Color.red : u.level == .nearlyFull ? Color.orange : SettingsInk.text)
-                                .frame(width: max(8, g.size.width * u.fraction))
-                        }
-                    }
-                    .accessibilityElement()
-                    .accessibilityLabel("Storage used")
-                    .accessibilityValue(u.summary)
-                Text(u.warning?.detail ?? "Every account has \(StorageUsage.size(u.limit)) for its notes, files and apps.")
-                    .font(.system(size: 12)).foregroundStyle(SettingsInk.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        } else if reach != .online {
-            Text("Counted when you\u{2019}re online.").font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
-                .accessibilityIdentifier("settings.storageOffline")
-        } else {
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Counting\u{2026}").font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
-            }
-        }
+    /// Connect an AI's "Having trouble?": Settings at Connect an AI, with the help sheet over it.
+    static func helpConnecting(route: SettingsRoute = .shared, asks: ConnectHelpAsk = .shared) {
+        asks.pending = true
+        route.open(.ai)
     }
 }
 
-// MARK: Help and feedback
-
-/// Help and feedback: the setup guide, answers and a way to write to us, diagnostics, the project
-/// on GitHub, then what's new, the version and the terms.
-struct HelpSettingsPage: View {
-    var signedIn: Bool
-    var close: () -> Void = {}
-    var copy: @MainActor (String) -> Void = { HelpPage.toClipboard($0) }
-    @Environment(\.openURL) private var openURL
-    @AppStorage(Telemetry.consentKey) private var share = true
-    @State private var noMail = false
-
-    var body: some View {
-        SettingsStack {
-            SettingsSummary {
-                HStack(spacing: 14) {
-                    AppMark(size: 40)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Pinto Notes").font(.system(size: 17, weight: .semibold)).foregroundStyle(SettingsInk.text)
-                        Text("Version \(AboutSection.version)").font(.system(size: 12)).foregroundStyle(SettingsInk.muted)
-                            .monospacedDigit().textSelection(.enabled)
-                            .accessibilityIdentifier("settings.version")
-                    }
-                    Spacer(minLength: 12)
-                    Link(destination: WhatsNew.changelogURL) { Text(WhatsNew.title) }
-                        .buttonStyle(.settings)
-                        .accessibilityIdentifier("settings.whatsNew")
-                }
-            }
-            SettingsGroup(header: "Get help", footer: HelpCopy.feedbackFooter) {
-                if HelpPage.offersSetupGuide(signedIn: signedIn) {
-                    SettingsLine(title: "Setup guide", detail: HelpCopy.setupGuideFooter) {
-                        Button("Show Setup Guide") { HelpPage.playSetupGuide(close: close) }
-                            .buttonStyle(.settings)
-                            .accessibilityIdentifier("settings.setupGuide")
-                    }
-                }
-                link(HelpCopy.questions, HelpCopy.supportPage, id: "settings.support")
-                Button { sendFeedback() } label: {
-                    SettingsLinkLine(title: HelpCopy.feedback, detail: noMail ? HelpCopy.noMailApp : nil, trailing: "envelope")
-                }
-                .buttonStyle(.plain)
-                .hoverRow(reach: Self.rowReach)
-                .accessibilityIdentifier("settings.feedback")
-            }
-            SettingsGroup(header: "Diagnostics", footer: DiagnosticsCopy.footer) {
-                SettingsLine(title: DiagnosticsCopy.title) {
-                    Toggle(DiagnosticsCopy.title, isOn: Binding(get: { share }, set: { share = $0; Telemetry.shared.consent = $0 }))
-                        .settingsSwitch()
-                        .accessibilityIdentifier("settings.diagnostics")
-                }
-            }
-            SettingsGroup(header: HelpCopy.openSource, footer: HelpCopy.openSourceFooter) {
-                ForEach(AboutSection.links, id: \.id) { l in link(l.title, l.url, id: l.id) }
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                LegalLinksRow()
-                Text(HelpCopy.trademarks)
-                    .font(.system(size: 11))
-                    .foregroundStyle(SettingsInk.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal, 4)
-        }
-    }
-
-    /// A row's hover reaches the box's edges: the row is inset 14 pt in it.
-    static let rowReach = EdgeInsets(top: 0, leading: 14, bottom: 0, trailing: 14)
-
-    private func link(_ title: String, _ url: URL, id: String) -> some View {
-        Link(destination: url) { SettingsLinkLine(title: title) }
-            .buttonStyle(.plain)
-            .hoverRow(reach: Self.rowReach)
-            .accessibilityIdentifier(id)
-    }
-
-    private func sendFeedback() {
-        noMail = false
-        openURL(HelpCopy.mail(version: AboutSection.version, system: HelpCopy.system)) { accepted in
-            noMail = HelpPage.mailed(accepted: accepted, copy: copy)
-        }
-    }
+/// The Help menu's Help Connecting an AI… asks Connect an AI to open its help when it shows.
+@MainActor @Observable
+final class ConnectHelpAsk {
+    static let shared = ConnectHelpAsk()
+    var pending = false
 }
 #endif
