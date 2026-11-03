@@ -228,6 +228,7 @@ struct RootView: View {
         // window) or the columns side by side. The columns themselves can't tell: inside the split
         // view each reports a compact width, even on a 13-inch iPad.
         .environment(\.stackedNotes, sizeClass == .compact)
+        .environment(\.columnLook, sizeClass == .compact ? .phone : ColumnLook.chosen)
         .modifier(NoteFirstStyle(on: noteFirst))
         .onGeometryChange(for: CGSize.self) { $0.size } action: { windowSize = $0 }
         // Columns too narrow to share (the Duo held upright, an iPad mini upright): the note takes
@@ -778,7 +779,36 @@ extension EnvironmentValues {
     /// iOS: the notes show one screen at a time (a stack), not as columns. Set by RootView from
     /// the window's width class; read this, not `horizontalSizeClass`, inside the columns.
     @Entry var stackedNotes = true
+    @Entry var columnLook = ColumnLook.phone
     @Entry var importActions: ImportActions? = nil
+}
+
+/// How the columns look on iPad and the iPhone Duo open; one screen at a time is always the
+/// iPhone's. Concepts under trial (Emil, 3 November 2026: the iPad looked like a different app
+/// from the iPhone), picked with `-columnLook A|B|C`; anything else is the Mac's plain look.
+struct ColumnLook: Equatable {
+    /// The folders on white cards over the warm grey, as on iPhone.
+    var folderCards: Bool
+    /// The notes on white cards over the warm grey, as on iPhone.
+    var listCards: Bool
+    /// Large bold section headings and the big Folders title.
+    var bigHeadings: Bool
+    /// Folder icons in the accent.
+    var warmIcons: Bool
+
+    static let phone = ColumnLook(folderCards: true, listCards: true, bigHeadings: true, warmIcons: true)
+    static let mac = ColumnLook(folderCards: false, listCards: false, bigHeadings: false, warmIcons: false)
+
+    static func concept(_ name: String?) -> ColumnLook {
+        switch name {
+        case "A": .phone
+        case "B": ColumnLook(folderCards: false, listCards: false, bigHeadings: true, warmIcons: true)
+        case "C": ColumnLook(folderCards: true, listCards: false, bigHeadings: true, warmIcons: true)
+        default: .mac
+        }
+    }
+
+    static var chosen: ColumnLook { concept(UserDefaults.standard.string(forKey: "columnLook")) }
 }
 
 // MARK: Focused actions for menus and shortcuts

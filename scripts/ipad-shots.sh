@@ -3,7 +3,7 @@
 #   scripts/ipad-shots.sh <out-dir> [device-name ...]
 # Needs a build-for-testing in build/dd (Debug-iphonesimulator). Portrait comes from launches;
 # landscape from PaneUITests/TabletShotsTests (simctl can't rotate), turned upright here.
-# Devices default to the three iPad sizes: 13-inch Pro, 11-inch Air, mini.
+# LOOK=A|B|C tries a column look (ColumnLook). Devices default to the three iPad sizes: 13-inch Pro, 11-inch Air, mini.
 set -euo pipefail
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 cd "$(dirname "$0")/.."
@@ -40,7 +40,7 @@ for name in $DEVICES; do
     local file=$1 look=$2; shift 2
     xcrun simctl ui $SIM appearance $look
     xcrun simctl terminate $SIM $APP 2>/dev/null || true
-    xcrun simctl launch $SIM $APP -uitest -demo "$@" >/dev/null
+    xcrun simctl launch $SIM $APP -uitest -demo ${=LOOK:+-columnLook $LOOK} "$@" >/dev/null
     sleep ${WAIT:-5}
     xcrun simctl io $SIM screenshot --type=png "$OUT/$name-$file.png" >/dev/null
     echo "$OUT/$name-$file.png"
@@ -51,7 +51,7 @@ for name in $DEVICES; do
   shoot 4-note-dark dark -open Lisbon
   xcrun simctl ui $SIM appearance light
   xcrun simctl terminate $SIM $APP 2>/dev/null || true
-  PANE_SHOTS=$OUT TEST_RUNNER_PANE_SHOTS=$OUT xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" \
+  PANE_SHOTS=$OUT TEST_RUNNER_PANE_SHOTS=$OUT TEST_RUNNER_PANE_COLUMN_LOOK=${LOOK:-} xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" \
     -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO test-without-building \
     -only-testing:PaneUITests/TabletShotsTests > "$OUT/$name-ui.log" 2>&1 || echo "$name: landscape test failed, see $OUT/$name-ui.log"
   # The test names files by the simulator's name; the screen buffer stays portrait.

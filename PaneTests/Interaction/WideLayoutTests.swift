@@ -23,6 +23,8 @@ import UIKit
     static func window(_ layout: Layout, notes: Int = 12) throws -> (UIWindow, UIHostingController<AnyView>, ModelContainer, [Note]) {
         UserDefaults.standard.removeObject(forKey: "lastScope")
         UserDefaults.standard.removeObject(forKey: "lastNote")
+        // Trying the column looks (ColumnLook): TEST_RUNNER_PANE_COLUMN_LOOK=A|B|C.
+        UserDefaults.standard.set(ProcessInfo.processInfo.environment["PANE_COLUMN_LOOK"], forKey: "columnLook")
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let (c, list) = try PhoneRenderTests.library(notes: notes)
         let window = UIWindow(windowScene: scene)

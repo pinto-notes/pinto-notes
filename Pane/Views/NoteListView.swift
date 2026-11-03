@@ -59,9 +59,11 @@ struct NoteListView: View {
     #if os(iOS)
     /// One screen at a time (iPhone) or a column beside the note (iPad, iPhone Duo open).
     @Environment(\.stackedNotes) private var stacked
+    @Environment(\.columnLook) private var look
     #else
     /// The Mac keeps its own list grounds (Palette's macOS `listGround`).
     private let stacked = true
+    private let look = ColumnLook.phone
     #endif
     @Environment(\.behindSetupCard) private var behindSetupCard
     @Environment(SetupStore.self) private var setup: SetupStore?
@@ -295,7 +297,7 @@ struct NoteListView: View {
         #if os(iOS)
         // iPhone: grouped cards on a grey ground. As columns: the Mac's list, rows on white with a
         // grey pill for the selected note (Emil, 3 November 2026: the iPad "feels like a different app").
-        .modifier(ColumnListStyle(stacked: stacked))
+        .modifier(ColumnListStyle(cards: look.listCards))
         .tint(stacked ? nil : Color(Palette.columnSelection))
         .environment(\.editMode, $editMode)
         .sheet(isPresented: Binding(get: { moving != nil }, set: { if !$0 { moving = nil } })) {
@@ -310,7 +312,7 @@ struct NoteListView: View {
         #endif
         // Less warmth than the sidebar, more than the note.
         .scrollContentBackground(.hidden)
-        .background(Color(stacked ? Palette.listGround : Palette.page).ignoresSafeArea())
+        .background(Color(look.listCards ? Palette.listGround : Palette.page).ignoresSafeArea())
         #if os(macOS)
         // Soft under the toolbar, as the sidebar and Notes: a list's own edge is hard, the window's
         // grey title bar with a line under it (Emil, 10-30, in Recently Deleted).
@@ -593,7 +595,7 @@ struct NoteListView: View {
                 #if os(iOS)
                 // The system's prominent header: large and bold, as in Notes. No indent of its own:
                 // it lines up with the large title, not with the rows' text (28 October 2026).
-                if stacked {
+                if look.bigHeadings {
                     Text(section.0)
                         .foregroundStyle(Color.ink)
                         .listRowInsets(.leading, 0)
@@ -617,7 +619,7 @@ struct NoteListView: View {
             }
         }
         #if os(iOS)
-        .headerProminence(stacked ? .increased : .standard)
+        .headerProminence(look.bigHeadings ? .increased : .standard)
         #else
         // C and D: no rule under a heading; spacing does the work.
         .listSectionSeparator(DesignLook.calmList ? .hidden : .automatic)
@@ -670,7 +672,7 @@ struct NoteListView: View {
     private func noteRow(_ entry: NoteEntry) -> some View {
         let id = entry.id
         return NoteListItem(entry: entry, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
-                            dragWith: dragOthers(for: id), selectedCount: selection.count, quiet: Self.quiet(selection, id),
+                            dragWith: dragOthers(for: id), selectedCount: selection.count, quiet: Self.quiet(selection, id), picked: selection.contains(id),
                             top: RowMetrics.top(folderLine: (scope == .all || !search.isEmpty) && entry.folderID != nil) + RowMetrics.calmAir,
                             togglePin: { note in withAnimation(.snappy) { context.togglePin(note) } },
                             remove: { note in remove(note) }) { note in
@@ -1724,6 +1726,8 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
     let selectedCount: Int
     /// Selected, drawn by the row (the Mac's quiet selection).
     let quiet: Bool
+    /// Selected, on iOS: the cards of the columns' look draw it (ColumnLook.listCards).
+    let picked: Bool
     /// The room above the title's line, where the ••• lines up.
     let top: CGFloat
     let togglePin: (Note) -> Void
@@ -1731,13 +1735,14 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
     @ViewBuilder let menu: (Note) -> Menu
     #if os(iOS)
     @Environment(\.stackedNotes) private var stacked
+    @Environment(\.columnLook) private var look
     #endif
     @Environment(\.modelContext) private var context
 
     static func == (a: NoteListItem, b: NoteListItem) -> Bool {
         a.entry.pid == b.entry.pid && a.entry.same(as: b.entry) && a.query == b.query && a.showFolder == b.showFolder
             && a.datedByCreation == b.datedByCreation && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount)
-            && a.quiet == b.quiet && a.top == b.top
+            && a.quiet == b.quiet && a.picked == b.picked && a.top == b.top
     }
 
     var body: some View {
@@ -1762,7 +1767,9 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
                 // Long-press: the note itself as a tall card, its menu under it (Apple Notes).
                 // Its icons in the label colour, Delete in red, as in Notes (not the app's amber).
                 .contextMenu { menu(note).tint(.primary) } preview: { NotePreviewCard(note: note) }
-                .listRowBackground(stacked ? Color(Palette.row) : nil)
+                // As columns on cards, a warm grey for the open note (the grouped list's own was a
+                // cold blue-grey, edge to edge).
+                .listRowBackground(stacked ? Color(Palette.row) : look.listCards ? Color(picked ? Palette.columnSelection : Palette.row) : nil)
                 #endif
         }
     }
@@ -2066,10 +2073,10 @@ struct ListSearchField: NSViewRepresentable {
 /// The notes list's style: grouped cards one screen at a time (iPhone), the Mac's plain list as a
 /// column beside the note (iPad, iPhone Duo open).
 private struct ColumnListStyle: ViewModifier {
-    let stacked: Bool
+    let cards: Bool
     func body(content: Content) -> some View {
         // The sidebar style for its rounded selection pill, the Mac's; no lines between rows.
-        if stacked { content.listStyle(.insetGrouped) } else { content.listStyle(.sidebar).listRowSeparator(.hidden) }
+        if cards { content.listStyle(.insetGrouped) } else { content.listStyle(.sidebar).listRowSeparator(.hidden) }
     }
 }
 #endif
