@@ -744,8 +744,8 @@ struct MultipleSelectionView: View {
 
 struct EmptyDetailView: View {
     var body: some View {
+        // Words only, like Notes (Emil, 11-03: no app icon on the empty states).
         VStack(spacing: 10) {
-            AppMark(size: 44)
             Text("No note selected")
                 .font(.callout)
                 .foregroundStyle(Color.muted)

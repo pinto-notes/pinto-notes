@@ -376,7 +376,7 @@ struct NoteListView: View {
                     .background(Color(Palette.listGround))
             }
         }
-        // "Search all notes for …" from Go to Note (⌘O) carries the text to search for.
+        // "Show all notes with …" from Go to Note (⌘O) carries the text to search for.
         .onReceive(NotificationCenter.default.publisher(for: .paneSearchNotes)) { n in
             if let text = n.object as? String { search = text }
             searching = true
@@ -826,8 +826,9 @@ struct NoteListView: View {
         } else if Self.offersWaysToStart(scope: scope) {
             // Nothing in the whole library (a new account, or one whose first run didn't come):
             // the two ways to start, in place (newcomer audit #19), New Note the one in the accent.
+            // Words only, like Notes (Emil, 11-03: no app icon on the empty states).
             ContentUnavailableView {
-                Label { Text("No Notes") } icon: { AppMark(size: 56) }
+                Text("No Notes")
             } description: {
                 Text(Self.emptyLine)
             } actions: {
@@ -836,9 +837,9 @@ struct NoteListView: View {
                 EmptyLibraryActions(onNewNote: onNewNote, imports: imports)
             }
         } else {
-            // The leaf and "No Notes", like Notes: the compose button is the one way to start a note.
+            // "No Notes", like Notes: the compose button is the one way to start a note.
             ContentUnavailableView {
-                Label { Text("No Notes") } icon: { AppMark(size: 56) }
+                Text("No Notes")
             }
         }
     }

@@ -73,6 +73,8 @@ enum QuickOpen {
     static let noteLimit = 8
     /// How many notes found by their text it lists at most.
     static let textLimit = 8
+    /// The last row: every note that holds the text, in the notes list.
+    static let listAllTitle = "Show all notes with "
     /// The shortest query that searches the notes' text: one letter is in every note.
     static let textMinLength = 2
     /// How long typing rests before the text is searched.
@@ -117,9 +119,11 @@ enum QuickOpen {
     }
 
     /// The commands that answer a query, best first: by their name, else by one of their words.
+    /// No query: every command, after the recent notes, so the panel suggests before you type
+    /// (Emil, 11-03).
     static func commands(_ all: [CommandItem], matching query: String) -> [CommandItem] {
         let q = query.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return [] }
+        guard !q.isEmpty else { return all }
         let scored: [(CommandItem, Int)] = all.enumerated().compactMap { i, c in
             let byTitle = score(c.title, q)
             let byWord = c.keywords.contains { $0.range(of: q, options: options.union(.anchored)) != nil } ? 2 : nil
@@ -291,6 +295,7 @@ struct QuickOpenPanel: View {
     @State private var highlighted = 0
     @State private var textHits: [QuickOpen.TextHit]
     @FocusState private var focused: Bool
+    @State private var window = WeakWindow()
 
     /// `initialQuery`, `initialTextHits`: snapshots start with text typed and found.
     init(notes: [QuickOpen.NoteItem], commands: [QuickOpen.CommandItem], choose: @escaping (QuickOpen.Row) -> Void, close: @escaping () -> Void,
@@ -304,6 +309,9 @@ struct QuickOpenPanel: View {
         _query = State(initialValue: initialQuery)
         _textHits = State(initialValue: initialTextHits)
     }
+
+    /// File › Go to Note…'s shortcut, shown in the field.
+    static let shortcut = "⌘O"
 
     enum Metrics {
         static let width: CGFloat = 600
@@ -337,8 +345,17 @@ struct QuickOpenPanel: View {
                     .onSubmit { if rows.indices.contains(index) { choose(rows[index]) } }
                     .onKeyPress(.downArrow) { highlighted = QuickOpen.step(1, from: index, count: rows.count); return .handled }
                     .onKeyPress(.upArrow) { highlighted = QuickOpen.step(-1, from: index, count: rows.count); return .handled }
+                    .onKeyPress(.escape) { close(); return .handled }
                     .accessibilityIdentifier("quickOpen.field")
-                AppMark(size: 22)
+                // Its own shortcut at the far end, as Spotlight's field is (Emil, 11-03).
+                Text(Self.shortcut)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.muted)
+                    .padding(.horizontal, 7)
+                    .frame(minHeight: 22)
+                    .background(Color.soft, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .accessibilityLabel("Command O")
+                    .accessibilityIdentifier("quickOpen.shortcut")
             }
             .padding(.horizontal, 18)
             .frame(height: Metrics.field)
@@ -353,7 +370,14 @@ struct QuickOpenPanel: View {
         .background(Color.card, in: shape)
         .clipShape(shape)
         .raised(in: shape)
-        .onAppear { focused = true }
+        // The cursor in the field from the moment it shows (a field asked for focus in the update
+        // it appears in doesn't take it), and there's never a panel you aren't typing in: when
+        // anything else takes the cursor, a click outside included, it closes (Emil, 11-03).
+        .onAppear { focused = true; Task { @MainActor in focused = true } }
+        // Only a key window's cursor moving counts: a window that can't take the cursor at all
+        // (never shown, or offscreen) doesn't close the panel it never let you type in.
+        .onChange(of: focused) { was, now in if was && !now && window.value?.isKeyWindow == true { close() } }
+        .background(WindowFinder(found: window))
         .onChange(of: query) { _, q in
             highlighted = 0
             // While the store is read, the lines found so far that still hold the text stay.
@@ -448,8 +472,11 @@ struct QuickOpenPanel: View {
                 Spacer(minLength: 8)
                 if let s = c.shortcut { Text(s).foregroundStyle(Color.muted).monospacedDigit() }
             case .search(let q):
-                icon("magnifyingglass", on: on)
-                (Text("Search all notes for ") + Text("“\(q)”").foregroundStyle(Color.ink).fontWeight(.semibold))
+                // What it does: the list, filtered to every note that holds the text. The panel
+                // shows only the first few (Emil, 11-03: "what is even Search all notes, aren't we
+                // doing that").
+                icon("list.bullet", on: on)
+                (Text(QuickOpen.listAllTitle) + Text("“\(q)”").foregroundStyle(Color.ink).fontWeight(.semibold))
                     .foregroundStyle(Color.ink)
                     .lineLimit(1)
                 Spacer(minLength: 8)
@@ -519,4 +546,17 @@ struct QuickOpenPanel: View {
         }
     }
 }
+/// The panel's window, read once it's in one, so losing the cursor can ask whether it was key.
+@MainActor final class WeakWindow { weak var value: NSWindow? }
+
+private struct WindowFinder: NSViewRepresentable {
+    let found: WeakWindow
+    final class Probe: NSView {
+        var found: WeakWindow?
+        override func viewDidMoveToWindow() { found?.value = window }
+    }
+    func makeNSView(context: Context) -> Probe { let v = Probe(); v.found = found; return v }
+    func updateNSView(_ v: Probe, context: Context) { v.found = found; found.value = v.window }
+}
+
 #endif
