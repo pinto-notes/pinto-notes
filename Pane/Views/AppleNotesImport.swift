@@ -157,6 +157,12 @@ enum AppleNotesBridge {
         let escaped = id.replacingOccurrences(of: "\"", with: "\\\"")
         return try run("tell application \"Notes\" to get body of note id \"\(escaped)\"").stringValue ?? ""
     }
+
+    /// The note's text as Notes shows it, with every line break its HTML may leave out.
+    static func plainText(of id: String) throws -> String {
+        let escaped = id.replacingOccurrences(of: "\"", with: "\\\"")
+        return try run("tell application \"Notes\" to get plaintext of note id \"\(escaped)\"").stringValue ?? ""
+    }
 }
 
 /// Pick Apple Notes to copy in. Nothing in Apple Notes is changed.

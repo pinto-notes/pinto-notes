@@ -147,6 +147,49 @@ import Testing
         #expect(md.hasSuffix("The end."))
     }
 
+    // MARK: Real notes (Emil's library, 3 November 2026)
+
+    /// A title set partly in bold is two heading tags in one line: it stays one heading.
+    @Test func aHeadingInTwoStylesIsOneHeading() {
+        let md = RichTextToMarkdown.markdown(fromHTML: """
+        <div><b><h1>TO</h1></b><h1>DO</h1></div>
+        <div><br></div>
+        <div><b><h3>2: </h3></b><h3>Social media</h3></div>
+        <div>Daily posts.</div>
+        """, keepBlankLines: true)
+        #expect(md.hasPrefix("# TODO\n\n### 2: Social media\nDaily posts."), "\(md)")
+    }
+
+    /// A note that is mostly its title keeps the title a heading (it came in bold: the title set
+    /// the size taken for body text).
+    @Test func aShortNotesTitleStaysAHeading() {
+        #expect(RichTextToMarkdown.markdown(fromHTML: "<div><h1>Credit card</h1></div>\n<div>7852 </div>\n", keepBlankLines: true) == "# Credit card\n7852")
+        #expect(RichTextToMarkdown.markdown(fromHTML: "<div><h1>Last time I cried -&gt Sat jan 31</h1></div>\n", keepBlankLines: true) == "# Last time I cried -> Sat jan 31")
+    }
+
+    /// Notes leaves a line break out of its HTML where it ends a bold run ("Current training:"
+    /// on one line, "Play online chess." on the next, came in as "Current training:Play"). Its
+    /// plain text keeps the break, and the import puts it back from there.
+    @Test func aLineBreakAfterABoldLabelComesBackFromThePlainText() async throws {
+        let html = "<div><b>Current training:</b>Play online chess.</div>\n<div><b>Post quality checklist</b>Run every post through these.</div>\n<div><b>Hello</b>World</div>\n"
+        let plain = "Current training:\u{2028}Play online chess.\nPost quality checklist\u{2028}Run every post through these.\nHelloWorld"
+        #expect(AppleNotesImporter.restoreLineBreaks(in: html, plainText: plain)
+            == "<div><b>Current training:</b>\u{2028}Play online chess.</div>\n<div><b>Post quality checklist</b>\u{2028}Run every post through these.</div>\n<div><b>Hello</b>World</div>\n")
+        #expect(AppleNotesImporter.needsPlainText(html))
+        #expect(!AppleNotesImporter.needsPlainText("<div><b>Bold</b> then text.</div>"), "a space after the bold: nothing can be missing there")
+
+        let container = try Self.container()
+        var importer = AppleNotesImporter(context: container.mainContext)
+        importer.body = { _ in html }
+        importer.plainText = { _ in plain }
+        importer.openStore = { nil }
+        let note = AppleNote(id: "x-coredata://3060958B/ICNote/p77", name: "Self-Improvement", folder: "Notes", modified: Self.day)
+        let summary = await importer.run([note], keepFolders: true) { _, _ in }
+        let made = try #require(try container.mainContext.fetch(FetchDescriptor<Note>()).first { summary.noteIDs.contains($0.id) })
+        #expect(made.body.contains("**Current training:**\nPlay online chess."), "\(made.body)")
+        #expect(made.body.contains("**Post quality checklist**\nRun every post"))
+    }
+
     // MARK: What Notes' database adds
 
     @Test func readsListItemsFromTheStoredNote() {

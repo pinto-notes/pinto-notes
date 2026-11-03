@@ -23,13 +23,53 @@ enum RichTextToMarkdown {
     /// a source that knows their kind; an item is used only where its text matches the HTML's.
     @MainActor
     static func markdown(fromHTML html: String, keepBlankLines: Bool = false, listItems: [ListItem] = []) -> String {
-        guard let data = OfflineHTML.strip(markDashLists(html)).data(using: .utf8),
-              let attributed = try? NSAttributedString(
-                data: data,
-                options: [.documentType: NSAttributedString.DocumentType.html, .characterEncoding: String.Encoding.utf8.rawValue],
-                documentAttributes: nil)
-        else { return html }
-        return markdown(from: attributed, keepBlankLines: keepBlankLines, listItems: listItems)
+        guard let attributed = attributed(fromHTML: markDashLists(joinSplitHeadings(html))) else { return html }
+        // HTML that sets no sizes (Apple Notes') has its body text at the size of plain text. A
+        // note that is mostly its title would otherwise take the title's size for body text, and
+        // the title would come in bold instead of as a heading.
+        let body = html.range(of: "font-size", options: .caseInsensitive) == nil ? plainTextSize : nil
+        return markdown(from: attributed, keepBlankLines: keepBlankLines, listItems: listItems, bodySize: body)
+    }
+
+    @MainActor
+    private static func attributed(fromHTML html: String) -> NSAttributedString? {
+        guard let data = OfflineHTML.strip(html).data(using: .utf8) else { return nil }
+        return try? NSAttributedString(
+            data: data,
+            options: [.documentType: NSAttributedString.DocumentType.html, .characterEncoding: String.Encoding.utf8.rawValue],
+            documentAttributes: nil)
+    }
+
+    /// The size HTML gives text with no style of its own.
+    @MainActor
+    private static let plainTextSize: CGFloat? = {
+        guard let a = attributed(fromHTML: "<div>x</div>"), a.length > 0 else { return nil }
+        return (a.attribute(.font, at: 0, effectiveRange: nil) as? PFont)?.pointSize
+    }()
+
+    /// One line of Apple Notes set partly in bold (or another style) is two heading tags in one
+    /// `<div>`: `<div><b><h1>TO</h1></b><h1>DO</h1></div>`. Each tag is a block of its own in
+    /// HTML, so it read as two headings, "TO" and "DO". A line whose headings are all one level
+    /// is one heading with its styles inside; its `<br>`s only hold the line open.
+    static func joinSplitHeadings(_ html: String) -> String {
+        guard let divs = try? NSRegularExpression(pattern: #"<div>((?:(?!</?div)[\s\S])*?)</div>"#, options: [.caseInsensitive]),
+              let tags = try? NSRegularExpression(pattern: #"</?h([1-6])[^>]*>"#, options: [.caseInsensitive]) else { return html }
+        let ns = html as NSString
+        var out = "", last = 0
+        for m in divs.matches(in: html, range: NSRange(location: 0, length: ns.length)) {
+            let inner = ns.substring(with: m.range(at: 1))
+            let found = tags.matches(in: inner, range: NSRange(location: 0, length: (inner as NSString).length))
+            let levels = Set(found.map { (inner as NSString).substring(with: $0.range(at: 1)) })
+            let opens = found.filter { !(inner as NSString).substring(with: $0.range).hasPrefix("</") }.count
+            guard opens >= 2, levels.count == 1, let level = levels.first else { continue }
+            var joined = tags.stringByReplacingMatches(in: inner, range: NSRange(location: 0, length: (inner as NSString).length), withTemplate: "")
+            joined = joined.replacingOccurrences(of: #"<br\s*/?>"#, with: "", options: [.regularExpression, .caseInsensitive])
+            // A line of empty headings (blank lines in a heading style) stays as it was.
+            guard !joined.replacingOccurrences(of: #"<[^>]*>|&nbsp;?|\s"#, with: "", options: .regularExpression).isEmpty else { continue }
+            out += ns.substring(with: NSRange(location: last, length: m.range.location - last)) + "<div><h\(level)>\(joined)</h\(level)></div>"
+            last = NSMaxRange(m.range)
+        }
+        return out + ns.substring(from: last)
     }
 
     /// What two sources agree on about an item's text: everything but its spaces and line breaks.
@@ -50,7 +90,7 @@ enum RichTextToMarkdown {
                                       with: #"<ul$1 style="list-style-type: square">"#, options: [.regularExpression, .caseInsensitive])
     }
 
-    static func markdown(from text: NSAttributedString, keepBlankLines: Bool = false, listItems: [ListItem] = []) -> String {
+    static func markdown(from text: NSAttributedString, keepBlankLines: Bool = false, listItems: [ListItem] = [], bodySize: CGFloat? = nil) -> String {
         let ns = text.string as NSString
         // Markdown typed into Apple Notes' Monospaced style is already the source.
         if monospacedShare(text) >= 0.8 {
@@ -64,7 +104,7 @@ enum RichTextToMarkdown {
             while out.last?.isEmpty == true { out.removeLast() }
             return out.joined(separator: "\n")
         }
-        let bodySize = dominantFontSize(text)
+        let bodySize = bodySize ?? dominantFontSize(text)
         var code: [String] = []
         func flushCode(into lines: inout [String]) {
             guard !code.isEmpty else { return }

@@ -161,6 +161,9 @@ struct AppleNotesImporter {
     let context: ModelContext
     /// The HTML of the note with this AppleScript id.
     var body: @Sendable (String) throws -> String = { try AppleNotesBridge.body(of: $0) }
+    /// The plain text of the note with this AppleScript id, asked for only when its HTML may have
+    /// left a line break out (`needsPlainText`).
+    var plainText: @Sendable (String) throws -> String = { try AppleNotesBridge.plainText(of: $0) }
     var openStore: @Sendable () -> AppleNoteStore? = { ApplePins.isAvailable ? try? AppleNoteStore.open().get() : nil }
 
     /// `listing` says where each note's folder goes (accounts, nesting); without one, a note goes
@@ -194,7 +197,7 @@ struct AppleNotesImporter {
             if writer.alreadyImported(titleLine: titleLine, created: n.created ?? n.modified)
                 || (n.created != nil && writer.alreadyImported(titleLine: titleLine, created: n.modified)) { continue }
             let id = n.id
-            let html: String
+            var html: String
             do {
                 html = try await Task.detached(operation: { try body(id) }).value
             } catch {
@@ -202,6 +205,12 @@ struct AppleNotesImporter {
                 let said = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
                 summary.notImported.append(.init(name: n.name, why: said.isEmpty ? AppleNotesImportSummary.unreadableWhy : "\(AppleNotesImportSummary.unreadableWhy): \(said)"))
                 continue
+            }
+            if Self.needsPlainText(html) {
+                let plainText = plainText
+                if let plain = try? await Task.detached(operation: { try plainText(id) }).value {
+                    html = Self.restoreLineBreaks(in: html, plainText: plain)
+                }
             }
             let key = ApplePins.primaryKey(fromNoteID: n.id)
             let (marked, pictures) = Self.takePictures(from: html)
@@ -231,6 +240,70 @@ struct AppleNotesImporter {
         summary.noteIDs = written.noteIDs
         summary.alreadyImported = written.alreadyImported
         return summary
+    }
+
+    // MARK: Line breaks
+
+    /// Whether a style ends right against the next word (`<b>Rule:</b>Play`): where Notes leaves
+    /// a line break out of its HTML. A space there means nothing is missing.
+    nonisolated static func needsPlainText(_ html: String) -> Bool {
+        html.range(of: #"</(b|i|u|strike|s|em|strong|tt|span|font)>[^\s<]"#, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    /// Puts back the line breaks inside a line (⇧↩, U+2028) that Notes left out of its HTML at the
+    /// end of a bold run (2026-11-03, Emil's notes: "Current training:Play online chess."). Each
+    /// break in the plain text is looked for in the HTML's text by the words on both sides of it;
+    /// where they stand together with nothing between, the break goes in front of the second
+    /// word, after the styles that end there. In order, so the same words twice are each placed.
+    nonisolated static func restoreLineBreaks(in html: String, plainText: String) -> String {
+        let soft: Character = "\u{2028}"
+        guard plainText.contains(soft) else { return html }
+        // The HTML's text, each character with where it starts in the HTML.
+        let h = Array(html)
+        var text: [Character] = [], at: [Int] = []
+        var i = 0
+        let entities: [String: Character] = ["amp": "&", "lt": "<", "gt": ">", "quot": "\"", "apos": "'", "#39": "'", "nbsp": " "]
+        while i < h.count {
+            if h[i] == "<", let close = h[i...].firstIndex(of: ">") {
+                if String(h[i...close]).lowercased().hasPrefix("<br") { text.append("\n"); at.append(i) }
+                i = close + 1
+                continue
+            }
+            if h[i] == "&" {
+                var j = i + 1
+                while j < h.count, j - i <= 6, h[j].isLetter || h[j].isNumber || h[j] == "#" { j += 1 }
+                if let c = entities[String(h[(i + 1)..<j])] {
+                    text.append(c); at.append(i)
+                    i = j < h.count && h[j] == ";" ? j + 1 : j
+                    continue
+                }
+            }
+            text.append(h[i] == "\u{00A0}" ? " " : h[i]); at.append(i)
+            i += 1
+        }
+        let plain = Array(plainText.replacingOccurrences(of: "\u{00A0}", with: " "))
+        var inserts: [Int] = []
+        var from = 0
+        for (k, c) in plain.enumerated() where c == soft {
+            // Up to 16 characters on each side, within the line.
+            var a = k
+            while a > 0, k - a < 16, !plain[a - 1].isNewline, plain[a - 1] != soft { a -= 1 }
+            var b = k + 1
+            while b < plain.count, b - k - 1 < 16, !plain[b].isNewline, plain[b] != soft { b += 1 }
+            let before = plain[a..<k], after = plain[(k + 1)..<b]
+            guard !before.isEmpty, !after.isEmpty else { continue }
+            let joined = Array(before) + Array(after)
+            guard joined.count <= text.count, from <= text.count - joined.count else { continue }
+            var hit: Int?
+            for s in from...(text.count - joined.count) where text[s] == joined[0] && Array(text[s..<(s + joined.count)]) == joined { hit = s; break }
+            guard let s = hit else { continue }
+            inserts.append(at[s + before.count])
+            from = s + joined.count
+        }
+        guard !inserts.isEmpty else { return html }
+        var out = html
+        for p in inserts.sorted(by: >) { out.insert(soft, at: out.index(out.startIndex, offsetBy: p)) }
+        return out
     }
 
     // MARK: Links
