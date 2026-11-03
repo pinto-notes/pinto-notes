@@ -420,4 +420,23 @@ import Testing
         #expect(resumed.isEmpty && !phone.pending)
         phone.crypto.signedOut()
     }
+
+    /// The Mac's sign-out: one question, one sentence, Sign Out and Cancel, and removing the notes
+    /// as a box to tick, never a second red button (Emil, 3 November 2026: "a total mess").
+    @Test func theMacAsksPlainly() {
+        let offered = SignOutCopy.macAlert(.offered(keyStays: false), kind: "Mac")
+        #expect(offered.title == "Sign out?")
+        #expect(offered.message == "Your notes stay in your account and come back when you sign in again.")
+        #expect(offered.removeBox == "Also remove my notes and key from this Mac")
+        #expect(offered.recoveryButton == nil)
+        #expect(SignOutCopy.macAlert(.offered(keyStays: true), kind: "Mac").removeBox == "Also remove my notes from this Mac", "an iCloud Keychain key stays where it is")
+        let needs = SignOutCopy.macAlert(.needsRecoveryKey, kind: "Mac")
+        #expect(needs.removeBox == nil && needs.recoveryButton == SignOutCopy.saveRecoveryKey, "nothing to tick until a recovery key is saved")
+        #expect(SignOutCopy.macAlert(.unavailable, kind: "Mac").removeBox == nil)
+        for offer in [SignOutRemoval.Offer.offered(keyStays: true), .offered(keyStays: false), .needsRecoveryKey, .unavailable] {
+            let a = SignOutCopy.macAlert(offer, kind: "Mac")
+            #expect(a.message.split(separator: ".").count <= 2, "at most two short sentences: \(a.message)")
+            #expect(!a.message.contains("\u{2014}"))
+        }
+    }
 }

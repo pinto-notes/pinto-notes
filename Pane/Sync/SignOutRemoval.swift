@@ -220,6 +220,32 @@ enum SignOutCopy {
 
     static let needsRecoveryKey = "Save your recovery key first, or your notes could not be opened again."
 
+    /// The Mac's alert (Emil, 3 November 2026: three wide buttons, two red, and four sentences were
+    /// "a total mess"): one question, one sentence, Sign Out and Cancel, and removing the notes as
+    /// a box to tick, as macOS asks when you sign out of an account.
+    struct MacAlert: Equatable {
+        let title: String
+        let message: String
+        /// The box under the message; nil when the notes can't be removed here.
+        let removeBox: String?
+        /// A button to save a recovery key first (the notes can't be removed until there is one).
+        let recoveryButton: String?
+    }
+
+    static func macAlert(_ offer: SignOutRemoval.Offer, kind: String = InstallID.kind) -> MacAlert {
+        let back = "Your notes stay in your account and come back when you sign in again."
+        switch offer {
+        case .offered(keyStays: true):
+            return MacAlert(title: "Sign out?", message: back, removeBox: "Also remove my notes from this \(kind)", recoveryButton: nil)
+        case .offered(keyStays: false):
+            return MacAlert(title: "Sign out?", message: back, removeBox: "Also remove my notes and key from this \(kind)", recoveryButton: nil)
+        case .needsRecoveryKey:
+            return MacAlert(title: "Sign out?", message: back + " To remove them from this \(kind) too, save a recovery key first.", removeBox: nil, recoveryButton: saveRecoveryKey)
+        case .unavailable:
+            return MacAlert(title: "Sign out?", message: back, removeBox: nil, recoveryButton: nil)
+        }
+    }
+
     static func refusal(_ refusal: SignOutRemoval.Refusal, kind: String = InstallID.kind) -> String {
         switch refusal {
         case .unsynced: "Some changes haven\u{2019}t synced yet. Connect to the internet and try again."
