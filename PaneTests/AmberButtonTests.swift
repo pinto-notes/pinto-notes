@@ -224,6 +224,7 @@ import Testing
         "Views/ShareNotePopover.swift ShareNotePopover.row": "the label is rowLabel, which has .hoverHighlight",
         "Views/SidebarCards.swift SidebarCardShell.body": "the label it wraps has .hoverOverlay, set a few lines up",
         "Views/ConnectChoices.swift Accessory.pressable": "ConnectChoices' pressable: both callers' labels have .choiceCard",
+        "Views/SidebarView.swift AccountButton.body": "its label has .sidebarFootPill, a .hoverRow with a folder row's reach",
         // Leave the close × alone (lead, 2 November 2026): one shared solid close style replaces them all.
         "Views/SidebarCards.swift MacCard.body": "iPhone only: the card the Mac no longer shows",
     ]
