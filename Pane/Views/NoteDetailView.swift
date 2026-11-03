@@ -1778,6 +1778,7 @@ struct TrashBanner: View {
     }
 
     static let text = "This note is in Recently Deleted."
+}
 
 /// Where the open note is, right of back and forward (Mac) or the list button (iPad, the Duo
 /// open): its folders, outermost first, each opening in the list; on the Mac its title too once
