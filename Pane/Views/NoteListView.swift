@@ -56,6 +56,15 @@ struct NoteListView: View {
     /// Notes waiting for "Delete Forever" to be confirmed.
     @State private var pendingForever: Set<UUID>?
     @Environment(\.importActions) private var imports
+    #if os(iOS)
+    /// One screen at a time (iPhone) or a column beside the note (iPad, iPhone Duo open).
+    @Environment(\.stackedNotes) private var stacked
+    @Environment(\.besideNote) private var besideNote
+    @Environment(OpenNotes.self) private var openNotes: OpenNotes?
+    #else
+    /// The Mac keeps its own list grounds (Palette's macOS `listGround`).
+    private let stacked = true
+    #endif
     @Environment(\.behindSetupCard) private var behindSetupCard
     @Environment(SetupStore.self) private var setup: SetupStore?
     @Environment(Backend.self) private var backend: Backend?
@@ -210,7 +219,13 @@ struct NoteListView: View {
             RowClickLog.listSet(selection, new); selection = new
         })
         #else
-        let listSelection = $selection
+        // Beside the note (iPad, iPhone Duo open) the list is told nothing is selected, so it draws
+        // no highlight of its own (a cold grey, or dark ink on the accent); the rows draw the open
+        // note in a warm grey (Palette.openNoteRow). Picking a row still opens it; selecting
+        // several while editing keeps the list's own.
+        let listSelection = besideNote && editMode != .active
+            ? Binding(get: { Set<UUID>() }, set: { selection = $0 })
+            : $selection
         #endif
         return List(selection: listSelection) {
             // An ask to connect an AI whose sheet was closed without an answer: always a way back.
@@ -219,7 +234,7 @@ struct NoteListView: View {
                 Section {
                     ConnectWaitingRow(ask: ask).selectionDisabled()
                 }
-                .listRowBackground(Color(Palette.row))
+                .listRowBackground(stacked ? Color(Palette.row) : nil)
                 #else
                 ConnectWaitingRow(ask: ask)
                     .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 10, trailing: 10))
@@ -230,7 +245,7 @@ struct NoteListView: View {
             if scope != .trash, search.isEmpty, let usage = storage.usage, usage.level != .fine {
                 #if os(iOS)
                 Section { StorageWarningRow(usage: usage, open: openStorage).selectionDisabled() }
-                    .listRowBackground(Color(Palette.row))
+                    .listRowBackground(stacked ? Color(Palette.row) : nil)
                 #else
                 StorageWarningRow(usage: usage, open: openStorage)
                     .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 10, trailing: 10))
@@ -262,7 +277,7 @@ struct NoteListView: View {
                                 .quietSelection()
                                 #if os(iOS)
                                 .contextMenu { menu(for: file, folders: foldersByName) }
-                                .listRowBackground(Color(Palette.row))
+                                .listRowBackground(stacked ? Color(besideNote && openNotes?.ids.contains(file.id) == true ? Palette.openNoteRow : Palette.row) : nil)
                                 #else
                                 .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
                                 #endif
@@ -298,7 +313,10 @@ struct NoteListView: View {
         .id(ListIdentity(scope: scope, library: library.wholesale))
         #endif
         #if os(iOS)
-        .listStyle(.insetGrouped)
+        // iPhone: grouped cards on a grey ground. As columns: the Mac's list, rows on white with a
+        // grey pill for the selected note (Emil, 3 November 2026: the iPad "feels like a different app").
+        .modifier(ColumnListStyle(cards: stacked))
+        .tint(stacked ? nil : Color(Palette.columnSelection))
         .environment(\.editMode, $editMode)
         .sheet(isPresented: Binding(get: { moving != nil }, set: { if !$0 { moving = nil } })) {
             MoveNotesSheet(current: movingFrom) { f in
@@ -312,7 +330,7 @@ struct NoteListView: View {
         #endif
         // Less warmth than the sidebar, more than the note.
         .scrollContentBackground(.hidden)
-        .background(Color(Palette.listGround).ignoresSafeArea())
+        .background(Color(stacked ? Palette.listGround : Palette.page).ignoresSafeArea())
         #if os(macOS)
         // Soft under the toolbar, as the sidebar and Notes: a list's own edge is hard, the window's
         // grey title bar with a line under it (Emil, 10-30, in Recently Deleted).
@@ -362,8 +380,10 @@ struct NoteListView: View {
             withAnimation(.easeOut(duration: 0.15)) { fileDropTargeted = t }
         }
         #if os(iOS)
-        // iOS 26 Notes and Mail: a full search field in the bottom bar, beside compose.
-        .searchable(text: $search, prompt: "Search")
+        // iOS 26 Notes and Mail: a full search field in the bottom bar, beside compose. As a
+        // column (iPad, iPhone Duo open) at the column's top instead, as iPad does by itself:
+        // in the open Duo's narrow list the bar's field was squeezed to "S…" (WideLayoutTests).
+        .searchable(text: $search, placement: stacked ? .automatic : .navigationBarDrawer(displayMode: .always), prompt: "Search")
         .searchToolbarBehavior(.automatic)
         #else
         // With the sidebar hidden the window's buttons and the sidebar's Today take the header's
@@ -379,7 +399,7 @@ struct NoteListView: View {
                     .padding(.horizontal, 12)
                     .padding(.top, 6)
                     .padding(.bottom, 8)
-                    .background(Color(Palette.listGround))
+                    .background(Color(stacked ? Palette.listGround : Palette.page))
             }
         }
         // "Show all notes with …" from Go to Note (⌘O) carries the text to search for.
@@ -593,9 +613,17 @@ struct NoteListView: View {
                 #if os(iOS)
                 // The system's prominent header: large and bold, as in Notes. No indent of its own:
                 // it lines up with the large title, not with the rows' text (28 October 2026).
-                Text(section.0)
-                    .foregroundStyle(Color.ink)
-                    .listRowInsets(.leading, 0)
+                if stacked {
+                    Text(section.0)
+                        .foregroundStyle(Color.ink)
+                        .listRowInsets(.leading, 0)
+                } else {
+                    // As columns, the Mac's heading: small, semibold and muted, over the rows.
+                    Text(section.0)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.muted)
+                        .textCase(nil)
+                }
                 #else
                 // One weight lighter than before, in a 40 pt row like Notes' (NoteListGeometryTests).
                 // C and D: small, semibold and muted, a label over the rows rather than a title.
@@ -613,7 +641,7 @@ struct NoteListView: View {
             }
         }
         #if os(iOS)
-        .headerProminence(.increased)
+        .headerProminence(stacked ? .increased : .standard)
         #else
         // C and D: no rule under a heading; spacing does the work.
         .listSectionSeparator(DesignLook.calmList ? .hidden : .automatic)
@@ -681,6 +709,9 @@ struct NoteListView: View {
         // On the row as the list holds it, where the list's selection finds it.
         .tag(id)
         #if os(iOS)
+        // Beside the note, the open one in a warm grey (the list draws no selection there). Out
+        // here: a background inside the equatable row doesn't reach the list.
+        .listRowBackground(besideNote ? Color(openNotes?.ids.contains(id) == true ? Palette.openNoteRow : Palette.row) : nil)
         // A little more room either side inside the card (Emil, 28 October 2026); the hairline
         // between rows starts with the text.
         .listRowInsets(.horizontal, RowMetrics.sideInset)
@@ -790,7 +821,7 @@ struct NoteListView: View {
     private var listTip: some View {
         // One grouped card, like What's new: the tip is the row, on the row's own surface.
         Section { CompactTip(tip: ShareExtensionTip(), card: false).selectionDisabled() }
-            .listRowBackground(Color(Palette.row))
+            .listRowBackground(stacked ? Color(Palette.row) : nil)
     }
     #endif
 
@@ -1731,6 +1762,9 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
     let togglePin: (Note) -> Void
     let remove: (Note) -> Void
     @ViewBuilder let menu: (Note) -> Menu
+    #if os(iOS)
+    @Environment(\.stackedNotes) private var stacked
+    #endif
     @Environment(\.modelContext) private var context
 
     static func == (a: NoteListItem, b: NoteListItem) -> Bool {
@@ -1764,7 +1798,9 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
                 // Long-press: the note itself as a tall card, its menu under it (Apple Notes).
                 // Its icons in the label colour, Delete in red, as in Notes (not the app's amber).
                 .contextMenu { menu(note).tint(.primary) } preview: { NotePreviewCard(note: note) }
-                .listRowBackground(Color(Palette.row))
+                // As columns on cards, a warm grey for the open note (the grouped list's own was a
+                // cold blue-grey, edge to edge).
+                .listRowBackground(stacked ? Color(Palette.row) : nil)
                 #endif
         }
     }
@@ -1826,6 +1862,8 @@ struct NoteRow: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.sidebarStudy) private var study
+    private var ink: Color { .ink }
+    private var muted: Color { .muted }
 
     /// Whether the row has its third line, the note's folder.
     private var folderLine: Bool { showFolder && note.folder != nil }
@@ -1850,7 +1888,7 @@ struct NoteRow: View {
                     Text(title)
                         .font(RowMetrics.title)
                         .tracking(DesignLook.isCandidate ? -0.15 : 0)
-                        .foregroundStyle(Color.ink)
+                        .foregroundStyle(ink)
                         .lineLimit(large ? 3 : 1)
                     if app {
                         AppMarkView(size: RowMetrics.markSize)
@@ -1866,7 +1904,7 @@ struct NoteRow: View {
                 // An AI changed this note and you haven't opened it since, like Mail's unread dot.
                 .overlay(alignment: .leading) {
                     if ai != nil {
-                        Circle().fill(.tint).frame(width: 8, height: 8)
+                        Circle().fill(Color(PColor.paneAccent)).frame(width: 8, height: 8)
                             .offset(x: RowMetrics.dotOffset)
                             .transition(.scale.combined(with: .opacity))
                     }
@@ -1876,13 +1914,13 @@ struct NoteRow: View {
                         if shared {
                             Image(systemName: "link")
                                 .imageScale(.small)
-                                .foregroundStyle(Color.muted)
+                                .foregroundStyle(muted)
                                 .accessibilityHidden(true)
                                 .accessibilityIdentifier("note.shared")
                         }
                         Text(DateBucket.rowDate(Self.shownDate(of: note, byCreation: datedByCreation)))
                             .monospacedDigit()
-                            .foregroundStyle(Color.ink.opacity(0.85))
+                            .foregroundStyle(ink.opacity(0.85))
                     }
                     // Never wrapped or cut: the preview gives way first ("10:10 A / M" beside a
                     // picture, 11-01).
@@ -1890,12 +1928,12 @@ struct NoteRow: View {
                     .fixedSize()
                     .accessibilityIdentifier("note.date")
                     // C and D: "date · preview", one quiet line under the title.
-                    if calm { Text("·").foregroundStyle(Color.muted).accessibilityHidden(true) }
+                    if calm { Text("·").foregroundStyle(muted).accessibilityHidden(true) }
                     if note.isLocked {
                         // Like Notes: the title and a lock, nothing of the text.
                         Label("Locked", systemImage: "lock.fill")
                             .labelStyle(LockedRowLabel())
-                            .foregroundStyle(Color.muted)
+                            .foregroundStyle(muted)
                             .lineLimit(1)
                     } else if let ai {
                         HStack(spacing: 4) {
@@ -1906,7 +1944,7 @@ struct NoteRow: View {
                         .lineLimit(1)
                     } else {
                         Text(snippet)
-                            .foregroundStyle(Color.muted)
+                            .foregroundStyle(muted)
                             .lineLimit(large ? 2 : 1)
                     }
                 }
@@ -1921,7 +1959,7 @@ struct NoteRow: View {
                     }
                     // C and D: a size smaller again, a quiet tag under the row.
                     .font(DesignLook.calmList ? RowMetrics.folder : RowMetrics.detail)
-                    .foregroundStyle(Color.muted)
+                    .foregroundStyle(muted)
                 }
             }
             // The note's first picture at the row's end, as Notes shows it.
@@ -2097,3 +2135,15 @@ struct EmptyLibraryActions: View {
         }
     }
 }
+
+#if os(iOS)
+/// The notes list's style: grouped cards one screen at a time (iPhone), the Mac's plain list as a
+/// column beside the note (iPad, iPhone Duo open).
+private struct ColumnListStyle: ViewModifier {
+    let cards: Bool
+    func body(content: Content) -> some View {
+        // The sidebar style for its rounded selection pill, the Mac's; no lines between rows.
+        if cards { content.listStyle(.insetGrouped) } else { content.listStyle(.sidebar).listRowSeparator(.hidden) }
+    }
+}
+#endif

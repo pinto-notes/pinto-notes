@@ -123,7 +123,9 @@ enum Palette {
     /// The note itself: nearly white, and nearly native in the dark. Candidate B (`paper`) lays
     /// a soft cream page instead, like the website's cards. E (`plain`, the Mac's): white and black.
     #if os(iOS)
-    static var page: PColor { surface("page", \.page) { looks(control: (0xFFFEFD, 0x000000), warm: (0xFFFEFD, 0x000000), paper: (0xFFFAF3, 0x000000)) } }
+    /// D (`reading`, what ships) and E: white and black, as the Mac's plain look. D fell back to B's
+    /// cream before, which the iPhone hid alone but which read as another app beside the iPad's list.
+    static var page: PColor { surface("page", \.page) { looks(control: (0xFFFEFD, 0x000000), warm: (0xFFFEFD, 0x000000), paper: (0xFFFAF3, 0x000000), calm: (0xFFFEFD, 0x000000), reading: (0xFFFFFF, 0x000000)) } }
     #else
     static var page: PColor {
         surface("page", \.page) {
@@ -139,6 +141,11 @@ enum Palette {
     static var listGround: PColor { surface("listGround", \.list) { pair(0xF2F0EE, 0x000000) } }
     /// A grouped row on either ground; in the dark the rows are where the warmth shows.
     static var row: PColor { surface("row", \.card) { pair(0xFDFCFB, 0x1F1E1D) } }
+    /// As columns (iPad, iPhone Duo open), the Mac's selected row: a neutral grey a step off white.
+    static var columnSelection: PColor { surface("rowSelection", \.selection) { pair(0xEBEBEB, 0x262626) } }
+    /// iPad and the open Duo: the open note in the iPhone's list beside it. Warm grey with the ink
+    /// readable on it in both modes (the accent's fill put dark text on orange, Emil, 3 November 2026).
+    static var openNoteRow: PColor { pair(0xE8E5E1, 0x3A3836) }
     #else
     /// Laid inside the sidebar's glass, so it keeps its vibrancy: about 5.5% toward the brown
     /// (5% in the dark, where more reads as brown). E (`plain`): 5% black in light mode, so the

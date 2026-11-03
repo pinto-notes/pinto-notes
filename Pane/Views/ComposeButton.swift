@@ -115,11 +115,15 @@ struct SearchComposeBar: ToolbarContent {
     /// New App's one-off tip, shown on one of the two buttons only.
     var tip = false
     var identifier = "list.newNote"
+    @Environment(\.stackedNotes) private var stacked
 
     var body: some ToolbarContent {
-        DefaultToolbarItem(kind: .search, placement: .bottomBar)
-        // iPad moves search to the top of the column; compose then belongs at the trailing edge.
-        if UIDevice.current.userInterfaceIdiom == .pad {
+        // As a column (iPad, iPhone Duo open) search is at the column's top (NoteListView), not
+        // here; compose then belongs at the trailing edge.
+        if stacked {
+            DefaultToolbarItem(kind: .search, placement: .bottomBar)
+        }
+        if !stacked {
             ToolbarSpacer(.flexible, placement: .bottomBar)
         } else {
             ToolbarSpacer(.fixed, placement: .bottomBar)

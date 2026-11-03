@@ -1285,3 +1285,10 @@ struct ConnectDrawing: View {
             .background(filled ? fill : Color.gray.opacity(0.14), in: .capsule)
     }
 }
+
+#if os(iOS)
+/// The setup cards are Mac-only; the guide's soft ground, the same greys, on iPhone and iPad.
+private enum SetupCards {
+    static let soft = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.17, alpha: 1) : UIColor(white: 0.935, alpha: 1) })
+}
+#endif
