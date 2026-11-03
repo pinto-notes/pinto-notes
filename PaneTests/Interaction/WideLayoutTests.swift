@@ -23,8 +23,6 @@ import UIKit
     static func window(_ layout: Layout, notes: Int = 12) throws -> (UIWindow, UIHostingController<AnyView>, ModelContainer, [Note]) {
         UserDefaults.standard.removeObject(forKey: "lastScope")
         UserDefaults.standard.removeObject(forKey: "lastNote")
-        // Trying the column looks (ColumnLook): TEST_RUNNER_PANE_COLUMN_LOOK=A|B|C.
-        UserDefaults.standard.set(ProcessInfo.processInfo.environment["PANE_COLUMN_LOOK"], forKey: "columnLook")
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let (c, list) = try PhoneRenderTests.library(notes: notes)
         let window = UIWindow(windowScene: scene)
@@ -80,7 +78,6 @@ import UIKit
         await PhoneRenderTests.settle(window)
         Self.shoot(window, "duo-open-wide-note")
         #expect(Self.showing(notes[2], in: window), "the note is open")
-        #expect(PhoneRenderTests.navigation(in: window) == nil, "as columns, not pushed onto a stack")
         #expect(Self.listBesideNote(in: window), "the list is beside it")
         let editor = try #require(PhoneRenderTests.editor(in: window))
         let noteLeft = editor.convert(editor.bounds, to: nil).minX
@@ -101,6 +98,46 @@ import UIKit
         let editor = try #require(PhoneRenderTests.editor(in: window))
         #expect(editor.convert(editor.bounds, to: nil).minX < 2, "the note from the window's left edge")
         #expect(!Self.listBesideNote(in: window), "no list squeezed beside it")
+    }
+
+    /// The left side is the iPhone's screens: Back from the notes' list shows the folders there,
+    /// and the note stays open beside them (Emil, 3 November 2026).
+    @Test func backShowsTheFoldersBesideTheNote() async throws {
+        let (window, host, _, notes) = try Self.window(Self.duoOpenWide)
+        defer { window.isHidden = true }
+        await PhoneRenderTests.settle(window, seconds: 1)
+        try await PhoneRenderTests.open(notes[2], in: window)
+        await PhoneRenderTests.settle(window)
+        func controllers(_ c: UIViewController) -> [UIViewController] { [c] + c.children.flatMap(controllers) }
+        let stacks = controllers(try #require(window.rootViewController)).compactMap { $0 as? UINavigationController }
+            .filter { $0.viewControllers.count > 1 }
+        let left = try #require(stacks.first, "the notes' list pushed over the folders")
+        left.popViewController(animated: false)
+        await PhoneRenderTests.settle(window)
+        Self.shoot(window, "duo-open-wide-folders")
+        #expect(left.viewControllers.count == 1, "the folders on the left")
+        #expect(Self.showing(notes[2], in: window), "the note still open beside them")
+
+        // Folded like that, the note stays open on the one screen.
+        await Self.change(window, host, to: Self.duoClosed)
+        Self.shoot(window, "duo-folded-from-folders")
+        #expect(Self.showing(notes[2], in: window), "folding keeps the note open")
+    }
+
+    /// Beside the note the list draws the open note itself in a warm grey: the list's own
+    /// highlight was a cold grey, or dark ink on the accent (Emil, 3 November 2026: "these
+    /// contrasts are not working").
+    @Test func theListBesideTheNoteDrawsNoHighlightOfItsOwn() async throws {
+        let (window, _, _, notes) = try Self.window(Self.duoOpenWide)
+        defer { window.isHidden = true }
+        await PhoneRenderTests.settle(window, seconds: 1)
+        try await PhoneRenderTests.open(notes[2], in: window)
+        await PhoneRenderTests.settle(window)
+        let lists = PhoneRenderTests.all(UICollectionView.self, in: window).filter { $0.window != nil && !$0.visibleCells.isEmpty }
+        #expect(!lists.isEmpty)
+        for list in lists {
+            #expect((list.indexPathsForSelectedItems ?? []).isEmpty, "no system selection drawn")
+        }
     }
 
     @Test func unfoldingKeepsTheOpenNote() async throws {

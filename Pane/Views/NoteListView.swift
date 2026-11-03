@@ -59,11 +59,11 @@ struct NoteListView: View {
     #if os(iOS)
     /// One screen at a time (iPhone) or a column beside the note (iPad, iPhone Duo open).
     @Environment(\.stackedNotes) private var stacked
-    @Environment(\.columnLook) private var look
+    @Environment(\.besideNote) private var besideNote
+    @Environment(OpenNotes.self) private var openNotes: OpenNotes?
     #else
     /// The Mac keeps its own list grounds (Palette's macOS `listGround`).
     private let stacked = true
-    private let look = ColumnLook.phone
     #endif
     @Environment(\.behindSetupCard) private var behindSetupCard
     @Environment(SetupStore.self) private var setup: SetupStore?
@@ -207,7 +207,13 @@ struct NoteListView: View {
         // The list's own changes are told apart from code's in the click log (RowClickLog).
         let listSelection = Binding(get: { selection }, set: { new in RowClickLog.listSet(selection, new); selection = new })
         #else
-        let listSelection = $selection
+        // Beside the note (iPad, iPhone Duo open) the list is told nothing is selected, so it draws
+        // no highlight of its own (a cold grey, or dark ink on the accent); the rows draw the open
+        // note in a warm grey (Palette.openNoteRow). Picking a row still opens it; selecting
+        // several while editing keeps the list's own.
+        let listSelection = besideNote && editMode != .active
+            ? Binding(get: { Set<UUID>() }, set: { selection = $0 })
+            : $selection
         #endif
         return List(selection: listSelection) {
             // An ask to connect an AI whose sheet was closed without an answer: always a way back.
@@ -259,7 +265,7 @@ struct NoteListView: View {
                                 .quietSelection()
                                 #if os(iOS)
                                 .contextMenu { menu(for: file, folders: foldersByName) }
-                                .listRowBackground(stacked ? Color(Palette.row) : nil)
+                                .listRowBackground(stacked ? Color(besideNote && openNotes?.ids.contains(file.id) == true ? Palette.openNoteRow : Palette.row) : nil)
                                 #else
                                 .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
                                 #endif
@@ -297,7 +303,7 @@ struct NoteListView: View {
         #if os(iOS)
         // iPhone: grouped cards on a grey ground. As columns: the Mac's list, rows on white with a
         // grey pill for the selected note (Emil, 3 November 2026: the iPad "feels like a different app").
-        .modifier(ColumnListStyle(cards: look.listCards))
+        .modifier(ColumnListStyle(cards: stacked))
         .tint(stacked ? nil : Color(Palette.columnSelection))
         .environment(\.editMode, $editMode)
         .sheet(isPresented: Binding(get: { moving != nil }, set: { if !$0 { moving = nil } })) {
@@ -312,7 +318,7 @@ struct NoteListView: View {
         #endif
         // Less warmth than the sidebar, more than the note.
         .scrollContentBackground(.hidden)
-        .background(Color(look.listCards ? Palette.listGround : Palette.page).ignoresSafeArea())
+        .background(Color(stacked ? Palette.listGround : Palette.page).ignoresSafeArea())
         #if os(macOS)
         // Soft under the toolbar, as the sidebar and Notes: a list's own edge is hard, the window's
         // grey title bar with a line under it (Emil, 10-30, in Recently Deleted).
@@ -595,7 +601,7 @@ struct NoteListView: View {
                 #if os(iOS)
                 // The system's prominent header: large and bold, as in Notes. No indent of its own:
                 // it lines up with the large title, not with the rows' text (28 October 2026).
-                if look.bigHeadings {
+                if stacked {
                     Text(section.0)
                         .foregroundStyle(Color.ink)
                         .listRowInsets(.leading, 0)
@@ -619,7 +625,7 @@ struct NoteListView: View {
             }
         }
         #if os(iOS)
-        .headerProminence(look.bigHeadings ? .increased : .standard)
+        .headerProminence(stacked ? .increased : .standard)
         #else
         // C and D: no rule under a heading; spacing does the work.
         .listSectionSeparator(DesignLook.calmList ? .hidden : .automatic)
@@ -672,7 +678,7 @@ struct NoteListView: View {
     private func noteRow(_ entry: NoteEntry) -> some View {
         let id = entry.id
         return NoteListItem(entry: entry, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
-                            dragWith: dragOthers(for: id), selectedCount: selection.count, quiet: Self.quiet(selection, id), picked: selection.contains(id),
+                            dragWith: dragOthers(for: id), selectedCount: selection.count, quiet: Self.quiet(selection, id),
                             top: RowMetrics.top(folderLine: (scope == .all || !search.isEmpty) && entry.folderID != nil) + RowMetrics.calmAir,
                             togglePin: { note in withAnimation(.snappy) { context.togglePin(note) } },
                             remove: { note in remove(note) }) { note in
@@ -686,6 +692,9 @@ struct NoteListView: View {
         // On the row as the list holds it, where the list's selection finds it.
         .tag(id)
         #if os(iOS)
+        // Beside the note, the open one in a warm grey (the list draws no selection there). Out
+        // here: a background inside the equatable row doesn't reach the list.
+        .listRowBackground(besideNote ? Color(openNotes?.ids.contains(id) == true ? Palette.openNoteRow : Palette.row) : nil)
         // A little more room either side inside the card (Emil, 28 October 2026); the hairline
         // between rows starts with the text.
         .listRowInsets(.horizontal, RowMetrics.sideInset)
@@ -1726,8 +1735,6 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
     let selectedCount: Int
     /// Selected, drawn by the row (the Mac's quiet selection).
     let quiet: Bool
-    /// Selected, on iOS: the cards of the columns' look draw it (ColumnLook.listCards).
-    let picked: Bool
     /// The room above the title's line, where the ••• lines up.
     let top: CGFloat
     let togglePin: (Note) -> Void
@@ -1735,14 +1742,13 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
     @ViewBuilder let menu: (Note) -> Menu
     #if os(iOS)
     @Environment(\.stackedNotes) private var stacked
-    @Environment(\.columnLook) private var look
     #endif
     @Environment(\.modelContext) private var context
 
     static func == (a: NoteListItem, b: NoteListItem) -> Bool {
         a.entry.pid == b.entry.pid && a.entry.same(as: b.entry) && a.query == b.query && a.showFolder == b.showFolder
             && a.datedByCreation == b.datedByCreation && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount)
-            && a.quiet == b.quiet && a.picked == b.picked && a.top == b.top
+            && a.quiet == b.quiet && a.top == b.top
     }
 
     var body: some View {
@@ -1769,7 +1775,7 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
                 .contextMenu { menu(note).tint(.primary) } preview: { NotePreviewCard(note: note) }
                 // As columns on cards, a warm grey for the open note (the grouped list's own was a
                 // cold blue-grey, edge to edge).
-                .listRowBackground(stacked ? Color(Palette.row) : look.listCards ? Color(picked ? Palette.columnSelection : Palette.row) : nil)
+                .listRowBackground(stacked ? Color(Palette.row) : nil)
                 #endif
         }
     }

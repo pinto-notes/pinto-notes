@@ -19,8 +19,7 @@ final class TabletShotsTests: XCTestCase {
 
     private func launch(_ extra: [String] = []) {
         app = XCUIApplication()
-        let look = ProcessInfo.processInfo.environment["PANE_COLUMN_LOOK"].map { ["-columnLook", $0] } ?? []
-        app.launchArguments = ["-uitest", "-demo"] + look + extra
+        app.launchArguments = ["-uitest", "-demo"] + extra
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
         Thread.sleep(forTimeInterval: 2.5)

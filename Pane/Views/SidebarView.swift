@@ -105,7 +105,6 @@ struct SidebarRowText<Trailing: View>: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     #if os(iOS)
     @Environment(\.stackedNotes) private var stacked
-    @Environment(\.columnLook) private var look
     #endif
 
     var body: some View {
@@ -216,7 +215,6 @@ struct SidebarIcon: View {
     @Environment(\.controlActiveState) private var active
     #else
     @Environment(\.stackedNotes) private var stacked
-    @Environment(\.columnLook) private var look
     #endif
 
     var body: some View {
@@ -229,7 +227,7 @@ struct SidebarIcon: View {
             #else
             .font(SidebarStyle.iconFont)
             // As columns, the Mac's: grey icons, the selected folder's in the accent.
-            .foregroundStyle(stacked ? AnyShapeStyle(SidebarStyle.icon) : look.warmIcons || selected ? AnyShapeStyle(Color(PColor.paneAccent)) : selected ? AnyShapeStyle(Color(PColor.paneAccent)) : AnyShapeStyle(Color.muted))
+            .foregroundStyle(stacked ? AnyShapeStyle(SidebarStyle.icon) : selected ? AnyShapeStyle(Color(PColor.paneAccent)) : AnyShapeStyle(Color.muted))
             #endif
     }
 }
@@ -300,7 +298,6 @@ struct SidebarView: View {
     @State private var search = ""
     /// One screen at a time (iPhone), or the folders as a column beside the list (iPad, iPhone Duo open).
     @Environment(\.stackedNotes) private var stacked
-    @Environment(\.columnLook) private var look
     #endif
     @Environment(SetupStore.self) private var setup: SetupStore?
     @Environment(\.dynamicTypeSize) private var templatesTypeSize
@@ -386,13 +383,11 @@ struct SidebarView: View {
         Group {
             if editingFolders { editList } else { selectList(files) }
         }
-        // Cards as columns: the grouped list's own white rows and rounded corners, with the
-        // selection drawn on them (a row background of our own hid it).
-        .modifier(FolderListStyle(grouped: look.folderCards && !stacked))
+        .listStyle(.sidebar)
         // As columns the selection is the Mac's grey pill, not the accent.
         .tint(stacked ? nil : Color(Palette.columnSelection))
-        .scrollContentBackground(look.folderCards ? .hidden : .automatic)
-        .background { if look.folderCards { Color(Palette.foldersGround).ignoresSafeArea() } }
+        .scrollContentBackground(stacked ? .hidden : .automatic)
+        .background { if stacked { Color(Palette.foldersGround).ignoresSafeArea() } }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 if let card = sidebarCard, card != .mac, !editingFolders {
@@ -500,7 +495,6 @@ struct SidebarView: View {
         }
         #if os(iOS)
         .navigationTitle("Folders")
-        .navigationBarTitleDisplayMode(look.bigHeadings ? .large : .automatic)
         #else
         .navigationTitle("Pinto Notes")
         #endif
@@ -1005,9 +999,6 @@ private struct CountedRow: View {
             .rowAccessibility(title, count: count, files: files)
             .hoverRow(title, reach: Hover.sidebarReach(), selected: selected)
             .quietSelection()
-            #if os(iOS)
-            .folderCardRow(selected: selected)
-            #endif
         }
     }
 }
@@ -1181,9 +1172,6 @@ private struct FolderTree: View {
             .rowAccessibility(folder.name, count: listed ?? 0, files: files[folder.id] ?? 0)
         }
         .quietSelection()
-        #if os(iOS)
-        .folderCardRow(selected: selected)
-        #endif
         .tag(Scope.folder(folder.id))
         .accessibilityIdentifier("folder.\(folder.name)")
         .draggable(PaneDragItem(kind: .folder, id: folder.id)) {
@@ -1577,30 +1565,3 @@ private struct FolderSearchResults: View {
 }
 #endif
 
-#if os(iOS)
-/// The folders' card as a column: white rows, the selected one grey (the sidebar column's own
-/// grouped rows came out grey all over).
-private struct FolderCardRow: ViewModifier {
-    let selected: Bool
-    @Environment(\.stackedNotes) private var stacked
-    @Environment(\.columnLook) private var look
-    func body(content: Content) -> some View {
-        if !stacked && look.folderCards {
-            content.listRowBackground(Color(selected ? Palette.columnSelection : Palette.row))
-        } else {
-            content
-        }
-    }
-}
-
-extension View {
-    func folderCardRow(selected: Bool) -> some View { modifier(FolderCardRow(selected: selected)) }
-}
-
-private struct FolderListStyle: ViewModifier {
-    let grouped: Bool
-    func body(content: Content) -> some View {
-        if grouped { content.listStyle(.insetGrouped) } else { content.listStyle(.sidebar) }
-    }
-}
-#endif

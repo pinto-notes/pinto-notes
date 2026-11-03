@@ -17,6 +17,8 @@ struct RootView: View {
     @State private var selection: Set<UUID> = []
     @State private var visibility: NavigationSplitViewVisibility = .all
     #if os(iOS)
+    /// The open notes, for the list beside the note to draw (OpenNotes).
+    @State private var openNotes = OpenNotes()
     /// The window's size, for the two layouts the columns can't choose by width class alone.
     @State private var windowSize: CGSize = .zero
     /// iPhone Duo open like a book (about 951 × 669 pt): half the window, so the list ends at the fold.
@@ -174,6 +176,120 @@ struct RootView: View {
     }
 
     private var split: some View {
+        Group {
+            #if os(iOS)
+            if sizeClass != .compact { twoColumns } else { threeColumns }
+            #else
+            threeColumns
+            #endif
+        }
+        .environment(editor)
+        .environment(\.importActions, importActions)
+        #if os(iOS)
+        .onChange(of: selection, initial: true) { _, now in if openNotes.ids != now { openNotes.ids = now } }
+        // Whether the window shows one screen at a time (iPhone, iPhone Duo closed, a narrow iPad
+        // window) or the columns side by side. The columns themselves can't tell: inside the split
+        // view each reports a compact width, even on a 13-inch iPad.
+        .environment(\.stackedNotes, sizeClass == .compact)
+        .modifier(NoteFirstStyle(on: noteFirst))
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { windowSize = $0 }
+        // Columns too narrow to share (the Duo held upright, an iPad mini upright): the note takes
+        // the whole width and the list slides over it from the button at the top left, closing
+        // when a note is picked. The folders stay behind the list's own button.
+        .onChange(of: noteFirst, initial: true) { _, on in
+            if on { visibility = selectedNote == nil ? .doubleColumn : .detailOnly } else if sizeClass != .compact { visibility = .all }
+        }
+        .onChange(of: selectedNote) { _, id in
+            if noteFirst, id != nil { visibility = .detailOnly }
+        }
+        #endif
+        #if os(macOS)
+        // The list column shows its own title; no window title in the bar.
+        .toolbar(removing: .title)
+        // ⌘F (Edit › Find › Find…) opens the notes search, unless the note's text has the keys:
+        // then the text view takes it first and finds in the note, as in Notes.
+        .onCommand(#selector(NSTextView.performFindPanelAction(_:))) {
+            NotificationCenter.default.post(name: .paneSearchNotes, object: nil)
+        }
+        #endif
+    }
+
+    #if os(iOS)
+    /// iPad and iPhone Duo open: the iPhone's own screens on the left, the folders with the notes'
+    /// list pushed over them and Back between the two, and the note on the right (Emil, 3 November
+    /// 2026: three columns looked like a different app from the iPhone).
+    private var twoColumns: some View {
+        // Not a split view: its sidebar is a floating glass panel that greys the iPhone's white
+        // cards, and it decides itself when the left side shows.
+        let listOpen = visibility != .detailOnly
+        return ZStack(alignment: .leading) {
+            HStack(spacing: 0) {
+                if listOpen && !noteFirst {
+                    phoneScreens
+                        .frame(width: leftWidth)
+                        .transition(.move(edge: .leading))
+                    Rectangle().fill(Color(uiColor: .separator)).frame(width: 1 / 3).ignoresSafeArea()
+                }
+                NavigationStack {
+                    detail
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                if !listOpen || noteFirst {
+                                    Button("Show Notes", systemImage: "sidebar.left") {
+                                        withAnimation(.snappy(duration: 0.3)) { visibility = .all }
+                                    }
+                                    .accessibilityIdentifier("columns.showNotes")
+                                } else {
+                                    Button("Hide Notes", systemImage: "sidebar.left") {
+                                        withAnimation(.snappy(duration: 0.3)) { visibility = .detailOnly }
+                                    }
+                                    .accessibilityIdentifier("columns.hideNotes")
+                                }
+                            }
+                        }
+                }
+            }
+            // Columns too narrow to share (the Duo held upright): the list comes over the note,
+            // and goes when a note is picked or the note is tapped.
+            if noteFirst && listOpen {
+                Color.black.opacity(0.18).ignoresSafeArea()
+                    .onTapGesture { withAnimation(.snappy(duration: 0.3)) { visibility = .detailOnly } }
+                    .transition(.opacity)
+                phoneScreens
+                    .frame(width: min(windowSize.width - 56, 420))
+                    .shadow(color: .black.opacity(0.2), radius: 16)
+                    .transition(.move(edge: .leading))
+            }
+        }
+    }
+
+    /// The left side's width: the half of a Duo open like a book, so the fold runs between the
+    /// list and the note; otherwise about an iPhone's width.
+    private var leftWidth: CGFloat {
+        if let bookHalf { return bookHalf }
+        let base = min(max(windowSize.width * 0.34, 320), 420)
+        return typeSize.isAccessibilitySize ? min(base + 40, 460) : base
+    }
+
+    /// The iPhone's screens: the folders, with a folder's notes pushed over them.
+    private var phoneScreens: some View {
+        NavigationStack {
+            SidebarView(scope: $scope, onNewNote: newNote, onOpenNote: openFound, onNewNoteIn: newNote(inFolder:))
+                .equatable()
+                .environment(library)
+                .phoneScreen()
+                .navigationDestination(item: $scope) { s in
+                    NoteListView(scope: s, selection: $selection, onNewNote: newNote)
+                        .equatable()
+                        .environment(library)
+                        .environment(openNotes)
+                        .phoneScreen()
+                }
+        }
+    }
+    #endif
+
+    private var threeColumns: some View {
         NavigationSplitView(columnVisibility: $visibility) {
             // The folders and the list are compared before they're worked out again (see their `==`):
             // on the Mac the split view hands its columns over again whenever one is hidden or shown,
@@ -221,35 +337,6 @@ struct RootView: View {
                 .overlay(alignment: .leading) { ColumnHairline() }
                 #endif
         }
-        .environment(editor)
-        .environment(\.importActions, importActions)
-        #if os(iOS)
-        // Whether the window shows one screen at a time (iPhone, iPhone Duo closed, a narrow iPad
-        // window) or the columns side by side. The columns themselves can't tell: inside the split
-        // view each reports a compact width, even on a 13-inch iPad.
-        .environment(\.stackedNotes, sizeClass == .compact)
-        .environment(\.columnLook, sizeClass == .compact ? .phone : ColumnLook.chosen)
-        .modifier(NoteFirstStyle(on: noteFirst))
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { windowSize = $0 }
-        // Columns too narrow to share (the Duo held upright, an iPad mini upright): the note takes
-        // the whole width and the list slides over it from the button at the top left, closing
-        // when a note is picked. The folders stay behind the list's own button.
-        .onChange(of: noteFirst, initial: true) { _, on in
-            if on { visibility = selectedNote == nil ? .doubleColumn : .detailOnly } else if sizeClass != .compact { visibility = .all }
-        }
-        .onChange(of: selectedNote) { _, id in
-            if noteFirst, id != nil { visibility = .detailOnly }
-        }
-        #endif
-        #if os(macOS)
-        // The list column shows its own title; no window title in the bar.
-        .toolbar(removing: .title)
-        // ⌘F (Edit › Find › Find…) opens the notes search, unless the note's text has the keys:
-        // then the text view takes it first and finds in the note, as in Notes.
-        .onCommand(#selector(NSTextView.performFindPanelAction(_:))) {
-            NotificationCenter.default.post(name: .paneSearchNotes, object: nil)
-        }
-        #endif
     }
 
     #if os(macOS)
@@ -334,11 +421,19 @@ struct RootView: View {
                 rememberScope(new)
                 #if os(iOS)
                 // Back on the iPhone folder list nothing is open: a note left selected would keep
-                // its toolbar on this screen. Leaving an empty new note this way discards it.
-                if new == nil, !selection.isEmpty { selection = [] }
+                // its toolbar on this screen. Leaving an empty new note this way discards it. Beside
+                // the note (iPad, iPhone Duo open) the note stays while the folders show.
+                if new == nil, sizeClass == .compact, !selection.isEmpty { selection = [] }
                 #endif
             }
             .onChange(of: selectedNote) { old, new in noteChanged(from: old, to: new) }
+            #if os(iOS)
+            // Folded with the folders showing beside an open note: on the one screen the note
+            // sits on its list, as on iPhone, not over the folders.
+            .onChange(of: sizeClass) { _, now in
+                if now == .compact, scope == nil, let id = selectedNote, let note = context.note(id) { scope = Scope.opening(note) }
+            }
+            #endif
             #if os(macOS)
             .onChange(of: selection, initial: true) { _, new in DetailHold.shared.current = new }
             #endif
@@ -779,37 +874,27 @@ extension EnvironmentValues {
     /// iOS: the notes show one screen at a time (a stack), not as columns. Set by RootView from
     /// the window's width class; read this, not `horizontalSizeClass`, inside the columns.
     @Entry var stackedNotes = true
-    @Entry var columnLook = ColumnLook.phone
+    /// iOS: the iPhone's screens beside the note (iPad, iPhone Duo open), where a note stays selected.
+    @Entry var besideNote = false
     @Entry var importActions: ImportActions? = nil
 }
 
-/// How the columns look on iPad and the iPhone Duo open; one screen at a time is always the
-/// iPhone's. Concepts under trial (Emil, 3 November 2026: the iPad looked like a different app
-/// from the iPhone), picked with `-columnLook A|B|C`; anything else is the Mac's plain look.
-struct ColumnLook: Equatable {
-    /// The folders on white cards over the warm grey, as on iPhone.
-    var folderCards: Bool
-    /// The notes on white cards over the warm grey, as on iPhone.
-    var listCards: Bool
-    /// Large bold section headings and the big Folders title.
-    var bigHeadings: Bool
-    /// Folder icons in the accent.
-    var warmIcons: Bool
-
-    static let phone = ColumnLook(folderCards: true, listCards: true, bigHeadings: true, warmIcons: true)
-    static let mac = ColumnLook(folderCards: false, listCards: false, bigHeadings: false, warmIcons: false)
-
-    static func concept(_ name: String?) -> ColumnLook {
-        switch name {
-        case "A": .phone
-        case "B": ColumnLook(folderCards: false, listCards: false, bigHeadings: true, warmIcons: true)
-        case "C": ColumnLook(folderCards: true, listCards: false, bigHeadings: true, warmIcons: true)
-        default: .mac
-        }
-    }
-
-    static var chosen: ColumnLook { concept(UserDefaults.standard.string(forKey: "columnLook")) }
+#if os(iOS)
+/// The open notes, read by the list beside the note (iPad, iPhone Duo open), which draws the open
+/// one itself. An object, so the rows follow it while the list is compared by its folder only
+/// (NoteListView's `==`).
+@Observable final class OpenNotes {
+    var ids: Set<UUID> = []
 }
+
+extension View {
+    /// The iPhone's screen, look and buttons, in the left column of the iPad and the open Duo.
+    /// Set on each screen: a pushed screen doesn't take it from the stack around it.
+    func phoneScreen() -> some View {
+        environment(\.stackedNotes, true).environment(\.besideNote, true)
+    }
+}
+#endif
 
 // MARK: Focused actions for menus and shortcuts
 
