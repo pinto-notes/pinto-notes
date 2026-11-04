@@ -19,19 +19,26 @@ enum SidebarAICopy {
         }
     }
 
-    /// "Just now" under a minute, then "2 min ago", "3 hr ago", "Yesterday" and so on.
+    /// "Just now" under a minute, then "2 minutes ago", "3 hours ago", "Yesterday", as Account
+    /// says "Synced 5 minutes ago" (council round 8: "2 hr. ago").
     static func when(_ date: Date, now: Date = .now) -> String {
         if now.timeIntervalSince(date) < 60 { return "Just now" }
         let f = RelativeDateTimeFormatter()
-        f.unitsStyle = .short
+        f.unitsStyle = .full
         f.dateTimeStyle = .named
         let s = f.localizedString(for: date, relativeTo: now)
         return s.prefix(1).uppercased() + s.dropFirst()
     }
 
     static func accessibility(_ c: AIChange, title: String, now: Date = .now) -> String {
-        "\(line(c, title: title)), \(when(c.at, now: now)). Opens AI Changes."
+        "\(line(c, title: title)), \(when(c.at, now: now))"
     }
+    static let hint = "Opens AI Changes."
+
+    /// In line with the folder rows above: the mark over their icons, the words over their names
+    /// (council round 8: 7 and 9 pt to the left).
+    static let leading: CGFloat = 17
+    static let gap: CGFloat = 10
 }
 
 #if os(macOS)
@@ -48,7 +55,7 @@ struct SidebarAILine: View {
             if let last {
                 let title = Self.title(last, context: context)
                 Button { AIChangesCenter.shared.show() } label: {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: SidebarAICopy.gap) {
                         VersionAuthorMark(author: .ai(last.ai), size: 14)
                             .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 2 }
                         VStack(alignment: .leading, spacing: 1) {
@@ -65,7 +72,8 @@ struct SidebarAILine: View {
                         }
                         Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 10)
+                    .padding(.leading, SidebarAICopy.leading)
+                    .padding(.trailing, 10)
                     .padding(.vertical, 7)
                     .contentShape(.rect)
                 }
@@ -73,13 +81,15 @@ struct SidebarAILine: View {
                 .hoverRow("sidebar.ai", reach: Hover.noteRowReach)
                 .help("Open AI Changes")
                 .accessibilityLabel(SidebarAICopy.accessibility(last, title: title))
+                .accessibilityHint(SidebarAICopy.hint)
                 .accessibilityIdentifier("sidebar.aiLine")
                 .padding(.horizontal, 10)
                 .padding(.bottom, 8)
             }
         }
-        // Fresh each time the window comes forward, and every few minutes while it's in front.
-        .task(id: appearsActive) {
+        // Fresh each time the window comes forward, the moment an AI edit lands (its receipt and
+        // this line agree; council round 8: up to 3 minutes apart), and every few minutes.
+        .task(id: Refresh(active: appearsActive, latest: AIEditStore.shared.entries.values.compactMap(\.editedAt).max())) {
             guard appearsActive else { return }
             while !Task.isCancelled {
                 await load()
@@ -88,6 +98,8 @@ struct SidebarAILine: View {
             }
         }
     }
+
+    private struct Refresh: Equatable { var active: Bool; var latest: Date? }
 
     private func load() async {
         guard let store = AIChangesCenter.shared.store,

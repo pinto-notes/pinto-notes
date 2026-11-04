@@ -181,7 +181,7 @@ enum AIChangeCopy {
             let lead = c.kind == .restore ? "Restored an earlier version: " : ""
             if let title = renamed(before, after) { return lead + "Renamed to \u{201C}\(title)\u{201D}" }
             let d = EditDiff.between(before, after)
-            return lead + (added(d) ?? lines(d))
+            return lead + (added(d) ?? words(d))
         }
     }
 
@@ -203,6 +203,27 @@ enum AIChangeCopy {
               names.count == 1 || !names.contains(where: { $0.contains(",") }) else { return nil }
         let list = names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " and " + names.last!
         return "Added \(list)"
+    }
+
+    /// A change in words, not a diff tool's "+1 −1 lines" (council round 8): one line swapped is
+    /// named ("Changed “Tram 28 early, before the crowds”"), otherwise "Added 2 lines", "Removed a
+    /// line" or "Changed 5 lines". "No visible change" when only blank lines moved.
+    static func words(_ d: EditDiff) -> String {
+        guard d.plus + d.minus > 0 else { return "No visible change" }
+        let count = { (n: Int) in n == 1 ? "a line" : "\(n) lines" }
+        if d.plus == 1, d.minus == 1, let r = d.added.first {
+            let marker = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|#+\s+|>\s*)"#)
+            let line = (d.text as NSString).substring(with: r)
+            let text = marker.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: (line as NSString).length), withTemplate: "")
+                .trimmingCharacters(in: .whitespaces)
+            if !text.isEmpty {
+                let short = text.count > 40 ? String(text.prefix(39)).trimmingCharacters(in: .whitespaces) + "\u{2026}" : text
+                return "Changed \u{201C}\(short)\u{201D}"
+            }
+        }
+        if d.minus == 0 { return "Added \(count(d.plus))" }
+        if d.plus == 0 { return "Removed \(count(d.minus))" }
+        return "Changed \(count(max(d.plus, d.minus)))"
     }
 
     /// "+3 −1 lines", "+1 line", "−2 lines"; "No visible change" when only blank lines moved.

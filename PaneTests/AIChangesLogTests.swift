@@ -90,8 +90,8 @@ import Testing
         }
         let name: (UUID) -> String? = { $0 == trips.id ? "Trips" : nil }
         #expect(AIChangeCopy.summary(change(.edit), before: Self.before, after: Self.after) == "Added Sintra, Pena Palace first")
-        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo\nThree", after: "A\n\nOne\nTwo, changed\n\nFour") == "+2 \u{2212}2 lines")
-        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo", after: "A\n\nOne") == "\u{2212}1 line")
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo\nThree", after: "A\n\nOne\nTwo, changed\n\nFour") == "Changed 2 lines")
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo", after: "A\n\nOne") == "Removed a line")
         #expect(AIChangeCopy.summary(change(.edit), before: "# Trip\n\nDay 1", after: "# Lisbon trip\n\nDay 1") == "Renamed to \u{201C}Lisbon trip\u{201D}")
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne", after: "A\n\n\nOne") == "No visible change")
         #expect(AIChangeCopy.summary(change(.created)) == "Created")
@@ -103,10 +103,14 @@ import Testing
         let list = "# Groceries\n\n- [ ] Oat milk"
         #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- [ ] Burrata\n- [ ] Cherry tomatoes\n- [ ] Olive oil") == "Added Burrata, Cherry tomatoes and Olive oil")
         #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- Lemons") == "Added Lemons")
-        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- Eggs, free range\n- Lemons") == "+2 lines", "a comma in a name of several reads as two")
-        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\nFor the weekend.\n- [ ] Sourdough") == "+2 lines", "a sentence isn't a name (round 6 shot)")
-        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- [ ] A\n- [ ] B\n- [ ] C\n- [ ] D") == "+4 lines", "four is a count")
-        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\nA much longer sentence about what we still need to buy") == "+1 line", "a long line is a count")
+        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- Eggs, free range\n- Lemons") == "Added 2 lines", "a comma in a name of several reads as two")
+        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\nFor the weekend.\n- [ ] Sourdough") == "Added 2 lines", "a sentence isn't a name (round 6 shot)")
+        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- [ ] A\n- [ ] B\n- [ ] C\n- [ ] D") == "Added 4 lines", "four is a count")
+        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\nA much longer sentence about what we still need to buy") == "Added a line", "a long line is a count")
+        // One line swapped is named, short; a bigger rewrite is a count in words (council round 8).
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Tram 28\n- Two", after: "A\n\n- [ ] Tram 28 early, before the crowds\n- Two") == "Changed \u{201C}Tram 28 early, before the crowds\u{201D}")
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne", after: "A\n\nA very long replacement line that goes on well past forty characters") == "Changed \u{201C}A very long replacement line that goes\u{2026}\u{201D}")
+        #expect(!AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo", after: "A\n\nUno\nDos").contains("+"), "never the diff tool's counts")
     }
 
     @Test func theServersRowsBecomeChanges() throws {
@@ -235,14 +239,16 @@ import Testing
         let note = c.mainContext.createNote(in: .all, body: Self.after)
         let edit = Self.edit(note, minutesAgo: 2)
         #expect(SidebarAICopy.line(edit, title: "Lisbon") == "ChatGPT edited Lisbon")
-        #expect(SidebarAICopy.when(edit.at, now: Self.t0) == "2 min. ago" || SidebarAICopy.when(edit.at, now: Self.t0) == "2 min ago")
+        #expect(SidebarAICopy.when(edit.at, now: Self.t0) == "2 minutes ago")
+        #expect(SidebarAICopy.when(Self.t0.addingTimeInterval(-3 * 3600), now: Self.t0) == "3 hours ago", "words, as Account says them")
         #expect(SidebarAICopy.when(Self.t0.addingTimeInterval(-20), now: Self.t0) == "Just now")
         #expect(SidebarAICopy.verb(.created) == "made" && SidebarAICopy.verb(.restore) == "restored")
-        #expect(SidebarAICopy.accessibility(edit, title: "Lisbon", now: Self.t0).hasSuffix("Opens AI Changes."))
+        #expect(SidebarAICopy.accessibility(edit, title: "Lisbon", now: Self.t0) == "ChatGPT edited Lisbon, 2 minutes ago")
+        #expect(SidebarAICopy.hint == "Opens AI Changes.", "what it does is a hint, not the label")
         #if os(macOS)
         #expect(SidebarAILine.title(edit, context: c.mainContext) == "Lisbon")
         let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
-        #expect(sidebar.contains(".safeAreaInset(edge: .bottom, spacing: 0) { SidebarAILine() }"), "at the Mac sidebar's foot")
+        #expect(sidebar.contains(".safeAreaBar(edge: .bottom, spacing: 0) { SidebarAILine() }"), "a bar at the Mac sidebar's foot")
         #endif
     }
 
