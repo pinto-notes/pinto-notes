@@ -9,18 +9,30 @@ import WidgetKit
 /// What the widget shows.
 enum ChecklistWidgetContent: Equatable, Sendable {
     case list(ChecklistShelf.List)
-    /// The app hasn't left any checklist yet (not opened since it was installed, or no checklists).
+    /// A note without a checklist: its title and first lines.
+    case note(ChecklistShelf.Preview)
+    /// A note picked for this widget that the app hasn't left yet: it does the next time it runs.
+    case waiting(UUID, String)
+    /// The app hasn't left any note yet (not opened since it was installed).
     case noLists
-    /// The note picked for this widget has no checklist now, or is locked or deleted.
+    /// The note picked for this widget is locked or deleted.
     case gone
 
     /// The widget's kind; the app redraws it by this (ModelContext.checklistWidgetKind).
     static let kind = "ChecklistWidget"
 
-    /// The picked note, or, with none picked, a pinned checklist or the newest.
-    static func resolve(picked: UUID?, lists: [ChecklistShelf.List]) -> Self {
-        if let picked { return lists.first { $0.id == picked }.map(Self.list) ?? .gone }
-        return ChecklistShelf.defaultList(in: lists).map(Self.list) ?? .noLists
+    /// The picked note: as a checklist when it has one, else its lines. With none picked, a
+    /// pinned checklist or the newest, else the newest note.
+    static func resolve(picked: UUID?, title: String? = nil, lists: [ChecklistShelf.List],
+                        previews: [ChecklistShelf.Preview] = [], recents: [ChecklistShelf.Recent] = []) -> Self {
+        if let picked {
+            if let l = lists.first(where: { $0.id == picked }) { return .list(l) }
+            if let n = previews.first(where: { $0.id == picked }) { return .note(n) }
+            if let r = recents.first(where: { $0.id == picked }) { return .waiting(picked, r.title) }
+            return .gone
+        }
+        if let l = ChecklistShelf.defaultList(in: lists) { return .list(l) }
+        return previews.first.map(Self.note) ?? .noLists
     }
 
     /// The widget gallery's picture before there are lists.
@@ -83,6 +95,28 @@ struct ChecklistWidgetView: View {
             // A tap anywhere but an item (the title, the space under the rows) opens the note. A
             // small widget is one tap area, so a Link wouldn't work there.
             .widgetURL(QuickLink.note(list.id).url)
+        case .note(let n):
+            VStack(alignment: .leading, spacing: 4) {
+                Text(n.title)
+                    .font(.system(size: ChecklistWidgetLayout.text, weight: .semibold))
+                    .foregroundStyle(.tint)
+                    .lineLimit(1)
+                    .widgetAccentable()
+                    .frame(height: 20)
+                    .accessibilityIdentifier("widget.title")
+                ForEach(Array(n.lines.prefix(medium ? 6 : 5).enumerated()), id: \.offset) { _, line in
+                    Text(line)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.primary.opacity(0.8))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .widgetURL(QuickLink.note(n.id).url)
+        case .waiting(let id, let title):
+            message(title, QuickWords.noteWaiting)
+                .widgetURL(QuickLink.note(id).url)
         case .noLists:
             message(QuickWords.noLists, QuickWords.noListsLine)
                 .widgetURL(QuickLink.newNote.url)
@@ -131,7 +165,7 @@ struct ChecklistWidgetView: View {
 
     private func message(_ title: String, _ line: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: "checklist")
+            Image(systemName: "note.text")
                 .font(.system(size: 22, weight: .regular))
                 .foregroundStyle(.tint)
                 .widgetAccentable()

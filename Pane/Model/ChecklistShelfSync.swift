@@ -64,7 +64,15 @@ extension ModelContext {
         recent.fetchLimit = ChecklistShelf.recentLimit
         let recents: [Note] = (try? fetch(recent)) ?? []
         ChecklistShelf.saveRecents(recents.map { ChecklistShelf.Recent(id: $0.id, title: $0.title, updatedAt: $0.updatedAt) })
-        if ChecklistShelf.saveLists(shelf) {
+        // Previews for the widget's other notes: the newest, and any a widget asked for.
+        let wanted = Set(ChecklistShelf.wanted())
+        var shown = Array(recents.prefix(ChecklistShelf.previewLimit))
+        shown += recents.dropFirst(ChecklistShelf.previewLimit).filter { wanted.contains($0.id) }
+        let previews = shown.map {
+            ChecklistShelf.preview(id: $0.id, title: $0.title, readable: ReadableText.from(markdown: $0.body), updatedAt: $0.updatedAt)
+        }
+        let previewsChanged = ChecklistShelf.savePreviews(previews)
+        if ChecklistShelf.saveLists(shelf) || previewsChanged {
             #if canImport(WidgetKit) && os(iOS)
             WidgetCenter.shared.reloadTimelines(ofKind: Self.checklistWidgetKind)
             #endif

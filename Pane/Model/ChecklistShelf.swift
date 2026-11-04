@@ -170,6 +170,15 @@ enum ChecklistShelf {
         var open: Int { items.filter { !$0.done }.count }
     }
 
+    /// Any note, as the widget draws one without a checklist: its title and first lines, read as
+    /// text (Emil, 4 November 2026: "maybe you want to just have a note that you often write down").
+    struct Preview: Codable, Hashable, Sendable, Identifiable {
+        var id: UUID
+        var title: String
+        var lines: [String]
+        var updatedAt: Date
+    }
+
     /// A note the share sheet can add to.
     struct Recent: Codable, Hashable, Sendable, Identifiable {
         var id: UUID
@@ -277,6 +286,37 @@ enum ChecklistShelf {
         let words = query.lowercased().split(whereSeparator: \.isWhitespace)
         guard !words.isEmpty else { return notes }
         return notes.filter { n in words.allSatisfy { n.title.lowercased().contains($0) } }
+    }
+
+    // MARK: Note previews (the app writes, the widget reads)
+
+    /// The newest notes kept as previews, so most picks show at once; a widget's other pick is
+    /// asked for (`want`) and left the next time the app runs.
+    static let previewLimit = 40
+    /// Lines kept per preview: the medium widget shows about 6.
+    static let previewLines = 8
+
+    static func previews() -> [Preview] { read("Previews.json", as: [Preview].self) ?? [] }
+
+    @discardableResult
+    static func savePreviews(_ notes: [Preview]) -> Bool { write(notes, to: "Previews.json") }
+
+    /// A note as the widget shows it: its lines after the title, blank ones left out.
+    static func preview(id: UUID, title: String, readable: String, updatedAt: Date) -> Preview {
+        let lines = readable.split(separator: "\n", omittingEmptySubsequences: true)
+            .dropFirst().map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        return Preview(id: id, title: title.isEmpty ? "New Note" : title, lines: Array(lines.prefix(previewLines)), updatedAt: updatedAt)
+    }
+
+    /// Notes a widget was set to show that the app hasn't left a preview of yet.
+    static func wanted() -> [UUID] { read("Wanted.json", as: [UUID].self) ?? [] }
+
+    /// The widget asks for a note it has nothing for.
+    static func want(_ id: UUID) {
+        var w = wanted()
+        guard !w.contains(id) else { return }
+        w.append(id)
+        write(Array(w.suffix(20)), to: "Wanted.json")
     }
 
     // MARK: Ticks (the widget writes, the app applies)
