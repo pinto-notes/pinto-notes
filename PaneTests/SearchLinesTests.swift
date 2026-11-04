@@ -47,6 +47,7 @@ import AppKit
 
     /// Go to Note: a note found by its text carries its lines and the count past them, and its
     /// row grows a line for each.
+    #if os(macOS)  // Go to Note (QuickOpen) is the Mac's.
     @Test func goToNoteFindsEveryLine() async throws {
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let n = c.mainContext.createNote(in: .all, body: "Trip ideas\n\n" + Self.trip.split(separator: "\n").dropFirst(1).joined(separator: "\n"))
@@ -65,6 +66,7 @@ import AppKit
         #expect(QuickOpenPanel.height(of: .text(single)) == QuickOpenPanel.Metrics.textRow)
         #endif
     }
+    #endif
 
     #if os(macOS)
     /// The panel shows the lines and the count, read through accessibility far off the screen.
