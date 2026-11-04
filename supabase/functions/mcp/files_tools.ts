@@ -176,7 +176,7 @@ export const FILE_TOOLS: Tool[] = ([
  *  format rules live where they're needed (the tools' checks and descriptions, an app's README). */
 export const FILE_INSTRUCTIONS = `Pinto Notes is the person's notes, as files: each note is a markdown file in folders ("Work/Acme.md"; its first line is its title). A note's sub-notes and files are in the folder with its name ("Work/Acme/Agenda.md", "Work/Acme/contract.pdf"); folders also hold files of their own ("To read/Paper.pdf").
 In a note, a checklist item is "- [ ] item" (tick it by editing it to "- [x] item"), a table is a markdown table (a tracker has a <!-- pane-table: … --> line above it giving each column's type; fetch gives today's date), and [[Title]], [[Title|shown text]] or [[Title#Heading]] links to another note by its title (renaming a note with move, edit or write updates the links to it; fetch lists what links to a note).
-A note listed with locked: true is locked by the person with a separate password: only its title shows here, and only they can open it, in Pinto Notes. Deleted notes stay in "Recently Deleted/" for 30 days, and every change keeps the version before it (history, restore).
+A note listed with locked: true is locked by the person with a separate password: it shows here as "Locked note", without its title or text, and only they can open it, in Pinto Notes. Deleted notes stay in "Recently Deleted/" for 30 days, and every change keeps the version before it (history, restore).
 ${FILE_APP_INSTRUCTIONS}
 Read before you edit; edit and write answer with checks: fix what they report.`;
 
@@ -363,7 +363,7 @@ const foldersOfNote = (P: Paths, n: Note) => P.folderPathOf(n.folder_id).split("
 /** Every live note's title and folders, to resolve [[links]] the way the app does. */
 function wikiIndexOf(P: Paths): WikiIndex {
   return new WikiIndex(P.all().flatMap((e) => e.kind === "note" && !e.note.trashed_at
-    ? [{ id: e.note.id, title: e.note.title, folders: foldersOfNote(P, e.note), updated: +new Date(e.note.updated_at) }] : []));
+    ? [{ id: e.note.id, title: P.linkTitle(e.note), folders: foldersOfNote(P, e.note), updated: +new Date(e.note.updated_at) }] : []));
 }
 
 /** The texts of the live, readable notes (other than `except`) that can hold a [[link]] by

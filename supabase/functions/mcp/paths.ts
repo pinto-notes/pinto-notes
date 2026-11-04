@@ -16,7 +16,7 @@
 // account in one sealed box (mcp_title_index, with each note's version), so a call opens that box
 // and only the titles that changed since, not every note's head.
 
-import { type FolderRow, type Note, type NoteRow, type Tx, type Call, ToolError } from "./tools.ts";
+import { type FolderRow, type Note, type NoteRow, type Tx, type Call, LOCKED_TITLE, ToolError } from "./tools.ts";
 import { type FolderFile, folderFileRows, type FolderFileRow } from "./folder_files.ts";
 
 export const DELETED = "Recently Deleted/";
@@ -46,6 +46,8 @@ export class Paths {
   private filePaths = new Map<string, string>();
   /** directory (lowercase, "" for the top) → its entries. */
   private dirs = new Map<string, Entry[]>();
+  /** A locked note's real title, for resolving [[links]] only. Never in a result. */
+  private lockedTitles = new Map<string, string>();
   private constructor(readonly timing: PathTiming) {}
 
   static async load(tx: Tx, c: Call): Promise<Paths> {
@@ -115,9 +117,12 @@ export class Paths {
     const openMs = performance.now() - t1;
     const t2 = performance.now();
     const hasApp = new Set(apps.map((a) => a.note_id));
-    const notes: Note[] = rows.map(({ locked, ...r }) => ({ ...r, head_ct: "", locked_body: locked ? "locked" : null, version: String(r.version), title: index.notes[r.id]?.[1] ?? UNREADABLE }));
+    // A locked note is "Locked note" in every path, list and search: its title is the person's.
+    // Its real title only resolves [[links]] (linkTitle), so links land where the app lands them.
+    const notes: Note[] = rows.map(({ locked, ...r }) => ({ ...r, head_ct: "", locked_body: locked ? "locked" : null, version: String(r.version), title: locked ? LOCKED_TITLE : index.notes[r.id]?.[1] ?? UNREADABLE }));
     const created = new Map(frows.map((f) => [f.id, +new Date(f.created_at)]));
     const p = new Paths({ rows: rows.length, opened, dbMs: Math.round(dbMs), openMs: Math.round(openMs), buildMs: 0, cached });
+    for (const r of rows) if (r.locked) p.lockedTitles.set(r.id, index.notes[r.id]?.[1] ?? UNREADABLE);
     p.build(folders, notes, hasApp, created, files);
     p.timing.buildMs = Math.round(performance.now() - t2);
     return p;
@@ -225,6 +230,9 @@ export class Paths {
     return e?.kind === "note" ? e.note : undefined;
   }
   pathOf(noteId: string): string | undefined { return this.notePaths.get(noteId); }
+  /** The title [[links]] find a note by: a locked note's real one, so a link to it isn't taken for
+   *  a link to another note (on a rename). For resolving only; results show `note.title`. */
+  linkTitle(n: Note): string { return this.lockedTitles.get(n.id) ?? n.title; }
   /** A file kept in a folder: its path, by its id. */
   filePathOf(fileId: string): string | undefined { return this.filePaths.get(fileId); }
   fileAt(path: string): FolderFile | undefined { const e = this.at(path); return e?.kind === "file" ? e.file : undefined; }

@@ -45,7 +45,7 @@ Checklists are "- [ ] item" lines; use set_checklist_item to tick them. Link to 
 [[Title]], [[Title|shown text]] or [[Title#Heading]]; the app shows it as a link and follows it by title. A line like [Title](pane-note:<id>) links a sub-note: a whole note that lives inside
 its parent. Use create_sub_note to make one; read it with read_note(id). Deleted notes go to Recently Deleted
 and can be restored; every edit keeps the previous version (note_history / restore_revision).
-${apps ? `${PAGE_INSTRUCTIONS}\n` : ""}A note marked locked: true is locked by the user with a separate password: its title is visible here, and nothing else.
+${apps ? `${PAGE_INSTRUCTIONS}\n` : ""}A note marked locked: true is locked by the user with a separate password: it shows here as "Locked note", without its title or text.
 It can't be read, searched or changed here; only the user can open it, in Pinto Notes.`;
 }
 

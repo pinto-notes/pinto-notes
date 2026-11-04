@@ -58,7 +58,7 @@ Deno.test({ name: "locked: search leaves the note out, reading says it's locked,
 
   const listed = await call("list_notes", { limit: 200 });
   const row = listed.data.notes.find((n: { id: string }) => n.id === id);
-  assertEquals([row?.title, row?.locked, row?.preview], [`Vault ${stamp}`, true, undefined]);
+  assertEquals([row?.title, row?.locked, row?.preview], ["Locked note", true, undefined]);
 
   for (const name of ["read_note", "fetch"]) {
     const r = await call(name, { id });
