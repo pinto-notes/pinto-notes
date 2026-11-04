@@ -44,7 +44,11 @@ import Testing
         #expect(TextSize.step(from: 13, bigger: false) == 13, "13 pt, Notes' size, is the smallest")
         #expect(TextSize.index(of: 17) == 2 && TextSize.index(of: 24) == 4 && TextSize.index(of: 14) == 0)
         #expect(TextSize.size(stored: 0) == 13, "nothing stored: the standard size")
-        #expect(TextSize.size(stored: 14) == 13, "a size that isn't a stop (an earlier build's): the standard size")
+        // A size from the earlier 11-24 pt build: the stop at or above it, never back to 13.
+        #expect(TextSize.size(stored: 14) == 15)
+        #expect(TextSize.size(stored: 16) == 17 && TextSize.size(stored: 18) == 20 && TextSize.size(stored: 22) == 24)
+        #expect(TextSize.size(stored: 11) == 13 && TextSize.size(stored: 30) == 24)
+        #expect(TextSize.size(stored: 0) == 13, "nothing stored: the standard size")
         #expect(TextSize.size(stored: 20) == 20)
         #expect(TextSize.spoken(17) == "17 points")
         #expect(TextSize.biggerTitle == "Make Text Bigger" && TextSize.smallerTitle == "Make Text Smaller" && TextSize.actualTitle == "Actual Size")

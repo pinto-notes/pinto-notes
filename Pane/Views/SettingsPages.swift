@@ -359,6 +359,7 @@ struct TextSizeRow: View {
 struct TextSizeSample: View {
     @AppStorage(TextSize.key) private var stored: Double = 0
     static let text = "Four days of tiles, trams and pastries in May."
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Text(Self.text)
@@ -367,7 +368,7 @@ struct TextSizeSample: View {
             .lineLimit(2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 12)
-            .animation(.snappy(duration: 0.15), value: stored)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.15), value: stored)
             .accessibilityLabel("Sample: \(Self.text)")
             .accessibilityIdentifier("settings.textSizeSample")
     }

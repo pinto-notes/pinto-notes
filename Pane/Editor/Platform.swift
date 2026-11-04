@@ -209,10 +209,13 @@ enum TextSize {
 
     static var body: CGFloat { size(stored: UserDefaults.standard.double(forKey: key)) }
 
-    /// The size a stored value stands for: the standard one when nothing (or no stop) is stored.
+    /// The size a stored value stands for: the standard one when nothing is stored. A size from
+    /// the 11-24 pt build before the stops goes to the stop at or above it (16 → 17, 22 → 24), so
+    /// nobody's bigger text drops back to 13 on update.
     static func size(stored: Double) -> CGFloat {
+        guard stored > 0 else { return standard }
         let v = CGFloat(stored)
-        return steps.contains(v) ? v : standard
+        return steps.first { $0 >= v } ?? steps.last!
     }
     static var canGrow: Bool { body < steps.last! }
     static var canShrink: Bool { body > steps.first! }
