@@ -591,7 +591,7 @@ import Testing
         // The middle depends on what this Mac has installed (ImportKind.listed); the ends don't.
         let names = ImportOrigin.all.map(\.name)
         #expect(names.first == "Apple Notes" && names.last == "Markdown or text files")
-        #expect(Set(names) == ["Apple Notes", "Obsidian", "Bear", "Evernote", "Notion", "Google Keep", "Markdown or text files"])
+        #expect(Set(names) == ["Apple Notes", "Obsidian", "Bear", "Evernote", "Google Keep", "Markdown or text files"], "Notion imports but isn't listed")
         #expect(ImportKind.obsidian.isMarkdown && ImportKind.bear.isMarkdown && ImportKind.notion.isMarkdown && ImportKind.markdown.isMarkdown)
         #expect(!ImportKind.evernote.isMarkdown && !ImportKind.keep.isMarkdown)
         #expect(ImportKind.obsidian.contentTypes == ImportKind.markdown.contentTypes)
