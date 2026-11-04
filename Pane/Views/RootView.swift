@@ -367,12 +367,11 @@ struct RootView: View {
                 .environment(library)
                 .environment(tags)
                 #if os(macOS)
-                // No sidebar button (Emil, 10-29), and no way to hide it at all (11-01): it can't
-                // collapse (SidebarPin; the split view's own ⌃⌘S does nothing), and the window can't
-                // get narrower than the three columns. At its narrowest it still has room for New
-                // Folder, Today and Search beside the window's buttons (10-31).
+                // The sidebar hides again (Emil, 11-04, overriding the 11-01 pin): View › Hide
+                // Sidebar (⌃⌘S) gives the note the window. No sidebar button (10-29): it would push
+                // Search off the sidebar's top, which at its narrowest has room for New Folder,
+                // Today and Search beside the window's buttons (10-31).
                 .toolbar(removing: .sidebarToggle)
-                .background(SidebarPin())
                 .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
                 #else
                 // iPad: room for the title beside the account button.
@@ -383,7 +382,9 @@ struct RootView: View {
                 .equatable()
                 .environment(library)
                 #if os(macOS)
-                .navigationSplitViewColumnWidth(min: 260, ideal: 330, max: 440)
+                // With the sidebar hidden its New Folder, Today and Search sit over this column
+                // beside the window's buttons: 350 pt keeps More and New Note clear of its edge.
+                .navigationSplitViewColumnWidth(min: visibility == .all ? 260 : 350, ideal: visibility == .all ? 330 : 350, max: 440)
                 #else
                 // Large text needs the room more here than in the note beside it.
                 // A window wider than tall and under 1,000 pt (iPhone Duo open like a book): the list is
@@ -1105,10 +1106,9 @@ struct PaneCommands: Commands {
             Button(NoteMoreMenu.historyTitle) { showHistory?() }
                 .disabled(showHistory == nil)
         }
-        // View › AI Changes: everything an AI changed, across all notes. In place of the sidebar
-        // group, with no Show/Hide Sidebar: the sidebar is always there (Emil, 11-01). Replacing
-        // that group with nothing took these items away with it.
-        CommandGroup(replacing: .sidebar) {
+        // View › AI Changes: everything an AI changed, across all notes. After Hide Sidebar
+        // (SidebarCommands); with that group replaced by nothing (11-01) these went with it.
+        CommandGroup(after: .sidebar) {
             // As in Notes. The shortcuts are Xcode's Fold All and Unfold All.
             Button("Collapse All Sections") { editor?.collapseAllSections() }
                 .keyboardShortcut(.leftArrow, modifiers: [.command, .option, .shift])
@@ -1260,38 +1260,6 @@ struct ColumnHairline: View {
 }
 #endif
 
-#if os(macOS)
-/// Keeps the notes window's sidebar from collapsing: there is no sidebar-hidden state
-/// (Emil, 11-01). SwiftUI's split view still answers ⌃⌘S (Toggle Sidebar, hidden in its own
-/// menu); with its sidebar item unable to collapse, that does nothing.
-struct SidebarPin: NSViewRepresentable {
-    func makeNSView(context: Context) -> PinView { PinView() }
-    func updateNSView(_ view: PinView, context: Context) { view.pin() }
-
-    final class PinView: NSView {
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            pin()
-            // The split view controller is put together a turn later.
-            DispatchQueue.main.async { [weak self] in self?.pin() }
-        }
-
-        func pin() {
-            guard let content = window?.contentView, let split = Self.split(in: content),
-                  let sidebar = split.splitViewItems.first else { return }
-            if sidebar.canCollapse { sidebar.canCollapse = false }
-            if sidebar.isCollapsed { sidebar.isCollapsed = false }
-        }
-
-        /// SwiftUI's split view controller isn't a child view controller: it's the split view's delegate.
-        static func split(in view: NSView) -> NSSplitViewController? {
-            if let v = view as? NSSplitView, let s = v.delegate as? NSSplitViewController { return s }
-            for sub in view.subviews { if let s = split(in: sub) { return s } }
-            return nil
-        }
-    }
-}
-#endif
 
 #if os(iOS)
 /// The note first, the list over it (`RootView.noteFirst`); otherwise the system's own choice.

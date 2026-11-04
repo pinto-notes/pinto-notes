@@ -239,9 +239,8 @@ struct PaneApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             PaneCommands()
-            // Edit › Find, Spelling and Substitutions. No View › Hide Sidebar: the sidebar is always
-            // there (Emil, 11-01), so PaneCommands puts the View items in place of that group. The
-            // window can't get narrower than the three columns either.
+            // View › Hide Sidebar (⌃⌘S) and Edit › Find, Spelling and Substitutions.
+            SidebarCommands()
             TextEditingCommands()
             #if SPARKLE
             UpdaterCommands()

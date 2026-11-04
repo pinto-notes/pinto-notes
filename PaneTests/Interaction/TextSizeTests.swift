@@ -6,7 +6,7 @@ import Testing
 /// View › Bigger, Smaller and Actual Size (council round 1, 11-04: both judges asked for it, as
 /// Notes and Obsidian have it). The size is display only and scales the title with the body.
 @MainActor @Suite(.serialized) struct TextSizeTests {
-    /// The View menu holds what the app puts there, and no Hide Sidebar. Replacing the sidebar
+    /// The View menu holds what the app puts there, after Hide Sidebar. Replacing the sidebar
     /// group with nothing (to drop Hide Sidebar, 11-01) took every item placed after it away too:
     /// Collapse All Sections, AI Changes and the text sizes were missing on the Air (11-04).
     @Test func theViewMenuHasTextSizesSectionsAndAIChanges() throws {
@@ -17,7 +17,7 @@ import Testing
         for t in ["Bigger", "Smaller", "Actual Size", "Collapse All Sections", "Expand All Sections", "\(AIChangeCopy.title)\u{2026}"] {
             #expect(titles.contains(t), "View › \(t): \(titles)")
         }
-        #expect(!titles.contains { $0.contains("Sidebar") }, "the sidebar can't be hidden: \(titles)")
+        #expect(titles.contains { $0.contains("Sidebar") }, "Hide Sidebar is back (11-04): \(titles)")
         let bigger = view.items.first { $0.title == "Bigger" }
         #expect(bigger?.keyEquivalent == "+")
     }
