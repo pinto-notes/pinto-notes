@@ -519,7 +519,7 @@ struct NoteListView: View {
                     }
                     .tint(.primary)
                     .accessibilityIdentifier("list.more")
-                    .askAIPopover($asking, subject: askSubject ?? .all)
+                    .askAIPopover($asking, subject: askSubject ?? .all, recent: askRecent)
                 }
             }
             if editMode.isEditing {
@@ -575,7 +575,7 @@ struct NoteListView: View {
                 .menuIndicator(.hidden)
                 .tint(.primary)
                 .accessibilityIdentifier("list.more")
-                .askAIPopover($asking, subject: askSubject ?? .all)
+                .askAIPopover($asking, subject: askSubject ?? .all, recent: askRecent)
             }
             ToolbarSpacer(.flexible)
             if Self.titleRoom(listWidth: listWidth, compose: scope != .trash) > 0 {
@@ -737,6 +737,15 @@ struct NoteListView: View {
     /// What Ask an AI is about here (ListMoreMenu.askSubject).
     private var askSubject: AskAI.Subject? {
         ListMoreMenu.askSubject(scope, folderName: { context.folder($0)?.name })
+    }
+
+    /// Something in this folder (or any note, in All Notes) changed this week: the week questions
+    /// are offered (AskAI.questions). Worked out when the popover opens.
+    private var askRecent: Bool {
+        switch scope {
+        case .folder(let id): context.folder(id).map { AskAI.recent($0) } ?? true
+        default: AskAI.recent(in: context)
+        }
     }
 
     /// The Mac ••• menu's Ask an AI, after a line, when an AI is connected.
@@ -1909,6 +1918,7 @@ struct NoteRow: View {
         let ai = AIEdit.isUnseen(note) ? note.aiEditor : nil
         let app = NoteAppMark.has(note)
         let picture = Self.picture(of: note)
+        let found = self.found
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: RowMetrics.spacing) {
                 HStack(spacing: 5) {
@@ -1962,6 +1972,10 @@ struct NoteRow: View {
                             .labelStyle(LockedRowLabel())
                             .foregroundStyle(muted)
                             .lineLimit(1)
+                    } else if let first = found?.lines.first {
+                        // Searching: the first line that holds the text, the text in bold.
+                        SearchLines.text(first, rest: muted)
+                            .lineLimit(large ? 2 : 1)
                     } else if let ai {
                         HStack(spacing: 4) {
                             AIGlyph(ai: ai, size: 11)
@@ -1970,12 +1984,26 @@ struct NoteRow: View {
                         .foregroundStyle(Color.amberInk)
                         .lineLimit(1)
                     } else {
-                        Text(snippet)
+                        Text(note.preview)
                             .foregroundStyle(muted)
                             .lineLimit(large ? 2 : 1)
                     }
                 }
                 .font(RowMetrics.detail)
+                // Every line that holds it, up to three, then how many more (SearchLines).
+                if let found, found.lines.count > 1 || found.more > 0 {
+                    VStack(alignment: .leading, spacing: RowMetrics.spacing) {
+                        ForEach(Array(found.lines.dropFirst().enumerated()), id: \.offset) { _, line in
+                            SearchLines.text(line, rest: muted).lineLimit(large ? 2 : 1)
+                        }
+                        if found.more > 0 {
+                            Text(SearchLines.moreLine(found.more))
+                                .foregroundStyle(muted)
+                                .accessibilityIdentifier("note.moreMatches")
+                        }
+                    }
+                    .font(RowMetrics.detail)
+                }
                 if folderLine, let f = note.folder {
                     HStack(spacing: DesignLook.calmList ? 4 : 5) {
                         // The candidates draw it lighter and smaller than the name (DESIGN.md, Icons).
@@ -2022,15 +2050,12 @@ struct NoteRow: View {
         return file
     }
 
-    /// With a search, show the matching line instead of the preview.
-    private var snippet: String {
+    /// With a search, the lines that hold it in place of the preview: up to three, then how many
+    /// more. None for a locked note (its text is sealed), or when only the title holds it.
+    private var found: SearchLines.Found? {
         let q = query.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return note.preview }
-        for line in note.body.split(separator: "\n") where line.localizedStandardContains(q) {
-            let clean = NoteText.stripMarkup(String(line))
-            if !clean.isEmpty, clean != note.title { return clean }
-        }
-        return note.preview
+        guard !q.isEmpty, !note.isLocked else { return nil }
+        return SearchLines.find(in: note.body, query: q, skipping: note.title)
     }
 }
 
@@ -2174,3 +2199,76 @@ private struct ColumnListStyle: ViewModifier {
     }
 }
 #endif
+
+/// Search shows every match (persona council round 1, Elena: Obsidian listed 9 hits where Pinto
+/// listed 1). A found note shows its lines that hold the text, up to three, the text itself in
+/// bold, then how many more lines in the note hold it: "4 more in this note". Go to Note (⌘O)
+/// and the list's search both show them. Pure, so it is unit-tested (SearchLinesTests).
+enum SearchLines {
+    /// One line that holds the text: before it, the text as written there, after it.
+    struct Line: Equatable, Sendable {
+        let before: String
+        let match: String
+        let after: String
+        var text: String { before + match + after }
+    }
+
+    struct Found: Equatable, Sendable {
+        /// The first lines that hold it, in the note's order.
+        let lines: [Line]
+        /// How many more lines hold it.
+        let more: Int
+        var total: Int { lines.count + more }
+    }
+
+    /// Lines shown per note.
+    static let shown = 3
+
+    static func moreLine(_ count: Int) -> String {
+        count == 1 ? "1 more in this note" : "\(count.formatted()) more in this note"
+    }
+
+    private static let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+
+    /// The lines of `body` that hold `query` (case and accents aside), each with its markup taken
+    /// out and cut to show the text near its start; `skipping` leaves out a line that reads as the
+    /// title (the row shows it already). Nil when no line holds it.
+    static func find(in body: String, query: String, skipping title: String? = nil, limit: Int = shown,
+                     lead: Int = 28, length: Int = 120) -> Found? {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return nil }
+        var lines: [Line] = [], more = 0
+        for raw in body.split(separator: "\n", omittingEmptySubsequences: true) {
+            guard raw.range(of: q, options: options) != nil, let line = line(raw, q, lead: lead, length: length) else { continue }
+            if let title, line.text.trimmingCharacters(in: .whitespaces) == title.trimmingCharacters(in: .whitespaces) { continue }
+            if lines.count < limit { lines.append(line) } else { more += 1 }
+        }
+        return lines.isEmpty ? nil : Found(lines: lines, more: more)
+    }
+
+    /// One line, as the list shows text if the text is still in it that way, else as written.
+    static func line(_ raw: Substring, _ q: String, lead: Int = 28, length: Int = 120) -> Line? {
+        for candidate in [WikiLinks.plain(NoteText.stripMarkup(String(raw))), String(raw)] {
+            let line = candidate.trimmingCharacters(in: .whitespaces)
+            guard let r = line.range(of: q, options: options) else { continue }
+            var before = line[..<r.lowerBound]
+            var cut = false
+            if before.count > lead {
+                before = before.suffix(lead)
+                // Start at a word, not inside one.
+                if let space = before.firstIndex(where: \.isWhitespace), before.distance(from: before.startIndex, to: space) < lead / 2 {
+                    before = before[before.index(after: space)...]
+                }
+                cut = true
+            }
+            let after = line[r.upperBound...].prefix(max(length - before.count - line[r].count, 0))
+            return Line(before: (cut ? "\u{2026}" : "") + before, match: String(line[r]), after: String(after))
+        }
+        return nil
+    }
+
+    /// A line as a row shows it: the text in the ink's semibold, the rest in `rest`.
+    static func text(_ l: Line, rest: Color) -> Text {
+        Text(l.before).foregroundStyle(rest) + Text(l.match).foregroundStyle(Color.ink).fontWeight(.semibold) + Text(l.after).foregroundStyle(rest)
+    }
+}
