@@ -1182,6 +1182,10 @@ struct PaneCommands: Commands {
                 Button("Monostyled") { editor?.code() }.keyboardShortcut("m", modifiers: [.command, .shift])
                 Divider()
                 Button("Checklist") { editor?.checklist() }.keyboardShortcut("l", modifiers: [.command, .shift])
+                // Notes' Uncheck All, in the app's word: on in a checklist with something ticked.
+                Button(EditorController.untickAllTitle) { editor?.untickAll() }
+                    .keyboardShortcut("l", modifiers: [.command, .option, .shift])
+                    .disabled(editor?.canUntickAll != true)
                 Button("Bulleted List") { editor?.bulletList() }.keyboardShortcut("7", modifiers: [.command, .shift])
                 Button("Dashed List") { editor?.dashedList() }.keyboardShortcut("8", modifiers: [.command, .shift])
                 Button("Numbered List") { editor?.numberedList() }.keyboardShortcut("9", modifiers: [.command, .shift])

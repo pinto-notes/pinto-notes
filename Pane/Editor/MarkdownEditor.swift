@@ -1725,6 +1725,21 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         }
     }
 
+    /// The menu over a long press or the caret: in a checklist with something ticked, Untick All
+    /// in This List first, as Notes puts its list commands there.
+    func textView(_ textView: UITextView, editMenuForTextIn range: NSRange, suggestedActions: [UIMenuElement]) -> UIMenu? {
+        guard let untick = untickAction(at: range.location) else { return nil }
+        return UIMenu(children: [untick] + suggestedActions)
+    }
+
+    /// "Untick All in This List" for the checklist at `location`; nil when nothing in it is ticked.
+    func untickAction(at location: Int) -> UIAction? {
+        guard isEditable, controller?.readOnly != true, ListEditing.tickedCount(in: text, at: location) > 0 else { return nil }
+        return UIAction(title: EditorController.untickListTitle, image: UIImage(systemName: "checklist.unchecked")) { [weak self] _ in
+            self?.controller?.untickAll(at: location)
+        }
+    }
+
     func textView(_ textView: UITextView, menuConfigurationFor textItem: UITextItem, defaultMenu: UIMenu) -> UITextItem.MenuConfiguration? {
         // No "Open in…" for links the policy won't open.
         if case .link(let url) = textItem.content, LinkPolicy.action(for: url) == .nothing { return nil }
@@ -1898,6 +1913,19 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     // MARK: A tick and the sinking after it: one step of Undo
 
+    /// Untick All (EditorController): one step of Undo, named for shake and the Edit menu, the
+    /// caret, scroll and keyboard where they were.
+    func applyStep(_ edit: TextEdit, named name: String) {
+        core.endSlides()
+        let keep = selectedRange
+        let offset = contentOffset
+        asOneStep { apply(edit) }
+        if NSMaxRange(keep) <= (text as NSString).length { selectedRange = keep }
+        setContentOffset(offset, animated: false)
+        undoManager?.setActionName(name)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
     /// Makes `change` as one step of Undo that puts the whole text back as it was, so the sort that
     /// follows a tick (done `withoutUndo`) goes back with it, as in Notes. Steps below it stay.
     private func asOneStep(_ change: () -> Void) {
@@ -1995,6 +2023,11 @@ private struct PlatformEditor: NSViewRepresentable {
         scroll.documentView = view
         view.setFoot(foot)
         if autofocus { DispatchQueue.main.async { view.window?.makeFirstResponder(view) } }
+        // Format › Untick All for this note, not the one before (after this update, not in it).
+        DispatchQueue.main.async { [weak controller, weak view] in
+            guard let controller, let view, controller.target === view else { return }
+            controller.updateUntick(text: view.string, selection: nil)
+        }
         return scroll
     }
 
@@ -2954,12 +2987,20 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     /// Right-click on a line that is only a link: show it compact or as a card (Emil, 11-01).
+    /// On a checklist with ticks (its circle or its text): Untick All in This List.
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event) ?? NSMenu()
         let point = convert(event.locationInWindow, from: nil)
         let index = characterIndexForInsertion(at: point)
         let ns = string as NSString
         guard index <= ns.length else { return menu }
+        // On a circle, the circle's line: the click left of the text finds the line by its height.
+        let inner = CGPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
+        let listAt = core.tickTarget(at: inner, viewY: point.y, layout: textLayoutManager) ?? min(index, max(ns.length - 1, 0))
+        if let item = untickMenuItem(at: listAt) {
+            menu.insertItem(item, at: 0)
+            menu.insertItem(.separator(), at: 1)
+        }
         let line = ns.lineRange(for: NSRange(location: min(index, max(ns.length - 1, 0)), length: 0))
         var text = NSRange(location: line.location, length: line.length)
         while text.length > 0, [0x0A, 0x0D].contains(ns.character(at: NSMaxRange(text) - 1)) { text.length -= 1 }
@@ -2980,6 +3021,19 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
         menu.insertItem(.separator(), at: at)
         return menu
+    }
+
+    /// "Untick All in This List" for the checklist at `location`, when something in it is ticked
+    /// and the note can be changed.
+    func untickMenuItem(at location: Int) -> NSMenuItem? {
+        guard controller?.readOnly != true, controller?.cell == nil, ListEditing.tickedCount(in: string, at: location) > 0 else { return nil }
+        let item = NSMenuItem(title: EditorController.untickListTitle, action: #selector(TableMenuAction.fire), keyEquivalent: "")
+        let action = TableMenuAction { [weak self] in self?.controller?.untickAll(at: location) }
+        item.target = action
+        item.representedObject = action
+        item.image = NSImage(systemSymbolName: "checklist.unchecked", accessibilityDescription: nil)
+        item.setAccessibilityIdentifier("editor.untickAll")
+        return item
     }
 
     /// The other styles a link line can take, for the right-click menu: a written link offers
@@ -3162,6 +3216,17 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     // MARK: A tick and the sinking after it: one step of Undo
+
+    /// Untick All (EditorController): one step of Undo with its name in the Edit menu, the caret
+    /// and the scroll where they were.
+    func applyStep(_ edit: TextEdit, named name: String) {
+        core.endSlides()
+        let keep = selectedRange()
+        asOneStep { apply(edit) }
+        if NSMaxRange(keep) <= (string as NSString).length { setSelectedRange(keep) }
+        undoManager?.setActionName(name)
+    }
+
 
     /// Makes `change` as one step of Undo that puts the whole text back as it was, so the sort that
     /// follows a tick (done `withoutUndo`) goes back with it, as in Notes. Steps below it stay.

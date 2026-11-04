@@ -307,6 +307,35 @@ final class EditorController {
         if cell != nil { toggleTickColumn(); return }
         perform { ListEditing.toggleChecklist(in: $0, selection: $1) }
     }
+
+    // MARK: Untick All
+
+    /// The words on Format › Untick All, the right-click and long-press menus, and Edit › Undo.
+    static let untickAllTitle = "Untick All"
+    static let untickListTitle = "Untick All in This List"
+
+    /// The caret is in a checklist with something ticked: Format › Untick All is on.
+    private(set) var canUntickAll = false
+
+    /// Follows the caret (`typingChanged`), so the menu item enables as it moves.
+    func updateUntick(text: String, selection: NSRange?) {
+        let at = (selection ?? target?.currentSelection)?.location
+        let can = cell == nil && !readOnly && at.map { ListEditing.tickedCount(in: text, at: $0) > 0 } == true
+        if can != canUntickAll { canUntickAll = can }
+    }
+
+    /// Unticks every item in the checklist at `location` (the caret's, by default), as Notes'
+    /// Uncheck All: one step of Undo ("Undo Untick All"), and a notice that says how many, with Undo.
+    func untickAll(at location: Int? = nil) {
+        guard let t = target, cell == nil, !readOnly else { return }
+        let at = location ?? t.currentSelection.location
+        guard let u = ListEditing.untickAll(in: t.currentText, at: at) else { return }
+        t.applyStep(u.edit, named: Self.untickAllTitle)
+        updateUntick(text: t.currentText, selection: t.currentSelection)
+        notice = EditorNotice(text: Self.untickedNotice(u.count), canUndo: true)
+    }
+
+    static func untickedNotice(_ count: Int) -> String { count == 1 ? "Unticked 1 item" : "Unticked \(count) items" }
     func heading(_ level: Int) { guard cell == nil else { return }; perform { ListEditing.heading(in: $0, selection: $1, level: level) } }
 
     func bulletList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .bulleted) } }
@@ -418,6 +447,7 @@ final class EditorController {
     func typingChanged(text: String, selection: NSRange?) {
         // The panel follows the caret: bold on, Heading lit, as it moves.
         if formatPanelShown { refreshFormat() }
+        updateUntick(text: text, selection: selection)
         updateSlash(text: text, selection: selection)
         guard let sel = selection, sel.length == 0 else {
             wikiDismissed = nil
@@ -754,6 +784,9 @@ protocol EditorTarget: TextHost {
     func takeRestored(_ new: String)
     /// Places other people's carets now, in the same pass as a text change (collaboration).
     func showRemoteCarets(_ carets: [RemoteCaret])
+    /// Makes `edit` as one step of Undo named `name` ("Undo Untick All"), the caret, scroll and
+    /// keyboard left as they are.
+    func applyStep(_ edit: TextEdit, named name: String)
     /// Removes table `index` as one undoable edit, the keyboard back in the text.
     func deleteGrid(_ index: Int)
     /// Undoes the last edit (the notice's Undo).
@@ -776,6 +809,7 @@ protocol EditorTarget: TextHost {
 }
 
 extension EditorTarget {
+    func applyStep(_ edit: TextEdit, named name: String) { apply(edit) }
     func tablePanelChanged(shown: Bool) {}
     func deleteGrid(_ index: Int) {}
     func undoLastEdit() {}
