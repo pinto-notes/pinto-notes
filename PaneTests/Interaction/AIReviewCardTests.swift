@@ -93,6 +93,35 @@ import Testing
         #expect(note.body != AIReviewTests.after, "the part went back in the note")
     }
 
+    /// The Mac card follows the note text size (UI council round 7): at 24 pt the text is 24 pt,
+    /// the card wider, and nothing is cut; at the standard size it's as before.
+    @Test func theMacCardFollowsTheNoteTextSize() async throws {
+        #expect(AIReviewCard.cardText(0) == 13 && AIReviewCard.cardText(24) == 24 && AIReviewCard.cardText(16) == 17)
+        #expect(AIReviewCard.scale(13) == 1 && AIReviewCard.scale(24) == 1.6)
+        let saved = UserDefaults.standard.object(forKey: TextSize.key)
+        defer { UserDefaults.standard.set(saved, forKey: TextSize.key) }
+        let (c, note) = try Self.note(AIReviewTests.after)
+        _ = c
+        func card() -> OffscreenAX {
+            OffscreenAX(Host(review: AIReview(by: "Claude", previous: AIReviewTests.before, after: AIReviewTests.after), note: note) { _ in },
+                        size: CGSize(width: AIReviewCard.width * 1.6 + 40, height: 900))
+        }
+        // One at a time: every card reads the setting live.
+        UserDefaults.standard.set(13.0, forKey: TextSize.key)
+        let small = card()
+        await small.settle()
+        let p0 = try #require(small.find("review.part.0"))
+        small.close()
+        UserDefaults.standard.set(24.0, forKey: TextSize.key)
+        let big = card()
+        defer { big.close() }
+        await big.settle()
+        let p1 = try #require(big.find("review.part.0"))
+        #expect(p1.frame.width > p0.frame.width * 1.4, "wider: \(p0.frame) \(p1.frame)")
+        #expect(p1.frame.height > p0.frame.height * 1.4, "bigger text: \(p0.frame) \(p1.frame)")
+        #expect(big.find("review.title")?.text.contains("Claude changed 3 parts") == true)
+    }
+
     /// The sheet follows the person's text size (round 3: fixed 17 pt ignored it): at an
     /// accessibility size the title wraps instead of being cut, and Keep and Undo stay 44 pt and up.
     @Test func theSheetGrowsWithTheTextSize() async throws {

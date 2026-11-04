@@ -19,8 +19,27 @@ struct AIReviewCard: View {
     @FocusState private var focused: Bool
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// The text size: the sheet's follows the person's text size; the card's is fixed, as the Mac's text is.
-    private var size: CGFloat { inSheet ? Self.body(typeSize) : Self.text }
+    /// The note text size (View › Make Text Bigger), which the Mac's card follows.
+    #if os(macOS)
+    @State private var noteText = UserDefaults.standard.double(forKey: TextSize.key)
+    #else
+    private let noteText: Double = 0
+    #endif
+    /// The text size: the sheet's follows the person's text size; the Mac card's the note's text
+    /// size (UI council round 7: someone reading at 24 pt reviewed at 13).
+    private var size: CGFloat { inSheet ? Self.body(typeSize) : Self.cardText(noteText) }
+
+    /// The Mac card's text: the note's size (13, 15, 17, 20 or 24 pt); iPhone's card keeps 15.
+    static func cardText(_ stored: Double) -> CGFloat {
+        #if os(macOS)
+        TextSize.size(stored: stored)
+        #else
+        text
+        #endif
+    }
+    /// Wider and taller with bigger text, so lines stay about as long and more of a part shows;
+    /// at most 1.6 times (24 pt), and the parts scroll beyond that.
+    static func scale(_ size: CGFloat) -> CGFloat { min(max(size / text, 1), 1.6) }
 
     /// iOS's body text at each text size (17 pt at the default, Large), as the sheet sets it.
     static func body(_ t: DynamicTypeSize) -> CGFloat {
@@ -63,7 +82,7 @@ struct AIReviewCard: View {
                     }
                     .padding(10)
                 }
-                .frame(maxHeight: inSheet ? .infinity : 300)
+                .frame(maxHeight: inSheet ? .infinity : 300 * Self.scale(size))
                 .fixedSize(horizontal: false, vertical: !inSheet)
                 .onChange(of: review.focus) { _, f in
                     guard review.parts.indices.contains(f) else { return }
@@ -81,11 +100,16 @@ struct AIReviewCard: View {
                 .accessibilityHidden(true)
             #endif
         }
-        .modifier(CardChrome(inSheet: inSheet, shape: shape))
+        .modifier(CardChrome(inSheet: inSheet, width: AIReviewCard.width * Self.scale(size), shape: shape))
         // The keys go to a stand-in behind the card, not the card itself: a focused card would
         // tell every button in it that it has focus, and each would draw its ring.
         .background { keys }
         .onAppear { focused = true }
+        #if os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: TextSize.didChange)) { _ in
+            noteText = UserDefaults.standard.double(forKey: TextSize.key)
+        }
+        #endif
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("review.card")
     }
@@ -266,13 +290,14 @@ struct AIReviewCard: View {
 /// The floating card's look, or none in a sheet (the sheet is the card).
 private struct CardChrome<S: InsettableShape>: ViewModifier {
     let inSheet: Bool
+    let width: CGFloat
     let shape: S
     func body(content: Content) -> some View {
         if inSheet {
             content.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         } else {
             content
-                .frame(width: AIReviewCard.width)
+                .frame(width: width)
                 .background(Color.card, in: shape)
                 .clipShape(shape)
                 .raised(in: shape)
