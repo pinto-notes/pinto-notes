@@ -143,7 +143,14 @@ struct AIReceipt: View {
     var compact = false
     /// See all changes: AI Changes, for every change this AI made. Only for an edit of the text.
     var seeAll: (() -> Void)? = nil
+    /// Review: each changed part in turn, kept or undone on its own (AIReviewCard). Only for an
+    /// edit of the text, not a note the AI wrote.
+    var review: (() -> Void)? = nil
     let undo: () -> Void
+
+    /// Whether Review is offered for this receipt: an edit of the note's text, with the text from
+    /// right after it to compare (AIReview).
+    static func reviews(_ r: AIEdit.Receipt) -> Bool { r.kind == .edit && !r.created && r.after != nil }
 
     /// Rises in from the bottom edge; with Reduce Motion it only fades.
     static func slides(reduceMotion: Bool) -> Bool { !reduceMotion }
@@ -169,6 +176,16 @@ struct AIReceipt: View {
                 .foregroundStyle(Color.amberInk)
                 .contentShape(.rect)
                 .accessibilityHint("Puts the note back the way it was before \(receipt.by)'s edit")
+            }
+            if let review, Self.reviews(receipt), !compact {
+                Divider().frame(height: 14)
+                Button("Review", action: review)
+                    .buttonStyle(.hoverLink)
+                    .font(.system(size: Self.text, weight: .semibold))
+                    .foregroundStyle(Color.amberInk)
+                    .contentShape(.rect)
+                    .accessibilityHint("Goes through each part \(receipt.by) changed, to keep or undo it")
+                    .accessibilityIdentifier("receipt.review")
             }
             if let seeAll, receipt.kind == .edit, !compact {
                 Divider().frame(height: 14)
