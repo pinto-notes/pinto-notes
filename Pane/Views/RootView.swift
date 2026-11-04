@@ -20,6 +20,8 @@ struct RootView: View {
     @State private var listWidth = ListWidthKeeper.Probe()
     /// Whether the sidebar hid itself for a narrow window, and the change it's making (SidebarFit).
     @State private var sidebarFit = SidebarFit()
+    /// Waits for the window's width to hold still before the sidebar acts on it.
+    @State private var sidebarFitWait: Task<Void, Never>?
     #endif
     #if os(iOS)
     /// The open notes, for the list beside the note to draw (OpenNotes).
@@ -274,8 +276,14 @@ struct RootView: View {
         // Too narrow for three columns (a 13-inch screen, a window at half), the sidebar steps
         // aside on its own and comes back when there's room, unless you hid it yourself
         // (Emil, 11-04: hiding it only by menu or keys was weird).
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { old, new in
-            if let v = sidebarFit.resized(from: old, to: new, visibility: visibility) {
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+            // Once the width has held for a moment: a window being made passes through its least
+            // width on the way to its own, and changing the columns inside a resize's layout pass
+            // looped AppKit's constraints until it threw (council round 13, the Air).
+            sidebarFitWait?.cancel()
+            sidebarFitWait = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(SidebarFit.hold))
+                guard !Task.isCancelled, let v = sidebarFit.settled(width: width, visibility: visibility) else { return }
                 withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) { visibility = v }
             }
         }
@@ -1528,24 +1536,37 @@ struct SidebarFit: Equatable {
     /// about 70 characters at 13 pt with its margins). A 13-inch Air's full screen is 1,470.
     static let threeColumns: CGFloat = 1100
 
+    /// It comes back only with this much more room, so the width its own hiding causes (the
+    /// window's least width moves with the columns: 1,029 shown, 1,119 hidden in a test) can't
+    /// bring it straight back and loop.
+    static let comeBack: CGFloat = threeColumns + 120
+    /// Widths for this long after its own change are the change settling, not you.
+    static let settle: TimeInterval = 0.5
+
     /// The sidebar hid itself, so it may come back by itself.
     private(set) var autoHidden = false
     /// The visibility this is setting, to tell its own change from yours.
     private var setting: NavigationSplitViewVisibility?
+    private var quietUntil = Date.distantPast
 
-    /// The visibility to move to when the window goes from `old` to `new` wide, or nil.
-    /// A first width (from 0) counts as crossing from wide, so a narrow window opens without it.
-    mutating func resized(from old: CGFloat, to new: CGFloat, visibility: NavigationSplitViewVisibility) -> NavigationSplitViewVisibility? {
-        let line = Self.threeColumns
-        // No width yet (the window is still being made): nothing to go by.
-        guard new > 0 else { return nil }
-        let was = old <= 0 ? CGFloat.infinity : old
-        if was >= line, new < line, visibility == .all {
-            autoHidden = true; setting = .doubleColumn
+    /// How long a width holds before it counts.
+    static let hold: Double = 0.3
+    /// The last width it acted on; a window starts out wide, so a narrow one opens without it.
+    private var last = CGFloat.infinity
+
+    /// The visibility to move to now that the window has settled at `width`, or nil. Only on
+    /// crossing a line from the last settled width.
+    mutating func settled(width: CGFloat, visibility: NavigationSplitViewVisibility, now: Date = .now) -> NavigationSplitViewVisibility? {
+        // No width yet (the window is still being made), or its own change settling.
+        guard width > 1, now >= quietUntil else { return nil }
+        let was = last
+        last = width
+        if was >= Self.threeColumns, width < Self.threeColumns, visibility == .all {
+            autoHidden = true; setting = .doubleColumn; quietUntil = now.addingTimeInterval(Self.settle)
             return .doubleColumn
         }
-        if was < line, new >= line, autoHidden, visibility != .all {
-            autoHidden = false; setting = .all
+        if was < Self.comeBack, width >= Self.comeBack, autoHidden, visibility != .all {
+            autoHidden = false; setting = .all; quietUntil = now.addingTimeInterval(Self.settle)
             return .all
         }
         return nil

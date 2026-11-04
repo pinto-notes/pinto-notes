@@ -146,32 +146,66 @@ import Testing
     /// Too narrow for three columns, the sidebar steps aside, and comes back with room, only if it
     /// hid itself; what you chose stays (Emil, 11-04: it takes too much room on small Macs).
     @Test func theSidebarStepsAsideInANarrowWindow() {
-        var fit = SidebarFit()
-        let line = SidebarFit.threeColumns
+        let line = SidebarFit.threeColumns, back = SidebarFit.comeBack
+        var clock = Date(timeIntervalSince1970: 1_000_000)
+        func later() -> Date { clock = clock.addingTimeInterval(1); return clock }
         #expect(line <= 1469 - 300, "a 13-inch Air's full screen keeps it, with room to spare")
+        #expect(back > line + 90, "the width its own hiding causes (1,029 to 1,119) can't bring it back")
+        var unsized = SidebarFit()
+        #expect(unsized.settled(width: 0, visibility: .all, now: later()) == nil, "no width yet is not narrow")
         // Opening narrow: no sidebar.
-        #expect(fit.resized(from: 0, to: line - 100, visibility: .all) == .doubleColumn)
+        var fit = SidebarFit()
+        #expect(fit.settled(width: line - 100, visibility: .all, now: later()) == .doubleColumn)
         fit.changed(to: .doubleColumn)
-        #expect(fit.resized(from: line - 100, to: line - 50, visibility: .doubleColumn) == nil, "only on crossing")
-        // Wider again: it comes back, as it hid itself.
-        #expect(fit.resized(from: line - 50, to: line + 10, visibility: .doubleColumn) == .all)
+        #expect(fit.settled(width: line + 50, visibility: .doubleColumn, now: later()) == nil, "not back until there's room to spare")
+        #expect(fit.settled(width: back + 10, visibility: .doubleColumn, now: later()) == .all)
         fit.changed(to: .all)
+        // Its own change settling: a width straight after is ignored.
+        var quick = SidebarFit()
+        let t0 = later()
+        #expect(quick.settled(width: 1029, visibility: .all, now: t0) == .doubleColumn)
+        quick.changed(to: .doubleColumn)
+        #expect(quick.settled(width: back + 1, visibility: .doubleColumn, now: t0.addingTimeInterval(0.2)) == nil, "settling")
         // You hide it in a wide window: a narrow one and back doesn't bring it back.
         fit.changed(to: .doubleColumn)
-        #expect(fit.resized(from: line + 10, to: line - 10, visibility: .doubleColumn) == nil)
-        #expect(fit.resized(from: line - 10, to: line + 10, visibility: .doubleColumn) == nil, "you hid it")
+        #expect(fit.settled(width: line - 10, visibility: .doubleColumn, now: later()) == nil)
+        #expect(fit.settled(width: back + 10, visibility: .doubleColumn, now: later()) == nil, "you hid it")
         // You show it in a narrow window: it stays while the window stays narrow.
         var shown = SidebarFit()
-        #expect(shown.resized(from: 1400, to: line - 10, visibility: .all) == .doubleColumn)
+        #expect(shown.settled(width: line - 10, visibility: .all, now: later()) == .doubleColumn)
         shown.changed(to: .doubleColumn)
         shown.changed(to: .all)
-        #expect(shown.resized(from: line - 10, to: line - 20, visibility: .all) == nil, "yours, kept")
-        #expect(shown.resized(from: line - 20, to: line + 20, visibility: .all) == nil)
-        var unsized = SidebarFit()
-        #expect(unsized.resized(from: 0, to: 0, visibility: .all) == nil, "no width yet is not narrow")
+        #expect(shown.settled(width: line - 20, visibility: .all, now: later()) == nil, "yours, kept")
         // A wide window opens with it.
         var wide = SidebarFit()
-        #expect(wide.resized(from: 0, to: 1469, visibility: .all) == nil)
+        #expect(wide.settled(width: 1469, visibility: .all, now: later()) == nil)
+    }
+
+    /// A real window made narrow: the sidebar steps aside, and the window lives (council round
+    /// 13 on the Air: hiding it inside the resize's own layout pass looped AppKit's constraints
+    /// until it threw). Wider again, it's back.
+    @Test func aNarrowedWindowHidesTheSidebarAndLives() async throws {
+        let c = try AppSnapshotTests.container()
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            let w = Self.window(c, size: CGSize(width: 1300, height: 800))
+            defer { w.close() }
+            await Self.settle(w)
+            let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
+            let sidebar = try #require((split.delegate as? NSSplitViewController)?.splitViewItems.first)
+            #expect(!sidebar.isCollapsed)
+            for width in [1200.0, 1000, 980] {
+                w.setContentSize(CGSize(width: width, height: 800))
+                w.contentView?.layoutSubtreeIfNeeded()
+                await Self.settle(w, 3)
+            }
+            #expect(sidebar.isCollapsed, "too narrow for three columns")
+            let widths = (0..<6).map { _ in w.frame.width }
+            await Self.settle(w, 6)
+            #expect(sidebar.isCollapsed && w.frame.width == widths[0], "and it stays put: no hiding and showing in turn")
+            w.setContentSize(CGSize(width: 1300, height: 800))
+            await Self.settle(w, 8)
+            #expect(!sidebar.isCollapsed, "back with room")
+        }
     }
 
     @Test func newFolderIsOnTheFoldersHeading() throws {
