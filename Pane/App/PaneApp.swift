@@ -1325,6 +1325,8 @@ struct AppGate: View {
                     await KeyDevices.shared.refresh(AccountCrypto.shared)
                 }
                 context.drainInbox()
+                // Ticks made in the Home Screen widget go into their notes before sync sends them.
+                context.syncChecklistShelf()
                 context.foldSubNotesIntoFolders()
                 sync.schedule()
             } else {
@@ -1333,6 +1335,8 @@ struct AppGate: View {
                 // sheet gets the folders as they are now.
                 DebouncedSave.flushAll()
                 context.publishFolderChoices()
+                // The widget and the share sheet get the lists and recent notes as they are now.
+                context.publishChecklistShelf()
                 sync.schedule()
             }
         }
@@ -1352,7 +1356,10 @@ struct AppGate: View {
             if let connectAsks { Task { await connectAsks.refresh() } }
             if let notices { Task { await notices.refresh() } }
         }
-        .onAppear { context.drainInbox() }
+        .onAppear {
+            context.drainInbox()
+            context.syncChecklistShelf()
+        }
     }
 
     #if os(macOS)
