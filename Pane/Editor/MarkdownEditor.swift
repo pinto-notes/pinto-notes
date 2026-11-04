@@ -1867,7 +1867,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         setContentOffset(offset, animated: false)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         if edit.replacement == "x", let r = circle {
-            CheckPop.play(in: layer, rect: r.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top))
+            CheckPop.play(in: layer, rect: r.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top),
+                          completes: CheckPop.completesList(text, lineStart: line))
         }
         core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) }
     }
@@ -3048,7 +3049,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             if edit.replacement == "x", let r = circle, let host = layer {
                 // In this view's light or dark, so the pop is the colour of the circle it lands on.
                 effectiveAppearance.performAsCurrentDrawingAppearance {
-                    CheckPop.play(in: host, rect: r.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
+                    CheckPop.play(in: host, rect: r.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y),
+                                  completes: CheckPop.completesList(string, lineStart: line))
                 }
             }
             core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) }

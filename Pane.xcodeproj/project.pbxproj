@@ -783,6 +783,7 @@
 		C4F35A71EEF833908127290E /* Backlinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A37C9F239F34435A2AC59C8 /* Backlinks.swift */; };
 		C516F973C1547CD5514A60DA /* template-app-budget-log.data.json in Resources */ = {isa = PBXBuildFile; fileRef = 21C0F2F96714C56888E2C6A7 /* template-app-budget-log.data.json */; };
 		C5B310173A0C2B0C09D8092D /* HeadingFoldInteractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8BF3C64DC2081F44DF15118 /* HeadingFoldInteractionTests.swift */; };
+		C5BCBB00BE93DCE5F4199F8A /* Charm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38844D28999CCC179E6181D8 /* Charm.swift */; };
 		C5DB73A17AD6622AE77C692A /* KeyCopySync.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA308C1A257FEFA51B0594D /* KeyCopySync.swift */; };
 		C67F73D849AF2E836059063E /* htm.js in Resources */ = {isa = PBXBuildFile; fileRef = F9AB7B84121134A7EF8CBE69 /* htm.js */; };
 		C6C7BCD3CFABD48733B100ED /* template-app-trip-plan-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = DFFC49BCF62DBB16BFC2CF8D /* template-app-trip-plan-light.jpg */; };
@@ -829,6 +830,7 @@
 		D256D21B65BA82C3DED1777A /* FormatPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBAE6116415336DA1C500A87 /* FormatPopover.swift */; };
 		D27B960C6EB2CD6BB7F56F84 /* WhatsNew.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFFEBDDE84EB3DB20AA0F63 /* WhatsNew.swift */; };
 		D296B798F12D5CBF3F284D23 /* PresenceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA17BA72700473F0D52D9105 /* PresenceViews.swift */; };
+		D317B228E38B25C17FEEAFF1 /* Charm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38844D28999CCC179E6181D8 /* Charm.swift */; };
 		D3FB73D832E7F1736AD7C35B /* amber-router.module.js in Resources */ = {isa = PBXBuildFile; fileRef = F238F5CBF7C5E4F2F4B5172F /* amber-router.module.js */; };
 		D48F87E78AFE583C4562AA6C /* TableInteractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7B3FEBC5E8B405D61B40897 /* TableInteractionTests.swift */; };
 		D49F57F54EB1B22444DB5F5C /* ConnectScan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27BC2BBC304C6026622F0BF6 /* ConnectScan.swift */; };
@@ -1164,6 +1166,7 @@
 		359BF7373A9A0550A24620EF /* AccountLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountLibrary.swift; sourceTree = "<group>"; };
 		35D79FDD1B9E683ACD5F3BCA /* OldNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OldNameTests.swift; sourceTree = "<group>"; };
 		37C6B4F675EF00B712CB8496 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		38844D28999CCC179E6181D8 /* Charm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charm.swift; sourceTree = "<group>"; };
 		3891EC4D2DC7BF10221F3CBC /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		38F0AEB582BF7312B3E6B60F /* WindowMinHeightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowMinHeightTests.swift; sourceTree = "<group>"; };
 		391E1B77188C7A5C680CB730 /* LinkFormsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkFormsTests.swift; sourceTree = "<group>"; };
@@ -1915,6 +1918,7 @@
 				4B255CC05106DC01C927C7CD /* AppMark.swift */,
 				3203BD32205C8FF6C76FEBEE /* AttachMenu.swift */,
 				99629D4F11ED9D35B4B851A2 /* BlurMotion.swift */,
+				38844D28999CCC179E6181D8 /* Charm.swift */,
 				E30BFBB10DA2DD2468EE9BE2 /* CodeBoxes.swift */,
 				83735DC9F6164AB1CB604086 /* CodeFileView.swift */,
 				0C6D15833CF6120B65D7384A /* ComposeButton.swift */,
@@ -3403,6 +3407,7 @@
 				CAB01CDDDC766A30F3AC9024 /* CaptureBestApps.swift in Sources */,
 				E5ED369E1DF898AB48AE9104 /* CellText.swift in Sources */,
 				DA72C1EDB78E9365335D08F0 /* ChangeHighlight.swift in Sources */,
+				C5BCBB00BE93DCE5F4199F8A /* Charm.swift in Sources */,
 				B2F7CE0BA4833686E5050E97 /* CheckPop.swift in Sources */,
 				02FF3686D2DF7AA939A76277 /* CodeBoxes.swift in Sources */,
 				FA6D8CC3EEF79B16C92106CF /* CodeFileView.swift in Sources */,
@@ -3703,6 +3708,7 @@
 				7FBD5A13A103939FE62E07D7 /* CaptureBestApps.swift in Sources */,
 				5036F4C2F4DF9F584BAAF731 /* CellText.swift in Sources */,
 				13517336EAED99CD82EEF612 /* ChangeHighlight.swift in Sources */,
+				D317B228E38B25C17FEEAFF1 /* Charm.swift in Sources */,
 				36E6FA211A8FFB7B9FD39936 /* CheckPop.swift in Sources */,
 				A4C68911479F117417B9D237 /* CodeBoxes.swift in Sources */,
 				BFE965C72AE5D566E1B25013 /* CodeFileView.swift in Sources */,

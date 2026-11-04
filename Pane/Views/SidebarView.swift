@@ -308,6 +308,8 @@ struct SidebarIcon: View {
     let name: String
     /// The selected row's icon takes the accent with its name.
     var selected = false
+    /// Whether the pointer is on the row: its glyph plays its little move (Charm).
+    var hovering: Bool?
     #if os(macOS)
     @Environment(\.controlActiveState) private var active
     #else
@@ -315,7 +317,7 @@ struct SidebarIcon: View {
     #endif
 
     var body: some View {
-        Image(systemName: name)
+        icon
             #if os(macOS)
             .font(DesignLook.isCandidate ? SidebarStyle.candidateIconFont : SidebarStyle.iconFont)
             .foregroundStyle(selected ? AnyShapeStyle(.tint) : active == .inactive ? AnyShapeStyle(.tertiary)
@@ -326,6 +328,18 @@ struct SidebarIcon: View {
             // As columns, the Mac's: grey icons, the selected folder's in the accent.
             .foregroundStyle(stacked ? AnyShapeStyle(SidebarStyle.icon) : selected ? AnyShapeStyle(Color(PColor.paneAccent)) : AnyShapeStyle(Color.muted))
             #endif
+    }
+
+    @ViewBuilder private var icon: some View {
+        #if os(macOS)
+        if hovering != nil, Charm.on, Charm.kind(forSymbol: name) != nil {
+            CharmSymbol(name, pointSize: DesignLook.isCandidate ? 14 : 16, trigger: hovering)
+        } else {
+            Image(systemName: name)
+        }
+        #else
+        Image(systemName: name)
+        #endif
     }
 }
 
@@ -1141,6 +1155,8 @@ private struct CountedRow: View {
     /// The sidebar's selection, read here in the row: the sidebar itself isn't worked out again
     /// when it changes (it is an equatable view), and the row draws its own selection on the Mac.
     @Binding var selection: Scope?
+    /// The pointer is on the row (its glyph's move, Charm).
+    @State private var hovering = false
 
     var body: some View {
         #if DEBUG
@@ -1158,11 +1174,11 @@ private struct CountedRow: View {
                         .foregroundStyle(.secondary)
                 }
             } icon: {
-                SidebarIcon(name: icon, selected: selected)
+                SidebarIcon(name: icon, selected: selected, hovering: hovering)
             }
             .sidebarRowLabel()
             .rowAccessibility(title, count: count, files: files)
-            .hoverRow(title, reach: Hover.sidebarReach(), selected: selected)
+            .hoverRow(title, reach: Hover.sidebarReach(), selected: selected) { hovering = $0 }
             .quietSelection()
         }
     }
@@ -1333,7 +1349,7 @@ private struct FolderTree: View {
                 rowText(selected: selected, hovering: hovering, listed: listed)
                 #endif
             } icon: {
-                SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder", selected: selected)
+                SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder", selected: selected, hovering: hovering)
                     .contentTransition(.symbolEffect(.replace))
             }
             .sidebarRowLabel()

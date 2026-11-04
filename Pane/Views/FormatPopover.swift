@@ -162,7 +162,7 @@ struct FormatButton: View {
             inCallout = controller.target.map { Self.inCallout($0.currentText, $0.currentSelection) } ?? false
             showing.toggle()
         } label: {
-            Label("Format", systemImage: "textformat")
+            Label { Text("Format") } icon: { CharmSymbol("textformat") }
         }
         .help("Format")
         .popover(isPresented: $showing, arrowEdge: .bottom) {

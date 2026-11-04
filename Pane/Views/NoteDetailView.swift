@@ -1194,7 +1194,7 @@ struct NoteDetailView: View {
                 .tint(.primary)
                 .accessibilityIdentifier(NoteAIUndo.yoursIdentifier)
             } else {
-                Button("Undo", systemImage: "arrow.uturn.backward", action: controller.undo)
+                Button(action: controller.undo) { Label { Text("Undo") } icon: { CharmSymbol("arrow.uturn.backward") } }
                     .tint(.primary)
                     .accessibilityIdentifier(NoteAIUndo.yoursIdentifier)
             }
@@ -1234,7 +1234,7 @@ struct NoteDetailView: View {
             }
             .disabled(hidden)
         } label: {
-            Label("Attach", systemImage: "paperclip")
+            Label { Text("Attach") } icon: { CharmSymbol("paperclip") }
         }
         .disabled(note.isLocked || showingPage)
         .tint(.primary)
@@ -1287,7 +1287,7 @@ struct NoteDetailView: View {
                 ForEach(group, id: \.self) { moreItem($0) }
             }
         } label: {
-            Label("More", systemImage: "ellipsis")
+            Label { Text("More") } icon: { CharmSymbol("ellipsis") }
         }
         #if os(macOS)
         .tint(.primary)
@@ -1583,13 +1583,13 @@ struct NoteToolbarStage<Pane: View>: View {
                     ToolbarItemGroup {
                         Group {
                             FormatButton(controller: controller)
-                            Button("Checklist", systemImage: "checklist", action: controller.checklist)
+                            Button(action: controller.checklist) { Label { Text("Checklist") } icon: { CharmSymbol("checklist") } }
                                 .help("Checklist (⇧⌘L)")
                             if let menu = controller.currentTableMenu {
-                                Menu { TableMenuItems(menu: menu) } label: { Label("Table", systemImage: "tablecells") }
+                                Menu { TableMenuItems(menu: menu) } label: { Label { Text("Table") } icon: { CharmSymbol("tablecells") } }
                                     .help("Table")
                             } else {
-                                Button("Table", systemImage: "tablecells", action: controller.insertTable)
+                                Button(action: controller.insertTable) { Label { Text("Table") } icon: { CharmSymbol("tablecells") } }
                                     .help("Table (⌥⌘T)")
                             }
                             shown.attachment
