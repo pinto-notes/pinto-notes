@@ -365,7 +365,7 @@ async function storageFull(ctx: ToolContext, claims: string): Promise<ToolError>
 export type NoteRow = {
   id: string; body_ct?: string | null; head_ct: string; locked_body: string | null; folder_id: string | null; parent_id: string | null;
   is_pinned: boolean; created_at: Date; updated_at: Date; trashed_at: Date | null; version: string;
-  /** A pointer to a shared note (20261014211500): its text is the shared document, its body a placeholder. */
+  /** A pointer to a shared note (20261104100000): its text is the shared document, its body a placeholder. */
   shared_note_id?: string | null;
 };
 /** A note with its head (title and preview) opened. A shared note (shared_notes.ts) carries its

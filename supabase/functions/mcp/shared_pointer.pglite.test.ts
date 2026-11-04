@@ -1,4 +1,4 @@
-// Shared notes in the library (20261014211500_notes_shared_pointer.sql): each member's notes row
+// Shared notes in the library (20261104100000_notes_shared_pointer.sql): each member's notes row
 // for a shared note is a pointer (`shared_note_id`), with an id of their own.
 //   cd supabase/functions/mcp && deno test -A shared_pointer.pglite.test.ts
 import { assertEquals, assertRejects, assertStringIncludes } from "jsr:@std/assert@1";
@@ -12,7 +12,7 @@ const box = (key: string) => `amb2.${key}.${b64(crypto.getRandomValues(new Uint8
 const app = (pg: PGlite, me: string, sql: string, params: unknown[] = []) =>
   asUser<any>(pg, me, sql, params, { "request.headers": JSON.stringify({ "x-pane-device": "Mac", "x-amber-client": "lock-aware/1 e2ee/1" }) });
 
-/** An app that knows shared notes (20261015060000_collab_review_fixes.sql). */
+/** An app that knows shared notes (20261104100800_collab_review_fixes.sql). */
 const shared1 = (pg: PGlite, me: string, sql: string, params: unknown[] = []) =>
   asUser<any>(pg, me, sql, params, { "request.headers": JSON.stringify({ "x-pane-device": "Mac", "x-amber-client": "lock-aware/1 e2ee/1 shared/1" }) });
 
@@ -48,7 +48,7 @@ Deno.test("every member has a pointer of their own to the same shared note; one 
   await pg.close();
 });
 
-// 20261015060000_collab_review_fixes.sql: an app from before shared notes can't type into a pointer row.
+// 20261104100800_collab_review_fixes.sql: an app from before shared notes can't type into a pointer row.
 Deno.test("an old app's text in a shared note's pointer is refused, and everything else about the pointer still syncs", async () => {
   const pg = await schemaDB();
   const emil = await account(pg);

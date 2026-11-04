@@ -180,7 +180,7 @@ Deno.test({ name: "an AI's snapshot never compacts a change that committed after
   try {
     await push(A.getLastLocalChange(mac)!);
     const shared = { id: note, role: "editor" as const, epoch: 1, title: "Plan", ownerId: emilID, created_at: new Date(), updated_at: new Date(), nk };
-    const call = { v: undefined, ctx: { userId: saraID, client: "Claude", sql: undefined, canWrite: true, vault: undefined }, scanMs: 0 };
+    const call = { v: undefined, ctx: { userId: saraID, client: "Claude", sql: undefined, vault: undefined }, scanMs: 0 };
     await sara.sql.begin(async (tx) => {
       await sara.as(tx);
       // Sara's AI reads the note (and, as on a busy note, it's time for a snapshot) ...

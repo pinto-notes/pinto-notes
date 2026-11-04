@@ -1,3 +1,6 @@
+-- Renamed on 2026-11-04 from 20261015040000_collab_unshare.sql, so it runs after every migration release 1.3
+-- has. Safe to run again: staging may have it under the old name (every statement is
+-- `if not exists`, `create or replace`, or a guarded drop first).
 -- Stopping sharing (the owner deletes a shared note, as in Apple Notes): the note becomes the
 -- owner's own again and nobody else has it. The caller (a device, or the MCP server during the
 -- owner's AI request) sends the merged text sealed under the owner's data key; it goes back into

@@ -1,3 +1,6 @@
+-- Renamed on 2026-11-04 from 20261014220000_collab_start_fresh.sql, so it runs after every migration release 1.3
+-- has. Safe to run again: staging may have it under the old name (every statement is
+-- `if not exists`, `create or replace`, or a guarded drop first).
 -- Start fresh deletes the account's sharing keys and shared notes too (docs/Technical/collaboration-design.md,
 -- "Identity keys"). Start fresh makes a new data key, and the identity key's private half is sealed under
 -- the old one, so it can't be opened again; collab_publish_identity refuses a second key for an account

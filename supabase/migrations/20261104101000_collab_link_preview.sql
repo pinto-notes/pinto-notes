@@ -1,9 +1,12 @@
+-- Renamed on 2026-11-04 from 20261015080000_collab_link_preview.sql, so it runs after every migration release 1.3
+-- has. Safe to run again: staging may have it under the old name (every statement is
+-- `if not exists`, `create or replace`, or a guarded drop first).
 -- Opening a note's link asks first ("Join “Team offsite”? Emil shared it with you."), so a web
 -- page that sends the app a link can't join anyone without their yes. To ask, the app needs the
 -- note's title and the owner's name before joining: collab_open_link now also returns the note's
 -- sealed head (title and preview, sealed under the note key, which the link already opens) and
 -- the owner's profile name. Both go only to whoever proves they hold the link, as the key does.
-drop function public.collab_open_link(text, text);
+drop function if exists public.collab_open_link(text, text);
 
 create function public.collab_open_link(p_link text, p_answer text)
 returns table (note_id uuid, role text, epoch int, key_wrap text, owner_name text, head_ct text)

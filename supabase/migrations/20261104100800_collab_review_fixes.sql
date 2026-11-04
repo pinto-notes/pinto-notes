@@ -1,9 +1,12 @@
+-- Renamed on 2026-11-04 from 20261015060000_collab_review_fixes.sql, so it runs after every migration release 1.3
+-- has. Safe to run again: staging may have it under the old name (every statement is
+-- `if not exists`, `create or replace`, or a guarded drop first).
 -- Three fixes from the review of shared notes (docs/Technical/collaboration-design.md).
 
 -- 1. A snapshot can't claim to cover changes that don't exist. collab_compact drops every change up
 -- to a snapshot's `upto`, so one snapshot from any editor with a huge `upto` deleted the note's
 -- changes for good, including every later one. Now `upto` may be at most the newest change stored
--- (0 for a note with none yet). Ids follow commit order per note (20261015020000), so a device's
+-- (0 for a note with none yet). Ids follow commit order per note (20261104100500), so a device's
 -- pull never sees an id beyond that.
 create or replace function public.collab_snapshot_upto() returns trigger
 language plpgsql security definer set search_path = '' as $$
@@ -57,7 +60,7 @@ create trigger notes_shared_pointer_guard before update on public.notes
   for each row execute function public.pane_note_shared_pointer();
 
 -- 3. Start fresh as a member of someone else's note is a leave: the owner's devices renew the key
--- (rekey_after, 20261015050000), since the old identity's devices may still hold it.
+-- (rekey_after, 20261104100700), since the old identity's devices may still hold it.
 create or replace function public.collab_forget_on_start_fresh() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin

@@ -16,7 +16,7 @@ const A = await loadAutomerge();
 type Doc = ReturnType<typeof A.init<{ body?: string }>>;
 
 // deno-lint-ignore no-explicit-any
-const tool = async (pg: PGlite, p: Person, name: string, args: Record<string, unknown> = {}, client = "Claude") => await runFileTool(name, args, { ...await toolContext(pg, p.a, true, client), session: `s-${p.a.id}` }) as any;
+const tool = async (pg: PGlite, p: Person, name: string, args: Record<string, unknown> = {}, client = "Claude") => await runFileTool(name, args, { ...await toolContext(pg, p.a, client), session: `s-${p.a.id}` }) as any;
 const fails = async (p: Promise<unknown>) => { try { await p; } catch (e) { assert(e instanceof ToolError, String(e)); return (e as Error).message; } throw new Error("expected a ToolError"); };
 
 /** An account as the app makes it, with a profile name and a published identity key. */

@@ -1,3 +1,6 @@
+-- Renamed on 2026-11-04 from 20261015070000_collab_unshare_upto.sql, so it runs after every migration release 1.3
+-- has. Safe to run again: staging may have it under the old name (every statement is
+-- `if not exists`, `create or replace`, or a guarded drop first).
 -- Stopping sharing (the owner deletes a shared note) without losing a change in flight: the caller
 -- sends the merged text, and `p_upto`, the newest change it merged. A change that committed after
 -- that isn't in the text, and writing the text back and dropping the document would lose it, so the

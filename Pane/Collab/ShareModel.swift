@@ -156,7 +156,7 @@ extension CollabStore: ShareBackend {
             wraps.append(Collab.Wrap(user_id: m.user_id, key_wrap: try CollabCrypto.sealNoteKey(nk, from: identity, to: key, party: .init(note: id, epoch: epoch, from: me, to: m.user_id))))
         }
         try await transport.remove(note: id, user: user, epoch: epoch, wraps: wraps)
-        // The removal waited for changes in flight under the old key (20261015020000): take them
+        // The removal waited for changes in flight under the old key (20261104100500): take them
         // now, still with the old key, so the snapshot sealed under the new one holds them.
         await session.catchUp().value
         try await transport.accept(note: id, selfWrap: try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: id, epoch: epoch))

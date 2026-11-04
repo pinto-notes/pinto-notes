@@ -1,3 +1,6 @@
+-- Renamed on 2026-11-04 from 20261014233000_collab_leave.sql, so it runs after every migration release 1.3
+-- has. Safe to run again: staging may have it under the old name (every statement is
+-- `if not exists`, `create or replace`, or a guarded drop first).
 -- Leaving someone else's shared note (Share › Leave Note). Your membership goes at once: your
 -- devices and your AI can't fetch the note's changes or write any more, and you're off its
 -- channel. The owner's next device gives the note a new key without you (collab_remove with no

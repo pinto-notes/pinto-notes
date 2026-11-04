@@ -38,7 +38,22 @@ scripts/staging.sh all         # migrations, functions, secrets, auth, Config/Ba
 scripts/staging.sh seed        # the test account (.secrets/staging-account.txt) and its sample notes
 ```
 
-Run `db`, `functions` or `web` again after `dev` moves. Steps outside the script, done once:
+Run `db`, `functions` or `web` again after `dev` moves.
+
+Once, before the first `db` after release 1.3's sharing lands: staging ran the collaboration
+migrations under their October names (20261014211500 … 20261015080000), and they are now
+20261104100000 … 20261104101000, so `supabase db push` stops on versions it can't find. Mark the
+old ones as reverted, then push; the renamed files run again safely
+(`supabase/functions/mcp/collab_migrations.pglite.test.ts` shows staging ends like production):
+
+```sh
+supabase migration repair --db-url "<staging db url>" --status reverted \
+  20261014211500 20261014220000 20261014221000 20261014230000 20261014233000 \
+  20261015020000 20261015040000 20261015050000 20261015060000 20261015070000 20261015080000
+scripts/staging.sh db
+```
+
+Steps outside the script, done once:
 
 - Google: the Web client (`167801936934-…`) lists `https://<staging ref>.supabase.co/auth/v1/callback`
   as an authorized redirect URI.

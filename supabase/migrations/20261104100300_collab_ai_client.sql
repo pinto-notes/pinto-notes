@@ -1,9 +1,12 @@
+-- Renamed on 2026-11-04 from 20261014230000_collab_ai_client.sql, so it runs after every migration release 1.3
+-- has. Safe to run again: staging may have it under the old name (every statement is
+-- `if not exists`, `create or replace`, or a guarded drop first).
 -- Who wrote a shared note's change: note_updates.client names the AI ("Claude") when the MCP
 -- server wrote it, and is null for a person on a device, so the note can say "Sara's Claude".
 -- Until now it took pane_writer(), which falls back to the device header, and every change typed
 -- on a Mac said "Mac" as if an AI named Mac had written it. The MCP server sets pane.source = 'mcp'
 -- in every tool call's transaction (mcp/tools.ts, runIn). Otherwise as in
--- 20261014221000_collab_stale_key_answers.sql (not_member, PT409).
+-- 20261104100200_collab_stale_key_answers.sql (not_member, PT409).
 create or replace function public.collab_update_guard() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin

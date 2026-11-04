@@ -1,3 +1,6 @@
+-- Renamed on 2026-11-04 from 20261014211500_notes_shared_pointer.sql, so it runs after every migration release 1.3
+-- has. Safe to run again: staging may have it under the old name (every statement is
+-- `if not exists`, `create or replace`, or a guarded drop first).
 -- Shared notes in the library (docs/Technical/collaboration-design.md, "How it fits the app").
 --
 -- One note, one sync path. A shared note's text lives only in its shared document (note_updates,

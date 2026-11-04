@@ -1,3 +1,6 @@
+-- Renamed on 2026-11-04 from 20261015050000_collab_rekey_after_leave.sql, so it runs after every migration release 1.3
+-- has. Safe to run again: staging may have it under the old name (every statement is
+-- `if not exists`, `create or replace`, or a guarded drop first).
 -- After someone leaves a shared note, the owner's devices give it a new key without them
 -- (docs/Technical/collaboration-design.md, "Removing someone, and leaving"). Whoever left still
 -- holds the old key, and the server keeps refusing them only because their membership is gone; the

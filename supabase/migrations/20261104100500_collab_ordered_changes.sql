@@ -1,3 +1,6 @@
+-- Renamed on 2026-11-04 from 20261015020000_collab_ordered_changes.sql, so it runs after every migration release 1.3
+-- has. Safe to run again: staging may have it under the old name (every statement is
+-- `if not exists`, `create or replace`, or a guarded drop first).
 -- A shared note's changes get their ids in the order they commit, so nothing commits behind a
 -- device's pull cursor (docs/Technical/collaboration-design.md, "How it fits the app").
 --

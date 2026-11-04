@@ -252,7 +252,7 @@ Deno.test("collab_role answers only about notes the caller is in", async () => {
   assertEquals((await app(pg, sara.id, `select public.collab_role($1) as role`, [note]))[0].role, "editor");
 });
 
-// 20261014220000_collab_start_fresh.sql: one identity key per account, which only Start fresh changes.
+// 20261104100100_collab_start_fresh.sql: one identity key per account, which only Start fresh changes.
 Deno.test("an identity key never changes, except through Start fresh, which takes the account's sharing with it", async () => {
   const pg = await schemaDB();
   const emil = await person(pg, "Emil"), sara = await person(pg, "Sara"), jonas = await person(pg, "Jonas");
@@ -296,7 +296,7 @@ Deno.test("an identity key never changes, except through Start fresh, which take
   assert(found.public_key !== row.public_key);
 });
 
-// 20261014221000_collab_stale_key_answers.sql: a stale key answers PT409, which PostgREST doesn't
+// 20261104100200_collab_stale_key_answers.sql: a stale key answers PT409, which PostgREST doesn't
 // retry (it retried 40001 without end), and someone outside the note is refused before the key check.
 Deno.test("an old key and a stranger get answers PostgREST passes straight back", async () => {
   const pg = await schemaDB();
@@ -346,7 +346,7 @@ Deno.test("leaving: a member goes at once and reads nothing new; the owner can't
   await push(pg, emil, note, nk2, 2, "after");
 });
 
-// 20261015050000_collab_rekey_after_leave.sql: a leave asks the owner's devices for a new key.
+// 20261104100700_collab_rekey_after_leave.sql: a leave asks the owner's devices for a new key.
 Deno.test("leaving marks the note for a new key, and the owner's new key clears it", async () => {
   const pg = await schemaDB();
   const emil = await person(pg, "Emil"), sara = await person(pg, "Sara");
@@ -365,7 +365,7 @@ Deno.test("leaving marks the note for a new key, and the owner's new key clears 
   assertEquals(await mark(), null);
 });
 
-// 20261015060000_collab_review_fixes.sql: a snapshot can't claim changes that don't exist, and a
+// 20261104100800_collab_review_fixes.sql: a snapshot can't claim changes that don't exist, and a
 // member who starts fresh makes the owner renew the key.
 Deno.test("a snapshot past the newest change is refused, so no editor can wipe a note's changes", async () => {
   const pg = await schemaDB();

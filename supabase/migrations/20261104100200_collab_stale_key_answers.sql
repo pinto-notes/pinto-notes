@@ -1,3 +1,6 @@
+-- Renamed on 2026-11-04 from 20261014221000_collab_stale_key_answers.sql, so it runs after every migration release 1.3
+-- has. Safe to run again: staging may have it under the old name (every statement is
+-- `if not exists`, `create or replace`, or a guarded drop first).
 -- A change, invite or removal for an old note key answered 40001 (serialization_failure), and
 -- PostgREST retries a transaction that fails with 40001 by itself, at once and without end: one
 -- insert from a device still holding the old key ran about 800 times a second until the gateway
