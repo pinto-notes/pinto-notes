@@ -1,7 +1,11 @@
 import SwiftData
 import SwiftUI
 
-/// A locked note while it's locked, in place of the editor: the lock, and the ways in (like Notes).
+/// A locked note while it's locked, in place of the editor, as Notes shows it: a large, quiet
+/// lock, "This note is locked.", the notes password, and Face ID or Touch ID where this device
+/// has it. The field and the button are the sign-in card's (SignInView.field), so the app asks
+/// for a password one way everywhere. After a wrong password the hint shows under the field, as
+/// in Notes. Unlocking opens every locked note, and this note's text takes the page's place.
 struct LockedNoteView: View {
     let note: Note
     @State private var password = ""
@@ -9,82 +13,161 @@ struct LockedNoteView: View {
     @State private var wrongTries = 0
     @State private var working = false
     @State private var focused = false
+    #if os(iOS)
+    /// The heading and the lock grow with the person's text size.
+    @ScaledMetric(relativeTo: .title2) private var headingSize = Metrics.heading
+    @ScaledMetric(relativeTo: .largeTitle) private var lockSize = Metrics.lock
+    #else
+    private let headingSize = Metrics.heading
+    private let lockSize = Metrics.lock
+    #endif
     private var vault: NoteVault { .shared }
 
-    private static let fieldShape = RoundedRectangle(cornerRadius: 8, style: .continuous)
-    #if os(macOS)
-    private static let fieldHeight: CGFloat = 30
-    #else
-    private static let fieldHeight: CGFloat = 40
-    #endif
+    /// The page's measures: one display line (DESIGN.md, Type), the 4 pt grid, the form's sizes.
+    enum Metrics {
+        #if os(macOS)
+        /// The column the words, the field and the buttons share.
+        static let column: CGFloat = 280
+        /// The lock's point size: large and light, as Notes draws it.
+        static let lock: CGFloat = 56
+        static let heading: CGFloat = 22
+        static let words = Font.system(size: 13)
+        #else
+        static let column: CGFloat = 340
+        static let lock: CGFloat = 60
+        static let heading: CGFloat = 24
+        static let words = Font.body
+        #endif
+        /// Light: the lock is the page's picture, not something to press. Its glyph is solid; only
+        /// its colour is a lighter step of the muted text, on the page's own ground.
+        static var lockInk: Color { Color.muted.opacity(0.4) }
+        static let field = RoundedRectangle(cornerRadius: SignInView.Row.radius, style: .continuous)
+    }
 
     /// Sealed with a password from before it was changed on another device.
     private var earlier: Bool { vault.needsEarlierPassword(note) }
 
+    /// The words under the heading.
+    static func explanation(earlier: Bool) -> String {
+        earlier ? "It was locked with an earlier notes password. Enter that password to view it."
+            : "Enter your notes password to view this note."
+    }
+
+    /// The Face ID, Touch ID or Optic ID glyph.
+    static func biometrySymbol(_ name: String) -> String {
+        switch name {
+        case "Face ID": "faceid"
+        case "Optic ID": "opticid"
+        default: "touchid"
+        }
+    }
+
     var body: some View {
-        VStack(spacing: 12) {
+        container
+            .task(id: note.id) {
+                // A password set (or changed) on another device.
+                await vault.refresh()
+                if !earlier, !(await biometrics()) { focused = true }
+            }
+    }
+
+    @ViewBuilder private var container: some View {
+        #if os(macOS)
+        page.frame(maxWidth: .infinity, maxHeight: .infinity)
+        #else
+        // Centred in the room the keyboard leaves, and scrolled when a large text size needs more.
+        GeometryReader { room in
+            ScrollView {
+                page.frame(maxWidth: .infinity, minHeight: room.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollDismissesKeyboard(.interactively)
+        }
+        #endif
+    }
+
+    private var page: some View {
+        VStack(spacing: 0) {
             Image(systemName: "lock.fill")
-                .font(.system(size: 44, weight: .regular))
-                .foregroundStyle(Color.muted)
-                .padding(.bottom, 4)
-            // The title stays in the clear, in the note's own display type.
-            Text(note.title)
-                .font(.display(28))
-                .tracking(Palette.tracking(28))
-                .foregroundStyle(Color.ink)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
+                // It grows with the text size, but never past half as big again.
+                .font(.system(size: min(lockSize, Metrics.lock * 1.5), weight: .regular))
+                .foregroundStyle(Metrics.lockInk)
+                .accessibilityHidden(true)
+                .accessibilityIdentifier("lock.art")
             Text("This note is locked.")
-                .font(.headline)
+                .font(.display(headingSize))
+                .tracking(Palette.tracking(headingSize))
                 .foregroundStyle(Color.ink)
-            Text(earlier ? "It was locked with an earlier notes password. Enter that password to view it."
-                         : "Enter the notes password to view this note.")
-                .font(.callout)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("lock.heading")
+                // Close under the lock, one group with it; the field starts the next.
+                .padding(.top, 16)
+            Text(Self.explanation(earlier: earlier))
+                .font(Metrics.words)
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
-            // The app's own field (as on the sign-in card), so the eye sits inside it.
-            PasswordField("Password", text: $password, id: "lock.password", focused: $focused)
-                .onSubmit(submit)
-                .textFieldStyle(.plain)
-                .padding(.leading, 10)
-                .padding(.trailing, 4)
-                .frame(height: Self.fieldHeight)
-                .background(Color(Palette.field), in: Self.fieldShape)
-                .overlay(Self.fieldShape.strokeBorder(focused ? Color(Palette.amber) : Color(Palette.fieldHairline), lineWidth: focused ? 2 : 1))
-                .frame(maxWidth: 260)
-                .padding(.top, 6)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("lock.explanation")
+                .padding(.top, 8)
+            field
+                .padding(.top, 24)
             if let problem {
                 Text(problem)
-                    .font(.callout)
+                    .font(.footnote)
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("lock.problem")
+                    .padding(.top, 8)
             }
             if wrongTries > 0, !earlier, let hint = vault.settings?.hint {
                 Text("Hint: \(hint)")
-                    .font(.callout)
+                    .font(.footnote)
                     .foregroundStyle(Color.muted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("lock.hint")
+                    .padding(.top, 4)
             }
-            Button(action: submit) {
-                if working { ProgressView().controlSize(.small) } else { Text("View Note") }
-            }
-            .buttonStyle(.amberProminent(.regular))
-            .amberBusy(working)
-            .disabled(password.isEmpty || working)
-            .accessibilityIdentifier("lock.view")
+            Button(action: submit) { Text("View note") }
+                .buttonStyle(.amberProminent(.form, wide: true))
+                .amberBusy(working)
+                .disabled(password.isEmpty || working)
+                .accessibilityIdentifier("lock.view")
+                .padding(.top, 12)
             if !earlier, let name = vault.biometryName {
-                Button("Use \(name)") { Task { await biometrics() } }
-                    .buttonStyle(.quiet)
-                    .accessibilityIdentifier("lock.biometrics")
+                Button { Task { await biometrics() } } label: {
+                    Label("Use \(name)", systemImage: Self.biometrySymbol(name))
+                }
+                .buttonStyle(.quiet)
+                .accessibilityIdentifier("lock.biometrics")
+                .padding(.top, 8)
             }
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task(id: note.id) {
-            // A password set (or changed) on another device.
-            await vault.refresh()
-            if !earlier, !(await biometrics()) { focused = true }
-        }
+        .frame(maxWidth: Metrics.column)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 32)
+        .animation(.easeOut(duration: 0.15), value: wrongTries)
+    }
+
+    /// The sign-in card's field: its height, corners, border and padding, and the amber border
+    /// while it's being typed in. The eye inside it shows the password.
+    private var field: some View {
+        PasswordField("Password", text: $password, id: "lock.password", focused: $focused)
+            .onSubmit(submit)
+            .textFieldStyle(.plain)
+            #if os(iOS)
+            .submitLabel(.go)
+            #endif
+            .font(.system(size: SignInView.Row.text))
+            .padding(.leading, 12)
+            .padding(.trailing, 6)
+            .frame(height: SignInView.Row.height)
+            .background(Color(Palette.field), in: Metrics.field)
+            .overlay(Metrics.field.strokeBorder(focused ? Color(Palette.amber) : Color(Palette.fieldHairline), lineWidth: focused ? 2 : 1))
+            .animation(.easeOut(duration: 0.12), value: focused)
     }
 
     @discardableResult
@@ -106,7 +189,9 @@ struct LockedNoteView: View {
             } catch {
                 wrongTries += 1
                 password = ""
-                problem = (error as? LocalizedError)?.errorDescription ?? "That password is incorrect."
+                let said = (error as? LocalizedError)?.errorDescription ?? "That password is incorrect."
+                problem = said
+                AccessibilityNotification.Announcement(said).post()
                 focused = true
             }
         }
