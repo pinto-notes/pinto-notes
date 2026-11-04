@@ -63,7 +63,7 @@ extension ModelContext {
         var recent = FetchDescriptor<Note>(predicate: ShelfNotes.unlocked(), sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
         recent.fetchLimit = ChecklistShelf.recentLimit
         let recents: [Note] = (try? fetch(recent)) ?? []
-        ChecklistShelf.saveRecents(recents.map { ChecklistShelf.Recent(id: $0.id, title: $0.title, updatedAt: $0.updatedAt) })
+        ChecklistShelf.saveRecents(recents.map { ChecklistShelf.Recent(id: $0.id, title: $0.title, updatedAt: $0.updatedAt, folder: $0.folder?.name, snippet: ChecklistShelf.snippet(body: $0.body)) })
         // Previews for the widget's other notes: the newest, and any a widget asked for.
         let wanted = Set(ChecklistShelf.wanted())
         var shown = Array(recents.prefix(ChecklistShelf.previewLimit))
@@ -96,5 +96,15 @@ enum ShelfNotes {
         #Predicate<Note> { (n: Note) -> Bool in
             n.deletedAt == nil && n.trashedAt == nil && n.lockedBody == nil && n.body.contains("] ")
         }
+    }
+}
+
+extension ChecklistShelf {
+    /// A note's first line after its title, as you'd read it (no markdown), at most 80 characters.
+    static func snippet(body: String) -> String? {
+        let lines = ReadableText.from(markdown: String(body.prefix(2000)))
+            .split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard let line = lines.dropFirst().first else { return nil }
+        return String(line.prefix(80))
     }
 }
