@@ -516,6 +516,7 @@ struct ConnectBrowserSheet: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .background(Self.rowFill, in: shape)
+            .hoverHighlight(shape)
             .contentShape(shape)
         }
         .buttonStyle(.plain)

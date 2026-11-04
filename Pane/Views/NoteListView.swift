@@ -786,7 +786,7 @@ struct NoteListView: View {
     /// A note's long-press menu (NoteRowMenu): Share, Move and Delete in a row, then the rest.
     @ViewBuilder
     private func rowMenu(for note: Note) -> some View {
-        let groups = NoteRowMenu.groups(locked: note.isLocked, trashed: note.trashedAt != nil)
+        let groups = NoteRowMenu.groups(locked: note.isLocked, trashed: note.trashedAt != nil, shared: note.isShared)
         ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
             if i == 0 && note.trashedAt == nil {
                 ControlGroup { ForEach(group, id: \.self) { rowItem($0, note) } }
@@ -990,7 +990,7 @@ struct NoteListView: View {
     /// A note's right-click menu and its ••• on the Mac (NoteRowMenu.macGroups), in groups.
     @ViewBuilder
     private func menu(for note: Note, folders: [Folder]) -> some View {
-        let groups = NoteRowMenu.macGroups(locked: note.isLocked, trashed: note.trashedAt != nil)
+        let groups = NoteRowMenu.macGroups(locked: note.isLocked, trashed: note.trashedAt != nil, shared: note.isShared)
         ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
             if i > 0 { Divider() }
             ForEach(group, id: \.self) { macItem($0, note, folders: folders) }

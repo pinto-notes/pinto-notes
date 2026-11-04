@@ -105,8 +105,7 @@ struct AIReviewSheet: View {
             Button("Keep All") { review.keepAll(); if review.isFinished { done() } }
                 .accessibilityIdentifier("review.keepAll")
         }
-        .buttonStyle(.bordered)
-        .controlSize(.large)
+        .buttonStyle(.secondary(.regular, wide: true))
         .frame(maxWidth: .infinity)
     }
 
@@ -185,20 +184,18 @@ struct AIReviewSheet: View {
                 // A part you changed since can't be undone: no Undo, only the reason above.
                 if !part.conflict {
                     Button { undo(part.id) } label: {
-                        Label("Undo", systemImage: "arrow.uturn.backward").frame(maxWidth: .infinity, minHeight: 30)
+                        Label("Undo", systemImage: "arrow.uturn.backward")
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.primary)
+                    .buttonStyle(.secondary(.regular, wide: true))
                     .accessibilityIdentifier("review.undo.\(part.id)")
                 }
                 Button { review.keep(part.id); if review.isFinished { done() } } label: {
-                    Label("Keep", systemImage: "checkmark").frame(maxWidth: .infinity, minHeight: 30)
+                    Label("Keep", systemImage: "checkmark")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.amberProminent(.regular, wide: true))
                 .accessibilityIdentifier("review.keep.\(part.id)")
             }
-            .controlSize(.large)
-            .font(.system(size: size, weight: .semibold))
+            .labelStyle(.titleAndIcon)
         }
     }
 }
