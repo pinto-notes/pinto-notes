@@ -153,11 +153,8 @@ struct SettingsView: View {
             if isSignedIn, crypto.isReady {
                 securityPage
             } else {
-                // Signed out: the notes password, if there is one, diagnostics and the terms.
-                SettingsStack {
-                    if NoteVault.shared.isSetUp { SettingsGroup { LockedNotesPassword(sync: sync) } }
-                    PrivacyFoot(how: nil)
-                }
+                // Signed out: how it works, the notes password if there is one, diagnostics and the terms.
+                SignedOutPrivacyPage(sync: sync)
             }
         // A form of its own, one level down; the card scrolls, so it takes a height.
         case .appKeys: SettingsPage { APIKeysSection() }.frame(height: 460)
