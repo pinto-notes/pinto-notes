@@ -211,6 +211,21 @@ import Testing
         #expect(model.title(row) == "Lisbon")
     }
 
+    /// A change whose texts fail to load says so, and Try Again (select again) loads it once they're back.
+    @Test func aChangeThatFailsToLoadCanBeTriedAgain() async throws {
+        let c = try Self.container()
+        let note = c.mainContext.createNote(in: .all, body: Self.after)
+        let texts = Texts([5: Self.after])
+        let model = AIChangesModel(store: Changes([Self.edit(note, after: 5)]), history: NoteHistory(store: texts, context: c.mainContext, sync: nil))
+        await model.load()
+        #expect(model.detailFailed != nil && model.diff == nil, "version 4 is missing")
+        texts.texts[4] = Self.before
+        await model.select(model.selection)
+        #expect(model.detailFailed == nil && model.diff?.text == Self.after)
+        let view = try SettingsHomeTests.source("Pane/Views/AIChangesView.swift")
+        #expect(view.contains("Button(\"Try Again\") { Task { await model.select(change.id) } }"), "the failed panel offers it")
+    }
+
     // MARK: Undo
 
     @Test func undoAnUntouchedEditRestoresTheVersionBeforeIt() async throws {

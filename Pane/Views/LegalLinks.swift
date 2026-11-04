@@ -41,17 +41,21 @@ extension Legal {
 /// The quiet lines under the sign-in form: the terms and privacy policy, with their two links, then
 /// what the app reports about itself (DiagnosticsCopy). One paragraph for VoiceOver.
 struct ConsentFooter: View {
+    /// The small print's size on the Mac.
+    static let size: CGFloat = 11
     var body: some View {
         #if os(macOS)
         // AppKit's label: the pointer turns to a hand over each link, which SwiftUI's Text
         // doesn't do for links inside a sentence (Emil, 2 November 2026).
         // Two short paragraphs, not one block of three lines (council round 6, 11-04): the
         // terms, then what the app sends about itself.
-        VStack(spacing: 4) {
+        // 11 pt, the size of Apple's own sign-in small print; 10 pt footnote read as miniature
+        // (council round 7).
+        VStack(spacing: 6) {
             LinkLabel(text: Legal.consentSentence)
                 .frame(maxWidth: .infinity)
             Text(DiagnosticsCopy.signIn)
-                .font(.footnote)
+                .font(.system(size: ConsentFooter.size))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -161,7 +165,7 @@ struct LinkLabel: NSViewRepresentable {
         let all = NSRange(location: 0, length: out.length)
         let centred = NSMutableParagraphStyle()
         centred.alignment = .center
-        out.addAttributes([.font: NSFont.preferredFont(forTextStyle: .footnote),
+        out.addAttributes([.font: NSFont.systemFont(ofSize: ConsentFooter.size),
                            .foregroundColor: Palette.muted,
                            .paragraphStyle: centred], range: all)
         out.enumerateAttribute(.link, in: all) { value, range, _ in

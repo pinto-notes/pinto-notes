@@ -592,8 +592,14 @@ import Testing
         #expect(card.contains("publisher(for: Self.focusEmailNotice)") && card.contains("focus = .email }"))
         let legal = try Self.source("Pane/Views/LegalLinks.swift")
         #expect(legal.contains("Text(DiagnosticsCopy.signIn)") && legal.contains("signin.diagnostics"), "diagnostics is its own paragraph under the terms")
+        #if os(macOS)
+        // Round 8: the small print at 11 pt, links and all (10 pt read as miniature).
+        let print = LinkLabel.styled(Legal.consentSentence)
+        #expect((print.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)?.pointSize == ConsentFooter.size)
+        #expect(ConsentFooter.size == 11)
+        #endif
         let privacy = try Self.source("Pane/Views/PrivacySecurity.swift")
-        #expect(privacy.contains("Each AI you connect gets its own copy of your key"))
+        #expect(privacy.contains("\"Each AI you connect \" + PrivacyCopy.aiMay") && privacy.contains("It gets its own copy of your key, locked to its token"), "what it may do, then how its key works")
         // Standard accounts never hear of Advanced protection (it's hidden for them, 11-01).
         #expect(!privacy.contains("Turn on Advanced protection"), "the court order row offers nothing a standard account can't see")
     }

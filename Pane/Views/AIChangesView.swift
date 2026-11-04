@@ -120,7 +120,17 @@ struct AIChangeDetail: View {
                 VersionTextView(text: diff.text, changed: diff.added, removed: diff.removed)
                     .accessibilityIdentifier("aiChanges.diff")
             } else if let failed = model.detailFailed {
-                ContentUnavailableView("Can\u{2019}t show this change", systemImage: "exclamationmark.triangle", description: Text(failed))
+                // With a way out: a failed load could only be left by picking another change
+                // (council round 7).
+                ContentUnavailableView {
+                    Label("Can\u{2019}t show this change", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(failed)
+                } actions: {
+                    Button("Try Again") { Task { await model.select(change.id) } }
+                        .tint(.primary)
+                        .accessibilityIdentifier("aiChanges.detailRetry")
+                }
             } else if change.changesText {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
