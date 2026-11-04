@@ -203,7 +203,7 @@ struct BlurDemoStage: View {
         case "onboarding":
             for cue in ["next", "next", "next"] { BlurDemo.send(cue); await pause() }
             BlurFrames.shared?.mark("arrived")
-            preview.note = TrialNote.body + "- [ ] Call mom\n"
+            preview.note = TrialNote.body + TrialNote.sample
             preview.arrived = true
             await pause()
             BlurDemo.send("back"); await pause()
