@@ -298,6 +298,17 @@ import Testing
 
     // MARK: Share sheet: Add to a note
 
+    /// The share sheet says what Save did (persona council round 5): saved, and when it goes in,
+    /// never "Added to" a note it isn't in yet; before Save, what happens if the note can't take it.
+    @Test func theShareSheetSaysSavedAndWhenItGoesIn() {
+        #expect(InboxCopy.done(note: "Week plan") == "Saved for Week plan. Pinto Notes adds it the next time it opens.")
+        #expect(InboxCopy.done(note: nil) == "Saved. It\u{2019}s in your notes the next time Pinto Notes opens.")
+        for line in [InboxCopy.done(note: "Week plan"), InboxCopy.done(note: nil), InboxCopy.addToFooter] {
+            #expect(!line.contains("Added"), "\(line)")
+        }
+        #expect(InboxCopy.addToFooter.contains("becomes a new note") && InboxCopy.addToFooter.contains("next time it opens"))
+    }
+
     @Test func sharedTextGoesAtTheEndOfThePickedNote() throws {
         let inbox = tmp.appending(path: "Inbox")
         Inbox.rootOverride = inbox

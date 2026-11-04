@@ -107,3 +107,24 @@ enum Inbox {
         set { groupDefaults?.set(newValue?.uuidString, forKey: "shareFolder") }
     }
 }
+
+/// What the share sheet says. Items wait in the App Group until Pinto Notes next opens, so it
+/// says "Saved", not "Added", and when it goes in (persona council round 5).
+enum InboxCopy {
+    static let save = "Save"
+    static let saved = "Saved"
+    static let add = "Add"
+    static let addTo = "Add to"
+    static let newNote = "New note"
+    static let search = "Search notes"
+    static func noMatch(_ q: String) -> String { "No note called \u{201C}\(q)\u{201D}" }
+
+    /// Under Add to, once a note is picked.
+    static let addToFooter = "Pinto Notes adds it at the end the next time it opens. If the note can\u{2019}t take it (it\u{2019}s locked, deleted, view only, or shared and this has files), it becomes a new note."
+
+    /// After Save.
+    static func done(note: String?) -> String {
+        guard let note else { return "Saved. It\u{2019}s in your notes the next time Pinto Notes opens." }
+        return "Saved for \(note). Pinto Notes adds it the next time it opens."
+    }
+}

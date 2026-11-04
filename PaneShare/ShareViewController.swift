@@ -60,8 +60,9 @@ final class ShareModel {
     /// The picked note's title, kept if a search hides its row.
     var noteTitle: String? { note.flatMap { id in recents.first { $0.id == id }?.title } }
 
-    /// What Save says it did: "Saved", or "Added to Week plan".
-    var doneLine: String { noteTitle.map { ShareWords.added(to: $0) } ?? ShareWords.saved }
+    /// What Save says it did: saved, and when it goes in (persona council round 5: "Added to"
+    /// said it was in the note, but it goes in the next time Pinto Notes opens).
+    var doneLine: String { InboxCopy.done(note: noteTitle) }
 
     func load() async {
         let providers = (context?.inputItems as? [NSExtensionItem] ?? []).flatMap { $0.attachments ?? [] }
@@ -106,7 +107,7 @@ struct ShareSheet: View {
                 Spacer()
                 Button(action: model.save) {
                     if model.saved {
-                        Label(model.note == nil ? ShareWords.saved : ShareWords.addedShort, systemImage: "checkmark").labelStyle(.titleAndIcon)
+                        Label(ShareWords.saved, systemImage: "checkmark").labelStyle(.titleAndIcon)
                     } else {
                         Text(model.note == nil ? ShareWords.save : ShareWords.add).fontWeight(.semibold)
                     }
@@ -190,17 +191,8 @@ struct ShareSheet: View {
     }
 }
 
-enum ShareWords {
-    static let save = "Save"
-    static let saved = "Saved"
-    static let add = "Add"
-    static let addedShort = "Added"
-    static let addTo = "Add to"
-    static let newNote = "New note"
-    static let search = "Search notes"
-    static func added(to note: String) -> String { "Added to \(note)." }
-    static func noMatch(_ q: String) -> String { "No note called \u{201C}\(q)\u{201D}" }
-}
+/// The share sheet's words. In Inbox.swift (InboxCopy), which the app's tests can read.
+typealias ShareWords = InboxCopy
 
 /// Add to: a new note (as before), or the end of a note you have, one of the five newest or one
 /// found by its title. Rows of 44 pt, a tick on the picked one, as Settings' choices are drawn.
@@ -242,6 +234,15 @@ struct AddToPicker: View {
                 }
             }
             .background(.background, in: .rect(cornerRadius: 14, style: .continuous))
+            // Before Save: when it goes in, and what happens if the note can't take it.
+            if model.note != nil {
+                Text(InboxCopy.addToFooter)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 14)
+                    .accessibilityIdentifier("share.addTo.footer")
+            }
         }
     }
 
