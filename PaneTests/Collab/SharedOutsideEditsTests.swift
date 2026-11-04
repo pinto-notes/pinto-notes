@@ -117,4 +117,16 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(ContinuousClock.now - started >= .milliseconds(250), "it waited for sharing")
         #expect(NoteWrites.change(mine, library: sara.library) { $0 + "\n- [ ] Milk" } == .changed)
     }
+
+    /// A tap in a note you can't type in (persona council round 4): Recover only for a deleted
+    /// note; a Can view note says so; a shared note still opening says it's opening.
+    @Test func aTapInANoteYouCantEditSaysWhy() {
+        #expect(SharedEditing.tap(trashed: true, shared: false, viewOnly: nil) == .recover)
+        #expect(SharedEditing.tap(trashed: true, shared: true, viewOnly: true) == .recover)
+        #expect(SharedEditing.tap(trashed: false, shared: true, viewOnly: true) == .viewOnly)
+        #expect(SharedEditing.tap(trashed: false, shared: true, viewOnly: nil) == .opening)
+        #expect(SharedEditing.tap(trashed: false, shared: true, viewOnly: false) == .none)
+        #expect(SharedEditing.tap(trashed: false, shared: false, viewOnly: nil) == .none)
+        #expect(SharedEditing.opening == "Opening the shared note\u{2026}")
+    }
 }

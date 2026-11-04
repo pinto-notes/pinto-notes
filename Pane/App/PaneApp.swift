@@ -990,6 +990,10 @@ final class AppSession {
             notices = n
             Task { await n.start() }
         }
+        // Shared notes open from this device's own copies straight away (persona council round 4:
+        // they waited for the first sync and the realtime connection, read-only until then, up to
+        // a minute offline). attach makes the library at once and connects in the background.
+        if let user = backend.userID { Task { await CollabStore.attach(client: client, account: user, context: context) } }
         await sync.start()
         if let user = backend.userID { await CollabStore.attach(client: client, account: user, context: context) }
         await firstPullAnswered()

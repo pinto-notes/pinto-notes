@@ -1242,7 +1242,18 @@ struct NoteDetailView: View {
         // A shared note takes no files (SharedNoteLimits): it says so instead.
         controller.attach = { if SharedNoteLimits.allowsFiles(note) { importing = true } else { refusingSharedFiles = note.isShared } }
         controller.attachChoices = { choosingAttachment = true }
-        controller.askToRecover = { askingRecover = true }
+        // A tap in a note you can't type in: Recover only for a deleted one (persona council
+        // round 4: a Can view or still-opening shared note offered to recover a "deleted" note).
+        controller.askToRecover = {
+            switch SharedEditing.tap(trashed: note.trashedAt != nil, shared: note.isShared, viewOnly: collab?.isViewOnly) {
+            case .recover: askingRecover = true
+            case .viewOnly: controller.notice = EditorNotice(text: NoteWrites.viewOnlyMessage)
+            case .opening:
+                controller.notice = EditorNotice(text: SharedEditing.opening)
+                _ = CollabStore.shared?.session(for: note)
+            case .none: break
+            }
+        }
         controller.addFiles = { urls in
             guard SharedNoteLimits.allowsFiles(note) else { refusingSharedFiles = note.isShared; return [] }
             return context.addAttachments(urls)
@@ -1647,6 +1658,22 @@ enum SharedEditing {
     /// `viewOnly` nil: no document open for it here.
     static func readOnly(trashed: Bool, shared: Bool, viewOnly: Bool?) -> Bool {
         trashed || (shared && (viewOnly ?? true))
+    }
+
+    enum TapAnswer: Equatable { case recover, viewOnly, opening, none }
+    static let opening = "Opening the shared note\u{2026}"
+
+    /// What a tap in a note you can't type in says: Recover for a deleted note, Can view for a
+    /// shared one you can only read, and that it's opening for a shared note whose document isn't
+    /// open here yet.
+    static func tap(trashed: Bool, shared: Bool, viewOnly: Bool?) -> TapAnswer {
+        if trashed { return .recover }
+        guard shared else { return .none }
+        switch viewOnly {
+        case true?: return .viewOnly
+        case false?: return .none
+        case nil: return .opening
+        }
     }
 }
 

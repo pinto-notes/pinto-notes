@@ -97,8 +97,10 @@ final class CollabStore {
         let store = live(client: client, account: account, name: ProfileStore.shared.name ?? "Someone")
         store.context = context
         shared = store
+        // The library is there now (made with the context); shared notes open from their copies
+        // here, so captures that waited for sharing go in before the connection is up.
+        context.applyCaptures(library: store.library)
         await store.start()
-        // Captures from the widget and the share sheet for shared notes waited for this.
         context.applyCaptures(library: store.library)
     }
 
