@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 #if os(macOS)
 import AppKit
