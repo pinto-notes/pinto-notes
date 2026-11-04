@@ -98,6 +98,7 @@ import Testing
         #expect(size.height == 9.5 * SlashCommandList.rowHeight + 8, "half a row past the fold")
         #expect(SlashCommandList.size(rows: 3).height == 3 * SlashCommandList.rowHeight + 8, "a short list as tall as its rows")
         #expect(SlashCommandList.size(rows: 3, recent: 1).height == 3 * SlashCommandList.rowHeight + SlashCommandList.recentLine + 8)
+        #expect(SlashCommandList.size(rows: n, recent: 1).height == 9.5 * SlashCommandList.rowHeight + SlashCommandList.recentLine + 8, "the line under the recents doesn't eat the half row")
     }
 
     /// The hint shows on the empty line the caret is on, not on the title's, and not while the

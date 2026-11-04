@@ -19,7 +19,8 @@ struct SlashCommandList: View {
     static func size(rows: Int, recent: Int = 0) -> CGSize {
         let line = recent > 0 && recent < rows ? recentLine : 0
         let full = CGFloat(rows) * rowHeight + line
-        return CGSize(width: width, height: min(full, CGFloat(maxRows) * rowHeight) + 8)
+        // The line under the recents comes on top of the cap, so half a row still peeks out.
+        return CGSize(width: width, height: min(full, CGFloat(maxRows) * rowHeight + line) + 8)
     }
 
     var body: some View {
