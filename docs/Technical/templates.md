@@ -51,6 +51,16 @@ and can undo a delete), not only through their AI.
 The app's own tests run with the template's data.json loaded, the same as a save over the
 person's data, so write them to add what they need rather than assume an empty store.
 
+### Apps the Mac app has before the site does
+
+`IN_APP_ONLY` in `web/lib/templates.ts` lists app templates that are built and checked like the
+others but aren't in `ORDER` yet: no gallery card, no page, no sitemap entry, and no copy in the
+app's template list. `scripts/template-catalog.py` still copies their project and data into
+`Pane/Resources/Templates`, and the site's tests keep them in step with their folders. Trip costs is
+the first: "Make It an App" turns a table with "Paid by" and an amount into it in one press
+(`Pane/Model/CostSplit.swift`). To list it, give it a cover in `template-covers.ts`, a place in
+`ORDER`, search copy in `template-seo.ts` and its how-to post, and take it out of `IN_APP_ONLY`.
+
 ## Generated (committed, never edited by hand)
 
 `deno run -A scripts/template-apps.ts` (add `<slug>` for one) checks every tree, compiles it with

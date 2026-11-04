@@ -17,10 +17,12 @@ enum MakeAnApp {
     static var connectGuides: [ConnectAISection.Guide] { [.chatgpt, .claude, .codex] }
 
     /// What kind of app the note would make, from what it holds.
-    enum Kind: Equatable { case budget, tracker, cards, checklist, plain }
+    enum Kind: Equatable { case split, budget, tracker, cards, checklist, plain }
 
     static func kind(for body: String) -> Kind {
         let lines = body.components(separatedBy: "\n")
+        // Who paid and how much: a trip's shared costs, not a budget (persona council 11-04).
+        if CostSplit.table(in: body) != nil { return .split }
         if let t = NotePage.tables(in: lines).first {
             let names = t.columns.map { $0.name.lowercased() }
             if names.contains(where: { $0.contains("amount") || $0.contains("cost") || $0.contains("price") || $0 == "kr" }) { return .budget }
@@ -33,6 +35,7 @@ enum MakeAnApp {
     /// nor a checklist.
     static func idea(for body: String) -> String? {
         switch kind(for: body) {
+        case .split: "a cost splitter that shows who paid what, splits each cost, and says who owes whom"
         case .budget: "a budget with the total, spending by category, and a quick way to add an expense"
         case .tracker: "a tracker with today's entry at the top, streaks, and a chart of the last weeks"
         case .cards: "cards of this table that I can sort, filter and add to"
@@ -126,6 +129,8 @@ struct MakeAppSheet: View {
     @State private var copied = false
     @State private var connecting = false
     @State private var height: CGFloat = 320
+    /// A table of who paid what: "Have your AI make another app" was chosen over the cost splitter.
+    @State private var withAI = false
 
     /// How long the sheet waits for the app before it says what to check (it goes on waiting).
     static let patience: Duration = .seconds(180)
@@ -151,6 +156,12 @@ struct MakeAppSheet: View {
     init(newApp: Void) { noteID = nil; title = ""; body_ = "" }
 
     private var isNew: Bool { noteID == nil }
+    /// The note holds who paid what: the Trip costs app, made here in one press, no AI needed.
+    private var offersSplitter: Bool { !isNew && !withAI && Self.offersSplitter(title: title, body: body_) }
+
+    static func offersSplitter(title: String, body: String) -> Bool {
+        MakeAnApp.kind(for: body) == .split && CostSplit.project != nil && CostSplit.data(title: title, body: body) != nil
+    }
     private var prompt: String { isNew ? MakeAnApp.newAppPrompt(idea) : MakeAnApp.prompt(title: title, body: body_) }
     /// New App needs an answer before anything can be handed over.
     private var ready: Bool { !isNew || !idea.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -208,13 +219,13 @@ struct MakeAppSheet: View {
 
     private var words: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(isNew ? "New App" : "Make this note an app")
+            Text(isNew ? "New App" : offersSplitter ? "Make this a cost splitter" : "Make this note an app")
                 .font(Metrics.title)
                 .tracking(-0.3)
                 .foregroundStyle(Color.ink)
                 .accessibilityAddTraits(.isHeader)
                 .padding(.trailing, Metrics.closeSize + 8)
-            Text(isNew
+            Text(offersSplitter ? Self.splitterLine : isNew
                  ? (ais?.isEmpty == true ? "An AI you connect builds it, as a new note. Choose yours to connect it." : "Your AI builds it, as a new note.")
                  : (ais?.isEmpty == true ? "An AI you connect builds it from what this note holds. Choose yours to connect it." : "Your AI builds it from what this note holds. You can undo it."))
                 .font(Metrics.line)
@@ -223,9 +234,40 @@ struct MakeAppSheet: View {
         }
     }
 
+    static let splitterLine = "Who paid what, each cost split between everyone, and who owes whom. Ready now, no AI needed. You can undo it."
+
+    /// The cost splitter: one press makes it, from the note's own rows. Another app, made by an AI,
+    /// is one quiet press away.
+    private var splitterStep: some View {
+        VStack(spacing: Metrics.stepGap) {
+            Button { makeSplitter() } label: { Text("Make It a Cost Splitter").frame(maxWidth: .infinity) }
+                .buttonStyle(.amberProminent(.regular, wide: true))
+                .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("makeApp.splitter")
+            Button("Have Your AI Make Another App") { withAnimation(.smooth(duration: 0.25)) { withAI = true } }
+                .buttonStyle(.hoverText)
+                .font(Metrics.hint)
+                .foregroundStyle(Color.muted)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .accessibilityIdentifier("makeApp.splitter.withAI")
+        }
+    }
+
+    /// The note becomes the Trip costs app with its rows as costs. The note shows it at once, with
+    /// "Pinto Notes made this note an app" and Undo (NoteDetailView.pageArrived).
+    private func makeSplitter() {
+        guard let noteID, let project = CostSplit.project, let data = CostSplit.data(title: title, body: body_) else { return }
+        NotePageDataStore.shared.set(noteID, data)
+        NotePageStore.shared.setHere(noteID, .init(html: project, by: CostSplit.writer, at: .now))
+        SyncSignal.changed()
+        dismiss()
+    }
+
     /// The one next step.
     @ViewBuilder private var step: some View {
-        if let waitingFor {
+        if offersSplitter {
+            splitterStep
+        } else if let waitingFor {
             waiting(for: waitingFor)
         } else if let ais {
             if let ai = ais.first {
@@ -536,6 +578,12 @@ struct MakeAppSketch: View {
                     bar(110, Color.ink.opacity(0.55))
                     HStack(spacing: 5) { ForEach(0..<7, id: \.self) { i in bar(18, i < 5 ? Color.amberInk : Color.line, height: 6) } }
                 }
+            }
+        case .split:
+            // Who owes whom, a line each with its amount, over the one big button.
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach([70.0, 54], id: \.self) { w in HStack(spacing: 6) { bar(w, Color.ink.opacity(0.55)); bar(30, Color.amberInk) } }
+                Capsule().fill(Color.amberInk).frame(width: 200, height: 14).padding(.top, 2)
             }
         case .budget:
             VStack(alignment: .leading, spacing: 8) {

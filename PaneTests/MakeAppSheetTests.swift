@@ -109,6 +109,37 @@ import Testing
         #expect(MakeAnApp.kind(for: "Thoughts\n\nNothing to track.") == .plain)
     }
 
+    /// Persona council 11-04 (Sara): a table of who paid what was offered as a budget. Now it's a
+    /// cost splitter, made in one press from the note's rows, no AI needed: the Trip costs app with
+    /// everyone who paid and each cost split between them all.
+    @Test func whoPaidWhatIsACostSplitterInOnePress() throws {
+        let note = "Lisbon costs\n\n| What | Paid by | Amount (€) | Date |\n| --- | --- | --- | --- |\n| Flat, four nights | Sara | 480 | 2026-05-12 |\n| Dinner at Ramiro | Leo | 96,50 | |\n| Train to Sintra | sara | 1,018.00 | |\n|  | Maja | |  |\n"
+        #expect(MakeAnApp.kind(for: note) == .split, "Paid by and an amount: who owes whom, not a budget")
+        #expect(MakeAnApp.kind(for: Capture.budgetNote) == .budget, "a budget stays a budget")
+        #expect(MakeAnApp.kind(for: "Bookings\n\n| What | Paid | Amount |\n|---|---|---|\n| Hotel | Yes | 300 |") == .budget, "a Paid tick isn't who paid")
+        #expect(MakeAnApp.idea(for: note)?.contains("who owes whom") == true)
+        #expect(MakeAppSheet.offersSplitter(title: "Lisbon costs", body: note), "the app ships with the Mac app")
+        #expect(!MakeAppSheet.offersSplitter(title: "Budget", body: Capture.budgetNote))
+        let doc = try #require(CostSplit.data(title: "Lisbon costs", body: note))
+        let values = try #require(doc["values"] as? [String: Any])
+        #expect(values["name"] as? String == "Lisbon costs" && values["currency"] as? String == "€")
+        let people = try #require(values["people"] as? [[String: Any]])
+        #expect(people.compactMap { $0["name"] as? String } == ["Sara", "Leo"], "everyone who paid, once each (sara is Sara); a row with no amount is left out")
+        let costs = try #require(values["costs"] as? [[String: Any]])
+        #expect(costs.compactMap { $0["what"] as? String } == ["Flat, four nights", "Dinner at Ramiro", "Train to Sintra"])
+        #expect(costs.compactMap { $0["amount"] as? Double } == [480, 96.5, 1018])
+        #expect(costs.compactMap { $0["paidBy"] as? String } == ["p1", "p2", "p1"])
+        #expect(costs.allSatisfy { $0["split"] as? String == "equal" && $0["among"] == nil }, "split between everyone, changed in the app")
+        #expect(costs[0]["date"] as? String == "2026-05-12" && costs[1]["date"] == nil)
+        #expect(CostSplit.amount("1.200,50 kr") == 1200.5 && CostSplit.amount("1,200.50") == 1200.5)
+        #expect(CostSplit.amount("€42") == 42 && CostSplit.amount("1,200 kr") == 1200 && CostSplit.amount("x") == nil)
+        #expect(CostSplit.currency(header: "Amount", cells: ["120 kr"]) == "kr" && CostSplit.currency(header: "Cost", cells: ["12"]) == "")
+        // The words the sheet says: what it does, that no AI is needed, and that it can be undone.
+        #expect(MakeAppSheet.splitterLine.contains("who owes whom") && MakeAppSheet.splitterLine.contains("no AI needed") && MakeAppSheet.splitterLine.contains("undo"))
+        let project = try #require(CostSplit.project)
+        #expect(project.contains("Add cost") && project.contains("Who owes whom"), "the Trip costs app itself")
+    }
+
     /// No AI connected: the ways to connect one are in the sheet itself, one press each, not a
     /// button that opens Settings (newcomer audit #14). "Another AI" is left to Settings. (What the
     /// sheet then looks like is the "none" picture of `theSheetIsTheSizeOfWhatItSays`.)

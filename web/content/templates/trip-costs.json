@@ -1,0 +1,32 @@
+{
+  "slug": "trip-costs",
+  "title": "Trip costs",
+  "category": "Home and life",
+  "audiences": [
+    "Personal",
+    "Families"
+  ],
+  "audience": "For friends and families sharing the costs of a trip, without a separate app or sign-up.",
+  "description": "A free trip cost splitter in a note: who paid what, split equally or by share, and who owes whom in the fewest payments. Add costs yourself, or tell your AI what you paid.",
+  "tagline": "Who paid what, and who owes whom.",
+  "seoTitle": "Trip cost splitter template for ChatGPT and Claude",
+  "folder": "Travel",
+  "note": "Trip costs\n\nWho paid what on the trip, split between everyone, and who owes whom. The app keeps the costs and does the sums. Add them yourself, or tell your AI what you paid.\n",
+  "prompt": {
+    "default": "Use my Pinto Notes note \"Trip costs\". It is an app; its data is \"Travel/Trip costs.app/data.json\". Read it with fetch before each change, and change it with edit. values.people is a list of { id, name }: when I name someone new, add them with a new id. When I tell you what someone paid, add one item to values.costs: a new id, what, amount as a number, paidBy as that person's id, date as yyyy-mm-dd, and split \"equal\", with among as the ids it's split between (leave among out for everyone). For an uneven split use split \"shares\" and shares as { id: number }. When someone pays someone back, add { id, from, to, amount, date } to values.payments. I can add, change and delete costs, people and payments in the app myself. When I ask who owes whom, give the app's own answer: the fewest payments that settle everything."
+  },
+  "asks": [
+    "I paid 480 for the flat, Leo paid 96 for dinner. Split both between Sara, Leo and Maja.",
+    "Maja paid the 18 euro train tickets for her and me.",
+    "Who owes whom now?"
+  ],
+  "demo": [],
+  "example": "Trip costs\n\nWho paid what on the trip, split between everyone, and who owes whom. The app keeps the costs and does the sums. Add them yourself, or tell your AI what you paid.\n",
+  "related": [
+    "trip-plan",
+    "budget-log",
+    "gift-ideas"
+  ],
+  "updated": "2026-11-04",
+  "app": true
+}

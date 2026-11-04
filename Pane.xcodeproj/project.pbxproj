@@ -200,6 +200,7 @@
 		265F009436F9A9BE366AF7A4 /* collab-vectors.json in Resources */ = {isa = PBXBuildFile; fileRef = F77FBA56B6E0A15F61A3CD2C /* collab-vectors.json */; };
 		26A50B747924DB4DCBD7DAD4 /* firstopen-trip-plan.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CE1C02753FF5148177EAD29D /* firstopen-trip-plan.jpg */; };
 		26EE93D54AFBE6911882492D /* MacLookSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A9EC2E111AD0E4ED32EBE6A /* MacLookSnapshots.swift */; };
+		27357BF8197D72E7728DFDE1 /* template-app-trip-costs.project.json in Resources */ = {isa = PBXBuildFile; fileRef = 644F8398B1D60F1B5BFB5221 /* template-app-trip-costs.project.json */; };
 		27774A450E431B6254BBC66F /* NotePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8202889E526383AF7BD0F449 /* NotePage.swift */; };
 		27BF89E3E5F784861EE58524 /* amber-base.css in Resources */ = {isa = PBXBuildFile; fileRef = 7C5A3BE24CB24DDD03944249 /* amber-base.css */; };
 		2827E7F60D57377890E658A7 /* SettingsShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63DCAF87A77F075D8B41C1E1 /* SettingsShots.swift */; };
@@ -425,6 +426,7 @@
 		6446F4952BF2E70ECC8E9236 /* E2EESyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E820108DA2C23C11D35865C /* E2EESyncTests.swift */; };
 		64823E1DF5CB4EF7EB81A4D4 /* LinkPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F743BED91F9AD58A3BFA6CCB /* LinkPolicy.swift */; };
 		64991D36601107180C3C7B49 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9EEA5AC460DA18550E8304 /* Models.swift */; };
+		649C0CC0B0C98D9734900AB0 /* CostSplit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72E10521B11EB405513E5D94 /* CostSplit.swift */; };
 		64ADBFB8920863460F71AE13 /* EmailSignInFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8960C267A4A73E8377D155D6 /* EmailSignInFlow.swift */; };
 		6537166801A124B6D541DB3A /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = 068B8617CDC6EF1378CC4272 /* Markdown */; };
 		659C0A1B0B3D3988A8A1F210 /* PushTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65052FE76C0F2BF131DDA2C7 /* PushTests.swift */; };
@@ -665,6 +667,7 @@
 		A5DFC5FA78B581E0AFF00B71 /* CalloutTypePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65B140DD3577791185D0152B /* CalloutTypePicker.swift */; };
 		A64D7D4950EFCE103608A867 /* AccountGoneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111E9C358E5C2A6E9AB85F10 /* AccountGoneTests.swift */; };
 		A67D4B828B91319CE55B1758 /* template-app-trip-plan.project.json in Resources */ = {isa = PBXBuildFile; fileRef = ED4414876743DEDD0A6D7728 /* template-app-trip-plan.project.json */; };
+		A68EC912706C63F954A0614B /* template-app-trip-costs.data.json in Resources */ = {isa = PBXBuildFile; fileRef = D9C52176B7D03E7385434818 /* template-app-trip-costs.data.json */; };
 		A69C708456FD48416A38AB25 /* amber-base.ts in Resources */ = {isa = PBXBuildFile; fileRef = B4F477A1E4497D29C03E3092 /* amber-base.ts */; };
 		A6AA8911AB195561551D80DA /* NoteHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F00B2175265FE9DFF9E83C /* NoteHistory.swift */; };
 		A703E267FE7461E0AC360247 /* Backlinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A37C9F239F34435A2AC59C8 /* Backlinks.swift */; };
@@ -692,6 +695,7 @@
 		ADC07DFE10B4F16A135C80AE /* NoteLockSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD40DB3A0959421F768D4D34 /* NoteLockSync.swift */; };
 		ADE87078E8EB51FDBDB28D54 /* AppPlace.swift in Sources */ = {isa = PBXBuildFile; fileRef = D66F73D19D6FC8E877D5EDCA /* AppPlace.swift */; };
 		AE0A5ACAA53EB13E8281F0A6 /* AIChanges.swift in Sources */ = {isa = PBXBuildFile; fileRef = E69565802EB312CF1CA65A52 /* AIChanges.swift */; };
+		AE2032E821E58BB2C88B419D /* template-app-trip-costs.data.json in Resources */ = {isa = PBXBuildFile; fileRef = D9C52176B7D03E7385434818 /* template-app-trip-costs.data.json */; };
 		AE3FF3E403181E37E11CEB64 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C2F5BCCDFA4A6D60E39708 /* Platform.swift */; };
 		AE8DED5C0881EE472EE95C2B /* TabletShotsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05B258D25986D3D7ADFB30B8 /* TabletShotsTests.swift */; };
 		AE91492604F59BF6D5967A21 /* PasswordField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D93AD7A45E15447614E5242 /* PasswordField.swift */; };
@@ -948,6 +952,7 @@
 		F5B73F371B2B139D43A192FC /* OfflineHTMLTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67FFA212DC37DF44CA3F7B21 /* OfflineHTMLTests.swift */; };
 		F5DFE70493F7E13C3AAA35FD /* HomeScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45E841E864DEFA026AC0CF16 /* HomeScreenTests.swift */; };
 		F68654C4D05ABED16E4EA4F5 /* InlineNameField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017777D0BAA64878F98D3A48 /* InlineNameField.swift */; };
+		F6C753B51DF2343263FC4BF4 /* template-app-trip-costs.project.json in Resources */ = {isa = PBXBuildFile; fileRef = 644F8398B1D60F1B5BFB5221 /* template-app-trip-costs.project.json */; };
 		F7138B1CAFFAE3AD801D16C2 /* DestructiveTint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24B79ECE631EFE9C39379331 /* DestructiveTint.swift */; };
 		F73476038C5A573415483440 /* htm.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 586174156618B0DB73BFE5A7 /* htm.module.js */; };
 		F77885AA135AFC57A9D55F0C /* TableEditingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 477ACA457C7563F360F21E9B /* TableEditingUITests.swift */; };
@@ -961,6 +966,7 @@
 		F92C4865D194D66F6C1C2793 /* MenuBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44D4445CBE0C9888D0A78476 /* MenuBarTests.swift */; };
 		F92E5FE6472B680056591A97 /* Dividers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C439A81FB96E4DE1B754647 /* Dividers.swift */; };
 		F933C4842DCCD1A6AE0B54A4 /* amber-router.module.js in Resources */ = {isa = PBXBuildFile; fileRef = F238F5CBF7C5E4F2F4B5172F /* amber-router.module.js */; };
+		F95FB85529DF0DEDCB96AA76 /* CostSplit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72E10521B11EB405513E5D94 /* CostSplit.swift */; };
 		F99A3DE164DE43C54A5BE075 /* AddDeviceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF202EE121B78E2D670FEBB /* AddDeviceTests.swift */; };
 		F9A213E74F435A4541BD3665 /* LinkForms.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5080D778A1C103413519FD85 /* LinkForms.swift */; };
 		F9B83CD17366693592CFBAB7 /* PhoneRenderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D231A7A9A67539F73B3C764B /* PhoneRenderTests.swift */; };
@@ -1297,6 +1303,7 @@
 		641F847428D60D9F54899530 /* ReorderSlide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReorderSlide.swift; sourceTree = "<group>"; };
 		6437AEF31BCCDC5E8092B053 /* WikiSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiSuggestions.swift; sourceTree = "<group>"; };
 		643D6098FA0EE7C18618080F /* OfflineUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineUITests.swift; sourceTree = "<group>"; };
+		644F8398B1D60F1B5BFB5221 /* template-app-trip-costs.project.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-trip-costs.project.json"; sourceTree = "<group>"; };
 		64816024A9749AC715351868 /* VersionHistorySnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionHistorySnapshots.swift; sourceTree = "<group>"; };
 		64C6DCA985E0C6F7F1691585 /* NoteUndoButtonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteUndoButtonTests.swift; sourceTree = "<group>"; };
 		65052FE76C0F2BF131DDA2C7 /* PushTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTests.swift; sourceTree = "<group>"; };
@@ -1335,6 +1342,7 @@
 		70C6DF1DB45684EF379D2E7E /* PersonaEditorShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaEditorShots.swift; sourceTree = "<group>"; };
 		71B66942D1036BEF56F53111 /* NoteDropUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDropUITests.swift; sourceTree = "<group>"; };
 		72C1B655873A4CE5E1D4F0B3 /* MenuBarPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPanel.swift; sourceTree = "<group>"; };
+		72E10521B11EB405513E5D94 /* CostSplit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostSplit.swift; sourceTree = "<group>"; };
 		72E56EC524B81F167DEEFBA1 /* PerfBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfBudget.swift; sourceTree = "<group>"; };
 		730B7663C46D3F18F6A80738 /* HeardFromView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeardFromView.swift; sourceTree = "<group>"; };
 		73D9C8D75A7519F7CA04449D /* WarmGreySnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WarmGreySnapshots.swift; sourceTree = "<group>"; };
@@ -1593,6 +1601,7 @@
 		D8DB086BC7C7196273F175FA /* template-cover-daily-standup.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-daily-standup.jpg"; sourceTree = "<group>"; };
 		D95167E06D5ECDFDE2B86394 /* Sync */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Sync; path = Pane/Sync; sourceTree = SOURCE_ROOT; };
 		D983BF94C11EAB2D08522A43 /* AppearanceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettings.swift; sourceTree = "<group>"; };
+		D9C52176B7D03E7385434818 /* template-app-trip-costs.data.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-trip-costs.data.json"; sourceTree = "<group>"; };
 		D9FBE108B95CB4AD8D2F52DF /* App */ = {isa = PBXFileReference; lastKnownFileType = folder; name = App; path = Pane/App; sourceTree = SOURCE_ROOT; };
 		DB80888B06B4A1F6FBC61797 /* ConnectWebGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectWebGuide.swift; sourceTree = "<group>"; };
 		DCE5233DC533CE9F350228FC /* FolderFileViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderFileViews.swift; sourceTree = "<group>"; };
@@ -1812,6 +1821,7 @@
 				D66F73D19D6FC8E877D5EDCA /* AppPlace.swift */,
 				5A37C9F239F34435A2AC59C8 /* Backlinks.swift */,
 				27BC2BBC304C6026622F0BF6 /* ConnectScan.swift */,
+				72E10521B11EB405513E5D94 /* CostSplit.swift */,
 				3BE8E5E057146AF438788DFD /* DailyNotes.swift */,
 				301899D6EDE0A22460BBE357 /* DebouncedSave.swift */,
 				D6DE44F0B3F6589C674C8638 /* DeviceIdentity.swift */,
@@ -2045,6 +2055,8 @@
 				7FFCC88CB19BF7AB1F88EB91 /* template-app-study-flashcards-light.jpg */,
 				6E7E10B519DA24BDFE5025EF /* template-app-study-flashcards.data.json */,
 				98086AC5C15AF19299166868 /* template-app-study-flashcards.project.json */,
+				D9C52176B7D03E7385434818 /* template-app-trip-costs.data.json */,
+				644F8398B1D60F1B5BFB5221 /* template-app-trip-costs.project.json */,
 				591538F09A6366B5271C87F1 /* template-app-trip-plan-dark.jpg */,
 				DFFC49BCF62DBB16BFC2CF8D /* template-app-trip-plan-light.jpg */,
 				119D2A4674F7A0EEA13D4845 /* template-app-trip-plan.data.json */,
@@ -2919,6 +2931,8 @@
 				1B6693232BAAB8384122A494 /* template-app-study-flashcards-light.jpg in Resources */,
 				0C43F1BF69F7FC9B564AD1F5 /* template-app-study-flashcards.data.json in Resources */,
 				E721143BCF1CD9D3DE548522 /* template-app-study-flashcards.project.json in Resources */,
+				AE2032E821E58BB2C88B419D /* template-app-trip-costs.data.json in Resources */,
+				F6C753B51DF2343263FC4BF4 /* template-app-trip-costs.project.json in Resources */,
 				BA7146E874BEDAB20DCE7A1F /* template-app-trip-plan-dark.jpg in Resources */,
 				11FC3EEB0BD887FA89890D4E /* template-app-trip-plan-light.jpg in Resources */,
 				31F892FCBC62421869484CB0 /* template-app-trip-plan.data.json in Resources */,
@@ -3005,6 +3019,8 @@
 				56295473CED9A7D6C9828F25 /* template-app-study-flashcards-light.jpg in Resources */,
 				0D3EAD2F503174B76B8D17CD /* template-app-study-flashcards.data.json in Resources */,
 				E33C8B310F9878AB27C04122 /* template-app-study-flashcards.project.json in Resources */,
+				A68EC912706C63F954A0614B /* template-app-trip-costs.data.json in Resources */,
+				27357BF8197D72E7728DFDE1 /* template-app-trip-costs.project.json in Resources */,
 				35B2402FFFA76D9629839C23 /* template-app-trip-plan-dark.jpg in Resources */,
 				C6C7BCD3CFABD48733B100ED /* template-app-trip-plan-light.jpg in Resources */,
 				1E389505E10D8117B72BF358 /* template-app-trip-plan.data.json in Resources */,
@@ -3451,6 +3467,7 @@
 				109B20C5787E217ED3BB8F40 /* ConnectScan.swift in Sources */,
 				D92E5ED0953F386C71530F89 /* ConnectTerminalGuide.swift in Sources */,
 				0A9CEFB1375921718DF57CCF /* ConnectWebGuide.swift in Sources */,
+				F95FB85529DF0DEDCB96AA76 /* CostSplit.swift in Sources */,
 				0366C9B2B821FBA700B2095B /* DailyNotes.swift in Sources */,
 				E1A83EADA533E099B72CE9F3 /* DebouncedSave.swift in Sources */,
 				5DF4070A3BE600B9F2D1F641 /* DecoratedLayoutFragment.swift in Sources */,
@@ -3752,6 +3769,7 @@
 				D49F57F54EB1B22444DB5F5C /* ConnectScan.swift in Sources */,
 				869B647A072CA82980DBAFC7 /* ConnectTerminalGuide.swift in Sources */,
 				9CD76482DDF2AB1F6C7FF89D /* ConnectWebGuide.swift in Sources */,
+				649C0CC0B0C98D9734900AB0 /* CostSplit.swift in Sources */,
 				3E7B104863C6334EDB0E808D /* DailyNotes.swift in Sources */,
 				CDB3416573535BFCAD1C622E /* DebouncedSave.swift in Sources */,
 				0E5A93367DF00F588EC6C7A3 /* DecoratedLayoutFragment.swift in Sources */,

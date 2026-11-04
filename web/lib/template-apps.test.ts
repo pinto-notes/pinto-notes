@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { appFiles, createStep, instructions, markdownIn, publicTemplate, templates } from "./templates";
+import { appFiles, createStep, IN_APP_ONLY, instructions, markdownIn, publicTemplate, templates } from "./templates";
 
 // Templates with apps (docs/Technical/templates.md): content/templates/<slug>.app/ is the app as the
 // file tools list it, and public/templates/apps/ is what scripts/template-apps.ts compiled from it.
@@ -39,11 +39,11 @@ const folders = readdirSync(CONTENT).filter((f) => f.endsWith(".app")).map((f) =
 
 describe("templates with apps", () => {
   it("say they have an app exactly when their folder is there", () => {
-    expect(apps.map((t) => t.slug).sort()).toEqual(folders.sort());
+    expect([...apps.map((t) => t.slug), ...IN_APP_ONLY].sort()).toEqual(folders.sort());
   });
 
   it("carry their tests and their docs, like any app the AI keeps up", () => {
-    for (const t of apps) {
+    for (const t of [...apps, ...IN_APP_ONLY.map((slug) => ({ slug }))]) {
       const files = Object.keys(tree(path.join(CONTENT, `${t.slug}.app`)));
       expect(files.some((f) => /^tests\/.+\.test\.(tsx|ts|jsx|js)$/.test(f)), `${t.slug}.app has no tests/`).toBe(true);
       expect(files, t.slug).toContain("docs/README.md");
@@ -52,7 +52,8 @@ describe("templates with apps", () => {
   });
 
   it("serve what the generator compiled from the folder, unchanged since", () => {
-    for (const t of apps) {
+    // The ones only the Mac app has yet are compiled the same way, and kept in step the same.
+    for (const t of [...apps, ...IN_APP_ONLY.map((slug) => ({ slug }))]) {
       const f = appFiles(t.slug);
       for (const p of Object.values(f)) expect(existsSync(path.join(PUBLIC, p)), `${p} is missing. ${RUN} ${t.slug}`).toBe(true);
       const files = tree(path.join(CONTENT, `${t.slug}.app`));

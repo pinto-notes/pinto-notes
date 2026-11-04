@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { COVERS } from "./template-covers";
-import { templates } from "./templates";
+import { IN_APP_ONLY, templates } from "./templates";
 
 /// The Mac app's template viewer reads its own copy of this list (Pane/Resources/Templates, made by
 /// scripts/template-catalog.py). A template added here and not there fails until the script runs.
@@ -31,6 +31,16 @@ describe("the app's copy of the templates", () => {
       expect((copy.find((x) => x.slug === t.slug) as { note?: string }).note, t.slug).toBe(t.note);
       for (const kind of ["project", "data"]) {
         expect(readFileSync(path.join(dir, `template-app-${t.slug}.${kind}.json`), "utf8"), `${t.slug} ${kind}`).toBe(readFileSync(path.join(apps, `${t.slug}.${kind}.json`), "utf8"));
+      }
+    }
+  });
+
+  it("carries the apps only the Mac app has yet (Trip costs, for Make It an App), not in the list", () => {
+    const apps = path.join(process.cwd(), "public/templates/apps");
+    for (const slug of IN_APP_ONLY) {
+      expect(copy.some((t) => t.slug === slug), slug).toBe(false);
+      for (const kind of ["project", "data"]) {
+        expect(readFileSync(path.join(dir, `template-app-${slug}.${kind}.json`), "utf8"), `${slug} ${kind}`).toBe(readFileSync(path.join(apps, `${slug}.${kind}.json`), "utf8"));
       }
     }
   });

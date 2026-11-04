@@ -33,6 +33,11 @@ for slug in order:
                            check=True, capture_output=True)
         for kind in ("project", "data") if t.get("app") else ():
             shutil.copyfile(web / f"public/templates/apps/{slug}.{kind}.json", out / f"template-app-{slug}.{kind}.json")
+# Apps only the Mac app has yet (IN_APP_ONLY in web/lib/templates.ts): their project and data, no card.
+in_app = re.findall(r'"([a-z0-9-]+)"', re.search(r"export const IN_APP_ONLY = \[(.*?)\];", (web / "lib/templates.ts").read_text(), re.S).group(1))
+for slug in in_app if "--check" not in sys.argv else ():
+    for kind in ("project", "data"):
+        shutil.copyfile(web / f"public/templates/apps/{slug}.{kind}.json", out / f"template-app-{slug}.{kind}.json")
 text = json.dumps(catalog, indent=1, ensure_ascii=False) + "\n"
 if "--check" in sys.argv:
     sys.exit(0 if (out / "catalog.json").read_text() == text else "Pane/Resources/Templates is behind: run scripts/template-catalog.py")

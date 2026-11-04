@@ -5,7 +5,7 @@ import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { describe, expect, it } from "vitest";
 import { MCP_TOOLS } from "./mcp-tools";
-import { AUDIENCES, CATEGORIES, GITHUB_HANDLE, ORDER, SLUG, changedLines, createStep, instructions, markdownIn, publicTemplate, renderTemplate, searchTitle, slice, templateFiles, templates, validTemplateSlug, type DemoCall, type Template } from "./templates";
+import { AUDIENCES, CATEGORIES, GITHUB_HANDLE, IN_APP_ONLY, ORDER, SLUG, changedLines, createStep, instructions, markdownIn, publicTemplate, renderTemplate, searchTitle, slice, templateFiles, templates, validTemplateSlug, type DemoCall, type Template } from "./templates";
 
 // The server's own note functions (supabase/functions/mcp/notes.ts, plain TypeScript with no
 // imports), loaded by path so the site's build never depends on the server folder.
@@ -61,9 +61,10 @@ const toolNames = new Set(MCP_TOOLS.map((t) => t.name));
 const texts = (t: Template) => [t.title, t.audience, t.description, t.seoTitle ?? "", t.folder, t.note, t.example, ...Object.values(t.prompt), ...t.asks];
 
 describe("the template library", () => {
-  it("has at least 15 templates, every file listed once in ORDER", () => {
+  it("has at least 15 templates, every file listed once in ORDER (or kept for the Mac app only)", () => {
     expect(all.length).toBeGreaterThanOrEqual(15);
-    expect([...templateFiles()].sort()).toEqual([...ORDER].sort());
+    expect([...templateFiles()].sort()).toEqual([...ORDER, ...IN_APP_ONLY].sort());
+    expect(ORDER.filter((s) => IN_APP_ONLY.includes(s))).toEqual([]);
     expect(new Set(ORDER).size).toBe(ORDER.length);
   });
 

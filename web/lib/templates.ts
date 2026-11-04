@@ -70,6 +70,13 @@ export const ORDER = [
   "cornell-notes", "daily-journal", "grocery-list",
 ];
 
+/// App templates that ship in the Mac app before they have a page here (no gallery card, no
+/// sitemap entry): the app is built from content/templates/<slug>.app like the others, and the Mac
+/// app uses it directly. Trip costs is the cost splitter "Make It an App" offers for a table with
+/// "Paid by" and an amount (persona council, 4 November 2026); its page waits for its cover, search
+/// copy and how-to post.
+export const IN_APP_ONLY = ["trip-costs"];
+
 const DIR = path.join(process.cwd(), "content/templates");
 
 let cache: Template[] | undefined;

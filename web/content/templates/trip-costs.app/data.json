@@ -1,0 +1,10 @@
+{
+  "values": {
+    "name": "Trip costs",
+    "currency": "€",
+    "people": [],
+    "costs": [],
+    "payments": []
+  },
+  "collections": {}
+}
