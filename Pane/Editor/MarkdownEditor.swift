@@ -531,6 +531,11 @@ final class EditorCore {
             return .move(to)
         }
         if let b = blocks(in: text).first(where: { $0.contains(selection.location) }) {
+            // Typing at the end of a block's last line: a table's separator row or an address
+            // became a block under the caret. The caret stays where it's typing (persona r7: a
+            // typed address split at "https://w", a typed table broke after "| -").
+            if selection.location == NSMaxRange(b.range), let last = lastSelection, last.length == 0,
+               last.location >= b.range.location, last.location < selection.location { return nil }
             let fromBelow = (lastSelection?.location ?? -1) > NSMaxRange(b.range)
             let fromAbove = lastSelection.map { $0.location < b.range.location } ?? false
             if byKeyboard, let g = b.grid, fromAbove || fromBelow {
@@ -1795,8 +1800,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             selectedRange = NSRange(location: at, length: 0)
         case .newLineAfter(let at), .newLineBefore(let at):
             let after = { if case .newLineAfter = fix { true } else { false } }()
+            // Only on the text it was worked out for: an Undo in between left `at` past the end.
+            let before = text
             DispatchQueue.main.async { [weak self] in
-                self?.apply(TextEdit(range: NSRange(location: at, length: 0), replacement: "\n", caret: after ? at + 1 : at))
+                guard let self, self.text == before else { return }
+                self.apply(TextEdit(range: NSRange(location: at, length: 0), replacement: "\n", caret: after ? at + 1 : at))
             }
         case .enterGrid(let grid, let cell):
             core.gridFocus = GridFocusRequest(grid: grid, cell: cell)
@@ -3255,9 +3263,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             setSelectedRange(NSRange(location: at, length: 0))
         case .newLineAfter(let at), .newLineBefore(let at):
             let after = { if case .newLineAfter = fix { true } else { false } }()
-            // Not while AppKit is still delivering this selection change.
+            // Not while AppKit is still delivering this selection change, and only on the text it
+            // was worked out for: an Undo in between left `at` past the end and crashed (persona r7).
+            let before = string
             DispatchQueue.main.async { [weak self] in
-                self?.apply(TextEdit(range: NSRange(location: at, length: 0), replacement: "\n", caret: after ? at + 1 : at))
+                guard let self, self.string == before else { return }
+                self.apply(TextEdit(range: NSRange(location: at, length: 0), replacement: "\n", caret: after ? at + 1 : at))
             }
         case .enterGrid(let grid, let cell):
             core.gridFocus = GridFocusRequest(grid: grid, cell: cell)

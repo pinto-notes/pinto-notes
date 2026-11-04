@@ -1009,12 +1009,24 @@ private struct StyleWalker: MarkupWalker {
 
     mutating func visitTable(_ table: Markdown.Table) {
         guard let r = map.range(table.range), safe(r) else { return descendInto(table) }
+        // Only the lines with pipes, as the grid has them: the parser's range took in the title
+        // straight above a table, and GFM makes the plain line straight below it a row, so both
+        // were set as table source (persona r7: "Porto" and "After" in grey monospace).
+        var lines: [NSRange] = []
+        let ns = self.ns
+        ns.enumerateSubstrings(in: ns.lineRange(for: r), options: [.byParagraphs, .substringNotRequired]) { _, line, enclosing, _ in
+            lines.append(ns.substring(with: line).contains("|") ? enclosing : NSRange(location: NSNotFound, length: 0))
+        }
+        while lines.first?.location == NSNotFound { lines.removeFirst() }
+        while lines.last?.location == NSNotFound { lines.removeLast() }
+        guard let top = lines.first, let bottom = lines.last else { return descendInto(table) }
+        let rows = NSRange(location: top.location, length: NSMaxRange(bottom) - top.location)
         var starts = IndexSet()
-        ns.enumerateSubstrings(in: ns.lineRange(for: r), options: [.byParagraphs, .substringNotRequired]) { _, line, _, _ in
+        ns.enumerateSubstrings(in: rows, options: [.byParagraphs, .substringNotRequired]) { _, line, _, _ in
             starts.insert(line.location)
         }
         tableLineStarts.formUnion(starts)
-        tables.append(ns.lineRange(for: r))
+        tables.append(rows)
         descendInto(table)
     }
 
