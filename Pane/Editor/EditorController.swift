@@ -348,6 +348,8 @@ final class EditorController {
     static func untickedNotice(_ count: Int) -> String { count == 1 ? "Unticked 1 item" : "Unticked \(count) items" }
     func heading(_ level: Int) { guard cell == nil else { return }; perform { ListEditing.heading(in: $0, selection: $1, level: level) } }
 
+    /// Format › Move Item Up / Down: the caret's line or item past its neighbour (`MoveItem`).
+    func moveItem(up: Bool) { guard cell == nil else { return }; perform { MoveItem.move(in: $0, selection: $1, up: up) } }
     func bulletList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .bulleted) } }
     func dashedList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .dashed) } }
     func numberedList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .numbered) } }

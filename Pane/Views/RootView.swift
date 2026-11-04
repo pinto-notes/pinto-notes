@@ -1324,6 +1324,9 @@ struct PaneCommands: Commands {
                 Button("Dashed List") { editor?.dashedList() }.keyboardShortcut("8", modifiers: [.command, .shift])
                 Button("Numbered List") { editor?.numberedList() }.keyboardShortcut("9", modifiers: [.command, .shift])
                 Button("Block Quote") { editor?.blockQuote() }.keyboardShortcut("'", modifiers: .command)
+                // Notes' Move List Item Up and Down, for any line (council rounds 13 and 14).
+                Button("Move Item Up") { editor?.moveItem(up: true) }.keyboardShortcut(.upArrow, modifiers: [.command, .control])
+                Button("Move Item Down") { editor?.moveItem(up: false) }.keyboardShortcut(.downArrow, modifiers: [.command, .control])
                 // A line across the note (`---`). No shortcut, as in Pages.
                 Button("Divider") { editor?.insertDivider() }
                 // A tinted panel with a title (`> [!note]`, as in Obsidian). No shortcut.

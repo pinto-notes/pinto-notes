@@ -586,3 +586,58 @@ enum BlockDelete: Equatable {
     case arm(Int)
     case delete(TextEdit)
 }
+
+/// Format › Move Item Up and Move Item Down (⌃⌘↑, ⌃⌘↓), as Notes has them (council rounds 13
+/// and 14): the caret's line, or the selected lines, swap with the line next to them. A list item
+/// takes its indented items with it and goes past the whole neighbouring item, children and all.
+/// The title (the first line) stays first. Pure, over the markdown source.
+enum MoveItem {
+    static func move(in text: String, selection: NSRange, up: Bool) -> TextEdit? {
+        let ns = text as NSString
+        guard NSMaxRange(selection) <= ns.length else { return nil }
+        // Every line's range without its newline.
+        var lines: [NSRange] = []
+        ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: [.byLines, .substringNotRequired]) { _, r, _, _ in lines.append(r) }
+        if ns.length == 0 || ns.character(at: ns.length - 1) == 0x0A { lines.append(NSRange(location: ns.length, length: 0)) }
+        func index(of loc: Int) -> Int { lines.lastIndex { $0.location <= loc } ?? 0 }
+        func level(_ i: Int) -> Int? { ListPrefix(line: ns.substring(with: lines[i])).map(\.level) }
+        /// The last line of item `i`: it and the lines under it indented further.
+        func end(of i: Int) -> Int {
+            guard let l = level(i) else { return i }
+            var j = i
+            while j + 1 < lines.count, let n = level(j + 1), n > l { j += 1 }
+            return j
+        }
+        let a = index(of: selection.location)
+        let lastSelected = selection.length > 0 ? index(of: NSMaxRange(selection) - 1) : a
+        var b = max(end(of: lastSelected), lastSelected)
+        // Nothing moves into or out of the title's place, nor onto the blank line a note ends with.
+        guard a >= 1 else { return nil }
+        if b == lines.count - 1, lines[b].length == 0, b > a { b -= 1 }
+        let neighbour: ClosedRange<Int>
+        if up {
+            let p = a - 1
+            guard p >= 1 else { return nil }
+            // Up past a whole item: from its first line, the one at this block's level or less.
+            var c = p
+            if let mine = level(a) {
+                while c > 1, let l = level(c), l > mine { c -= 1 }
+            }
+            neighbour = c...p
+        } else {
+            let n = b + 1
+            guard n < lines.count, !(n == lines.count - 1 && lines[n].length == 0) else { return nil }
+            neighbour = n...max(end(of: n), n)
+        }
+        let block = a...b
+        let first = min(block.lowerBound, neighbour.lowerBound), last = max(block.upperBound, neighbour.upperBound)
+        let whole = NSRange(location: lines[first].location, length: NSMaxRange(lines[last]) - lines[first].location)
+        func joined(_ r: ClosedRange<Int>) -> String { r.map { ns.substring(with: lines[$0]) }.joined(separator: "\n") }
+        let moved = joined(block), other = joined(neighbour)
+        let replacement = up ? moved + "\n" + other : other + "\n" + moved
+        let newStart = up ? whole.location : whole.location + (other as NSString).length + 1
+        let shift = newStart - lines[a].location
+        return TextEdit(range: whole, replacement: replacement, caret: selection.location + shift,
+                        selection: selection.length > 0 ? NSRange(location: selection.location + shift, length: selection.length) : nil)
+    }
+}
