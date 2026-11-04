@@ -262,6 +262,8 @@ struct AddToPicker: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // A pointer on iPad lights the row it's over.
+        .hoverEffect(.highlight)
         .accessibilityIdentifier(id)
         .accessibilityAddTraits(picked ? .isSelected : [])
     }

@@ -4,6 +4,8 @@
 #   scripts/iphone-council-shots.sh <out dir> [test names...]
 # SIM=<udid> picks the simulator (default: one named "Pinto iPhone reach", made if missing).
 # BUILD=0 skips the build (reuses build/dd-iphone).
+# Signed to run locally (no team), so the app group works: the share sheet and the widget read
+# what the app leaves there. SIGN=0 builds unsigned, as the other simulator scripts do.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
@@ -38,10 +40,13 @@ for e in json.load(open(f"{src}/catalog.json")):
         shutil.copy(f"{src}/template-app-{e['slug']}.{kind}.json", f"{out}/{e['slug']}.{kind}.json")
 EOF
 
+signing=(CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=)
+[[ ${SIGN:-1} == 0 ]] && signing=(CODE_SIGNING_ALLOWED=NO)
+
 if [[ ${BUILD:-1} != 0 ]]; then
   xcodegen generate >/dev/null
   if ! nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane -destination "id=$SIM" -derivedDataPath $DD \
-    CODE_SIGNING_ALLOWED=NO build-for-testing > "$OUT/build.log" 2>&1; then
+    "${signing[@]}" build-for-testing > "$OUT/build.log" 2>&1; then
     grep -E "error:" "$OUT/build.log" | sort -u | head -20
     echo "BUILD FAILED"; exit 1
   fi
@@ -54,7 +59,7 @@ for look in ${=LOOKS:-light dark}; do
   xcrun simctl ui "$SIM" appearance $look
   TEST_RUNNER_PANE_SHOTS="$OUT" TEST_RUNNER_PANE_SCHEME=$look TEST_RUNNER_PANE_TEMPLATES="$TPL" \
     TEST_RUNNER_PANE_TREE=${TREE:-} nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane \
-    -destination "id=$SIM" -derivedDataPath $DD CODE_SIGNING_ALLOWED=NO test-without-building \
+    -destination "id=$SIM" -derivedDataPath $DD "${signing[@]}" test-without-building \
     "${only[@]}" > "$OUT/test-$look.log" 2>&1 || true
   grep -E "Test Case .*(passed|failed)|error:" "$OUT/test-$look.log" | head -40
 done

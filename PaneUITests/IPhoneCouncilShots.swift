@@ -131,9 +131,10 @@ final class IPhoneCouncilShots: XCTestCase {
         XCTAssertTrue(save.waitForExistence(timeout: 10), "the share extension's sheet")
         pause(2)
         shot("19-share-extension", app)
-        let groceries = app.buttons["share.note.Groceries"].firstMatch
-        if groceries.waitForExistence(timeout: 2) {
-            groceries.tap()
+        // Add to (this branch): pick the newest note, then search for another.
+        let recent = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'share.note.' AND identifier != 'share.note.new'")).firstMatch
+        if recent.waitForExistence(timeout: 2) {
+            recent.tap()
             pause(1)
             shot("20-share-add-to-picked", app)
             let search = app.textFields["share.search"].firstMatch

@@ -1,9 +1,10 @@
 import AppIntents
 import SwiftData
 
-// Siri and Shortcuts for checklists (2026-11-04): "Add oat milk to Groceries in Pinto Notes" adds
-// an unticked item, "Tick an item in Pinto Notes" ticks one, and Find Notes searches. Add to Note
-// (NoteIntents) still adds plain text. Each says what it did, and the Home Screen widget redraws.
+// Siri and Shortcuts for checklists (2026-11-04): "Add to Groceries in Pinto Notes" asks what to
+// add and adds it unticked (a spoken phrase can name a note, not free text), "Tick an item in
+// Pinto Notes" ticks one, and Find Notes searches. Add to Note (NoteIntents) still adds plain
+// text. Each says what it did, and the Home Screen widget redraws.
 
 struct AddToListIntent: AppIntent {
     static let title: LocalizedStringResource = "Add to List"
