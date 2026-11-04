@@ -1356,8 +1356,8 @@ struct ConsentSheet: View {
     /// caution, with the name it gives itself shown only as a claim (anyone can call themselves
     /// Claude), and never the name the person is told to check against.
     nonisolated static func detail(_ r: ConnectRequest) -> String {
-        if let ai = r.startedHere { return "You started connecting \(ai) on this Mac. \(sent(r)) Locked notes stay private." }
-        guard r.verifiedAI == nil else { return "\(sent(r)) Locked notes stay private." }
+        if let ai = r.startedHere { return "You started connecting \(ai) on this Mac. \(sent(r))" }
+        guard r.verifiedAI == nil else { return sent(r) }
         let claim = r.claimedName.map { " It calls itself \(displayName($0))." } ?? ""
         return "Pinto Notes doesn\u{2019}t recognize this app.\(claim) \(sent(r)) Only allow it if you just started connecting it yourself."
     }
@@ -1372,9 +1372,11 @@ struct ConsentSheet: View {
         return "The notes it opens, with their text and files, are sent to \(to)."
     }
 
-    /// What Allow lets the app do. There is no access to choose: every connection reads and edits,
-    /// and every change it makes can be undone (decided 29 October 2026).
-    nonisolated static let accessLine = "It can read, create and change notes. Every change keeps the previous version."
+    /// What Allow lets the app do, right under the question: there is no access to choose, so its
+    /// whole scope and its end (decided 29 October 2026; said in full 4 November 2026).
+    nonisolated static let scopeLine = ConnectCopy.scope
+    /// Under the company line: every change it makes can be undone.
+    nonisolated static let accessLine = "Every change keeps the previous version."
 
     /// A request by notification: the number both screens show, compared by the person.
     private func byNumber(_ r: ConnectRequest) -> Bool { r.isAsked && scanned == nil }
@@ -1390,6 +1392,13 @@ struct ConsentSheet: View {
                 .padding(.bottom, 8)
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("connect.title")
+            Text(Self.scopeLine)
+                .font(Self.compact ? .body : .system(size: 14))
+                .foregroundStyle(Color.ink)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 8)
+                .accessibilityIdentifier("connect.scope")
             Text(Self.detail(r))
                 .font(Self.compact ? .body : .system(size: 14))
                 .foregroundStyle(Color.muted)
