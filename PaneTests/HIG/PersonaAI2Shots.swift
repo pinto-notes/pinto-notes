@@ -24,9 +24,12 @@ import Testing
         let r = AIEdit.Receipt(noteID: UUID(), by: "Claude", at: .now, previous: AIReviewTests.before, after: AIReviewTests.after, lines: 5)
         var rv = try #require(AIReview(r))
         let typed = AIReviewTests.after.replacingOccurrences(of: "Tell Leo.", with: "Tell Leo and Maya.")
-        _ = try rv.undo(1, in: typed)
-        _ = try? rv.undo(2, in: typed)
-        rv.focus = 0
+        // Part 1 rewritten by Claude, undone: the old line is back. Part 2 added, undone. Part 3
+        // changed since: refused.
+        var text = try rv.undo(0, in: typed)
+        text = try rv.undo(1, in: text)
+        _ = try? rv.undo(2, in: text)
+        rv.focus = 2
         var midway = try #require(AIReview(r))
         _ = try midway.undo(1, in: AIReviewTests.after)
         for dark in [false, true] {
