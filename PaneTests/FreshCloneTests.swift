@@ -119,6 +119,38 @@ import Testing
         #expect(LinkLabel.View().acceptsFirstMouse(for: nil), "a link opens on the first click, the window behind or not")
     }
 
+    /// With keyboard navigation on, Tab reaches each link with a focus ring, and Return opens it
+    /// (council rounds 7 and 8). Events go straight to the view; nothing is posted to the system.
+    @MainActor @Test func theFooterLinksTakeTheKeyboard() async throws {
+        let host = NSHostingView(rootView: LinkLabel(text: Legal.consentSentence).frame(width: 360))
+        let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 360, height: 80), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        defer { window.close() }
+        host.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(100))
+        func find(_ v: NSView) -> LinkLabel.View? { (v as? LinkLabel.View) ?? v.subviews.lazy.compactMap(find).first }
+        let label = try #require(find(host))
+        label.keyboardNavigation = { false }
+        #expect(!label.acceptsFirstResponder, "no focus without keyboard navigation: a click never leaves it focused")
+        label.keyboardNavigation = { true }
+        var opened: [URL] = []
+        label.opener = { opened.append($0) }
+        #expect(label.links.count == 2)
+        #expect(window.makeFirstResponder(label) && label.focused == 0, "Tab lands on Terms of Service")
+        #expect(label.focusRingMaskBounds.width > 20, "the ring is the link's own")
+        func key(_ code: UInt16, _ chars: String, shift: Bool = false) -> NSEvent {
+            NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: shift ? .shift : [], timestamp: 0, windowNumber: window.windowNumber,
+                             context: nil, characters: chars, charactersIgnoringModifiers: chars, isARepeat: false, keyCode: code)!
+        }
+        label.keyDown(with: key(48, "\t"))
+        #expect(label.focused == 1, "Tab: Privacy Policy")
+        label.keyDown(with: key(36, "\r"))
+        #expect(opened.count == 1 && opened.first?.absoluteString.lowercased().contains("privacy") == true, "Return opens it: \(opened)")
+        label.keyDown(with: key(48, "\t", shift: true))
+        #expect(label.focused == 0, "Shift-Tab: back to Terms")
+    }
+
     /// Emil (11-03): the links didn't underline under the pointer; the fix was an underline that
     /// was always there. Now like "Forgot password?": plain at rest, underlined while hovered.
     @MainActor @Test func theFooterLinksUnderlineUnderThePointer() async throws {

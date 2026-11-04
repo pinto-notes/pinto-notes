@@ -43,6 +43,7 @@ extension Legal {
 struct ConsentFooter: View {
     /// The small print's size on the Mac.
     static let size: CGFloat = 11
+    static let diagnosticsLines = DiagnosticsCopy.signIn.replacingOccurrences(of: ". ", with: ".\n")
     var body: some View {
         #if os(macOS)
         // AppKit's label: the pointer turns to a hand over each link, which SwiftUI's Text
@@ -54,7 +55,8 @@ struct ConsentFooter: View {
         VStack(spacing: 6) {
             LinkLabel(text: Legal.consentSentence)
                 .frame(maxWidth: .infinity)
-            Text(DiagnosticsCopy.signIn)
+            // Its two sentences on their own lines: at 11 pt the line broke after "never your".
+            Text(ConsentFooter.diagnosticsLines)
                 .font(.system(size: ConsentFooter.size))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
@@ -90,7 +92,78 @@ struct LinkLabel: NSViewRepresentable {
     /// password?", HoverTextButtonStyle), not all the time (Emil, 11-03).
     final class View: NSTextView {
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-        override var acceptsFirstResponder: Bool { false }
+
+        // MARK: Keyboard: Tab reaches each link (council rounds 7 and 8: none took focus)
+
+        /// Only with keyboard navigation on (System Settings › Keyboard), as for the card's buttons;
+        /// a click never leaves the paragraph focused.
+        override var acceptsFirstResponder: Bool { keyboardNavigation() }
+        var keyboardNavigation: () -> Bool = { NSApp.isFullKeyboardAccessEnabled }
+        override var canBecomeKeyView: Bool { acceptsFirstResponder }
+
+        /// The links' ranges, in reading order.
+        var links: [NSRange] {
+            guard let storage = textStorage else { return [] }
+            var out: [NSRange] = []
+            storage.enumerateAttribute(.link, in: NSRange(location: 0, length: storage.length)) { v, r, _ in if v != nil { out.append(r) } }
+            return out
+        }
+        /// The link the keyboard is on, while the paragraph has focus.
+        private(set) var focused: Int?
+        /// Opens a link; NSWorkspace in the app, a recorder in tests.
+        var opener: (URL) -> Void = { NSWorkspace.shared.open($0) }
+
+        override func becomeFirstResponder() -> Bool {
+            guard super.becomeFirstResponder(), !links.isEmpty else { return false }
+            let back = NSApp.currentEvent.map { $0.type == .keyDown && $0.modifierFlags.contains(.shift) } ?? false
+            focus(back ? links.count - 1 : 0)
+            return true
+        }
+
+        override func resignFirstResponder() -> Bool {
+            focus(nil)
+            return super.resignFirstResponder()
+        }
+
+        func focus(_ index: Int?) {
+            focused = index
+            noteFocusRingMaskChanged()
+            needsDisplay = true
+        }
+
+        /// Tab to the next link, or on past the last; Shift-Tab back; Return or Space opens it.
+        override func keyDown(with event: NSEvent) {
+            guard let i = focused else { return super.keyDown(with: event) }
+            switch event.keyCode {
+            case 48 where event.modifierFlags.contains(.shift):
+                if i > 0 { focus(i - 1) } else { window?.selectPreviousKeyView(self) }
+            case 48:
+                if i < links.count - 1 { focus(i + 1) } else { window?.selectNextKeyView(self) }
+            case 36, 76, 49:
+                openFocused()
+            default:
+                super.keyDown(with: event)
+            }
+        }
+
+        func openFocused() {
+            guard let i = focused, i < links.count, let storage = textStorage else { return }
+            let value = storage.attribute(.link, at: links[i].location, effectiveRange: nil)
+            if let url = (value as? URL) ?? (value as? String).flatMap(URL.init(string:)) { opener(url) }
+        }
+
+        /// The focused link's own rect, for the system's focus ring.
+        func rect(ofLink index: Int) -> NSRect {
+            guard index < links.count, let layout = layoutManager, let container = textContainer else { return .zero }
+            let glyphs = layout.glyphRange(forCharacterRange: links[index], actualCharacterRange: nil)
+            return layout.boundingRect(forGlyphRange: glyphs, in: container)
+                .offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y).insetBy(dx: -2, dy: -1)
+        }
+        override var focusRingMaskBounds: NSRect { focused.map(rect(ofLink:)) ?? .zero }
+        override func drawFocusRingMask() {
+            guard let i = focused else { return }
+            NSBezierPath(roundedRect: rect(ofLink: i), xRadius: 3, yRadius: 3).fill()
+        }
 
         /// The link under the pointer, underlined.
         private(set) var hovered: NSRange?

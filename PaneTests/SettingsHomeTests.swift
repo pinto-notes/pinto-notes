@@ -302,9 +302,10 @@ import Testing
         let locked = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Locked notes" }?.line ?? ""
         #expect(locked.contains("menu") && locked.contains("title"))
         // How an AI opens the notes: its own copy of the key, good for that AI only, used only
-        // during a request, never Pinto Notes' copy (plainer words, council round 7).
+        // during a request (plainer words, council rounds 7 and 8; "doesn't use Pinto Notes'
+        // copy" went: the key working only for that AI says it).
         let ai = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Connected AIs" }?.line ?? ""
-        for part in ["its own copy of your key", "works only for that AI", "only while it works on a request", "doesn\u{2019}t use Pinto Notes\u{2019} copy"] {
+        for part in ["its own copy of your key", "works only for that AI", "only while it works on a request"] {
             #expect(ai.contains(part), "\(part)")
         }
         // Locked notes: an AI sees that one exists, not its title or text, and keeps what it already read.
@@ -591,12 +592,13 @@ import Testing
         let card = try Self.source("Pane/Views/SignInView.swift")
         #expect(card.contains("publisher(for: Self.focusEmailNotice)") && card.contains("focus = .email }"))
         let legal = try Self.source("Pane/Views/LegalLinks.swift")
-        #expect(legal.contains("Text(DiagnosticsCopy.signIn)") && legal.contains("signin.diagnostics"), "diagnostics is its own paragraph under the terms")
+        #expect(legal.contains("Text(ConsentFooter.diagnosticsLines)") && legal.contains("signin.diagnostics"), "diagnostics is its own paragraph under the terms")
         #if os(macOS)
         // Round 8: the small print at 11 pt, links and all (10 pt read as miniature).
         let print = LinkLabel.styled(Legal.consentSentence)
         #expect((print.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)?.pointSize == ConsentFooter.size)
         #expect(ConsentFooter.size == 11)
+        #expect(ConsentFooter.diagnosticsLines == "Sends error reports and a few counts, never your notes.\nTurn off in Settings.", "one sentence a line")
         #endif
         let privacy = try Self.source("Pane/Views/PrivacySecurity.swift")
         #expect(!privacy.contains("Text(HelpCopy.trademarks)"), "no trademark notes on Privacy")
@@ -613,6 +615,7 @@ import Testing
         #expect(SettingsCardHost.takes(active: true, key: K()), "the notes window in front")
         // The trademark notes are About's credits, not the foot of Privacy and security.
         #expect(AboutCredits.credits.string == HelpCopy.trademarks)
+        #expect(AIChangesStatus.offersConnect(ais: []) && !AIChangesStatus.offersConnect(ais: ["Claude"]), "no AI yet: a way to connect one")
         #expect(SettingsCardHost.takes(active: false, key: nil), "no window key, as at launch")
         #expect(SettingsCardHost.takes(active: false, key: K(settings: true)), "Settings in front")
         #expect(SettingsCardHost.takes(active: false, key: K(sheet: true)), "the sign-in card in front")

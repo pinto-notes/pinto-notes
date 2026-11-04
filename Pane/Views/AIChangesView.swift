@@ -172,6 +172,9 @@ struct AIChangesFilter: View {
 
 /// Loading, offline and nothing yet, in place of the list.
 struct AIChangesStatus: View {
+    static let connectTitle = "Connect an AI\u{2026}"
+    static func offersConnect(ais: [String]) -> Bool { ais.isEmpty }
+
     let model: AIChangesModel
 
     var body: some View {
@@ -187,10 +190,21 @@ struct AIChangesStatus: View {
                 Button("Try Again") { Task { await model.load() } }
             }
         case .loaded:
-            ContentUnavailableView("No AI changes yet", systemImage: "sparkle",
-                                   description: Text(model.filter.map { "When \($0) edits your notes, every change shows here." }
-                                                     ?? "When an AI edits your notes, every change shows here."))
-                .accessibilityIdentifier("aiChanges.empty")
+            ContentUnavailableView {
+                Label("No AI changes yet", systemImage: "sparkle")
+            } description: {
+                Text(model.filter.map { "When \($0) edits your notes, every change shows here." }
+                     ?? "When an AI edits your notes, every change shows here.")
+            } actions: {
+                #if os(macOS)
+                // With no AI connected, the way to connect one (council round 8: no next step).
+                if AIChangesStatus.offersConnect(ais: model.ais) {
+                    Button(AIChangesStatus.connectTitle) { SettingsRoute.shared.open(.ai) }
+                        .accessibilityIdentifier("aiChanges.connect")
+                }
+                #endif
+            }
+            .accessibilityIdentifier("aiChanges.empty")
         }
     }
 }
@@ -270,8 +284,9 @@ struct MacAIChanges: View {
                 // who and when under it (council, 11-04: one 11 pt line cut the action off).
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.title(c)).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                    // All of it, however long (council round 8: two lines cut it off).
                     Text(model.summary(c))
-                        .font(.system(size: 13)).lineLimit(2)
+                        .font(.system(size: 13))
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("aiChanges.summary")
                     Text(AIChangeDetail.byline(c))
