@@ -246,14 +246,23 @@ html:has([data-hero-download]) .site-nav a.site-cta { display: none; }
 .site-footer {
   view-transition-name: site-footer;
   width: 100%; max-width: 1240px; margin: 120px auto 0; padding: 0 var(--gutter); box-sizing: border-box;
-  display: grid; justify-items: center; gap: 12px; text-align: center; overflow: hidden;
+  display: grid; justify-items: center; text-align: center;
 }
+/* The ground the footer town stands on: the links and credit sit on it, in cream, full width. Its colour
+   is the plate's own bottom edge, so the trees run straight into it. Once the town is in view the page
+   behind turns the same colour (app/FooterScene.tsx), so scrolling past the end never shows cream. */
+html[data-theme] { --ground: #1a2123; }
+html[data-theme="leaf"] { --ground: #0b1418; }
+html.fs-at-ground { background: var(--ground); }
+.site-ground { position: relative; z-index: 1; justify-self: start; width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box;
+  padding: 4px var(--gutter) 40px; background: var(--ground); display: grid; justify-items: center; gap: 12px;
+  --muted: #cdbfaa; --ink: #fbeedd; --line: rgba(255, 236, 210, 0.18); --soft: rgba(255, 236, 210, 0.08); }
 /* One row: the page links, a hairline, then the social icons; the credit line centred under it. */
 .site-footrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 20px; }
 .site-footer nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 20px; }
 .site-footsep { width: 1px; height: 16px; background: var(--line); }
 @media (max-width: 480px) { .site-footsep { display: none; } }
-.site-credit { max-width: 60ch; text-align: center; text-wrap: balance; }
+.site-credit { max-width: 80ch; text-align: center; text-wrap: pretty; }
 .site-footer a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; min-height: 36px; display: inline-flex; align-items: center; }
 @media (hover: hover) { .site-footer a:hover { color: var(--ink); } }
 .site-footer p { margin: 0; font-size: 13px; color: var(--muted); }
@@ -262,9 +271,40 @@ html:has([data-hero-download]) .site-nav a.site-cta { display: none; }
 @media (hover: hover) { .site-social a:hover { background: var(--soft); } }
 .site-social a.site-gh { width: auto; gap: 6px; padding: 0 10px; font-variant-numeric: tabular-nums; }
 .site-footer a.site-maker { display: inline; min-height: 0; color: var(--ink); font-size: inherit; text-decoration: underline; text-decoration-color: var(--amber); text-underline-offset: 3px; }
-/* The big faded name: an SVG so it always fits the footer's width, centred, never cut at the sides. */
-.site-wordmark { display: block; width: 100%; height: auto; margin-top: 24px; margin-bottom: -2.2%; overflow: visible; user-select: none; }
-.site-wordmark text { fill: var(--wordmark); font: 800 176px -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif; letter-spacing: -8px; }
+
+/* ── Footer scene (app/FooterScene.tsx): a cut-paper town under the links, the full width of the
+   window, its sky fading into the page. Hand animation on a 12 s loop; still for reduced motion. ── */
+.fs { position: relative; justify-self: start; width: 100vw; margin-left: calc(50% - 50vw); margin-top: var(--fs-rise, -8vw); aspect-ratio: 3 / 1; z-index: 0; overflow: hidden; pointer-events: none; user-select: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%); mask-image: linear-gradient(to bottom, transparent 0%, #000 22%); }
+.fs::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 14%; background: linear-gradient(to bottom, transparent, var(--ground)); }
+.fs-plate { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center bottom; display: block; }
+.fs-layer, .fs-sky { position: absolute; inset: 0; }
+.fs-layer > * { position: absolute; }
+.fs-sky { background: radial-gradient(60% 55% at 60% 52%, rgba(255,200,140,.55), rgba(255,200,140,0) 70%); mix-blend-mode: soft-light; animation: fs-sky 12s ease-in-out infinite; }
+.fs-night .fs-sky { background: radial-gradient(60% 40% at 60% 60%, rgba(255,170,110,.35), rgba(255,170,110,0) 70%); }
+@keyframes fs-sky { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
+/* Lights: the plate's own lit-window and lamp pixels (tools/lightlayers.py), so every glow sits
+   exactly on its window. A sharp copy brightens, a blurred copy blooms. The "off" layer paints one
+   house's windows unlit; it fades away a third of the way in, so that house switches its lights on. */
+.fs-lights { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center bottom; mix-blend-mode: screen; animation: fs-breathe 6s ease-in-out infinite; }
+.fs-bloom { filter: blur(5px); animation-duration: 6s; animation-delay: -3s; }
+.fs-lamps { animation-duration: 4.5s; }
+.fs-lamps.fs-bloom { filter: blur(9px); animation-delay: -1.5s; }
+@keyframes fs-breathe { 0%,100% { opacity: .25; } 50% { opacity: .75; } }
+.fs-off { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center bottom; animation: fs-off 12s ease-in-out infinite; }
+@keyframes fs-off { 0%, 30% { opacity: 1; } 34% { opacity: .2; } 36% { opacity: .6; } 40%, 88% { opacity: 0; } 100% { opacity: 1; } }
+.fs-smoke { width: 2.6%; height: 19%; transform: translateX(-50%); }
+.fs-smoke svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.fs-smoke path { fill: none; stroke: #e3d2cc; stroke-width: 5; stroke-linecap: round; filter: drop-shadow(0 1px .8px rgba(60,30,30,.3)); opacity: 0; animation: fs-smoke 9s ease-in-out infinite; }
+.fs-night .fs-smoke path { stroke: #6d5a5e; filter: none; }
+.fs-smoke path:nth-child(2) { animation-delay: -4.5s; }
+@keyframes fs-smoke { 0% { opacity: 0; transform: translateY(20%) scaleY(.7); } 25% { opacity: .9; } 70% { opacity: .5; } 100% { opacity: 0; transform: translateY(-35%) scaleY(1.1) skewX(-8deg); } }
+.fs-bird { width: 1.1%; height: .6%; animation: fs-fly 24s linear infinite; }
+.fs-bird svg { width: 100%; height: 100%; overflow: visible; display: block; }
+.fs-bird path { fill: none; stroke: #5b4040; stroke-width: 2; stroke-linecap: round; transform-origin: 50% 70%; animation: fs-flap .9s ease-in-out infinite alternate; }
+@keyframes fs-flap { from { transform: scaleY(1); } to { transform: scaleY(.35); } }
+@keyframes fs-fly { 0% { transform: translate(0,0); opacity: 0; } 5%, 95% { opacity: 1; } 100% { transform: translate(-1800%, -300%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fs-layer, .fs-layer * { animation: none !important; } .fs-off, .fs-bloom, .fs-bird { display: none; } }
 
 /* Content entrance: blur, lift and fade into focus, in order (style="--i: n"). Runs on load and
    after every navigation. Exits are handled by the view transition (a quick fade). */
