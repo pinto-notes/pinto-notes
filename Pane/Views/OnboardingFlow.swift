@@ -341,7 +341,7 @@ struct OnboardingFlow: View {
         case .name: "What should we call you?"
         case .bring: "Bring your notes"
         case .connect: "Connect your AI"
-        case .tryIt: "Try it"
+        case .tryIt: "Bring over what your AI knows"
         }
     }
 
@@ -350,7 +350,7 @@ struct OnboardingFlow: View {
         case .name: "Your name shows on your account and on notes you share."
         case .bring: "Choose where they are now. Nothing changes there."
         case .connect: ConnectChoices.why
-        case .tryIt: "Ask your AI to add a to-do to this note. You\u{2019}ll see it arrive here."
+        case .tryIt: "It already knows a lot about you. Ask it to put that in notes you can see and change, starting with this one."
         }
     }
 
@@ -493,7 +493,7 @@ struct OnboardingFlow: View {
     private var promptToPaste: some View {
         let shape = RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous)
         return HStack(alignment: .center, spacing: 10) {
-            Text(Onboarding.prompt)
+            Text(TrialNote.prompt(for: TryIt.pasteTarget(connected: tryConnected)))
                 .font(Metrics.prompt)
                 .foregroundStyle(Color.ink)
                 .textSelection(.enabled)
@@ -731,7 +731,7 @@ struct OnboardingFlow: View {
     /// an app that opens without it.
     private func ask(_ ai: String) {
         guard let page = TryIt.page(for: ai) else { return }
-        ConnectClipboard.set(Onboarding.prompt)
+        ConnectClipboard.set(TrialNote.prompt(for: ai))
         openURL(page)
         withAnimation(.snappy(duration: 0.2)) { asked = ai }
     }
@@ -779,7 +779,7 @@ struct OnboardingFlow: View {
     static var workedHold: Double = 2.4
 
     private func copy() {
-        ConnectClipboard.set(Onboarding.prompt)
+        ConnectClipboard.set(TrialNote.prompt(for: shownAsked ?? TryIt.pasteTarget(connected: tryConnected)))
         withAnimation(.snappy(duration: 0.15)) { copied = true }
         Task {
             try? await Task.sleep(for: .seconds(2))
