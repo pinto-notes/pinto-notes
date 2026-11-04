@@ -311,6 +311,16 @@ struct NoteDetailView: View {
             #if os(iOS)
             // On the Mac, Share is the toolbar's popover (ShareButton), opened by the same flag.
             .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, backend: store) } }
+            // Review an AI's edit part by part: a sheet on the phone, half height first, so the
+            // note shows above it and scrolls to each part (the Mac has the card).
+            .sheet(isPresented: Binding(get: { review != nil }, set: { if !$0 { finishReview() } })) {
+                AIReviewCard(review: Binding(get: { review ?? AIReview(by: "", previous: "", after: "") }, set: { review = $0 }),
+                             undo: reviewUndo, undoAll: reviewUndoAll, done: finishReview,
+                             reveal: { id in if let at = review?.location(of: id, in: note.body) { controller.reveal(at) } },
+                             inSheet: true)
+                    .presentationDetents([.medium, .large])
+                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+            }
             #endif
             // The two-device check opens and closes Share as its button does (CollabScript).
             .onReceive(NotificationCenter.default.publisher(for: CollabDemo.closeShare)) { _ in showPeople = false }
@@ -397,7 +407,7 @@ struct NoteDetailView: View {
 
     @ViewBuilder
     private var aiReceipt: some View {
-        if review != nil {
+        if review != nil, !NoteAIUndo.reviewsInSheet {
             AIReviewCard(review: Binding(get: { review ?? AIReview(by: "", previous: "", after: "") }, set: { review = $0 }),
                          undo: reviewUndo, undoAll: reviewUndoAll, done: finishReview,
                          reveal: { id in if let at = review?.location(of: id, in: note.body) { controller.reveal(at) } })
@@ -1316,6 +1326,21 @@ struct NoteDetailView: View {
                     .tint(.primary)
                     .accessibilityIdentifier(NoteAIUndo.yoursIdentifier)
             }
+        case .ai(let receipt) where collab == nil && AIReceipt.reviews(receipt):
+            // An edit of the text: the button opens a menu, Review Changes first (persona council
+            // round 2: the phone could only undo all of it), then Undo and every change by that AI.
+            Menu {
+                Button(NoteAIUndo.review, systemImage: "text.badge.checkmark") { startReview(receipt) }
+                    .accessibilityIdentifier(NoteAIUndo.reviewIdentifier)
+                Button(receipt.undoLabel, systemImage: "arrow.uturn.backward") { undo(receipt) }
+                Button("See All Changes by \(receipt.by)", systemImage: "clock.arrow.circlepath") { AIChangesCenter.shared.show(ai: receipt.by) }
+                    .disabled(AIChangesCenter.shared.store == nil)
+            } label: {
+                Label(receipt.undoLabel, systemImage: "arrow.uturn.backward")
+            }
+                .tint(.primary)
+                .accessibilityHint("Review, keep or undo \(receipt.by)'s changes")
+                .accessibilityIdentifier(NoteAIUndo.identifier)
         case .ai(let receipt):
             // Titled for VoiceOver ("Undo ChatGPT's changes"); the bar shows the glyph. A long
             // press offers every change that AI made (AI Changes).

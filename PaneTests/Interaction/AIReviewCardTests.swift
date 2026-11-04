@@ -16,6 +16,7 @@ import Testing
         @State var review: AIReview
         let note: Note
         let finished: (String) -> Void
+        var inSheet = false
         var body: some View {
             AIReviewCard(review: $review,
                          undo: { id in
@@ -29,8 +30,9 @@ import Testing
                              if rv.undoAll(on: note) == 0 { finished(rv.result) }
                              review = rv
                          },
-                         done: { finished(review.result) })
-                .padding(20)
+                         done: { finished(review.result) },
+                         inSheet: inSheet)
+                .padding(inSheet ? 0 : 20)
         }
     }
 
@@ -64,6 +66,31 @@ import Testing
         defer { none.close() }
         await none.settle()
         #expect(none.find("receipt.review") == nil, "not for a note it wrote")
+    }
+
+    /// iPhone's sheet (persona council round 2): the card fills a phone-wide sheet, Keep and Undo
+    /// are full width under each part at 44 pt and up, the text is 17 pt, and Undo still puts the
+    /// part back in the note. Drawn at 390 pt wide.
+    @Test func inASheetTheCardFillsThePhoneWithBigButtons() async throws {
+        let (c, note) = try Self.note(AIReviewTests.after)
+        _ = c
+        var result: [String] = []
+        let ax = OffscreenAX(Host(review: AIReview(by: "Claude", previous: AIReviewTests.before, after: AIReviewTests.after), note: note,
+                                  finished: { result.append($0) }, inSheet: true), size: CGSize(width: 390, height: 700))
+        defer { ax.close() }
+        await ax.settle()
+        let keep = try #require(ax.find("review.keep.0"), "\(ax.ids())")
+        let undo = try #require(ax.find("review.undo.0"))
+        #expect(keep.frame.height >= 40 && undo.frame.height >= 40, "\(keep.frame) \(undo.frame)")
+        #expect(keep.frame.width > 140 && undo.frame.width > 140, "full width, side by side: \(keep.frame) \(undo.frame)")
+        #expect(abs(keep.frame.minY - undo.frame.minY) < 1)
+        let part = try #require(ax.find("review.part.0"))
+        #expect(part.frame.width > 340, "the part spans the sheet: \(part.frame)")
+        #expect(keep.frame.minY > part.frame.minY + 20, "the buttons sit under the part's lines")
+        #expect(undo.press())
+        await ax.settle(200)
+        #expect(ax.find("review.undone.0") != nil, "\(ax.ids())")
+        #expect(note.body != AIReviewTests.after, "the part went back in the note")
     }
 
     /// Keep one, undo one, undo the last: the note has the kept part and loses the other two; the

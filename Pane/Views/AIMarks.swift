@@ -107,6 +107,15 @@ struct AITile: View {
 /// stays as long as the tint does.
 enum NoteAIUndo {
     static let identifier = "note.aiUndo"
+    /// The bar button's first choice for an edit of the text: the review sheet.
+    static let review = "Review Changes"
+    static let reviewIdentifier = "note.aiReview"
+    /// The phone reviews in a sheet; the Mac in the card where the receipt was.
+    #if os(iOS)
+    static let reviewsInSheet = true
+    #else
+    static let reviewsInSheet = false
+    #endif
     /// The same place's Undo of your own changes.
     static let yoursIdentifier = "note.undo"
 
