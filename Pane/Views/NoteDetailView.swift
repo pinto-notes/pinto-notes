@@ -292,7 +292,14 @@ struct NoteDetailView: View {
                 withAnimation(.easeIn(duration: 0.2)) { receipt = nil }
                 controller.takeRestored(text)
             }
-            .task(id: note.id) { await noteOpened() }
+            .task(id: note.id) {
+                await noteOpened()
+                // Opened from a search: at the first line that holds it, once the text is in.
+                if let q = SearchJump.take(note.id), let r = SearchJump.range(of: q, in: note.body) {
+                    try? await Task.sleep(for: .seconds(0.2))
+                    controller.showFound(r)
+                }
+            }
             .onChange(of: showHistory) { _, open in if open { FeatureUse.mark(.versionHistory) } }
     }
 

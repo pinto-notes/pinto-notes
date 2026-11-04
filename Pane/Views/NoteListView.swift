@@ -486,6 +486,8 @@ struct NoteListView: View {
             RowClickLog.selection(old, new)
         }
         #endif
+        // Opened from the search: the note goes to the first line that holds it.
+        .modifier(SearchJump.OnSelect(selection: selection, search: search))
         .toolbar {
             #if os(iOS)
             // Back on the left, the title in the middle, ••• on the right; new note beside Search at
@@ -2247,6 +2249,46 @@ private struct ColumnListStyle: ViewModifier {
     }
 }
 #endif
+
+/// A note opened from a search (the list's, or Go to Note) opens at the first line that holds it,
+/// with the match flashed on the Mac, as Notes does (persona council round 2). The search hands
+/// over the note and the words; the note screen takes them once its text is in.
+@MainActor enum SearchJump {
+    private(set) static var pending: (note: UUID, query: String)?
+
+    /// The list hands over the search as a note is picked while it shows.
+    struct OnSelect: ViewModifier {
+        let selection: Set<UUID>
+        let search: String
+        func body(content: Content) -> some View {
+            content.onChange(of: selection) { _, new in
+                if new.count == 1 { SearchJump.set(new.first, query: search) }
+            }
+        }
+    }
+
+    static func set(_ note: UUID?, query: String) {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        pending = note.flatMap { q.isEmpty ? nil : ($0, q) }
+    }
+
+    /// The words, once, for this note.
+    static func take(_ note: UUID) -> String? {
+        guard let p = pending, p.note == note else { return nil }
+        pending = nil
+        return p.query
+    }
+
+    /// The first match below the title line (case and accents aside), in the editor's units.
+    /// Nil when only the title holds it: the note opens at the top as usual.
+    nonisolated static func range(of query: String, in body: String) -> NSRange? {
+        let ns = body as NSString
+        let titleEnd = ns.range(of: "\n").location
+        guard titleEnd != NSNotFound else { return nil }
+        let r = ns.range(of: query, options: [.caseInsensitive, .diacriticInsensitive], range: NSRange(location: titleEnd, length: ns.length - titleEnd))
+        return r.location == NSNotFound ? nil : r
+    }
+}
 
 /// Search shows every match (persona council round 1, Elena: Obsidian listed 9 hits where Pinto
 /// listed 1). A found note shows its lines that hold the text, up to three, the text itself in

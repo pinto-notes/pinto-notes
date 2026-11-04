@@ -269,6 +269,12 @@ struct QuickOpenPanel: View {
     @Environment(\.modelContext) private var context
     #endif
     @State private var query: String
+
+    /// A note found by its text opens at the line (SearchJump).
+    private func jumpAndChoose(_ row: QuickOpen.Row) {
+        if case .text(let t) = row { SearchJump.set(t.id, query: query) }
+        choose(row)
+    }
     @State private var highlighted = 0
     @State private var textHits: [QuickOpen.TextHit]
     @FocusState private var focused: Bool
@@ -321,7 +327,7 @@ struct QuickOpenPanel: View {
                     .font(.system(size: 20))
                     .foregroundStyle(Color.ink)
                     .focused($focused)
-                    .onSubmit { if rows.indices.contains(index) { choose(rows[index]) } }
+                    .onSubmit { if rows.indices.contains(index) { jumpAndChoose(rows[index]) } }
                     .onKeyPress(.downArrow) { highlighted = QuickOpen.step(1, from: index, count: rows.count); return .handled }
                     .onKeyPress(.upArrow) { highlighted = QuickOpen.step(-1, from: index, count: rows.count); return .handled }
                     .onKeyPress(.escape) { close(); return .handled }
@@ -392,7 +398,7 @@ struct QuickOpenPanel: View {
                         }
                         rowView(row, on: i == index)
                             .id(row.id)
-                            .onTapGesture { choose(row) }
+                            .onTapGesture { jumpAndChoose(row) }
                             .onHover { if $0 { highlighted = i } }
                     }
                 }

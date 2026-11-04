@@ -415,6 +415,8 @@ final class EditorController {
 
     /// Scrolls the text to the line at `location` (a link to a heading).
     func reveal(_ location: Int) { target?.reveal(location) }
+    /// Goes to a found match and shows it: scrolled into view, and on the Mac the find flash.
+    func showFound(_ range: NSRange) { target?.reveal(range.location); target?.flashFound(range) }
 
     /// A note that is an app, for its widget where another note links it (set by the note screen).
     @ObservationIgnored var resolveNoteModel: (UUID) -> Note? = { _ in nil }
@@ -774,6 +776,8 @@ protocol EditorTarget: TextHost {
     func focusEditor()
     /// Scrolls the line at `location` to the top, focus left as it is.
     func reveal(_ location: Int)
+    /// Flashes a found match (the Mac's find indicator).
+    func flashFound(_ range: NSRange)
     func insertGrid()
     /// The keyboard leaves a table, to the line above or below it.
     func leaveGrid(_ index: Int, below: Bool)
@@ -830,6 +834,7 @@ extension EditorTarget {
 
 extension EditorTarget {
     func reveal(_ location: Int) {}
+    func flashFound(_ range: NSRange) {}
     func collapseAllSections() {}
     func expandAllSections() {}
     /// Tints, then fades on its own.

@@ -11,6 +11,25 @@ import AppKit
 /// listed 1): a found note shows up to three lines that hold the text, the text in bold, then
 /// "4 more in this note". In Go to Note (⌘O) and in the list's search.
 @MainActor @Suite(.serialized) struct SearchLinesTests {
+    /// Opened from a search, a note goes to the first line below its title that holds the words
+    /// (case and accents aside), once; a match in the title alone opens it at the top.
+    @Test func aNoteOpenedFromASearchGoesToItsLine() {
+        let body = "Lisbon trip\n\nFly on Friday\nTram 28 across LISBON\nPastéis at 9"
+        let r = try? #require(SearchJump.range(of: "lisbon", in: body))
+        #expect(r.map { (body as NSString).substring(with: $0) } == "LISBON")
+        #expect(SearchJump.range(of: "pasteis", in: body).map { (body as NSString).substring(with: $0) } == "Pastéis")
+        #expect(SearchJump.range(of: "trip", in: body) == nil, "only the title has it")
+        #expect(SearchJump.range(of: "x", in: "Just a title") == nil)
+
+        let id = UUID(), other = UUID()
+        SearchJump.set(id, query: "  tram ")
+        #expect(SearchJump.take(other) == nil, "another note opening doesn't take it")
+        #expect(SearchJump.take(id) == "tram")
+        #expect(SearchJump.take(id) == nil, "once")
+        SearchJump.set(id, query: " ")
+        #expect(SearchJump.take(id) == nil, "no search, no jump")
+    }
+
     /// Lisbon in the title and on seven lines of the text.
     static let trip = """
     Lisbon trip
