@@ -2118,8 +2118,14 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             guard let self, let storage = self.textStorage else { return }
             self.core.dayChanged(storage: storage, selection: self.editingSelection)
         }
+        core.styler.bodySize = EditorMetrics.body
         core.restyle(textStorage!, selection: nil, force: true)
         typingAttributes = core.typingAttributes(text, at: selectedRange().location)
+        if textSizeObserver == nil {
+            textSizeObserver = NotificationCenter.default.addObserver(forName: TextSize.didChange, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.textSizeChanged() }
+            }
+        }
 
         headerLabel.font = .systemFont(ofSize: 11, weight: .medium)
         headerLabel.textColor = .tertiaryLabelColor
@@ -2132,6 +2138,22 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Assigning string sends a selection notification. Listen after the initial styling,
         // so that notification doesn't style the whole note a second time.
         delegate = self
+    }
+
+    private var textSizeObserver: NSObjectProtocol?
+
+    /// View › Bigger or Smaller: every line restyled at the new size, the cards and foot moved to
+    /// where the text now is. The caret and scroll stay where they were.
+    func textSizeChanged() {
+        guard let storage = textStorage else { return }
+        core.styler.bodySize = EditorMetrics.body
+        core.restyle(storage, selection: editingSelection, force: true)
+        typingAttributes = core.typingAttributes(string, at: selectedRange().location)
+        if let tlm = textLayoutManager { tlm.invalidateLayout(for: tlm.documentRange) }
+        setInsets(width: frame.width)
+        placeFoot()
+        queueCardLayout(animated: false)
+        needsDisplay = true
     }
 
     /// Test runs can start editing at some text: `-uitest -caret "Manteigaria"`.

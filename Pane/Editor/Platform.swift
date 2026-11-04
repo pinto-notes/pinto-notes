@@ -97,20 +97,24 @@ enum EditorMetrics {
     static var label: CGFloat { UIFontMetrics(forTextStyle: .footnote).scaledValue(for: 13) }
     #else
     // Apple Notes on the Mac: 13 pt body, ~20 pt title, tight lines. The candidates (DesignLook)
-    // give the title the display size the website gives a headline's one line.
-    static let body: CGFloat = 13
+    // give the title the display size the website gives a headline's one line. View › Bigger and
+    // Smaller (TextSize) scale all of it together, as Notes' and Obsidian's do.
+    static var body: CGFloat { TextSize.body }
+    /// How much bigger or smaller than the 13 pt default the reader set the text.
+    static var scale: CGFloat { TextSize.body / TextSize.standard }
     /// A ### heading: a small bold label, as on the iPhone ("Get started").
-    static let label: CGFloat = 11
+    static var label: CGFloat { (11 * scale).rounded() }
     static var title: CGFloat {
-        switch DesignLook.current {
+        let base: CGFloat = switch DesignLook.current {
         case .control: 20
         case .warm: 24
         case .paper: 26
         case .calm: 24
         case .reading, .plain: 28
         }
+        return (base * scale).rounded()
     }
-    static let lineSpacing: CGFloat = 1.5
+    static var lineSpacing: CGFloat { 1.5 * scale }
     #endif
     static var gutter: CGFloat { body * 1.6 }
     // Checklists, measured from Apple Notes (.shots/checklist/reference.md), as ratios of the body size.
@@ -180,3 +184,40 @@ enum DateFold {
         return a[i + 1]
     }()
 }
+
+
+#if os(macOS)
+/// The note text's size on this Mac: View › Bigger (⌘+), Smaller (⌘−) and Actual Size (⌘0).
+/// Display only, the notes don't change; kept per device like the appearance.
+enum TextSize {
+    static let key = "PintoTextSize"
+    static let standard: CGFloat = 13
+    /// The sizes ⌘+ and ⌘− step through.
+    static let steps: [CGFloat] = [11, 12, 13, 14, 15, 16, 18, 20, 22, 24]
+    /// Posted on the main thread after the size changes.
+    static let didChange = Notification.Name("PintoTextSizeDidChange")
+
+    static var body: CGFloat {
+        let v = CGFloat(UserDefaults.standard.double(forKey: key))
+        return steps.contains(v) ? v : standard
+    }
+    static var canGrow: Bool { body < steps.last! }
+    static var canShrink: Bool { body > steps.first! }
+    static var isStandard: Bool { body == standard }
+
+    /// The next step up or down from `size`, or `size` at either end.
+    static func step(from size: CGFloat, bigger: Bool) -> CGFloat {
+        bigger ? (steps.first { $0 > size } ?? size) : (steps.last { $0 < size } ?? size)
+    }
+
+    @MainActor static func bigger() { set(step(from: body, bigger: true)) }
+    @MainActor static func smaller() { set(step(from: body, bigger: false)) }
+    @MainActor static func actualSize() { set(standard) }
+
+    @MainActor static func set(_ size: CGFloat) {
+        guard size != body else { return }
+        if size == standard { UserDefaults.standard.removeObject(forKey: key) } else { UserDefaults.standard.set(Double(size), forKey: key) }
+        NotificationCenter.default.post(name: didChange, object: nil)
+    }
+}
+#endif

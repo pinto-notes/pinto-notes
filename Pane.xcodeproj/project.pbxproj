@@ -109,6 +109,7 @@
 		13718C7F4D326A24112B7670 /* ListTitleCountTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7AD3385DEE2C732944E43D9 /* ListTitleCountTests.swift */; };
 		13CDDDB6F9095142D93803C3 /* AccountLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89A5B5992BCBFBD45F14C80D /* AccountLibraryTests.swift */; };
 		13D7CD1445F5E709AF65BA1A /* ListSortUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B576A0B7FE050DF74A468A9 /* ListSortUITests.swift */; };
+		13F31177E7249F990CFFBB36 /* TextSizeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D1529D0B4101654450DCEA9 /* TextSizeTests.swift */; };
 		141808DC42B86B4235ABDDFA /* AIMarks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907ECF183AD0A69658A04C3A /* AIMarks.swift */; };
 		144364F1DE25F2E94CE07A30 /* AddDeviceLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34D26FF6F1A986CCBFA21A04 /* AddDeviceLiveTests.swift */; };
 		14759FE77AF9F41BC1751CFB /* template-cover-recipe-box.jpg in Resources */ = {isa = PBXBuildFile; fileRef = BDC967E6E0078C8E1DC7378A /* template-cover-recipe-box.jpg */; };
@@ -1438,6 +1439,7 @@
 		9C26CCB578DED7A0AE1BD8B5 /* EmbedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedViews.swift; sourceTree = "<group>"; };
 		9CB1E76F57CDA0EC31920A10 /* SettingsPages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPages.swift; sourceTree = "<group>"; };
 		9D09D7CB317A7B5F4E6D2550 /* PressSelectTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressSelectTests.swift; sourceTree = "<group>"; };
+		9D1529D0B4101654450DCEA9 /* TextSizeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextSizeTests.swift; sourceTree = "<group>"; };
 		9D3D3E80F22C4DF32F6C3405 /* KeyCopyLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCopyLiveTests.swift; sourceTree = "<group>"; };
 		9D93AD7A45E15447614E5242 /* PasswordField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordField.swift; sourceTree = "<group>"; };
 		9DD39E56EF9A2BD2D9D5C9FE /* MacFirstSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacFirstSnapshots.swift; sourceTree = "<group>"; };
@@ -2144,6 +2146,7 @@
 				F7B3FEBC5E8B405D61B40897 /* TableInteractionTests.swift */,
 				272C6F5EA1562BD7EA619A8E /* TableMenuTests.swift */,
 				EA5CB8A63512E17A129AEDDF /* TagEditorTests.swift */,
+				9D1529D0B4101654450DCEA9 /* TextSizeTests.swift */,
 				0C3A8366D588DAAE997477B8 /* TickUndoTests.swift */,
 				C2CF2B6E9416FE61C538C398 /* WideLayoutTests.swift */,
 				7EE3FF188D09E62B4A68D47F /* WikiLinkEditorTests.swift */,
@@ -3343,6 +3346,7 @@
 				E544ACCC00C29CEC85CDF713 /* TelemetryTests.swift in Sources */,
 				23C6E6E629898D6FD305E47E /* TestDefaults.swift in Sources */,
 				9893835B09E30438192674E6 /* TestFiles.swift in Sources */,
+				13F31177E7249F990CFFBB36 /* TextSizeTests.swift in Sources */,
 				95A4C0C397FF97C672940955 /* ThemeShots.swift in Sources */,
 				D86F1E2A786523A39394726B /* ThemeTests.swift in Sources */,
 				D6D19C4794206013B23CA43F /* TickUndoTests.swift in Sources */,

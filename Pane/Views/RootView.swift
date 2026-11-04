@@ -1067,6 +1067,8 @@ struct PaneCommands: Commands {
     @FocusedValue(\.importFromAction) private var importFrom
     @FocusedValue(\.showHistoryAction) private var showHistory
     @FocusedValue(\.todaysNote) private var todaysNote
+    /// Read so the View menu's text size items enable and disable as the size changes.
+    @AppStorage(TextSize.key) private var textSize: Double = 0
 
     var body: some Commands {
         // Settings shows as a sheet on the notes window in front, like WhatsApp's.
@@ -1108,6 +1110,17 @@ struct PaneCommands: Commands {
             Button("Expand All Sections") { editor?.expandAllSections() }
                 .keyboardShortcut(.rightArrow, modifiers: [.command, .option, .shift])
                 .disabled(editor == nil)
+            Divider()
+            // Note text, as in Notes' View menu. A PDF or picture open takes ⌘+ and ⌘− for its zoom.
+            Button("Bigger") { TextSize.bigger() }
+                .keyboardShortcut("+", modifiers: .command)
+                .disabled(textSize >= Double(TextSize.steps.last!))
+            Button("Smaller") { TextSize.smaller() }
+                .keyboardShortcut("-", modifiers: .command)
+                .disabled(textSize != 0 && textSize <= Double(TextSize.steps.first!))
+            Button("Actual Size") { TextSize.actualSize() }
+                .keyboardShortcut("0", modifiers: .command)
+                .disabled(textSize == 0)
             Divider()
             Button("\(AIChangeCopy.title)\u{2026}") { AIChangesCenter.shared.show() }
                 .keyboardShortcut("a", modifiers: [.command, .option])
