@@ -94,7 +94,7 @@ final class CollabStore {
         guard isOn, AccountCrypto.shared.isReady else { return }
         if let s = shared, s.me == account { return }
         detach()
-        let store = live(client: client, account: account, name: ProfileStore.shared.name ?? "Someone")
+        let store = live(client: client, account: account, name: myName(account: account))
         store.context = context
         shared = store
         // The library is there now (made with the context); shared notes open from their copies
@@ -102,6 +102,12 @@ final class CollabStore {
         context.applyCaptures(library: store.library)
         await store.start()
         context.applyCaptures(library: store.library)
+    }
+
+    /// Your name on your caret and in "In this note": the profile's, or its cached copy when no
+    /// view has loaded the profile yet (a launch straight into a note).
+    static func myName(account: UUID, bound: String? = ProfileStore.shared.name, defaults: UserDefaults = .standard) -> String {
+        bound ?? ProfileStore.cachedName(for: account, defaults: defaults) ?? "Someone"
     }
 
     /// Signed out: everything open closes, and nothing of the account stays in memory.

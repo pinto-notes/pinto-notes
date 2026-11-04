@@ -301,6 +301,12 @@ final class ProfileStore {
         return BackendConfig.url?.appending(path: "storage/v1/object/public/avatars/\(name)")
     }
 
+    /// The account's name as last shown here, before any view has bound the profile (sharing
+    /// starts at launch, before the Folders bar draws: persona council round 6).
+    nonisolated static func cachedName(for account: UUID, defaults: UserDefaults = .standard) -> String? {
+        defaults.string(forKey: "profile.name.\(account.uuidString.lowercased())")
+    }
+
     // MARK: Per-account storage
 
     private func key(_ k: String) -> String { "profile.\(k).\(user?.uuidString.lowercased() ?? "none")" }
