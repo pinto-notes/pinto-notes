@@ -122,6 +122,27 @@ import Testing
         #expect(big.find("review.title")?.text.contains("Claude changed 3 parts") == true)
     }
 
+    /// At 24 pt in a narrow note column (520 pt, round 5): the card fits, and Done, Keep and Undo
+    /// are inside it, not past the window's edge.
+    @Test func aBigCardFitsANarrowColumn() async throws {
+        let saved = UserDefaults.standard.object(forKey: TextSize.key)
+        defer { UserDefaults.standard.set(saved, forKey: TextSize.key) }
+        UserDefaults.standard.set(24.0, forKey: TextSize.key)
+        let (c, note) = try Self.note(AIReviewTests.after)
+        _ = c
+        let ax = OffscreenAX(Host(review: AIReview(by: "Claude", previous: AIReviewTests.before, after: AIReviewTests.after), note: note) { _ in },
+                             size: CGSize(width: 520, height: 800))
+        defer { ax.close() }
+        await ax.settle()
+        // Frames are on the screen (the window is far off it): measured against the card.
+        let card = try #require(ax.find("review.card"), "\(ax.ids())")
+        #expect(card.frame.width <= 520 - 40, "the card fits the column less the host's margins: \(card.frame)")
+        for id in ["review.done", "review.keep.0", "review.undo.0", "review.part.0"] {
+            let e = try #require(ax.find(id), "\(id): \(ax.ids())")
+            #expect(e.frame.minX >= card.frame.minX && e.frame.maxX <= card.frame.maxX + 0.5, "\(id) inside the card: \(e.frame) in \(card.frame)")
+        }
+    }
+
     /// The sheet follows the person's text size (round 3: fixed 17 pt ignored it): at an
     /// accessibility size the title wraps instead of being cut, and Keep and Undo stay 44 pt and up.
     @Test func theSheetGrowsWithTheTextSize() async throws {

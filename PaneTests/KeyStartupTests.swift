@@ -1043,6 +1043,22 @@ import Testing
         #expect(checked)
         close.finish()
     }
+
+    /// Sharing starts before the key check, which can wait a minute on a weak signal: a shared
+    /// list opens editable from this device's copy (persona council round 5).
+    @Test(.timeLimit(.minutes(1))) func sharingStartsBeforeTheKeyCheck() async {
+        var order: [String] = []
+        let (slow, close) = AsyncStream<Void>.makeStream()
+        let run = Task { @MainActor in
+            await SignedInStartup(refreshLock: {}, checkKey: { for await _ in slow {}; order.append("key") },
+                                  startSharing: { order.append("sharing") }).run()
+        }
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(order == ["sharing"], "sharing didn't wait for the key check")
+        close.finish()
+        await run.value
+        #expect(order == ["sharing", "key"])
+    }
 }
 
 @Suite struct SignInRecencyTests {

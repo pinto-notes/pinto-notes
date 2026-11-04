@@ -419,6 +419,7 @@ struct NoteDetailView: View {
                          undo: reviewUndo, undoAll: reviewUndoAll, done: finishReview,
                          reveal: { id in if let at = review?.location(of: id, in: note.body) { controller.reveal(at) } })
                 #if os(macOS)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 20)
                 #else
                 .padding(.bottom, 64)
@@ -1625,7 +1626,17 @@ private struct CollabWiring: ViewModifier {
     func body(content: Content) -> some View {
         content
             .task(id: session.map { ObjectIdentifier($0) }) {
-                guard let session else {
+                // A shared note drawn before sharing started (a cold launch, the widget's tap):
+                // CollabStore.shared isn't observed, so nothing would tell this view when its
+                // document opens. It looks again until it does (persona council round 5).
+                let found = note.isShared && session == nil
+                    ? await SharedEditing.waitForSession { CollabStore.shared?.session(for: note) } whileWaiting: {
+                        controller.remoteCarets = []
+                        controller.ownUndo = nil
+                        controller.readOnly = SharedEditing.readOnly(trashed: note.trashedAt != nil, shared: true, viewOnly: nil)
+                    }
+                    : session
+                guard let session = found else {
                     controller.remoteCarets = []
                     controller.ownUndo = nil
                     // A shared note whose document isn't open yet takes no typing: it would be lost.
@@ -1658,6 +1669,17 @@ enum SharedEditing {
     /// `viewOnly` nil: no document open for it here.
     static func readOnly(trashed: Bool, shared: Bool, viewOnly: Bool?) -> Bool {
         trashed || (shared && (viewOnly ?? true))
+    }
+
+    /// Looks for a shared note's session until it opens (or the view goes): every quarter second.
+    @MainActor static func waitForSession(every: Duration = .milliseconds(250), _ lookup: @MainActor () -> CollabSession?,
+                                          whileWaiting: @MainActor () -> Void = {}) async -> CollabSession? {
+        while !Task.isCancelled {
+            if let s = lookup() { return s }
+            whileWaiting()
+            try? await Task.sleep(for: every)
+        }
+        return nil
     }
 
     enum TapAnswer: Equatable { case recover, viewOnly, opening, none }

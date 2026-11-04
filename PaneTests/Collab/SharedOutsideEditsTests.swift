@@ -129,4 +129,19 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(SharedEditing.tap(trashed: false, shared: false, viewOnly: nil) == .none)
         #expect(SharedEditing.opening == "Opening the shared note\u{2026}")
     }
+
+    /// A shared note drawn before sharing started finds its document when it opens, and is
+    /// editable then, without leaving the note (persona council round 5).
+    @Test func aNoteOpenedBeforeSharingStartsFindsItsDocument() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, _) = try await shared("Groceries", on: emil)
+        server.add(member, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        var ready = false, waits = 0
+        Task { @MainActor in try? await Task.sleep(for: .milliseconds(300)); ready = true }
+        let found = await SharedEditing.waitForSession(every: .milliseconds(50), { ready ? sara.library.session(for: mine) : nil },
+                                                       whileWaiting: { waits += 1 })
+        #expect(found != nil && waits >= 3, "waited \(waits) times, then found it")
+        #expect(SharedEditing.readOnly(trashed: false, shared: true, viewOnly: found?.isViewOnly) == false, "editable once found")
+    }
 }

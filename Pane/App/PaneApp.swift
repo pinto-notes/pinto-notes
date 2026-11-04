@@ -890,10 +890,15 @@ final class AppSession {
         NoteVault.shared.attach(account: backend.userID, remote: SupabaseLockRemote(client: client))
         KeyDevices.shared.attach(account: backend.userID, server: SupabaseKeyDevices(client: client))
         KeyDevices.shared.removedHere = { [weak self] in await self?.removedFromDevices() }
+        let context = self.context
         await SignedInStartup(
             refreshLock: { await NoteVault.shared.refresh() },
             checkKey: { [backend] in
                 await AccountCrypto.shared.attach(account: backend.userID, server: SupabaseAccountKeys(client: client), copies: SupabaseKeyCopy(client: client))
+            },
+            startSharing: { [backend] in
+                guard AccountCrypto.shared.isReady, let user = backend.userID else { return }
+                Task { await CollabStore.attach(client: client, account: user, context: context) }
             }
         ).run()
         // Without the key the gate asks for it; the library starts when it's open (below).
@@ -1721,8 +1726,13 @@ private struct ConfirmDisconnect: ViewModifier {
 struct SignedInStartup {
     var refreshLock: @MainActor () async -> Void
     var checkKey: @MainActor () async -> Void
+    /// Shared notes, from this device's copies, when the key opened at launch: never behind the
+    /// key check, which waits on the server (persona council round 5: on a weak signal a shared
+    /// list stayed read-only for a minute or two).
+    var startSharing: @MainActor () -> Void = {}
 
     func run() async {
+        startSharing()
         Task { await refreshLock() }
         await checkKey()
     }

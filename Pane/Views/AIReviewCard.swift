@@ -297,7 +297,9 @@ private struct CardChrome<S: InsettableShape>: ViewModifier {
             content.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         } else {
             content
-                .frame(width: width)
+                // As wide as the text size asks, never wider than the note's column (a 520 pt
+                // column, a 640 pt note window): Done, Keep and Undo stay inside (round 5).
+                .frame(maxWidth: width)
                 .background(Color.card, in: shape)
                 .clipShape(shape)
                 .raised(in: shape)
