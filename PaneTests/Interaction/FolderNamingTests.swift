@@ -126,7 +126,20 @@ import Testing
         w.contentView = NSHostingView(rootView: NavigationStack { sidebar }.modelContainer(c).frame(width: 260, height: 500))
         w.setFrameOrigin(CGPoint(x: -20000, y: -20000))
         w.orderFrontRegardless()
+        w.makeKey()
         return w
+    }
+
+    /// The field's editor once it has the keys. Other suites run beside this one and make their
+    /// own offscreen windows key, so the window is made key again while it waits (three seconds at
+    /// most): the field can only take the keys in the key window.
+    static func editor(in w: NSWindow) async -> NSTextView? {
+        for _ in 0..<30 {
+            if let editor = w.firstResponder as? NSTextView, nameField(in: w.contentView) != nil { return editor }
+            w.makeKey()
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return w.firstResponder as? NSTextView
     }
 
     @MainActor @Observable final class Box { var scope: Scope? = .all }
@@ -149,7 +162,7 @@ import Testing
         #expect(box.scope == .folder(made.id), "and selected")
         let field = try #require(Self.nameField(in: w.contentView), "its row shows the name as a field")
         #expect(field.stringValue == "New Folder")
-        let editor = try #require(w.firstResponder as? NSTextView, "the field has the keys")
+        let editor = try #require(await Self.editor(in: w), "the field has the keys")
         #expect(editor.selectedRange().length == ("New Folder" as NSString).length, "all of it selected")
         editor.insertText("Recipes", replacementRange: editor.selectedRange())
         editor.doCommand(by: #selector(NSResponder.insertNewline(_:)))
@@ -159,7 +172,8 @@ import Testing
         // A second one beside it while "Recipes" is taken: "New Folder" is free again.
         NotificationCenter.default.post(name: .paneNewFolder, object: nil)
         try? await Task.sleep(for: .milliseconds(500))
-        let second = try #require(Self.nameField(in: w.contentView)?.window?.firstResponder as? NSTextView)
+        #expect(Self.nameField(in: w.contentView) != nil)
+        let second = try #require(await Self.editor(in: w))
         second.doCommand(by: #selector(NSResponder.cancelOperation(_:)))
         try? await Task.sleep(for: .milliseconds(300))
         #expect(ctx.allFolders().map(\.name).sorted() == ["New Folder", "Notes", "Recipes"], "Escape keeps the folder, named New Folder")
@@ -180,7 +194,7 @@ import Testing
         try? await Task.sleep(for: .milliseconds(500))
         let field = try #require(Self.nameField(in: w.contentView), "Rename opens the field in the row")
         #expect(field.stringValue == "Work")
-        let editor = try #require(w.firstResponder as? NSTextView)
+        let editor = try #require(await Self.editor(in: w))
         editor.insertText("", replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
         editor.doCommand(by: #selector(NSResponder.insertNewline(_:)))
         try? await Task.sleep(for: .milliseconds(400))
