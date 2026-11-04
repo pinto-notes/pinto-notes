@@ -1387,7 +1387,7 @@ private struct FolderTree: View {
         #else
         .contextMenu { macMenu }
         #endif
-        .askAIPopover($asking, subject: .folder(folder.name), arrowEdge: .trailing)
+        .askAIPopover($asking, subject: .folder(folder.name), recent: AskAI.recent(folder), arrowEdge: .trailing)
     }
 
     /// The name, and its count (••• under the pointer).

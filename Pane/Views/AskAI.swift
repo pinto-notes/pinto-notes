@@ -1,4 +1,5 @@
 import Supabase
+import SwiftData
 import SwiftUI
 #if os(macOS)
 import AppKit
@@ -14,25 +15,68 @@ import AppKit
 
 /// What Ask offers and says. Pure, so it is unit-tested (AskAITests).
 enum AskAI {
-    /// What the question is about: a folder by name, or every note.
+    /// What the question is about: a folder by name, every note, or one note.
     enum Subject: Equatable {
         case folder(String)
         case all
+        /// One note, by its title and folder, with what it holds (round 2 of the councils: Ask
+        /// about this note, with questions fit to it).
+        case note(NoteAbout)
 
-        /// "“Running”", or "Your Notes" in a menu title.
+        /// "“Running”", "Your Notes" or "This Note" in a menu title.
         var menuName: String {
             switch self {
             case .folder(let name): "\u{201C}\(name)\u{201D}"
             case .all: "Your Notes"
+            case .note: "This Note"
             }
         }
 
-        /// In a sentence: "“Running”", or "your notes".
+        /// In a sentence: "“Running”", "your notes", or the note's title.
         var inLine: String {
             switch self {
             case .folder(let name): "\u{201C}\(name)\u{201D}"
             case .all: "your notes"
+            case .note(let n): "\u{201C}\(n.title)\u{201D}"
             }
+        }
+    }
+
+    /// A note as Ask sees it: what it's called, where it is, and what it holds.
+    struct NoteAbout: Equatable {
+        var title: String
+        var folder: String?
+        /// It has tick items, or its title says it's a plan or a to-do list.
+        var plan = false
+        /// It has a markdown table.
+        var table = false
+
+        init(title: String, folder: String? = nil, plan: Bool = false, table: Bool = false) {
+            self.title = title
+            self.folder = folder
+            self.plan = plan
+            self.table = table
+        }
+
+        /// From the note's text: its first line is its title.
+        init(body: String, folder: String?) {
+            let lines = body.components(separatedBy: "\n")
+            let title = (lines.first ?? "").replacingOccurrences(of: #"^#+\s*"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+            self.init(title: title, folder: folder,
+                      plan: Self.isPlan(title: title, lines: lines),
+                      table: lines.contains { $0.wholeMatch(of: /\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*/) != nil })
+        }
+
+        static func isPlan(title: String, lines: [String]) -> Bool {
+            if lines.contains(where: { $0.firstMatch(of: /^\s*[-*+]\s+\[( |x|X)\]\s/) != nil }) { return true }
+            let words = title.lowercased()
+            return words.firstMatch(of: /\b(plan|plans|planning|to-?do|to-dos|todos|checklist)\b/) != nil
+        }
+
+        /// "my note “Week plan” in “Running”": enough for the AI to find it by title.
+        var named: String {
+            if let folder, !folder.isEmpty { return "my note \u{201C}\(title)\u{201D} in \u{201C}\(folder)\u{201D}" }
+            return "my note \u{201C}\(title)\u{201D}"
         }
     }
 
@@ -69,23 +113,56 @@ enum AskAI {
         let prompt: String
     }
 
-    /// The questions, fit to what's asked about. Each names Pinto Notes and the folder, so the AI
-    /// reads the right notes without being told twice.
-    static func questions(_ s: Subject) -> [Question] {
+    /// The questions, fit to what's asked about. Each names Pinto Notes and the folder or note, so
+    /// the AI reads the right notes without being told twice. A folder (or all notes) asks about
+    /// the week only when something in it changed in the last seven days (`recent`): a folder
+    /// nobody touched this week has no week to check (round 1 of the councils). A note gets
+    /// questions for what it holds: a plan or checklist "Check my progress" and "Update this plan",
+    /// a table "Make this a tracker", plain text "Make flashcards from this"; and "Find related notes".
+    static func questions(_ s: Subject, recent: Bool = true) -> [Question] {
         switch s {
         case .folder:
             let read = "In Pinto Notes, read my folder \(s.inLine)"
+            let list = Question(id: "list", title: "Make a list from it", prompt: "\(read) and make a checklist of what to do next. Put it in a new note in that folder.")
+            guard recent else {
+                return [
+                    Question(id: "summary", title: "Summarize it", prompt: "\(read) and summarize what\u{2019}s in it."),
+                    list,
+                    Question(id: "stale", title: "Find what\u{2019}s out of date", prompt: "\(read) and tell me what looks out of date or unfinished."),
+                ]
+            }
             return [
                 Question(id: "week", title: "Check my week against it", prompt: "\(read) and check my week against it: what I did, what I missed, and what to do next."),
-                Question(id: "summary", title: "Summarise this week", prompt: "\(read) and summarise what changed in it this week."),
-                Question(id: "list", title: "Make a list from it", prompt: "\(read) and make a checklist of what to do next. Put it in a new note in that folder."),
+                Question(id: "summary", title: "Summarize this week", prompt: "\(read) and summarize what changed in it in the last seven days."),
+                list,
             ]
         case .all:
+            guard recent else {
+                return [
+                    Question(id: "open", title: "Find what\u{2019}s unfinished", prompt: "In Pinto Notes, look through my notes and list what\u{2019}s unfinished: open to-dos and plans I didn\u{2019}t finish."),
+                    Question(id: "list", title: "Make a list from them", prompt: "In Pinto Notes, read my notes and make a checklist of what to do next. Put it in a new note."),
+                ]
+            }
             return [
-                Question(id: "week", title: "Check my week", prompt: "In Pinto Notes, read my notes from this week and check how it went: what I did, what I missed, and what to do next."),
-                Question(id: "summary", title: "Summarise this week", prompt: "In Pinto Notes, summarise what changed in my notes this week."),
-                Question(id: "list", title: "Make a list from them", prompt: "In Pinto Notes, read my notes from this week and make a checklist of what to do next. Put it in a new note."),
+                Question(id: "week", title: "Check my week", prompt: "In Pinto Notes, read my notes from the last seven days and check how my week went: what I did, what I missed, and what to do next."),
+                Question(id: "summary", title: "Summarize this week", prompt: "In Pinto Notes, summarize what changed in my notes in the last seven days."),
+                Question(id: "list", title: "Make a list from them", prompt: "In Pinto Notes, read my notes from the last seven days and make a checklist of what to do next. Put it in a new note."),
             ]
+        case .note(let n):
+            let read = "In Pinto Notes, read \(n.named)"
+            var out: [Question] = []
+            if n.plan {
+                out.append(Question(id: "progress", title: "Check my progress", prompt: "\(read) and check my progress: what\u{2019}s done, what\u{2019}s left, and what to do next."))
+                out.append(Question(id: "update", title: "Update this plan", prompt: "\(read), ask me what changed, then update the plan in that note."))
+            }
+            if n.table {
+                out.append(Question(id: "tracker", title: "Make this a tracker", prompt: "\(read) and make its table a tracker: give each column a type, keep every row, and tell me how to add today\u{2019}s."))
+            }
+            if !n.plan, !n.table {
+                out.append(Question(id: "flashcards", title: "Make flashcards from this", prompt: "\(read) and make flashcards from it: a question and its answer for each thing worth remembering. Put them in a new note called \u{201C}\(n.title) flashcards\u{201D} next to it."))
+            }
+            out.append(Question(id: "related", title: "Find related notes", prompt: "\(read) and find my other notes that relate to it. List them with a line on how each one relates, and offer to link them from it."))
+            return Array(out.prefix(3))
         }
     }
 
@@ -98,7 +175,42 @@ enum AskAI {
         switch s {
         case .folder: return "In Pinto Notes, read my folder \(s.inLine). \(text)"
         case .all: return "In Pinto Notes, read my notes. \(text)"
+        case .note(let n): return "In Pinto Notes, read \(n.named). \(text)"
         }
+    }
+
+    /// How far back "this week" reaches for a folder's week questions.
+    static let recentWindow: TimeInterval = 7 * 24 * 60 * 60
+
+    /// Something in these notes changed in the last seven days.
+    static func recent(_ notes: [Note], now: Date = .now) -> Bool {
+        notes.contains { $0.trashedAt == nil && $0.deletedAt == nil && now.timeIntervalSince($0.updatedAt) < recentWindow }
+    }
+
+    /// Something in this folder, or a folder inside it, changed in the last seven days.
+    @MainActor static func recent(_ folder: Folder, now: Date = .now) -> Bool {
+        recent(folder.liveNotes, now: now) || folder.liveChildren.contains { recent($0, now: now) }
+    }
+
+    /// Some note changed in the last seven days, for All Notes.
+    @MainActor static func recent(in context: ModelContext, now: Date = .now) -> Bool {
+        let since = now.addingTimeInterval(-recentWindow)
+        let d = FetchDescriptor<Note>(predicate: #Predicate { $0.updatedAt > since && $0.deletedAt == nil })
+        // Recently Deleted's own aren't this week's work.
+        return ((try? context.fetch(d)) ?? []).contains { $0.trashedAt == nil }
+    }
+
+    /// Whether a note can be asked about: not locked (an AI can't read it), not deleted, and with
+    /// words in it (an empty note has nothing to ask about, nor a title to find it by).
+    static func asks(about note: Note) -> Bool {
+        !note.isLocked && note.trashedAt == nil && note.deletedAt == nil && !note.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// The note as Ask names it: by the title the list shows (its first line with words in it).
+    @MainActor static func subject(_ note: Note) -> Subject {
+        var about = NoteAbout(body: note.body, folder: note.folder?.name)
+        about.title = note.title
+        return .note(about)
     }
 
     /// The AI's page with the question typed in, for ChatGPT and Claude.
@@ -190,6 +302,8 @@ struct AskAIMenuItems: View {
 struct AskAIPopover: View {
     let target: AskAI.Target
     let subject: AskAI.Subject
+    /// Something in the folder changed this week: its week questions are offered (AskAI.questions).
+    var recent = true
     /// Opens a page; the app's own openURL unless a test listens.
     var open: ((URL) -> Void)? = nil
     var copy: (String) -> Void = Clipboard.copy
@@ -217,7 +331,7 @@ struct AskAIPopover: View {
             .padding(.horizontal, 12)
             .padding(.top, 12)
             .padding(.bottom, 6)
-            ForEach(AskAI.questions(subject)) { q in
+            ForEach(AskAI.questions(subject, recent: recent)) { q in
                 Button { pick(q.prompt) } label: {
                     HStack(spacing: 8) {
                         Text(q.title).foregroundStyle(Color.ink)
@@ -310,11 +424,76 @@ struct AskAIPopover: View {
 }
 
 extension View {
-    /// The Ask popover, from this view, while `target` is set.
-    func askAIPopover(_ target: Binding<AskAI.Target?>, subject: AskAI.Subject, arrowEdge: Edge = .bottom) -> some View {
+    /// The Ask popover, from this view, while `target` is set. `recent` is worked out as it opens.
+    func askAIPopover(_ target: Binding<AskAI.Target?>, subject: @autoclosure @escaping () -> AskAI.Subject,
+                      recent: @autoclosure @escaping () -> Bool = true, arrowEdge: Edge = .bottom) -> some View {
         popover(item: target, arrowEdge: arrowEdge) { t in
-            AskAIPopover(target: t, subject: subject, close: { target.wrappedValue = nil })
+            AskAIPopover(target: t, subject: subject(), recent: recent(), close: { target.wrappedValue = nil })
                 .presentationCompactAdaptation(.popover)
         }
+    }
+}
+
+/// Ask about the open note, in its toolbar: the AI's mark for one AI (it opens the popover), a
+/// menu of the AIs for several, nothing for none. 28 points on the Mac, 44 on iPhone, as the
+/// bar's other buttons (round 2 of the councils).
+struct AskAINoteButton: View {
+    let targets: [AskAI.Target]
+    let ask: (AskAI.Target) -> Void
+
+    var body: some View {
+        if targets.count == 1, let t = targets.first {
+            Button { ask(t) } label: { label(AskAI.title(t, .note(.init(title: ""))), ai: t.ai) }
+                .help(AskAI.title(t, .note(.init(title: ""))))
+                .accessibilityIdentifier("editor.ask")
+        } else if targets.count > 1 {
+            Menu {
+                ForEach(targets) { t in
+                    Button(AskAI.submenuItem(t)) { ask(t) }.accessibilityIdentifier("editor.ask.\(t.ai)")
+                }
+            } label: {
+                Label(AskAI.submenuTitle(.note(.init(title: ""))), systemImage: "sparkles")
+            }
+            #if os(macOS)
+            .menuIndicator(.hidden)
+            #endif
+            .help(AskAI.submenuTitle(.note(.init(title: ""))))
+            .accessibilityIdentifier("editor.ask")
+        }
+    }
+
+    @ViewBuilder private func label(_ title: String, ai: String) -> some View {
+        if let mark = Self.mark(ai) {
+            Label { Text(title) } icon: { mark }
+        } else {
+            Label(title, systemImage: "sparkles")
+        }
+    }
+
+    /// The bar's glyph size: the marks fill their square where a symbol leaves room around it, so
+    /// a point or so under the bar's symbols reads the same (iPhone's bar glyphs are about 22).
+    #if os(macOS)
+    static let markSize: CGFloat = 16
+    #else
+    static let markSize: CGFloat = 21
+    #endif
+
+    /// The AI's mark as a bar button's picture: drawn at the bar's size and left to the bar to
+    /// colour, as its symbols are. A bar takes a picture at its own size, not a frame.
+    static func mark(_ ai: String) -> Image? {
+        guard !AIGlyph.storeSafe, let asset = AIGlyph.asset(ai) else { return nil }
+        let side = markSize
+        #if os(macOS)
+        guard let base = NSImage(named: asset), let image = base.copy() as? NSImage else { return nil }
+        image.size = NSSize(width: side, height: side)
+        image.isTemplate = true
+        return Image(nsImage: image)
+        #else
+        guard let base = UIImage(named: asset) else { return nil }
+        let image = UIGraphicsImageRenderer(size: CGSize(width: side, height: side)).image { _ in
+            base.draw(in: CGRect(x: 0, y: 0, width: side, height: side))
+        }
+        return Image(uiImage: image.withRenderingMode(.alwaysTemplate))
+        #endif
     }
 }
