@@ -186,6 +186,9 @@ struct WidgetTickIntent: AppIntent {
     static let isDiscoverable = false
     /// Runs in the app, which it opens, as New Note does.
     static let supportedModes: IntentModes = .foreground(.immediate)
+    /// A widget's button runs its intent in the widget extension, where the mode above alone
+    /// doesn't bring the app up (seen in the persona showcase recording, 2026-11-04).
+    static let openAppWhenRun = true
 
     @Parameter(title: "Note") var note: String
     @Parameter(title: "Item") var index: Int

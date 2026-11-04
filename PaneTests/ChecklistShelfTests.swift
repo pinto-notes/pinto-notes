@@ -268,6 +268,9 @@ import Testing
         ChecklistShelf.rootOverride = tmp
         defer { ChecklistShelf.rootOverride = nil; try? FileManager.default.removeItem(at: tmp) }
         #expect(WidgetTickIntent.supportedModes == .foreground(.immediate), "it opens the app")
+        // A widget's button runs in the widget extension; without this the app stayed shut
+        // (the persona showcase recording on a simulator, 2026-11-04).
+        #expect(WidgetTickIntent.openAppWhenRun, "the widget's tap brings the app up")
         try await withContainer { context in
             let n = context.createNote(in: .all, body: "Groceries\n\n- [ ] Milk\n- [ ] Lemons")
             try context.save()
