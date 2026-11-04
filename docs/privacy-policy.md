@@ -230,7 +230,7 @@ In versions of the apps after 1.2.3, a note can hold a small app (a habit tracke
 - **Share** in a note makes a link. Anyone with the link can join the note in Pinto Notes, with **Can edit** or **Can view**. **Off** stops the link at once. You see everyone who joined, and you can remove them.
 - The note is encrypted like your other notes, with a key of its own. Each person's devices get that key encrypted for them, and keep it with their notes' key. So whoever can open a person's notes can open the notes shared with them. Where we keep a copy of someone's key (see Encryption), we could too.
 - When someone in the note asks their AI about it, our server opens the note in memory for that request, as it does for your own notes, and keeps nothing of it.
-- Removing someone gives the note a new key, so they can't read what's written after. What reached their devices before stays there.
+- Removing someone takes the note out of their notes and gives it a new key, so they can't read what's written after. A copy they made before, we can't take back.
 - Deleting a note you shared stops sharing it for everyone: it goes to your Recently Deleted with its text, and the others lose it. Leaving a note someone shared with you takes it out of your notes.
 - A note shared with people can't hold files or an app, be locked or become a web page yet, and version history doesn't show its changes yet.
 
