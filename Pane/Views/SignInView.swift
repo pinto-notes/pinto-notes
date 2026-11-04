@@ -147,13 +147,21 @@ struct SignInView: View {
             case .short(let title):
                 VStack(spacing: 12) {
                     AppMark(size: 44)
-                    Text(title)
-                        .font(.system(size: 19, weight: .bold))
-                        .tracking(-0.2)
-                        .foregroundStyle(Color.ink)
-                        .multilineTextAlignment(.center)
-                        .accessibilityAddTraits(.isHeader)
-                        .accessibilityIdentifier("signin.title")
+                    VStack(spacing: 6) {
+                        Text(title)
+                            .font(.system(size: 19, weight: .bold))
+                            .tracking(-0.2)
+                            .foregroundStyle(Color.ink)
+                            .multilineTextAlignment(.center)
+                            .accessibilityAddTraits(.isHeader)
+                            .accessibilityIdentifier("signin.title")
+                        Text(Self.shortLine)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.muted)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("signin.line")
+                    }
                 }
             }
 
@@ -246,6 +254,10 @@ struct SignInView: View {
     static func shortTitle(_ title: String, step: EmailSignInFlow.Step) -> String {
         step == .create ? "Create your Pinto account." : title
     }
+
+    /// Under the setup card's title: why to sign in, in one line (council round 1, 11-04: the card
+    /// asked for an account without saying what it gives).
+    static let shortLine = "Your notes on every device, and in ChatGPT or Claude when you want."
 
     static let passwordRuleText = "At least \(EmailSignInFlow.minimumPassword) characters"
 

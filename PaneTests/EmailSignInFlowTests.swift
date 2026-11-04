@@ -314,6 +314,8 @@ import Testing
     /// The setup card lays out as a card on every step, the code step too: no welcome-sized gap.
     @Test func theCardStaysACardOnTheCodeStep() {
         #expect(SignInView.isCard(.short("Sign in to Pinto.")))
+        // The setup card says why to sign in, in one short line (council round 1, 11-04).
+        #expect(SignInView.shortLine.hasSuffix(".") && SignInView.shortLine.count < 80)
         #expect(!SignInView.isCard(.card))
         #expect(!SignInView.isCard(.beside(title: "Welcome", line: "")))
     }
