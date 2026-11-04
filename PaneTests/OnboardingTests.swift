@@ -336,7 +336,9 @@ import Testing
         #expect(BringOver.title("ChatGPT") == "Bring over what ChatGPT knows about you")
         #expect(BringOver.title(nil) == "Bring over what your AI knows about you")
         #expect(BringOver.importTile == "ChatGPT or Claude")
+        #if os(macOS)  // the first-run card is the Mac's
         #expect(SetupCards.bringOverName(.other) == nil && SetupCards.bringOverName(.claude) == "Claude")
+        #endif
     }
 
     /// The About me note it fills: the account's own if there is one (not a locked one), else one
@@ -354,6 +356,7 @@ import Testing
     }
 
     /// File › Import's AI tile: its button for what's connected.
+    #if os(macOS)  // the first-run card is the Mac's
     @Test func theImportTileAsksTheConnectedAI() {
         let gpt = AskAI.Target(ai: "ChatGPT"), claude = AskAI.Target(ai: "Claude"), codex = AskAI.Target(ai: "Codex")
         #expect(SetupCards.bringOverWay(connected: [codex, claude]) == .ask("Claude"))
@@ -362,6 +365,7 @@ import Testing
         #expect(SetupCards.bringOverWay(connected: []) == .connect)
         #expect(SetupCards.BringOverWay.connect.button == "Connect ChatGPT or Claude\u{2026}")
     }
+    #endif
 
     // MARK: Try it
 
