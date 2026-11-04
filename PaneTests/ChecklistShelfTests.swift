@@ -131,6 +131,21 @@ import Testing
         }
     }
 
+    /// An imported library of 1,200 notes: the share sheet finds the oldest by its title.
+    @Test func theShareSheetFindsAnOldNoteInABigLibrary() throws {
+        try withShelf {
+            let container = try library()
+            let context = container.mainContext
+            for i in 0..<1200 {
+                let n = context.createNote(in: .all, body: "Note \(i)")
+                n.updatedAt = .now.addingTimeInterval(Double(i))
+            }
+            try context.save()
+            context.publishChecklistShelf()
+            #expect(ChecklistShelf.search("Note 0", in: ChecklistShelf.recents()).contains { $0.title == "Note 0" })
+        }
+    }
+
     @Test func aWidgetTickShowsAtOnceAndReachesTheNoteWhenTheAppOpens() throws {
         try withShelf {
             let container = try library()

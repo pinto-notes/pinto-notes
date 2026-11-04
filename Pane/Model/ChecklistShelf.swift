@@ -192,8 +192,9 @@ enum ChecklistShelf {
     static let listLimit = 200
     /// Items kept per list: the medium widget shows 7.
     static let itemLimit = 24
-    /// Notes the share sheet can search by title.
-    static let recentLimit = 300
+    /// Notes the share sheet can search by title: enough for an imported vault of a thousand
+    /// notes and more (300 hid older notes, and the search then said no note had that name).
+    static let recentLimit = 3000
 
     /// Tests point it at a temporary folder (unsigned test builds have no app group).
     nonisolated(unsafe) static var rootOverride: URL?
