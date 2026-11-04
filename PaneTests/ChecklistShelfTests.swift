@@ -284,6 +284,12 @@ import Testing
         }
     }
 
+    /// Send a Copy and the share sheet's preview show a note as people read it, not its markdown.
+    @Test func aCopyOfANoteReadsWithoutMarkdown() {
+        let md = "Lisbon\n\n## Plan\n- [ ] Tram 28\n- [x] **Book** flights\n- Time Out Market\n> Pack shoes\n| Place | Dish |\n| --- | --- |\n| Ramiro | Seafood |\nSee [[Hotel booking]] and [site](https://x.com)"
+        #expect(ReadableText.from(markdown: md) == "Lisbon\n\nPlan\n\u{25CB} Tram 28\n\u{2713} Book flights\n\u{2022} Time Out Market\nPack shoes\nPlace  Dish\nRamiro  Seafood\nSee Hotel booking and site (https://x.com)")
+    }
+
     @Test func newNoteFromOutsideIsAskedOnce() async throws {
         NoteOpener.shared.newNoteAsked = false
         _ = try await NewNoteIntent().perform()

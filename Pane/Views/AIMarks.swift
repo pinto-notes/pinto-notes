@@ -107,8 +107,7 @@ struct AITile: View {
 /// stays as long as the tint does.
 enum NoteAIUndo {
     static let identifier = "note.aiUndo"
-    /// The bar button's first choice for an edit of the text: the review sheet.
-    static let review = "Review Changes"
+    /// The button at the foot of the note that shows what an AI just changed (AIChangeButton).
     static let reviewIdentifier = "note.aiReview"
     /// The phone reviews in a sheet; the Mac in the card where the receipt was.
     #if os(iOS)
@@ -142,6 +141,41 @@ enum NoteAIUndo {
         #else
         false
         #endif
+    }
+}
+
+/// iPhone: "ChatGPT changed 5 lines ›" at the foot of the open note while its change is marked.
+/// One tap shows each part it changed, to keep or undo (the review sheet). Undo is in the bar.
+struct AIChangeButton: View {
+    let receipt: AIEdit.Receipt
+    let show: () -> Void
+    @ScaledMetric(relativeTo: .body) private var height: CGFloat = 48
+
+    var body: some View {
+        Button(action: show) {
+            HStack(spacing: 10) {
+                AIGlyph(ai: receipt.by, size: 16)
+                Text(receipt.summary)
+                    .font(.body.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: height)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+        .background(.regularMaterial, in: .capsule)
+        .overlay(Capsule().strokeBorder(Color.line, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.10), radius: 14, y: 6)
+        .accessibilityLabel(receipt.summary)
+        .accessibilityHint("Shows each part \(receipt.by) changed, to keep or undo it")
+        .accessibilityIdentifier(NoteAIUndo.reviewIdentifier)
     }
 }
 

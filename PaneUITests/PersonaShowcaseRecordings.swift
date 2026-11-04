@@ -17,18 +17,14 @@ final class PersonaShowcaseRecordings: XCTestCase {
 
     private func pause(_ s: Double) { Thread.sleep(forTimeInterval: s) }
 
-    /// An AI adds to Groceries while it's open; Undo › Review Changes shows what it added, in a
+    /// An AI adds to Groceries while it's open; the button at the foot shows what it added, in a
     /// sheet, and Keep keeps it.
     func test1ReviewSheet() {
         let app = launch(["-open", "Groceries", "-aiEdit", "Groceries", "-aiScene", "paella", "-aiAfter", "3"])
         XCTAssertTrue(app.textViews["editor"].waitForExistence(timeout: 15))
-        let undo = app.buttons["note.aiUndo"].firstMatch
-        XCTAssertTrue(undo.waitForExistence(timeout: 10))
-        pause(2.5)
-        undo.tap()
         let review = app.buttons["note.aiReview"].firstMatch
-        XCTAssertTrue(review.waitForExistence(timeout: 5))
-        pause(1.2)
+        XCTAssertTrue(review.waitForExistence(timeout: 10))
+        pause(3)
         review.tap()
         XCTAssertTrue(app.descendants(matching: .any)["review.card"].firstMatch.waitForExistence(timeout: 5))
         pause(3)
@@ -73,8 +69,13 @@ final class PersonaShowcaseRecordings: XCTestCase {
         let save = app.buttons["share.save"].firstMatch
         XCTAssertTrue(save.waitForExistence(timeout: 10))
         pause(2)
-        let recent = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'share.note.' AND identifier != 'share.note.new'")).firstMatch
-        if recent.waitForExistence(timeout: 2) { recent.tap() }
+        let addTo = app.buttons["share.addTo"].firstMatch
+        if addTo.waitForExistence(timeout: 2) {
+            addTo.tap()
+            pause(1.5)
+            let recent = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'share.note.' AND identifier != 'share.note.new'")).firstMatch
+            if recent.waitForExistence(timeout: 3) { recent.tap() }
+        }
         pause(3)
         save.tap()
         pause(4)
