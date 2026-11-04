@@ -54,6 +54,10 @@ enum Charm {
 
     @MainActor static func rollRare(_ kind: Kind) -> Bool {
         if let forcedRare { return forcedRare && hasRare(kind) }
+        // Captures: `-uitest -charmRare YES` plays every glyph's rare version.
+        if ProcessInfo.processInfo.arguments.contains("-uitest"), UserDefaults.standard.object(forKey: "charmRare") != nil {
+            return UserDefaults.standard.bool(forKey: "charmRare") && hasRare(kind)
+        }
         hovers += 1
         let rare = hasRare(kind) && hovers > 4 && !lastRare && Int.random(in: 0..<rareOdds) == 0
         lastRare = rare
