@@ -141,6 +141,30 @@ import Testing
         #expect(storage.attribute(.paneChanged, at: storage.length - 1, effectiveRange: nil) == nil)
     }
 
+    /// A table in a version or an AI change shows as text in columns, header in semibold, and its
+    /// changed row keeps the band: it was hidden for a grid only the editor draws, so a table an
+    /// AI changed showed as a blank band (council rounds 2 and 3, 11-04).
+    @Test func aTableInAPreviewShowsItsCells() {
+        let text = "Lisbon\n\n| Place | Dish |\n| --- | --- |\n| Manteigaria | Pastel de nata |\n| Ramiro | Seafood |\n\nAfter"
+        let storage = NSTextStorage(string: text)
+        let ns = text as NSString
+        let row = ns.range(of: "| Ramiro | Seafood |")
+        VersionTextView.style(storage, changed: [row])
+        func font(_ s: String) -> PFont? { storage.attribute(.font, at: ns.range(of: s).location, effectiveRange: nil) as? PFont }
+        for cell in ["Place", "Manteigaria", "Pastel de nata", "Seafood"] {
+            #expect((font(cell)?.pointSize ?? 0) >= 11, "\(cell) is shown: \(String(describing: font(cell)))")
+            #expect((storage.attribute(.foregroundColor, at: ns.range(of: cell).location, effectiveRange: nil) as? PColor) != PColor.clear, "\(cell) has ink")
+        }
+        #if os(macOS)
+        #expect(font("Place")?.fontDescriptor.symbolicTraits.contains(.bold) == true || (font("Place")?.fontDescriptor.object(forKey: .traits) as? [NSFontDescriptor.TraitKey: Any]).flatMap { $0[.weight] as? CGFloat }.map { $0 > 0 } == true, "the header row is semibold")
+        #endif
+        #expect(storage.attribute(.paneChanged, at: row.location, effectiveRange: nil) != nil, "the changed row keeps its band")
+        // The editor still hides it under its grid.
+        let editor = NSTextStorage(string: text)
+        MarkdownStyler().apply(to: editor, active: NSRange(location: NSNotFound, length: 0))
+        #expect(((editor.attribute(.font, at: ns.range(of: "Manteigaria").location, effectiveRange: nil) as? PFont)?.pointSize ?? 99) < 1)
+    }
+
     // MARK: Restore
 
     static func demo() throws -> (ModelContainer, Note) {

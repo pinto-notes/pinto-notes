@@ -99,6 +99,10 @@ struct MarkdownStyler {
     var bodySize = EditorMetrics.body
     /// Style the first plain line as the title (off for card contents).
     var firstLineIsTitle = true
+    /// Tables hide their markdown for the editor's live grid over them. Off where nothing draws
+    /// a grid (history and AI Changes previews): the table shows as text laid out in columns,
+    /// header in semibold, not as a blank band (council rounds 2 and 3, 11-04).
+    var drawsGrids = true
     /// Which wiki links lead to a note (nil: show them all as links).
     var wiki: WikiScope?
     /// What "today" is for date chips (tests set a fixed day).
@@ -348,7 +352,7 @@ struct MarkdownStyler {
         styleTags(storage, in: full, selection: active, skip: walker.codeRanges + walker.inlineCodeRanges)
         styleHighlights(storage, in: full, isActive: isActive, skip: walker.codeRanges + walker.inlineCodeRanges)
         styleDates(storage, in: full, selection: active, skip: walker.codeRanges + walker.inlineCodeRanges)
-        let grids = styleGrids(storage, in: full, grids: structure.grids)
+        let grids = drawsGrids ? styleGrids(storage, in: full, grids: structure.grids) : []
         let embeds = styleEmbeds(storage, in: full, embeds: structure.embeds)
         return StyledBlocks(embeds: embeds, grids: grids)
     }

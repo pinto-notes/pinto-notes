@@ -29,7 +29,8 @@ struct VersionTextView {
 
     /// The text styled with nothing being edited, so all markup stays hidden.
     @MainActor static func style(_ storage: NSTextStorage, changed: [NSRange], removed: [NSRange] = []) {
-        let styler = MarkdownStyler()
+        var styler = MarkdownStyler()
+        styler.drawsGrids = false
         styler.apply(to: storage, active: NSRange(location: NSNotFound, length: 0))
         let length = storage.length
         storage.beginEditing()
