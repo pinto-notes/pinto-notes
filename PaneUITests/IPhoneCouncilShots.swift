@@ -25,7 +25,7 @@ final class IPhoneCouncilShots: XCTestCase {
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         let s = XCUIScreen.main.screenshot()
         try? s.pngRepresentation.write(to: URL(fileURLWithPath: "\(dir)/\(name)-\(scheme).png"))
-        if env["PANE_TREE"] != nil {
+        if env["PANE_TREE"]?.isEmpty == false {
             try? app.debugDescription.write(toFile: "\(dir)/\(name)-\(scheme).txt", atomically: true, encoding: .utf8)
         }
         let a = XCTAttachment(screenshot: s)
@@ -111,6 +111,36 @@ final class IPhoneCouncilShots: XCTestCase {
             send.tap()
             pause(2.5)
             shot("08-share-sheet", app)
+        }
+    }
+
+    /// Share › Send a Copy › Pinto Notes: the share extension's sheet. Since 2026-11-04 it has
+    /// Add to (a new note, or the end of one of the five newest notes, or one found by its title).
+    func test19ShareExtension() {
+        let app = launch(["-open", "Lisbon"])
+        XCTAssertTrue(app.textViews["editor"].waitForExistence(timeout: 15))
+        pause(1)
+        app.buttons["editor.share"].firstMatch.tap()
+        let send = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Send'")).firstMatch
+        XCTAssertTrue(send.waitForExistence(timeout: 5))
+        send.tap()
+        let pinto = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Pinto Notes'")).firstMatch
+        XCTAssertTrue(pinto.waitForExistence(timeout: 8), "Pinto Notes in the share sheet")
+        pinto.tap()
+        let save = app.buttons["share.save"].firstMatch
+        XCTAssertTrue(save.waitForExistence(timeout: 10), "the share extension's sheet")
+        pause(2)
+        shot("19-share-extension", app)
+        let groceries = app.buttons["share.note.Groceries"].firstMatch
+        if groceries.waitForExistence(timeout: 2) {
+            groceries.tap()
+            pause(1)
+            shot("20-share-add-to-picked", app)
+            let search = app.textFields["share.search"].firstMatch
+            search.tap()
+            search.typeText("trip")
+            pause(1.2)
+            shot("21-share-add-to-search", app)
         }
     }
 

@@ -10,7 +10,7 @@ import WidgetKit
 @MainActor
 extension ModelContext {
     /// The widget's kind (PaneWidgets/ChecklistWidget.swift), to redraw it when its lists change.
-    static let checklistWidgetKind = "ChecklistWidget"
+    static let checklistWidgetKind = ChecklistWidgetContent.kind
 
     /// Applies the ticks made on the Home Screen, then leaves the lists and recent notes as they
     /// now are. Returns the notes a tick changed.
@@ -44,23 +44,39 @@ extension ModelContext {
     /// Locked, deleted and trashed notes never go there. Redraws the widget when its lists changed.
     func publishChecklistShelf() {
         guard ChecklistShelf.root != nil else { return }
-        // "] " finds every note with a checklist item, ticked or not (and a few others, which
-        // ChecklistShelf.list leaves out): one cheap test in the store, not a read of every note.
-        let live = #Predicate<Note> { $0.deletedAt == nil && $0.trashedAt == nil && $0.lockedBody == nil }
-        let checklist = #Predicate<Note> { $0.body.contains("] ") }
-        var lists = FetchDescriptor<Note>(predicate: #Predicate { live.evaluate($0) && checklist.evaluate($0) },
-                                          sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
+        var lists = FetchDescriptor<Note>(predicate: ShelfNotes.withChecklist(), sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
         lists.fetchLimit = ChecklistShelf.listLimit
-        let shelf = ((try? fetch(lists)) ?? []).compactMap {
+        let found: [Note] = (try? fetch(lists)) ?? []
+        let shelf = found.compactMap {
             ChecklistShelf.list(id: $0.id, title: $0.title, body: $0.body, updatedAt: $0.updatedAt, pinned: $0.isPinned)
         }
-        var recent = FetchDescriptor<Note>(predicate: live, sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
+        var recent = FetchDescriptor<Note>(predicate: ShelfNotes.unlocked(), sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
         recent.fetchLimit = ChecklistShelf.recentLimit
-        ChecklistShelf.saveRecents(((try? fetch(recent)) ?? []).map { ChecklistShelf.Recent(id: $0.id, title: $0.title, updatedAt: $0.updatedAt) })
+        let recents: [Note] = (try? fetch(recent)) ?? []
+        ChecklistShelf.saveRecents(recents.map { ChecklistShelf.Recent(id: $0.id, title: $0.title, updatedAt: $0.updatedAt) })
         if ChecklistShelf.saveLists(shelf) {
             #if canImport(WidgetKit) && os(iOS)
             WidgetCenter.shared.reloadTimelines(ofKind: Self.checklistWidgetKind)
             #endif
+            // Siri's "Add to Groceries in Pinto Notes" knows the notes by these names.
+            AmberShortcuts.updateAppShortcutParameters()
+        }
+    }
+}
+
+/// The notes the widget, the share sheet and the intents may show: not deleted, not in the
+/// trash, not locked.
+enum ShelfNotes {
+    static func unlocked() -> Predicate<Note> {
+        #Predicate<Note> { (n: Note) -> Bool in n.deletedAt == nil && n.trashedAt == nil && n.lockedBody == nil }
+    }
+
+    /// The same, with a checklist item: "] " finds every one, ticked or not (and a few other
+    /// notes, which ChecklistShelf.list leaves out). One cheap test in the store, not a read of
+    /// every note.
+    static func withChecklist() -> Predicate<Note> {
+        #Predicate<Note> { (n: Note) -> Bool in
+            n.deletedAt == nil && n.trashedAt == nil && n.lockedBody == nil && n.body.contains("] ")
         }
     }
 }

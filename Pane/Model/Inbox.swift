@@ -15,6 +15,9 @@ enum Inbox {
         /// The folder picked in the share sheet. Files shared without text are kept there on
         /// their own; text becomes a note there. Nil: the default folder.
         var folder: UUID?
+        /// The note picked under Add to (2026-11-04): what was shared goes at its end instead of
+        /// into a new note. Nil: a new note.
+        var note: UUID?
     }
 
     /// A folder the share sheet offers: the app lists them here each time it opens or leaves.
@@ -58,9 +61,9 @@ enum Inbox {
     nonisolated(unsafe) static var rootOverride: URL?
 
     /// Writes an item (called by the share extension).
-    static func add(markdown: String, files: [URL], folder: UUID? = nil) throws {
+    static func add(markdown: String, files: [URL], folder: UUID? = nil, note: UUID? = nil) throws {
         guard let root else { throw CocoaError(.fileNoSuchFile) }
-        var item = Item(markdown: markdown, folder: folder)
+        var item = Item(markdown: markdown, folder: folder, note: note)
         let dir = root.appending(path: item.id.uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         for f in files {

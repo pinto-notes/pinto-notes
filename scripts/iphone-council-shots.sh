@@ -56,7 +56,7 @@ for look in ${=LOOKS:-light dark}; do
     TEST_RUNNER_PANE_TREE=${TREE:-} nice -n 10 xcodebuild -project Pane.xcodeproj -scheme Pane \
     -destination "id=$SIM" -derivedDataPath $DD CODE_SIGNING_ALLOWED=NO test-without-building \
     "${only[@]}" > "$OUT/test-$look.log" 2>&1 || true
-  grep -E "Test case .*(passed|failed)|error:" "$OUT/test-$look.log" | sed -E 's/^.*Test case/Test case/' | head -40
+  grep -E "Test Case .*(passed|failed)|error:" "$OUT/test-$look.log" | head -40
 done
 xcrun simctl ui "$SIM" appearance light
 echo "$OUT"

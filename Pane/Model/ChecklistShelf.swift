@@ -16,7 +16,7 @@ struct ChecklistLine: Codable, Hashable, Sendable {
 /// over the text, like ListEditing.
 enum Checklist {
     /// `- [ ] item`, `* [x] item`, indented or not. Groups: indent, mark, text.
-    private static let pattern = try! NSRegularExpression(pattern: #"^([ \t]*)[-*+] \[([ xX])\] (.*)$"#)
+    nonisolated(unsafe) private static let pattern = try! NSRegularExpression(pattern: #"^([ \t]*)[-*+] \[([ xX])\] (.*)$"#)
 
     private struct Found {
         var line: Int
@@ -234,9 +234,19 @@ enum ChecklistShelf {
 
     static func lists() -> [List] { read("Lists.json", as: [List].self) ?? [] }
 
-    /// Leaves the lists for the widget. True when they changed (the widget should redraw).
+    /// Leaves the lists for the widget. True when they changed (the widget should redraw). Ticks
+    /// still waiting for the app stay shown as made.
     @discardableResult
-    static func saveLists(_ lists: [List]) -> Bool { write(lists, to: "Lists.json") }
+    static func saveLists(_ lists: [List]) -> Bool {
+        var lists = lists
+        for t in ticks() {
+            guard let l = lists.firstIndex(where: { $0.id == t.note }),
+                  let i = lists[l].items.firstIndex(where: { $0.index == t.index && $0.text == t.text }) ?? lists[l].items.firstIndex(where: { $0.text == t.text })
+            else { continue }
+            lists[l].items[i].done = t.done
+        }
+        return write(lists, to: "Lists.json")
+    }
 
     static func list(_ id: UUID) -> List? { lists().first { $0.id == id } }
 

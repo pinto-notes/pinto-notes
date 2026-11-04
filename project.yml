@@ -52,6 +52,8 @@ targets:
       - package: ZIPFoundation
       - target: PaneShare
         platformFilter: iOS
+      - target: PaneWidgets
+        platformFilter: iOS
     # SwiftPM resource bundles (ZIPFoundation's and swift-crypto's privacy manifests, and any
     # added later) arrive in Contents/Resources signed with the archive's Apple Development
     # identity. The App Store export re-signs only the app and its nested code, so Apple
@@ -199,6 +201,7 @@ targets:
       - Pane/Views/AppMark.swift
       - Pane/Model/Inbox.swift
       - Pane/Model/AppIdentity.swift
+      - Pane/Model/ChecklistShelf.swift
       - Pane/Model/SharedItem.swift
       - Pane/Model/RichTextToMarkdown.swift
       - Pane/Model/OfflineHTML.swift
@@ -233,6 +236,42 @@ targets:
         CODE_SIGN_ENTITLEMENTS: PaneShare/PaneShare.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
         SKIP_INSTALL: YES
+  # The Home Screen checklist widget and the New Pinto note control (Control Centre, the Lock
+  # Screen, the Action button). It reads what the app leaves in the App Group (ChecklistShelf);
+  # a tick waits there until the app writes it into the note.
+  PaneWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - PaneWidgets
+      - Pane/Model/AppIdentity.swift
+      - Pane/Model/ChecklistShelf.swift
+      - Pane/App/QuickIntents.swift
+      - Pane/Views/ChecklistWidgetView.swift
+      - path: Pane/Resources/Assets.xcassets
+        buildPhase: resources
+    info:
+      path: PaneWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: $(PANE_DISPLAY_NAME)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        PaneAppGroup: $(PANE_APP_GROUP)
+        PaneURLScheme: $(PANE_URL_SCHEME)
+        PaneBundleID: $(PANE_BUNDLE_ID)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(PANE_BUNDLE_ID).widgets
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: PaneWidgets/PaneWidgets.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: $(PANE_ACCENT_ASSET)
+        SKIP_INSTALL: YES
+        # QuickIntents: New Note runs in the app; the extension's copy only names it.
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WIDGET_EXTENSION
   PaneTests:
     type: bundle.unit-test
     supportedDestinations: [iOS, macOS]
@@ -301,6 +340,9 @@ targets:
         type: folder
         buildPhase: resources
       - path: PaneShare
+        type: folder
+        buildPhase: resources
+      - path: PaneWidgets
         type: folder
         buildPhase: resources
       # The project, for OnboardingArtTests (the pictures stay out of the share extension).
