@@ -153,6 +153,10 @@ struct RootView: View {
             .sheet(isPresented: Binding(get: { popup != nil }, set: { if !$0 { popup = nil } })) {
                 if let popup { popupCard(popup).popupSheet(popup.rawValue) }
             }
+            // ⌘= is ⌘+ without shift, as in every Mac app that zooms (View › Bigger).
+            .background {
+                Button("Bigger") { TextSize.bigger() }.keyboardShortcut("=", modifiers: .command).hidden()
+            }
             // Help › Keyboard Shortcuts, read from the menu bar as it is when asked.
             .onReceive(NotificationCenter.default.publisher(for: .paneShowShortcuts)) { _ in
                 shortcuts = Shortcuts.groups(in: NSApp.mainMenu)
