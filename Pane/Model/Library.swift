@@ -71,7 +71,7 @@ extension ModelContext {
         return .folder(folder.id)
     }
 
-    /// What Show My Notes opens after an import: its top folder, on the newest note that folder's
+    /// What Show Imported Notes opens after an import: its top folder, on the newest note that folder's
     /// list shows (notes in folders inside it aren't in that list). When every note went into an
     /// inner folder, the first note's own folder.
     func importLanding(of ids: [UUID]) -> (scope: Scope, note: UUID?) {
@@ -219,6 +219,9 @@ extension ModelContext {
         note.isPinned = false
         note.touch()
         saveOrReport()
+        // A shared note deleted, as in Apple Notes: yours stops being shared (and goes to Recently
+        // Deleted, as now); someone else's you leave.
+        if note.isShared { SharedNotes.trashed?(note) }
     }
 
     /// No text and nothing locked: what leaving or deleting a note throws away.
@@ -250,6 +253,8 @@ extension ModelContext {
         note.lockedBody = nil
         note.touch()
         saveOrReport()
+        // Someone else's shared note deleted for good: you leave it, as in Apple Notes.
+        if note.isShared { SharedNotes.purged?(note) }
     }
 
     /// Deletes several notes the way one is deleted: live notes go to Recently Deleted,

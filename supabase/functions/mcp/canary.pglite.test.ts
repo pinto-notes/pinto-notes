@@ -156,7 +156,8 @@ Deno.test("no text of an encrypted account is stored or logged readably, whateve
     await tool("list_folders");
     await tool("list_notes");
     const byTitle = await tool("list_notes", { sort: "title", include_sub_notes: true });
-    assert(byTitle.notes.some((n: { title: string; locked?: boolean }) => n.title === `Locked ${CANARY}` && n.locked));
+    assert(byTitle.notes.some((n: { id: string; title: string; locked?: boolean }) => n.id === locked && n.title === "Locked note" && n.locked));
+    assert(!JSON.stringify(byTitle).includes(`Locked ${CANARY}`), "a locked note's title never reaches the AI");
     await tool("list_notes", { folder: `Travel ${CANARY}` });
     const found = await tool("search_notes", { query: CANARY });
     assert(found.results.some((r: { id: string; snippet: string }) => r.id === trip && r.snippet.includes(`«${CANARY}»`)), JSON.stringify(found));

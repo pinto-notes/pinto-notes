@@ -57,6 +57,7 @@ struct ImportGuide: Identifiable {
         case evernoteExport, evernoteFormat
         case bearSelect, bearExport
         case obsidianReveal, obsidianFound
+        case notionExport
         case settingsAutomation, notesEmpty, macHandoff, notesShareOne
     }
 }
@@ -155,6 +156,27 @@ extension ImportGuide {
                         "Choose the vault folder itself: the one with your notes and a hidden .obsidian folder inside."))
     }
 
+    /// Notion (persona council 11-04): the same two pages as Obsidian, an export step and the drop.
+    /// What a database becomes is said on the found page and the last: a note with a table, and a
+    /// note per row in a folder beside it (MarkdownImportTests.notionWorkspaceExport).
+    static let notion = ImportGuide(
+        id: "notion", origin: .files(.notion), name: "Notion",
+        introTitle: "Bring your Notion notes",
+        introLine: "Notion can save your whole workspace as one download. It takes a few minutes, and nothing in Notion changes.",
+        skipTitle: "I already have the download",
+        steps: [
+            Step(title: "Export from Notion",
+                 text: "In Notion, open Settings and choose Export all workspace content. Pick Markdown & CSV, include subpages, and export. Notion emails you a link to a .zip.",
+                 art: .drawn(.notionExport), action: "Open Notion",
+                 link: URL(string: "https://www.notion.so"), app: "notion.id"),
+        ],
+        drop: Drop(title: "Drop the .zip here",
+                   line: "The download from Notion's email, in your Downloads folder. No need to open it.",
+                   choose: "Choose the .zip\u{2026}", found: nil, fileSymbol: "doc.zipper"),
+        success: (214, "They're in a folder named Notion, subpages as folders. Each database is a note with a table, its rows' pages in a folder beside it."),
+        wrongFile: ("This isn't a Notion export",
+                    "Choose the .zip from Notion's email. Export as Markdown & CSV, not HTML or PDF."))
+
     static let markdown = ImportGuide(
         id: "markdown", origin: .files(.markdown), name: "Markdown or text files",
         introTitle: "Bring Markdown or text files",
@@ -178,6 +200,15 @@ extension ImportGuide {
         g.steps[2].text = "Open Google's email and tap Download archive. Safari saves it in Files, in Downloads."
         g.drop = Drop(title: "Choose the download",
                       line: "In Files, Downloads: a file named takeout and some numbers. No need to open it.",
+                      choose: "Choose File", found: nil, fileSymbol: "doc.zipper")
+        return g
+    }()
+
+    /// On iPhone the download from Notion's email lands in Files, and the drop page is a button.
+    static let notionPhone: ImportGuide = {
+        var g = notion
+        g.drop = Drop(title: "Choose the download",
+                      line: "In Files, Downloads: the .zip from Notion's email. No need to open it.",
                       choose: "Choose File", found: nil, fileSymbol: "doc.zipper")
         return g
     }()
@@ -227,6 +258,10 @@ struct ImportGuideSheet: View {
     var foundMany = false
     /// The success page's line when it isn't the guide's own (nothing new came).
     var broughtLine: String?
+    /// The found page's line when it says what comes over (Notion's pages and databases).
+    var foundNote: String?
+    /// What the picked export or vault holds, a line each, on the found page.
+    var foundRows: [ImportPreviewRow] = []
     /// A press on one of the page's controls.
     var act: (Action) -> Void = { _ in }
     /// Files dropped on the drop page: true when they were taken.
@@ -443,9 +478,16 @@ struct ImportGuideSheet: View {
         count == 1 ? "One step" : "Step \(number) of \(count)"
     }
 
-    /// "Choose Another Folder…", "Choose Other Files…"
-    private var chooseAnother: String {
-        guide.drop.choose.replacingOccurrences(of: "Choose", with: guide.drop.choose.contains("Files") ? "Choose Other" : "Choose Another")
+    /// "Choose Another Folder…", "Choose Other Files…", "Choose Another File…" (for "Choose the
+    /// .zip…", which read "Choose Another the .zip…": persona council 11-04).
+    private var chooseAnother: String { Self.chooseAnother(guide.drop.choose) }
+
+    static func chooseAnother(_ choose: String) -> String {
+        let dots = choose.hasSuffix("\u{2026}") ? "\u{2026}" : ""
+        if choose.contains("Files") { return "Choose Other Files" + dots }
+        if choose.contains("Folder") && !choose.contains(".zip") { return "Choose Another Folder" + dots }
+        if choose.hasPrefix("Choose Folder or") { return choose.replacingOccurrences(of: "Choose", with: "Choose Another") }
+        return "Choose Another File" + dots
     }
 
     private func drop(_ state: ImportGuidePage.DropState) -> some View {
@@ -453,7 +495,7 @@ struct ImportGuideSheet: View {
             Text(state == .found ? "Found it" : guide.drop.title)
                 .font(.system(size: Self.compact ? 24 : 21, weight: .bold)).tracking(-0.3)
                 .padding(.top, 6)
-            Text(state == .found ? Self.foundLine(many: foundMany) : guide.drop.line)
+            Text(state == .found ? foundNote ?? Self.foundLine(many: foundMany) : guide.drop.line)
                 .font(Self.compact ? .body : .system(size: 14))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
@@ -498,6 +540,7 @@ struct ImportGuideSheet: View {
                     Image(systemName: "checkmark.circle.fill").font(.system(size: 20)).foregroundStyle(Color(Palette.amber))
                 }
                 .padding(.horizontal, 20)
+                if !foundRows.isEmpty { preview }
             case .wrong:
                 Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 28)).foregroundStyle(Color(Palette.amber))
                 Text(guide.wrongFile.title).font(.system(size: 15, weight: .semibold))
@@ -520,6 +563,26 @@ struct ImportGuideSheet: View {
             shape.strokeBorder(state == .hovering ? Color(Palette.amber) : wrong ? Color(Palette.amber).opacity(0.6) : Color.line,
                                style: StrokeStyle(lineWidth: state == .hovering ? 2 : 1.5, dash: state == .found || wrong ? [] : [7, 5]))
         )
+    }
+
+    /// Under the file found: what it holds, a line each, what doesn't carry over last and marked
+    /// so, as Notes' own import lists what it brought.
+    private var preview: some View {
+        VStack(spacing: 0) {
+            ForEach(foundRows, id: \.self) { row in
+                Rectangle().fill(Color.line).frame(height: 1).padding(.leading, 50)
+                HStack(spacing: 10) {
+                    Image(systemName: row.symbol).font(.system(size: 13)).foregroundStyle(Color.muted).frame(width: 20)
+                    Text(row.count).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(row.becomes).font(.system(size: 12)).foregroundStyle(row.left ? Color(Palette.amberInk) : Color.muted).lineLimit(1)
+                }
+                .padding(.leading, 20).padding(.trailing, 20)
+                .frame(height: Self.compact ? 38 : 34)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .padding(.top, 6)
     }
 
     private func fileIcon(_ symbol: String, size: CGFloat) -> some View {
@@ -755,6 +818,28 @@ struct GuideDrawing: View {
                         .offset(x: -14, y: 98)
                     }
                 }
+            }
+        case .notionExport:
+            // Drawn, not Notion's own: its export dialog's three choices, the two to set ringed.
+            appWindow {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Export all workspace content").font(.system(size: 12, weight: .semibold)).foregroundStyle(ink)
+                    HStack(spacing: 8) {
+                        Text("Export format").font(.system(size: 10.5)).foregroundStyle(ink.opacity(0.6))
+                        Spacer(minLength: 0)
+                        ring { labelled("Markdown & CSV") }
+                    }
+                    .frame(width: 230)
+                    HStack(spacing: 8) {
+                        Text("Include content").font(.system(size: 10.5)).foregroundStyle(ink.opacity(0.6))
+                        Spacer(minLength: 0)
+                        labelled("Everything")
+                    }
+                    .frame(width: 230)
+                    ring { checkRow("Include subpages", on: true, bold: true) }
+                    HStack { Spacer(); pill("Export", filled: true) }.frame(width: 230)
+                }
+                .padding(18)
             }
         case .evernoteFormat:
             appWindow {

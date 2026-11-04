@@ -1,10 +1,13 @@
 #if os(macOS)
 import AppKit
+import SwiftUI
 import Testing
 @testable import Pane
 
-/// View › Bigger, Smaller and Actual Size (council round 1, 11-04: both judges asked for it, as
-/// Notes and Obsidian have it). The size is display only and scales the title with the body.
+/// View › Make Text Bigger, Make Text Smaller and Actual Size, and Settings › Appearance › Text
+/// size (council round 1 and the persona council, 11-04: Notes and Obsidian have it; Ingrid can't
+/// read 13 pt). Five stops, 13 to 24 pt, display only, per device. The title, headings,
+/// checklists, code and tables scale with the body.
 @MainActor @Suite(.serialized) struct TextSizeTests {
     /// The View menu holds what the app puts there, after Hide Sidebar. Replacing the sidebar
     /// group with nothing (to drop Hide Sidebar, 11-01) took every item placed after it away too:
@@ -14,11 +17,11 @@ import Testing
             Issue.record("the test host has no View menu to check"); return
         }
         let titles = view.items.map(\.title)
-        for t in ["Bigger", "Smaller", "Actual Size", "Collapse All Sections", "Expand All Sections", "\(AIChangeCopy.title)\u{2026}"] {
+        for t in [TextSize.biggerTitle, TextSize.smallerTitle, TextSize.actualTitle, "Collapse All Sections", "Expand All Sections", "\(AIChangeCopy.title)\u{2026}"] {
             #expect(titles.contains(t), "View › \(t): \(titles)")
         }
         #expect(titles.contains { $0.contains("Sidebar") }, "Hide Sidebar is back (11-04): \(titles)")
-        let bigger = view.items.first { $0.title == "Bigger" }
+        let bigger = view.items.first { $0.title == TextSize.biggerTitle }
         #expect(bigger?.keyEquivalent == "+")
     }
 
@@ -32,32 +35,58 @@ import Testing
         #expect(SidebarToggle.animation(reduceMotion: true) == nil && SidebarToggle.animation(reduceMotion: false) != nil, "Reduce Motion: no slide")
     }
 
-    @Test func stepsGoUpAndDownAndStopAtTheEnds() {
-        #expect(TextSize.step(from: 13, bigger: true) == 14)
-        #expect(TextSize.step(from: 16, bigger: true) == 18)
-        #expect(TextSize.step(from: 13, bigger: false) == 12)
+    @Test func fiveStopsUpAndDownStoppingAtTheEnds() {
+        #expect(TextSize.steps == [13, 15, 17, 20, 24])
+        #expect(TextSize.step(from: 13, bigger: true) == 15)
+        #expect(TextSize.step(from: 17, bigger: true) == 20)
+        #expect(TextSize.step(from: 20, bigger: false) == 17)
         #expect(TextSize.step(from: 24, bigger: true) == 24, "the largest stays")
-        #expect(TextSize.step(from: 11, bigger: false) == 11, "the smallest stays")
+        #expect(TextSize.step(from: 13, bigger: false) == 13, "13 pt, Notes' size, is the smallest")
+        #expect(TextSize.index(of: 17) == 2 && TextSize.index(of: 24) == 4 && TextSize.index(of: 14) == 0)
+        #expect(TextSize.size(stored: 0) == 13, "nothing stored: the standard size")
+        #expect(TextSize.size(stored: 14) == 13, "a size that isn't a stop (an earlier build's): the standard size")
+        #expect(TextSize.size(stored: 20) == 20)
+        #expect(TextSize.spoken(17) == "17 points")
+        #expect(TextSize.biggerTitle == "Make Text Bigger" && TextSize.smallerTitle == "Make Text Smaller" && TextSize.actualTitle == "Actual Size")
     }
 
     @Test func biggerRestylesAnOpenNoteAndActualSizeBringsItBack() async throws {
         TextSize.actualSize()
         defer { TextSize.actualSize() }
-        let h = await EditorHarness("Lisbon\n\nFour days of tiles, trams and pastries in May.", focus: false)
+        let h = await EditorHarness("Lisbon\n\nFour days of tiles, trams and pastries in May.\n\n## Plan\n- [ ] Tram 28 early\n- [x] Book flights\n\n```\nnpm run dev\n```", focus: false)
         defer { h.close() }
         let ns = h.text as NSString
         func size(at s: String) -> CGFloat {
             let r = ns.range(of: s)
             return (h.view.textStorage!.attribute(.font, at: r.location, effectiveRange: nil) as? NSFont)?.pointSize ?? 0
         }
+        func circle(_ s: String) -> CGFloat {
+            let line = ns.lineRange(for: NSRange(location: ns.range(of: s).location, length: 0)).location
+            return h.view.core.checkboxRect(line: line, layout: h.view.textLayoutManager)?.width ?? 0
+        }
         #expect(size(at: "Four days") == 13)
-        let title = size(at: "Lisbon")
+        let title = size(at: "Lisbon"), heading = size(at: "Plan"), code = size(at: "npm run dev"), ring = circle("Tram 28")
+        #expect(ring > 0)
+        let row = GridMetrics.row
 
-        TextSize.bigger(); TextSize.bigger(); TextSize.bigger() // 14, 15, 16
+        TextSize.bigger(); TextSize.bigger() // 15, 17
         await h.settle(0.1)
-        #expect(TextSize.body == 16)
-        #expect(size(at: "Four days") == 16, "the body follows")
+        #expect(TextSize.body == 17)
+        #expect(UserDefaults.standard.double(forKey: TextSize.key) == 17, "kept on this Mac")
+        #expect(size(at: "Four days") == 17, "the body follows")
         #expect(size(at: "Lisbon") > title, "the title grows with it")
+        #expect(size(at: "Plan") > heading, "and the headings")
+        #expect(size(at: "npm run dev") > code, "and code")
+        #expect(circle("Tram 28") > ring + 2, "and the checklist's circles: \(circle("Tram 28")) from \(ring)")
+        #expect(GridTable.cellFont.pointSize == 17, "table cells' text follows")
+        await h.snapshot("text-size-17-light")
+
+        TextSize.set(24)
+        await h.settle(0.1)
+        #expect(size(at: "Four days") == 24)
+        #expect(GridMetrics.row > row, "table rows grow once the text outgrows them: \(GridMetrics.row) from \(row)")
+        TextSize.bigger()
+        #expect(TextSize.body == 24, "no bigger than 24")
 
         #expect(GridMetrics.row > 32, "table rows grow with the text: \(GridMetrics.row)")
 
@@ -66,7 +95,36 @@ import Testing
         #expect(GridMetrics.row == 32)
         #expect(size(at: "Four days") == 13)
         #expect(size(at: "Lisbon") == title)
+        #expect(abs(circle("Tram 28") - ring) < 0.5)
         #expect(UserDefaults.standard.object(forKey: TextSize.key) == nil, "the default isn't stored")
+        TextSize.smaller()
+        #expect(TextSize.body == 13, "no smaller than 13")
+    }
+
+    /// Settings › Appearance › Text size: a slider with five stops that follows ⌘+ and sets the size.
+    @Test func settingsSliderHasFiveStopsAndSetsTheSize() async throws {
+        TextSize.actualSize()
+        defer { TextSize.actualSize() }
+        let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 640, height: 900), styleMask: [.borderless], backing: .buffered, defer: false)
+        w.isReleasedWhenClosed = false
+        let host = NSHostingView(rootView: AppearanceSettingsPage().frame(width: 640, height: 900))
+        w.contentView = host
+        defer { w.close() }
+        try? await Task.sleep(for: .seconds(0.5))
+        host.layoutSubtreeIfNeeded()
+        let slider = try #require(MacWindowChromeTests.find(NSSlider.self, in: host))
+        #expect(slider.numberOfTickMarks == 5, "a stop for each size")
+        // SwiftUI's slider runs from 0 to 1 underneath.
+        func at() -> Double { (slider.doubleValue - slider.minValue) / (slider.maxValue - slider.minValue) }
+        #expect(at() == 0, "13 pt")
+        TextSize.set(20)
+        try? await Task.sleep(for: .seconds(0.3))
+        host.layoutSubtreeIfNeeded()
+        #expect(abs(at() - 0.75) < 0.001, "the fourth stop: it follows View › Make Text Bigger")
+        slider.doubleValue = slider.maxValue
+        _ = slider.sendAction(slider.action, to: slider.target)
+        try? await Task.sleep(for: .seconds(0.1))
+        #expect(TextSize.body == 24, "moving it sets the size")
     }
 }
 #endif

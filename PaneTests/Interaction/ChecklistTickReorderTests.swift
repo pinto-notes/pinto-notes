@@ -114,7 +114,12 @@ import Testing
         await h.click(p)
         #expect(await h.until(3) { !pictures(h).isEmpty }, "the rows slide")
         let target = drawn(h, at: p.y, old: items)
-        #expect(target == items[0], "just after the slide starts, the ticked row is still drawn there")
+        // Timing: on a busy Mac the wait above can catch the slide after it has begun, with the
+        // next row already under the pointer (2 runs in 13 on release/1.3, 4 November 2026). What
+        // the test is for, that the click toggles whichever row is drawn there, is checked below.
+        withKnownIssue("on a busy Mac the slide can be caught after it has begun", isIntermittent: true) {
+            #expect(target == items[0], "just after the slide starts, the ticked row is still drawn there")
+        }
         let before = items.map { ticked(h, $0) }
         await h.click(p)
         for (i, item) in items.enumerated() {
@@ -241,6 +246,21 @@ import Testing
         #expect(storage.attribute(.strikethroughStyle, at: open, effectiveRange: nil) == nil, "open items stay as they are")
         await h.snapshot("checklist-tick-style")
     }
+
+    /// In a shared note a tick stays where it is: the move rewrites the list, and two people's
+    /// moves at once would merge into doubled lines (CollabTwoPeopleTests). One character changes.
+    @Test func aTickInASharedNoteStaysWhereItIs() async {
+        let h = await EditorHarness(Self.welcome, focus: false)
+        defer { h.close() }
+        h.controller.ownUndo = OwnUndo()
+        #expect(!h.controller.sortsTickedItems)
+        await h.click(circle(h, items[0]))
+        #expect(ticked(h, items[0]))
+        await h.settle(ListEditing.sortDelay + ReorderSlide.duration + 0.3)
+        let first = (Self.welcome as NSString).range(of: "- [ ] \(items[0])")
+        #expect(h.text == (Self.welcome as NSString).replacingCharacters(in: NSRange(location: first.location + 3, length: 1), with: "x"), "ticked in place, nothing moved")
+        #expect(h.view.core.slides.isEmpty)
+    }
 }
 #endif
 
@@ -300,6 +320,20 @@ import Testing
         #expect(!ticked(v, items[0]))
         try? await Task.sleep(for: .seconds(ListEditing.sortDelay + ReorderSlide.duration + 0.3))
         #expect(v.text == Self.welcome, "nothing ticked, nothing moved")
+    }
+
+    /// In a shared note a tap ticks the item where it is (see the Mac's test of the same name).
+    @Test func aTickInASharedNoteStaysWhereItIs() async {
+        let (window, v) = make()
+        defer { window.isHidden = true }
+        let controller = EditorController()
+        controller.ownUndo = OwnUndo()
+        v.controller = controller
+        tap(v, circle(v, items[0]))
+        #expect(ticked(v, items[0]))
+        try? await Task.sleep(for: .seconds(ListEditing.sortDelay + ReorderSlide.duration + 0.3))
+        let first = (Self.welcome as NSString).range(of: "- [ ] \(items[0])")
+        #expect(v.text == (Self.welcome as NSString).replacingCharacters(in: NSRange(location: first.location + 3, length: 1), with: "x"))
     }
 
     /// Right as the rows move, the tap toggles the row drawn under the finger: a sliding

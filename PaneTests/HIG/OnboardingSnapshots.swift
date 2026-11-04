@@ -21,7 +21,7 @@ import UIKit
         var first: Onboarding.Step = .name
     }
 
-    static let withCallMom = TrialNote.body + "- [ ] Call mom\n"
+    static let withAboutMe = TrialNote.body + TrialNote.sample
 
     static let shots: [Shot] = [
         Shot(name: "2-name-prefilled", step: .name, preview: .init(name: "Sara Lindqvist")),
@@ -38,7 +38,7 @@ import UIKit
         Shot(name: "5-try-it-both", step: .tryIt, preview: .init(connected: ["ChatGPT", "Claude"])),
         Shot(name: "5-try-it-claude-code", step: .tryIt, preview: .init(connected: ["Claude Code"])),
         Shot(name: "5-try-it-claude-code-copied", step: .tryIt, preview: .init(connected: ["Claude Code"], copied: true)),
-        Shot(name: "5-try-it-it-worked", step: .tryIt, preview: .init(connected: ["ChatGPT"], asked: "ChatGPT", note: withCallMom, arrived: true)),
+        Shot(name: "5-try-it-it-worked", step: .tryIt, preview: .init(connected: ["ChatGPT"], asked: "ChatGPT", note: withAboutMe, arrived: true)),
         Shot(name: "5-try-it-nothing-yet", step: .tryIt, preview: .init(connected: ["ChatGPT"], asked: "ChatGPT", late: true)),
     ]
 

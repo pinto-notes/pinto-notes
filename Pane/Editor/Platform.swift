@@ -189,18 +189,29 @@ enum DateFold {
 
 
 #if os(macOS)
-/// The note text's size on this Mac: View › Bigger (⌘+), Smaller (⌘−) and Actual Size (⌘0).
-/// Display only, the notes don't change; kept per device like the appearance.
+import AppKit
+
+/// The note text's size on this Mac: View › Make Text Bigger (⌘+), Make Text Smaller (⌘−) and
+/// Actual Size (⌘0), and Settings › Appearance › Text size. Five stops, 13 pt (as Notes) to 24 pt
+/// (persona council 11-04). Display only, the notes don't change; kept per device like the
+/// appearance. The iPhone follows Dynamic Type instead.
 enum TextSize {
     static let key = "PintoTextSize"
     static let standard: CGFloat = 13
-    /// The sizes ⌘+ and ⌘− step through.
-    static let steps: [CGFloat] = [11, 12, 13, 14, 15, 16, 18, 20, 22, 24]
+    /// The sizes ⌘+ and ⌘− step through, and the slider's stops.
+    static let steps: [CGFloat] = [13, 15, 17, 20, 24]
     /// Posted on the main thread after the size changes.
     static let didChange = Notification.Name("PintoTextSizeDidChange")
 
-    static var body: CGFloat {
-        let v = CGFloat(UserDefaults.standard.double(forKey: key))
+    static let biggerTitle = "Make Text Bigger"
+    static let smallerTitle = "Make Text Smaller"
+    static let actualTitle = "Actual Size"
+
+    static var body: CGFloat { size(stored: UserDefaults.standard.double(forKey: key)) }
+
+    /// The size a stored value stands for: the standard one when nothing (or no stop) is stored.
+    static func size(stored: Double) -> CGFloat {
+        let v = CGFloat(stored)
         return steps.contains(v) ? v : standard
     }
     static var canGrow: Bool { body < steps.last! }
@@ -212,14 +223,25 @@ enum TextSize {
         bigger ? (steps.first { $0 > size } ?? size) : (steps.last { $0 < size } ?? size)
     }
 
+    /// Which stop `size` is, for the slider (the nearest one for a size between stops).
+    static func index(of size: CGFloat) -> Int {
+        steps.indices.min { abs(steps[$0] - size) < abs(steps[$1] - size) } ?? 0
+    }
+
+    /// What VoiceOver says, and the slider's value: "17 points".
+    static func spoken(_ size: CGFloat) -> String { "\(Int(size)) points" }
+
     @MainActor static func bigger() { set(step(from: body, bigger: true)) }
     @MainActor static func smaller() { set(step(from: body, bigger: false)) }
     @MainActor static func actualSize() { set(standard) }
 
     @MainActor static func set(_ size: CGFloat) {
-        guard size != body else { return }
+        guard size != body, steps.contains(size) else { return }
         if size == standard { UserDefaults.standard.removeObject(forKey: key) } else { UserDefaults.standard.set(Double(size), forKey: key) }
         NotificationCenter.default.post(name: didChange, object: nil)
+        // The change shows in the note; VoiceOver hears it.
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: "Text size \(spoken(size))", .priority: NSAccessibilityPriorityLevel.high.rawValue])
     }
 }
 #endif

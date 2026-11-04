@@ -341,7 +341,7 @@ enum LockedNotesCopy {
     static let header = "Locked notes"
     static let footer = "Locked notes open with your notes password until the app goes to the background or a few minutes pass. \(aiLine) If you forget the password, locked notes can\u{2019}t be recovered."
     /// What a connected AI sees of a locked note.
-    static let aiLine = "A connected AI sees the titles of locked notes, not what\u{2019}s in them. What an AI already read stays with that AI."
+    static let aiLine = "An AI sees that a locked note exists, not its title or text. What an AI already read stays with that AI."
     /// Before any note is locked: what an AI sees of one, and where to lock one (PrivacyCopy.lockedLine).
     static let howTo = PrivacyCopy.lockedLine
 }

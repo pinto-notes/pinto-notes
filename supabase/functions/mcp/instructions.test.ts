@@ -4,7 +4,7 @@ import { appsServed, instructions, servedPrompts, servedResources } from "./serv
 import { serverCard } from "./card.ts";
 import { CLASSIC_TOOL_NAMES } from "./tools.ts";
 import { servedTools } from "./tool_set.ts";
-import { FILE_INSTRUCTIONS } from "./files_tools.ts";
+import { ABOUT_ME_INSTRUCTIONS, FILE_INSTRUCTIONS } from "./files_tools.ts";
 import { appGuide, IN_CONTROL, scaffold } from "./app_scaffold.ts";
 import { appsGuide, PAGE_INSTRUCTIONS, pageGuide } from "./page_guide.ts";
 
@@ -129,4 +129,18 @@ Deno.test("every guide an AI gets for apps says the person stays in control insi
   assertStringIncludes(await pageGuide(), IN_CONTROL);
   assertStringIncludes((await scaffold("Habits"))["/README.md"], IN_CONTROL);
   assertStringIncludes(FILE_INSTRUCTIONS, IN_CONTROL);
+});
+
+Deno.test("every tool set tells an AI to read the About me note first and keep it current", () => {
+  for (const set of [undefined, "files", "classic", "pages"]) {
+    const text = instructions(set);
+    assertStringIncludes(text, ABOUT_ME_INSTRUCTIONS, `AMBER_MCP_TOOLS=${set}`);
+    // Near the top: an AI reads it before it starts, so the line comes before how the tools work.
+    assertEquals(text.split("\n")[1], ABOUT_ME_INSTRUCTIONS, `AMBER_MCP_TOOLS=${set}`);
+  }
+  for (const s of ['titled "About me"', "isn't locked", "read it first", "Keep it current", "something lasting", "tell them you did", "Never remove what they wrote"]) {
+    assertStringIncludes(ABOUT_ME_INSTRUCTIONS, s);
+  }
+  // It names no tool, so it holds whatever tools are served.
+  assertEquals(named(ABOUT_ME_INSTRUCTIONS), []);
 });

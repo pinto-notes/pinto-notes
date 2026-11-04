@@ -171,6 +171,46 @@ import Testing
         }
     }
 
+    /// The accessibility element with `id` under `element`, as VoiceOver finds it. SwiftUI's own
+    /// elements answer only through the selectors, not a Swift cast.
+    static func element(_ id: String, in element: Any, depth: Int = 0) -> NSObject? {
+        guard depth < 60, let e = element as? NSObject else { return nil }
+        if e.responds(to: #selector(NSAccessibilityProtocol.accessibilityIdentifier)), e.value(forKey: "accessibilityIdentifier") as? String == id { return e }
+        guard e.responds(to: #selector(NSAccessibilityProtocol.accessibilityChildren)) else { return nil }
+        for child in e.value(forKey: "accessibilityChildren") as? [Any] ?? [] {
+            if let found = Self.element(id, in: child, depth: depth + 1) { return found }
+        }
+        return nil
+    }
+
+    /// Persona council 11-04: "No note selected" with nothing to do there. Now a quiet line and a
+    /// New Note button (⌘N shown); pressing it makes a note and opens it, as File › New Note does.
+    @Test func theEmptyPaneOffersNewNote() async throws {
+        let c = try AppSnapshotTests.container()
+        let before = try c.mainContext.fetchCount(FetchDescriptor<Note>())
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            let w = MacWindowChromeTests.window(c, size: Self.size)
+            defer { w.close() }
+            await MacWindowChromeTests.settle(w)
+            try await Self.deselect(w)
+            // SwiftUI builds its accessibility tree once an assistive app asks; say one did.
+            NSApp.accessibilitySetValue(true, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface"))
+            defer { NSApp.accessibilitySetValue(false, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")) }
+            await MacWindowChromeTests.settle(w, 3)
+            let root = try #require(w.contentView)
+            let button = try #require(Self.element("detail.newNote", in: root), "a New Note button on the empty pane")
+            #expect(button.value(forKey: "accessibilityLabel") as? String == "New Note")
+            #expect(EmptyDetailView.title == "No note selected")
+            #expect(button.responds(to: #selector(NSAccessibilityProtocol.accessibilityPerformPress)))
+            _ = button.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
+            await MacWindowChromeTests.settle(w, 6)
+            #expect(try c.mainContext.fetchCount(FetchDescriptor<Note>()) == before + 1, "a new note")
+            let editor = try #require(w.contentView.flatMap { MacWindowChromeTests.find(PaneTextView.self, in: $0) }, "and it's open")
+            #expect(editor.string.isEmpty)
+            #expect(Self.element("detail.newNote", in: root) == nil, "the empty pane has gone")
+        }
+    }
+
     /// Emil (10-30, Recently Deleted with a note open): the grey band ran across the list and the
     /// note. Neither column shows it, in any folder, with or without a note.
     @Test func noColumnShowsTheGreyBand() async throws {

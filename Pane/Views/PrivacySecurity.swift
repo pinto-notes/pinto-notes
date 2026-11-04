@@ -34,7 +34,7 @@ enum PrivacyCopy {
     static let pintoTile = "Helps you back in"
     static let pintoRow = "Keeps a copy of your key"
     static let aiTile = "While connected"
-    static let aiRow = "Can read your notes while connected"
+    static let aiRow = "Can read and edit your notes while connected"
     /// Under "To help you back in", with a copy kept by Pinto Notes.
     static let backInFooterWithCopy = "Pinto Notes keeps a copy of your key so signing in opens your notes on a new device, which means Pinto Notes can open them too."
     /// Without one (Advanced protection on, or an account that hasn't answered the one-time question).
@@ -47,8 +47,9 @@ enum PrivacyCopy {
     static let saveARecoveryKey = "Save a recovery key"
     static let saveARecoveryKeyLine = "Opens your notes if you lose your devices."
     static let lockedTitle = "Locked notes"
-    /// "An AI", not "AIs": in this font "AIs" reads as "Als".
-    static let lockedLine = "An AI can see the title, not what\u{2019}s inside. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu."
+    /// "An AI", not "AIs": in this font "AIs" reads as "Als". An AI is shown "Locked note" in
+    /// place of the title (the MCP server's LOCKED_TITLE, 4 November 2026).
+    static let lockedLine = "An AI sees that a locked note exists, not its title or text. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu."
     static let howItWorks = "How it works"
 
     /// "How it works": every fact the page stands on, a title and a line or two each.
@@ -79,12 +80,19 @@ enum PrivacyCopy {
         }
         out.append(("sparkles", "Connected AIs",
                     "Each AI you connect holds its own copy of your key, locked to that connection\u{2019}s token and unlocked in memory only while its request is handled."
-                    + (serverCopy ? " It doesn\u{2019}t use Pinto Notes\u{2019} copy." : "") + " It can read your notes until you disconnect it."))
+                    + (serverCopy ? " It doesn\u{2019}t use Pinto Notes\u{2019} copy." : "") + " " + ConnectCopy.scope))
         if recovery {
             out.append(("key.horizontal", "Recovery key", "Opens your notes if you lose your devices. Keep it somewhere safe."))
         }
-        out.append(("lock.doc", "Locked notes", "Each locked note needs your notes password. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu. A connected AI sees the title, not what\u{2019}s inside."))
+        out.append(("lock.doc", "Locked notes", "Each locked note needs your notes password. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu. An AI sees that a locked note exists, not its title or text."))
         return out
+    }
+
+    /// Signed out, the page still says how it works (persona council, 4 November 2026: Marcus
+    /// reads it before he signs in), as for a new account: Pinto Notes keeps a copy of its key.
+    static let signedOutLine = "Sign in to see each device and AI that can open your notes. This is how it works for a new account."
+    static var signedOutHow: [(symbol: String, title: String, line: String)] {
+        how(serverCopy: true, advanced: false, keychain: false, recovery: false)
     }
 
     static let pageTitle = "Pinto Notes recovery key"
@@ -1125,10 +1133,46 @@ struct PDFFile: FileDocument {
 }
 
 #if os(macOS)
+/// Privacy and security signed out: one line on what signing in adds, every "How it works" line
+/// as a new account has them, and the website's longer page; then the notes password, if there is
+/// one, and the foot (diagnostics and the terms).
+struct SignedOutPrivacyPage: View {
+    let sync: SyncEngine?
+
+    var body: some View {
+        SettingsStack {
+            Text(PrivacyCopy.signedOutLine)
+                .font(.system(size: 13))
+                .foregroundStyle(SettingsInk.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 4)
+                .accessibilityIdentifier("privacy.signedOut")
+            SettingsGroup(header: PrivacyCopy.howItWorks) {
+                ForEach(PrivacyCopy.signedOutHow, id: \.title) { item in
+                    SettingsLine(title: item.title, detail: item.line) {
+                        Image(systemName: item.symbol).font(.system(size: 13)).foregroundStyle(SettingsInk.icon).frame(width: 28)
+                            .accessibilityHidden(true)
+                    } trailing: { EmptyView() }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("privacy.how.\(item.symbol)")
+                }
+                Link(destination: PrivacyCopy.learnMoreURL) {
+                    SettingsLinkLine(title: PrivacyCopy.learnMore, symbol: "safari")
+                }
+                .buttonStyle(.plain)
+                .hoverRow()
+                .accessibilityIdentifier("privacy.learnMore")
+            }
+            if NoteVault.shared.isSetUp { SettingsGroup { LockedNotesPassword(sync: sync) } }
+            PrivacyFoot(how: nil)
+        }
+    }
+}
+
 /// The foot of Privacy and security: Share diagnostics and usage with what it sends, How it
 /// works, then the terms and the privacy policy. There signed out too.
 struct PrivacyFoot: View {
-    /// Nil: no How it works (signed out, there's no key to explain).
+    /// Nil: no How it works link (signed out, its lines are on the page itself).
     var how: (() -> Void)?
     @AppStorage(Telemetry.consentKey) private var share = true
 

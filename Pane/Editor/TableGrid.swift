@@ -142,7 +142,8 @@ struct GridTable: Equatable {
         let width = max(columns, 1)
         let font = Self.cellFont
         let longest = (0..<width).map { c -> CGFloat in
-            ceil(rows.map { c < $0.count ? ($0[c] as NSString).size(withAttributes: [.font: font]).width : 0 }.max() ?? 0)
+            // As drawn: a link's words without its brackets (a Notion row's title, `[[Dune]]`).
+            ceil(rows.map { c < $0.count ? (($0[c].contains("[[") ? CellText.wikiShown($0[c]).text : $0[c]) as NSString).size(withAttributes: [.font: font]).width : 0 }.max() ?? 0)
         }
         // A column is 280 pt at most at the default text size, and more as the text grows, so a
         // date still fits its column at the largest sizes.
@@ -881,10 +882,16 @@ struct TableGridView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .contentShape(.rect)
                 #if os(macOS)
-                // A click here puts a caret in the text, so the pointer says so, like Notes.
-                .pointerStyle(.horizontalText)
+                // A click here puts a caret in the text, so the pointer says so, like Notes; over a
+                // link's words it's the pointing hand, since a click there opens the note.
+                .modifier(CellLinkPointer(value: value))
                 #endif
                 .onTapGesture { p in
+                    // A link's words open its note (a Notion row's page), as a link in the text does.
+                    if let controller, let target = CellText.link(in: value, at: p.x - 8, font: PFont.systemFont(ofSize: EditorMetrics.body)) {
+                        controller.openWiki(target)
+                        return
+                    }
                     begin(GridCell(row: r, column: c), at: Self.caretIndex(in: value, x: p.x, width: width, trailing: false))
                 }
         }
@@ -1078,6 +1085,31 @@ enum CellField {
     }
     #endif
 }
+
+#if os(macOS)
+/// The pointer over a cell: the text beam, and the pointing hand over a wiki link's words. Only a
+/// cell with a link in it follows the pointer, so a big table isn't tracking every cell.
+private struct CellLinkPointer: ViewModifier {
+    let value: String
+    @State private var overLink = false
+
+    func body(content: Content) -> some View {
+        if value.contains("[[") {
+            content
+                .pointerStyle(overLink ? .link : .horizontalText)
+                .onContinuousHover { phase in
+                    if case .active(let p) = phase {
+                        overLink = CellText.link(in: value, at: p.x - 8, font: PFont.systemFont(ofSize: EditorMetrics.body)) != nil
+                    } else {
+                        overLink = false
+                    }
+                }
+        } else {
+            content.pointerStyle(.horizontalText)
+        }
+    }
+}
+#endif
 
 /// Development traces for the QA harness; compiled out of real builds.
 @inline(__always) func qaTrace(_ s: @autoclosure () -> String) {

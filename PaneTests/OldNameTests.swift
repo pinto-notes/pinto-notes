@@ -18,8 +18,8 @@ import Testing
         "SetupCards.swift: In Claude it\\u{2019}s still called Amber Notes, our old name.",
     ]
 
-    /// The app's and the share extension's code, copied into the test bundle (project.yml).
-    static let folders = ["App", "Model", "Editor", "Sync", "Telemetry", "Views", "PaneShare"]
+    /// The app's, the share extension's and the widgets' code, copied into the test bundle (project.yml).
+    static let folders = ["App", "Model", "Editor", "Sync", "Telemetry", "Views", "PaneShare", "PaneWidgets"]
 
     @Test func noStringInTheCodeSaysTheOldName() throws {
         var found: [String] = []

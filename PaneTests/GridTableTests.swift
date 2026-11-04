@@ -191,6 +191,13 @@ import Testing
         #expect(widths[0] >= ceil(drawn) + 16 - 0.01, "the date column holds its dates with the cell's insets: \(widths[0]) for \(drawn)")
     }
 
+    /// A Notion database's titles link their pages; the column fits the words drawn, not the brackets.
+    @Test func aLinkedColumnFitsItsWordsNotItsBrackets() {
+        let linked = GridTable(rows: [["Name", "Author"], ["[[Klara and the Sun]]", "Kazuo Ishiguro"]], range: NSRange(location: 0, length: 0), index: 0)
+        let plain = GridTable(rows: [["Name", "Author"], ["Klara and the Sun", "Kazuo Ishiguro"]], range: NSRange(location: 0, length: 0), index: 0)
+        #expect(linked.columnWidths(available: 200) == plain.columnWidths(available: 200))
+    }
+
     @Test func aWideTableStillScrolls() {
         let wide = GridTable(rows: [(0..<8).map { "Column number \($0)" }], range: NSRange(location: 0, length: 0), index: 0)
         #expect(wide.columnWidths(available: 340).reduce(0, +) > 340)

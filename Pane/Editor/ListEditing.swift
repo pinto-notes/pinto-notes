@@ -171,6 +171,59 @@ enum ListEditing {
         return TextEdit(range: whole, replacement: replacement, caret: newCaret)
     }
 
+    // MARK: Untick All
+
+    /// The checklist the line at `location` is in: every checklist line next to it, up and down,
+    /// nested items included. Empty when that line isn't a checklist item.
+    static func checklistRun(in ns: NSString, at location: Int) -> [NSRange] {
+        guard location <= ns.length else { return [] }
+        func isItem(_ r: NSRange) -> Bool { ListPrefix(line: ns.substring(with: r))?.checkbox != nil }
+        let here = ns.lineRange(for: NSRange(location: min(location, ns.length), length: 0))
+        // The caret at the very end, after a last line's newline, is on an empty line of its own.
+        if location == ns.length, location > 0, ns.character(at: location - 1) == 0x0A { return [] }
+        guard here.length > 0, isItem(here) else { return [] }
+        var run = [here]
+        while let first = run.first, first.location > 0 {
+            let up = ns.lineRange(for: NSRange(location: first.location - 1, length: 0))
+            guard isItem(up) else { break }
+            run.insert(up, at: 0)
+        }
+        while let last = run.last, NSMaxRange(last) < ns.length {
+            let down = ns.lineRange(for: NSRange(location: NSMaxRange(last), length: 0))
+            guard down.length > 0, isItem(down) else { break }
+            run.append(down)
+        }
+        return run
+    }
+
+    /// How many items are ticked in the checklist at `location` (Format › Untick All is on when any are).
+    static func tickedCount(in text: String, at location: Int) -> Int {
+        let ns = text as NSString
+        return checklistRun(in: ns, at: location).filter { ListPrefix(line: ns.substring(with: $0))?.checkbox == true }.count
+    }
+
+    /// Format › Untick All, as Notes' Uncheck All: every ticked item in the checklist at `location`
+    /// is open again, each where it is, the rest of the note untouched. One edit across the list
+    /// (one step of Undo), and how many it unticked. Nil when nothing there is ticked.
+    static func untickAll(in text: String, at location: Int) -> (edit: TextEdit, count: Int)? {
+        let ns = text as NSString
+        let run = checklistRun(in: ns, at: location)
+        guard let first = run.first, let last = run.last else { return nil }
+        let whole = NSRange(location: first.location, length: NSMaxRange(last) - first.location)
+        let out = NSMutableString(string: ns.substring(with: whole))
+        var count = 0
+        for line in run {
+            guard let p = ListPrefix(line: ns.substring(with: line)), p.checkbox == true else { continue }
+            // The mark inside `[x]`, where a click on its circle would change it.
+            let box = (ns.substring(with: line) as NSString).range(of: "[", options: [], range: NSRange(location: (p.indent as NSString).length, length: p.length - (p.indent as NSString).length))
+            guard box.location != NSNotFound else { continue }
+            out.replaceCharacters(in: NSRange(location: line.location - whole.location + box.location + 1, length: 1), with: " ")
+            count += 1
+        }
+        guard count > 0 else { return nil }
+        return (TextEdit(range: whole, replacement: out as String, caret: -1), count)
+    }
+
     /// The caret never sits inside a list line's hidden marker: it steps over it,
     /// forwards to the text, or back to the previous line when moving left.
     static func caretOutsideMarker(in text: String, selection: NSRange, previous: NSRange?) -> Int? {

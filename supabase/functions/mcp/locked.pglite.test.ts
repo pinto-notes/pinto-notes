@@ -10,7 +10,7 @@ import { toBase64 } from "../_shared/e2ee.ts";
 import { previewOf, titleOf } from "./notes.ts";
 import { asUser, schemaDB } from "./pglite.ts";
 import { type Account, account, app, edit, note, opened, share, toolContext } from "./sealed.ts";
-import { runTool, ToolError } from "./tools.ts";
+import { LOCKED_TITLE, runTool, ToolError } from "./tools.ts";
 
 /** A salt and its key id, as the app makes them (16 random bytes; SHA-256 of them, 16 hex digits). */
 async function newSalt() {
@@ -261,7 +261,7 @@ Deno.test("restoring a version saved while locked brings the ciphertext back", a
   assertEquals(await a.vault.openHead(id, back.head_ct), { title: "Diary" });
 });
 
-Deno.test("MCP: search skips locked notes; the list shows them as locked, title only", async () => {
+Deno.test("MCP: search skips locked notes; the list shows them as locked, as \"Locked note\"", async () => {
   const { pg, a } = await setUp();
   await note(pg, a, "Groceries\n\nOat milk and saffron");
   const lockedId = await locked(pg, a, "Saffron recipe");
@@ -272,20 +272,29 @@ Deno.test("MCP: search skips locked notes; the list shows them as locked, title 
   }
   const list = await tool(pg, a, "list_notes");
   const row = list.notes.find((n: { id: string }) => n.id === lockedId);
-  assertEquals(row.title, "Saffron recipe");
+  assertEquals(row.title, LOCKED_TITLE);
   assertEquals(row.locked, true);
   assertEquals(row.preview, undefined);
   const overview = await tool(pg, a, "get_overview");
-  assert(overview.recently_edited.some((n: { id: string; locked?: boolean }) => n.id === lockedId && n.locked));
+  assert(overview.recently_edited.some((n: { id: string; title: string; locked?: boolean }) => n.id === lockedId && n.locked && n.title === LOCKED_TITLE));
+  // The AI sees that it exists, never what it's called.
+  for (const r of [list, overview, await tool(pg, a, "list_notes", { sort: "title", include_sub_notes: true }), await tool(pg, a, "search", { query: "recipe" })]) {
+    assert(!JSON.stringify(r).includes("Saffron recipe"), JSON.stringify(r));
+  }
 });
 
-Deno.test("MCP: reading a locked note says it's locked; by id or by title", async () => {
+Deno.test("MCP: reading a locked note says it's locked, by id; its title finds nothing", async () => {
   const { pg, a } = await setUp();
   const id = await locked(pg, a, "Passwords");
-  for (const [name, args] of [["read_note", { id }], ["read_note", { title: "Passwords" }], ["fetch", { id }], ["note_history", { id }], ["read_table", { id }]] as const) {
+  for (const [name, args] of [["read_note", { id }], ["read_note", { title: LOCKED_TITLE }], ["fetch", { id }], ["note_history", { id }], ["read_table", { id }]] as const) {
     const e = await assertRejects(() => tool(pg, a, name, args), ToolError);
     assertStringIncludes(e.message, "This note is locked", name);
+    assert(!e.message.includes("Passwords"), `${name} named it: ${e.message}`);
   }
+  // Its real title is no way in, and the answer doesn't confirm a locked note has it.
+  const e = await assertRejects(() => tool(pg, a, "read_note", { title: "Passwords" }), ToolError);
+  assertStringIncludes(e.message, "No note titled");
+  assert(!/locked/i.test(e.message), e.message);
 });
 
 Deno.test("MCP: every change to a locked note is refused and nothing changes", async () => {

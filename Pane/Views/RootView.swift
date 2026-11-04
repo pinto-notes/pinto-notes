@@ -65,6 +65,7 @@ struct RootView: View {
     #endif
     /// The import sheet showing (Evernote, Markdown…).
     @State private var importing: ImportKind?
+    @State private var pendingSharedDelete: [Note]?
     /// Files the import sheet opens with (shared, opened from Files, dropped on the app).
     @State private var importFiles: [URL] = []
     @AppStorage("lastScope") private var lastScopeData: Data = Data()
@@ -127,8 +128,7 @@ struct RootView: View {
             .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
                 if let client = backendForConnect?.client { ConnectAISheet(client: client) }
             }
-            // Collaboration (prototype): an invitation to someone else's note.
-            .modifier(CollabInviteAlert())
+            .sharedDeleteConfirmation($pendingSharedDelete) { removeNow($0) }
             .onReceive(NotificationCenter.default.publisher(for: FileRefusal.notification)) { n in refusal = n.object as? FileRefusal }
             .alert(refusal?.title ?? "", isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } })) {
                 Button("OK") {}
@@ -500,13 +500,14 @@ struct RootView: View {
                         restoreScope()
                         restoreNote()
                         openFromLaunchArguments()
+                        openAskedFromOutside()
                     }
                 }
                 #else
                 restoreScope()
                 restoreNote()
                 openFromLaunchArguments()
-                reveal(NoteOpener.shared.request)
+                openAskedFromOutside()
                 #endif
             }
             .onChange(of: scope) { _, new in
@@ -535,8 +536,10 @@ struct RootView: View {
             #endif
             // The first-run flow just ended: the notes open on what it left ready.
             .task(id: onboarding?.landing) { openLanding() }
-            // A note opened from the menu bar.
+            // A note opened from the menu bar or the Home Screen widget.
             .onChange(of: NoteOpener.shared.request) { _, id in reveal(id) }
+            // New Note from Control Centre, the Lock Screen, the Action button or Siri.
+            .onChange(of: NoteOpener.shared.newNoteAsked) { _, asked in if asked { openAskedFromOutside() } }
             // From the onboarding emails: ambernotes.app/open/import and /open/history.
             .onChange(of: AppPlaceCenter.shared.pending, initial: true) { _, place in openPlace(place) }
             .modifier(AIChangesPresenter())
@@ -677,7 +680,7 @@ struct RootView: View {
             .sheet(item: $importing, onDismiss: EvernoteInbox.clear) { kind in
                 ImportFlow(kind: kind, files: importFiles) { ids in
                     #if os(macOS)
-                    // Show My Notes: the folder the import made, open on a note its list shows.
+                    // Show Imported Notes: the folder the import made, open on a note its list shows.
                     if !ids.isEmpty {
                         let landing = context.importLanding(of: ids)
                         scope = landing.scope
@@ -709,6 +712,12 @@ struct RootView: View {
     /// Edit › Delete: every selected note goes to Recently Deleted (or, there, is deleted for good).
     private func deleteSelected() {
         let notes = selection.compactMap { context.note($0) }
+        // A shared note asks first: people lose it, or it leaves your notes.
+        if SharedDelete.ask(notes) != nil { pendingSharedDelete = notes; return }
+        removeNow(notes)
+    }
+
+    private func removeNow(_ notes: [Note]) {
         withAnimation(.snappy(duration: 0.25)) {
             context.remove(notes)
             selection = []
@@ -769,7 +778,7 @@ struct RootView: View {
             if shown.count > 1 {
                 MultipleSelectionView(count: shown.count, items: shown.contains { context.attachment($0) != nil })
             } else if !behindSetupCard {
-                EmptyDetailView()
+                EmptyDetailView(newNote: newNote)
             } else {
                 Color.clear
             }
@@ -900,11 +909,39 @@ struct RootView: View {
     }
 
     /// Shows a note asked for from outside the window, switching to All Notes if it isn't in view.
-    private func reveal(_ id: UUID?) {
+    private func reveal(_ id: UUID?, waited: Int = 0) {
         guard let id, let note = context.note(id), note.deletedAt == nil else { return }
         NoteOpener.shared.request = nil
-        if note.trashedAt != nil { scope = .trash } else if case .folder(let f) = scope, note.folder?.id == f {} else { scope = .all }
+        #if os(iOS)
+        // One screen at a time, UIKit drops a push made while an alert is up or still closing,
+        // yet the note stays selected: Join on a shared note's link left its row chosen in All
+        // Notes and the note unopened. It opens once the alert has gone.
+        if Presentation.waitsToOpen(compact: sizeClass == .compact, presenting: Presentation.isActive, waited: waited) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { reveal(id, waited: waited + 1) }
+            return
+        }
+        #endif
+        if note.trashedAt != nil { scope = .trash } else if case .folder(let f) = scope, note.folder?.id == f {} else {
+            #if os(iOS)
+            // Its folder's list under it, as for a note search found, so back leads there.
+            scope = Scope.opening(note)
+            #else
+            scope = .all
+            #endif
+        }
         selectedNote = id
+    }
+
+    /// What was asked for before the notes showed (a launch from the widget, a control or Siri):
+    /// a new note, or a note to show.
+    private func openAskedFromOutside() {
+        if NoteOpener.shared.newNoteAsked {
+            NoteOpener.shared.newNoteAsked = false
+            NoteOpener.shared.request = nil
+            newNote()
+        } else {
+            reveal(NoteOpener.shared.request)
+        }
     }
 
     /// Reopen the note you were on; otherwise the one you edited last.
@@ -950,12 +987,37 @@ struct MultipleSelectionView: View {
 }
 
 struct EmptyDetailView: View {
+    /// File › New Note, from here too (persona council 11-04: the empty pane offered nothing to
+    /// write). Nil where a note can't be made from this pane.
+    var newNote: (() -> Void)? = nil
+
+    static let title = "No note selected"
+
     var body: some View {
-        // Words only, like Notes (Emil, 11-03: no app icon on the empty states).
-        VStack(spacing: 10) {
-            Text("No note selected")
+        // Words, and one way on (Emil, 11-03: no app icon on the empty states).
+        VStack(spacing: 14) {
+            Text(Self.title)
                 .font(.callout)
                 .foregroundStyle(Color.muted)
+            if let newNote {
+                Button(action: newNote) {
+                    HStack(spacing: 8) {
+                        Text("New Note")
+                        #if os(macOS)
+                        // The shortcut, as a menu shows it; ⌘N itself stays with File › New Note.
+                        Text("\u{2318}N")
+                            .foregroundStyle(Color.muted)
+                            .accessibilityHidden(true)
+                        #endif
+                    }
+                }
+                .buttonStyle(.secondary)
+                .accessibilityLabel("New Note")
+                .accessibilityIdentifier("detail.newNote")
+                #if os(macOS)
+                .help("New Note (\u{2318}N)")
+                #endif
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -1147,13 +1209,13 @@ struct PaneCommands: Commands {
                 .disabled(editor == nil)
             Divider()
             // Note text, as in Notes' View menu. A PDF or picture open takes ⌘+ and ⌘− for its zoom.
-            Button("Bigger") { TextSize.bigger() }
+            Button(TextSize.biggerTitle) { TextSize.bigger() }
                 .keyboardShortcut("+", modifiers: .command)
                 .disabled(textSize >= Double(TextSize.steps.last!))
-            Button("Smaller") { TextSize.smaller() }
+            Button(TextSize.smallerTitle) { TextSize.smaller() }
                 .keyboardShortcut("-", modifiers: .command)
-                .disabled(textSize != 0 && textSize <= Double(TextSize.steps.first!))
-            Button("Actual Size") { TextSize.actualSize() }
+                .disabled(textSize == 0 || textSize <= Double(TextSize.steps.first!))
+            Button(TextSize.actualTitle) { TextSize.actualSize() }
                 .keyboardShortcut("0", modifiers: .command)
                 .disabled(textSize == 0)
             Divider()
@@ -1217,6 +1279,10 @@ struct PaneCommands: Commands {
                 Button("Monostyled") { editor?.code() }.keyboardShortcut("m", modifiers: [.command, .shift])
                 Divider()
                 Button("Checklist") { editor?.checklist() }.keyboardShortcut("l", modifiers: [.command, .shift])
+                // Notes' Uncheck All, in the app's word: on in a checklist with something ticked.
+                Button(EditorController.untickAllTitle) { editor?.untickAll() }
+                    .keyboardShortcut("l", modifiers: [.command, .option, .shift])
+                    .disabled(editor?.canUntickAll != true)
                 Button("Bulleted List") { editor?.bulletList() }.keyboardShortcut("7", modifiers: [.command, .shift])
                 Button("Dashed List") { editor?.dashedList() }.keyboardShortcut("8", modifiers: [.command, .shift])
                 Button("Numbered List") { editor?.numberedList() }.keyboardShortcut("9", modifiers: [.command, .shift])
@@ -1245,6 +1311,13 @@ enum Presentation {
         UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
             .contains { $0.rootViewController?.presentedViewController != nil }
+    }
+
+    /// Whether a note asked to open waits another tenth of a second: only on one screen at a
+    /// time, only while something is presented, and for three seconds at most (a sheet left open
+    /// on purpose then gets the push it always got).
+    static func waitsToOpen(compact: Bool, presenting: Bool, waited: Int) -> Bool {
+        compact && presenting && waited < 30
     }
 }
 #endif

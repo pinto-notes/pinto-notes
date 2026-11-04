@@ -6,6 +6,7 @@
 // which sub-notes a list hides, which notes embed a file) happens here, in memory, as a scan with
 // a time budget per account.
 
+import type { Shared } from "./shared_notes.ts";
 import type { PendingQuery, Row, Sql, TransactionSql } from "npm:postgres@3.4.5";
 import { toBase64, type Head, type Vault } from "../_shared/e2ee.ts";
 import { errorKind, log } from "../_shared/log.ts";
@@ -364,9 +365,13 @@ async function storageFull(ctx: ToolContext, claims: string): Promise<ToolError>
 export type NoteRow = {
   id: string; body_ct?: string | null; head_ct: string; locked_body: string | null; folder_id: string | null; parent_id: string | null;
   is_pinned: boolean; created_at: Date; updated_at: Date; trashed_at: Date | null; version: string;
+  /** A pointer to a shared note (20261104100000): its text is the shared document, its body a placeholder. */
+  shared_note_id?: string | null;
 };
-/** A note with its head (title and preview) opened. */
-export type Note = NoteRow & { title: string; preview?: string };
+/** A note with its head (title and preview) opened. A shared note (shared_notes.ts) carries its
+ *  membership and key: its text is a document, never this row's body. A virtual one has no row of
+ *  this account's yet (it shows in "Shared with me/" until a device places it). */
+export type Note = NoteRow & { title: string; preview?: string; shared?: Shared; virtual?: boolean };
 export type FolderRow = { id: string; name: string; parent_id: string | null; sort_index: number };
 
 /** Everything but the body, for lists: bodies can be megabytes. */
@@ -374,8 +379,14 @@ export const HEAD_COLUMNS = (tx: Tx) => tx`id, head_ct, locked_body, folder_id, 
 
 const UNREADABLE = "(this note can't be opened here)";
 
-/** A note's title and preview. One that won't open (written with another key) still lists. */
+/** What an AI sees in place of a locked note's title: the title is the person's, like the text.
+ *  The AI still sees that the note is there (and that it's locked), so lists and paths add up. */
+export const LOCKED_TITLE = "Locked note";
+
+/** A note's title and preview. One that won't open (written with another key) still lists. A
+ *  locked note's head isn't opened: it shows as LOCKED_TITLE. */
 export async function withHead(v: Vault, n: NoteRow): Promise<Note> {
+  if (n.locked_body !== null && n.locked_body !== undefined) return { ...n, title: LOCKED_TITLE };
   let h: Head;
   try { h = await v.openHead(n.id, n.head_ct); } catch { h = { title: UNREADABLE }; }
   return { ...n, title: h.title, ...(h.preview !== undefined ? { preview: h.preview } : {}) };
@@ -524,7 +535,8 @@ export async function descendants(tx: Tx, id: string): Promise<string[]> {
   return rows.map((r) => r.id);
 }
 
-/** A locked note's text is sealed with the user's notes password; here only its title opens. */
+export const SHARED_ROW = "This note is shared with other people, so its text is changed through the shared note itself. Fetch it again and change it with edit or write.";
+/** A locked note's text is sealed with the user's notes password; here nothing of it opens, not even its title. */
 export const LOCKED = "This note is locked. Its text is encrypted on the user's devices: it can't be read, searched or changed here. The user can open it in Pinto Notes.";
 
 export function refuseLocked(n: Note) {
@@ -681,6 +693,8 @@ export async function notesById(tx: Tx, v: Vault, ids: string[]): Promise<Note[]
  */
 export async function save(tx: Tx, c: Call, note: Note, before: string, body: string, expected?: unknown) {
   checkSize(body);
+  // A shared note's text is its document (shared_notes.ts); its row here is only where it sits.
+  if (note.shared) throw new ToolError(SHARED_ROW);
   const want = expected !== undefined && expected !== null ? wholeNumber(expected, "expected_version") : undefined;
   if (body === before) {
     if (want !== undefined && want !== Number(note.version)) throw new ToolError(`The note changed since version ${expected}. Read it again and retry.`);
@@ -693,8 +707,13 @@ export async function save(tx: Tx, c: Call, note: Note, before: string, body: st
       head_ct = ${sameHead ? note.head_ct : await c.v.sealHead(note.id, head)}, updated_at = now()
     where id = ${note.id}
       ${want !== undefined ? tx`and version = ${want}` : tx``}
+      and shared_note_id is null
     returning version, updated_at`;
-  if (!rows.length) throw new ToolError(`The note changed since version ${expected}. Read it again and retry.`);
+  if (!rows.length) {
+    const [s] = await tx<{ shared: boolean }[]>`select shared_note_id is not null as shared from public.notes where id = ${note.id}`;
+    if (s?.shared) throw new ToolError(SHARED_ROW);
+    throw new ToolError(`The note changed since version ${expected}. Read it again and retry.`);
+  }
   return { id: note.id, title: head.title, version: Number(rows[0].version), updated: iso(rows[0].updated_at) };
 }
 
@@ -1058,8 +1077,10 @@ export const handlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<unkn
     const { title } = await withHead(c.v, { ...n, head_ct: r.head_ct });
     await tx`select set_config('pane.source', 'restore', true)`;
     const [done] = await tx<{ version: string; updated_at: Date }[]>`
-      update public.notes set body_ct = ${r.body_ct}, head_ct = ${r.head_ct}, updated_at = now() where id = ${n.id}
+      update public.notes set body_ct = ${r.body_ct}, head_ct = ${r.head_ct}, updated_at = now() where id = ${n.id} and shared_note_id is null
       returning version, updated_at`;
+    // A shared note's row is a pointer: its text is the shared document's, never a version of the row.
+    if (!done) throw new ToolError(SHARED_ROW);
     return { restored: { id: n.id, title, version: Number(done.version), updated: iso(done.updated_at) } };
   },
 

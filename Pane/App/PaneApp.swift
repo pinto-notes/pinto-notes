@@ -135,6 +135,13 @@ struct PaneApp: App {
         NoteVault.shared = inMemory ? NoteVault(keyStore: MemoryKeyStore(), defaults: MemoryDefaults(), drivesSync: true)
             : NoteVault(keyStore: KeychainKeyStore(), drivesSync: true)
         Capture.lockedNotesFromArguments(container.mainContext)
+        // Amber Notes Beta only: the two-device check of shared notes, from a local steps file.
+        CollabScript.runIfRequested(context: container.mainContext, signIn: { email, password in try await backend.signIn(email: email, password: password) },
+                                    skipIntro: {
+            if AccountCrypto.shared.needsWelcome { AccountCrypto.shared.welcomeShown() }
+            if session.onboarding.phase != .off { session.onboarding.finish(landing: nil) }
+            if session.heardFrom.visible { session.heardFrom.skip() }
+        })
         // "Did you know" tips; their counts go to the server when signed in.
         TipLog.client = backend.client
         FeatureUse.client = backend.client
@@ -156,13 +163,6 @@ struct PaneApp: App {
             #else
             NotePageSandbox.prewarm()
             #endif
-        }
-        // Collaboration (prototype): `-collab <name>` against the local relay (scripts/collab-demo.sh).
-        if let collab = CollabStore.fromArguments() {
-            collab.context = container.mainContext
-            CollabStore.shared = collab
-            Task { @MainActor in await collab.start() }
-            CollabDemo.run(container.mainContext, store: collab)
         }
         #if os(macOS)
         Capture.demoSequenceFromArguments(container.mainContext)
@@ -206,13 +206,15 @@ struct PaneApp: App {
                 } else if ProcessInfo.processInfo.arguments.contains("-template") {
                     CollabGallery.templateSheet().tint(Color(PColor.paneAccent))
                 } else if ProcessInfo.processInfo.arguments.contains("-share") {
-                    NavigationStack { ShareForm(title: "Team offsite", state: CollabGallery.shareWithPhoto) }.tint(Color(PColor.paneAccent))
+                    NavigationStack { ShareForm(share: ShareController(note: Note(body: "Team offsite"), backend: SampleShare(CollabGallery.shareWithPhoto))) }.tint(Color(PColor.paneAccent))
                 } else {
                     CollabGallery().tint(Color(PColor.paneAccent))
                 }
             } else {
                 AppGate(backend: backend, sync: sync, session: session)
                     .connectHandler(backend: backend)
+                    // A note's link opened in the app joins the note (after sign-in, if need be).
+                    .joinLinkHandler()
                     .followsTheme()
                     .followsAppearanceMode(pinned: Self.testScheme)
             }
@@ -865,6 +867,7 @@ final class AppSession {
             heardFrom.attach(account: nil, service: nil)
             if backend.state == .disabled { NoteVault.shared.attach(account: nil, remote: nil) } else { NoteVault.shared.lockNow() }
             AccountCrypto.shared.signedOut()
+            CollabStore.detach()
             KeyDevices.shared.attach(account: nil, server: nil)
             PushRegistration.shared.detach()
             await sync.stop()
@@ -988,6 +991,7 @@ final class AppSession {
             Task { await n.start() }
         }
         await sync.start()
+        if let user = backend.userID { await CollabStore.attach(client: client, account: user, context: context) }
         await firstPullAnswered()
         await setup.refresh(force: true)
         // Tips wait for this: never a tip for something this account has used anywhere.
@@ -1336,6 +1340,8 @@ struct AppGate: View {
                     await KeyDevices.shared.refresh(AccountCrypto.shared)
                 }
                 context.drainInbox()
+                // Ticks made in the Home Screen widget go into their notes before sync sends them.
+                context.syncChecklistShelf()
                 context.foldSubNotesIntoFolders()
                 sync.schedule()
             } else {
@@ -1344,6 +1350,8 @@ struct AppGate: View {
                 // sheet gets the folders as they are now.
                 DebouncedSave.flushAll()
                 context.publishFolderChoices()
+                // The widget and the share sheet get the lists and recent notes as they are now.
+                context.publishChecklistShelf()
                 sync.schedule()
             }
         }
@@ -1363,7 +1371,10 @@ struct AppGate: View {
             if let connectAsks { Task { await connectAsks.refresh() } }
             if let notices { Task { await notices.refresh() } }
         }
-        .onAppear { context.drainInbox() }
+        .onAppear {
+            context.drainInbox()
+            context.syncChecklistShelf()
+        }
     }
 
     #if os(macOS)

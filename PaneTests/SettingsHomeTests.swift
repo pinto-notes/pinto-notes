@@ -85,13 +85,6 @@ import Testing
         for word in ["text size", "font size", "bigger", "zoom"] {
             #expect(SettingsIndex.matches(word, available: all).map(\.place).contains(.appearance), "\(word) finds Appearance")
         }
-        #expect(AppearanceSettingsPage.shown(0) == 13 && AppearanceSettingsPage.shown(16) == 16 && AppearanceSettingsPage.shown(17) == 13)
-        #expect(AppearanceSettingsPage.textSizeDetail(0).contains("⌘+"))
-        // The stepper's arrows are off at the ends (council round 4).
-        #expect(AppearanceSettingsPage.canStep(0, bigger: true) && AppearanceSettingsPage.canStep(0, bigger: false))
-        #expect(!AppearanceSettingsPage.canStep(24, bigger: true) && AppearanceSettingsPage.canStep(24, bigger: false))
-        #expect(AppearanceSettingsPage.canStep(11, bigger: true) && !AppearanceSettingsPage.canStep(11, bigger: false))
-        #expect(AppearanceSettingsPage.textSizeDetail(16).contains("13 pt") && AppearanceSettingsPage.textSizeDetail(16).contains("Actual Size"))
         // The theme pictures are drawn in the mode showing (dark Settings showed light windows).
         let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .appending(path: "Pane/Views/SettingsPages.swift"), encoding: .utf8)
@@ -313,10 +306,16 @@ import Testing
         for part in ["its own copy of your key", "token", "in memory only while", "doesn\u{2019}t use Pinto Notes\u{2019} copy"] {
             #expect(ai.contains(part), "\(part)")
         }
-        // Locked notes: an AI sees their titles, not their contents, and keeps what it already read.
-        for text in [LockedNotesCopy.footer, LockedNotesCopy.howTo] { #expect(text.contains("title"), "\(text)") }
-        #expect(LockedNotesCopy.footer.contains("titles of locked notes, not what\u{2019}s in them") && LockedNotesCopy.footer.contains("stays with that AI"))
-        #expect(LockedNotesCopy.howTo == "An AI can see the title, not what\u{2019}s inside. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu.")
+        // Locked notes: an AI sees that one exists, not its title or text, and keeps what it already read.
+        for text in [LockedNotesCopy.footer, LockedNotesCopy.howTo] { #expect(text.contains("not its title or text"), "\(text)") }
+        #expect(LockedNotesCopy.footer.contains("An AI sees that a locked note exists") && LockedNotesCopy.footer.contains("stays with that AI"))
+        // Every place that explains locked notes says the same; none says an AI sees the title.
+        let how = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Locked notes" }?.line ?? ""
+        for text in [LockedNotesCopy.footer, LockedNotesCopy.howTo, PrivacyCopy.lockedLine, how] {
+            #expect(text.contains("An AI sees that a locked note exists, not its title or text."), "\(text)")
+            #expect(!text.contains("sees the title") && !text.contains("see the title") && !text.contains("titles of locked notes"), "\(text)")
+        }
+        #expect(LockedNotesCopy.howTo == "An AI sees that a locked note exists, not its title or text. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu.")
         #expect(!LockedNotesCopy.howTo.contains("AIs"), "\"AIs\" reads as \"Als\"")
         #expect([PrivacyCopy.showRecovery, PrivacyCopy.hideRecovery, PrivacyCopy.saveRecovery] == ["Show Recovery Key", "Hide Recovery Key", "Save Recovery Key\u{2026}"])
         #expect(LockedNotesCopy.header == "Locked notes")

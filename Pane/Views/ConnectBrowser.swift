@@ -63,8 +63,9 @@ enum BrowserConnect {
     static func sent(_ g: Guide) -> String {
         "The notes \(g.title) opens, with their text and files, are sent to \(maker(g)) and handled under \(maker(g))\u{2019}s privacy policy."
     }
-    static let lockedLead = "Locked notes stay private."
-    static func lockedDetail(_ g: Guide) -> String { "\(g.title) can\u{2019}t open them." }
+    /// What Connect lets it do, as every Allow says it (ConnectCopy.scope). It replaced "Locked
+    /// notes stay private." on 4 November 2026: the scope says that, and how long it lasts.
+    static let scope = ConnectCopy.scope
     static func instead(_ g: Guide) -> String { "Connect \(g.title) instead" }
 
     static func button(_ g: Guide, listing: URL? = ChatGPTPlugin.listing) -> String {
@@ -259,10 +260,10 @@ struct ConnectBrowserSheet: View {
                             .font(.system(size: 14)).foregroundStyle(Color.muted)
                             .fixedSize(horizontal: false, vertical: true)
                     } else {
+                        wideFact("square.and.pencil", lead: BrowserConnect.scope, "")
+                            .accessibilityIdentifier("connect.browser.scope")
                         wideFact("paperplane", lead: BrowserConnect.sharedLead(run.ai), BrowserConnect.sent(run.ai))
                             .accessibilityIdentifier("connect.browser.shared")
-                        wideFact("lock", lead: BrowserConnect.lockedLead, BrowserConnect.lockedDetail(run.ai))
-                            .accessibilityIdentifier("connect.browser.locked")
                         if run.waits { waitingRow.frame(height: 30) }
                     }
                 }
@@ -316,7 +317,7 @@ struct ConnectBrowserSheet: View {
     private func wideFact(_ symbol: String, lead: String, _ detail: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Image(systemName: symbol).foregroundStyle(Color.muted).frame(minWidth: 16).accessibilityHidden(true)
-            (Text(lead).fontWeight(.semibold).foregroundColor(Color.ink) + Text(" " + detail))
+            (Text(lead).fontWeight(.semibold).foregroundColor(Color.ink) + Text(detail.isEmpty ? "" : " " + detail))
                 .foregroundStyle(Color.muted)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -355,6 +356,7 @@ struct ConnectBrowserSheet: View {
                 .font(Self.compact ? .body : .system(size: 14))
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("connect.browser.line")
+            scopeFact
             shared
             VStack(spacing: 4) {
                 if run.waits {
@@ -391,6 +393,24 @@ struct ConnectBrowserSheet: View {
                 .accessibilityIdentifier("connect.browser.\(g.rawValue)")
             }
         }
+    }
+
+    /// What Connect lets it do, always in view: Connect here counts as the Allow.
+    private var scopeFact: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: "square.and.pencil")
+                .font(Self.compact ? .callout : .system(size: 13))
+                .foregroundStyle(Color.muted)
+                .accessibilityHidden(true)
+            Text(BrowserConnect.scope)
+                .font(Self.compact ? .callout : .system(size: 13))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.ink)
+                .lineSpacing(1.5)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("connect.browser.scope")
     }
 
     /// What is shared and with whom, always in view.

@@ -195,8 +195,21 @@ enum NoteIntents {
     }
 }
 
+/// What Siri and Spotlight offer without setting anything up, in plain words (ListIntents for the
+/// checklist ones). "Add to Groceries in Pinto Notes" names the note; Siri then asks what to add.
 struct AmberShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
+        AppShortcut(intent: NewNoteIntent(), phrases: ["New note in \(.applicationName)", "Start a note in \(.applicationName)",
+                                                       "Write a note in \(.applicationName)"],
+                    shortTitle: "New Note", systemImageName: "square.and.pencil")
+        AppShortcut(intent: AddToListIntent(), phrases: ["Add to \(\.$note) in \(.applicationName)", "Add to a list in \(.applicationName)",
+                                                         "Add an item to a list in \(.applicationName)"],
+                    shortTitle: "Add to List", systemImageName: "checklist")
+        AppShortcut(intent: TickItemIntent(), phrases: ["Tick off an item in \(.applicationName)", "Tick an item in \(\.$note) in \(.applicationName)",
+                                                        "Check off an item in \(.applicationName)"],
+                    shortTitle: "Tick Item", systemImageName: "checkmark.circle")
+        AppShortcut(intent: FindNotesIntent(), phrases: ["Find notes in \(.applicationName)", "Search \(.applicationName)"],
+                    shortTitle: "Find Notes", systemImageName: "magnifyingglass")
         AppShortcut(intent: AppendToNoteIntent(), phrases: ["Add to a note in \(.applicationName)"], shortTitle: "Add to Note", systemImageName: "text.append")
         AppShortcut(intent: CreateNoteIntent(), phrases: ["Create a note in \(.applicationName)"], shortTitle: "Create Note", systemImageName: "square.and.pencil")
         AppShortcut(intent: ReadNoteIntent(), phrases: ["Read a note in \(.applicationName)"], shortTitle: "Read Note", systemImageName: "doc.text")

@@ -144,6 +144,13 @@ import Testing
         #expect(!NoteText.preview(of: Self.runningLog).contains("pane-table"))
     }
 
+    /// A Notion database's rows link their pages: the preview reads the links as their text
+    /// (persona council 11-04: it showed "[[Klara and the Sun]] · Kazuo Ishiguro").
+    @Test func aLinkedRowPreviewsAsItsText() {
+        let books = "Reading list\n\n<!-- pane-table: Name=text; Author=text -->\n| Name | Author |\n| --- | --- |\n| [[Dune]] | Frank Herbert |\n| [[Klara and the Sun]] | Kazuo Ishiguro |\n"
+        #expect(NoteText.preview(of: books) == "Klara and the Sun · Kazuo Ishiguro")
+    }
+
     /// Text after the table says more than the table does.
     @Test func textAfterATableWins() {
         #expect(NoteText.title(of: Self.hiring) == "Hiring: product designer")

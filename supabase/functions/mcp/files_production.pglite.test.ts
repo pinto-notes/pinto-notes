@@ -8,7 +8,7 @@ import { schemaDB, sqlFor } from "./pglite.ts";
 import { type Account, account, app, file, folder, lockedNote, note, notesPassword, opened, stubStorage, toolContext } from "./sealed.ts";
 import { toBase64, tokenKey, wrap } from "../_shared/e2ee.ts";
 import { parseStored } from "./app_project.ts";
-import { LOCKED, ToolError } from "./tools.ts";
+import { LOCKED, LOCKED_TITLE, ToolError } from "./tools.ts";
 
 // Production: no setting at all.
 Deno.env.delete("AMBER_MCP_TOOLS");
@@ -58,6 +58,8 @@ Deno.test("a client connecting now gets the file tools, their instructions, prom
   const rpc = client(pg, await connect(pg, a, true));
   const init = await rpc("initialize", { protocolVersion: "2025-06-18" });
   assertStringIncludes(init.instructions, "each note is a markdown file");
+  // The About me note: read first, kept current (persona council, 4 November 2026).
+  assertStringIncludes(init.instructions, 'If the person has a note titled "About me" that isn\'t locked, read it first');
   assertEquals((await rpc("tools/list")).tools.map((t: { name: string }) => t.name), FILE_TOOLS.map((t) => t.name));
   assertEquals((await rpc("prompts/list")).prompts.map((p: { name: string }) => p.name), ["make_app", "add_data", "change_app"]);
   const prompt = await rpc("prompts/get", { name: "make_app", arguments: { note: "Groceries" } });
@@ -84,21 +86,66 @@ Deno.test("a client connecting now gets the file tools, their instructions, prom
   assertEquals(wrote.isError, undefined, JSON.stringify(wrote));
 });
 
-Deno.test("a locked note shows its title and nothing else: never read, searched or changed", async () => {
+Deno.test("a locked note shows as \"Locked note\" and nothing else: never named, read, searched or changed", async () => {
   const pg = await schemaDB();
   const a = await account(pg);
   const key = await notesPassword(pg, a);
   await lockedNote(pg, a, key, "Diary");
   await note(pg, a, "Plans\n\nSee [[Diary]].");
   const top = await tool(pg, a, "list");
-  assertEquals(top.entries.find((e: { path: string }) => e.path === "Diary.md")?.locked, true);
-  const read = await tool(pg, a, "fetch", { id: "Diary.md" });
-  assertEquals([read.text, read.metadata.locked], [LOCKED, true]);
-  // Its name matches, as every name does; its text is never searched.
-  assertEquals((await tool(pg, a, "search", { pattern: "Diary" })).files.sort(), ["Diary.md", "Plans.md"]);
-  assertStringIncludes(await fails(tool(pg, a, "edit", { path: "Diary.md", old_string: "x", new_string: "y" })), "locked");
-  assertStringIncludes(await fails(tool(pg, a, "write", { path: "Diary.md", content: "Diary\n\nnew" })), "locked");
-  assertStringIncludes(await fails(tool(pg, a, "move", { path: "Diary.md", to: "Private/Diary 2.md" })), "locked");
+  assertEquals(top.entries.find((e: { path: string }) => e.path === "Locked note.md")?.locked, true);
+  assert(!JSON.stringify(top).includes("Diary"), "the list never names it");
+  const read = await tool(pg, a, "fetch", { id: "Locked note.md" });
+  assertEquals([read.title, read.text, read.metadata.locked], [LOCKED_TITLE, LOCKED, true]);
+  // Its title isn't a way in: not as a path, not as a name to search for.
+  assertStringIncludes(await fails(tool(pg, a, "fetch", { id: "Diary.md" })), "Nothing at");
+  assertEquals((await tool(pg, a, "search", { pattern: "Diary" })).files.sort(), ["Plans.md"]);
+  assertStringIncludes(await fails(tool(pg, a, "edit", { path: "Locked note.md", old_string: "x", new_string: "y" })), "locked");
+  assertStringIncludes(await fails(tool(pg, a, "write", { path: "Locked note.md", content: "Diary\n\nnew" })), "locked");
+  assertStringIncludes(await fails(tool(pg, a, "move", { path: "Locked note.md", to: "Private/Diary 2.md" })), "locked");
+  // Its real title is untouched: only the AI's view changes.
+  const [{ head_ct }] = (await pg.query<{ head_ct: string }>(`select head_ct from public.notes where locked_body is not null`)).rows;
+  assertEquals((await a.vault.openHead((await pg.query<{ id: string }>(`select id from public.notes where locked_body is not null`)).rows[0].id, head_ct)).title, "Diary");
+});
+
+Deno.test("no file tool names a locked note: lists, globs, searches, folders, sub-notes, errors", async () => {
+  const pg = await schemaDB();
+  const a = await account(pg);
+  const key = await notesPassword(pg, a);
+  const SECRET = "Acme merger";
+  const clients = await folder(pg, a, "Clients");
+  const lockedId = await lockedNote(pg, a, key, SECRET, { folder: clients });
+  await lockedNote(pg, a, key, `${SECRET} notes`, { folder: clients });
+  await note(pg, a, "Agenda\n\nCall at 10.", { folder: clients, parent: lockedId });
+  await note(pg, a, "Week\n\nNothing secret here.", { folder: clients });
+  const results = [
+    await tool(pg, a, "list"),
+    await tool(pg, a, "list", { path: "Clients/" }),
+    await tool(pg, a, "list", { path: "", pattern: "**/*" }),
+    await tool(pg, a, "list", { path: "Clients/Locked note/" }),
+    await tool(pg, a, "search", { query: "acme merger" }),
+    await tool(pg, a, "search", { query: "call" }),
+    await tool(pg, a, "search", { pattern: "Acme", output: "content" }),
+    await tool(pg, a, "search", { pattern: ".", output: "files" }),
+    await tool(pg, a, "fetch", { id: "Clients/" }),
+    await tool(pg, a, "fetch", { id: "Clients/Locked note.md" }),
+    await tool(pg, a, "fetch", { id: "Clients/Locked note (2).md" }),
+    await tool(pg, a, "fetch", { id: "Clients/Locked note/Agenda.md" }),
+    await fails(tool(pg, a, "history", { path: "Clients/Locked note.md" })),
+    await tool(pg, a, "fetch", { id: lockedId }),
+    await fails(tool(pg, a, "edit", { path: "Clients/Locked note.md", old_string: "a", new_string: "b" })),
+  ];
+  for (const r of results) assert(!JSON.stringify(r).toLowerCase().includes("acme"), `a result named the locked note: ${JSON.stringify(r)}`);
+  // Asking for it by its title finds nothing, and says nothing that would confirm the title.
+  for (const id of [`Clients/${SECRET}.md`, SECRET, `${SECRET}.md`]) {
+    const said = await fails(tool(pg, a, "fetch", { id }));
+    assertStringIncludes(said, "Nothing at");
+    assert(!/locked/i.test(said), said);
+  }
+  // It's there, as "Locked note", with its sub-note under that name, so the AI knows it exists.
+  const listed = (await tool(pg, a, "list", { path: "Clients/" })).entries.map((e: { path: string; locked?: boolean }) => [e.path, e.locked ?? false]);
+  assertEquals(listed.sort(), [["Clients/Locked note (2).md", true], ["Clients/Locked note.md", true], ["Clients/Week.md", false]]);
+  assertEquals((await tool(pg, a, "fetch", { id: "Clients/Locked note/Agenda.md" })).text.includes("Call at 10."), true);
 });
 
 Deno.test("ChatGPT's search and fetch: results with id, title and url; fetch by the id gives the text", async () => {

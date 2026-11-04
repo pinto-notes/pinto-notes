@@ -135,7 +135,7 @@ enum SettingsIndex {
 
     /// The Mac's own settings: View › Bigger's size is on Appearance there.
     #if os(macOS)
-    static let macOnly = [Entry(label: "Note text size", place: .appearance, also: ["Font size", "Bigger", "Smaller", "Zoom", "Larger text"])]
+    static let macOnly = [Entry(label: "Text size", place: .appearance, also: ["Font size", "Bigger", "Smaller", "Zoom", "Larger text"])]
     #else
     static let macOnly: [Entry] = []
     #endif

@@ -20,7 +20,7 @@ import { CONSENT_COOKIE_DAYS, CONSENT_KEY } from "./consent";
 
 export const POSTHOG_DEFAULT_HOST = "https://eu.i.posthog.com";
 
-const PRIVATE = /^\/(?:n|open|report|reset-password|account|unsubscribe|copy|go)(?:\/|$)|^\/connect|^\/download\/mac(?:\/|$)/;
+const PRIVATE = /^\/(?:n|s|open|report|reset-password|account|unsubscribe|copy|go)(?:\/|$)|^\/connect|^\/download\/mac(?:\/|$)/;
 
 /// The marketing pages, the only ones where click positions, rage clicks and dead clicks are kept:
 /// home, download, the templates and each template, the blog and its posts, help, the changelog and

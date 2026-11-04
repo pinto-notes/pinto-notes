@@ -8,8 +8,9 @@
 //    page may answer (allow_here). "reauth": the sign-in is too old for the server to open the key
 //    copy (an hour, as for a new device), so the page asks for a fresh one. Anything else that
 //    isn't yes ("strict", "no_copy", "no_key", "off") goes to the app, the way it worked before.
-// 3. The consent: who, what is shared and with which company (the words the app's Allow sheet
-//    uses, as App Review asked), locked notes stay private. Connecting is read and edit. Allow posts
+// 3. The consent: who, what it can do and until when (read, create and edit, except locked notes,
+//    until you disconnect it), what is shared and with which company (the words the app's Allow
+//    sheet uses, as App Review asked). Connecting is read and edit. Allow posts
 //    /connect/allow; the server makes the code and answers with the AI's return address, code
 //    included. Don't allow is /connect/decide with allow: false, as before.
 //
@@ -28,15 +29,19 @@ export type ConsentWords = {
   title: string;
   /// An app Pinto can't name: the caution, above everything else.
   caution: { lead: string; detail: string } | null;
+  /// What Allow lets it do, and until when (ConnectCopy.scope in the app). It replaced "Locked
+  /// notes stay private." on 4 November 2026: the scope says that too.
+  scope: string;
   /// "Shared with OpenAI." and what that means.
   sharedLead: string;
   sent: string;
-  lockedLead: string;
-  lockedDetail: string;
   /// Under the buttons: a request from ChatGPT's or Claude's own address proves where the code
   /// goes, not whose account asked (the 2 October rule in the MCP function), so it is still said.
   started: string;
 };
+
+/// What every Allow says it lets an AI do, word for word as the app (ConnectCopy.scope).
+export const SCOPE = "It can read, create and edit your notes, except locked notes, until you disconnect it.";
 
 export function consentWords(r: Pick<ConnectRequest, "verified_ai" | "redirect_host" | "loopback" | "claimed_name" | "client_name">): ConsentWords {
   const ai = r.verified_ai ?? null;
@@ -48,9 +53,8 @@ export function consentWords(r: Pick<ConnectRequest, "verified_ai" | "redirect_h
       title: `Connect ${ai} to your notes?`,
       caution: null,
       sharedLead: `Shared with ${maker}.`,
+      scope: SCOPE,
       sent: `The notes ${ai} opens are sent to ${maker}, under its privacy policy.`,
-      lockedLead: "Locked notes stay private.",
-      lockedDetail: "",
       started: `Allow it only if you just started connecting ${ai} yourself.`,
     };
   }
@@ -59,9 +63,8 @@ export function consentWords(r: Pick<ConnectRequest, "verified_ai" | "redirect_h
     title: `Connect ${who} to your notes?`,
     caution: { lead: "Pinto doesn’t know this app.", detail: `${claim}Allow it only if you started connecting it.` },
     sharedLead: `Shared with ${where}.`,
+    scope: SCOPE,
     sent: "The notes it opens are sent there.",
-    lockedLead: "Locked notes stay private.",
-    lockedDetail: "",
     started: "Allow it only if you just started connecting it yourself.",
   };
 }

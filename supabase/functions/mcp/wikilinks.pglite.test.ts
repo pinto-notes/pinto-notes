@@ -75,3 +75,21 @@ Deno.test("fetch lists the notes that link here, with the lines around each link
   const none = await tool(pg, a, "fetch", { id: "Ideas.md" });
   assertEquals(none.metadata.linked_from, undefined);
 });
+
+Deno.test("a rename leaves links to a locked note with the same title alone, though the AI never sees that title", async () => {
+  const pg = await schemaDB();
+  const a = await account(pg);
+  const lockKey = await notesPassword(pg, a);
+  const home = await folder(pg, a, "Home");
+  await note(pg, a, "Plan\n\nThe open plan.");
+  await lockedNote(pg, a, lockKey, "Plan", { folder: home });
+  const fromTop = await note(pg, a, "Today\n\nSee [[Plan]].");
+  const fromHome = await note(pg, a, "Chores\n\nSee [[Plan]].", { folder: home });
+
+  // The AI sees the locked one as "Home/Locked note.md".
+  assertEquals((await tool(pg, a, "list", { path: "Home/" })).entries.map((e: { path: string }) => e.path).sort(), ["Home/Chores.md", "Home/Locked note.md"]);
+  const moved = await tool(pg, a, "move", { path: "Plan.md", to: "Roadmap.md" });
+  assertEquals(moved.links_updated, ["Today.md"]);
+  assertEquals(await body(pg, a, fromTop), "Today\n\nSee [[Roadmap]].");
+  assertEquals(await body(pg, a, fromHome), "Chores\n\nSee [[Plan]].", "seen from Home, [[Plan]] is the locked note, as in the app");
+});

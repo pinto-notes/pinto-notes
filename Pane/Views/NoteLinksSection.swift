@@ -109,44 +109,30 @@ final class NoteLinks {
     }
 }
 
-/// The foot of a note: "Linked from" and "Unlinked mentions". It sits in the text view, under the
-/// last line, and scrolls with the note (MarkdownEditor's `foot`). Each part folds away, and stays
-/// as it was left; mentions start folded. Nothing shows when no note links here or mentions it.
+/// The foot of a note: a hairline 36 pt under its last line, then one quiet line, "Linked from 2
+/// notes · 1 mention ›", that unfolds into "Linked from" (the notes that link here, with their
+/// lines) and "Unlinked mentions" (with Link). It sits in the text view, under the last line, and
+/// scrolls with the note (MarkdownEditor's `foot`). Folded at first, and it stays as it was left.
+/// Nothing shows when no note links here or mentions it.
 struct NoteLinksSection: View {
     let model: NoteLinks
-    @AppStorage("noteLinks.linkedShown") private var linkedShown = true
-    @AppStorage("noteLinks.mentionsShown") private var mentionsShown = false
+    @AppStorage(NoteLinksSection.shownKey) private var shown = false
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.displayScale) private var scale
+
+    /// Whether the foot is unfolded, for every note (persona council 11-04: one line, under the writing).
+    static let shownKey = "noteLinks.footShown"
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            if !model.linked.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    header(model.linkedTotal == 1 ? "Linked from 1 note" : "Linked from \(model.linkedTotal) notes", shown: $linkedShown, id: "noteLinks.linked")
-                    if linkedShown {
-                        ForEach(model.linked) { n in card(n, mention: false) }
-                        if model.linkedTotal > model.linked.count {
-                            more("Show All \(model.linkedTotal)", id: "noteLinks.linkedAll") {
-                                model.linkedLimit = .max
-                                model.changed()
-                            }
-                        }
-                    }
-                }
-            }
-            if !model.mentions.isEmpty || model.lastLinked != nil {
-                VStack(alignment: .leading, spacing: 8) {
-                    header(mentionsTitle, shown: $mentionsShown, id: "noteLinks.mentions")
-                    if let l = model.lastLinked { linkedNotice(l) }
-                    if mentionsShown {
-                        ForEach(model.mentions.prefix(model.mentionsLimit)) { n in card(n, mention: true) }
-                        if model.mentions.count > model.mentionsLimit {
-                            more("Show All \(model.mentions.count)\(model.mentionsMore ? "+" : "")", id: "noteLinks.mentionsAll") {
-                                model.mentionsLimit = .max
-                            }
-                        }
-                    }
-                }
+        VStack(alignment: .leading, spacing: 0) {
+            if !model.isEmpty {
+                Rectangle()
+                    .fill(Color.line)
+                    .frame(height: 1 / max(scale, 1))
+                    .accessibilityHidden(true)
+                summaryLine
+                    .padding(.top, 6)
+                if shown { rows.padding(.top, 10) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -160,31 +146,80 @@ struct NoteLinksSection: View {
         .accessibilityIdentifier("noteLinks")
     }
 
-    private var mentionsTitle: String {
-        let n = model.mentions.count
-        return n == 0 ? "Unlinked mentions" : "Unlinked mentions \u{00B7} \(n)\(model.mentionsMore ? "+" : "")"
+    /// "Linked from 2 notes · 1 mention", "Linked from 1 note", "3 unlinked mentions".
+    static func summary(linked: Int, mentions: Int, more: Bool = false) -> String {
+        let plus = more ? "+" : ""
+        let from = linked == 1 ? "Linked from 1 note" : "Linked from \(linked) notes"
+        switch (linked > 0, mentions > 0) {
+        case (true, true): return "\(from) \u{00B7} \(mentions)\(plus) \(mentions == 1 && !more ? "mention" : "mentions")"
+        case (true, false): return from
+        case (false, true): return "\(mentions)\(plus) unlinked \(mentions == 1 && !more ? "mention" : "mentions")"
+        case (false, false): return "Unlinked mentions"
+        }
     }
 
-    private func header(_ title: String, shown: Binding<Bool>, id: String) -> some View {
+    private var summaryText: String {
+        Self.summary(linked: model.linked.isEmpty ? 0 : model.linkedTotal, mentions: model.mentions.count, more: model.mentionsMore)
+    }
+
+    private var summaryLine: some View {
         Button {
-            shown.wrappedValue.toggle()
+            shown.toggle()
         } label: {
-            HStack(spacing: 5) {
-                Text(title)
-                    .font(.system(size: Self.small, weight: .semibold))
+            HStack(spacing: 4) {
+                Text(summaryText)
+                    .font(.system(size: Self.summarySize, weight: .medium))
                     .foregroundStyle(.secondary)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: Self.small - 3, weight: .bold))
+                    .font(.system(size: Self.summarySize - 3, weight: .bold))
                     .foregroundStyle(.tertiary)
-                    .rotationEffect(.degrees(shown.wrappedValue ? 90 : 0))
+                    .rotationEffect(.degrees(shown ? 90 : 0))
             }
             .frame(minHeight: Self.target)
             .contentShape(.rect)
         }
         .buttonStyle(.hoverText)
-        .accessibilityAddTraits(.isHeader)
-        .accessibilityValue(shown.wrappedValue ? "Expanded" : "Collapsed")
-        .accessibilityIdentifier(id)
+        .accessibilityLabel(summaryText)
+        .accessibilityValue(shown ? "Expanded" : "Collapsed")
+        .accessibilityHint(shown ? "Hides the notes that link here" : "Shows the notes that link here")
+        .accessibilityIdentifier("noteLinks.summary")
+    }
+
+    private var rows: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            if !model.linked.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    header("Linked from", id: "noteLinks.linked")
+                    ForEach(model.linked) { n in card(n, mention: false) }
+                    if model.linkedTotal > model.linked.count {
+                        more("Show All \(model.linkedTotal)", id: "noteLinks.linkedAll") {
+                            model.linkedLimit = .max
+                            model.changed()
+                        }
+                    }
+                }
+            }
+            if !model.mentions.isEmpty || model.lastLinked != nil {
+                VStack(alignment: .leading, spacing: 8) {
+                    header("Unlinked mentions", id: "noteLinks.mentions")
+                    if let l = model.lastLinked { linkedNotice(l) }
+                    ForEach(model.mentions.prefix(model.mentionsLimit)) { n in card(n, mention: true) }
+                    if model.mentions.count > model.mentionsLimit {
+                        more("Show All \(model.mentions.count)\(model.mentionsMore ? "+" : "")", id: "noteLinks.mentionsAll") {
+                            model.mentionsLimit = .max
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func header(_ title: String, id: String) -> some View {
+        Text(title)
+            .font(.system(size: Self.summarySize, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier(id)
     }
 
     private func card(_ n: LinkingNote, mention: Bool) -> some View {
@@ -277,9 +312,12 @@ struct NoteLinksSection: View {
 
     #if os(macOS)
     static let small: CGFloat = 13
+    /// The folded line and the part headers: 12 pt secondary, as the council asked.
+    static let summarySize: CGFloat = 12
     static let target: CGFloat = 24
     #else
     static let small: CGFloat = 15
+    static let summarySize: CGFloat = 13
     static let target: CGFloat = 44
     #endif
 }

@@ -371,6 +371,9 @@ struct MarkdownStyler {
             storage.removeAttribute(.paneLine, range: lines)
             storage.addAttributes(hidden, range: g.range)
             storage.removeAttribute(.kern, range: g.range)
+            // The grid draws its own dates: a chip on the hidden markdown showed under the table
+            // ("Oct 3" below a Notion reading list, persona council 11-04).
+            storage.removeAttribute(.paneDate, range: g.range)
             let rest = NSRange(location: NSMaxRange(first), length: NSMaxRange(lines) - NSMaxRange(first))
             // The table's other lines fold to a sliver each. Not to nothing: TextKit's
             // layout can spin forever estimating positions across near-zero lines.

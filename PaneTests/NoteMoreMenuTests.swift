@@ -5,10 +5,20 @@ import Testing
 /// Make It an App…" then "Move to…, Version History…", grouped as Apple Notes groups it (Emil,
 /// 2 November 2026): Open Note in New Window first on the Mac, Delete on its own at the end.
 @Suite struct NoteMoreMenuTests {
-    func groups(locked: Bool = false, vaultOpen: Bool = false, trashed: Bool = false, hasApp: Bool = false,
+    func groups(locked: Bool = false, vaultOpen: Bool = false, trashed: Bool = false, hasApp: Bool = false, shared: Bool = false,
                 phone: Bool = false, dev: Bool = false, inOwnWindow: Bool = false) -> [[NoteMoreMenu.Item]] {
-        NoteMoreMenu.groups(locked: locked, vaultOpen: vaultOpen, trashed: trashed, hasApp: hasApp, appsEnabled: true, phone: phone, dev: dev,
-                            inOwnWindow: inOwnWindow)
+        NoteMoreMenu.groups(locked: locked, vaultOpen: vaultOpen, trashed: trashed, hasApp: hasApp, appsEnabled: true, shared: shared,
+                            phone: phone, dev: dev, inOwnWindow: inOwnWindow)
+    }
+
+    /// A note shared with people offers no lock, no app and no Version History (all parked for
+    /// shared notes in 1.3): pin, move and delete, as each person's own.
+    @Test func aSharedNoteOffersOnlyWhatWorksForSharedNotes() {
+        #expect(groups(shared: true) == [[.openInNewWindow], [.pin], [.moveTo], [.delete]])
+        #expect(groups(shared: true, phone: true) == [[.pin], [.moveTo], [.delete]])
+        #expect(groups(shared: true, dev: true) == [[.openInNewWindow], [.pin], [.moveTo], [.delete]])
+        #expect(groups(hasApp: true, shared: true) == [[.openInNewWindow], [.pin], [.moveTo], [.delete]])
+        #expect(groups(trashed: true, shared: true) == [[.recover, .delete]])
     }
 
     @Test func aPlainNoteOnTheMac() {
