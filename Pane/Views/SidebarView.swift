@@ -592,6 +592,11 @@ struct SidebarView: View {
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         #endif
         .onAppear(perform: settleScope)
+        // What Ask an AI offers in the folders' menus: loaded on sign-in, and again when a
+        // connection may have come (the ai_connected notice). Signed out: nothing to ask.
+        .task(id: AskLoad(state: backend?.state, news: ConnectCenter.shared.connectionNews)) {
+            if case .signedIn = backend?.state { await ConnectedAIs.shared.refresh(backend?.client) } else if backend != nil { ConnectedAIs.shared.set([]) }
+        }
         .onChange(of: folders.map(\.id)) { _, _ in settleScope() }
         // Launch restores All Notes after this list first appears.
         .onChange(of: scope) { _, _ in settleScope() }
@@ -1268,6 +1273,8 @@ private struct FolderTree: View {
     /// Folders picked together with ⌘ or ⇧: they show picked too.
     var picked: Set<UUID> = []
     @State private var expanded = true
+    /// Ask an AI about this folder: the AI picked in its menu, while the popover shows.
+    @State private var asking: AskAI.Target?
 
     init(folder: Folder, files: [UUID: Int], selection: Binding<Scope?>, naming: Binding<UUID?>, dropTarget: UUID?, targeted: @escaping (Bool, UUID) -> Void,
          actions: FolderMenuActions, notesID: UUID? = nil, depth: Int = 0, picked: Set<UUID> = []) {
@@ -1373,13 +1380,14 @@ private struct FolderTree: View {
         #if os(iOS)
         // The folder's first notes above its menu, as in Notes.
         .contextMenu {
-            FolderActionsMenu(folder: folder, isNotes: folder.id == notesID, actions: actions)
+            FolderActionsMenu(folder: folder, isNotes: folder.id == notesID, actions: actions, ask: { asking = $0 })
         } preview: {
             FolderPreview(folder: folder)
         }
         #else
         .contextMenu { macMenu }
         #endif
+        .askAIPopover($asking, subject: .folder(folder.name), arrowEdge: .trailing)
     }
 
     /// The name, and its count (••• under the pointer).
@@ -1397,8 +1405,14 @@ private struct FolderTree: View {
 
     /// The folder's menu on the Mac: a right-click, or its ••• under the pointer.
     private var macMenu: some View {
-        FolderActionsMenu(folder: folder, isNotes: folder.id == notesID, actions: actions)
+        FolderActionsMenu(folder: folder, isNotes: folder.id == notesID, actions: actions, ask: { asking = $0 })
     }
+}
+
+/// When the sidebar looks again at what's connected: on a sign-in or out, and on news of a connection.
+private struct AskLoad: Equatable {
+    let state: Backend.State?
+    let news: Int
 }
 
 /// An action on a folder in its menus (`SidebarView.folderMenu`).
@@ -1480,13 +1494,26 @@ private struct FolderActionsMenu: View {
     let folder: Folder
     let isNotes: Bool
     let actions: FolderMenuActions
+    /// Ask an AI about the folder (its popover is the row's). Nil: not offered here.
+    var ask: ((AskAI.Target) -> Void)? = nil
 
     var body: some View {
         let groups = SidebarView.folderMenu(isNotes: isNotes)
+        // Ask an AI, in a group of its own before Delete (at the end for Notes, which has none).
+        let askAt = groups.firstIndex(where: { $0.contains(.delete) }) ?? groups.count
+        let targets = ask == nil ? [] : ConnectedAIs.shared.targets
         Group {
             ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
                 if i > 0 { Divider() }
+                if i == askAt, let ask, !targets.isEmpty {
+                    AskAIMenuItems(subject: .folder(folder.name), targets: targets, ask: ask)
+                    Divider()
+                }
                 ForEach(group) { item($0) }
+            }
+            if askAt == groups.count, let ask, !targets.isEmpty {
+                Divider()
+                AskAIMenuItems(subject: .folder(folder.name), targets: targets, ask: ask)
             }
         }
         #if os(macOS)

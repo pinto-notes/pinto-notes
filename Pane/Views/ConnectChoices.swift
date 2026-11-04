@@ -1324,6 +1324,7 @@ struct ConnectChoices: View {
         }
         do {
             connections = try await Connection.list(client)
+            ConnectedAIs.shared.set(connections)
             error = nil
             onLoaded(Set(active.map(\.title)))
         } catch {

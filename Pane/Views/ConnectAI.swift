@@ -2019,6 +2019,7 @@ struct ConnectAIPage: View {
         guard preview == nil else { return }
         do {
             connections = try await Connection.list(client)
+            ConnectedAIs.shared.set(connections)
             error = nil
         } catch {
             // Offline isn't a failure: it is asked again once the server answers.

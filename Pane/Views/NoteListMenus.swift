@@ -29,12 +29,25 @@ enum NoteRowMenu {
 /// and Group By Date, then adding files. No View as Gallery and no Show Attachments: Pinto
 /// shows notes in a list only. Recently Deleted has Edit instead of this menu.
 enum ListMoreMenu {
-    enum Item: Hashable { case selectNotes, sortBy, groupByDate, addFiles, connectAI }
+    enum Item: Hashable { case selectNotes, sortBy, groupByDate, addFiles, askAI, connectAI }
 
-    static func groups(connectNudge: Bool) -> [[Item]] {
+    /// `asks`: an AI is connected and the list is a folder or All Notes, so Ask an AI is offered,
+    /// in a group of its own after Add Files.
+    static func groups(connectNudge: Bool, asks: Bool = false) -> [[Item]] {
         var out: [[Item]] = [[.selectNotes], [.sortBy, .groupByDate], [.addFiles]]
+        if asks { out.append([.askAI]) }
         if connectNudge { out.append([.connectAI]) }
         return out
+    }
+
+    /// What Ask an AI is about in this list: the folder, or every note. Nil in Recently Deleted
+    /// and a tag's list.
+    static func askSubject(_ scope: Scope?, folderName: (UUID) -> String?) -> AskAI.Subject? {
+        switch scope {
+        case .folder(let id): folderName(id).map(AskAI.Subject.folder)
+        case .all: .all
+        case .trash, .tag, nil: nil
+        }
     }
 
     /// What "Add Files" does, said: the files are kept in this folder, next to its notes (they

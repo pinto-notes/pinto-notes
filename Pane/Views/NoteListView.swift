@@ -43,6 +43,8 @@ struct NoteListView: View {
     #endif
     /// "Add Files to …": the picker, and a file being renamed.
     @State private var addingFiles = false
+    /// Ask an AI about this list's folder (or every note): the AI picked in the ••• menu.
+    @State private var asking: AskAI.Target?
     #if os(macOS)
     /// The Import choice, from the list's More menu.
     @State private var choosingImport = false
@@ -507,7 +509,7 @@ struct NoteListView: View {
                 // The list's own menu, in Notes' order (ListMoreMenu).
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        ForEach(ListMoreMenu.groups(connectNudge: ConnectHere.nudges()), id: \.self) { group in
+                        ForEach(ListMoreMenu.groups(connectNudge: ConnectHere.nudges(), asks: askSubject != nil && !ConnectedAIs.shared.targets.isEmpty), id: \.self) { group in
                             Section {
                                 ForEach(group, id: \.self) { moreItem($0, empty: scopedNotes.isEmpty && scopedFiles.isEmpty) }
                             }
@@ -517,6 +519,7 @@ struct NoteListView: View {
                     }
                     .tint(.primary)
                     .accessibilityIdentifier("list.more")
+                    .askAIPopover($asking, subject: askSubject ?? .all)
                 }
             }
             if editMode.isEditing {
@@ -564,12 +567,15 @@ struct NoteListView: View {
                     // One item: the sources, with their icons, are in the choice it opens.
                     Button("Import…", systemImage: "square.and.arrow.down") { choosingImport = true }
                         .accessibilityIdentifier("list.import")
+                    // Ask an AI about this folder, or every note, when one is connected.
+                    askItems
                 } label: {
                     Label("More", systemImage: "ellipsis")
                 }
                 .menuIndicator(.hidden)
                 .tint(.primary)
                 .accessibilityIdentifier("list.more")
+                .askAIPopover($asking, subject: askSubject ?? .all)
             }
             ToolbarSpacer(.flexible)
             if Self.titleRoom(listWidth: listWidth, compose: scope != .trash) > 0 {
@@ -728,6 +734,19 @@ struct NoteListView: View {
         #endif
     }
 
+    /// What Ask an AI is about here (ListMoreMenu.askSubject).
+    private var askSubject: AskAI.Subject? {
+        ListMoreMenu.askSubject(scope, folderName: { context.folder($0)?.name })
+    }
+
+    /// The Mac ••• menu's Ask an AI, after a line, when an AI is connected.
+    @ViewBuilder private var askItems: some View {
+        if let askSubject, !ConnectedAIs.shared.targets.isEmpty {
+            Divider()
+            AskAIMenuItems(subject: askSubject, targets: ConnectedAIs.shared.targets) { asking = $0 }
+        }
+    }
+
     #if os(iOS)
     /// A note's long-press menu (NoteRowMenu): Share, Move and Delete in a row, then the rest.
     @ViewBuilder
@@ -794,6 +813,8 @@ struct NoteListView: View {
             // Files kept in the folder on their own, beside its notes: PDFs to read, photos, spreadsheets.
             Button(ListMoreMenu.addFilesTitle(folder: context.folderNameForFiles(scope)), systemImage: "doc.badge.plus") { addingFiles = true }
                 .accessibilityIdentifier("list.addFile")
+        case .askAI:
+            if let askSubject { AskAIMenuItems(subject: askSubject, targets: ConnectedAIs.shared.targets) { asking = $0 } }
         case .connectAI:
             // Connect an AI was here; on iPhone it is in Settings only (ConnectHere, 28 October 2026).
             Button("Connect an AI\u{2026}", systemImage: "sparkles") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
