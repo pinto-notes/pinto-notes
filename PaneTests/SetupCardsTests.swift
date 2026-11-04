@@ -20,6 +20,9 @@ import Testing
     @Test func bringOffersEverySourceAndNamesThePick() {
         #expect(SetupCards.sources.first == .appleNotes)
         #expect(SetupCards.sources.count == 7)
+        #expect(SetupCards.appSources.count == 6, "the apps fill three by two")
+        #expect(SetupCards.wideSources == [.files(.markdown)], "Markdown files, the catch-all, is the wide tile under them")
+        #expect(SetupCards.appSources + SetupCards.wideSources == SetupCards.sources, "nothing lost, nothing twice")
         #expect(SetupCards.importTitle(.files(.notion)) == "Choose Notion export\u{2026}")
         let titles = SetupCards.sources.map(SetupCards.importTitle)
         #expect(Set(titles).count == titles.count, "each pick says something different")
