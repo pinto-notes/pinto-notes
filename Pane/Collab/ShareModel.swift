@@ -1,14 +1,18 @@
 import CryptoKit
 import Foundation
 import SwiftData
+import os
 
-/// Share (prototype): one link per note, View or Edit (ShareSheet).
+private let log = Logger(subsystem: "dev.emilwagman.pane", category: "collab")
+
+/// Share: one link per note, Can edit, Can view or Off (ShareSheet, ShareController).
 ///
-/// The link is `<site>/s/<id>#<secret>`. From the secret come:
-/// - the key the read-only copy is sealed under (`SealedLink`), for View and Edit alike;
-/// - with Edit on, the join answer (the server keeps its SHA-256) and the key the note key is sealed
-///   under for whoever joins (`note_invite_links`). Neither leaves the device except inside the link.
-extension CollabStore {
+/// The link is `<site>/s/<id>#<secret>`. From the secret come the join answer (the server keeps
+/// its SHA-256) and the key the note key is sealed under for whoever joins (`note_invite_links`,
+/// with the link's role). Neither leaves the device except inside the link. Opening it in Pinto
+/// Notes joins the note with that role. (The read-only web copy of a link, `SealedLink`, isn't
+/// published yet.)
+extension CollabStore: ShareBackend {
     /// The values an Edit link's secret gives: what proves you hold it, and the key that opens the
     /// note key. The same derivation as `linkKeys` in supabase/functions/_shared/collab.ts.
     nonisolated static func linkKeys(_ secret: Data, link: String) -> (answer: String, answerHash: String, key: SymmetricKey) {
@@ -19,82 +23,148 @@ extension CollabStore {
         return (E2EE.hex(raw), E2EE.hex(SHA256.hash(data: raw)), key)
     }
 
+    /// The note's link while it's on. It's never shown, only handed to the share sheet.
     func linkURL(_ note: Note) -> URL? {
-        guard let l = links[note.id] else { return nil }
+        guard let l = links[note.id], linkAccess[note.id] != nil else { return nil }
         return URL(string: "\(Self.site)/s/\(l.id)#\(SealedLink.base64url(l.secret))")
     }
 
-    func access(_ note: Note) -> ShareState.Access { editable.contains(note.id) ? .edit : .view }
+    func access(_ note: Note) -> ShareState.Access { access(of: note.id) }
+    func access(of note: UUID) -> ShareState.Access { linkAccess[note] ?? .off }
 
-    /// A link for the note, View to start with. Publishing again refreshes the read-only copy.
-    func ensureLink(_ note: Note) async throws {
-        _ = try await publishLink(note)
-    }
-
+    /// Can edit or Can view: the note becomes a shared note (its own key) if it isn't one yet, and
+    /// the link lets whoever opens it in Pinto Notes join with that role. Off: the link stops
+    /// working at once; turning it on again makes a new one.
     func setAccess(_ access: ShareState.Access, for note: Note) async throws {
-        guard let relay else { throw CollabRelay.Problem(message: "Not connected") }
+        guard let transport else { throw Collab.Failure.notSignedIn }
         switch access {
         case .off:
-            // The link stops working at once. Turning it on again makes a new one.
-            try await stopSharing(note)
-            linkOff.insert(note.id)
-        case .view:
-            linkOff.remove(note.id)
-            if links[note.id] == nil { _ = try await publishLink(note) }
-            if sessions[note.id] != nil, editable.contains(note.id) { try await relay.rpc("collab_stop_link", [note.id.uuidString.lowercased()]) }
-            editable.remove(note.id)
-        case .edit:
-            linkOff.remove(note.id)
-            // The note becomes a shared note (its own key) if it isn't one yet.
+            if sessions[note.id] != nil { try await transport.stopLink(note: note.id) }
+            links[note.id] = nil
+            linkAccess[note.id] = nil
+            linkVault?.remove(note.id)
+        case .view, .edit:
             if sessions[note.id] == nil { try await share(note) }
-            if links[note.id] == nil { _ = try await publishLink(note) }
-            try await publishEditLink(note)
-            editable.insert(note.id)
+            let link = links[note.id] ?? (SealedLink.randomID(bytes: 16), E2EE.randomBytes(16))
+            try await publishInviteLink(note.id, link: link, role: access == .edit ? "editor" : "viewer")
+            links[note.id] = link
+            linkAccess[note.id] = access
+            linkVault?.save(LinkVaultEntry(id: link.id, secret: link.secret, access: access.rawValue), for: note.id)
         }
+        CollabDemo.wrote(access == .edit ? "edit-link" : "link", linkURL(note) ?? URL(fileURLWithPath: "/"))
     }
 
-    private func publishEditLink(_ note: Note) async throws {
-        guard let relay, let l = links[note.id], let k = keys[note.id] else { return }
-        let lk = Self.linkKeys(l.secret, link: l.id)
-        let wrap = try NoteCrypto.seal(E2EE.bytes(k.nk).base64EncodedString(), key: lk.key, keyID: E2EE.keyID(of: k.nk), context: "invite:\(l.id.lowercased())")
-        try await relay.rpc("collab_create_link", [l.id, note.id.uuidString.lowercased(), "editor", k.epoch, lk.answerHash, wrap])
+    /// The link's join row: the hash of what proves you hold the link, and the note key sealed
+    /// under the link's own key. Neither the link nor its secret reaches the server.
+    private func publishInviteLink(_ note: UUID, link: (id: String, secret: Data), role: String) async throws {
+        guard let transport, let k = keys[note] else { throw Collab.Failure.notSignedIn }
+        let lk = Self.linkKeys(link.secret, link: link.id)
+        let wrap = try NoteCrypto.seal(E2EE.bytes(k.nk).base64EncodedString(), key: lk.key, keyID: E2EE.keyID(of: k.nk), context: "invite:\(link.id.lowercased())")
+        try await transport.createLink(id: link.id, note: note, role: role, epoch: k.epoch, answerHash: lk.answerHash, keyWrap: wrap)
     }
 
     /// Removes someone: quietly, a new key for everyone else and a new link (the old one would let
     /// them back in). The new link reaches people when it's shared again.
     func remove(_ user: UUID, from note: Note) async throws {
-        try await rotate(note, removing: user)
-        guard !linkOff.contains(note.id) else { return }
-        _ = try await publishLink(note, rotate: true)
-        if editable.contains(note.id) { try await publishEditLink(note) }
+        try await rotate(note.id, removing: user)
+        // The server dropped the old link with the old key.
+        links[note.id] = nil
+        if let access = linkAccess[note.id] {
+            linkAccess[note.id] = nil
+            try await setAccess(access, for: note)
+        }
     }
 
-    func stopSharing(_ note: Note) async throws {
-        try await stopLink(note)
-        if sessions[note.id] != nil { try? await relay?.rpc("collab_stop_link", [note.id.uuidString.lowercased()]) }
-        editable.remove(note.id)
+    /// You leave someone else's note. The server takes you out of it; the owner's next device
+    /// gives the note a new key without you.
+    /// The note goes from your library on all your devices, as in Apple Notes (SharedLibrary.leave).
+    func leave(_ note: Note) async throws {
+        guard let library else { throw Collab.Failure.notSignedIn }
+        let shared = note.sharedNoteID ?? note.id
+        try await library.leave(note)
+        sessions[note.id] = nil
+        keys[shared] = nil
+        onLeft?(note.id)
+    }
+
+    /// The note isn't shared any more: its link is gone here and from the vault.
+    func forgetLink(_ note: UUID) {
+        if links[note] != nil || linkAccess[note] != nil { links[note] = nil; linkAccess[note] = nil }
+        if linkVault?.load(note) != nil { linkVault?.remove(note) }
+    }
+
+    /// Start fresh: the account's shared notes go with its keys, here as on the server, at once.
+    /// Notes others shared with you leave your notes; yours are your ordinary notes again, with
+    /// their text. Every link goes from the vault.
+    func startedFresh() {
+        linkVault?.removeAll()
+        links = [:]
+        linkAccess = [:]
+        library?.startedFresh()
+    }
+
+    /// The note's link as this device or your others kept it, after a relaunch.
+    func restoreLink(_ note: UUID) {
+        guard links[note] == nil, let e = linkVault?.load(note), let access = ShareState.Access(rawValue: e.access), access != .off else { return }
+        links[note] = (e.id, e.secret)
+        linkAccess[note] = access
+    }
+
+    /// "They match": you checked this person's safety code. A changed key you checked is trusted.
+    func markVerified(_ user: UUID, in note: Note) {
+        if let change = keyChanges.first(where: { $0.user == user }) { trust(change) }
+        guard let key = sessions[note.id]?.members.first(where: { $0.id == user })?.publicKey else { return }
+        verified.mark(user, key: key)
+    }
+
+    /// Share's state for a note: the link, and everyone in it (just you before anyone joins).
+    func shareState(for note: Note) -> ShareState {
+        // A link exists only while the note is shared: once it stops (the owner deleted it, or
+        // it was unshared elsewhere) the server dropped the link, and so does Share, at once.
+        if note.isShared { restoreLink(note.id) } else { forgetLink(note.id) }
+        let list = people(in: note)
+        let me = self.me ?? UUID()
+        let people = (list.isEmpty ? [.init(id: me, name: name, isMe: true, role: "owner")] : list).map { p in
+            var p = p
+            p.photo = photos[p.id]
+            return p
+        }
+        return ShareState(link: linkURL(note), access: access(note), people: people)
     }
 
     /// A new note key, sealed from this device to every member who stays, in one call; then the
     /// document re-sealed under it, so devices that join later start from there.
-    private func rotate(_ note: Note, removing user: UUID?) async throws {
-        guard let relay, let me, let session = sessions[note.id], let old = keys[note.id] else { return }
-        let members = try await relay.rpc("collab_members", [note.id.uuidString.lowercased()], as: [CollabRelay.Member].self)
+    private func rotate(_ id: UUID, removing user: UUID?, session given: CollabSession? = nil) async throws {
+        guard let transport, let me else { throw Collab.Failure.notSignedIn }
+        guard let session = given ?? sessions[id], let old = keys[id] else {
+            log.error("can't give \(id, privacy: .public) a new key: it isn't open here")
+            throw Collab.Failure.server("This note isn't open on this device.")
+        }
+        let identity = try await ensureIdentity()
+        // Everything stored so far goes into the snapshot sealed under the new key below, so a device
+        // that starts from it never needs a change sealed under the old one.
+        await session.catchUp().value
+        let members = try await transport.members(of: id)
+        checkKeys(members)
         let epoch = old.epoch + 1
         let nk = SymmetricKey(size: .bits256)
-        var wraps: [[String: String]] = []
+        var wraps: [Collab.Wrap] = []
         for m in members where m.user_id != user {
-            guard let key = m.public_key.flatMap({ Data(base64Encoded: $0) }) else { continue }
-            wraps.append(["user_id": m.user_id.uuidString.lowercased(),
-                          "key_wrap": try CollabCrypto.sealNoteKey(nk, from: identity, to: key, party: .init(note: note.id, epoch: epoch, from: me, to: m.user_id))])
+            // Sealed only to the key first seen for each person: a changed key gets nothing until
+            // someone checks the code, and the server then refuses the incomplete set.
+            guard let key = identityKeys?.trustedKey(of: m) else { continue }
+            wraps.append(Collab.Wrap(user_id: m.user_id, key_wrap: try CollabCrypto.sealNoteKey(nk, from: identity, to: key, party: .init(note: id, epoch: epoch, from: me, to: m.user_id))))
         }
-        let json = String(decoding: try JSONSerialization.data(withJSONObject: wraps), as: UTF8.self)
-        try await relay.rpc("collab_remove", [note.id.uuidString.lowercased(), user.map { $0.uuidString.lowercased() } ?? NSNull(), epoch, json])
-        try await relay.rpc("collab_accept", [note.id.uuidString.lowercased(), try CollabCrypto.selfWrap(nk, dataKey: dataKey.key, note: note.id, epoch: epoch)])
-        keys[note.id] = (nk, epoch)
+        try await transport.remove(note: id, user: user, epoch: epoch, wraps: wraps)
+        // The removal waited for changes in flight under the old key (20261015020000): take them
+        // now, still with the old key, so the snapshot sealed under the new one holds them.
+        await session.catchUp().value
+        try await transport.accept(note: id, selfWrap: try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: id, epoch: epoch))
+        keys[id] = (nk, epoch)
         session.reseal(nk: nk, epoch: epoch)
-        _ = try? await relay.post("snapshots", ["note_id": note.id.uuidString.lowercased(), "upto": session.lastSeen, "epoch": epoch,
-                                                "ct": try session.sealedSnapshot(upto: session.lastSeen)], as: CollabRelay.AnyRow.self)
+        // Under the new key, or nobody who starts from the server could open the note: tried again
+        // until it's in.
+        await session.requireSnapshot()
         await session.refreshMembers()
     }
 
@@ -103,7 +173,9 @@ extension CollabStore {
         guard let session = sessions[note.id] else { return [] }
         return session.members.map { m in
             ShareState.Person(id: m.id, name: m.name, isMe: m.id == session.me, role: m.role,
-                              safetyCode: m.id == session.me ? nil : m.publicKey.map { CollabCrypto.safetyCode(identity.publicRaw, $0) })
+                              safetyCode: m.id == session.me ? nil : identity.flatMap { id in m.publicKey.map { CollabCrypto.safetyCode(id.publicRaw, $0) } },
+                              verified: m.publicKey.map { verified.isVerified(m.id, key: $0) } ?? false,
+                              keyChanged: keyChanges.first { $0.user == m.id }?.message)
         }.sorted { ($0.isMe ? 0 : 1, $0.role == "owner" ? 0 : 1) < ($1.isMe ? 0 : 1, $1.role == "owner" ? 0 : 1) }
     }
 
@@ -115,7 +187,7 @@ extension CollabStore {
             let people = sessions[id].map { s in
                 s.members.map { NoteExport.Sharing.Person(name: $0.name, role: $0.role, isMe: $0.id == s.me) }
             } ?? []
-            let link: ShareState.Access? = links[id] == nil ? nil : linkOff.contains(id) ? .off : editable.contains(id) ? .edit : .view
+            let link: ShareState.Access? = links[id] == nil ? nil : access(of: id)
             return NoteExport.Sharing.SharedNote(note: id, people: people, link: link)
         }
         let templates = templates.sorted { $0.key.uuidString < $1.key.uuidString }
@@ -140,58 +212,137 @@ extension CollabStore {
         return (id, secret)
     }
 
-    /// An Edit link opened in the app: joins the note as an editor and opens it. A View link (or one
-    /// whose Edit was turned off) says so; the product would open its read-only copy here too.
+    /// A link opened in the app: joins the note with the link's role (Can edit or Can view) and
+    /// opens it. A link that was turned off or changed says so.
     @discardableResult
-    func join(_ url: URL) async -> Bool {
-        guard let relay, let me, let context, let (id, secret) = Self.parseLink(url) else { return false }
+    /// What a link leads to, before joining: the note's title and who shared it, opened with the
+    /// link's own key. Nil when the link was turned off or changed (joinProblem says so).
+    func preview(_ url: URL) async -> JoinPreview? {
+        guard let transport, let (id, secret) = Self.parseLink(url) else { return nil }
         let lk = Self.linkKeys(secret, link: id)
-        struct Opened: Decodable { let note_id: UUID; let role: String; let epoch: Int; let key_wrap: String }
-        guard let opened = (try? await relay.rpc("collab_open_link", [id, lk.answer], as: [Opened].self))?.first else {
-            joinProblem = "This link is view only. Ask for a link that lets you edit."
+        let opened: Collab.OpenedLink?
+        do { opened = try await Self.retryingOnce { try await transport.openLink(id: id, answer: lk.answer) } }
+        catch { joinProblem = Self.joinFailure(error); return nil }
+        guard let opened else {
+            joinProblem = "This link was turned off or changed. Ask for a new one."
+            return nil
+        }
+        let title = opened.head_ct.flatMap { ct -> String? in
+            guard let text = try? NoteCrypto.open(opened.key_wrap, key: lk.key, context: "invite:\(id.lowercased())"),
+                  let raw = Data(base64Encoded: text), raw.count == 32,
+                  let head = try? CollabCrypto.open(.head, ct, nk: SymmetricKey(data: raw), note: opened.note_id) else { return nil }
+            return (try? JSONDecoder().decode(NoteHead.self, from: head))?.title
+        }
+        let shared: UUID? = opened.note_id
+        let inLibrary = (try? context?.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID == shared && $0.deletedAt == nil })))?.isEmpty == false
+        let already = sessions.values.contains { $0.noteID == opened.note_id } || inLibrary
+        return JoinPreview(title: title.flatMap { $0.isEmpty ? nil : $0 }, owner: opened.owner_name, canEdit: opened.role == "editor", alreadyIn: already)
+    }
+
+    func join(_ url: URL) async -> Bool {
+        guard let transport, let me, let library, let (id, secret) = Self.parseLink(url) else { return false }
+        let lk = Self.linkKeys(secret, link: id)
+        let found: Collab.OpenedLink?
+        do { found = try await Self.retryingOnce { try await transport.openLink(id: id, answer: lk.answer) } }
+        catch { joinProblem = Self.joinFailure(error); return false }
+        guard let opened = found else {
+            joinProblem = "This link was turned off or changed. Ask for a new one."
             return false
+        }
+        // Already in the note on this device (your own link, or one you joined before): open it.
+        if sessions[opened.note_id] != nil {
+            NoteOpener.shared.open(opened.note_id)
+            return true
         }
         do {
             guard let text = try? NoteCrypto.open(opened.key_wrap, key: lk.key, context: "invite:\(id.lowercased())"),
                   let raw = Data(base64Encoded: text), raw.count == 32 else { throw CollabCrypto.Failure.wrongKey }
             let nk = SymmetricKey(data: raw)
+            let identity = try await ensureIdentity()
             let toSelf = try CollabCrypto.sealNoteKey(nk, from: identity, to: identity.publicRaw, party: .init(note: opened.note_id, epoch: opened.epoch, from: me, to: me))
-            try await relay.rpc("collab_join_link", [id, lk.answer, toSelf, try CollabCrypto.selfWrap(nk, dataKey: dataKey.key, note: opened.note_id, epoch: opened.epoch)])
+            let selfWrap = try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: opened.note_id, epoch: opened.epoch)
+            // Joining twice is harmless (the server keeps the first), so a dropped request is sent again.
+            try await Self.retryingOnce { try await transport.joinLink(id: id, answer: lk.answer, keyWrap: toSelf, selfWrap: selfWrap) }
             handled.insert(opened.note_id)
-            let session = try await CollabSession.load(note: opened.note_id, epoch: opened.epoch, nk: nk, relay: relay, me: me, name: name)
-            keys[opened.note_id] = (nk, opened.epoch)
-            let note = context.note(opened.note_id) ?? {
-                let n = Note(body: session.text)
-                n.id = opened.note_id
-                context.insert(n)
-                return n
-            }()
-            note.body = session.text
-            note.updatedAt = .now
-            try? context.save()
-            openSession(session, note: note)
+            // A note of your own for it, in "Shared with me" (never the owner's note id).
+            let note = try await library.adopt(shared: opened.note_id, nk: nk, epoch: opened.epoch, role: opened.role)
             NoteOpener.shared.open(note.id)
             return true
         } catch {
-            joinProblem = "This link didn't open. Ask for a new one."
+            joinProblem = Self.isDropped(error) ? Self.joinFailure(error) : "This link didn't open. Ask for a new one."
             return false
         }
     }
 
+    /// A request that died on the way is sent once more: a reused connection the server had
+    /// closed (NSURLError -1005), a time-out (-1001), or another passing network failure. Only for
+    /// calls that are safe to repeat. JoinCenter's time limit covers both tries.
+    static func retryingOnce<T>(_ step: () async throws -> T) async throws -> T {
+        do { return try await step() } catch where isDropped(error) { return try await step() }
+    }
+
+    /// The URL errors that pass: the connection, not the request, failed.
+    nonisolated static let transientURLErrors: Set<Int> = [
+        NSURLErrorNetworkConnectionLost, NSURLErrorTimedOut, NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost,
+        NSURLErrorDNSLookupFailed, NSURLErrorNotConnectedToInternet, NSURLErrorSecureConnectionFailed,
+        NSURLErrorDataNotAllowed, NSURLErrorInternationalRoamingOff, NSURLErrorCallIsActive,
+    ]
+
+    nonisolated static func isDropped(_ error: Error) -> Bool {
+        let e = error as NSError
+        return e.domain == NSURLErrorDomain && transientURLErrors.contains(e.code)
+    }
+
+    /// What to say when a link couldn't be read: the connection, or the link itself.
+    static func joinFailure(_ error: Error) -> String {
+        (error as NSError).domain == NSURLErrorDomain ? "Pinto Notes couldn't be reached. Check your connection and open the link again."
+            : "This link didn't open. Ask for a new one."
+    }
+
     /// Your memberships, checked now and then: a new key (someone was removed, or the link was
-    /// reset) is opened and taken; a note you were removed from stops syncing.
-    func followKeys(_ rows: [CollabRelay.Membership]) async {
-        for (id, session) in sessions {
-            guard let row = rows.first(where: { $0.note_id == id }) else {
-                session.disconnect()
-                sessions[id] = nil
-                removedFrom.insert(id)
-                continue
+    /// reset) is opened and taken; a note you joined on another device gets its document here; a
+    /// note you left or were removed from goes from your library (SharedLibrary.reconcile).
+    func followKeys(_ rows: [Collab.Membership]) async {
+        await library?.reconcile(rows)
+        for session in sessions.values { keys[session.noteID] = (session.noteKey, session.epoch) }
+        for row in rows where row.role == "owner" && row.rekey_after != nil {
+            await renewKeyAfterLeave(row)
+        }
+    }
+
+    /// Someone left one of your notes: a new key for everyone who stays, from the first of your
+    /// devices to see it, as after a removal but with no one removed. The link stays the same (the
+    /// person who left could join again with it, as anyone holding it can); its join row is made
+    /// again under the new key. Another of your devices getting there first is fine: the server
+    /// refuses the second new key as stale, and this device then takes the first.
+    func renewKeyAfterLeave(_ row: Collab.Membership) async {
+        // Your own note's id is the shared note's.
+        let id = row.note_id
+        log.notice("someone left \(id, privacy: .public): renewing its key")
+        guard let context, let library else {
+            log.error("can't renew \(id, privacy: .public)'s key: the store has no library")
+            return
+        }
+        guard let note = context.note(id) else {
+            log.error("can't renew \(id, privacy: .public)'s key: the note isn't on this device")
+            return
+        }
+        guard let session = await library.ensureDocument(note) else {
+            log.error("can't renew \(id, privacy: .public)'s key: its document didn't open here")
+            return
+        }
+        keys[id] = (session.noteKey, session.epoch)
+        do {
+            try await rotate(id, removing: nil, session: session)
+            log.notice("renewed \(id, privacy: .public)'s key after someone left (epoch \(session.epoch, privacy: .public))")
+            restoreLink(id)
+            if let link = links[id], let access = linkAccess[id], access != .off {
+                try await publishInviteLink(id, link: link, role: access == .edit ? "editor" : "viewer")
             }
-            guard row.epoch > session.epoch, let opened = try? await openKey(row) else { continue }
-            try? await relay?.rpc("collab_accept", [id.uuidString.lowercased(), try CollabCrypto.selfWrap(opened.nk, dataKey: dataKey.key, note: id, epoch: row.epoch)])
-            keys[id] = (opened.nk, row.epoch)
-            session.reseal(nk: opened.nk, epoch: row.epoch)
+        } catch Collab.Failure.staleEpoch {
+            log.notice("\(id, privacy: .public)'s key was renewed by another of your devices")
+        } catch {
+            log.error("renewing a note's key after someone left failed: \(String(describing: error), privacy: .public)")
         }
     }
 }

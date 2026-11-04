@@ -92,6 +92,7 @@ struct NoteDetailView: View {
     /// Collaboration (prototype): the people sheet.
     /// Collaboration and sharing (prototype): the one Share sheet, and Share as Template on its own (demo).
     @State private var showPeople = false
+    @State private var confirmingSharedDelete: [Note]?
     @State private var showTemplateShare = false
     @Bindable var note: Note
     let controller: EditorController
@@ -288,7 +289,15 @@ struct NoteDetailView: View {
     private func withCollab(_ content: some View) -> some View {
         content
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
-            .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, store: store) } }
+            .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { for n in notes { context.trash(n) } } }
+            // The two-device check (CollabScript, Amber Notes Beta only): Delete Note's question, as the menu asks it.
+            .onReceive(NotificationCenter.default.publisher(for: CollabScript.askDelete)) { _ in
+                if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
+            }
+            #if os(iOS)
+            // On the Mac, Share is the toolbar's popover (ShareButton), opened by the same flag.
+            .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, backend: store) } }
+            #endif
             .sheet(isPresented: $showTemplateShare) { if let store = CollabStore.shared { TemplateShareSheet(note: note, store: store) } }
             .onReceive(NotificationCenter.default.publisher(for: CollabDemo.closeShare)) { _ in showPeople = false }
             .onReceive(NotificationCenter.default.publisher(for: CollabDemo.showShare)) { n in
@@ -305,7 +314,7 @@ struct NoteDetailView: View {
     }
 
     /// Collaboration (prototype): the open shared note's session, when there is one.
-    private var collab: CollabSession? { CollabStore.shared?.session(for: note.id) }
+    private var collab: CollabSession? { CollabStore.shared?.session(for: note) }
 
     #if os(iOS)
     /// On iPhone the note's tips sit just above the toolbar: a popover from a toolbar button
@@ -802,7 +811,9 @@ struct NoteDetailView: View {
                     .accessibilityIdentifier("editor.deleteNow")
             } else {
                 DestructiveMenuButton("Delete Note", systemImage: "trash") {
-                    withAnimation(.snappy) { context.trash(note) }
+                    // A shared note asks first: people lose it, or it leaves your notes.
+                    if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
+                    else { withAnimation(.snappy) { context.trash(note) } }
                 }
             }
         }
@@ -906,7 +917,9 @@ struct NoteDetailView: View {
             }
             .ignoresSafeArea(.container, edges: .bottom)
             .background(Color.notePage.ignoresSafeArea())
-            .onChange(of: note.trashedAt, initial: true) { _, at in controller.readOnly = at != nil }
+            .onChange(of: note.trashedAt, initial: true) { _, at in
+                controller.readOnly = SharedEditing.readOnly(trashed: at != nil, shared: note.isShared, viewOnly: collab?.isViewOnly)
+            }
             .alert(Self.recoverTitle, isPresented: $askingRecover) {
                 Button("Cancel", role: .cancel) {}
                 Button("Recover") { recoverFromPrompt() }
@@ -954,9 +967,12 @@ struct NoteDetailView: View {
         if receipt != nil { editedSinceAIEdit() }
         // A shared note's text lives in its document; the note follows it (CollabStore).
         if let collab {
-            collab.local(text, selection: controller.target?.currentSelection)
+            if !collab.isViewOnly { collab.local(text, selection: controller.target?.currentSelection) }
             return
         }
+        // A shared note whose document isn't open here (not loaded yet, or collaboration is off):
+        // its text can't be written anywhere it would be kept, so nothing typed is taken.
+        if note.isShared { return }
         PaneTips.typed()
         ShareAsk.noteUsed(typing: true)
         let note = self.note
@@ -1254,10 +1270,10 @@ struct NoteDetailView: View {
     /// Everything about sharing in one place, like Notes: the public link, and sending a copy.
     @ViewBuilder
     private var shareItems: some View {
-        if let store = CollabStore.shared, store.isReady {
+        if CollabFeature.isOn, CollabStore.shared != nil, !note.isLocked {
             Section {
-                // One Share: a link anyone can View or Edit with, the people in the note, and Share as Template.
-                Button("Share…", systemImage: "person.crop.circle.badge.plus") { showPeople = true }
+                // People in the note, one link they can edit or view with, Verify, Remove and Leave.
+                Button("Collaborate…", systemImage: "person.crop.circle.badge.plus") { showPeople = true }
                     .accessibilityIdentifier("collab.share")
             }
         }
@@ -1270,7 +1286,7 @@ struct NoteDetailView: View {
     #if os(macOS)
     /// The toolbar's Share: a plain button with a popover (ShareNotePopover), in one group with More.
     private var shareMenu: some View {
-        ShareButton(note: note, store: shareLinks, people: CollabStore.shared?.isReady == true ? { showPeople = true } : nil)
+        ShareButton(note: note, store: shareLinks, people: CollabFeature.isOn ? CollabStore.shared : nil, showing: $showPeople)
             // A locked note can't be shared, and its text isn't here to send; a deleted one isn't shared.
             .disabled(note.isLocked || trashed)
             .paneTip(ShareLinkTip(), arrowEdge: .top)
@@ -1432,18 +1448,29 @@ private struct CollabWiring: ViewModifier {
     let controller: EditorController
     @Binding var showPeople: Bool
 
-    private var session: CollabSession? { CollabStore.shared?.session(for: note.id) }
+    private var session: CollabSession? { CollabStore.shared?.session(for: note) }
 
     func body(content: Content) -> some View {
         content
             .task(id: session.map { ObjectIdentifier($0) }) {
-                guard let session else { controller.remoteCarets = []; return }
+                guard let session else {
+                    controller.remoteCarets = []
+                    controller.ownUndo = nil
+                    // A shared note whose document isn't open yet takes no typing: it would be lost.
+                    controller.readOnly = SharedEditing.readOnly(trashed: note.trashedAt != nil, shared: note.isShared, viewOnly: nil)
+                    return
+                }
+                // Undo takes back only what you typed, not what the others did.
+                controller.ownUndo = OwnUndo()
                 session.onRemoteText = { [weak controller] text in controller?.target?.syncExternal(text) }
                 // Carets go straight to the text view, not through SwiftUI's next update, so they move
                 // in the same frame as the text.
                 session.onCarets = { [weak controller] carets in controller?.target?.showRemoteCarets(carets) }
                 // Your caret, a few times a second (it also goes with every keystroke).
                 while !Task.isCancelled {
+                    // Can view: the note is shown read-only (Recently Deleted is read-only too).
+                    let readOnly = SharedEditing.readOnly(trashed: note.trashedAt != nil, shared: true, viewOnly: session.isViewOnly)
+                    if controller.readOnly != readOnly { controller.readOnly = readOnly }
                     session.selectionChanged(controller.isEditing ? controller.target?.currentSelection : nil)
                     controller.remoteCarets = session.remoteCarets
                     CollabStore.shared?.loadPhotos(session)
@@ -1451,6 +1478,15 @@ private struct CollabWiring: ViewModifier {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: CollabDemo.invite)) { _ in showPeople = true }
+    }
+}
+
+/// When the note's editor takes no typing: in Recently Deleted; a shared note until its document
+/// is open on this device; and a shared note you can only view.
+enum SharedEditing {
+    /// `viewOnly` nil: no document open for it here.
+    static func readOnly(trashed: Bool, shared: Bool, viewOnly: Bool?) -> Bool {
+        trashed || (shared && (viewOnly ?? true))
     }
 }
 

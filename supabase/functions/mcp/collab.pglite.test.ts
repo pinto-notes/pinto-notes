@@ -251,3 +251,171 @@ Deno.test("collab_role answers only about notes the caller is in", async () => {
   // The one-argument form the policies use still works for members.
   assertEquals((await app(pg, sara.id, `select public.collab_role($1) as role`, [note]))[0].role, "editor");
 });
+
+// 20261014220000_collab_start_fresh.sql: one identity key per account, which only Start fresh changes.
+Deno.test("an identity key never changes, except through Start fresh, which takes the account's sharing with it", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara"), jonas = await person(pg, "Jonas");
+  // Publishing the same key again (a second device racing the first) is fine; a different one isn't.
+  const [row] = await app(pg, sara.id, `select public_key, private_wrap from public.identity_keys`);
+  await app(pg, sara.id, `select public.collab_publish_identity($1, $2)`, [row.public_key, row.private_wrap]);
+  const other = await newIdentity();
+  const otherWrap = await seal(toBase64(other.d), await aesKey(sara.dk), sara.keyId, identityContext(sara.id));
+  await refused(app(pg, sara.id, `select public.collab_publish_identity($1, $2)`, [toBase64(other.publicRaw), otherWrap]), "different identity key");
+  // Only your own row is readable, with its sealed private half.
+  assertEquals((await app(pg, emil.id, `select * from public.identity_keys`)).map((r: any) => r.user_id), [emil.id]);
+
+  // Sara owns a note Jonas is in, and is in Emil's.
+  const emils = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", emils.note, emils.nk);
+  await accept(pg, sara, emils.note);
+  const saras = await share(pg, sara);
+  await invite(pg, sara, "jonas@example.com", saras.note, saras.nk);
+  await accept(pg, jonas, saras.note);
+  await push(pg, jonas, saras.note, saras.nk, 1, "jonas types");
+
+  const signedIn = { "request.jwt.claims": JSON.stringify({ sub: sara.id, role: "authenticated", amr: [{ method: "password", timestamp: Math.floor(Date.now() / 1000) - 30 }] }) };
+  assertEquals((await asUser<any>(pg, sara.id, `select public.start_fresh($1) as done`, [sara.keyId], signedIn))[0].done, true);
+
+  // Her identity is gone, so a new one (under her new data key) can be published.
+  assertEquals(await app(pg, sara.id, `select * from public.identity_keys`), []);
+  // Her note went for everyone, as her other notes did; she left Emil's.
+  assertEquals(await app(pg, jonas.id, `select * from public.note_updates where note_id = $1`, [saras.note]), []);
+  assertEquals(await app(pg, jonas.id, `select * from public.note_members where note_id = $1`, [saras.note]), []);
+  assertEquals((await app(pg, emil.id, `select user_id from public.collab_members($1)`, [emils.note])).map((m: any) => m.user_id), [emil.id]);
+  // Emil's note and Jonas's key are untouched.
+  assertEquals((await app(pg, jonas.id, `select count(*)::int n from public.identity_keys`))[0].n, 1);
+
+  const dk = newDataKey(), keyId = await keyIdOf(dk);
+  await app(pg, sara.id, `select * from public.create_account_key($1, $2, $3, 1)`, [keyId, "00".repeat(32), `amb2.${keyId}.${toBase64(crypto.getRandomValues(new Uint8Array(48)))}`]);
+  const fresh = await newIdentity();
+  await app(pg, sara.id, `select public.collab_publish_identity($1, $2)`,
+    [toBase64(fresh.publicRaw), await seal(toBase64(fresh.d), await aesKey(dk), keyId, identityContext(sara.id))]);
+  // Emil sees the new key: different from the one he first saw, which is what the warning is for.
+  const [found] = await app(pg, emil.id, `select * from public.collab_find_person($1)`, ["sara@example.com"]);
+  assert(found.public_key !== row.public_key);
+});
+
+// 20261014221000_collab_stale_key_answers.sql: a stale key answers PT409, which PostgREST doesn't
+// retry (it retried 40001 without end), and someone outside the note is refused before the key check.
+Deno.test("an old key and a stranger get answers PostgREST passes straight back", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara"), eve = await person(pg, "Eve");
+  const { note, nk } = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", note, nk);
+  await accept(pg, sara, note);
+  const nk2 = newDataKey();
+  const wraps = [{ user_id: emil.id, key_wrap: await sealNoteKey(nk2, emil.identity, emil.identity.publicRaw, { note, epoch: 2, from: emil.id, to: emil.id }) }];
+  await app(pg, emil.id, `select public.collab_remove($1, $2, 2, $3)`, [note, sara.id, JSON.stringify(wraps)]);
+
+  const code = async (p: Promise<unknown>) => {
+    const e = await assertRejects(() => p) as { code?: string; hint?: string };
+    return `${e.code} ${e.hint}`;
+  };
+  assertEquals(await code(push(pg, emil, note, nk, 1, "old key")), "PT409 stale_epoch");
+  assertEquals(await code(push(pg, sara, note, nk, 1, "removed")), "42501 not_member");
+  assertEquals(await code(push(pg, eve, note, nk, 1, "stranger")), "42501 not_member");
+  assertEquals(await code(app(pg, emil.id, `select public.collab_remove($1, null, 2, $2)`, [note, JSON.stringify(wraps)])), "PT409 stale_epoch");
+  assertEquals(await code(app(pg, emil.id, `select public.collab_invite($1, $2, 'editor', $3, 1)`, [note, eve.id, wraps[0].key_wrap])), "PT409 stale_epoch");
+  // Nothing anywhere in the collaboration functions answers 40001 any more.
+  const [{ n }] = await pg.query<{ n: number }>(`select count(*)::int n from pg_proc where proname like 'collab%' and prosrc like '%40001%'`).then((r) => r.rows);
+  assertEquals(n, 0);
+});
+
+Deno.test("leaving: a member goes at once and reads nothing new; the owner can't leave", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara"), jonas = await person(pg, "Jonas");
+  const { note, nk } = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", note, nk, "editor");
+  await accept(pg, sara, note);
+  await push(pg, emil, note, nk, 1, "before");
+  assertEquals((await app(pg, sara.id, `select * from public.note_updates`)).length, 1);
+
+  await refused(app(pg, emil.id, `select public.collab_leave($1)`, [note]), "owner can't leave");
+  await refused(app(pg, jonas.id, `select public.collab_leave($1)`, [note]), "not in this note");
+  await app(pg, sara.id, `select public.collab_leave($1)`, [note]);
+
+  assertEquals(await app(pg, sara.id, `select * from public.note_updates`), []);
+  await refused(push(pg, sara, note, nk, 1, "still here?"), "");
+  const members = await app(pg, emil.id, `select * from public.collab_members($1)`, [note]);
+  assertEquals(members.map((m: any) => m.user_id), [emil.id]);
+  // The owner's device renews the key with only themselves in it.
+  const nk2 = newDataKey();
+  const wraps = [{ user_id: emil.id, key_wrap: await sealNoteKey(nk2, emil.identity, emil.identity.publicRaw, { note, epoch: 2, from: emil.id, to: emil.id }) }];
+  await app(pg, emil.id, `select public.collab_remove($1, null, 2, $2)`, [note, JSON.stringify(wraps)]);
+  await push(pg, emil, note, nk2, 2, "after");
+});
+
+// 20261015050000_collab_rekey_after_leave.sql: a leave asks the owner's devices for a new key.
+Deno.test("leaving marks the note for a new key, and the owner's new key clears it", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara");
+  const { note, nk } = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", note, nk);
+  await accept(pg, sara, note);
+  const mark = async () => (await app(pg, emil.id, `select rekey_after from public.shared_notes where id = $1`, [note]))[0].rekey_after;
+  assertEquals(await mark(), null);
+
+  await app(pg, sara.id, `select public.collab_leave($1)`, [note]);
+  assert(await mark() !== null);
+  // Members can't clear it themselves; only a new key does.
+  const nk2 = newDataKey();
+  const wraps = [{ user_id: emil.id, key_wrap: await sealNoteKey(nk2, emil.identity, emil.identity.publicRaw, { note, epoch: 2, from: emil.id, to: emil.id }) }];
+  await app(pg, emil.id, `select public.collab_remove($1, null, 2, $2)`, [note, JSON.stringify(wraps)]);
+  assertEquals(await mark(), null);
+});
+
+// 20261015060000_collab_review_fixes.sql: a snapshot can't claim changes that don't exist, and a
+// member who starts fresh makes the owner renew the key.
+Deno.test("a snapshot past the newest change is refused, so no editor can wipe a note's changes", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara");
+  const { note, nk } = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", note, nk);
+  const nkSara = await accept(pg, sara, note);
+  const last = await push(pg, emil, note, nk, 1, "emil types");
+  const snap = (upto: string | number) => app(pg, sara.id, `insert into public.note_snapshots (note_id, upto, epoch, ct) values ($1, $2, 1, $3)`,
+    [note, upto, "amb3s.1.AA=="]);
+  const e = await assertRejects(() => snap("9223372036854775000")) as { code?: string; hint?: string };
+  assertEquals([e.code, e.hint], ["22023", "bad_upto"]);
+  assertEquals((await app(pg, emil.id, `select count(*)::int n from public.note_updates where note_id = $1`, [note]))[0].n, 1);
+  // Up to the newest change is fine, and compacts as before.
+  await snap(last);
+  await push(pg, sara, note, nkSara, 1, "after the snapshot");
+  assertEquals((await app(pg, emil.id, `select count(*)::int n from public.note_updates where note_id = $1`, [note]))[0].n, 1);
+});
+
+Deno.test("a member who starts fresh makes the owner renew the key", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara");
+  const { note, nk } = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", note, nk);
+  await accept(pg, sara, note);
+  const signedIn = { "request.jwt.claims": JSON.stringify({ sub: sara.id, role: "authenticated", amr: [{ method: "password", timestamp: Math.floor(Date.now() / 1000) - 30 }] }) };
+  assertEquals((await asUser<any>(pg, sara.id, `select public.start_fresh($1) as done`, [sara.keyId], signedIn))[0].done, true);
+  const [n] = await app(pg, emil.id, `select rekey_after from public.shared_notes where id = $1`, [note]);
+  assert(n.rekey_after !== null);
+});
+
+Deno.test("opening a link shows who shared which note before joining, and only to the link's holder", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara");
+  const { note, nk } = await share(pg, emil);
+  const link = "Cd".repeat(11), secret = crypto.getRandomValues(new Uint8Array(16));
+  const { answer, key } = await linkKeys(secret, link);
+  const answerHash = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", Uint8Array.from(answer.match(/../g)!, (h) => parseInt(h, 16)))));
+  await app(pg, emil.id, `select public.collab_create_link($1, $2, 'editor', 1, $3, $4)`, [link, note, answerHash, await seal(toBase64(nk), key, await keyIdOf(nk), `invite:${link}`)]);
+
+  const [opened] = await app(pg, sara.id, `select * from public.collab_open_link($1, $2)`, [link, answer]);
+  assertEquals(opened.owner_name, "Emil");
+  // The head opens with the note key the link carries: the title, before joining.
+  const head = JSON.parse(text(await open3("h", opened.head_ct, nk, note)));
+  assertEquals(head.title, "Offsite plan");
+  // Opening is not joining.
+  assertEquals((await app(pg, emil.id, `select * from public.collab_members($1)`, [note])).length, 1);
+  await refused(app(pg, sara.id, `select * from public.collab_open_link($1, $2)`, [link, "ab".repeat(32)]), "expired");
+  // Joining still works through it.
+  const toSelf = await sealNoteKey(nk, sara.identity, sara.identity.publicRaw, { note, epoch: 1, from: sara.id, to: sara.id });
+  await app(pg, sara.id, `select public.collab_join_link($1, $2, $3, $4)`, [link, answer, toSelf, await selfWrap(sara, nk, note, 1)]);
+  assertEquals((await app(pg, emil.id, `select * from public.collab_members($1)`, [note])).length, 2);
+});

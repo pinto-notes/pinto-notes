@@ -18,8 +18,6 @@ Deno.test("no function refuses with 40001, which PostgREST retries without end",
   const rows = await pg.query<{ name: string }>(
     `select p.proname as name from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.prosrc ~ '40001|serialization_failure'
-       -- Fixed on collab/core (20261014221000_collab_stale_key_answers); drop this line once it's on dev.
-       and p.proname not in ('collab_invite', 'collab_remove', 'collab_update_guard')
      order by 1`,
   );
   assertEquals(rows.rows.map((r) => r.name), []);

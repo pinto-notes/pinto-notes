@@ -114,6 +114,18 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
 
     static func rows(_ table: String) -> [[String: Any]] { lock.withLock { tables[table] ?? [] } }
 
+    /// Changes a row as a server function would (one the app doesn't call itself), with a new
+    /// version and server time, so the next pull brings it.
+    static func update(_ table: String, id: UUID, _ change: (inout [String: Any]) -> Void) {
+        lock.withLock {
+            guard let i = tables[table]?.firstIndex(where: { ($0["id"] as? String)?.lowercased() == id.uuidString.lowercased() }) else { return }
+            var r = tables[table]![i]
+            change(&r)
+            bump(&r)
+            tables[table]![i] = r
+        }
+    }
+
     /// Puts a row in a table as the server would have it (for tables the app only reads).
     static func insert(_ table: String, _ row: [String: Any]) { lock.withLock { tables[table, default: []].append(row) } }
 

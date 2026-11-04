@@ -13,6 +13,9 @@ enum BadgeOption: String, CaseIterable, Identifiable {
     case b = "B"
     /// A live dot while they're here, the pencil instead while they type.
     case c = "C"
+    /// No badge. The Mac's toolbar: at its size the pencil was about 6 pixels on a 1x screen and
+    /// read as a smudge, and the caret in the note already shows who is editing.
+    case off = "off"
     var id: String { rawValue }
 
     func badge(typing: Bool, canEdit: Bool) -> AvatarBadge {
@@ -20,6 +23,7 @@ enum BadgeOption: String, CaseIterable, Identifiable {
         case .a: typing ? .pencil : .none
         case .b: canEdit ? .pencil : .none
         case .c: typing ? .pencil : .dot
+        case .off: .none
         }
     }
 
@@ -47,6 +51,7 @@ struct PersonAvatar: View {
     /// Draws only the badge, in the same place (the stack puts every badge on its own top layer).
     var badgeOnly = false
     var pencilStyle: PencilStyle = .current
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The ring's width: 2 pt at toolbar size, a clean cut between overlapping avatars.
     static func ringWidth(_ size: CGFloat) -> CGFloat { max(2, (size / 14).rounded()) }
@@ -77,7 +82,7 @@ struct PersonAvatar: View {
             if badgeOnly || !roomForBadge { badgeView.position(g.center) }
         }
         .frame(width: room ? g.frame.width : g.outer, height: room ? g.frame.height : g.outer, alignment: .topLeading)
-        .animation(.easeOut(duration: 0.35), value: badge)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.35), value: badge)
         .accessibilityHidden(true)
     }
 
@@ -147,12 +152,14 @@ struct PresenceAvatars: View {
     var size: CGFloat = 28
     var option: BadgeOption = .current
     var pencilStyle: PencilStyle = .current
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         row(badges: false)
             // Every badge on a layer of its own above all the circles, so the next avatar never covers one.
             .overlay(alignment: .leading) { row(badges: true) }
-        .animation(.snappy(duration: 0.3), value: people.map(\.id))
+        // One move per change: someone arriving or leaving fades, nothing scales or bounces.
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: people.map(\.id))
         // Flattened into one opaque picture before the toolbar's glass gets it. Without this the
         // glass blends each circle with what's behind it, the previous avatar included, so the
         // white cut between them showed a tint of the avatar underneath (seen zoomed at 3x;
@@ -172,7 +179,7 @@ struct PresenceAvatars: View {
                     // where the badge ends, so a badge never sits on the next person.
                     .padding(.trailing, i < shown.count - 1 || people.count > 3
                              ? (badge == .none ? g.outer - size * 0.22 : g.badgeRight + 0.5) - g.frame.width : 0)
-                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+                    .transition(.opacity)
             }
             if people.count > 3 {
                 Text("+\(people.count - 3)")
@@ -221,6 +228,23 @@ struct PresenceStack: View {
 
     var body: some View {
         Button(action: action) {
+            HStack(spacing: 6) {
+                // Can view: said once, beside the people, so a tap that types nothing isn't a mystery.
+                if session.isViewOnly {
+                    Text("View Only")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("collab.viewOnly")
+                }
+                avatars
+            }
+        }
+        .buttonStyle(.quietIcon)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityIdentifier("collab.people")
+    }
+
+    @ViewBuilder private var avatars: some View {
             if here.isEmpty {
                 Label("People", systemImage: "person.2")
             } else {
@@ -229,18 +253,17 @@ struct PresenceStack: View {
                     PresenceAvatars(people: here.map { p in
                         .init(id: p.id, name: p.name, photo: CollabStore.shared?.photos[p.id], typing: p.isTyping,
                               canEdit: session.members.first { $0.id == p.id }?.role != "viewer")
-                    })
+                    }, option: Self.badges)
                 }
                 .padding(.horizontal, 2)
             }
-        }
-        .buttonStyle(.quietIcon)
-        .accessibilityLabel(accessibilityText)
-        .accessibilityIdentifier("collab.people")
     }
 
+    static let badges = BadgeOption.current
+
     private var accessibilityText: String {
-        guard !here.isEmpty else { return "People" }
-        return "In this note: " + here.map(\.name).joined(separator: ", ")
+        let viewOnly = session.isViewOnly ? "View only. " : ""
+        guard !here.isEmpty else { return viewOnly + "People" }
+        return viewOnly + "In this note: " + here.map(\.name).joined(separator: ", ")
     }
 }

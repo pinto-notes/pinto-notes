@@ -11,13 +11,19 @@ const ID = "5a0f6c1e-2b1d-4c36-9e0a-6b6f0c1a2b3c";
 describe("universal links", () => {
   const aasa = JSON.parse(readFileSync(new URL("../public/.well-known/apple-app-site-association", import.meta.url), "utf8"));
 
-  it("claims /open/* for the app, in both formats", () => {
+  it("claims /open/* and note links (/s/*) for the app, in both formats", () => {
     const [detail] = aasa.applinks.details;
     expect(aasa.applinks.details).toHaveLength(1);
     expect(detail.appIDs).toEqual([APP]);
-    expect(detail.components.map((c: { "/": string }) => c["/"])).toEqual(["/open/*"]);
+    expect(detail.components.map((c: { "/": string }) => c["/"])).toEqual(["/open/*", "/s/*"]);
     expect(detail.appID).toBe(APP);
-    expect(detail.paths).toEqual(["/open/*"]);
+    expect(detail.paths).toEqual(["/open/*", "/s/*"]);
+  });
+
+  it("claims a note link only with its 22-character secret, so a cut-off link stays in the browser", () => {
+    const [detail] = aasa.applinks.details;
+    const note = detail.components.find((c: { "/": string }) => c["/"] === "/s/*");
+    expect(note["#"]).toBe("?".repeat(22));
   });
 
   it("only claims what the connect page links to", () => {

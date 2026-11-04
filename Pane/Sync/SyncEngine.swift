@@ -657,7 +657,7 @@ final class SyncEngine {
         // A sub-note made offline under a note made offline goes up after it.
         let notes = Self.parentsFirst((try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.dirty }))) ?? [])
         var pushedNotes: [UUID] = []
-        for n in notes where !isRefused(n.id, n.updatedAt) {
+        for n in notes where !isRefused(n.id, n.updatedAt) && !SharedNotes.unsharing.contains(n.id) {
             let sentAt = n.updatedAt
             let row = NoteDTO(n)
             var saved: [NoteDTO]
@@ -689,6 +689,7 @@ final class SyncEngine {
             }
             if let s = saved.first {
                 remember(s)
+                if s.shared_note_id != nil { n.sharedDocument?.pointerOnServer = true }
                 n.serverVersion = s.version ?? n.serverVersion
                 // Stay dirty if you typed more while this was in flight.
                 if n.updatedAt <= sentAt { n.dirty = false }
@@ -759,7 +760,10 @@ final class SyncEngine {
     /// Typing pushes every 0.35 s; the pages are written 2 s after the last push that touched them.
     private func republishShares(for ids: [UUID]) {
         guard !liveShares.isEmpty else { return }
-        let roots = Set(ids.flatMap { sharedRoots(of: $0) })
+        // A note shared with people is end to end encrypted between them: its text is never
+        // published to a readable page from here (a page made before it was shared keeps its copy).
+        let isShared = { (id: UUID) in self.context.note(id)?.isShared == true }
+        let roots = Set(ids.filter { !isShared($0) }.flatMap { sharedRoots(of: $0) }.filter { !isShared($0) })
         guard !roots.isEmpty else { return }
         publishQueue.formUnion(roots)
         publishTask?.cancel()
@@ -1067,6 +1071,36 @@ final class SyncEngine {
         }
         // Theirs can't be opened here: nothing is merged with it or written over it.
         if s.unreadable { _ = skipUnreadable(s.id, "A note"); return [] }
+        // A shared note's row is only a pointer: its text is in the shared document, so there's
+        // nothing to merge, and the newer of the two places wins. A note this device didn't know
+        // was shared keeps what was typed here as a conflicted copy: that text isn't in the document.
+        if s.shared_note_id != nil || n.isShared {
+            if s.shared_note_id != nil, !n.isShared {
+                insertConflictCopy(Self.conflictCopyID(of: n.id, server: s.version), body: Self.conflictCopy(of: n.body), folder: n.folder, at: n.updatedAt)
+                apply(s, to: n)
+                SharedNotes.pointerArrived?(n)
+                return server
+            }
+            if s.shared_note_id == nil, n.sharedDocument?.pointerOnServer ?? true {
+                // The pointer was on the server and now isn't: sharing was stopped elsewhere
+                // (collab_unshare). The server's row wins; pushing this pointer would bring the
+                // sharing back over the owner's text.
+                apply(s, to: n)
+                if n.isShared, n.deletedAt != nil { SharedNotes.pointerArrived?(n) }
+                return server
+            }
+            if s.shared_note_id == nil {
+                // Edited elsewhere as an ordinary note just before it was shared here: that text
+                // may not be in the document, so it's kept as a conflicted copy, and the row
+                // becomes the pointer.
+                if s.body != n.body, s.body != SharedNotes.placeholder(title: NoteText.title(of: s.body)) {
+                    insertConflictCopy(Self.conflictCopyID(of: n.id, server: s.version), body: Self.conflictCopy(of: s.body), folder: n.folder, at: s.updated_at)
+                }
+                return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
+            }
+            if s.updated_at > n.updatedAt { apply(s, to: n); return server }
+            return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
+        }
         if s.body == n.body && s.locked_body == n.lockedBody && Self.sameProps(s, n) { return server }
         // A locked note's text is sealed: there's nothing to merge line by line.
         let sealed = s.locked_body != nil || n.lockedBody != nil
@@ -1427,6 +1461,13 @@ final class SyncEngine {
         if let local, !Self.takes(r, over: local) { return false }
         let n = local ?? { let n = Note(body: r.body); n.id = r.id; context.insert(n); return n }()
         if local == nil { known?[r.id] = n }
+        if r.shared_note_id != nil || n.isShared {
+            // A shared note's pointer: where it is, pinned, deleted. Its text comes from its document.
+            apply(r, to: n)
+            n.folder = r.folder_id.flatMap { byID[$0] }
+            SharedNotes.pointerArrived?(n)
+            return true
+        }
         if n.body != r.body { remoteChangeTick += 1 }
         let before = (body: local?.body, version: local.map(\.serverVersion), aiAt: local?.aiEditedAt)
         apply(r, to: n)
@@ -1465,7 +1506,8 @@ final class SyncEngine {
             default: false
             }
         }
-        return r.body == n.body && r.locked_body == n.lockedBody && sameProps(r, n) && r.parent_id == n.parentID && r.is_pinned == n.isPinned
+        let text = n.isShared ? r.shared_note_id == n.sharedNoteID : r.body == n.body
+        return text && r.locked_body == n.lockedBody && sameProps(r, n) && r.parent_id == n.parentID && r.is_pinned == n.isPinned
             && near(r.trashed_at, n.trashedAt) && near(r.deleted_at, n.deletedAt) && r.folder_id == n.folder?.id
     }
 
@@ -1486,7 +1528,20 @@ final class SyncEngine {
 
     private func apply(_ r: NoteDTO, to n: Note) {
         remember(r)
-        n.body = r.body
+        // A shared note's row is a pointer: its text is the shared document's (SharedNotes). The
+        // note keeps its copy of that text; until this device has the document, the placeholder.
+        // A pointer that comes back without its shared note (the owner stopped sharing,
+        // collab_unshare) is an ordinary note again, with the text the server now holds.
+        var unshared = false
+        if let shared = r.shared_note_id {
+            if n.sharedNoteID == nil { n.sharedNoteID = shared }
+            n.sharedDocument?.pointerOnServer = true
+        } else if n.sharedNoteID != nil, r.deleted_at == nil {
+            n.sharedNoteID = nil
+            unshared = true
+        }
+        if n.sharedNoteID == nil || n.sharedDocument == nil { n.body = r.body }
+        if unshared { SharedNotes.unshared?(n) }
         n.lockedBody = r.locked_body
         if r.hasProps {
             n.frontMatter = r.front_matter
@@ -1646,12 +1701,21 @@ struct NoteDTO: Codable {
     /// The row says what front matter the note has (a server, or a realtime row, from before
     /// front matter says nothing: the note keeps what it has).
     var hasProps = false
+    /// Set for a shared note: its row is a pointer to the shared document, and `body` is
+    /// `SharedNotes.placeholder`, never the note's text (that goes only through collaboration).
+    var shared_note_id: UUID?
     /// Doesn't open with this device's key (or is damaged): never applied.
     var unreadable = false
 
     init(_ n: Note) {
         id = n.id
-        body = n.body
+        // One note, one sync path: a shared note's text never goes into its notes row.
+        if let shared = n.sharedNoteID {
+            body = SharedNotes.placeholder(title: n.title)
+            shared_note_id = shared
+        } else {
+            body = n.body
+        }
         locked_body = n.lockedBody
         front_matter = n.frontMatter
         locked_props = n.lockedFrontMatter
@@ -1665,7 +1729,7 @@ struct NoteDTO: Codable {
         deleted_at = n.deletedAt
     }
 
-    enum CodingKeys: String, CodingKey { case id, body_ct, head_ct, locked_body, props_ct, locked_props, folder_id, parent_id, is_pinned, created_at, updated_at, trashed_at, deleted_at, version, server_updated_at, ai_editor, ai_edited_at }
+    enum CodingKeys: String, CodingKey { case id, body_ct, head_ct, locked_body, props_ct, locked_props, folder_id, parent_id, is_pinned, created_at, updated_at, trashed_at, deleted_at, version, server_updated_at, ai_editor, ai_edited_at, shared_note_id }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -1682,6 +1746,7 @@ struct NoteDTO: Codable {
         server_updated_at = try c.decodeIfPresent(Date.self, forKey: .server_updated_at)
         ai_editor = try c.decodeIfPresent(String.self, forKey: .ai_editor)
         ai_edited_at = try c.decodeIfPresent(Date.self, forKey: .ai_edited_at)
+        shared_note_id = try c.decodeIfPresent(UUID.self, forKey: .shared_note_id)
         // A row without its text (realtime leaves big values out) isn't a note to apply.
         guard c.contains(.head_ct), locked_body != nil || c.contains(.body_ct) else {
             throw DecodingError.keyNotFound(CodingKeys.body_ct, .init(codingPath: c.codingPath, debugDescription: "no text in this row"))
@@ -1751,6 +1816,8 @@ struct NoteDTO: Codable {
         try c.encode(updated_at, forKey: .updated_at)
         try c.encode(trashed_at, forKey: .trashed_at)
         try c.encode(deleted_at, forKey: .deleted_at)
+        // Only when set: a server from before collaboration has no such column.
+        if let shared_note_id { try c.encode(shared_note_id, forKey: .shared_note_id) }
     }
 
     struct Patch: Encodable {
@@ -1765,6 +1832,7 @@ struct NoteDTO: Codable {
         var updated_at: Date
         var trashed_at: Date?
         var deleted_at: Date?
+        var shared_note_id: UUID?
 
         func encode(to encoder: Encoder) throws {
             var c = encoder.container(keyedBy: NoteDTO.CodingKeys.self)
@@ -1776,10 +1844,11 @@ struct NoteDTO: Codable {
             try c.encode(updated_at, forKey: .updated_at)
             try c.encode(trashed_at, forKey: .trashed_at)
             try c.encode(deleted_at, forKey: .deleted_at)
+            if let shared_note_id { try c.encode(shared_note_id, forKey: .shared_note_id) }
         }
     }
 
-    var patch: Patch { Patch(id: id, body: body, locked_body: locked_body, front_matter: front_matter, locked_props: locked_props, folder_id: folder_id, parent_id: parent_id, is_pinned: is_pinned, updated_at: updated_at, trashed_at: trashed_at, deleted_at: deleted_at) }
+    var patch: Patch { Patch(id: id, body: body, locked_body: locked_body, front_matter: front_matter, locked_props: locked_props, folder_id: folder_id, parent_id: parent_id, is_pinned: is_pinned, updated_at: updated_at, trashed_at: trashed_at, deleted_at: deleted_at, shared_note_id: shared_note_id) }
 }
 
 /// A file's name, type (a UTType identifier) and size, sealed together as its `meta_ct`.
