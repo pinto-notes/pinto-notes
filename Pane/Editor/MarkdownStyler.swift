@@ -697,6 +697,29 @@ struct MarkdownStyler {
         return a
     }
 
+    /// A list's hidden marker, `width` wide, its last character (the space before the text) in
+    /// the body's font, still clear: on an empty item that's what the caret is sized by, so it
+    /// stands where the first letter will, the letters' height (Emil, 11-04: on a new checklist
+    /// item it was 13 pt tall and 3 pt high, then jumped as you typed).
+    private func hideMarker(_ range: NSRange, width: CGFloat, in storage: NSMutableAttributedString) {
+        guard range.length > 0 else { return }
+        let space = (" " as NSString).size(withAttributes: [.font: bodyFont]).width
+        let last = NSRange(location: NSMaxRange(range) - 1, length: 1)
+        guard range.length > 1 else {
+            // A number's space: the room goes on its dot, before it.
+            storage.addAttributes(hidden, range: range)
+            storage.addAttributes([.font: bodyFont, .kern: 0], range: last)
+            if range.location > 0 { storage.addAttribute(.kern, value: width - space, range: NSRange(location: range.location - 1, length: 1)) }
+            return
+        }
+        // The room goes on the characters before it, so the last keeps its own width with no kern:
+        // a line's last kern isn't laid out until a letter follows, and the caret stood short.
+        let head = NSRange(location: range.location, length: range.length - 1)
+        storage.addAttributes(hiddenKerned(to: width - space, length: head.length), range: head)
+        storage.addAttributes(hidden, range: last)
+        storage.addAttributes([.font: bodyFont, .kern: 0], range: last)
+    }
+
     /// Where every list marker ends, from the list's indent: a number's dot, a bullet's or a
     /// dash's right edge. The text starts a gap after it, at the gutter.
     static var markerGap: CGFloat { EditorMetrics.body * 0.45 }
@@ -726,14 +749,14 @@ struct MarkdownStyler {
             p.firstLineHeadIndent = pad
             let spaceRange = NSRange(location: number.upperBound, length: prefix.upperBound - number.upperBound)
             let after = max(EditorMetrics.gutter - pad - measured, Self.markerGap)
-            storage.addAttributes(hiddenKerned(to: after, length: spaceRange.length), range: spaceRange)
+            hideMarker(spaceRange, width: after, in: storage)
             p.headIndent = lead + pad + measured + after
         } else {
             // Checklists follow Notes' geometry: the circle starts at the text margin, the text
             // sits a fixed gap after it, and items are spaced a little wider than plain lines.
             let isCheck = list.checkbox != nil
             let width = lead + (isCheck ? EditorMetrics.checkSize + EditorMetrics.checkGap : EditorMetrics.gutter)
-            storage.addAttributes(hiddenKerned(to: width, length: prefix.length), range: prefix)
+            hideMarker(prefix, width: width, in: storage)
             // A bullet or dash ends on the markers' edge, where a number's dot does.
             let half = list.marker == "-" ? LineDecoration.dashWidth / 2 : LineDecoration.bulletRadius
             let markerX = isCheck ? lead + EditorMetrics.checkSize / 2 : lead + Self.markerEnd - half

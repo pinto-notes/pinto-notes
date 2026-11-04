@@ -738,6 +738,7 @@
 		A99EC58B27FEB76AFF82BB0E /* CollabScriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17C1691F01EEFBB17B163761 /* CollabScriptTests.swift */; };
 		A9B486B03ADF66D0605E46FE /* AccountLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359BF7373A9A0550A24620EF /* AccountLibrary.swift */; };
 		A9FA9DE6BBFF0012FCEABF22 /* HeardFrom.swift in Sources */ = {isa = PBXBuildFile; fileRef = 025496AD1008785E931A6425 /* HeardFrom.swift */; };
+		AA100C2A163E634F34F0F8D1 /* ChecklistCaretTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 348FCD0EB02217FD93310370 /* ChecklistCaretTests.swift */; };
 		AA369763B0C5777AAECE35A1 /* ImportPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF617FC2BCA1C1A89CE29D77 /* ImportPipeline.swift */; };
 		AA74F5CD71C34BC389663098 /* template-app-habit-tracker.data.json in Resources */ = {isa = PBXBuildFile; fileRef = BFD0E9BB40489A8CB8356B19 /* template-app-habit-tracker.data.json */; };
 		AAEEF706B53C7F9082F6C35F /* purify.js in Resources */ = {isa = PBXBuildFile; fileRef = FA63BA9CC98D699F71D53B85 /* purify.js */; };
@@ -1277,6 +1278,7 @@
 		338A90129ABA3668433D376B /* BlogSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlogSnapshots.swift; sourceTree = "<group>"; };
 		33A4164E097B32FC526A9143 /* ChecklistShelfSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistShelfSync.swift; sourceTree = "<group>"; };
 		340C1ACA339E15FD7AEDC2FA /* firstopen-apps.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "firstopen-apps.jpg"; sourceTree = "<group>"; };
+		348FCD0EB02217FD93310370 /* ChecklistCaretTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistCaretTests.swift; sourceTree = "<group>"; };
 		34BFC88418CBABA209D07247 /* NotePageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePageView.swift; sourceTree = "<group>"; };
 		34D26FF6F1A986CCBFA21A04 /* AddDeviceLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDeviceLiveTests.swift; sourceTree = "<group>"; };
 		351EB8D113A762C5B0DBCE7A /* Recipes.enex */ = {isa = PBXFileReference; path = Recipes.enex; sourceTree = "<group>"; };
@@ -2284,6 +2286,7 @@
 				FF514831FEE33CB560873B07 /* BulletLookTests.swift */,
 				06F885F11369967DA92A32CE /* CaretFixTests.swift */,
 				1297F517F452FB8C62EF93C4 /* ChecklistAccessibilityTests.swift */,
+				348FCD0EB02217FD93310370 /* ChecklistCaretTests.swift */,
 				8BDEFF02B8B16DE3DF974509 /* ChecklistInteractionTests.swift */,
 				F7306680E0E335C07172C36F /* ChecklistLookTests.swift */,
 				66122A2F372A20CB63D5C4E5 /* ChecklistTickReorderTests.swift */,
@@ -3427,6 +3430,7 @@
 				6933608C9BB3131FFAE85300 /* CaretFixTests.swift in Sources */,
 				AC2264A58613A3184C2FCD65 /* CellTextTests.swift in Sources */,
 				2B79F93CCA1F36CE17BC3A81 /* ChecklistAccessibilityTests.swift in Sources */,
+				AA100C2A163E634F34F0F8D1 /* ChecklistCaretTests.swift in Sources */,
 				253C140607541209FC05DCDD /* ChecklistInteractionTests.swift in Sources */,
 				B568FC006AB97255DF994967 /* ChecklistLookTests.swift in Sources */,
 				E09B5EC0F89EBF888E3BF6A2 /* ChecklistShelfTests.swift in Sources */,
