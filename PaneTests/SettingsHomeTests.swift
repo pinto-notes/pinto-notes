@@ -379,10 +379,16 @@ import Testing
             let page = try #require(f["page"], "\(place): the page reports its frame")
             let area = try #require(f["area"])
             let title = try #require(f["title"])
+            // A page taller than the window scrolls; with scroll bars always shown (a mouse, or
+            // the setting) the bar takes its width from the column's room (Appearance and Privacy
+            // after the text size row, 11-04). With overlay scroll bars it takes nothing.
+            let bar: CGFloat = page.maxY > area.maxY && NSScroller.preferredScrollerStyle == .legacy
+                ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0
+            let room = CGRect(x: area.minX, y: area.minY, width: area.width - bar, height: area.height)
             #expect(page.width <= SettingsCard.pageWidth + 0.5, "\(place): the column is capped at \(SettingsCard.pageWidth), was \(page.width)")
-            #expect(abs(page.width - min(SettingsCard.pageWidth, area.width - 2 * SettingsCard.gutter)) < 0.5, "\(place): as wide as the cap or the room allows")
-            #expect(abs(page.midX - area.midX) < 0.5, "\(place): centred, page \(page) in area \(area)")
-            #expect(abs(title.minX - (page.minX + SettingsCard.pageInset)) < 0.5, "\(place): the title starts at the content's edge: \(title.minX) vs \(page.minX + SettingsCard.pageInset)")
+            #expect(abs(page.width - min(SettingsCard.pageWidth, room.width - 2 * SettingsCard.gutter)) < 0.5, "\(place): as wide as the cap or the room allows")
+            #expect(abs(page.midX - room.midX) < 0.5, "\(place): centred, page \(page) in area \(room)")
+            #expect(abs(title.minX - (page.minX + SettingsCard.pageInset)) <= bar / 2 + 0.5, "\(place): the title starts at the content's edge: \(title.minX) vs \(page.minX + SettingsCard.pageInset)")
         }
         #expect(SettingsCard.contentWidth >= 560 && SettingsCard.contentWidth <= 620)
     }
