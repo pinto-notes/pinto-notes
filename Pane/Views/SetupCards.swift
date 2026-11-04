@@ -43,12 +43,7 @@ enum SetupCards {
     /// The places notes can come from, Apple Notes first (`ImportOrigin.all`).
     static var sources: [ImportOrigin] { ImportOrigin.all }
 
-    /// The apps, three by two. Markdown files, the catch-all, is one wide tile under them, so
-    /// seven sources never leave one alone on a row (persona council 11-04, Notion added).
-    static var appSources: [ImportOrigin] { sources.filter { $0 != .files(.markdown) } }
-    static var wideSources: [ImportOrigin] { sources.filter { $0 == .files(.markdown) } }
-
-    /// The tile's name: short, so three fit across the card.
+    /// The tile's name: short, so six fit in three columns.
     static func tileName(_ origin: ImportOrigin) -> String {
         switch origin {
         case .files(.markdown): "Markdown files"
@@ -334,27 +329,21 @@ private struct SetupTile<Mark: View>: View {
     let on: Bool
     let id: String
     let action: () -> Void
-    /// The width of the card, its mark beside its name: the catch-all under the grid.
-    var wide = false
     @ViewBuilder var mark: Mark
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-        let name = Text(title)
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(Color.ink)
-            .lineLimit(1)
-            .minimumScaleFactor(0.85)
         Button(action: action) {
-            Group {
-                if wide {
-                    HStack(spacing: 8) { mark; name }
-                } else {
-                    VStack(spacing: 7) { mark; name }
-                }
+            VStack(spacing: 7) {
+                mark
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
             .padding(.horizontal, 6)
-            .frame(maxWidth: .infinity, minHeight: wide ? 44 : 76)
+            .frame(maxWidth: .infinity, minHeight: 76)
             .background(SetupCards.soft, in: shape)
             .overlay(shape.strokeBorder(Color.primary, lineWidth: on ? 2 : 0))
             .contentShape(shape)
@@ -746,17 +735,10 @@ struct SetupCardsFlow: View {
     private var bring: some View {
         VStack(spacing: 16) {
             title(SetupCards.bringTitle)
-            VStack(spacing: 8) {
-                LazyVGrid(columns: three, spacing: 8) {
-                    ForEach(SetupCards.appSources) { origin in
-                        SetupTile(title: SetupCards.tileName(origin), on: shownSource == origin, id: "setup.source.\(origin.id)", action: { source = origin }) {
-                            ImportSourceIcon(origin: origin, size: 30)
-                        }
-                    }
-                }
-                ForEach(SetupCards.wideSources) { origin in
-                    SetupTile(title: SetupCards.tileName(origin), on: shownSource == origin, id: "setup.source.\(origin.id)", action: { source = origin }, wide: true) {
-                        ImportSourceIcon(origin: origin, size: 22)
+            LazyVGrid(columns: three, spacing: 8) {
+                ForEach(SetupCards.sources) { origin in
+                    SetupTile(title: SetupCards.tileName(origin), on: shownSource == origin, id: "setup.source.\(origin.id)", action: { source = origin }) {
+                        ImportSourceIcon(origin: origin, size: 30)
                     }
                 }
             }
