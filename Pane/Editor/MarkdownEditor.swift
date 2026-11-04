@@ -1895,7 +1895,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         if edit.replacement == "x", let r = circle {
             CheckPop.play(in: layer, rect: r.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top))
         }
-        core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) }
+        if controller?.sortsTickedItems != false { core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) } }
     }
 
     /// Ticked items sink below the open ones, a moment after the tick, sliding into place.
@@ -3277,7 +3277,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                     CheckPop.play(in: host, rect: r.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
                 }
             }
-            core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) }
+            if controller?.sortsTickedItems != false { core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) } }
             return
         }
         if event.clickCount == 1, let icon = calloutIcon(at: point) {

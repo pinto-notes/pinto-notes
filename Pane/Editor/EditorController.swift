@@ -26,6 +26,11 @@ final class EditorController {
     var remoteCarets: [RemoteCaret] = []
     /// In a shared note, Undo takes back only your own edits.
     var ownUndo: OwnUndo?
+    /// Ticked items sink below the open ones a moment after the tick, except in a shared note.
+    /// The move rewrites the list, and two people's rewrites at once merge into doubled lines
+    /// (CollabTwoPeopleTests.whyTicksStayPutInASharedNote). There a tick changes one character and
+    /// the item stays where it is, as with Notes' Sort Checked Items set to Manually.
+    var sortsTickedItems: Bool { ownUndo == nil }
     /// The file being shown in Quick Look.
     var previewURL: URL?
     /// Files being fetched from the server.

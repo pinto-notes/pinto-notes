@@ -49,3 +49,17 @@ enum CollabText {
         if doc.heads().isEmpty { try doc.merge(other: try Document(bytes)) } else { try doc.applyEncodedChanges(encoded: bytes) }
     }
 }
+
+/// Checklist boxes a merge left with more than one character inside ("[xx]", "[  ]"): two people
+/// ticked, or unticked, the same item at once (CollabSession.mendTicks).
+enum CollabTicks {
+    private static let box = try! NSRegularExpression(pattern: #"^[ \t]*[-*+][ \t]+\[([ xX]{2,})\](?=[ \t])"#, options: .anchorsMatchLines)
+
+    /// What to drop to mend them (UTF-16 ranges): every character in each such box but its first.
+    static func drops(in text: String) -> [NSRange] {
+        box.matches(in: text, range: NSRange(location: 0, length: (text as NSString).length)).map { m in
+            let inside = m.range(at: 1)
+            return NSRange(location: inside.location + 1, length: inside.length - 1)
+        }
+    }
+}

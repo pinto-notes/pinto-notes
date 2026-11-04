@@ -107,10 +107,18 @@ async function mcpSession(p: any) {
   return call;
 }
 
+/** A list item's box a merge left with more than one character: both ticked the same item at once. */
+const DOUBLED_BOX = /^([ \t]*[-*+][ \t]+\[)([ xX]{2,})\](?=[ \t])/gm;
 /** A device's copy of a shared note. */
 class Device {
   doc: Doc = A.init(); seen = new Set<string>(); outbox: Uint8Array[] = [];
-  constructor(public p: any, public note: string, public nk: Uint8Array<ArrayBuffer>, public epoch = 1) {}
+  constructor(public p: any, public note: string, public nk: Uint8Array<ArrayBuffer>, public epoch = 1, public canEdit = true) {}
+  /** As the app's CollabSession.mendTicks: keep the first character of a doubled box. */
+  mend() {
+    const drops = [...(this.doc.body ?? "").matchAll(DOUBLED_BOX)].map((m) => [m.index! + m[1].length + 1, m[2].length - 1] as const);
+    if (!drops.length || !this.canEdit) return;
+    this.edit((d) => { for (const [at, n] of drops.reverse()) A.splice(d, ["body"], at, n); });
+  }
   edit(fn: (d: { body?: string }) => void) { this.doc = A.change(this.doc, fn); this.outbox.push(A.getLastLocalChange(this.doc)!); }
   async push() {
     for (const ch of this.outbox.splice(0)) {
@@ -123,11 +131,14 @@ class Device {
     let after = 0;
     if (snaps.length && !this.doc.body) { this.doc = A.loadIncremental(this.doc, await open3("s", snaps[0].ct, this.nk, this.note, String(snaps[0].upto))); after = Number(snaps[0].upto); }
     const rows = await rest(this.p, "note_updates?note_id=eq." + this.note + "&id=gt." + after + "&order=id");
+    let took = false;
     for (const r of rows) {
       if (this.seen.has(String(r.id)) || r.epoch !== this.epoch) continue;
       this.doc = A.loadIncremental(this.doc, await open3("u", r.ct, this.nk, this.note, r.author_id));
       this.seen.add(String(r.id));
+      took = true;
     }
+    if (took) this.mend();
     return this.doc.body ?? "";
   }
 }
@@ -211,8 +222,12 @@ await step("1. owner shares a checklist by link with Can edit, member joins, bot
   const [a, b] = [await mac.pull(), await phone.pull()];
   check(a === b, "diverged: " + JSON.stringify([a, b]));
   check(ticked(a, "Book the venue") && ticked(a, "Order lunch") && a.includes("by Friday") && a.includes("- [ ] Pick dates"), "ticks lost: " + JSON.stringify(a));
-  // Both tick the same item at once: still one tick, nothing doubled.
+  // Both tick the same item at once: the merge doubles its box ("[xx]"), each device mends it
+  // as it arrives, both mends go up at once, and it ends as one tick.
   tick(mac, "Print agenda"); tick(phone, "Print agenda");
+  await Promise.all([mac.push(), phone.push()]);
+  await mac.pull(); await phone.pull();
+  check(mac.outbox.length === 1 && phone.outbox.length === 1, "no mend queued");
   await Promise.all([mac.push(), phone.push()]);
   const [c, e] = [await mac.pull(), await phone.pull()];
   check(c === e && ticked(c, "Print agenda") && c.split("Print agenda").length === 2 && !c.includes("[xx]"), "same tick twice: " + JSON.stringify(c));
@@ -282,7 +297,7 @@ await step("5. a viewer joins by a Can view link, reads, can't write, leaves, an
   const j = await join(eve, S, l, 2);
   const [m] = await rest(eve, "note_members?note_id=eq." + S + "&user_id=eq." + eve.id + "&select=role");
   check(m?.role === "viewer", "joined as " + JSON.stringify(m));
-  const tab = new Device(eve, S, j.nk, 2);
+  const tab = new Device(eve, S, j.nk, 2, false);
   check((await tab.pull()).includes("Secret after Sara was removed"), "viewer can't read");
   tab.edit((d) => A.splice(d, ["body"], 0, 0, "x"));
   const w = await tab.push().then(() => null, (e) => e);

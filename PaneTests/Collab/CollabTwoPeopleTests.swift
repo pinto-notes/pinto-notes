@@ -58,6 +58,78 @@ import Testing
         #expect(stored.allSatisfy { $0.ct.hasPrefix("amb3u.1.") && !$0.ct.contains("Budget") })
     }
 
+    static let packing = "Packing\n- [ ] Passport\n- [ ] Charger\n- [ ] Tickets\n- [ ] Snacks\n"
+
+    /// The text after tapping the box of `item`, as the editor does it (one character).
+    static func tick(_ text: String, _ item: String) -> String {
+        let ns = text as NSString
+        let line = ns.lineRange(for: NSRange(location: ns.range(of: item).location, length: 0)).location
+        let edit = ListEditing.toggleCheckbox(in: text, lineStart: line)!
+        return ns.replacingCharacters(in: edit.range, with: edit.replacement)
+    }
+
+    /// The editor's tick and then the move that sinks ticked items, as in a note of your own.
+    static func tickAndSort(_ text: String, _ item: String) -> String {
+        let ticked = tick(text, item)
+        let at = (ticked as NSString).range(of: item).location
+        guard let sort = ListEditing.sortChecklist(in: ticked, around: at, caret: -1) else { return ticked }
+        return (ticked as NSString).replacingCharacters(in: sort.range, with: sort.replacement)
+    }
+
+    /// A shared checklist: two people tick different items at once, and both see both ticks.
+    @Test func twoPeopleTickAtOnceAndBothSeeBothTicks() async throws {
+        let (emil, sara, note, _) = try await shared(Self.packing)
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
+        mine.local(Self.tick(mine.text, "Passport"), selection: nil)
+        theirs.local(Self.tick(theirs.text, "Tickets"), selection: nil)
+        await server.settle()
+        await server.eventually { mine.text == theirs.text && mine.text.contains("[x] Passport") && mine.text.contains("[x] Tickets") }
+        #expect(mine.text == theirs.text)
+        #expect(mine.text == "Packing\n- [x] Passport\n- [ ] Charger\n- [x] Tickets\n- [ ] Snacks\n")
+    }
+
+    /// Both tick the same item before seeing the other's tick (two phones in the shop): each
+    /// replaced the same character, and both replacements would stay ("[xx]", no box any more).
+    /// The first device to see it keeps one, and so does the other, so it ends as one tick.
+    /// The same for both unticking it again.
+    @Test func bothTickingTheSameItemAtOnceLeavesOneTick() async throws {
+        let (emil, sara, note, _) = try await shared(Self.packing)
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
+        let ticked = Self.tick(Self.packing, "Snacks")
+        mine.local(ticked, selection: nil)
+        theirs.local(ticked, selection: nil)
+        await server.settle()
+        await server.eventually { mine.text == ticked && theirs.text == ticked }
+        #expect(mine.text == ticked && theirs.text == ticked, "\(mine.text.debugDescription) / \(theirs.text.debugDescription)")
+
+        mine.local(Self.packing, selection: nil)
+        theirs.local(Self.packing, selection: nil)
+        await server.settle()
+        await server.eventually { mine.text == Self.packing && theirs.text == Self.packing }
+        #expect(mine.text == Self.packing && theirs.text == Self.packing, "\(mine.text.debugDescription) / \(theirs.text.debugDescription)")
+    }
+
+    /// Only a list item's box is mended, and only one a merge doubled.
+    @Test func whichBoxesAreMended() {
+        let text = "- [xx] a\n  * [  ] b\n- [x ] c\n- [x] d\n- [ ] e\nNot [xx] a box\n1. [xx] f\n- [xx]g\n"
+        let ns = text as NSString
+        #expect(CollabTicks.drops(in: text).map { ns.substring(with: $0) } == ["x", " ", " "])
+        #expect(CollabTicks.drops(in: "- [x] Milk\n- [ ] Bread\n").isEmpty)
+    }
+
+    /// Why a tick doesn't move the item in a shared note (EditorController.sortsTickedItems): the
+    /// move rewrites the list, and two people's moves at once merge into doubled lines.
+    @Test func whyTicksStayPutInASharedNote() async throws {
+        let (emil, sara, note, _) = try await shared(Self.packing)
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
+        mine.local(Self.tickAndSort(mine.text, "Passport"), selection: nil)
+        theirs.local(Self.tickAndSort(theirs.text, "Charger"), selection: nil)
+        await server.settle()
+        await server.eventually { mine.text == theirs.text }
+        let lines = mine.text.split(separator: "\n")
+        #expect(lines.count > 5, "the moves merged cleanly after all, so ticks could move again: \(mine.text.debugDescription)")
+    }
+
     @Test func someoneWhoJoinsLaterGetsEverythingFromTheServer() async throws {
         let (emil, sara, note, ids) = try await shared("Groceries\n")
         let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))

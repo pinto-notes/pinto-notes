@@ -431,12 +431,40 @@ final class CollabSession {
 
     /// The document's text changed from outside: to the editor, the carets, and the note.
     private func textChanged() {
+        let mended = mendTicks()
         let merged = (try? doc.text(obj: body)) ?? text
-        guard merged != text else { resolvePeers(); return }
+        guard merged != text else { resolvePeers(); if mended { flush() }; return }
         text = merged
         onRemoteText?(merged)
         resolvePeers()
         settle()
+        if mended { flush() }
+    }
+
+    /// Two people ticking (or unticking) the same item at once each replaced its one character,
+    /// and the merge keeps both: "- [xx] Milk", which no longer reads as a box. A device that
+    /// sees it keeps the first character and drops the rest. Every device orders the two the
+    /// same way, so two devices mending it at once drop the same one and it ends as one tick.
+    /// True when it changed the document (the change is queued, not sent yet).
+    private func mendTicks() -> Bool {
+        guard !isClosed, record.canEdit, !isViewOnly, let current = try? doc.text(obj: body) else { return false }
+        let drops = CollabTicks.drops(in: current)
+        guard !drops.isEmpty else { return false }
+        let before = doc.heads()
+        let change: Data
+        do {
+            for r in drops.reversed() { try doc.spliceText(obj: body, start: UInt64(r.location), delete: Int64(r.length), value: nil) }
+            change = try doc.encodeChangesSince(heads: before)
+        } catch {
+            log.error("mending a tick failed: \(String(describing: error), privacy: .public)")
+            return false
+        }
+        guard !change.isEmpty else { return false }
+        keep(change)
+        record.enqueue(change)
+        isSent = false
+        saveSoon()
+        return true
     }
 
     // MARK: Your edits
