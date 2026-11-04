@@ -297,26 +297,37 @@ enum AIChangeUndoError: LocalizedError, Equatable {
 
 @MainActor
 enum AIChangeUndo {
-    /// Why Undo is off, in a few words with what to do (council round 10: it greyed out silently).
-    static func reason(_ c: AIChange, note: Note?, undone: Bool) -> String? {
-        if undone { return "Already undone." }
-        guard let note, note.deletedAt == nil else { return "This note isn\u{2019}t on this Mac." }
-        if note.isLocked { return "Unlock this note to undo." }
-        if note.isTrashed { return "Recover the note to undo." }
-        if (c.kind == .edit || c.kind == .restore), c.beforeVersion == nil { return "No earlier version to go back to." }
-        return nil
+    /// Why Undo is off, in a few words with what to do; nil when it isn't. Undone shows "Undone"
+    /// on its own (council round 10: it greyed out silently).
+    static func reason(_ c: AIChange, note: Note?, undone: Bool, context: ModelContext) -> String? {
+        undone ? nil : blocked(c, note: note, context: context)
     }
 
     /// Whether this change can be taken back from here.
     static func possible(_ c: AIChange, note: Note?, context: ModelContext) -> Bool {
-        guard let note, note.deletedAt == nil, !note.isLocked else { return false }
+        blocked(c, note: note, context: context) == nil
+    }
+
+    /// The one place that decides, so every greyed Undo has its words (council round 11: a note
+    /// moved again, or a gone folder, greyed it with nothing said).
+    static func blocked(_ c: AIChange, note: Note?, context: ModelContext) -> String? {
+        guard let note, note.deletedAt == nil else { return "This note isn\u{2019}t on this Mac." }
+        if note.isLocked { return "Unlock this note to undo." }
         switch c.kind {
-        case .edit, .restore: return c.beforeVersion != nil && !note.isTrashed
-        case .created, .restored: return !note.isTrashed
-        case .deleted: return note.isTrashed
+        case .edit, .restore:
+            if note.isTrashed { return "Recover the note to undo." }
+            return c.beforeVersion == nil ? "No earlier version to go back to." : nil
+        case .created, .restored:
+            return note.isTrashed ? "Already in the Trash." : nil
+        case .deleted:
+            return note.isTrashed ? nil : "Already back from the Trash."
         case .moved:
-            guard !note.isTrashed, note.folder?.id == c.toFolder, let from = c.fromFolder else { return false }
-            return context.folder(from).map { $0.deletedAt == nil } ?? false
+            if note.isTrashed { return "Recover the note to undo." }
+            guard note.folder?.id == c.toFolder else { return "Moved again since." }
+            guard let from = c.fromFolder, let folder = context.folder(from), folder.deletedAt == nil else {
+                return "Its old folder is gone."
+            }
+            return nil
         }
     }
 
@@ -410,7 +421,7 @@ final class AIChangesModel {
     func title(_ c: AIChange) -> String { note(c).map { $0.isLocked ? "Locked note" : $0.title } ?? "A note not on this device" }
     /// Why Undo is off for this change; nil while it's on or the reason is only that it's busy.
     func undoReason(_ c: AIChange) -> String? {
-        canUndo(c) ? nil : AIChangeUndo.reason(c, note: note(c), undone: undone.contains(c.id))
+        AIChangeUndo.reason(c, note: note(c), undone: undone.contains(c.id), context: context)
     }
     func canUndo(_ c: AIChange) -> Bool { !undone.contains(c.id) && AIChangeUndo.possible(c, note: note(c), context: context) }
 

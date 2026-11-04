@@ -440,8 +440,8 @@ import Testing
     /// Connect an AI says what is sent and to which company, by name, always in view (App Review
     /// rejected 1.2 for hiding it); one row per AI there is, connected or not, and never Mistral.
     @Test func connectSaysWhatIsSentAndToWhom() throws {
-        #expect(ConnectAIPage.sent(["ChatGPT", "Claude"]) == "The notes ChatGPT opens go to OpenAI and the notes Claude opens go to Anthropic. Disconnect one any time to stop it.")
-        #expect(ConnectAIPage.sent(["Grok"]) == "The notes Grok opens go to xAI. Disconnect one any time to stop it.")
+        #expect(ConnectAIPage.sent(["ChatGPT", "Claude"]) == "The notes ChatGPT opens go to OpenAI and the notes Claude opens go to Anthropic. Disconnect an AI any time to stop sharing with it.")
+        #expect(ConnectAIPage.sent(["Grok"]) == "The notes Grok opens go to xAI. Disconnect an AI any time to stop sharing with it.")
         #expect(ConnectAIPage.sent([]) == ConnectCopy.shared, "before any is connected, the general line")
         #expect(ConnectAIPage.sent(["ChatGPT", "An app on this computer"]).contains("Other connected apps get only the notes they open."))
         for g in ConnectAISection.Guide.allCases { #expect(!ConnectAIPage.line(g).isEmpty && !ConnectAIPage.line(g).contains("\u{2014}")) }
@@ -607,8 +607,25 @@ import Testing
             #expect(width <= ConsentFooter.column - 4, "\(line): \(width) pt in \(ConsentFooter.column)")
         }
         #expect(SignInView.settingsLine.contains("ChatGPT or Claude"), "signed out, Account says what the card says")
+        // On the Mac card, the short line, on one line beside Sign In… (council round 11: "or
+        // Claude." wrapped alone). The 880 pt window less the sidebar (about 208), the card's
+        // margins and padding, the 54 pt avatar and the Sign In… button leaves about 370 pt.
+        let accountPage = try Self.source("Pane/Views/SettingsPages.swift")
+        #expect(accountPage.contains(": SignInView.shortLine)"))
+        let short = NSAttributedString(string: SignInView.shortLine, attributes: [.font: NSFont.systemFont(ofSize: 13)]).size().width
+        #expect(short <= 360, "\(short) pt")
         // Table cells: 0.6 em either side, 8 pt at the smallest size, 14 at the biggest.
         #expect(GridMetrics.inset(body: 13) == 8 && GridMetrics.inset(body: 24) == 14)
+        // And a click counts from where the text starts (council round 11: clicks still counted 8 pt):
+        // at 24 pt, a click 2 pt into "Ma" lands before "M", at any inset.
+        let font = NSFont.systemFont(ofSize: 24)
+        let m = ("M" as NSString).size(withAttributes: [.font: font]).width
+        for inset: CGFloat in [8, 14] {
+            #expect(TableGridView.caretIndex(in: "Manteigaria", x: inset + 2, width: 200, trailing: false, body: 24, inset: inset) == 0)
+            #expect(TableGridView.caretIndex(in: "Manteigaria", x: inset + m + 2, width: 200, trailing: false, body: 24, inset: inset) == 1)
+        }
+        let grid = try Self.source("Pane/Editor/TableGrid.swift")
+        #expect(!grid.contains("p.x - 8"), "links and the pointer count the same inset")
         #expect(ConsentFooter.diagnosticsLines == "Sends error reports and counts.\nNever your notes. Turn off in Settings.", "two lines")
         // And each sentence fits its line, measured, not counted (round 9: it passed and wrapped on the Air).
         for line in ConsentFooter.diagnosticsLines.split(separator: "\n") {

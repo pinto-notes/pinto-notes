@@ -1829,7 +1829,7 @@ struct ConnectAIPage: View {
         let others = known.count < names.count ? " Other connected apps get only the notes they open." : ""
         // Said to someone who has allowed it already: what it means now, not "until you allow it"
         // (council round 10).
-        return joined.prefix(1).uppercased() + joined.dropFirst() + "." + others + " Disconnect one any time to stop it."
+        return joined.prefix(1).uppercased() + joined.dropFirst() + "." + others + " Disconnect an AI any time to stop sharing with it."
     }
 
     /// The line under a connected one: when it was last used. One the list names by its AI is that

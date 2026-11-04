@@ -892,7 +892,7 @@ struct TableGridView: View {
                 #endif
                 .onTapGesture { p in
                     // A link's words open its note (a Notion row's page), as a link in the text does.
-                    if let controller, let target = CellText.link(in: value, at: p.x - 8, font: PFont.systemFont(ofSize: EditorMetrics.body)) {
+                    if let controller, let target = CellText.link(in: value, at: p.x - GridMetrics.inset, font: PFont.systemFont(ofSize: EditorMetrics.body)) {
                         controller.openWiki(target)
                         return
                     }
@@ -901,12 +901,14 @@ struct TableGridView: View {
         }
     }
 
-    /// Which character a click at `x` (in the cell) lands before.
-    static func caretIndex(in value: String, x: CGFloat, width: CGFloat, trailing: Bool) -> Int {
-        let font = PFont.systemFont(ofSize: EditorMetrics.body)
+    /// Which character a click at `x` (in the cell) lands before. The text starts `inset` in, as
+    /// the cell draws it (council round 11: clicks still counted 8 pt when the inset grew to 14).
+    static func caretIndex(in value: String, x: CGFloat, width: CGFloat, trailing: Bool,
+                           body: CGFloat = EditorMetrics.body, inset: CGFloat = GridMetrics.inset) -> Int {
+        let font = PFont.systemFont(ofSize: body)
         let ns = value as NSString
         let full = ns.size(withAttributes: [.font: font]).width
-        let start: CGFloat = trailing ? width - 8 - full : 8
+        let start: CGFloat = trailing ? width - inset - full : inset
         let local = x - start
         guard local > 0 else { return 0 }
         var previous: CGFloat = 0
@@ -1103,7 +1105,7 @@ private struct CellLinkPointer: ViewModifier {
                 .pointerStyle(overLink ? .link : .horizontalText)
                 .onContinuousHover { phase in
                     if case .active(let p) = phase {
-                        overLink = CellText.link(in: value, at: p.x - 8, font: PFont.systemFont(ofSize: EditorMetrics.body)) != nil
+                        overLink = CellText.link(in: value, at: p.x - GridMetrics.inset, font: PFont.systemFont(ofSize: EditorMetrics.body)) != nil
                     } else {
                         overLink = false
                     }
