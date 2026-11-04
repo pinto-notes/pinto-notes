@@ -497,7 +497,7 @@ async function fetchShared(tx: Tx, a: Args, c: Call, s: Shared, path: string) {
   const shown = numberedLines(at.text, a.offset, a.limit);
   await markRead(tx, c, sharedItem(s.id), await hash(c, at.text));
   return {
-    id: path, title: s.title, text: shown.text, url: `ambernotes://note/${s.id}`,
+    id: path, title: s.title, text: shown.text, url: `pintonotes://note/${s.id}`,
     metadata: {
       path, lines: shown.lines, updated: iso(s.updated_at), today: today(), shared: sharedLine(s), ...(s.role === "viewer" ? { read_only: true } : {}),
       ...(wikiLinks(at.text).length ? { links: wikiLinks(at.text) } : {}), ...(shown.truncated ? { truncated: shown.truncated } : {}),
