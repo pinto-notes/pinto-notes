@@ -260,11 +260,32 @@ struct AccountSettingsPage: View {
 
 // MARK: Appearance
 
+#if os(macOS)
+extension AppearanceSettingsPage {
+    /// Under Note text size: what it changes, and how to get back.
+    /// The size a stored value stands for (nothing stored: the standard 13 pt).
+    static func shown(_ stored: Double) -> CGFloat {
+        TextSize.steps.contains(CGFloat(stored)) ? CGFloat(stored) : TextSize.standard
+    }
+
+    static func textSizeDetail(_ stored: Double) -> String {
+        shown(stored) == TextSize.standard
+            ? "View › Bigger (⌘+) and Smaller (⌘−) change it too."
+            : "Standard is \(Int(TextSize.standard)) pt. View › Actual Size (⌘0) puts it back."
+    }
+}
+#endif
+
 /// Appearance: System, Light and Dark as pictures of the window; the theme and its accent; the
 /// menu bar item.
 struct AppearanceSettingsPage: View {
     @State private var mode = AppearanceModeStore.shared
     @AppStorage(MenuBarSettings.key) private var menuBar = true
+    @Environment(\.colorScheme) private var scheme
+    #if os(macOS)
+    /// View › Bigger and Smaller's size, here too so it's found (council round 3, 11-04).
+    @AppStorage(TextSize.key) private var textSize = Double(TextSize.standard)
+    #endif
 
     var body: some View {
         let look = ThemeStore.shared.look
@@ -272,7 +293,7 @@ struct AppearanceSettingsPage: View {
             SettingsGroup(header: "Mode") {
                 HStack(spacing: 14) {
                     ForEach(AppearanceMode.allCases) { m in
-                        WindowChoice(title: m.title, selected: mode.mode == m, orange: true, height: 74, id: "settings.mode.\(m.rawValue)") {
+                        WindowChoice(title: m.title, selected: mode.mode == m, orange: false, height: 74, id: "settings.mode.\(m.rawValue)") {
                             ModePicture(mode: m, theme: look.theme)
                         } pick: { mode.mode = m }
                     }
@@ -285,7 +306,8 @@ struct AppearanceSettingsPage: View {
                 HStack(spacing: 10) {
                     ForEach(Theme.allCases) { t in
                         WindowChoice(title: t.title, selected: look.theme == t, orange: false, height: 46, id: "settings.theme.\(t.rawValue)") {
-                            ThemeWindowPicture(theme: t, dark: false)
+                            // In the mode showing now: dark Settings showed six light windows.
+                            ThemeWindowPicture(theme: t, dark: scheme == .dark)
                         } pick: { ThemeStore.shared.theme = t }
                     }
                 }
@@ -302,6 +324,17 @@ struct AppearanceSettingsPage: View {
                     }
                 }
             }
+            #if os(macOS)
+            SettingsGroup {
+                SettingsLine(title: "Note text size", detail: Self.textSizeDetail(textSize)) {
+                    Stepper {
+                        Text("\(Int(Self.shown(textSize))) pt").monospacedDigit()
+                    } onIncrement: { TextSize.bigger() } onDecrement: { TextSize.smaller() }
+                    .accessibilityIdentifier("settings.textSize")
+                    .accessibilityValue("\(Int(Self.shown(textSize))) points")
+                }
+            }
+            #endif
             SettingsGroup {
                 SettingsLine(title: "Show in menu bar", detail: "Capture or find a note from the menu bar, even with the window closed.") {
                     Toggle("Show in menu bar", isOn: $menuBar)

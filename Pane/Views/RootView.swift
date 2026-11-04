@@ -16,6 +16,9 @@ struct RootView: View {
     /// The list's selection; one note opens in the editor, several show a summary like Notes.
     @State private var selection: Set<UUID> = []
     @State private var visibility: NavigationSplitViewVisibility = .all
+    #if os(macOS)
+    @State private var listWidth = ListWidthKeeper.Probe()
+    #endif
     #if os(iOS)
     /// The open notes, for the list beside the note to draw (OpenNotes).
     @State private var openNotes = OpenNotes()
@@ -116,6 +119,10 @@ struct RootView: View {
             // View › Hide Sidebar / Show Sidebar, named for the state it's in (SidebarCommands
             // read "Show Sidebar" both ways beside this three-column split view).
             .focusedSceneValue(\.sidebarVisibility, $visibility)
+            // The list comes back at the width it had: hidden, it's held at 350 pt for the
+            // sidebar's buttons, and kept that when the sidebar came back (council round 3).
+            .background(ListWidthKeeper(probe: listWidth))
+            .onChange(of: visibility) { old, new in listWidth.changed(from: old, to: new) }
             #endif
             .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
                 if let client = backendForConnect?.client { ConnectAISheet(client: client) }
@@ -1304,6 +1311,53 @@ extension FocusedValues {
     var sidebarVisibility: Binding<NavigationSplitViewVisibility>? {
         get { self[SidebarVisibilityKey.self] }
         set { self[SidebarVisibilityKey.self] = newValue }
+    }
+}
+#endif
+
+#if os(macOS)
+/// Remembers the notes list's width while the sidebar is hidden and puts it back when the
+/// sidebar shows again.
+struct ListWidthKeeper: NSViewRepresentable {
+    let probe: Probe
+
+    func makeNSView(context: Context) -> Probe { probe }
+    func updateNSView(_ view: Probe, context: Context) {}
+
+    final class Probe: NSView {
+        /// The list's width just before the sidebar hid.
+        private(set) var saved: CGFloat?
+
+        /// The window's three-column split view.
+        var split: NSSplitView? {
+            func find(_ v: NSView) -> NSSplitView? {
+                if let s = v as? NSSplitView, s.arrangedSubviews.count >= 3 { return s }
+                for k in v.subviews { if let f = find(k) { return f } }
+                return nil
+            }
+            return window?.contentView.flatMap(find)
+        }
+
+        func changed(from old: NavigationSplitViewVisibility, to new: NavigationSplitViewVisibility) {
+            guard let split else { return }
+            if old == .all, new != .all {
+                // Before the split view moves: it still has the widths it had.
+                saved = split.arrangedSubviews[1].frame.width
+            } else if new == .all, let width = saved {
+                saved = nil
+                // Once the sidebar is back in place (its slide in takes about a quarter second).
+                Task { @MainActor [weak self] in
+                    for _ in 0..<12 {
+                        try? await Task.sleep(for: .milliseconds(60))
+                        guard let split = self?.split else { return }
+                        let side = split.arrangedSubviews[0]
+                        guard !split.isSubviewCollapsed(side), side.frame.width > 100 else { continue }
+                        split.setPosition(side.frame.maxX + split.dividerThickness + width, ofDividerAt: 1)
+                        return
+                    }
+                }
+            }
+        }
     }
 }
 #endif

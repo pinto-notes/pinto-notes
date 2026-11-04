@@ -111,12 +111,16 @@ import Testing
         let controller = try #require(split.delegate as? NSSplitViewController)
         #expect(controller.splitViewItems.first?.canCollapse == true)
         #expect(!split.isSubviewCollapsed(sidebar) && sidebar.frame.width >= 200, "it starts shown")
+        let list = split.arrangedSubviews[1].frame.width
         controller.toggleSidebar(nil)
         await Self.settle(w, 30)
         #expect(controller.splitViewItems.first?.isCollapsed == true, "Toggle Sidebar hides it")
         controller.toggleSidebar(nil)
         await Self.settle(w, 30)
         #expect(controller.splitViewItems.first?.isCollapsed == false && sidebar.frame.width >= 200, "and brings it back")
+        // The list comes back as wide as it was, not at the 350 pt it's held at while the sidebar
+        // is hidden (council round 3, 11-04).
+        #expect(abs(split.arrangedSubviews[1].frame.width - list) <= 1, "the list keeps its width: \(list) then \(split.arrangedSubviews[1].frame.width)")
     }
 
     /// The sidebar's top, left to right: New Folder, Today, Search, all over the sidebar, in the

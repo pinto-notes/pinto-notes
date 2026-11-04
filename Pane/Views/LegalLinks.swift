@@ -53,7 +53,7 @@ struct ConsentFooter: View {
         Text(Legal.consentSentence + AttributedString(" " + DiagnosticsCopy.signIn))
             .font(.footnote)
             .foregroundStyle(Color.muted)
-            .tint(Color(PColor.paneAccent))
+            .tint(Color(Palette.amberInk))
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity)
@@ -129,7 +129,7 @@ struct LinkLabel: NSViewRepresentable {
         view.textContainer?.lineFragmentPadding = 0
         view.textContainer?.widthTracksTextView = true
         view.isVerticallyResizable = false
-        view.linkTextAttributes = [.foregroundColor: PColor.paneAccent, .cursor: NSCursor.pointingHand]
+        view.linkTextAttributes = [.foregroundColor: Palette.amberInk, .cursor: NSCursor.pointingHand]
         return view
     }
 
@@ -155,7 +155,8 @@ struct LinkLabel: NSViewRepresentable {
                            .paragraphStyle: centred], range: all)
         out.enumerateAttribute(.link, in: all) { value, range, _ in
             guard value != nil else { return }
-            out.addAttributes([.foregroundColor: PColor.paneAccent, .cursor: NSCursor.pointingHand], range: range)
+            // The accent's darker ink: the bright accent read at 3.6:1 on the card (council round 3).
+            out.addAttributes([.foregroundColor: Palette.amberInk, .cursor: NSCursor.pointingHand], range: range)
             // Underlined only under the pointer (View.hover).
             out.removeAttribute(.underlineStyle, range: range)
         }

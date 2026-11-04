@@ -77,6 +77,34 @@ import Testing
         #expect(SettingsIndex.matches("theme", available: [.account, .security]).isEmpty, "not when the page isn't there")
     }
 
+    #if os(macOS)
+    /// Note text size is on Appearance as well as in the View menu, and search finds it by the
+    /// words people use (council round 3, 11-04). Its line says how to get back to standard.
+    @Test func textSizeIsOnAppearance() throws {
+        let all = Set(SettingsPlace.allCases)
+        for word in ["text size", "font size", "bigger", "zoom"] {
+            #expect(SettingsIndex.matches(word, available: all).map(\.place).contains(.appearance), "\(word) finds Appearance")
+        }
+        #expect(AppearanceSettingsPage.shown(0) == 13 && AppearanceSettingsPage.shown(16) == 16 && AppearanceSettingsPage.shown(17) == 13)
+        #expect(AppearanceSettingsPage.textSizeDetail(0).contains("⌘+"))
+        #expect(AppearanceSettingsPage.textSizeDetail(16).contains("13 pt") && AppearanceSettingsPage.textSizeDetail(16).contains("Actual Size"))
+        // The theme pictures are drawn in the mode showing (dark Settings showed light windows).
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Pane/Views/SettingsPages.swift"), encoding: .utf8)
+        #expect(src.contains("ThemeWindowPicture(theme: t, dark: scheme == .dark)") && !src.contains("ThemeWindowPicture(theme: t, dark: false)"))
+        // Mode and Theme show their choice the same way: the ink ring, never one orange and one ink.
+        #expect(!src.contains("orange: true"), "one ring look on Appearance")
+        // A switch that's on, in the dark: its white knob stands out from the track (at least 3:1).
+        var lum: CGFloat = 0
+        NSAppearance(named: .darkAqua)!.performAsCurrentDrawingAppearance {
+            let c = NSColor(SettingsInk.switchOn).usingColorSpace(.sRGB)!
+            func lin(_ v: CGFloat) -> CGFloat { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+            lum = 0.2126 * lin(c.redComponent) + 0.7152 * lin(c.greenComponent) + 0.0722 * lin(c.blueComponent)
+        }
+        #expect(1.05 / (lum + 0.05) >= 3, "white knob on the dark track: \(1.05 / (lum + 0.05)):1")
+    }
+    #endif
+
     /// Every setting that existed before is in the index, so search finds it, on its page.
     @Test func searchFindsEverySettingByItsWords() {
         let all = Set(SettingsPlace.allCases)

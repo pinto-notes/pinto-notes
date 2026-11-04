@@ -86,6 +86,16 @@ struct ListPrefix: Equatable {
 /// Turns markdown source into attributes, live-preview style: syntax is hidden
 /// except on the lines the caret is on, where it shows dimmed so you can edit it.
 struct MarkdownStyler {
+    /// A link that goes somewhere: its ink and a soft solid line under it, so it isn't told from
+    /// the text by colour alone (1.5:1 against the body in the dark, council round 3, 11-04).
+    static var linkUnderline: [NSAttributedString.Key: Any] {
+        [.underlineStyle: NSUnderlineStyle.single.rawValue, .underlineColor: PColor.paneLinkText.withAlphaComponent(0.4)]
+    }
+    /// A link to a note not made yet: a dotted line in the full ink, the pair to `linkUnderline`.
+    static var missingLinkUnderline: [NSAttributedString.Key: Any] {
+        [.underlineStyle: NSUnderlineStyle([.single, .patternDot]).rawValue, .underlineColor: PColor.paneLinkText]
+    }
+
     var bodySize = EditorMetrics.body
     /// Style the first plain line as the title (off for card contents).
     var firstLineIsTitle = true
@@ -429,12 +439,7 @@ struct MarkdownStyler {
             // A note that doesn't exist yet: the same ink, with a dotted underline. A faded colour
             // said it at 2.2:1 against white, too faint to read (council, 11-04).
             storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: shown)
-            if exists {
-                storage.removeAttribute(.underlineStyle, range: shown)
-            } else {
-                storage.addAttributes([.underlineStyle: NSUnderlineStyle([.single, .patternDot]).rawValue,
-                                       .underlineColor: PColor.paneLinkText], range: shown)
-            }
+            storage.addAttributes(exists ? MarkdownStyler.linkUnderline : MarkdownStyler.missingLinkUnderline, range: shown)
             // The heading comes along ("Budget#October"): the note opens there.
             if let url = LinkPolicy.wikiURL(link.heading.map { "\(link.target)#\($0)" } ?? link.target) { storage.addAttribute(.link, value: url, range: shown) }
             // "Budget#October": the # between note and heading reads as a separator.
@@ -904,6 +909,7 @@ private struct StyleWalker: MarkupWalker {
             let textLen = (source[source.index(after: source.startIndex)..<close.lowerBound] as Substring).utf16.count
             let textRange = NSRange(location: r.location + 1, length: textLen)
             storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: textRange)
+            storage.addAttributes(MarkdownStyler.linkUnderline, range: textRange)
             if let dest = link.destination, let url = URL(string: dest) {
                 storage.addAttribute(.link, value: url, range: textRange)
             }
@@ -913,6 +919,7 @@ private struct StyleWalker: MarkupWalker {
         } else {
             // Autolinks and bare URLs.
             storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: r)
+            storage.addAttributes(MarkdownStyler.linkUnderline, range: r)
             if let dest = link.destination, let url = URL(string: dest) { storage.addAttribute(.link, value: url, range: r) }
         }
         descendInto(link)

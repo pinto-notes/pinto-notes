@@ -24,8 +24,10 @@ enum SettingsInk {
     static let text = dynamic(NSColor(white: 0.1, alpha: 1), NSColor(white: 0.93, alpha: 1))
     static let muted = dynamic(NSColor(white: 0.42, alpha: 1), NSColor(white: 0.62, alpha: 1))
     static let icon = dynamic(NSColor(white: 0.32, alpha: 1), NSColor(white: 0.72, alpha: 1))
-    /// A switch that is on: ink, never a second orange on the page.
-    static let switchOn = dynamic(NSColor(white: 0.12, alpha: 1), NSColor(white: 0.62, alpha: 1))
+    /// A switch that is on: ink, never a second orange on the page. In the dark a grey deep enough
+    /// that the white knob stands out at 4:1 (0.62 put it at 2.7:1 and read as switched off or
+    /// disabled, council round 3, 11-04).
+    static let switchOn = dynamic(NSColor(white: 0.12, alpha: 1), NSColor(white: 0.5, alpha: 1))
 }
 
 /// A page's content: its boxes one under another, as wide as the page's column.

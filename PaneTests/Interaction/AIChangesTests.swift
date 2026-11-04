@@ -42,6 +42,10 @@ import AppKit
         #expect(openPart.contains(".keyboardShortcut(.defaultAction)"), "Return opens the note")
         let detail = try #require(src.range(of: "private var detail: some View").map { String(src[$0.lowerBound...].prefix(1400)) })
         #expect(detail.contains("Text(model.summary(c))") && detail.contains(".lineLimit(2)"), "the summary has its own two lines")
+        // And in the list, before a change is picked: its own two lines, the byline without it.
+        let row = try #require(src.range(of: "struct AIChangeRow").map { String(src[$0.lowerBound...].prefix(2600)) })
+        #expect(row.contains("Text(model.summary(change)).font(summaryFont).lineLimit(2)"))
+        #expect(row.contains("var parts = [change.ai, VersionHistoryModel.time(change.at)]"), "the byline is who and when")
     }
     #endif
 

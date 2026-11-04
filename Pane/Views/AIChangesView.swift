@@ -72,11 +72,13 @@ struct AIChangeRow: View {
 
     #if os(macOS)
     private let titleFont = Font.system(size: 13, weight: .medium)
+    private let summaryFont = Font.system(size: 13)
     private let lineFont = Font.system(size: 11)
     private let markSize: CGFloat = 14
     #else
     private let titleFont = Font.body.weight(.medium)
-    private let lineFont = Font.subheadline
+    private let summaryFont = Font.subheadline
+    private let lineFont = Font.footnote
     private let markSize: CGFloat = 18
     #endif
 
@@ -86,6 +88,10 @@ struct AIChangeRow: View {
                 .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 2 }
             VStack(alignment: .leading, spacing: 2) {
                 Text(model.title(change)).font(titleFont).lineLimit(1)
+                // What it did, readable before you pick it (council round 3, 11-04: one 11 pt
+                // line with the AI and the time cut it off); who and when under it, small.
+                Text(model.summary(change)).font(summaryFont).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(line).font(lineFont).foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
             }
         }
@@ -96,7 +102,7 @@ struct AIChangeRow: View {
     }
 
     private var line: String {
-        var parts = [change.ai, VersionHistoryModel.time(change.at), model.summary(change)]
+        var parts = [change.ai, VersionHistoryModel.time(change.at)]
         if model.undone.contains(change.id) { parts.append("Undone") } else if change.trashed, change.kind != .deleted { parts.append("In Recently Deleted") }
         return parts.joined(separator: " \u{00B7} ")
     }
