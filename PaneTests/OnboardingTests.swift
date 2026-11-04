@@ -274,15 +274,12 @@ import Testing
         return c
     }
 
-    /// Round 2 of the councils: the first try is no longer a toy ("Add Call mom as a to-do"): the
-    /// AI fills in About me, the note every AI reads first.
-    @Test func theTrialNoteIsAboutMeMadeOnce() throws {
+    @Test func theTrialNoteIsMadeOnceUnderANameNoImportHas() throws {
         let c = try library(), defaults = TestDefaults(), account = UUID()
         let made = try #require(c.mainContext.trialNote(account: account, defaults: defaults))
-        #expect(made.title == "About me")
+        #expect(made.title == "My first AI note")
         #expect(made.body == TrialNote.body)
-        #expect(Onboarding.prompt.contains("my note called About me"), "the prompt names it exactly")
-        #expect(!Onboarding.prompt.contains("Call mom"))
+        #expect(Onboarding.prompt.contains("my note called My first AI note"), "the prompt names it exactly")
         let again = try #require(c.mainContext.trialNote(account: account, defaults: defaults))
         #expect(again.id == made.id, "a replay reuses the one the flow made")
     }
@@ -308,7 +305,7 @@ import Testing
     @Test func writtenInItStaysAndIsWhereTheNotesOpen() throws {
         let c = try library(), defaults = TestDefaults(), account = UUID()
         let trial = try #require(c.mainContext.trialNote(account: account, defaults: defaults))
-        trial.body = TrialNote.body + TrialNote.sample
+        trial.body = TrialNote.body + "- [ ] Call mom\n"
         let kept = try #require(c.mainContext.settleTrialNote(account: account, defaults: defaults))
         #expect(kept.id == trial.id && trial.deletedAt == nil)
     }
@@ -321,46 +318,6 @@ import Testing
         #expect(c.mainContext.trialNote(account: account, defaults: here)?.id == theirs.id, "shown and watched, not doubled")
         #expect(c.mainContext.settleTrialNote(account: account, defaults: here) == nil)
         #expect(theirs.deletedAt == nil, "this device did not make it")
-    }
-
-    // MARK: Bring over what your AI knows
-
-    /// The prompt: Pinto Notes by name, About me by its exact title, a note per plan in a folder by
-    /// the AI's name, plain words (no em dashes).
-    @Test func bringOverAsksForAboutMeAndEachPlan() {
-        let p = BringOver.prompt("ChatGPT")
-        #expect(p.hasPrefix("In Pinto Notes, save what you remember about me."))
-        #expect(p.contains("in my note called About me") && p.contains("a note for each plan or list") && p.contains("a folder called From ChatGPT"))
-        #expect(BringOver.prompt(nil).contains("a folder called From my AI"))
-        #expect(!p.contains("\u{2014}"))
-        #expect(BringOver.title("ChatGPT") == "Bring over what ChatGPT knows about you")
-        #expect(BringOver.title(nil) == "Bring over what your AI knows about you")
-        #expect(BringOver.importTile == "ChatGPT or Claude")
-        #expect(SetupCards.bringOverName(.other) == nil && SetupCards.bringOverName(.claude) == "Claude")
-    }
-
-    /// The About me note it fills: the account's own if there is one (not a locked one), else one
-    /// made in Notes.
-    @Test func theAboutMeNoteIsTheAccountsOwnOrANewOne() throws {
-        let c = try library()
-        let made = c.mainContext.aboutMeNote()
-        #expect(made.title == "About me" && made.folder?.name == "Notes")
-        #expect(c.mainContext.aboutMeNote().id == made.id, "made once")
-        let other = try library()
-        let locked = other.mainContext.createNote(in: .all, body: "About me\n\nPIN 1234")
-        locked.lockedBody = "sealed"
-        let theirs = other.mainContext.createNote(in: .all, body: "About me\n\nI run.")
-        #expect(other.mainContext.aboutMeNote().id == theirs.id, "theirs, unlocked")
-    }
-
-    /// File › Import's AI tile: its button for what's connected.
-    @Test func theImportTileAsksTheConnectedAI() {
-        let gpt = AskAI.Target(ai: "ChatGPT"), claude = AskAI.Target(ai: "Claude"), codex = AskAI.Target(ai: "Codex")
-        #expect(SetupCards.bringOverWay(connected: [codex, claude]) == .ask("Claude"))
-        #expect(SetupCards.bringOverWay(connected: [gpt, claude]).button == "Ask ChatGPT")
-        #expect(SetupCards.bringOverWay(connected: [codex]) == .copy("Codex"))
-        #expect(SetupCards.bringOverWay(connected: []) == .connect)
-        #expect(SetupCards.BringOverWay.connect.button == "Connect ChatGPT or Claude\u{2026}")
     }
 
     // MARK: Try it
@@ -378,11 +335,10 @@ import Testing
     @Test func theLinkCarriesThePrompt() throws {
         let chatgpt = try #require(TryIt.page(for: "ChatGPT"))
         #expect(chatgpt.host == "chatgpt.com")
-        #expect(URLComponents(url: chatgpt, resolvingAgainstBaseURL: false)?.queryItems == [URLQueryItem(name: "q", value: TrialNote.prompt(for: "ChatGPT"))])
-        #expect(TrialNote.prompt(for: "ChatGPT").contains("a folder called From ChatGPT"))
+        #expect(URLComponents(url: chatgpt, resolvingAgainstBaseURL: false)?.queryItems == [URLQueryItem(name: "q", value: Onboarding.prompt)])
         let claude = try #require(TryIt.page(for: "Claude"))
         #expect(claude.host == "claude.ai" && claude.path == "/new")
-        #expect(URLComponents(url: claude, resolvingAgainstBaseURL: false)?.queryItems?.first?.value == TrialNote.prompt(for: "Claude"))
+        #expect(URLComponents(url: claude, resolvingAgainstBaseURL: false)?.queryItems?.first?.value == Onboarding.prompt)
         #expect(TryIt.page(for: "Claude Code") == nil)
         #expect(TryIt.askTitle("ChatGPT") == "Ask ChatGPT")
     }
@@ -404,7 +360,7 @@ import Testing
         let start = TrialNote.body
         #expect(!TryIt.arrived(body: start, since: start, aiEdits: 0, editsAtStart: 0))
         #expect(!TryIt.arrived(body: start + "\n\n", since: start, aiEdits: 0, editsAtStart: 0), "white space is not an edit")
-        #expect(TryIt.arrived(body: start + TrialNote.sample, since: start, aiEdits: 0, editsAtStart: 0))
+        #expect(TryIt.arrived(body: start + "- [ ] Call mom\n", since: start, aiEdits: 0, editsAtStart: 0))
         #expect(TryIt.arrived(body: start, since: start, aiEdits: 1, editsAtStart: 0), "the server counted an AI's edit")
         // A replay on an account whose AI has edited before: only a new edit counts.
         #expect(!TryIt.arrived(body: "To-do\n\n- [ ] Buy milk", since: "To-do\n\n- [ ] Buy milk", aiEdits: 7, editsAtStart: 7))
@@ -416,8 +372,8 @@ import Testing
         #expect(lines.map(\.kind) == [.title, .todo(done: true), .todo(done: false), .bullet, .text])
         #expect(lines.map(\.text) == ["To-do", "Buy milk", "Call mom", "a bullet", "plain words"])
         #expect(lines.map(\.fresh) == [false, false, true, true, true])
-        #expect(TryIt.lines(of: TrialNote.body, since: TrialNote.body).map(\.text) == ["About me"])
-        #expect(TryIt.lines(of: TrialNote.body + TrialNote.sample, since: TrialNote.body).last == TryIt.Line(id: 3, kind: .bullet, text: "Likes short answers, no lists", fresh: true))
+        #expect(TryIt.lines(of: TrialNote.body, since: TrialNote.body).map(\.text) == ["My first AI note", "Connect my AI"])
+        #expect(TryIt.lines(of: TrialNote.body + "- [ ] Call mom", since: TrialNote.body).last == TryIt.Line(id: 2, kind: .todo(done: false), text: "Call mom", fresh: true))
         #expect(TryIt.lines(of: "# To-do\n" + (1...20).map { "- item \($0)" }.joined(separator: "\n")).count == 6, "a long note shows its first lines")
         #expect(TryIt.lines(of: "# To-do").first?.text == "To-do")
     }
@@ -493,7 +449,7 @@ import Testing
     }
 
     @Test func installedAppsComeFirstThenByPopularityMarkdownLast() {
-        #expect(ImportKind.listed(installed: { _ in false }) == [.evernote, .keep, .obsidian, .bear, .markdown])
+        #expect(ImportKind.listed(installed: { _ in false }) == [.evernote, .keep, .obsidian, .bear, .markdown], "Notion can import but isn't listed until people ask for it")
         #expect(ImportKind.listed(installed: { $0 == .bear || $0 == .obsidian }) == [.obsidian, .bear, .evernote, .keep, .markdown],
                 "installed apps first, each group keeps the popularity order")
         #expect(ImportKind.listed(installed: { _ in true }).last == .markdown, "Markdown files stay last")

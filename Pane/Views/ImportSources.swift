@@ -57,6 +57,7 @@ enum ImportOrigin: Identifiable, Hashable {
         case .files(.obsidian): "md.obsidian"
         case .files(.bear): "net.shinyfrog.bear"
         case .files(.evernote): "com.evernote.Evernote"
+        case .files(.notion): "notion.id"
         case .files(.keep), .files(.markdown): nil
         }
     }
@@ -64,7 +65,8 @@ enum ImportOrigin: Identifiable, Hashable {
 
 extension ImportKind {
     /// The order every list of sources uses: apps on this Mac first, then by how many people come
-    /// from each (Evernote, Google Keep, Obsidian, Bear), Markdown files last as the catch-all.
+    /// from each (Evernote, Google Keep, Obsidian, Bear), Markdown files last as the catch-all. Notion
+    /// can import but isn't listed: parked until people ask for it (Emil, 4 Nov).
     /// Finding an installed app asks nothing of the person: no permission dialog, nothing opened.
     static var listed: [ImportKind] { listed(installed: isInstalled) }
 

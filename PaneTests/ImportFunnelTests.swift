@@ -13,7 +13,7 @@ extension FunnelTests {
         }
 
         @Test func everyKindHasItsFunnelName() {
-            #expect(ImportKind.allCases.map(\.funnelSource) == [.obsidian, .bear, .evernote, .keep, .markdown])
+            #expect(ImportKind.allCases.map(\.funnelSource) == [.obsidian, .bear, .evernote, .keep, .notion, .markdown])
         }
 
         @Test func openingAndStartingAreSaidOnce() async {

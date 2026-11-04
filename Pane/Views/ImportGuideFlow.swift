@@ -99,6 +99,7 @@ extension ImportGuide {
         switch kind {
         case .keep: keepPhone
         case .obsidian: obsidianPhone(picture: picture("guide-obsidian-files"))
+        case .notion: notionPhone
         case .markdown: markdown
         // Evernote and Bear can't export on a phone: their iPhone pages are still to come.
         case .evernote, .bear: nil
@@ -109,6 +110,7 @@ extension ImportGuide {
         case .evernote: evernote
         case .bear: bear(picture: picture("guide-bear-export"))
         case .obsidian: obsidian(picture: picture("guide-obsidian-reveal"))
+        case .notion: notion
         case .markdown: markdown
         }
         #endif
