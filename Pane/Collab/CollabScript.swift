@@ -29,7 +29,9 @@ import AppKit
 ///   {"waitFile": "link.txt"} then {"join": "link.txt"}   another device's link, opened, and Join on its question
 ///   {"openLink": {"file": "link.txt", "question": "q.json"}}, then {"answerJoin": "join" | "notNow"}   the question, then the answer
 ///   {"type": {"text": "…", "after": "anchor"}}     typed into the open note after `anchor` (or at the end)
-///   {"waitText": "…"}                              until the open note shows it (60 s)
+///   {"waitText": "…"}                              until the open note shows it (60 s; or {"text": "…", "timeout": 180})
+///   {"tick": "Venue"}                              taps (or clicks) the box of the item with that text
+///   {"remove": "Sara"}                             Remove from Note on that person in Share, and its Remove
 ///   {"verify": {"name": "Sara", "file": "code.txt"}}   their safety code written, then "They match"
 ///   {"leave": true}                                Leave Note
 ///   {"delete": true}                               Delete the open note (the owner's stops sharing)
@@ -165,8 +167,19 @@ enum CollabScript {
             let v = value as? [String: String] ?? [:]
             try await type(v["text"] ?? "", after: v["after"])
         case "waitText":
-            let want = value as? String ?? ""
-            try await until(60, "the note to show \(want)") { editorText()?.contains(want) == true }
+            let v = value as? [String: Any]
+            let want = value as? String ?? v?["text"] as? String ?? ""
+            try await until(v?["timeout"] as? Double ?? 60, "the note to show \(want)") { editorText()?.contains(want) == true }
+        case "tick":
+            try await tick(value as? String ?? "")
+        case "remove":
+            // As the person's menu in Share: Remove from Note, then Remove on its question.
+            let name = value as? String ?? ""
+            let share = try controller()
+            try await until(30, "\(name) in the note") { share.refresh(); return share.state.people.contains { !$0.isMe && $0.name.hasPrefix(name) } }
+            share.askRemove(share.state.people.first { !$0.isMe && $0.name.hasPrefix(name) }!)
+            await share.confirmRemove()
+            if let problem = share.state.problem { throw Failed(description: problem) }
         case "verify":
             let v = value as? [String: String] ?? [:]
             let share = try controller()
@@ -242,7 +255,14 @@ enum CollabScript {
     private static func arrived(_ before: Set<UUID>) async throws {
         try await until(60, "the shared note to arrive") { joinFailed() != nil || sharedNotes().contains { !before.contains($0.id) } }
         if let why = joinFailed() { throw Failed(description: why) }
-        open(sharedNotes().first { !before.contains($0.id) }!)
+        let note = sharedNotes().first { !before.contains($0.id) }!
+        current = note
+        // Joining opens the note by itself (CollabStore.join): see that it did, on screen.
+        let shows = { editorText() != nil && note.body.split(separator: "\n").first.map { editorText()!.contains($0) } == true }
+        // Join opens the note itself; the step fails if it doesn't (on iPhone the push was once
+        // dropped while the Join alert closed: RootView.reveal now waits for it).
+        try await until(10, "the joined note to open by itself") { shows() }
+        log("the joined note opened by itself")
     }
 
     private static func controller() throws -> ShareController {
@@ -345,6 +365,31 @@ enum CollabScript {
     }
     private static func editorText() -> String? { editor()?.string }
     #endif
+
+    /// Ticks the box of the item with `item` in it the way a tap (or a click) on its circle does.
+    private static func tick(_ item: String) async throws {
+        try await until(60, "the editor to take a tick") { editor()?.isEditable == true }
+        let view = editor()!
+        #if os(iOS)
+        let all = view.text as NSString
+        #else
+        let all = view.string as NSString
+        #endif
+        let r = all.range(of: item)
+        guard r.location != NSNotFound else { throw Failed(description: "no \(item) in the note") }
+        let line = all.lineRange(for: NSRange(location: r.location, length: 0)).location
+        #if os(iOS)
+        guard let p = view.checkboxCenter(line: line) else { throw Failed(description: "\(item) has no box") }
+        view.tapCheckbox(at: p)
+        #else
+        guard let box = view.core.checkboxRect(line: line, layout: view.textLayoutManager), let window = view.window,
+              let click = NSEvent.mouseEvent(with: .leftMouseDown, location: view.convert(CGPoint(x: box.midX + view.textContainerOrigin.x, y: box.midY + view.textContainerOrigin.y), to: nil),
+                                             modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+                                             eventNumber: 0, clickCount: 1, pressure: 1) else { throw Failed(description: "\(item) has no box") }
+        // Handed to the text view in this process, as AppKit would; nothing is posted to the system.
+        view.mouseDown(with: click)
+        #endif
+    }
 
     /// Types a character at a time through the text view's own input path, as the keyboard does;
     /// Return asks the editor first, so lists continue.

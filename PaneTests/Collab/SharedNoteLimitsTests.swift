@@ -86,6 +86,20 @@ import Testing
         #expect(!SharedNoteLimits.allowsFiles(shared))
     }
 
+    #if os(iOS)
+    /// Join on a shared note's link opens the note while the Join alert is still closing; on the
+    /// iPhone that push was dropped and the note stayed unopened. It waits for the alert, for three
+    /// seconds at most, and only where one screen shows at a time. The real-app check is
+    /// scripts/collab-two-simulators.ts ("Sara opens the link, joins, and has the note").
+    @Test func aJoinedNoteOpensOnceTheAlertHasGone() {
+        #expect(Presentation.waitsToOpen(compact: true, presenting: true, waited: 0))
+        #expect(Presentation.waitsToOpen(compact: true, presenting: true, waited: 29))
+        #expect(!Presentation.waitsToOpen(compact: true, presenting: true, waited: 30))
+        #expect(!Presentation.waitsToOpen(compact: true, presenting: false, waited: 0))
+        #expect(!Presentation.waitsToOpen(compact: false, presenting: true, waited: 0))
+    }
+    #endif
+
     #if os(macOS)
     /// The Share popover: a shared note has no Web Page to make (it would publish everyone's text);
     /// a page made before it was shared is listed, with what it is.

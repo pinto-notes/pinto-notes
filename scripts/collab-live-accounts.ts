@@ -16,6 +16,15 @@ const users = [];
 for (const name of ["emil", "sara", "eve"]) {
   const email = `collab-live-${run}-${name}@example.com`;
   const password = crypto.randomUUID() + crypto.randomUUID();
+  // The local stack lets in only listed addresses (hook_before_user_created).
+  if (/^http:\/\/127\.0\.0\.1:/.test(url)) {
+    const listed = await fetch(`${url}/rest/v1/signup_allowlist`, {
+      method: "POST",
+      headers: { apikey: service, Authorization: `Bearer ${service}`, "content-type": "application/json", Prefer: "resolution=ignore-duplicates" },
+      body: JSON.stringify({ email }),
+    });
+    await listed.body?.cancel();
+  }
   const res = await fetch(`${url}/auth/v1/admin/users`, {
     method: "POST",
     headers: { apikey: service, Authorization: `Bearer ${service}`, "content-type": "application/json" },

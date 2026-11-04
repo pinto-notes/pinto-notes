@@ -884,9 +884,18 @@ struct RootView: View {
     }
 
     /// Shows a note asked for from outside the window, switching to All Notes if it isn't in view.
-    private func reveal(_ id: UUID?) {
+    private func reveal(_ id: UUID?, waited: Int = 0) {
         guard let id, let note = context.note(id), note.deletedAt == nil else { return }
         NoteOpener.shared.request = nil
+        #if os(iOS)
+        // One screen at a time, UIKit drops a push made while an alert is up or still closing,
+        // yet the note stays selected: Join on a shared note's link left its row chosen in All
+        // Notes and the note unopened. It opens once the alert has gone.
+        if Presentation.waitsToOpen(compact: sizeClass == .compact, presenting: Presentation.isActive, waited: waited) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { reveal(id, waited: waited + 1) }
+            return
+        }
+        #endif
         if note.trashedAt != nil { scope = .trash } else if case .folder(let f) = scope, note.folder?.id == f {} else { scope = .all }
         selectedNote = id
     }
@@ -1203,6 +1212,13 @@ enum Presentation {
         UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
             .contains { $0.rootViewController?.presentedViewController != nil }
+    }
+
+    /// Whether a note asked to open waits another tenth of a second: only on one screen at a
+    /// time, only while something is presented, and for three seconds at most (a sheet left open
+    /// on purpose then gets the push it always got).
+    static func waitsToOpen(compact: Bool, presenting: Bool, waited: Int) -> Bool {
+        compact && presenting && waited < 30
     }
 }
 #endif
