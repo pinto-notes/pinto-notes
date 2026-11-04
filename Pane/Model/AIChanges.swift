@@ -389,9 +389,10 @@ final class AIChangesModel {
         }
     }
 
-    func retryOlder() async {
+    /// Try Again: the spinner comes back in the row's place and its own task loads the page, so
+    /// this only clears the failure (it loaded too, and two loads of one page raced, round 7).
+    func retryOlder() {
         olderFailed = false
-        await loadMore()
     }
 
     func setFilter(_ ai: String?) async {

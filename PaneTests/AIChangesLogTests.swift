@@ -163,7 +163,9 @@ import Testing
         await model.loadMore()
         #expect(store.asked.count == 2, "no retry loop while the failure shows")
         store.failOlder = false
-        await model.retryOlder()
+        model.retryOlder()
+        #expect(!model.olderFailed && store.asked.count == 2, "Try Again only brings the spinner back; its task loads")
+        await model.loadMore()
         #expect(!model.olderFailed && model.changes.count == 60 && !model.hasMore)
         #expect(AIChangesOlderFailed.message == "Couldn\u{2019}t load older changes.")
     }
@@ -209,6 +211,39 @@ import Testing
         await model.summarize(row)
         #expect(model.summary(row) == "Added Sintra, Pena Palace first")
         #expect(model.title(row) == "Lisbon")
+    }
+
+    /// A change whose texts fail to load says so, and Try Again (select again) loads it once they're back.
+    @Test func aChangeThatFailsToLoadCanBeTriedAgain() async throws {
+        let c = try Self.container()
+        let note = c.mainContext.createNote(in: .all, body: Self.after)
+        let texts = Texts([5: Self.after])
+        let model = AIChangesModel(store: Changes([Self.edit(note, after: 5)]), history: NoteHistory(store: texts, context: c.mainContext, sync: nil))
+        await model.load()
+        #expect(model.detailFailed != nil && model.diff == nil, "version 4 is missing")
+        texts.texts[4] = Self.before
+        await model.select(model.selection)
+        #expect(model.detailFailed == nil && model.diff?.text == Self.after)
+        let view = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Pane/Views/AIChangesView.swift"), encoding: .utf8)
+        #expect(view.contains("Button(\"Try Again\") { Task { await model.select(change.id) } }"), "the failed panel offers it")
+    }
+
+    /// The sidebar's foot says what an AI did last, and when, and opens AI Changes (council round 7).
+    @Test func theSidebarSaysWhatTheAIDidLast() throws {
+        let c = try Self.container()
+        let note = c.mainContext.createNote(in: .all, body: Self.after)
+        let edit = Self.edit(note, minutesAgo: 2)
+        #expect(SidebarAICopy.line(edit, title: "Lisbon") == "ChatGPT edited Lisbon")
+        #expect(SidebarAICopy.when(edit.at, now: Self.t0) == "2 min. ago" || SidebarAICopy.when(edit.at, now: Self.t0) == "2 min ago")
+        #expect(SidebarAICopy.when(Self.t0.addingTimeInterval(-20), now: Self.t0) == "Just now")
+        #expect(SidebarAICopy.verb(.created) == "made" && SidebarAICopy.verb(.restore) == "restored")
+        #expect(SidebarAICopy.accessibility(edit, title: "Lisbon", now: Self.t0).hasSuffix("Opens AI Changes."))
+        #if os(macOS)
+        #expect(SidebarAILine.title(edit, context: c.mainContext) == "Lisbon")
+        let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
+        #expect(sidebar.contains(".safeAreaInset(edge: .bottom, spacing: 0) { SidebarAILine() }"), "at the Mac sidebar's foot")
+        #endif
     }
 
     // MARK: Undo

@@ -453,7 +453,9 @@ struct SettingsCardHost: ViewModifier {
     /// The request, if this is the window in front (or no window is key, as at launch). A request
     /// no window takes is dropped after a moment (SettingsRoute.show).
     private func take() {
-        guard route.presenting, appearsActive || NSApp.keyWindow == nil || Self.settingsIsKey else { return }
+        let key = NSApp.keyWindow
+        guard route.presenting, Self.takes(active: appearsActive, key: key.map { .init(settings: $0.identifier?.rawValue.hasPrefix(SettingsWindow.id) == true, sheet: $0.sheetParent != nil) })
+        else { return }
         route.presenting = false
         opening()
         // Its own window (SettingsWindow); one already open comes to the front at the page asked.
@@ -461,9 +463,16 @@ struct SettingsCardHost: ViewModifier {
         if !PaneApp.isUnitTestHost { openWindow(id: SettingsWindow.id) }
     }
 
-    /// ⌘, or a link while Settings itself is in front: the request is still the notes window's.
-    private static var settingsIsKey: Bool {
-        NSApp.keyWindow?.identifier?.rawValue.hasPrefix(SettingsWindow.id) ?? false
+    /// Whether a notes window takes a Settings request: it's in front, or no window is key (as at
+    /// launch), or Settings itself is in front (⌘, or a link from there), or a sheet is (the
+    /// sign-in card: signed out, ⌘, did nothing and the footer's "Turn off in Settings" led
+    /// nowhere, council round 7).
+    static func takes(active: Bool, key: KeyWindow?) -> Bool {
+        guard !active, let key else { return true }
+        return key.settings || key.sheet
     }
+
+    /// What matters about the key window: whether it's Settings, or a sheet.
+    struct KeyWindow { var settings = false, sheet = false }
 }
 #endif
