@@ -58,10 +58,33 @@ import Testing
         var k = AIReview(by: "Claude", previous: Self.before, after: Self.after)
         k.keepAll()
         #expect(k.isFinished && k.result == "Kept 3")
-        // Leaving midway keeps what's left.
+        // Leaving midway leaves the rest as the AI wrote it, and says so.
         var m = AIReview(by: "Claude", previous: Self.before, after: Self.after)
         _ = try m.undo(0, in: Self.after)
-        #expect(m.result == "Kept 2, undid 1")
+        #expect(m.result == "Undid 1 \u{00B7} 2 parts left as Claude wrote them")
+    }
+
+    /// Round 1 of the councils: Done with parts undecided kept them without a word. The closing
+    /// line now counts them; a part whose Undo was refused stays as you changed it, so it counts
+    /// as kept, not as left.
+    @Test func doneSaysWhatWasLeftAsTheAIWroteIt() throws {
+        let r = AIReview(by: "Claude", previous: Self.before, after: Self.after)
+        #expect(r.left == 3 && r.result == "3 parts left as Claude wrote them")
+        var one = AIReview(by: "ChatGPT", previous: Self.before, after: Self.after)
+        one.keep(0)
+        one.keep(1)
+        #expect(one.result == "Kept 2 \u{00B7} 1 part left as ChatGPT wrote it")
+        var mixed = AIReview(by: "Claude", previous: Self.before, after: Self.after)
+        mixed.keep(0)
+        _ = try mixed.undo(1, in: Self.after)
+        #expect(mixed.result == "Kept 1, undid 1 \u{00B7} 1 part left as Claude wrote it")
+        // A refused part: kept, not left.
+        var c = AIReview(by: "Claude", previous: Self.before, after: Self.after)
+        let typed = Self.after.replacingOccurrences(of: "Tell Leo.", with: "Tell Leo and Maya.")
+        _ = try? c.undo(2, in: typed)
+        let text = try c.undo(1, in: typed)
+        _ = try c.undo(0, in: text)
+        #expect(c.left == 0 && c.result == "Kept 1, undid 2")
     }
 
     /// You typed above a part and below it since: undoing it still finds it, and your lines stay.

@@ -118,18 +118,26 @@ struct AIReviewCard: View {
         let current = review.focus == index
         return HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
-                ForEach(Array(part.removed.enumerated()), id: \.offset) { _, line in
+                // Undone, the part reads as it is in the note again: what was there back in ink,
+                // and what the AI wrote struck through in grey (round 1 of the councils: an undone
+                // part stayed all struck through, so it looked deleted).
+                let undone = part.decision == .undone
+                ForEach(Array(part.removed.enumerated()), id: \.offset) { i, line in
                     Text(AIReview.shown(line))
-                        .strikethrough(true, color: Color.muted)
-                        .foregroundStyle(Color.muted)
+                        .strikethrough(!undone, color: Color.muted)
+                        .foregroundStyle(undone ? Color.ink : Color.muted)
+                        .accessibilityLabel(undone ? "Back: \(AIReview.shown(line))" : "Was: \(AIReview.shown(line))")
+                        .accessibilityIdentifier("review.removed.\(part.id).\(i)")
                 }
-                ForEach(Array(part.added.enumerated()), id: \.offset) { _, line in
+                ForEach(Array(part.added.enumerated()), id: \.offset) { i, line in
                     Text(AIReview.shown(line))
-                        .foregroundStyle(part.decision == .undone ? Color.muted : Color.ink)
-                        .strikethrough(part.decision == .undone, color: Color.muted)
+                        .foregroundStyle(undone ? Color.muted : Color.ink)
+                        .strikethrough(undone, color: Color.muted)
                         .padding(.horizontal, 4)
-                        .background(part.decision == .undone ? Color.clear : Color.amberSoft, in: .rect(cornerRadius: 3))
+                        .background(undone ? Color.clear : Color.amberSoft, in: .rect(cornerRadius: 3))
                         .padding(.horizontal, -4)
+                        .accessibilityLabel(undone ? "Taken out: \(AIReview.shown(line))" : "\(review.by) wrote: \(AIReview.shown(line))")
+                        .accessibilityIdentifier("review.added.\(part.id).\(i)")
                 }
                 if part.conflict {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -174,9 +182,13 @@ struct AIReviewCard: View {
                 Button { review.keep(part.id); finishIfDone() } label: { Label("Keep", systemImage: "checkmark") }
                     .buttonStyle(.secondary(.compact))
                     .accessibilityIdentifier("review.keep.\(part.id)")
-                Button { undo(part.id) } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
-                    .buttonStyle(.secondary(.compact))
-                    .accessibilityIdentifier("review.undo.\(part.id)")
+                // A part you changed since can't be undone: no Undo, only the reason under it
+                // (round 1 of the councils: the card offered Undo beside "it can't be undone").
+                if !part.conflict {
+                    Button { undo(part.id) } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
+                        .buttonStyle(.secondary(.compact))
+                        .accessibilityIdentifier("review.undo.\(part.id)")
+                }
             }
             .labelStyle(.titleAndIcon)
         }
@@ -187,7 +199,7 @@ struct AIReviewCard: View {
         guard review.parts.indices.contains(review.focus) else { return }
         let part = review.parts[review.focus]
         guard part.decision == nil else { review.move(1); return }
-        if d == .kept { review.keep(part.id); finishIfDone() } else { undo(part.id) }
+        if d == .kept { review.keep(part.id); finishIfDone() } else if !part.conflict { undo(part.id) }
     }
 
     private func finishIfDone() { if review.isFinished { done() } }

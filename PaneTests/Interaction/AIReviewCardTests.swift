@@ -88,6 +88,7 @@ import Testing
         #expect(!note.body.contains("Have Codex review it"), "that part went back")
         #expect(note.body.contains("Queue the writes offline, in order") && note.body.contains("Drop the old path now."), "the others stay")
         #expect(ax.find("review.undone.1") != nil)
+        #expect(ax.find("review.undo.1") == nil && ax.find("review.keep.1") == nil, "decided: no buttons, the quiet Undone")
         #expect(result.isEmpty, "not finished yet")
         #expect(try #require(ax.find("review.undo.2")).press())
         await ax.settle(200)
@@ -110,6 +111,9 @@ import Testing
         #expect(note.body == typed, "nothing undone")
         let why = try #require(ax.find("review.conflict.2"), "the reason shows: \(ax.ids())")
         #expect(why.text.contains("You changed this part since"), "\(why.text)")
+        // Round 1 of the councils: Undo stayed beside "it can't be undone". It goes; Keep stays.
+        #expect(ax.find("review.undo.2") == nil, "no Undo on a part that can't be undone: \(ax.ids())")
+        #expect(ax.find("review.keep.2") != nil)
         // Undo All takes the rest back and leaves that part.
         #expect(try #require(ax.find("review.undoAll")).press())
         await ax.settle(200)
@@ -117,7 +121,31 @@ import Testing
         #expect(result.isEmpty, "one part is still to decide")
         #expect(try #require(ax.find("review.done")).press())
         await ax.settle(200)
-        #expect(result == ["Kept 1, undid 2"], "Done keeps what's left")
+        #expect(result == ["Kept 1, undid 2"], "the part you changed stays: it counts as kept")
+    }
+
+    /// Round 1 of the councils: an undone part stayed struck through, so it looked deleted. It reads
+    /// as restored now (what was there, back), with the AI's lines taken out; and Done with parts
+    /// undecided says they were left as the AI wrote them.
+    @Test func anUndonePartReadsAsRestoredAndDoneSaysWhatWasLeft() async throws {
+        let (c, note) = try Self.note(AIReviewTests.after)
+        _ = c
+        var result: [String] = []
+        let ax = OffscreenAX(Host(review: AIReview(by: "Claude", previous: AIReviewTests.before, after: AIReviewTests.after), note: note) { result.append($0) }, size: Self.size)
+        defer { ax.close() }
+        await ax.settle()
+        let was = try #require(ax.find("review.removed.2.0"), "\(ax.ids())")
+        #expect(was.text.contains("Was: Keep the old path for a week."), "\(was.text)")
+        #expect(try #require(ax.find("review.undo.2")).press())
+        await ax.settle(200)
+        #expect(note.body.contains("Keep the old path for a week."))
+        let back = try #require(ax.find("review.removed.2.0"), "\(ax.ids())")
+        #expect(back.text.contains("Back: Keep the old path for a week."), "\(back.text)")
+        let out = try #require(ax.find("review.added.2.1"))
+        #expect(out.text.contains("Taken out: Tell Leo."), "\(out.text)")
+        #expect(try #require(ax.find("review.done")).press())
+        await ax.settle(200)
+        #expect(result == ["Undid 1 \u{00B7} 2 parts left as Claude wrote them"])
     }
 
     /// Keep All: the note is as the AI left it, and the count says so.

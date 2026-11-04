@@ -104,14 +104,24 @@ struct AIReview: Equatable {
     var title: String { "\(by) changed \(parts.count == 1 ? "1 part" : "\(parts.count) parts")" }
     /// "1 of 3", for the part the keys act on.
     var position: String { "\(min(focus, parts.count - 1) + 1) of \(parts.count)" }
-    /// At the end, for a moment where the receipt was: "Kept 2, undid 1". Parts left undecided are kept.
+    /// Parts you didn't decide on, that stay as the AI wrote them. A part whose Undo was refused
+    /// isn't one: it stays as you changed it, and the card said so.
+    var left: Int { parts.filter { $0.decision == nil && !$0.conflict }.count }
+
+    /// At the end, for a moment where the receipt was: "Kept 2, undid 1". Done with parts not
+    /// decided says so: "Undid 1 · 2 parts left as Claude wrote them" (round 1 of the councils:
+    /// Done kept them without a word). A part you changed since counts as kept: it stays.
     var result: String {
-        let k = parts.filter { $0.decision != .undone }.count, u = undone
-        switch (k, u) {
-        case (_, 0): return "Kept \(k)"
-        case (0, _): return "Undid \(u)"
-        default: return "Kept \(k), undid \(u)"
+        let k = parts.filter { $0.decision == .kept || ($0.decision == nil && $0.conflict) }.count, u = undone, n = left
+        let decided: String? = switch (k, u) {
+        case (0, 0): nil
+        case (_, 0): "Kept \(k)"
+        case (0, _): "Undid \(u)"
+        default: "Kept \(k), undid \(u)"
         }
+        guard n > 0 else { return decided ?? "Kept 0" }
+        let rest = n == 1 ? "1 part left as \(by) wrote it" : "\(n) parts left as \(by) wrote them"
+        return decided.map { "\($0) \u{00B7} \(rest)" } ?? rest
     }
 
     static let conflictLine = "You changed this part since, so it can\u{2019}t be undone without losing that. It stays."
