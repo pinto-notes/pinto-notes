@@ -240,9 +240,9 @@ struct PaneApp: App {
         .commands {
             PaneCommands()
             // Edit › Find, Spelling and Substitutions. No View › Hide Sidebar: the sidebar is always
-            // there (Emil, 11-01). The window can't get narrower than the three columns either.
+            // there (Emil, 11-01), so PaneCommands puts the View items in place of that group. The
+            // window can't get narrower than the three columns either.
             TextEditingCommands()
-            CommandGroup(replacing: .sidebar) {}
             #if SPARKLE
             UpdaterCommands()
             #endif

@@ -1105,8 +1105,10 @@ struct PaneCommands: Commands {
             Button(NoteMoreMenu.historyTitle) { showHistory?() }
                 .disabled(showHistory == nil)
         }
-        // View › AI Changes: everything an AI changed, across all notes.
-        CommandGroup(after: .sidebar) {
+        // View › AI Changes: everything an AI changed, across all notes. In place of the sidebar
+        // group, with no Show/Hide Sidebar: the sidebar is always there (Emil, 11-01). Replacing
+        // that group with nothing took these items away with it.
+        CommandGroup(replacing: .sidebar) {
             // As in Notes. The shortcuts are Xcode's Fold All and Unfold All.
             Button("Collapse All Sections") { editor?.collapseAllSections() }
                 .keyboardShortcut(.leftArrow, modifiers: [.command, .option, .shift])
