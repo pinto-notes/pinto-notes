@@ -46,6 +46,8 @@ import AppKit
         let row = try #require(src.range(of: "struct AIChangeRow").map { String(src[$0.lowerBound...].prefix(2600)) })
         #expect(row.contains("Text(model.summary(change)).font(summaryFont).lineLimit(2)"))
         #expect(row.contains("var parts = [change.ai, VersionHistoryModel.time(change.at)]"), "the byline is who and when")
+        #expect(row.contains("private let lineFont = Font.system(size: 12)"), "who and when at 12 pt, read before Undo (round 4)")
+        #expect(!src.contains("windowBackgroundColor"), "the list and the bar on the note's ground, not a grey beside black")
     }
     #endif
 

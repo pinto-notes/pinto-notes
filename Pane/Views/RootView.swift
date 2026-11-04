@@ -385,6 +385,9 @@ struct RootView: View {
                 // Today and Search beside the window's buttons (10-31).
                 .toolbar(removing: .sidebarToggle)
                 .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
+                .environment(\.showSidebar, visibility == .all ? nil : ShowSidebarAction {
+                    withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) { visibility = .all }
+                })
                 #else
                 // iPad: room for the title beside the account button.
                 .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
@@ -1125,7 +1128,10 @@ struct PaneCommands: Commands {
         CommandGroup(replacing: .sidebar) {
             Button(SidebarToggle.title(sidebarVisibility?.wrappedValue)) {
                 guard let v = sidebarVisibility else { return }
-                withAnimation(.snappy(duration: 0.3)) { v.wrappedValue = SidebarToggle.toggled(v.wrappedValue) }
+                // Reduce Motion: it's there or gone, no slide (council round 4, 11-04).
+                withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) {
+                    v.wrappedValue = SidebarToggle.toggled(v.wrappedValue)
+                }
             }
             .keyboardShortcut("s", modifiers: [.command, .control])
             .disabled(sidebarVisibility == nil)
@@ -1298,6 +1304,8 @@ enum SidebarToggle {
     static func title(_ v: NavigationSplitViewVisibility?) -> String {
         v == nil || v == .all ? "Hide Sidebar" : "Show Sidebar"
     }
+    static func animation(reduceMotion: Bool) -> Animation? { reduceMotion ? nil : .snappy(duration: 0.3) }
+
     static func toggled(_ v: NavigationSplitViewVisibility) -> NavigationSplitViewVisibility {
         v == .all ? .doubleColumn : .all
     }
@@ -1359,5 +1367,18 @@ struct ListWidthKeeper: NSViewRepresentable {
             }
         }
     }
+}
+#endif
+
+#if os(macOS)
+/// The Show Sidebar button's action, while the sidebar is hidden.
+struct ShowSidebarAction: Equatable {
+    let run: () -> Void
+    func callAsFunction() { run() }
+    static func == (a: Self, b: Self) -> Bool { true }
+}
+
+extension EnvironmentValues {
+    @Entry var showSidebar: ShowSidebarAction? = nil
 }
 #endif

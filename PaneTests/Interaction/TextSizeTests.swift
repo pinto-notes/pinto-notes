@@ -29,6 +29,7 @@ import Testing
         #expect(SidebarToggle.title(.detailOnly) == "Show Sidebar")
         #expect(SidebarToggle.toggled(.all) == .doubleColumn)
         #expect(SidebarToggle.toggled(.doubleColumn) == .all)
+        #expect(SidebarToggle.animation(reduceMotion: true) == nil && SidebarToggle.animation(reduceMotion: false) != nil, "Reduce Motion: no slide")
     }
 
     @Test func stepsGoUpAndDownAndStopAtTheEnds() {

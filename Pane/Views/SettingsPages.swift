@@ -268,6 +268,11 @@ extension AppearanceSettingsPage {
         TextSize.steps.contains(CGFloat(stored)) ? CGFloat(stored) : TextSize.standard
     }
 
+    /// Whether the stepper's arrow that way does anything from the size stored.
+    static func canStep(_ stored: Double, bigger: Bool) -> Bool {
+        bigger ? shown(stored) < TextSize.steps.last! : shown(stored) > TextSize.steps.first!
+    }
+
     static func textSizeDetail(_ stored: Double) -> String {
         shown(stored) == TextSize.standard
             ? "View › Bigger (⌘+) and Smaller (⌘−) change it too."
@@ -327,9 +332,10 @@ struct AppearanceSettingsPage: View {
             #if os(macOS)
             SettingsGroup {
                 SettingsLine(title: "Note text size", detail: Self.textSizeDetail(textSize)) {
-                    Stepper {
-                        Text("\(Int(Self.shown(textSize))) pt").monospacedDigit()
-                    } onIncrement: { TextSize.bigger() } onDecrement: { TextSize.smaller() }
+                    // Each arrow is off at its end (11 and 24 pt), so it never seems to do nothing.
+                    Stepper(label: { Text("\(Int(Self.shown(textSize))) pt").monospacedDigit() },
+                            onIncrement: Self.canStep(textSize, bigger: true) ? { TextSize.bigger() } : nil,
+                            onDecrement: Self.canStep(textSize, bigger: false) ? { TextSize.smaller() } : nil)
                     .accessibilityIdentifier("settings.textSize")
                     .accessibilityValue("\(Int(Self.shown(textSize))) points")
                 }

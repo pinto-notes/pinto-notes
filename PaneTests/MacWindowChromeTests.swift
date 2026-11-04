@@ -128,6 +128,7 @@ import Testing
     static func expectSidebarButtons(_ w: NSWindow, _ items: [(label: String, column: Int, frame: CGRect)]) throws {
         let sidebar = items.filter { $0.column == 0 }
         #expect(sidebar.map(\.label) == ["New Folder", "Today\u{2019}s note", "Search"], "New Folder, Today, Search over the sidebar: \(sidebar.map(\.label))")
+        #expect(!items.contains { $0.label == "Show Sidebar" }, "no Show Sidebar while it shows")
         let frames = sidebar.map(\.frame).sorted { $0.minX < $1.minX }
         #expect(sidebar.map(\.frame) == frames, "in that order, left to right")
         for (a, b) in zip(frames, frames.dropFirst()) { #expect(a.maxX <= b.minX, "not overlapping") }
@@ -227,8 +228,10 @@ import Testing
             let search = items.filter { $0.label == "Search" }
             #expect(search.count == 1, "one Search button")
             let more = try #require(items.first { $0.label == "More" })
-            let buttons = ["New Folder", "Today\u{2019}s note", "Search"].compactMap { l in items.first { $0.label == l } }
-            #expect(buttons.count == 3, "New Folder, Today and Search stay")
+            let buttons = ["Show Sidebar", "Today\u{2019}s note", "Search"].compactMap { l in items.first { $0.label == l } }
+            #expect(buttons.count == 3, "Show Sidebar in New Folder's place, then Today and Search (council round 4): \(items.map(\.label))")
+            #expect(!items.contains { $0.label == "New Folder" }, "a folder made with the sidebar hidden can't be seen; File › New Folder stays")
+            #expect(zip(buttons, buttons.dropFirst()).allSatisfy { $0.frame.maxX <= $1.frame.minX }, "in that order, not overlapping")
             #expect(buttons.allSatisfy { $0.frame.maxX < more.frame.minX }, "before the list's More")
             if let last = buttons.last { print("PERF sidebar hidden: its buttons end at \(Int(last.frame.maxX)) pt; windowButtons is \(Int(NoteListView.windowButtons))") }
             try Self.expectListHeader(w, items)

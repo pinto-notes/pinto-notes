@@ -73,7 +73,8 @@ struct AIChangeRow: View {
     #if os(macOS)
     private let titleFont = Font.system(size: 13, weight: .medium)
     private let summaryFont = Font.system(size: 13)
-    private let lineFont = Font.system(size: 11)
+    /// Who and when: 12 pt, read before choosing Undo (council round 4, 11-04: 11 was too small).
+    private let lineFont = Font.system(size: 12)
     private let markSize: CGFloat = 14
     #else
     private let titleFont = Font.body.weight(.medium)
@@ -238,7 +239,7 @@ struct MacAIChanges: View {
                 AIChangesStatus(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Color.notePage) // one ground with the preview: grey beside black in the dark (round 4)
     }
 
     @ViewBuilder
@@ -254,7 +255,7 @@ struct MacAIChanges: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("aiChanges.summary")
                     Text(AIChangeDetail.byline(c))
-                        .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                        .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
@@ -295,7 +296,7 @@ struct MacAIChanges: View {
         .controlSize(.large)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Color.notePage) // one ground with the preview: grey beside black in the dark (round 4)
     }
 }
 

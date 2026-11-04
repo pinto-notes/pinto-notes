@@ -87,6 +87,10 @@ import Testing
         }
         #expect(AppearanceSettingsPage.shown(0) == 13 && AppearanceSettingsPage.shown(16) == 16 && AppearanceSettingsPage.shown(17) == 13)
         #expect(AppearanceSettingsPage.textSizeDetail(0).contains("⌘+"))
+        // The stepper's arrows are off at the ends (council round 4).
+        #expect(AppearanceSettingsPage.canStep(0, bigger: true) && AppearanceSettingsPage.canStep(0, bigger: false))
+        #expect(!AppearanceSettingsPage.canStep(24, bigger: true) && AppearanceSettingsPage.canStep(24, bigger: false))
+        #expect(AppearanceSettingsPage.canStep(11, bigger: true) && !AppearanceSettingsPage.canStep(11, bigger: false))
         #expect(AppearanceSettingsPage.textSizeDetail(16).contains("13 pt") && AppearanceSettingsPage.textSizeDetail(16).contains("Actual Size"))
         // The theme pictures are drawn in the mode showing (dark Settings showed light windows).
         let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
