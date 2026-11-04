@@ -64,9 +64,8 @@ import Testing
         return false
     }
 
-    func setUp(_ lib: Library, dark: Bool = false) async -> EditorHarness {
-        UserDefaults.standard.removeObject(forKey: "noteLinks.linkedShown")
-        UserDefaults.standard.removeObject(forKey: "noteLinks.mentionsShown")
+    func setUp(_ lib: Library, dark: Bool = false, shown: Bool = true) async -> EditorHarness {
+        UserDefaults.standard.set(shown, forKey: NoteLinksSection.shownKey)
         let h = await EditorHarness(lib.lisbon.body, dark: dark, focus: false)
         h.view.setFoot(lib.links)
         _ = await h.until { lib.links.height > 0 }
@@ -112,7 +111,7 @@ import Testing
         let lib = try await Self.library()
         let plan = (1...40).map { "- [ ] Thing to do \($0)" }.joined(separator: "\n")
         let body = "Lisbon\n\nFour days of tiles, trams and pastries in May.\n\n## Plan\n\(plan)\n\n## Food\n| Place | Dish |\n| --- | --- |\n| Manteigaria | Pastel de nata |\n| Ramiro | Seafood |\n\n> Pack comfortable shoes. The hills are real."
-        UserDefaults.standard.removeObject(forKey: "noteLinks.mentionsShown")
+        UserDefaults.standard.removeObject(forKey: NoteLinksSection.shownKey)
         let h = await EditorHarness(body, focus: false)
         defer { h.close() }
         h.view.setFoot(lib.links)
@@ -142,7 +141,7 @@ import Testing
             var opened: [(UUID, Int)] = []
             lib.links.open = { id, at in if opened.last.map({ $0 != (id, at) }) ?? true { opened.append((id, at)) } }
             // Below the header (a click there folds it), down every card.
-            await sweep(h, x: 60, from: 30, step: 3) { opened.count >= 3 }
+            await sweep(h, x: 60, from: 52, step: 3) { opened.count >= 3 }
             #expect(opened.map(\.0) == [lib.weekend.id, lib.weekend.id, lib.packing.id])
             #expect(opened.map(\.1) == [first, at, packing], "the title and each line open the note at their link, in order")
         }
@@ -154,53 +153,86 @@ import Testing
         #expect(LinkLanding.shared.takeLocation(lib.weekend.id) == nil)
     }
 
-    /// Mentions start folded and stay as they were left; Linked from folds too. Folding gives the
-    /// room back.
-    @Test func eachPartFoldsAndIsRemembered() async throws {
+    /// Persona council 11-04: under the writing, one quiet line, a hairline over it. It starts
+    /// folded ("Linked from 2 notes · 1 mention ›"), unfolds into both parts with a click, and stays
+    /// as it was left. Folding gives the room back.
+    @Test func theFootIsOneLineThatUnfoldsAndIsRemembered() async throws {
         let lib = try await Self.library()
-        let h = await setUp(lib)
+        UserDefaults.standard.removeObject(forKey: NoteLinksSection.shownKey)
+        defer { UserDefaults.standard.removeObject(forKey: NoteLinksSection.shownKey) }
+        let h = await EditorHarness(lib.lisbon.body, focus: false)
         defer { h.close() }
-        let open = lib.links.height
-        // Mentions start folded; shown as left (here, as the defaults say).
-        UserDefaults.standard.set(true, forKey: "noteLinks.mentionsShown")
-        _ = await h.until { lib.links.height > open + 20 }
-        #expect(lib.links.height > open + 20, "mentions open")
-        let both = lib.links.height
+        h.view.setFoot(lib.links)
+        _ = await h.until { lib.links.height > 0 }
+        await h.settle(0.1)
+        let folded = lib.links.height
+        #expect(folded > 20 && folded < 40, "folded: a hairline and one 24 pt line, \(folded)")
+        let foot = try #require(h.view.footFrame)
+        let last = h.lineRect(at: (h.text as NSString).length - 1)
+        #expect(abs(foot.minY - (last.maxY + EditorFoot.gap)) < 1, "36 pt under the last line")
+        await h.snapshot("note-links-folded-light")
         let viewHeight = h.view.frame.height
-        // A click on "Linked from 2 notes" folds it (on CI; here, as its button does), and that's remembered.
+
+        // A click on the line unfolds it (on CI; here, as its button does), and that's remembered.
         if FileRowClickTests.onCI {
             NSApp.activate(ignoringOtherApps: true)
             h.window.makeKeyAndOrderFront(nil)
             await h.settle(0.3)
-            await h.clickRouted(CGPoint(x: (h.view.footFrame?.minX ?? 0) + 30, y: (h.view.footFrame?.minY ?? 0) + 12))
+            await h.clickRouted(CGPoint(x: foot.minX + 30, y: foot.minY + 18))
         } else {
-            UserDefaults.standard.set(false, forKey: "noteLinks.linkedShown")
+            UserDefaults.standard.set(true, forKey: NoteLinksSection.shownKey)
         }
-        _ = await h.until { lib.links.height < both - 40 }
-        #expect(lib.links.height < both - 40, "Linked from folded: \(lib.links.height) of \(both)")
-        #expect(UserDefaults.standard.object(forKey: "noteLinks.linkedShown") as? Bool == false)
+        _ = await h.until { lib.links.height > folded + 100 }
+        #expect(lib.links.height > folded + 100, "unfolded: both parts, \(lib.links.height)")
+        #expect(UserDefaults.standard.bool(forKey: NoteLinksSection.shownKey))
         await h.settle(0.1)
-        #expect(h.view.frame.height < viewHeight || viewHeight <= h.scroll.contentView.bounds.height, "the room comes back")
+        #expect(h.view.frame.height > viewHeight || viewHeight >= (h.view.footFrame?.maxY ?? 0), "the view makes room")
         #expect(abs((h.view.footFrame?.height ?? 0) - lib.links.height) < 0.5)
-        await h.snapshot("note-links-folded-light")
-        UserDefaults.standard.set(true, forKey: "noteLinks.linkedShown")
-        _ = await h.until { lib.links.height > both - 1 }
-        #expect(abs(lib.links.height - both) < 0.5)
-        UserDefaults.standard.removeObject(forKey: "noteLinks.mentionsShown")
+
+        UserDefaults.standard.set(false, forKey: NoteLinksSection.shownKey)
+        _ = await h.until { lib.links.height < folded + 1 }
+        #expect(abs(lib.links.height - folded) < 0.5, "folded again, the room given back")
+    }
+
+    /// What the folded line says.
+    @Test func theLineSaysWhatLinksHere() {
+        #expect(NoteLinksSection.summary(linked: 2, mentions: 1) == "Linked from 2 notes \u{00B7} 1 mention")
+        #expect(NoteLinksSection.summary(linked: 1, mentions: 0) == "Linked from 1 note")
+        #expect(NoteLinksSection.summary(linked: 0, mentions: 3) == "3 unlinked mentions")
+        #expect(NoteLinksSection.summary(linked: 0, mentions: 1) == "1 unlinked mention")
+        #expect(NoteLinksSection.summary(linked: 4, mentions: 10, more: true) == "Linked from 4 notes \u{00B7} 10+ mentions")
+    }
+
+    /// A short note in a tall window: the foot under its last line, never under the title, and the
+    /// same once the window is resized and the note is laid out again.
+    @Test func theFootSitsUnderAShortNotesLastLine() async throws {
+        let lib = try await Self.library()
+        let h = await setUp(lib, shown: false)
+        defer { h.close(); UserDefaults.standard.removeObject(forKey: NoteLinksSection.shownKey) }
+        for width in [720.0, 520.0, 900.0] {
+            h.window.setContentSize(NSSize(width: width, height: 900))
+            h.view.frame.size.width = width
+            await h.settle(0.2)
+            let foot = try #require(h.view.footFrame)
+            let last = h.lineRect(at: (h.text as NSString).length - 1)
+            let title = h.lineRect(at: 0)
+            #expect(foot.minY > title.maxY + 40, "\(width) pt: not under the title")
+            #expect(abs(foot.minY - (last.maxY + EditorFoot.gap)) < 1, "\(width) pt: 36 pt under the last line, \(foot) after \(last)")
+        }
     }
 
     /// Link (one press) makes the mention a link; the note moves to Linked from as its save comes
     /// through; Undo puts the text back.
     @Test func linkAndUndoFromTheFoot() async throws {
         let lib = try await Self.library()
-        UserDefaults.standard.set(true, forKey: "noteLinks.mentionsShown")
+        UserDefaults.standard.set(true, forKey: NoteLinksSection.shownKey)
         let h = await EditorHarness(lib.lisbon.body, focus: false)
-        defer { h.close(); UserDefaults.standard.removeObject(forKey: "noteLinks.mentionsShown") }
+        defer { h.close(); UserDefaults.standard.removeObject(forKey: NoteLinksSection.shownKey) }
         h.view.setFoot(lib.links)
         _ = await h.until { lib.links.height > 0 }
         // Link sits at the right of the mention's line (clicked on CI; here, what it calls).
         if FileRowClickTests.onCI {
-            let linked = await sweep(h, x: -24, from: 30, step: 3) { lib.documents.body.contains("[[") }
+            let linked = await sweep(h, x: -24, from: 52, step: 3) { lib.documents.body.contains("[[") }
             #expect(linked)
         } else {
             let mention = try #require(lib.links.mentions.first)
@@ -217,7 +249,7 @@ import Testing
 
         // Undo, at the right of "Linked in Trip documents".
         if FileRowClickTests.onCI {
-            let undone = await sweep(h, x: -24, from: 30, step: 3) { !lib.documents.body.contains("[[") }
+            let undone = await sweep(h, x: -24, from: 52, step: 3) { !lib.documents.body.contains("[[") }
             #expect(undone)
         } else {
             lib.links.undo(try #require(lib.links.lastLinked))
@@ -252,8 +284,8 @@ import Testing
 
     @Test func darkMode() async throws {
         let lib = try await Self.library()
-        UserDefaults.standard.set(true, forKey: "noteLinks.mentionsShown")
-        defer { UserDefaults.standard.removeObject(forKey: "noteLinks.mentionsShown") }
+        UserDefaults.standard.set(true, forKey: NoteLinksSection.shownKey)
+        defer { UserDefaults.standard.removeObject(forKey: NoteLinksSection.shownKey) }
         let h = await EditorHarness(lib.lisbon.body, dark: true, focus: false)
         defer { h.close() }
         h.view.setFoot(lib.links)
