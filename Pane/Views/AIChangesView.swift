@@ -155,6 +155,7 @@ struct AIChangesFilter: View {
             Text("All AIs").tag("")
             ForEach(model.ais, id: \.self) { Text($0).tag($0) }
         }
+        .tint(.primary)
         .accessibilityIdentifier("aiChanges.filter")
     }
 }
@@ -222,7 +223,14 @@ struct MacAIChanges: View {
                     ForEach(model.days) { day in
                         Section(day.title) {
                             ForEach(day.changes) { c in
-                                AIChangeRow(model: model, change: c).tag(c.id).listRowSeparator(.hidden)
+                                AIChangeRow(model: model, change: c)
+                                    #if os(macOS)
+                                    // The notes list's quiet grey, not an accent fill: in this sheet
+                                    // only Open Note and the change's band are the accent (round 5).
+                                    .hoverRow("aiChange", reach: Hover.noteRowReach, selected: model.selection == c.id)
+                                    .quietSelection()
+                                    #endif
+                                    .tag(c.id).listRowSeparator(.hidden)
                             }
                         }
                         .listSectionSeparator(.hidden)
@@ -279,12 +287,13 @@ struct MacAIChanges: View {
                 Label("Undone", systemImage: "checkmark").font(.system(size: 13)).foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Done", action: close).keyboardShortcut(.cancelAction)
+            Button("Done", action: close).keyboardShortcut(.cancelAction).tint(.primary)
             if let c = model.selected {
                 // Return opens the note; undoing is a click of its own, never a stray Return on a
                 // sheet you're reading (council, 11-04).
                 Button("Undo This Change") { Task { await model.undo(c) } }
                     .disabled(!model.canUndo(c) || model.undoing || (c.changesText && model.diff == nil))
+                    .tint(.primary)
                     .accessibilityIdentifier("aiChanges.undo")
                 Button("Open Note") { open(c) }
                     .keyboardShortcut(.defaultAction)

@@ -324,7 +324,7 @@ import Testing
     @Test func theCardStaysACardOnTheCodeStep() {
         #expect(SignInView.isCard(.short("Sign in to Pinto Notes")))
         // The setup card says why to sign in, in one short line (council round 1, 11-04).
-        #expect(SignInView.shortLine.hasSuffix(".") && SignInView.shortLine.count < 80)
+        #expect(SignInView.shortLine.hasSuffix(".") && SignInView.shortLine.count < 60, "one line on the card (round 5: \"when you want.\" sat alone on a second)")
         #expect(!SignInView.isCard(.card))
         #expect(!SignInView.isCard(.beside(title: "Welcome", line: "")))
     }
