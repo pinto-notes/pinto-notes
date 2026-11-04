@@ -62,10 +62,38 @@ import Testing
     @Test func rankingNamesBeforeWordsBeforeAliases() {
         let all = SlashCommand.allCases
         // "Link" starts with it; the lists have a word that does; "line" is Divider's alias.
-        #expect(SlashCommands.matches("li", in: all) == [.link, .bulleted, .dashed, .numbered, .divider])
+        #expect(SlashCommands.matches("li", in: all) == [.link, .noteLink, .bulleted, .dashed, .numbered, .divider])
         #expect(SlashCommands.matches("h", in: all).prefix(3) == [.heading, .highlight, .title], "Heading and Highlight by name, then Title by h1")
         #expect(SlashCommands.matches("bulleted l", in: all) == [.bulleted], "a two-word name")
         #expect(SlashCommands.matches("che ", in: all) == [.checklist], "a trailing space keeps a match")
+    }
+
+    /// Letters in order find a command when nothing starts with them (Notion's menu needs the
+    /// start of a word), and never crowd a real match.
+    @Test func shorthandFindsACommand() {
+        let all = SlashCommand.allCases
+        #expect(SlashCommands.matches("chk", in: all) == [.checklist])
+        #expect(SlashCommands.matches("cdblk", in: all) == [.codeBlock])
+        #expect(SlashCommands.matches("nmbr", in: all) == [.numbered])
+        #expect(SlashCommands.matches("line", in: all) == [.divider], "a real match only")
+        #expect(SlashCommands.matches("k", in: all).isEmpty, "one letter isn't shorthand")
+        #expect(SlashCommands.matches("note", in: all) == [.noteLink, .callout], "a word of Link to note, then Callout's alias")
+        #expect(SlashCommands.matches("wiki", in: all) == [.noteLink])
+    }
+
+    /// What you used last comes first, three of them, newest first; typed or not.
+    @Test func theOnesUsedLastComeFirst() {
+        let all = SlashCommand.allCases
+        #expect(SlashCommands.matches("", in: all, recent: [.table, .checklist]).prefix(3) == [.table, .checklist, .title])
+        #expect(SlashCommands.matches("h", in: all, recent: [.highlight]).prefix(2) == [.highlight, .heading], "a tie goes to the recent one")
+        #expect(SlashCommands.matches("h", in: all, recent: [.title]).first == .heading, "a better match still wins")
+        let defaults = UserDefaults(suiteName: "SlashRecentsTests")!
+        defaults.removePersistentDomain(forName: "SlashRecentsTests")
+        let saved = SlashRecents.defaults
+        SlashRecents.defaults = defaults
+        defer { SlashRecents.defaults = saved }
+        for c in [SlashCommand.title, .table, .checklist, .table, .divider] { SlashRecents.used(c) }
+        #expect(SlashRecents.commands == [.divider, .table, .checklist], "newest first, no repeats, three")
     }
 
     @Test func aSpaceAfterAQueryThatNamesNothingCloses() {

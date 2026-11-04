@@ -7,6 +7,7 @@ import Testing
 /// The `/` menu in the real Mac editor: offered under the caret as you type `/`, filtered by the
 /// letters after it, run with Return, Tab or a click, put away with Escape.
 @MainActor @Suite(.serialized) struct SlashMenuEditorTests {
+    init() { SlashRecents.clear() }
     func listShown(_ h: EditorHarness) -> Bool { h.view.subviews.contains { $0 is NSHostingView<SlashCommandList> } }
     var end: (EditorHarness) -> Int { { ($0.text as NSString).length } }
 
@@ -51,6 +52,34 @@ import Testing
         await h.press(EditorHarness.tab)
         #expect(h.text == "Plan\n# ", "Title, with the caret ready to write it")
         #expect(h.selection.location == end(h))
+    }
+
+    /// /note runs Link to note: the `[[` titles open where the slash was, to pick a note by name.
+    @Test func linkToNoteOpensTheTitles() async {
+        let h = await EditorHarness("Plan\n")
+        defer { h.close() }
+        await h.select(end(h))
+        await h.type("See /wiki")
+        #expect(h.controller.slashCommands == [.noteLink])
+        await h.press(EditorHarness.returnKey)
+        #expect(h.text == "Plan\nSee [[")
+        #expect(h.controller.wikiQuery != nil, "the titles are offered")
+    }
+
+    /// Shorthand works in the editor, and the command used comes first next time.
+    @Test func shorthandAndRecentInTheEditor() async {
+        let h = await EditorHarness("Plan\nBuy milk")
+        defer { h.close() }
+        await h.select(end(h))
+        await h.type(" /chk")
+        #expect(h.controller.slashCommands == [.checklist])
+        await h.press(EditorHarness.returnKey)
+        #expect(h.text == "Plan\n- [ ] Buy milk ")
+        await h.press(EditorHarness.returnKey)
+        await h.press(EditorHarness.returnKey)
+        await h.type("/")
+        #expect(h.controller.slashCommands.first == .checklist, "used last, offered first")
+        #expect(h.controller.slashCommands.count == SlashCommand.available.count)
     }
 
     @Test func escapePutsItAwayForThatSlash() async {

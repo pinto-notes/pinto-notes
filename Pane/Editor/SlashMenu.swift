@@ -8,11 +8,32 @@ struct SlashCommandList: View {
     let controller: EditorController
     static let rowHeight: CGFloat = 24
     static let width: CGFloat = 236
+    /// Ten rows show; more scroll, with the choice kept in view (18 commands made a list taller
+    /// than a small window's note).
+    static let maxRows = 10
 
     /// The list's size for so many commands (the text view places it before SwiftUI lays it out).
-    static func size(rows: Int) -> CGSize { CGSize(width: width, height: CGFloat(rows) * rowHeight + 8) }
+    static func size(rows: Int) -> CGSize { CGSize(width: width, height: CGFloat(min(rows, maxRows)) * rowHeight + 8) }
 
     var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) { rows }
+                .scrollIndicators(controller.slashCommands.count > Self.maxRows ? .automatic : .never)
+                .scrollBounceBehavior(.basedOnSize)
+                .onChange(of: controller.slashChoice) { _, i in
+                    guard controller.slashCommands.indices.contains(i) else { return }
+                    proxy.scrollTo(controller.slashCommands[i])
+                }
+        }
+        .padding(4)
+        .frame(width: Self.width)
+        .background(Color(PColor.panePanel), in: .rect(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(PColor.paneSeparator)))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Insert")
+    }
+
+    private var rows: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(controller.slashCommands.enumerated()), id: \.element) { i, command in
                 Button { controller.runSlash(command) } label: {
@@ -42,14 +63,9 @@ struct SlashCommandList: View {
                 .accessibilityLabel(controller.slashName(command))
                 .accessibilityAddTraits(i == controller.slashChoice ? .isSelected : [])
                 .accessibilityIdentifier("slash.command.\(command.rawValue)")
+                .id(command)
             }
         }
-        .padding(4)
-        .frame(width: Self.width)
-        .background(Color(PColor.panePanel), in: .rect(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(PColor.paneSeparator)))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Insert")
     }
 }
 #endif

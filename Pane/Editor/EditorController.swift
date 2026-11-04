@@ -548,7 +548,7 @@ final class EditorController {
 
     private func updateSlash(text: String, selection: NSRange?) {
         guard let sel = selection, !readOnly, cell == nil, WikiLinks.typingQuery(in: text, caret: sel.location) == nil,
-              let found = SlashCommands.active(in: text, selection: sel) else {
+              let found = SlashCommands.active(in: text, selection: sel, recent: SlashRecents.commands) else {
             slashDismissed = nil
             clearSlash()
             return
@@ -574,6 +574,7 @@ final class EditorController {
             return TextEdit(range: q, replacement: "", caret: q.location)
         }
         clearSlash()
+        SlashRecents.used(command)
         switch command {
         case .title: apply(.title)
         case .heading: apply(.heading)
@@ -591,6 +592,8 @@ final class EditorController {
         case .divider: insertDivider()
         case .date: insertDate()
         case .link: insertLink()
+        // The `[[` titles open where it was, so a note is picked by name as you type.
+        case .noteLink: perform { _, sel in TextEdit(range: sel, replacement: "[[", caret: sel.location + 2) }
         case .attach: attach()
         }
     }
