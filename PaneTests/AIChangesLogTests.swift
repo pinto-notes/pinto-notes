@@ -102,6 +102,7 @@ import Testing
         #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- [ ] Burrata\n- [ ] Cherry tomatoes\n- [ ] Olive oil") == "Added Burrata, Cherry tomatoes and Olive oil")
         #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- Lemons") == "Added Lemons")
         #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- Eggs, free range\n- Lemons") == "+2 lines", "a comma in a name of several reads as two")
+        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\nFor the weekend.\n- [ ] Sourdough") == "+2 lines", "a sentence isn't a name (round 6 shot)")
         #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- [ ] A\n- [ ] B\n- [ ] C\n- [ ] D") == "+4 lines", "four is a count")
         #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\nA much longer sentence about what we still need to buy") == "+1 line", "a long line is a count")
     }

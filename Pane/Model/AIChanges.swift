@@ -187,15 +187,17 @@ enum AIChangeCopy {
 
     /// "Added Burrata, Cherry tomatoes and Olive oil": up to three short lines added and nothing
     /// taken out, by name, so you see what changed without opening it (council round 5, 11-04).
-    /// Markdown markers (list, checklist, heading, quote) are left off; nil for anything bigger.
+    /// List and checklist items only, their markers left off; nil for anything else or bigger.
     static func added(_ d: EditDiff) -> String? {
         guard d.minus == 0, (1...3).contains(d.plus) else { return nil }
         let ns = d.text as NSString
-        let marker = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|#{1,6}\s+|>\s*)"#)
-        let names = d.added.map { r -> String in
-            let line = ns.substring(with: r)
-            let bare = marker.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: (line as NSString).length), withTemplate: "")
-            return bare.trimmingCharacters(in: .whitespaces)
+        // List and checklist items only: a sentence read "Added For the weekend. and Sourdough".
+        let marker = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)"#)
+        var names: [String] = []
+        for r in d.added {
+            let line = ns.substring(with: r), all = NSRange(location: 0, length: (line as NSString).length)
+            guard marker.firstMatch(in: line, range: all) != nil else { return nil }
+            names.append(marker.stringByReplacingMatches(in: line, range: all, withTemplate: "").trimmingCharacters(in: .whitespaces))
         }
         guard names.allSatisfy({ !$0.isEmpty && $0.count <= 30 }), names.joined().count <= 60,
               names.count == 1 || !names.contains(where: { $0.contains(",") }) else { return nil }
