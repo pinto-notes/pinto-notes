@@ -1111,14 +1111,10 @@ struct ListCompose: View {
         ComposeButton(newNote: newNote, off: off) {
             // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
             Label { Text("New Note") } icon: {
-                Group {
-                    if Charm.on {
-                        CharmSymbol("square.and.pencil")
-                    } else {
-                        ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift)
-                    }
-                }
-                .foregroundStyle(Self.iconStyle(off: off))
+                // A menu (click and hold for New App): the toolbar shows its label as a still
+                // picture, so Charm's pencil can't play here.
+                ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift)
+                    .foregroundStyle(Self.iconStyle(off: off))
             }
         }
         .disabled(off)

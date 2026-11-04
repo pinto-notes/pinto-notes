@@ -1234,7 +1234,8 @@ struct NoteDetailView: View {
             }
             .disabled(hidden)
         } label: {
-            Label { Text("Attach") } icon: { CharmSymbol("paperclip") }
+            // A menu's label: the toolbar shows it as a still picture, so the symbol (Charm can't play here).
+            Label("Attach", systemImage: "paperclip")
         }
         .disabled(note.isLocked || showingPage)
         .tint(.primary)
@@ -1287,7 +1288,7 @@ struct NoteDetailView: View {
                 ForEach(group, id: \.self) { moreItem($0) }
             }
         } label: {
-            Label { Text("More") } icon: { CharmSymbol("ellipsis") }
+            Label("More", systemImage: "ellipsis")
         }
         #if os(macOS)
         .tint(.primary)
@@ -1586,7 +1587,7 @@ struct NoteToolbarStage<Pane: View>: View {
                             Button(action: controller.checklist) { Label { Text("Checklist") } icon: { CharmSymbol("checklist") } }
                                 .help("Checklist (⇧⌘L)")
                             if let menu = controller.currentTableMenu {
-                                Menu { TableMenuItems(menu: menu) } label: { Label { Text("Table") } icon: { CharmSymbol("tablecells") } }
+                                Menu { TableMenuItems(menu: menu) } label: { Label("Table", systemImage: "tablecells") }
                                     .help("Table")
                             } else {
                                 Button(action: controller.insertTable) { Label { Text("Table") } icon: { CharmSymbol("tablecells") } }
