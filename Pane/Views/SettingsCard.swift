@@ -17,6 +17,8 @@ extension EnvironmentValues {
     static let size = CGSize(width: 880, height: 600)
     /// Room above the sidebar for the window's buttons (it runs to the top, like System Settings').
     static let titleBar: CGFloat = 38
+    /// The title bar's safe area on a hidden-title-bar window.
+    static let titleBarInset: CGFloat = 32
     /// Tests: how often it was asked to open. The test host makes no windows of its own.
     static var opened = 0
 }
@@ -135,10 +137,13 @@ struct SettingsCard: View {
         #endif
         Group {
             if inWindow {
+                // The whole window, title bar too: the window is its content plus the title bar's
+                // safe area, so the content asks for that much less and runs up under it.
                 card(framed: false)
-                    .frame(width: SettingsWindow.size.width, height: SettingsWindow.size.height)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .settingsProbe("card")
                     .ignoresSafeArea()
+                    .frame(width: SettingsWindow.size.width, height: SettingsWindow.size.height - SettingsWindow.titleBarInset)
             } else if let close {
                 GeometryReader { geo in
                     let fit = Self.fitted(geo.size)
