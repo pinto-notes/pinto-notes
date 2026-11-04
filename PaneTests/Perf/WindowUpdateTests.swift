@@ -192,8 +192,7 @@ import Testing
     /// Toggle Sidebar (⌃⌘S, which SwiftUI's split view still answers) works out none of the
     /// columns again: not the folders (every folder row with them), not the note list. The split
     /// view handed its columns over again on every toggle, and both were worked out each time,
-    /// mid-animation. Since 11-01 the sidebar can't be hidden at all (SidebarPin), so the toggle
-    /// leaves it shown. The columns still follow what they show: another folder is another list.
+    /// mid-animation. The sidebar hides and shows again (Emil, 11-04). The columns still follow what they show: another folder is another list.
     @Test(.timeLimit(.minutes(2))) func aSidebarToggleWorksOutNoColumnAgain() async throws {
         let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let ctx = c.mainContext
@@ -250,18 +249,20 @@ import Testing
         print("PERF sidebar: bodies worked out after the window first settled, before any toggle: \(late.isEmpty ? "none" : late.joined(separator: ", "))")
 
         RenderProbe.counts = [:]
-        for _ in 0..<4 {
+        for i in 0..<4 {
             controller.toggleSidebar(nil)
             await settle()
-            #expect(!sidebar.isCollapsed, "the toggle leaves the sidebar shown: it can't be hidden (SidebarPin, Emil 11-01)")
+            #expect(sidebar.isCollapsed == (i % 2 == 0), "it hides, then shows")
         }
         print("PERF sidebar toggled 4 times: bodies worked out again \(RenderProbe.counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
         #expect(RenderProbe.counts["SidebarView"] == nil, "a toggle doesn't work the folders out again")
         #expect(RenderProbe.counts["FolderTree"] == nil, "nor any folder row")
         // The note list: none locally. On CI's runner it was worked out 3 times in 4 toggles once
         // the note's toolbar was kept around the note pane (NoteToolbarStage, 2026-10-12), never
-        // here. At most once a toggle, which still catches a list rebuilt over and over.
-        #expect((RenderProbe.counts["NoteListView"] ?? 0) <= 4, "nor the note list, beyond once a toggle")
+        // here. Since the sidebar really hides again (11-04) the list takes its header over (350 pt,
+        // the sidebar's buttons beside the window's) and gives it back: twice a toggle at most,
+        // which still catches a list rebuilt over and over.
+        #expect((RenderProbe.counts["NoteListView"] ?? 0) <= 8, "nor the note list, beyond twice a toggle")
 
         // What each shows still reaches it: a click on a folder is another list.
         let table = try #require(split.arrangedSubviews.first.flatMap { find(NSTableView.self, in: $0) })

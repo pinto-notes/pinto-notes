@@ -351,8 +351,6 @@ extension Notification.Name {
 
 struct SidebarView: View {
     #if os(macOS)
-    /// Set while the sidebar is hidden (RootView): the Show Sidebar button's action.
-    @Environment(\.showSidebar) private var showSidebar
     #endif
     @Environment(\.behindSetupCard) private var behindSetupCard
     @Environment(\.modelContext) private var context
@@ -555,8 +553,17 @@ struct SidebarView: View {
                 // Only over rows: an empty list (signed out, behind the sign-in card) puts its
                 // heading at the very top, under the window's buttons (Emil, 2 November 2026).
                 if Self.showsHeading(folders: roots.count, trashed: files.trashed) {
-                    Text("Folders")
-                        .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
+                    HStack {
+                        Text("Folders")
+                        Spacer()
+                        // New Folder, where the folders are (it was a fourth toolbar button's place).
+                        Button("New Folder", systemImage: "plus") { startNewFolder(nil) }
+                            .labelStyle(.iconOnly)
+                            .buttonStyle(.quietIcon(padding: 3))
+                            .help("New Folder (\u{21E7}\u{2318}N)")
+                            .accessibilityIdentifier("sidebar.newFolder")
+                    }
+                    .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
                 }
                 #endif
             }
@@ -692,20 +699,11 @@ struct SidebarView: View {
             // enabled items, so it showed only once onboarding ended (Emil, 2 November 2026). Least used first, so Search, the most used, sits nearest the list, where its
             // field opens. With the sidebar hidden they stay beside the window's buttons.
             ToolbarSpacer(.flexible)
-            // With the sidebar hidden, a way back you can see, in New Folder's place beside the
-            // window's buttons (council round 4, 11-04): a folder made there can't be seen, and a
-            // fourth button sent Search to the overflow menu. New Folder stays in File and ⇧⌘N.
-            ToolbarItem {
-                if let showSidebar {
-                    Button("Show Sidebar", systemImage: "sidebar.left") { showSidebar() }
-                        .help("Show Sidebar (\u{2303}\u{2318}S)")
-                        .accessibilityIdentifier("sidebar.show")
-                } else {
-                    Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }
-                        .help("New Folder (\u{21E7}\u{2318}N)")
-                        .accessibilityIdentifier("sidebar.newFolder")
-                }
-            }
+            // The sidebar's own button, shown or hidden, in the same place (Emil, 11-04: with only
+            // the menu and keys it looked like it couldn't hide). A fourth button here sent Search
+            // to the overflow menu, so New Folder is on the Folders heading (and File, ⇧⌘N).
+            // Its own view reads the toggle, so a toggle doesn't work the folders out again.
+            ToolbarItem { SidebarToggleButton() }
             .sharedBackgroundVisibility(.hidden)
             // Today's note in one press (DailyNotes).
             ToolbarItem { TodayButton(identifier: "sidebar.today") }
@@ -1776,3 +1774,17 @@ private struct FolderSearchResults: View {
 }
 #endif
 
+#if os(macOS)
+/// Hide Sidebar / Show Sidebar, first beside the window's buttons.
+struct SidebarToggleButton: View {
+    @Environment(\.toggleSidebar) private var toggleSidebar
+
+    var body: some View {
+        if let toggleSidebar {
+            Button(toggleSidebar.title, systemImage: "sidebar.left") { toggleSidebar() }
+                .help(toggleSidebar.title + " (\u{2303}\u{2318}S)")
+                .accessibilityIdentifier("sidebar.toggle")
+        }
+    }
+}
+#endif

@@ -18,6 +18,8 @@ struct RootView: View {
     @State private var visibility: NavigationSplitViewVisibility = .all
     #if os(macOS)
     @State private var listWidth = ListWidthKeeper.Probe()
+    /// Whether the sidebar hid itself for a narrow window, and the change it's making (SidebarFit).
+    @State private var sidebarFit = SidebarFit()
     #endif
     #if os(iOS)
     /// The open notes, for the list beside the note to draw (OpenNotes).
@@ -269,6 +271,15 @@ struct RootView: View {
         }
         #endif
         #if os(macOS)
+        // Too narrow for three columns (a 13-inch screen, a window at half), the sidebar steps
+        // aside on its own and comes back when there's room, unless you hid it yourself
+        // (Emil, 11-04: hiding it only by menu or keys was weird).
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { old, new in
+            if let v = sidebarFit.resized(from: old, to: new, visibility: visibility) {
+                withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) { visibility = v }
+            }
+        }
+        .onChange(of: visibility) { _, new in sidebarFit.changed(to: new) }
         // The list column shows its own title; no window title in the bar.
         .toolbar(removing: .title)
         // ⌘F (Edit › Find › Find…) opens the notes search, unless the note's text has the keys:
@@ -379,14 +390,16 @@ struct RootView: View {
                 .environment(library)
                 .environment(tags)
                 #if os(macOS)
-                // The sidebar hides again (Emil, 11-04, overriding the 11-01 pin): View › Hide
-                // Sidebar (⌃⌘S) gives the note the window. No sidebar button (10-29): it would push
-                // Search off the sidebar's top, which at its narrowest has room for New Folder,
-                // Today and Search beside the window's buttons (10-31).
+                // The sidebar hides with its own button, first beside the window's buttons as in
+                // Notes, and with View › Hide Sidebar (⌃⌘S) (Emil, 11-04: with only the menu and
+                // keys it looked like it couldn't). Ours, not the system's, so it stays in its
+                // place with the sidebar shown or hidden; New Folder moved to the Folders heading.
                 .toolbar(removing: .sidebarToggle)
                 .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
-                .environment(\.showSidebar, visibility == .all ? nil : ShowSidebarAction {
-                    withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) { visibility = .all }
+                .environment(\.toggleSidebar, ToggleSidebarAction(shown: visibility == .all) {
+                    withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) {
+                        visibility = SidebarToggle.toggled(visibility)
+                    }
                 })
                 #else
                 // iPad: room for the title beside the account button.
@@ -1494,14 +1507,53 @@ struct ListWidthKeeper: NSViewRepresentable {
 #endif
 
 #if os(macOS)
-/// The Show Sidebar button's action, while the sidebar is hidden.
-struct ShowSidebarAction: Equatable {
+/// The sidebar button's action, and whether the sidebar shows now.
+struct ToggleSidebarAction: Equatable {
+    let shown: Bool
     let run: () -> Void
     func callAsFunction() { run() }
-    static func == (a: Self, b: Self) -> Bool { true }
+    var title: String { shown ? "Hide Sidebar" : "Show Sidebar" }
+    static func == (a: Self, b: Self) -> Bool { a.shown == b.shown }
 }
 
 extension EnvironmentValues {
-    @Entry var showSidebar: ShowSidebarAction? = nil
+    @Entry var toggleSidebar: ToggleSidebarAction? = nil
+}
+
+/// The sidebar steps aside when the window is too narrow for three columns and comes back when
+/// there's room again. Only on crossing the line, so a sidebar you show in a narrow window stays,
+/// and one you hid stays hidden when the window grows.
+struct SidebarFit: Equatable {
+    /// The sidebar at its narrowest (240), the list (300) and room for the note to read well (560:
+    /// about 70 characters at 13 pt with its margins). A 13-inch Air's full screen is 1,470.
+    static let threeColumns: CGFloat = 1100
+
+    /// The sidebar hid itself, so it may come back by itself.
+    private(set) var autoHidden = false
+    /// The visibility this is setting, to tell its own change from yours.
+    private var setting: NavigationSplitViewVisibility?
+
+    /// The visibility to move to when the window goes from `old` to `new` wide, or nil.
+    /// A first width (from 0) counts as crossing from wide, so a narrow window opens without it.
+    mutating func resized(from old: CGFloat, to new: CGFloat, visibility: NavigationSplitViewVisibility) -> NavigationSplitViewVisibility? {
+        let line = Self.threeColumns
+        // No width yet (the window is still being made): nothing to go by.
+        guard new > 0 else { return nil }
+        let was = old <= 0 ? CGFloat.infinity : old
+        if was >= line, new < line, visibility == .all {
+            autoHidden = true; setting = .doubleColumn
+            return .doubleColumn
+        }
+        if was < line, new >= line, autoHidden, visibility != .all {
+            autoHidden = false; setting = .all
+            return .all
+        }
+        return nil
+    }
+
+    /// Any change it didn't make is yours: then it's yours to keep.
+    mutating func changed(to v: NavigationSplitViewVisibility) {
+        if v == setting { setting = nil } else { autoHidden = false; setting = nil }
+    }
 }
 #endif
