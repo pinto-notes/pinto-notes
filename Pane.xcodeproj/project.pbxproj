@@ -255,6 +255,7 @@
 		35BDB660A042C3C428EA504D /* AppearanceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D983BF94C11EAB2D08522A43 /* AppearanceSettings.swift */; };
 		35C84CFCD1BCA865A4E6FF53 /* ComposeButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C6D15833CF6120B65D7384A /* ComposeButton.swift */; };
 		364A03B667A51B2D5980B341 /* MacWindowChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8821FF7177AED2473C69A324 /* MacWindowChromeTests.swift */; };
+		36B11B5BAC1BFC5177E18913 /* IPhoneCouncilShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91090C35AB61F2AE15610AA8 /* IPhoneCouncilShots.swift */; };
 		36B499F5515EEF49E9F797EA /* NoteHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F00B2175265FE9DFF9E83C /* NoteHistory.swift */; };
 		36BFFE32941A04613BFE11E1 /* OnboardingTransitionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B083D4A28559AE1C6D170D /* OnboardingTransitionTests.swift */; };
 		36CE7C6E4FA3BBA4BE51F371 /* Encryption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9675E1E6CE2A9DBBE319BDF4 /* Encryption.swift */; };
@@ -1405,6 +1406,7 @@
 		90D6E39AD58E2036FAC35DFD /* NoteWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWindow.swift; sourceTree = "<group>"; };
 		90E829D2CD7ABD9B9531761D /* LockedNotes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockedNotes.swift; sourceTree = "<group>"; };
 		910239F87293563BD3F4B048 /* ListLayoutSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListLayoutSnapshots.swift; sourceTree = "<group>"; };
+		91090C35AB61F2AE15610AA8 /* IPhoneCouncilShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPhoneCouncilShots.swift; sourceTree = "<group>"; };
 		915BDB4D777A6AAB79E4F4AA /* Pane-mac-direct.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Pane-mac-direct.entitlements"; sourceTree = "<group>"; };
 		9167656DA8E3D71E4E9CCB8B /* NoteDropTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDropTests.swift; sourceTree = "<group>"; };
 		92322EAC09047DABE673BD1B /* ConnectGuideSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectGuideSnapshots.swift; sourceTree = "<group>"; };
@@ -2638,6 +2640,7 @@
 				D19E0A40C4F68710C1E2177D /* FormerSubNotesUITests.swift */,
 				679AA69EF9B06E496AB5D84B /* HeardFromUITests.swift */,
 				45E841E864DEFA026AC0CF16 /* HomeScreenTests.swift */,
+				91090C35AB61F2AE15610AA8 /* IPhoneCouncilShots.swift */,
 				8E2ED2A4AF8812202F92B945 /* KeyboardBarUITests.swift */,
 				21F840C976633C76FA3F16DD /* KeyCopyUITests.swift */,
 				08062ADED61309CC7CE5FA8F /* LifecycleUITests.swift */,
@@ -3633,6 +3636,7 @@
 				6F8E50B2A1AF9EC20EBF86B0 /* FormerSubNotesUITests.swift in Sources */,
 				14B88056C81A04C286A15ED4 /* HeardFromUITests.swift in Sources */,
 				F5DFE70493F7E13C3AAA35FD /* HomeScreenTests.swift in Sources */,
+				36B11B5BAC1BFC5177E18913 /* IPhoneCouncilShots.swift in Sources */,
 				864098AF04B94A0FCD1273BC /* KeyCopyUITests.swift in Sources */,
 				80FB9C344AFA09885E0DBCE4 /* KeyboardBarUITests.swift in Sources */,
 				52D8616A96F20BA371599895 /* LifecycleUITests.swift in Sources */,
