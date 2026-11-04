@@ -45,10 +45,21 @@ struct ConsentFooter: View {
         #if os(macOS)
         // AppKit's label: the pointer turns to a hand over each link, which SwiftUI's Text
         // doesn't do for links inside a sentence (Emil, 2 November 2026).
-        LinkLabel(text: Legal.consentSentence + AttributedString(" " + DiagnosticsCopy.signIn))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
-            .accessibilityIdentifier("signin.legal")
+        // Two short paragraphs, not one block of three lines (council round 6, 11-04): the
+        // terms, then what the app sends about itself.
+        VStack(spacing: 4) {
+            LinkLabel(text: Legal.consentSentence)
+                .frame(maxWidth: .infinity)
+            Text(DiagnosticsCopy.signIn)
+                .font(.footnote)
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("signin.diagnostics")
+        }
+        .padding(.vertical, 4)
+        .accessibilityIdentifier("signin.legal")
         #else
         Text(Legal.consentSentence + AttributedString(" " + DiagnosticsCopy.signIn))
             .font(.footnote)

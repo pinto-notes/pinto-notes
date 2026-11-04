@@ -129,6 +129,13 @@ import Testing
 
     /// The list's width is what you see of it. On macOS 26 its view runs on under the floating
     /// sidebar: on the Air (council round 5, 11-04) a 260 pt list had a 520 pt frame, and the list
+    /// With no room in the bar for the folder's name, it heads the list (council round 6).
+    @Test func theFolderIsNamedAboveTheListWhenTheBarHasNoRoom() {
+        #expect(NoteListView.nameAboveList(listWidth: 350 - NoteListView.windowButtons))
+        #expect(!NoteListView.nameAboveList(listWidth: 330), "a bar with room names it there, once")
+        #expect(!NoteListView.nameAboveList(listWidth: 0), "not before the list has a width")
+    }
+
     /// came back 100 pt too wide after Show Sidebar.
     @Test func theListsWidthIsWhatShowsBesideTheSidebar() {
         let sidebar = CGRect(x: 0, y: 0, width: 260, height: 800)
@@ -174,6 +181,7 @@ import Testing
             print("PERF list header \(Int(list.width)) pt, no name: More \(Int(more.frame.minX - list.minX))-\(Int(more.frame.maxX - list.minX)), New Note to \(Int(compose.frame.maxX - list.minX))")
             #expect(more.frame.maxX < compose.frame.minX, "More, New Note")
             #expect(compose.frame.maxX <= list.maxX - 4 && more.frame.minX >= list.minX, "the buttons inside the list column")
+            #expect(NoteListView.nameAboveList(listWidth: header), "the folder's name heads the list instead")
             return
         }
         let title = try #require(items.first { $0.label.isEmpty && $0.column == 1 && $0.frame.width > 20 })

@@ -315,6 +315,9 @@ final class AIChangesModel {
     private(set) var changes: [AIChange] = []
     private(set) var days: [AIChangeDay] = []
     private(set) var hasMore = false
+    /// The next page failed to load; the list ends on a row that says so with Try Again
+    /// (council round 6: it used to stop silently, as if there were nothing older).
+    private(set) var olderFailed = false
     /// Only this AI's changes; nil for every AI's.
     private(set) var filter: String?
     /// The AIs to filter by: the connections' names and any in the list.
@@ -363,6 +366,7 @@ final class AIChangesModel {
         do {
             let page = try await store.changes(before: nil, limit: Self.page, ai: filter)
             changes = page
+            olderFailed = false
             hasMore = page.count == Self.page
             regroup()
             phase = .loaded
@@ -373,7 +377,7 @@ final class AIChangesModel {
     }
 
     func loadMore() async {
-        guard hasMore, let last = changes.last else { return }
+        guard hasMore, !olderFailed, let last = changes.last else { return }
         do {
             let page = try await store.changes(before: last.at, limit: Self.page, ai: filter)
             let seen = Set(changes.map(\.id))
@@ -381,8 +385,13 @@ final class AIChangesModel {
             hasMore = page.count == Self.page
             regroup()
         } catch {
-            hasMore = false
+            olderFailed = true
         }
+    }
+
+    func retryOlder() async {
+        olderFailed = false
+        await loadMore()
     }
 
     func setFilter(_ ai: String?) async {

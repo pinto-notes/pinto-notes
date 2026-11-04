@@ -226,6 +226,11 @@ struct SignInView: View {
         // lost, and a paste then lands on the email row).
         .onChange(of: flow.showsPassword) { _, shows in if shows { passwordFocused = true } }
         .onChange(of: flow.step) { _, step in if step == .confirm { focus = .code } }
+        // Settings › Account › Sign In… (signed out): the card comes forward ready for an email
+        // (council rounds 5 and 6: it only closed Settings).
+        .onReceive(NotificationCenter.default.publisher(for: Self.focusEmailNotice)) { _ in
+            if flow.showsEmailField, flow.step != .confirm { focus = .email }
+        }
         // Six digits, typed or filled in from the email by iOS: confirm straight away.
         .onChange(of: flow.code) { _, code in if code.count == EmailSignInFlow.codeLength, flow.step == .confirm { primary() } }
         .task {
@@ -258,6 +263,9 @@ struct SignInView: View {
 
     /// Under the setup card's title: why to sign in, in one line (council round 1, 11-04: the card
     /// asked for an account without saying what it gives).
+    /// Posted by Settings' Sign In… to put the caret in the card's email field.
+    static let focusEmailNotice = Notification.Name("PintoSignInFocusEmail")
+
     static let shortLine = "Your notes on every device, and in ChatGPT or Claude."
 
     static let passwordRuleText = "At least \(EmailSignInFlow.minimumPassword) characters"

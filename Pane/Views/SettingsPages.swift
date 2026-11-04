@@ -18,7 +18,7 @@ struct AccountSettingsPage: View {
     let sync: SyncEngine?
     /// Tests: what clicking the sync status runs, in place of a real sync.
     var syncNow: (() async -> Void)? = nil
-    /// Signed out: Sign In… closes Settings, which covers the sign-in card.
+    /// Signed out: Sign In… closes Settings, which covers the sign-in card, and puts the caret in its email field.
     var close: () -> Void = {}
     @State private var profile = ProfileStore.shared
     @State private var storage = StorageStore.shared
@@ -245,7 +245,11 @@ struct AccountSettingsPage: View {
                 }
                 Spacer(minLength: 12)
                 if backend.state != .disabled {
-                    Button("Sign In\u{2026}", action: close)
+                    Button("Sign In\u{2026}") {
+                        close()
+                        // Once Settings has gone, the card's email field takes the caret.
+                        DispatchQueue.main.async { NotificationCenter.default.post(name: SignInView.focusEmailNotice, object: nil) }
+                    }
                         .buttonStyle(.settings)
                         .accessibilityIdentifier("settings.signIn")
                 }

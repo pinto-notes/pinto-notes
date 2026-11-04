@@ -42,9 +42,11 @@ import Testing
     final class Changes: AIChangesStore {
         var all: [AIChange]
         var asked: [(Date?, String?)] = []
+        var failOlder = false
         init(_ all: [AIChange]) { self.all = all }
         func changes(before: Date?, limit: Int, ai: String?) async throws -> [AIChange] {
             asked.append((before, ai))
+            if failOlder, before != nil { throw HistoryError.gone }
             return Array(all.filter { (ai == nil || $0.ai == ai) && (before == nil || $0.at < before!) }.prefix(limit))
         }
     }
@@ -143,6 +145,27 @@ import Testing
         await model.setFilter("Claude")
         #expect(model.changes.count == 30 && model.changes.allSatisfy { $0.ai == "Claude" })
         #expect(store.asked.last?.1 == "Claude")
+    }
+
+    /// An older page that fails to load says so and can be tried again; it never just ends the list.
+    @Test func olderChangesThatFailSayItAndTryAgain() async throws {
+        let c = try Self.container()
+        let note = c.mainContext.createNote(in: .all, body: Self.after)
+        let all = (0..<60).map { i in
+            AIChange(id: "\(i)", kind: .edit, noteID: note.id, ai: "Claude", at: Self.t0.addingTimeInterval(Double(-i) * 60), beforeVersion: 1)
+        }
+        let store = Changes(all)
+        store.failOlder = true
+        let model = AIChangesModel(store: store, history: NoteHistory(store: Texts([1: Self.before]), context: c.mainContext, sync: nil), connected: [])
+        await model.load()
+        await model.loadMore()
+        #expect(model.olderFailed && model.hasMore && model.changes.count == 50)
+        await model.loadMore()
+        #expect(store.asked.count == 2, "no retry loop while the failure shows")
+        store.failOlder = false
+        await model.retryOlder()
+        #expect(!model.olderFailed && model.changes.count == 60 && !model.hasMore)
+        #expect(AIChangesOlderFailed.message == "Couldn\u{2019}t load older changes.")
     }
 
     // MARK: One edit's diff

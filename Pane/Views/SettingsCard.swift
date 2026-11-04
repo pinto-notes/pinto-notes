@@ -14,7 +14,9 @@ extension EnvironmentValues {
 @MainActor enum SettingsWindow {
     static let id = "settings"
     /// The window's content size: the card's, the sidebar and one page column.
-    static let size = CGSize(width: 880, height: 600)
+    // 720 tall so Appearance (text size and its sample) and Privacy and security fit without
+    // scrolling (council round 6, 11-04: both ran past the bottom at 600). Fits a 13-inch Mac.
+    static let size = CGSize(width: 880, height: 720)
     /// Room above the sidebar for the window's buttons (it runs to the top, like System Settings').
     static let titleBar: CGFloat = 38
     /// The title bar's safe area on a hidden-title-bar window.

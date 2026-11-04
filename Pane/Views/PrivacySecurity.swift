@@ -79,7 +79,7 @@ enum PrivacyCopy {
                         "Your key also syncs between your own devices through iCloud Keychain, end-to-end encrypted by Apple."))
         }
         out.append(("sparkles", "Connected AIs",
-                    "Each AI you connect holds its own copy of your key, locked to that connection\u{2019}s token and unlocked in memory only while its request is handled."
+                    "Each AI you connect gets its own copy of your key, locked to its token. It opens your notes only while it works on a request."
                     + (serverCopy ? " It doesn\u{2019}t use Pinto Notes\u{2019} copy." : "") + " " + ConnectCopy.scope))
         if recovery {
             out.append(("key.horizontal", "Recovery key", "Opens your notes if you lose your devices. Keep it somewhere safe."))

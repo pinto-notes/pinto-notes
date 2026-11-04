@@ -399,6 +399,23 @@ struct NoteListView: View {
             return Self.headerWidth(column: f.width, minX: f.minX)
         } action: { listWidth = $0 }
         .safeAreaInset(edge: .top, spacing: 0) {
+            if !searching, Self.nameAboveList(listWidth: listWidth, compose: scope != .trash) {
+                // The bar has no room for the folder's name (the sidebar hidden beside a narrow
+                // list), so it heads the list instead: without it nothing said which folder this
+                // was (council rounds 5 and 6).
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                    Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: false))
+                        .font(.system(size: 11)).foregroundStyle(Color.muted).monospacedDigit()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 17)
+                .padding(.top, 4)
+                .padding(.bottom, 6)
+                .opacity(behindSetupCard ? 0.35 : 1)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("list.folderName")
+            }
             if searching {
                 ListSearchField(text: $search, focus: searchFocus) { searching = false }
                     .padding(.horizontal, 12)
@@ -692,6 +709,10 @@ struct NoteListView: View {
     static func titleRoom(listWidth: CGFloat, compose: Bool = true) -> CGFloat {
         let room = min(titleWidth, headerRoom(listWidth: listWidth, compose: compose))
         return room < 40 ? 0 : room
+    }
+    /// No room in the bar for the name: it heads the list instead, so the folder is always named.
+    static func nameAboveList(listWidth: CGFloat, compose: Bool = true) -> Bool {
+        listWidth > 0 && titleRoom(listWidth: listWidth, compose: compose) == 0
     }
     #endif
 

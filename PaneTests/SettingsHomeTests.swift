@@ -149,7 +149,8 @@ import Testing
         let page = SettingsCard.pageWidth + 2 * SettingsCard.gutter
         #expect(SettingsWindow.size.width - SettingsCard.sidebarWidth >= page, "a page's column fits beside the sidebar")
         #expect(SettingsWindow.size.width - SettingsCard.sidebarWidth - page <= 40, "with little to spare")
-        #expect(SettingsWindow.size.width < SettingsCard.size.width && SettingsWindow.size.height < SettingsCard.size.height)
+        #expect(SettingsWindow.size.width < SettingsCard.size.width, "narrower than the template card")
+        #expect(SettingsWindow.size.height <= 760, "fits a 13-inch Mac's screen (about 800 pt under the menu bar)")
     }
 
     @Test func theCardIsNeverBiggerThanItsWindow() {
@@ -300,10 +301,10 @@ import Testing
         // How to lock a note is said in How it works, now that the explainer row is gone.
         let locked = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Locked notes" }?.line ?? ""
         #expect(locked.contains("menu") && locked.contains("title"))
-        // How an AI opens the notes: its own copy of the key, locked to its token, open in memory
-        // only during a request, never Pinto Notes' copy.
+        // How an AI opens the notes: its own copy of the key, locked to its token, used only
+        // during a request, never Pinto Notes' copy (plainer words, council round 7).
         let ai = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Connected AIs" }?.line ?? ""
-        for part in ["its own copy of your key", "token", "in memory only while", "doesn\u{2019}t use Pinto Notes\u{2019} copy"] {
+        for part in ["its own copy of your key", "token", "only while it works on a request", "doesn\u{2019}t use Pinto Notes\u{2019} copy"] {
             #expect(ai.contains(part), "\(part)")
         }
         // Locked notes: an AI sees that one exists, not its title or text, and keeps what it already read.
@@ -581,5 +582,21 @@ import Testing
         let src = try Self.source("Pane/Views/SettingsCard.swift")
         #expect(!src.contains("Self.fitted((NSApp.mainWindow"), "no reading the front window on a redraw")
     }
+
+    /// Round 7: signed out, Account's Sign In… brings the card forward ready for an email; the
+    /// sign-in footer reads as two short paragraphs; Privacy says what it means in plain words.
+    @Test func signedOutSignInFocusesTheCardAndTheCopyIsPlain() throws {
+        let pages = try Self.source("Pane/Views/SettingsPages.swift")
+        #expect(pages.contains("post(name: SignInView.focusEmailNotice"), "Sign In… puts the caret in the card's email field")
+        let card = try Self.source("Pane/Views/SignInView.swift")
+        #expect(card.contains("publisher(for: Self.focusEmailNotice)") && card.contains("focus = .email }"))
+        let legal = try Self.source("Pane/Views/LegalLinks.swift")
+        #expect(legal.contains("Text(DiagnosticsCopy.signIn)") && legal.contains("signin.diagnostics"), "diagnostics is its own paragraph under the terms")
+        let privacy = try Self.source("Pane/Views/PrivacySecurity.swift")
+        #expect(privacy.contains("Each AI you connect gets its own copy of your key"))
+        // Standard accounts never hear of Advanced protection (it's hidden for them, 11-01).
+        #expect(!privacy.contains("Turn on Advanced protection"), "the court order row offers nothing a standard account can't see")
+    }
+
 }
 #endif

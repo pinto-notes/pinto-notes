@@ -235,7 +235,9 @@ struct MacAIChanges: View {
                         }
                         .listSectionSeparator(.hidden)
                     }
-                    if model.hasMore {
+                    if model.olderFailed {
+                        AIChangesOlderFailed(model: model).listRowSeparator(.hidden)
+                    } else if model.hasMore {
                         ProgressView().controlSize(.small).frame(maxWidth: .infinity)
                             .task { await model.loadMore() }
                     }
@@ -335,7 +337,9 @@ struct PhoneAIChanges: View {
                                 }
                             }
                         }
-                        if model.hasMore {
+                        if model.olderFailed {
+                            AIChangesOlderFailed(model: model)
+                        } else if model.hasMore {
                             ProgressView().frame(maxWidth: .infinity).task { await model.loadMore() }
                         }
                     }
@@ -413,3 +417,21 @@ struct PhoneAIChangeDetail: View {
     }
 }
 #endif
+
+/// The end of the list when the next page didn't load: says so, with a way to try again.
+struct AIChangesOlderFailed: View {
+    let model: AIChangesModel
+    static let message = "Couldn\u{2019}t load older changes."
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Text(Self.message).font(.footnote).foregroundStyle(.secondary)
+            Button("Try Again") { Task { await model.retryOlder() } }
+                .controlSize(.small).tint(.primary)
+                .accessibilityIdentifier("aiChanges.olderRetry")
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 8)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("aiChanges.olderFailed")
+    }
+}
