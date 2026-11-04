@@ -139,7 +139,7 @@ struct NotesPasswordSetupSheet: View {
                     Text("Create a password for your locked notes")
                 } footer: {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("One password locks all your notes, on all your devices. A locked note is encrypted on your device before it syncs, so nobody else can read it, not even us. Its title stays visible so you can find it, to you and to an AI you've connected. What an AI already read stays with that AI.")
+                        Text(LockedNotesCopy.setupLine)
                         Text("If you forget this password, your locked notes can't be recovered, not even by us.")
                             .fontWeight(.semibold)
                         Text("Locking a note also removes its earlier versions from version history.")
@@ -340,6 +340,9 @@ struct ChangeNotesPasswordSheet: View {
 enum LockedNotesCopy {
     static let header = "Locked notes"
     static let footer = "Locked notes open with your notes password until the app goes to the background or a few minutes pass. \(aiLine) If you forget the password, locked notes can\u{2019}t be recovered."
+    /// Setting up the password: what locking does, and what an AI sees, as Settings says it
+    /// (persona council round 3: this said an AI sees the title, Settings and the server don't).
+    static let setupLine = "One password locks all your notes, on all your devices. A locked note is encrypted on your device before it syncs, so nobody else can read it, not even us. Its title stays visible to you in your notes. \(aiLine)"
     /// What a connected AI sees of a locked note.
     static let aiLine = "An AI sees that a locked note exists, not its title or text. What an AI already read stays with that AI."
     /// Before any note is locked: what an AI sees of one, and where to lock one (PrivacyCopy.lockedLine).

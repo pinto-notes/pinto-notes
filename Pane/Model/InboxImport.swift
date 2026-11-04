@@ -3,11 +3,14 @@ import SwiftData
 
 @MainActor
 extension ModelContext {
+    /// How long an item for a shared note waits for its document before it becomes a new note.
+    static let sharedWait: TimeInterval = 7 * 24 * 3600
+
     /// Files everything shared into Amber Notes, in the folder picked in the share sheet: text
     /// as a note (with its files in it), files alone as files in the folder. Returns the new notes.
     /// Evernote exports aren't filed: they wait in `EvernoteInbox` for the import sheet.
     @discardableResult
-    func drainInbox() -> [Note] {
+    func drainInbox(library: SharedLibrary? = CollabStore.shared?.library) -> [Note] {
         publishFolderChoices()
         var made: [Note] = []
         // Notes something was added to.
@@ -34,15 +37,19 @@ extension ModelContext {
                 Inbox.remove(dir)
                 continue
             }
-            // A shared note takes text through its document (NoteWrites). Files can't go in a
-            // shared note, and Can view or a document not open yet can't take the text either:
-            // those get a new note, as for a note that's gone.
+            // A shared note takes text through its document (NoteWrites). Its document not open yet
+            // (just after launch, before sharing starts): the item waits for it, a week at most, so
+            // it lands where the share sheet said. Files can't go in a shared note, and Can view
+            // can't take the text: those get a new note, as for a note that's gone.
             if let id = item.note, let n = self.note(id), n.deletedAt == nil, n.trashedAt == nil, !n.isLocked, n.isShared,
-               rest.isEmpty, !body.isEmpty,
-               NoteWrites.change(n, { (try? NoteIntents.appending(body, to: $0)) ?? $0 }) == .changed {
-                addedTo.append(n)
-                Inbox.remove(dir)
-                continue
+               rest.isEmpty, !body.isEmpty {
+                let outcome = NoteWrites.change(n, library: library) { (try? NoteIntents.appending(body, to: $0)) ?? $0 }
+                if outcome == .changed || outcome == .unchanged {
+                    if outcome == .changed { addedTo.append(n) }
+                    Inbox.remove(dir)
+                    continue
+                }
+                if outcome == .notReady, Date.now.timeIntervalSince(item.createdAt) < Self.sharedWait { continue }
             }
             let target = item.folder.flatMap { folder($0) }.flatMap { $0.deletedAt == nil ? $0 : nil }
             if body.isEmpty, !rest.isEmpty {

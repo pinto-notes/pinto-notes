@@ -70,4 +70,51 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(note.body == "Ideas\nOne more")
         #expect(NoteWrites.change(note, library: sara.library) { $0 } == .unchanged)
     }
+
+    /// Just after launch, before sharing starts (no library yet): a share-sheet item and a widget
+    /// tick for a shared list wait, rather than becoming a new note or being dropped, and go in
+    /// once sharing is ready (CollabStore.attach and each document opening call applyCaptures).
+    @Test func capturesForASharedNoteWaitForSharingToStart() async throws {
+        let tmp = FileManager.default.temporaryDirectory.appending(path: "captures-\(UUID())")
+        Inbox.rootOverride = tmp.appending(path: "Inbox")
+        ChecklistShelf.rootOverride = tmp.appending(path: "Shelf")
+        defer { Inbox.rootOverride = nil; ChecklistShelf.rootOverride = nil; try? FileManager.default.removeItem(at: tmp) }
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Groceries\n- [ ] Bread", on: emil)
+        server.add(member, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+
+        try Inbox.add(markdown: "Oat milk", files: [], note: mine.id)
+        ChecklistShelf.tick(note: mine.id, index: 0, text: "Bread", done: true)
+
+        // Cold start: no library.
+        sara.context.applyCaptures(library: nil)
+        #expect(Inbox.pending().count == 1, "the share sheet's item waits")
+        #expect(ChecklistShelf.ticks().count == 1, "the tick waits")
+        #expect(mine.body == "Groceries\n- [ ] Bread")
+        let notes = try sara.context.fetch(FetchDescriptor<Note>())
+        #expect(!notes.contains { $0.body.contains("Oat milk") }, "no new note for it")
+
+        // Sharing is ready.
+        sara.context.applyCaptures(library: sara.library)
+        #expect(Inbox.pending().isEmpty && ChecklistShelf.ticks().isEmpty)
+        #expect(mine.body.contains("Oat milk") && mine.body.contains("[x] Bread"), "\(mine.body)")
+        await waitUntil { emilSession.text.contains("Oat milk") && emilSession.text.contains("[x] Bread") }
+        #expect(emilSession.text.contains("Oat milk") && emilSession.text.contains("[x] Bread"), "\(emilSession.text)")
+    }
+
+    /// Siri waits for sharing to start (a few seconds at most) instead of saying the note isn't ready.
+    @Test func siriWaitsForSharingToStart() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, _) = try await shared("Groceries", on: emil)
+        server.add(member, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        sara.library.closeAll()
+        var available: SharedLibrary? = nil
+        let started = ContinuousClock.now
+        Task { @MainActor in try? await Task.sleep(for: .milliseconds(300)); available = sara.library }
+        await NoteWrites.ready(mine, within: .seconds(3)) { available }
+        #expect(ContinuousClock.now - started >= .milliseconds(250), "it waited for sharing")
+        #expect(NoteWrites.change(mine, library: sara.library) { $0 + "\n- [ ] Milk" } == .changed)
+    }
 }

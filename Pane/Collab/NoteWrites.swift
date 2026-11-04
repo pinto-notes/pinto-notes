@@ -21,6 +21,17 @@ enum NoteWrites {
     static let viewOnlyMessage = "You can view this note, not change it."
     static let notReadyMessage = "This shared note isn't ready yet. Open it in Pinto Notes, then try again."
 
+    /// Siri and Shortcuts can run just after launch, before sharing has started: a shared note
+    /// waits a few seconds for it and for its document before the change is tried.
+    static func ready(_ note: Note, within: Duration = .seconds(5),
+                      library: @MainActor () -> SharedLibrary? = { CollabStore.shared?.library }) async {
+        guard note.isShared else { return }
+        let end = ContinuousClock.now + within
+        while library() == nil, ContinuousClock.now < end { try? await Task.sleep(for: .milliseconds(100)) }
+        guard let lib = library(), lib.session(for: note) == nil else { return }
+        _ = await lib.ensureDocument(note)
+    }
+
     /// `edit` gets the note's current text (a shared note's: the document's) and returns the new
     /// text. Saving is the caller's.
     @discardableResult

@@ -9,14 +9,22 @@ import WidgetKit
 /// and as it leaves (PaneApp), so the Home Screen shows the lists as they were last seen here.
 @MainActor
 extension ModelContext {
+    /// What the widget and the share sheet left: into their notes. Again once sharing is ready and
+    /// as each shared note's document opens, so a capture for a shared note doesn't wait for the
+    /// next time the app comes forward.
+    func applyCaptures(library: SharedLibrary? = CollabStore.shared?.library) {
+        if !Inbox.pending().isEmpty { drainInbox(library: library) }
+        if !ChecklistShelf.ticks().isEmpty, !applyChecklistTicks(library: library).isEmpty { publishChecklistShelf() }
+    }
+
     /// The widget's kind (PaneWidgets/ChecklistWidget.swift), to redraw it when its lists change.
     static let checklistWidgetKind = ChecklistWidgetContent.kind
 
     /// Applies the ticks made on the Home Screen, then leaves the lists and recent notes as they
     /// now are. Returns the notes a tick changed.
     @discardableResult
-    func syncChecklistShelf() -> [Note] {
-        let changed = applyChecklistTicks()
+    func syncChecklistShelf(library: SharedLibrary? = CollabStore.shared?.library) -> [Note] {
+        let changed = applyChecklistTicks(library: library)
         publishChecklistShelf()
         return changed
     }
@@ -24,7 +32,7 @@ extension ModelContext {
     /// Writes each waiting tick into its note, as a tick in the editor would: ticked items sink
     /// below the open ones. A tick for a note that's gone, locked or deleted is dropped.
     @discardableResult
-    func applyChecklistTicks() -> [Note] {
+    func applyChecklistTicks(library: SharedLibrary? = CollabStore.shared?.library) -> [Note] {
         let ticks = ChecklistShelf.ticks()
         guard !ticks.isEmpty else { return [] }
         var changed: [Note] = []
@@ -33,7 +41,7 @@ extension ModelContext {
         for t in ticks {
             guard let n = note(t.note), n.deletedAt == nil, n.trashedAt == nil, !n.isLocked else { continue }
             // A shared note's tick goes into its document (NoteWrites); Can view drops it.
-            let outcome = NoteWrites.change(n) { Checklist.setting(t.done, index: t.index, text: t.text, in: $0) ?? $0 }
+            let outcome = NoteWrites.change(n, library: library) { Checklist.setting(t.done, index: t.index, text: t.text, in: $0) ?? $0 }
             if outcome == .notReady { waiting.insert(t.id) }
             if outcome == .changed, !changed.contains(where: { $0.id == n.id }) { changed.append(n) }
         }

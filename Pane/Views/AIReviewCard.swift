@@ -18,6 +18,7 @@ struct AIReviewCard: View {
     var inSheet = false
     @FocusState private var focused: Bool
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The text size: the sheet's follows the person's text size; the card's is fixed, as the Mac's text is.
     private var size: CGFloat { inSheet ? Self.body(typeSize) : Self.text }
 
@@ -66,7 +67,8 @@ struct AIReviewCard: View {
                 .fixedSize(horizontal: false, vertical: !inSheet)
                 .onChange(of: review.focus) { _, f in
                     guard review.parts.indices.contains(f) else { return }
-                    withAnimation(.smooth(duration: 0.2)) { proxy.scrollTo(review.parts[f].id, anchor: .center) }
+                    if reduceMotion { proxy.scrollTo(review.parts[f].id, anchor: .center) }
+                    else { withAnimation(.smooth(duration: 0.2)) { proxy.scrollTo(review.parts[f].id, anchor: .center) } }
                     reveal(review.parts[f].id)
                 }
             }

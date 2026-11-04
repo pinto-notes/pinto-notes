@@ -331,12 +331,14 @@ struct AppearanceSettingsPage: View {
 struct TextSizeRow: View {
     @AppStorage(TextSize.key) private var stored: Double = 0
 
+    static let label = "Note text"
     static let footer = "Note text on this Mac. Make Text Bigger and Make Text Smaller in the View menu change it too."
 
     var body: some View {
         let size = TextSize.size(stored: stored)
         HStack(spacing: 10) {
-            Text("Text size").font(.system(size: 13)).foregroundStyle(SettingsInk.text)
+            // "Note text" under the Text size header, not the header again (UI council round 7).
+            Text(Self.label).font(.system(size: 13)).foregroundStyle(SettingsInk.text)
             Spacer(minLength: 12)
             Text("A").font(.system(size: 11)).foregroundStyle(SettingsInk.muted).accessibilityHidden(true)
             Slider(value: Binding(get: { Double(TextSize.index(of: size)) },
@@ -345,7 +347,7 @@ struct TextSizeRow: View {
                 .labelsHidden()
                 .tint(SettingsInk.switchOn)
                 .frame(width: 180)
-                .accessibilityLabel("Text size")
+                .accessibilityLabel(Self.label)
                 .accessibilityValue(TextSize.spoken(size))
                 .accessibilityIdentifier("settings.textSize")
             Text("A").font(.system(size: 19)).foregroundStyle(SettingsInk.muted).accessibilityHidden(true)
@@ -363,6 +365,7 @@ struct TextSizeRow: View {
 struct TextSizeSample: View {
     @AppStorage(TextSize.key) private var stored: Double = 0
     static let text = "Four days of tiles, trams and pastries in May."
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Text(Self.text)
@@ -371,7 +374,7 @@ struct TextSizeSample: View {
             .lineLimit(2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 12)
-            .animation(.snappy(duration: 0.15), value: stored)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.15), value: stored)
             .accessibilityLabel("Sample: \(Self.text)")
             .accessibilityIdentifier("settings.textSizeSample")
     }

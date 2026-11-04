@@ -24,7 +24,7 @@ struct AddToListIntent: AppIntent {
 
     @MainActor func perform() async throws -> some IntentResult & ReturnsValue<NoteEntity> & ProvidesDialog {
         let n = try NoteIntents.editable(note.id)
-        guard try NoteIntents.save(n, { Checklist.adding(item, to: $0) }) else { throw NoteIntentError.other("Say what to add.") }
+        guard try await NoteIntents.save(n, { Checklist.adding(item, to: $0) }) else { throw NoteIntentError.other("Say what to add.") }
         let words = item.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         return .result(value: NoteEntity(n), dialog: IntentDialog(stringLiteral: QuickWords.added(words.joined(separator: ", "), to: n.title)))
     }
@@ -50,7 +50,7 @@ struct TickItemIntent: AppIntent {
         let n = try NoteIntents.editable(note.id)
         guard let match = Checklist.match(item, in: n.body) else { throw NoteIntentError.other(QuickWords.noItem(item, in: n.title)) }
         guard !match.done else { return .result(value: NoteEntity(n), dialog: IntentDialog(stringLiteral: QuickWords.unticked(match.text, in: n.title))) }
-        try NoteIntents.save(n) { Checklist.setting(true, index: match.index, text: match.text, in: $0) ?? $0 }
+        try await NoteIntents.save(n) { Checklist.setting(true, index: match.index, text: match.text, in: $0) ?? $0 }
         return .result(value: NoteEntity(n), dialog: IntentDialog(stringLiteral: QuickWords.ticked(match.text, in: n.title)))
     }
 }
@@ -86,7 +86,8 @@ extension NoteIntents {
     /// Changes the note's text (a shared note's goes through its document, NoteWrites), saves it
     /// for sync, and redraws the Home Screen widget. False when the text didn't change.
     @discardableResult
-    static func save(_ n: Note, _ edit: (String) throws -> String) throws -> Bool {
+    static func save(_ n: Note, _ edit: (String) throws -> String) async throws -> Bool {
+        await NoteWrites.ready(n)
         switch try NoteWrites.change(n, edit) {
         case .changed: break
         case .unchanged: return false
