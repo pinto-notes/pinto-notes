@@ -141,6 +141,21 @@ import Testing
         #expect(storage.attribute(.paneChanged, at: storage.length - 1, effectiveRange: nil) == nil)
     }
 
+    /// A changed line's band starts 12 pt before the text: the 3 pt bar, then 9 pt clear, so the
+    /// bar never touches the text or a checklist circle (council rounds 3 to 5, 11-04: 1 pt), and
+    /// the previews' margin holds the whole band.
+    @Test func theChangeBarHasRoomBeforeTheText() throws {
+        #expect(DecoratedLayoutFragment.changeLead - DecoratedLayoutFragment.changeBar >= 9)
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Pane/Editor/VersionTextView.swift"), encoding: .utf8)
+        // The left inset of each preview text view (the Mac's width:, the iPhone's left:).
+        let insets = src.components(separatedBy: "textContainerInset = ").dropFirst().compactMap { part -> CGFloat? in
+            guard let i = part.range(of: "width: ") ?? part.range(of: "left: ") else { return nil }
+            return Double(part[i.upperBound...].prefix { $0.isNumber }).map { CGFloat($0) }
+        }
+        #expect(!insets.isEmpty && insets.allSatisfy { $0 >= DecoratedLayoutFragment.changeLead }, "the band fits the previews' margin: \(insets)")
+    }
+
     /// A table in a version or an AI change shows as text in columns, header in semibold, and its
     /// changed row keeps the band: it was hidden for a grid only the editor draws, so a table an
     /// AI changed showed as a blank band (council rounds 2 and 3, 11-04).

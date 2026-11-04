@@ -79,7 +79,8 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         let base = super.renderingSurfaceBounds.union(foldSurface)
         guard decoration != nil || highlighted || hasDates else { return base }
         let left = -layoutFragmentFrame.minX
-        return base.union(CGRect(x: left - 4, y: -14, width: containerWidth + 8, height: layoutFragmentFrame.height + 28))
+        let lead = highlighted ? Self.changeLead : 4
+        return base.union(CGRect(x: left - lead, y: -14, width: containerWidth + lead + 4, height: layoutFragmentFrame.height + 28))
     }
 
     /// Vertical center of the first line's text, for markers.
@@ -148,6 +149,10 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         }
     }
 
+    /// How far a changed line's band starts before the text: the 3 pt bar, then 9 pt clear.
+    static let changeLead: CGFloat = 12
+    static let changeBar: CGFloat = 3
+
     override func draw(at point: CGPoint, in context: CGContext) {
         let strength = highlight
         if strength > 0 {
@@ -155,15 +160,17 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             // lines next to each other join into one block, like a change marker.
             // Inside the rendering surface (4 pt either side). Edges are drawn without antialiasing so
             // neighbouring lines snap to the same pixel row and join with no seam.
-            let rect = CGRect(x: point.x - layoutFragmentFrame.minX - 4, y: point.y,
-                              width: containerWidth + 8, height: layoutFragmentFrame.height)
+            // The band starts `changeLead` before the text, so 9 pt stay clear between the 3 pt bar
+            // and the text or a checklist circle (council rounds 3 to 5: they touched).
+            let rect = CGRect(x: point.x - layoutFragmentFrame.minX - Self.changeLead, y: point.y,
+                              width: containerWidth + Self.changeLead + 4, height: layoutFragmentFrame.height)
             context.saveGState()
             context.setShouldAntialias(false)
             let colors = Self.changeColors(strength)
             context.setFillColor(colors.tint)
             context.fill(rect)
             context.setFillColor(colors.bar)
-            context.fill(CGRect(x: rect.minX, y: rect.minY, width: 3, height: rect.height))
+            context.fill(CGRect(x: rect.minX, y: rect.minY, width: Self.changeBar, height: rect.height))
             context.restoreGState()
         }
         if let d = decoration {

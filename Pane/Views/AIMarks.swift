@@ -167,6 +167,8 @@ struct AIReceipt: View {
             Text(compact ? receipt.shortSummary : receipt.summary)
                 .font(.system(size: compact ? 13 : Self.text, weight: .semibold))
                 .lineLimit(1)
+                // Whole, never "ChatGPT changed 3 li…": the capsule grows instead (council round 5).
+                .fixedSize(horizontal: true, vertical: false)
                 .foregroundStyle(Color.amberInk)
             if receipt.kind != .heldBack {
             Divider().frame(height: 14)

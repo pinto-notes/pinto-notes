@@ -87,7 +87,7 @@ import Testing
             AIChange(id: kind.rawValue, kind: kind, noteID: note.id, ai: "Claude", at: Self.t0, toFolder: to)
         }
         let name: (UUID) -> String? = { $0 == trips.id ? "Trips" : nil }
-        #expect(AIChangeCopy.summary(change(.edit), before: Self.before, after: Self.after) == "+1 line")
+        #expect(AIChangeCopy.summary(change(.edit), before: Self.before, after: Self.after) == "Added Sintra, Pena Palace first")
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo\nThree", after: "A\n\nOne\nTwo, changed\n\nFour") == "+2 \u{2212}2 lines")
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo", after: "A\n\nOne") == "\u{2212}1 line")
         #expect(AIChangeCopy.summary(change(.edit), before: "# Trip\n\nDay 1", after: "# Lisbon trip\n\nDay 1") == "Renamed to \u{201C}Lisbon trip\u{201D}")
@@ -97,6 +97,13 @@ import Testing
         #expect(AIChangeCopy.summary(change(.moved, to: UUID()), folderName: name) == "Moved to another folder")
         #expect(AIChangeCopy.summary(change(.moved)) == "Moved out of its folder")
         #expect(AIChangeCopy.summary(change(.deleted)) == "Moved to Recently Deleted")
+        // Up to three short lines added, by name, without their markers (council round 5).
+        let list = "# Groceries\n\n- [ ] Oat milk"
+        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- [ ] Burrata\n- [ ] Cherry tomatoes\n- [ ] Olive oil") == "Added Burrata, Cherry tomatoes and Olive oil")
+        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- Lemons") == "Added Lemons")
+        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- Eggs, free range\n- Lemons") == "+2 lines", "a comma in a name of several reads as two")
+        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- [ ] A\n- [ ] B\n- [ ] C\n- [ ] D") == "+4 lines", "four is a count")
+        #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\nA much longer sentence about what we still need to buy") == "+1 line", "a long line is a count")
     }
 
     @Test func theServersRowsBecomeChanges() throws {
@@ -176,7 +183,7 @@ import Testing
         #expect(diff.removed.isEmpty)
         let row = try #require(model.changes.first)
         await model.summarize(row)
-        #expect(model.summary(row) == "+1 line")
+        #expect(model.summary(row) == "Added Sintra, Pena Palace first")
         #expect(model.title(row) == "Lisbon")
     }
 

@@ -180,8 +180,27 @@ enum AIChangeCopy {
             guard let before, let after else { return c.kind == .restore ? "Restored an earlier version" : "Edited" }
             let lead = c.kind == .restore ? "Restored an earlier version: " : ""
             if let title = renamed(before, after) { return lead + "Renamed to \u{201C}\(title)\u{201D}" }
-            return lead + lines(EditDiff.between(before, after))
+            let d = EditDiff.between(before, after)
+            return lead + (added(d) ?? lines(d))
         }
+    }
+
+    /// "Added Burrata, Cherry tomatoes and Olive oil": up to three short lines added and nothing
+    /// taken out, by name, so you see what changed without opening it (council round 5, 11-04).
+    /// Markdown markers (list, checklist, heading, quote) are left off; nil for anything bigger.
+    static func added(_ d: EditDiff) -> String? {
+        guard d.minus == 0, (1...3).contains(d.plus) else { return nil }
+        let ns = d.text as NSString
+        let marker = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|#{1,6}\s+|>\s*)"#)
+        let names = d.added.map { r -> String in
+            let line = ns.substring(with: r)
+            let bare = marker.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: (line as NSString).length), withTemplate: "")
+            return bare.trimmingCharacters(in: .whitespaces)
+        }
+        guard names.allSatisfy({ !$0.isEmpty && $0.count <= 30 }), names.joined().count <= 60,
+              names.count == 1 || !names.contains(where: { $0.contains(",") }) else { return nil }
+        let list = names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " and " + names.last!
+        return "Added \(list)"
     }
 
     /// "+3 −1 lines", "+1 line", "−2 lines"; "No visible change" when only blank lines moved.

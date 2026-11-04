@@ -48,6 +48,17 @@ import AppKit
         #expect(row.contains("var parts = [change.ai, VersionHistoryModel.time(change.at)]"), "the byline is who and when")
         #expect(row.contains("private let lineFont = Font.system(size: 12)"), "who and when at 12 pt, read before Undo (round 4)")
         #expect(!src.contains("windowBackgroundColor"), "the list and the bar on the note's ground, not a grey beside black")
+        // One accent (round 5): Done, Undo and the filter in ink, the list's quiet grey selection.
+        let donePart = try #require(bar.range(of: "Button(\"Done\"").map { String(bar[$0.lowerBound...].prefix(120)) })
+        #expect(donePart.contains(".tint(.primary)") && undoPart.contains(".tint(.primary)") && !undoPart.contains("amberProminent"))
+        #expect(src.contains(".hoverRow(\"aiChange\", reach: Hover.noteRowReach, selected: model.selection == c.id)") && src.contains(".quietSelection()"))
+        let filter = try #require(src.range(of: "struct AIChangesFilter").map { String(src[$0.lowerBound...].prefix(600)) })
+        #expect(filter.contains(".tint(.primary)"))
+        // The receipt says its whole line ("ChatGPT changed 3 li…" in round 5).
+        let marks = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Pane/Views/AIMarks.swift"), encoding: .utf8)
+        let receipt = try #require(marks.range(of: "Text(compact ? receipt.shortSummary : receipt.summary)").map { String(marks[$0.lowerBound...].prefix(400)) })
+        #expect(receipt.contains(".fixedSize(horizontal: true, vertical: false)"))
     }
     #endif
 
