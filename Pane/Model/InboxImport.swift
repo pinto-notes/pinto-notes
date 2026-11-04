@@ -10,6 +10,8 @@ extension ModelContext {
     func drainInbox() -> [Note] {
         publishFolderChoices()
         var made: [Note] = []
+        // Notes something was added to.
+        var addedTo: [Note] = []
         var filed = false
         var exports: [URL] = []
         for (item, dir) in Inbox.pending() {
@@ -18,6 +20,20 @@ extension ModelContext {
             let rest = item.files.filter { !EvernoteInbox.isExport($0) }
             var body = item.markdown.trimmingCharacters(in: .whitespacesAndNewlines)
             if !enex.isEmpty, rest.isEmpty, body.isEmpty { Inbox.remove(dir); continue }
+            // Add to a note picked in the share sheet: at its end, files and all. A note that has
+            // gone, or is locked or deleted now, gets a new note instead, so nothing is lost.
+            if let id = item.note, let n = self.note(id), n.deletedAt == nil, n.trashedAt == nil, !n.isLocked {
+                let files = rest.compactMap { try? FileStore.importFile(at: dir.appending(path: $0)) }
+                files.forEach(insert)
+                let added = ([body] + files.map(\.markdown)).filter { !$0.isEmpty }.joined(separator: "\n")
+                if !added.isEmpty, let text = try? NoteIntents.appending(added, to: n.body) {
+                    n.body = text
+                    n.touch()
+                    addedTo.append(n)
+                }
+                Inbox.remove(dir)
+                continue
+            }
             let target = item.folder.flatMap { folder($0) }.flatMap { $0.deletedAt == nil ? $0 : nil }
             if body.isEmpty, !rest.isEmpty {
                 // Only files (a PDF from Safari, photos): kept in the folder as they are.
@@ -35,7 +51,7 @@ extension ModelContext {
             made.append(note)
             Inbox.remove(dir)
         }
-        if !made.isEmpty || filed {
+        if !made.isEmpty || filed || !addedTo.isEmpty {
             try? save()
             // Notes shared into the app count as bringing your notes (setup step 1).
             NotificationCenter.default.post(name: .paneNotesBrought, object: nil)

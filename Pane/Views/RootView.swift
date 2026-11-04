@@ -478,13 +478,14 @@ struct RootView: View {
                         restoreScope()
                         restoreNote()
                         openFromLaunchArguments()
+                        openAskedFromOutside()
                     }
                 }
                 #else
                 restoreScope()
                 restoreNote()
                 openFromLaunchArguments()
-                reveal(NoteOpener.shared.request)
+                openAskedFromOutside()
                 #endif
             }
             .onChange(of: scope) { _, new in
@@ -513,8 +514,10 @@ struct RootView: View {
             #endif
             // The first-run flow just ended: the notes open on what it left ready.
             .task(id: onboarding?.landing) { openLanding() }
-            // A note opened from the menu bar.
+            // A note opened from the menu bar or the Home Screen widget.
             .onChange(of: NoteOpener.shared.request) { _, id in reveal(id) }
+            // New Note from Control Centre, the Lock Screen, the Action button or Siri.
+            .onChange(of: NoteOpener.shared.newNoteAsked) { _, asked in if asked { openAskedFromOutside() } }
             // From the onboarding emails: ambernotes.app/open/import and /open/history.
             .onChange(of: AppPlaceCenter.shared.pending, initial: true) { _, place in openPlace(place) }
             .modifier(AIChangesPresenter())
@@ -881,8 +884,27 @@ struct RootView: View {
     private func reveal(_ id: UUID?) {
         guard let id, let note = context.note(id), note.deletedAt == nil else { return }
         NoteOpener.shared.request = nil
-        if note.trashedAt != nil { scope = .trash } else if case .folder(let f) = scope, note.folder?.id == f {} else { scope = .all }
+        if note.trashedAt != nil { scope = .trash } else if case .folder(let f) = scope, note.folder?.id == f {} else {
+            #if os(iOS)
+            // Its folder's list under it, as for a note search found, so back leads there.
+            scope = Scope.opening(note)
+            #else
+            scope = .all
+            #endif
+        }
         selectedNote = id
+    }
+
+    /// What was asked for before the notes showed (a launch from the widget, a control or Siri):
+    /// a new note, or a note to show.
+    private func openAskedFromOutside() {
+        if NoteOpener.shared.newNoteAsked {
+            NoteOpener.shared.newNoteAsked = false
+            NoteOpener.shared.request = nil
+            newNote()
+        } else {
+            reveal(NoteOpener.shared.request)
+        }
     }
 
     /// Reopen the note you were on; otherwise the one you edited last.

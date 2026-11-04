@@ -49,10 +49,27 @@ final class NoteOpener {
     /// The note to reveal; the notes window clears it once shown.
     var request: UUID?
 
+    /// New Note was asked for from outside the app (Control Centre, the Lock Screen, the Action
+    /// button, Siri): the notes open on a new note once they show, then this goes back to false.
+    var newNoteAsked = false
+
     func open(_ id: UUID) {
         // A window opened fresh restores this note; one already open reveals it.
         UserDefaults.standard.set(id.uuidString, forKey: "lastNote")
         request = id
+    }
+
+    func askForNewNote() { newNoteAsked = true }
+
+    /// The widget's links (QuickLink): a note by its id, or a new note. False for any other link.
+    @discardableResult
+    func receive(_ url: URL) -> Bool {
+        switch QuickLink.parse(url) {
+        case .note(let id)?: open(id)
+        case .newNote?: askForNewNote()
+        case nil: return false
+        }
+        return true
     }
 }
 

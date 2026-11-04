@@ -2,7 +2,8 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
-/// "Save to Amber Notes" from any app's share sheet (Apple Notes, Safari, Files…).
+/// "Save to Pinto Notes" from any app's share sheet (Apple Notes, Safari, Files…): a new note, or
+/// added to the end of one you have.
 final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -31,6 +32,11 @@ final class ShareModel {
     /// The folders the app left for us, and the one this goes into (the last one used).
     var folders: [Inbox.FolderChoice] = Inbox.folders()
     var folder: UUID? = Inbox.lastFolder
+    /// Add to: the notes the app left (newest first, never locked ones), and the one picked.
+    /// Nil is a new note, as before (2026-11-04).
+    var recents: [ChecklistShelf.Recent] = ChecklistShelf.recents()
+    var note: UUID?
+    var query = ""
 
     init(context: NSExtensionContext?) {
         self.context = context
@@ -43,6 +49,20 @@ final class ShareModel {
 
     var title: String { SharedItem.title(markdown: markdown, files: files) }
 
+    /// The five newest notes, or with words typed, the notes whose titles have them.
+    var offered: [ChecklistShelf.Recent] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        return Array((q.isEmpty ? recents : ChecklistShelf.search(q, in: recents)).prefix(q.isEmpty ? Self.recentCount : 8))
+    }
+
+    static let recentCount = 5
+
+    /// The picked note's title, kept if a search hides its row.
+    var noteTitle: String? { note.flatMap { id in recents.first { $0.id == id }?.title } }
+
+    /// What Save says it did: "Saved", or "Added to Week plan".
+    var doneLine: String { noteTitle.map { ShareWords.added(to: $0) } ?? ShareWords.saved }
+
     func load() async {
         let providers = (context?.inputItems as? [NSExtensionItem] ?? []).flatMap { $0.attachments ?? [] }
         // The same conversion as the Mac's Apple Notes import (see SharedItem).
@@ -54,8 +74,8 @@ final class ShareModel {
 
     func save() {
         do {
-            try Inbox.add(markdown: markdown, files: files, folder: folder)
-            Inbox.lastFolder = folder
+            try Inbox.add(markdown: markdown, files: files, folder: note == nil ? folder : nil, note: note)
+            if note == nil { Inbox.lastFolder = folder }
             saved = true
             Task {
                 try? await Task.sleep(for: .milliseconds(650))
@@ -86,62 +106,79 @@ struct ShareSheet: View {
                 Spacer()
                 Button(action: model.save) {
                     if model.saved {
-                        Label("Saved", systemImage: "checkmark").labelStyle(.titleAndIcon)
+                        Label(model.note == nil ? ShareWords.saved : ShareWords.addedShort, systemImage: "checkmark").labelStyle(.titleAndIcon)
                     } else {
-                        Text("Save").fontWeight(.semibold)
+                        Text(model.note == nil ? ShareWords.save : ShareWords.add).fontWeight(.semibold)
                     }
                 }
                 .disabled(model.loading || model.saved || (model.markdown.isEmpty && model.files.isEmpty))
                 .accessibilityIdentifier("share.save")
             }
             .frame(minHeight: 44)
-            Group {
-                if model.loading {
-                    ProgressView().frame(maxWidth: .infinity, minHeight: 80)
-                } else {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(model.title).font(.title3.weight(.semibold)).lineLimit(2)
-                        if !model.markdown.isEmpty {
-                            Text(model.markdown.split(separator: "\n").dropFirst().prefix(8).joined(separator: "\n"))
-                                .font(.callout).foregroundStyle(.secondary).lineLimit(8)
-                        }
-                        if !model.files.isEmpty {
-                            Label(model.files.count == 1 ? model.files[0].lastPathComponent : "\(model.files.count) files", systemImage: "paperclip")
-                                .font(.callout).foregroundStyle(.secondary)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(14)
-                    .background(.background, in: .rect(cornerRadius: 14, style: .continuous))
-                }
-            }
-            if !model.loading && !model.folders.isEmpty {
-                // Where it goes, as a row under the item, like Notes' own share sheet.
-                HStack {
-                    Text("Folder")
-                    Spacer()
-                    Picker("Folder", selection: $model.folder) {
-                        ForEach(model.folders) { f in
-                            Text(f.name).tag(UUID?.some(f.id))
+            // The item, Add to and the folder scroll under the bar (the search field's keyboard
+            // can cover the foot of the sheet).
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Group {
+                        if model.loading {
+                            ProgressView().frame(maxWidth: .infinity, minHeight: 80)
+                        } else {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(model.title).font(.title3.weight(.semibold)).lineLimit(2)
+                                if !model.markdown.isEmpty {
+                                    Text(model.markdown.split(separator: "\n").dropFirst().prefix(4).joined(separator: "\n"))
+                                        .font(.callout).foregroundStyle(.secondary).lineLimit(4)
+                                }
+                                if !model.files.isEmpty {
+                                    Label(model.files.count == 1 ? model.files[0].lastPathComponent : "\(model.files.count) files", systemImage: "paperclip")
+                                        .font(.callout).foregroundStyle(.secondary)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(14)
+                            .background(.background, in: .rect(cornerRadius: 14, style: .continuous))
                         }
                     }
-                    .labelsHidden()
-                    .accessibilityIdentifier("share.folder")
-                }
-                .padding(.leading, 14)
-                .padding(.vertical, 4)
-                .background(.background, in: .rect(cornerRadius: 14, style: .continuous))
-                if model.asFiles {
-                    Text(model.files.count == 1 ? "Kept in the folder as a file." : "Kept in the folder as files.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 14)
+                    if !model.loading && !model.recents.isEmpty {
+                        AddToPicker(model: model)
+                    }
+                    if !model.loading && !model.folders.isEmpty && model.note == nil {
+                        // Where it goes, as a row under the item, like Notes' own share sheet.
+                        HStack {
+                            Text("Folder")
+                            Spacer()
+                            Picker("Folder", selection: $model.folder) {
+                                ForEach(model.folders) { f in
+                                    Text(f.name).tag(UUID?.some(f.id))
+                                }
+                            }
+                            .labelsHidden()
+                            .accessibilityIdentifier("share.folder")
+                        }
+                        .padding(.leading, 14)
+                        .padding(.vertical, 4)
+                        .background(.background, in: .rect(cornerRadius: 14, style: .continuous))
+                        if model.asFiles {
+                            Text(model.files.count == 1 ? "Kept in the folder as a file." : "Kept in the folder as files.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 14)
+                        }
+                    }
+                    if model.saved {
+                        // Every save says where it went.
+                        Text(model.doneLine)
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 14)
+                            .accessibilityIdentifier("share.done")
+                    }
+                    if let e = model.error {
+                        Text(e).font(.footnote).foregroundStyle(.red).accessibilityIdentifier("share.error")
+                    }
                 }
             }
-            if let e = model.error {
-                Text(e).font(.footnote).foregroundStyle(.red).accessibilityIdentifier("share.error")
-            }
-            Spacer(minLength: 0)
+            .scrollDismissesKeyboard(.interactively)
         }
         .padding(.horizontal, 20)
         .padding(.top, 14)
@@ -149,5 +186,85 @@ struct ShareSheet: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .tint(Color("AccentColor"))
         .animation(.snappy(duration: 0.2), value: model.saved)
+        .animation(.snappy(duration: 0.2), value: model.note)
+    }
+}
+
+enum ShareWords {
+    static let save = "Save"
+    static let saved = "Saved"
+    static let add = "Add"
+    static let addedShort = "Added"
+    static let addTo = "Add to"
+    static let newNote = "New note"
+    static let search = "Search notes"
+    static func added(to note: String) -> String { "Added to \(note)." }
+    static func noMatch(_ q: String) -> String { "No note called \u{201C}\(q)\u{201D}" }
+}
+
+/// Add to: a new note (as before), or the end of a note you have, one of the five newest or one
+/// found by its title. Rows of 44 pt, a tick on the picked one, as Settings' choices are drawn.
+struct AddToPicker: View {
+    @Bindable var model: ShareModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(ShareWords.addTo)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .padding(.leading, 14)
+            VStack(spacing: 0) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField(ShareWords.search, text: $model.query)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .accessibilityIdentifier("share.search")
+                }
+                .frame(minHeight: 44)
+                .padding(.horizontal, 14)
+                Divider().padding(.leading, 14)
+                if model.query.trimmingCharacters(in: .whitespaces).isEmpty {
+                    row(ShareWords.newNote, systemImage: "square.and.pencil", picked: model.note == nil, id: "share.note.new") { model.note = nil }
+                }
+                ForEach(model.offered) { n in
+                    Divider().padding(.leading, 46)
+                    row(n.title.isEmpty ? ShareWords.newNote : n.title, systemImage: "doc.text", picked: model.note == n.id, id: "share.note.\(n.title)") {
+                        model.note = n.id
+                    }
+                }
+                if model.offered.isEmpty {
+                    Text(ShareWords.noMatch(model.query))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .padding(.horizontal, 14)
+                }
+            }
+            .background(.background, in: .rect(cornerRadius: 14, style: .continuous))
+        }
+    }
+
+    private func row(_ title: String, systemImage: String, picked: Bool, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .frame(width: 20)
+                    .foregroundStyle(Color("AccentColor"))
+                Text(title).foregroundStyle(.primary).lineLimit(1)
+                Spacer(minLength: 8)
+                if picked {
+                    Image(systemName: "checkmark").fontWeight(.semibold).foregroundStyle(Color("AccentColor"))
+                }
+            }
+            .frame(minHeight: 44)
+            .padding(.horizontal, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        // A pointer on iPad lights the row it's over.
+        .hoverEffect(.highlight)
+        .accessibilityIdentifier(id)
+        .accessibilityAddTraits(picked ? .isSelected : [])
     }
 }

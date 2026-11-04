@@ -932,6 +932,8 @@ final class ConnectCenter: NSObject {
     /// A request by link on this device. It shows now, or next when a sheet is showing: it never
     /// replaces what the person is looking at.
     func receive(_ url: URL, from sender: URL? = nil) {
+        // The Home Screen widget's links: a note, or a new note.
+        if NoteOpener.shared.receive(url) { return }
         // Places the onboarding emails link to (Settings › Connect an AI, import, version history).
         if AppPlaceCenter.shared.receive(url) {
             #if os(macOS)
