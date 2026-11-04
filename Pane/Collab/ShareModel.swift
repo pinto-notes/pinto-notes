@@ -51,7 +51,6 @@ extension CollabStore: ShareBackend {
             linkAccess[note.id] = access
             linkVault?.save(LinkVaultEntry(id: link.id, secret: link.secret, access: access.rawValue), for: note.id)
         }
-        CollabDemo.wrote(access == .edit ? "edit-link" : "link", linkURL(note) ?? URL(fileURLWithPath: "/"))
     }
 
     /// The link's join row: the hash of what proves you hold the link, and the note key sealed
@@ -263,7 +262,6 @@ extension CollabStore: ShareBackend {
             let selfWrap = try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: opened.note_id, epoch: opened.epoch)
             // Joining twice is harmless (the server keeps the first), so a dropped request is sent again.
             try await Self.retryingOnce { try await transport.joinLink(id: id, answer: lk.answer, keyWrap: toSelf, selfWrap: selfWrap) }
-            handled.insert(opened.note_id)
             // A note of your own for it, in "Shared with me" (never the owner's note id).
             let note = try await library.adopt(shared: opened.note_id, nk: nk, epoch: opened.epoch, role: opened.role)
             NoteOpener.shared.open(note.id)

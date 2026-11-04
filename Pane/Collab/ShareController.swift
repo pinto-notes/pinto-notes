@@ -1,14 +1,12 @@
 import Foundation
 import Observation
 
-/// Sharing a note with people. One switch in code: `released` turns it on for everyone in a
-/// release. Before that, the `collabEnabled` default turns it on for one Mac or iPhone (the
-/// two-device check on staging: `defaults write <bundle id> collabEnabled -bool YES`), and tests
-/// set `forced`.
+/// Sharing a note with people: on for everyone signed in, on Mac and iPhone, since release 1.3.
+/// Nothing turns it on or off at launch; tests set `forced`.
 enum CollabFeature {
-    static let released = false
+    static let released = true
     nonisolated(unsafe) static var forced: Bool?
-    static var isOn: Bool { forced ?? (released || UserDefaults.standard.bool(forKey: "collabEnabled")) }
+    static var isOn: Bool { forced ?? released }
 }
 
 /// What Share does with a note, whoever does it: the live store (CollabStore), or a stand-in in
@@ -64,10 +62,22 @@ final class ShareController {
 
     enum Work: Equatable { case link, access, remove(UUID), leave }
 
-    init(note: Note, backend: ShareBackend) {
+    /// Whether the note has an app (NoteApps), asked when Share opens.
+    @ObservationIgnored let hasApp: @MainActor () -> Bool
+
+    init(note: Note, backend: ShareBackend, hasApp: (@MainActor () -> Bool)? = nil) {
         self.note = note
         self.backend = backend
+        let id = note.id
+        self.hasApp = hasApp ?? { NoteApps.page(id) != nil }
         state = backend.shareState(for: note)
+    }
+
+    /// Why this note can't be shared with people yet (it has files or an app), or nil when it can.
+    var notYet: String? {
+        guard isOwner else { return nil }
+        return SharedNoteLimits.notYet(text: note.body, hasApp: hasApp(),
+                                       alreadyShared: note.isShared || state.people.count > 1 || state.access != .off)
     }
 
     /// The Share sheet or popover open now, if one is: for the test script (`-uitest -collabScript`),
@@ -90,12 +100,14 @@ final class ShareController {
             return
         }
         guard isOwner else { return }
+        if let why = notYet { state.problem = why; return }
         await run(.link) { try await self.backend.setAccess(.edit, for: self.note) }
         if let link = state.link, state.access != .off { sharing = link }
     }
 
     func setAccess(_ access: ShareState.Access) async {
         guard isOwner, access != state.access else { return }
+        if access != .off, let why = notYet { state.problem = why; return }
         await run(.access) { try await self.backend.setAccess(access, for: self.note) }
         if state.problem == nil { finished(.linkChanged) }
     }
@@ -214,7 +226,7 @@ final class ShareController {
 enum ShareCopy {
     /// Under People. True whether or not the server keeps a copy of your key. The detail (an AI
     /// request is the one time the server reads the note) is in Help, on the privacy page.
-    static let privacy = "Only people in this note can read it. Their AI reads it only when they ask."
+    static let privacy = "Encrypted. Only people in this note can read it. Their AI reads it only when they ask."
 
     static func link(_ access: ShareState.Access) -> String {
         switch access {

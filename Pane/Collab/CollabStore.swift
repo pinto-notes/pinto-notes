@@ -18,13 +18,6 @@ private let log = Logger(subsystem: "dev.emilwagman.pane", category: "collab")
 final class CollabStore {
     static var shared: CollabStore?
 
-    struct Invite: Identifiable, Equatable {
-        let id: UUID
-        let title: String
-        let from: String
-        let safetyCode: String
-    }
-
     /// Your name as others see it in a note.
     let name: String
     private(set) var transport: CollabTransport?
@@ -44,10 +37,7 @@ final class CollabStore {
     /// Shared notes in this device's library: storage, offline edits, catching up, leaving
     /// (SharedLibrary). Made once the store has a context.
     @ObservationIgnored private(set) var library: SharedLibrary?
-    /// An invitation waiting for an answer.
-    var invite: Invite?
     @ObservationIgnored var keys: [UUID: (nk: SymmetricKey, epoch: Int)] = [:]
-    @ObservationIgnored var handled: Set<UUID> = []
     /// What each note's link lets people do (Share › People with the link). No entry: the link is off.
     var linkAccess: [UUID: ShareState.Access] = [:]
     /// You left a note: the library takes it out of your notes.
@@ -193,7 +183,7 @@ final class CollabStore {
             log.error("collab start: \(String(describing: error), privacy: .public)")
         }
         keyChanges = identityKeys.book.changes
-        pollInvites()
+        pollMemberships()
     }
 
     func stop() {
@@ -254,17 +244,17 @@ final class CollabStore {
     /// Your memberships are checked when the store starts and then every half minute: a new key
     /// (someone was removed, or the link was reset) is opened and taken; a note you were removed
     /// from stops syncing. Each open note's channel also asks for a check when it reconnects.
-    private func pollInvites() {
+    private func pollMemberships() {
         membershipTask?.cancel()
         membershipTask = Task { [weak self] in
             while let self, !Task.isCancelled {
-                await self.checkInvites()
+                await self.checkMemberships()
                 try? await Task.sleep(for: .seconds(30))
             }
         }
     }
 
-    func checkInvites() async {
+    func checkMemberships() async {
         guard let transport else { return }
         let rows: [Collab.Membership]
         do {
@@ -274,15 +264,8 @@ final class CollabStore {
             return
         }
         await followKeys(rows)
-        guard invite == nil, identity != nil else { return }
-        for row in rows where row.accepted_at == nil && !handled.contains(row.note_id) {
-            guard let opened = try? await openKey(row) else { continue }
-            let head = row.head_ct.flatMap { try? CollabCrypto.open(.head, $0, nk: opened.nk, note: row.note_id) }
-                .flatMap { try? JSONDecoder().decode(NoteHead.self, from: $0) }
-            invite = Invite(id: row.note_id, title: head?.title ?? "A note", from: opened.from?.display_name ?? "Someone",
-                            safetyCode: opened.from.flatMap(safetyCode(with:)) ?? "")
-            return
-        }
+        // Memberships not yet accepted are email invitations (collab_invite), which are parked:
+        // nothing asks about them. Joining is by the note's link only.
     }
 
     /// Opens NK from your membership. Your own copy under the data key (`self_wrap`) is opened when
@@ -304,28 +287,6 @@ final class CollabStore {
         }
         let nk = try CollabCrypto.openNoteKey(row.key_wrap, me: identity, from: key, party: .init(note: row.note_id, epoch: row.epoch, from: row.wrapped_by, to: me))
         return (nk, members.first { $0.user_id == row.invited_by } ?? sealer)
-    }
-
-    /// Accepts: NK under your own data key, the note into your library, opened.
-    func accept(_ invite: Invite) async {
-        self.invite = nil
-        handled.insert(invite.id)
-        guard let transport, let library,
-              let row = (try? await transport.memberships())?.first(where: { $0.note_id == invite.id }) else { return }
-        do {
-            let opened = try await openKey(row)
-            try await transport.accept(note: row.note_id, selfWrap: try CollabCrypto.selfWrap(opened.nk, dataKey: try dataKey(), note: row.note_id, epoch: row.epoch))
-            // A note of your own for it, in "Shared with me" (never the owner's note id).
-            let note = try await library.adopt(shared: row.note_id, nk: opened.nk, epoch: row.epoch, role: row.role)
-            NoteOpener.shared.open(note.id)
-        } catch {
-            log.error("accepting failed: \(String(describing: error), privacy: .public)")
-        }
-    }
-
-    func decline(_ invite: Invite) {
-        self.invite = nil
-        handled.insert(invite.id)
     }
 
     /// A session the library opened: listed here for the views, with the store's own hooks. The

@@ -22,22 +22,30 @@ enum ShareWays {
         }
     }
 
-    static func ways(collaborating: Bool) -> [Way] { collaborating ? [.people, .link, .copy] : [.link, .copy] }
+    /// `sharedWithPeople`: the note's text is everyone's in it, so it gets no web page; one made
+    /// before it was shared (`webShared`) is still listed, to open or stop.
+    static func ways(collaborating: Bool, sharedWithPeople: Bool = false, webShared: Bool = false) -> [Way] {
+        guard collaborating else { return [.link, .copy] }
+        return sharedWithPeople && !webShared ? [.people, .copy] : [.people, .link, .copy]
+    }
 
     /// A link when links can be made (signed in, sharing set up), else a copy.
     static func initial(linkAvailable: Bool) -> Way { linkAvailable ? .link : .copy }
 
-    /// With collaboration: Collaborate, unless the note only has a web page.
-    static func initial(collaborating: Bool, inNote people: Int, linkOn: Bool, webShared: Bool, linkAvailable: Bool) -> Way {
+    /// With collaboration: Collaborate, unless the note only has a web page, or can't be shared
+    /// with people yet (it has files or an app: `canCollaborate` false).
+    static func initial(collaborating: Bool, inNote people: Int, linkOn: Bool, webShared: Bool, linkAvailable: Bool, canCollaborate: Bool = true) -> Way {
         guard collaborating else { return initial(linkAvailable: linkAvailable) }
         if people > 1 || linkOn { return .people }
+        if !canCollaborate { return initial(linkAvailable: linkAvailable) }
         return webShared ? .link : .people
     }
 
     /// What the chosen way does, in one line. A shared link publishes a readable copy until it is stopped.
-    static func line(_ way: Way, shared: Bool, trashed: Bool = false) -> String {
+    static func line(_ way: Way, shared: Bool, trashed: Bool = false, sharedWithPeople: Bool = false) -> String {
         switch way {
         case .people: ShareCopy.privacy
+        case .link where sharedWithPeople && !trashed: SharedNoteLimits.pageLine
         case .link where trashed: "The page is down while this note is in Recently Deleted."
         case .link where shared: "Anyone with the link can read this note on the web. Stop sharing to take the page down."
         case .link: "Makes a web page of this note that anyone with the link can read, until you stop sharing."
@@ -72,10 +80,14 @@ struct ShareNotePopover: View {
 
     private var canLink: Bool { linkAvailable ?? store.isAvailable }
     private var collaborating: Bool { share != nil }
-    private var ways: [ShareWays.Way] { ShareWays.ways(collaborating: collaborating) }
+    /// The note is shared with people: no web page of it is made (SharedNoteLimits).
+    private var sharedWithPeople: Bool { share?.note.isShared == true }
+    private var ways: [ShareWays.Way] { ShareWays.ways(collaborating: collaborating, sharedWithPeople: sharedWithPeople, webShared: shared) }
     private var chosen: ShareWays.Way {
-        way ?? startingWay ?? ShareWays.initial(collaborating: collaborating, inNote: share?.state.people.count ?? 0,
-                                                linkOn: (share?.state.access ?? .off) != .off, webShared: shared, linkAvailable: canLink)
+        let way = way ?? startingWay ?? ShareWays.initial(collaborating: collaborating, inNote: share?.state.people.count ?? 0,
+                                                          linkOn: (share?.state.access ?? .off) != .off, webShared: shared, linkAvailable: canLink,
+                                                          canCollaborate: share?.notYet == nil)
+        return ways.contains(way) ? way : (ways.first ?? .copy)
     }
     private var shared: Bool { store.state.slug != nil }
 
@@ -95,7 +107,7 @@ struct ShareNotePopover: View {
                 .accessibilityIdentifier("share.way")
             }
             if chosen != .people {
-                Text(ShareWays.line(chosen, shared: shared, trashed: trashed))
+                Text(ShareWays.line(chosen, shared: shared, trashed: trashed, sharedWithPeople: sharedWithPeople))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -135,6 +147,13 @@ struct ShareNotePopover: View {
     @ViewBuilder private var linkRows: some View {
         if trashed {
             if shared { row("Stop Sharing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } } }
+        } else if sharedWithPeople {
+            // A page from before the note was shared with people: open it or stop it. Copy Link would
+            // publish the note again, and its text is everyone's now.
+            if shared {
+                if let url = store.url { row("Open Shared Page", "safari", id: "share.open") { NSWorkspace.shared.open(url) } }
+                row("Stop Sharing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } }
+            }
         } else if !shared {
             row("Create Link…", "link", id: "share.create") { _ = store.requestShare() }
                 .disabled(store.state.isWorking)
@@ -315,13 +334,16 @@ struct CollaborateRows: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .contextMenu { if share.isOwner, !p.isMe { Button("Remove from Note", role: .destructive) { share.askRemove(p) } } }
+                    .contextMenu { if share.isOwner, !p.isMe { DestructiveMenuButton("Remove from Note", systemImage: "person.badge.minus") { share.askRemove(p) } } }
                     .accessibilityIdentifier("share.person")
                 }
             }
             if case .removed = share.done { DoneLine(text: ShareController.Done.removed(UUID()).text).font(.system(size: 11)) }
             line(ShareCopy.privacy, problem: false)
-            if share.isOwner {
+            if share.isOwner, let why = share.notYet {
+                // Files or an app: not shared with people yet, and the popover says why up front.
+                line(why, problem: false)
+            } else if share.isOwner {
                 HStack(spacing: 8) {
                     Text("People with the link").font(.system(size: 13))
                     Spacer(minLength: 0)

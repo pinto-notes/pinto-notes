@@ -109,7 +109,7 @@ struct CollabLiveTests {
         try await eve.store.leave(hers)
         let marked = try #require(try await emil.store.transport!.memberships().first { $0.note_id == note.id })
         #expect(marked.rekey_after != nil)
-        await emil.store.checkInvites()
+        await emil.store.checkMemberships()
         let renewed = try #require(try await emil.store.transport!.memberships().first { $0.note_id == note.id })
         #expect(renewed.epoch == 3)
         #expect(renewed.rekey_after == nil)

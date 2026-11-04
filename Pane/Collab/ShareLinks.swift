@@ -225,14 +225,6 @@ struct TemplateForm: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .task {
-            guard CollabDemo.autoShareTemplate else { return }
-            CollabDemo.autoShareTemplate = false
-            try? await Task.sleep(for: .seconds(2.2))
-            await share(present: false)
-            try? await Task.sleep(for: .seconds(2))
-            dismiss()
-        }
     }
 
     /// Publishes (or updates) the template and hands its link to the system share sheet on iPhone;
@@ -242,7 +234,6 @@ struct TemplateForm: View {
         defer { working = false }
         guard let link = try? await store.publishTemplate(note) else { return }
         url = link
-        CollabDemo.wrote("template", link)
         guard present else { return }
         #if os(iOS)
         SystemShare.present(link)

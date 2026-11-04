@@ -114,7 +114,7 @@ import Testing
         await server.eventually { theirs.unsent == 0 && server.calls.filter { $0 == "update" }.count >= 2 }
         #expect(!(server.updates[note.id] ?? []).contains { $0.author_id == ids.1 && $0.epoch == 2 })
         // And her memberships say she's out: the note goes from her library, as in Apple Notes.
-        await sara.store.checkInvites()
+        await sara.store.checkMemberships()
         let hers = try #require(sara.context.pointer(forShared: note.id)?.id)
         #expect(sara.store.removedFrom.contains(hers))
         #expect(sara.store.session(for: hers) == nil)
@@ -182,7 +182,7 @@ import Testing
         let hers = try #require(sara.context.pointer(forShared: note.id))
         try await sara.store.leave(hers)
         // Emil's device sees it with his memberships and renews the key, without anyone removed.
-        await emil.store.checkInvites()
+        await emil.store.checkMemberships()
         await server.eventually { mine.epoch == 2 }
         #expect(mine.epoch == 2)
         #expect(try await server.transport(for: ids.0).memberships().first?.rekey_after == nil)
@@ -255,7 +255,7 @@ import Testing
         let relaunched = CollabStore(name: "Emil", transport: server.transport(for: emilID), dataKey: { emilKey },
                                      book: CollabKeyBook(account: emilID, defaults: TestDefaults()))
         relaunched.context = emil.context
-        await relaunched.checkInvites()
+        await relaunched.checkMemberships()
         let row = try #require(try await server.transport(for: emilID).memberships().first { $0.note_id == note.id })
         #expect(row.epoch == 2)
         #expect(row.rekey_after == nil)

@@ -89,11 +89,11 @@ struct NoteDetailView: View {
     @State private var shownPage: NotePageStore.Page?
     /// Pages that failed to load here: never fallen back to twice.
     @State private var failedPages: Set<String> = []
-    /// Collaboration (prototype): the people sheet.
-    /// Collaboration and sharing (prototype): the one Share sheet, and Share as Template on its own (demo).
+    /// Share with people: the sheet on iPhone, the popover's Collaborate on the Mac.
     @State private var showPeople = false
     @State private var confirmingSharedDelete: [Note]?
-    @State private var showTemplateShare = false
+    /// A file dropped, pasted or attached into a shared note: said, not taken.
+    @State private var refusingSharedFiles = false
     @Bindable var note: Note
     let controller: EditorController
     var autofocus = false
@@ -129,10 +129,12 @@ struct NoteDetailView: View {
             #if os(iOS)
             // What the paperclip above the keyboard (FormatBar) opens: the Mac's Attach menu.
             .confirmationDialog("Attach", isPresented: $choosingAttachment, titleVisibility: .hidden) {
-                Button("Choose Photo or Video…") { pickingPhotos = true }
-                    .accessibilityIdentifier("attach.photo")
-                Button("Attach File…") { importing = true }
-                    .accessibilityIdentifier("attach.file")
+                if SharedNoteLimits.allowsFiles(note) {
+                    Button("Choose Photo or Video…") { pickingPhotos = true }
+                        .accessibilityIdentifier("attach.photo")
+                    Button("Attach File…") { importing = true }
+                        .accessibilityIdentifier("attach.file")
+                }
                 if !hidden {
                     Button("Link to a Note…") { linkingNote = true }
                         .accessibilityIdentifier("attach.noteLink")
@@ -173,7 +175,9 @@ struct NoteDetailView: View {
     /// The lock, history and app sheets, and the overlays at the foot.
     private func withLockAndSheets(_ content: some View) -> some View {
         content
-            .focusedSceneValue(\.showHistoryAction, { if !note.isLocked { showHistory = true } })
+            // History, Lock and apps aren't offered for a shared note yet (NoteMoreMenu): the menu
+            // bar's Version History greys out with no action.
+            .focusedSceneValue(\.showHistoryAction, historyOffered ? { showHistory = true } : nil)
             .sheet(item: $lockSheet) { step in
                 switch step {
                 case .setUp: NotesPasswordSetupSheet { lockNote() }
@@ -285,11 +289,14 @@ struct NoteDetailView: View {
             .onChange(of: showHistory) { _, open in if open { FeatureUse.mark(.versionHistory) } }
     }
 
-    /// Collaboration (prototype) and the history link from an email.
+    /// Sharing with people, and the history link from an email.
     private func withCollab(_ content: some View) -> some View {
         content
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
             .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { for n in notes { context.trash(n) } } }
+            .alert(SharedNoteLimits.filesTitle, isPresented: $refusingSharedFiles) {
+                Button("OK") {}
+            } message: { Text(SharedNoteLimits.filesMessage) }
             // The two-device check (CollabScript, Amber Notes Beta only): Delete Note's question, as the menu asks it.
             .onReceive(NotificationCenter.default.publisher(for: CollabScript.askDelete)) { _ in
                 if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
@@ -298,23 +305,23 @@ struct NoteDetailView: View {
             // On the Mac, Share is the toolbar's popover (ShareButton), opened by the same flag.
             .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, backend: store) } }
             #endif
-            .sheet(isPresented: $showTemplateShare) { if let store = CollabStore.shared { TemplateShareSheet(note: note, store: store) } }
+            // The two-device check opens and closes Share as its button does (CollabScript).
             .onReceive(NotificationCenter.default.publisher(for: CollabDemo.closeShare)) { _ in showPeople = false }
-            .onReceive(NotificationCenter.default.publisher(for: CollabDemo.showShare)) { n in
-                guard n.object as? String == "template" else { showPeople = true; return }
-                showPeople = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { showTemplateShare = true }
-            }
+            .onReceive(NotificationCenter.default.publisher(for: CollabDemo.showShare)) { _ in showPeople = true }
             // "See your note's history" from an email opened this note to show its history.
             .onChange(of: AppPlaceCenter.shared.historyFor, initial: true) { _, id in
                 guard id == note.id else { return }
                 AppPlaceCenter.shared.historyFor = nil
-                if !note.isLocked { showHistory = true }
+                if historyOffered { showHistory = true }
             }
     }
 
-    /// Collaboration (prototype): the open shared note's session, when there is one.
+    /// The open shared note's session, when there is one.
     private var collab: CollabSession? { CollabStore.shared?.session(for: note) }
+
+    /// Version History, for a note that has one to show: not a locked note's, and not a shared
+    /// note's (parked: its text is the shared document, not the note's versions).
+    private var historyOffered: Bool { !note.isLocked && !note.isShared }
 
     #if os(iOS)
     /// On iPhone the note's tips sit just above the toolbar: a popover from a toolbar button
@@ -322,7 +329,7 @@ struct NoteDetailView: View {
     /// keeps room below its last line so it can scroll clear of the tip.
     private var phoneTips: some View {
         VStack(spacing: 8) {
-            CompactTip(tip: VersionHistoryTip()) { a in if a.id == "open" { showHistory = true } }
+            if historyOffered { CompactTip(tip: VersionHistoryTip()) { a in if a.id == "open" { showHistory = true } } }
             CompactTip(tip: ShareLinkTip())
         }
         .padding(.horizontal, 16)
@@ -1127,12 +1134,17 @@ struct NoteDetailView: View {
             onOpenNote(id, false)
         }
         controller.download = { a in await sync?.download(a) ?? false }
-        controller.attach = { importing = true }
+        // A shared note takes no files (SharedNoteLimits): it says so instead.
+        controller.attach = { if SharedNoteLimits.allowsFiles(note) { importing = true } else { refusingSharedFiles = note.isShared } }
         controller.attachChoices = { choosingAttachment = true }
         controller.askToRecover = { askingRecover = true }
-        controller.addFiles = { urls in note.isLocked ? [] : context.addAttachments(urls) }
+        controller.addFiles = { urls in
+            guard SharedNoteLimits.allowsFiles(note) else { refusingSharedFiles = note.isShared; return [] }
+            return context.addAttachments(urls)
+        }
         controller.addData = { data, name, type in
-            guard !note.isLocked, let a = try? FileStore.importData(data, filename: name, type: type) else { return nil }
+            guard SharedNoteLimits.allowsFiles(note) else { refusingSharedFiles = note.isShared; return nil }
+            guard let a = try? FileStore.importData(data, filename: name, type: type) else { return nil }
             context.insert(a)
             try? context.save()
             SyncSignal.changed()
@@ -1237,10 +1249,14 @@ struct NoteDetailView: View {
     /// another note (the `[[Title]]` link typing `[[` makes) and a web link.
     private var attachMenu: some View {
         Menu {
-            Button("Choose Photo or Video…", systemImage: "photo.on.rectangle") { pickingPhotos = true }
-                .accessibilityIdentifier("attach.photo")
-            Button("Attach File…", systemImage: "doc") { importing = true }
-                .accessibilityIdentifier("attach.file")
+            // A shared note takes no files yet (SharedNoteLimits).
+            Group {
+                Button("Choose Photo or Video…", systemImage: "photo.on.rectangle") { pickingPhotos = true }
+                    .accessibilityIdentifier("attach.photo")
+                Button("Attach File…", systemImage: "doc") { importing = true }
+                    .accessibilityIdentifier("attach.file")
+            }
+            .disabled(note.isShared)
             Divider()
             Group {
                 Button("Link to a Note…", systemImage: "note.text.badge.plus") { linkingNote = true }
@@ -1297,7 +1313,7 @@ struct NoteDetailView: View {
     private var moreMenu: some View {
         Menu {
             let groups = NoteMoreMenu.groups(locked: note.isLocked, vaultOpen: vault.isUnlocked, trashed: note.trashedAt != nil,
-                                             hasApp: notePage != nil, appsEnabled: NoteApps.enabled, inOwnWindow: inOwnWindow)
+                                             hasApp: notePage != nil, appsEnabled: NoteApps.enabled, shared: note.isShared, inOwnWindow: inOwnWindow)
             ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
                 if index > 0 { Divider() }
                 ForEach(group, id: \.self) { moreItem($0) }
@@ -1319,7 +1335,7 @@ struct NoteDetailView: View {
         #endif
         #if os(macOS)
         .paneTip(VersionHistoryTip(), arrowEdge: .top) { action in
-            if action.id == "open" { showHistory = true }
+            if action.id == "open", historyOffered { showHistory = true }
         }
         #endif
         .accessibilityIdentifier("editor.more")
@@ -1360,7 +1376,10 @@ enum NoteMoreMenu {
     /// In groups split by lines, as Apple Notes groups a note's menu (Emil, 2 November 2026): Open
     /// Note in New Window on the Mac (not in the note's own window); what the note is (pinned,
     /// locked, an app); where it goes and what it was; then Delete on its own.
-    static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool,
+    /// `shared`: a note shared with people (its text is the shared document). It can't be locked,
+    /// made an app or shown in Version History yet: those are parked for shared notes, so they
+    /// aren't offered (pinning, moving and deleting are each person's own).
+    static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool, shared: Bool = false,
                        phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild, inOwnWindow: Bool = false) -> [[Item]] {
         // A note in Recently Deleted can only come back or go for good, like Notes.
         if trashed { return [[.recover, .delete]] }
@@ -1369,16 +1388,16 @@ enum NoteMoreMenu {
         var about: [Item] = [.pin]
         if locked {
             if vaultOpen { about += [.lockNow, .removeLock] }
-        } else if !trashed {
+        } else if !trashed, !shared {
             about.append(.lock)
         }
-        if appsEnabled, !hasApp, !locked, !trashed { about.append(.makeApp) }
-        if hasApp { about.append(.appInfo) }
-        if dev, appsEnabled, !locked, !trashed { about.append(.devImportApp) }
+        if appsEnabled, !hasApp, !locked, !trashed, !shared { about.append(.makeApp) }
+        if hasApp, !shared { about.append(.appInfo) }
+        if dev, appsEnabled, !locked, !trashed, !shared { about.append(.devImportApp) }
         // What links here is at the foot of the note (NoteLinksSection), not in this menu.
         var rest: [Item] = [.moveTo]
         // Sharing has its own button beside More, on iPhone and iPad as on the Mac.
-        if !locked { rest.append(.history) }
+        if !locked, !shared { rest.append(.history) }
         return out + [about, rest, [.delete]]
     }
 }
@@ -1477,7 +1496,6 @@ private struct CollabWiring: ViewModifier {
                     try? await Task.sleep(for: .seconds(0.1))
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: CollabDemo.invite)) { _ in showPeople = true }
     }
 }
 

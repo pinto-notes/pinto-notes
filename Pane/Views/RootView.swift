@@ -116,8 +116,6 @@ struct RootView: View {
             .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
                 if let client = backendForConnect?.client { ConnectAISheet(client: client) }
             }
-            // Collaboration (prototype): an invitation to someone else's note.
-            .modifier(CollabInviteAlert())
             .sharedDeleteConfirmation($pendingSharedDelete) { removeNow($0) }
             .onReceive(NotificationCenter.default.publisher(for: FileRefusal.notification)) { n in refusal = n.object as? FileRefusal }
             .alert(refusal?.title ?? "", isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } })) {

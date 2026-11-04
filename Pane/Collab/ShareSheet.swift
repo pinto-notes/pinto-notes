@@ -71,7 +71,10 @@ struct ShareForm: View {
                 }
             }
 
-            if share.isOwner {
+            if share.isOwner, let why = share.notYet {
+                // Files or an app: not shared with people yet (SharedNoteLimits), said up front.
+                Section {} footer: { Text(why).accessibilityIdentifier("share.notYet") }
+            } else if share.isOwner {
                 Section {
                     shareButton
                         .listRowInsets(EdgeInsets())
@@ -375,8 +378,6 @@ struct ShareSheet: View {
             // People come and go: keep the list current while the sheet is open.
             while !Task.isCancelled {
                 share.refresh()
-                // scripts/collab-demo.sh: the owner's sheet sets the link by itself.
-                if let auto = CollabDemo.pendingAccess { CollabDemo.pendingAccess = nil; try? await Task.sleep(for: .seconds(1.2)); await share.setAccess(auto) }
                 try? await Task.sleep(for: .seconds(0.5))
             }
         }

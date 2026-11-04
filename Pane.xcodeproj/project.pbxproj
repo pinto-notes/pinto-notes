@@ -681,6 +681,7 @@
 		A50C0FAD1144F7132ADA1FC1 /* AppSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3595708C4A80422C798DEB09 /* AppSnapshotTests.swift */; };
 		A57F38039DCFD1089D606728 /* WikiSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6437AEF31BCCDC5E8092B053 /* WikiSuggestions.swift */; };
 		A5DFC5FA78B581E0AFF00B71 /* CalloutTypePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65B140DD3577791185D0152B /* CalloutTypePicker.swift */; };
+		A64402B495E861CBD1843D84 /* SharedNoteLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8F6C19EBFAD7F83BD61892 /* SharedNoteLimits.swift */; };
 		A64D7D4950EFCE103608A867 /* AccountGoneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111E9C358E5C2A6E9AB85F10 /* AccountGoneTests.swift */; };
 		A67D4B828B91319CE55B1758 /* template-app-trip-plan.project.json in Resources */ = {isa = PBXBuildFile; fileRef = ED4414876743DEDD0A6D7728 /* template-app-trip-plan.project.json */; };
 		A69C708456FD48416A38AB25 /* amber-base.ts in Resources */ = {isa = PBXBuildFile; fileRef = B4F477A1E4497D29C03E3092 /* amber-base.ts */; };
@@ -827,6 +828,7 @@
 		C9804415D4899CF83B36D83D /* NoteHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2BE2DFB59EFA5FB2874ED3 /* NoteHistoryTests.swift */; };
 		C9880B10F8914D32C315F269 /* DailyNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDE9BAF7491846BB39F864F /* DailyNotesTests.swift */; };
 		C9D0E2AA403DB799EAD7F7FD /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D802554DDA691DB172FD65B2 /* SyncEngine.swift */; };
+		C9DEC0E1F33514A34761867B /* SharedNoteLimitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 136D44143CF1D9F784F68C69 /* SharedNoteLimitsTests.swift */; };
 		CA4EE1A5852FF02205756316 /* confetti.js in Resources */ = {isa = PBXBuildFile; fileRef = 96E8277205CE8467252CB1A6 /* confetti.js */; };
 		CA6F11D57317997B7D23259A /* PerfBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72E56EC524B81F167DEEFBA1 /* PerfBudget.swift */; };
 		CAAE18D747495AB2B9B6ED27 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = 70F1EFF162FA5AB6FF4CC29D /* Markdown */; };
@@ -885,6 +887,7 @@
 		D8E460522E8DD23119115323 /* GridTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14CD141158D5B7F6272D4DA9 /* GridTableTests.swift */; };
 		D92E5ED0953F386C71530F89 /* ConnectTerminalGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */; };
 		D99238A4F1F1EE32EDA155B3 /* RecentlyDeletedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A65489A5A3E4082CEE2D038C /* RecentlyDeletedTests.swift */; };
+		DA1A03A007EA831C793F04A9 /* SharedNoteLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8F6C19EBFAD7F83BD61892 /* SharedNoteLimits.swift */; };
 		DA64E54D6FBC775650262423 /* WelcomeEmailSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = E440B115A2C508EE38B556EA /* WelcomeEmailSignIn.swift */; };
 		DA72C1EDB78E9365335D08F0 /* ChangeHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE699D273DBCBF0FBF3A885A /* ChangeHighlight.swift */; };
 		DAB07BAF36EE1DB9016C32DE /* DiagnosticsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E3ED99431A52143032D92B9 /* DiagnosticsSection.swift */; };
@@ -1107,6 +1110,7 @@
 		119D2A4674F7A0EEA13D4845 /* template-app-trip-plan.data.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-trip-plan.data.json"; sourceTree = "<group>"; };
 		12C0667A3D4E9B69B7502D0B /* CodeBoxesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeBoxesUITests.swift; sourceTree = "<group>"; };
 		12D4CE2FC69234223D056B6F /* NoteLinksFootTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteLinksFootTests.swift; sourceTree = "<group>"; };
+		136D44143CF1D9F784F68C69 /* SharedNoteLimitsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedNoteLimitsTests.swift; sourceTree = "<group>"; };
 		138C228FA740D92E0D104154 /* PressSelect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressSelect.swift; sourceTree = "<group>"; };
 		142A54FFDD38D3A56601E692 /* SetupCardsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupCardsTests.swift; sourceTree = "<group>"; };
 		14CD141158D5B7F6272D4DA9 /* GridTableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridTableTests.swift; sourceTree = "<group>"; };
@@ -1569,6 +1573,7 @@
 		BE138616AC9DDE47DC5537AD /* TableShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableShots.swift; sourceTree = "<group>"; };
 		BE58FBFB7169CFFC6987E06D /* FirstOpen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstOpen.swift; sourceTree = "<group>"; };
 		BE674CEBF2979E842FF6221C /* CheckPop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckPop.swift; sourceTree = "<group>"; };
+		BE8F6C19EBFAD7F83BD61892 /* SharedNoteLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedNoteLimits.swift; sourceTree = "<group>"; };
 		BED0CD995961135B2CEAD915 /* BigLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BigLibraryTests.swift; sourceTree = "<group>"; };
 		BEFA368EF8F56909D229B913 /* Library.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Library.swift; sourceTree = "<group>"; };
 		BF048ED9FB00FF3C28B4B09C /* NoteListMenus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteListMenus.swift; sourceTree = "<group>"; };
@@ -2244,6 +2249,7 @@
 				7D124B8907A00FB061D8E03A /* SharedDelete.swift */,
 				FC2E45AC3676FB940406D0F9 /* SharedDocument.swift */,
 				6F2EF7158F35250A395D354A /* SharedLibrary.swift */,
+				BE8F6C19EBFAD7F83BD61892 /* SharedNoteLimits.swift */,
 				2AD2A5599581D39A27243D0F /* ShareLinks.swift */,
 				AE451C95D74DA3569B6F557A /* ShareModel.swift */,
 				48747C5886233D2964A2F51F /* ShareSheet.swift */,
@@ -2529,6 +2535,7 @@
 				239E33A6B222E8CCE6BA3C15 /* SharedDeleteTests.swift */,
 				2EFA5CCD5CFCA8C224C2A102 /* SharedLibraryTests.swift */,
 				3A89888BA134B0D17719F024 /* SharedNoteEditorTests.swift */,
+				136D44143CF1D9F784F68C69 /* SharedNoteLimitsTests.swift */,
 				D153F3DF953FD381EF5E60EE /* SharedReadOnlyTests.swift */,
 				53107B88B5ADEA8C20B7E671 /* ShareTruthTests.swift */,
 			);
@@ -3440,6 +3447,7 @@
 				96B237B90524B4A6B154FB93 /* SharedItemTests.swift in Sources */,
 				06BA806E2F4127776ACE7AD1 /* SharedLibraryTests.swift in Sources */,
 				C2D93304A5E51790246DCA92 /* SharedNoteEditorTests.swift in Sources */,
+				C9DEC0E1F33514A34761867B /* SharedNoteLimitsTests.swift in Sources */,
 				161C8C30F3DCA3241A840348 /* SharedReadOnlyTests.swift in Sources */,
 				240D9493C7527CE6BFFD7B86 /* ShortcutsSheetTests.swift in Sources */,
 				1946A0BD6053D3E2572492E4 /* SidebarCardTests.swift in Sources */,
@@ -3685,6 +3693,7 @@
 				865EAA85CC975DA99FB4C9F1 /* SharedDocument.swift in Sources */,
 				5412BD9D4BB407C05DA2D720 /* SharedItem.swift in Sources */,
 				F8AF24CD8AC871944C662027 /* SharedLibrary.swift in Sources */,
+				A64402B495E861CBD1843D84 /* SharedNoteLimits.swift in Sources */,
 				94F7922A9410CAA206E61507 /* ShortcutsSheet.swift in Sources */,
 				88BBB722EC55C09577032C4A /* SidebarAIs.swift in Sources */,
 				0DCE9C13346B5F177FA67A9B /* SidebarCards.swift in Sources */,
@@ -3995,6 +4004,7 @@
 				990C159F27C2EF4377E42E78 /* SharedDocument.swift in Sources */,
 				3C7F2854475BF1AEADCC82A7 /* SharedItem.swift in Sources */,
 				78BB7F1DAD4D83A7C8AB8EAE /* SharedLibrary.swift in Sources */,
+				DA1A03A007EA831C793F04A9 /* SharedNoteLimits.swift in Sources */,
 				00E8836ACDE98BB5F8F5BADD /* ShortcutsSheet.swift in Sources */,
 				2DC5514D71BE0F65B018B598 /* SidebarAIs.swift in Sources */,
 				EF5FA3E4964C257EA768A12D /* SidebarCards.swift in Sources */,

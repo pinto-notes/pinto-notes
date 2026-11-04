@@ -760,8 +760,8 @@ final class SyncEngine {
     /// Typing pushes every 0.35 s; the pages are written 2 s after the last push that touched them.
     private func republishShares(for ids: [UUID]) {
         guard !liveShares.isEmpty else { return }
-        // A note shared with people is end to end encrypted between them: its text is never
-        // published to a readable page from here (a page made before it was shared keeps its copy).
+        // A note shared with people is never published to a readable page: its text is everyone's
+        // in it (SharedNoteLimits; a page made before it was shared keeps its last copy).
         let isShared = { (id: UUID) in self.context.note(id)?.isShared == true }
         let roots = Set(ids.filter { !isShared($0) }.flatMap { sharedRoots(of: $0) }.filter { !isShared($0) })
         guard !roots.isEmpty else { return }

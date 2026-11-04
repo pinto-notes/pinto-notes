@@ -4,6 +4,7 @@ import CryptoKit
 import SwiftData
 import SwiftUI
 import Testing
+import UniformTypeIdentifiers
 @testable import Pane
 
 extension NetworkFaults {
@@ -21,8 +22,8 @@ extension NetworkFaults {
         CollabSession.snapshotQuiet = 5
     }
 
-    func host(_ note: Note, in container: ModelContainer) -> (NSWindow, PaneTextView) {
-        let view = NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }
+    func host(_ note: Note, in container: ModelContainer, controller: EditorController = EditorController()) -> (NSWindow, PaneTextView) {
+        let view = NavigationStack { NoteDetailView(note: note, controller: controller, onNewNote: {}) }
             .modelContainer(container)
             .frame(width: 720, height: 800)
         let w = KeyableWindow(contentRect: NSRect(x: -30000, y: -30000, width: 720, height: 800), styleMask: [.borderless], backing: .buffered, defer: false)
@@ -99,6 +100,38 @@ extension NetworkFaults {
         DebouncedSave.flushAll()
         #expect(note.body == SharedNotes.placeholder(title: "Plans"))
         #expect(!note.dirty)
+    }
+
+    /// A file dropped, pasted or attached into a shared note isn't taken (the others couldn't open
+    /// it, SharedNoteLimits): no file is made and the text stays as it was. Into a note of your own
+    /// the same drop is taken.
+    @Test func aSharedNoteTakesNoFiles() async throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = c.mainContext
+        let previous = CollabStore.shared
+        CollabStore.shared = nil
+        defer { CollabStore.shared = previous }
+        let file = FileManager.default.temporaryDirectory.appending(path: "shared-limit-\(UUID().uuidString).txt")
+        try Data("hello".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        let shared = context.createNote(in: .all, body: "Packing\nSocks")
+        shared.sharedNoteID = UUID()
+        try context.save()
+        let controller = EditorController()
+        let (w, _) = host(shared, in: c, controller: controller)
+        defer { w.close() }
+        #expect(controller.addFiles([file]).isEmpty)
+        #expect(controller.addData(Data("x".utf8), "x.txt", .plainText) == nil)
+        #expect(try context.fetch(FetchDescriptor<Pane.Attachment>()).isEmpty)
+        #expect(shared.body == "Packing\nSocks")
+
+        let mine = context.createNote(in: .all, body: "Mine")
+        try context.save()
+        let own = EditorController()
+        let (w2, _) = host(mine, in: c, controller: own)
+        defer { w2.close() }
+        #expect(own.addFiles([file]).count == 1)
     }
 }
 }
