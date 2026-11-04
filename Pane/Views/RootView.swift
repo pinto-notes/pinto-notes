@@ -399,7 +399,9 @@ struct RootView: View {
                 #if os(macOS)
                 // With the sidebar hidden its New Folder, Today and Search sit over this column
                 // beside the window's buttons: 350 pt keeps More and New Note clear of its edge.
-                .navigationSplitViewColumnWidth(min: visibility == .all ? 260 : 350, ideal: visibility == .all ? 330 : 350, max: 440)
+                // 360 at most beside the sidebar, so a missed restore costs the note little (council
+                // round 5, 11-04: it came back at 440 on the Air).
+                .navigationSplitViewColumnWidth(min: visibility == .all ? 260 : 350, ideal: visibility == .all ? 330 : 350, max: visibility == .all ? 360 : 440)
                 #else
                 // Large text needs the room more here than in the note beside it.
                 // A window wider than tall and under 1,000 pt (iPhone Duo open like a book): the list is
@@ -1333,8 +1335,16 @@ struct ListWidthKeeper: NSViewRepresentable {
     func updateNSView(_ view: Probe, context: Context) {}
 
     final class Probe: NSView {
-        /// The list's width just before the sidebar hid.
+        /// How far the list reaches past the sidebar just before the sidebar hid: what you see of
+        /// it. On macOS 26 the list's own view runs on under the floating sidebar, so its frame is
+        /// wider than that (520 pt for a 260 pt list on the Air, council round 5, 11-04).
         private(set) var saved: CGFloat?
+        /// The same, kept as the split view resizes while the sidebar shows: hidden from AppKit's
+        /// side (Toggle Sidebar from the responder chain), it has already collapsed by the time
+        /// SwiftUI says so.
+        private(set) var tracked: CGFloat?
+        private var restoring = false
+        private weak var watching: NSSplitView?
 
         /// The window's three-column split view.
         var split: NSSplitView? {
@@ -1346,23 +1356,58 @@ struct ListWidthKeeper: NSViewRepresentable {
             return window?.contentView.flatMap(find)
         }
 
+        /// The list's width as you see it: from the sidebar's edge to the list's.
+        static func shownWidth(sidebar: CGRect, list: CGRect) -> CGFloat { list.maxX - sidebar.maxX }
+
+        /// The width as you see it now, or nil with the sidebar folded away.
+        static func shownWidth(_ split: NSSplitView) -> CGFloat? {
+            let side = split.arrangedSubviews[0]
+            guard !side.isHidden, !split.isSubviewCollapsed(side), side.frame.width >= 100 else { return nil }
+            return shownWidth(sidebar: side.frame, list: split.arrangedSubviews[1].frame)
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            DispatchQueue.main.async { [weak self] in self?.watch() }
+        }
+
+        private func watch() {
+            guard let split, split !== watching else { return }
+            watching = split
+            NotificationCenter.default.addObserver(self, selector: #selector(resized), name: NSSplitView.didResizeSubviewsNotification, object: split)
+            resized()
+        }
+
+        @objc private func resized() {
+            guard !restoring, let split = watching, let w = Self.shownWidth(split) else { return }
+            tracked = w
+        }
+
         func changed(from old: NavigationSplitViewVisibility, to new: NavigationSplitViewVisibility) {
+            watch()
             guard let split else { return }
             if old == .all, new != .all {
                 // Before the split view moves: it still has the widths it had.
-                saved = split.arrangedSubviews[1].frame.width
+                saved = Self.shownWidth(split) ?? tracked
             } else if new == .all, let width = saved {
                 saved = nil
-                // Once the sidebar is back in place (its slide in takes about a quarter second).
+                restoring = true
+                // Once the sidebar has stopped sliding in (the same width twice running; it takes
+                // about a quarter second). Set while it slid, the list ended up 100 pt too wide.
                 Task { @MainActor [weak self] in
-                    for _ in 0..<12 {
+                    var last: CGFloat = -1
+                    for _ in 0..<20 {
                         try? await Task.sleep(for: .milliseconds(60))
-                        guard let split = self?.split else { return }
+                        guard let self, let split = self.split else { return }
                         let side = split.arrangedSubviews[0]
-                        guard !split.isSubviewCollapsed(side), side.frame.width > 100 else { continue }
-                        split.setPosition(side.frame.maxX + split.dividerThickness + width, ofDividerAt: 1)
-                        return
+                        let w = split.isSubviewCollapsed(side) || side.isHidden ? 0 : side.frame.width
+                        defer { last = w }
+                        guard w > 100, w == last else { continue }
+                        split.setPosition(side.frame.maxX + width, ofDividerAt: 1)
+                        break
                     }
+                    self?.restoring = false
+                    self?.resized()
                 }
             }
         }

@@ -121,6 +121,16 @@ import Testing
         // The list comes back as wide as it was, not at the 350 pt it's held at while the sidebar
         // is hidden (council round 3, 11-04).
         #expect(abs(split.arrangedSubviews[1].frame.width - list) <= 1, "the list keeps its width: \(list) then \(split.arrangedSubviews[1].frame.width)")
+
+    }
+
+    /// The list's width is what you see of it. On macOS 26 its view runs on under the floating
+    /// sidebar: on the Air (council round 5, 11-04) a 260 pt list had a 520 pt frame, and the list
+    /// came back 100 pt too wide after Show Sidebar.
+    @Test func theListsWidthIsWhatShowsBesideTheSidebar() {
+        let sidebar = CGRect(x: 0, y: 0, width: 260, height: 800)
+        #expect(ListWidthKeeper.Probe.shownWidth(sidebar: sidebar, list: CGRect(x: 0, y: 0, width: 520, height: 800)) == 260, "under the sidebar (macOS 26)")
+        #expect(ListWidthKeeper.Probe.shownWidth(sidebar: sidebar, list: CGRect(x: 261, y: 0, width: 260, height: 800)) == 261, "beside it, with the divider")
     }
 
     /// The sidebar's top, left to right: New Folder, Today, Search, all over the sidebar, in the
