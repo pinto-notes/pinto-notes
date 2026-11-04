@@ -9,22 +9,8 @@ import Testing
         #if os(macOS)
         for kind in ImportKind.allCases { #expect(ImportGuide.live(kind)?.id == kind.rawValue, "\(kind)") }
         #else
-        for kind in [ImportKind.keep, .obsidian, .notion, .markdown] { #expect(ImportGuide.live(kind)?.id == kind.rawValue, "\(kind)") }
+        for kind in [ImportKind.keep, .obsidian, .markdown] { #expect(ImportGuide.live(kind)?.id == kind.rawValue, "\(kind)") }
         #endif
-    }
-
-    /// Persona council 11-04: Notion has its own row and the same two pages as Obsidian, an export
-    /// step and the drop, and says what its databases become.
-    @Test func notionHasItsOwnGuide() {
-        let g = ImportGuide.notion
-        #expect(g.name == "Notion" && g.origin == .files(.notion))
-        #expect(g.steps.count == 1, "one step, then the drop, as Obsidian")
-        #expect(g.steps[0].text.contains("Export all workspace content") && g.steps[0].text.contains("Markdown & CSV") && g.steps[0].text.contains("include subpages"))
-        #expect(g.drop.choose == "Choose the .zip\u{2026}")
-        #expect(g.success.line.contains("Each database is a folder with a note per row"))
-        #expect(ImportKind.notion.isMarkdown && ImportKind.notion.contentTypes.contains(.zip))
-        #expect(ImportKind.notion.menuTitle == "Import from Notion\u{2026}")
-        #expect(ImportOrigin.files(.notion).name == "Notion")
     }
 
     @Test func takeoutOpensWithOnlyKeepTicked() {

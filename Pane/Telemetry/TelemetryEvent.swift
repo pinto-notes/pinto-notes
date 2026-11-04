@@ -240,7 +240,7 @@ enum FunnelAction: String, TelemetryWord { case shown, continued, skipped, back 
 
 /// Where an import comes from.
 enum ImportSourceKind: String, TelemetryWord {
-    case appleNotes = "apple_notes", evernote, keep, obsidian, bear, markdown, notion
+    case appleNotes = "apple_notes", evernote, keep, obsidian, bear, markdown
 }
 
 /// How far an import got.

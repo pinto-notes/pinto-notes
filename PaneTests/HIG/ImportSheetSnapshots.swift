@@ -21,7 +21,6 @@ import UIKit
         case .keep: [ImportSource(url: URL(fileURLWithPath: "/demo/takeout-20260930T101500Z-001.zip"), name: "Google Keep", notes: 842, bytes: 61_400_000)]
         case .obsidian: [ImportSource(url: URL(fileURLWithPath: "/demo/Second brain"), name: "Second brain", notes: 1_126, bytes: 88_300_000)]
         case .bear: [ImportSource(url: URL(fileURLWithPath: "/demo/Bear export"), name: "Bear export", notes: 412, bytes: 36_900_000)]
-        case .notion: [ImportSource(url: URL(fileURLWithPath: "/demo/8a1f2b3c_Export-5e6f7a8b.zip"), name: "Notion", notes: 214, bytes: 19_800_000)]
         case .markdown: [
             ImportSource(url: URL(fileURLWithPath: "/demo/Second brain"), name: "Second brain", notes: 1_126, bytes: 88_300_000),
             ImportSource(url: URL(fileURLWithPath: "/demo/Notion export.zip"), name: "Notion export", notes: 363, bytes: 24_100_000),

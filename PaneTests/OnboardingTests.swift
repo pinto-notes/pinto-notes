@@ -449,8 +449,8 @@ import Testing
     }
 
     @Test func installedAppsComeFirstThenByPopularityMarkdownLast() {
-        #expect(ImportKind.listed(installed: { _ in false }) == [.evernote, .notion, .keep, .obsidian, .bear, .markdown], "Notion after Evernote (persona council 11-04)")
-        #expect(ImportKind.listed(installed: { $0 == .bear || $0 == .obsidian }) == [.obsidian, .bear, .evernote, .notion, .keep, .markdown],
+        #expect(ImportKind.listed(installed: { _ in false }) == [.evernote, .keep, .obsidian, .bear, .markdown])
+        #expect(ImportKind.listed(installed: { $0 == .bear || $0 == .obsidian }) == [.obsidian, .bear, .evernote, .keep, .markdown],
                 "installed apps first, each group keeps the popularity order")
         #expect(ImportKind.listed(installed: { _ in true }).last == .markdown, "Markdown files stay last")
     }

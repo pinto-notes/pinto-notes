@@ -16,11 +16,10 @@ import Testing
     }
 
     /// Emil 10-30: a real choice of where notes come from, not one default and a hidden link.
-    /// Seven tiles (Notion since 11-04), Apple Notes first, and the button names what it will do with the pick.
+    /// Six tiles, Apple Notes first, and the button names what it will do with the pick.
     @Test func bringOffersEverySourceAndNamesThePick() {
         #expect(SetupCards.sources.first == .appleNotes)
-        #expect(SetupCards.sources.count == 7)
-        #expect(SetupCards.importTitle(.files(.notion)) == "Choose Notion export\u{2026}")
+        #expect(SetupCards.sources.count == 6)
         let titles = SetupCards.sources.map(SetupCards.importTitle)
         #expect(Set(titles).count == titles.count, "each pick says something different")
         #expect(SetupCards.importTitle(.appleNotes) == "Import from Apple Notes")
