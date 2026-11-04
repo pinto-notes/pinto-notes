@@ -57,7 +57,10 @@ struct AIChangesPresenter: ViewModifier {
     func body(content: Content) -> some View {
         content.sheet(isPresented: Binding(get: { center.request != nil }, set: { if !$0 { center.request = nil } })) {
             if let store = center.store, let history = NoteHistory.shared {
-                AIChangesSheet(store: store, history: history, filter: center.request.flatMap { $0.isEmpty ? nil : $0 })
+                // The AIs connected now, so the empty list never offers to connect one that is
+                // (council round 9: they weren't passed, and it always offered).
+                AIChangesSheet(store: store, history: history, filter: center.request.flatMap { $0.isEmpty ? nil : $0 },
+                               connected: ConnectedAIs.shared.connections.map(\.name))
             }
         }
     }

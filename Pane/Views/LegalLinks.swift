@@ -43,7 +43,10 @@ extension Legal {
 struct ConsentFooter: View {
     /// The small print's size on the Mac.
     static let size: CGFloat = 11
-    static let diagnosticsLines = DiagnosticsCopy.signIn.replacingOccurrences(of: ". ", with: ".\n")
+    /// The small print's column on the sign-in card, as measured on the Air (council round 9).
+    static let column: CGFloat = 242
+    /// What it sends, then what it never sends and how to stop it.
+    static let diagnosticsLines = DiagnosticsCopy.signIn.replacingOccurrences(of: "counts. ", with: "counts.\n")
     var body: some View {
         #if os(macOS)
         // AppKit's label: the pointer turns to a hand over each link, which SwiftUI's Text

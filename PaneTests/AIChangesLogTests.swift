@@ -111,6 +111,10 @@ import Testing
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Tram 28\n- Two", after: "A\n\n- [ ] Tram 28 early, before the crowds\n- Two") == "Changed \u{201C}Tram 28 early, before the crowds\u{201D}")
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne", after: "A\n\nA very long replacement line that goes on well past forty characters") == "Changed \u{201C}A very long replacement line that goes\u{2026}\u{201D}")
         #expect(!AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo", after: "A\n\nUno\nDos").contains("+"), "never the diff tool's counts")
+        // A tick is a tick, not a change of words (council round 9: "Changed “Hotel in Príncipe Real”").
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Hotel in Príncipe Real", after: "A\n\n- [x] Hotel in Príncipe Real") == "Ticked \u{201C}Hotel in Príncipe Real\u{201D}")
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [x] Book flights", after: "A\n\n- [ ] Book flights") == "Unticked \u{201C}Book flights\u{201D}")
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Book", after: "A\n\n- [x] Book flights") == "Changed \u{201C}Book flights\u{201D}", "new words too: a change")
     }
 
     @Test func theServersRowsBecomeChanges() throws {
@@ -245,6 +249,11 @@ import Testing
         #expect(SidebarAICopy.verb(.created) == "made" && SidebarAICopy.verb(.restore) == "restored")
         #expect(SidebarAICopy.accessibility(edit, title: "Lisbon", now: Self.t0) == "ChatGPT edited Lisbon, 2 minutes ago")
         #expect(SidebarAICopy.hint == "Opens AI Changes.", "what it does is a hint, not the label")
+        // Connected but nothing changed yet: it still says so (council round 9).
+        #expect(SidebarAICopy.connected([]) == nil)
+        #expect(SidebarAICopy.connected(["ChatGPT"]) == "ChatGPT connected")
+        #expect(SidebarAICopy.connected(["ChatGPT", "Claude", "ChatGPT"]) == "ChatGPT and Claude connected")
+        #expect(SidebarAICopy.connected(["ChatGPT", "Claude", "Codex"]) == "3 AIs connected")
         #if os(macOS)
         #expect(SidebarAILine.title(edit, context: c.mainContext) == "Lisbon")
         let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")

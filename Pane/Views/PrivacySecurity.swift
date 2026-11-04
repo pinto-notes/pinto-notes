@@ -83,7 +83,7 @@ enum PrivacyCopy {
         out.append(("sparkles", "Connected AIs",
                     // What it may do first, as Allow says it; how its key works after (council round 7).
                     "Each AI you connect " + PrivacyCopy.aiMay
-                    + " It gets its own copy of your key, which works only for that AI, and opens your notes only while it works on a request."))
+                    + " It has its own copy of your key, used only while it works on a request."))
         if recovery {
             out.append(("key.horizontal", "Recovery key", "Opens your notes if you lose your devices. Keep it somewhere safe."))
         }

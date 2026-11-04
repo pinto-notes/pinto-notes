@@ -2279,6 +2279,18 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     override func setFrameSize(_ newSize: NSSize) {
+        // A new width (the sidebar hiding or coming back, the window resized) with the note still
+        // at its fold: it stays there. The text view scrolled its first line to the top after the
+        // width changed, so the note jumped up 16 pt (council rounds 8 and 9).
+        let keepFold = newSize.width != frame.width && nearFold
+        defer {
+            if keepFold {
+                // The text view's own scroll comes a pass or two after the width; catch it each time.
+                for delay in [0.0, 0.15, 0.4] {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.returnToFold() }
+                }
+            }
+        }
         // A short note still scrolls past its date: never shorter than the view plus the fold.
         var newSize = newSize
         if DesignLook.readingPage, hasDate, let scroll = enclosingScrollView {
@@ -2502,6 +2514,26 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// the fold only follows a change of the toolbar's inset, and only while nobody has scrolled.
     /// It was a scroll a turn after the note was laid out: each note was drawn once with its date,
     /// then jumped up, and clicking from note to note flickered (Emil, 11-02).
+    /// At the fold or within one fold below it, nobody having scrolled since (scrollWheel clears
+    /// `foldedAt`): where a width change's own scroll leaves an opened note. Further down is
+    /// the reader's place (typing, a search hit), and stays.
+    private var nearFold: Bool {
+        guard foldedAt != nil, let scroll = enclosingScrollView else { return false }
+        let target = -scroll.contentInsets.top + Self.fold
+        let y = scroll.contentView.bounds.origin.y
+        return y >= target - 0.5 && y <= target + Self.fold + 0.5
+    }
+
+    /// Back to the fold after a width change, unless someone scrolled since.
+    private func returnToFold() {
+        guard nearFold, let scroll = enclosingScrollView else { return }
+        let target = -scroll.contentInsets.top + Self.fold
+        guard abs(scroll.contentView.bounds.origin.y - target) >= 0.5 else { return }
+        scroll.contentView.scroll(to: NSPoint(x: scroll.contentView.bounds.origin.x, y: target))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        foldedAt = target
+    }
+
     func foldDate() {
         guard DesignLook.readingPage, hasDate, !DateFold.showOnOpen, window != nil,
               let scroll = enclosingScrollView, scroll.contentView.bounds.height > 0 else { return }

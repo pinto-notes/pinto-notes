@@ -409,6 +409,34 @@ import Testing
         }
     }
 
+    /// The note stays where it is when the sidebar hides and comes back: the title at the same
+    /// height under the toolbar, the date still folded (council rounds 8 and 9: 6 pt up after).
+    @Test func theNoteStaysPutWhenTheSidebarHides() async throws {
+        let c = try AppSnapshotTests.container()
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            let w = Self.window(c, size: CGSize(width: 1280, height: 800))
+            defer { w.close() }
+            await Self.settle(w)
+            let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
+            @MainActor func gap() throws -> (CGFloat, CGFloat, CGFloat) {
+                let editor = try #require(w.contentView.flatMap { Self.find(PaneTextView.self, in: $0) })
+                let scroll = try #require(editor.enclosingScrollView)
+                let first = editor.firstRect(forCharacterRange: NSRange(location: 0, length: 1), actualRange: nil)
+                return (w.contentLayoutRect.maxY - w.convertFromScreen(first).maxY, scroll.contentView.bounds.origin.y, scroll.contentInsets.top)
+            }
+            let opened = try gap()
+            (split.delegate as? NSSplitViewController)?.toggleSidebar(nil)
+            await Self.settle(w, 8)
+            let hidden = try gap()
+            (split.delegate as? NSSplitViewController)?.toggleSidebar(nil)
+            await Self.settle(w, 8)
+            let shown = try gap()
+            print("PERF note title under the toolbar: opened \(opened), sidebar hidden \(hidden), shown again \(shown)")
+            #expect(abs(hidden.0 - opened.0) <= 1, "hidden: \(hidden.0) pt, opened \(opened.0) pt")
+            #expect(abs(shown.0 - opened.0) <= 1, "shown again: \(shown.0) pt, opened \(opened.0) pt")
+        }
+    }
+
     /// Headings in Notes' weights (Emil, 10-31: "they are too bold"): the title and a heading bold,
     /// not heavy and not tightened; a subheading a semibold heading in the text's colour.
     @Test func headingsAreNotesWeights() {

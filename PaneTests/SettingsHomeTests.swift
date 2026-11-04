@@ -305,7 +305,7 @@ import Testing
         // during a request (plainer words, council rounds 7 and 8; "doesn't use Pinto Notes'
         // copy" went: the key working only for that AI says it).
         let ai = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Connected AIs" }?.line ?? ""
-        for part in ["its own copy of your key", "works only for that AI", "only while it works on a request"] {
+        for part in ["its own copy of your key", "only while it works on a request"] {
             #expect(ai.contains(part), "\(part)")
         }
         // Locked notes: an AI sees that one exists, not its title or text, and keeps what it already read.
@@ -598,11 +598,16 @@ import Testing
         let print = LinkLabel.styled(Legal.consentSentence)
         #expect((print.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)?.pointSize == ConsentFooter.size)
         #expect(ConsentFooter.size == 11)
-        #expect(ConsentFooter.diagnosticsLines == "Sends error reports and a few counts, never your notes.\nTurn off in Settings.", "one sentence a line")
+        #expect(ConsentFooter.diagnosticsLines == "Sends error reports and counts.\nNever your notes. Turn off in Settings.", "two lines")
+        // And each sentence fits its line, measured, not counted (round 9: it passed and wrapped on the Air).
+        for line in ConsentFooter.diagnosticsLines.split(separator: "\n") {
+            let width = NSAttributedString(string: String(line), attributes: [.font: NSFont.systemFont(ofSize: ConsentFooter.size)]).size().width
+            #expect(width <= ConsentFooter.column - 4, "\(line): \(width) pt in \(ConsentFooter.column)")
+        }
         #endif
         let privacy = try Self.source("Pane/Views/PrivacySecurity.swift")
         #expect(!privacy.contains("Text(HelpCopy.trademarks)"), "no trademark notes on Privacy")
-        #expect(privacy.contains("\"Each AI you connect \" + PrivacyCopy.aiMay") && privacy.contains("It gets its own copy of your key, which works only for that AI"), "what it may do, then how its key works")
+        #expect(privacy.contains("\"Each AI you connect \" + PrivacyCopy.aiMay") && privacy.contains("It has its own copy of your key, used only while it works on a request."), "what it may do, then how its key works")
         // Standard accounts never hear of Advanced protection (it's hidden for them, 11-01).
         #expect(!privacy.contains("Turn on Advanced protection"), "the court order row offers nothing a standard account can't see")
     }
@@ -615,6 +620,10 @@ import Testing
         #expect(SettingsCardHost.takes(active: true, key: K()), "the notes window in front")
         // The trademark notes are About's credits, not the foot of Privacy and security.
         #expect(AboutCredits.credits.string == HelpCopy.trademarks)
+        // Settings has an edge against a black window in dark mode (council rounds 7 to 9).
+        #expect(SettingsWindowEdge.opacity == 0.1)
+        let app = (try? Self.source("Pane/App/PaneApp.swift")) ?? ""
+        #expect(app.contains(".overlay { SettingsWindowEdge() }"))
         #expect(AIChangesStatus.offersConnect(ais: []) && !AIChangesStatus.offersConnect(ais: ["Claude"]), "no AI yet: a way to connect one")
         #expect(SettingsCardHost.takes(active: false, key: nil), "no window key, as at launch")
         #expect(SettingsCardHost.takes(active: false, key: K(settings: true)), "Settings in front")

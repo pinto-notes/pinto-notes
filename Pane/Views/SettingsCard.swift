@@ -475,4 +475,21 @@ struct SettingsCardHost: ViewModifier {
     /// What matters about the key window: whether it's Settings, or a sheet.
     struct KeyWindow { var settings = false, sheet = false }
 }
+
+/// The Settings window's edge in dark mode: 1 pt of white at 10% inside the window's own corners
+/// (a 2 pt stroke on its edge, half of it clipped by the window).
+struct SettingsWindowEdge: View {
+    @Environment(\.colorScheme) private var scheme
+    static let opacity = 0.1
+
+    var body: some View {
+        if scheme == .dark {
+            ConcentricRectangle()
+                .stroke(Color.white.opacity(Self.opacity), lineWidth: 2)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
+}
 #endif

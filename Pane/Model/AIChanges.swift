@@ -211,6 +211,11 @@ enum AIChangeCopy {
     static func words(_ d: EditDiff) -> String {
         guard d.plus + d.minus > 0 else { return "No visible change" }
         let count = { (n: Int) in n == 1 ? "a line" : "\(n) lines" }
+        if d.plus == 1, d.minus == 1, let r = d.added.first, let gone = d.removed.first {
+            // Same item, only its box changed: a tick, not a change of words (council round 9).
+            let ns = d.text as NSString
+            if let tick = ticked(was: ns.substring(with: gone), now: ns.substring(with: r)) { return tick }
+        }
         if d.plus == 1, d.minus == 1, let r = d.added.first {
             let marker = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|#+\s+|>\s*)"#)
             let line = (d.text as NSString).substring(with: r)
@@ -224,6 +229,20 @@ enum AIChangeCopy {
         if d.minus == 0 { return "Added \(count(d.plus))" }
         if d.plus == 0 { return "Removed \(count(d.minus))" }
         return "Changed \(count(max(d.plus, d.minus)))"
+    }
+
+    /// "Ticked “Hotel in Príncipe Real”" or "Unticked …" when a checklist item's box is all that
+    /// changed; nil otherwise.
+    static func ticked(was: String, now: String) -> String? {
+        let box = try! NSRegularExpression(pattern: #"^(\s*[-*+]\s+)\[([ xX])\]\s+(.*)$"#)
+        func parts(_ line: String) -> (done: Bool, text: String)? {
+            let ns = line as NSString
+            guard let m = box.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) else { return nil }
+            return (ns.substring(with: m.range(at: 2)) != " ", ns.substring(with: m.range(at: 3)).trimmingCharacters(in: .whitespaces))
+        }
+        guard let a = parts(was), let b = parts(now), a.text == b.text, a.done != b.done, !b.text.isEmpty else { return nil }
+        let short = b.text.count > 40 ? String(b.text.prefix(39)).trimmingCharacters(in: .whitespaces) + "\u{2026}" : b.text
+        return "\(b.done ? "Ticked" : "Unticked") \u{201C}\(short)\u{201D}"
     }
 
     /// "+3 −1 lines", "+1 line", "−2 lines"; "No visible change" when only blank lines moved.

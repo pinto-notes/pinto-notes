@@ -276,6 +276,9 @@ struct PaneApp: App {
                 SettingsView(backend: backend, sync: sync)
                     .environment(\.settingsInWindow, true)
                     .modifier(SideWindow(backend: backend, sync: sync))
+                    // In dark mode its edge vanished into the black notes window behind it
+                    // (council rounds 7 to 9): a faint inner line, as dark system windows have.
+                    .overlay { SettingsWindowEdge() }
             }
         }
         .modelContainer(container)
