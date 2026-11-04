@@ -3206,6 +3206,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             core.gridFocus = nil
             controller?.leftTable()
             core.restyle(storage, selection: selectedRange(), force: true)
+            // The window counts the text as first responder only once this returns: the hints
+            // ("Title" on a new note) are laid out then (council round 15: ⌘N showed none).
+            DispatchQueue.main.async { [weak self] in self?.layoutWikiSuggestions() }
         }
         return ok
     }

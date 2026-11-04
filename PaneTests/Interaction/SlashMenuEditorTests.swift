@@ -127,6 +127,17 @@ import Testing
         #expect(label(blank) == nil, "gone at the first letter")
     }
 
+    /// A new note says "Title" as soon as it has the keyboard, before any click or key.
+    @Test func aNewNoteSaysTitleStraightAway() async {
+        let h = await EditorHarness("")
+        defer { h.close() }
+        h.view.window?.makeFirstResponder(nil)
+        h.view.window?.makeFirstResponder(h.view)
+        try? await Task.sleep(for: .milliseconds(100))
+        let label = h.view.subviews.lazy.compactMap { $0 as? NSTextField }.first { $0.identifier?.rawValue == "editor.slashHint" }
+        #expect(label?.stringValue == PaneTextView.titleHintText)
+    }
+
     /// Once the menu has been used a few times the hint has done its job and stops.
     @Test func theHintStopsOnceTheMenuIsKnown() async {
         let h = await EditorHarness("Plan\n")
