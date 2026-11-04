@@ -34,6 +34,7 @@ export const ENCRYPTION: { items: Item[]; note: string } = {
     { label: "Advanced protection:", text: "we're retiring it, and newer versions of the apps don't offer it. If you turned it on, it stays on until you turn it off in Settings, Security, and turning it off stores a copy again. While Advanced protection is on, your notes are end-to-end encrypted: we can't open them and can't help you back in. Then only your devices, and AI connections you approve, can unlock your notes. A new device gets your key from iCloud Keychain, is added from a device that has your notes, or is opened with your recovery key. If you lose every device and the recovery key, your notes are lost." },
     { label: "Accounts made before we kept copies:", text: "the app asks once, with a sheet titled \"Signing in now opens your notes\", before anything is copied. Continue stores the copy. Older versions of the apps also offer Keep my key on my devices only, which turns on Advanced protection. Until you answer, nothing is copied and your key stays on your devices, as before." },
     { label: "Your recovery key:", text: "a key you can save yourself. Signing in already opens your notes, so newer versions of the apps show it in Settings, Security only while Advanced protection is on. It opens your notes without us. We keep your notes' key locked with it. Our copy of your key, while we keep one, holds the recovery key too." },
+    { label: "Notes shared with people:", text: "encrypted like your other notes, with a key of their own. Each person in the note keeps that key with their notes' key, so whoever can open a person's notes can open the notes shared with them. Where we keep a copy of someone's key, we could too. When someone in the note asks their AI about it, our server reads it for that request, as it does for your own notes." },
     { label: "Locked notes:", text: "encrypted a second time, with a key made from your notes password. That key never leaves your devices, so not even an AI you connect can read a locked note's text. If you forget the password, nobody can recover it." },
     { label: "On the way and on disk:", text: "everything travels over HTTPS, and Supabase encrypts its disks as well (AES-256)." },
     { label: "Passwords and access tokens", text: "are stored only as one-way hashes." },
@@ -53,7 +54,8 @@ export const READABLE: string[] = [
   "your list of devices",
   "your AI connections: their names, access, and when they were made and last used",
   "the usage counts listed below",
-  "a note you share, while it's shared, since anyone with the link can read it",
+  "a note you share as a web page, while it's shared, since anyone with the link can read it",
+  "who is in each note shared with people, their roles, and when each of them changes it",
 ];
 
 /// "When you connect an AI" on the Privacy & Security page.

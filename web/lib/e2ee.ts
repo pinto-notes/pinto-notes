@@ -606,6 +606,14 @@ export class Vault {
     const m = JSON.parse(await open(sealed, this.key, fileMetaContext(id)));
     return { name: String(m?.name ?? "file"), type: String(m?.type ?? "public.data"), ...(typeof m?.size === "number" ? { size: m.size } : {}) };
   }
+  /** A shared note's key at an epoch, from the member's self_wrap (collab.ts: noteKeyContext). */
+  async openNoteKey(note: string, epoch: number, sealed: string): Promise<Bytes> {
+    return fromBase64(await open(sealed, this.key, `notekey:${note.toLowerCase()}:${epoch}`));
+  }
+  /** The account's identity private key (its 32-byte scalar), from identity_keys.private_wrap. */
+  async openIdentity(sealed: string): Promise<Bytes> {
+    return fromBase64(await open(sealed, this.key, `identity:${this.userId.toLowerCase()}`));
+  }
   openFile(id: string, bytes: Bytes) { return openFile(bytes, this.key, id); }
   sealFileBytes(id: string, bytes: Bytes) { return sealFile(bytes, this.key, this.keyId, id); }
 }
