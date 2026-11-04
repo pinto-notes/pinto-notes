@@ -172,11 +172,17 @@ export const FILE_TOOLS: Tool[] = ([
   },
 ] satisfies Tool[]).map((t) => ({ ...t, annotations: { title: t.title, ...t.annotations }, securitySchemes: [{ type: "oauth2" as const, scopes: [t.annotations.readOnlyHint ? "notes:read" : "notes:write"] }] }));
 
+/** The person's "About me" note: every AI reads it before it starts and keeps it current, so they
+ *  stop explaining themselves again to each AI and each chat (persona council, 4 November 2026).
+ *  Both tool sets say it, in words that name no tool. */
+export const ABOUT_ME_INSTRUCTIONS = `If the person has a note titled "About me" that isn't locked, read it first, before anything else: it's what they want every AI to know about them. Keep it current: when they tell you something lasting about themselves (their work, the people in their life, their plans, what they like), add it there in a line and tell them you did. Never remove what they wrote there unless they ask.`;
+
 /** What the server tells every client when this tool set is on: how the files are laid out. The
  *  format rules live where they're needed (the tools' checks and descriptions, an app's README). */
 export const FILE_INSTRUCTIONS = `Pinto Notes is the person's notes, as files: each note is a markdown file in folders ("Work/Acme.md"; its first line is its title). A note's sub-notes and files are in the folder with its name ("Work/Acme/Agenda.md", "Work/Acme/contract.pdf"); folders also hold files of their own ("To read/Paper.pdf").
+${ABOUT_ME_INSTRUCTIONS}
 In a note, a checklist item is "- [ ] item" (tick it by editing it to "- [x] item"), a table is a markdown table (a tracker has a <!-- pane-table: … --> line above it giving each column's type; fetch gives today's date), and [[Title]], [[Title|shown text]] or [[Title#Heading]] links to another note by its title (renaming a note with move, edit or write updates the links to it; fetch lists what links to a note).
-A note listed with locked: true is locked by the person with a separate password: only its title shows here, and only they can open it, in Pinto Notes. Deleted notes stay in "Recently Deleted/" for 30 days, and every change keeps the version before it (history, restore).
+A note listed with locked: true is locked by the person with a separate password: it shows here as "Locked note", without its title or text, and only they can open it, in Pinto Notes. Deleted notes stay in "Recently Deleted/" for 30 days, and every change keeps the version before it (history, restore).
 ${FILE_APP_INSTRUCTIONS}
 Read before you edit; edit and write answer with checks: fix what they report.`;
 
@@ -363,7 +369,7 @@ const foldersOfNote = (P: Paths, n: Note) => P.folderPathOf(n.folder_id).split("
 /** Every live note's title and folders, to resolve [[links]] the way the app does. */
 function wikiIndexOf(P: Paths): WikiIndex {
   return new WikiIndex(P.all().flatMap((e) => e.kind === "note" && !e.note.trashed_at
-    ? [{ id: e.note.id, title: e.note.title, folders: foldersOfNote(P, e.note), updated: +new Date(e.note.updated_at) }] : []));
+    ? [{ id: e.note.id, title: P.linkTitle(e.note), folders: foldersOfNote(P, e.note), updated: +new Date(e.note.updated_at) }] : []));
 }
 
 /** The texts of the live, readable notes (other than `except`) that can hold a [[link]] by

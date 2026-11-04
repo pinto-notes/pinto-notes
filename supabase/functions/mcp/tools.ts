@@ -374,8 +374,14 @@ export const HEAD_COLUMNS = (tx: Tx) => tx`id, head_ct, locked_body, folder_id, 
 
 const UNREADABLE = "(this note can't be opened here)";
 
-/** A note's title and preview. One that won't open (written with another key) still lists. */
+/** What an AI sees in place of a locked note's title: the title is the person's, like the text.
+ *  The AI still sees that the note is there (and that it's locked), so lists and paths add up. */
+export const LOCKED_TITLE = "Locked note";
+
+/** A note's title and preview. One that won't open (written with another key) still lists. A
+ *  locked note's head isn't opened: it shows as LOCKED_TITLE. */
 export async function withHead(v: Vault, n: NoteRow): Promise<Note> {
+  if (n.locked_body !== null && n.locked_body !== undefined) return { ...n, title: LOCKED_TITLE };
   let h: Head;
   try { h = await v.openHead(n.id, n.head_ct); } catch { h = { title: UNREADABLE }; }
   return { ...n, title: h.title, ...(h.preview !== undefined ? { preview: h.preview } : {}) };
@@ -524,7 +530,7 @@ export async function descendants(tx: Tx, id: string): Promise<string[]> {
   return rows.map((r) => r.id);
 }
 
-/** A locked note's text is sealed with the user's notes password; here only its title opens. */
+/** A locked note's text is sealed with the user's notes password; here nothing of it opens, not even its title. */
 export const LOCKED = "This note is locked. Its text is encrypted on the user's devices: it can't be read, searched or changed here. The user can open it in Pinto Notes.";
 
 export function refuseLocked(n: Note) {

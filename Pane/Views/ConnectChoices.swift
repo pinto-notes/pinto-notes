@@ -774,6 +774,9 @@ enum ConnectCopy {
     static let why = "Your AI can then read and write your notes when you ask it to. " + shared
     /// What leaves and who gets it (App Review 5.1.1, 5.1.2): under Settings' Connect button.
     static let shared = "The notes it opens are sent to the company that makes it, such as OpenAI or Anthropic. Nothing is shared until you allow it."
+    /// What Allow lets an AI do, said the same at every Allow (the Allow sheet, the Connect popup,
+    /// the web page): there is no access to choose, so its whole scope, and its end (4 November 2026).
+    static let scope = "It can read, create and edit your notes, except locked notes, until you disconnect it."
     #if os(macOS)
     static let here = "On this Mac"
     #else
@@ -1321,6 +1324,7 @@ struct ConnectChoices: View {
         }
         do {
             connections = try await Connection.list(client)
+            ConnectedAIs.shared.set(connections)
             error = nil
             onLoaded(Set(active.map(\.title)))
         } catch {

@@ -32,7 +32,7 @@ import AppKit
                                    redirect_uri: "https://claude-login.example/cb", claimed_name: "Claude", loopback: false)
         #expect(ConsentSheet.title(spoof) == "Allow claude-login.example to use your notes?")
         #expect(!ConsentSheet.detail(spoof).contains("connecting Claude"))
-        #expect(ConsentSheet.detail(Self.claude) == "The notes Claude opens, with their text and files, are sent to Anthropic and handled under Anthropic\u{2019}s privacy policy. Locked notes stay private.")
+        #expect(ConsentSheet.detail(Self.claude) == "The notes Claude opens, with their text and files, are sent to Anthropic and handled under Anthropic\u{2019}s privacy policy.")
     }
 
     /// App Review (guidelines 5.1.1 and 5.1.2, 23 Oct 2026): before anything is shared, the sheet
@@ -90,7 +90,8 @@ import AppKit
         // 29 October 2026: no Read and edit or Read only to pick. Allow is read and edit, said in one line.
         #expect(Self.segments(host).isEmpty, "no access choice")
         #expect(Self.switches(host).isEmpty, "no Read only switch")
-        #expect(ConsentSheet.accessLine == "It can read, create and change notes. Every change keeps the previous version.")
+        #expect(ConsentSheet.scopeLine == "It can read, create and edit your notes, except locked notes, until you disconnect it.")
+        #expect(ConsentSheet.accessLine == "Every change keeps the previous version.")
 
         // One filled button: the amber pixels make one 320 by 40 point bar, filled edge to edge.
         let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
@@ -111,6 +112,30 @@ import AppKit
         #expect(abs(box.width / scale - 320) <= 1, "320 points wide: \(box.width / scale)")
         // The bar's area less its rounded corners and white title: anything else amber would leave it emptier.
         #expect(Double(amber) / Double(box.width * box.height) > 0.85, "\(amber) amber pixels in \(box)")
+    }
+
+    /// Persona council, 4 November 2026 (Marcus, Jonas, Maya): Allow says its whole scope in plain
+    /// words, right under the question, for an AI it knows and an app it doesn't; the company line
+    /// stays; the button stays "Allow". Read through accessibility, as VoiceOver reads it.
+    @Test func allowSaysItsScopeUnderTheQuestion() async throws {
+        let chatgpt = ConnectRequest(id: UUID(), client_name: "ChatGPT", redirect_host: "chatgpt.com",
+                                     redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect", loopback: false)
+        for r in [chatgpt, Self.glama] {
+            let sheet = ConsentSheet(client: Self.client, requestID: r.id, initial: .asking(r), finish: { _ in })
+            let ax = OffscreenAX(sheet, size: CGSize(width: 440, height: 700))
+            defer { ax.close() }
+            await ax.settle()
+            let scope = try #require(ax.find("connect.scope"), "the scope line is on the sheet: \(ax.ids())")
+            #expect(scope.text.contains("It can read, create and edit your notes, except locked notes, until you disconnect it."), "\(scope.text)")
+            let title = try #require(ax.find("connect.title"))
+            let line = try #require(ax.find(r.verifiedAI == nil ? "connect.unknown" : "connect.destination"), "\(ax.ids())")
+            // From the top: the question, then the scope, then who gets the notes.
+            #expect(title.frame.maxY <= scope.frame.minY + 1 && scope.frame.maxY <= line.frame.minY + 1, "\(title.frame) \(scope.frame) \(line.frame)")
+            let allow = try #require(ax.find("connect.allow"))
+            #expect(allow.text.contains("Allow") && !allow.text.contains("notes"), "the button stays short: \(allow.text)")
+        }
+        #expect(ConsentSheet.detail(chatgpt).contains("sent to OpenAI"), "the company line stays")
+        #expect(!ConsentSheet.detail(chatgpt).contains("Locked notes stay private"), "said once, in the scope")
     }
 
     /// A key press to the window, as the keyboard makes it (never a system-wide event).

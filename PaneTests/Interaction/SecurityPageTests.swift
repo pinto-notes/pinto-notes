@@ -31,6 +31,7 @@ import Testing
         #expect(c.pintoNotes?.name == "Pinto Notes" && c.pintoNotes?.short == "Helps you back in")
         #expect(c.ais.map(\.name) == ["ChatGPT"], "only what's connected now")
         #expect(c.ais.first?.ai == "ChatGPT", "with its mark")
+        #expect(c.openers.last?.detail == "Can read and edit your notes while connected", "as Allow says it")
         #expect(c.openers.map(\.name) == [PrivacyCopy.thisDevice, "Sara\u{2019}s MacBook Air", "iPhone", "Pinto Notes", "ChatGPT"])
         #expect(c.backInFooter == PrivacyCopy.backInFooterWithCopy)
         #expect(!c.showsProtection && !c.addsDevices, "a new device signs in: nothing to add")
@@ -139,7 +140,7 @@ import Testing
         for fact in ["court order", "gets into your account", "help you back in", "connected", "title"] {
             #expect(words.localizedCaseInsensitiveContains(fact), "\(fact)")
         }
-        #expect(PrivacyCopy.lockedLine == "An AI can see the title, not what\u{2019}s inside. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu.")
+        #expect(PrivacyCopy.lockedLine == "An AI sees that a locked note exists, not its title or text. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu.")
         // The page's source: no green shield, no "protected", no study switches left behind.
         let src = try? String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().appendingPathComponent("Pane/Views/PrivacySecurity.swift"), encoding: .utf8)

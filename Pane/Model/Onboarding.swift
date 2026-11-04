@@ -83,8 +83,9 @@ enum Onboarding {
     /// An account older than this is never shown the flow, whatever it holds.
     static let newAccountWindow: TimeInterval = 24 * 60 * 60
 
-    /// What the last step asks your AI: a tick item in the note the flow made for it, by name.
-    static let prompt = TrialNote.prompt
+    /// What the last step asks your AI when no AI is named: what it knows about you, into the
+    /// About me note the flow made for it (BringOver).
+    static var prompt: String { TrialNote.prompt(for: nil) }
 
     /// Might this be a brand-new account? Known at sign-in, before any sync.
     static func isCandidate(created: Date?, holdsNothing: Bool, now: Date = .now) -> Bool {
@@ -371,11 +372,12 @@ enum TryIt {
         return others.isEmpty ? asks : asks + [.paste]
     }
 
-    static func page(for ai: String, prompt: String = Onboarding.prompt) -> URL? {
+    static func page(for ai: String, prompt: String? = nil) -> URL? {
+        let prompt = prompt ?? TrialNote.prompt(for: ai)
         switch ai {
-        case "ChatGPT": WebConnectPlan.prefilled("https://chatgpt.com/", prompt)
-        case "Claude": WebConnectPlan.prefilled("https://claude.ai/new", prompt)
-        default: nil
+        case "ChatGPT": return WebConnectPlan.prefilled("https://chatgpt.com/", prompt)
+        case "Claude": return WebConnectPlan.prefilled("https://claude.ai/new", prompt)
+        default: return nil
         }
     }
 
@@ -463,15 +465,41 @@ extension Notification.Name {
     static let paneImportNotes = Notification.Name("pane.importNotes")
 }
 
-/// The note the Try it step has an AI write in. It has a title no imported note will have (an
-/// imported "To-do" is somebody's real list), it is made by the flow and remembered by its id on
-/// this device, and it goes again, for good, if the flow ends with nothing written in it.
+/// Keep what your AI already knows (persona council round 1, the AI chat user: "the first thing
+/// onboarding asks my AI to do is a toy", Add "Call mom" as a to-do). The first-run AI step and
+/// File › Import offer to bring it over: the AI opens with a prompt to save what it remembers
+/// about you in a note called About me, which every AI reads first (the MCP server's
+/// instructions), and each plan or list you're working on as a note of its own.
+enum BringOver {
+    /// The note it fills, read first by every AI.
+    static let noteTitle = "About me"
+
+    /// "Bring over what ChatGPT knows about you".
+    static func title(_ ai: String?) -> String { "Bring over what \(ai ?? "your AI") knows about you" }
+
+    static let line = "It already knows a lot about you. It saves that in notes you can see and change: About me, and a note for each plan."
+
+    /// The tile in File › Import.
+    static let importTile = "ChatGPT or Claude"
+
+    /// What the AI is asked. It names Pinto Notes, so it reaches for the connection, and the note
+    /// by its exact title; the plans go in a folder of their own, by the AI's name.
+    static func prompt(_ ai: String?) -> String {
+        let folder = ai.map { "From \($0)" } ?? "From my AI"
+        return "In Pinto Notes, save what you remember about me. Put what lasts (who I am, my work, the people in my life, what I like and how I like answers) in my note called About me. Then make a note for each plan or list I\u{2019}m working on, in a folder called \(folder), with a checklist for what\u{2019}s left to do."
+    }
+}
+
+/// The note the first-run AI step has an AI write in: About me (BringOver). It is made by the
+/// flow and remembered by its id on this device, and it goes again, for good, if the flow ends
+/// with nothing written in it. An About me the account already has is used, never removed.
 enum TrialNote {
-    static let title = "My first AI note"
-    /// As the flow makes it: the title and one item already ticked, so the AI's arrives as a
-    /// tick item under it.
-    static let body = "My first AI note\n\n- [x] Connect my AI\n"
-    static let prompt = "Add \"Call mom\" as a to-do in my note called My first AI note"
+    static let title = BringOver.noteTitle
+    /// As the flow makes it: the title alone, for the AI to fill in.
+    static let body = "About me\n"
+    static func prompt(for ai: String?) -> String { BringOver.prompt(ai) }
+    /// What an AI might write in it, for pictures and demos.
+    static let sample = "- Nurse in Leeds, on nights this month\n- Training for a 10k in May\n- Likes short answers, no lists\n"
 
     static func key(_ account: UUID) -> String { "onboarding.trialNote.\(account.uuidString.lowercased())" }
 
@@ -484,6 +512,16 @@ enum TrialNote {
 extension ModelContext {
     private func live(_ note: Note) -> Bool { note.deletedAt == nil && note.trashedAt == nil }
 
+    /// The account's About me note (BringOver), unlocked and not deleted; made in Notes if there
+    /// isn't one, for the AI to fill in.
+    @MainActor
+    func aboutMeNote() -> Note {
+        let notes = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? []
+        if let there = notes.first(where: { !$0.isLocked && $0.title == BringOver.noteTitle }) { return there }
+        let home = allFolders().first { $0.name == "Notes" && $0.parent == nil }
+        return createNote(in: home.map { .folder($0.id) } ?? .all, body: TrialNote.body)
+    }
+
     /// The trial note for the Try it step: the one this device's flow made if it is still there,
     /// else a note of that exact title the account already has (a replay on another device:
     /// shown and watched, never removed by this device), else a new one, remembered by its id.
@@ -492,7 +530,7 @@ extension ModelContext {
     func trialNote(account: UUID, defaults: UserDefaults = .standard) -> Note? {
         if let id = defaults.string(forKey: TrialNote.key(account)).flatMap(UUID.init(uuidString:)), let mine = note(id), live(mine) { return mine }
         let notes = (try? fetch(FetchDescriptor<Note>())) ?? []
-        if let there = notes.first(where: { live($0) && $0.title == TrialNote.title }) { return there }
+        if let there = notes.first(where: { live($0) && !$0.isLocked && $0.title == TrialNote.title }) { return there }
         let home = allFolders().first { $0.name == "Notes" && $0.parent == nil }
         let made = createNote(in: home.map { .folder($0.id) } ?? .all, body: TrialNote.body)
         defaults.set(made.id.uuidString, forKey: TrialNote.key(account))

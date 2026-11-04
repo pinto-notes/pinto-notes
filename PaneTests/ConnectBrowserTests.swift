@@ -67,6 +67,9 @@ extension FunnelTests {
             #expect(BrowserConnect.sharedLead(.claude) == "Shared with Anthropic.")
             #expect(BrowserConnect.shared(.chatgpt) == "The notes ChatGPT opens, with their text and files, are sent to OpenAI and handled under OpenAI\u{2019}s privacy policy. Nothing is shared until you choose Allow.")
             #expect(BrowserConnect.shared(.claude) == "The notes Claude opens, with their text and files, are sent to Anthropic and handled under Anthropic\u{2019}s privacy policy. Nothing is shared until you choose Allow.")
+            // Connect here counts as the Allow, so it says the scope as the Allow sheet and the web page do.
+            #expect(BrowserConnect.scope == "It can read, create and edit your notes, except locked notes, until you disconnect it.")
+            #expect(BrowserConnect.scope == ConsentSheet.scopeLine)
             #expect(BrowserConnect.button(.chatgpt, listing: nil) == "Open ChatGPT")
             #expect(BrowserConnect.button(.chatgpt, listing: ChatGPTPlugin.listed) == "Open Pinto Notes in ChatGPT")
             #expect(BrowserConnect.button(.claude) == "Open Claude")

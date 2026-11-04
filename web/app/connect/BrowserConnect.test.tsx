@@ -21,7 +21,7 @@ describe("the consent's words", () => {
     const gpt = consentWords({ verified_ai: "ChatGPT", redirect_host: "chatgpt.com", loopback: false, claimed_name: null, client_name: "ChatGPT" });
     expect(gpt.sharedLead).toBe("Shared with OpenAI.");
     expect(gpt.sent).toBe("The notes ChatGPT opens are sent to OpenAI, under its privacy policy.");
-    expect(gpt.lockedLead).toBe("Locked notes stay private.");
+    expect(gpt.scope).toBe("It can read, create and edit your notes, except locked notes, until you disconnect it.");
     expect(gpt.caution).toBeNull();
     const claude = consentWords({ verified_ai: "Claude", redirect_host: "claude.ai", loopback: false, claimed_name: null, client_name: "Claude" });
     expect(claude.sharedLead).toBe("Shared with Anthropic.");
@@ -38,6 +38,7 @@ describe("the consent's words", () => {
     expect(w.caution?.lead).toBe("Pinto doesn’t know this app.");
     expect(w.caution?.detail).toContain("It calls itself Claude.");
     expect(w.sharedLead).toBe("Shared with claude.example.");
+    expect(w.scope).toBe("It can read, create and edit your notes, except locked notes, until you disconnect it.");
   });
 
   it("reads whether the page may answer; anything unknown goes to the app", () => {
@@ -172,7 +173,10 @@ describe("connecting on the page alone", () => {
     // What, who by company, and that it asks first: all on screen before Allow.
     const text = container.textContent!;
     expect(text).toContain("Shared with OpenAI. The notes ChatGPT opens are sent to OpenAI, under its privacy policy.");
-    expect(text).toContain("Locked notes stay private.");
+    // What it can do and until when, the same words as the app's Allow, above who gets the notes.
+    expect(text).toContain("It can read, create and edit your notes, except locked notes, until you disconnect it.");
+    expect(text.indexOf("except locked notes")).toBeLessThan(text.indexOf("Shared with OpenAI."));
+    expect(text).not.toContain("Locked notes stay private.");
     // No access choice: connecting is read and edit, with one Allow.
     expect(text).not.toContain("Read only");
     expect(container.querySelector("[role=radiogroup], [role=radio]")).toBeNull();

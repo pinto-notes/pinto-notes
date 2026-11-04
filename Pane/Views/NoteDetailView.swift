@@ -25,6 +25,12 @@ struct NoteDetailView: View {
     @State private var choosingAttachment = false
     /// "ChatGPT changed 5 lines · Undo", while an AI's edit that just landed is on show.
     @State private var receipt: AIEdit.Receipt?
+    /// Reviewing the AI's edit part by part, in place of the receipt (AIReviewCard).
+    @State private var review: AIReview?
+    /// Ask an AI about this note: the AI picked in the toolbar or the ••• menu, while its popover shows.
+    @State private var asking: AskAI.Target?
+    /// "Kept 2, undid 1", for a moment after a review.
+    @State private var reviewResult: String?
     /// The version that didn't open, for Undo on "Reverted to the last working version".
     @State private var revertedFrom: NotePageStore.Page?
     /// A text field in the note's app has focus: no receipt is drawn over it.
@@ -195,6 +201,7 @@ struct NoteDetailView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) { if !showingPage { phoneTips } }
             #endif
             .overlay(alignment: .bottom) { aiReceipt }
+            .overlay(alignment: .bottom) { reviewDone }
             .overlay(alignment: .bottom) { undoProblem }
             .overlay(alignment: .bottom) { editorNotice }
             .overlay(alignment: .bottom) { keyCard }
@@ -374,7 +381,17 @@ struct NoteDetailView: View {
 
     @ViewBuilder
     private var aiReceipt: some View {
-        if let receipt {
+        if review != nil {
+            AIReviewCard(review: Binding(get: { review ?? AIReview(by: "", previous: "", after: "") }, set: { review = $0 }),
+                         undo: reviewUndo, undoAll: reviewUndoAll, done: finishReview,
+                         reveal: { id in if let at = review?.location(of: id, in: note.body) { controller.reveal(at) } })
+                #if os(macOS)
+                .padding(.bottom, 20)
+                #else
+                .padding(.bottom, 64)
+                #endif
+                .transition(AIReceipt.transition(reduceMotion: reduceMotion))
+        } else if let receipt {
             #if os(iOS)
             // Over a note's app it sits in the navigation bar instead (see toolbar): an app's own
             // tab bar, sheets and the keyboard live at the bottom, its title at the top. An AI's
@@ -384,7 +401,8 @@ struct NoteDetailView: View {
             let inBar = false
             #endif
             if !inBar {
-                AIReceipt(receipt: receipt, seeAll: AIChangesCenter.shared.store == nil ? nil : { AIChangesCenter.shared.show(ai: receipt.by) }) { undo(receipt) }
+                AIReceipt(receipt: receipt, seeAll: AIChangesCenter.shared.store == nil ? nil : { AIChangesCenter.shared.show(ai: receipt.by) },
+                          review: collab == nil && AIReceipt.reviews(receipt) ? { startReview(receipt) } : nil) { undo(receipt) }
                 #if os(macOS)
                 .padding(.bottom, 20)
                 #else
@@ -393,6 +411,68 @@ struct NoteDetailView: View {
                 .transition(AIReceipt.transition(reduceMotion: reduceMotion))
             }
         }
+    }
+
+    /// "Kept 2, undid 1" where the review was, for a few seconds.
+    @ViewBuilder
+    private var reviewDone: some View {
+        if let text = reviewResult {
+            Toast(text: text)
+                .padding(.bottom, 20)
+                .transition(AIReceipt.transition(reduceMotion: reduceMotion))
+                .accessibilityIdentifier("review.result")
+                .task(id: text) {
+                    AccessibilityNotification.Announcement(text).post()
+                    try? await Task.sleep(for: .seconds(3))
+                    withAnimation(.easeIn(duration: 0.2)) { reviewResult = nil }
+                }
+        }
+    }
+
+    // MARK: Reviewing an AI's edit
+
+    private func startReview(_ r: AIEdit.Receipt) {
+        guard let rv = AIReview(r) else { return }
+        reviewResult = nil
+        withAnimation(.spring(duration: 0.35, bounce: 0.15)) { review = rv }
+    }
+
+    /// Undoes one part in the note: only that part goes back; your typing stays. A part you've
+    /// changed since is refused, and the card says why.
+    private func reviewUndo(_ id: Int) {
+        guard var rv = review else { return }
+        let changed = rv.undo(id, on: note)
+        review = rv
+        if changed { retint(rv) }
+        if rv.isFinished { finishReview() }
+    }
+
+    private func reviewUndoAll() {
+        guard var rv = review else { return }
+        let refused = rv.undoAll(on: note)
+        review = rv
+        if refused == 0 { finishReview() } else { retint(rv) }
+    }
+
+    /// The editor takes the new text as an outside change, which clears the tint: the parts still
+    /// there get it back, when nothing you typed is in the way.
+    private func retint(_ rv: AIReview) {
+        guard AIReview.lines(note.body) == rv.expected else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.15))
+            if review != nil { controller.tintChanges(from: rv.previous, untilCleared: true) }
+        }
+    }
+
+    /// Done, Esc, or the last part decided: what's left is kept, and the count shows for a moment.
+    private func finishReview() {
+        guard let rv = review else { return }
+        withAnimation(.smooth(duration: 0.25)) {
+            review = nil
+            receipt = nil
+            reviewResult = rv.result
+        }
+        controller.clearTint()
     }
 
     /// An AI's edit you haven't seen: tint what it changed and offer Undo. Opening the note counts
@@ -713,6 +793,7 @@ struct NoteDetailView: View {
         refreshLinks()
         links.findMentions(note, context: context)
         receipt = nil
+        review = nil
         shownPage = NoteApps.enabled ? NotePageStore.shared[note.id] : nil
         // A note with an app is the app: what its text held goes into the app's data once.
         if shownPage != nil { NotePageActions.importIfNeeded(note) }
@@ -793,6 +874,8 @@ struct NoteDetailView: View {
             Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
         case .history:
             Button(NoteMoreMenu.historyTitle, systemImage: "clock.arrow.circlepath") { showHistory = true }
+        case .askAI:
+            AskAIMenuItems(subject: AskAI.subject(note), targets: askTargets) { asking = $0 }
         case .recover:
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
                 .accessibilityIdentifier("editor.recover")
@@ -941,6 +1024,7 @@ struct NoteDetailView: View {
             people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
             // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
             sharing: AnyView(Group {
+                if !askTargets.isEmpty { askButton }
                 if !trashed { shareMenu }
                 moreMenu
             }))
@@ -1168,6 +1252,8 @@ struct NoteDetailView: View {
         }
         // Share beside More in one floating capsule, as in Notes; Share is no longer in More.
         ToolbarItemGroup(placement: .primaryAction) {
+            // Ask an AI about this note, beside Share (round 2 of the councils), when one is connected.
+            if !askTargets.isEmpty { askButton.tint(.primary) }
             // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
             if !note.isLocked, !trashed {
                 Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
@@ -1278,10 +1364,27 @@ struct NoteDetailView: View {
     }
     #endif
 
+    /// The AIs this note can be asked about with: none for a locked or deleted note (an AI can't
+    /// read it) or one with no title to find it by.
+    private var askTargets: [AskAI.Target] {
+        guard !trashed, AskAI.asks(about: note) else { return [] }
+        return ConnectedAIs.shared.targets
+    }
+
+    /// Ask an AI about this note: its popover opens from here, from the ••• menu too.
+    private var askButton: some View {
+        AskAINoteButton(targets: askTargets) { asking = $0 }
+            #if os(macOS)
+            .tint(.primary)
+            #endif
+            .askAIPopover($asking, subject: AskAI.subject(note))
+    }
+
     private var moreMenu: some View {
         Menu {
             let groups = NoteMoreMenu.groups(locked: note.isLocked, vaultOpen: vault.isUnlocked, trashed: note.trashedAt != nil,
-                                             hasApp: notePage != nil, appsEnabled: NoteApps.enabled, inOwnWindow: inOwnWindow)
+                                             hasApp: notePage != nil, appsEnabled: NoteApps.enabled, inOwnWindow: inOwnWindow,
+                                             asks: !askTargets.isEmpty)
             ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
                 if index > 0 { Divider() }
                 ForEach(group, id: \.self) { moreItem($0) }
@@ -1339,13 +1442,15 @@ enum NoteMoreMenu {
         #endif
     }
 
-    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, share, history, recover, delete }
+    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, share, history, askAI, recover, delete }
 
     /// In groups split by lines, as Apple Notes groups a note's menu (Emil, 2 November 2026): Open
     /// Note in New Window on the Mac (not in the note's own window); what the note is (pinned,
     /// locked, an app); where it goes and what it was; then Delete on its own.
+    /// `asks`: an AI is connected and can read this note, so Ask an AI About This Note is offered,
+    /// in a group of its own above Delete (round 2 of the councils).
     static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool,
-                       phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild, inOwnWindow: Bool = false) -> [[Item]] {
+                       phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild, inOwnWindow: Bool = false, asks: Bool = false) -> [[Item]] {
         // A note in Recently Deleted can only come back or go for good, like Notes.
         if trashed { return [[.recover, .delete]] }
         var out: [[Item]] = []
@@ -1363,7 +1468,8 @@ enum NoteMoreMenu {
         var rest: [Item] = [.moveTo]
         // Sharing has its own button beside More, on iPhone and iPad as on the Mac.
         if !locked { rest.append(.history) }
-        return out + [about, rest, [.delete]]
+        let ask: [[Item]] = asks && !locked ? [[.askAI]] : []
+        return out + [about, rest] + ask + [[.delete]]
     }
 }
 

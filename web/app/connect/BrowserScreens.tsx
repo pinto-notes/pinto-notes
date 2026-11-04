@@ -131,13 +131,13 @@ export function ConsentScreen({ words, onAllow, onDeny, busy, failure, email, on
         <p className={styles.warn} data-testid="connect-unknown"><b>{words.caution.lead}</b> {words.caution.detail}</p>
       )}
       <ul className={styles.facts}>
+        <li data-testid="connect-scope">
+          <EditGlyph />
+          <p><b>{words.scope}</b></p>
+        </li>
         <li data-testid="connect-shared">
           <ShareGlyph />
           <p><b>{words.sharedLead}</b> {words.sent}</p>
-        </li>
-        <li data-testid="connect-locked">
-          <LockGlyph />
-          <p><b>{words.lockedLead}</b>{words.lockedDetail && ` ${words.lockedDetail}`}</p>
         </li>
       </ul>
       <ErrorLine text={failure} />
@@ -223,11 +223,12 @@ function ShareGlyph() {
   );
 }
 
-function LockGlyph() {
+/// A page with a pencil: it reads and edits your notes.
+function EditGlyph() {
   return (
     <svg className={styles.factGlyph} viewBox="0 0 20 20" width={18} height={18} aria-hidden="true" focusable="false">
-      <rect x="4" y="9" width="12" height="8.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M7 9V6.5a3 3 0 0 1 6 0V9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M9 3.5H5A1.5 1.5 0 0 0 3.5 5v10A1.5 1.5 0 0 0 5 16.5h10a1.5 1.5 0 0 0 1.5-1.5v-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M15 2.8l2.2 2.2-7.4 7.4-3 .8.8-3z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   );
 }

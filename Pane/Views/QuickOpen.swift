@@ -35,20 +35,18 @@ enum QuickOpen {
     }
 
     /// The line of a note that holds the text: before it, the text as written there, after it.
-    struct Snippet: Equatable, Sendable {
-        let before: String
-        let match: String
-        let after: String
-        var text: String { before + match + after }
-    }
+    typealias Snippet = SearchLines.Line
 
-    /// A note found by its text (not its title), with the line that holds it.
+    /// A note found by its text (not its title), with the lines that hold it: the first, up to two
+    /// more, and how many more past those (round 1 of the councils: every match, not one).
     struct TextHit: Identifiable, Equatable, Sendable {
         let id: UUID
         let title: String
         let folder: String?
         let date: Date
         let snippet: Snippet
+        var others: [Snippet] = []
+        var more = 0
     }
 
     enum Row: Identifiable, Equatable, Sendable {
@@ -177,29 +175,7 @@ enum QuickOpen {
     /// The line of `body` that holds `query` (case and accents aside), its markup taken out, cut
     /// to show the text near its start. Nil when no line holds it.
     static func snippet(in body: String, query: String, lead: Int = 28, length: Int = 120) -> Snippet? {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return nil }
-        for raw in body.split(separator: "\n", omittingEmptySubsequences: true) {
-            guard raw.range(of: q, options: options) != nil else { continue }
-            // The line as the list shows text, else as written (the text spans some markup).
-            for candidate in [WikiLinks.plain(NoteText.stripMarkup(String(raw))), String(raw)] {
-                let line = candidate.trimmingCharacters(in: .whitespaces)
-                guard let r = line.range(of: q, options: options) else { continue }
-                var before = line[..<r.lowerBound]
-                var cut = false
-                if before.count > lead {
-                    before = before.suffix(lead)
-                    // Start at a word, not inside one.
-                    if let space = before.firstIndex(where: \.isWhitespace), before.distance(from: before.startIndex, to: space) < lead / 2 {
-                        before = before[before.index(after: space)...]
-                    }
-                    cut = true
-                }
-                let after = line[r.upperBound...].prefix(max(length - before.count - line[r].count, 0))
-                return Snippet(before: (cut ? "\u{2026}" : "") + before, match: String(line[r]), after: String(after))
-            }
-        }
-        return nil
+        SearchLines.find(in: body, query: query, limit: 1, lead: lead, length: length)?.lines.first
     }
 
     /// The notes whose text holds `query`, newest first, each with its line: read off the main
@@ -224,8 +200,9 @@ enum QuickOpen {
                 if out.count == limit || Task.isCancelled { break }
                 guard !n.isLocked else { continue }
                 let title = n.title
-                guard score(title, q) == nil, let snippet = snippet(in: n.body, query: q) else { continue }
-                out.append(TextHit(id: n.id, title: title, folder: n.folder?.name, date: n.updatedAt, snippet: snippet))
+                guard score(title, q) == nil, let found = SearchLines.find(in: n.body, query: q), let first = found.lines.first else { continue }
+                out.append(TextHit(id: n.id, title: title, folder: n.folder?.name, date: n.updatedAt, snippet: first,
+                                   others: Array(found.lines.dropFirst()), more: found.more))
             }
             return out
         }.value
@@ -319,6 +296,8 @@ struct QuickOpenPanel: View {
         static let row: CGFloat = 36
         /// A note found by its text: its title, and the line under it.
         static let textRow: CGFloat = 48
+        /// Each further line under it: another line that holds the text, or "4 more in this note".
+        static let textLine: CGFloat = 18
         static let header: CGFloat = 26
         static let maxList: CGFloat = 392
     }
@@ -437,8 +416,13 @@ struct QuickOpenPanel: View {
 
     private func height(_ rows: [QuickOpen.Row]) -> CGFloat {
         let headers = rows.indices.filter { header(before: $0, in: rows) != nil }.count
-        let texts = rows.filter { if case .text = $0 { true } else { false } }.count
-        return CGFloat(rows.count - texts) * Metrics.row + CGFloat(texts) * Metrics.textRow + CGFloat(headers) * (Metrics.header + 2) + 12
+        return rows.reduce(0) { $0 + Self.height(of: $1) } + CGFloat(headers) * (Metrics.header + 2) + 12
+    }
+
+    /// A row's height: a note found by its text grows a line for each further line it shows.
+    static func height(of row: QuickOpen.Row) -> CGFloat {
+        guard case .text(let t) = row else { return Metrics.row }
+        return Metrics.textRow + CGFloat(t.others.count + (t.more > 0 ? 1 : 0)) * Metrics.textLine
     }
 
     @ViewBuilder private func rowView(_ row: QuickOpen.Row, on: Bool) -> some View {
@@ -463,6 +447,13 @@ struct QuickOpenPanel: View {
                         }
                     }
                     snippetText(t.snippet)
+                    ForEach(Array(t.others.enumerated()), id: \.offset) { _, line in snippetText(line) }
+                    if t.more > 0 {
+                        Text(SearchLines.moreLine(t.more))
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.muted)
+                            .accessibilityIdentifier("quickOpen.more")
+                    }
                 }
                 Spacer(minLength: 8)
                 Text(DateBucket.rowDate(t.date)).foregroundStyle(Color.muted).monospacedDigit()
@@ -489,7 +480,7 @@ struct QuickOpenPanel: View {
         }
         .font(.system(size: 14))
         .padding(.horizontal, 10)
-        .frame(height: { if case .text = row { Metrics.textRow } else { Metrics.row } }())
+        .frame(height: Self.height(of: row))
         .background(on ? Color.amberSoft : .clear, in: shape)
         .contentShape(shape)
     }

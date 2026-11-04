@@ -228,6 +228,29 @@ enum SetupCards {
     ]
 
     static func galleryTitle(_ ai: AI) -> String { "What should \(ai.name) make first?" }
+
+    /// What an AI's name is in the Bring over prompt's folder ("From ChatGPT"); none for another AI.
+    static func bringOverName(_ ai: AI) -> String? { ai == .other ? nil : ai.name }
+
+    /// File › Import's AI tile: what its button says for what's connected. ChatGPT or Claude
+    /// open with the prompt in them; another AI gets it to copy; none, Connect an AI first.
+    enum BringOverWay: Equatable {
+        case ask(String), copy(String), connect
+
+        var button: String {
+            switch self {
+            case .ask(let ai): "Ask \(ai)"
+            case .copy: copyPrompt
+            case .connect: "Connect ChatGPT or Claude\u{2026}"
+            }
+        }
+    }
+
+    static func bringOverWay(connected: [AskAI.Target]) -> BringOverWay {
+        if let t = connected.first(where: \.opensPage) { return .ask(t.ai) }
+        if let t = connected.first { return .copy(t.ai) }
+        return .connect
+    }
     static let allTemplates = "All templates"
     static func makingTitle(_ pick: Pick) -> String { "Making your \(pick.title)." }
     /// Another AI: no link opens it, so the ask is shown to copy.
@@ -480,6 +503,52 @@ struct ConnectedPanel: View {
     }
 }
 
+/// Bring over what your AI knows (BringOver), as the gallery's first row: the AI's mark, the
+/// offer and what it does, the whole row one button. It lifts a little under the pointer.
+struct BringOverRow: View {
+    let ai: SetupCards.AI
+    let action: () -> Void
+    @State private var hover = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        Button(action: action) {
+            HStack(spacing: 14) {
+                AITile(ai: ai.mark, size: 40)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(BringOver.title(SetupCards.bringOverName(ai)))
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.ink)
+                    Text(BringOver.line)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .multilineTextAlignment(.leading)
+                Spacer(minLength: 12)
+                Image(systemName: ai.asks ? "arrow.up.right" : "doc.on.doc")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.muted)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+            .background(SetupCards.soft, in: shape)
+            .contentShape(shape)
+            .shadow(color: .black.opacity(hover ? 0.16 : 0), radius: 10, y: 6)
+            .offset(y: hover && !reduceMotion ? -2 : 0)
+        }
+        .buttonStyle(.plain)
+        .onHover { h in withAnimation(.smooth(duration: 0.2)) { hover = h } }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(BringOver.title(SetupCards.bringOverName(ai)))
+        .accessibilityHint(BringOver.line)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("setup.bringOver")
+    }
+}
+
 /// One template on the gallery card: its cover, its name and its line on the cover's own ground,
 /// like the website's cards. It lifts a little under the pointer.
 struct SetupTemplateCard: View {
@@ -614,6 +683,10 @@ struct SetupCardsFlow: View {
         var more = false
         var brought = 0
         var pick: SetupCards.Pick?
+        /// The import card with the AI tile picked (File › Import).
+        var bringAI = false
+        /// The prompt card's words, when it's not a template's.
+        var prompt: String?
     }
 
     /// Nil when the flow shows one card on its own (`only`).
@@ -642,7 +715,9 @@ struct SetupCardsFlow: View {
     @State private var moveOnAfterImport = false
     @State private var making: SetupCards.Pick?
     /// Another AI's template: its note is added, and the ask waits to be copied.
-    @State private var prompting: (pick: SetupCards.Pick, landing: Onboarding.Landing)?
+    @State private var prompting: (text: String, landing: Onboarding.Landing)?
+    /// File › Import: the AI tile is picked, in place of a source.
+    @State private var bringAI = false
     @State private var copied = false
     @State private var allAIs = false
     /// The guide open over the card: Grok's, or Other's page (the address and the steps).
@@ -680,6 +755,10 @@ struct SetupCardsFlow: View {
     }
 
     private var shownSource: ImportOrigin { preview?.source ?? source }
+    private var shownBringAI: Bool { preview?.bringAI ?? bringAI }
+    private var bringOverWay: SetupCards.BringOverWay {
+        preview != nil ? .ask("ChatGPT") : SetupCards.bringOverWay(connected: ConnectedAIs.shared.targets)
+    }
     private var shownAI: SetupCards.AI { preview?.ai ?? ai }
     private var shownBrought: Int { preview?.brought ?? brought }
 
@@ -736,10 +815,30 @@ struct SetupCardsFlow: View {
             title(SetupCards.bringTitle)
             LazyVGrid(columns: three, spacing: 8) {
                 ForEach(SetupCards.sources) { origin in
-                    SetupTile(title: SetupCards.tileName(origin), on: shownSource == origin, id: "setup.source.\(origin.id)", action: { source = origin }) {
+                    SetupTile(title: SetupCards.tileName(origin), on: !shownBringAI && shownSource == origin, id: "setup.source.\(origin.id)",
+                              action: { source = origin; bringAI = false }) {
                         ImportSourceIcon(origin: origin, size: 30)
                     }
                 }
+                // File › Import: what ChatGPT or Claude already knows about you (BringOver). Not on
+                // the first run's import: its AI step, after connecting, offers it.
+                if only != nil || preview?.bringAI == true {
+                    SetupTile(title: BringOver.importTile, on: shownBringAI, id: "setup.source.ai", action: { bringAI = true }) {
+                        HStack(spacing: -6) {
+                            AITile(ai: "ChatGPT", size: 26)
+                            AITile(ai: "Claude", size: 26)
+                        }
+                        .frame(height: 30)
+                    }
+                }
+            }
+            if shownBringAI {
+                Text(BringOver.line)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.muted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("setup.bringOver.line")
             }
             if shownBrought > 0 {
                 Label(SetupCards.brought(shownBrought), systemImage: "checkmark.circle.fill")
@@ -751,7 +850,9 @@ struct SetupCardsFlow: View {
                     .keyboardShortcut(only == nil ? nil : .cancelAction)
                     .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.skip")
-                Button(SetupCards.importTitle(shownSource)) { startImport() }
+                Button(shownBringAI ? bringOverWay.button : SetupCards.importTitle(shownSource)) {
+                    if shownBringAI { bringOverFromImport() } else { startImport() }
+                }
                     .buttonStyle(.amberProminent(.regular, wide: true))
                     .keyboardShortcut(.defaultAction)
                     .accessibilityIdentifier("setup.import")
@@ -1054,6 +1155,8 @@ struct SetupCardsFlow: View {
     private var gallery: some View {
         VStack(spacing: 18) {
             title(SetupCards.galleryTitle(shownAI))
+            // First: what it already knows about you (BringOver), in place of a toy first try.
+            BringOverRow(ai: shownAI) { bringOver() }
             HStack(spacing: 12) {
                 ForEach(SetupCards.picks) { pick in
                     SetupTemplateCard(pick: pick) { make(pick) }
@@ -1090,10 +1193,10 @@ struct SetupCardsFlow: View {
     }
 
     private var promptCard: some View {
-        let pick = preview?.pick ?? prompting?.pick ?? SetupCards.picks[0]
+        let text = preview?.prompt ?? preview?.pick.map(SetupCards.prompt) ?? prompting?.text ?? SetupCards.prompt(SetupCards.picks[0])
         return VStack(spacing: 14) {
             title(SetupCards.promptTitle)
-            Text(SetupCards.prompt(pick))
+            Text(text)
                 .font(.system(size: 13))
                 .foregroundStyle(Color.ink)
                 .textSelection(.enabled)
@@ -1102,7 +1205,7 @@ struct SetupCardsFlow: View {
                 .padding(12)
                 .background(SetupCards.soft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                 .accessibilityIdentifier("setup.prompt")
-            Button { copyPrompt(pick) } label: {
+            Button { copyPrompt() } label: {
                 Label(copied ? SetupCards.copied : SetupCards.copyPrompt, systemImage: copied ? "checkmark" : "doc.on.doc")
             }
             .buttonStyle(.amberProminent(.regular, wide: true))
@@ -1206,15 +1309,53 @@ struct SetupCardsFlow: View {
                 openURL(page)
                 finish(landing)
             } else {
-                withAnimation { prompting = (pick, landing) }
+                withAnimation { prompting = (SetupCards.prompt(pick), landing) }
             }
         }
     }
 
+    /// Bring over what the AI knows (BringOver): the About me note is there for it to fill, the
+    /// AI opens with the ask in it (or it waits to be copied), and the notes open on About me.
+    private func bringOver() {
+        guard preview == nil else { return }
+        let note = context.aboutMeNote()
+        SyncSignal.changed()
+        let prompt = BringOver.prompt(SetupCards.bringOverName(ai))
+        if ai.asks, let page = TryIt.page(for: ai.name, prompt: prompt) {
+            ConnectClipboard.set(prompt)
+            openURL(page)
+            finish(.note(note.id))
+        } else {
+            withAnimation { prompting = (prompt, .note(note.id)) }
+        }
+    }
+
+    /// File › Import's AI tile: the same, with the AI that's connected; with none, Connect an AI.
+    private func bringOverFromImport() {
+        guard preview == nil else { return }
+        switch bringOverWay {
+        case .connect:
+            // The popup swaps to Connect an AI (one sheet holds both).
+            NotificationCenter.default.post(name: .paneConnectAI, object: nil)
+        case .ask(let name):
+            let note = context.aboutMeNote()
+            SyncSignal.changed()
+            let prompt = BringOver.prompt(name)
+            ConnectClipboard.set(prompt)
+            if let page = TryIt.page(for: name, prompt: prompt) { openURL(page) }
+            finish(.note(note.id))
+        case .copy(let name):
+            let note = context.aboutMeNote()
+            SyncSignal.changed()
+            withAnimation { prompting = (BringOver.prompt(name), .note(note.id)) }
+        }
+    }
+
     /// Copied, said on the button a moment, then the notes open on the template's note.
-    private func copyPrompt(_ pick: SetupCards.Pick) {
-        guard preview == nil, let landing = prompting?.landing else { return }
-        ConnectClipboard.set(SetupCards.prompt(pick))
+    private func copyPrompt() {
+        guard preview == nil, let prompting else { return }
+        let landing = prompting.landing
+        ConnectClipboard.set(prompting.text)
         withAnimation(.snappy(duration: 0.2)) { copied = true }
         Task {
             try? await Task.sleep(for: .seconds(0.9))
