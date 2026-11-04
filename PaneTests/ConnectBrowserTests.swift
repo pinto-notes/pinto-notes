@@ -10,6 +10,18 @@ extension FunnelTests {
     @MainActor @Suite struct ConnectBrowserTests {
         typealias Guide = ConnectAISection.Guide
 
+        /// iPhone: Connected offers "Bring over what ChatGPT knows about you", opening ChatGPT
+        /// with the About me prompt in it. The Mac has it in its first-run cards instead.
+        @Test func connectedOnIPhoneBringsOverWhatTheAIKnows() throws {
+            #expect(BrowserConnect.bringsOver(compact: true))
+            #expect(!BrowserConnect.bringsOver(compact: false))
+            let page = try #require(BrowserConnect.bringOverPage(.chatgpt))
+            #expect(page.host() == "chatgpt.com")
+            let q = URLComponents(url: page, resolvingAgainstBaseURL: false)?.queryItems?.first?.value ?? ""
+            #expect(q == BringOver.prompt("ChatGPT") && q.contains("About me") && q.contains("From ChatGPT"))
+            #expect(BringOver.title("ChatGPT") == "Bring over what ChatGPT knows about you")
+        }
+
         // MARK: Which sheet opens
 
         @Test func theBrowserSheetOpensOnlyWhenTheServerKeepsTheKey() {
