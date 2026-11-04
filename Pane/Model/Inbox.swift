@@ -128,3 +128,43 @@ enum InboxCopy {
         return "Saved for \(note). Pinto Notes adds it the next time it opens."
     }
 }
+
+/// A note's markdown as people read it, for sending a copy and for previews: no "#", "**" or
+/// "- [ ]", checklists as ○ and ✓, bullets as •, links as their words (Emil, 4 November 2026: the
+/// share sheet showed "## Plan" and "- [ ]").
+enum ReadableText {
+    static func from(markdown: String) -> String {
+        markdown.components(separatedBy: "\n")
+            .filter { !isTableRule($0) }
+            .map(line).joined(separator: "\n")
+    }
+
+    /// A table's "| --- | :---: |" line, which says nothing to a reader.
+    static func isTableRule(_ s: String) -> Bool {
+        let t = s.trimmingCharacters(in: .whitespaces)
+        return t.contains("-") && t.contains("|") && t.allSatisfy { "-:| ".contains($0) }
+    }
+
+    static func line(_ raw: String) -> String {
+        var s = Substring(raw)
+        let indent = s.prefix { $0 == " " || $0 == "\t" }
+        s = s.dropFirst(indent.count)
+        let pad = String(repeating: "  ", count: indent.replacingOccurrences(of: "\t", with: "  ").count / 2)
+        var lead = ""
+        if let m = s.firstMatch(of: /^#{1,6}\s+/) { s = s[m.range.upperBound...] }
+        else if let m = s.firstMatch(of: /^[-*+]\s+\[( |x|X)\]\s+/) {
+            lead = m.output.1 == " " ? "\u{25CB} " : "\u{2713} "
+            s = s[m.range.upperBound...]
+        } else if let m = s.firstMatch(of: /^[-*+]\s+/) { lead = "\u{2022} "; s = s[m.range.upperBound...] }
+        else if let m = s.firstMatch(of: /^>\s?/) { s = s[m.range.upperBound...] }
+        var t = String(s)
+        t = t.replacing(/!\[([^\]]*)\]\([^)]*\)/) { $0.output.1.isEmpty ? "" : String($0.output.1) }
+        t = t.replacing(/\[\[([^\]|]+)(\|([^\]]+))?\]\]/) { String($0.output.3 ?? $0.output.1) }
+        t = t.replacing(/\[([^\]]+)\]\(([^)]+)\)/) { "\($0.output.1) (\($0.output.2))" }
+        t = t.replacing(/(\*\*|__|~~|`)/, with: "")
+        if t.hasPrefix("|") {
+            t = t.split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: "  ")
+        }
+        return pad + lead + t
+    }
+}

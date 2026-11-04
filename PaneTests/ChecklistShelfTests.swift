@@ -199,6 +199,35 @@ import Testing
         #expect(ChecklistWidgetContent.resolve(picked: nil, lists: []) == .noLists)
     }
 
+    /// Any note can be the widget's (Emil, 4 November 2026): a note without a checklist shows its
+    /// lines; one the app hasn't left yet says to open Pinto once, and is asked for.
+    @Test func theWidgetShowsAnyNote() {
+        let plan = ChecklistShelf.preview(id: UUID(), title: "Week plan", readable: "Week plan\n\nMonday gym\n\u{2022} Call mum", updatedAt: .now)
+        #expect(plan.lines == ["Monday gym", "\u{2022} Call mum"])
+        #expect(ChecklistWidgetContent.resolve(picked: plan.id, lists: [], previews: [plan]) == .note(plan))
+        let older = ChecklistShelf.Recent(id: UUID(), title: "Old ideas", updatedAt: .distantPast)
+        #expect(ChecklistWidgetContent.resolve(picked: older.id, lists: [], previews: [plan], recents: [older]) == .waiting(older.id, "Old ideas"))
+        #expect(ChecklistWidgetContent.resolve(picked: nil, lists: [], previews: [plan]) == .note(plan), "no checklist anywhere: the newest note")
+        #expect(ChecklistWidgetContent.resolve(picked: UUID(), lists: [], previews: [plan], recents: [older]) == .gone)
+    }
+
+    @Test func theAppLeavesPreviewsAndTheNotesAWidgetAskedFor() async throws {
+        ChecklistShelf.rootOverride = tmp
+        defer { ChecklistShelf.rootOverride = nil; try? FileManager.default.removeItem(at: tmp) }
+        try await withContainer { context in
+            let old = context.createNote(in: .all, body: "Old ideas\n\n## Someday\n- Learn **piano**")
+            old.updatedAt = .distantPast
+            for i in 0..<ChecklistShelf.previewLimit { _ = context.createNote(in: .all, body: "Note \(i)\n\nText \(i)") }
+            try context.save()
+            context.publishChecklistShelf()
+            #expect(!ChecklistShelf.previews().contains { $0.id == old.id }, "past the newest \(ChecklistShelf.previewLimit)")
+            ChecklistShelf.want(old.id)
+            context.publishChecklistShelf()
+            let p = try #require(ChecklistShelf.previews().first { $0.id == old.id })
+            #expect(p.lines == ["Someday", "\u{2022} Learn piano"], "read as text")
+        }
+    }
+
     @Test func smallShowsFourAndMediumSevenOpenItemsFirst() {
         let items = (0..<10).map { ChecklistLine(text: "Item \($0)", done: $0 == 2 || $0 >= 8, index: $0) }
         let list = ChecklistShelf.List(id: UUID(), title: "List", items: items, updatedAt: .now)
@@ -268,6 +297,9 @@ import Testing
         ChecklistShelf.rootOverride = tmp
         defer { ChecklistShelf.rootOverride = nil; try? FileManager.default.removeItem(at: tmp) }
         #expect(WidgetTickIntent.supportedModes == .foreground(.immediate), "it opens the app")
+        // A widget's button runs in the widget extension; without this the app stayed shut
+        // (the persona showcase recording on a simulator, 2026-11-04).
+        #expect(WidgetTickIntent.openAppWhenRun, "the widget's tap brings the app up")
         try await withContainer { context in
             let n = context.createNote(in: .all, body: "Groceries\n\n- [ ] Milk\n- [ ] Lemons")
             try context.save()
@@ -279,6 +311,12 @@ import Testing
             _ = try await WidgetTickIntent(note: n.id, item: ChecklistLine(text: "Lemons", done: true, index: 1)).perform()
             #expect(n.body.contains("- [ ] Lemons"))
         }
+    }
+
+    /// Send a Copy and the share sheet's preview show a note as people read it, not its markdown.
+    @Test func aCopyOfANoteReadsWithoutMarkdown() {
+        let md = "Lisbon\n\n## Plan\n- [ ] Tram 28\n- [x] **Book** flights\n- Time Out Market\n> Pack shoes\n| Place | Dish |\n| --- | --- |\n| Ramiro | Seafood |\nSee [[Hotel booking]] and [site](https://x.com)"
+        #expect(ReadableText.from(markdown: md) == "Lisbon\n\nPlan\n\u{25CB} Tram 28\n\u{2713} Book flights\n\u{2022} Time Out Market\nPack shoes\nPlace  Dish\nRamiro  Seafood\nSee Hotel booking and site (https://x.com)")
     }
 
     @Test func newNoteFromOutsideIsAskedOnce() async throws {

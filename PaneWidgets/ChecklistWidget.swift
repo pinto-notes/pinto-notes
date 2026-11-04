@@ -2,9 +2,10 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-/// A checklist note, as the widget's settings offer them: the ones the app left (ChecklistShelf).
+/// A note, as the widget's settings offer them: every note the app left (ChecklistShelf's recent
+/// notes), checklists first in the suggestions.
 struct ChecklistListEntity: AppEntity {
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Checklist"
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Note"
     static let defaultQuery = ChecklistListQuery()
     var id: UUID
     var title: String
@@ -14,30 +15,40 @@ struct ChecklistListEntity: AppEntity {
         id = list.id
         title = list.title
     }
+
+    init(_ note: ChecklistShelf.Recent) {
+        id = note.id
+        title = note.title.isEmpty ? "New Note" : note.title
+    }
 }
 
 struct ChecklistListQuery: EntityStringQuery {
     func entities(for identifiers: [UUID]) async throws -> [ChecklistListEntity] {
-        ChecklistShelf.lists().filter { identifiers.contains($0.id) }.map(ChecklistListEntity.init)
+        ChecklistShelf.recents().filter { identifiers.contains($0.id) }.map(ChecklistListEntity.init)
     }
 
     func entities(matching string: String) async throws -> [ChecklistListEntity] {
-        ChecklistShelf.lists().filter { $0.title.localizedCaseInsensitiveContains(string) }.prefix(50).map(ChecklistListEntity.init)
+        ChecklistShelf.search(string, in: ChecklistShelf.recents()).prefix(50).map(ChecklistListEntity.init)
     }
 
+    /// Checklists first (the widget ticks them), then the newest notes.
     func suggestedEntities() async throws -> [ChecklistListEntity] {
-        ChecklistShelf.lists().prefix(50).map(ChecklistListEntity.init)
+        let lists = ChecklistShelf.lists().prefix(20)
+        let ids = Set(lists.map(\.id))
+        let rest = ChecklistShelf.recents().filter { !ids.contains($0.id) }.prefix(40)
+        return lists.map(ChecklistListEntity.init) + rest.map(ChecklistListEntity.init)
     }
 
     func defaultResult() async -> ChecklistListEntity? {
-        ChecklistShelf.defaultList(in: ChecklistShelf.lists()).map(ChecklistListEntity.init)
+        if let l = ChecklistShelf.defaultList(in: ChecklistShelf.lists()) { return ChecklistListEntity(l) }
+        return ChecklistShelf.recents().first.map(ChecklistListEntity.init)
     }
 }
 
 /// The widget's one setting: which note.
 struct ChecklistWidgetIntent: WidgetConfigurationIntent {
-    static let title: LocalizedStringResource = "Checklist"
-    static let description = IntentDescription("Tick items in a checklist note without opening Pinto Notes.")
+    static let title: LocalizedStringResource = "Note"
+    static let description = IntentDescription("A note on your Home Screen. Tap a checklist item to tick it.")
 
     @Parameter(title: "Note") var list: ChecklistListEntity?
 }
@@ -55,7 +66,10 @@ struct ChecklistProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: ChecklistWidgetIntent, in context: Context) async -> ChecklistEntry {
-        let content = ChecklistWidgetContent.resolve(picked: configuration.list?.id, lists: ChecklistShelf.lists())
+        let content = ChecklistWidgetContent.resolve(picked: configuration.list?.id, lists: ChecklistShelf.lists(),
+                                                     previews: ChecklistShelf.previews(), recents: ChecklistShelf.recents())
+        // A note the app hasn't left yet: asked for, so it does the next time it runs.
+        if case .waiting(let id, _) = content { ChecklistShelf.want(id) }
         // The widget gallery, before the app has left any list: the sample.
         if context.isPreview, content == .noLists { return placeholder(in: context) }
         return ChecklistEntry(date: .now, content: content)
@@ -72,8 +86,8 @@ struct ChecklistWidget: Widget {
             ChecklistFamilyView(content: entry.content)
                 .containerBackground(for: .widget) { ChecklistWidgetGround() }
         }
-        .configurationDisplayName("Checklist")
-        .description("Tick items in a checklist note. Touch and hold the widget to pick the note.")
+        .configurationDisplayName("Note")
+        .description("A note on your Home Screen: tick a checklist right there, or tap to open it. Touch and hold the widget to pick the note.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

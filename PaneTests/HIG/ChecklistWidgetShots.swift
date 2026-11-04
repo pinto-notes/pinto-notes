@@ -10,6 +10,9 @@ import Testing
 /// the pictures go to $PANE_WIDGET_SHOTS:
 /// `TEST_RUNNER_PANE_WIDGET_SHOTS=/path scripts/qa-test.sh PaneTests/ChecklistWidgetShots`
 @MainActor @Suite(.serialized) struct ChecklistWidgetShots {
+    static let plan = ChecklistShelf.preview(id: UUID(), title: "Week plan",
+        readable: "Week plan\n\nMonday: gym at 7, then the dentist\nTuesday: call mum\n\u{2022} Book the car service\n\u{2022} Pick up the parcel\nFriday: dinner with Sara and Jonas", updatedAt: .now)
+
     static let small = CGSize(width: 170, height: 170)
     static let medium = CGSize(width: 364, height: 170)
     static let margin: CGFloat = 16
@@ -86,6 +89,9 @@ import Testing
             ("widget-medium-ticked", .list(ticked), Self.medium),
             ("widget-small-empty", .noLists, Self.small),
             ("widget-small-gone", .gone, Self.small),
+            ("widget-small-note", .note(Self.plan), Self.small),
+            ("widget-medium-note", .note(Self.plan), Self.medium),
+            ("widget-small-waiting", .waiting(UUID(), "Old ideas"), Self.small),
         ]
         for (name, content, size) in cases {
             for dark in [false, true] {

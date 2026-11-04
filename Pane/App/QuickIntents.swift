@@ -9,10 +9,11 @@ import Foundation
 enum QuickWords {
     static let newNote = "New Pinto note"
     static let newNoteLine = "Opens Pinto Notes on a new note, ready to type."
-    static let noLists = "No checklists yet"
-    static let noListsLine = "Add a checklist to a note in Pinto Notes, and it shows here."
-    static let listGone = "This note has no checklist now"
-    static let listGoneLine = "Touch and hold the widget to pick another note."
+    static let noLists = "No notes yet"
+    static let noListsLine = "Open Pinto Notes, and your notes show here."
+    static let listGone = "This note isn\u{2019}t here now"
+    static let listGoneLine = "It\u{2019}s locked or deleted. Touch and hold the widget to pick another note."
+    static let noteWaiting = "Open Pinto Notes once to show this note here."
 
     static func left(_ n: Int) -> String { n == 0 ? "All done" : n == 1 ? "1 left" : "\(n) left" }
     static func added(_ item: String, to note: String) -> String { "Added \u{201C}\(item)\u{201D} to \(note)." }

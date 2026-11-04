@@ -152,25 +152,50 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     /// How far a changed line's band starts before the text: the 3 pt bar, then 9 pt clear.
     static let changeLead: CGFloat = 12
     static let changeBar: CGFloat = 3
+    /// The highlight's padding around the words, and its corners.
+    static let changePad = CGSize(width: 4, height: 1)
+    static let changeRadius: CGFloat = 5
+
+    /// One rounded run per laid-out line, around its words (trailing spaces and the newline left
+    /// out), in the drawing context's coordinates.
+    private func changeRuns(at point: CGPoint) -> [CGRect] {
+        guard let p = textElement as? NSTextParagraph else { return [] }
+        let whole = p.attributedString
+        // The list marker ("- [ ] ") is drawn as the circle or bullet: the words start after it.
+        let first = ListPrefix(line: whole.string).map(\.length) ?? 0
+        let font = (whole.length > 0 ? whole.attribute(.font, at: max(0, min(first, whole.length - 1)), effectiveRange: nil) as? PFont : nil)
+            ?? PFont.systemFont(ofSize: EditorMetrics.body)
+        let text = whole.string as NSString
+        return textLineFragments.compactMap { line in
+            let range = line.characterRange
+            let from = max(range.location, first)
+            var end = range.upperBound
+            while end > from, let c = UnicodeScalar(text.character(at: end - 1)),
+                  CharacterSet.whitespacesAndNewlines.contains(c) { end -= 1 }
+            guard end > from else { return nil }
+            let startX = line.locationForCharacter(at: from - range.location).x
+            let endX = line.locationForCharacter(at: end - range.location).x
+            let b = line.typographicBounds
+            let baseline = b.minY + line.glyphOrigin.y
+            return CGRect(x: point.x + b.minX + startX - Self.changePad.width,
+                          y: point.y + baseline - font.ascender - Self.changePad.height,
+                          width: endX - startX + Self.changePad.width * 2,
+                          height: font.ascender - font.descender + Self.changePad.height * 2)
+        }
+    }
 
     override func draw(at point: CGPoint, in context: CGContext) {
         let strength = highlight
         if strength > 0 {
-            // A soft amber band across the column with an accent bar at its left edge. Changed
-            // lines next to each other join into one block, like a change marker.
-            // Inside the rendering surface (4 pt either side). Edges are drawn without antialiasing so
-            // neighbouring lines snap to the same pixel row and join with no seam.
-            // The band starts `changeLead` before the text, so 9 pt stay clear between the 3 pt bar
-            // and the text or a checklist circle (council rounds 3 to 5: they touched).
-            let rect = CGRect(x: point.x - layoutFragmentFrame.minX - Self.changeLead, y: point.y,
-                              width: containerWidth + Self.changeLead + 4, height: layoutFragmentFrame.height)
+            // A marker-pen highlight behind the changed words, each line its own rounded run
+            // (Emil, 4 November 2026: the full-width block with a bar "looks pretty cheap").
+            // It hugs the text, starting a little before it, so a checklist circle stays clear.
             context.saveGState()
-            context.setShouldAntialias(false)
-            let colors = Self.changeColors(strength)
-            context.setFillColor(colors.tint)
-            context.fill(rect)
-            context.setFillColor(colors.bar)
-            context.fill(CGRect(x: rect.minX, y: rect.minY, width: Self.changeBar, height: rect.height))
+            context.setFillColor(Self.changeColors(strength).tint)
+            for rect in changeRuns(at: point) {
+                context.addPath(CGPath(roundedRect: rect, cornerWidth: Self.changeRadius, cornerHeight: Self.changeRadius, transform: nil))
+            }
+            context.fillPath()
             context.restoreGState()
         }
         if let d = decoration {

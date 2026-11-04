@@ -74,6 +74,7 @@ final class ShareModel {
     }
 
     func save() {
+        guard !saved else { return }
         do {
             try Inbox.add(markdown: markdown, files: files, folder: note == nil ? folder : nil, note: note)
             if note == nil { Inbox.lastFolder = folder }
@@ -90,164 +91,142 @@ final class ShareModel {
     func cancel() { context?.cancelRequest(withError: CocoaError(.userCancelled)) }
 }
 
+/// Laid out as the system's own share sheets are (Notes, Reminders): a navigation bar with Cancel
+/// and Save, what you're saving, then where it goes as rows (Emil, 4 November 2026: the earlier
+/// sheet, with every note listed inline under raw markdown, was "terribly confusing").
 struct ShareSheet: View {
     @Bindable var model: ShareModel
 
     var body: some View {
-        // Laid out like the system's own share sheets: the bar on top, the item below, filling the sheet.
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Button("Cancel", action: model.cancel)
-                Spacer()
-                HStack(spacing: 7) {
-                    AppMark(size: 22)
-                    Text("Pinto Notes").font(.headline)
-                }
-                .accessibilityElement(children: .combine)
-                Spacer()
-                Button(action: model.save) {
-                    if model.saved {
-                        Label(ShareWords.saved, systemImage: "checkmark").labelStyle(.titleAndIcon)
+        NavigationStack {
+            Form {
+                Section {
+                    if model.loading {
+                        ProgressView().frame(maxWidth: .infinity, minHeight: 80)
                     } else {
-                        Text(model.note == nil ? ShareWords.save : ShareWords.add).fontWeight(.semibold)
+                        preview
                     }
                 }
-                .disabled(model.loading || model.saved || (model.markdown.isEmpty && model.files.isEmpty))
-                .accessibilityIdentifier("share.save")
-            }
-            .frame(minHeight: 44)
-            // The item, Add to and the folder scroll under the bar (the search field's keyboard
-            // can cover the foot of the sheet).
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Group {
-                        if model.loading {
-                            ProgressView().frame(maxWidth: .infinity, minHeight: 80)
-                        } else {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(model.title).font(.title3.weight(.semibold)).lineLimit(2)
-                                if !model.markdown.isEmpty {
-                                    Text(model.markdown.split(separator: "\n").dropFirst().prefix(4).joined(separator: "\n"))
-                                        .font(.callout).foregroundStyle(.secondary).lineLimit(4)
-                                }
-                                if !model.files.isEmpty {
-                                    Label(model.files.count == 1 ? model.files[0].lastPathComponent : "\(model.files.count) files", systemImage: "paperclip")
-                                        .font(.callout).foregroundStyle(.secondary)
-                                }
+                if !model.loading {
+                    Section {
+                        if !model.recents.isEmpty {
+                            NavigationLink {
+                                AddToPicker(model: model)
+                            } label: {
+                                LabeledContent(ShareWords.addTo, value: model.noteTitle ?? ShareWords.newNote)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(14)
-                            .background(.background, in: .rect(cornerRadius: 14, style: .continuous))
+                            .accessibilityIdentifier("share.addTo")
                         }
-                    }
-                    if !model.loading && !model.recents.isEmpty {
-                        AddToPicker(model: model)
-                    }
-                    if !model.loading && !model.folders.isEmpty && model.note == nil {
-                        // Where it goes, as a row under the item, like Notes' own share sheet.
-                        HStack {
-                            Text("Folder")
-                            Spacer()
+                        if !model.folders.isEmpty && model.note == nil {
                             Picker("Folder", selection: $model.folder) {
                                 ForEach(model.folders) { f in
                                     Text(f.name).tag(UUID?.some(f.id))
                                 }
                             }
-                            .labelsHidden()
                             .accessibilityIdentifier("share.folder")
                         }
-                        .padding(.leading, 14)
-                        .padding(.vertical, 4)
-                        .background(.background, in: .rect(cornerRadius: 14, style: .continuous))
-                        if model.asFiles {
+                    } footer: {
+                        if model.saved {
+                            Text(model.doneLine).accessibilityIdentifier("share.done")
+                        } else if model.note != nil {
+                            Text(InboxCopy.addToFooter).accessibilityIdentifier("share.addTo.footer")
+                        } else if model.asFiles {
                             Text(model.files.count == 1 ? "Kept in the folder as a file." : "Kept in the folder as files.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 14)
                         }
                     }
-                    if model.saved {
-                        // Every save says where it went.
-                        Text(model.doneLine)
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 14)
-                            .accessibilityIdentifier("share.done")
-                    }
-                    if let e = model.error {
-                        Text(e).font(.footnote).foregroundStyle(.red).accessibilityIdentifier("share.error")
-                    }
+                }
+                if let e = model.error {
+                    Text(e).font(.footnote).foregroundStyle(.red).accessibilityIdentifier("share.error")
                 }
             }
-            .scrollDismissesKeyboard(.interactively)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: model.cancel)
+                }
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 7) {
+                        AppMark(size: 20)
+                        Text("Pinto Notes").font(.headline)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isHeader)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(action: model.save) {
+                        if model.saved {
+                            Text(ShareWords.saved)
+                        } else {
+                            Text(model.note == nil ? ShareWords.save : ShareWords.add)
+                        }
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(!model.saved && (model.loading || (model.markdown.isEmpty && model.files.isEmpty)))
+                    .accessibilityIdentifier("share.save")
+                }
+            }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color(uiColor: .systemGroupedBackground))
         .tint(Color("AccentColor"))
         .animation(.snappy(duration: 0.2), value: model.saved)
         .animation(.snappy(duration: 0.2), value: model.note)
+    }
+
+    /// What you're saving: its title and first lines as you'd read them, or its files.
+    private var preview: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(model.title).font(.headline).lineLimit(2)
+            if !model.markdown.isEmpty {
+                let body = ReadableText.from(markdown: model.markdown)
+                    .split(separator: "\n", omittingEmptySubsequences: true).dropFirst().prefix(4).joined(separator: "\n")
+                if !body.isEmpty {
+                    Text(body).font(.subheadline).foregroundStyle(.secondary).lineLimit(4)
+                }
+            }
+            if !model.files.isEmpty {
+                Label(model.files.count == 1 ? model.files[0].lastPathComponent : "\(model.files.count) files", systemImage: "paperclip")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
     }
 }
 
 /// The share sheet's words. In Inbox.swift (InboxCopy), which the app's tests can read.
 typealias ShareWords = InboxCopy
 
-/// Add to: a new note (as before), or the end of a note you have, one of the five newest or one
-/// found by its title. Rows of 44 pt, a tick on the picked one, as Settings' choices are drawn.
+/// Add to, a page of its own: New note, then your newest notes, and a search over the rest by
+/// title. Picking one goes back to the sheet.
 struct AddToPicker: View {
     @Bindable var model: ShareModel
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(ShareWords.addTo)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .padding(.leading, 14)
-            VStack(spacing: 0) {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField(ShareWords.search, text: $model.query)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .accessibilityIdentifier("share.search")
-                }
-                .frame(minHeight: 44)
-                .padding(.horizontal, 14)
-                Divider().padding(.leading, 14)
-                if model.query.trimmingCharacters(in: .whitespaces).isEmpty {
-                    row(ShareWords.newNote, systemImage: "square.and.pencil", picked: model.note == nil, id: "share.note.new") { model.note = nil }
-                }
+        List {
+            if model.query.trimmingCharacters(in: .whitespaces).isEmpty {
+                row(ShareWords.newNote, systemImage: "square.and.pencil", picked: model.note == nil, id: "share.note.new") { model.note = nil }
+            }
+            Section(model.query.isEmpty ? "Recent" : "") {
                 ForEach(model.offered) { n in
-                    Divider().padding(.leading, 46)
                     row(n.title.isEmpty ? ShareWords.newNote : n.title, systemImage: "doc.text", picked: model.note == n.id, id: "share.note.\(n.title)") {
                         model.note = n.id
                     }
                 }
                 if model.offered.isEmpty {
-                    Text(ShareWords.noMatch(model.query))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .padding(.horizontal, 14)
+                    Text(ShareWords.noMatch(model.query)).foregroundStyle(.secondary)
                 }
             }
-            .background(.background, in: .rect(cornerRadius: 14, style: .continuous))
-            // Before Save: when it goes in, and what happens if the note can't take it.
-            if model.note != nil {
-                Text(InboxCopy.addToFooter)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 14)
-                    .accessibilityIdentifier("share.addTo.footer")
-            }
         }
+        .searchable(text: $model.query, placement: .navigationBarDrawer(displayMode: .always), prompt: ShareWords.search)
+        .navigationTitle(ShareWords.addTo)
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func row(_ title: String, systemImage: String, picked: Bool, id: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Button {
+            action()
+            dismiss()
+        } label: {
             HStack(spacing: 12) {
                 Image(systemName: systemImage)
                     .frame(width: 20)
@@ -258,13 +237,8 @@ struct AddToPicker: View {
                     Image(systemName: "checkmark").fontWeight(.semibold).foregroundStyle(Color("AccentColor"))
                 }
             }
-            .frame(minHeight: 44)
-            .padding(.horizontal, 14)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        // A pointer on iPad lights the row it's over.
-        .hoverEffect(.highlight)
         .accessibilityIdentifier(id)
         .accessibilityAddTraits(picked ? .isSelected : [])
     }

@@ -434,6 +434,16 @@ struct NoteDetailView: View {
             #else
             let inBar = false
             #endif
+            #if os(iOS)
+            if inBar, !showingPage, collab == nil, AIReceipt.reviews(receipt) {
+                // What the AI changed, one tap away (Emil, 4 November 2026: Review Changes inside
+                // the Undo menu was hidden and unclear). Undo stays in the bar.
+                AIChangeButton(receipt: receipt) { startReview(receipt) }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
+                    .transition(AIReceipt.transition(reduceMotion: reduceMotion))
+            }
+            #endif
             if !inBar {
                 AIReceipt(receipt: receipt, seeAll: AIChangesCenter.shared.store == nil ? nil : { AIChangesCenter.shared.show(ai: receipt.by) },
                           review: collab == nil && AIReceipt.reviews(receipt) ? { startReview(receipt) } : nil) { undo(receipt) }
@@ -1345,21 +1355,6 @@ struct NoteDetailView: View {
                     .tint(.primary)
                     .accessibilityIdentifier(NoteAIUndo.yoursIdentifier)
             }
-        case .ai(let receipt) where collab == nil && AIReceipt.reviews(receipt):
-            // An edit of the text: the button opens a menu, Review Changes first (persona council
-            // round 2: the phone could only undo all of it), then Undo and every change by that AI.
-            Menu {
-                Button(NoteAIUndo.review, systemImage: "text.badge.checkmark") { startReview(receipt) }
-                    .accessibilityIdentifier(NoteAIUndo.reviewIdentifier)
-                Button(receipt.undoLabel, systemImage: "arrow.uturn.backward") { undo(receipt) }
-                Button("See All Changes by \(receipt.by)", systemImage: "clock.arrow.circlepath") { AIChangesCenter.shared.show(ai: receipt.by) }
-                    .disabled(AIChangesCenter.shared.store == nil)
-            } label: {
-                Label(receipt.undoLabel, systemImage: "arrow.uturn.backward")
-            }
-                .tint(.primary)
-                .accessibilityHint("Review, keep or undo \(receipt.by)'s changes")
-                .accessibilityIdentifier(NoteAIUndo.identifier)
         case .ai(let receipt):
             // Titled for VoiceOver ("Undo ChatGPT's changes"); the bar shows the glyph. A long
             // press offers every change that AI made (AI Changes).
@@ -1595,12 +1590,40 @@ private struct SendCopyItem: View {
             Label("Send a Copy…", systemImage: "square.and.arrow.up")
         }
         #else
-        ShareLink(item: note.body, preview: SharePreview(note.title)) {
+        // Readable text, and a picture of the note as a page for the sheet's header, as Notes
+        // sends (Emil, 4 November 2026: the header showed iOS's blank icon, the text "## Plan").
+        ShareLink(item: ReadableText.from(markdown: note.body),
+                  preview: SharePreview(note.title.isEmpty ? "Note" : note.title, image: NoteThumbnail.image(for: note))) {
             Label("Send a Copy…", systemImage: "square.and.arrow.up")
         }
         #endif
     }
 }
+
+#if os(iOS)
+/// A note drawn as a small page: its title and first lines, for the share sheet's header.
+@MainActor
+enum NoteThumbnail {
+    static func image(for note: Note) -> Image {
+        let lines = ReadableText.from(markdown: note.body).split(separator: "\n", omittingEmptySubsequences: true).dropFirst().prefix(6)
+        let page = VStack(alignment: .leading, spacing: 3) {
+            Text(note.title.isEmpty ? "Note" : note.title)
+                .font(.system(size: 13, weight: .bold)).lineLimit(2)
+            ForEach(Array(lines.enumerated()), id: \.offset) { _, l in
+                Text(String(l)).font(.system(size: 8)).foregroundStyle(Color(white: 0.35)).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .frame(width: 120, height: 120, alignment: .topLeading)
+        .background(Color.white)
+        .environment(\.colorScheme, .light)
+        let r = ImageRenderer(content: page)
+        r.scale = 3
+        return r.uiImage.map { Image(uiImage: $0) } ?? Image(systemName: "note.text")
+    }
+}
+#endif
 
 #if os(macOS)
 /// The system's sharing picker for a note's text, shown where the pointer chose the menu item.
