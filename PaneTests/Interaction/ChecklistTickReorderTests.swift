@@ -114,7 +114,12 @@ import Testing
         await h.click(p)
         #expect(await h.until(3) { !pictures(h).isEmpty }, "the rows slide")
         let target = drawn(h, at: p.y, old: items)
-        #expect(target == items[0], "just after the slide starts, the ticked row is still drawn there")
+        // Timing: on a busy Mac the wait above can catch the slide after it has begun, with the
+        // next row already under the pointer (2 runs in 13 on release/1.3, 4 November 2026). What
+        // the test is for, that the click toggles whichever row is drawn there, is checked below.
+        withKnownIssue("on a busy Mac the slide can be caught after it has begun", isIntermittent: true) {
+            #expect(target == items[0], "just after the slide starts, the ticked row is still drawn there")
+        }
         let before = items.map { ticked(h, $0) }
         await h.click(p)
         for (i, item) in items.enumerated() {
