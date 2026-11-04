@@ -163,7 +163,9 @@ import Testing
         await model.loadMore()
         #expect(store.asked.count == 2, "no retry loop while the failure shows")
         store.failOlder = false
-        await model.retryOlder()
+        model.retryOlder()
+        #expect(!model.olderFailed && store.asked.count == 2, "Try Again only brings the spinner back; its task loads")
+        await model.loadMore()
         #expect(!model.olderFailed && model.changes.count == 60 && !model.hasMore)
         #expect(AIChangesOlderFailed.message == "Couldn\u{2019}t load older changes.")
     }

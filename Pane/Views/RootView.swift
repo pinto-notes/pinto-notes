@@ -1157,6 +1157,11 @@ struct PaneCommands: Commands {
 
     var body: some Commands {
         // Settings shows as a sheet on the notes window in front, like WhatsApp's.
+        // The trademark notes as the About window's credits, where a Mac app keeps them; they sat
+        // at the foot of Privacy and security (council round 7).
+        CommandGroup(replacing: .appInfo) {
+            Button("About Pinto Notes") { AboutCredits.show() }
+        }
         CommandGroup(replacing: .appSettings) {
             Button("Settings\u{2026}") { SettingsRoute.shared.show() }
                 .keyboardShortcut(",")

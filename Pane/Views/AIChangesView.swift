@@ -436,7 +436,7 @@ struct AIChangesOlderFailed: View {
     var body: some View {
         VStack(spacing: 6) {
             Text(Self.message).font(.footnote).foregroundStyle(.secondary)
-            Button("Try Again") { Task { await model.retryOlder() } }
+            Button("Try Again") { model.retryOlder() }
                 .controlSize(.small).tint(.primary)
                 .accessibilityIdentifier("aiChanges.olderRetry")
         }

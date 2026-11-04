@@ -83,7 +83,7 @@ enum PrivacyCopy {
         out.append(("sparkles", "Connected AIs",
                     // What it may do first, as Allow says it; how its key works after (council round 7).
                     "Each AI you connect " + PrivacyCopy.aiMay
-                    + " It gets its own copy of your key, locked to its token, and opens your notes only while it works on a request."
+                    + " It gets its own copy of your key, which works only for that AI, and opens your notes only while it works on a request."
                     + (serverCopy ? " It doesn\u{2019}t use Pinto Notes\u{2019} copy." : "")))
         if recovery {
             out.append(("key.horizontal", "Recovery key", "Opens your notes if you lose your devices. Keep it somewhere safe."))
@@ -1203,12 +1203,27 @@ struct PrivacyFoot: View {
             }
             // At the left edge, with the rest of the foot.
             LegalLinksRow().fixedSize(horizontal: true, vertical: false)
-            Text(HelpCopy.trademarks)
-                .font(.system(size: 11))
-                .foregroundStyle(SettingsInk.muted)
-                .fixedSize(horizontal: false, vertical: true)
+            // The trademark notes are in About Pinto Notes (AboutCredits).
         }
         .padding(.horizontal, 4)
+    }
+}
+
+/// About Pinto Notes: the standard panel, with the trademark notes as its credits.
+enum AboutCredits {
+    static var credits: NSAttributedString {
+        let centred = NSMutableParagraphStyle()
+        centred.alignment = .center
+        return NSAttributedString(string: HelpCopy.trademarks, attributes: [
+            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: centred,
+        ])
+    }
+
+    @MainActor static func show() {
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+        NSApp.activate()
     }
 }
 #endif

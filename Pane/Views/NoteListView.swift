@@ -414,6 +414,7 @@ struct NoteListView: View {
                 .padding(.bottom, 6)
                 .opacity(behindSetupCard ? 0.35 : 1)
                 .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("list.folderName")
             }
             if searching {

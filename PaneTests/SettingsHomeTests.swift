@@ -301,10 +301,10 @@ import Testing
         // How to lock a note is said in How it works, now that the explainer row is gone.
         let locked = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Locked notes" }?.line ?? ""
         #expect(locked.contains("menu") && locked.contains("title"))
-        // How an AI opens the notes: its own copy of the key, locked to its token, used only
+        // How an AI opens the notes: its own copy of the key, good for that AI only, used only
         // during a request, never Pinto Notes' copy (plainer words, council round 7).
         let ai = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Connected AIs" }?.line ?? ""
-        for part in ["its own copy of your key", "token", "only while it works on a request", "doesn\u{2019}t use Pinto Notes\u{2019} copy"] {
+        for part in ["its own copy of your key", "works only for that AI", "only while it works on a request", "doesn\u{2019}t use Pinto Notes\u{2019} copy"] {
             #expect(ai.contains(part), "\(part)")
         }
         // Locked notes: an AI sees that one exists, not its title or text, and keeps what it already read.
@@ -599,10 +599,26 @@ import Testing
         #expect(ConsentFooter.size == 11)
         #endif
         let privacy = try Self.source("Pane/Views/PrivacySecurity.swift")
-        #expect(privacy.contains("\"Each AI you connect \" + PrivacyCopy.aiMay") && privacy.contains("It gets its own copy of your key, locked to its token"), "what it may do, then how its key works")
+        #expect(!privacy.contains("Text(HelpCopy.trademarks)"), "no trademark notes on Privacy")
+        #expect(privacy.contains("\"Each AI you connect \" + PrivacyCopy.aiMay") && privacy.contains("It gets its own copy of your key, which works only for that AI"), "what it may do, then how its key works")
         // Standard accounts never hear of Advanced protection (it's hidden for them, 11-01).
         #expect(!privacy.contains("Turn on Advanced protection"), "the court order row offers nothing a standard account can't see")
     }
+
+
+    #if os(macOS)
+    /// Signed out, ⌘, opens Settings over the sign-in card (a sheet), not nothing (council round 7).
+    @Test func settingsOpensOverTheSignInCard() {
+        typealias K = SettingsCardHost.KeyWindow
+        #expect(SettingsCardHost.takes(active: true, key: K()), "the notes window in front")
+        // The trademark notes are About's credits, not the foot of Privacy and security.
+        #expect(AboutCredits.credits.string == HelpCopy.trademarks)
+        #expect(SettingsCardHost.takes(active: false, key: nil), "no window key, as at launch")
+        #expect(SettingsCardHost.takes(active: false, key: K(settings: true)), "Settings in front")
+        #expect(SettingsCardHost.takes(active: false, key: K(sheet: true)), "the sign-in card in front")
+        #expect(!SettingsCardHost.takes(active: false, key: K()), "another window in front takes it, not this one")
+    }
+    #endif
 
 }
 #endif
