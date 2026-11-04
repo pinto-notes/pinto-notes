@@ -74,6 +74,12 @@ enum BrowserConnect {
     static func waiting(_ g: Guide) -> String { "Waiting for \(g.title)\u{2026}" }
     static func connected(_ g: Guide) -> String { "\(g.title) is connected" }
     static let noticed = "Pinto noticed the connection. Ask it about your notes:"
+
+    /// On iPhone, Connected offers what the Mac's first run does (4 November 2026): bring over
+    /// what the AI knows into About me and a note for each plan. The phone has no first-run cards.
+    static func bringsOver(compact: Bool = ConnectBrowserSheet.compact) -> Bool { compact }
+    /// The AI's page with the bring-over prompt in it (ChatGPT and Claude open prefilled).
+    static func bringOverPage(_ g: Guide) -> URL? { TryIt.page(for: g.title, prompt: BringOver.prompt(g.title)) }
     /// Claude's fallback: its Add custom connector dialog, filled in.
     static let customConnector = "Add as a custom connector instead"
 
@@ -148,10 +154,19 @@ struct ConnectBrowserSheet: View {
     var switched: (Guide) -> Void = { _ in }
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.modelContext) private var context
 
     /// The note's page colour, which follows the window's look (DesignLook): white and pure black
     /// in the Mac's plain look, not the fixed cream of `sheetGround`.
     static var ground: Color { Color(Palette.page) }
+    /// A row on the sheet: solid, a step off the page.
+    static var rowFill: Color {
+        #if os(iOS)
+        Color(uiColor: .secondarySystemBackground)
+        #else
+        Color(nsColor: .controlBackgroundColor)
+        #endif
+    }
 
     #if os(iOS)
     nonisolated static let compact = true
@@ -458,12 +473,53 @@ struct ConnectBrowserSheet: View {
                     .foregroundStyle(Color.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if BrowserConnect.bringsOver(), let page = BrowserConnect.bringOverPage(run.ai) {
+                bringOverRow(page)
+            }
             VStack(spacing: 4) {
                 primary("Done") { dismiss() }
                 quiet("Ask \(run.ai.title)") { openURL(run.ai == .claude ? WebConnectPlan.claude.testPage : WebConnectPlan.chatgpt.testPage) }
             }
             .frame(maxWidth: .infinity)
         }
+    }
+
+    /// "Bring over what ChatGPT knows about you": About me is made (or the one there used), the
+    /// prompt is copied too, and the AI opens with it. 17 pt title, 15 pt line, 44 pt and up.
+    private func bringOverRow(_ page: URL) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        return Button {
+            _ = context.aboutMeNote()
+            SyncSignal.changed()
+            ConnectClipboard.set(BringOver.prompt(run.ai.title))
+            openURL(page)
+            dismiss()
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(BringOver.title(run.ai.title))
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.ink)
+                    Text(BringOver.line)
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .multilineTextAlignment(.leading)
+                Spacer(minLength: 8)
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.muted)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .background(Self.rowFill, in: shape)
+            .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("connect.bringOver")
     }
 
     private func primary(_ title: String, symbol: String? = nil, _ action: @escaping () -> Void) -> some View {

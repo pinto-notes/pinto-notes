@@ -2533,6 +2533,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         scroll.reflectScrolledClipView(clip)
     }
 
+    func flashFound(_ range: NSRange) {
+        guard NSMaxRange(range) <= (string as NSString).length else { return }
+        showFindIndicator(for: range)
+    }
+
     override func paste(_ sender: Any?) {
         let pb = NSPasteboard.general
         if let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
