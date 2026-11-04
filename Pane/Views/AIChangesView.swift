@@ -94,7 +94,9 @@ struct AIChangeRow: View {
                 Text(model.title(change)).font(titleFont).lineLimit(1)
                 // What it did, readable before you pick it (council round 3, 11-04: one 11 pt
                 // line with the AI and the time cut it off); who and when under it, small.
-                Text(model.summary(change)).font(summaryFont).lineLimit(2)
+                // Cut in the middle, so "and 2 more" stays when a long name fills the two lines
+                // (council round 11).
+                Text(model.summary(change)).font(summaryFont).lineLimit(2).truncationMode(.middle)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(line).font(lineFont).foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
             }
@@ -224,10 +226,10 @@ struct MacAIChanges: View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 sidebar.frame(width: 300)
-                Rectangle().fill(Color.separatorLine).frame(width: 1)
+                Rectangle().fill(Color.line).frame(width: 1)
                 detail
             }
-            Rectangle().fill(Color.separatorLine).frame(height: 1)
+            Rectangle().fill(Color.line).frame(height: 1)
             bar
         }
         .frame(minWidth: 860, idealWidth: 940, minHeight: 540, idealHeight: 620)
@@ -287,10 +289,14 @@ struct MacAIChanges: View {
                 // who and when under it (council, 11-04: one 11 pt line cut the action off).
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.title(c)).font(.system(size: 13, weight: .semibold)).lineLimit(1)
-                    // All of it, however long (council round 8: two lines cut it off).
+                    // Up to three lines (council round 8: two cut it off; round 11: a long rewritten
+                    // paragraph filled the header above a preview that shows it anyway). The rest
+                    // is in the preview, the tooltip and VoiceOver.
                     Text(model.summary(c))
                         .font(.system(size: 13))
+                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
+                        .help(model.summary(c))
                         .accessibilityIdentifier("aiChanges.summary")
                     Text(AIChangeDetail.byline(c))
                         .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
@@ -299,7 +305,7 @@ struct MacAIChanges: View {
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.notePage)
-                Rectangle().fill(Color.separatorLine).frame(height: 1)
+                Rectangle().fill(Color.line).frame(height: 1)
                 AIChangeDetail(model: model, change: c)
             } else {
                 Color.notePage
@@ -315,19 +321,21 @@ struct MacAIChanges: View {
                 Text("Undoing\u{2026}").font(.system(size: 13)).foregroundStyle(.secondary)
             } else if let c = model.selected, model.undone.contains(c.id) {
                 Label("Undone", systemImage: "checkmark").font(.system(size: 13)).foregroundStyle(.secondary)
+            } else if let c = model.selected, let why = model.undoReason(c) {
+                // Where "Undoing…" and "Undone" show: one status place, buttons on the right
+                // (council round 11: the reason sat between Done and Undo).
+                Text(why).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                    .accessibilityIdentifier("aiChanges.undoReason")
             }
             Spacer()
             Button("Done", action: close).keyboardShortcut(.cancelAction).tint(.primary)
             if let c = model.selected {
-                if let why = model.undoReason(c) {
-                    Text(why).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
-                        .accessibilityIdentifier("aiChanges.undoReason")
-                }
                 // Return opens the note; undoing is a click of its own, never a stray Return on a
                 // sheet you're reading (council, 11-04).
                 Button("Undo This Change") { Task { await model.undo(c) } }
                     .disabled(!model.canUndo(c) || model.undoing || (c.changesText && model.diff == nil))
                     .tint(.primary)
+                    .accessibilityHint(model.undoReason(c) ?? "")
                     .accessibilityIdentifier("aiChanges.undo")
                 Button("Open Note") { open(c) }
                     .keyboardShortcut(.defaultAction)
@@ -343,10 +351,6 @@ struct MacAIChanges: View {
     }
 }
 
-private extension Color {
-    /// A separator drawn as a plain fill, so it reads the same in the sheet and in captures.
-    static let separatorLine = Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.27, alpha: 1) : NSColor(white: 0.87, alpha: 1) })
-}
 #endif
 
 // MARK: iPhone

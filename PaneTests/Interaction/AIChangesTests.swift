@@ -41,14 +41,16 @@ import AppKit
         #expect(!undoPart.contains(".defaultAction"), "Undo is never the Return button")
         #expect(openPart.contains(".keyboardShortcut(.defaultAction)"), "Return opens the note")
         let detail = try #require(src.range(of: "private var detail: some View").map { String(src[$0.lowerBound...].prefix(1400)) })
-        // The summary in full above Undo, wrapping as far as it needs (council round 8: two lines cut it off).
-        let summary = try #require(detail.range(of: "Text(model.summary(c))").map { String(detail[$0.lowerBound...].prefix(160)) })
-        #expect(!summary.contains(".lineLimit(") && summary.contains(".fixedSize(horizontal: false, vertical: true)"), "the summary wraps, uncut")
+        // The summary above Undo on up to three lines (council round 8: two cut it off; round 11: a
+        // long one pushed the preview down), all of it in the tooltip.
+        let summary = try #require(detail.range(of: "Text(model.summary(c))").map { String(detail[$0.lowerBound...].prefix(320)) })
+        #expect(summary.contains(".lineLimit(3)") && summary.contains(".fixedSize(horizontal: false, vertical: true)") && summary.contains(".help(model.summary(c))"))
         // And in the list, before a change is picked: its own two lines, the byline without it.
         let row = try #require(src.range(of: "struct AIChangeRow").map { String(src[$0.lowerBound...].prefix(2600)) })
-        #expect(row.contains("Text(model.summary(change)).font(summaryFont).lineLimit(2)"))
+        #expect(row.contains("Text(model.summary(change)).font(summaryFont).lineLimit(2).truncationMode(.middle)"), "a long name keeps its \"and 2 more\"")
         #expect(row.contains("var parts = [change.ai, VersionHistoryModel.time(change.at)]"), "the byline is who and when")
         #expect(row.contains("private let lineFont = Font.system(size: 12)"), "who and when at 12 pt, read before Undo (round 4)")
+        #expect(!src.contains("NSColor(white:") && src.contains("Rectangle().fill(Color.line)"), "the theme's dividers, solid in High contrast (council round 11)")
         #expect(!src.contains("windowBackgroundColor"), "the list and the bar on the note's ground, not a grey beside black")
         // One accent (round 5): Done, Undo and the filter in ink, the list's quiet grey selection.
         let donePart = try #require(bar.range(of: "Button(\"Done\"").map { String(bar[$0.lowerBound...].prefix(120)) })

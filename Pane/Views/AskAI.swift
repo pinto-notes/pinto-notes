@@ -252,13 +252,20 @@ enum AskAI {
 @MainActor @Observable final class ConnectedAIs {
     static let shared = ConnectedAIs()
     private(set) var connections: [Connection] = []
+    /// True once a list has come back (or there's no account to ask): before that an empty list
+    /// means "not known yet", after it "none" (council round 11: the sidebar kept a disconnected
+    /// AI's last change because it couldn't tell the two apart).
+    private(set) var loaded = false
+
+    /// The connected AIs' names, or nil while not known yet.
+    var knownNames: [String]? { loaded ? connections.map(\.name) : nil }
 
     var targets: [AskAI.Target] { AskAI.targets(connections) }
 
-    func set(_ rows: [Connection]) { connections = rows.filter { $0.revoked_at == nil } }
+    func set(_ rows: [Connection]) { connections = rows.filter { $0.revoked_at == nil }; loaded = true }
 
     func refresh(_ client: SupabaseClient?) async {
-        guard let client else { connections = []; return }
+        guard let client else { set([]); return }
         if let rows = try? await Connection.list(client) { set(rows) }
     }
 }

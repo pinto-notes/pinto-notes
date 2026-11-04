@@ -35,12 +35,22 @@ enum SidebarAICopy {
     }
     static let hint = "Opens AI Changes."
     static let noChanges = "No changes yet"
+    /// Under "ChatGPT connected" once the last change has aged off the foot: there are changes,
+    /// just none this week (council round 11: it said "No changes yet").
+    static let pastChanges = "See past changes"
 
-    /// The last change stays at the foot for a week, and only while its AI is still connected (when
-    /// the connections are known); then the foot says which AIs are connected, or nothing
-    /// (council round 10: it showed the newest change forever, even a disconnected AI's).
-    static func showsChange(_ c: AIChange, connected: [String], now: Date = .now) -> Bool {
-        now.timeIntervalSince(c.at) < 7 * 86_400 && (connected.isEmpty || connected.contains(c.ai))
+    /// What goes under "X connected": "No changes yet" only when there are none.
+    static func underConnected(hasChanges: Bool) -> String { hasChanges ? pastChanges : noChanges }
+
+    /// The last change stays at the foot for a week, and only while its AI is still connected;
+    /// then the foot says which AIs are connected, or nothing (council round 10: it showed the
+    /// newest change forever). `connected` is nil until the list is known: then the change shows,
+    /// so the foot doesn't blink empty at launch. A known empty list hides it (council round 11:
+    /// disconnecting your only AI left its change up for the week).
+    static func showsChange(_ c: AIChange, connected: [String]?, now: Date = .now) -> Bool {
+        guard now.timeIntervalSince(c.at) < 7 * 86_400 else { return false }
+        guard let connected else { return true }
+        return connected.contains(c.ai)
     }
 
     /// "ChatGPT connected", "ChatGPT and Claude connected", "3 AIs connected"; nil for none.
@@ -72,7 +82,7 @@ struct SidebarAILine: View {
 
     var body: some View {
         Group {
-            if let last, SidebarAICopy.showsChange(last, connected: ConnectedAIs.shared.connections.map(\.name)) {
+            if let last, SidebarAICopy.showsChange(last, connected: ConnectedAIs.shared.knownNames) {
                 let title = Self.title(last, context: context)
                 row(ai: last.ai, line: SidebarAICopy.line(last, title: title), label: SidebarAICopy.accessibility(last, title: title)) {
                     TimelineView(.periodic(from: .now, by: 60)) { t in
@@ -81,8 +91,9 @@ struct SidebarAILine: View {
                 }
             } else if let line = SidebarAICopy.connected(ConnectedAIs.shared.connections.map(\.name)) {
                 // Connected, nothing changed yet: the window still says an AI is there (council round 9).
-                row(ai: ConnectedAIs.shared.connections[0].name, line: line, label: line + ", " + SidebarAICopy.noChanges) {
-                    Text(SidebarAICopy.noChanges)
+                let under = SidebarAICopy.underConnected(hasChanges: last != nil)
+                row(ai: ConnectedAIs.shared.connections[0].name, line: line, label: line + ", " + under) {
+                    Text(under)
                 }
             }
         }

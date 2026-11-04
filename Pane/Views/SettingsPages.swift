@@ -238,8 +238,10 @@ struct AccountSettingsPage: View {
                 AvatarView(photo: nil, name: nil, size: 54)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Not signed in").font(.system(size: 17, weight: .semibold)).foregroundStyle(SettingsInk.text)
+                    // One line beside Sign In…, which says what to do (council round 11: the longer
+                    // line left "or Claude." alone on a second line).
                     Text(backend.state == .disabled ? "Sync is off. This build keeps notes on this device only."
-                         : SignInView.settingsLine)
+                         : SignInView.shortLine)
                         .font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }

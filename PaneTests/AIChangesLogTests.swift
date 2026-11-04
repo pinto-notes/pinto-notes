@@ -255,10 +255,13 @@ import Testing
         // Connected but nothing changed yet: it still says so (council round 9).
         #expect(SidebarAICopy.connected([]) == nil)
         // A week, and only while its AI is connected (council round 10).
-        #expect(SidebarAICopy.showsChange(edit, connected: [], now: Self.t0))
+        #expect(SidebarAICopy.showsChange(edit, connected: nil, now: Self.t0), "not known yet: keep it")
+        #expect(!SidebarAICopy.showsChange(edit, connected: [], now: Self.t0), "the only AI was disconnected")
         #expect(SidebarAICopy.showsChange(edit, connected: ["ChatGPT"], now: Self.t0))
         #expect(!SidebarAICopy.showsChange(edit, connected: ["Claude"], now: Self.t0), "its AI was disconnected")
-        #expect(!SidebarAICopy.showsChange(edit, connected: [], now: Self.t0.addingTimeInterval(8 * 86_400)), "a week on")
+        #expect(!SidebarAICopy.showsChange(edit, connected: nil, now: Self.t0.addingTimeInterval(8 * 86_400)), "a week on")
+        #expect(SidebarAICopy.underConnected(hasChanges: true) == "See past changes", "changes, just none this week")
+        #expect(SidebarAICopy.underConnected(hasChanges: false) == "No changes yet")
         #expect(SidebarAICopy.connected(["ChatGPT"]) == "ChatGPT connected")
         #expect(SidebarAICopy.connected(["ChatGPT", "Claude", "ChatGPT"]) == "ChatGPT and Claude connected")
         #expect(SidebarAICopy.connected(["ChatGPT", "Claude", "Codex"]) == "3 AIs connected")
@@ -269,16 +272,40 @@ import Testing
         #endif
     }
 
-    /// A greyed Undo says why, and what to do (council round 10).
+    /// A greyed Undo says why, and what to do (council round 10), every time (round 11).
     @Test func undoThatCantSaysWhy() throws {
         let c = try Self.container()
-        let note = c.mainContext.createNote(in: .all, body: Self.after)
+        let ctx = c.mainContext
+        let note = ctx.createNote(in: .all, body: Self.after)
         let edit = Self.edit(note)
-        #expect(AIChangeUndo.reason(edit, note: note, undone: false) == nil)
-        #expect(AIChangeUndo.reason(edit, note: note, undone: true) == "Already undone.")
-        #expect(AIChangeUndo.reason(edit, note: nil, undone: false) == "This note isn\u{2019}t on this Mac.")
+        #expect(AIChangeUndo.reason(edit, note: note, undone: false, context: ctx) == nil)
+        #expect(AIChangeUndo.reason(edit, note: note, undone: true, context: ctx) == nil, "Undone says it")
+        #expect(AIChangeUndo.reason(edit, note: nil, undone: false, context: ctx) == "This note isn\u{2019}t on this Mac.")
         var none = edit; none.beforeVersion = nil
-        #expect(AIChangeUndo.reason(none, note: note, undone: false) == "No earlier version to go back to.")
+        #expect(AIChangeUndo.reason(none, note: note, undone: false, context: ctx) == "No earlier version to go back to.")
+
+        // Every kind, every way it can be off: never greyed with nothing said.
+        var made = edit; made.kind = .created
+        var deleted = edit; deleted.kind = .deleted
+        var moved = edit; moved.kind = .moved; moved.fromFolder = UUID(); moved.toFolder = UUID()
+        for change in [edit, none, made, deleted, moved] {
+            for trashed in [false, true] {
+                trashed ? ctx.trash(note) : ctx.restore(note)
+                let off = !AIChangeUndo.possible(change, note: note, context: ctx)
+                #expect(off == (AIChangeUndo.blocked(change, note: note, context: ctx) != nil), "\(change.kind) trashed \(trashed)")
+            }
+        }
+        ctx.restore(note)
+        #expect(AIChangeUndo.blocked(made, note: note, context: ctx) == nil)
+        ctx.trash(note)
+        #expect(AIChangeUndo.blocked(made, note: note, context: ctx) == "Already in the Trash.")
+        ctx.restore(note)
+        #expect(AIChangeUndo.blocked(deleted, note: note, context: ctx) == "Already back from the Trash.")
+        #expect(AIChangeUndo.blocked(moved, note: note, context: ctx) == "Moved again since.", "it's not in the folder the AI put it in")
+        #if os(macOS)
+        let view = try SettingsHomeTests.source("Pane/Views/AIChangesView.swift")
+        #expect(view.contains(".accessibilityHint(model.undoReason(c) ?? \"\")"), "VoiceOver hears why too")
+        #endif
     }
 
     // MARK: Undo
