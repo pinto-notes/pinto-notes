@@ -1,4 +1,7 @@
 import Foundation
+#if os(macOS)
+import AppKit
+#endif
 import Observation
 import os
 import UniformTypeIdentifiers
@@ -534,12 +537,15 @@ final class EditorController {
     private(set) var slashCommands: [SlashCommand] = []
     /// The one Return takes (Mac).
     var slashChoice = 0
-    /// The callout type the `/query` names (`/warn`): the Callout row says "Warning callout" and
+    /// How many of the first rows are the recent ones, with nothing typed yet: a line goes under
+    /// them, so you can see why the order changed (council round 13).
+    private(set) var slashRecentCount = 0
+    /// The callout type the `/query` names (`/warn`): the Callout row says "Warning Callout" and
     /// inserts one.
     private(set) var slashCalloutKind: Callouts.Kind?
 
     /// A row's name and symbol, with the callout's type when the query names one.
-    func slashName(_ c: SlashCommand) -> String { c == .callout ? slashCalloutKind.map { "\($0.title) callout" } ?? c.name : c.name }
+    func slashName(_ c: SlashCommand) -> String { c == .callout ? slashCalloutKind.map { "\($0.title) Callout" } ?? c.name : c.name }
     func slashSymbol(_ c: SlashCommand) -> String { c == .callout ? slashCalloutKind?.symbol ?? c.symbol : c.symbol }
     /// Where the `/query` is, slash included.
     @ObservationIgnored private(set) var slashQuery: NSRange?
@@ -558,9 +564,13 @@ final class EditorController {
         let typed = (text as NSString).substring(with: NSRange(location: found.query.location + 1, length: found.query.length - 1))
         let kind = Callouts.kind(typed: typed)
         if kind != slashCalloutKind { slashCalloutKind = kind }
+        let recent = typed.isEmpty ? SlashRecents.commands.filter(found.commands.contains).count : 0
+        if recent != slashRecentCount { slashRecentCount = recent }
         if found.commands != slashCommands {
+            let opening = slashCommands.isEmpty
             slashCommands = found.commands
             slashChoice = 0
+            if opening { announceSlashChoice(opening: true) }
         }
     }
 
@@ -604,9 +614,30 @@ final class EditorController {
         runSlash(slashCommands[min(max(slashChoice, 0), slashCommands.count - 1)])
     }
 
+    /// ↑ and ↓ wrap at the ends, as a Mac menu's do (council round 13).
     func moveSlashChoice(by step: Int) {
         guard !slashCommands.isEmpty else { return }
-        slashChoice = min(max(slashChoice + step, 0), slashCommands.count - 1)
+        let n = slashCommands.count
+        slashChoice = ((slashChoice + step) % n + n) % n
+        announceSlashChoice(opening: false)
+    }
+
+    /// What VoiceOver says as the menu opens and its choice moves: "Checklist, 1 of 18, ⇧⌘L"
+    /// (the caret stays in the text, so nothing else tells it; council round 13).
+    nonisolated static func slashAnnouncement(_ name: String, at i: Int, of n: Int, shortcut: String?, opening: Bool) -> String {
+        var parts = [name, "\(i + 1) of \(n)"]
+        if let shortcut { parts.append(shortcut) }
+        return (opening ? "Insert menu. " : "") + parts.joined(separator: ", ")
+    }
+
+    private func announceSlashChoice(opening: Bool) {
+        #if os(macOS)
+        guard slashCommands.indices.contains(slashChoice) else { return }
+        let c = slashCommands[slashChoice]
+        let text = Self.slashAnnouncement(slashName(c), at: slashChoice, of: slashCommands.count, shortcut: c.shortcut, opening: opening)
+        NSAccessibility.post(element: NSApp.mainWindow ?? NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+        #endif
     }
 
     func dismissSlash() {
@@ -615,6 +646,7 @@ final class EditorController {
     }
 
     private func clearSlash() {
+        if slashRecentCount != 0 { slashRecentCount = 0 }
         slashQuery = nil
         if slashCalloutKind != nil { slashCalloutKind = nil }
         if !slashCommands.isEmpty { slashCommands = [] }

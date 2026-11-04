@@ -3045,8 +3045,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Shows the titles for the `[[link` being typed just under it, or takes them away.
     func layoutWikiSuggestions() {
-        // The `/` menu follows the same edits and caret moves.
+        // The `/` menu, and its hint on an empty line, follow the same edits and caret moves.
         layoutSlashCommands()
+        layoutSlashHint()
         guard let controller, let q = controller.wikiQuery, !controller.wikiSuggestions.isEmpty else {
             wikiHost?.removeFromSuperview()
             wikiHost = nil
@@ -3077,6 +3078,46 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     // MARK: The / menu
 
     private var slashHost: NSHostingView<SlashCommandList>?
+    private var slashHint: NSTextField?
+
+    /// "Type / for formatting", faint, on the empty line the caret is on (not the title's), as
+    /// Notion says it on an empty block: the / menu was there to be found, unseen (council round 13).
+    static let slashHintText = "Type / for formatting"
+
+    /// Whether the hint shows for this text and caret.
+    func showsSlashHint() -> Bool {
+        guard window?.firstResponder === self, controller?.isEditing ?? false, isEditable, selectedRange().length == 0,
+              controller?.slashCommands.isEmpty ?? true,
+              let font = core.emptyLineFont(string, at: selectedRange().location) else { return false }
+        return font != MarkdownStyler.titleFont
+    }
+
+    func layoutSlashHint() {
+        guard showsSlashHint(), let tlm = textLayoutManager, let tcm = tlm.textContentManager,
+              let loc = tcm.location(tcm.documentRange.location, offsetBy: selectedRange().location) else {
+            slashHint?.removeFromSuperview()
+            slashHint = nil
+            return
+        }
+        var caret: CGRect?
+        tlm.enumerateTextSegments(in: NSTextRange(location: loc), type: .selection, options: [.rangeNotRequired]) { _, r, _, _ in caret = r; return false }
+        guard let caret else { return }
+        let label = slashHint ?? {
+            let f = NSTextField(labelWithString: Self.slashHintText)
+            f.textColor = PColor.paneTertiary
+            f.isSelectable = false
+            f.setAccessibilityElement(false)
+            f.identifier = NSUserInterfaceItemIdentifier("editor.slashHint")
+            addSubview(f)
+            slashHint = f
+            return f
+        }()
+        label.font = core.styler.bodyFont
+        label.sizeToFit()
+        let h = label.frame.height
+        label.frame.origin = CGPoint(x: caret.minX + textContainerOrigin.x + 1,
+                                     y: caret.midY + textContainerOrigin.y - h / 2)
+    }
 
     /// Shows the commands for the `/query` being typed under its line (over it when there's no
     /// room below in the visible part of the note), or takes them away.
@@ -3106,7 +3147,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let line = lines.first { NSLocationInRange(inFrag, $0.characterRange) } ?? lines.last
         let top = frag.layoutFragmentFrame.minY + (line?.typographicBounds.minY ?? 0) + textContainerOrigin.y
         let bottom = frag.layoutFragmentFrame.minY + (line?.typographicBounds.maxY ?? frag.layoutFragmentFrame.height) + textContainerOrigin.y
-        let size = SlashCommandList.size(rows: controller.slashCommands.count)
+        let size = SlashCommandList.size(rows: controller.slashCommands.count, recent: controller.slashRecentCount)
         let x = min(max(caret.minX + textContainerOrigin.x - 8, 0), max(bounds.width - size.width, 0))
         let visible = visibleRect
         // Under the line when it fits; else over it when that fits; else the side with more room.

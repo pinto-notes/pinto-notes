@@ -209,6 +209,9 @@ import Testing
                          styleMask: [.borderless], backing: .buffered, defer: false)
         w.isReleasedWhenClosed = false
         w.contentViewController = NSHostingController(rootView: RootView().modelContainer(c))
+        // A hosting controller sizes the window to its smallest (1029 pt), where the sidebar steps
+        // aside on its own (SidebarFit); the app's windows open wider, so this one does too.
+        w.setContentSize(CGSize(width: 1300, height: 760))
         w.setFrameOrigin(CGPoint(x: -20000, y: -20000))
         defer { w.orderOut(nil); w.close() }
         func settle() async {
@@ -249,6 +252,7 @@ import Testing
         print("PERF sidebar: bodies worked out after the window first settled, before any toggle: \(late.isEmpty ? "none" : late.joined(separator: ", "))")
 
         RenderProbe.counts = [:]
+        #expect(!sidebar.isCollapsed, "a wide window opens with the sidebar")
         for i in 0..<4 {
             controller.toggleSidebar(nil)
             await settle()

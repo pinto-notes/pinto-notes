@@ -199,9 +199,16 @@ import Testing
                 await Self.settle(w, 3)
             }
             #expect(sidebar.isCollapsed, "too narrow for three columns")
+            #expect(w.frame.width <= 1030, "hiding it doesn't widen the window: \(w.frame.width)")
             let widths = (0..<6).map { _ in w.frame.width }
             await Self.settle(w, 6)
             #expect(sidebar.isCollapsed && w.frame.width == widths[0], "and it stays put: no hiding and showing in turn")
+            // Hidden, it no longer holds the window wide (council round 13: hiding it raised the
+            // least width from 1,029 to 1,119, so the window widened itself): the list and the note.
+            w.setContentSize(CGSize(width: 880, height: 800))
+            await Self.settle(w, 6)
+            #expect(w.frame.width <= 900, "the window goes to the list and the note's width: \(w.frame.width)")
+            #expect(sidebar.isCollapsed)
             w.setContentSize(CGSize(width: 1300, height: 800))
             await Self.settle(w, 8)
             #expect(!sidebar.isCollapsed, "back with room")

@@ -318,9 +318,9 @@ enum AIChangeUndo {
             if note.isTrashed { return "Recover the note to undo." }
             return c.beforeVersion == nil ? "No earlier version to go back to." : nil
         case .created, .restored:
-            return note.isTrashed ? "Already in the Trash." : nil
+            return note.isTrashed ? "Already in Recently Deleted." : nil
         case .deleted:
-            return note.isTrashed ? nil : "Already back from the Trash."
+            return note.isTrashed ? nil : "Already back from Recently Deleted."
         case .moved:
             if note.isTrashed { return "Recover the note to undo." }
             guard note.folder?.id == c.toFolder else { return "Moved again since." }

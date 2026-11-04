@@ -82,6 +82,46 @@ import Testing
         #expect(h.controller.slashCommands.count == SlashCommand.available.count)
     }
 
+    /// ↑ from the first row goes to the last and ↓ from the last to the first; the menu shows half
+    /// a row more than fits, and a line under the recent ones.
+    @Test func arrowsWrapAndTheMenuShowsThereIsMore() async {
+        let h = await EditorHarness("Plan\n")
+        defer { h.close() }
+        await h.select(end(h))
+        await h.type("/")
+        let n = h.controller.slashCommands.count
+        await h.press(EditorHarness.up)
+        #expect(h.controller.slashChoice == n - 1, "up from the first is the last")
+        await h.press(EditorHarness.down)
+        #expect(h.controller.slashChoice == 0, "down from the last is the first")
+        let size = SlashCommandList.size(rows: n)
+        #expect(size.height == 9.5 * SlashCommandList.rowHeight + 8, "half a row past the fold")
+        #expect(SlashCommandList.size(rows: 3).height == 3 * SlashCommandList.rowHeight + 8, "a short list as tall as its rows")
+        #expect(SlashCommandList.size(rows: 3, recent: 1).height == 3 * SlashCommandList.rowHeight + SlashCommandList.recentLine + 8)
+    }
+
+    /// The hint shows on the empty line the caret is on, not on the title's, and not while the
+    /// menu is open or the line has text.
+    @Test func anEmptyLineSaysTypeSlash() async {
+        let h = await EditorHarness("Plan\nMilk\n")
+        defer { h.close() }
+        func hint() -> Bool { h.view.subviews.contains { ($0 as? NSTextField)?.stringValue == PaneTextView.slashHintText } }
+        await h.select(end(h))
+        #expect(hint(), "on the empty line")
+        await h.type("/")
+        #expect(!hint(), "the menu instead")
+        await h.press(EditorHarness.delete)
+        #expect(hint())
+        await h.type("E")
+        #expect(!hint(), "the line has text")
+        await h.select(2)
+        #expect(!hint(), "the title's line has text")
+        let blank = await EditorHarness("")
+        defer { blank.close() }
+        await blank.select(0)
+        #expect(!blank.view.subviews.contains { ($0 as? NSTextField)?.stringValue == PaneTextView.slashHintText }, "not on the title's line of a new note")
+    }
+
     @Test func escapePutsItAwayForThatSlash() async {
         let h = await EditorHarness("Plan\n")
         defer { h.close() }
@@ -184,7 +224,7 @@ import Testing
         await h.select(end(h))
         await h.type("/warn")
         #expect(h.controller.slashCommands == [.callout])
-        #expect(h.controller.slashName(.callout) == "Warning callout")
+        #expect(h.controller.slashName(.callout) == "Warning Callout")
         #expect(h.controller.slashSymbol(.callout) == Callouts.Kind.warning.symbol)
         await h.press(EditorHarness.returnKey)
         #expect(h.text == "Plan\n> [!warning]\n> ")

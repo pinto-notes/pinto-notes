@@ -22,6 +22,10 @@ struct RootView: View {
     @State private var sidebarFit = SidebarFit()
     /// Waits for the window's width to hold still before the sidebar acts on it.
     @State private var sidebarFitWait: Task<Void, Never>?
+    /// The list takes its wider least width (350, for the sidebar's buttons over it) once the
+    /// sidebar has folded away, not while it folds: then the three least widths together pushed
+    /// the window 90 pt wider (council round 13: asked for 1,000, it grew to 1,119).
+    @State private var listRoomy = false
     #endif
     #if os(iOS)
     /// The open notes, for the list beside the note to draw (OpenNotes).
@@ -287,7 +291,14 @@ struct RootView: View {
                 withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) { visibility = v }
             }
         }
-        .onChange(of: visibility) { _, new in sidebarFit.changed(to: new) }
+        .onChange(of: visibility) { _, new in
+            sidebarFit.changed(to: new)
+            if new == .all { listRoomy = false; return }
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(0.4))
+                if visibility != .all { listRoomy = true }
+            }
+        }
         // The list column shows its own title; no window title in the bar.
         .toolbar(removing: .title)
         // ⌘F (Edit › Find › Find…) opens the notes search, unless the note's text has the keys:
@@ -422,7 +433,7 @@ struct RootView: View {
                 // beside the window's buttons: 350 pt keeps More and New Note clear of its edge.
                 // 360 at most beside the sidebar, so a missed restore costs the note little (council
                 // round 5, 11-04: it came back at 440 on the Air).
-                .navigationSplitViewColumnWidth(min: visibility == .all ? 260 : 350, ideal: visibility == .all ? 330 : 350, max: visibility == .all ? 360 : 440)
+                .navigationSplitViewColumnWidth(min: listRoomy ? 350 : 260, ideal: visibility == .all ? 330 : 350, max: visibility == .all ? 360 : 440)
                 #else
                 // Large text needs the room more here than in the note beside it.
                 // A window wider than tall and under 1,000 pt (iPhone Duo open like a book): the list is

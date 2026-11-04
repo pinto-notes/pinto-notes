@@ -556,10 +556,14 @@ struct SidebarView: View {
                     HStack {
                         Text("Folders")
                         Spacer()
-                        // New Folder, where the folders are (it was a fourth toolbar button's place).
+                        // New Folder, where the folders are (it was a fourth toolbar button's place):
+                        // a 22 pt target, its right edge on the counts' (council round 13: 16 pt,
+                        // and 16 pt past them).
                         Button("New Folder", systemImage: "plus") { startNewFolder(nil) }
                             .labelStyle(.iconOnly)
-                            .buttonStyle(.quietIcon(padding: 3))
+                            .font(.system(size: 12, weight: .medium))
+                            .buttonStyle(.quietIcon(padding: 5))
+                            .padding(.trailing, SidebarStyle.trailingColumn - 5)
                             .help("New Folder (\u{21E7}\u{2318}N)")
                             .accessibilityIdentifier("sidebar.newFolder")
                     }

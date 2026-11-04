@@ -8,17 +8,24 @@ struct SlashCommandList: View {
     let controller: EditorController
     static let rowHeight: CGFloat = 24
     static let width: CGFloat = 236
-    /// Ten rows show; more scroll, with the choice kept in view (18 commands made a list taller
-    /// than a small window's note).
-    static let maxRows = 10
+    /// Nine and a half rows show; more scroll, with the choice kept in view (18 commands made a
+    /// list taller than a small window's note). The half row says there's more (council round 13:
+    /// ten whole rows looked like the whole menu).
+    static let maxRows = 9.5
+    /// The line under the recent ones.
+    static let recentLine: CGFloat = 9
 
     /// The list's size for so many commands (the text view places it before SwiftUI lays it out).
-    static func size(rows: Int) -> CGSize { CGSize(width: width, height: CGFloat(min(rows, maxRows)) * rowHeight + 8) }
+    static func size(rows: Int, recent: Int = 0) -> CGSize {
+        let line = recent > 0 && recent < rows ? recentLine : 0
+        let full = CGFloat(rows) * rowHeight + line
+        return CGSize(width: width, height: min(full, CGFloat(maxRows) * rowHeight) + 8)
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical) { rows }
-                .scrollIndicators(controller.slashCommands.count > Self.maxRows ? .automatic : .never)
+                .scrollIndicators(Double(controller.slashCommands.count) > Self.maxRows ? .automatic : .never)
                 .scrollBounceBehavior(.basedOnSize)
                 .onChange(of: controller.slashChoice) { _, i in
                     guard controller.slashCommands.indices.contains(i) else { return }
@@ -64,6 +71,12 @@ struct SlashCommandList: View {
                 .accessibilityAddTraits(i == controller.slashChoice ? .isSelected : [])
                 .accessibilityIdentifier("slash.command.\(command.rawValue)")
                 .id(command)
+                if i == controller.slashRecentCount - 1, i < controller.slashCommands.count - 1 {
+                    // Used last, above; the menu's own order, below.
+                    Rectangle().fill(Color(PColor.paneSeparator)).frame(height: 1)
+                        .padding(.vertical, (Self.recentLine - 1) / 2).padding(.horizontal, 8)
+                        .accessibilityHidden(true)
+                }
             }
         }
     }

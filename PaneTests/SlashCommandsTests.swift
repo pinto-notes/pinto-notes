@@ -81,6 +81,18 @@ import Testing
         #expect(SlashCommands.matches("wiki", in: all) == [.noteLink])
     }
 
+    /// The names the Format menu uses for the same commands.
+    @MainActor @Test func namesMatchTheFormatMenu() throws {
+        #if os(macOS)
+        let root = try SettingsHomeTests.source("Pane/Views/RootView.swift")
+        for c in [SlashCommand.title, .heading, .subheading, .body, .checklist, .bulleted, .dashed, .numbered, .quote, .highlight, .divider, .callout] {
+            #expect(root.contains("Button(\"\(c.name)\")"), "Format › \(c.name)")
+        }
+        #endif
+        #expect(EditorController.slashAnnouncement("Checklist", at: 0, of: 18, shortcut: "\u{21E7}\u{2318}L", opening: true) == "Insert menu. Checklist, 1 of 18, \u{21E7}\u{2318}L")
+        #expect(EditorController.slashAnnouncement("Table", at: 12, of: 18, shortcut: nil, opening: false) == "Table, 13 of 18")
+    }
+
     /// What you used last comes first, three of them, newest first; typed or not.
     @Test func theOnesUsedLastComeFirst() {
         let all = SlashCommand.allCases
@@ -108,7 +120,8 @@ import Testing
     @Test func everyCommandHasANameSymbolAndAWayToFindIt() {
         for c in SlashCommand.allCases {
             #expect(!c.name.isEmpty && !c.symbol.isEmpty)
-            #expect(c.name.prefix(1) == c.name.prefix(1).uppercased() && c.name.dropFirst() == c.name.dropFirst().lowercased(), "sentence case: \(c.name)")
+            // Title case, as the Format menu names the same things (council round 13).
+            #expect(c.name.split(separator: " ").allSatisfy { w in ["to"].contains(w) || w.prefix(1) == w.prefix(1).uppercased() }, "title case: \(c.name)")
             #expect(SlashCommands.matches(String(c.name.prefix(3)), in: SlashCommand.allCases).contains(c))
         }
         #if os(macOS)
