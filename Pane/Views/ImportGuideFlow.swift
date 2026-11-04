@@ -176,6 +176,7 @@ struct ImportGuideFlow: View {
 
     var body: some View {
         ImportGuideSheet(guide: guide, page: page, opened: openedHere, found: found, brought: summary?.notes, foundMany: importable.count > 1, broughtLine: broughtLine,
+                         foundNote: Self.foundNote(importable, kind: kind), foundRows: Self.foundRows(importable, kind: kind),
                          act: act, onDrop: { urls in
                              guard stage == .drop else { return false }
                              add(urls, replacing: true)
@@ -223,18 +224,49 @@ struct ImportGuideFlow: View {
     private var found: (name: String, detail: String, button: String)? {
         // The found vault, named before its notes are counted, and its button by its name.
         if let vault, sources.isEmpty { return (vault.lastPathComponent, "Counting notes…", "Import \(vault.lastPathComponent)") }
-        if let vault, importable.count == 1, importable[0].url.standardizedFileURL.path == vault.standardizedFileURL.path, let f = Self.found(importable, notes: noteCount) {
+        if let vault, importable.count == 1, importable[0].url.standardizedFileURL.path == vault.standardizedFileURL.path, let f = Self.found(importable, notes: noteCount, kind: kind) {
             return (f.name, f.detail, "Import \(vault.lastPathComponent)")
         }
-        return Self.found(importable, notes: noteCount)
+        return Self.found(importable, notes: noteCount, kind: kind)
     }
 
-    private static func found(_ importable: [ImportSource], notes noteCount: Int) -> (name: String, detail: String, button: String)? {
+    private static func n(_ c: Int) -> String { c.formatted(.number.locale(Locale(identifier: "en_US"))) }
+
+    static func found(_ importable: [ImportSource], notes noteCount: Int, kind: ImportKind) -> (name: String, detail: String, button: String)? {
         guard !importable.isEmpty else { return nil }
-        let notes = noteCount.formatted(.number.locale(Locale(identifier: "en_US")))
         // The file as it was downloaded, so the person sees it's the one they picked.
         let name = importable.count == 1 ? importable[0].url.lastPathComponent : "\(importable.count) files"
-        return (name, noteCount == 1 ? "1 note" : "\(notes) notes", noteCount == 1 ? "Import 1 Note" : "Import \(notes) Notes")
+        // Notion's pages and databases, counted the way Notion names them (persona council 11-04).
+        if kind == .notion, importable.count == 1, let p = importable[0].preview {
+            let pages = "\(n(p.notes)) \(p.notes == 1 ? "Page" : "Pages")"
+            let button = p.databases == 0 ? "Import \(pages)" : "Import \(pages) and \(n(p.databases)) \(p.databases == 1 ? "Database" : "Databases")"
+            return (name, ByteCountFormatter.string(fromByteCount: importable[0].bytes, countStyle: .file), button)
+        }
+        return (name, noteCount == 1 ? "1 note" : "\(n(noteCount)) notes", noteCount == 1 ? "Import 1 Note" : "Import \(n(noteCount)) Notes")
+    }
+
+    /// The found page's line, when it says what comes and what doesn't (Notion); nil: the usual one.
+    static func foundNote(_ importable: [ImportSource], kind: ImportKind) -> String? {
+        guard kind == .notion, importable.count == 1, let p = importable[0].preview else { return nil }
+        return p.databases > 0 ? "Pages become notes. Each database becomes a table. Views and formulas don't come over."
+            : "Pages become notes, and subpages become folders."
+    }
+
+    /// What one picked export or vault holds, a line each, as the found page lists it: what
+    /// becomes notes, what comes along, and what doesn't carry over (persona council 11-04).
+    static func foundRows(_ importable: [ImportSource], kind: ImportKind) -> [ImportPreviewRow] {
+        guard importable.count == 1, let p = importable[0].preview, [.notion, .obsidian, .markdown, .bear].contains(kind) else { return [] }
+        var rows: [ImportPreviewRow] = []
+        if kind == .notion {
+            rows.append(.init(symbol: "doc.text", count: "\(n(p.notes)) \(p.notes == 1 ? "page" : "pages")", becomes: "become notes"))
+            if p.databases > 0 { rows.append(.init(symbol: "tablecells", count: "\(n(p.databases)) \(p.databases == 1 ? "database" : "databases")", becomes: p.databases == 1 ? "becomes a table" : "become tables")) }
+        } else {
+            rows.append(.init(symbol: "doc.text", count: "\(n(p.notes)) \(p.notes == 1 ? "note" : "notes")", becomes: "come with their folders"))
+        }
+        if p.files > 0 { rows.append(.init(symbol: "photo", count: "\(n(p.files)) \(p.files == 1 ? "picture or file" : "pictures and files")", becomes: "come with the notes that use them")) }
+        if p.embeds > 0 { rows.append(.init(symbol: "link", count: "\(n(p.embeds)) embedded \(p.embeds == 1 ? "note" : "notes")", becomes: p.embeds == 1 ? "becomes a link" : "become links", left: true)) }
+        if p.canvases > 0 { rows.append(.init(symbol: "rectangle.3.group", count: "\(n(p.canvases)) \(p.canvases == 1 ? "canvas" : "canvases")", becomes: "stay in \(kind == .obsidian ? "Obsidian" : "the folder")", left: true)) }
+        return rows
     }
 
     /// The success page's line: the folder the import made, by its name, or why nothing came.
@@ -246,8 +278,20 @@ struct ImportGuideFlow: View {
         }
         guard guide.success.line.contains("{folder}") else { return nil }
         let made = Set(imported.map(\.name))
-        if made.count == 1, let name = made.first { return guide.success.line.replacingOccurrences(of: "{folder}", with: name) }
+        if made.count == 1, let name = made.first {
+            return [guide.success.line.replacingOccurrences(of: "{folder}", with: name), Self.leftLine(imported, kind: kind)].compactMap { $0 }.joined(separator: " ")
+        }
         return "Each one is a folder of its own, subfolders and pictures included."
+    }
+
+    /// After the import, what didn't carry over, as the found page said it would: embedded notes
+    /// came in as links, canvases stayed where they were.
+    static func leftLine(_ imported: [ImportSource], kind: ImportKind) -> String? {
+        guard imported.count == 1, let p = imported[0].preview else { return nil }
+        var said: [String] = []
+        if p.embeds > 0 { said.append(p.embeds == 1 ? "The embedded note is a link." : "Embedded notes are links.") }
+        if p.canvases > 0 { said.append("\(p.canvases == 1 ? "The canvas" : "Canvases") stayed in \(kind == .obsidian ? "Obsidian" : "the folder").") }
+        return said.isEmpty ? nil : said.joined(separator: " ")
     }
 
     // MARK: Presses

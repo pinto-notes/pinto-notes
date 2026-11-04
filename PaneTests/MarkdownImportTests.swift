@@ -196,7 +196,7 @@ import ZIPFoundation
         for url in [folder, zip] {
             let r = try await Self.importing([url])
             defer { r.cleanUp() }
-            #expect(r.summary.notes == 3 && r.summary.attachments == 1 && r.summary.notNotes == 1, "the database CSV is left out, its pages kept")
+            #expect(r.summary.notes == 4 && r.summary.attachments == 1 && r.summary.notNotes == 0, "the database is a note with a table, its pages kept")
             let trip = try r.note("Trip to Porto")
             let img = try #require(r.files.first { $0.filename == "IMG_0042.png" })
             #expect(trip.body == "Trip to Porto\nFlights on **Friday**. See [[Packing list]].\n\n\(img.markdown)\n\nHotel: [Casa do Rio](https://example.com/casa-do-rio)\n\n#travel #family\n")
@@ -208,6 +208,8 @@ import ZIPFoundation
             #expect(r.path(try r.note("Packing list")) == "\(source)/Trip to Porto")
             let dune = try r.note("Dune")
             #expect(r.path(dune) == "\(source)/Books" && dune.body == "Dune\nAuthor: Frank Herbert\nStatus: Read\n\nSpice must flow.\n")
+            let books = try r.note("Books")
+            #expect(r.path(books) == source && books.body.contains("| [[Dune]] | Frank Herbert | Read |"), "the database beside its rows' folder")
         }
     }
 
@@ -245,26 +247,32 @@ import ZIPFoundation
         for url in [zip, parts] {
             let source = ImportKind.notion.inspect(url)
             #expect(source.problem == nil && source.notes == 3, "the notes inside the parts are counted: \(source)")
+            #expect(source.preview?.databases == 1, "the database counted once, its .csv and _all.csv both: \(String(describing: source.preview))")
             #expect(source.name == "Notion", "one folder named Notion, not the download's name")
             let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
             let summary = await MarkdownImporter(context: c.mainContext).run([source], into: .perSource)
             let r = Imported(container: c, summary: summary)
             defer { r.cleanUp() }
-            #expect(summary.notes == 3 && summary.failedFiles.isEmpty)
+            #expect(summary.notes == 4 && summary.failedFiles.isEmpty, "three pages and the database's note")
+            #expect(summary.notNotes == 0, "the database's two .csv files are its note, not left-overs")
             let homeNote = try r.note("Home"), tripNote = try r.note("Trip to Lisbon"), duneNote = try r.note("Dune")
             #expect(r.path(homeNote) == "Notion")
             #expect(r.path(tripNote) == "Notion/Home", "a subpage is in its page's folder, ids dropped")
-            #expect(r.path(duneNote) == "Notion/Home/Reading list", "a database is a folder with a note per row")
+            #expect(r.path(duneNote) == "Notion/Home/Reading list", "the rows' pages still come, a note each in a folder")
             #expect(duneNote.body == "Dune\nAuthor: Frank Herbert\nStatus: Read\n\nSpice must flow.\n", "its properties as lines at the top")
             #expect(tripNote.body.contains("[[Home]]") && tripNote.body.contains("#travel"))
             var october = DateComponents(year: 2026, month: 10, day: 2, hour: 9, minute: 15)
             october.timeZone = .current
             #expect(tripNote.createdAt == Calendar.current.date(from: october))
             #expect(homeNote.body.contains("[[Trip to Lisbon]]"), "links between pages still lead there")
-            // The database's table comes along as a file on the page that holds it, named without the id.
-            let table = try #require(r.files.first { $0.filename.hasSuffix(".csv") })
-            #expect(table.filename == "Reading list.csv")
-            #expect(homeNote.body.contains(table.markdown))
+            // Persona council 11-04: the database is one note with a typed table, beside the page
+            // that holds it, each row's title a link to its page. The page's link leads to it.
+            let database = try r.note("Reading list")
+            #expect(r.path(database) == "Notion/Home")
+            #expect(database.body == "Reading list\n\n<!-- pane-table: Name=text; Author=text; Status=text -->\n| Name | Author | Status |\n| --- | --- | --- |\n| [[Dune]] | Frank Herbert | Read |\n")
+            let table = try #require(TypedTable.find(in: database.body).first)
+            #expect(table.rows == [["[[Dune]]", "Frank Herbert", "Read"]])
+            #expect(homeNote.body.contains("[[Reading list]]") && !r.files.contains { $0.filename.hasSuffix(".csv") }, "no .csv file: the link leads to the table's note")
             #expect(!r.notes.contains { $0.title.contains("Export") }, "no folder or note named after the download")
         }
     }

@@ -67,7 +67,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: "Each notebook you exported becomes a folder. Nothing in Evernote changes."
         case .markdown: "Each folder or .zip becomes a folder, subfolders included. Your files aren't changed."
         case .keep: "From your Google Takeout download. Nothing in Keep changes."
-        case .notion: "Your export becomes a folder named Notion, subpages included. Each database is a folder with a note per row. Nothing in Notion changes."
+        case .notion: "Your export becomes a folder named Notion, subpages included. Each database becomes a note with a table. Nothing in Notion changes."
         }
     }
 

@@ -35,12 +35,13 @@ final class MarkdownImporter {
         let name = cleanName(url.deletingPathExtension().lastPathComponent)
         var notes = 0
         var bytes: Int64 = 0
+        var tally = Tally()
         if isZip {
             bytes = Int64((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
             guard let archive = try? Archive(url: url, accessMode: .read, pathEncoding: nil) else {
                 return ImportSource(url: url, name: name, notes: 0, bytes: bytes, problem: "This .zip couldn't be opened.")
             }
-            notes = count(in: archive)
+            notes = count(in: archive, tally: &tally)
             if notes == 0 {
                 // A wrapper: the notes are in the .zip files inside it.
                 let scratch = FileManager.default.temporaryDirectory.appending(path: "MarkdownInspect-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -48,30 +49,85 @@ final class MarkdownImporter {
                 for (i, entry) in archive.enumerated() where entry.type == .file && isInnerZip(entry.path.split(separator: "/").map(String.init)) {
                     let inner = scratch.appending(path: "\(i).zip")
                     guard (try? archive.extract(entry, to: inner)) != nil, let a = try? Archive(url: inner, accessMode: .read, pathEncoding: nil) else { continue }
-                    notes += count(in: a)
+                    notes += count(in: a, tally: &tally)
                     try? FileManager.default.removeItem(at: inner)
                 }
             }
         } else {
             let all = walk(url)
+            var noteBytes = 0
+            var noteFiles: [URL] = []
             for (path, file) in all {
-                if case .note = kind(of: path), !looksLikeJSON(file) { notes += 1 }
+                if case .note = kind(of: path), !looksLikeJSON(file) {
+                    notes += 1
+                    noteFiles.append(file)
+                    noteBytes += (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+                } else {
+                    tally.add(path)
+                }
             }
             if notes == 0 {
                 // A Notion download unzipped once: its parts are still .zip files.
                 for (path, file) in all where isInnerZip(path) {
-                    if let a = try? Archive(url: file, accessMode: .read, pathEncoding: nil) { notes += count(in: a) }
+                    if let a = try? Archive(url: file, accessMode: .read, pathEncoding: nil) { notes += count(in: a, tally: &tally) }
                 }
+            }
+            // Embedded notes (`![[Note]]`, Obsidian's) come in as links: counted for the page
+            // before Import when reading the notes is quick (a vault of 100 MB of text isn't).
+            if noteBytes <= embedReadLimit {
+                tally.embeds = noteFiles.reduce(0) { $0 + embedCount((try? Data(contentsOf: $1)).map(decode) ?? "") }
             }
             bytes = folderSize(url)
         }
         let problem = notes == 0 ? "No Markdown or text notes in here." : nil
-        return ImportSource(url: url, name: name, notes: notes, bytes: bytes, problem: problem)
+        var source = ImportSource(url: url, name: name, notes: notes, bytes: bytes, problem: problem)
+        source.preview = ImportPreview(notes: notes, databases: tally.databases.count, embeds: tally.embeds ?? 0, canvases: tally.canvases, files: tally.files)
+        return source
+    }
+
+    /// The notes' text read to count embeds, at most (a big vault's count isn't worth the wait).
+    nonisolated static let embedReadLimit = 60_000_000
+
+    /// What a source holds besides its notes, path by path: Notion's databases (by name, a
+    /// `.csv` and its `_all.csv` one), Obsidian's canvases, and the other files.
+    struct Tally {
+        var databases: Set<String> = []
+        var canvases = 0
+        var files = 0
+        var embeds: Int?
+
+        mutating func add(_ path: [String]) {
+            guard MarkdownImporter.kind(of: path) == .file, !MarkdownImporter.isInnerZip(path) else { return }
+            if let key = NotionDatabase.key(path) { databases.insert(key); return }
+            let ext = ((path.last ?? "") as NSString).pathExtension.lowercased()
+            if ext == "canvas" { canvases += 1 } else if !(path.dropLast().last?.lowercased().hasSuffix(".textbundle") ?? false) { files += 1 }
+        }
+    }
+
+    /// Embeds of notes in a note's text (`![[Recipe]]`, not `![[photo.png]]`).
+    nonisolated static func embedCount(_ text: String) -> Int {
+        guard text.contains("![[") else { return 0 }
+        return WikiLinks.links(in: text).filter { link in
+            guard link.embed else { return false }
+            let ext = (link.target as NSString).pathExtension.lowercased()
+            return ext.isEmpty || noteExtensions.contains(ext)
+        }.count
     }
 
     /// The notes in an archive, by their paths.
     nonisolated static func count(in archive: Archive) -> Int {
-        archive.filter { $0.type == .file }.filter { kind(of: $0.path.split(separator: "/").map(String.init)) == .note }.count
+        var t = Tally()
+        return count(in: archive, tally: &t)
+    }
+
+    /// The notes in an archive, and what else it holds added to `tally`.
+    nonisolated static func count(in archive: Archive, tally: inout Tally) -> Int {
+        var notes = 0
+        for entry in archive where entry.type == .file {
+            let path = entry.path.split(separator: "/").map(String.init)
+            if kind(of: path) == .note { notes += 1 } else { tally.add(path) }
+        }
+        return notes
     }
 
     /// A .zip inside an export that holds no notes of its own, outside the folders that are skipped.
@@ -207,6 +263,15 @@ final class MarkdownImporter {
                     turn = clock.now
                 }
             }
+            // Notion's databases, each a note with its table, once the pages its rows link to are in.
+            for database in tree.databases {
+                if shouldStop() { writer.summary.stopped = true; break outer }
+                addDatabase(database, in: tree, source: source, destination: destination)
+                if clock.now - turn > .milliseconds(12) {
+                    try? await Task.sleep(for: .milliseconds(1))
+                    turn = clock.now
+                }
+            }
             writer.summary.trashed += tree.trashed
             writer.summary.notNotes += tree.files.keys.filter { !tree.used.contains($0) }.count
         }
@@ -238,12 +303,22 @@ final class MarkdownImporter {
             var byStem: [String: [String]] = [:]
             var byAlias: [String: [String]] = [:]
             var commonPrefix = 0
+            /// Notion's databases: the .csv each is read from (its `_all.csv` when there is one).
+            var databases: [(path: [String], url: URL)] = []
+            /// Each database's .csv files (both, when Notion wrote two), to the one it's read from.
+            var databaseFiles: [String: String] = [:]
 
             mutating func index() {
                 for (i, n) in notes.enumerated() {
                     let key = n.url.standardizedFileURL.path
                     noteIndex[key] = i
                     if let t = titles[key] { titleCounts[WikiLinks.key(t), default: []].append(n.url) }
+                }
+                for d in databases {
+                    let key = d.url.standardizedFileURL.path
+                    let title = NotionDatabase.title(d.path.last ?? "")
+                    titles[key] = title
+                    titleCounts[WikiLinks.key(title), default: []].append(d.url)
                 }
                 for (url, path) in linkPaths {
                     let joined = path.joined(separator: "/")
@@ -287,9 +362,14 @@ final class MarkdownImporter {
         private var noteIndex: [String: Int] = [:]
         /// Notes by title (WikiLinks.key).
         private var titleCounts: [String: [URL]] = [:]
+        /// Notion's databases, each a note with a table (`addDatabase`).
+        let databases: [(path: [String], url: URL)]
+        private var databaseFiles: [String: String] = [:]
+        private var databasePaths: [String: [String]] = [:]
 
         nonisolated static func scan(_ root: URL) -> Scan {
             var s = Scan(root: root.standardizedFileURL)
+            var csvs: [String: [(path: [String], url: URL)]] = [:]
             for (path, url) in MarkdownImporter.walk(root) {
                 let key = url.standardizedFileURL.path
                 switch MarkdownImporter.kind(of: path) {
@@ -312,8 +392,18 @@ final class MarkdownImporter {
                     // A TextBundle's own files (info.json) are part of its note, not left-overs.
                     if path.dropLast().contains(where: { $0.lowercased().hasSuffix(".textbundle") }) { s.used.insert(key) }
                     s.byName[url.lastPathComponent.lowercased(), default: []].append(url)
+                    if let db = NotionDatabase.key(path) { csvs[db, default: []].append((path, url)) }
                 case .trashed: s.trashed += 1
                 case .skipped: break
+                }
+            }
+            // A database is read from its `_all.csv` (every row) when Notion wrote one; both files are its.
+            for (_, files) in csvs.sorted(by: { $0.key < $1.key }) {
+                guard let read = files.first(where: { (($0.path.last ?? "") as NSString).deletingPathExtension.hasSuffix("_all") }) ?? files.first else { continue }
+                s.databases.append(read)
+                for f in files {
+                    s.databaseFiles[f.url.standardizedFileURL.path] = read.url.standardizedFileURL.path
+                    s.used.insert(f.url.standardizedFileURL.path)
                 }
             }
             s.index()
@@ -336,6 +426,23 @@ final class MarkdownImporter {
             byStem = scan.byStem
             byAlias = scan.byAlias
             commonPrefix = scan.commonPrefix
+            databases = scan.databases
+            databaseFiles = scan.databaseFiles
+            for d in scan.databases { databasePaths[d.url.standardizedFileURL.path] = d.path }
+        }
+
+        /// The pages of a database's rows, by title (WikiLinks.key), as links name them: Notion
+        /// puts them in a folder named as the .csv is, beside it.
+        func rowPages(of database: (path: [String], url: URL)) -> [String: [String]] {
+            var stem = ((database.path.last ?? "") as NSString).deletingPathExtension
+            if stem.hasSuffix("_all") { stem.removeLast(4) }
+            let folder = Array(database.path.dropLast()) + [stem]
+            var out: [String: [String]] = [:]
+            for n in notes where Array(n.path.dropLast()) == folder {
+                guard let title = title(of: n.url), let target = linkTarget(for: n.url) else { continue }
+                out[WikiLinks.key(title), default: []].append(target)
+            }
+            return out
         }
 
         /// A file a note points at, if it's inside this source.
@@ -361,6 +468,16 @@ final class MarkdownImporter {
             if let q = s.firstIndex(where: { $0 == "?" || $0 == "#" }) { s = String(s[..<q]) }
             let decoded = s.removingPercentEncoding ?? s
             let ext = (decoded as NSString).pathExtension.lowercased()
+            // A Notion database's .csv: the link leads to its note.
+            if ext == "csv" {
+                for candidate in [decoded, s] where !candidate.isEmpty {
+                    for url in [URL(fileURLWithPath: candidate, relativeTo: note.deletingLastPathComponent()).standardizedFileURL,
+                                root.appending(path: candidate).standardizedFileURL] {
+                        if let db = databaseFiles[url.path] { return URL(fileURLWithPath: db) }
+                    }
+                }
+                return nil
+            }
             guard ext.isEmpty || MarkdownImporter.noteExtensions.contains(ext) else { return nil }
             for candidate in [decoded, s] where !candidate.isEmpty {
                 for url in [URL(fileURLWithPath: candidate, relativeTo: note.deletingLastPathComponent()).standardizedFileURL,
@@ -410,6 +527,7 @@ final class MarkdownImporter {
 
         /// The folders a note lands in, under the source's folder.
         func folders(of url: URL) -> [String] {
+            if let path = databasePaths[url.standardizedFileURL.path] { return Array(path.dropLast().dropFirst(commonPrefix)).map(MarkdownImporter.cleanName) }
             guard let i = noteIndex[url.standardizedFileURL.path] else { return [] }
             let n = notes[i]
             let bundle = n.path.count >= 2 && n.path[n.path.count - 2].lowercased().hasSuffix(".textbundle")
@@ -493,6 +611,37 @@ final class MarkdownImporter {
         if writer.add(markdown: markdown, created: created, updated: updated, in: folder, files: files, frontMatter: parsed.kept) {
             writer.summary.attachments += files.count
         }
+    }
+
+    /// A Notion database as one note: its name, then its rows as a typed table, each row's title a
+    /// link to the row's page (which came in as a note of its own), a relation's pages linked too.
+    private func addDatabase(_ database: (path: [String], url: URL), in tree: Tree, source: ImportSource, destination: ImportDestination) {
+        guard let data = try? Data(contentsOf: database.url) else {
+            writer.summary.failedFiles.append("\(database.path.joined(separator: "/")): couldn't be read.")
+            return
+        }
+        let pages = tree.rowPages(of: database)
+        var taken: [String: Int] = [:]
+        let table = NotionDatabase.table(Self.decode(data)) { column, _, text, path in
+            if column == 0 {
+                // Two rows with the same title: each takes the next page with it.
+                let key = WikiLinks.key(text)
+                guard let list = pages[key] else { return nil }
+                let i = taken[key, default: 0]
+                taken[key] = i + 1
+                return list.indices.contains(i) ? WikiLinks.markdown(target: list[i]) : nil
+            }
+            guard let path else { return nil }
+            return tree.noteFile(path, from: database.url).flatMap(tree.linkTarget).map { WikiLinks.markdown(target: $0) }
+        }
+        guard let table, !table.columns.isEmpty else { writer.summary.notNotes += 1; return }
+        let titleLine = ImportWriter.titleLine(NotionDatabase.title(database.path.last ?? ""))
+        let values = try? database.url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+        let created = [values?.creationDate, values?.contentModificationDate].compactMap { $0 }.min() ?? .now
+        if writer.alreadyImported(titleLine: titleLine, created: created) { return }
+        let dirs = Array(database.path.dropLast().dropFirst(tree.commonPrefix)).map(Self.cleanName)
+        let folder = writer.folder(source: source.name, path: dirs, destination)
+        _ = writer.add(markdown: titleLine + "\n\n" + table.markdown, created: created, updated: values?.contentModificationDate, in: folder, files: [])
     }
 
     nonisolated static func decode(_ data: Data) -> String {

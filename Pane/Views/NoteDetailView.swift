@@ -474,12 +474,12 @@ struct NoteDetailView: View {
                     // Like Notes: the text runs under the see-through toolbar, which fades it at the
                     // edge (AppKit insets the text by the toolbar's height).
                     .ignoresSafeArea(.container, edges: .top)
-                    // The soft edge: text passing under the toolbar fades into the page's ground, so
-                    // the buttons stay readable over it.
+                    // Under the toolbar the page's own ground, solid, so text scrolled up never shows
+                    // through the folder's name or the buttons (persona council 11-04: it did, at 60%);
+                    // a short fade below it, so the text isn't cut off at a hard line.
                     .overlay(alignment: .top) {
                         if !Self.captureWithoutToolbar {
-                            LinearGradient(stops: [.init(color: Color.notePage, location: 0), .init(color: Color.notePage.opacity(0.85), location: 0.55),
-                                                   .init(color: Color.notePage.opacity(0), location: 1)],
+                            LinearGradient(stops: Self.toolbarCover.map { .init(color: Color.notePage.opacity($0.opacity), location: $0.location) },
                                            startPoint: .top, endPoint: .bottom)
                                 .frame(height: NoteDetailView.toolbarFade)
                                 .ignoresSafeArea(.container, edges: .top)
@@ -988,6 +988,10 @@ struct NoteDetailView: View {
     /// title instead. Off in the app.
     nonisolated(unsafe) static var captureWithoutToolbar = false
     static let toolbarFade: CGFloat = 64
+    /// The toolbar's height in the notes window (the unified title bar and toolbar).
+    static let toolbarHeight: CGFloat = 52
+    /// The cover's opacity down the fade: whole to the toolbar's foot, then gone by 12 pt below it.
+    static let toolbarCover: [(opacity: Double, location: CGFloat)] = [(1, 0), (1, toolbarHeight / toolbarFade), (0, 1)]
     #endif
 
     // MARK: Wiki links

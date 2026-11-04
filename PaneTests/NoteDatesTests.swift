@@ -151,6 +151,22 @@ import AppKit
         #expect(storage.attribute(.strikethroughStyle, at: date.location, effectiveRange: nil) == nil)
     }
 
+    /// A table's dates are the grid's to draw: no chip on its hidden markdown, which showed one
+    /// under the table (persona council 11-04, a Notion reading list with a Finished column).
+    @MainActor @Test func aTablesDatesHaveNoChip() {
+        var styler = MarkdownStyler()
+        styler.dateNow = { Self.now }
+        let text = "Reading list\n\n<!-- pane-table: Name=text; Finished=date -->\n| Name | Finished |\n| --- | --- |\n| Dune | 2026-09-12 |\n| Piranesi | 2026-10-03 |\n\nNext: 2026-11-03"
+        let storage = NSTextStorage(string: text)
+        let shown = styler.apply(to: storage, active: NSRange(location: NSNotFound, length: 0))
+        #expect(shown.grids.count == 1)
+        let ns = text as NSString
+        for date in ["2026-09-12", "2026-10-03"] {
+            #expect(storage.attribute(.paneDate, at: ns.range(of: date).location, effectiveRange: nil) == nil, "\(date) is in the table")
+        }
+        #expect(storage.attribute(.paneDate, at: ns.range(of: "2026-11-03").location, effectiveRange: nil) != nil, "a date after the table is still a chip")
+    }
+
     @MainActor @Test func aDateTitleStaysTheTitle() {
         var styler = MarkdownStyler()
         styler.dateNow = { Self.now }
