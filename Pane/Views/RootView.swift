@@ -1112,13 +1112,13 @@ struct PaneCommands: Commands {
                 .disabled(editor == nil)
             Divider()
             // Note text, as in Notes' View menu. A PDF or picture open takes ⌘+ and ⌘− for its zoom.
-            Button("Bigger") { TextSize.bigger() }
+            Button(TextSize.biggerTitle) { TextSize.bigger() }
                 .keyboardShortcut("+", modifiers: .command)
                 .disabled(textSize >= Double(TextSize.steps.last!))
-            Button("Smaller") { TextSize.smaller() }
+            Button(TextSize.smallerTitle) { TextSize.smaller() }
                 .keyboardShortcut("-", modifiers: .command)
-                .disabled(textSize != 0 && textSize <= Double(TextSize.steps.first!))
-            Button("Actual Size") { TextSize.actualSize() }
+                .disabled(textSize == 0 || textSize <= Double(TextSize.steps.first!))
+            Button(TextSize.actualTitle) { TextSize.actualSize() }
                 .keyboardShortcut("0", modifiers: .command)
                 .disabled(textSize == 0)
             Divider()

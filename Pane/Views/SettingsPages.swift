@@ -302,6 +302,11 @@ struct AppearanceSettingsPage: View {
                     }
                 }
             }
+            // Persona council 11-04: note text from 13 to 24 pt, as Notes' and Books' View menus do it.
+            SettingsGroup(header: "Text size", footer: TextSizeRow.footer) {
+                TextSizeRow()
+                TextSizeSample()
+            }
             SettingsGroup {
                 SettingsLine(title: "Show in menu bar", detail: "Capture or find a note from the menu bar, even with the window closed.") {
                     Toggle("Show in menu bar", isOn: $menuBar)
@@ -312,6 +317,57 @@ struct AppearanceSettingsPage: View {
         }
         .onAppear { AppearancePage.onScreen += 1 }
         .onDisappear { AppearancePage.onScreen -= 1 }
+    }
+}
+
+/// Text size: a slider of five stops between a small and a large A, the size in points beside it.
+/// It changes every open note as it moves, and the sample under it.
+struct TextSizeRow: View {
+    @AppStorage(TextSize.key) private var stored: Double = 0
+
+    static let footer = "Note text on this Mac. Make Text Bigger and Make Text Smaller in the View menu change it too."
+
+    var body: some View {
+        let size = TextSize.size(stored: stored)
+        HStack(spacing: 10) {
+            Text("Text size").font(.system(size: 13)).foregroundStyle(SettingsInk.text)
+            Spacer(minLength: 12)
+            Text("A").font(.system(size: 11)).foregroundStyle(SettingsInk.muted).accessibilityHidden(true)
+            Slider(value: Binding(get: { Double(TextSize.index(of: size)) },
+                                  set: { TextSize.set(TextSize.steps[min(max(Int($0.rounded()), 0), TextSize.steps.count - 1)]) }),
+                   in: 0...Double(TextSize.steps.count - 1), step: 1)
+                .labelsHidden()
+                .tint(SettingsInk.switchOn)
+                .frame(width: 180)
+                .accessibilityLabel("Text size")
+                .accessibilityValue(TextSize.spoken(size))
+                .accessibilityIdentifier("settings.textSize")
+            Text("A").font(.system(size: 19)).foregroundStyle(SettingsInk.muted).accessibilityHidden(true)
+            Text("\(Int(size)) pt")
+                .font(.system(size: 12).monospacedDigit())
+                .foregroundStyle(SettingsInk.muted)
+                .frame(width: 36, alignment: .trailing)
+                .accessibilityHidden(true)
+        }
+        .frame(minHeight: 44)
+    }
+}
+
+/// A line of a note at the chosen size, as the notes will show it.
+struct TextSizeSample: View {
+    @AppStorage(TextSize.key) private var stored: Double = 0
+    static let text = "Four days of tiles, trams and pastries in May."
+
+    var body: some View {
+        Text(Self.text)
+            .font(.system(size: TextSize.size(stored: stored)))
+            .foregroundStyle(SettingsInk.text)
+            .lineLimit(2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 12)
+            .animation(.snappy(duration: 0.15), value: stored)
+            .accessibilityLabel("Sample: \(Self.text)")
+            .accessibilityIdentifier("settings.textSizeSample")
     }
 }
 
