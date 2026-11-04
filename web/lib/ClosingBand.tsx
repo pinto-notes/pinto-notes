@@ -3,8 +3,8 @@ import PlatformNote from "@/app/PlatformNote";
 import { APP_STORE_LIVE, APP_STORE_URL } from "./site";
 import c from "./closing-band.module.css";
 
-/// The ending every site page shares: a full-width band in the leaf's dark brown, the page's last
-/// line as its title, one primary and at most one secondary, and one line of fine print. The
+/// The ending every site page shares, on the page's own ground just above the footer's paper town: the
+/// page's last line as its title, one primary and at most one secondary, and one line of fine print. The
 /// primary is the Mac download unless the page passes its own (a template's verb, an email). The
 /// iPhone app is said in the fine print until it's on the App Store, never as a button that does
 /// nothing. Visitors on other platforms get the platform note instead of the download.
