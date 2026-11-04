@@ -188,7 +188,7 @@ extension TableInteractionTests {
         h.controller.insertTable()
         #expect(await h.until(5) { h.gridHasFocus }, "the keyboard is in the new table")
         Self.typeIntoFocusedCell(h, "Game")
-        #expect(await h.until(5) { h.text.hasSuffix("After the table\n| Game |   |\n| --- | --- |\n|   |   |\n") }, "typed into the new table, not the one above: \(h.text.debugDescription)")
+        #expect(await h.until(5) { h.text.hasSuffix("After the table\n\n| Game |   |\n| --- | --- |\n|   |   |\n") }, "typed into the new table, not the one above (a blank line keeps the line above from becoming its header, 01c5e7d3): \(h.text.debugDescription)")
     }
 }
 #endif

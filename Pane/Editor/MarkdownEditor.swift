@@ -2152,6 +2152,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         if let tlm = textLayoutManager { tlm.invalidateLayout(for: tlm.documentRange) }
         setInsets(width: frame.width)
         placeFoot()
+        // Cards draw their text at the size they were given: forget it, so each table and card
+        // gets its content again at the new size.
+        cardContent.removeAll()
         queueCardLayout(animated: false)
         needsDisplay = true
     }

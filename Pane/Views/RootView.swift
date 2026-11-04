@@ -112,6 +112,11 @@ struct RootView: View {
             // Today's Note, from the calendar button and the menus, in this window (DailyNotes).
             .environment(\.todaysNote, TodaysNoteAction(open: openTodaysNote))
             .focusedSceneValue(\.todaysNote, TodaysNoteAction(open: openTodaysNote))
+            #if os(macOS)
+            // View › Hide Sidebar / Show Sidebar, named for the state it's in (SidebarCommands
+            // read "Show Sidebar" both ways beside this three-column split view).
+            .focusedSceneValue(\.sidebarVisibility, $visibility)
+            #endif
             .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
                 if let client = backendForConnect?.client { ConnectAISheet(client: client) }
             }
@@ -1072,6 +1077,7 @@ struct PaneCommands: Commands {
     @FocusedValue(\.importFromAction) private var importFrom
     @FocusedValue(\.showHistoryAction) private var showHistory
     @FocusedValue(\.todaysNote) private var todaysNote
+    @FocusedValue(\.sidebarVisibility) private var sidebarVisibility
     /// Read so the View menu's text size items enable and disable as the size changes.
     @AppStorage(TextSize.key) private var textSize: Double = 0
 
@@ -1106,9 +1112,17 @@ struct PaneCommands: Commands {
             Button(NoteMoreMenu.historyTitle) { showHistory?() }
                 .disabled(showHistory == nil)
         }
-        // View › AI Changes: everything an AI changed, across all notes. After Hide Sidebar
-        // (SidebarCommands); with that group replaced by nothing (11-01) these went with it.
-        CommandGroup(after: .sidebar) {
+        // View › Hide Sidebar, then AI Changes (everything an AI changed, across all notes) and
+        // the rest. The sidebar group is replaced, not added to: an empty replacement (11-01)
+        // took everything after it away.
+        CommandGroup(replacing: .sidebar) {
+            Button(SidebarToggle.title(sidebarVisibility?.wrappedValue)) {
+                guard let v = sidebarVisibility else { return }
+                withAnimation(.snappy(duration: 0.3)) { v.wrappedValue = SidebarToggle.toggled(v.wrappedValue) }
+            }
+            .keyboardShortcut("s", modifiers: [.command, .control])
+            .disabled(sidebarVisibility == nil)
+            Divider()
             // As in Notes. The shortcuts are Xcode's Fold All and Unfold All.
             Button("Collapse All Sections") { editor?.collapseAllSections() }
                 .keyboardShortcut(.leftArrow, modifiers: [.command, .option, .shift])
@@ -1267,6 +1281,29 @@ private struct NoteFirstStyle: ViewModifier {
     let on: Bool
     func body(content: Content) -> some View {
         if on { content.navigationSplitViewStyle(.prominentDetail) } else { content.navigationSplitViewStyle(.automatic) }
+    }
+}
+#endif
+
+#if os(macOS)
+/// View › Hide Sidebar / Show Sidebar for the notes window's split view.
+enum SidebarToggle {
+    static func title(_ v: NavigationSplitViewVisibility?) -> String {
+        v == nil || v == .all ? "Hide Sidebar" : "Show Sidebar"
+    }
+    static func toggled(_ v: NavigationSplitViewVisibility) -> NavigationSplitViewVisibility {
+        v == .all ? .doubleColumn : .all
+    }
+}
+
+private struct SidebarVisibilityKey: FocusedValueKey {
+    typealias Value = Binding<NavigationSplitViewVisibility>
+}
+
+extension FocusedValues {
+    var sidebarVisibility: Binding<NavigationSplitViewVisibility>? {
+        get { self[SidebarVisibilityKey.self] }
+        set { self[SidebarVisibilityKey.self] = newValue }
     }
 }
 #endif

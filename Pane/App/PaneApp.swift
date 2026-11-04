@@ -239,8 +239,7 @@ struct PaneApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             PaneCommands()
-            // View › Hide Sidebar (⌃⌘S) and Edit › Find, Spelling and Substitutions.
-            SidebarCommands()
+            // Edit › Find, Spelling and Substitutions. View › Hide Sidebar is PaneCommands' own.
             TextEditingCommands()
             #if SPARKLE
             UpdaterCommands()

@@ -22,6 +22,15 @@ import Testing
         #expect(bigger?.keyEquivalent == "+")
     }
 
+    /// The sidebar item names what it will do (it read "Show Sidebar" both ways on the Air, 11-04).
+    @Test func theSidebarItemNamesItsState() {
+        #expect(SidebarToggle.title(.all) == "Hide Sidebar")
+        #expect(SidebarToggle.title(.doubleColumn) == "Show Sidebar")
+        #expect(SidebarToggle.title(.detailOnly) == "Show Sidebar")
+        #expect(SidebarToggle.toggled(.all) == .doubleColumn)
+        #expect(SidebarToggle.toggled(.doubleColumn) == .all)
+    }
+
     @Test func stepsGoUpAndDownAndStopAtTheEnds() {
         #expect(TextSize.step(from: 13, bigger: true) == 14)
         #expect(TextSize.step(from: 16, bigger: true) == 18)
@@ -49,8 +58,11 @@ import Testing
         #expect(size(at: "Four days") == 16, "the body follows")
         #expect(size(at: "Lisbon") > title, "the title grows with it")
 
+        #expect(GridMetrics.row > 32, "table rows grow with the text: \(GridMetrics.row)")
+
         TextSize.actualSize()
         await h.settle(0.1)
+        #expect(GridMetrics.row == 32)
         #expect(size(at: "Four days") == 13)
         #expect(size(at: "Lisbon") == title)
         #expect(UserDefaults.standard.object(forKey: TextSize.key) == nil, "the default isn't stored")
