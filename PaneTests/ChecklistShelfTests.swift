@@ -262,17 +262,23 @@ import Testing
         }
     }
 
-    @Test func theWidgetsTickIntentKeepsTheTickForTheApp() async throws {
-        let id = UUID()
+    /// A tick in the widget opens the app at the note and is in the note at once (Emil, 4 November
+    /// 2026: it waited for the next visit, so a shared list went stale). Tapped again, unticked.
+    @Test func aWidgetTickOpensTheNoteWithTheItemTicked() async throws {
         ChecklistShelf.rootOverride = tmp
         defer { ChecklistShelf.rootOverride = nil; try? FileManager.default.removeItem(at: tmp) }
-        _ = try await WidgetTickIntent(note: id, item: ChecklistLine(text: "Lemons", done: false, index: 1)).perform()
-        let tick = try #require(ChecklistShelf.ticks().first)
-        #expect(tick.note == id && tick.index == 1 && tick.text == "Lemons" && tick.done)
-        // Tapped again: unticked, and one waiting tick, not two.
-        _ = try await WidgetTickIntent(note: id, item: ChecklistLine(text: "Lemons", done: true, index: 1)).perform()
-        #expect(ChecklistShelf.ticks().count == 1)
-        #expect(ChecklistShelf.ticks().first?.done == false)
+        #expect(WidgetTickIntent.supportedModes == .foreground(.immediate), "it opens the app")
+        try await withContainer { context in
+            let n = context.createNote(in: .all, body: "Groceries\n\n- [ ] Milk\n- [ ] Lemons")
+            try context.save()
+            NoteOpener.shared.request = nil
+            _ = try await WidgetTickIntent(note: n.id, item: ChecklistLine(text: "Lemons", done: false, index: 1)).perform()
+            #expect(NoteOpener.shared.request == n.id, "the note opens")
+            #expect(n.body.contains("- [x] Lemons"), "ticked in the note itself: \(n.body)")
+            #expect(ChecklistShelf.ticks().isEmpty, "nothing left waiting")
+            _ = try await WidgetTickIntent(note: n.id, item: ChecklistLine(text: "Lemons", done: true, index: 1)).perform()
+            #expect(n.body.contains("- [ ] Lemons"))
+        }
     }
 
     @Test func newNoteFromOutsideIsAskedOnce() async throws {

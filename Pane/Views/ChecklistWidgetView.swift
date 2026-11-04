@@ -176,11 +176,16 @@ struct ChecklistWidgetRow: View {
     }
 }
 
-/// A tick in the widget: kept in the App Group for the app, which writes it into the note the
-/// next time it's open, and shown in the widget at once. Not offered in Shortcuts (Tick Item is).
+/// A tick in the widget opens Pinto Notes at the note and ticks the item there (Emil, 4 November
+/// 2026), so the tick is in the note at once and syncs: to your Mac, and to the person you share
+/// the list with. A widget can't send it by itself (iOS runs it with no time to sync), and a tick
+/// that waited for the next visit left a partner's list stale. Apple Notes' widget only opens the
+/// note. Not offered in Shortcuts (Tick Item is).
 struct WidgetTickIntent: AppIntent {
     static let title: LocalizedStringResource = "Tick Item in Widget"
     static let isDiscoverable = false
+    /// Runs in the app, which it opens, as New Note does.
+    static let supportedModes: IntentModes = .foreground(.immediate)
 
     @Parameter(title: "Note") var note: String
     @Parameter(title: "Item") var index: Int
@@ -197,8 +202,14 @@ struct WidgetTickIntent: AppIntent {
         done = !item.done
     }
 
-    func perform() async throws -> some IntentResult {
-        if let id = UUID(uuidString: note) { ChecklistShelf.tick(note: id, index: index, text: text, done: done) }
+    @MainActor func perform() async throws -> some IntentResult {
+        guard let id = UUID(uuidString: note) else { return .result() }
+        // Kept first, so a tick still lands if the note isn't ready yet (a shared note just after launch).
+        ChecklistShelf.tick(note: id, index: index, text: text, done: done)
+        #if !WIDGET_EXTENSION
+        NoteOpener.shared.open(id)
+        PaneApp.sharedContainer?.mainContext.applyCaptures()
+        #endif
         return .result()
     }
 }
