@@ -427,6 +427,24 @@ async function followRename(tx: Tx, c: Call, P: Paths, id: string, oldTitle: str
   };
 }
 
+/** The [[links]] in a note that go to a locked note. The AI can't read a locked note's title, so
+ *  without this such a link looks broken and it may make a second note by that name. The title is
+ *  already in the linking note's own text, so naming it here shows nothing new. */
+function lockedLinks(P: Paths, n: Note, body: string): Record<string, string> {
+  const links = wikiLinks(body);
+  if (!links.length) return {};
+  const index = wikiIndexOf(P);
+  const from = foldersOfNote(P, n);
+  const locked = links.filter((l) => {
+    const id = index.resolve(l, from);
+    const e = id ? P.note(id) : undefined;
+    return e?.kind === "note" && !!e.note.locked_body;
+  });
+  return locked.length
+    ? { links_to_locked: `${locked.map((l) => `[[${l}]]`).join(", ")} ${locked.length === 1 ? "goes" : "go"} to a locked note: it exists, but it can't be read here. Don't make another note with ${locked.length === 1 ? "that name" : "those names"}.` }
+    : {};
+}
+
 /** The notes that link to `n` with [[links]], each with the lines that hold a link, newest first. */
 async function linkedFrom(tx: Tx, c: Call, P: Paths, n: Note): Promise<Record<string, unknown>> {
   const index = wikiIndexOf(P);
@@ -656,6 +674,12 @@ async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = 
   const name = parts.pop();
   if (!name) throw new ToolError("path is where the note goes, like \"Work/Acme.md\".");
   if (P.at(parts.concat(name).join("/") + ".md")) throw new ToolError(`"${parts.concat(name).join("/")}.md" already exists. Read it, then change it with edit or write.`);
+  // A locked note shows as "Locked note.md": one with this name in the same place would make its
+  // [[links]] ambiguous, so it isn't made.
+  const dir = parts.length ? parts.join("/") + "/" : "";
+  if (P.children(dir).some((e) => e.kind === "note" && e.note.locked_body && key(P.linkTitle(e.note)) === key(name))) {
+    throw new ToolError("A locked note already has this name. Pick another name, or ask the person to unlock it.");
+  }
   let body = content.replace(/^\s*\n/, "");
   if (!body.trim()) body = `${name}\n`;
   else if (titleOf(body) !== name) body = `${name}\n\n${body}`;
@@ -945,6 +969,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
           ...(n.trashed_at ? { deleted: "In Recently Deleted: restore brings it back." } : {}),
           ...(subs.length ? { sub_notes: subs } : {}), ...(files.length ? { files: files.map((f) => f.path) } : {}),
           ...(wikiLinks(body).length ? { links: wikiLinks(body) } : {}),
+          ...lockedLinks(P, n, body),
           ...(n.trashed_at ? {} : await linkedFrom(tx, c, P, n)),
           ...(P.hasApp(n.id) ? { app: r.path.replace(/\.md$/, ".app/") } : {}),
           ...(shown.truncated ? { truncated: shown.truncated } : {}),
