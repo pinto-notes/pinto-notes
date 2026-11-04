@@ -17,8 +17,28 @@ struct AIReviewCard: View {
     /// width at 44 pt under each part (persona council round 2: the phone only had a plain Undo).
     var inSheet = false
     @FocusState private var focused: Bool
-    /// The text size: the sheet's is the phone's body size.
-    private var size: CGFloat { inSheet ? 17 : Self.text }
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// The text size: the sheet's follows the person's text size; the card's is fixed, as the Mac's text is.
+    private var size: CGFloat { inSheet ? Self.body(typeSize) : Self.text }
+
+    /// iOS's body text at each text size (17 pt at the default, Large), as the sheet sets it.
+    static func body(_ t: DynamicTypeSize) -> CGFloat {
+        switch t {
+        case .xSmall: 14
+        case .small: 15
+        case .medium: 16
+        case .large: 17
+        case .xLarge: 19
+        case .xxLarge: 21
+        case .xxxLarge: 23
+        case .accessibility1: 28
+        case .accessibility2: 33
+        case .accessibility3: 40
+        case .accessibility4: 47
+        case .accessibility5: 53
+        @unknown default: 17
+        }
+    }
 
     #if os(macOS)
     static let width: CGFloat = 560
@@ -104,7 +124,9 @@ struct AIReviewCard: View {
         Text(review.title)
             .font(.system(size: size, weight: .semibold))
             .foregroundStyle(Color.amberInk)
-            .lineLimit(1)
+            // The sheet's title wraps at large text sizes; the card's stays on one line.
+            .lineLimit(inSheet ? nil : 1)
+            .fixedSize(horizontal: false, vertical: inSheet)
             .accessibilityIdentifier("review.title")
     }
 

@@ -93,6 +93,28 @@ import Testing
         #expect(note.body != AIReviewTests.after, "the part went back in the note")
     }
 
+    /// The sheet follows the person's text size (round 3: fixed 17 pt ignored it): at an
+    /// accessibility size the title wraps instead of being cut, and Keep and Undo stay 44 pt and up.
+    @Test func theSheetGrowsWithTheTextSize() async throws {
+        let (c, note) = try Self.note(AIReviewTests.after)
+        _ = c
+        func card(_ size: DynamicTypeSize) -> some View {
+            Host(review: AIReview(by: "Claude", previous: AIReviewTests.before, after: AIReviewTests.after), note: note,
+                 finished: { _ in }, inSheet: true).environment(\.dynamicTypeSize, size)
+        }
+        let normal = OffscreenAX(card(.large), size: CGSize(width: 390, height: 900))
+        defer { normal.close() }
+        let big = OffscreenAX(card(.accessibility3), size: CGSize(width: 390, height: 900))
+        defer { big.close() }
+        await normal.settle()
+        await big.settle()
+        let t0 = try #require(normal.find("review.title")), t1 = try #require(big.find("review.title"))
+        #expect(t1.frame.height > t0.frame.height * 1.4, "bigger text: \(t0.frame) \(t1.frame)")
+        #expect(t1.text.contains("Claude changed 3 parts"), "whole, not cut: \(t1.text)")
+        let keep = try #require(big.find("review.keep.0"))
+        #expect(keep.frame.height >= 40)
+    }
+
     /// Keep one, undo one, undo the last: the note has the kept part and loses the other two; the
     /// card ends with "Kept 1, undid 2".
     @Test func eachPartIsKeptOrUndoneInTheNote() async throws {
