@@ -65,9 +65,12 @@ final class ShareModel {
     var doneLine: String { InboxCopy.done(note: noteTitle) }
 
     func load() async {
-        let providers = (context?.inputItems as? [NSExtensionItem] ?? []).flatMap { $0.attachments ?? [] }
+        let items = context?.inputItems as? [NSExtensionItem] ?? []
+        let providers = items.flatMap { $0.attachments ?? [] }
+        // Safari hands the page's title over beside the link.
+        let pageTitle = items.lazy.compactMap { ($0.attributedTitle ?? $0.attributedContentText)?.string }.first { !$0.isEmpty }
         // The same conversion as the Mac's Apple Notes import (see SharedItem).
-        let content = await SharedItem.read(providers, filesInto: FileManager.default.temporaryDirectory)
+        let content = await SharedItem.read(providers, pageTitle: pageTitle, filesInto: FileManager.default.temporaryDirectory)
         markdown = content.markdown
         files = content.files
         loading = false

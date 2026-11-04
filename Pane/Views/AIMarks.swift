@@ -144,6 +144,7 @@ enum NoteAIUndo {
     }
 }
 
+#if os(iOS)
 /// iPhone: "ChatGPT changed 5 lines ›" at the foot of the open note while its change is marked.
 /// One tap shows each part it changed, to keep or undo (the review sheet). Undo is in the bar.
 struct AIChangeButton: View {
@@ -178,6 +179,7 @@ struct AIChangeButton: View {
         .accessibilityIdentifier(NoteAIUndo.reviewIdentifier)
     }
 }
+#endif
 
 /// "ChatGPT changed 5 lines", with Undo: shown on the open note when an AI's edit lands on it.
 struct AIReceipt: View {

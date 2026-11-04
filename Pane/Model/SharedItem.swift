@@ -15,9 +15,12 @@ enum SharedItem {
         var files: [URL]
     }
 
-    /// Reads every provider in order. Rich text wins over plain text for the same item.
+    /// Reads every provider in order. Rich text wins over plain text for the same item. A link
+    /// with the page's title (Safari hands it over beside the link) becomes a titled link, so the
+    /// note reads "Riding Tram 28 in Lisbon", not "http://…" (Emil, 4 November 2026).
     @MainActor
-    static func read(_ providers: [NSItemProvider], filesInto dir: URL) async -> Content {
+    static func read(_ providers: [NSItemProvider], pageTitle: String? = nil, filesInto dir: URL) async -> Content {
+        let named = pageTitle?.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " ")
         var texts: [String] = []
         var files: [URL] = []
         for p in providers {
@@ -28,7 +31,12 @@ enum SharedItem {
             }
             if p.hasItemConformingToTypeIdentifier(UTType.url.identifier), !p.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier),
                let url = await link(p) {
-                texts.append(url.absoluteString); continue
+                if let t = named, !t.isEmpty, t != url.absoluteString {
+                    texts.append("[\(t.replacingOccurrences(of: "]", with: ")"))](\(url.absoluteString))")
+                } else {
+                    texts.append(url.absoluteString)
+                }
+                continue
             }
             if p.hasItemConformingToTypeIdentifier(UTType.plainText.identifier),
                let s = await string(p, UTType.plainText.identifier) {
@@ -66,6 +74,7 @@ enum SharedItem {
     static func title(markdown: String, files: [URL]) -> String {
         let t = markdown.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty } ?? ""
         return t.isEmpty ? (files.first?.lastPathComponent ?? "Shared item") : t.replacingOccurrences(of: #"^#+\s*"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\[([^\]]+)\]\([^)]+\)"#, with: "$1", options: .regularExpression)
     }
 
     static func clean(_ s: String) -> String {

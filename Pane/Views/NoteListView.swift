@@ -786,7 +786,7 @@ struct NoteListView: View {
     /// A note's long-press menu (NoteRowMenu): Share, Move and Delete in a row, then the rest.
     @ViewBuilder
     private func rowMenu(for note: Note) -> some View {
-        let groups = NoteRowMenu.groups(locked: note.isLocked, trashed: note.trashedAt != nil)
+        let groups = NoteRowMenu.groups(locked: note.isLocked, trashed: note.trashedAt != nil, shared: note.isShared)
         ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
             if i == 0 && note.trashedAt == nil {
                 ControlGroup { ForEach(group, id: \.self) { rowItem($0, note) } }
@@ -979,9 +979,7 @@ struct NoteListView: View {
                 DestructiveMenuButton("Delete \(notes.count) Notes Forever…", systemImage: "trash") { remove(ids) }
             } else {
                 Menu("Move \(notes.count) Notes to", systemImage: "folder") {
-                    ForEach(folders) { f in
-                        Button(f.name) { withAnimation(.snappy) { context.move(notes, to: f) } }
-                    }
+                    FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { context.move(notes, to: f) } }
                 }
                 Divider()
                 DestructiveMenuButton("Delete \(notes.count) Notes", systemImage: "trash") { remove(ids) }
@@ -992,7 +990,7 @@ struct NoteListView: View {
     /// A note's right-click menu and its ••• on the Mac (NoteRowMenu.macGroups), in groups.
     @ViewBuilder
     private func menu(for note: Note, folders: [Folder]) -> some View {
-        let groups = NoteRowMenu.macGroups(locked: note.isLocked, trashed: note.trashedAt != nil)
+        let groups = NoteRowMenu.macGroups(locked: note.isLocked, trashed: note.trashedAt != nil, shared: note.isShared)
         ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
             if i > 0 { Divider() }
             ForEach(group, id: \.self) { macItem($0, note, folders: folders) }
@@ -1024,10 +1022,7 @@ struct NoteListView: View {
             ShareLink(item: note.body, preview: SharePreview(note.title))
         case .move:
             Menu("Move to", systemImage: "folder") {
-                ForEach(folders) { f in
-                    Button(f.name, systemImage: "folder") { withAnimation(.snappy) { context.move(note, to: f) } }
-                        .disabled(note.folder?.id == f.id)
-                }
+                FolderMenuItems(folders: folders, current: note.folder?.id) { f in withAnimation(.snappy) { context.move(note, to: f) } }
             }
         case .history:
             // The note's own Version History: the note opens and shows it (AppPlaceCenter).
@@ -1054,10 +1049,7 @@ struct NoteListView: View {
                 renamingFile = file
             }
             Menu("Move to", systemImage: "folder") {
-                ForEach(folders) { f in
-                    Button(f.name, systemImage: "folder") { withAnimation(.snappy) { context.move(file, to: f) } }
-                        .disabled(file.folderID == f.id)
-                }
+                FolderMenuItems(folders: folders, current: file.folderID) { f in withAnimation(.snappy) { context.move(file, to: f) } }
             }
             if FileStore.exists(file) {
                 ShareLink(item: FileStore.url(for: file.id, filename: file.filename))
@@ -1082,9 +1074,7 @@ struct NoteListView: View {
             DestructiveMenuButton("Delete \(count) Items Forever…", systemImage: "trash") { remove(ids) }
         } else {
             Menu("Move \(count) Items to", systemImage: "folder") {
-                ForEach(folders) { f in
-                    Button(f.name) { withAnimation(.snappy) { move(ids, to: f) } }
-                }
+                FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { move(ids, to: f) } }
             }
             Divider()
             DestructiveMenuButton("Delete \(count) Items", systemImage: "trash") { remove(ids) }
@@ -1828,12 +1818,12 @@ enum RowMetrics {
     static let spacing: CGFloat = 3
     /// The title's start past the list's own 16 pt: 26 pt in from the row's edge, 16 inside the
     /// selected card. Apple Notes has 34; on the card that read as padded (Emil, 2 November 2026).
-    /// The unread dot keeps its room in front of the title.
+    /// The room in front of the title holds the row's status: a lock, the unread dot, shared or a
+    /// pin (NoteRowStatus).
     static let leading: CGFloat = 10
     /// Room above and below a row's lines: less when it has a third line, its folder.
     static func top(folderLine: Bool) -> CGFloat { folderLine ? 4 : 7 }
     static func bottom(folderLine: Bool) -> CGFloat { folderLine ? 4 : 7 }
-    static let dotOffset: CGFloat = -12
     /// The app mark's size: about the title's cap height.
     static let markSize: CGFloat = 13
     /// A file's thumbnail on the trailing side, about the two lines' height.
@@ -1849,7 +1839,6 @@ enum RowMetrics {
     static let leading: CGFloat = 0
     static func top(folderLine: Bool) -> CGFloat { 1 }
     static func bottom(folderLine: Bool) -> CGFloat { 1 }
-    static let dotOffset: CGFloat = -12
     #endif
 }
 
@@ -1934,7 +1923,8 @@ private struct ListRow: View, @MainActor Equatable {
     }
 
     var body: some View {
-        NoteRow(note: note, query: query, showFolder: showFolder, datedByCreation: datedByCreation)
+        // Every pinned note in the list is under its Pinned heading, which says so: no pin before the title.
+        NoteRow(note: note, query: query, showFolder: showFolder, datedByCreation: datedByCreation, pinnedHeading: true)
             // The row's full width, so the ••• over it sits at the row's right edge, not at the end
             // of a short title (Emil, 2 November 2026). Before the drag, so the whole row drags.
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1962,6 +1952,9 @@ struct NoteRow: View {
     var showFolder = false
     /// The list is sorted by date created: the row shows that date, as Apple Notes does.
     var datedByCreation = false
+    /// The row sits under the list's Pinned heading, which says it's pinned: no pin before its
+    /// title (NoteRowStatus). Search on the folders screen has no heading, so its pinned rows show one.
+    var pinnedHeading = false
 
     /// The date the row shows: the one the list is sorted by, which is the date edited unless
     /// the list is sorted by date created.
@@ -1988,6 +1981,8 @@ struct NoteRow: View {
         let calm = DesignLook.calmList && !large
         let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: calm ? 5 : 8))
         let ai = AIEdit.isUnseen(note) ? note.aiEditor : nil
+        // The room before the title: a lock, the unseen AI dot, shared or a pin, one at a time.
+        let status = NoteRowStatus.of(note, aiUnseen: ai != nil, pinnedHeading: pinnedHeading)
         let app = NoteAppMark.has(note)
         let picture = Self.picture(of: note)
         let found = self.found
@@ -2010,11 +2005,11 @@ struct NoteRow: View {
                             .accessibilityIdentifier("note.madeBy")
                     }
                 }
-                // An AI changed this note and you haven't opened it since, like Mail's unread dot.
+                // The mark sits in the room before the title, on its line, as the lock does in
+                // Apple Notes' list; every title still starts at the same place.
                 .overlay(alignment: .leading) {
-                    if ai != nil {
-                        Circle().fill(Color(PColor.paneAccent)).frame(width: 8, height: 8)
-                            .offset(x: RowMetrics.dotOffset)
+                    if let status {
+                        NoteRowStatusMark(status: status)
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
@@ -2039,11 +2034,12 @@ struct NoteRow: View {
                     // C and D: "date · preview", one quiet line under the title.
                     if calm { Text("·").foregroundStyle(muted).accessibilityHidden(true) }
                     if note.isLocked {
-                        // Like Notes: the title and a lock, nothing of the text.
-                        Label("Locked", systemImage: "lock.fill")
-                            .labelStyle(LockedRowLabel())
+                        // Like Notes: the date and "Locked", nothing of the text. The lock is
+                        // before the title (NoteRowStatus). VoiceOver hears it once, in the value.
+                        Text("Locked")
                             .foregroundStyle(muted)
                             .lineLimit(1)
+                            .accessibilityHidden(true)
                     } else if let first = found?.lines.first {
                         // Searching: the first line that holds the text, the text in bold.
                         SearchLines.text(first, rest: muted)
@@ -2100,18 +2096,11 @@ struct NoteRow: View {
         .padding(.bottom, RowMetrics.bottom(folderLine: folderLine) + RowMetrics.calmAir)
         .padding(.leading, RowMetrics.leading)
         .accessibilityElement(children: .combine)
-        .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared ? "Shared" : nil, note.isLocked ? "Locked" : nil, ai.map { AIEdit.listLine(note, by: $0) }].compactMap { $0 }.joined(separator: ", "))
+        // Shared once, whether with people (its mark, even while the AI dot has its place) or by a
+        // link (the link by the date).
+        .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared || (note.isShared && note.trashedAt == nil) ? "Shared" : nil, note.isLocked ? "Locked" : nil,
+                             ai.map { AIEdit.listLine(note, by: $0) }].compactMap { $0 }.joined(separator: ", "))
         .accessibilityIdentifier("note.\(title)")
-    }
-
-    /// The lock sits close to its word, like the list's other small glyphs.
-    private struct LockedRowLabel: LabelStyle {
-        func makeBody(configuration: Configuration) -> some View {
-            HStack(spacing: 4) {
-                configuration.icon.imageScale(.small)
-                configuration.title
-            }
-        }
     }
 
     /// The note's first picture, when it's on this device: one on the server only shows once the

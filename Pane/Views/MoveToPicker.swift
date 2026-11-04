@@ -148,3 +148,47 @@ struct MoveToPicker: View {
         move(folder)
     }
 }
+
+/// The folders in a Move to menu, nested as the sidebar nests them (Emil, 4 November 2026: the
+/// menu listed every folder flat, so a subfolder looked like a top folder). A folder with folders
+/// inside is a submenu: the folder itself first, then a divider, then what's in it. In the
+/// sidebar's order. The folder the item is in now is shown and not a choice.
+struct FolderMenuItems: View {
+    let folders: [Folder]
+    let current: UUID?
+    let move: (Folder) -> Void
+
+    /// One folder and the folders in it, as the menu shows them.
+    struct Node: Identifiable {
+        let folder: Folder
+        let children: [Node]
+        var id: UUID { folder.id }
+    }
+
+    @MainActor static func tree(_ folders: [Folder]) -> [Node] {
+        let known = Set(folders.map(\.id))
+        func node(_ f: Folder, _ depth: Int) -> Node {
+            Node(folder: f, children: depth < 32 ? f.liveChildren.filter { known.contains($0.id) }.map { node($0, depth + 1) } : [])
+        }
+        return folders.filter { $0.parent == nil || !known.contains($0.parent?.id ?? $0.id) }
+            .sorted { $0.sortIndex < $1.sortIndex }
+            .map { node($0, 0) }
+    }
+
+    var body: some View {
+        ForEach(Self.tree(folders)) { item($0) }
+    }
+
+    private func item(_ n: Node) -> AnyView {
+        let here = Button(n.folder.name, systemImage: "folder") { move(n.folder) }
+            .disabled(n.folder.id == current)
+        guard !n.children.isEmpty else { return AnyView(here) }
+        return AnyView(Menu {
+            here
+            Divider()
+            ForEach(n.children) { item($0) }
+        } label: {
+            Label(n.folder.name, systemImage: "folder")
+        })
+    }
+}

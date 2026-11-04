@@ -106,6 +106,22 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         return line.typographicBounds.minY + line.glyphOrigin.y - font.xHeight / 2
     }
 
+    /// The quote bar, in this fragment's coordinates: from the top of the first line's letters to
+    /// the foot of the last line's, plus half the line spacing each side, so it's centred on the text
+    /// (Emil, 4 November 2026: the bar ran the whole fragment, line spacing included, and sat high).
+    func quoteBarRect() -> CGRect {
+        let fallback = CGRect(x: 2, y: 1, width: 3, height: max(0, layoutFragmentFrame.height - 2))
+        guard let first = textLineFragments.first, let last = textLineFragments.last,
+              let p = textElement as? NSTextParagraph else { return fallback }
+        let whole = p.attributedString
+        let font = (whole.length > 0 ? whole.attribute(.font, at: 0, effectiveRange: nil) as? PFont : nil) ?? PFont.systemFont(ofSize: EditorMetrics.body)
+        let top = first.typographicBounds.minY + first.glyphOrigin.y - font.ascender
+        let bottom = last.typographicBounds.minY + last.glyphOrigin.y - font.descender
+        guard bottom > top else { return fallback }
+        let pad = EditorMetrics.lineSpacing / 2
+        return CGRect(x: 2, y: top - pad, width: 3, height: bottom - top + pad * 2)
+    }
+
     /// The checklist circle, in this fragment's coordinates.
     func checkboxRect(_ d: LineDecoration) -> CGRect {
         let size = EditorMetrics.checkSize
@@ -281,7 +297,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             Self.drawCheckbox(checked: checked, in: checkboxRect(d).offsetBy(dx: o.x, dy: o.y), ctx: ctx)
 
         case .quote:
-            let bar = CGRect(x: o.x + 2, y: o.y + 1, width: 3, height: h - 2)
+            let bar = quoteBarRect().offsetBy(dx: o.x, dy: o.y)
             ctx.setFillColor(PColor.paneAccent.withAlphaComponent(0.7).cgColor)
             ctx.addPath(CGPath(roundedRect: bar, cornerWidth: 1.5, cornerHeight: 1.5, transform: nil))
             ctx.fillPath()

@@ -20,6 +20,9 @@ import Testing
         #expect(NoteRowMenu.groups(locked: true, trashed: false) == [[.move, .delete], [.pin, .removeLock]])
         // In Recently Deleted: back, or gone for good.
         #expect(NoteRowMenu.groups(locked: false, trashed: true) == [[.recover, .delete]])
+        // A shared note can't be locked, as in Notes (4 November 2026: the row menus still offered it).
+        #expect(NoteRowMenu.groups(locked: false, trashed: false, shared: true) == [[.share, .move, .delete], [.pin, .duplicate]])
+        #expect(!NoteRowMenu.macGroups(locked: false, trashed: false, shared: true).joined().contains(.lock))
         // Selecting starts from Select Notes in •••, never from a long-press.
         for locked in [false, true] {
             for trashed in [false, true] {
