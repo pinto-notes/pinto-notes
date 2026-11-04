@@ -91,7 +91,7 @@ import Testing
             let s = Self.resolved(c, a)
             return [s.redComponent, s.greenComponent, s.blueComponent, s.alphaComponent].map { Int(($0 * 255).rounded()) }
         }
-        #expect(rgb(AmberProminentButtonStyle.fill, .aqua) == rgb(Palette.amber, .aqua), "the light-mode amber")
+        #expect(rgb(AmberProminentButtonStyle.fill, .aqua) == rgb(Palette.rgb(Palette.accent.fill), .aqua), "the light-mode amber")
         #expect(rgb(AmberProminentButtonStyle.label, .aqua) == [255, 255, 255, 255])
         #expect(rgb(AmberProminentButtonStyle.fill, .darkAqua) == [255, 255, 255, 255], "white in the dark")
         #expect(rgb(AmberProminentButtonStyle.label, .darkAqua) == [0, 0, 0, 255], "black text in the dark")
@@ -113,7 +113,14 @@ import Testing
         #expect(zip(rgb(Palette.amberSoft, .aqua), lightAccent).allSatisfy { $0 >= $1 }, "the soft fill is a light tint of the accent")
         // The ticks, links and the icon keep the accent in the dark: a colour, not a grey.
         let tick = rgb(Palette.amberButton, .darkAqua), accent = rgb(Palette.amber, .darkAqua)
-        #expect(tick == rgb(Palette.rgb(Palette.accent.light), .aqua) && accent == rgb(Palette.rgb(Palette.accent.dark), .aqua))
+        #expect(tick == rgb(Palette.rgb(Palette.accent.fill), .aqua) && accent == rgb(Palette.rgb(Palette.accent.dark), .aqua))
+        // A white label reads on the light primary fill and its hover (council round 14: 3.49:1).
+        let white = NSColor.white
+        #expect(Self.contrast(Self.resolved(Palette.primaryButton, .aqua), white) >= 4.5)
+        let hovered = Self.resolved(Palette.primaryButton, .aqua).blended(withFraction: 0.07, of: .black)!
+        #expect(Self.contrast(hovered, white) >= 4.5, "under the pointer too")
+        #expect(Palette.Accent.amber.fill == 0xBB5B05)
+        #expect(Palette.Accent(light: 0x1E7A4C, dark: 0x5CC48A).fill == 0x1E7A4C, "an accent that reads stays itself")
         #expect(Self.chroma(tick) > 60 && Self.chroma(accent) > 60, "tick \(tick), accent \(accent)")
     }
 

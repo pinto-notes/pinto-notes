@@ -146,14 +146,15 @@ struct NoteLinksSection: View {
         .accessibilityIdentifier("noteLinks")
     }
 
-    /// "Linked from 2 notes · 1 mention", "Linked from 1 note", "3 unlinked mentions".
+    /// "Linked from 2 notes · 1 mention", "Linked from 1 note", "Mentioned in 3 notes" (council
+    /// round 14: "unlinked mention" asked you to know what linking is).
     static func summary(linked: Int, mentions: Int, more: Bool = false) -> String {
         let plus = more ? "+" : ""
         let from = linked == 1 ? "Linked from 1 note" : "Linked from \(linked) notes"
         switch (linked > 0, mentions > 0) {
         case (true, true): return "\(from) \u{00B7} \(mentions)\(plus) \(mentions == 1 && !more ? "mention" : "mentions")"
         case (true, false): return from
-        case (false, true): return "\(mentions)\(plus) unlinked \(mentions == 1 && !more ? "mention" : "mentions")"
+        case (false, true): return "Mentioned in \(mentions)\(plus) \(mentions == 1 && !more ? "note" : "notes")"
         case (false, false): return "Unlinked mentions"
         }
     }

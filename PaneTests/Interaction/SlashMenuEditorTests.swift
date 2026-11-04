@@ -120,7 +120,41 @@ import Testing
         let blank = await EditorHarness("")
         defer { blank.close() }
         await blank.select(0)
-        #expect(!blank.view.subviews.contains { ($0 as? NSTextField)?.stringValue == PaneTextView.slashHintText }, "not on the title's line of a new note")
+        func label(_ e: EditorHarness) -> NSTextField? { e.view.subviews.lazy.compactMap { $0 as? NSTextField }.first { $0.identifier?.rawValue == "editor.slashHint" } }
+        #expect(label(blank)?.stringValue == PaneTextView.titleHintText, "an empty note says where its title goes")
+        #expect(label(blank)?.font == MarkdownStyler.titleFont, "in the title's size")
+        await blank.type("P")
+        #expect(label(blank) == nil, "gone at the first letter")
+    }
+
+    /// Once the menu has been used a few times the hint has done its job and stops.
+    @Test func theHintStopsOnceTheMenuIsKnown() async {
+        let h = await EditorHarness("Plan\n")
+        defer { h.close() }
+        await h.select(end(h))
+        func hint() -> Bool { h.view.subviews.contains { ($0 as? NSTextField)?.stringValue == PaneTextView.slashHintText } }
+        #expect(hint())
+        let shown = h.view.subviews.lazy.compactMap { $0 as? NSTextField }.first { $0.identifier?.rawValue == "editor.slashHint" }
+        #expect(shown?.textColor == PColor.paneSecondary, "muted, so it can be read")
+        for _ in 0..<SlashRecents.learned { SlashRecents.used(.checklist) }
+        await h.press(EditorHarness.right)
+        await h.select(end(h))
+        #expect(!hint(), "learned")
+    }
+
+    /// Filtering says the new first choice, and letters that match nothing say so.
+    @Test func filteringTellsVoiceOver() async {
+        let h = await EditorHarness("Plan\n")
+        defer { h.close() }
+        await h.select(end(h))
+        await h.type("/")
+        #expect(h.controller.lastSlashAnnouncement?.hasPrefix("Formatting menu. ") == true)
+        await h.type("chk")
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(h.controller.lastSlashAnnouncement == "Checklist, 1 of 1, \u{21E7}\u{2318}L")
+        await h.type("zzz")
+        #expect(h.controller.lastSlashAnnouncement == "No matches")
+        #expect(h.controller.slashCommands.isEmpty)
     }
 
     @Test func escapePutsItAwayForThatSlash() async {

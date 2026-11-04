@@ -551,10 +551,15 @@ final class EditorController {
     @ObservationIgnored private(set) var slashQuery: NSRange?
     /// A slash whose menu was put away (Escape): not offered again while typing after it.
     @ObservationIgnored private var slashDismissed: Int?
+    @ObservationIgnored private var slashAnnounceWait: Task<Void, Never>?
 
     private func updateSlash(text: String, selection: NSRange?) {
         guard let sel = selection, !readOnly, cell == nil, WikiLinks.typingQuery(in: text, caret: sel.location) == nil,
               let found = SlashCommands.active(in: text, selection: sel, recent: SlashRecents.commands) else {
+            // Letters that match nothing close the menu; say so, or VoiceOver hears nothing.
+            if !slashCommands.isEmpty, let sel = selection, SlashCommands.query(in: text, caret: sel.location) != nil {
+                announce(Self.slashNoMatches)
+            }
             slashDismissed = nil
             clearSlash()
             return
@@ -570,7 +575,17 @@ final class EditorController {
             let opening = slashCommands.isEmpty
             slashCommands = found.commands
             slashChoice = 0
-            if opening { announceSlashChoice(opening: true) }
+            if opening {
+                announceSlashChoice(opening: true)
+            } else {
+                // Filtering: say the new first choice once the typing pauses, not at every letter.
+                slashAnnounceWait?.cancel()
+                slashAnnounceWait = Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .milliseconds(150))
+                    guard !Task.isCancelled else { return }
+                    self?.announceSlashChoice(opening: false)
+                }
+            }
         }
     }
 
@@ -627,14 +642,27 @@ final class EditorController {
     nonisolated static func slashAnnouncement(_ name: String, at i: Int, of n: Int, shortcut: String?, opening: Bool) -> String {
         var parts = [name, "\(i + 1) of \(n)"]
         if let shortcut { parts.append(shortcut) }
-        return (opening ? "Insert menu. " : "") + parts.joined(separator: ", ")
+        return (opening ? "\(slashMenuName). " : "") + parts.joined(separator: ", ")
     }
+
+    /// The menu's one name, as the hint calls it ("Type / for formatting").
+    nonisolated static let slashMenuName = "Formatting menu"
+    nonisolated static let slashNoMatches = "No matches"
 
     private func announceSlashChoice(opening: Bool) {
         #if os(macOS)
         guard slashCommands.indices.contains(slashChoice) else { return }
         let c = slashCommands[slashChoice]
-        let text = Self.slashAnnouncement(slashName(c), at: slashChoice, of: slashCommands.count, shortcut: c.shortcut, opening: opening)
+        announce(Self.slashAnnouncement(slashName(c), at: slashChoice, of: slashCommands.count, shortcut: c.shortcut, opening: opening))
+        #endif
+    }
+
+    /// The last thing said to VoiceOver about the menu (tests read it).
+    @ObservationIgnored private(set) var lastSlashAnnouncement: String?
+
+    private func announce(_ text: String) {
+        lastSlashAnnouncement = text
+        #if os(macOS)
         NSAccessibility.post(element: NSApp.mainWindow ?? NSApp as Any, notification: .announcementRequested,
                              userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
         #endif
@@ -646,6 +674,7 @@ final class EditorController {
     }
 
     private func clearSlash() {
+        slashAnnounceWait?.cancel()
         if slashRecentCount != 0 { slashRecentCount = 0 }
         slashQuery = nil
         if slashCalloutKind != nil { slashCalloutKind = nil }

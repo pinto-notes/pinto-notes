@@ -14,6 +14,7 @@ struct SlashCommandList: View {
     static let maxRows = 9.5
     /// The line under the recent ones.
     static let recentLine: CGFloat = 9
+    static let fade: CGFloat = 12
 
     /// The list's size for so many commands (the text view places it before SwiftUI lays it out).
     static func size(rows: Int, recent: Int = 0) -> CGSize {
@@ -26,6 +27,17 @@ struct SlashCommandList: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical) { rows }
+                // The half row past the fold fades out rather than being cut through its letters.
+                .mask {
+                    VStack(spacing: 0) {
+                        Color.black
+                        // Not once the end is in view, where the last row is the one you're on.
+                        if Double(controller.slashCommands.count) > Self.maxRows, controller.slashChoice < controller.slashCommands.count - 2 {
+                            LinearGradient(colors: [.black, .black.opacity(0.15)], startPoint: .top, endPoint: .bottom)
+                                .frame(height: Self.fade)
+                        }
+                    }
+                }
                 .scrollIndicators(Double(controller.slashCommands.count) > Self.maxRows ? .automatic : .never)
                 .scrollBounceBehavior(.basedOnSize)
                 .onChange(of: controller.slashChoice) { _, i in
@@ -38,7 +50,7 @@ struct SlashCommandList: View {
         .background(Color(PColor.panePanel), in: .rect(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(PColor.paneSeparator)))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Insert")
+        .accessibilityLabel(EditorController.slashMenuName)
     }
 
     private var rows: some View {
@@ -115,7 +127,7 @@ struct SlashCommandRow: View {
             }
             .padding(.horizontal, 4)
         }
-        .accessibilityLabel("Insert")
+        .accessibilityLabel(EditorController.slashMenuName)
     }
 }
 #endif

@@ -45,7 +45,7 @@ import Testing
                 #expect(Self.hex(c, .darkAqua) == dark, "\(name) in the dark")
             }
             // Buttons: the accent under white in the light, white under black in the dark.
-            #expect(Self.hex(Palette.primaryButton, .aqua) == Palette.buildAccent.light)
+            #expect(Self.hex(Palette.primaryButton, .aqua) == Palette.buildAccent.fill)
             #expect(Self.hex(Palette.primaryButton, .darkAqua) == 0xFFFFFF)
             // The sidebar keeps its 5% black over the glass, and none in the dark.
             #expect(Self.hex(Palette.sidebarWarmth, .aqua) == 0x000000 && abs(Self.alpha(Palette.sidebarWarmth, .aqua) - 0.05) < 0.002)
@@ -154,7 +154,7 @@ import Testing
         out.append(Pair(what: "AI line on the list", fore: aiInk, back: v(c.list), text: true))
         out.append(Pair(what: "AI line on the selected row", fore: aiInk, back: v(c.selection), text: true))
         // The accent fill under a white label: the primary button in the light, amberButton in both.
-        out.append(Pair(what: "white label on the accent button", fore: 0xFFFFFF, back: a.light, text: true))
+        out.append(Pair(what: "white label on the accent button", fore: 0xFFFFFF, back: a.fill, text: true))
         out.append(Pair(what: "AI dot on the list", fore: link, back: v(c.list), text: false))
         out.append(Pair(what: "AI dot on the selected row", fore: link, back: v(c.selection), text: false))
         out.append(Pair(what: "ticked checkbox on the page", fore: link, back: v(c.page), text: false))

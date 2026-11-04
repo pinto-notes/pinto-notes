@@ -89,7 +89,7 @@ import Testing
             #expect(root.contains("Button(\"\(c.name)\")"), "Format › \(c.name)")
         }
         #endif
-        #expect(EditorController.slashAnnouncement("Checklist", at: 0, of: 18, shortcut: "\u{21E7}\u{2318}L", opening: true) == "Insert menu. Checklist, 1 of 18, \u{21E7}\u{2318}L")
+        #expect(EditorController.slashAnnouncement("Checklist", at: 0, of: 18, shortcut: "\u{21E7}\u{2318}L", opening: true) == "Formatting menu. Checklist, 1 of 18, \u{21E7}\u{2318}L")
         #expect(EditorController.slashAnnouncement("Table", at: 12, of: 18, shortcut: nil, opening: false) == "Table, 13 of 18")
     }
 

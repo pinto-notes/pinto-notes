@@ -63,6 +63,21 @@ enum Palette {
             self.light = light; self.dark = dark; self.faded = faded; self.ink = ink; self.soft = soft
         }
 
+        /// The accent deepened just enough for a white label to read on it (4.5:1): Amber's
+        /// D96A06 gives 3.5:1 and becomes BB5B05, 4.55:1 (council round 14). Accents that already read
+        /// stay as they are.
+        var fill: UInt32 {
+            var c = light, t = 0.0
+            while Self.whiteContrast(c) < 4.55, t < 1 { t += 0.02; c = Self.mix(light, 0x000000, t) }
+            return c
+        }
+
+        static func whiteContrast(_ c: UInt32) -> Double {
+            func lin(_ v: UInt32) -> Double { let x = Double(v & 0xFF) / 255; return x <= 0.04045 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4) }
+            let l = 0.2126 * lin(c >> 16) + 0.7152 * lin(c >> 8) + 0.0722 * lin(c)
+            return 1.05 / (l + 0.05)
+        }
+
         /// `a` moved `t` of the way toward `b`, channel by channel.
         static func mix(_ a: UInt32, _ b: UInt32, _ t: Double) -> UInt32 {
             [16, 8, 0].reduce(0) { sum, shift in
@@ -76,14 +91,16 @@ enum Palette {
     static var amber: PColor { live("amber") { let a = $0.accentShades; return pair(a.light, a.dark) } }
     /// The fill of amber primary buttons, in light and dark alike: the deeper amber, so their
     /// white label stays readable (the dark-mode amber is too light under white).
-    static var amberButton: PColor { live("amberButton") { let a = $0.accentShades; return pair(a.light, a.light) } }
+    static var amberButton: PColor { live("amberButton") { let a = $0.accentShades; return pair(a.fill, a.fill) } }
     /// The primary button: the deeper amber with a white label in the light; in the dark the ink
     /// button, white with a black label (Emil, 2026-10-28: dark mode is pure black, its buttons
-    /// white or black, never amber). Under the pointer a touch lighter in the light, a touch greyer
+    /// white or black, never amber). Under the pointer a touch darker in the light, a touch greyer
     /// in the dark.
-    static var primaryButton: PColor { live("primaryButton") { let a = $0.accentShades; return byAppearance(light: pair(a.light, a.light), dark: pair(0x000000, 0xFFFFFF)) } }
+    static var primaryButton: PColor { live("primaryButton") { let a = $0.accentShades; return byAppearance(light: pair(a.fill, a.fill), dark: pair(0x000000, 0xFFFFFF)) } }
     static let primaryButtonLabel = byAppearance(light: rgb(0xFFFFFF), dark: inkButtonLabel)
-    static let primaryButtonHover = pair(0xFFFFFF, 0.12, 0x000000, 0.08)
+    // A touch darker under the pointer in the light, not lighter: lighter took the white label
+    // under 4.5:1 (council round 14).
+    static let primaryButtonHover = pair(0x000000, 0.07, 0x000000, 0.08)
     /// What a secondary or quiet button, or a choice card, lays over its fill under the pointer and
     /// when pressed: a lean toward amber in the light, toward white in the dark.
     static var buttonHover: PColor { live("buttonHover") { let a = $0.accentShades; return pair(a.light, 0.12, 0xFFFFFF, 0.08) } }

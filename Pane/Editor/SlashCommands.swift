@@ -215,7 +215,14 @@ enum SlashRecents {
 
     static func used(_ c: SlashCommand) {
         defaults.set(Array(([c] + commands.filter { $0 != c }).prefix(limit)).map(\.rawValue), forKey: key)
+        defaults.set(uses + 1, forKey: usesKey)
     }
 
-    static func clear() { defaults.removeObject(forKey: key) }
+    /// How many times a command has been run from the menu here; the "Type /" hint stops once
+    /// it's been learned (council round 14).
+    static let usesKey = "slashUses"
+    static let learned = 5
+    static var uses: Int { defaults.integer(forKey: usesKey) }
+
+    static func clear() { defaults.removeObject(forKey: key); defaults.removeObject(forKey: usesKey) }
 }
