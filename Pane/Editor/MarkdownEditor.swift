@@ -2841,22 +2841,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         if changed { needsDisplay = true }
     }
 
-    /// The caret the pointer is over: its name shows while it's there.
+    /// The caret the pointer is over: its name shows while it's there. The pointer is followed by
+    /// the folds' tracking area (HeadingFolds: mouseMoved, mouseExited).
     private(set) var hoveredCaret: UUID?
-    private var caretHoverArea: NSTrackingArea?
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let caretHoverArea { removeTrackingArea(caretHoverArea) }
-        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
-        addTrackingArea(area)
-        caretHoverArea = area
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        super.mouseExited(with: event)
-        hoverCaret(at: nil)
-    }
 
     /// Shows the name of the caret under `point` (a few points either side of the bar count).
     func hoverCaret(at point: CGPoint?) {

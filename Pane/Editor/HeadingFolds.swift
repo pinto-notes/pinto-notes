@@ -620,6 +620,8 @@ extension PaneTextView {
     override func mouseExited(with event: NSEvent) {
         super.mouseExited(with: event)
         if core.folds.hovered != nil { changeFolds { $0.hovered = nil } }
+        // Another person's caret shows its name only while the pointer is on it.
+        hoverCaret(at: nil)
     }
 
     override func updateTrackingAreas() {
