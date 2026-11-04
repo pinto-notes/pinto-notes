@@ -24,9 +24,7 @@ struct AddToListIntent: AppIntent {
 
     @MainActor func perform() async throws -> some IntentResult & ReturnsValue<NoteEntity> & ProvidesDialog {
         let n = try NoteIntents.editable(note.id)
-        let body = Checklist.adding(item, to: n.body)
-        guard body != n.body else { throw NoteIntentError.other("Say what to add.") }
-        NoteIntents.save(n, body: body)
+        guard try NoteIntents.save(n, { Checklist.adding(item, to: $0) }) else { throw NoteIntentError.other("Say what to add.") }
         let words = item.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         return .result(value: NoteEntity(n), dialog: IntentDialog(stringLiteral: QuickWords.added(words.joined(separator: ", "), to: n.title)))
     }
@@ -52,7 +50,7 @@ struct TickItemIntent: AppIntent {
         let n = try NoteIntents.editable(note.id)
         guard let match = Checklist.match(item, in: n.body) else { throw NoteIntentError.other(QuickWords.noItem(item, in: n.title)) }
         guard !match.done else { return .result(value: NoteEntity(n), dialog: IntentDialog(stringLiteral: QuickWords.unticked(match.text, in: n.title))) }
-        if let body = Checklist.setting(true, index: match.index, text: match.text, in: n.body) { NoteIntents.save(n, body: body) }
+        try NoteIntents.save(n) { Checklist.setting(true, index: match.index, text: match.text, in: $0) ?? $0 }
         return .result(value: NoteEntity(n), dialog: IntentDialog(stringLiteral: QuickWords.ticked(match.text, in: n.title)))
     }
 }
@@ -85,12 +83,19 @@ extension NoteIntents {
         return n
     }
 
-    /// Writes the note's new text, saves it for sync, and redraws the Home Screen widget.
-    static func save(_ n: Note, body: String) {
-        n.body = body
-        n.touch()
+    /// Changes the note's text (a shared note's goes through its document, NoteWrites), saves it
+    /// for sync, and redraws the Home Screen widget. False when the text didn't change.
+    @discardableResult
+    static func save(_ n: Note, _ edit: (String) throws -> String) throws -> Bool {
+        switch try NoteWrites.change(n, edit) {
+        case .changed: break
+        case .unchanged: return false
+        case .viewOnly: throw NoteIntentError.other(NoteWrites.viewOnlyMessage)
+        case .notReady: throw NoteIntentError.other(NoteWrites.notReadyMessage)
+        }
         n.modelContext?.saveOrReport()
         n.modelContext?.publishChecklistShelf()
+        return true
     }
 
     /// Notes with every word of `query` in their title or text, newest first (20 at most).

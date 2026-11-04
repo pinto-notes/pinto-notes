@@ -1,7 +1,7 @@
 // Renaming a note through the file tools points the [[links]] to it at its new title, as the app
 // does on a rename; fetch lists the notes that link to a note. On the whole schema in PGlite.
 //   cd supabase/functions/mcp && deno test -A wikilinks.pglite.test.ts
-import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import { assert, assertEquals, assertRejects, assertStringIncludes } from "jsr:@std/assert@1";
 import type { PGlite } from "npm:@electric-sql/pglite@0.2.17";
 import { schemaDB } from "./pglite.ts";
 import { type Account, account, folder, lockedNote, note, notesPassword, opened, toolContext } from "./sealed.ts";
@@ -92,4 +92,22 @@ Deno.test("a rename leaves links to a locked note with the same title alone, tho
   assertEquals(moved.links_updated, ["Today.md"]);
   assertEquals(await body(pg, a, fromTop), "Today\n\nSee [[Roadmap]].");
   assertEquals(await body(pg, a, fromHome), "Chores\n\nSee [[Plan]].", "seen from Home, [[Plan]] is the locked note, as in the app");
+});
+
+Deno.test("a link to a locked note reads as one, and a second note by its name isn't made", async () => {
+  const pg = await schemaDB();
+  const a = await account(pg);
+  const lockKey = await notesPassword(pg, a);
+  await lockedNote(pg, a, lockKey, "Client X");
+  await note(pg, a, "Week\n\nCall [[Client X]] and check [[Nowhere]].");
+
+  const read = await tool(pg, a, "fetch", { id: "Week.md" });
+  assertStringIncludes(read.metadata.links_to_locked, "[[Client X]] goes to a locked note");
+  assert(!read.metadata.links_to_locked.includes("Nowhere"), "a link to nothing isn't called locked");
+
+  await assertRejects(() => tool(pg, a, "write", { path: "Client X.md", content: "Client X\n\nNotes." }), Error, "A locked note already has this name");
+  await assertRejects(() => tool(pg, a, "write", { path: "client x.md", content: "notes" }), Error, "A locked note already has this name");
+  // Elsewhere is fine: the nearest note wins a link, as in the app.
+  const work = await tool(pg, a, "write", { path: "Work/Client X.md", content: "Client X\n\nWork side." });
+  assertEquals(work.written ?? work.created ?? work.path, "Work/Client X.md");
 });

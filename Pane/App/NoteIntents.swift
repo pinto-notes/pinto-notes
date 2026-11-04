@@ -101,9 +101,7 @@ struct AppendToNoteIntent: AppIntent {
     @MainActor func perform() async throws -> some IntentResult & ReturnsValue<NoteEntity> {
         guard let n = try NoteIntents.find(note.id) else { throw NoteIntentError.gone }
         guard !n.isLocked else { throw NoteIntentError.locked }
-        n.body = try NoteIntents.appending(text, to: n.body, underHeading: heading)
-        n.touch()
-        n.modelContext?.saveOrReport()
+        try NoteIntents.save(n) { try NoteIntents.appending(text, to: $0, underHeading: heading) }
         return .result(value: NoteEntity(n))
     }
 }

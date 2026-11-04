@@ -22,7 +22,7 @@ extension ModelContext {
             if !enex.isEmpty, rest.isEmpty, body.isEmpty { Inbox.remove(dir); continue }
             // Add to a note picked in the share sheet: at its end, files and all. A note that has
             // gone, or is locked or deleted now, gets a new note instead, so nothing is lost.
-            if let id = item.note, let n = self.note(id), n.deletedAt == nil, n.trashedAt == nil, !n.isLocked {
+            if let id = item.note, let n = self.note(id), n.deletedAt == nil, n.trashedAt == nil, !n.isLocked, !n.isShared {
                 let files = rest.compactMap { try? FileStore.importFile(at: dir.appending(path: $0)) }
                 files.forEach(insert)
                 let added = ([body] + files.map(\.markdown)).filter { !$0.isEmpty }.joined(separator: "\n")
@@ -31,6 +31,16 @@ extension ModelContext {
                     n.touch()
                     addedTo.append(n)
                 }
+                Inbox.remove(dir)
+                continue
+            }
+            // A shared note takes text through its document (NoteWrites). Files can't go in a
+            // shared note, and Can view or a document not open yet can't take the text either:
+            // those get a new note, as for a note that's gone.
+            if let id = item.note, let n = self.note(id), n.deletedAt == nil, n.trashedAt == nil, !n.isLocked, n.isShared,
+               rest.isEmpty, !body.isEmpty,
+               NoteWrites.change(n, { (try? NoteIntents.appending(body, to: $0)) ?? $0 }) == .changed {
+                addedTo.append(n)
                 Inbox.remove(dir)
                 continue
             }

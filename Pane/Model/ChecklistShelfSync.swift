@@ -28,15 +28,17 @@ extension ModelContext {
         let ticks = ChecklistShelf.ticks()
         guard !ticks.isEmpty else { return [] }
         var changed: [Note] = []
+        // Ticks for a shared note whose document isn't open yet wait for it, so none is lost.
+        var waiting: Set<UUID> = []
         for t in ticks {
-            guard let n = note(t.note), n.deletedAt == nil, n.trashedAt == nil, !n.isLocked,
-                  let body = Checklist.setting(t.done, index: t.index, text: t.text, in: n.body), body != n.body else { continue }
-            n.body = body
-            n.touch()
-            if !changed.contains(where: { $0.id == n.id }) { changed.append(n) }
+            guard let n = note(t.note), n.deletedAt == nil, n.trashedAt == nil, !n.isLocked else { continue }
+            // A shared note's tick goes into its document (NoteWrites); Can view drops it.
+            let outcome = NoteWrites.change(n) { Checklist.setting(t.done, index: t.index, text: t.text, in: $0) ?? $0 }
+            if outcome == .notReady { waiting.insert(t.id) }
+            if outcome == .changed, !changed.contains(where: { $0.id == n.id }) { changed.append(n) }
         }
         if !changed.isEmpty { try? save() }
-        ChecklistShelf.clearTicks(ticks)
+        ChecklistShelf.clearTicks(ticks.filter { !waiting.contains($0.id) })
         return changed
     }
 
