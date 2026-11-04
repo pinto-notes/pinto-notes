@@ -899,7 +899,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     /// Under the last line, across the text's width.
     private func placeFoot() {
-        guard let host = footHost, let tlm = textLayoutManager else { return }
+        guard let host = footHost, let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return }
+        // Lazy TextKit 2 layout: see the Mac's placeFoot.
+        if (footModel?.height ?? 0) > 0.5 { tlm.ensureLayout(for: tcm.documentRange) }
         let used = tlm.usageBoundsForTextContainer.maxY
         let frame = CGRect(x: textContainerInset.left, y: textContainerInset.top + used + EditorFoot.gap,
                            width: max(0, bounds.width - textContainerInset.left - textContainerInset.right), height: max(footModel?.height ?? 0, 1))
@@ -2116,8 +2118,14 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             guard let self, let storage = self.textStorage else { return }
             self.core.dayChanged(storage: storage, selection: self.editingSelection)
         }
+        core.styler.bodySize = EditorMetrics.body
         core.restyle(textStorage!, selection: nil, force: true)
         typingAttributes = core.typingAttributes(text, at: selectedRange().location)
+        if textSizeObserver == nil {
+            textSizeObserver = NotificationCenter.default.addObserver(forName: TextSize.didChange, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.textSizeChanged() }
+            }
+        }
 
         headerLabel.font = .systemFont(ofSize: 11, weight: .medium)
         headerLabel.textColor = .tertiaryLabelColor
@@ -2130,6 +2138,22 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Assigning string sends a selection notification. Listen after the initial styling,
         // so that notification doesn't style the whole note a second time.
         delegate = self
+    }
+
+    private var textSizeObserver: NSObjectProtocol?
+
+    /// View › Bigger or Smaller: every line restyled at the new size, the cards and foot moved to
+    /// where the text now is. The caret and scroll stay where they were.
+    func textSizeChanged() {
+        guard let storage = textStorage else { return }
+        core.styler.bodySize = EditorMetrics.body
+        core.restyle(storage, selection: editingSelection, force: true)
+        typingAttributes = core.typingAttributes(string, at: selectedRange().location)
+        if let tlm = textLayoutManager { tlm.invalidateLayout(for: tlm.documentRange) }
+        setInsets(width: frame.width)
+        placeFoot()
+        queueCardLayout(animated: false)
+        needsDisplay = true
     }
 
     /// Test runs can start editing at some text: `-uitest -caret "Manteigaria"`.
@@ -2256,7 +2280,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Under the last line, across the text's width.
     func placeFoot() {
-        guard let host = footHost, let tlm = textLayoutManager else { return }
+        guard let host = footHost, let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return }
+        // TextKit 2 lays out lazily: until the whole note has been laid out, the used height is
+        // only the first lines', and the foot sat under the title (Lisbon on the Air, 11-04). The
+        // foot shows only for a note with links or mentions, so only those pay for the layout.
+        if (footModel?.height ?? 0) > 0.5 { tlm.ensureLayout(for: tcm.documentRange) }
         let o = textContainerOrigin
         let used = tlm.usageBoundsForTextContainer.maxY
         let frame = NSRect(x: o.x, y: o.y + used + EditorFoot.gap, width: max(0, bounds.width - o.x * 2), height: max(footModel?.height ?? 0, 1))

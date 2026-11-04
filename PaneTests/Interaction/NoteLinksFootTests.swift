@@ -105,6 +105,25 @@ import Testing
         #expect(moved.minY > foot.minY + 10, "a new line moves it down")
     }
 
+    /// A long note with a table opens with the foot under its last line, not under its title:
+    /// TextKit 2 lays out lazily, so the text's used height at open is only the first lines'
+    /// (seen on the Air 11-04: "Unlinked mentions" sat between Lisbon's title and first line).
+    @Test func theFootSitsUnderALongNotesLastLineWhenItOpens() async throws {
+        let lib = try await Self.library()
+        let plan = (1...40).map { "- [ ] Thing to do \($0)" }.joined(separator: "\n")
+        let body = "Lisbon\n\nFour days of tiles, trams and pastries in May.\n\n## Plan\n\(plan)\n\n## Food\n| Place | Dish |\n| --- | --- |\n| Manteigaria | Pastel de nata |\n| Ramiro | Seafood |\n\n> Pack comfortable shoes. The hills are real."
+        UserDefaults.standard.removeObject(forKey: "noteLinks.mentionsShown")
+        let h = await EditorHarness(body, focus: false)
+        defer { h.close() }
+        h.view.setFoot(lib.links)
+        _ = await h.until { lib.links.height > 0 }
+        await h.settle(0.1)
+        let foot = try #require(h.view.footFrame)
+        let last = h.lineRect(at: (h.text as NSString).length - 1)
+        #expect(foot.minY >= last.maxY, "under the last line: \(foot) after \(last)")
+        #expect(abs(foot.minY - (last.maxY + EditorFoot.gap)) < 1, "36 pt under it: \(foot) after \(last)")
+    }
+
     /// The lines read as text, with the link marked; a line opens its note at that link.
     @Test func aLineOpensItsNoteAtTheLink() async throws {
         let lib = try await Self.library()
