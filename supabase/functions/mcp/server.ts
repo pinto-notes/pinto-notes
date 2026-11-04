@@ -16,7 +16,7 @@ import type { Sql } from "npm:postgres@3.4.5";
 import { tokenKey, unwrap, Vault } from "../_shared/e2ee.ts";
 import { errorKind, log } from "../_shared/log.ts";
 import { Content, runTool, ToolContext, ToolError, tools as everyClassicTool } from "./tools.ts";
-import { FILE_INSTRUCTIONS, FILE_PROMPTS, runFileTool } from "./files_tools.ts";
+import { ABOUT_ME_INSTRUCTIONS, FILE_INSTRUCTIONS, FILE_PROMPTS, runFileTool } from "./files_tools.ts";
 import { servedTools, toolSet } from "./tool_set.ts";
 import { toolErrorKind } from "./tool_errors.ts";
 import { challenge, handleOAuth, isOAuthPath, publicBase, resolveAccessToken, subpath } from "./oauth.ts";
@@ -38,6 +38,7 @@ export function instructions(set: string | undefined = Deno.env.get("AMBER_MCP_T
   if (toolSet(set) === "files") return FILE_INSTRUCTIONS;
   const apps = appsServed(set);
   return `Pinto Notes is the user's personal notes app. Notes are markdown; the first line is the title.
+${ABOUT_ME_INSTRUCTIONS}
 Start with get_overview or search_notes to find things. Read a note before editing it.
 Prefer edit_note (exact find/replace) and append_to_note over replace_note_body, so nothing else changes.
 Tables are markdown tables; trackers are tables with typed columns. Use read_table, then log_table_row (it validates values and, in trackers, upserts by date).

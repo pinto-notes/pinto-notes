@@ -58,6 +58,8 @@ Deno.test("a client connecting now gets the file tools, their instructions, prom
   const rpc = client(pg, await connect(pg, a, true));
   const init = await rpc("initialize", { protocolVersion: "2025-06-18" });
   assertStringIncludes(init.instructions, "each note is a markdown file");
+  // The About me note: read first, kept current (persona council, 4 November 2026).
+  assertStringIncludes(init.instructions, 'If the person has a note titled "About me" that isn\'t locked, read it first');
   assertEquals((await rpc("tools/list")).tools.map((t: { name: string }) => t.name), FILE_TOOLS.map((t) => t.name));
   assertEquals((await rpc("prompts/list")).prompts.map((p: { name: string }) => p.name), ["make_app", "add_data", "change_app"]);
   const prompt = await rpc("prompts/get", { name: "make_app", arguments: { note: "Groceries" } });
