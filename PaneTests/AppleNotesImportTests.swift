@@ -716,11 +716,12 @@ import Testing
     /// and checklists when Notes' database can't be read), and the last page says it again.
     @Test func thePagesSayWhatStaysInAppleNotes() {
         let en = Locale(identifier: "en_US")
-        #expect(AppleNotesImportView.staysLine(locked: 0, checklists: false, locale: en) == nil, "nothing stays: nothing said")
-        #expect(AppleNotesImportView.staysLine(locked: 1, checklists: false, locale: en) == "1 locked note stays in Apple Notes.")
-        #expect(AppleNotesImportView.staysLine(locked: 1_204, checklists: true, locale: en) == "1,204 locked notes stay in Apple Notes. Checklists may come in as plain lists.")
-        #expect(AppleNotesImportView.successLine(locked: 0, locale: en) == "Your folders came over as they were.")
-        #expect(AppleNotesImportView.successLine(locked: 2, locale: en) == "Your folders came over as they were. 2 locked notes stayed in Apple Notes.")
+        #expect(AppleNotesImportView.staysLine(locked: [], checklists: false, locale: en) == nil, "nothing stays: nothing said")
+        #expect(AppleNotesImportView.staysLine(locked: ["Bank details"], checklists: false, locale: en) == "\u{201C}Bank details\u{201D} is locked, so it can\u{2019}t come over. Unlock it in Apple Notes first, or copy it over yourself.")
+        let many = ["A", "B", "C"] + Array(repeating: "D", count: 1_201)
+        #expect(AppleNotesImportView.staysLine(locked: many, checklists: true, locale: en) == "\u{201C}A\u{201D}, \u{201C}B\u{201D}, \u{201C}C\u{201D} and 1,201 more are locked, so they can\u{2019}t come over. Unlock them in Apple Notes first, or copy them over yourself. Checklists may come in as plain lists.")
+        #expect(AppleNotesImportView.successLine(locked: [], locale: en) == "Your folders came over as they were.")
+        #expect(AppleNotesImportView.successLine(locked: ["Bank details", "Codes"], locale: en) == "Your folders came over as they were. \u{201C}Bank details\u{201D} and \u{201C}Codes\u{201D} are locked, so they stayed in Apple Notes. Unlock them there and import again, or copy them over yourself.")
         // Locked notes alone don't turn the end into a list of what couldn't come.
         var s = AppleNotesImportSummary()
         s.notImported = [.init(name: "Journal", why: AppleNotesImportSummary.lockedWhy)]

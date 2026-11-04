@@ -821,21 +821,35 @@ struct AppleNotesImportView: View {
     /// Five folders without scrolling; more scroll inside the card.
     static let folderCardHeight: CGFloat = 212
 
-    /// Locked notes in the listing: they stay in Apple Notes.
-    private var lockedCount: Int { notes.filter(\.locked).count }
 
     /// Under the folders, before Import: what won't come over as it is (persona council 11-04).
     private var staysLine: String? {
-        loading || failure != nil ? nil : Self.staysLine(locked: lockedCount, checklists: !storeAccess, locale: locale)
+        loading || failure != nil ? nil : Self.staysLine(locked: notes.filter(\.locked).map(\.name), checklists: !storeAccess, locale: locale)
     }
 
-    /// "2 locked notes stay in Apple Notes. Checklists may come in as plain lists." The way to keep
-    /// checklists is under Choose Notes, off the one-press path; this only says it.
-    static func staysLine(locked: Int, checklists: Bool, locale: Locale) -> String? {
+    /// "Bank details and Codes are locked, so they can't come over. Unlock them in Apple Notes
+    /// first, or copy them over yourself." Named, with what to do (Emil, 4 November 2026). The way
+    /// to keep checklists is under Choose Notes, off the one-press path; this only says it.
+    static func staysLine(locked: [String], checklists: Bool, locale: Locale) -> String? {
         var said: [String] = []
-        if locked > 0 { said.append(locked == 1 ? "1 locked note stays in Apple Notes." : "\(locked.formatted(.number.locale(locale))) locked notes stay in Apple Notes.") }
+        if let names = lockedNames(locked, locale: locale) {
+            said.append(locked.count == 1
+                ? "\(names) is locked, so it can\u{2019}t come over. Unlock it in Apple Notes first, or copy it over yourself."
+                : "\(names) are locked, so they can\u{2019}t come over. Unlock them in Apple Notes first, or copy them over yourself.")
+        }
         if checklists { said.append("Checklists may come in as plain lists.") }
         return said.isEmpty ? nil : said.joined(separator: " ")
+    }
+
+    /// "Bank details", "Bank details and Codes", "Bank details, Codes, Passport and 4 more".
+    static func lockedNames(_ names: [String], locale: Locale) -> String? {
+        let named = names.map { $0.isEmpty ? "A note" : "\u{201C}\($0)\u{201D}" }
+        switch named.count {
+        case 0: return nil
+        case 1: return named[0]
+        case 2, 3: return named.dropLast().joined(separator: ", ") + " and " + named.last!
+        default: return named.prefix(3).joined(separator: ", ") + " and \((named.count - 3).formatted(.number.locale(locale))) more"
+        }
     }
 
     private var importingPage: some View {
@@ -872,7 +886,7 @@ struct AppleNotesImportView: View {
                 .tracking(Palette.tracking(26))
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 10)
-            Text(Self.successLine(locked: finished.map { $0.notImported.filter { $0.why == AppleNotesImportSummary.lockedWhy }.count } ?? lockedCount, locale: locale))
+            Text(Self.successLine(locked: finished.map { $0.notImported.filter { $0.why == AppleNotesImportSummary.lockedWhy }.map(\.name) } ?? notes.filter(\.locked).map(\.name), locale: locale))
                 .font(.system(size: 15))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
@@ -890,9 +904,11 @@ struct AppleNotesImportView: View {
     static let successLine = "Your folders came over as they were."
 
     /// The success page's line, and the locked notes that stayed, as the first page said they would.
-    static func successLine(locked: Int, locale: Locale) -> String {
-        guard locked > 0 else { return successLine }
-        return successLine + (locked == 1 ? " The locked note stayed in Apple Notes." : " \(locked.formatted(.number.locale(locale))) locked notes stayed in Apple Notes.")
+    static func successLine(locked: [String], locale: Locale) -> String {
+        guard let names = lockedNames(locked, locale: locale) else { return successLine }
+        return successLine + (locked.count == 1
+            ? " \(names) is locked, so it stayed in Apple Notes. Unlock it there and import again, or copy it over yourself."
+            : " \(names) are locked, so they stayed in Apple Notes. Unlock them there and import again, or copy them over yourself.")
     }
 
     private var header: some View {
