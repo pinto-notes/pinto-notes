@@ -607,6 +607,21 @@ final class EditorCore {
         return fragment.checkboxRect(d).offsetBy(dx: f.minX, dy: f.minY)
     }
 
+    /// A quote line's bar and its first line's letters (top to foot), in text-container coordinates.
+    func quoteBar(line offset: Int, layout: NSTextLayoutManager?) -> (bar: CGRect, text: ClosedRange<CGFloat>)? {
+        guard let layout, let content = layout.textContentManager,
+              let loc = content.location(content.documentRange.location, offsetBy: offset) else { return nil }
+        layout.ensureLayout(for: NSTextRange(location: loc))
+        guard let fragment = layout.textLayoutFragment(for: loc) as? DecoratedLayoutFragment,
+              let d = fragment.decoration, case .quote = d.kind,
+              let line = fragment.textLineFragments.first,
+              let p = fragment.textElement as? NSTextParagraph, p.attributedString.length > 0,
+              let font = p.attributedString.attribute(.font, at: 0, effectiveRange: nil) as? PFont else { return nil }
+        let f = fragment.layoutFragmentFrame
+        let baseline = f.minY + line.typographicBounds.minY + line.glyphOrigin.y
+        return (fragment.quoteBarRect().offsetBy(dx: f.minX, dy: f.minY), (baseline - font.ascender)...(baseline - font.descender))
+    }
+
     /// The checklist line whose circle is drawn at `point` (text-container coordinates; `viewY` is
     /// its height in the view). While rows slide, what's drawn there is a picture of a row, and
     /// that row is the one, wherever its text already is.

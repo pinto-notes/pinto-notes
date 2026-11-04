@@ -321,10 +321,9 @@ struct NoteDetailView: View {
             // Review an AI's edit part by part: a sheet on the phone, half height first, so the
             // note shows above it and scrolls to each part (the Mac has the card).
             .sheet(isPresented: Binding(get: { review != nil }, set: { if !$0 { finishReview() } })) {
-                AIReviewCard(review: Binding(get: { review ?? AIReview(by: "", previous: "", after: "") }, set: { review = $0 }),
-                             undo: reviewUndo, undoAll: reviewUndoAll, done: finishReview,
-                             reveal: { id in if let at = review?.location(of: id, in: note.body) { controller.reveal(at) } },
-                             inSheet: true)
+                AIReviewSheet(review: Binding(get: { review ?? AIReview(by: "", previous: "", after: "") }, set: { review = $0 }),
+                              undo: reviewUndo, undoAll: reviewUndoAll, done: finishReview,
+                              reveal: { id in if let at = review?.location(of: id, in: note.body) { controller.reveal(at) } })
                     .presentationDetents([.medium, .large])
                     .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             }

@@ -18,21 +18,23 @@ import Testing
         let finished: (String) -> Void
         var inSheet = false
         var body: some View {
-            AIReviewCard(review: $review,
-                         undo: { id in
-                             var rv = review
-                             rv.undo(id, on: note)
-                             review = rv
-                             if rv.isFinished { finished(rv.result) }
-                         },
-                         undoAll: {
-                             var rv = review
-                             if rv.undoAll(on: note) == 0 { finished(rv.result) }
-                             review = rv
-                         },
-                         done: { finished(review.result) },
-                         inSheet: inSheet)
-                .padding(inSheet ? 0 : 20)
+            if inSheet {
+                AIReviewSheet(review: $review, undo: undoPart, undoAll: undoEvery, done: { finished(review.result) })
+            } else {
+                AIReviewCard(review: $review, undo: undoPart, undoAll: undoEvery, done: { finished(review.result) })
+                    .padding(20)
+            }
+        }
+        func undoPart(_ id: Int) {
+            var rv = review
+            rv.undo(id, on: note)
+            review = rv
+            if rv.isFinished { finished(rv.result) }
+        }
+        func undoEvery() {
+            var rv = review
+            if rv.undoAll(on: note) == 0 { finished(rv.result) }
+            review = rv
         }
     }
 
@@ -91,6 +93,33 @@ import Testing
         await ax.settle(200)
         #expect(ax.find("review.undone.0") != nil, "\(ax.ids())")
         #expect(note.body != AIReviewTests.after, "the part went back in the note")
+    }
+
+    /// iPhone's sheet is a normal sheet (Emil, 4 November 2026: "why is there a done button? Why
+    /// is it not a normal X"): a close button, not Done; one change has no "1 of 1" and no Keep All
+    /// or Undo All; several have both. Closing keeps what's left.
+    @Test func theSheetHasACloseButtonAndOnlyShowsAllActionsForSeveralParts() async throws {
+        let (c, note) = try Self.note("Groceries\n\n- [ ] Paella rice\n- [ ] Oat milk")
+        _ = c
+        var result: [String] = []
+        let one = OffscreenAX(Host(review: AIReview(by: "ChatGPT", previous: "Groceries\n\n- [ ] Oat milk", after: "Groceries\n\n- [ ] Paella rice\n- [ ] Oat milk"),
+                                   note: note, finished: { result.append($0) }, inSheet: true), size: CGSize(width: 390, height: 600))
+        defer { one.close() }
+        await one.settle()
+        let close = try #require(one.find("review.done"), "\(one.ids())")
+        #expect(close.text.contains("Close"), "a close button: \(close.text)")
+        #expect(one.find("review.title")?.text == "ChatGPT changed 1 line", "counted in lines, as the note's button")
+        #expect(one.find("review.position") == nil && one.find("review.keepAll") == nil && one.find("review.undoAll") == nil,
+                "one change: \(one.ids())")
+        #expect(one.find("review.keep.0") != nil && one.find("review.undo.0") != nil)
+        #expect(close.press())
+        await one.settle(200)
+        #expect(result.count == 1, "closing ends the review, keeping it")
+        let many = OffscreenAX(Host(review: AIReview(by: "Claude", previous: AIReviewTests.before, after: AIReviewTests.after), note: note,
+                                    finished: { _ in }, inSheet: true), size: CGSize(width: 390, height: 900))
+        defer { many.close() }
+        await many.settle()
+        #expect(many.find("review.position") != nil && many.find("review.keepAll") != nil && many.find("review.undoAll") != nil, "\(many.ids())")
     }
 
     /// The Mac card follows the note text size (UI council round 7): at 24 pt the text is 24 pt,
@@ -160,7 +189,7 @@ import Testing
         await big.settle()
         let t0 = try #require(normal.find("review.title")), t1 = try #require(big.find("review.title"))
         #expect(t1.frame.height > t0.frame.height * 1.4, "bigger text: \(t0.frame) \(t1.frame)")
-        #expect(t1.text.contains("Claude changed 3 parts"), "whole, not cut: \(t1.text)")
+        #expect(t1.text == AIReviewSheet.title(AIReview(by: "Claude", previous: AIReviewTests.before, after: AIReviewTests.after)), "whole, not cut: \(t1.text)")
         let keep = try #require(big.find("review.keep.0"))
         #expect(keep.frame.height >= 40)
     }
