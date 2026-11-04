@@ -322,18 +322,27 @@ struct CollaborateRows: View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(share.state.people) { p in
-                    Button { if !p.isMe, p.safetyCode != nil { page = .verify(p.id) } } label: {
-                        HStack(spacing: 6) {
-                            PersonRow(person: p, removing: share.working == .remove(p.id), size: 24)
-                            // Opens their safety code, as the iPhone's row does.
-                            if !p.isMe, p.safetyCode != nil {
-                                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
-                            }
+                    let opens = !p.isMe && p.safetyCode != nil
+                    let row = HStack(spacing: 6) {
+                        PersonRow(person: p, removing: share.working == .remove(p.id), size: 24)
+                        // Opens their safety code, as the iPhone's row does.
+                        if opens {
+                            Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
                         }
-                        .font(.system(size: 13))
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .font(.system(size: 13))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .contentShape(Rectangle())
+                    Group {
+                        if opens {
+                            // A light wash under the pointer, as every clickable row has.
+                            Button { page = .verify(p.id) } label: { row }.buttonStyle(.tile(radius: 6))
+                        } else {
+                            row
+                        }
+                    }
+                    .padding(.horizontal, -4)
                     .contextMenu { if share.isOwner, !p.isMe { DestructiveMenuButton("Remove from Note", systemImage: "person.badge.minus") { share.askRemove(p) } } }
                     .accessibilityIdentifier("share.person")
                 }
