@@ -66,7 +66,7 @@ struct AppPlaceTests {
         #expect(route.tab == .ai)
         #expect(route.target == .ai, "the page opens once Settings shows")
         #if os(macOS)
-        #expect(route.presenting, "the Mac shows Settings as a card over the notes window")
+        #expect(route.presenting, "the Mac opens Settings' window (SettingsWindow)")
         #endif
     }
 

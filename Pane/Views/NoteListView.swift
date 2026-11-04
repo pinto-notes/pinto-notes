@@ -1375,11 +1375,34 @@ struct ShowsSelectedRow: ViewModifier {
                 let insets = scroll.contentInsets
                 let top = -insets.top
                 let bottom = max(top, table.bounds.height - clip.bounds.height + insets.bottom)
-                let y = min(max(top, rect.midY - (clip.bounds.height + insets.top - insets.bottom) / 2), bottom)
+                let centred = min(max(top, rect.midY - (clip.bounds.height + insets.top - insets.bottom) / 2), bottom)
+                // On a row's edge, so no half row shows under the heading pinned at the top.
+                let near = max(0, table.row(at: NSPoint(x: 1, y: centred + insets.top + 1)) - 1)
+                let rows = Array(near..<min(table.numberOfRows, near + 6))
+                let frames = rows.map { table.rect(ofRow: $0) }
+                let headings = rows.map { r in table.delegate?.tableView?(table, isGroupRow: r) ?? false }
+                // Every section starts with its heading, so row 0 is one: the pinned band's height.
+                let band = table.numberOfRows > 0 ? table.rect(ofRow: 0).height : 0
+                let y = min(max(top, ShowsSelectedRow.snapped(centred, topInset: insets.top, rows: frames, headings: headings, band: band)), bottom)
                 clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: y))
                 scroll.reflectScrolledClipView(clip)
             }
         }
+    }
+
+    /// A scroll offset moved up to a row's edge: the first row under the pinned section heading
+    /// starts right where the heading ends (council, 11-04: a centred row left half a row showing
+    /// under "Today"). `rows` are consecutive rows' frames from just above the top edge, `headings`
+    /// says which are section headings, `band` is the pinned heading's height. A heading at the
+    /// top sits there whole.
+    static func snapped(_ y: CGFloat, topInset: CGFloat, rows: [CGRect], headings: [Bool], band: CGFloat) -> CGFloat {
+        let edge = y + topInset
+        guard let i = rows.firstIndex(where: { $0.maxY > edge + 0.5 }) else { return y }
+        if headings.indices.contains(i), headings[i] { return rows[i].minY - topInset }
+        // The pinned heading covers the band under the edge: put a row's top at its foot.
+        guard let j = rows.firstIndex(where: { $0.maxY > edge + band + 0.5 }) else { return y }
+        if headings.indices.contains(j), headings[j] { return rows[j].minY - topInset }
+        return rows[j].minY - band - topInset
     }
 
     /// Whether a row needs scrolling to: any part of it outside what shows.

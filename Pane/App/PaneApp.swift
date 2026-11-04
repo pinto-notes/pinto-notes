@@ -268,7 +268,20 @@ struct PaneApp: App {
         .restorationBehavior(.disabled)
         .windowToolbarStyle(.unified)
 
-        // Settings is a card over the notes window (RootView), not a window of its own.
+        // Settings: a window of its own, opened by ⌘, and links into it (SettingsWindow).
+        Window("Settings", id: SettingsWindow.id) {
+            if !Self.isUnitTestHost {
+                SettingsView(backend: backend, sync: sync)
+                    .environment(\.settingsInWindow, true)
+                    .modifier(SideWindow(backend: backend, sync: sync))
+            }
+        }
+        .modelContainer(container)
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+        .restorationBehavior(.disabled)
+        .commandsRemoved()
 
         MenuBarItem(backend: backend, sync: sync, container: container)
         #endif

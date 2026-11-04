@@ -426,7 +426,15 @@ struct MarkdownStyler {
             storage.addAttributes(syntax, range: NSRange(location: range.location, length: shown.location - range.location))
             storage.addAttributes(syntax, range: NSRange(location: NSMaxRange(shown), length: NSMaxRange(range) - NSMaxRange(shown)))
             let exists = wiki?.resolves(link.target) ?? true
-            storage.addAttribute(.foregroundColor, value: exists ? PColor.paneLinkText : PColor.paneAccentFaded, range: shown)
+            // A note that doesn't exist yet: the same ink, with a dotted underline. A faded colour
+            // said it at 2.2:1 against white, too faint to read (council, 11-04).
+            storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: shown)
+            if exists {
+                storage.removeAttribute(.underlineStyle, range: shown)
+            } else {
+                storage.addAttributes([.underlineStyle: NSUnderlineStyle([.single, .patternDot]).rawValue,
+                                       .underlineColor: PColor.paneLinkText], range: shown)
+            }
             // The heading comes along ("Budget#October"): the note opens there.
             if let url = LinkPolicy.wikiURL(link.heading.map { "\(link.target)#\($0)" } ?? link.target) { storage.addAttribute(.link, value: url, range: shown) }
             // "Budget#October": the # between note and heading reads as a separator.

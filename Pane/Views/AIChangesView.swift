@@ -239,9 +239,15 @@ struct MacAIChanges: View {
     private var detail: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let c = model.selected {
+                // What the AI did, in full before anyone chooses Undo: the summary on its own lines,
+                // who and when under it (council, 11-04: one 11 pt line cut the action off).
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.title(c)).font(.system(size: 13, weight: .semibold)).lineLimit(1)
-                    Text("\(AIChangeDetail.byline(c)) \u{00B7} \(model.summary(c))")
+                    Text(model.summary(c))
+                        .font(.system(size: 13)).lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("aiChanges.summary")
+                    Text(AIChangeDetail.byline(c))
                         .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .padding(.horizontal, 20)
@@ -268,14 +274,16 @@ struct MacAIChanges: View {
             Spacer()
             Button("Done", action: close).keyboardShortcut(.cancelAction)
             if let c = model.selected {
-                Button("Open Note") { open(c) }
-                    .disabled(model.note(c) == nil)
-                    .accessibilityIdentifier("aiChanges.open")
+                // Return opens the note; undoing is a click of its own, never a stray Return on a
+                // sheet you're reading (council, 11-04).
                 Button("Undo This Change") { Task { await model.undo(c) } }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.amberProminent)
                     .disabled(!model.canUndo(c) || model.undoing || (c.changesText && model.diff == nil))
                     .accessibilityIdentifier("aiChanges.undo")
+                Button("Open Note") { open(c) }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.amberProminent)
+                    .disabled(model.note(c) == nil)
+                    .accessibilityIdentifier("aiChanges.open")
             }
         }
         .controlSize(.large)

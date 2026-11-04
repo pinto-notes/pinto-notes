@@ -118,6 +118,15 @@ import Testing
         #expect(SignInShown.label(email: "sara@example.com", apple: false, google: false) == "sara@example.com")
     }
 
+    /// Settings' own window is sized to Settings, not to the template gallery (both judges, council
+    /// round 2, 11-04: "oversized, mostly empty"): the sidebar and one page column, no more.
+    @Test func theSettingsWindowFitsItsSidebarAndOnePage() {
+        let page = SettingsCard.pageWidth + 2 * SettingsCard.gutter
+        #expect(SettingsWindow.size.width - SettingsCard.sidebarWidth >= page, "a page's column fits beside the sidebar")
+        #expect(SettingsWindow.size.width - SettingsCard.sidebarWidth - page <= 40, "with little to spare")
+        #expect(SettingsWindow.size.width < SettingsCard.size.width && SettingsWindow.size.height < SettingsCard.size.height)
+    }
+
     @Test func theCardIsNeverBiggerThanItsWindow() {
         #expect(SettingsCard.size == TemplateLibraryView.size, "the same card as Templates")
         #expect(SettingsCard.fitted(CGSize(width: 1600, height: 1000)) == SettingsCard.size)

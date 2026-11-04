@@ -27,6 +27,24 @@ import AppKit
         try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     }
 
+    #if os(macOS)
+    /// The AI Changes window: Return opens the note, never undoes (a stray Return while reading
+    /// changed the note, council 11-04), and the summary has room to say what the AI did.
+    @Test func returnOpensTheNoteAndUndoIsAClickOfItsOwn() throws {
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Pane/Views/AIChangesView.swift"), encoding: .utf8)
+        let bar = try #require(src.range(of: "private var bar: some View").map { String(src[$0.lowerBound...].prefix(2200)) })
+        let undo = try #require(bar.range(of: "Button(\"Undo This Change\")"))
+        let open = try #require(bar.range(of: "Button(\"Open Note\")"))
+        let undoPart = String(bar[undo.lowerBound..<open.lowerBound])
+        let openPart = String(bar[open.lowerBound...].prefix(400))
+        #expect(!undoPart.contains(".defaultAction"), "Undo is never the Return button")
+        #expect(openPart.contains(".keyboardShortcut(.defaultAction)"), "Return opens the note")
+        let detail = try #require(src.range(of: "private var detail: some View").map { String(src[$0.lowerBound...].prefix(1400)) })
+        #expect(detail.contains("Text(model.summary(c))") && detail.contains(".lineLimit(2)"), "the summary has its own two lines")
+    }
+    #endif
+
     // MARK: What stays, and for how long
 
     @Test func anAIsTextEditStaysUntilYouEditTheAppMomentsDont() {
