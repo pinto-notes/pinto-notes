@@ -98,6 +98,8 @@ final class CollabStore {
         store.context = context
         shared = store
         await store.start()
+        // Captures from the widget and the share sheet for shared notes waited for this.
+        context.applyCaptures(library: store.library)
     }
 
     /// Signed out: everything open closes, and nothing of the account stays in memory.
@@ -293,6 +295,11 @@ final class CollabStore {
     /// library mirrors its text into the note and follows its key.
     private func opened(_ session: CollabSession, note: Note) {
         sessions[note.id] = session
+        // A shared note's document just opened: anything the widget or share sheet left for it goes in.
+        Task { @MainActor [weak self] in
+            guard let self, let context, let library else { return }
+            context.applyCaptures(library: library)
+        }
         keys[session.noteID] = (session.noteKey, session.epoch)
         session.onMembers = { [weak self] members in self?.checkKeys(members) }
     }

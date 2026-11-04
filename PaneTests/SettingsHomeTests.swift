@@ -311,7 +311,7 @@ import Testing
         #expect(LockedNotesCopy.footer.contains("An AI sees that a locked note exists") && LockedNotesCopy.footer.contains("stays with that AI"))
         // Every place that explains locked notes says the same; none says an AI sees the title.
         let how = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Locked notes" }?.line ?? ""
-        for text in [LockedNotesCopy.footer, LockedNotesCopy.howTo, PrivacyCopy.lockedLine, how] {
+        for text in [LockedNotesCopy.setupLine, LockedNotesCopy.footer, LockedNotesCopy.howTo, PrivacyCopy.lockedLine, how] {
             #expect(text.contains("An AI sees that a locked note exists, not its title or text."), "\(text)")
             #expect(!text.contains("sees the title") && !text.contains("see the title") && !text.contains("titles of locked notes"), "\(text)")
         }
