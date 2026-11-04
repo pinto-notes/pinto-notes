@@ -77,7 +77,10 @@ import Testing
                 let side = PaneTextView.textSide(width: page.width)
                 let format = try #require(items.first { $0.label == "Format" })
                 let noteMore = try #require(items.first { $0.label == "More" && $0.column == 2 })
-                #expect(abs(noteMore.frame.maxX - (page.maxX - side)) <= 24, "More ends at the text's right edge")
+                // With scroll bars always shown (a mouse plugged in, 11-04) the note's bar takes
+                // 17 pt off the page's right side, and More stays at the window's edge.
+                let bar: CGFloat = NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0
+                #expect(abs(noteMore.frame.maxX - (page.maxX - side)) <= 24 + bar, "More ends at the text's right edge: \(noteMore.frame.maxX) vs \(page.maxX - side)")
                 #expect(format.frame.minX > page.midX - 60, "the tools are on the right")
                 #expect(column("Back") == [2] && column("Forward") == [2], "back and forward over the note, at every width")
                 if let back = items.first(where: { $0.label == "Back" }) {
