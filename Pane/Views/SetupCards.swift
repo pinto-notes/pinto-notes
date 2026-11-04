@@ -59,6 +59,7 @@ enum SetupCards {
         case .files(.bear): "Choose Bear export\u{2026}"
         case .files(.evernote): "Choose .enex files\u{2026}"
         case .files(.keep): "Choose Takeout folder\u{2026}"
+        case .files(.notion): "Choose Notion export\u{2026}"
         case .files(.markdown): "Choose Markdown folder\u{2026}"
         }
     }

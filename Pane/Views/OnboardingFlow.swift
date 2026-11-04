@@ -611,6 +611,7 @@ struct OnboardingFlow: View {
         .markdown: "A folder or .zip of Markdown or text files",
         .evernote: "Notebooks you exported as .enex files",
         .keep: "Your Google Takeout download",
+        .notion: "From a Markdown & CSV export",
     ]
 
     /// Every way an AI connects.

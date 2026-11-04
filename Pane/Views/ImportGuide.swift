@@ -57,6 +57,7 @@ struct ImportGuide: Identifiable {
         case evernoteExport, evernoteFormat
         case bearSelect, bearExport
         case obsidianReveal, obsidianFound
+        case notionExport
         case settingsAutomation, notesEmpty, macHandoff, notesShareOne
     }
 }
@@ -155,6 +156,27 @@ extension ImportGuide {
                         "Choose the vault folder itself: the one with your notes and a hidden .obsidian folder inside."))
     }
 
+    /// Notion (persona council 11-04): the same two pages as Obsidian, an export step and the drop.
+    /// What a database becomes is said on the last page: a folder with a note per row, its
+    /// properties as lines at the top of each (MarkdownImportTests.notionWorkspaceExport).
+    static let notion = ImportGuide(
+        id: "notion", origin: .files(.notion), name: "Notion",
+        introTitle: "Bring your Notion notes",
+        introLine: "Notion can save your whole workspace as one download. It takes a few minutes, and nothing in Notion changes.",
+        skipTitle: "I already have the download",
+        steps: [
+            Step(title: "Export from Notion",
+                 text: "In Notion, open Settings and choose Export all workspace content. Pick Markdown & CSV, include subpages, and export. Notion emails you a link to a .zip.",
+                 art: .drawn(.notionExport), action: "Open Notion",
+                 link: URL(string: "https://www.notion.so"), app: "notion.id"),
+        ],
+        drop: Drop(title: "Drop the .zip here",
+                   line: "The download from Notion's email, in your Downloads folder. No need to open it.",
+                   choose: "Choose the .zip\u{2026}", found: nil, fileSymbol: "doc.zipper"),
+        success: (214, "They're in a folder named Notion, subpages as folders. Each database is a folder with a note per row, its properties at the top."),
+        wrongFile: ("This isn't a Notion export",
+                    "Choose the .zip from Notion's email. Export as Markdown & CSV, not HTML or PDF."))
+
     static let markdown = ImportGuide(
         id: "markdown", origin: .files(.markdown), name: "Markdown or text files",
         introTitle: "Bring Markdown or text files",
@@ -178,6 +200,15 @@ extension ImportGuide {
         g.steps[2].text = "Open Google's email and tap Download archive. Safari saves it in Files, in Downloads."
         g.drop = Drop(title: "Choose the download",
                       line: "In Files, Downloads: a file named takeout and some numbers. No need to open it.",
+                      choose: "Choose File", found: nil, fileSymbol: "doc.zipper")
+        return g
+    }()
+
+    /// On iPhone the download from Notion's email lands in Files, and the drop page is a button.
+    static let notionPhone: ImportGuide = {
+        var g = notion
+        g.drop = Drop(title: "Choose the download",
+                      line: "In Files, Downloads: the .zip from Notion's email. No need to open it.",
                       choose: "Choose File", found: nil, fileSymbol: "doc.zipper")
         return g
     }()
@@ -755,6 +786,28 @@ struct GuideDrawing: View {
                         .offset(x: -14, y: 98)
                     }
                 }
+            }
+        case .notionExport:
+            // Drawn, not Notion's own: its export dialog's three choices, the two to set ringed.
+            appWindow {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Export all workspace content").font(.system(size: 12, weight: .semibold)).foregroundStyle(ink)
+                    HStack(spacing: 8) {
+                        Text("Export format").font(.system(size: 10.5)).foregroundStyle(ink.opacity(0.6))
+                        Spacer(minLength: 0)
+                        ring { labelled("Markdown & CSV") }
+                    }
+                    .frame(width: 230)
+                    HStack(spacing: 8) {
+                        Text("Include content").font(.system(size: 10.5)).foregroundStyle(ink.opacity(0.6))
+                        Spacer(minLength: 0)
+                        labelled("Everything")
+                    }
+                    .frame(width: 230)
+                    ring { checkRow("Include subpages", on: true, bold: true) }
+                    HStack { Spacer(); pill("Export", filled: true) }.frame(width: 230)
+                }
+                .padding(18)
             }
         case .evernoteFormat:
             appWindow {

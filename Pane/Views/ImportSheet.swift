@@ -6,10 +6,10 @@ import UniformTypeIdentifiers
 enum ImportKind: String, Identifiable, CaseIterable, Sendable {
     // In the order the choices are listed. Obsidian and Bear are the Markdown import under their
     // own names, so someone looking for theirs finds it.
-    case obsidian, bear, evernote, keep, markdown
+    case obsidian, bear, evernote, keep, notion, markdown
 
-    /// Obsidian and Bear export Markdown: the same importer reads all three.
-    var isMarkdown: Bool { self == .obsidian || self == .bear || self == .markdown }
+    /// Obsidian, Bear and Notion export Markdown: the same importer reads them all.
+    var isMarkdown: Bool { self == .obsidian || self == .bear || self == .notion || self == .markdown }
 
     var id: String { rawValue }
 
@@ -20,6 +20,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: "Import from Evernote"
         case .markdown: "Import Markdown or Text"
         case .keep: "Import from Google Keep"
+        case .notion: "Import from Notion"
         }
     }
 
@@ -31,6 +32,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: "Import from Evernote"
         case .markdown: "Import Markdown"
         case .keep: "Import from Keep"
+        case .notion: "Import from Notion"
         }
     }
 
@@ -42,6 +44,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: "Evernote"
         case .markdown: "Markdown files"
         case .keep: "Google Keep"
+        case .notion: "Notion"
         }
     }
 
@@ -53,6 +56,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: "Import from Evernote…"
         case .markdown: "Import Markdown or Text…"
         case .keep: "Import from Google Keep…"
+        case .notion: "Import from Notion…"
         }
     }
 
@@ -63,6 +67,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: "Each notebook you exported becomes a folder. Nothing in Evernote changes."
         case .markdown: "Each folder or .zip becomes a folder, subfolders included. Your files aren't changed."
         case .keep: "From your Google Takeout download. Nothing in Keep changes."
+        case .notion: "Your export becomes a folder named Notion, subpages included. Each database is a folder with a note per row. Nothing in Notion changes."
         }
     }
 
@@ -73,6 +78,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: "Choose your Evernote exports"
         case .markdown: "Choose a folder or .zip of notes"
         case .keep: "Choose your Google Takeout"
+        case .notion: "Choose your Notion export"
         }
     }
 
@@ -83,6 +89,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: "In Evernote, export each notebook as an ENEX file (.enex). You can pick several at once."
         case .markdown: "Markdown (.md) and text (.txt) files from Obsidian, Notion, Bear, Joplin, Logseq, Simplenote, Standard Notes or anywhere else. Pictures and files they link to come too."
         case .keep: "At takeout.google.com, export Keep. Then choose the .zip, or the Takeout or Keep folder inside it."
+        case .notion: "In Notion, open Settings and choose Export all workspace content, as Markdown & CSV. Then choose the .zip Notion sends you. No need to open it."
         }
     }
 
@@ -93,6 +100,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: "Choose Files…"
         case .markdown: "Choose a Folder or .zip…"
         case .keep: "Choose the Takeout…"
+        case .notion: "Choose the .zip…"
         }
     }
 
@@ -102,6 +110,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: "Add More Files…"
         case .markdown: "Add More…"
         case .keep: "Add More…"
+        case .notion: "Add More…"
         }
     }
 
@@ -113,6 +122,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: ("notebook", "notebooks")
         case .markdown: ("folder", "folders")
         case .keep: ("Takeout", "Takeouts")
+        case .notion: ("export", "exports")
         }
     }
 
@@ -123,6 +133,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: "A folder for each notebook"
         case .markdown: "A folder for each folder or .zip"
         case .keep: "A folder named Google Keep"
+        case .notion: "A folder named Notion"
         }
     }
 
@@ -133,6 +144,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: "book.closed"
         case .markdown: "folder"
         case .keep: "lightbulb"
+        case .notion: "doc.on.doc"
         }
     }
 
@@ -142,6 +154,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: [.enex, .xml]
         case .markdown: [.folder, .zip]
         case .keep: [.folder, .zip]
+        case .notion: [.zip, .folder]
         }
     }
 
@@ -151,6 +164,8 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         case .evernote: EvernoteImporter.inspect(url)
         case .markdown: MarkdownImporter.inspect(url)
         case .keep: KeepImporter.inspect(url)
+        // One folder named Notion, whatever the download is called ("8a1f…_Export-2c4d….zip").
+        case .notion: { var s = MarkdownImporter.inspect(url); s.name = sourceName; return s }()
         }
     }
 
@@ -160,7 +175,7 @@ enum ImportKind: String, Identifiable, CaseIterable, Sendable {
         switch self {
         case .obsidian, .bear: await MarkdownImporter(context: context).run(sources, into: destination, progress: progress, shouldStop: shouldStop)
         case .evernote: await EvernoteImporter(context: context).run(sources, into: destination, progress: progress, shouldStop: shouldStop)
-        case .markdown: await MarkdownImporter(context: context).run(sources, into: destination, progress: progress, shouldStop: shouldStop)
+        case .markdown, .notion: await MarkdownImporter(context: context).run(sources, into: destination, progress: progress, shouldStop: shouldStop)
         case .keep: await KeepImporter(context: context, options: options).run(sources, into: destination, progress: progress, shouldStop: shouldStop)
         }
     }
@@ -175,6 +190,7 @@ extension ImportKind {
         case .evernote: .evernote
         case .keep: .keep
         case .markdown: .markdown
+        case .notion: .notion
         }
     }
 }

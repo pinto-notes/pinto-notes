@@ -57,6 +57,7 @@ enum ImportOrigin: Identifiable, Hashable {
         case .files(.obsidian): "md.obsidian"
         case .files(.bear): "net.shinyfrog.bear"
         case .files(.evernote): "com.evernote.Evernote"
+        case .files(.notion): "notion.id"
         case .files(.keep), .files(.markdown): nil
         }
     }
@@ -64,11 +65,11 @@ enum ImportOrigin: Identifiable, Hashable {
 
 extension ImportKind {
     /// The order every list of sources uses: apps on this Mac first, then by how many people come
-    /// from each (Evernote, Google Keep, Obsidian, Bear), Markdown files last as the catch-all.
+    /// from each (Evernote, Notion, Google Keep, Obsidian, Bear), Markdown files last as the catch-all.
     /// Finding an installed app asks nothing of the person: no permission dialog, nothing opened.
     static var listed: [ImportKind] { listed(installed: isInstalled) }
 
-    static let byPopularity: [ImportKind] = [.evernote, .keep, .obsidian, .bear, .markdown]
+    static let byPopularity: [ImportKind] = [.evernote, .notion, .keep, .obsidian, .bear, .markdown]
 
     static func listed(installed: (ImportKind) -> Bool) -> [ImportKind] {
         let apps = byPopularity.filter { $0 != .markdown }

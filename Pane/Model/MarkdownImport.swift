@@ -26,7 +26,8 @@ final class MarkdownImporter {
 
     // MARK: Looking a source over
 
-    /// Counts the notes in a folder or .zip without reading them.
+    /// Counts the notes in a folder or .zip without reading them. A .zip of .zip files (Notion's
+    /// workspace export: `Export-….zip` holding `Export-…-Part-1.zip`) is counted inside those.
     nonisolated static func inspect(_ url: URL) -> ImportSource {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
@@ -39,17 +40,78 @@ final class MarkdownImporter {
             guard let archive = try? Archive(url: url, accessMode: .read, pathEncoding: nil) else {
                 return ImportSource(url: url, name: name, notes: 0, bytes: bytes, problem: "This .zip couldn't be opened.")
             }
-            for entry in archive where entry.type == .file {
-                if case .note = kind(of: entry.path.split(separator: "/").map(String.init)) { notes += 1 }
+            notes = count(in: archive)
+            if notes == 0 {
+                // A wrapper: the notes are in the .zip files inside it.
+                let scratch = FileManager.default.temporaryDirectory.appending(path: "MarkdownInspect-\(UUID().uuidString)", directoryHint: .isDirectory)
+                defer { try? FileManager.default.removeItem(at: scratch) }
+                for (i, entry) in archive.enumerated() where entry.type == .file && isInnerZip(entry.path.split(separator: "/").map(String.init)) {
+                    let inner = scratch.appending(path: "\(i).zip")
+                    guard (try? archive.extract(entry, to: inner)) != nil, let a = try? Archive(url: inner, accessMode: .read, pathEncoding: nil) else { continue }
+                    notes += count(in: a)
+                    try? FileManager.default.removeItem(at: inner)
+                }
             }
         } else {
-            for (path, file) in walk(url) {
+            let all = walk(url)
+            for (path, file) in all {
                 if case .note = kind(of: path), !looksLikeJSON(file) { notes += 1 }
+            }
+            if notes == 0 {
+                // A Notion download unzipped once: its parts are still .zip files.
+                for (path, file) in all where isInnerZip(path) {
+                    if let a = try? Archive(url: file, accessMode: .read, pathEncoding: nil) { notes += count(in: a) }
+                }
             }
             bytes = folderSize(url)
         }
         let problem = notes == 0 ? "No Markdown or text notes in here." : nil
         return ImportSource(url: url, name: name, notes: notes, bytes: bytes, problem: problem)
+    }
+
+    /// The notes in an archive, by their paths.
+    nonisolated static func count(in archive: Archive) -> Int {
+        archive.filter { $0.type == .file }.filter { kind(of: $0.path.split(separator: "/").map(String.init)) == .note }.count
+    }
+
+    /// A .zip inside an export that holds no notes of its own, outside the folders that are skipped.
+    nonisolated static func isInnerZip(_ path: [String]) -> Bool {
+        guard let last = path.last, (last as NSString).pathExtension.lowercased() == "zip" else { return false }
+        return kind(of: path) == .file
+    }
+
+    /// Where an unpacked source's notes are: the folder itself, or, when it holds no notes but
+    /// .zip files (Notion's parts), those unpacked together into one folder under `scratch`.
+    nonisolated static func unwrapped(_ root: URL, scratch: URL) throws -> URL {
+        let all = walk(root)
+        guard !all.contains(where: { kind(of: $0.0) == .note }) else { return root }
+        let parts = all.filter { isInnerZip($0.0) }
+        guard !parts.isEmpty else { return root }
+        let dest = scratch.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
+        // Every part into the same folder: Notion splits one workspace's tree across them. Each is
+        // unpacked on its own first, so its files' times are put right once.
+        for (i, (_, part)) in parts.enumerated() {
+            let one = scratch.appending(path: "part-\(i)-\(UUID().uuidString)", directoryHint: .isDirectory)
+            try ZipTimes.unzip(part, to: one)
+            try merge(one, into: dest)
+        }
+        return dest
+    }
+
+    /// Moves what's in `from` into `to`, folders with the same name merged.
+    nonisolated static func merge(_ from: URL, into to: URL) throws {
+        let fm = FileManager.default
+        for item in try fm.contentsOfDirectory(at: from, includingPropertiesForKeys: [.isDirectoryKey]) {
+            let target = to.appending(path: item.lastPathComponent)
+            var isDir: ObjCBool = false
+            if fm.fileExists(atPath: target.path, isDirectory: &isDir) {
+                if isDir.boolValue, (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true { try merge(item, into: target) }
+                // The same file in two parts: the first one stays.
+            } else {
+                try fm.moveItem(at: item, to: target)
+            }
+        }
     }
 
     enum PathKind: Equatable { case note, file, skipped, trashed }
@@ -90,6 +152,14 @@ final class MarkdownImporter {
         return s.trimmingCharacters(in: .whitespaces)
     }
 
+    /// A file's name without Notion's id ("Reading list 7d6c….csv" is "Reading list.csv").
+    nonisolated static func cleanFileName(_ name: String) -> String {
+        let ext = (name as NSString).pathExtension, stem = (name as NSString).deletingPathExtension
+        let clean = cleanName(stem)
+        guard clean != stem, !clean.isEmpty else { return name }
+        return ext.isEmpty ? clean : clean + "." + ext
+    }
+
     // MARK: Importing
 
     func run(_ sources: [ImportSource], into destination: ImportDestination,
@@ -117,6 +187,13 @@ final class MarkdownImporter {
                     continue
                 }
                 root = dest
+            }
+            let wrapped = root, inner = scratch
+            do {
+                root = try await Task.detached { try MarkdownImporter.unwrapped(wrapped, scratch: inner) }.value
+            } catch {
+                writer.summary.failedFiles.append("\(source.name): a .zip inside it couldn't be opened.")
+                continue
             }
             let folder = root
             let tree = Tree(await Task.detached { Tree.scan(folder) }.value)
@@ -387,7 +464,7 @@ final class MarkdownImporter {
         var files: [Attachment] = []
         parsed.body = MarkdownNote.rewriteLinks(parsed.body, file: { raw in
             guard let url = tree.file(raw, from: note.url) else { return nil }
-            guard let a = self.writer.attachment(from: url, filename: url.lastPathComponent, type: nil, move: false) else { return nil }
+            guard let a = self.writer.attachment(from: url, filename: Self.cleanFileName(url.lastPathComponent), type: nil, move: false) else { return nil }
             tree.used.insert(url.standardizedFileURL.path)
             files.append(a)
             return a.markdown
