@@ -25,10 +25,13 @@ import Testing
     /// The server can hold a copy of a standard account's key, so nothing about a shared note may
     /// say "end-to-end". What it does say is true either way.
     @Test func theWordsNeverPromiseEndToEnd() {
-        let lines = [ShareCopy.privacy, ShareCopy.notSharedYet, ShareCopy.leaveMessage, SharedNoteLimits.appLine, SharedNoteLimits.filesLine,
-                     SharedNoteLimits.filesTitle, SharedNoteLimits.filesMessage, SharedNoteLimits.pageLine]
-            + ShareState.Access.allCases.map { ShareCopy.link($0) }
-            + ShareWays.Way.allCases.map { ShareWays.line($0, shared: false) } + ShareWays.Way.allCases.map { ShareWays.line($0, shared: true, sharedWithPeople: true) }
+        var lines: [String] = [ShareCopy.privacy, ShareCopy.notSharedYet, ShareCopy.leaveMessage, SharedNoteLimits.appLine, SharedNoteLimits.filesLine,
+                               SharedNoteLimits.filesTitle, SharedNoteLimits.filesMessage, SharedNoteLimits.pageLine]
+        lines += ShareState.Access.allCases.map { ShareCopy.link($0) }
+        #if os(macOS)
+        lines += ShareWays.Way.allCases.map { ShareWays.line($0, shared: false) }
+        lines += ShareWays.Way.allCases.map { ShareWays.line($0, shared: true, sharedWithPeople: true) }
+        #endif
         for line in lines {
             let l = line.lowercased()
             #expect(!l.contains("end-to-end") && !l.contains("end to end"), "\(line)")
@@ -83,6 +86,7 @@ import Testing
         #expect(!SharedNoteLimits.allowsFiles(shared))
     }
 
+    #if os(macOS)
     /// The Share popover: a shared note has no Web Page to make (it would publish everyone's text);
     /// a page made before it was shared is listed, with what it is.
     @Test func aSharedNoteGetsNoWebPage() {
@@ -94,6 +98,7 @@ import Testing
         #expect(ShareWays.initial(collaborating: true, inNote: 1, linkOn: false, webShared: false, linkAvailable: true, canCollaborate: false) == .link)
         #expect(ShareWays.initial(collaborating: true, inNote: 1, linkOn: false, webShared: false, linkAvailable: false, canCollaborate: false) == .copy)
     }
+    #endif
 
     /// The publisher itself refuses a shared note: no readable copy of its text is made, whatever
     /// asks for one (Copy Link on an old page republishes).

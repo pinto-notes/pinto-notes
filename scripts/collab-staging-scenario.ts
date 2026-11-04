@@ -1,36 +1,51 @@
-// Shared notes on staging, end to end, as two people and their AI (docs/Technical/collaboration-design.md).
+// Shared notes end to end, as people and their AI (docs/Technical/collaboration-design.md).
 // Devices are scripted the way the app talks to the server: Automerge documents, sealed with the note
 // key, through PostgREST as the signed-in accounts, so row-level security is live. The AI is the
-// deployed mcp function. Steps: share by link and join; both type at once and converge; offline edits
-// arrive; the AI edits while both type; a member leaves and the key is renewed; the owner deletes it;
-// normal notes stay untouched. Each step prints PASS or FAIL.
+// stack's mcp function. Steps: a checklist shared by link with Can edit and joined; both tick and
+// type at once and see each other's ticks; offline edits merge; the AI edits and both see it; the
+// owner removes the member and the key is renewed; a viewer joins, can't write, leaves; the owner
+// deletes it; normal notes stay untouched. Each step prints PASS or FAIL.
 //
-//   deno run -A scripts/collab-staging-scenario.ts
+//   deno run -A scripts/collab-staging-scenario.ts --local   # the local stack (supabase start)
+//   deno run -A scripts/collab-staging-scenario.ts           # staging
 //
-// Staging only: the ref comes from .secrets/staging.env and production's is refused. It makes three
-// throwaway accounts (collab-live-<run>-*@example.com, through the admin API, confirmed and opted out
-// of emails, so nothing is sent) and deletes them at the end, also when a step fails.
+// --local reads the stack from `supabase status` and refuses anything but 127.0.0.1. Otherwise the
+// ref comes from .secrets/staging.env and production's is refused. It makes four throwaway accounts
+// (collab-live-<run>-*@example.com, through the admin API, confirmed and opted out of emails, so
+// nothing is sent) and deletes them at the end, also when a step fails.
 import { aesKey, fromBase64, hex, keyIdOf, newDataKey, recoveryKEK, seal, open, toBase64, tokenKey, Vault, verifierOf, wrap } from "../supabase/functions/_shared/e2ee.ts";
 import { bytes, identityContext, linkKeys, newIdentity, noteKeyContext, open3, openNoteKey, seal3, sealNoteKey, text } from "../supabase/functions/_shared/collab.ts";
 import { loadAutomerge } from "../supabase/functions/mcp/shared_notes.ts";
 import { previewOf, titleOf } from "../supabase/functions/mcp/notes.ts";
 const PROD = "rodegaeruhyybqilrnpn";
 const root = new URL("..", import.meta.url).pathname;
-const common = new TextDecoder().decode((await new Deno.Command("git", { args: ["-C", root, "rev-parse", "--git-common-dir"] }).output()).stdout).trim();
-// .secrets lives in the main checkout, next to the shared .git (worktrees share it).
-const envText = await Deno.readTextFile(`${common.startsWith("/") ? common : root + common}/../.secrets/staging.env`);
-const ref = /^STAGING_REF=["']?([a-z0-9]+)/m.exec(envText)?.[1];
-if (!ref || ref === PROD) throw new Error("No staging ref, or it's production's. Refusing.");
-const keysOut = await new Deno.Command("npx", { args: ["-y", "supabase@2.120.0", "projects", "api-keys", "--project-ref", ref, "-o", "json"], stderr: "null" }).output();
-const keys = JSON.parse(new TextDecoder().decode(keysOut.stdout)) as { name: string; api_key: string }[];
-const service = keys.find((k) => k.name === "service_role")!.api_key, anon = keys.find((k) => k.name === "anon")!.api_key;
-const url = `https://${ref}.supabase.co`;
+const local = Deno.args.includes("--local");
+let url: string, service: string, anon: string;
+if (local) {
+  const status = new TextDecoder().decode((await new Deno.Command("supabase", { args: ["status", "-o", "env", "--workdir", root], stderr: "null" }).output()).stdout);
+  const env = Object.fromEntries(status.split("\n").filter((l) => l.includes("=")).map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).replace(/^"|"$/g, "")]));
+  url = env.API_URL; service = env.SERVICE_ROLE_KEY; anon = env.ANON_KEY;
+  if (!url || !/^http:\/\/127\.0\.0\.1:/.test(url)) throw new Error(`Not a local stack: ${url}. Run supabase start.`);
+} else {
+  const common = new TextDecoder().decode((await new Deno.Command("git", { args: ["-C", root, "rev-parse", "--git-common-dir"] }).output()).stdout).trim();
+  // .secrets lives in the main checkout, next to the shared .git (worktrees share it).
+  const envText = await Deno.readTextFile(`${common.startsWith("/") ? common : root + common}/../.secrets/staging.env`);
+  const ref = /^STAGING_REF=["']?([a-z0-9]+)/m.exec(envText)?.[1];
+  if (!ref || ref === PROD) throw new Error("No staging ref, or it's production's. Refusing.");
+  const keysOut = await new Deno.Command("npx", { args: ["-y", "supabase@2.120.0", "projects", "api-keys", "--project-ref", ref, "-o", "json"], stderr: "null" }).output();
+  const keys = JSON.parse(new TextDecoder().decode(keysOut.stdout)) as { name: string; api_key: string }[];
+  service = keys.find((k) => k.name === "service_role")!.api_key; anon = keys.find((k) => k.name === "anon")!.api_key;
+  url = `https://${ref}.supabase.co`;
+}
+console.log(`Against ${local ? "the local stack" : "staging"}.`);
 const admin = { apikey: service, Authorization: `Bearer ${service}`, "content-type": "application/json" };
 const run = crypto.randomUUID().slice(0, 8);
 const made: string[] = [];
 const cfg = { users: [] as { email: string; password: string; data_key: string }[] };
-for (const name of ["emil", "sara", "eve"]) {
+for (const name of ["emil", "sara", "eve", "jonas"]) {
   const email = `collab-live-${run}-${name}@example.com`, password = crypto.randomUUID() + crypto.randomUUID();
+  // The local stack lets in only listed addresses (hook_before_user_created).
+  if (local) await fetch(`${url}/rest/v1/signup_allowlist`, { method: "POST", headers: { ...admin, Prefer: "resolution=ignore-duplicates" }, body: JSON.stringify({ email }) }).then((r) => r.body?.cancel());
   const res = await fetch(`${url}/auth/v1/admin/users`, { method: "POST", headers: admin, body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { collab_live_test: true } }) });
   if (!res.ok) throw new Error(`Making ${name} failed: ${res.status}`);
   const { id } = await res.json();
@@ -54,7 +69,7 @@ const check = (c: unknown, what: string) => { if (!c) throw new Error(what); };
 
 async function rest(p: any, path: string, init: { method?: string; body?: unknown; prefer?: string } = {}) {
   const res = await fetch(url + "/rest/v1/" + path, { method: init.method ?? "GET", headers: { authorization: "Bearer " + p.jwt, apikey: anon, "content-type": "application/json",
-    "x-amber-client": "lock-aware/1 e2ee/1", "x-pane-device": p.device, ...(init.prefer ? { prefer: init.prefer } : {}) }, ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}) });
+    "x-amber-client": "lock-aware/1 e2ee/1 shared/1", "x-pane-device": p.device, ...(init.prefer ? { prefer: init.prefer } : {}) }, ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}) });
   const t = await res.text();
   if (!res.ok) { const e = new Error(path + ": " + res.status + " " + t); (e as any).status = res.status; throw e; }
   return t ? JSON.parse(t) : null;
@@ -117,13 +132,52 @@ class Device {
   }
 }
 const at = (d: Device) => d.doc.body!.length;
+/** Ticks a checklist item on a device, as tapping its box does: one character, " " to "x". */
+const tick = (d: Device, item: string) => {
+  const i = d.doc.body!.indexOf("- [ ] " + item);
+  check(i >= 0, "no unticked " + item + " on " + d.p.name);
+  d.edit((doc) => A.splice(doc, ["body"], i + 3, 1, "x"));
+};
+const ticked = (body: string, item: string) => body.includes("- [x] " + item);
+/** A new link for the note at its key's epoch, the way Share Link makes one. */
+async function newLink(owner: any, note: string, nk: Uint8Array<ArrayBuffer>, epoch: number, role: "editor" | "viewer") {
+  const link = toBase64(crypto.getRandomValues(new Uint8Array(16))).replace(/[+/=]/g, "z").slice(0, 22), secret = crypto.getRandomValues(new Uint8Array(16));
+  const k = await linkKeys(secret, link);
+  const answerHash = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", Uint8Array.from(k.answer.match(/../g)!, (h) => parseInt(h, 16)))));
+  await rpc(owner, "collab_create_link", { p_link: link, p_note: note, p_role: role, p_epoch: epoch, p_answer_hash: answerHash, p_key_wrap: await seal(toBase64(nk), k.key, await keyIdOf(nk), "invite:" + link) });
+  return { link, secret, answer: k.answer };
+}
+/** Someone opens a link in the app: proves the answer, opens the key, joins, gets a pointer note. */
+async function join(p: any, note: string, l: { link: string; secret: Uint8Array<ArrayBuffer>; answer: string }, epoch: number) {
+  const [o] = await rpc(p, "collab_open_link", { p_link: l.link, p_answer: l.answer });
+  const nkJ = fromBase64(await open(o.key_wrap, (await linkKeys(l.secret, l.link)).key, "invite:" + l.link)) as Uint8Array<ArrayBuffer>;
+  await rpc(p, "collab_join_link", { p_link: l.link, p_answer: l.answer, p_key_wrap: await sealNoteKey(nkJ, p.identity, p.identity.publicRaw, { note, epoch, from: p.id, to: p.id }),
+    p_self_wrap: await seal(toBase64(nkJ), await aesKey(p.dk), p.keyId, noteKeyContext(note, epoch)) });
+  const ptr = crypto.randomUUID();
+  await rest(p, "notes", { method: "POST", body: { ...(await sealedNote(p, ptr, "Offsite plan\n\nThis note is shared.\n")), shared_note_id: note } });
+  return { nk: nkJ, ptr };
+}
+/** The owner's device renews the note's key (after a removal or a leave) and re-seals the document. */
+async function renew(owner: any, d: Device, note: string, removing: string | null, stay: any[] = []) {
+  const nkN = newDataKey(), epoch = d.epoch + 1;
+  const wraps = [];
+  for (const p of [owner, ...stay]) wraps.push({ user_id: p.id, key_wrap: await sealNoteKey(nkN, owner.identity, p.identity.publicRaw, { note, epoch, from: owner.id, to: p.id }) });
+  await rpc(owner, "collab_remove", { p_note: note, p_user: removing, p_epoch: epoch, p_wraps: wraps });
+  await rpc(owner, "collab_accept", { p_note: note, p_self_wrap: await seal(toBase64(nkN), await aesKey(owner.dk), owner.keyId, noteKeyContext(note, epoch)) });
+  const [{ id: upto }] = await rest(owner, "note_updates?note_id=eq." + note + "&order=id.desc&limit=1&select=id");
+  d.nk = nkN; d.epoch = epoch;
+  await rest(owner, "note_snapshots", { method: "POST", body: { note_id: note, upto, epoch, ct: await seal3("s", A.save(d.doc) as any, nkN, note, epoch, String(upto)) } });
+  await rest(owner, "shared_notes?id=eq." + note, { method: "PATCH", body: { head_ct: await seal3("h", bytes(JSON.stringify({ title: "Offsite plan" })), nkN, note, epoch) } });
+  return nkN;
+}
+const canOpen = async (ct: string, key: Uint8Array<ArrayBuffer>, note: string, author: string) => { try { await open3("u", ct, key, note, author); return true; } catch { return false; } };
 const sealedNote = async (p: any, id: string, body: string) => ({ id, body_ct: await p.vault.sealBody(id, body), head_ct: await p.vault.sealHead(id, { title: titleOf(body), preview: previewOf(body) }) });
 
 let ok = false;
 try {
-const emil = await person(0, "Emil", "Mac"), sara = await person(1, "Sara", "iPhone"), eve = await person(2, "Eve", "Mac");
+const emil = await person(0, "Emil", "Mac"), sara = await person(1, "Sara", "iPhone"), eve = await person(2, "Eve", "Mac"), jonas = await person(3, "Jonas", "iPhone");
 const S = crypto.randomUUID();
-let nk = newDataKey(), mac!: Device, phone!: Device, link = "", answer = "";
+let nk = newDataKey(), mac!: Device, phone!: Device;
 const own: Record<string, { id: string; body: string }> = {};
 
 await step("0. normal notes made on both accounts", async () => {
@@ -134,127 +188,136 @@ await step("0. normal notes made on both accounts", async () => {
   }
 });
 
-await step("1. owner shares by link, member joins, both type at once and converge", async () => {
+await step("1. owner shares a checklist by link with Can edit, member joins, both tick at once and see each other's ticks", async () => {
   await rest(emil, "notes", { method: "POST", body: await sealedNote(emil, S, "Offsite plan\n\n(shared)\n") });
   await rpc(emil, "collab_share", { p_note: S, p_key_wrap: await sealNoteKey(nk, emil.identity, emil.identity.publicRaw, { note: S, epoch: 1, from: emil.id, to: emil.id }),
     p_self_wrap: await seal(toBase64(nk), await aesKey(emil.dk), emil.keyId, noteKeyContext(S, 1)), p_head_ct: await seal3("h", bytes(JSON.stringify({ title: "Offsite plan" })), nk, S, 1) });
   await rest(emil, "notes?id=eq." + S, { method: "PATCH", body: { shared_note_id: S } });
   mac = new Device(emil, S, nk);
-  mac.edit((d) => { d.body = "Offsite plan\n\n- [ ] Book the venue\n- [ ] Pick dates\n"; });
+  mac.edit((d) => { d.body = "Offsite plan\n\n- [ ] Book the venue\n- [ ] Pick dates\n- [ ] Order lunch\n- [ ] Print agenda\n"; });
   await mac.push();
-  link = toBase64(crypto.getRandomValues(new Uint8Array(16))).replace(/[+/=]/g, "x").slice(0, 22);
-  const secret = crypto.getRandomValues(new Uint8Array(16));
-  const k = await linkKeys(secret, link); answer = k.answer;
-  const answerHash = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", Uint8Array.from(answer.match(/../g)!, (h) => parseInt(h, 16)))));
-  await rpc(emil, "collab_create_link", { p_link: link, p_note: S, p_role: "editor", p_epoch: 1, p_answer_hash: answerHash, p_key_wrap: await seal(toBase64(nk), k.key, await keyIdOf(nk), "invite:" + link) });
-  // Sara opens the link: proves the answer, opens NK with the link's key, seals it to herself, joins.
-  const [o] = await rpc(sara, "collab_open_link", { p_link: link, p_answer: answer });
-  const nkS = fromBase64(await open(o.key_wrap, (await linkKeys(secret, link)).key, "invite:" + link));
-  check(hex(nkS) === hex(nk), "link key mismatch");
-  await rpc(sara, "collab_join_link", { p_link: link, p_answer: answer, p_key_wrap: await sealNoteKey(nkS, sara.identity, sara.identity.publicRaw, { note: S, epoch: 1, from: sara.id, to: sara.id }),
-    p_self_wrap: await seal(toBase64(nkS), await aesKey(sara.dk), sara.keyId, noteKeyContext(S, 1)) });
-  await rest(sara, "notes", { method: "POST", body: { ...(await sealedNote(sara, crypto.randomUUID(), "Offsite plan\n\nThis note is shared.\n")), shared_note_id: S } });
-  phone = new Device(sara, S, nkS);
-  check((await phone.pull()).includes("Book the venue"), "member can't read");
-  // At once: both edit from the same text before seeing each other's change.
-  mac.edit((d) => A.splice(d, ["body"], at(mac), 0, "- [ ] Order lunch\n"));
-  phone.edit((d) => A.splice(d, ["body"], 0 + "Offsite plan\n\n".length, 0, "Goal: a plan by Friday\n\n"));
+  const l = await newLink(emil, S, nk, 1, "editor");
+  const j = await join(sara, S, l, 1);
+  check(hex(j.nk) === hex(nk), "link key mismatch");
+  const [m] = await rest(sara, "note_members?note_id=eq." + S + "&user_id=eq." + sara.id + "&select=role");
+  check(m?.role === "editor", "joined as " + JSON.stringify(m));
+  phone = new Device(sara, S, j.nk);
+  check((await phone.pull()).includes("- [ ] Book the venue"), "member can't read");
+  // At once, before seeing each other's change: each ticks a different item, and she types a line.
+  tick(mac, "Book the venue");
+  tick(phone, "Order lunch");
+  phone.edit((d) => A.splice(d, ["body"], "Offsite plan\n\n".length, 0, "Goal: a plan by Friday\n\n"));
   await Promise.all([mac.push(), phone.push()]);
   const [a, b] = [await mac.pull(), await phone.pull()];
-  check(a === b && a.includes("Order lunch") && a.includes("by Friday"), "diverged: " + JSON.stringify([a, b]));
-  return "both: " + JSON.stringify(a);
+  check(a === b, "diverged: " + JSON.stringify([a, b]));
+  check(ticked(a, "Book the venue") && ticked(a, "Order lunch") && a.includes("by Friday") && a.includes("- [ ] Pick dates"), "ticks lost: " + JSON.stringify(a));
+  // Both tick the same item at once: still one tick, nothing doubled.
+  tick(mac, "Print agenda"); tick(phone, "Print agenda");
+  await Promise.all([mac.push(), phone.push()]);
+  const [c, e] = [await mac.pull(), await phone.pull()];
+  check(c === e && ticked(c, "Print agenda") && c.split("Print agenda").length === 2 && !c.includes("[xx]"), "same tick twice: " + JSON.stringify(c));
+  return "both: " + JSON.stringify(c);
 });
 
-await step("2. member offline edits, comes back, edits arrive", async () => {
+await step("2. member goes offline, edits and ticks, comes back, the edits merge", async () => {
   phone.edit((d) => A.splice(d, ["body"], at(phone), 0, "- [ ] Book the train\n"));
   phone.edit((d) => A.splice(d, ["body"], at(phone), 0, "- [ ] Hotel for 6\n"));
+  tick(phone, "Book the train");
   mac.edit((d) => A.splice(d, ["body"], at(mac), 0, "- [ ] Ask about a projector\n"));
+  tick(mac, "Ask about a projector");
   await mac.push();
   check(!(await mac.pull()).includes("Book the train"), "offline edit leaked early");
   await phone.push();
   const [a, b] = [await mac.pull(), await phone.pull()];
-  check(a === b && a.includes("Book the train") && a.includes("Hotel for 6") && a.includes("projector"), "offline edits lost: " + JSON.stringify([a, b]));
+  check(a === b, "diverged: " + JSON.stringify([a, b]));
+  check(ticked(a, "Book the train") && a.includes("- [ ] Hotel for 6") && ticked(a, "Ask about a projector") && ticked(a, "Order lunch"), "offline edits lost: " + JSON.stringify(a));
 });
 
-await step("3. the AI edits while both type", async () => {
+await step("3. the AI edits the shared note while both type, and both see it", async () => {
   const ai = await mcpSession(sara);
   const read = await ai("fetch", { id: "Offsite plan.md" }).catch(() => ai("fetch", { id: "Shared with me/Offsite plan.md" }));
   const path = read.id as string;
+  check(ticked(read.text, "Book the venue") && ticked(read.text, "Book the train"), "AI reads old text: " + read.text);
   mac.edit((d) => A.splice(d, ["body"], at(mac), 0, "- [ ] Name tags\n"));
   phone.edit((d) => A.splice(d, ["body"], at(phone), 0, "- [ ] Dietary list\n"));
   await Promise.all([mac.push(), phone.push()]);
   const e = await ai("edit", { path, old_string: "- [ ] Pick dates", new_string: "- [x] Pick dates: 3-4 November" });
   check(e.checks === "ok", JSON.stringify(e));
-  mac.edit((d) => A.splice(d, ["body"], at(mac), 0, "- [ ] Slides\n"));
+  tick(mac, "Hotel for 6");
   phone.edit((d) => A.splice(d, ["body"], at(phone), 0, "- [ ] Taxi\n"));
   await Promise.all([mac.push(), phone.push()]);
   const [a, b] = [await mac.pull(), await phone.pull()];
   check(a === b, "diverged");
-  for (const s of ["3-4 November", "Name tags", "Dietary list", "Slides", "Taxi"]) check(a.includes(s), "missing " + s);
+  for (const t of ["- [x] Pick dates: 3-4 November", "Name tags", "Dietary list", "- [x] Hotel for 6", "Taxi"]) check(a.includes(t), "missing " + t);
+  // The owner's AI sees the same text.
+  const mine = await mcpSession(emil);
+  const o = await mine("fetch", { id: "Offsite plan.md" });
+  check(o.text.includes("3-4 November") && o.text.includes("Taxi"), "owner's AI reads old text");
   const rows = await rest(emil, "note_updates?note_id=eq." + S + "&client=not.is.null&select=author_id,client");
   check(rows.length === 1 && rows[0].client === "Claude" && rows[0].author_id === sara.id, "attribution " + JSON.stringify(rows));
   return "AI at " + path;
 });
 
-let leftText = "";
-await step("4. member leaves, key renews, old key can't read new text", async () => {
-  const ai = await mcpSession(sara);
-  const list = await ai("list", { pattern: "**/*.md" });
-  const path = list.matches.find((m: any) => m.shared).path;
-  const d = await ai("delete", { path });
-  check(d.left === path, JSON.stringify(d));
-  check((await rest(sara, "note_updates?note_id=eq." + S + "&select=id")).length === 0, "member still reads changes");
-  const [s] = await rest(emil, "shared_notes?id=eq." + S + "&select=epoch,rekey_after");
-  check(s.rekey_after, "no rekey_after");
-  // Emil's Mac notices and renews the key without her, then seals a snapshot and new text with it.
-  const nk2 = newDataKey();
-  await rpc(emil, "collab_remove", { p_note: S, p_user: null, p_epoch: 2, p_wraps: [{ user_id: emil.id, key_wrap: await sealNoteKey(nk2, emil.identity, emil.identity.publicRaw, { note: S, epoch: 2, from: emil.id, to: emil.id }) }] });
-  await rpc(emil, "collab_accept", { p_note: S, p_self_wrap: await seal(toBase64(nk2), await aesKey(emil.dk), emil.keyId, noteKeyContext(S, 2)) });
-  const [s2] = await rest(emil, "shared_notes?id=eq." + S + "&select=epoch,rekey_after");
-  check(s2.epoch === 2 && !s2.rekey_after, "not renewed " + JSON.stringify(s2));
-  const [{ id: upto }] = await rest(emil, "note_updates?note_id=eq." + S + "&order=id.desc&limit=1&select=id");
-  mac.nk = nk2; mac.epoch = 2;
-  await rest(emil, "note_snapshots", { method: "POST", body: { note_id: S, upto, epoch: 2, ct: await seal3("s", A.save(mac.doc) as any, nk2, S, 2, String(upto)) } });
-  await rest(emil, "shared_notes?id=eq." + S, { method: "PATCH", body: { head_ct: await seal3("h", bytes(JSON.stringify({ title: "Offsite plan" })), nk2, S, 2) } });
-  mac.edit((d) => A.splice(d, ["body"], at(mac), 0, "- [ ] Secret after Sara left\n"));
+await step("4. owner removes the member: new key, she can't read or write, her AI can't read on", async () => {
+  const old = mac.nk;
+  await renew(emil, mac, S, sara.id);
+  const [s2] = await rest(emil, "shared_notes?id=eq." + S + "&select=epoch");
+  check(s2.epoch === 2, "not renewed " + JSON.stringify(s2));
+  check((await rest(emil, "note_members?note_id=eq." + S + "&select=user_id")).every((m: any) => m.user_id !== sara.id), "still a member");
+  mac.edit((d) => A.splice(d, ["body"], at(mac), 0, "- [ ] Secret after Sara was removed\n"));
   await mac.push();
+  check((await rest(sara, "note_updates?note_id=eq." + S + "&select=id")).length === 0, "removed member still reads changes");
+  check((await rest(sara, "shared_notes?id=eq." + S)).length === 0, "removed member still sees the note");
   const [last] = await rest(emil, "note_updates?note_id=eq." + S + "&order=id.desc&limit=1");
-  let opened = true;
-  try { await open3("u", last.ct, nk, S, emil.id); } catch { opened = false; }
-  check(!opened, "old key opens new text");
-  // Her old key can't write either.
-  const w = await rest(sara, "note_updates", { method: "POST", body: { note_id: S, epoch: 1, ct: await seal3("u", bytes("x"), nk, S, 1, sara.id) } }).then(() => null, (e) => e);
-  check(w, "member could still write");
-  const [ptr] = await rest(sara, "notes?shared_note_id=eq." + S + "&select=deleted_at");
-  check(!ptr || ptr.deleted_at, "pointer not gone");
-  leftText = mac.doc.body!;
+  check(!(await canOpen(last.ct, old, S, emil.id)), "old key opens new text");
+  const w = await rest(sara, "note_updates", { method: "POST", body: { note_id: S, epoch: 1, ct: await seal3("u", bytes("x"), old, S, 1, sara.id) } }).then(() => null, (e) => e);
+  check(w, "removed member could still write");
+  const ai = await mcpSession(sara);
+  const f = await ai("fetch", { id: "Offsite plan.md" }).catch(() => ai("fetch", { id: "Shared with me/Offsite plan.md" })).catch(() => null);
+  check(!f || !String(f.text).includes("Secret after Sara was removed"), "removed member's AI reads new text");
 });
 
-await step("5. owner deletes: gone for the member, in owner's Recently Deleted", async () => {
-  // Eve joins with a new link first, so there is a member when it's deleted.
-  const nk2 = mac.nk, link2 = toBase64(crypto.getRandomValues(new Uint8Array(16))).replace(/[+/=]/g, "y").slice(0, 22), secret = crypto.getRandomValues(new Uint8Array(16));
-  const k = await linkKeys(secret, link2);
-  const answerHash = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", Uint8Array.from(k.answer.match(/../g)!, (h) => parseInt(h, 16)))));
-  await rpc(emil, "collab_create_link", { p_link: link2, p_note: S, p_role: "editor", p_epoch: 2, p_answer_hash: answerHash, p_key_wrap: await seal(toBase64(nk2), k.key, await keyIdOf(nk2), "invite:" + link2) });
-  await rpc(eve, "collab_join_link", { p_link: link2, p_answer: k.answer, p_key_wrap: await sealNoteKey(nk2, eve.identity, eve.identity.publicRaw, { note: S, epoch: 2, from: eve.id, to: eve.id }),
-    p_self_wrap: await seal(toBase64(nk2), await aesKey(eve.dk), eve.keyId, noteKeyContext(S, 2)) });
-  const evePtr = crypto.randomUUID();
-  await rest(eve, "notes", { method: "POST", body: { ...(await sealedNote(eve, evePtr, "Offsite plan\n\nThis note is shared.\n")), shared_note_id: S } });
-  const tab = new Device(eve, S, nk2, 2);
-  check((await tab.pull()).includes("Secret after Sara left"), "Eve can't read");
+await step("5. a viewer joins by a Can view link, reads, can't write, leaves, and the key renews", async () => {
+  const l = await newLink(emil, S, mac.nk, 2, "viewer");
+  const j = await join(eve, S, l, 2);
+  const [m] = await rest(eve, "note_members?note_id=eq." + S + "&user_id=eq." + eve.id + "&select=role");
+  check(m?.role === "viewer", "joined as " + JSON.stringify(m));
+  const tab = new Device(eve, S, j.nk, 2);
+  check((await tab.pull()).includes("Secret after Sara was removed"), "viewer can't read");
+  tab.edit((d) => A.splice(d, ["body"], 0, 0, "x"));
+  const w = await tab.push().then(() => null, (e) => e);
+  check(w && String(w.message).includes("read_only"), "viewer could write: " + w);
+  const ai = await mcpSession(eve);
+  const e = await ai("edit", { path: "Offsite plan.md", old_string: "- [ ] Taxi", new_string: "- [x] Taxi" }).then(() => null, (e) => e)
+    ?? await ai("edit", { path: "Shared with me/Offsite plan.md", old_string: "- [ ] Taxi", new_string: "- [x] Taxi" }).then(() => null, (e) => e);
+  check(e, "viewer's AI could write");
+  await rpc(eve, "collab_leave", { p_note: S });
+  check((await rest(eve, "note_updates?note_id=eq." + S + "&select=id")).length === 0, "still reads after leaving");
+  const [s] = await rest(emil, "shared_notes?id=eq." + S + "&select=rekey_after");
+  check(s.rekey_after, "no rekey_after after a leave");
+  await renew(emil, mac, S, null);
+  const [s3] = await rest(emil, "shared_notes?id=eq." + S + "&select=epoch,rekey_after");
+  check(s3.epoch === 3 && !s3.rekey_after, "not renewed " + JSON.stringify(s3));
+});
+
+await step("6. owner deletes: gone for the member, in the owner's Recently Deleted with its text", async () => {
+  const l = await newLink(emil, S, mac.nk, 3, "editor");
+  const j = await join(jonas, S, l, 3);
+  const tab = new Device(jonas, S, j.nk, 3);
+  check(ticked(await tab.pull(), "Hotel for 6"), "Jonas can't read");
   const ai = await mcpSession(emil);
   await ai("fetch", { id: "Offsite plan.md" });
   const d = await ai("delete", { path: "Offsite plan.md" });
   check(d.now_at === "Recently Deleted/Offsite plan.md", JSON.stringify(d));
-  check((await rest(eve, "note_updates?note_id=eq." + S + "&select=id")).length === 0, "Eve still reads");
-  check((await rest(eve, "shared_notes?id=eq." + S)).length === 0, "shared note still there");
-  const [ep] = await rest(eve, "notes?id=eq." + evePtr + "&select=deleted_at");
-  check(ep.deleted_at, "Eve's pointer not deleted");
+  check((await rest(jonas, "note_updates?note_id=eq." + S + "&select=id")).length === 0, "Jonas still reads");
+  check((await rest(jonas, "shared_notes?id=eq." + S)).length === 0, "shared note still there");
+  const [ep] = await rest(jonas, "notes?id=eq." + j.ptr + "&select=deleted_at");
+  check(ep.deleted_at, "Jonas's pointer not deleted");
   const back = await ai("fetch", { id: "Recently Deleted/Offsite plan.md" });
-  check(back.text.includes("Secret after Sara left") && back.text.includes("3-4 November"), "text not kept: " + back.text);
+  check(back.text.includes("Secret after Sara was removed") && back.text.includes("3-4 November") && ticked(back.text, "Book the venue"), "text not kept: " + back.text);
 });
 
-await step("6. normal notes untouched on both accounts", async () => {
+await step("7. normal notes untouched on both accounts", async () => {
   for (const p of [emil, sara]) {
     const [r] = await rest(p, "notes?id=eq." + own[p.name].id + "&select=body_ct,shared_note_id,deleted_at,trashed_at");
     check(!r.shared_note_id && !r.deleted_at && !r.trashed_at, "row changed " + JSON.stringify(r));
