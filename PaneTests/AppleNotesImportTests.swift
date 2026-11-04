@@ -681,6 +681,11 @@ import Testing
         #expect(AppleNotesImportView.importTitle(picked: 17, new: 17, all: 35, locale: en) == "Import 17 New Notes", "a second run brings only what is missing")
         #expect(AppleNotesImportView.importTitle(picked: 3, new: 17, all: 35, locale: en) == "Import 3 Notes")
         #expect(AppleNotesImportView.importTitle(picked: 0, new: 0, all: 35, locale: en) == "Import")
+        // Locked notes can't be picked, so they aren't in "all": everything that can come, picked, is all of it.
+        let withLocked = AppleNotesBridge.demoNotes + AppleNotesBridge.demoLockedNotes
+        let readable = AppleNotesImportView.readable(withLocked)
+        #expect(readable == AppleNotesBridge.demoNotes.count)
+        #expect(AppleNotesImportView.importTitle(picked: readable, new: readable, all: readable, locale: en) == "Import \(readable) Notes", "not New: two locked notes aren't missing")
         #expect(AppleNotesImportView.folderLine(coming: 18, of: 18, locale: en) == "18 notes")
         #expect(AppleNotesImportView.folderLine(coming: 8, of: 9, locale: en) == "8 of 9 notes")
     }
@@ -705,6 +710,26 @@ import Testing
         let choose = try #require(source.range(of: "private var chooseNotesPage"))
         let page = source[choose.lowerBound...].prefix(4000)
         #expect(!page.contains("\"Cancel\"") && !page.contains("Show Folders"), "Choose notes has Back and ×, no Cancel or Show Folders")
+    }
+
+    /// Persona council 11-04: the first page says what stays behind before Import (locked notes,
+    /// and checklists when Notes' database can't be read), and the last page says it again.
+    @Test func thePagesSayWhatStaysInAppleNotes() {
+        let en = Locale(identifier: "en_US")
+        #expect(AppleNotesImportView.staysLine(locked: 0, checklists: false, locale: en) == nil, "nothing stays: nothing said")
+        #expect(AppleNotesImportView.staysLine(locked: 1, checklists: false, locale: en) == "1 locked note stays in Apple Notes.")
+        #expect(AppleNotesImportView.staysLine(locked: 1_204, checklists: true, locale: en) == "1,204 locked notes stay in Apple Notes. Checklists may come in as plain lists.")
+        #expect(AppleNotesImportView.successLine(locked: 0, locale: en) == "Your folders came over as they were.")
+        #expect(AppleNotesImportView.successLine(locked: 2, locale: en) == "Your folders came over as they were. 2 locked notes stayed in Apple Notes.")
+        // Locked notes alone don't turn the end into a list of what couldn't come.
+        var s = AppleNotesImportSummary()
+        s.notImported = [.init(name: "Journal", why: AppleNotesImportSummary.lockedWhy)]
+        #expect(AppleNotesImportView.endsOnSuccess(s, unreadFolders: 0))
+        #expect(!AppleNotesImportView.endsOnSuccess(s, unreadFolders: 1))
+        s.notImported.append(.init(name: "Big one", why: AppleNotesImportSummary.tooLongWhy))
+        #expect(!AppleNotesImportView.endsOnSuccess(s, unreadFolders: 0), "a note that couldn't be read is still named")
+        let allLocked = AppleNotesBridge.demoLockedNotes.allSatisfy { $0.locked }
+        #expect(allLocked)
     }
 
     /// Folders inside folders show as a tree, by their own names (Emil, 2 November 2026).
@@ -757,7 +782,7 @@ import Testing
         let views = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views")
         func read(_ name: String) throws -> String { try String(contentsOf: views.appending(path: name), encoding: .utf8) }
         #expect(ImportGuideSheet.setupDoneTitle == "Continue")
-        #expect(EnvironmentValues().importDoneTitle == "Show My Notes", "outside setup it opens the notes")
+        #expect(EnvironmentValues().importDoneTitle == "Show Imported Notes", "outside setup it opens the notes that came (persona council 11-04: Show My Notes read as all of them)")
         for file in ["SetupCards.swift", "OnboardingFlow.swift"] {
             let source = try read(file)
             #expect(source.components(separatedBy: ".environment(\\.importDoneTitle, ImportGuideSheet.setupDoneTitle)").count - 1 == 2, "both import sheets in \(file) say Continue")

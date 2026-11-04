@@ -12,6 +12,29 @@ struct ImportSource: Identifiable, Hashable, Sendable {
     var bytes: Int64
     /// Why it can't be imported, if it can't.
     var problem: String?
+    /// What else it holds, for the page before Import (Markdown sources: Notion, Obsidian).
+    var preview: ImportPreview? = nil
+}
+
+/// What a picked source holds besides its notes, counted when it is picked, so the page before
+/// Import can say what comes and what doesn't (persona council 11-04): Notion's databases,
+/// Obsidian's embedded notes (they come in as links) and canvases (they stay), and the pictures
+/// and other files that come along.
+struct ImportPreview: Hashable, Sendable {
+    var notes = 0
+    var databases = 0
+    var embeds = 0
+    var canvases = 0
+    var files = 0
+}
+
+/// One line of what a picked source holds, on the page before Import: "2 databases · become
+/// tables". `left`: it doesn't carry over as it was (an embed becomes a link, a canvas stays).
+struct ImportPreviewRow: Hashable, Sendable {
+    var symbol: String
+    var count: String
+    var becomes: String
+    var left = false
 }
 
 /// Choices only some imports have (Google Keep's labels and archive).

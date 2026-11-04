@@ -153,6 +153,15 @@ enum AppleNotesBridge {
         return rows.enumerated().map { i, r in AppleNote(id: "demo-\(i)", name: r.0, folder: r.1, modified: Date.now.addingTimeInterval(-r.2 * day)) }
     }
 
+    /// Two locked notes for captures of what stays in Apple Notes.
+    static var demoLockedNotes: [AppleNote] {
+        [("Journal", "Notes", 4.0), ("Surprise party for Leo", "Home", 8.0)].enumerated().map { i, r in
+            var n = AppleNote(id: "demo-locked-\(i)", name: r.0, folder: r.1, modified: Date.now.addingTimeInterval(-r.2 * 86_400))
+            n.locked = true
+            return n
+        }
+    }
+
     static func body(of id: String) throws -> String {
         let escaped = id.replacingOccurrences(of: "\"", with: "\\\"")
         return try run("tell application \"Notes\" to get body of note id \"\(escaped)\"").stringValue ?? ""
@@ -234,6 +243,8 @@ struct AppleNotesImportView: View {
     @State private var explainingChecklists = false
     /// Captures: the sheet as it is on a Mac where Notes' database can't be read.
     nonisolated(unsafe) static var demoWithoutAccess = false
+    /// Captures: the made-up library with two locked notes in it.
+    nonisolated(unsafe) static var demoLocked = false
     /// Set when some notes couldn't be read: the sheet stays to say which.
     @State private var unread: AppleNotesImportSummary?
     @FocusState private var searchFocused: Bool
@@ -417,9 +428,19 @@ struct AppleNotesImportView: View {
                 .accessibilityIdentifier("import.subtitle")
             folderCard
                 .padding(.top, 20)
+            if let stays = staysLine {
+                Text(stays)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.muted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 420)
+                    .padding(.top, 10)
+                    .accessibilityIdentifier("import.stays")
+            }
             Spacer(minLength: 12)
             Button { Task { await runImport() } } label: {
-                Text(Self.importTitle(picked: picked.count, new: newCount, all: notes.count, locale: locale)).frame(maxWidth: .infinity)
+                Text(Self.importTitle(picked: picked.count, new: newCount, all: Self.readable(notes), locale: locale)).frame(maxWidth: .infinity)
             }
             .buttonStyle(.amberProminent(.regular, wide: true))
             .keyboardShortcut(.defaultAction)
@@ -497,7 +518,9 @@ struct AppleNotesImportView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: Self.folderCardHeight)
+        // The line under it, when there is one, takes half a row from the card, which scrolls:
+        // the last folder shows half, so the list says there's more (a whole row hid the fifth).
+        .frame(height: Self.folderCardHeight - (staysLine == nil ? 0 : 20))
         .background(carded ? Color(Palette.page) : .clear, in: shape)
         .overlay(shape.strokeBorder(Color.line, lineWidth: carded ? 1 : 0))
         .clipShape(shape)
@@ -612,7 +635,7 @@ struct AppleNotesImportView: View {
             HStack(spacing: 14) {
                 if !storeAccess { checklistNote }
                 Spacer(minLength: 0)
-                Button(Self.importTitle(picked: picked.count, new: newCount, all: notes.count, locale: locale)) {
+                Button(Self.importTitle(picked: picked.count, new: newCount, all: Self.readable(notes), locale: locale)) {
                     Task { await runImport() }
                 }
                 .buttonStyle(.amberProminent(.regular))
@@ -798,6 +821,23 @@ struct AppleNotesImportView: View {
     /// Five folders without scrolling; more scroll inside the card.
     static let folderCardHeight: CGFloat = 212
 
+    /// Locked notes in the listing: they stay in Apple Notes.
+    private var lockedCount: Int { notes.filter(\.locked).count }
+
+    /// Under the folders, before Import: what won't come over as it is (persona council 11-04).
+    private var staysLine: String? {
+        loading || failure != nil ? nil : Self.staysLine(locked: lockedCount, checklists: !storeAccess, locale: locale)
+    }
+
+    /// "2 locked notes stay in Apple Notes. Checklists may come in as plain lists." The way to keep
+    /// checklists is under Choose Notes, off the one-press path; this only says it.
+    static func staysLine(locked: Int, checklists: Bool, locale: Locale) -> String? {
+        var said: [String] = []
+        if locked > 0 { said.append(locked == 1 ? "1 locked note stays in Apple Notes." : "\(locked.formatted(.number.locale(locale))) locked notes stay in Apple Notes.") }
+        if checklists { said.append("Checklists may come in as plain lists.") }
+        return said.isEmpty ? nil : said.joined(separator: " ")
+    }
+
     private var importingPage: some View {
         let p = progress ?? (picked.count / 2, max(picked.count, 1))
         return VStack(spacing: 14) {
@@ -832,7 +872,7 @@ struct AppleNotesImportView: View {
                 .tracking(Palette.tracking(26))
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 10)
-            Text(Self.successLine)
+            Text(Self.successLine(locked: finished.map { $0.notImported.filter { $0.why == AppleNotesImportSummary.lockedWhy }.count } ?? lockedCount, locale: locale))
                 .font(.system(size: 15))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
@@ -848,6 +888,12 @@ struct AppleNotesImportView: View {
     }
 
     static let successLine = "Your folders came over as they were."
+
+    /// The success page's line, and the locked notes that stayed, as the first page said they would.
+    static func successLine(locked: Int, locale: Locale) -> String {
+        guard locked > 0 else { return successLine }
+        return successLine + (locked == 1 ? " The locked note stayed in Apple Notes." : " \(locked.formatted(.number.locale(locale))) locked notes stayed in Apple Notes.")
+    }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -1006,6 +1052,10 @@ struct AppleNotesImportView: View {
         .padding(.bottom, 8)
     }
 
+    /// The notes that can come at all: a locked note's text can't be read. "Import 12 Notes" with
+    /// all of them picked, not "Import 12 New Notes" because two locked ones were counted.
+    static func readable(_ notes: [AppleNote]) -> Int { notes.filter { !$0.locked }.count }
+
     /// Notes that can come and aren't here yet: what the sheet picks when it opens.
     private var newCount: Int { notes.filter { !$0.locked && !AppleNotesListing.isHere($0, keys: existing) }.count }
 
@@ -1122,7 +1172,7 @@ struct AppleNotesImportView: View {
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                     .fixedSize()
-                Button(Self.importTitle(picked: picked.count, new: newCount, all: notes.count, locale: locale)) {
+                Button(Self.importTitle(picked: picked.count, new: newCount, all: Self.readable(notes), locale: locale)) {
                     Task { await runImport() }
                 }
                 .buttonStyle(.amberProminent)
@@ -1212,8 +1262,8 @@ struct AppleNotesImportView: View {
             // `-importDelay 1.5`: captures of the sheet while Apple Notes is being read.
             if let wait = Capture.argument("-importDelay").flatMap(Double.init) { try? await Task.sleep(for: .seconds(wait)) }
             // Captures never read the real Apple Notes: a made-up library, most of it picked.
-            listing = AppleNotesListing(notes: AppleNotesBridge.demoNotes)
-            picked = Set(notes.filter { $0.folder != "Archive" }.map(\.id))
+            listing = AppleNotesListing(notes: AppleNotesBridge.demoNotes + (Self.demoLocked ? AppleNotesBridge.demoLockedNotes : []))
+            picked = Set(notes.filter { $0.folder != "Archive" && !$0.locked }.map(\.id))
             existing = []
             storeAccess = !Self.demoWithoutAccess
             loading = false
@@ -1254,7 +1304,16 @@ struct AppleNotesImportView: View {
         onImported(summary.noteIDs)
         progress = nil
         // Nothing to explain: the success page, as the other guides end. Otherwise what couldn't come.
-        if summary.notImported.isEmpty && listing.unreadFolders.isEmpty { choosingNotes = false; pickedBefore = nil; finished = summary } else { unread = summary }
+        // Locked notes were said to stay before Import, so they alone don't make it a list.
+        if Self.endsOnSuccess(summary, unreadFolders: listing.unreadFolders.count) { choosingNotes = false; pickedBefore = nil; finished = summary } else { unread = summary }
+    }
+}
+
+extension AppleNotesImportView {
+    /// The import ends on the success page when nothing went wrong: every note came, or the only
+    /// ones that didn't are locked (the first page said those stay).
+    static func endsOnSuccess(_ summary: AppleNotesImportSummary, unreadFolders: Int) -> Bool {
+        unreadFolders == 0 && summary.notImported.allSatisfy { $0.why == AppleNotesImportSummary.lockedWhy }
     }
 }
 

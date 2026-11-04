@@ -71,7 +71,7 @@ extension ModelContext {
         return .folder(folder.id)
     }
 
-    /// What Show My Notes opens after an import: its top folder, on the newest note that folder's
+    /// What Show Imported Notes opens after an import: its top folder, on the newest note that folder's
     /// list shows (notes in folders inside it aren't in that list). When every note went into an
     /// inner folder, the first note's own folder.
     func importLanding(of ids: [UUID]) -> (scope: Scope, note: UUID?) {

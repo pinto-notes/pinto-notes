@@ -314,7 +314,8 @@ enum NoteText {
             if words.count > 1, let unit = words.last, unit.count <= 3 { return "\(value) \(unit)" }
             return "\(name) \(value)"
         }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        // A row's title linked to its page (a Notion database) reads as its text, as links in text do.
+        return parts.isEmpty ? nil : WikiLinks.plain(parts.joined(separator: " · "))
     }
 
     /// "2026-09-27" → "27 Sep" (in the reader's language), or nil when it isn't a date.

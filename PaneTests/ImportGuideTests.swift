@@ -9,8 +9,92 @@ import Testing
         #if os(macOS)
         for kind in ImportKind.allCases { #expect(ImportGuide.live(kind)?.id == kind.rawValue, "\(kind)") }
         #else
-        for kind in [ImportKind.keep, .obsidian, .markdown] { #expect(ImportGuide.live(kind)?.id == kind.rawValue, "\(kind)") }
+        for kind in [ImportKind.keep, .obsidian, .notion, .markdown] { #expect(ImportGuide.live(kind)?.id == kind.rawValue, "\(kind)") }
         #endif
+    }
+
+    /// Persona council 11-04: Notion has its own row and the same two pages as Obsidian, an export
+    /// step and the drop, and says what its databases become.
+    @Test func notionHasItsOwnGuide() {
+        let g = ImportGuide.notion
+        #expect(g.name == "Notion" && g.origin == .files(.notion))
+        #expect(g.steps.count == 1, "one step, then the drop, as Obsidian")
+        #expect(g.steps[0].text.contains("Export all workspace content") && g.steps[0].text.contains("Markdown & CSV") && g.steps[0].text.contains("include subpages"))
+        #expect(g.drop.choose == "Choose the .zip\u{2026}")
+        #expect(g.success.line.contains("Each database is a note with a table"))
+        #expect(ImportKind.notion.isMarkdown && ImportKind.notion.contentTypes.contains(.zip))
+        #expect(ImportKind.notion.menuTitle == "Import from Notion\u{2026}")
+        #expect(ImportOrigin.files(.notion).name == "Notion")
+    }
+
+    /// Persona council 11-04: Notion's found page said "Choose Another the .zip…". Every guide's
+    /// other-file button names what it chooses.
+    @Test func chooseAnotherNamesWhatItChooses() {
+        for kind in ImportKind.allCases {
+            guard let g = ImportGuide.live(kind) else { continue }
+            let another = ImportGuideSheet.chooseAnother(g.drop.choose)
+            #expect(!another.contains("Another the") && !another.contains("Other the") && another.hasPrefix("Choose "), "\(kind): \(another)")
+        }
+        #expect(ImportGuideSheet.chooseAnother("Choose the .zip\u{2026}") == "Choose Another File\u{2026}")
+        #expect(ImportGuideSheet.chooseAnother("Choose Folder\u{2026}") == "Choose Another Folder\u{2026}")
+        #expect(ImportGuideSheet.chooseAnother("Choose Files\u{2026}") == "Choose Other Files\u{2026}")
+        #expect(ImportGuideSheet.chooseAnother("Choose File") == "Choose Another File")
+        #expect(ImportGuideSheet.chooseAnother("Choose Folder or .zip\u{2026}") == "Choose Another Folder or .zip\u{2026}")
+    }
+
+    /// Persona council 11-04: before Import, Notion's page names the file, counts its pages and
+    /// databases, and says what each becomes and what doesn't come over.
+    @Test func notionSaysWhatComesBeforeImport() throws {
+        var source = ImportSource(url: URL(fileURLWithPath: "/Users/leo/Downloads/8a1f2b3c_Export-5e6f7a8b.zip"), name: "Notion", notes: 214, bytes: 4_200_000)
+        source.preview = ImportPreview(notes: 214, databases: 3, files: 40)
+        let found = try #require(ImportGuideFlow.found([source], notes: 214, kind: .notion))
+        #expect(found.name == "8a1f2b3c_Export-5e6f7a8b.zip" && found.button == "Import 214 Pages and 3 Databases")
+        #expect(ImportGuideFlow.foundNote([source], kind: .notion) == "Pages become notes. Each database becomes a table. Views and formulas don't come over.")
+        #expect(ImportGuideFlow.foundRows([source], kind: .notion).map { "\($0.count) \($0.becomes)" } == ["214 pages become notes", "3 databases become tables", "40 pictures and files come with the notes that use them"])
+        source.preview = ImportPreview(notes: 1)
+        #expect(ImportGuideFlow.found([source], notes: 1, kind: .notion)?.button == "Import 1 Page")
+        #expect(ImportGuideFlow.foundNote([source], kind: .notion) == "Pages become notes, and subpages become folders.")
+        #expect(ImportGuideFlow.found([source], notes: 1, kind: .keep)?.button == "Import 1 Note", "other sources count notes")
+        #expect(ImportGuideFlow.foundNote([source], kind: .obsidian) == nil)
+    }
+
+    /// Persona council 11-04: Obsidian's page before Import lists what comes and what doesn't
+    /// carry over (embedded notes become links, canvases stay), and the last page says it again.
+    @Test func obsidianSaysWhatDoesntCarryOver() {
+        var vault = ImportSource(url: URL(fileURLWithPath: "/Users/sara/Documents/Second brain"), name: "Second brain", notes: 1_126, bytes: 48_000_000)
+        vault.preview = ImportPreview(notes: 1_126, embeds: 14, canvases: 3, files: 212)
+        let rows = ImportGuideFlow.foundRows([vault], kind: .obsidian)
+        #expect(rows.map { "\($0.count) \($0.becomes)" } == ["1,126 notes come with their folders", "212 pictures and files come with the notes that use them", "14 embedded notes become links", "3 canvases stay in Obsidian"])
+        #expect(rows.map(\.left) == [false, false, true, true], "what doesn't carry over is marked")
+        #expect(ImportGuideFlow.leftLine([vault], kind: .obsidian) == "Embedded notes are links. Canvases stayed in Obsidian.")
+        vault.preview = ImportPreview(notes: 1_126)
+        #expect(ImportGuideFlow.leftLine([vault], kind: .obsidian) == nil, "nothing left out, nothing said")
+        #expect(ImportGuideFlow.foundRows([vault, vault], kind: .obsidian).isEmpty, "several picked: just their count")
+    }
+
+    /// The counts come from looking the vault over when it's picked: embedded notes (not pictures),
+    /// canvases, and the other files, none of Obsidian's own settings.
+    @Test func inspectingAVaultCountsWhatItHolds() throws {
+        let fm = FileManager.default
+        let vault = fm.temporaryDirectory.appending(path: "vault-\(UUID().uuidString)/Second brain")
+        defer { try? fm.removeItem(at: vault.deletingLastPathComponent()) }
+        func write(_ path: String, _ text: String) throws {
+            let url = vault.appending(path: path)
+            try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try text.write(to: url, atomically: true, encoding: .utf8)
+        }
+        try write("Daily/Monday.md", "Plans. ![[Recipe]] and ![[Recipe#Steps]] and ![[photo.png]]\n")
+        try write("Recipe.md", "# Recipe\n")
+        try write("photo.png", "png")
+        try write("Board.canvas", "{}")
+        try write(".obsidian/app.json", "{}")
+        let p = try #require(ImportKind.obsidian.inspect(vault).preview)
+        #expect(p == ImportPreview(notes: 2, embeds: 2, canvases: 1, files: 1))
+    }
+
+    /// The last button opens what the import brought, and says so.
+    @Test func theLastButtonShowsTheImportedNotes() {
+        #expect(EnvironmentValues().importDoneTitle == "Show Imported Notes")
     }
 
     @Test func takeoutOpensWithOnlyKeepTicked() {
