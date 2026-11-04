@@ -74,6 +74,7 @@ final class ShareModel {
     }
 
     func save() {
+        guard !saved else { return }
         do {
             try Inbox.add(markdown: markdown, files: files, folder: note == nil ? folder : nil, note: note)
             if note == nil { Inbox.lastFolder = folder }
@@ -154,13 +155,13 @@ struct ShareSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(action: model.save) {
                         if model.saved {
-                            Label(ShareWords.saved, systemImage: "checkmark").labelStyle(.titleAndIcon)
+                            Text(ShareWords.saved)
                         } else {
                             Text(model.note == nil ? ShareWords.save : ShareWords.add)
                         }
                     }
                     .fontWeight(.semibold)
-                    .disabled(model.loading || model.saved || (model.markdown.isEmpty && model.files.isEmpty))
+                    .disabled(!model.saved && (model.loading || (model.markdown.isEmpty && model.files.isEmpty)))
                     .accessibilityIdentifier("share.save")
                 }
             }
