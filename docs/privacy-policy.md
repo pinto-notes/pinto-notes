@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 2 November 2026
+Last updated: 4 November 2026
 
 ## The short version
 
@@ -15,7 +15,8 @@ Last updated: 2 November 2026
 - An AI assistant can only read your notes if you connect it and approve it on your iPhone or Mac, or with your recovery key on pintonotes.com if you saved one. While it works, our server opens the notes it asks for in memory. You can disconnect it at any time.
 - In versions of the apps after 1.2.3, a note can hold a small app that your AI makes. To build and check it, our server sends the app's code, and a stand-in for the note with its words and numbers replaced, to a render service we run at Railway. Your real note is never sent there.
 - A note you lock is encrypted a second time with your notes password. Not us and not an AI can read its text.
-- A note you share can be read by anyone with its link, and by us, until you stop sharing.
+- A note you share as a web page can be read by anyone with its link, and by us, until you stop sharing.
+- A note you share with people is encrypted like your other notes. The people in it can read it, and their AI when they ask. Where we keep a copy of someone's key, we could open the notes shared with them too.
 - Your data is stored in the European Union (Frankfurt, Germany).
 - **Settings → Account** lets you export your notes, and **Settings → Delete Account** deletes your account and everything in it.
 - We keep as few logs as we can, for as short a time as we can. The section on logs lists every one.
@@ -75,6 +76,14 @@ This policy covers the Pinto Notes apps for iPhone and Mac, the service that let
 **Shared notes, if you share any**
 
 - The link, which note it shows, whether sub-notes are included, and a readable copy of the note (with its included sub-notes and files) that your device publishes for the link. The copy is deleted when you stop sharing.
+
+**Notes you share with people, if you do**
+
+- Who is in each note you share or join, their role (owner, can edit or can view), who added them and when they joined.
+- Your sharing key: its public half, which the people you share with can read, and its private half, encrypted with your notes' key.
+- The note's key, encrypted for each person in it, and for its link while the link is on. We keep only a one-way hash of what proves someone holds the link. The link's secret never reaches us.
+- The note's text, as encrypted changes and snapshots, with who made each change and when, and the name of the AI when an AI made it.
+- While someone has the note open, that they're in it. Their name and where their cursor is go to the others encrypted.
 
 **Reports about shared pages**
 
@@ -170,7 +179,8 @@ We don't use your data for advertising. The only emails about Pinto Notes we sen
 - your AI connections;
 - the usage counts described under How the app is used;
 - the diagnostics and usage reports described under What we collect;
-- a note you share, while it's shared.
+- a note you share as a web page, while it's shared;
+- who is in each note shared with people, their roles, and when each of them changes it.
 
 **Limits.** Encryption doesn't cover everything, and we'd rather say so:
 
@@ -215,6 +225,15 @@ In versions of the apps after 1.2.3, a note can hold a small app (a habit tracke
 - Anyone can report a shared page. Reports are reviewed, and pages that break our Terms are removed.
 - A locked note can't be shared. Locking a shared note stops its link.
 
+## Notes shared with people
+
+- **Share** in a note makes a link. Anyone with the link can join the note in Pinto Notes, with **Can edit** or **Can view**. **Off** stops the link at once. You see everyone who joined, and you can remove them.
+- The note is encrypted like your other notes, with a key of its own. Each person's devices get that key encrypted for them, and keep it with their notes' key. So whoever can open a person's notes can open the notes shared with them. Where we keep a copy of someone's key (see Encryption), we could too.
+- When someone in the note asks their AI about it, our server opens the note in memory for that request, as it does for your own notes, and keeps nothing of it.
+- Removing someone takes the note out of their notes and gives it a new key, so they can't read what's written after. A copy they made before, we can't take back.
+- Deleting a note you shared stops sharing it for everyone: it goes to your Recently Deleted with its text, and the others lose it. Leaving a note someone shared with you takes it out of your notes.
+- A note shared with people can't hold files or an app, be locked or become a web page yet, and version history doesn't show its changes yet.
+
 ## Where your data is stored
 
 | Service | What it does for us | Where | Transfers outside the EU |
@@ -257,6 +276,7 @@ In our own database we keep a log of each time our copy of your notes' key was s
 - **Earlier versions** of a note: every version from the last 24 hours, then the last one of each hour for 7 days, the last one of each day for 90 days, and every AI change for 90 days. Older versions are deleted. A note keeps at most 500 versions and 10 MB of them; past that, the oldest go first.
 - **Files** you add stay until you delete them or your account.
 - **Your account** is kept until you delete it. **Settings → Delete Account** removes your account, notes, files, profile photo, versions, AI connections, share links, notes password settings, usage counts, the record of emails we sent you, sign-in records and reports about your shared pages straight away.
+- **Notes shared with people:** a note's encrypted changes until a newer snapshot covers them; the note until its owner deletes it or their account; your place in it until you leave, are removed, start fresh or delete your account.
 - **Usage counts** (AI changes per day, days of use, tips, app installations): 12 months.
 - **Diagnostics and usage from the apps:** at PostHog for as long as its plan keeps events (at least a month), or until you ask us to delete them. Deleting your account stops new reports and drops the ones still waiting on your device; it doesn't remove the ones PostHog already holds, so write to us to have those deleted.
 - **The record of emails we sent you,** of links you clicked in them and of unsubscribing: until you delete your account.

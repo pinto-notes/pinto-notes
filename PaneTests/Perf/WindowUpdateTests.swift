@@ -189,10 +189,11 @@ import Testing
         #expect((counts["RootView"] ?? 0) <= 6, "the window twice per open at most")
     }
 
-    /// Hiding and showing the sidebar works out none of the columns again: not the folders (every
-    /// folder row with them), not the note list. The split view hands its columns over again on
-    /// every toggle, and both were worked out each time, mid-animation. They still follow what
-    /// they show: another folder is another list.
+    /// Toggle Sidebar (⌃⌘S, which SwiftUI's split view still answers) works out none of the
+    /// columns again: not the folders (every folder row with them), not the note list. The split
+    /// view handed its columns over again on every toggle, and both were worked out each time,
+    /// mid-animation. Since 11-01 the sidebar can't be hidden at all (SidebarPin), so the toggle
+    /// leaves it shown. The columns still follow what they show: another folder is another list.
     @Test(.timeLimit(.minutes(2))) func aSidebarToggleWorksOutNoColumnAgain() async throws {
         let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let ctx = c.mainContext
@@ -249,10 +250,10 @@ import Testing
         print("PERF sidebar: bodies worked out after the window first settled, before any toggle: \(late.isEmpty ? "none" : late.joined(separator: ", "))")
 
         RenderProbe.counts = [:]
-        for hidden in [true, false, true, false] {
+        for _ in 0..<4 {
             controller.toggleSidebar(nil)
             await settle()
-            #expect(sidebar.isCollapsed == hidden, "the toggle \(hidden ? "hid" : "showed") the sidebar")
+            #expect(!sidebar.isCollapsed, "the toggle leaves the sidebar shown: it can't be hidden (SidebarPin, Emil 11-01)")
         }
         print("PERF sidebar toggled 4 times: bodies worked out again \(RenderProbe.counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
         #expect(RenderProbe.counts["SidebarView"] == nil, "a toggle doesn't work the folders out again")

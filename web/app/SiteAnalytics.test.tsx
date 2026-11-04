@@ -54,7 +54,7 @@ describe("the layout's analytics", () => {
   });
 
   it("never loads Vercel Web Analytics, or its loader, on shared notes, connect, universal-link or report pages", () => {
-    for (const path of ["/n/abc123", "/n/abc123/sub", "/connect", "/connect/preview", "/open/connect", "/open/template/standup", "/open/copy/abc123", "/report/abc123"]) {
+    for (const path of ["/n/abc123", "/n/abc123/sub", "/s/sEbHaDgYXLDfpSMmrziRgA", "/connect", "/connect/preview", "/open/connect", "/open/template/standup", "/open/copy/abc123", "/report/abc123"]) {
       expect(render(path), path).not.toContain("data-vercel");
     }
   });

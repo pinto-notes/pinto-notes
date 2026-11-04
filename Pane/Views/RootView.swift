@@ -62,6 +62,7 @@ struct RootView: View {
     #endif
     /// The import sheet showing (Evernote, Markdown…).
     @State private var importing: ImportKind?
+    @State private var pendingSharedDelete: [Note]?
     /// Files the import sheet opens with (shared, opened from Files, dropped on the app).
     @State private var importFiles: [URL] = []
     @AppStorage("lastScope") private var lastScopeData: Data = Data()
@@ -115,8 +116,7 @@ struct RootView: View {
             .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
                 if let client = backendForConnect?.client { ConnectAISheet(client: client) }
             }
-            // Collaboration (prototype): an invitation to someone else's note.
-            .modifier(CollabInviteAlert())
+            .sharedDeleteConfirmation($pendingSharedDelete) { removeNow($0) }
             .onReceive(NotificationCenter.default.publisher(for: FileRefusal.notification)) { n in refusal = n.object as? FileRefusal }
             .alert(refusal?.title ?? "", isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } })) {
                 Button("OK") {}
@@ -690,6 +690,12 @@ struct RootView: View {
     /// Edit › Delete: every selected note goes to Recently Deleted (or, there, is deleted for good).
     private func deleteSelected() {
         let notes = selection.compactMap { context.note($0) }
+        // A shared note asks first: people lose it, or it leaves your notes.
+        if SharedDelete.ask(notes) != nil { pendingSharedDelete = notes; return }
+        removeNow(notes)
+    }
+
+    private func removeNow(_ notes: [Note]) {
         withAnimation(.snappy(duration: 0.25)) {
             context.remove(notes)
             selection = []
@@ -881,9 +887,18 @@ struct RootView: View {
     }
 
     /// Shows a note asked for from outside the window, switching to All Notes if it isn't in view.
-    private func reveal(_ id: UUID?) {
+    private func reveal(_ id: UUID?, waited: Int = 0) {
         guard let id, let note = context.note(id), note.deletedAt == nil else { return }
         NoteOpener.shared.request = nil
+        #if os(iOS)
+        // One screen at a time, UIKit drops a push made while an alert is up or still closing,
+        // yet the note stays selected: Join on a shared note's link left its row chosen in All
+        // Notes and the note unopened. It opens once the alert has gone.
+        if Presentation.waitsToOpen(compact: sizeClass == .compact, presenting: Presentation.isActive, waited: waited) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { reveal(id, waited: waited + 1) }
+            return
+        }
+        #endif
         if note.trashedAt != nil { scope = .trash } else if case .folder(let f) = scope, note.folder?.id == f {} else {
             #if os(iOS)
             // Its folder's list under it, as for a note search found, so back leads there.
@@ -1261,6 +1276,13 @@ enum Presentation {
         UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
             .contains { $0.rootViewController?.presentedViewController != nil }
+    }
+
+    /// Whether a note asked to open waits another tenth of a second: only on one screen at a
+    /// time, only while something is presented, and for three seconds at most (a sheet left open
+    /// on purpose then gets the push it always got).
+    static func waitsToOpen(compact: Bool, presenting: Bool, waited: Int) -> Bool {
+        compact && presenting && waited < 30
     }
 }
 #endif

@@ -102,6 +102,12 @@ final class Note {
     /// A locked note's front matter, sealed with the notes password's key like `lockedBody`
     /// (`locked_props`). Never readable while the note is locked.
     var lockedFrontMatter: String?
+    /// Set for a shared note: the id of its shared document (`shared_notes.id`). Its text lives in
+    /// the document and goes only through collaboration; `body` is a copy of it for the list,
+    /// search and links, and the notes row on the server holds a placeholder (SharedNotes).
+    var sharedNoteID: UUID?
+    /// The shared document on this device, for a shared note (SharedDocument).
+    @Relationship(deleteRule: .cascade, inverse: \SharedDocument.note) var sharedDocument: SharedDocument?
 
     init(body: String = "", folder: Folder? = nil) {
         NoteSummaries.install()
@@ -123,6 +129,9 @@ final class Note {
     }
 
     var isLocked: Bool { lockedBody != nil }
+
+    /// A shared note: its text is a shared document's (collaboration), never synced as a note.
+    var isShared: Bool { sharedNoteID != nil }
 
     /// The saved summary while the note has no changes waiting to be saved; worked out from the
     /// text otherwise (a note being typed in, or one saved before summaries were kept). The list

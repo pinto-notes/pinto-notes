@@ -182,6 +182,9 @@ enum SharePublisher {
 
     static func copy(of id: UUID, includeSubNotes: Bool, in context: ModelContext) -> Copy? {
         guard let root = context.note(id), root.lockedBody == nil, root.deletedAt == nil, root.trashedAt == nil else { return nil }
+        // A note shared with people is never published to a web page: its text is everyone's in
+        // it (SharedNoteLimits). A page made before it was shared keeps its last copy.
+        guard !root.isShared else { return nil }
         // Sub-notes are gone (2026-10-28): a page is the note alone, whatever an older link said
         // about them (`includeSubNotes` stays part of the link's tag, which the server keeps).
         _ = includeSubNotes
@@ -574,6 +577,16 @@ struct ShareLinkMenuSection: View {
                     // takes its copy away) and comes back if the note is restored. Nothing to
                     // share or copy; the link can be stopped for good.
                     if store.state.slug != nil {
+                        DestructiveMenuButton("Stop Sharing", systemImage: "xmark.circle") { Task { await store.stopSharing() } }
+                            .accessibilityIdentifier("share.stop")
+                    }
+                } else if note.isShared {
+                    // Shared with people: no web page of it (its text is everyone's). One made
+                    // before is listed, to open or stop; Copy Link would publish it again.
+                    if store.state.slug != nil {
+                        if let url = store.url {
+                            Link(destination: url) { Label("Open Shared Page", systemImage: "safari") }
+                        }
                         DestructiveMenuButton("Stop Sharing", systemImage: "xmark.circle") { Task { await store.stopSharing() } }
                             .accessibilityIdentifier("share.stop")
                     }
