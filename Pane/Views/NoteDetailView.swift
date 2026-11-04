@@ -1636,6 +1636,8 @@ private struct CollabWiring: ViewModifier {
                         controller.readOnly = SharedEditing.readOnly(trashed: note.trashedAt != nil, shared: true, viewOnly: nil)
                     }
                     : session
+                // The note was closed (or its session changed) while it looked: leave the editor be.
+                if Task.isCancelled { return }
                 guard let session = found else {
                     controller.remoteCarets = []
                     controller.ownUndo = nil

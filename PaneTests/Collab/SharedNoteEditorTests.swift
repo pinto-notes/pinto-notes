@@ -82,6 +82,53 @@ extension NetworkFaults {
         #expect(!note.dirty)
     }
 
+    /// A cold launch or a widget tap: the note is drawn before sharing has started. Once the store
+    /// is up with the note's document, the open note takes typing into it without being reopened
+    /// (persona council rounds 4 to 6).
+    @Test func aNoteDrawnBeforeSharingStartsTakesTypingOnceItOpens() async throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = c.mainContext
+        let transport = FakeCollabTransport(server: server, me: me)
+        let key = dataKey
+        let store = CollabStore(name: "Emil", transport: transport, dataKey: { key })
+        store.context = context
+        let previous = CollabStore.shared
+        CollabStore.shared = nil
+        defer { CollabStore.shared = previous; store.stop() }
+
+        let note = context.createNote(in: .all, body: "Groceries\nMilk")
+        try context.save()
+        try await transport.share(note: note.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+        let session = try await #require(store.library).becomeShared(note, nk: nk)
+        note.dirty = false
+        let controller = EditorController()
+        let (w, text) = host(note, in: c, controller: controller)
+        defer { w.close() }
+        await waitUntil(1) { controller.readOnly }
+        #expect(controller.readOnly, "no store yet: the note takes nothing typed")
+
+        CollabStore.shared = store
+        await waitUntil { !controller.readOnly && controller.ownUndo != nil }
+        #expect(!controller.readOnly)
+        #expect(controller.ownUndo != nil)
+        type("\nEggs", into: text)
+        await waitUntil { session.text == "Groceries\nMilk\nEggs" }
+        #expect(session.text == "Groceries\nMilk\nEggs")
+    }
+
+    /// Sharing starts at launch, before any view has loaded your profile: your caret and "In this
+    /// note" still carry your name, from the profile's cached copy, not "Someone".
+    @Test func sharingAtLaunchUsesYourCachedName() throws {
+        let defaults = try #require(UserDefaults(suiteName: "shared-name-\(UUID().uuidString)"))
+        let account = UUID()
+        #expect(CollabStore.myName(account: account, bound: nil, defaults: defaults) == "Someone")
+        defaults.set("Emil", forKey: "profile.name.\(account.uuidString.lowercased())")
+        #expect(ProfileStore.cachedName(for: account, defaults: defaults) == "Emil")
+        #expect(CollabStore.myName(account: account, bound: nil, defaults: defaults) == "Emil")
+        #expect(CollabStore.myName(account: account, bound: "Emil W", defaults: defaults) == "Emil W")
+        #expect(CollabStore(name: CollabStore.myName(account: account, bound: nil, defaults: defaults)).name == "Emil")
+    }
+
     @Test func aSharedNoteWithoutItsDocumentTakesNothingTyped() async throws {
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let context = c.mainContext
