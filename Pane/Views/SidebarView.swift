@@ -350,6 +350,10 @@ extension Notification.Name {
 }
 
 struct SidebarView: View {
+    #if os(macOS)
+    /// Set while the sidebar is hidden (RootView): the Show Sidebar button's action.
+    @Environment(\.showSidebar) private var showSidebar
+    #endif
     @Environment(\.behindSetupCard) private var behindSetupCard
     @Environment(\.modelContext) private var context
     @Environment(\.openWindow) private var openWindow
@@ -685,10 +689,19 @@ struct SidebarView: View {
             // enabled items, so it showed only once onboarding ended (Emil, 2 November 2026). Least used first, so Search, the most used, sits nearest the list, where its
             // field opens. With the sidebar hidden they stay beside the window's buttons.
             ToolbarSpacer(.flexible)
+            // With the sidebar hidden, a way back you can see, in New Folder's place beside the
+            // window's buttons (council round 4, 11-04): a folder made there can't be seen, and a
+            // fourth button sent Search to the overflow menu. New Folder stays in File and ⇧⌘N.
             ToolbarItem {
-                Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }
-                    .help("New Folder (\u{21E7}\u{2318}N)")
-                    .accessibilityIdentifier("sidebar.newFolder")
+                if let showSidebar {
+                    Button("Show Sidebar", systemImage: "sidebar.left") { showSidebar() }
+                        .help("Show Sidebar (\u{2303}\u{2318}S)")
+                        .accessibilityIdentifier("sidebar.show")
+                } else {
+                    Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }
+                        .help("New Folder (\u{21E7}\u{2318}N)")
+                        .accessibilityIdentifier("sidebar.newFolder")
+                }
             }
             .sharedBackgroundVisibility(.hidden)
             // Today's note in one press (DailyNotes).

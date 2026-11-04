@@ -482,10 +482,21 @@ private struct PressScaleBody: View {
 
 /// A large choice or card pressed (an AI to connect, a card in the sidebar): it dims a little and
 /// settles a touch smaller (a big shape at 0.97 moves too far).
+/// With Reduce Motion it only dims (council round 3, 11-04), as PressScale does.
 struct CardPress: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
+    func makeBody(configuration: Configuration) -> some View { CardPressBody(configuration: configuration) }
+
+    /// The scale a press settles at.
+    static func scale(pressed: Bool, reduceMotion: Bool) -> CGFloat { pressed && !reduceMotion ? 0.985 : 1 }
+}
+
+private struct CardPressBody: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .scaleEffect(CardPress.scale(pressed: configuration.isPressed, reduceMotion: reduceMotion))
             .opacity(configuration.isPressed ? 0.85 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }

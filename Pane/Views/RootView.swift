@@ -16,6 +16,9 @@ struct RootView: View {
     /// The list's selection; one note opens in the editor, several show a summary like Notes.
     @State private var selection: Set<UUID> = []
     @State private var visibility: NavigationSplitViewVisibility = .all
+    #if os(macOS)
+    @State private var listWidth = ListWidthKeeper.Probe()
+    #endif
     #if os(iOS)
     /// The open notes, for the list beside the note to draw (OpenNotes).
     @State private var openNotes = OpenNotes()
@@ -113,6 +116,15 @@ struct RootView: View {
             // Today's Note, from the calendar button and the menus, in this window (DailyNotes).
             .environment(\.todaysNote, TodaysNoteAction(open: openTodaysNote))
             .focusedSceneValue(\.todaysNote, TodaysNoteAction(open: openTodaysNote))
+            #if os(macOS)
+            // View › Hide Sidebar / Show Sidebar, named for the state it's in (SidebarCommands
+            // read "Show Sidebar" both ways beside this three-column split view).
+            .focusedSceneValue(\.sidebarVisibility, $visibility)
+            // The list comes back at the width it had: hidden, it's held at 350 pt for the
+            // sidebar's buttons, and kept that when the sidebar came back (council round 3).
+            .background(ListWidthKeeper(probe: listWidth))
+            .onChange(of: visibility) { old, new in listWidth.changed(from: old, to: new) }
+            #endif
             .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
                 if let client = backendForConnect?.client { ConnectAISheet(client: client) }
             }
@@ -152,6 +164,10 @@ struct RootView: View {
             // One sheet for Import and Connect an AI: asking for the other swaps what it shows.
             .sheet(isPresented: Binding(get: { popup != nil }, set: { if !$0 { popup = nil } })) {
                 if let popup { popupCard(popup).popupSheet(popup.rawValue) }
+            }
+            // ⌘= is ⌘+ without shift, as in every Mac app that zooms (View › Bigger).
+            .background {
+                Button("Bigger") { TextSize.bigger() }.keyboardShortcut("=", modifiers: .command).hidden()
             }
             // Help › Keyboard Shortcuts, read from the menu bar as it is when asked.
             .onReceive(NotificationCenter.default.publisher(for: .paneShowShortcuts)) { _ in
@@ -363,13 +379,15 @@ struct RootView: View {
                 .environment(library)
                 .environment(tags)
                 #if os(macOS)
-                // No sidebar button (Emil, 10-29), and no way to hide it at all (11-01): it can't
-                // collapse (SidebarPin; the split view's own ⌃⌘S does nothing), and the window can't
-                // get narrower than the three columns. At its narrowest it still has room for New
-                // Folder, Today and Search beside the window's buttons (10-31).
+                // The sidebar hides again (Emil, 11-04, overriding the 11-01 pin): View › Hide
+                // Sidebar (⌃⌘S) gives the note the window. No sidebar button (10-29): it would push
+                // Search off the sidebar's top, which at its narrowest has room for New Folder,
+                // Today and Search beside the window's buttons (10-31).
                 .toolbar(removing: .sidebarToggle)
-                .background(SidebarPin())
                 .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
+                .environment(\.showSidebar, visibility == .all ? nil : ShowSidebarAction {
+                    withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) { visibility = .all }
+                })
                 #else
                 // iPad: room for the title beside the account button.
                 .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
@@ -379,7 +397,11 @@ struct RootView: View {
                 .equatable()
                 .environment(library)
                 #if os(macOS)
-                .navigationSplitViewColumnWidth(min: 260, ideal: 330, max: 440)
+                // With the sidebar hidden its New Folder, Today and Search sit over this column
+                // beside the window's buttons: 350 pt keeps More and New Note clear of its edge.
+                // 360 at most beside the sidebar, so a missed restore costs the note little (council
+                // round 5, 11-04: it came back at 440 on the Air).
+                .navigationSplitViewColumnWidth(min: visibility == .all ? 260 : 350, ideal: visibility == .all ? 330 : 350, max: visibility == .all ? 360 : 440)
                 #else
                 // Large text needs the room more here than in the note beside it.
                 // A window wider than tall and under 1,000 pt (iPhone Duo open like a book): the list is
@@ -1129,6 +1151,7 @@ struct PaneCommands: Commands {
     @FocusedValue(\.importFromAction) private var importFrom
     @FocusedValue(\.showHistoryAction) private var showHistory
     @FocusedValue(\.todaysNote) private var todaysNote
+    @FocusedValue(\.sidebarVisibility) private var sidebarVisibility
     /// Read so the View menu's text size items enable and disable as the size changes.
     @AppStorage(TextSize.key) private var textSize: Double = 0
 
@@ -1163,8 +1186,20 @@ struct PaneCommands: Commands {
             Button(NoteMoreMenu.historyTitle) { showHistory?() }
                 .disabled(showHistory == nil)
         }
-        // View › AI Changes: everything an AI changed, across all notes.
-        CommandGroup(after: .sidebar) {
+        // View › Hide Sidebar, then AI Changes (everything an AI changed, across all notes) and
+        // the rest. The sidebar group is replaced, not added to: an empty replacement (11-01)
+        // took everything after it away.
+        CommandGroup(replacing: .sidebar) {
+            Button(SidebarToggle.title(sidebarVisibility?.wrappedValue)) {
+                guard let v = sidebarVisibility else { return }
+                // Reduce Motion: it's there or gone, no slide (council round 4, 11-04).
+                withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) {
+                    v.wrappedValue = SidebarToggle.toggled(v.wrappedValue)
+                }
+            }
+            .keyboardShortcut("s", modifiers: [.command, .control])
+            .disabled(sidebarVisibility == nil)
+            Divider()
             // As in Notes. The shortcuts are Xcode's Fold All and Unfold All.
             Button("Collapse All Sections") { editor?.collapseAllSections() }
                 .keyboardShortcut(.leftArrow, modifiers: [.command, .option, .shift])
@@ -1327,38 +1362,6 @@ struct ColumnHairline: View {
 }
 #endif
 
-#if os(macOS)
-/// Keeps the notes window's sidebar from collapsing: there is no sidebar-hidden state
-/// (Emil, 11-01). SwiftUI's split view still answers ⌃⌘S (Toggle Sidebar, hidden in its own
-/// menu); with its sidebar item unable to collapse, that does nothing.
-struct SidebarPin: NSViewRepresentable {
-    func makeNSView(context: Context) -> PinView { PinView() }
-    func updateNSView(_ view: PinView, context: Context) { view.pin() }
-
-    final class PinView: NSView {
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            pin()
-            // The split view controller is put together a turn later.
-            DispatchQueue.main.async { [weak self] in self?.pin() }
-        }
-
-        func pin() {
-            guard let content = window?.contentView, let split = Self.split(in: content),
-                  let sidebar = split.splitViewItems.first else { return }
-            if sidebar.canCollapse { sidebar.canCollapse = false }
-            if sidebar.isCollapsed { sidebar.isCollapsed = false }
-        }
-
-        /// SwiftUI's split view controller isn't a child view controller: it's the split view's delegate.
-        static func split(in view: NSView) -> NSSplitViewController? {
-            if let v = view as? NSSplitView, let s = v.delegate as? NSSplitViewController { return s }
-            for sub in view.subviews { if let s = split(in: sub) { return s } }
-            return nil
-        }
-    }
-}
-#endif
 
 #if os(iOS)
 /// The note first, the list over it (`RootView.noteFirst`); otherwise the system's own choice.
@@ -1367,5 +1370,133 @@ private struct NoteFirstStyle: ViewModifier {
     func body(content: Content) -> some View {
         if on { content.navigationSplitViewStyle(.prominentDetail) } else { content.navigationSplitViewStyle(.automatic) }
     }
+}
+#endif
+
+#if os(macOS)
+/// View › Hide Sidebar / Show Sidebar for the notes window's split view.
+enum SidebarToggle {
+    static func title(_ v: NavigationSplitViewVisibility?) -> String {
+        v == nil || v == .all ? "Hide Sidebar" : "Show Sidebar"
+    }
+    static func animation(reduceMotion: Bool) -> Animation? { reduceMotion ? nil : .snappy(duration: 0.3) }
+
+    static func toggled(_ v: NavigationSplitViewVisibility) -> NavigationSplitViewVisibility {
+        v == .all ? .doubleColumn : .all
+    }
+}
+
+private struct SidebarVisibilityKey: FocusedValueKey {
+    typealias Value = Binding<NavigationSplitViewVisibility>
+}
+
+extension FocusedValues {
+    var sidebarVisibility: Binding<NavigationSplitViewVisibility>? {
+        get { self[SidebarVisibilityKey.self] }
+        set { self[SidebarVisibilityKey.self] = newValue }
+    }
+}
+#endif
+
+#if os(macOS)
+/// Remembers the notes list's width while the sidebar is hidden and puts it back when the
+/// sidebar shows again.
+struct ListWidthKeeper: NSViewRepresentable {
+    let probe: Probe
+
+    func makeNSView(context: Context) -> Probe { probe }
+    func updateNSView(_ view: Probe, context: Context) {}
+
+    final class Probe: NSView {
+        /// How far the list reaches past the sidebar just before the sidebar hid: what you see of
+        /// it. On macOS 26 the list's own view runs on under the floating sidebar, so its frame is
+        /// wider than that (520 pt for a 260 pt list on the Air, council round 5, 11-04).
+        private(set) var saved: CGFloat?
+        /// The same, kept as the split view resizes while the sidebar shows: hidden from AppKit's
+        /// side (Toggle Sidebar from the responder chain), it has already collapsed by the time
+        /// SwiftUI says so.
+        private(set) var tracked: CGFloat?
+        private var restoring = false
+        private weak var watching: NSSplitView?
+
+        /// The window's three-column split view.
+        var split: NSSplitView? {
+            func find(_ v: NSView) -> NSSplitView? {
+                if let s = v as? NSSplitView, s.arrangedSubviews.count >= 3 { return s }
+                for k in v.subviews { if let f = find(k) { return f } }
+                return nil
+            }
+            return window?.contentView.flatMap(find)
+        }
+
+        /// The list's width as you see it: from the sidebar's edge to the list's.
+        static func shownWidth(sidebar: CGRect, list: CGRect) -> CGFloat { list.maxX - sidebar.maxX }
+
+        /// The width as you see it now, or nil with the sidebar folded away.
+        static func shownWidth(_ split: NSSplitView) -> CGFloat? {
+            let side = split.arrangedSubviews[0]
+            guard !side.isHidden, !split.isSubviewCollapsed(side), side.frame.width >= 100 else { return nil }
+            return shownWidth(sidebar: side.frame, list: split.arrangedSubviews[1].frame)
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            DispatchQueue.main.async { [weak self] in self?.watch() }
+        }
+
+        private func watch() {
+            guard let split, split !== watching else { return }
+            watching = split
+            NotificationCenter.default.addObserver(self, selector: #selector(resized), name: NSSplitView.didResizeSubviewsNotification, object: split)
+            resized()
+        }
+
+        @objc private func resized() {
+            guard !restoring, let split = watching, let w = Self.shownWidth(split) else { return }
+            tracked = w
+        }
+
+        func changed(from old: NavigationSplitViewVisibility, to new: NavigationSplitViewVisibility) {
+            watch()
+            guard let split else { return }
+            if old == .all, new != .all {
+                // Before the split view moves: it still has the widths it had.
+                saved = Self.shownWidth(split) ?? tracked
+            } else if new == .all, let width = saved {
+                saved = nil
+                restoring = true
+                // Once the sidebar has stopped sliding in (the same width twice running; it takes
+                // about a quarter second). Set while it slid, the list ended up 100 pt too wide.
+                Task { @MainActor [weak self] in
+                    var last: CGFloat = -1
+                    for _ in 0..<20 {
+                        try? await Task.sleep(for: .milliseconds(60))
+                        guard let self, let split = self.split else { return }
+                        let side = split.arrangedSubviews[0]
+                        let w = split.isSubviewCollapsed(side) || side.isHidden ? 0 : side.frame.width
+                        defer { last = w }
+                        guard w > 100, w == last else { continue }
+                        split.setPosition(side.frame.maxX + width, ofDividerAt: 1)
+                        break
+                    }
+                    self?.restoring = false
+                    self?.resized()
+                }
+            }
+        }
+    }
+}
+#endif
+
+#if os(macOS)
+/// The Show Sidebar button's action, while the sidebar is hidden.
+struct ShowSidebarAction: Equatable {
+    let run: () -> Void
+    func callAsFunction() { run() }
+    static func == (a: Self, b: Self) -> Bool { true }
+}
+
+extension EnvironmentValues {
+    @Entry var showSidebar: ShowSidebarAction? = nil
 }
 #endif

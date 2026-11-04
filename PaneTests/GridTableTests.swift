@@ -203,8 +203,13 @@ import Testing
         #expect(wide.columnWidths(available: 340).reduce(0, +) > 340)
     }
 
-    @Test func aNarrowTableStretches() {
-        let widths = GridTable(rows: [["A", "B"]], range: NSRange(location: 0, length: 0), index: 0).columnWidths(available: 340)
-        #expect(abs(widths.reduce(0, +) - 340) < 0.5)
+    /// A short table keeps its own width, as in Notes and Obsidian; one that nearly fills the
+    /// width stretches to it, so its edge lines up with the text's (council round 2, 11-04).
+    @Test func aShortTableKeepsItsWidthAndANearlyFullOneStretches() {
+        let short = GridTable(rows: [["A", "B"]], range: NSRange(location: 0, length: 0), index: 0).columnWidths(available: 860)
+        #expect(short.reduce(0, +) < 300, "two short columns stay short: \(short)")
+        let near = GridTable(rows: [["A", "B"]], range: NSRange(location: 0, length: 0), index: 0)
+        let natural = near.columnWidths(available: 10_000).reduce(0, +)
+        #expect(abs(near.columnWidths(available: natural / 0.8).reduce(0, +) - natural / 0.8) < 0.5, "80% full: stretches")
     }
 }

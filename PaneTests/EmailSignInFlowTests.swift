@@ -306,14 +306,25 @@ import Testing
 
     /// The setup card asks a new email to create an account, not to sign in.
     @Test func theCardsHeadingFollowsANewEmail() {
-        #expect(SignInView.shortTitle("Sign in to Pinto.", step: .create) == "Create your Pinto account.")
-        #expect(SignInView.shortTitle("Sign in to Pinto.", step: .signIn(fallback: false)) == "Sign in to Pinto.")
-        #expect(SignInView.shortTitle("Sign in to Pinto.", step: .email) == "Sign in to Pinto.")
+        #expect(SignInView.shortTitle("Sign in to Pinto Notes", step: .create) == "Create your Pinto Notes account")
+        #expect(SignInView.shortTitle("Sign in to Pinto Notes", step: .signIn(fallback: false)) == "Sign in to Pinto Notes")
+        #expect(SignInView.shortTitle("Sign in to Pinto Notes", step: .email) == "Sign in to Pinto Notes")
+    }
+
+    /// A heading is a title, not a sentence: no full stop (council round 3, 11-04), and the card
+    /// says the app's whole name.
+    @Test func theSetupCardsHeadingIsATitle() throws {
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Pane/Views/SetupCards.swift"), encoding: .utf8)
+        #expect(src.contains("heading: .short(\"Sign in to Pinto Notes\")"))
+        #expect(!SignInView.shortTitle("Sign in to Pinto Notes", step: .create).hasSuffix("."))
     }
 
     /// The setup card lays out as a card on every step, the code step too: no welcome-sized gap.
     @Test func theCardStaysACardOnTheCodeStep() {
-        #expect(SignInView.isCard(.short("Sign in to Pinto.")))
+        #expect(SignInView.isCard(.short("Sign in to Pinto Notes")))
+        // The setup card says why to sign in, in one short line (council round 1, 11-04).
+        #expect(SignInView.shortLine.hasSuffix(".") && SignInView.shortLine.count < 80)
         #expect(!SignInView.isCard(.card))
         #expect(!SignInView.isCard(.beside(title: "Welcome", line: "")))
     }

@@ -3,9 +3,26 @@ import SwiftUI
 extension EnvironmentValues {
     /// Inside a Settings page that has its own title, so a page's first section needs none.
     @Entry var settingsAsPage = false
+    /// Mac: Settings fills a window of its own (SettingsWindow), not a sheet.
+    @Entry var settingsInWindow = false
 }
 
 #if os(macOS)
+/// Settings on the Mac is a window of its own, opened by ⌘, like Notes', Obsidian's and the
+/// system's (UI council, 11-04): the note stays in view and live beside it, so a theme, accent or
+/// text size is seen as it changes. A sheet hid the note and took the whole window.
+@MainActor enum SettingsWindow {
+    static let id = "settings"
+    /// The window's content size: the card's, the sidebar and one page column.
+    static let size = CGSize(width: 880, height: 600)
+    /// Room above the sidebar for the window's buttons (it runs to the top, like System Settings').
+    static let titleBar: CGFloat = 38
+    /// The title bar's safe area on a hidden-title-bar window.
+    static let titleBarInset: CGFloat = 32
+    /// Tests: how often it was asked to open. The test host makes no windows of its own.
+    static var opened = 0
+}
+
 /// Navigation uses this card's State storage, so an earlier callback reads the current path.
 /// Comparing the closure itself rebuilt the unchanged page on every search-field edit.
 struct OpenSettingsPlace: Equatable {
@@ -72,13 +89,14 @@ struct SettingsCard: View {
     @State private var parent: CGSize?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.networkReach) private var reach
+    @Environment(\.settingsInWindow) private var inWindow
     #if DEBUG
     @Environment(\.modelContext) private var context
     #endif
 
     /// The same card as Templates, so the two read as one kind of place.
     static let size = TemplateLibraryView.size
-    static let sidebarWidth: CGFloat = 232
+    static let sidebarWidth: CGFloat = 210
     /// Room around the card on a window smaller than it.
     static let margin: CGFloat = 24
     /// The content column's widest: the rows read as one column, centred in the page area, not a
@@ -118,7 +136,15 @@ struct SettingsCard: View {
         let _ = RenderProbe.count("SettingsCard", context: context)
         #endif
         Group {
-            if let close {
+            if inWindow {
+                // The whole window, title bar too: the window is its content plus the title bar's
+                // safe area, so the content asks for that much less and runs up under it.
+                card(framed: false)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .settingsProbe("card")
+                    .ignoresSafeArea()
+                    .frame(width: SettingsWindow.size.width, height: SettingsWindow.size.height - SettingsWindow.titleBarInset)
+            } else if let close {
                 GeometryReader { geo in
                     let fit = Self.fitted(geo.size)
                     card(framed: true)
@@ -221,7 +247,7 @@ struct SettingsCard: View {
         .overlay { if framed { shape.strokeBorder(SettingsInk.edge, lineWidth: 0.5) } }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Settings")
-        .accessibilityAddTraits(.isModal)
+        .accessibilityAddTraits(inWindow ? [] : .isModal)
     }
 
     /// The page's name over the left edge of its content, the one line on what it's for under it,
@@ -251,11 +277,15 @@ struct SettingsCard: View {
         .padding(.horizontal, Self.gutter)
         .overlay(alignment: .topTrailing) {
             // The cards' one close × (CardCloseButton), solid like the card (Emil, 2 November 2026).
-            CardCloseButton(size: 28, action: closeNow)
-                .accessibilityIdentifier("settings.done")
-                .padding(.trailing, 16)
+            // A window closes with its own button and ⌘W.
+            if !inWindow {
+                CardCloseButton(size: 28, action: closeNow)
+                    .accessibilityIdentifier("settings.done")
+                    .settingsProbe("close")
+                    .padding(.trailing, 16)
+            }
         }
-        .padding(.top, 18)
+        .padding(.top, inWindow ? SettingsWindow.titleBar : 18)
     }
 
     private var back: some View {
@@ -291,7 +321,7 @@ struct SettingsCard: View {
                 .padding(.horizontal, 8)
                 .accessibilityIdentifier("settings.version")
         }
-        .padding(.top, 18)
+        .padding(.top, inWindow ? SettingsWindow.titleBar + 8 : 18)
         .padding(.horizontal, 12)
         .padding(.bottom, 12)
     }
@@ -397,7 +427,7 @@ struct SettingsCard: View {
 }
 
 extension View {
-    /// Settings as a card over this window when it's asked for (⌘,, the account row, a link or a
+    /// Settings' window (SettingsWindow) when it's asked for (⌘,, the account row, a link or a
     /// card: SettingsRoute) and this is the window in front. `opening`: close what it replaces.
     func settingsCard(backend: Backend?, sync: SyncEngine?, route: SettingsRoute = .shared, opening: @escaping () -> Void = {}) -> some View {
         modifier(SettingsCardHost(backend: backend, sync: sync, route: route, opening: opening))
@@ -409,18 +439,11 @@ struct SettingsCardHost: ViewModifier {
     let sync: SyncEngine?
     let route: SettingsRoute
     let opening: () -> Void
-    @State private var showing = false
     @Environment(\.appearsActive) private var appearsActive
+    @Environment(\.openWindow) private var openWindow
 
     func body(content: Content) -> some View {
         content
-            // A sheet on this window (popupSheet): nothing behind it takes the mouse.
-            .sheet(isPresented: $showing) {
-                if let backend {
-                    SettingsView(backend: backend, sync: sync, route: route, close: nil)
-                        .popupSheet("settings")
-                }
-            }
             .onChange(of: route.presenting, initial: true) { take() }
             .onChange(of: appearsActive) { take() }
     }
@@ -428,12 +451,17 @@ struct SettingsCardHost: ViewModifier {
     /// The request, if this is the window in front (or no window is key, as at launch). A request
     /// no window takes is dropped after a moment (SettingsRoute.show).
     private func take() {
-        guard route.presenting, appearsActive || NSApp.keyWindow == nil else { return }
+        guard route.presenting, appearsActive || NSApp.keyWindow == nil || Self.settingsIsKey else { return }
         route.presenting = false
-        withAnimation(.snappy(duration: 0.2)) {
-            opening()
-            showing = true
-        }
+        opening()
+        // Its own window (SettingsWindow); one already open comes to the front at the page asked.
+        SettingsWindow.opened += 1
+        if !PaneApp.isUnitTestHost { openWindow(id: SettingsWindow.id) }
+    }
+
+    /// ⌘, or a link while Settings itself is in front: the request is still the notes window's.
+    private static var settingsIsKey: Bool {
+        NSApp.keyWindow?.identifier?.rawValue.hasPrefix(SettingsWindow.id) ?? false
     }
 }
 #endif

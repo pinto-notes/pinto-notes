@@ -77,6 +77,31 @@ import Testing
         #expect(SettingsIndex.matches("theme", available: [.account, .security]).isEmpty, "not when the page isn't there")
     }
 
+    #if os(macOS)
+    /// Note text size is on Appearance as well as in the View menu, and search finds it by the
+    /// words people use (council round 3, 11-04). Its line says how to get back to standard.
+    @Test func textSizeIsOnAppearance() throws {
+        let all = Set(SettingsPlace.allCases)
+        for word in ["text size", "font size", "bigger", "zoom"] {
+            #expect(SettingsIndex.matches(word, available: all).map(\.place).contains(.appearance), "\(word) finds Appearance")
+        }
+        // The theme pictures are drawn in the mode showing (dark Settings showed light windows).
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Pane/Views/SettingsPages.swift"), encoding: .utf8)
+        #expect(src.contains("ThemeWindowPicture(theme: t, dark: scheme == .dark)") && !src.contains("ThemeWindowPicture(theme: t, dark: false)"))
+        // Mode and Theme show their choice the same way: the ink ring, never one orange and one ink.
+        #expect(!src.contains("orange: true"), "one ring look on Appearance")
+        // A switch that's on, in the dark: its white knob stands out from the track (at least 3:1).
+        var lum: CGFloat = 0
+        NSAppearance(named: .darkAqua)!.performAsCurrentDrawingAppearance {
+            let c = NSColor(SettingsInk.switchOn).usingColorSpace(.sRGB)!
+            func lin(_ v: CGFloat) -> CGFloat { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+            lum = 0.2126 * lin(c.redComponent) + 0.7152 * lin(c.greenComponent) + 0.0722 * lin(c.blueComponent)
+        }
+        #expect(1.05 / (lum + 0.05) >= 3, "white knob on the dark track: \(1.05 / (lum + 0.05)):1")
+    }
+    #endif
+
     /// Every setting that existed before is in the index, so search finds it, on its page.
     @Test func searchFindsEverySettingByItsWords() {
         let all = Set(SettingsPlace.allCases)
@@ -116,6 +141,15 @@ import Testing
         #expect(SignInShown.label(email: "f7k6w27tsh@privaterelay.appleid.com", apple: false, google: false) == "Apple")
         #expect(SignInShown.label(email: "sara@gmail.com", apple: false, google: true) == "Google")
         #expect(SignInShown.label(email: "sara@example.com", apple: false, google: false) == "sara@example.com")
+    }
+
+    /// Settings' own window is sized to Settings, not to the template gallery (both judges, council
+    /// round 2, 11-04: "oversized, mostly empty"): the sidebar and one page column, no more.
+    @Test func theSettingsWindowFitsItsSidebarAndOnePage() {
+        let page = SettingsCard.pageWidth + 2 * SettingsCard.gutter
+        #expect(SettingsWindow.size.width - SettingsCard.sidebarWidth >= page, "a page's column fits beside the sidebar")
+        #expect(SettingsWindow.size.width - SettingsCard.sidebarWidth - page <= 40, "with little to spare")
+        #expect(SettingsWindow.size.width < SettingsCard.size.width && SettingsWindow.size.height < SettingsCard.size.height)
     }
 
     @Test func theCardIsNeverBiggerThanItsWindow() {
@@ -345,10 +379,16 @@ import Testing
             let page = try #require(f["page"], "\(place): the page reports its frame")
             let area = try #require(f["area"])
             let title = try #require(f["title"])
+            // A page taller than the window scrolls; with scroll bars always shown (a mouse, or
+            // the setting) the bar takes its width from the column's room (Appearance and Privacy
+            // after the text size row, 11-04). With overlay scroll bars it takes nothing.
+            let bar: CGFloat = page.maxY > area.maxY && NSScroller.preferredScrollerStyle == .legacy
+                ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0
+            let room = CGRect(x: area.minX, y: area.minY, width: area.width - bar, height: area.height)
             #expect(page.width <= SettingsCard.pageWidth + 0.5, "\(place): the column is capped at \(SettingsCard.pageWidth), was \(page.width)")
-            #expect(abs(page.width - min(SettingsCard.pageWidth, area.width - 2 * SettingsCard.gutter)) < 0.5, "\(place): as wide as the cap or the room allows")
-            #expect(abs(page.midX - area.midX) < 0.5, "\(place): centred, page \(page) in area \(area)")
-            #expect(abs(title.minX - (page.minX + SettingsCard.pageInset)) < 0.5, "\(place): the title starts at the content's edge: \(title.minX) vs \(page.minX + SettingsCard.pageInset)")
+            #expect(abs(page.width - min(SettingsCard.pageWidth, room.width - 2 * SettingsCard.gutter)) < 0.5, "\(place): as wide as the cap or the room allows")
+            #expect(abs(page.midX - room.midX) < 0.5, "\(place): centred, page \(page) in area \(room)")
+            #expect(abs(title.minX - (page.minX + SettingsCard.pageInset)) <= bar / 2 + 0.5, "\(place): the title starts at the content's edge: \(title.minX) vs \(page.minX + SettingsCard.pageInset)")
         }
         #expect(SettingsCard.contentWidth >= 560 && SettingsCard.contentWidth <= 620)
     }

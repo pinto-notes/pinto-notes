@@ -133,7 +133,9 @@ struct GridTable: Equatable {
     /// font came out narrower than the drawn text, and a tight table cut its dates ("2026-10-…").
     static var cellFont: PFont { PFont.monospacedDigitSystemFont(ofSize: EditorMetrics.body, weight: .regular) }
 
-    /// Widths that fit each column's text, stretched to fill `available`. A table a little too
+    /// Widths that fit each column's text, as in Notes and Obsidian: a table whose text fills most
+    /// of the width (70%) stretches to it, a short one keeps its own width (council round 2, 11-04:
+    /// two short columns ran 860 pt wide with the sidebar hidden). A table a little too
     /// wide gives up spare room around its text first (down to the cell's own insets), so a
     /// four-column log fits an iPhone instead of cutting its last column.
     func columnWidths(available: CGFloat) -> [CGFloat] {
@@ -148,7 +150,7 @@ struct GridTable: Equatable {
         let widest = max(280, 280 * EditorMetrics.body / 17)
         var natural = longest.map { min(max($0 + 24, 64), widest) }
         let total = natural.reduce(0, +)
-        if total < available, total > 0 {
+        if total < available, total >= available * 0.7 {
             natural = natural.map { $0 * available / total }
         } else if total > available {
             // The text plus the cells' 8-point insets either side.
@@ -208,7 +210,8 @@ enum GridMetrics {
     #if os(iOS)
     static var row: CGFloat { max(44, ceil(EditorMetrics.body * 44 / 17)) }
     #else
-    static var row: CGFloat { max(32, ceil(EditorMetrics.body * 32 / 17)) }
+    // 32 pt at the Mac's 13 pt, growing with View › Bigger (it stayed 32 at 16 pt).
+    static var row: CGFloat { max(32, ceil(EditorMetrics.body * 2.4)) }
     #endif
     static let handle: CGFloat = 16
     /// The strips right of and below a table for its add bars (they show while a cell is being
@@ -870,7 +873,8 @@ struct TableGridView: View {
             // which keeps big tables quick to open. A click edits, caret where you clicked.
             let value = r < draft.rows.count && c < draft.rows[r].count ? draft.rows[r][c] : ""
             Text(value.isEmpty ? AttributedString(" ") : CellText.attributed(value))
-                .font(.system(size: EditorMetrics.body))
+                // The header row a weight up, as in Notes and Obsidian.
+                .font(.system(size: EditorMetrics.body, weight: r == 0 ? .semibold : .regular))
                 .monospacedDigit()
                 .lineLimit(1)
                 .accessibilityAddTraits(.isButton)

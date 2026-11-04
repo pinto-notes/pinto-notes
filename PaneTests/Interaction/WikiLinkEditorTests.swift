@@ -47,12 +47,21 @@ import Testing
         #expect(LinkPolicy.action(for: storage.attribute(.link, at: shown.location, effectiveRange: nil) as Any) == .wiki("Projects/Kitchen remodel"))
         #expect(color(h, at: "the kitchen") == IncrementalStyleTests.resolve(PColor.paneLinkText))
         #expect(color(h, at: "Reading list") == IncrementalStyleTests.resolve(PColor.paneLinkText))
-        #expect(color(h, at: "Someday") == IncrementalStyleTests.resolve(PColor.paneAccentFaded), "a note that doesn't exist yet is fainter")
+        func dotted(_ s: String) -> Bool {
+            (storage.attribute(.underlineStyle, at: range(s, in: h).location, effectiveRange: nil) as? Int) == NSUnderlineStyle([.single, .patternDot]).rawValue
+        }
+        #expect(color(h, at: "Someday") == IncrementalStyleTests.resolve(PColor.paneLinkText), "a note that doesn't exist yet keeps the readable ink")
+        #expect(dotted("Someday") && !dotted("Reading list"), "and shows it with a dotted underline")
+        func solid(_ s: String) -> Bool {
+            (storage.attribute(.underlineStyle, at: range(s, in: h).location, effectiveRange: nil) as? Int) == NSUnderlineStyle.single.rawValue
+        }
+        #expect(solid("Reading list") && solid("the kitchen"), "a link that goes somewhere has a solid underline, not colour alone")
 
         // The note gets made: the link fills in without reopening.
         h.view.setWiki(Self.scope(2, titles: ["Kitchen remodel", "Reading list", "Someday"]))
         await h.settle()
         #expect(color(h, at: "Someday") == IncrementalStyleTests.resolve(PColor.paneLinkText))
+        #expect(!dotted("Someday") && solid("Someday"), "its dotted line turns solid once the note exists")
         await h.snapshot("wiki-links-light")
     }
 

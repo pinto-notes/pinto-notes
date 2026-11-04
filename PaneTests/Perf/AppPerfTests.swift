@@ -333,6 +333,18 @@ extension AppPerfTests {
         #expect(!ShowsSelectedRow.needsReveal(CGRect(x: 0, y: 200, width: 300, height: 90), shown: shown), "in view: stays")
         #expect(ShowsSelectedRow.needsReveal(CGRect(x: 0, y: 650, width: 300, height: 90), shown: shown), "cut off at the foot (Lisbon on the Air, 11-04)")
         #expect(ShowsSelectedRow.needsReveal(CGRect(x: 0, y: 60, width: 300, height: 90), shown: shown), "under the toolbar")
+
+        // Where it scrolls to is on a row's edge: no half row under the pinned "Today" (council
+        // round 2, 11-04). A 40 pt heading, three 91 pt rows, the next heading; 52 pt toolbar.
+        func r(_ y: CGFloat, _ h: CGFloat) -> CGRect { CGRect(x: 0, y: y, width: 300, height: h) }
+        let rows = [r(0, 40), r(40, 91), r(131, 91), r(222, 91), r(313, 40), r(353, 91)]
+        let heads = [true, false, false, false, true, false]
+        let y1 = ShowsSelectedRow.snapped(60, topInset: 52, rows: rows, headings: heads, band: 40)
+        #expect(y1 == 39, "the row under the heading starts at its foot: \(y1)")
+        #expect(y1 + 52 + 40 == rows[2].minY)
+        #expect(ShowsSelectedRow.snapped(270, topInset: 52, rows: rows, headings: heads, band: 40) == 261, "a heading at the top shows whole")
+        #expect(ShowsSelectedRow.snapped(238, topInset: 52, rows: rows, headings: heads, band: 40) == 261, "the next heading takes the top rather than a sliver of row")
+        #expect(ShowsSelectedRow.snapped(-52, topInset: 52, rows: rows, headings: heads, band: 40) == -52, "the list's top stays")
     }
 
     /// All Notes built new (back from a folder) with an old note open, far down 20,000 rows: the

@@ -27,6 +27,30 @@ import AppKit
         try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     }
 
+    #if os(macOS)
+    /// The AI Changes window: Return opens the note, never undoes (a stray Return while reading
+    /// changed the note, council 11-04), and the summary has room to say what the AI did.
+    @Test func returnOpensTheNoteAndUndoIsAClickOfItsOwn() throws {
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Pane/Views/AIChangesView.swift"), encoding: .utf8)
+        let bar = try #require(src.range(of: "private var bar: some View").map { String(src[$0.lowerBound...].prefix(2200)) })
+        let undo = try #require(bar.range(of: "Button(\"Undo This Change\")"))
+        let open = try #require(bar.range(of: "Button(\"Open Note\")"))
+        let undoPart = String(bar[undo.lowerBound..<open.lowerBound])
+        let openPart = String(bar[open.lowerBound...].prefix(400))
+        #expect(!undoPart.contains(".defaultAction"), "Undo is never the Return button")
+        #expect(openPart.contains(".keyboardShortcut(.defaultAction)"), "Return opens the note")
+        let detail = try #require(src.range(of: "private var detail: some View").map { String(src[$0.lowerBound...].prefix(1400)) })
+        #expect(detail.contains("Text(model.summary(c))") && detail.contains(".lineLimit(2)"), "the summary has its own two lines")
+        // And in the list, before a change is picked: its own two lines, the byline without it.
+        let row = try #require(src.range(of: "struct AIChangeRow").map { String(src[$0.lowerBound...].prefix(2600)) })
+        #expect(row.contains("Text(model.summary(change)).font(summaryFont).lineLimit(2)"))
+        #expect(row.contains("var parts = [change.ai, VersionHistoryModel.time(change.at)]"), "the byline is who and when")
+        #expect(row.contains("private let lineFont = Font.system(size: 12)"), "who and when at 12 pt, read before Undo (round 4)")
+        #expect(!src.contains("windowBackgroundColor"), "the list and the bar on the note's ground, not a grey beside black")
+    }
+    #endif
+
     // MARK: What stays, and for how long
 
     @Test func anAIsTextEditStaysUntilYouEditTheAppMomentsDont() {

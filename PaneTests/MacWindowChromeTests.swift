@@ -99,31 +99,38 @@ import Testing
         #expect(forward.lowerBound < anchor.lowerBound && anchor.lowerBound < tools.lowerBound, "the empty anchor item sits between back and forward and the tools")
     }
 
-    /// There is no sidebar-hidden state (Emil, 11-01): Toggle Sidebar (⌃⌘S) does nothing, and the
-    /// window can't get narrower than the three columns, so it never folds away.
-    @Test func nothingHidesTheSidebar() async throws {
+    /// The sidebar hides and comes back, as in Notes (Emil, 11-04; it was pinned 11-01): Toggle
+    /// Sidebar (⌃⌘S, View › Hide Sidebar and the toolbar button) folds it away and back.
+    @Test func toggleSidebarHidesAndShowsTheSidebar() async throws {
         let c = try AppSnapshotTests.container()
-        try await AppSnapshotTests.withLastNote(c, "Groceries") {
-            let w = Self.window(c, size: CGSize(width: 700, height: 600))
-            defer { w.close() }
-            await Self.settle(w)
-            let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
-            let sidebar = try #require(split.arrangedSubviews.first)
-            #expect(!sidebar.isHidden && !split.isSubviewCollapsed(sidebar) && sidebar.frame.width >= 200,
-                    "asked for 700 pt, the window keeps the sidebar: \(Int(w.frame.width)) pt, sidebar \(Int(sidebar.frame.width))")
-        }
-        // ⌃⌘S, the split view's own Toggle Sidebar, does nothing.
         let w = Self.window(c, size: CGSize(width: 1180, height: 760))
         defer { w.close() }
         await Self.settle(w)
         let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
         let sidebar = try #require(split.arrangedSubviews.first)
         let controller = try #require(split.delegate as? NSSplitViewController)
-        #expect(controller.splitViewItems.first?.canCollapse == false, "the sidebar can't collapse")
+        #expect(controller.splitViewItems.first?.canCollapse == true)
+        #expect(!split.isSubviewCollapsed(sidebar) && sidebar.frame.width >= 200, "it starts shown")
+        let list = split.arrangedSubviews[1].frame.width
         controller.toggleSidebar(nil)
-        await Self.settle(w, 15)
-        #expect(!sidebar.isHidden && !split.isSubviewCollapsed(sidebar) && sidebar.frame.width >= 200,
-                "Toggle Sidebar leaves it: \(Int(sidebar.frame.width)) pt, collapsed \(split.isSubviewCollapsed(sidebar))")
+        await Self.settle(w, 30)
+        #expect(controller.splitViewItems.first?.isCollapsed == true, "Toggle Sidebar hides it")
+        controller.toggleSidebar(nil)
+        await Self.settle(w, 30)
+        #expect(controller.splitViewItems.first?.isCollapsed == false && sidebar.frame.width >= 200, "and brings it back")
+        // The list comes back as wide as it was, not at the 350 pt it's held at while the sidebar
+        // is hidden (council round 3, 11-04).
+        #expect(abs(split.arrangedSubviews[1].frame.width - list) <= 1, "the list keeps its width: \(list) then \(split.arrangedSubviews[1].frame.width)")
+
+    }
+
+    /// The list's width is what you see of it. On macOS 26 its view runs on under the floating
+    /// sidebar: on the Air (council round 5, 11-04) a 260 pt list had a 520 pt frame, and the list
+    /// came back 100 pt too wide after Show Sidebar.
+    @Test func theListsWidthIsWhatShowsBesideTheSidebar() {
+        let sidebar = CGRect(x: 0, y: 0, width: 260, height: 800)
+        #expect(ListWidthKeeper.Probe.shownWidth(sidebar: sidebar, list: CGRect(x: 0, y: 0, width: 520, height: 800)) == 260, "under the sidebar (macOS 26)")
+        #expect(ListWidthKeeper.Probe.shownWidth(sidebar: sidebar, list: CGRect(x: 261, y: 0, width: 260, height: 800)) == 261, "beside it, with the divider")
     }
 
     /// The sidebar's top, left to right: New Folder, Today, Search, all over the sidebar, in the
@@ -131,6 +138,7 @@ import Testing
     static func expectSidebarButtons(_ w: NSWindow, _ items: [(label: String, column: Int, frame: CGRect)]) throws {
         let sidebar = items.filter { $0.column == 0 }
         #expect(sidebar.map(\.label) == ["New Folder", "Today\u{2019}s note", "Search"], "New Folder, Today, Search over the sidebar: \(sidebar.map(\.label))")
+        #expect(!items.contains { $0.label == "Show Sidebar" }, "no Show Sidebar while it shows")
         let frames = sidebar.map(\.frame).sorted { $0.minX < $1.minX }
         #expect(sidebar.map(\.frame) == frames, "in that order, left to right")
         for (a, b) in zip(frames, frames.dropFirst()) { #expect(a.maxX <= b.minX, "not overlapping") }
@@ -230,8 +238,10 @@ import Testing
             let search = items.filter { $0.label == "Search" }
             #expect(search.count == 1, "one Search button")
             let more = try #require(items.first { $0.label == "More" })
-            let buttons = ["New Folder", "Today\u{2019}s note", "Search"].compactMap { l in items.first { $0.label == l } }
-            #expect(buttons.count == 3, "New Folder, Today and Search stay")
+            let buttons = ["Show Sidebar", "Today\u{2019}s note", "Search"].compactMap { l in items.first { $0.label == l } }
+            #expect(buttons.count == 3, "Show Sidebar in New Folder's place, then Today and Search (council round 4): \(items.map(\.label))")
+            #expect(!items.contains { $0.label == "New Folder" }, "a folder made with the sidebar hidden can't be seen; File › New Folder stays")
+            #expect(zip(buttons, buttons.dropFirst()).allSatisfy { $0.frame.maxX <= $1.frame.minX }, "in that order, not overlapping")
             #expect(buttons.allSatisfy { $0.frame.maxX < more.frame.minX }, "before the list's More")
             if let last = buttons.last { print("PERF sidebar hidden: its buttons end at \(Int(last.frame.maxX)) pt; windowButtons is \(Int(NoteListView.windowButtons))") }
             try Self.expectListHeader(w, items)

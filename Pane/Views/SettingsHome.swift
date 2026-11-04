@@ -131,6 +131,14 @@ enum SettingsIndex {
            Entry(label: "Report an Issue", place: .account, also: ["Bug"], menu: .reportIssue),
            Entry(label: "Pinto Notes on GitHub", place: .account, also: ["Contribute", "Star", "Open source"], menu: .github),
            Entry(label: "Help Connecting an AI", place: .ai, also: ["Having trouble", "Connector address", "Access token"], menu: .connectHelp)]
+        + macOnly
+
+    /// The Mac's own settings: View › Bigger's size is on Appearance there.
+    #if os(macOS)
+    static let macOnly = [Entry(label: "Text size", place: .appearance, also: ["Font size", "Bigger", "Smaller", "Zoom", "Larger text"])]
+    #else
+    static let macOnly: [Entry] = []
+    #endif
 
     static let advancedProtection = "Advanced protection"
     /// Only for an account offered a recovery key (RecoveryKeyOffer): signing in opens a standard account's notes.

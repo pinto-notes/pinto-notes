@@ -147,13 +147,21 @@ struct SignInView: View {
             case .short(let title):
                 VStack(spacing: 12) {
                     AppMark(size: 44)
-                    Text(title)
-                        .font(.system(size: 19, weight: .bold))
-                        .tracking(-0.2)
-                        .foregroundStyle(Color.ink)
-                        .multilineTextAlignment(.center)
-                        .accessibilityAddTraits(.isHeader)
-                        .accessibilityIdentifier("signin.title")
+                    VStack(spacing: 6) {
+                        Text(title)
+                            .font(.system(size: 19, weight: .bold))
+                            .tracking(-0.2)
+                            .foregroundStyle(Color.ink)
+                            .multilineTextAlignment(.center)
+                            .accessibilityAddTraits(.isHeader)
+                            .accessibilityIdentifier("signin.title")
+                        Text(Self.shortLine)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.muted)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("signin.line")
+                    }
                 }
             }
 
@@ -210,8 +218,9 @@ struct SignInView: View {
 
             ConsentFooter()
         }
-        .animation(.snappy(duration: 0.2), value: error)
-        .animation(.snappy(duration: 0.2), value: codeNotice)
+        // Reduce Motion: things appear in place, nothing slides or grows (council round 3, 11-04).
+        .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: error)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: codeNotice)
         .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: flow.step)
         // Once the password field is there (focusing it in the same update as it appears is
         // lost, and a paste then lands on the email row).
@@ -241,11 +250,15 @@ struct SignInView: View {
         }
     }
 
-    /// The setup card's one-line heading: "Create your Pinto account." once the email turns out
+    /// The setup card's one-line heading: "Create your Pinto Notes account" once the email turns out
     /// to be new, so the card doesn't ask a new person to sign in (Emil, 2 November 2026).
     static func shortTitle(_ title: String, step: EmailSignInFlow.Step) -> String {
-        step == .create ? "Create your Pinto account." : title
+        step == .create ? "Create your Pinto Notes account" : title
     }
+
+    /// Under the setup card's title: why to sign in, in one line (council round 1, 11-04: the card
+    /// asked for an account without saying what it gives).
+    static let shortLine = "Your notes on every device, and in ChatGPT or Claude when you want."
 
     static let passwordRuleText = "At least \(EmailSignInFlow.minimumPassword) characters"
 

@@ -265,6 +265,7 @@ struct AccountSettingsPage: View {
 struct AppearanceSettingsPage: View {
     @State private var mode = AppearanceModeStore.shared
     @AppStorage(MenuBarSettings.key) private var menuBar = true
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let look = ThemeStore.shared.look
@@ -272,7 +273,7 @@ struct AppearanceSettingsPage: View {
             SettingsGroup(header: "Mode") {
                 HStack(spacing: 14) {
                     ForEach(AppearanceMode.allCases) { m in
-                        WindowChoice(title: m.title, selected: mode.mode == m, orange: true, height: 74, id: "settings.mode.\(m.rawValue)") {
+                        WindowChoice(title: m.title, selected: mode.mode == m, orange: false, height: 74, id: "settings.mode.\(m.rawValue)") {
                             ModePicture(mode: m, theme: look.theme)
                         } pick: { mode.mode = m }
                     }
@@ -285,7 +286,8 @@ struct AppearanceSettingsPage: View {
                 HStack(spacing: 10) {
                     ForEach(Theme.allCases) { t in
                         WindowChoice(title: t.title, selected: look.theme == t, orange: false, height: 46, id: "settings.theme.\(t.rawValue)") {
-                            ThemeWindowPicture(theme: t, dark: false)
+                            // In the mode showing now: dark Settings showed six light windows.
+                            ThemeWindowPicture(theme: t, dark: scheme == .dark)
                         } pick: { ThemeStore.shared.theme = t }
                     }
                 }

@@ -241,10 +241,8 @@ struct PaneApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             PaneCommands()
-            // Edit › Find, Spelling and Substitutions. No View › Hide Sidebar: the sidebar is always
-            // there (Emil, 11-01). The window can't get narrower than the three columns either.
+            // Edit › Find, Spelling and Substitutions. View › Hide Sidebar is PaneCommands' own.
             TextEditingCommands()
-            CommandGroup(replacing: .sidebar) {}
             #if SPARKLE
             UpdaterCommands()
             #endif
@@ -272,7 +270,20 @@ struct PaneApp: App {
         .restorationBehavior(.disabled)
         .windowToolbarStyle(.unified)
 
-        // Settings is a card over the notes window (RootView), not a window of its own.
+        // Settings: a window of its own, opened by ⌘, and links into it (SettingsWindow).
+        Window("Settings", id: SettingsWindow.id) {
+            if !Self.isUnitTestHost {
+                SettingsView(backend: backend, sync: sync)
+                    .environment(\.settingsInWindow, true)
+                    .modifier(SideWindow(backend: backend, sync: sync))
+            }
+        }
+        .modelContainer(container)
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+        .restorationBehavior(.disabled)
+        .commandsRemoved()
 
         MenuBarItem(backend: backend, sync: sync, container: container)
         #endif

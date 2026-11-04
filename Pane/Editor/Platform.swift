@@ -57,13 +57,14 @@ extension PColor {
 #endif
 
 extension PColor {
-    /// An empty checklist circle: Notes' light grey ring (systemGray3), a touch lighter than secondary text.
+    /// An empty checklist circle: a step darker than Notes' systemGray3 (council round 1, 11-04: the
+    /// ring read 1.7:1 on white, under the 3:1 a control needs), still lighter than secondary text.
     static var paneCheckRing: PColor {
         #if os(iOS)
         // The welcome note's ring: the muted brown-grey, faint.
         Palette.pair(0x74604C, 0.45, 0xBCB0A3, 0.45)
         #else
-        NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.36, alpha: 1) : NSColor(white: 0.77, alpha: 1) }
+        NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.45, alpha: 1) : NSColor(white: 0.58, alpha: 1) }
         #endif
     }
 
@@ -114,7 +115,8 @@ enum EditorMetrics {
         }
         return (base * scale).rounded()
     }
-    static var lineSpacing: CGFloat { 1.5 * scale }
+    /// 3 pt between lines at 13 pt (Notes' 1.5 read tight on long notes: council round 1, 11-04).
+    static var lineSpacing: CGFloat { 3 * scale }
     #endif
     static var gutter: CGFloat { body * 1.6 }
     // Checklists, measured from Apple Notes (.shots/checklist/reference.md), as ratios of the body size.

@@ -2232,6 +2232,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         if let tlm = textLayoutManager { tlm.invalidateLayout(for: tlm.documentRange) }
         setInsets(width: frame.width)
         placeFoot()
+        // Cards draw their text at the size they were given: forget it, so each table and card
+        // gets its content again at the new size.
+        cardContent.removeAll()
         queueCardLayout(animated: false)
         needsDisplay = true
     }
@@ -3346,22 +3349,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             if event.clickCount == 1, selectedRange().length == 0, !onLink(at: p) { controller?.askToRecover() }
             return
         }
-        if let line = target, let edit = ListEditing.toggleCheckbox(in: string, lineStart: line) {
-            // The circle's place before the edit: right after it, TextKit may not have placed the
-            // line again yet, and the pop landed a row or two higher, over the heading.
-            let circle = core.checkboxRect(line: line, layout: textLayoutManager)
-            let keep = selectedRange()
-            asOneStep { apply(edit) }
-            setSelectedRange(keep)
-            if edit.replacement == "x", let r = circle, let host = layer {
-                // In this view's light or dark, so the pop is the colour of the circle it lands on.
-                effectiveAppearance.performAsCurrentDrawingAppearance {
-                    CheckPop.play(in: host, rect: r.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
-                }
-            }
-            if controller?.sortsTickedItems != false { core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) } }
-            return
-        }
+        if let line = target, tick(line: line) { return }
         if event.clickCount == 1, let icon = calloutIcon(at: point) {
             showCalloutMenu(line: icon.line, rect: icon.rect.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
             return
@@ -3371,6 +3359,64 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             return
         }
         super.mouseDown(with: event)
+    }
+
+    /// Ticks or unticks the checklist item on the line starting at `line`, as a click on its circle
+    /// does: one undo step, the caret where it was, the pop, and the sort a moment later. Also
+    /// VoiceOver's press on the item's checkbox (ChecklistCheckbox). False if it isn't one.
+    @discardableResult
+    func tick(line: Int) -> Bool {
+        guard controller?.readOnly != true, let edit = ListEditing.toggleCheckbox(in: string, lineStart: line) else { return false }
+        // The circle's place before the edit: right after it, TextKit may not have placed the
+        // line again yet, and the pop landed a row or two higher, over the heading.
+        let circle = core.checkboxRect(line: line, layout: textLayoutManager)
+        let keep = selectedRange()
+        asOneStep { apply(edit) }
+        setSelectedRange(keep)
+        if edit.replacement == "x", let r = circle, let host = layer {
+            // In this view's light or dark, so the pop is the colour of the circle it lands on.
+            effectiveAppearance.performAsCurrentDrawingAppearance {
+                CheckPop.play(in: host, rect: r.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
+            }
+        }
+        if controller?.sortsTickedItems != false { core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) } }
+        NSAccessibility.post(element: self, notification: .valueChanged)
+        return true
+    }
+
+    // MARK: Checklists for VoiceOver
+
+    /// The text's own children, then a checkbox for each checklist item drawn as one, as Notes
+    /// gives them (council rounds 2 and 3, 11-04: the circles were drawn, the hidden "- [ ]" was
+    /// all VoiceOver had). Each says its item, whether it's ticked, and ticks on a press.
+    override func accessibilityChildren() -> [Any]? {
+        (super.accessibilityChildren() ?? []) + checklistCheckboxes()
+    }
+
+    /// Checkboxes for the note's checklist items, in order (the first 300).
+    func checklistCheckboxes() -> [ChecklistCheckbox] {
+        let ns = string as NSString
+        var found: [ChecklistCheckbox] = []
+        var at = 0
+        while at < ns.length, found.count < 300 {
+            let range = ns.lineRange(for: NSRange(location: at, length: 0))
+            let line = ns.substring(with: range)
+            if let list = ListPrefix(line: line), let checked = list.checkbox,
+               core.checkboxRect(line: range.location, layout: textLayoutManager) != nil {
+                let item = (line as NSString).substring(from: min(list.length, (line as NSString).length))
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                found.append(ChecklistCheckbox(view: self, line: range.location, label: item, checked: checked))
+            }
+            at = NSMaxRange(range)
+        }
+        return found
+    }
+
+    /// The circle of the checklist item on `line`, in screen coordinates.
+    func checkboxScreenFrame(line: Int) -> CGRect {
+        guard let r = core.checkboxRect(line: line, layout: textLayoutManager), let window else { return .zero }
+        let inView = r.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
+        return window.convertToScreen(convert(inView, to: nil))
     }
 
     /// The date chip under a point of the text container: its rect there and its characters.
@@ -3526,5 +3572,31 @@ private final class CentredCell: NSTextFieldCell {
         let h = cellSize(forBounds: rect).height
         return NSRect(x: r.minX, y: rect.minY + (rect.height - h) / 2, width: r.width, height: h)
     }
+}
+#endif
+
+#if os(macOS)
+/// One checklist item as VoiceOver hears it: "Book flights, checkbox, ticked". A press ticks or
+/// unticks it without moving the caret (PaneTextView.tick).
+final class ChecklistCheckbox: NSAccessibilityElement {
+    private weak var view: PaneTextView?
+    let line: Int
+    let checked: Bool
+
+    init(view: PaneTextView, line: Int, label: String, checked: Bool) {
+        self.view = view
+        self.line = line
+        self.checked = checked
+        super.init()
+        setAccessibilityRole(.checkBox)
+        setAccessibilityLabel(label)
+        setAccessibilityParent(view)
+        setAccessibilityIdentifier("editor.checkbox")
+    }
+
+    override func accessibilityValue() -> Any? { NSNumber(value: checked ? 1 : 0) }
+    override func accessibilityFrame() -> NSRect { view?.checkboxScreenFrame(line: line) ?? .zero }
+    override func isAccessibilityEnabled() -> Bool { true }
+    override func accessibilityPerformPress() -> Bool { view?.tick(line: line) ?? false }
 }
 #endif

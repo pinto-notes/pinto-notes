@@ -665,7 +665,7 @@ struct SetupSignInCard: View {
 
     var body: some View {
         SetupCard(card: .signIn) {
-            SignInView(backend: backend, heading: .short("Sign in to Pinto."))
+            SignInView(backend: backend, heading: .short("Sign in to Pinto Notes"))
         }
     }
 }

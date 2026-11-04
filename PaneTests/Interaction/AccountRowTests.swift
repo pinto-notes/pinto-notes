@@ -14,6 +14,11 @@ import Testing
     @MainActor final class Host {
         let window: NSWindow
         let container: ModelContainer
+        let backend: Backend
+        /// Settings' own window, as PaneApp's scene shows it (settingsWindow()), offscreen.
+        private(set) var settings: NSWindow?
+        /// Settings' parts as laid out in that window (settingsProbe).
+        var settingsFrames: [String: CGRect] = [:]
 
         init(nested: Bool = false, foldersLater: Bool = false, behindCard: Bool = false, rows: Bool = false) async throws {
             container = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
@@ -28,6 +33,7 @@ import Testing
             }
             try ctx.save()
             let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com", userID: UUID())
+            self.backend = backend
             ProfileStore.shared.showForPreview(name: "Emil Wagman", photo: nil)
             let notes = RootView()
                 .environment(backend)
@@ -54,12 +60,29 @@ import Testing
 
         func settle() async {
             for _ in 0..<8 {
-                for w in [window] { w.contentView?.layoutSubtreeIfNeeded(); w.displayIfNeeded() }
+                for w in [window] + [settings].compactMap({ $0 }) { w.contentView?.layoutSubtreeIfNeeded(); w.displayIfNeeded() }
                 try? await Task.sleep(for: .milliseconds(150))
             }
         }
 
+        /// What PaneApp's Settings scene puts in its window (the test host makes none of its own).
+        func settingsWindow() async {
+            let view = SettingsView(backend: backend, sync: nil)
+                .environment(\.settingsInWindow, true)
+                .environment(\.settingsLayoutProbe, { [weak self] name, rect in self?.settingsFrames[name] = rect })
+                .environment(backend)
+                .modelContainer(container)
+            let w = NSWindow(contentRect: NSRect(x: -30000, y: -30000, width: SettingsWindow.size.width, height: SettingsWindow.size.height),
+                             styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+            w.isReleasedWhenClosed = false
+            w.contentViewController = NSHostingController(rootView: view)
+            w.setFrameOrigin(CGPoint(x: -30000, y: -30000))
+            settings = w
+            await settle()
+        }
+
         func close() {
+            settings?.close()
             window.close()
             SheetProbe.last = nil
             ProfileStore.shared.showForPreview(name: nil, photo: nil)
@@ -88,7 +111,7 @@ import Testing
                 }
                 return nil
             }
-            let roots: [NSView] = [window.contentView].compactMap { $0 }
+            let roots: [NSView] = [window.contentView, settings?.contentView].compactMap { $0 }
             for r in roots { if let f = search(r, depth: 0) { return f } }
             return nil
         }
@@ -175,13 +198,13 @@ import Testing
     /// folders behind them, the note's text cursor showed over them). Each is a sheet on the notes
     /// window, as Mac apps do it (Emil, 11-03: an overlay window of our own got the window's
     /// corners and buttons wrong): macOS keeps the mouse from the window behind a sheet.
-    @Test(arguments: ["setup", "settings", "templates", "import", "connect"])
+    /// Settings is not one of them: it's a window of its own (openingSettingsIsAWindowOfItsOwn).
+    @Test(arguments: ["setup", "templates", "import", "connect"])
     func everyPopupIsASheetOnTheNotes(_ kind: String) async throws {
         let host = try await Host(behindCard: kind == "setup")
         defer { host.close(); SettingsRoute.shared.page = nil }
         #expect(kind == "setup" || host.popup == nil, "no popup until one is asked for")
         switch kind {
-        case "settings": AccountButton.open()
         case "templates": NotificationCenter.default.post(name: .paneTemplates, object: nil)
         case "import": NotificationCenter.default.post(name: .paneImportNotes, object: nil)
         case "connect": NotificationCenter.default.post(name: .paneConnectAI, object: nil)
@@ -274,18 +297,24 @@ import Testing
     }
 
     /// Opening Settings from the account row leaves the notes window as it was: the same columns,
-    /// the same toolbar. (An older sheet's `.toolbar(.hidden)` once hid the window's toolbar.)
-    /// Settings shows as a sheet at its first page, and links open theirs in it.
-    @Test func openingSettingsKeepsTheWindowAsItWas() async throws {
+    /// the same toolbar, nothing over the note. (An older sheet's `.toolbar(.hidden)` once hid the
+    /// window's toolbar.) Settings is a window of its own (UI council, 11-04, as Notes and Obsidian
+    /// do it) at its first page, and links open theirs in it.
+    @Test func openingSettingsIsAWindowOfItsOwn() async throws {
         let host = try await Host()
         defer { host.close(); SettingsRoute.shared.page = nil }
         let columns = host.columns, toolbar = host.toolbar
         #expect(columns.count == 3 && !toolbar.isEmpty)
+        let opened = SettingsWindow.opened
         AccountButton.open()
         await host.settle()
         #expect(!SettingsRoute.shared.presenting, "the notes window took it")
-        #expect(SettingsRoute.shared.page == .account, "the card shows, at its first page: Account")
-        #expect(host.popup == "settings", "a sheet on the notes window")
+        #expect(SettingsWindow.opened == opened + 1, "it asked for Settings' window")
+        #expect(host.popup == nil && (host.window.attachedSheet == nil), "no sheet over the note")
+        await host.settingsWindow()
+        #expect(SettingsRoute.shared.page == .account, "Settings shows at its first page: Account")
+        #expect(host.settingsFrames["card"]?.size == SettingsWindow.size, "Settings fills its window: \(host.settingsFrames)")
+        #expect(host.settingsFrames["title"] != nil && host.settingsFrames["close"] == nil, "the window's own buttons close it, no × of ours")
         #expect(host.columns == columns, "the columns keep their widths")
         #expect(host.toolbar == toolbar, "the toolbar keeps its items")
         // Links into Settings open their page in the card.

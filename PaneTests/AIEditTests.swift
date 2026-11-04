@@ -235,6 +235,18 @@ import SwiftUI
     }
 
     /// With Reduce Motion the receipt fades in place instead of rising from the bottom.
+    /// A card pressed with Reduce Motion only dims; it doesn't shrink (council round 3, 11-04).
+    /// The sign-in card's error and code notice appear in place too.
+    @Test func cardsDontMoveWithReduceMotion() throws {
+        #expect(CardPress.scale(pressed: true, reduceMotion: false) < 1)
+        #expect(CardPress.scale(pressed: true, reduceMotion: true) == 1)
+        #expect(CardPress.scale(pressed: false, reduceMotion: false) == 1)
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Pane/Views/SignInView.swift"), encoding: .utf8)
+        #expect(!src.contains(".animation(.snappy(duration: 0.2), value: error)"), "no unconditional animation on the error")
+        #expect(src.contains(".animation(reduceMotion ? nil : .snappy(duration: 0.2), value: error)"))
+    }
+
     @Test func receiptOnlyFadesWithReduceMotion() {
         #expect(AIReceipt.slides(reduceMotion: false))
         #expect(!AIReceipt.slides(reduceMotion: true))

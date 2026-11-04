@@ -72,11 +72,14 @@ struct AIChangeRow: View {
 
     #if os(macOS)
     private let titleFont = Font.system(size: 13, weight: .medium)
-    private let lineFont = Font.system(size: 11)
+    private let summaryFont = Font.system(size: 13)
+    /// Who and when: 12 pt, read before choosing Undo (council round 4, 11-04: 11 was too small).
+    private let lineFont = Font.system(size: 12)
     private let markSize: CGFloat = 14
     #else
     private let titleFont = Font.body.weight(.medium)
-    private let lineFont = Font.subheadline
+    private let summaryFont = Font.subheadline
+    private let lineFont = Font.footnote
     private let markSize: CGFloat = 18
     #endif
 
@@ -86,6 +89,10 @@ struct AIChangeRow: View {
                 .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 2 }
             VStack(alignment: .leading, spacing: 2) {
                 Text(model.title(change)).font(titleFont).lineLimit(1)
+                // What it did, readable before you pick it (council round 3, 11-04: one 11 pt
+                // line with the AI and the time cut it off); who and when under it, small.
+                Text(model.summary(change)).font(summaryFont).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(line).font(lineFont).foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
             }
         }
@@ -96,7 +103,7 @@ struct AIChangeRow: View {
     }
 
     private var line: String {
-        var parts = [change.ai, VersionHistoryModel.time(change.at), model.summary(change)]
+        var parts = [change.ai, VersionHistoryModel.time(change.at)]
         if model.undone.contains(change.id) { parts.append("Undone") } else if change.trashed, change.kind != .deleted { parts.append("In Recently Deleted") }
         return parts.joined(separator: " \u{00B7} ")
     }
@@ -232,17 +239,23 @@ struct MacAIChanges: View {
                 AIChangesStatus(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Color.notePage) // one ground with the preview: grey beside black in the dark (round 4)
     }
 
     @ViewBuilder
     private var detail: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let c = model.selected {
+                // What the AI did, in full before anyone chooses Undo: the summary on its own lines,
+                // who and when under it (council, 11-04: one 11 pt line cut the action off).
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.title(c)).font(.system(size: 13, weight: .semibold)).lineLimit(1)
-                    Text("\(AIChangeDetail.byline(c)) \u{00B7} \(model.summary(c))")
-                        .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                    Text(model.summary(c))
+                        .font(.system(size: 13)).lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("aiChanges.summary")
+                    Text(AIChangeDetail.byline(c))
+                        .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
@@ -268,20 +281,22 @@ struct MacAIChanges: View {
             Spacer()
             Button("Done", action: close).keyboardShortcut(.cancelAction)
             if let c = model.selected {
-                Button("Open Note") { open(c) }
-                    .disabled(model.note(c) == nil)
-                    .accessibilityIdentifier("aiChanges.open")
+                // Return opens the note; undoing is a click of its own, never a stray Return on a
+                // sheet you're reading (council, 11-04).
                 Button("Undo This Change") { Task { await model.undo(c) } }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.amberProminent)
                     .disabled(!model.canUndo(c) || model.undoing || (c.changesText && model.diff == nil))
                     .accessibilityIdentifier("aiChanges.undo")
+                Button("Open Note") { open(c) }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.amberProminent)
+                    .disabled(model.note(c) == nil)
+                    .accessibilityIdentifier("aiChanges.open")
             }
         }
         .controlSize(.large)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Color.notePage) // one ground with the preview: grey beside black in the dark (round 4)
     }
 }
 
