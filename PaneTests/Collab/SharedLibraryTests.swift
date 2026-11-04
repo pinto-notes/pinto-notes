@@ -722,33 +722,23 @@ extension NetworkFaults {
         #expect(Wire.sealer?.open(sent, context: E2EE.body(note.id)) == "Trip\nTickets booked")
     }
 
-    /// A shared sub-note goes to Recently Deleted with its parent, and a shared note with its
-    /// folder: sharing stops with the document's newest text, as for a delete of the note itself.
-    @Test func aSharedNoteDeletedWithItsParentOrFolderKeepsEveryEdit() async throws {
+    /// A shared note deleted with its folder stops being shared and keeps every edit that
+    /// reached it. (Sub-notes are gone since release 1.3, so a parent no longer takes a note with it.)
+    @Test func aSharedNoteDeletedWithItsFolderKeepsEveryEdit() async throws {
         let emil = try device(owner)
         emil.library.install()
-        let parent = emil.context.createNote(in: .all, body: "Holiday")
-        let (child, _) = try await shared("Packing", on: emil)
-        child.parentID = parent.id
-        parent.body += "\n[Packing](pane-note:\(child.id.uuidString.lowercased()))"
         let folder = emil.context.createFolder(named: "Work")
         let (inFolder, _) = try await shared("Agenda", on: emil)
         inFolder.folder = folder
-        server.add(member, to: child.id)
         server.add(member, to: inFolder.id)
         let sara = try device(member)
-        for (n, line) in [(child, "\nSocks"), (inFolder, "\nBudget")] {
-            let theirs = try await sara.library.adopt(shared: n.id, nk: nk, epoch: 1, role: "editor")
-            let s = try #require(sara.library.session(for: theirs))
-            type(line, in: s)
-            await waitUntil { s.isSent }
-        }
+        let theirs = try await sara.library.adopt(shared: inFolder.id, nk: nk, epoch: 1, role: "editor")
+        let s = try #require(sara.library.session(for: theirs))
+        type("\nBudget", in: s)
+        await waitUntil { s.isSent }
         emil.library.closeAll()
         emil.library.install()
 
-        emil.context.trash(parent)
-        await waitUntil { !child.isShared }
-        #expect(child.trashedAt != nil && child.body == "Packing\nSocks")
         emil.context.trash(folder)
         await waitUntil { !inFolder.isShared }
         #expect(inFolder.trashedAt != nil && inFolder.body == "Agenda\nBudget")
