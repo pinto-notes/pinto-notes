@@ -50,6 +50,16 @@ import AppKit
         #expect(got.files.first?.lastPathComponent == "receipt.png")
     }
 
+    /// A Safari page comes with its title: the note reads the title, linked, not the address.
+    @Test func aLinkWithItsPageTitleReadsAsTheTitle() async throws {
+        let link = NSItemProvider(object: URL(string: "https://example.com/tram-28")! as NSURL)
+        let got = await SharedItem.read([link], pageTitle: "Riding Tram 28 in Lisbon", filesInto: tmp)
+        #expect(got.markdown == "[Riding Tram 28 in Lisbon](https://example.com/tram-28)")
+        #expect(SharedItem.title(markdown: got.markdown, files: []) == "Riding Tram 28 in Lisbon")
+        let bare = await SharedItem.read([NSItemProvider(object: URL(string: "https://example.com/x")! as NSURL)], filesInto: tmp)
+        #expect(bare.markdown == "https://example.com/x", "no title, the address as before")
+    }
+
     @Test func plainTextLinksAndPhotos() async throws {
         let text = NSItemProvider(object: "Call the plumber" as NSString)
         let link = NSItemProvider(object: URL(string: "https://example.com/recipe")! as NSURL)

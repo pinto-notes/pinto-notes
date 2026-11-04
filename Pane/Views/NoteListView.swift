@@ -979,9 +979,7 @@ struct NoteListView: View {
                 DestructiveMenuButton("Delete \(notes.count) Notes Forever…", systemImage: "trash") { remove(ids) }
             } else {
                 Menu("Move \(notes.count) Notes to", systemImage: "folder") {
-                    ForEach(folders) { f in
-                        Button(f.name) { withAnimation(.snappy) { context.move(notes, to: f) } }
-                    }
+                    FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { context.move(notes, to: f) } }
                 }
                 Divider()
                 DestructiveMenuButton("Delete \(notes.count) Notes", systemImage: "trash") { remove(ids) }
@@ -1024,10 +1022,7 @@ struct NoteListView: View {
             ShareLink(item: note.body, preview: SharePreview(note.title))
         case .move:
             Menu("Move to", systemImage: "folder") {
-                ForEach(folders) { f in
-                    Button(f.name, systemImage: "folder") { withAnimation(.snappy) { context.move(note, to: f) } }
-                        .disabled(note.folder?.id == f.id)
-                }
+                FolderMenuItems(folders: folders, current: note.folder?.id) { f in withAnimation(.snappy) { context.move(note, to: f) } }
             }
         case .history:
             // The note's own Version History: the note opens and shows it (AppPlaceCenter).
@@ -1054,10 +1049,7 @@ struct NoteListView: View {
                 renamingFile = file
             }
             Menu("Move to", systemImage: "folder") {
-                ForEach(folders) { f in
-                    Button(f.name, systemImage: "folder") { withAnimation(.snappy) { context.move(file, to: f) } }
-                        .disabled(file.folderID == f.id)
-                }
+                FolderMenuItems(folders: folders, current: file.folderID) { f in withAnimation(.snappy) { context.move(file, to: f) } }
             }
             if FileStore.exists(file) {
                 ShareLink(item: FileStore.url(for: file.id, filename: file.filename))
@@ -1082,9 +1074,7 @@ struct NoteListView: View {
             DestructiveMenuButton("Delete \(count) Items Forever…", systemImage: "trash") { remove(ids) }
         } else {
             Menu("Move \(count) Items to", systemImage: "folder") {
-                ForEach(folders) { f in
-                    Button(f.name) { withAnimation(.snappy) { move(ids, to: f) } }
-                }
+                FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { move(ids, to: f) } }
             }
             Divider()
             DestructiveMenuButton("Delete \(count) Items", systemImage: "trash") { remove(ids) }

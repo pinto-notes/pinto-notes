@@ -908,9 +908,7 @@ struct NoteDetailView: View {
                 .accessibilityIdentifier("editor.moveTo")
             #else
             Menu("Move to", systemImage: "folder") {
-                ForEach(context.allFolders()) { f in
-                    Button(f.name) { context.move(note, to: f) }.disabled(note.folder?.id == f.id)
-                }
+                FolderMenuItems(folders: context.allFolders(), current: note.folder?.id) { f in context.move(note, to: f) }
             }
             #endif
         case .share:

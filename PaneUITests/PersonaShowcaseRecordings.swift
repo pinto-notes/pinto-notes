@@ -81,6 +81,79 @@ final class PersonaShowcaseRecordings: XCTestCase {
         pause(4)
     }
 
+    /// From Safari: share a page about Lisbon › Pinto Notes › Add to "Lisbon" › Add. What the Pinto
+    /// Notes share sheet is for: bringing things in from other apps (Emil, 4 November 2026: the
+    /// clip shared a Pinto note into Pinto, which made no sense). The page is served on the Mac
+    /// at PN_PAGE_URL (scripts/persona-showcase-videos.sh starts it).
+    func test3bShareFromSafari() {
+        let app = launch([])
+        XCTAssertTrue(app.staticTexts["Groceries"].firstMatch.waitForExistence(timeout: 15))
+        pause(1)
+        let url = ProcessInfo.processInfo.environment["PN_PAGE_URL"] ?? "http://localhost:8765/"
+        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        safari.open(URL(string: url)!)
+        XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 15))
+        XCTAssertTrue(safari.staticTexts["Riding Tram 28 in Lisbon"].firstMatch.waitForExistence(timeout: 20))
+        pause(3)
+        try? safari.debugDescription.write(toFile: "/tmp/pn-safari-1.txt", atomically: true, encoding: .utf8)
+        var share = safari.buttons["ShareButton"].firstMatch
+        if !share.exists { share = safari.buttons["Share"].firstMatch }
+        if !share.exists {
+            // A first-run tip can sit over the page; close it.
+            let tip = safari.buttons["xmark.circle.fill"].firstMatch
+            if tip.exists { tip.tap(); pause(0.8) }
+            let more = safari.buttons["MoreMenuButton"].firstMatch
+            if more.exists { more.tap(); pause(1.2) }
+            try? safari.debugDescription.write(toFile: "/tmp/pn-safari-2.txt", atomically: true, encoding: .utf8)
+            share = safari.buttons.matching(NSPredicate(format: "label == 'Share' OR identifier == 'ShareButton'")).firstMatch
+        }
+        XCTAssertTrue(share.waitForExistence(timeout: 5), "Safari's share button")
+        share.tap()
+        pause(1.5)
+        try? safari.debugDescription.write(toFile: "/tmp/pn-safari-3.txt", atomically: true, encoding: .utf8)
+        let pinto = safari.descendants(matching: .any).matching(NSPredicate(format: "label == 'Pinto Notes'")).firstMatch
+        if !pinto.waitForExistence(timeout: 5) {
+            // Further along the row of apps.
+            let row = safari.collectionViews.firstMatch
+            for _ in 0..<3 where !pinto.exists { row.swipeLeft(); pause(0.8) }
+        }
+        XCTAssertTrue(pinto.waitForExistence(timeout: 5), "Pinto Notes in the share sheet")
+        pause(1)
+        pinto.tap()
+        let save = safari.buttons["share.save"].firstMatch
+        XCTAssertTrue(save.waitForExistence(timeout: 15))
+        pause(2.5)
+        let addTo = safari.buttons["share.addTo"].firstMatch
+        if addTo.waitForExistence(timeout: 3) {
+            addTo.tap()
+            pause(1.5)
+            let lisbon = safari.buttons["share.note.Lisbon"].firstMatch
+            if !lisbon.exists {
+                let find = safari.searchFields.firstMatch
+                if find.waitForExistence(timeout: 3) { find.tap(); pause(0.5); find.typeText("Lisbon"); pause(1.5) }
+            }
+            XCTAssertTrue(lisbon.waitForExistence(timeout: 5), "the Lisbon note in Add to")
+            lisbon.tap()
+        }
+        pause(3)
+        save.tap()
+        pause(3)
+        // Back in Pinto: Lisbon has the page at the end. Search finds it there.
+        app.activate()
+        pause(2)
+        let field = app.searchFields.firstMatch
+        if !field.exists, app.buttons["Search"].firstMatch.exists { app.buttons["Search"].firstMatch.tap() }
+        if field.waitForExistence(timeout: 5) {
+            field.tap(); pause(0.5)
+            field.typeText("Riding Tram")
+            pause(2)
+            let hit = app.cells.containing(NSPredicate(format: "label CONTAINS 'Lisbon'")).firstMatch
+            let row = hit.exists ? hit : app.staticTexts["Lisbon"].firstMatch
+            if row.waitForExistence(timeout: 5) { row.tap() }
+        }
+        pause(4)
+    }
+
     /// Connect an AI, just after ChatGPT is connected: what it can do now, on the phone.
     func test4Connected() {
         let app = launch(["-captureScreen", "connected-chatgpt"])

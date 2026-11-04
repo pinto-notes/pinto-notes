@@ -405,10 +405,7 @@ struct FileDetailView: View {
                         .accessibilityIdentifier("file.moveTo")
                     #else
                     Menu("Move to", systemImage: "folder") {
-                        ForEach(context.allFolders().sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }) { f in
-                            Button(f.name) { withAnimation(.snappy) { context.move(file, to: f) } }
-                                .disabled(file.folderID == f.id)
-                        }
+                        FolderMenuItems(folders: context.allFolders(), current: file.folderID) { f in withAnimation(.snappy) { context.move(file, to: f) } }
                     }
                     #endif
                     Divider()
