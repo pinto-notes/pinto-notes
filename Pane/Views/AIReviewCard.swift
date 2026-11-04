@@ -58,17 +58,25 @@ struct AIReviewCard: View {
         .background(Color.card, in: shape)
         .clipShape(shape)
         .raised(in: shape)
-        .focusable()
-        .focused($focused)
-        .focusEffectDisabled()
-        .onKeyPress(.upArrow) { review.move(-1); return .handled }
-        .onKeyPress(.downArrow) { review.move(1); return .handled }
-        .onKeyPress(.return) { act(.kept); return .handled }
-        .onKeyPress(.delete) { act(.undone); return .handled }
-        .onKeyPress(.escape) { done(); return .handled }
+        // The keys go to a stand-in behind the card, not the card itself: a focused card would
+        // tell every button in it that it has focus, and each would draw its ring.
+        .background { keys }
         .onAppear { focused = true }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("review.card")
+    }
+
+    private var keys: some View {
+        Color.clear
+            .focusable()
+            .focused($focused)
+            .focusEffectDisabled()
+            .onKeyPress(.upArrow) { review.move(-1); return .handled }
+            .onKeyPress(.downArrow) { review.move(1); return .handled }
+            .onKeyPress(.return) { act(.kept); return .handled }
+            .onKeyPress(.delete) { act(.undone); return .handled }
+            .onKeyPress(.escape) { done(); return .handled }
+            .accessibilityHidden(true)
     }
 
     private var header: some View {
@@ -124,11 +132,15 @@ struct AIReviewCard: View {
                         .padding(.horizontal, -4)
                 }
                 if part.conflict {
-                    Label(AIReview.conflictLine, systemImage: "exclamationmark.triangle.fill")
-                        .font(.system(size: Self.text - 1.5))
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("review.conflict.\(part.id)")
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange).accessibilityHidden(true)
+                        Text(AIReview.conflictLine).foregroundStyle(Color.ink)
+                    }
+                    .font(.system(size: Self.text - 1.5))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("review.conflict.\(part.id)")
                 }
             }
             .font(.system(size: Self.text))

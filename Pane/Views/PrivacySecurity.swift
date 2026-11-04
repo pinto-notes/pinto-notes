@@ -80,7 +80,7 @@ enum PrivacyCopy {
         }
         out.append(("sparkles", "Connected AIs",
                     "Each AI you connect holds its own copy of your key, locked to that connection\u{2019}s token and unlocked in memory only while its request is handled."
-                    + (serverCopy ? " It doesn\u{2019}t use Pinto Notes\u{2019} copy." : "") + " It can read your notes until you disconnect it."))
+                    + (serverCopy ? " It doesn\u{2019}t use Pinto Notes\u{2019} copy." : "") + " " + ConnectCopy.scope))
         if recovery {
             out.append(("key.horizontal", "Recovery key", "Opens your notes if you lose your devices. Keep it somewhere safe."))
         }

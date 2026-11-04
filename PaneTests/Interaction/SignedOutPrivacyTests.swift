@@ -22,6 +22,9 @@ import Testing
         }
         let locked = try #require(ax.find("privacy.how.lock.doc"))
         #expect(locked.text.contains("An AI sees that a locked note exists, not its title or text."), "\(locked.text)")
+        // What a connected AI can do, as Allow says it.
+        let ais = try #require(ax.find("privacy.how.sparkles"))
+        #expect(ais.text.contains(ConnectCopy.scope), "\(ais.text)")
         #expect(ax.find("privacy.learnMore") != nil, "the website's longer page")
         #expect(ax.find("settings.diagnostics") != nil, "diagnostics stay: \(ax.ids())")
         // As a new account has it: Pinto Notes keeps a copy of the key, said with what it means.
