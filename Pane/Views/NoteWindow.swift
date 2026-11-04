@@ -120,7 +120,7 @@ struct FolderWindowView: View {
                 }
                 .id(note.id)
             } else {
-                EmptyDetailView()
+                EmptyDetailView(newNote: newNote)
             }
         }
     }

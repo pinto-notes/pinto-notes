@@ -747,7 +747,7 @@ struct RootView: View {
             if shown.count > 1 {
                 MultipleSelectionView(count: shown.count, items: shown.contains { context.attachment($0) != nil })
             } else if !behindSetupCard {
-                EmptyDetailView()
+                EmptyDetailView(newNote: newNote)
             } else {
                 Color.clear
             }
@@ -928,12 +928,37 @@ struct MultipleSelectionView: View {
 }
 
 struct EmptyDetailView: View {
+    /// File › New Note, from here too (persona council 11-04: the empty pane offered nothing to
+    /// write). Nil where a note can't be made from this pane.
+    var newNote: (() -> Void)? = nil
+
+    static let title = "No note selected"
+
     var body: some View {
-        // Words only, like Notes (Emil, 11-03: no app icon on the empty states).
-        VStack(spacing: 10) {
-            Text("No note selected")
+        // Words, and one way on (Emil, 11-03: no app icon on the empty states).
+        VStack(spacing: 14) {
+            Text(Self.title)
                 .font(.callout)
                 .foregroundStyle(Color.muted)
+            if let newNote {
+                Button(action: newNote) {
+                    HStack(spacing: 8) {
+                        Text("New Note")
+                        #if os(macOS)
+                        // The shortcut, as a menu shows it; ⌘N itself stays with File › New Note.
+                        Text("\u{2318}N")
+                            .foregroundStyle(Color.muted)
+                            .accessibilityHidden(true)
+                        #endif
+                    }
+                }
+                .buttonStyle(.secondary)
+                .accessibilityLabel("New Note")
+                .accessibilityIdentifier("detail.newNote")
+                #if os(macOS)
+                .help("New Note (\u{2318}N)")
+                #endif
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
