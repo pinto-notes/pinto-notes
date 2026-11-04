@@ -34,7 +34,7 @@ enum PrivacyCopy {
     static let pintoTile = "Helps you back in"
     static let pintoRow = "Keeps a copy of your key"
     static let aiTile = "While connected"
-    static let aiRow = "Can read your notes while connected"
+    static let aiRow = "Can read and edit your notes while connected"
     /// Under "To help you back in", with a copy kept by Pinto Notes.
     static let backInFooterWithCopy = "Pinto Notes keeps a copy of your key so signing in opens your notes on a new device, which means Pinto Notes can open them too."
     /// Without one (Advanced protection on, or an account that hasn't answered the one-time question).

@@ -31,6 +31,7 @@ import Testing
         #expect(c.pintoNotes?.name == "Pinto Notes" && c.pintoNotes?.short == "Helps you back in")
         #expect(c.ais.map(\.name) == ["ChatGPT"], "only what's connected now")
         #expect(c.ais.first?.ai == "ChatGPT", "with its mark")
+        #expect(c.openers.last?.detail == "Can read and edit your notes while connected", "as Allow says it")
         #expect(c.openers.map(\.name) == [PrivacyCopy.thisDevice, "Sara\u{2019}s MacBook Air", "iPhone", "Pinto Notes", "ChatGPT"])
         #expect(c.backInFooter == PrivacyCopy.backInFooterWithCopy)
         #expect(!c.showsProtection && !c.addsDevices, "a new device signs in: nothing to add")
