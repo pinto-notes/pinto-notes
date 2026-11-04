@@ -115,7 +115,8 @@ enum EditorMetrics {
         }
         return (base * scale).rounded()
     }
-    static var lineSpacing: CGFloat { 1.5 * scale }
+    /// 3 pt between lines at 13 pt (Notes' 1.5 read tight on long notes: council round 1, 11-04).
+    static var lineSpacing: CGFloat { 3 * scale }
     #endif
     static var gutter: CGFloat { body * 1.6 }
     // Checklists, measured from Apple Notes (.shots/checklist/reference.md), as ratios of the body size.
