@@ -816,15 +816,16 @@ struct UTF16Map {
         utf8ToUtf16 = table
     }
 
-    func offset(_ loc: SourceLocation) -> Int {
+    /// `back` takes that many columns off first (cmark's late columns on a lazy line).
+    func offset(_ loc: SourceLocation, back: Int = 0) -> Int {
         let line = min(max(loc.line - 1, 0), lineStarts.count - 1)
-        let u8 = min(lineStarts[line] + loc.column - 1, utf8ToUtf16.count - 1)
+        let u8 = min(lineStarts[line] + loc.column - 1 - back, utf8ToUtf16.count - 1)
         return base + utf8ToUtf16[max(u8, 0)]
     }
 
-    func range(_ r: SourceRange?) -> NSRange? {
+    func range(_ r: SourceRange?, back: Int = 0) -> NSRange? {
         guard let r else { return nil }
-        let a = offset(r.lowerBound), b = offset(r.upperBound)
+        let a = offset(r.lowerBound, back: back), b = offset(r.upperBound, back: back)
         return b >= a ? NSRange(location: a, length: b - a) : nil
     }
 }
@@ -844,6 +845,31 @@ private struct StyleWalker: MarkupWalker {
     private var ns: NSString { storage.string as NSString }
 
     private func safe(_ r: NSRange) -> Bool { r.location >= 0 && NSMaxRange(r) <= ns.length }
+
+    /// An inline node's range, put right where the parser puts it too late. A line straight under
+    /// a list item is part of that item ("lazy continuation"), and cmark reports its columns as
+    /// if the line were indented like the item's text: after "- [ ] " a bold word's asterisks came
+    /// out 6 characters on, so "ri" in "Pastries" was hidden and the asterisks showed (council
+    /// round 15). The range slides back along its own line until it starts with `open` (and, if
+    /// `symmetric`, ends with the same delimiter).
+    private func located(_ found: SourceRange?, open: [String], symmetric: Bool = false) -> NSRange? {
+        guard let r = map.range(found), let found else { return nil }
+        func fits(_ c: NSRange, _ o: String) -> Bool {
+            guard safe(c), c.length > 0 else { return false }
+            let text = ns.substring(with: c)
+            return text.hasPrefix(o) && (!symmetric || (text.count > o.count * 2 && text.hasSuffix(o)))
+        }
+        // Only along its own line: a node across lines keeps the parser's range. The delimiters
+        // in order, each at every shift, so "[" wins over a URL the late range lands inside.
+        if open.contains(where: { fits(r, $0) }) { return r }
+        guard found.lowerBound.line == found.upperBound.line else { return r }
+        for o in open {
+            for back in 1..<max(min(found.lowerBound.column, 25), 1) {
+                if let c = map.range(found, back: back), fits(c, o) { return c }
+            }
+        }
+        return r
+    }
 
     private func addTrait(_ trait: PFontDescriptor.SymbolicTraits, _ r: NSRange) {
         storage.enumerateAttribute(.font, in: r) { value, sub, _ in
@@ -903,21 +929,21 @@ private struct StyleWalker: MarkupWalker {
     }
 
     mutating func visitStrong(_ strong: Strong) {
-        guard let r = map.range(strong.range), safe(r) else { return descendInto(strong) }
+        guard let r = located(strong.range, open: ["**", "__"], symmetric: true), safe(r) else { return descendInto(strong) }
         addTrait(.paneBold, r)
         markDelimiters(r, lead: 2, trail: 2)
         descendInto(strong)
     }
 
     mutating func visitEmphasis(_ emphasis: Emphasis) {
-        guard let r = map.range(emphasis.range), safe(r) else { return descendInto(emphasis) }
+        guard let r = located(emphasis.range, open: ["*", "_"], symmetric: true), safe(r) else { return descendInto(emphasis) }
         addTrait(.paneItalic, r)
         markDelimiters(r, lead: 1, trail: 1)
         descendInto(emphasis)
     }
 
     mutating func visitStrikethrough(_ s: Strikethrough) {
-        guard let r = map.range(s.range), safe(r) else { return descendInto(s) }
+        guard let r = located(s.range, open: ["~"], symmetric: true), safe(r) else { return descendInto(s) }
         let n = delimiterLength(r, char: 0x7E)
         storage.addAttributes([.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: PColor.paneSecondary], range: r)
         markDelimiters(r, lead: n, trail: n)
@@ -925,7 +951,7 @@ private struct StyleWalker: MarkupWalker {
     }
 
     mutating func visitInlineCode(_ code: InlineCode) {
-        guard let r = map.range(code.range), safe(r) else { return }
+        guard let r = located(code.range, open: ["`"], symmetric: true), safe(r) else { return }
         let n = delimiterLength(r, char: 0x60)
         inlineCodeRanges.append(r)
         storage.addAttributes([.font: styler.monoFont, .backgroundColor: PColor.paneFill, .foregroundColor: PColor.paneLabel], range: r)
@@ -933,7 +959,7 @@ private struct StyleWalker: MarkupWalker {
     }
 
     mutating func visitLink(_ link: Link) {
-        guard let r = map.range(link.range), safe(r) else { return descendInto(link) }
+        guard let r = located(link.range, open: ["[", "<", "http"]), safe(r) else { return descendInto(link) }
         let source = ns.substring(with: r)
         if source.hasPrefix("["), let close = source.range(of: "](") {
             let textLen = (source[source.index(after: source.startIndex)..<close.lowerBound] as Substring).utf16.count
@@ -956,7 +982,7 @@ private struct StyleWalker: MarkupWalker {
     }
 
     mutating func visitImage(_ image: Image) {
-        guard let r = map.range(image.range), safe(r) else { return }
+        guard let r = located(image.range, open: ["!["]), safe(r) else { return }
         storage.addAttribute(.foregroundColor, value: PColor.paneSecondary, range: r)
     }
 
