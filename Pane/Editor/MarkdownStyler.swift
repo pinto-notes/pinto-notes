@@ -426,7 +426,7 @@ struct MarkdownStyler {
             storage.addAttributes(syntax, range: NSRange(location: range.location, length: shown.location - range.location))
             storage.addAttributes(syntax, range: NSRange(location: NSMaxRange(shown), length: NSMaxRange(range) - NSMaxRange(shown)))
             let exists = wiki?.resolves(link.target) ?? true
-            storage.addAttribute(.foregroundColor, value: exists ? PColor.paneAccent : PColor.paneAccentFaded, range: shown)
+            storage.addAttribute(.foregroundColor, value: exists ? PColor.paneLinkText : PColor.paneAccentFaded, range: shown)
             // The heading comes along ("Budget#October"): the note opens there.
             if let url = LinkPolicy.wikiURL(link.heading.map { "\(link.target)#\($0)" } ?? link.target) { storage.addAttribute(.link, value: url, range: shown) }
             // "Budget#October": the # between note and heading reads as a separator.
@@ -453,7 +453,7 @@ struct MarkdownStyler {
             if NSLocationInRange(r.location, titleLine), (storage.attribute(.font, at: r.location, effectiveRange: nil) as? PFont) == Self.titleFont { continue }
             if (storage.attribute(.foregroundColor, at: r.location, effectiveRange: nil) as? PColor) == PColor.clear { continue }
             if storage.attribute(.strikethroughStyle, at: r.location, effectiveRange: nil) == nil {
-                storage.addAttribute(.foregroundColor, value: PColor.paneAccent, range: r)
+                storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: r)
             }
             let writing = selection.location != NSNotFound && selection.location > r.location && selection.location <= NSMaxRange(r)
             if !writing, let url = LinkPolicy.tagURL(tag.name) { storage.addAttribute(.link, value: url, range: r) }
@@ -895,7 +895,7 @@ private struct StyleWalker: MarkupWalker {
         if source.hasPrefix("["), let close = source.range(of: "](") {
             let textLen = (source[source.index(after: source.startIndex)..<close.lowerBound] as Substring).utf16.count
             let textRange = NSRange(location: r.location + 1, length: textLen)
-            storage.addAttribute(.foregroundColor, value: PColor.paneAccent, range: textRange)
+            storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: textRange)
             if let dest = link.destination, let url = URL(string: dest) {
                 storage.addAttribute(.link, value: url, range: textRange)
             }
@@ -904,7 +904,7 @@ private struct StyleWalker: MarkupWalker {
             storage.addAttributes(dim, range: NSRange(location: textRange.upperBound, length: NSMaxRange(r) - textRange.upperBound))
         } else {
             // Autolinks and bare URLs.
-            storage.addAttribute(.foregroundColor, value: PColor.paneAccent, range: r)
+            storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: r)
             if let dest = link.destination, let url = URL(string: dest) { storage.addAttribute(.link, value: url, range: r) }
         }
         descendInto(link)

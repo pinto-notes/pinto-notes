@@ -75,6 +75,9 @@ extension PColor {
             return (look.isStock ? PColor(named: "AccentColor") : nil) ?? Palette.pair(a.light, a.dark)
         }
     }
+    /// Links and tags as text: the accent's ink shade, dark enough for small text on white (4.5:1;
+    /// the bright accent was 3.5:1, council round 1, 11-04). Fills and marks keep `paneAccent`.
+    static var paneLinkText: PColor { Palette.amberInk }
     /// A link to a note that doesn't exist yet.
     static var paneAccentFaded: PColor { Palette.amberFaded }
     /// The note's page, for colours mixed over it by hand.

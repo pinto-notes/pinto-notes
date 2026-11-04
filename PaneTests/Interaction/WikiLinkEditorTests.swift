@@ -45,14 +45,14 @@ import Testing
         #expect(!hiddenAt(h, "Reading list", offset: 0, length: 12))
         let shown = range("the kitchen", in: h)
         #expect(LinkPolicy.action(for: storage.attribute(.link, at: shown.location, effectiveRange: nil) as Any) == .wiki("Projects/Kitchen remodel"))
-        #expect(color(h, at: "the kitchen") == IncrementalStyleTests.resolve(PColor.paneAccent))
-        #expect(color(h, at: "Reading list") == IncrementalStyleTests.resolve(PColor.paneAccent))
+        #expect(color(h, at: "the kitchen") == IncrementalStyleTests.resolve(PColor.paneLinkText))
+        #expect(color(h, at: "Reading list") == IncrementalStyleTests.resolve(PColor.paneLinkText))
         #expect(color(h, at: "Someday") == IncrementalStyleTests.resolve(PColor.paneAccentFaded), "a note that doesn't exist yet is fainter")
 
         // The note gets made: the link fills in without reopening.
         h.view.setWiki(Self.scope(2, titles: ["Kitchen remodel", "Reading list", "Someday"]))
         await h.settle()
-        #expect(color(h, at: "Someday") == IncrementalStyleTests.resolve(PColor.paneAccent))
+        #expect(color(h, at: "Someday") == IncrementalStyleTests.resolve(PColor.paneLinkText))
         await h.snapshot("wiki-links-light")
     }
 
@@ -63,7 +63,7 @@ import Testing
         await h.caret(after: "Someday")
         #expect(!hidden(h, at: "[[Projects/Kitchen remodel|"))
         #expect(color(h, at: "[[Projects") == IncrementalStyleTests.resolve(PColor.paneTertiary))
-        #expect(color(h, at: "the kitchen") == IncrementalStyleTests.resolve(PColor.paneAccent))
+        #expect(color(h, at: "the kitchen") == IncrementalStyleTests.resolve(PColor.paneLinkText))
     }
 
     @Test func clickingALinkFollowsIt() async {

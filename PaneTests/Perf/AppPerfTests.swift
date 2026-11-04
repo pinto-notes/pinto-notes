@@ -328,6 +328,11 @@ extension AppPerfTests {
         #expect(ShowsSelectedRow.row(of: UUID(), in: sections, collapsed: []) == nil, "not in this list")
         #expect(ShowsSelectedRow.row(of: ids[4], in: sections, collapsed: ["Previous 7 Days"]) == nil, "folded away")
         #expect(ShowsSelectedRow.row(of: ids[4], in: sections, collapsed: ["Today"]) == 3, "a folded section is one row")
+        // A note opened from elsewhere: the list scrolls only to a row that isn't fully in view.
+        let shown = CGRect(x: 0, y: 100, width: 300, height: 600)
+        #expect(!ShowsSelectedRow.needsReveal(CGRect(x: 0, y: 200, width: 300, height: 90), shown: shown), "in view: stays")
+        #expect(ShowsSelectedRow.needsReveal(CGRect(x: 0, y: 650, width: 300, height: 90), shown: shown), "cut off at the foot (Lisbon on the Air, 11-04)")
+        #expect(ShowsSelectedRow.needsReveal(CGRect(x: 0, y: 60, width: 300, height: 90), shown: shown), "under the toolbar")
     }
 
     /// All Notes built new (back from a folder) with an old note open, far down 20,000 rows: the

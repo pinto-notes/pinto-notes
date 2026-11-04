@@ -1322,6 +1322,12 @@ struct ShowsSelectedRow: ViewModifier {
                     if let at, at >= Self.firstRows { finder.center(row: at) }
                 }
             }
+            // A note opened from elsewhere (a link, search, the menu bar) whose row is off screen:
+            // the list comes to it, as Notes' does. A row already in view stays where it is.
+            .onChange(of: selected) { _, new in
+                guard let at = new.flatMap(row) else { return }
+                DispatchQueue.main.async { finder.reveal(row: at) }
+            }
     }
 
     private struct TableFinder: NSViewRepresentable {
@@ -1350,6 +1356,15 @@ struct ShowsSelectedRow: ViewModifier {
                 return found
             }
 
+            /// Centres `row` when any of it is out of view (under the toolbar or past the foot).
+            func reveal(row: Int) {
+                guard let table = find(), row < table.numberOfRows, let scroll = table.enclosingScrollView else { return }
+                let clip = scroll.contentView.bounds
+                let insets = scroll.contentInsets
+                let shown = CGRect(x: clip.minX, y: clip.minY + insets.top, width: clip.width, height: clip.height - insets.top - insets.bottom)
+                if ShowsSelectedRow.needsReveal(table.rect(ofRow: row), shown: shown) { center(row: row) }
+            }
+
             /// Centres `row` in what shows of the table, if it has that row. The list's top is at
             /// minus its top inset (under the toolbar): a list scrolled to 0 hid its first row and
             /// a half under the toolbar.
@@ -1365,6 +1380,11 @@ struct ShowsSelectedRow: ViewModifier {
                 scroll.reflectScrolledClipView(clip)
             }
         }
+    }
+
+    /// Whether a row needs scrolling to: any part of it outside what shows.
+    static func needsReveal(_ row: CGRect, shown: CGRect) -> Bool {
+        row.minY < shown.minY - 0.5 || row.maxY > shown.maxY + 0.5
     }
 
     /// Where `id` is among the rows of `sections`, each heading a row; nil when it isn't shown

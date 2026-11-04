@@ -899,7 +899,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     /// Under the last line, across the text's width.
     private func placeFoot() {
-        guard let host = footHost, let tlm = textLayoutManager else { return }
+        guard let host = footHost, let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return }
+        // Lazy TextKit 2 layout: see the Mac's placeFoot.
+        if (footModel?.height ?? 0) > 0.5 { tlm.ensureLayout(for: tcm.documentRange) }
         let used = tlm.usageBoundsForTextContainer.maxY
         let frame = CGRect(x: textContainerInset.left, y: textContainerInset.top + used + EditorFoot.gap,
                            width: max(0, bounds.width - textContainerInset.left - textContainerInset.right), height: max(footModel?.height ?? 0, 1))
@@ -2256,7 +2258,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Under the last line, across the text's width.
     func placeFoot() {
-        guard let host = footHost, let tlm = textLayoutManager else { return }
+        guard let host = footHost, let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return }
+        // TextKit 2 lays out lazily: until the whole note has been laid out, the used height is
+        // only the first lines', and the foot sat under the title (Lisbon on the Air, 11-04). The
+        // foot shows only for a note with links or mentions, so only those pay for the layout.
+        if (footModel?.height ?? 0) > 0.5 { tlm.ensureLayout(for: tcm.documentRange) }
         let o = textContainerOrigin
         let used = tlm.usageBoundsForTextContainer.maxY
         let frame = NSRect(x: o.x, y: o.y + used + EditorFoot.gap, width: max(0, bounds.width - o.x * 2), height: max(footModel?.height ?? 0, 1))

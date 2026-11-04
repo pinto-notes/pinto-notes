@@ -28,7 +28,7 @@ import Testing
     @Test func tagsShowInTheAccentAndLinkToTheirNotes() async {
         let h = await EditorHarness(Self.text, focus: false)
         defer { h.close() }
-        let accent = IncrementalStyleTests.resolve(PColor.paneAccent)
+        let accent = IncrementalStyleTests.resolve(PColor.paneLinkText)
         #expect(color(h, at: "#travel") == accent)
         #expect(color(h, at: "travel and") == accent, "the name shows, coloured, with its #")
         #expect(link(h, at: "#travel") == .tag("travel"))
@@ -70,7 +70,7 @@ import Testing
         let h = await EditorHarness(Self.text)
         defer { h.close() }
         await h.caret(after: "#trav")
-        #expect(color(h, at: "#travel") == IncrementalStyleTests.resolve(PColor.paneAccent))
+        #expect(color(h, at: "#travel") == IncrementalStyleTests.resolve(PColor.paneLinkText))
         #expect(link(h, at: "#travel") == .nothing)
         #expect(link(h, at: "#family/sara") == .tag("family/sara"))
     }
@@ -104,7 +104,7 @@ import Testing
     @Test func darkMode() async {
         let h = await EditorHarness(Self.text, dark: true, focus: false)
         defer { h.close() }
-        #expect(color(h, at: "#travel") == IncrementalStyleTests.resolve(PColor.paneAccent))
+        #expect(color(h, at: "#travel") == IncrementalStyleTests.resolve(PColor.paneLinkText))
         await h.snapshot("tags-dark")
     }
 }
