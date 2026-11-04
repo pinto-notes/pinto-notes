@@ -1827,7 +1827,9 @@ struct ConnectAIPage: View {
         let parts = known.map { "the notes \($0.0) opens go to \($0.1)" }
         let joined = parts.count == 1 ? parts[0] : parts.dropLast().joined(separator: ", ") + " and " + parts.last!
         let others = known.count < names.count ? " Other connected apps get only the notes they open." : ""
-        return joined.prefix(1).uppercased() + joined.dropFirst() + "." + others + " Nothing is shared until you allow it."
+        // Said to someone who has allowed it already: what it means now, not "until you allow it"
+        // (council round 10).
+        return joined.prefix(1).uppercased() + joined.dropFirst() + "." + others + " Disconnect one any time to stop it."
     }
 
     /// The line under a connected one: when it was last used. One the list names by its AI is that

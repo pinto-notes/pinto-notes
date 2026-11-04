@@ -109,12 +109,15 @@ import Testing
         #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\nA much longer sentence about what we still need to buy") == "Added a line", "a long line is a count")
         // One line swapped is named, short; a bigger rewrite is a count in words (council round 8).
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Tram 28\n- Two", after: "A\n\n- [ ] Tram 28 early, before the crowds\n- Two") == "Changed \u{201C}Tram 28 early, before the crowds\u{201D}")
-        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne", after: "A\n\nA very long replacement line that goes on well past forty characters") == "Changed \u{201C}A very long replacement line that goes\u{2026}\u{201D}")
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne", after: "A\n\nA very long replacement line that goes on well past forty characters") == "Changed \u{201C}A very long replacement line that goes on well past forty characters\u{201D}", "whole; the row cuts it where it runs out of room")
         #expect(!AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo", after: "A\n\nUno\nDos").contains("+"), "never the diff tool's counts")
         // A tick is a tick, not a change of words (council round 9: "Changed “Hotel in Príncipe Real”").
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Hotel in Príncipe Real", after: "A\n\n- [x] Hotel in Príncipe Real") == "Ticked \u{201C}Hotel in Príncipe Real\u{201D}")
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [x] Book flights", after: "A\n\n- [ ] Book flights") == "Unticked \u{201C}Book flights\u{201D}")
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Book", after: "A\n\n- [x] Book flights") == "Changed \u{201C}Book flights\u{201D}", "new words too: a change")
+        // Several ticks at once are named, not "Changed 3 lines" (council round 10).
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Book flights\n- [ ] Hotel\n- [ ] Tram", after: "A\n\n- [x] Book flights\n- [x] Hotel\n- [x] Tram") == "Ticked \u{201C}Book flights\u{201D} and 2 more")
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] One\n- [x] Two", after: "A\n\n- [x] One\n- [ ] Two") == "Changed 2 lines", "ticked and unticked together: a count")
     }
 
     @Test func theServersRowsBecomeChanges() throws {
@@ -251,6 +254,11 @@ import Testing
         #expect(SidebarAICopy.hint == "Opens AI Changes.", "what it does is a hint, not the label")
         // Connected but nothing changed yet: it still says so (council round 9).
         #expect(SidebarAICopy.connected([]) == nil)
+        // A week, and only while its AI is connected (council round 10).
+        #expect(SidebarAICopy.showsChange(edit, connected: [], now: Self.t0))
+        #expect(SidebarAICopy.showsChange(edit, connected: ["ChatGPT"], now: Self.t0))
+        #expect(!SidebarAICopy.showsChange(edit, connected: ["Claude"], now: Self.t0), "its AI was disconnected")
+        #expect(!SidebarAICopy.showsChange(edit, connected: [], now: Self.t0.addingTimeInterval(8 * 86_400)), "a week on")
         #expect(SidebarAICopy.connected(["ChatGPT"]) == "ChatGPT connected")
         #expect(SidebarAICopy.connected(["ChatGPT", "Claude", "ChatGPT"]) == "ChatGPT and Claude connected")
         #expect(SidebarAICopy.connected(["ChatGPT", "Claude", "Codex"]) == "3 AIs connected")
@@ -259,6 +267,18 @@ import Testing
         let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
         #expect(sidebar.contains(".safeAreaBar(edge: .bottom, spacing: 0) { SidebarAILine() }"), "a bar at the Mac sidebar's foot")
         #endif
+    }
+
+    /// A greyed Undo says why, and what to do (council round 10).
+    @Test func undoThatCantSaysWhy() throws {
+        let c = try Self.container()
+        let note = c.mainContext.createNote(in: .all, body: Self.after)
+        let edit = Self.edit(note)
+        #expect(AIChangeUndo.reason(edit, note: note, undone: false) == nil)
+        #expect(AIChangeUndo.reason(edit, note: note, undone: true) == "Already undone.")
+        #expect(AIChangeUndo.reason(edit, note: nil, undone: false) == "This note isn\u{2019}t on this Mac.")
+        var none = edit; none.beforeVersion = nil
+        #expect(AIChangeUndo.reason(none, note: note, undone: false) == "No earlier version to go back to.")
     }
 
     // MARK: Undo

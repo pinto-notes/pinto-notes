@@ -36,6 +36,13 @@ enum SidebarAICopy {
     static let hint = "Opens AI Changes."
     static let noChanges = "No changes yet"
 
+    /// The last change stays at the foot for a week, and only while its AI is still connected (when
+    /// the connections are known); then the foot says which AIs are connected, or nothing
+    /// (council round 10: it showed the newest change forever, even a disconnected AI's).
+    static func showsChange(_ c: AIChange, connected: [String], now: Date = .now) -> Bool {
+        now.timeIntervalSince(c.at) < 7 * 86_400 && (connected.isEmpty || connected.contains(c.ai))
+    }
+
     /// "ChatGPT connected", "ChatGPT and Claude connected", "3 AIs connected"; nil for none.
     static func connected(_ names: [String]) -> String? {
         var seen = Set<String>()
@@ -65,7 +72,7 @@ struct SidebarAILine: View {
 
     var body: some View {
         Group {
-            if let last {
+            if let last, SidebarAICopy.showsChange(last, connected: ConnectedAIs.shared.connections.map(\.name)) {
                 let title = Self.title(last, context: context)
                 row(ai: last.ai, line: SidebarAICopy.line(last, title: title), label: SidebarAICopy.accessibility(last, title: title)) {
                     TimelineView(.periodic(from: .now, by: 60)) { t in

@@ -211,10 +211,15 @@ enum AIChangeCopy {
     static func words(_ d: EditDiff) -> String {
         guard d.plus + d.minus > 0 else { return "No visible change" }
         let count = { (n: Int) in n == 1 ? "a line" : "\(n) lines" }
-        if d.plus == 1, d.minus == 1, let r = d.added.first, let gone = d.removed.first {
-            // Same item, only its box changed: a tick, not a change of words (council round 9).
+        if d.plus == d.minus, d.plus >= 1, d.added.count == d.removed.count {
+            // Same items, only their boxes changed: ticks, not a change of words (council rounds 9
+            // and 10). "Ticked “Book flights”", or "Ticked “Book flights” and 2 more".
             let ns = d.text as NSString
-            if let tick = ticked(was: ns.substring(with: gone), now: ns.substring(with: r)) { return tick }
+            let ticks = zip(d.removed, d.added).map { ticked(was: ns.substring(with: $0), now: ns.substring(with: $1)) }
+            if let first = ticks.first ?? nil, ticks.allSatisfy({ $0 != nil }),
+               Set(ticks.map { $0!.hasPrefix("Ticked") }).count == 1 {
+                return ticks.count == 1 ? first : first + " and \(ticks.count - 1) more"
+            }
         }
         if d.plus == 1, d.minus == 1, let r = d.added.first {
             let marker = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|#+\s+|>\s*)"#)
@@ -222,8 +227,9 @@ enum AIChangeCopy {
             let text = marker.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: (line as NSString).length), withTemplate: "")
                 .trimmingCharacters(in: .whitespaces)
             if !text.isEmpty {
-                let short = text.count > 40 ? String(text.prefix(39)).trimmingCharacters(in: .whitespaces) + "\u{2026}" : text
-                return "Changed \u{201C}\(short)\u{201D}"
+                // Whole: the list's rows end it in "…" where they run out of room; the selected
+                // change shows it all (council round 10: it was cut at 40 characters everywhere).
+                return "Changed \u{201C}\(text)\u{201D}"
             }
         }
         if d.minus == 0 { return "Added \(count(d.plus))" }
@@ -241,8 +247,7 @@ enum AIChangeCopy {
             return (ns.substring(with: m.range(at: 2)) != " ", ns.substring(with: m.range(at: 3)).trimmingCharacters(in: .whitespaces))
         }
         guard let a = parts(was), let b = parts(now), a.text == b.text, a.done != b.done, !b.text.isEmpty else { return nil }
-        let short = b.text.count > 40 ? String(b.text.prefix(39)).trimmingCharacters(in: .whitespaces) + "\u{2026}" : b.text
-        return "\(b.done ? "Ticked" : "Unticked") \u{201C}\(short)\u{201D}"
+        return "\(b.done ? "Ticked" : "Unticked") \u{201C}\(b.text)\u{201D}"
     }
 
     /// "+3 −1 lines", "+1 line", "−2 lines"; "No visible change" when only blank lines moved.
@@ -292,6 +297,16 @@ enum AIChangeUndoError: LocalizedError, Equatable {
 
 @MainActor
 enum AIChangeUndo {
+    /// Why Undo is off, in a few words with what to do (council round 10: it greyed out silently).
+    static func reason(_ c: AIChange, note: Note?, undone: Bool) -> String? {
+        if undone { return "Already undone." }
+        guard let note, note.deletedAt == nil else { return "This note isn\u{2019}t on this Mac." }
+        if note.isLocked { return "Unlock this note to undo." }
+        if note.isTrashed { return "Recover the note to undo." }
+        if (c.kind == .edit || c.kind == .restore), c.beforeVersion == nil { return "No earlier version to go back to." }
+        return nil
+    }
+
     /// Whether this change can be taken back from here.
     static func possible(_ c: AIChange, note: Note?, context: ModelContext) -> Bool {
         guard let note, note.deletedAt == nil, !note.isLocked else { return false }
@@ -393,6 +408,10 @@ final class AIChangesModel {
     var selected: AIChange? { changes.first { $0.id == selection } }
     func note(_ c: AIChange) -> Note? { context.note(c.noteID) }
     func title(_ c: AIChange) -> String { note(c).map { $0.isLocked ? "Locked note" : $0.title } ?? "A note not on this device" }
+    /// Why Undo is off for this change; nil while it's on or the reason is only that it's busy.
+    func undoReason(_ c: AIChange) -> String? {
+        canUndo(c) ? nil : AIChangeUndo.reason(c, note: note(c), undone: undone.contains(c.id))
+    }
     func canUndo(_ c: AIChange) -> Bool { !undone.contains(c.id) && AIChangeUndo.possible(c, note: note(c), context: context) }
 
     func summary(_ c: AIChange) -> String {

@@ -319,6 +319,10 @@ struct MacAIChanges: View {
             Spacer()
             Button("Done", action: close).keyboardShortcut(.cancelAction).tint(.primary)
             if let c = model.selected {
+                if let why = model.undoReason(c) {
+                    Text(why).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                        .accessibilityIdentifier("aiChanges.undoReason")
+                }
                 // Return opens the note; undoing is a click of its own, never a stray Return on a
                 // sheet you're reading (council, 11-04).
                 Button("Undo This Change") { Task { await model.undo(c) } }

@@ -440,8 +440,8 @@ import Testing
     /// Connect an AI says what is sent and to which company, by name, always in view (App Review
     /// rejected 1.2 for hiding it); one row per AI there is, connected or not, and never Mistral.
     @Test func connectSaysWhatIsSentAndToWhom() throws {
-        #expect(ConnectAIPage.sent(["ChatGPT", "Claude"]) == "The notes ChatGPT opens go to OpenAI and the notes Claude opens go to Anthropic. Nothing is shared until you allow it.")
-        #expect(ConnectAIPage.sent(["Grok"]) == "The notes Grok opens go to xAI. Nothing is shared until you allow it.")
+        #expect(ConnectAIPage.sent(["ChatGPT", "Claude"]) == "The notes ChatGPT opens go to OpenAI and the notes Claude opens go to Anthropic. Disconnect one any time to stop it.")
+        #expect(ConnectAIPage.sent(["Grok"]) == "The notes Grok opens go to xAI. Disconnect one any time to stop it.")
         #expect(ConnectAIPage.sent([]) == ConnectCopy.shared, "before any is connected, the general line")
         #expect(ConnectAIPage.sent(["ChatGPT", "An app on this computer"]).contains("Other connected apps get only the notes they open."))
         for g in ConnectAISection.Guide.allCases { #expect(!ConnectAIPage.line(g).isEmpty && !ConnectAIPage.line(g).contains("\u{2014}")) }
@@ -598,6 +598,17 @@ import Testing
         let print = LinkLabel.styled(Legal.consentSentence)
         #expect((print.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)?.pointSize == ConsentFooter.size)
         #expect(ConsentFooter.size == 11)
+        // The terms on two lines, the two names together on the second, each line measured
+        // (council round 10: "Privacy Policy." sat alone).
+        let terms = String(Legal.consentLines.characters)
+        #expect(terms == "By continuing, you agree to the\nTerms of Service and Privacy Policy.")
+        for line in terms.split(separator: "\n") {
+            let width = NSAttributedString(string: String(line), attributes: [.font: NSFont.systemFont(ofSize: ConsentFooter.size)]).size().width
+            #expect(width <= ConsentFooter.column - 4, "\(line): \(width) pt in \(ConsentFooter.column)")
+        }
+        #expect(SignInView.settingsLine.contains("ChatGPT or Claude"), "signed out, Account says what the card says")
+        // Table cells: 0.6 em either side, 8 pt at the smallest size, 14 at the biggest.
+        #expect(GridMetrics.inset(body: 13) == 8 && GridMetrics.inset(body: 24) == 14)
         #expect(ConsentFooter.diagnosticsLines == "Sends error reports and counts.\nNever your notes. Turn off in Settings.", "two lines")
         // And each sentence fits its line, measured, not counted (round 9: it passed and wrapped on the Air).
         for line in ConsentFooter.diagnosticsLines.split(separator: "\n") {

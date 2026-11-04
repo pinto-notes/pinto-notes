@@ -427,7 +427,7 @@ private struct AccountSettings: View {
             localExport
         } else {
             Section {
-                Text("Sign in to sync your notes across your iPhone and Mac.")
+                Text(SignInView.settingsLine)
                     .foregroundStyle(.secondary)
             }
             localExport

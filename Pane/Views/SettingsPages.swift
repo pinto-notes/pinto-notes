@@ -239,7 +239,7 @@ struct AccountSettingsPage: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Not signed in").font(.system(size: 17, weight: .semibold)).foregroundStyle(SettingsInk.text)
                     Text(backend.state == .disabled ? "Sync is off. This build keeps notes on this device only."
-                         : "Sign in to sync your notes across your iPhone and Mac.")
+                         : SignInView.settingsLine)
                         .font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }

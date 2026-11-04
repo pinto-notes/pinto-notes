@@ -148,13 +148,13 @@ struct GridTable: Equatable {
         // A column is 280 pt at most at the default text size, and more as the text grows, so a
         // date still fits its column at the largest sizes.
         let widest = max(280, 280 * EditorMetrics.body / 17)
-        var natural = longest.map { min(max($0 + 24, 64), widest) }
+        var natural = longest.map { min(max($0 + 2 * GridMetrics.inset + 8, 64), widest) }
         let total = natural.reduce(0, +)
         if total < available, total >= available * 0.7 {
             natural = natural.map { $0 * available / total }
         } else if total > available {
-            // The text plus the cells' 8-point insets either side.
-            let tight = zip(longest, natural).map { min(max($0 + 16, 44), $1) }
+            // The text plus the cells' insets either side.
+            let tight = zip(longest, natural).map { min(max($0 + 2 * GridMetrics.inset, 44), $1) }
             let least = tight.reduce(0, +)
             if least >= available { return tight }
             let give = (total - available) / (total - least)
@@ -203,6 +203,10 @@ struct GridOverflow: Equatable {
 }
 
 enum GridMetrics {
+    /// A cell's room either side of its text: 0.6 em, 8 pt at 13 pt and about 14 at 24 pt, so a
+    /// big text size doesn't crowd the borders (council round 10: a fixed 8 pt at every size).
+    static var inset: CGFloat { inset(body: EditorMetrics.body) }
+    static func inset(body: CGFloat) -> CGFloat { max(8, (body * 0.6).rounded()) }
     /// 32 pt at the default text size, growing with the reader's text size on iPhone: at the
     /// largest sizes the rows kept their 32 pt and the text of one row was drawn over the next.
     /// On iPhone 44 pt, the HIG's smallest touch target, so a tap lands in the cell you meant
@@ -856,7 +860,7 @@ struct TableGridView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: EditorMetrics.body))
                 .monospacedDigit()
-                .padding(.horizontal, 8)
+                .padding(.horizontal, GridMetrics.inset)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .focused($focus, equals: GridCell(row: r, column: c))
                 .onSubmit { move(from: GridCell(row: r, column: c), cols: cols) }
@@ -878,7 +882,7 @@ struct TableGridView: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .accessibilityAddTraits(.isButton)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, GridMetrics.inset)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .contentShape(.rect)
                 #if os(macOS)
@@ -937,7 +941,7 @@ struct TableGridView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding(.horizontal, 8)
+            .padding(.horizontal, GridMetrics.inset)
             .hoverHighlight(Rectangle())
             .contentShape(.rect)
         }

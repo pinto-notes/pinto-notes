@@ -17,6 +17,16 @@ enum Legal {
         return underliningLinks(s)
     }
 
+    /// The Mac's sign-in card: the same sentence, broken after "the" so the two names share the
+    /// second line (council round 10: "Privacy Policy." sat alone on it).
+    static var consentLines: AttributedString {
+        var s = AttributedString("By continuing, you agree to the\n")
+        var t = AttributedString("Terms of Service"); t.link = terms
+        var p = AttributedString("Privacy Policy"); p.link = privacy
+        s += t; s += AttributedString(" and "); s += p; s += AttributedString(".")
+        return underliningLinks(s)
+    }
+
     /// Links inside a sentence are underlined on iPhone, where there's no pointer to show them.
     /// On the Mac the label underlines a link while the pointer is on it (LinkLabel.View).
     static func underliningLinks(_ text: AttributedString) -> AttributedString {
@@ -56,7 +66,7 @@ struct ConsentFooter: View {
         // 11 pt, the size of Apple's own sign-in small print; 10 pt footnote read as miniature
         // (council round 7).
         VStack(spacing: 6) {
-            LinkLabel(text: Legal.consentSentence)
+            LinkLabel(text: Legal.consentLines)
                 .frame(maxWidth: .infinity)
             // Its two sentences on their own lines: at 11 pt the line broke after "never your".
             Text(ConsentFooter.diagnosticsLines)

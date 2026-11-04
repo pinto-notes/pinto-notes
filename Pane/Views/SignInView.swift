@@ -266,6 +266,9 @@ struct SignInView: View {
     /// Posted by Settings' Sign In… to put the caret in the card's email field.
     static let focusEmailNotice = Notification.Name("PintoSignInFocusEmail")
 
+    /// Signed out, Settings › Account: what signing in gives, as the card says it (council round 10).
+    static let settingsLine = "Sign in to get your notes on every device, and in ChatGPT or Claude."
+
     static let shortLine = "Your notes on every device, and in ChatGPT or Claude."
 
     static let passwordRuleText = "At least \(EmailSignInFlow.minimumPassword) characters"
