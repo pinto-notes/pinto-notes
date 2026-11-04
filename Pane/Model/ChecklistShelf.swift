@@ -16,7 +16,7 @@ struct ChecklistLine: Codable, Hashable, Sendable {
 /// over the text, like ListEditing.
 enum Checklist {
     /// `- [ ] item`, `* [x] item`, indented or not. Groups: indent, mark, text.
-    nonisolated(unsafe) private static let pattern = try! NSRegularExpression(pattern: #"^([ \t]*)[-*+] \[([ xX])\] (.*)$"#)
+    private static let pattern = try! NSRegularExpression(pattern: #"^([ \t]*)[-*+] \[([ xX])\] (.*)$"#)
 
     private struct Found {
         var line: Int
