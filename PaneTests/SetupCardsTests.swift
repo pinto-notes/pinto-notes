@@ -157,6 +157,17 @@ import Testing
         #expect(source.contains(".accessibilityAction { jumpAndChoose(row) }"))
     }
 
+    /// Deleting the open note opens its neighbour, from More and from Edit, like Notes (round 18).
+    @Test func deletingGoesByWayOfTheList() throws {
+        let views = try TestFiles.url("Views")
+        let more = try String(contentsOf: views.appending(path: "NoteDetailView.swift"), encoding: .utf8)
+        let root = try String(contentsOf: views.appending(path: "RootView.swift"), encoding: .utf8)
+        let list = try String(contentsOf: views.appending(path: "NoteListView.swift"), encoding: .utf8)
+        #expect(more.contains("post(name: .paneDeleteNotes, object: Set([note.id]))"))
+        #expect(root.contains("post(name: .paneDeleteNotes, object: Set(notes.map(\\.id)))"))
+        #expect(list.contains("publisher(for: .paneDeleteNotes)") && list.contains("performRemove(ids)"))
+    }
+
     /// File › Import Notes too: a sheet opened over the shut window inherits its "disabled", so
     /// its Choose button looked fine and did nothing, with no way forward (round 18).
     @Test func importIsOffBehindASetupCard() throws {

@@ -758,6 +758,13 @@ struct RootView: View {
     }
 
     private func removeNow(_ notes: [Note]) {
+        #if os(macOS)
+        // Not from Recently Deleted (forever, asked elsewhere): the list opens the neighbour, like Notes.
+        if notes.allSatisfy({ $0.trashedAt == nil }) {
+            NotificationCenter.default.post(name: .paneDeleteNotes, object: Set(notes.map(\.id)))
+            return
+        }
+        #endif
         withAnimation(.snappy(duration: 0.25)) {
             context.remove(notes, undo: undoManager) { back in selection = Set(back.map(\.id)) }
             selection = []

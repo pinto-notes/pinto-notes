@@ -27,6 +27,14 @@ import SwiftUI
     }
 
     /// Typing between them, another AI, or a long gap keep them apart.
+    /// Edits that land before the first is on screen still add up: the note chains from the one on
+    /// its way (round 18: three edits in one sync said "changed 1 line").
+    @Test func editsLandingTogetherChainFromTheOneOnItsWay() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "NoteDetailView.swift"), encoding: .utf8)
+        #expect(source.contains("seen.continuing(landingReceipt ?? receipt)"))
+        #expect(source.contains("guard landingReceipt == r else { return }"))
+    }
+
     @Test func otherChangesStaySeparate() {
         let one = r("A", "A2")
         #expect(r("A2 typed", "A3", in: 5).continuing(one).previous == "A2 typed")

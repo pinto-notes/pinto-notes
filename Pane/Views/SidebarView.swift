@@ -350,6 +350,8 @@ extension View {
 extension Notification.Name {
     /// Asks the sidebar to start a new folder (from the list's "⋯" menu).
     static let paneNewFolder = Notification.Name("pane.newFolder")
+    /// Delete these notes (a Set of ids), already asked about: the list does it and opens the neighbour.
+    static let paneDeleteNotes = Notification.Name("pane.deleteNotes")
     /// A folder's Rename (its id in `object`), from outside its menus: the Mac opens its name in its row.
     static let paneRenameFolder = Notification.Name("pane.renameFolder")
     /// Delete Folder for the folder whose id is the object, as its menu does: asks first when it holds anything.

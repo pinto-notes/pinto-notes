@@ -459,6 +459,9 @@ struct NoteListView: View {
             }
         }
         // "Show all notes with …" from Go to Note (⌘O) carries the text to search for.
+        .onReceive(NotificationCenter.default.publisher(for: .paneDeleteNotes)) { n in
+            if let ids = n.object as? Set<UUID> { performRemove(ids) }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .paneSearchNotes)) { n in
             if let text = n.object as? String { search = text }
             searching = true

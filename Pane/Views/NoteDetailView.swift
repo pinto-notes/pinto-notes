@@ -26,6 +26,8 @@ struct NoteDetailView: View {
     @State private var choosingAttachment = false
     /// "ChatGPT changed 5 lines · Undo", while an AI's edit that just landed is on show.
     @State private var receipt: AIEdit.Receipt?
+    /// An AI's edit on its way to `receipt`.
+    @State private var landingReceipt: AIEdit.Receipt?
     /// Reviewing the AI's edit part by part, in place of the receipt (AIReviewCard).
     @State private var review: AIReview?
     /// Ask an AI about this note: the AI picked in the toolbar or the ••• menu, while its popover shows.
@@ -526,13 +528,18 @@ struct NoteDetailView: View {
     /// once you start typing, undo it or leave the note (`staysUntilEdited`).
     private func showAIEdit() {
         guard let seen = AIEdit.markSeen(note) else { return }
-        let r = seen.continuing(receipt)
+        // The earlier one may not be on screen yet: a sync lands an AI's edits a moment apart, inside
+        // the wait below (round 18: three edits said "changed 1 line" and marked one).
+        let r = seen.continuing(landingReceipt ?? receipt)
+        landingReceipt = r
         Telemetry.shared.record(.firstAIEditSeen)
         try? context.save()
         let slow = ChangeTint.slowMotion
         Task { @MainActor in
             // Let the editor take the new text first.
             try? await Task.sleep(for: .seconds(0.15 * slow))
+            guard landingReceipt == r else { return } // a later edit took it over
+            landingReceipt = nil
             guard note.id == r.noteID else { return }
             controller.tintChanges(from: r.previous, untilCleared: r.staysUntilEdited)
             withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
@@ -956,8 +963,14 @@ struct NoteDetailView: View {
                     // A shared note asks first: people lose it, or it leaves your notes.
                     if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
                     else {
+                        #if os(macOS)
+                        // By way of the list, which knows the note's neighbour: it opens next,
+                        // like Notes (round 18: the deleted note stayed open under its banner).
+                        NotificationCenter.default.post(name: .paneDeleteNotes, object: Set([note.id]))
+                        #else
                         let open = onOpenNote
                         withAnimation(.snappy) { context.remove([note], undo: undoManager) { back in if let n = back.first { open(n.id, false) } } }
+                        #endif
                     }
                 }
             }
