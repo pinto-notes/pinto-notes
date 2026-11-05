@@ -1166,17 +1166,14 @@ struct NoteListView: View {
         let files = ids.compactMap { context.attachment($0) }.filter { $0.folderID != nil }
         let touchedSelection = !selection.isDisjoint(with: ids)
         let firstIndex = ordered.firstIndex { ids.contains($0.id) }
+        let rest = ordered.filter { !ids.contains($0.id) }
+        let next: Set<UUID> = firstIndex.flatMap { i in rest.isEmpty ? nil : [rest[min(i, rest.count - 1)].id] } ?? []
+        let choose = $selection
         withAnimation(.snappy(duration: 0.25)) {
-            context.remove(notes, undo: undoManager) { back in selection = Set(back.map(\.id)) }
+            context.remove(notes, undo: undoManager, reopen: { back in selection = Set(back.map(\.id)) },
+                           gone: touchedSelection ? { choose.wrappedValue = next } : nil)
             context.remove(files: files)
-            if touchedSelection {
-                let rest = ordered.filter { !ids.contains($0.id) }
-                if let i = firstIndex, !rest.isEmpty {
-                    selection = [rest[min(i, rest.count - 1)].id]
-                } else {
-                    selection = []
-                }
-            }
+            if touchedSelection { selection = next }
         }
     }
 }

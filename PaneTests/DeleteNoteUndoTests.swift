@@ -17,6 +17,26 @@ import Testing
         return (c, travel, lisbon, blank)
     }
 
+    /// Redo deletes again and says so, so the list opens the neighbour as the delete did (round 19).
+    @Test func redoOpensWhatTheDeleteOpened() throws {
+        let (c, _, lisbon, _) = try library()
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        var moved = 0
+        undo.beginUndoGrouping()
+        c.mainContext.remove([lisbon], undo: undo, reopen: { _ in }, gone: { moved += 1 })
+        undo.endUndoGrouping()
+        #expect(moved == 0, "the delete itself chooses, so this is for Redo")
+        undo.undo()
+        undo.redo()
+        #expect(lisbon.trashedAt != nil && moved == 1)
+        undo.undo()
+        undo.redo()
+        #expect(lisbon.trashedAt != nil && moved == 2, "and every Redo after it")
+        let view = try String(contentsOf: TestFiles.url("Views").appending(path: "NoteDetailView.swift"), encoding: .utf8)
+        #expect(view.contains("if !Self.captureWithoutToolbar, note.trashedAt == nil {"), "and the toolbar's fade leaves a deleted note's title alone")
+    }
+
     @Test func undoBringsItBackAndRedoDeletesItAgain() throws {
         let (c, travel, lisbon, _) = try library()
         let ctx = c.mainContext

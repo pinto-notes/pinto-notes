@@ -628,7 +628,9 @@ struct NoteDetailView: View {
                     // through the folder's name or the buttons (persona council 11-04: it did, at 60%);
                     // a short fade below it, so the text isn't cut off at a hard line.
                     .overlay(alignment: .top) {
-                        if !Self.captureWithoutToolbar {
+                        // Not under the deleted note's banner: the text starts below it, and this
+                        // would cover its title (round 19).
+                        if !Self.captureWithoutToolbar, note.trashedAt == nil {
                             LinearGradient(stops: Self.toolbarCover.map { .init(color: Color.notePage.opacity($0.opacity), location: $0.location) },
                                            startPoint: .top, endPoint: .bottom)
                                 .frame(height: NoteDetailView.toolbarFade)
