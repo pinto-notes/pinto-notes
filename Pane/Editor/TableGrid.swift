@@ -401,6 +401,10 @@ final class GridHitBox {
     var targets: [GridLine: CGRect] = [:]
     /// The add-a-row and add-a-column bars, while they show (see GridMetrics.growBelow).
     var adds: [GridAdd: CGRect] = [:]
+    /// The cells not being edited, where they are (for the Mac's right-click menu).
+    var cells: [GridCell: CGRect] = [:]
+
+    func cell(at p: CGPoint) -> GridCell? { cells.first { $0.value.contains(p) }?.key }
 
     /// Whether a click or tap at `p` (host coordinates) is the table's. The bands around the table
     /// (the reach above, the grow strips right and below) are only where a handle or bar is in
@@ -919,6 +923,8 @@ struct TableGridView: View {
                 // A click here puts a caret in the text, so the pointer says so, like Notes; over a
                 // link's words it's the pointing hand, since a click there opens the note.
                 .modifier(CellLinkPointer(value: value))
+                // Where it is, for the right-click menu (GridHostingView.menu(for:)).
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(GridHitBox.space)) } action: { box?.cells[GridCell(row: r, column: c)] = $0 }
                 #endif
                 .onTapGesture { p in
                     // A link's words open its note (a Notion row's page), as a link in the text does.

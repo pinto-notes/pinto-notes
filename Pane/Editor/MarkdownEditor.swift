@@ -2286,6 +2286,25 @@ private struct PlatformEditor: NSViewRepresentable {
 /// table: a click there is the table's only on a bar, otherwise it goes to the text.
 final class GridHostingView: NSHostingView<AnyView> {
     var box: GridHitBox?
+    /// The right-click menu for a cell: its row and column, as in Notes. Without it the click
+    /// fell through to the text, which selected the whole table and offered only text items
+    /// (council round 16).
+    var cellMenu: ((GridHostingView, GridCell) -> NSMenu?)?
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        var p = convert(event.locationInWindow, from: nil)
+        if !isFlipped { p.y = bounds.height - p.y }
+        if let cell = box?.cell(at: p), let menu = cellMenu?(self, cell) { return menu }
+        return super.menu(for: event)
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        if let menu = menu(for: event), menu.items.first?.representedObject is TableMenuAction {
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+        } else {
+            super.rightMouseDown(with: event)
+        }
+    }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         var p = convert(point, from: superview)
@@ -2650,6 +2669,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 if case .grid(let g, _, _) = item.content {
                     let grid = GridHostingView(rootView: item.view)
                     grid.box = core.gridBoxes[g.index]
+                    grid.cellMenu = { [weak self] host, cell in self?.tableCellMenu(host: host, cell: cell) }
                     h = grid
                 } else {
                     h = NSHostingView(rootView: item.view)
@@ -3620,6 +3640,29 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Right-click on a line that is only a link: show it compact or as a card (Emil, 11-01).
     /// On a checklist with ticks (its circle or its text): Untick All in This List.
+    /// A table cell's right-click menu: add or delete its row or column, or the table.
+    func tableCellMenu(host: GridHostingView, cell: GridCell) -> NSMenu? {
+        guard let controller, !controller.readOnly,
+              let key = cardHosts.first(where: { $0.value === host })?.key, key.hasPrefix("g"), let grid = Int(key.dropFirst()) else { return nil }
+        let table = controller.tableMenu(grid: grid, cell: cell, line: nil)
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        for (i, section) in table.sections.enumerated() {
+            if i > 0 { menu.addItem(.separator()) }
+            for entry in section {
+                let item = NSMenuItem(title: entry.title, action: #selector(TableMenuAction.fire), keyEquivalent: "")
+                let action = TableMenuAction(entry.run)
+                item.target = action
+                item.representedObject = action
+                item.isEnabled = entry.enabled
+                item.image = NSImage(systemSymbolName: entry.systemImage, accessibilityDescription: nil)
+                item.setAccessibilityIdentifier("table.menu.\(entry.title)")
+                menu.addItem(item)
+            }
+        }
+        return menu
+    }
+
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event) ?? NSMenu()
         let point = convert(event.locationInWindow, from: nil)
