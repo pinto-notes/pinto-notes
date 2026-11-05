@@ -3478,7 +3478,13 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let h = label.frame.height
         label.frame.origin = CGPoint(x: caret.minX + textContainerOrigin.x + 1,
                                      y: caret.midY + textContainerOrigin.y - h / 2)
+        // A picture's or file's card can reach over the line after it: half a hint under a PDF
+        // chip reads as a bug (council round 16). Tables' views have add bars that overlap by design.
+        label.isHidden = Self.hintCovered(label.frame, by: cardHosts.values.filter { !($0 is GridHostingView) }.map(\.frame))
     }
+
+    /// Whether a card lies over the hint.
+    static func hintCovered(_ hint: CGRect, by cards: [CGRect]) -> Bool { cards.contains { $0.intersects(hint) } }
 
     /// Shows the commands for the `/query` being typed under its line (over it when there's no
     /// room below in the visible part of the note), or takes them away.

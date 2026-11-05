@@ -145,6 +145,14 @@ import Testing
         }
     }
 
+    /// A card over the hint's line hides it, rather than cutting it in half (round 16, under a PDF chip).
+    @Test func aCardOverTheHintHidesIt() {
+        let hint = CGRect(x: 33, y: 100, width: 128, height: 16)
+        #expect(PaneTextView.hintCovered(hint, by: [CGRect(x: 32, y: 60, width: 200, height: 50)]))
+        #expect(!PaneTextView.hintCovered(hint, by: [CGRect(x: 32, y: 40, width: 200, height: 50)]))
+        #expect(!PaneTextView.hintCovered(hint, by: []))
+    }
+
     /// Plain lines typed fast, then Return: the hint is on the new empty line, not over the text above.
     @Test func theHintFollowsReturnAfterPlainLines() async {
         let h = await EditorHarness("Trip\n\nOffline addition")
