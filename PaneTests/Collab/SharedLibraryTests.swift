@@ -977,6 +977,82 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(onPhone.text == "Offsite plan\n- Venue\n- Dates")
     }
 
+    /// Joining by link, as ShareModel.join does: the note `adopt` makes is kept by its id only (the
+    /// join opens it by id), so nothing keeps the object `adopt` returned; then it's found by its id,
+    /// as the editor finds it.
+    func joinByLink(_ note: UUID, on d: Device) async throws -> Note {
+        var id: UUID?
+        do {
+            let adopted = try await d.library.adopt(shared: note, nk: nk, epoch: 1, role: "editor")
+            id = adopted.id
+        }
+        return try #require(id.flatMap { d.context.note($0) })
+    }
+
+    /// The two-phone run on the local server (round 7, c11 -v3). Sara joined by link: the join
+    /// opens the note `adopt` made by its id (NoteOpener), and nothing keeps the object `adopt`
+    /// returned, so SwiftData lets it go. Her AI's change came by catch-up (her phone got no
+    /// relays), tagged Claude and with her own user id, and went in: the text showed it, unmarked.
+    /// The session's hooks held that first object weakly, gone by then; now they find the note
+    /// by its id, as the editor does.
+    @Test func yourAIsChangeIsMarkedInANoteYouJoinedByLink() async throws {
+        server.names = [owner: "Emil Wagman", member: "Sara Lind"]
+        let emil = try device(owner)
+        let (note, emilSession) = try await shared("Offsite plan\n\n- [ ] Book the venue\n- [ ] Pick dates\n- [ ] Order lunch\n- [ ] Print agenda", on: emil)
+        server.add(member, to: note.id)
+        await emilSession.refreshMembers()
+        let phone = try device(member)
+        phone.transport.deaf = true
+        let mine = try await joinByLink(note.id, on: phone)
+        let onPhone = try #require(phone.library.session(for: mine))
+
+        // She ticks, then adds an item and ticks it offline. Back online, it goes up.
+        tick("Order lunch", in: onPhone)
+        phone.transport.offline = true
+        for key in "\n- [ ] Book the train" { type(String(key), in: onPhone) }
+        tick("Book the train", in: onPhone)
+        phone.transport.offline = false
+        onPhone.flush()
+        await waitUntil { onPhone.isSent }
+        await emilSession.catchUp().value
+        #expect(emilSession.text == onPhone.text)
+        // The note's own copy of the text follows (the list's preview, search).
+        await waitUntil { mine.body == onPhone.text }
+        #expect(mine.body == onPhone.text)
+
+        // Her AI edits it through the server, as her, and her phone catches up.
+        try server.aiEdits(note.id, as: member, ai: "Claude", nk: nk) {
+            $0.replacingOccurrences(of: "- [ ] Pick dates", with: "- [x] Pick dates: 3-4 November")
+        }
+        let before = onPhone.text
+        await onPhone.catchUp().value
+        #expect(onPhone.text.contains("- [x] Pick dates: 3-4 November"))
+        await waitUntil { mine.aiEditedAt != nil }
+        #expect(mine.aiEditor == "Claude" && mine.aiEditorPerson == nil, "her own AI, named as in a note of her own")
+        #expect(mine.body == onPhone.text)
+        let receipt = try #require(AIEdit.markSeen(mine))
+        #expect(receipt.summary == "Claude changed 1 line")
+        #expect(receipt.previous == before)
+    }
+
+    /// Removed from a note you joined by link, with a change of yours on its way: the server
+    /// refuses the change, and the note goes from your phone then. The hook that does it finds the
+    /// note by its id now, as the AI's does (above).
+    @Test func aNoteYouJoinedByLinkGoesWhenTheServerRefusesYou() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Offsite plan\n- Venue", on: emil)
+        server.add(member, to: note.id)
+        let phone = try device(member)
+        let mine = try await joinByLink(note.id, on: phone)
+        let onPhone = try #require(phone.library.session(for: mine))
+
+        server.remove(member, from: note.id)
+        type("\n- Name badges", in: onPhone)
+        await waitUntil { mine.deletedAt != nil }
+        #expect(mine.deletedAt != nil)
+        #expect(phone.library.session(for: mine) == nil)
+    }
+
     // MARK: Bug 18: not synced yet
 
     /// Offline, a shared note looked synced. Changes that wait with nothing going up say "Not

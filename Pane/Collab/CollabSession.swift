@@ -236,6 +236,7 @@ final class CollabSession {
         record.cursor = last
         record.snapshotUpto = pull.snapshot?.upto ?? 0
         record.sinceSnapshot = pull.updates.count
+        CollabScript.trace("document loaded from the server: \(pull.updates.count) changes up to \(last), \(pull.updates.filter { $0.client != nil }.count) by an AI")
         let s = CollabSession(record: record, keys: keys, doc: doc, body: body, transport: transport, me: me, name: name)
         s.applied = Set(pull.updates.map(\.id))
         return s
@@ -421,6 +422,7 @@ final class CollabSession {
                 if (try? CollabText.absorb(saved, into: doc)) != nil {
                     keep(saved)
                     changed = true
+                    CollabScript.trace("snapshot up to \(s.upto) taken by catch-up")
                 }
                 record.cursor = max(record.cursor, s.upto)
                 record.snapshotUpto = max(record.snapshotUpto, s.upto)
@@ -437,7 +439,9 @@ final class CollabSession {
             newest = max(newest, u.id)
             var before: String?
             if ai == nil, u.client != nil { before = try? doc.text(obj: body) }
-            if take(u) {
+            let took = take(u)
+            traced(u, by: "catch-up", took: took)
+            if took {
                 changed = true
                 if ai == nil, let before, !isHeld(u) { ai = (u, before) }
             }
@@ -455,7 +459,9 @@ final class CollabSession {
         switch event {
         case .update(let u):
             let before = text
-            if take(u) {
+            let took = take(u)
+            traced(u, by: "relay", took: took)
+            if took {
                 textChanged()
                 aiLanded()
                 aiArrived(u, before: before)
@@ -518,8 +524,22 @@ final class CollabSession {
     /// A change the server says an AI wrote, once it changed the text here: to the library, after
     /// the editor has the text. Changes typed on a device name no AI.
     private func aiArrived(_ u: Collab.Update, before: String) {
-        guard !isClosed, let ai = u.client?.trimmingCharacters(in: .whitespacesAndNewlines), !ai.isEmpty, !isHeld(u), text != before else { return }
+        guard !isClosed, let ai = u.client?.trimmingCharacters(in: .whitespacesAndNewlines), !ai.isEmpty, !isHeld(u) else { return }
+        guard text != before else {
+            CollabScript.trace("AI change \(u.id): the text here didn't change, so it isn't marked")
+            return
+        }
+        CollabScript.trace("AI change \(u.id): to the library to mark\(onAIChange == nil ? " (no library listening)" : "")")
         onAIChange?(AIArrival(ai: ai, author: u.author_id, before: before))
+    }
+
+    /// An AI's change as it reached this device, in the steps' log of a two-device run
+    /// (CollabScript.trace): by relay or catch-up, yours or someone else's, and whether it went in.
+    private func traced(_ u: Collab.Update, by path: String, took: Bool) {
+        guard let ai = u.client else { return }
+        let whose = u.author_id == me ? "yours" : "someone else's"
+        let what = !took ? "not taken (already here, or it didn't open)" : isHeld(u) ? "held back for a change it builds on" : "taken"
+        CollabScript.trace("AI change \(u.id) from \(ai), \(whose), by \(path): \(what)")
     }
 
     /// An AI's change that reached this device before a change it builds on (that one's relay was
@@ -548,6 +568,7 @@ final class CollabSession {
         var landed: [(Collab.Update, String)] = []
         heldAI.removeAll { held in
             guard doc.change(hash: held.hash) != nil else { return false }
+            CollabScript.trace("AI change \(held.update.id) went in, held back until now")
             if let before = CollabText.text(without: held.hash, in: doc, body) { landed.append((held.update, before)) }
             return true
         }
