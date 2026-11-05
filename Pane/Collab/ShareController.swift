@@ -58,6 +58,9 @@ final class ShareController {
             }
         }
     }
+    /// Someone was removed while the note has a link: it's a new link now, and the sheet says so
+    /// for as long as it's open (persona council r7: the row looked as if the old link still worked).
+    private(set) var linkReplaced = false
     @ObservationIgnored var timeout: Duration = .seconds(20)
 
     enum Work: Equatable { case link, access, remove(UUID), leave }
@@ -143,7 +146,10 @@ final class ShareController {
         guard let person = confirmingRemove else { return }
         confirmingRemove = nil
         await run(.remove(person.id)) { try await self.backend.remove(person.id, from: self.note) }
-        if state.problem == nil { finished(.removed(person.id)) }
+        if state.problem == nil {
+            linkReplaced = state.access != .off
+            finished(.removed(person.id))
+        }
     }
 
     func askLeave() {
@@ -256,6 +262,8 @@ enum ShareCopy {
     static func checkCodeFirst(_ first: String) -> String { "Check \(first)'s code first." }
     static func verifiedLine(_ first: String) -> String { "You checked \(first)'s code" }
     static let keyChangedRow = "Key changed. Check the code."
+
+    static let linkReplaced = "The old link no longer works. Share this new one with anyone who still needs to join."
 
     static func removeTitle(_ person: ShareState.Person) -> String { "Remove \(first(person.name))?" }
     static func removeMessage(_ person: ShareState.Person) -> String {

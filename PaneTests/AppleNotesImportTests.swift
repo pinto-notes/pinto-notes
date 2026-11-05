@@ -721,6 +721,9 @@ import Testing
         let many = ["A", "B", "C"] + Array(repeating: "D", count: 1_201)
         #expect(AppleNotesImportView.staysLine(locked: many, checklists: true, locale: en) == "\u{201C}A\u{201D}, \u{201C}B\u{201D}, \u{201C}C\u{201D} and 1,201 more are locked, so they can\u{2019}t come over. Unlock them in Apple Notes first, or copy them over yourself. Checklists may come in as plain lists.")
         #expect(AppleNotesImportView.successLine(locked: [], locale: en) == "Your folders came over as they were.")
+        // Notes left unticked stayed behind, and the line says so.
+        #expect(AppleNotesImportView.successLine(locked: [], leftOut: 1, locale: en) == "Your folders came over as they were. The note you left unticked stayed in Apple Notes.")
+        #expect(AppleNotesImportView.successLine(locked: [], leftOut: 3, locale: en) == "Your folders came over as they were. The 3 notes you left unticked stayed in Apple Notes.")
         #expect(AppleNotesImportView.successLine(locked: ["Bank details", "Codes"], locale: en) == "Your folders came over as they were. \u{201C}Bank details\u{201D} and \u{201C}Codes\u{201D} are locked, so they stayed in Apple Notes. Unlock them there and import again, or copy them over yourself.")
         // Locked notes alone don't turn the end into a list of what couldn't come.
         var s = AppleNotesImportSummary()

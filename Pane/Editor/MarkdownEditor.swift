@@ -1653,6 +1653,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func clearTint() { core.layoutDelegate.tint.stop() }
 
+    /// Opened from a search: the line with the match lights up, then fades.
+    func flashFound(_ range: NSRange) { core.layoutDelegate.tint.flash(range, in: currentText) }
+
     /// Lays the text out from the top to past `offset`, then places tables and cards again.
     private func settleOverlays(after offset: Int) {
         guard let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return }

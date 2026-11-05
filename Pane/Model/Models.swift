@@ -289,7 +289,10 @@ enum NoteText {
             inTable = false
             // An embedded file (Obsidian's "![[greenhouse.png]]") is a picture, not words: the list
             // showed "!greenhouse.png" (round 7 captures). It's left out, as Notes leaves a photo out.
-            let cleaned = stripMarkup(String(line)).replacing(/!\[\[[^\]]*\]\]/, with: "").trimmingCharacters(in: .whitespaces)
+            // An import turns it into a picture link ("![plot.png](pane-file:...)"), and the list read
+            // "!plot.png" (round 7 again): that form goes too. A title keeps the server's rules.
+            let words = title == nil ? String(line) : String(line).replacing(/!\[[^\]\n]*\]\([^)\n]*\)/, with: "")
+            let cleaned = stripMarkup(words).replacing(/!\[\[[^\]]*\]\]/, with: "").trimmingCharacters(in: .whitespaces)
             guard !cleaned.isEmpty else { continue }
             let capped = String(String(cleaned.unicodeScalars.prefix(600)).prefix(300))
             // The preview reads wiki links as their text; the title keeps the server's rules.

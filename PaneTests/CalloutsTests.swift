@@ -198,7 +198,10 @@ import AppKit
         #expect(parsed.body == body)
         let file = NoteExport.fileText(body, created: .now, updated: .now, kept: nil, fileStem: "Trip")
         #expect(file.hasSuffix(body + "\n"))
-        #expect(MarkdownNote.parse(file, fileName: "Trip").body == body)
+        // The title line is a heading in the file, and comes back as the title.
+        #expect(file.contains("---\n# Trip\n"))
+        let back = MarkdownNote.parse(file, fileName: "Trip")
+        #expect(back.title == "Trip" && "Trip\n" + back.body == body)
     }
 }
 

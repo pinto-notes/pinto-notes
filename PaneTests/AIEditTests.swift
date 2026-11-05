@@ -47,6 +47,19 @@ import SwiftUI
         #expect(ChangeTint.paragraphRanges(changedFrom: old, to: new).count == 4, "the grid's four lines are tinted")
     }
 
+    /// Opened from a search on the iPhone: the found line lights up, and only that line (persona council r7).
+    @MainActor @Test func aFoundLineLightsUpAlone() {
+        let tint = ChangeTint()
+        let text = "Title\nFirst line\nThe match is here\nLast line"
+        let found = (text as NSString).range(of: "match")
+        tint.flash(found, in: text)
+        #expect(tint.ranges == [(text as NSString).range(of: "The match is here\n")])
+        #expect(tint.removals.isEmpty)
+        tint.stop()
+        tint.flash(NSRange(location: 500, length: 3), in: text)
+        #expect(tint.ranges.isEmpty, "a match that isn't in the text any more lights nothing")
+    }
+
     @Test func paragraphRangesIncludeTheirNewline() {
         let ranges = ChangeTint.paragraphRanges(changedFrom: "A\nC", to: "A\nB\nC")
         #expect(ranges == [NSRange(location: 2, length: 2)])

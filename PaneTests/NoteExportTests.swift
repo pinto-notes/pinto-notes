@@ -74,16 +74,22 @@ import ZIPFoundation
           - family-trip
         aliases: [Lisboa]
         ---
-        Lisbon
+        # Lisbon
         Flights.
 
         """)
         let plain = NoteExport.fileText("Plans: A/B\nText #inline", created: created, updated: created, kept: nil, fileStem: "Plans- A-B", timeZone: utc)
-        #expect(plain == "---\ntitle: \"Plans: A/B\"\ncreated: 2026-09-21T14:13:20Z\nupdated: 2026-09-21T14:13:20Z\n---\nPlans: A/B\nText #inline\n", "a tag inside the text stays there")
+        #expect(plain == "---\ntitle: \"Plans: A/B\"\ncreated: 2026-09-21T14:13:20Z\nupdated: 2026-09-21T14:13:20Z\n---\n# Plans: A/B\nText #inline\n", "a tag inside the text stays there")
         #expect(NoteExport.fileText("#idea", created: created, updated: created, kept: nil, fileStem: "#idea", timeZone: utc).hasSuffix("---\n#idea\n"), "a title is never taken for tags")
         // Read back: the same title, dates and tags.
         let back = MarkdownNote.parse(plain, fileName: "Plans- A-B")
         #expect(back.title == "Plans: A/B" && back.created == Date(timeIntervalSince1970: 1_790_000_000) && back.kept == nil)
+        // The title line is a heading in the file, and only that line: read back, it's the title and not a line of the text.
+        #expect(back.body == "Text #inline")
+        let marked = NoteExport.fileText("**Plans**\nText", created: created, updated: created, kept: nil, fileStem: "Plans", timeZone: utc)
+        #expect(marked.hasSuffix("---\n**Plans**\nText\n"), "a title with its own markup stays as written")
+        let long = String(repeating: "word ", count: 80).trimmingCharacters(in: .whitespaces)
+        #expect(NoteExport.fileText(long, created: created, updated: created, kept: nil, fileStem: "Long", timeZone: utc).hasSuffix("---\n\(long)\n"), "a line too long to be the title stays a line")
     }
 
     /// An export imported again keeps its notes' times: the zip stores them as the local time of
@@ -109,6 +115,7 @@ import ZIPFoundation
         _ = await MarkdownImporter(context: c.mainContext).run([MarkdownImporter.inspect(result.zip)], into: .perSource)
         let back = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Standup" })
         #expect(abs(back.updatedAt.timeIntervalSince(edited)) <= 2, "the time it was edited, not hours off")
+        #expect(back.body.trimmingCharacters(in: .newlines) == "Standup\nShipped it.", "the title's heading in the file comes back as the plain title line")
     }
 
     /// Mac 1.2 left these out: a PDF kept in a folder on its own wasn't in the zip, and neither

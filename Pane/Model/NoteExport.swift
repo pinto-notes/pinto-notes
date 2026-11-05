@@ -235,6 +235,13 @@ enum NoteExport {
         if !tags.isEmpty { yaml += ["tags:"] + tags.map { "  - " + yamlScalar($0) } }
         if let kept, !kept.isEmpty { yaml.append(kept) }
         yaml.append("---")
+        // The title line is a heading in the file, so Obsidian and the rest read it as a title and
+        // not as a first paragraph (persona council r7). An import takes it back as the title.
+        // One with its own markup, or too long to be the whole title, stays as written.
+        if let first = lines.firstIndex(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }),
+           lines[first] == title, !title.hasPrefix("#") {
+            lines[first] = "# " + title
+        }
         return yaml.joined(separator: "\n") + "\n" + lines.joined(separator: "\n") + "\n"
     }
 

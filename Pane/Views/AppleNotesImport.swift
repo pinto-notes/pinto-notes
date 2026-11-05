@@ -886,7 +886,7 @@ struct AppleNotesImportView: View {
                 .tracking(Palette.tracking(26))
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 10)
-            Text(Self.successLine(locked: finished.map { $0.notImported.filter { $0.why == AppleNotesImportSummary.lockedWhy }.map(\.name) } ?? notes.filter(\.locked).map(\.name), locale: locale))
+            Text(Self.successLine(locked: finished.map { $0.notImported.filter { $0.why == AppleNotesImportSummary.lockedWhy }.map(\.name) } ?? notes.filter(\.locked).map(\.name), leftOut: notes.filter { !$0.locked && !picked.contains($0.id) && !AppleNotesListing.isHere($0, keys: existing) }.count, locale: locale))
                 .font(.system(size: 15))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
@@ -904,9 +904,11 @@ struct AppleNotesImportView: View {
     static let successLine = "Your folders came over as they were."
 
     /// The success page's line, and the locked notes that stayed, as the first page said they would.
-    static func successLine(locked: [String], locale: Locale) -> String {
-        guard let names = lockedNames(locked, locale: locale) else { return successLine }
-        return successLine + (locked.count == 1
+    static func successLine(locked: [String], leftOut: Int = 0, locale: Locale) -> String {
+        // Notes the person unticked didn't come: "as they were" would say they had.
+        let first = leftOut == 0 ? successLine : "\(successLine) The \(leftOut == 1 ? "note" : "\(leftOut.formatted(.number.locale(locale))) notes") you left unticked stayed in Apple Notes."
+        guard let names = lockedNames(locked, locale: locale) else { return first }
+        return first + (locked.count == 1
             ? " \(names) is locked, so it stayed in Apple Notes. Unlock it there and import again, or copy it over yourself."
             : " \(names) are locked, so they stayed in Apple Notes. Unlock them there and import again, or copy them over yourself.")
     }
@@ -1277,9 +1279,10 @@ struct AppleNotesImportView: View {
         if AppleNotesBridge.isDemo {
             // `-importDelay 1.5`: captures of the sheet while Apple Notes is being read.
             if let wait = Capture.argument("-importDelay").flatMap(Double.init) { try? await Task.sleep(for: .seconds(wait)) }
-            // Captures never read the real Apple Notes: a made-up library, most of it picked.
+            // Captures never read the real Apple Notes: a made-up library.
             listing = AppleNotesListing(notes: AppleNotesBridge.demoNotes + (Self.demoLocked ? AppleNotesBridge.demoLockedNotes : []))
-            picked = Set(notes.filter { $0.folder != "Archive" && !$0.locked }.map(\.id))
+            // As a real import starts: everything that can come is ticked, Archive too.
+            picked = listing.pickedAtFirst(keys: [])
             existing = []
             storeAccess = !Self.demoWithoutAccess
             loading = false

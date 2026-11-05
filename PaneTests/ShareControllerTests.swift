@@ -77,6 +77,7 @@ import Testing
         #expect(share.state.people.map(\.id) == [Self.me])
         #expect(share.state.link != nil && share.state.link != oldLink)
         #expect(share.confirmingRemove == nil && share.working == nil)
+        #expect(share.linkReplaced, "the sheet says the old link no longer works")
     }
 
     /// You can't remove yourself, and only the owner removes or changes the link.

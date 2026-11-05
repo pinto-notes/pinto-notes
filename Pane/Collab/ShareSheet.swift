@@ -90,7 +90,7 @@ struct ShareForm: View {
                     .disabled(share.working != nil)
                     .accessibilityIdentifier("share.access")
                 } footer: {
-                    footer(share.done == .linkChanged ? nil : ShareCopy.link(state), done: share.done == .linkChanged)
+                    footer(share.done == .linkChanged ? nil : share.linkReplaced ? ShareCopy.linkReplaced : ShareCopy.link(state), done: share.done == .linkChanged)
                 }
             } else {
                 Section {

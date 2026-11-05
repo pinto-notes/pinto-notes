@@ -76,6 +76,21 @@ final class ChangeTint: @unchecked Sendable {
         ranges = Self.paragraphRanges(changedFrom: previous, to: text)
         removals = Self.removals(from: previous, to: text)
         guard !ranges.isEmpty || !removals.isEmpty else { return }
+        light(hold: hold, untilCleared: untilCleared)
+    }
+
+    /// Lights the paragraph that holds `range` for a moment, then fades it: where a search found
+    /// its match on the iPhone, which has no find flash (persona council r7).
+    @MainActor func flash(_ range: NSRange, in text: String, hold: Double = 1.2) {
+        stop()
+        let all = text as NSString
+        guard NSMaxRange(range) <= all.length else { return }
+        ranges = [all.paragraphRange(for: range)]
+        removals = []
+        light(hold: hold, untilCleared: false)
+    }
+
+    @MainActor private func light(hold: Double, untilCleared: Bool) {
         let mine = run, lit = drawn
         let easeOut: @Sendable (Double) -> Double = { 1 - pow(1 - $0, 3) }
         let easeInOut: @Sendable (Double) -> Double = { $0 < 0.5 ? 4 * $0 * $0 * $0 : 1 - pow(-2 * $0 + 2, 3) / 2 }

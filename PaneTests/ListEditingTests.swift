@@ -140,6 +140,10 @@ import AppKit
         #expect(NoteText.preview(of: "Only title") == "No additional text")
         // Round 7: an Obsidian embed read "!greenhouse.png" in the list.
         #expect(NoteText.preview(of: "Greenhouse\n\n![[greenhouse.png]]\n\nWater the tomatoes") == "Water the tomatoes")
+        // The same picture once imported, and one pasted in, with or without a name.
+        #expect(NoteText.preview(of: "Greenhouse\n\n![plot.png](pane-file:6F2C1E10-7A7B-4C3E-9B57-2D5C0A1F3E11)\n\nWater the tomatoes") == "Water the tomatoes")
+        #expect(NoteText.preview(of: "Greenhouse\n\n![](pane-file:6F2C1E10-7A7B-4C3E-9B57-2D5C0A1F3E11)\n\nWater the tomatoes") == "Water the tomatoes")
+        #expect(NoteText.preview(of: "Greenhouse\n\nBefore ![plot.png](pane-file:6F2C1E10-7A7B-4C3E-9B57-2D5C0A1F3E11) after") == "Before  after")
         #expect(ReadableText.line("![[plot.png]] the plot") == " the plot")
     }
 }
