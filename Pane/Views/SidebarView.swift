@@ -1158,7 +1158,11 @@ private struct CountedRow: View {
                         .foregroundStyle(.secondary)
                 }
             } icon: {
+                #if os(macOS)
+                if trash { TrashRowIcon(selected: selected) } else { SidebarIcon(name: icon, selected: selected) }
+                #else
                 SidebarIcon(name: icon, selected: selected)
+                #endif
             }
             .sidebarRowLabel()
             .rowAccessibility(title, count: count, files: files)
@@ -1169,6 +1173,32 @@ private struct CountedRow: View {
 }
 
 #if os(macOS)
+/// Recently Deleted's icon: its trash swallows each note you delete, and someone inside looks round.
+private struct TrashRowIcon: View {
+    let selected: Bool
+    @State private var gulps = 0
+    @Environment(\.controlActiveState) private var active
+
+    var body: some View {
+        Group {
+            if Charm.on {
+                Image(systemName: "trash").font(DesignLook.isCandidate ? SidebarStyle.candidateIconFont : SidebarStyle.iconFont).hidden()
+                    .overlay { CharmIcon(kind: .trash, pointSize: DesignLook.isCandidate ? 14 : 16, cue: gulps) }
+            } else {
+                Image(systemName: "trash").font(DesignLook.isCandidate ? SidebarStyle.candidateIconFont : SidebarStyle.iconFont)
+            }
+        }
+        .foregroundStyle(selected ? AnyShapeStyle(.tint) : active == .inactive ? AnyShapeStyle(.tertiary)
+            : DesignLook.isCandidate ? AnyShapeStyle(Color.muted) : AnyShapeStyle(.primary))
+        .frame(minWidth: DesignLook.isCandidate ? 20 : nil)
+        .onReceive(NotificationCenter.default.publisher(for: .paneNoteTrashed)) { _ in gulps += 1 }
+        .task {
+            // The first note deleted brought this row: it answers that one too.
+            if let last = Charm.lastTrashed, Date.now.timeIntervalSince(last) < 1 { gulps += 1 }
+        }
+    }
+}
+
 /// Recently Deleted was open and its last note left (recovered, or deleted for good): its row is
 /// gone, so the list shows the notes again. A view of its own that reads the list's count of
 /// Recently Deleted, so it follows the notes without the sidebar working out its rows again.

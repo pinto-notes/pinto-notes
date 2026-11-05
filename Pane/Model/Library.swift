@@ -219,6 +219,9 @@ extension ModelContext {
         note.isPinned = false
         note.touch()
         saveOrReport()
+        #if os(macOS)
+        Charm.noteTrashed()
+        #endif
     }
 
     /// No text and nothing locked: what leaving or deleting a note throws away.

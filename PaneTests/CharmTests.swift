@@ -9,8 +9,9 @@ import Testing
 @MainActor @Suite(.serialized) struct CharmTests {
     /// A frame's pixels (RGBA), drawn offscreen at 4x.
     static func pixels(_ kind: Charm.Kind, t: Double, rare: Bool = false) throws -> [UInt8] {
+        let room = 24 * Charm.bleed(kind)
         let view = CharmFrame(kind: kind, t: t, rare: rare, accent: .orange, day: 4)
-            .frame(width: 24, height: 24).foregroundStyle(.black).background(.white)
+            .frame(width: room, height: room).foregroundStyle(.black).background(.white)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 4
         let rep = NSBitmapImageRep(cgImage: try #require(renderer.cgImage))
@@ -42,15 +43,29 @@ import Testing
         }
     }
 
-    /// Today's ordinary flip never shows another day's number: the page turning away is blank.
-    @Test func todayNeverShowsAnotherDay() {
-        var blanks = 0
-        for t in stride(from: 0.0, to: Charm.duration(.today, rare: false), by: 0.01) {
-            let page = Charm.todayPage(t, false, day: 5)
-            #expect(page.shown == nil || page.shown == 5, "t=\(t): \(String(describing: page.shown))")
-            if page.shown == nil { blanks += 1 }
+    /// Today's torn page flies clear of the icon: mid-flight it has ink well below the calendar, at rest none.
+    @Test func tornPageLeavesTheIcon() throws {
+        func inkBelowIcon(_ t: Double) throws -> Int {
+            let room = 24 * Charm.bleed(.today)
+            let view = CharmFrame(kind: .today, t: t, accent: .orange, day: 5).frame(width: room, height: room).foregroundStyle(.black).background(.white)
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 2
+            let rep = NSBitmapImageRep(cgImage: try #require(renderer.cgImage))
+            let top = Int((room / 2 + 12 + 3) * 2)
+            var n = 0
+            for y in top..<rep.pixelsHigh { for x in 0..<rep.pixelsWide where (rep.colorAt(x: x, y: y)?.brightnessComponent ?? 1) < 0.5 { n += 1 } }
+            return n
         }
-        #expect(blanks > 0)
+        #expect(try inkBelowIcon(0) == 0)
+        #expect(try inkBelowIcon(0.75) > 40)
+    }
+
+    /// A finished list's other circles are found for the wave, and a neighbouring paragraph isn't one.
+    @Test func waveTakesTheRestOfTheList() {
+        let text = "Title\n- [x] Milk\n- [x] Eggs\n- [x] Bread\n\nAfter"
+        let eggs = (text as NSString).range(of: "- [x] Eggs").location
+        let found = CheckPop.otherLines(text, lineStart: eggs)
+        #expect(found.sorted() == [(text as NSString).range(of: "- [x] Milk").location, (text as NSString).range(of: "- [x] Bread").location])
     }
 
     /// Every symbol it stands in for maps to a glyph, and others stay symbols.

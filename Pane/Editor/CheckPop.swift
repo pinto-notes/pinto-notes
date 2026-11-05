@@ -67,51 +67,125 @@ enum CheckPop {
         CATransaction.commit()
     }
 
-    /// The last open item of a list ticked: eight small dots in the accent fly out from the circle
-    /// and fade, once (Charm). Short and small, so finishing a list feels like something.
+    /// The last open item of a list ticked: the list celebrates. Every circle hops in turn, out from
+    /// the one you ticked, and dots fly up from it and fall (Charm).
     static func burst(in host: CALayer, rect: CGRect) {
         let s = rect.width
         let center = CGPoint(x: rect.midX, y: rect.midY)
-        let dot = s * 0.16
         CATransaction.begin()
-        for i in 0..<8 {
-            let a = Double(i) / 8 * 2 * .pi - .pi / 2
-            // About 3 pt clear of the box, so the pointer on it doesn't hide them.
-            let from = CGPoint(x: center.x + cos(a) * (s * 0.62 + 1.5), y: center.y + sin(a) * (s * 0.62 + 1.5))
-            let to = CGPoint(x: center.x + cos(a) * (s * 1.05 + 3), y: center.y + sin(a) * (s * 1.05 + 3))
+        for i in 0..<14 {
+            let a = Double(i) / 14 * 2 * .pi - .pi / 2
+            let far = i % 2 == 0
+            let dot = s * (far ? 0.2 : 0.14)
+            let reach = s * (far ? 1.55 : 1.05) + 4
+            let start = CGPoint(x: center.x + cos(a) * (s * 0.6 + 1.5), y: center.y + sin(a) * (s * 0.6 + 1.5))
+            let out = CGPoint(x: center.x + cos(a) * reach, y: center.y + sin(a) * reach)
+            // y grows downwards here, so the dots drop as they fade.
+            let fallen = CGPoint(x: center.x + cos(a) * reach * 1.14, y: center.y + sin(a) * reach * 1.14 + s * 0.8)
             let d = CAShapeLayer()
             d.bounds = CGRect(x: 0, y: 0, width: dot, height: dot)
             d.path = CGPath(ellipseIn: d.bounds, transform: nil)
             d.fillColor = PColor.paneAccent.cgColor
-            d.position = to
+            d.position = fallen
             d.opacity = 0
             d.zPosition = 11
             host.addSublayer(d)
-            let move = CABasicAnimation(keyPath: "position")
+            let move = CAKeyframeAnimation(keyPath: "position")
             #if os(iOS)
-            move.fromValue = NSValue(cgPoint: from)
-            move.toValue = NSValue(cgPoint: to)
+            move.values = [start, out, fallen].map { NSValue(cgPoint: $0) }
             #else
-            move.fromValue = NSValue(point: from)
-            move.toValue = NSValue(point: to)
+            move.values = [start, out, fallen].map { NSValue(point: $0) }
             #endif
-            move.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            let shrink = CABasicAnimation(keyPath: "transform.scale")
-            shrink.fromValue = 1
-            shrink.toValue = 0.2
+            move.keyTimes = [0, 0.42, 1]
+            move.timingFunctions = [CAMediaTimingFunction(name: .easeOut), CAMediaTimingFunction(name: .easeIn)]
+            let shrink = CAKeyframeAnimation(keyPath: "transform.scale")
+            shrink.values = [1, 1, 0.35]
+            shrink.keyTimes = [0, 0.5, 1]
             let fade = CAKeyframeAnimation(keyPath: "opacity")
             fade.values = [0, 1, 1, 0]
-            fade.keyTimes = [0, 0.1, 0.5, 1]
+            fade.keyTimes = [0, 0.06, 0.68, 1]
             let group = CAAnimationGroup()
             group.animations = [move, shrink, fade]
             group.beginTime = CACurrentMediaTime() + 0.08
-            group.duration = 0.5
+            group.duration = 0.8
             group.fillMode = .backwards
             group.isRemovedOnCompletion = true
             group.delegate = LayerRemover(d)
             d.add(group, forKey: "burst")
         }
         CATransaction.commit()
+    }
+
+    /// The other circles of a finished list hop one after another, nearest first. Each is a copy of
+    /// the ticked circle drawn over the real one, removed when it lands.
+    static func wave(in host: CALayer, from rect: CGRect, circles: [CGRect]) {
+        guard !reduceMotion else { return }
+        let ordered = circles.sorted { abs($0.midY - rect.midY) < abs($1.midY - rect.midY) }
+        CATransaction.begin()
+        for (i, r) in ordered.enumerated() {
+            let s = r.width
+            let hop = CALayer()
+            hop.frame = r
+            hop.zPosition = 10
+            hop.opacity = 0
+            let disc = CAShapeLayer()
+            disc.frame = hop.bounds
+            disc.path = CGPath(ellipseIn: hop.bounds, transform: nil)
+            disc.fillColor = PColor.paneAccent.cgColor
+            hop.addSublayer(disc)
+            let tick = CAShapeLayer()
+            tick.frame = hop.bounds
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: s * 0.29, y: s * 0.51))
+            path.addLine(to: CGPoint(x: s * 0.44, y: s * 0.66))
+            path.addLine(to: CGPoint(x: s * 0.715, y: s * 0.355))
+            tick.path = path
+            tick.strokeColor = CheckTick.color.cgColor
+            tick.fillColor = nil
+            tick.lineWidth = s * 0.1
+            tick.lineCap = .round
+            tick.lineJoin = .round
+            hop.addSublayer(tick)
+            host.addSublayer(hop)
+            let grow = CAKeyframeAnimation(keyPath: "transform.scale")
+            grow.values = [1, 1.42, 0.92, 1]
+            grow.keyTimes = [0, 0.38, 0.72, 1]
+            let show = CAKeyframeAnimation(keyPath: "opacity")
+            show.values = [1, 1]
+            let group = CAAnimationGroup()
+            group.animations = [grow, show]
+            group.beginTime = CACurrentMediaTime() + 0.12 + Double(i) * 0.055
+            group.duration = 0.34
+            group.isRemovedOnCompletion = true
+            group.delegate = LayerRemover(hop)
+            hop.add(group, forKey: "wave")
+        }
+        CATransaction.commit()
+    }
+
+    /// The start of each line in the run of checklist lines around `lineStart`, itself left out.
+    nonisolated static func otherLines(_ text: String, lineStart: Int) -> [Int] {
+        let ns = text as NSString
+        guard lineStart < ns.length else { return [] }
+        func isItem(_ range: NSRange) -> Bool {
+            let t = ns.substring(with: range).drop { $0 == " " || $0 == "\t" }
+            return ["- [", "* [", "+ ["].contains { t.hasPrefix($0) }
+        }
+        let own = ns.lineRange(for: NSRange(location: lineStart, length: 0))
+        var out: [Int] = []
+        var up = own
+        while up.location > 0 {
+            up = ns.lineRange(for: NSRange(location: up.location - 1, length: 0))
+            guard isItem(up) else { break }
+            out.append(up.location)
+        }
+        var down = own
+        while NSMaxRange(down) < ns.length {
+            down = ns.lineRange(for: NSRange(location: NSMaxRange(down), length: 0))
+            guard isItem(down) else { break }
+            out.append(down.location)
+        }
+        return out
     }
 
     /// Whether the tick at `lineStart` just finished its list: the run of checklist lines around

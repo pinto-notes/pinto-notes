@@ -29,9 +29,9 @@ enum Charm {
         case .more: rare ? 1.7 : 0.75
         case .sidebar: 0.8
         case .folder: rare ? 1.3 : 1.0
-        case .trash: rare ? 2.2 : 0.85
+        case .trash: 2.2
         case .format: rare ? 1.1 : 0.85
-        case .today: rare ? 1.55 : 0.9
+        case .today: rare ? 1.55 : 1.0
         case .undo: rare ? 1.45 : 0.8
         case .settings: rare ? 1.9 : 1.05
         case .lock: rare ? 1.65 : 0.85
@@ -54,8 +54,11 @@ enum Charm {
         var style: StrokeStyle { StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round) }
     }
 
+    /// How much room a glyph's canvas takes around its 24 units: Today's torn page flies clear of the icon.
+    static func bleed(_ kind: Kind) -> Double { kind == .today ? 2.5 : kind == .trash ? 1.6 : 1 }
+
     static func draw(_ kind: Kind, in c: inout GraphicsContext, size: CGSize, t: Double, rare: Bool, pen: Pen, day: Int) {
-        let s = min(size.width, size.height) / 24
+        let s = min(size.width, size.height) / (24 * bleed(kind))
         c.translateBy(x: (size.width - 24 * s) / 2, y: (size.height - 24 * s) / 2)
         c.scaleBy(x: s, y: s)
         // Past the end, the resting frame.
@@ -531,8 +534,26 @@ enum Charm {
             lift = CharmMath.keys(t, [(0, 0), (0.25, 5.4), (1.75, 5.4), (1.85, 0)])
             tilt = CharmMath.keys(t, [(0, 0), (0.25, -4), (1.75, -4), (1.85, 0)]) + CharmMath.wobble(max(t - 1.85, 0), amp: t > 1.85 ? 5 : 0, freq: 6, damping: 9)
         } else {
-            lift = CharmMath.keys(t, [(0, 0), (0.16, 2.2), (0.36, 2.2), (0.48, 0)])
-            tilt = CharmMath.keys(t, [(0, 0), (0.16, -14), (0.36, -14), (0.48, 0)]) + (t > 0.48 ? CharmMath.wobble(t - 0.48, amp: 6, freq: 7, damping: 10) : 0)
+            // A note goes in: the lid opens, the page drops, the lid claps shut. Then it lifts a
+            // little, and someone inside looks around, blinks and ducks back down.
+            lift = CharmMath.keys(t, [(0, 0), (0.14, 6), (0.42, 6), (0.5, 0), (0.86, 0), (1.0, 5.2), (1.86, 5.2), (1.96, 0)])
+            tilt = CharmMath.keys(t, [(0, 0), (0.14, -22), (0.42, -22), (0.5, 0), (0.86, 0), (1.0, -5), (1.86, -5), (1.96, 0)])
+                + (t > 0.5 && t < 0.86 ? CharmMath.wobble(t - 0.5, amp: 7, freq: 7, damping: 9) : 0)
+                + (t > 1.96 ? CharmMath.wobble(t - 1.96, amp: 5, freq: 7, damping: 20) : 0)
+            // The clap shakes the can.
+            let shake = t > 0.5 && t < 0.86 ? 1 + 0.06 * exp(-9 * (t - 0.5)) * cos((t - 0.5) * 30) : 1
+            c.scale(around: CGPoint(x: 12, y: 21), x: 2 - shake, y: shake)
+            // The page falling in, seen only above the rim.
+            if t > 0.06, t < 0.5 {
+                let fall = (t - 0.06) / 0.34
+                let y = -11 + 25 * fall * fall
+                c.drawLayer { l in
+                    l.clip(to: Path(CGRect(x: -6, y: -14, width: 36, height: 21.2)))
+                    l.translateBy(x: 12, y: y)
+                    l.rotate(by: .degrees(14 - 24 * fall))
+                    l.fill(Path(roundedRect: CGRect(x: -3.6, y: -4.6, width: 7.2, height: 9.2), cornerRadius: 1.2), with: p.ink)
+                }
+            }
         }
         // The can.
         var can = Path()
@@ -547,11 +568,12 @@ enum Charm {
         ribs.move(to: CGPoint(x: 10, y: 10.2)); ribs.addLine(to: CGPoint(x: 10.3, y: 17.8))
         ribs.move(to: CGPoint(x: 14, y: 10.2)); ribs.addLine(to: CGPoint(x: 13.7, y: 17.8))
         c.stroke(ribs, with: p.ink, style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
-        if rare {
+        do {
             // Eyes in the gap: open, look left, right, blink, then duck back as the lid shuts.
-            let open = CharmMath.seg(t, 0.3, 0.42) * (1 - CharmMath.seg(t, 1.6, 1.72))
-            let look = CharmMath.keys(t, [(0, 0), (0.55, 0), (0.7, -1.3), (1.0, -1.3), (1.15, 1.3), (1.4, 1.3), (1.55, 0)])
-            let blink = 1 - CharmMath.pulse(t, 1.42, 1.56)
+            let open = rare ? CharmMath.seg(t, 0.3, 0.42) * (1 - CharmMath.seg(t, 1.6, 1.72)) : CharmMath.seg(t, 1.0, 1.1) * (1 - CharmMath.seg(t, 1.76, 1.86))
+            let look = rare ? CharmMath.keys(t, [(0, 0), (0.55, 0), (0.7, -1.3), (1.0, -1.3), (1.15, 1.3), (1.4, 1.3), (1.55, 0)])
+                : CharmMath.keys(t, [(0, 0), (1.12, 0), (1.22, -1.4), (1.42, -1.4), (1.52, 1.4), (1.7, 1.4), (1.76, 0)])
+            let blink = 1 - (rare ? CharmMath.pulse(t, 1.42, 1.56) : CharmMath.pulse(t, 1.58, 1.68))
             let r = 1.3, ry = r * open * max(blink, 0.1)
             if open > 0.01 {
                 for x in [10.2, 13.8] {
@@ -648,6 +670,7 @@ enum Charm {
     }
 
     private static func today(_ c: inout GraphicsContext, _ t: Double, _ rare: Bool, _ p: Pen, day: Int) {
+        if !rare { todayTear(&c, t, p, day: day); return }
         let frame = CGRect(x: 3.6, y: 4.8, width: 16.8, height: 15.6)
         c.stroke(Path(roundedRect: frame, cornerRadius: 3.2), with: p.ink, style: p.style)
         c.drawLayer { l in
@@ -665,6 +688,55 @@ enum Charm {
         rings.move(to: CGPoint(x: 15.8, y: 3.0)); rings.addLine(to: CGPoint(x: 15.8, y: 6.2))
         Charm.clear(c, rings, stroke: StrokeStyle(lineWidth: 3.2, lineCap: .round))
         c.stroke(rings, with: p.ink, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+    }
+
+    /// Today's page tears off: the calendar dips, the page rips free, sails up and falls away out of
+    /// the icon, and the calendar bounces back with today's page on it. Both pages show today, so
+    /// no other date ever appears.
+    private static func todayTear(_ c: inout GraphicsContext, _ t: Double, _ p: Pen, day: Int) {
+        let release = 0.11
+        let after = max(t - release, 0)
+        // The dip before the rip, then a bounce that settles.
+        let squash = t <= 0 ? 1 : t < release
+            ? 1 - 0.1 * CharmMath.easeOut(t / release)
+            : 1 + 0.13 * exp(-7.5 * after) * sin(after * 17 + 1.25 * .pi) * -1 * (t < 0.95 ? 1 : 0)
+        let frame = CGRect(x: 3.6, y: 4.8, width: 16.8, height: 15.6)
+        func digit(_ c: GraphicsContext, at p: CGPoint) {
+            c.draw(c.resolve(Text(String(day)).font(.system(size: 8.6, weight: .semibold)).monospacedDigit().foregroundStyle(.primary)), at: p, anchor: .center)
+        }
+        var g = c
+        g.scale(around: CGPoint(x: 12, y: 20.4), x: 2 - squash, y: squash)
+        g.stroke(Path(roundedRect: frame, cornerRadius: 3.2), with: p.ink, style: p.style)
+        g.drawLayer { l in
+            l.clip(to: Path(roundedRect: frame, cornerRadius: 3.2))
+            l.fill(Path(CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: 4.2)), with: p.ink)
+        }
+        // Today's fresh page: it's there the moment the old one leaves, and pops up into place.
+        var fresh = g
+        let pop = t <= 0 ? 1 : CharmMath.spring(max(t - release - 0.06, 0), freq: 2.6, damping: 8)
+        fresh.scale(around: CGPoint(x: 12, y: 14.7), x: 0.55 + 0.45 * pop, y: 0.55 + 0.45 * pop)
+        digit(fresh, at: CGPoint(x: 12, y: 14.7))
+        var rings = Path()
+        rings.move(to: CGPoint(x: 8.2, y: 3.0)); rings.addLine(to: CGPoint(x: 8.2, y: 6.2))
+        rings.move(to: CGPoint(x: 15.8, y: 3.0)); rings.addLine(to: CGPoint(x: 15.8, y: 6.2))
+        Charm.clear(g, rings, stroke: StrokeStyle(lineWidth: 3.2, lineCap: .round))
+        g.stroke(rings, with: p.ink, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+        // The torn page, solid so it reads at 16 pt, with the number cut out of it.
+        guard t > 0, after < 0.86 else { return }
+        let x = 12 + 15 * after + 1.2 * sin(after * 15)
+        let y = 14.6 - 26 * after + 62 * after * after
+        let turn = 12 + 150 * after * (0.55 + after)
+        let shrink = 1 - 0.28 * CharmMath.seg(after, 0.1, 0.8)
+        c.opacity = 1 - CharmMath.seg(after, 0.58, 0.84)
+        c.drawLayer { l in
+            l.translateBy(x: x, y: y)
+            l.rotate(by: .degrees(turn))
+            l.scaleBy(x: shrink, y: shrink)
+            l.fill(Path(roundedRect: CGRect(x: -7.4, y: -6.4, width: 14.8, height: 12.8), cornerRadius: 2.2), with: p.ink)
+            var cut = l
+            cut.blendMode = .destinationOut
+            cut.draw(cut.resolve(Text(String(day)).font(.system(size: 8.6, weight: .bold)).monospacedDigit().foregroundStyle(.black)), at: .zero, anchor: .center)
+        }
     }
 
     // MARK: Undo: the arrow winds back and springs home. Rare: a whole turn backwards.
@@ -929,7 +1001,8 @@ struct CharmIcon: View {
         let side = Self.canvas(pointSize)
         TimelineView(.animation(paused: start == nil)) { tl in
             let t = start.map { tl.date.timeIntervalSince($0) } ?? 0
-            CharmFrame(kind: kind, t: t, accent: accent)
+            let room = side * Charm.bleed(kind)
+            CharmFrame(kind: kind, t: t, accent: accent).frame(width: room, height: room)
         }
         .frame(width: side, height: side)
         .onChange(of: cue) {
@@ -980,7 +1053,19 @@ extension GraphicsContext {
 
 // MARK: - In the app
 
+extension Notification.Name {
+    /// A note went to Recently Deleted: its row's trash answers.
+    static let paneNoteTrashed = Notification.Name("pane.noteTrashed")
+}
+
 extension Charm {
+    /// When a note last went to Recently Deleted: the first one brings the row itself, too late to hear it.
+    @MainActor static var lastTrashed: Date?
+    @MainActor static func noteTrashed() {
+        lastTrashed = .now
+        NotificationCenter.default.post(name: .paneNoteTrashed, object: nil)
+    }
+
     /// On unless turned off with `defaults write <bundle id> charmOff -bool YES` (a concept that
     /// may not stay; off, every place shows its SF Symbol as before).
     static var on: Bool { !UserDefaults.standard.bool(forKey: "charmOff") }
