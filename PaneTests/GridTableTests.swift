@@ -212,4 +212,12 @@ import Testing
         let natural = near.columnWidths(available: 10_000).reduce(0, +)
         #expect(abs(near.columnWidths(available: natural / 0.8).reduce(0, +) - natural / 0.8) < 0.5, "80% full: stretches")
     }
+
+    @Test func anEmptyColumnIsNoticed() {
+        let r = NSRange(location: 0, length: 0)
+        #expect(GridTable(rows: [["Day", ""], ["", ""]], range: r, index: 0).hasEmptyColumn)
+        #expect(GridTable(rows: [["Day", " "], ["Sat"]], range: r, index: 0).hasEmptyColumn)
+        #expect(!GridTable(rows: [["Day", "Plan"], ["", ""]], range: r, index: 0).hasEmptyColumn)
+        #expect(!GridTable(rows: [["Day", ""], ["", "Lunch"]], range: r, index: 0).hasEmptyColumn)
+    }
 }

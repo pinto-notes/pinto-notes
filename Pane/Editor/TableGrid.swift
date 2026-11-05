@@ -12,6 +12,12 @@ struct GridTable: Equatable {
 
     var columns: Int { rows.map(\.count).max() ?? 0 }
 
+    /// Some column has no text in any row, header included: at rest it would have no edge and
+    /// the table would read as one wide column (round 7 c2: a two-column table showed "Day" alone).
+    var hasEmptyColumn: Bool {
+        (0..<columns).contains { c in rows.allSatisfy { c >= $0.count || $0[c].trimmingCharacters(in: .whitespaces).isEmpty } }
+    }
+
     func type(_ column: Int) -> TypedTable.ColumnType {
         guard let types, column < types.count else { return .text }
         return types[column]
@@ -1027,7 +1033,8 @@ struct TableGridView: View {
     /// edited: at rest a table reads as part of the page, and in it you see its columns. With rows
     /// only, a new table's empty column had no edge (Emil, 1 November 2026: "why are there no
     /// vertical lines?"; round 1 compared rows only, always and while editing).
-    private var showsColumnLines: Bool { !DesignLook.readingPage || isEditing }
+    /// An empty column keeps its lines at rest too, or it vanishes into its neighbour.
+    private var showsColumnLines: Bool { !DesignLook.readingPage || isEditing || draft.hasEmptyColumn }
 
     private var border: Color {
         DesignLook.isCandidate ? Color.muted.opacity(contrast == .increased ? 0.9 : 0.4) : Color.secondary.opacity(contrast == .increased ? 0.9 : 0.45)
