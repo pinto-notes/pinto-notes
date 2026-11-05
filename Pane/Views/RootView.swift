@@ -13,6 +13,8 @@ struct RootView: View {
     #else
     @State private var scope: Scope? = .all
     #endif
+    /// The note list is showing its empty state: the note pane stays blank (NoteListView.showsEmpty).
+    @State private var listEmpty = false
     /// The list's selection; one note opens in the editor, several show a summary like Notes.
     @State private var selection: Set<UUID> = []
     @State private var visibility: NavigationSplitViewVisibility = .all
@@ -389,7 +391,7 @@ struct RootView: View {
                 .environment(library)
                 .phoneScreen()
                 .navigationDestination(item: $scope) { s in
-                    NoteListView(scope: s, selection: $selection, onNewNote: newNote)
+                    NoteListView(scope: s, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty)
                         .equatable()
                         .environment(library)
                         .environment(openNotes)
@@ -427,7 +429,7 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
                 #endif
         } content: {
-            NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote)
+            NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty)
                 .equatable()
                 .environment(library)
                 #if os(macOS)
@@ -811,7 +813,7 @@ struct RootView: View {
         let content = Group {
             if shown.count > 1 {
                 MultipleSelectionView(count: shown.count, items: shown.contains { context.attachment($0) != nil })
-            } else if !behindSetupCard {
+            } else if !behindSetupCard && !listEmpty {
                 EmptyDetailView(newNote: newNote)
             } else {
                 Color.clear

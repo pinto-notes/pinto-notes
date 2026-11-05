@@ -478,8 +478,10 @@ struct MacVersionHistory: View {
                         ProgressView().controlSize(.small)
                         Text("Restoring\u{2026}").font(.system(size: 13)).foregroundStyle(.secondary)
                     }
-                    CompareMenu(model: model)
-                    restoreButton
+                    // The buttons keep their full titles; the date and the summary wrap instead
+                    // (council round 16: "Restore This Ver…").
+                    CompareMenu(model: model).fixedSize()
+                    restoreButton.fixedSize()
                 }
                 .padding(.leading, 20)
                 .padding(.trailing, Self.closeRoom)

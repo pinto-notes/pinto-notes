@@ -66,6 +66,39 @@ import Testing
         Self.check(try await Self.draw(MacVersionHistory(model: model, close: {}), size: size), size: size)
     }
 
+    /// The widest run of the amber button's fill on any row across the top bar, in points.
+    static func amberRun(_ rep: NSBitmapImageRep, size: CGSize) -> CGFloat {
+        let sx = CGFloat(rep.pixelsWide) / size.width
+        var best = 0
+        for y in stride(from: 0, to: Int(70 * sx), by: 2) {
+            var run = 0
+            for x in 0..<rep.pixelsWide {
+                guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { run = 0; continue }
+                if c.redComponent > 0.5, c.redComponent - c.blueComponent > 0.3, c.greenComponent < 0.55 { run += 1; best = max(best, run) } else { run = 0 }
+            }
+        }
+        return CGFloat(best) / sx
+    }
+
+    /// Round 16 (`a13-history-restore`): in a narrower sheet the date wrapped beside it and the
+    /// button shrank to "Restore This Ver…". The buttons keep their width; the date wraps instead.
+    @Test func restoreThisVersionIsNeverCutOff() async throws {
+        let c = try AppSnapshotTests.container()
+        let notes = try c.mainContext.fetch(FetchDescriptor<Note>())
+        let history = NoteHistory(store: DemoHistoryStore(context: c.mainContext), context: c.mainContext, sync: nil)
+        let model = VersionHistoryModel(note: try #require(notes.first { $0.title == "Lisbon" }), history: history)
+        await model.load()
+        await model.select(model.entries[1].id)
+        let alone = NSHostingView(rootView: Button("Restore This Version") {}.buttonStyle(.amberProminent)).fittingSize.width
+        for width in [720.0, 820.0] {
+            let size = CGSize(width: width, height: 560)
+            let rep = try await Self.draw(MacVersionHistory(model: model, close: {}), size: size)
+            let run = Self.amberRun(rep, size: size)
+            #expect(run >= alone - 3, "at \(width) pt the button is \(run) pt wide, it needs \(alone)")
+        }
+        withExtendedLifetime(c) {}
+    }
+
     @Test func aiChangesIsACard() async throws {
         let (container, history, store) = try AIChangesSnapshots.library()
         let model = AIChangesModel(store: store, history: history, connected: ["ChatGPT", "Claude Code"])

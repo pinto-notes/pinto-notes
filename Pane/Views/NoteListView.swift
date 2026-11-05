@@ -9,6 +9,9 @@ struct NoteListView: View {
     /// Several notes can be selected (⌘-click, ⇧-click, ⌘A on the Mac; on iPhone, Select Notes in the ••• menu, Edit in Recently Deleted, or a two-finger swipe).
     @Binding var selection: Set<UUID>
     let onNewNote: () -> Void
+    /// Set while the list shows its empty state, so the note pane beside it stays blank rather than
+    /// saying "No note selected" under the list's own "No Notes" (council round 16).
+    var showsEmpty: Binding<Bool> = .constant(false)
     #if os(iOS)
     @State private var editMode: EditMode = .inactive
     /// What Move (a long-press, Select Notes, Recently Deleted) is moving, while its sheet is up.
@@ -357,6 +360,9 @@ struct NoteListView: View {
         #endif
         .overlay {
             if visible.isEmpty && visibleFiles.isEmpty && !library.isLoading && !behindSetupCard { emptyState }
+        }
+        .onChange(of: visible.isEmpty && visibleFiles.isEmpty && !library.isLoading && !behindSetupCard, initial: true) { _, now in
+            if showsEmpty.wrappedValue != now { showsEmpty.wrappedValue = now }
         }
         #if os(iOS)
         .sheet(isPresented: $showSettings) {
@@ -955,9 +961,14 @@ struct NoteListView: View {
                 EmptyLibraryActions(onNewNote: onNewNote, imports: imports)
             }
         } else {
-            // "No Notes", like Notes: the compose button is the one way to start a note.
+            // "No Notes", and the one way to start one here (council round 16: the note pane said
+            // "No note selected" beside it, with its own New Note). The note pane stays blank.
             ContentUnavailableView {
                 Text("No Notes")
+            } actions: {
+                Button("New Note", action: onNewNote)
+                    .buttonStyle(.secondary)
+                    .accessibilityIdentifier("list.empty.newNote")
             }
         }
     }

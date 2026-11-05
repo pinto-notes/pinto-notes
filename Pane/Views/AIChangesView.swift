@@ -318,7 +318,7 @@ struct MacAIChanges: View {
                     status(c)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                actions(c)
+                actions(c).fixedSize()
                 }
                 .padding(.leading, 20)
                 .padding(.trailing, 60)
