@@ -89,12 +89,18 @@ extension ModelContext {
     }
 
     /// The folder new notes go into when "All Notes" is selected.
+    /// Where a note goes when no folder is chosen: your first folder, never "Shared with me". That
+    /// one is made to sort first (sortIndex -1), so new notes in All Notes went into it, where they
+    /// read as shared and aren't.
     func defaultFolder() -> Folder {
-        if let f = allFolders().filter({ $0.parent == nil }).min(by: { $0.sortIndex < $1.sortIndex }) { return f }
+        if let f = allFolders().filter({ $0.parent == nil && !Self.isSharedWithMe($0) }).min(by: { $0.sortIndex < $1.sortIndex }) { return f }
         let f = Folder(name: "Notes")
         insert(f)
         return f
     }
+
+    /// "Shared with me" (SharedNotes.sharedWithMe): its name, sorted ahead of every folder of yours.
+    static func isSharedWithMe(_ f: Folder) -> Bool { f.sortIndex < 0 && f.name == "Shared with me" }
 
     @discardableResult
     func createNote(in scope: Scope, body: String = "") -> Note {

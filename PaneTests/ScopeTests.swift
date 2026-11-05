@@ -132,4 +132,21 @@ import Testing
         #expect(ctx.noteToReopen(last: gone.id)?.id == live.id, "elsewhere, a deleted note doesn't reopen")
         #expect(ctx.noteToReopen(last: live.id, inTrash: true)?.id == live.id)
     }
+
+    /// A new note in All Notes went into "Shared with me" for anyone who had it: it sorts first.
+    @Test func aNewNoteNeverGoesIntoSharedWithMe() throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = ModelContext(c)
+        let notes = ctx.createFolder(named: "Notes")
+        let shared = Folder(name: "Shared with me")
+        shared.sortIndex = -1
+        ctx.insert(shared)
+        #expect(ctx.createNote(in: .all, body: "Plan").folder?.id == notes.id)
+        // Only Shared with me: a folder of your own is made for it.
+        let c2 = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx2 = ModelContext(c2)
+        let only = Folder(name: "Shared with me"); only.sortIndex = -1; ctx2.insert(only)
+        let n = ctx2.createNote(in: .all, body: "Plan")
+        #expect(n.folder?.name == "Notes")
+    }
 }
