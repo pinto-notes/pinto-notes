@@ -235,12 +235,25 @@ struct FormatState: Equatable, Sendable {
         return found.filter { $0.covers(selection) }
     }
 
+    /// The closing marks the caret can step past (underline's are tags, and stay as they were).
+    private static func stepToken(_ kind: Inline) -> String? {
+        switch kind {
+        case .bold: "**"
+        case .italic: "*"
+        case .strikethrough: "~~"
+        case .highlight: "=="
+        case .underline: nil
+        }
+    }
+
     private static let underline = try! NSRegularExpression(pattern: #"<u>(.*?)</u>"#, options: [.caseInsensitive])
 
     /// Bold, italic, underline, strikethrough or highlight, on or off, for the selection (or the word under
     /// the caret). Taking it off removes the marks around the text it's in. What was selected stays
     /// selected, on the same letters, so the panel shows it on and a second tap takes it off.
     static func toggle(_ kind: Inline, in text: String, selection: NSRange) -> TextEdit {
+        if selection.length == 0, let token = stepToken(kind),
+           let past = ListEditing.stepPastClose(in: text, at: selection.location, token: token) { return past }
         if let span = spans(in: text, selection: selection).first(where: { $0.kind == kind }) {
             let inner = span.inner
             func map(_ p: Int) -> Int { span.outer.location + min(max(0, p - inner.location), inner.length) }

@@ -320,8 +320,27 @@ enum ListEditing {
     }
 
     /// Wraps the selection in a markdown delimiter, or unwraps it.
+    /// The caret at the end of text in `token`'s marks: ⌘B again steps past the closing marks, so
+    /// the bold stays and what you type next is plain, as in Notes. It took the bold off the text
+    /// (persona council r7e, a real Mac window). Nil when the caret isn't there.
+    static func stepPastClose(in text: String, at caret: Int, token: String) -> TextEdit? {
+        let ns = text as NSString, t = (token as NSString).length
+        guard caret >= 1, caret + t <= ns.length,
+              ns.substring(with: NSRange(location: caret, length: t)) == token else { return nil }
+        let line = ns.lineRange(for: NSRange(location: caret, length: 0))
+        let before = ns.substring(with: NSRange(location: line.location, length: caret - line.location))
+        // Text inside the marks, not `**|**` with nothing in it: that one still cancels. A single
+        // `*` isn't part of a `**`.
+        let mark = token.first!
+        guard let last = before.last, last != mark, !last.isWhitespace else { return nil }
+        if t == 1, caret + 1 < ns.length, ns.substring(with: NSRange(location: caret + 1, length: 1)) == token { return nil }
+        guard before.components(separatedBy: token).count % 2 == 0 else { return nil }
+        return TextEdit(range: NSRange(location: caret, length: 0), replacement: "", caret: caret + t)
+    }
+
     static func wrap(in text: String, selection: NSRange, with token: String) -> TextEdit {
         let ns = text as NSString
+        if selection.length == 0, let past = stepPastClose(in: text, at: selection.location, token: token) { return past }
         if selection.length == 0, let word = wordRange(in: ns, at: selection.location) {
             // No selection: act on the word under the caret.
             var e = wrap(in: text, selection: word, with: token)

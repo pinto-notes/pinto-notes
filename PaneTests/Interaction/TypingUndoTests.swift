@@ -25,6 +25,34 @@ import Testing
         #expect(!h.view.isCoalescingUndo, "the next typing starts a new step")
     }
 
+    /// A cell's keys close together are one step of Undo, and Redo brings them back.
+    @Test func aCellsTypingIsOneStep() async throws {
+        let base = "Porto\n\n| Day | Plan |\n| --- | --- |\n| Sat | x |\n"
+        let h = await EditorHarness(base, width: 640, focus: true)
+        defer { h.close() }
+        let undo = try #require(h.view.undoManager)
+        undo.groupsByEvent = false
+        defer { undo.groupsByEvent = true }
+        var text = base
+        for letters in ["xa", "xab", "xabc"] {
+            let table = try #require(GridTable.find(in: text).first)
+            var edited = table
+            edited.rows[1][1] = letters
+            // A group around the first key only: the event loop makes none for a key that registers
+            // nothing, and an empty one here would take the Undo.
+            let first = letters == "xa"
+            if first { undo.beginUndoGrouping() }
+            h.view.applyCellEdit(TextEdit(range: table.range, replacement: edited.markdown, caret: -1))
+            if first { undo.endUndoGrouping() }
+            text = h.text
+        }
+        #expect(h.text.contains("xabc"))
+        undo.undo(); await h.settle()
+        #expect(h.text == base, "back to before the first key")
+        undo.redo(); await h.settle()
+        #expect(h.text.contains("xabc"), "and all of it again")
+    }
+
     /// Words on one line are still one step, as in Notes.
     @Test func typingOnALineStaysOneRun() async throws {
         let h = await EditorHarness("Title", width: 640, focus: true)

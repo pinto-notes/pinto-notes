@@ -143,7 +143,11 @@ final class EditorCore {
                 // Find the table again in the current text: earlier edits may have moved it.
                 let now = GridTable.find(in: target.currentText)
                 guard edited.index < now.count else { return }
-                target.apply(TextEdit(range: now[edited.index].range, replacement: edited.markdown, caret: -1))
+                let edit = TextEdit(range: now[edited.index].range, replacement: edited.markdown, caret: -1)
+                #if os(macOS)
+                if let view = target as? PaneTextView { view.applyCellEdit(edit); return }
+                #endif
+                target.apply(edit)
             }
             out.append(("g\(g.index)", f, AnyView(view), .grid(g, request: request, selected: isSelected)))
         }
@@ -3291,6 +3295,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     // MARK: The / menu
 
+    /// When a table cell's typing last went in (`applyCellEdit`).
+    private var cellEditAt: Date?
+    static let cellEditJoin: TimeInterval = 1.5
+
     private var slashHost: NSHostingView<SlashCommandList>?
     private var slashHint: NSTextField?
 
@@ -3826,6 +3834,19 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         breakUndoCoalescing()
         withoutUndo(change)
         registerStep(back: before, selection: selection)
+    }
+
+    /// Typing in a table cell, close together: one step of Undo back to the text before the first
+    /// of it, as on the iPhone. ⌘Z took back one letter (persona council r7e, a real Mac window).
+    func applyCellEdit(_ edit: TextEdit) {
+        let before = string, selection = selectedRange()
+        let joins = cellEditAt.map { Date.now.timeIntervalSince($0) < Self.cellEditJoin } ?? false
+        cellEditAt = .now
+        withoutUndo { apply(edit) }
+        if !joins {
+            breakUndoCoalescing()
+            registerStep(back: before, selection: selection)
+        }
     }
 
     private func withoutUndo(_ change: () -> Void) {

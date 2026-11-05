@@ -14,6 +14,25 @@ import AppKit
     }
 
     /// Bold with nothing selected, some words, Return: the note showed a literal ** on both lines.
+    /// ⌘B, typing, ⌘B: the bold stays and the caret is past its marks (persona council r7e).
+    @Test func commandBAtTheEndOfBoldStepsOutAndKeepsIt() {
+        let t = "plain **bold**"
+        let caret = ("plain **bold" as NSString).length
+        let e = ListEditing.wrap(in: t, selection: NSRange(location: caret, length: 0), with: "**")
+        #expect(apply(t, e) == t, "the marks stay")
+        #expect(e.caret == caret + 2, "the caret is past them")
+        let f = FormatState.toggle(.bold, in: t, selection: NSRange(location: caret, length: 0))
+        #expect(apply(t, f) == t && f.caret == caret + 2, "the Format panel's Bold too")
+        // Inside the word, or with nothing in the marks, it still takes them off.
+        #expect(apply(t, ListEditing.wrap(in: t, selection: NSRange(location: 9, length: 0), with: "**")) == "plain bold")
+        #expect(ListEditing.stepPastClose(in: "plain ****", at: 8, token: "**") == nil)
+        #expect(ListEditing.stepPastClose(in: "a **b** c **d", at: 13, token: "**") == nil, "no closing marks after it")
+        // Italic isn't fooled by bold's marks.
+        #expect(ListEditing.stepPastClose(in: "**bold**", at: 6, token: "*") == nil)
+        let i = "*word*"
+        #expect(ListEditing.stepPastClose(in: i, at: 5, token: "*")?.caret == 6)
+    }
+
     @Test func returnLeavesAStyleBeforeItBreaksTheLine() {
         let t = "next **bold words**"
         let e = ListEditing.returnKey(in: t, selection: NSRange(location: 17, length: 0))

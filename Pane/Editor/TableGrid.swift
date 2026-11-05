@@ -581,6 +581,11 @@ struct TableGridView: View {
         .onChange(of: focusRequest) { _, r in if let r { DispatchQueue.main.async { go(r.cell) } } }
         .onChange(of: focus) { _, new in
             qaTrace("grid focus -> \(String(describing: new))")
+            #if os(macOS)
+            // ⌘Z in a cell is the note's, a step for the whole of the typing (applyCellEdit), not
+            // the field's, a letter at a time. The window's one field editor gets its Undo back after.
+            DispatchQueue.main.async { CellField.setFieldUndo(new == nil) }
+            #endif
             if new == nil {
                 // The old cell's field going away can knock focus out before the new
                 // one lands: put it back (`land` keeps asking if this is turned down too).
@@ -1114,6 +1119,16 @@ enum CellField {
     }
 
     static func selection() -> NSRange? { editor()?.selectedRange() }
+
+    /// Whether the field being edited keeps its own Undo. Off for a cell, on again when it's left:
+    /// the last field editor is kept, since by then it has no first responder to be found by.
+    private static weak var cellEditor: NSTextView?
+    static func setFieldUndo(_ on: Bool) {
+        if on { cellEditor?.allowsUndo = true; cellEditor = nil; return }
+        guard let e = editor() else { return }
+        e.allowsUndo = false
+        cellEditor = e
+    }
 
     static func select(_ range: NSRange) {
         guard let e = editor(), NSMaxRange(range) <= (e.string as NSString).length else { return }
