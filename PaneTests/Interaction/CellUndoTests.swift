@@ -17,8 +17,16 @@ import UIKit
         window.isHidden = false
         defer { window.isHidden = true }
         v.layoutIfNeeded()
+        // Typing in the note first, keyboard up: a step that must survive the cell's.
+        v.becomeFirstResponder()
+        v.selectedRange = NSRange(location: ("Porto" as NSString).length, length: 0)
+        v.insertText(" weekend")
+        try? await Task.sleep(for: .seconds(0.4))
+        let beforeCell: String = v.text ?? ""
+        #expect(beforeCell.hasPrefix("Porto weekend"))
+        v.resignFirstResponder()
         #expect(!v.isFirstResponder, "the cell has the keyboard, not the note")
-        var at = (Self.body as NSString).range(of: "| Sat | ").location + 8
+        var at = (beforeCell as NSString).range(of: "| Sat | ").location + 8
         for ch in "Ribeira walk" {
             v.apply(TextEdit(range: NSRange(location: at, length: 0), replacement: String(ch), caret: -1))
             at += 1
@@ -38,9 +46,12 @@ import UIKit
         // The bar's Undo.
         v.undoStep(redo: false)
         try? await Task.sleep(for: .seconds(0.1))
-        #expect(v.text == Self.body, "all of it, not one letter: \(String(describing: v.text))")
-        #expect(undo.canRedo)
-        undo.redo()
+        #expect(v.text == beforeCell, "all of it, not one letter: \(String(describing: v.text))")
+        #expect(undo.canUndo, "the note's typing before it is still there to undo")
+        v.undoStep(redo: false)
+        try? await Task.sleep(for: .seconds(0.1))
+        #expect(v.text == Self.body, "and a second Undo takes it back: \(String(describing: v.text))")
+        undo.redo(); undo.redo()
         try? await Task.sleep(for: .seconds(0.1))
         #expect(v.text == typed, "and back")
     }
