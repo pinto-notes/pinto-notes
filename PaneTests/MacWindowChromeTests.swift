@@ -230,9 +230,10 @@ import Testing
                 await Self.settle(w, 6)
             }
             await Self.settle(w, 6)
+            let least = try #require(w.contentView).fittingSize.width
+            #expect(least >= WindowFrameMemory.minimum.width - 1, "the content holds the window at its least: \(least)")
             let text = try #require(w.contentView.flatMap { Self.find(NSTextView.self, in: $0) { $0.isEditable } })
             let box = text.convert(text.bounds, to: nil)
-            // setContentSize ignores contentMinSize, so measure what the columns need against it.
             #expect(box.maxX <= WindowFrameMemory.minimum.width + 1, "the note's text ends inside the smallest window: \(box.maxX)")
         }
     }

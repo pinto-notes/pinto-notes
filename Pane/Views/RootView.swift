@@ -114,6 +114,11 @@ struct RootView: View {
         #if DEBUG
         RenderProbe.count("RootView", context: context)
         #endif
+        #if os(macOS)
+        // The window sizes to its content here, and contentMinSize alone didn't hold it (round 19:
+        // it still went to 621 and cut the note off).
+        let split = split.frame(minWidth: WindowFrameMemory.minimum.width)
+        #endif
         return popups(imports(lifecycle(split)).newAppSheet())
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
             .onAppear { Telemetry.shared.notesShown() }
