@@ -36,7 +36,7 @@ ALL=(testC6Widget testC6TimedChecklist testC1AIReview testC2Writing testC2Keyboa
 # Each clip's key stills (3 to 6); its other screenshots go in more-stills/.
 typeset -A KEYS
 KEYS=(testC1AIReview note-before,edit-landed,review-sheet,undid-sentence,result,note-after-top
-      testC2Writing checklist-typed,link-suggestions,pasted-link,table-cell-edited,undone,note-top
+      testC2Writing checklist-typed,link-suggestions,pasted-link,table-cell-edited,undone,undone-again,note-top
       testC3Search exact-title,buried-phrase,checklist-word,typo,edited,back-to-results
       testC4ShareSheet recipe-page,add-to-recipes,recipes-note,paragraph-selected,share-sheet-text,text-note
       testC5LockedNote list-with-lock,face-id,edited,locked-again,password-typed,ends-locked

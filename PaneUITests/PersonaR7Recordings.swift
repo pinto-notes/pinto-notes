@@ -308,6 +308,16 @@ final class PersonaR7Recordings: XCTestCase {
             pause(1.5)
         }
         mark("undone")
+        // A second Undo goes on back through the note's typing before the cell (round 7: the
+        // first take showed Undo leaving the bar after one press).
+        if undo.waitForExistence(timeout: 3) {
+            pause(0.8)
+            undo.tap()
+            pause(1.5)
+        } else {
+            dump(app, "no-second-undo")
+        }
+        mark("undone-again")
         let done = app.buttons["editor.done"].firstMatch
         if done.exists { done.tap() }
         pause(2)
