@@ -7,6 +7,7 @@ set -uo pipefail
 #   SKIP_BUILD=1 reuses the last build; ERASE=1 erases the simulator first (the widget clip needs a
 #   Home Screen without the widget). REPROCESS=1 records nothing: it cuts the clips again from
 #   the recordings already in build/persona-r7-work (WORK=<dir> for another).
+#   SUFFIX=-v2 names a re-take's files <clip>-v2…, next to the first take's, which stay.
 # Each clip goes in its capture's folder (<out>/c1-ai-review/ …): iphone-<clip>.mp4 (H.264, 30 fps,
 # trimmed to the test), iphone-<clip>-contact-sheet.png (a frame a second), and the test's own
 # screenshots of its key moments (iphone-<clip>-NN-<moment>.png). The keyboard still keeps only
@@ -35,7 +36,7 @@ ALL=(testC6Widget testC6TimedChecklist testC1AIReview testC2Writing testC2Keyboa
 # Each clip's key stills (3 to 6); its other screenshots go in more-stills/.
 typeset -A KEYS
 KEYS=(testC1AIReview note-before,edit-landed,review-sheet,undid-sentence,result,note-after-top
-      testC2Writing checklist-typed,indented,link-suggestions,pasted-link,undone,note-top
+      testC2Writing checklist-typed,link-suggestions,pasted-link,table-cell-edited,undone,note-top
       testC3Search exact-title,buried-phrase,checklist-word,typo,edited,back-to-results
       testC4ShareSheet recipe-page,add-to-recipes,recipes-note,paragraph-selected,share-sheet-text,text-note
       testC5LockedNote list-with-lock,face-id,edited,locked-again,password-typed,ends-locked
@@ -46,9 +47,9 @@ cut_clip() { # <test>
   local t=$1 clip=${CLIP[$1]} extra=()
   [[ $t == testC6TimedChecklist ]] && extra=(--timer)
   [[ -n ${KEYS[$t]:-} ]] && extra+=(--keys=${KEYS[$t]})
-  "$PY" scripts/persona-r7-clip.py "$WORK/$clip.raw.mp4" "$(cat "$WORK/$clip.start" 2>/dev/null || print 0)" "$WORK/$clip" "$OUT/${FOLDER[$t]}" "iphone-$clip-${MODE[$t]}" "${extra[@]}"
+  "$PY" scripts/persona-r7-clip.py "$WORK/$clip.raw.mp4" "$(cat "$WORK/$clip.start" 2>/dev/null || print 0)" "$WORK/$clip" "$OUT/${FOLDER[$t]}" "iphone-$clip-${MODE[$t]}${SUFFIX:-}" "${extra[@]}"
   # A still, not a clip: its two seconds of video say nothing.
-  [[ $t == testC2KeyboardStill ]] && rm -f "$OUT/${FOLDER[$t]}/iphone-$clip-${MODE[$t]}"{.mp4,-contact-sheet.png,-moments.tsv}
+  [[ $t == testC2KeyboardStill ]] && rm -f "$OUT/${FOLDER[$t]}/iphone-$clip-${MODE[$t]}${SUFFIX:-}"{.mp4,-contact-sheet.png,-moments.tsv}
   return 0
 }
 if [[ ${REPROCESS:-} == 1 ]]; then
@@ -62,6 +63,8 @@ if [[ ${ERASE:-} == 1 ]]; then xcrun simctl shutdown "$SIM" 2>/dev/null; xcrun s
 xcrun simctl boot "$SIM" 2>/dev/null || true
 xcrun simctl bootstatus "$SIM" -b >/dev/null
 xcrun simctl spawn "$SIM" defaults write com.apple.preferences.sounds keyboard -bool false 2>/dev/null || true
+# iOS's own first-run keyboard tip (slide to type) stays away: it isn't Pinto's.
+xcrun simctl spawn "$SIM" defaults write com.apple.keyboard.preferences DidShowContinuousPathIntroduction -bool true 2>/dev/null || true
 xcrun simctl spawn "$SIM" defaults write -g AppleLocale en_US
 xcrun simctl spawn "$SIM" defaults write -g AppleLanguages -array en-US
 xcrun simctl status_bar "$SIM" override --time "9:41" --batteryState discharging --batteryLevel 100 --cellularMode active --cellularBars 4 --wifiBars 3 --operatorName "" 2>/dev/null || true

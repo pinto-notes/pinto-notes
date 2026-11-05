@@ -11,7 +11,11 @@ clip's own clock into the video, and the time from clock-start to clock-stop onc
 simctl writes its first frame when the screen first changes, seconds after it started, so the
 recording's time zero isn't known. It's found from the test's screenshots: each was taken just
 after its mark, so the one offset that puts every screenshot on a matching frame is the one used.
-The recording start given is only the fallback for a clip with fewer than two screenshots."""
+The recording start given is only the fallback for a clip with fewer than two screenshots.
+
+simctl's files carry each frame's time twice, and its decode times run far behind. When two frames
+share a time, ffmpeg starts using the decode times and puts every later frame too early (seen in the
+two-phone run of 5 November: 47 s). `-fflags +igndts` keeps ffmpeg on the frames' own times."""
 import glob, os, shutil, subprocess, sys, tempfile
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
@@ -42,7 +46,7 @@ def zero_from_screenshots():
     if len(shots) < 2:
         return None
     tmp = tempfile.mkdtemp()
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", raw, "-vf", "fps=10,scale=90:-2,format=gray", os.path.join(tmp, "f%05d.png")], check=True)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-fflags", "+igndts", "-i", raw, "-vf", "fps=10,scale=90:-2,format=gray", os.path.join(tmp, "f%05d.png")], check=True)
     frames = [Image.open(f).convert("L") for f in sorted(glob.glob(os.path.join(tmp, "f*.png")))]
     shutil.rmtree(tmp, ignore_errors=True)
     if not frames:
@@ -140,7 +144,7 @@ def strip_frame(t):
         cache.clear()
         cache[key] = img.tobytes()
     return cache[key]
-ff = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-i", raw,
+ff = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-fflags", "+igndts", "-i", raw,
                        "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{strip}", "-r", "30", "-i", "-",
                        "-filter_complex", f"[0:v]{cut},pad=iw:ih+{strip}:0:0:black[p];[p][1:v]overlay=0:main_h-{strip}:shortest=1[v]",
                        "-map", "[v]"] + encode + [dest], stdin=subprocess.PIPE)
