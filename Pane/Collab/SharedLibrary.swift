@@ -277,8 +277,15 @@ final class SharedLibrary {
 
     private func open(_ session: CollabSession, note: Note) {
         sessions[note.id] = session
-        session.onSettled = { [weak self, weak note] text in
-            guard let self, let note else { return }
+        // The hooks find the note by its id each time, never by the object it opened with:
+        // SwiftData doesn't keep a saved note alive by itself. The one `adopt` made when you joined
+        // by link was gone once the join opened the note by id, and hooks holding it weakly did
+        // nothing from then on. On the phone you joined on, an AI's change came in unmarked and
+        // the note's own copy of the text (list, search) stopped following (persona council
+        // round 7, bug 16).
+        let id = note.id
+        session.onSettled = { [weak self] text in
+            guard let self, let note = self.context.note(id) else { return }
             self.mirror(text, into: note)
         }
         session.onKeyChanged = { [weak self, weak session] in
@@ -290,12 +297,16 @@ final class SharedLibrary {
                   let box = try? CollabCrypto.selfWrap(nk, dataKey: dk, note: session.noteID, epoch: epoch) else { return }
             session.record.setKey(box, epoch: epoch)
         }
-        session.onRemoved = { [weak self, weak note] in
-            guard let self, let note else { return }
+        session.onRemoved = { [weak self] in
+            guard let self, let note = self.context.note(id) else { return }
             self.removeLocally(note)
         }
-        session.onAIChange = { [weak self, weak session, weak note] arrival in
-            guard let self, let session, let note else { return }
+        session.onAIChange = { [weak self, weak session] arrival in
+            guard let self, let session else { return }
+            guard let note = self.context.note(id) else {
+                CollabScript.trace("AI change from \(arrival.ai): no note \(id) in the library to mark")
+                return
+            }
             self.aiChanged(arrival, in: session, note: note)
         }
         onOpen?(session, note)
@@ -326,6 +337,7 @@ final class SharedLibrary {
         mirror(session.text, into: note)
         let person = arrival.author == me ? nil : session.firstName(of: arrival.author) ?? AIEdit.someone
         AIEdit.arrived(note, ai: arrival.ai, person: person, previousBody: arrival.before)
+        CollabScript.trace("AI change marked: \(AIEdit.whose(arrival.ai, person: person)), unseen \(AIEdit.isUnseen(note))")
     }
 
     // MARK: Keys, removal and leaving

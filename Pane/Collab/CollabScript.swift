@@ -383,6 +383,14 @@ enum CollabScript {
         try text.write(to: dir.appending(path: name), atomically: true, encoding: .utf8)
     }
 
+    /// A line in the steps' log from the collaboration code (how an AI's change arrived, and
+    /// whether it was marked), so a two-device run can tell afterwards. Only while steps are
+    /// playing: never in Pinto Notes, never in the Beta used normally. Ids and counts only, no text.
+    static func trace(_ line: @autoclosure () -> String) {
+        guard running else { return }
+        log("collab: \(line())")
+    }
+
     private static func log(_ line: String) {
         let url = dir.appending(path: "collab-script.log")
         let stamped = "\(ISO8601DateFormatter().string(from: .now)) \(line)\n"
