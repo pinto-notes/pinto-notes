@@ -1276,6 +1276,22 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     var currentText: String { text }
     var currentSelection: NSRange { selectedRange }
 
+    /// Edits made with the keyboard down or in a table cell, close together: one step of Undo
+    /// back to the text before the first of them.
+    final class KeyboardDownStep {
+        static let joinWithin: TimeInterval = 1.5
+        let base: String
+        var last = Date.now
+        init(base: String) { self.base = base }
+    }
+    private var downStep: KeyboardDownStep?
+
+    private func revert(to step: KeyboardDownStep) {
+        downStep = nil
+        guard let diff = TextDiff.edit(from: textStorage.string, to: step.base) else { return }
+        apply(TextEdit(range: diff.range, replacement: diff.replacement, caret: -1))
+    }
+
     func apply(_ edit: TextEdit) {
         // The keyboard is somewhere else, in a table cell say. Through the text-input call
         // below, iOS then ran the new text past that keyboard's smart punctuation a moment
@@ -1293,9 +1309,22 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             // its own, so a tick with the keyboard down can be undone. (Not while that step is
             // being undone or redone: clearing the stack then hung the undo manager.)
             if let undo = undoManager {
-                if !undo.isUndoing, !undo.isRedoing { undo.removeAllActions() }
-                let back = TextEdit(range: NSRange(location: edit.range.location, length: (edit.replacement as NSString).length), replacement: old, caret: -1)
-                undo.registerUndo(withTarget: self) { $0.apply(back) }
+                if undo.isUndoing || undo.isRedoing {
+                    downStep = nil
+                    let back = TextEdit(range: NSRange(location: edit.range.location, length: (edit.replacement as NSString).length), replacement: old, caret: -1)
+                    undo.registerUndo(withTarget: self) { $0.apply(back) }
+                } else if let step = downStep, undo.canUndo, Date.now.timeIntervalSince(step.last) < KeyboardDownStep.joinWithin {
+                    // More of the same run (typing in a table cell): the step already there takes
+                    // it back too. One step per letter took back one letter, and the Undo button
+                    // went with the last of them (persona council r7).
+                    step.last = .now
+                } else {
+                    undo.removeAllActions()
+                    let before = (textStorage.string as NSString).replacingCharacters(in: NSRange(location: edit.range.location, length: (edit.replacement as NSString).length), with: old)
+                    let step = KeyboardDownStep(base: before)
+                    downStep = step
+                    undo.registerUndo(withTarget: self) { $0.revert(to: step) }
+                }
             }
             let caret = min(edit.caret, textStorage.length)
             if let kept = edit.selection, NSMaxRange(kept) <= textStorage.length { selectedRange = kept }
