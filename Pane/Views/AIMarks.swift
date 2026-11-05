@@ -175,7 +175,7 @@ struct AIChangeButton: View {
         .overlay(Capsule().strokeBorder(Color.line, lineWidth: 0.5))
         .shadow(color: .black.opacity(0.10), radius: 14, y: 6)
         .accessibilityLabel(receipt.summary)
-        .accessibilityHint("Shows each part \(receipt.by) changed, to keep or undo it")
+        .accessibilityHint("Shows each part \(receipt.who) changed, to keep or undo it")
         .accessibilityIdentifier(NoteAIUndo.reviewIdentifier)
     }
 }
@@ -222,7 +222,7 @@ struct AIReceipt: View {
                 .font(.system(size: compact ? 13 : Self.text, weight: .semibold))
                 .foregroundStyle(Color.amberInk)
                 .contentShape(.rect)
-                .accessibilityHint("Puts the note back the way it was before \(receipt.by)'s edit")
+                .accessibilityHint("Puts the note back the way it was before \(receipt.who)'s edit")
             }
             if let review, Self.reviews(receipt), !compact {
                 Divider().frame(height: 14)
@@ -231,7 +231,7 @@ struct AIReceipt: View {
                     .font(.system(size: Self.text, weight: .semibold))
                     .foregroundStyle(Color.amberInk)
                     .contentShape(.rect)
-                    .accessibilityHint("Goes through each part \(receipt.by) changed, to keep or undo it")
+                    .accessibilityHint("Goes through each part \(receipt.who) changed, to keep or undo it")
                     .accessibilityIdentifier("receipt.review")
             }
             if let seeAll, receipt.kind == .edit, !compact {

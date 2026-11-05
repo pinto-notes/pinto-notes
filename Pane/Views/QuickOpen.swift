@@ -194,13 +194,31 @@ enum QuickOpen {
             fetch.sortBy = [SortDescriptor(\Note.updatedAt, order: .reverse)]
             // Some found ones are listed by their title already: room for them.
             fetch.fetchLimit = limit * 4
-            let notes = (try? context.fetch(fetch)) ?? []
+            var notes = (try? context.fetch(fetch)) ?? []
+            // Nothing holds it as typed: the notes a letter or two off (TypoSearch), as the list does.
+            var near = false
+            if notes.isEmpty, TypoSearch.applies(to: q) {
+                var seen = Set<UUID>()
+                for piece in TypoSearch.probes(q) {
+                    let holdsPiece = #Predicate<Note> { (n: Note) -> Bool in n.body.localizedStandardContains(piece) }
+                    var d = FetchDescriptor<Note>(predicate: holdsPiece)
+                    d.sortBy = [SortDescriptor(\Note.updatedAt, order: .reverse)]
+                    d.fetchLimit = 300
+                    for n in (try? context.fetch(d)) ?? [] where n.deletedAt == nil && n.trashedAt == nil && n.lockedBody == nil
+                        && !seen.contains(n.id) && TypoSearch.matches(q, in: n.body) {
+                        seen.insert(n.id); notes.append(n)
+                    }
+                }
+                notes.sort { $0.updatedAt > $1.updatedAt }
+                near = true
+            }
             var out: [TextHit] = []
             for n in notes {
                 if out.count == limit || Task.isCancelled { break }
                 guard !n.isLocked else { continue }
                 let title = n.title
-                guard score(title, q) == nil, let found = SearchLines.find(in: n.body, query: q), let first = found.lines.first else { continue }
+                let looked = !near ? q : (TypoSearch.closeWord(q, in: n.body) ?? q)
+                guard score(title, q) == nil || near, let found = SearchLines.find(in: n.body, query: looked), let first = found.lines.first else { continue }
                 out.append(TextHit(id: n.id, title: title, folder: n.folder?.name, date: n.updatedAt, snippet: first,
                                    others: Array(found.lines.dropFirst()), more: found.more))
             }

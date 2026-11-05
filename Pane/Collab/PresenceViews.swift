@@ -46,6 +46,8 @@ struct PersonAvatar: View {
     /// The initials' colour: white on the people colours; the warm ink on your own amber.
     var ink: Color = .white
     var badge: AvatarBadge = .none
+    /// Not heard from for a while (their connection or yours is down): drawn in greys, still solid.
+    var stale = false
     /// Keeps room for a badge whether or not one shows, so a stack never shifts when it appears.
     var roomForBadge = false
     /// Draws only the badge, in the same place (the stack puts every badge on its own top layer).
@@ -82,7 +84,9 @@ struct PersonAvatar: View {
             if badgeOnly || !roomForBadge { badgeView.position(g.center) }
         }
         .frame(width: room ? g.frame.width : g.outer, height: room ? g.frame.height : g.outer, alignment: .topLeading)
+        .grayscale(stale ? 1 : 0)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.35), value: badge)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.35), value: stale)
         .accessibilityHidden(true)
     }
 
@@ -147,6 +151,8 @@ struct PresenceAvatars: View {
         var photo: PImage? = nil
         var typing = false
         var canEdit = true
+        /// Not heard from for a while (CollabSession.Peer.isStale).
+        var stale = false
     }
     let people: [Person]
     var size: CGFloat = 28
@@ -174,7 +180,7 @@ struct PresenceAvatars: View {
             ForEach(Array(shown.enumerated()), id: \.element.id) { i, p in
                 let badge = option.badge(typing: p.typing, canEdit: p.canEdit)
                 PersonAvatar(name: p.name, color: CollabSession.color(for: p.id), size: size, photo: p.photo,
-                             badge: badge, roomForBadge: true, badgeOnly: badges, pencilStyle: pencilStyle)
+                             badge: badge, stale: p.stale, roomForBadge: true, badgeOnly: badges, pencilStyle: pencilStyle)
                     // The next avatar overlaps this one gently, or, when this one has a badge, starts
                     // where the badge ends, so a badge never sits on the next person.
                     .padding(.trailing, i < shown.count - 1 || people.count > 3
@@ -236,6 +242,20 @@ struct PresenceStack: View {
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("collab.viewOnly")
                 }
+                // Your changes are on this device only for now (offline, the server not answering):
+                // said beside the people, and "Synced" for a moment once they're up.
+                if SharedSyncLine.ticking(session) {
+                    TimelineView(.periodic(from: .now, by: 0.5)) { t in
+                        if let line = SharedSyncLine.at(t.date, session: session) {
+                            Text(line.text)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .fixedSize()
+                                .accessibilityIdentifier("collab.sync")
+                        }
+                    }
+                }
                 avatars
             }
         }
@@ -248,11 +268,12 @@ struct PresenceStack: View {
             if here.isEmpty {
                 Label("People", systemImage: "person.2")
             } else {
-                // Redrawn twice a second, so a pencil fades a moment after someone stops typing.
-                TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+                // Redrawn twice a second, so a pencil fades a moment after someone stops typing, and
+                // someone who isn't heard from any more goes grey.
+                TimelineView(.periodic(from: .now, by: 0.5)) { t in
                     PresenceAvatars(people: here.map { p in
                         .init(id: p.id, name: p.name, photo: CollabStore.shared?.photos[p.id], typing: p.isTyping,
-                              canEdit: session.members.first { $0.id == p.id }?.role != "viewer")
+                              canEdit: session.members.first { $0.id == p.id }?.role != "viewer", stale: p.isStale(at: t.date))
                     }, option: Self.badges)
                 }
                 .padding(.horizontal, 2)
@@ -263,7 +284,43 @@ struct PresenceStack: View {
 
     private var accessibilityText: String {
         let viewOnly = session.isViewOnly ? "View only. " : ""
-        guard !here.isEmpty else { return viewOnly + "People" }
-        return viewOnly + "In this note: " + here.map(\.name).joined(separator: ", ")
+        let sync = SharedSyncLine.at(.now, session: session).map { "\($0.text). " } ?? ""
+        guard !here.isEmpty else { return viewOnly + sync + "People" }
+        return viewOnly + sync + "In this note: " + here.map { $0.isStale() ? "\($0.name) (not connected)" : $0.name }.joined(separator: ", ")
+    }
+}
+
+/// What a shared note's bar says of syncing (persona council round 7, bug 18): nothing while your
+/// changes go up as you type; "Not synced yet" once they've waited a few seconds with nothing
+/// going up (offline, or the server not answering), so you know they're on this device only; then
+/// "Synced" for a moment once they're up. The words Settings uses for the account's sync.
+enum SharedSyncLine: Equatable {
+    case notSynced, synced
+
+    /// A wait this long, with nothing going up, shows.
+    static let after: TimeInterval = 3
+    /// "Synced" stays this long.
+    static let syncedFor: TimeInterval = 2
+
+    static func at(_ now: Date, waitingSince: Date?, sentAt: Date?, lastWait: TimeInterval) -> SharedSyncLine? {
+        if let waitingSince { return now.timeIntervalSince(waitingSince) >= after ? .notSynced : nil }
+        if let sentAt, lastWait >= after, now.timeIntervalSince(sentAt) < syncedFor { return .synced }
+        return nil
+    }
+
+    @MainActor static func at(_ now: Date, session: CollabSession) -> SharedSyncLine? {
+        at(now, waitingSince: session.waitingSince, sentAt: session.sentAt, lastWait: session.lastWait)
+    }
+
+    /// Whether the line can change as time passes (a wait growing long, "Synced" going).
+    @MainActor static func ticking(_ session: CollabSession, now: Date = .now) -> Bool {
+        session.waitingSince != nil || session.sentAt.map { now.timeIntervalSince($0) < syncedFor } == true
+    }
+
+    var text: String {
+        switch self {
+        case .notSynced: "Not synced yet"
+        case .synced: "Synced"
+        }
     }
 }

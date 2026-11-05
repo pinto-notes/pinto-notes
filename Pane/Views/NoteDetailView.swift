@@ -434,7 +434,9 @@ struct NoteDetailView: View {
             let inBar = false
             #endif
             #if os(iOS)
-            if inBar, !showingPage, collab == nil, AIReceipt.reviews(receipt) {
+            // A shared note's too: its review takes parts out of the document, for everyone
+            // (persona council round 7, bug 16).
+            if inBar, !showingPage, AIReceipt.reviews(receipt) {
                 // What the AI changed, one tap away (Emil, 4 November 2026: Review Changes inside
                 // the Undo menu was hidden and unclear). Undo stays in the bar.
                 AIChangeButton(receipt: receipt) { startReview(receipt) }
@@ -444,8 +446,8 @@ struct NoteDetailView: View {
             }
             #endif
             if !inBar {
-                AIReceipt(receipt: receipt, seeAll: AIChangesCenter.shared.store == nil ? nil : { AIChangesCenter.shared.show(ai: receipt.by) },
-                          review: collab == nil && AIReceipt.reviews(receipt) ? { startReview(receipt) } : nil) { undo(receipt) }
+                AIReceipt(receipt: receipt, seeAll: Self.seesAllChanges(receipt) ? { AIChangesCenter.shared.show(ai: receipt.by) } : nil,
+                          review: AIReceipt.reviews(receipt) ? { startReview(receipt) } : nil) { undo(receipt) }
                 #if os(macOS)
                 .padding(.bottom, 20)
                 #else
@@ -483,7 +485,7 @@ struct NoteDetailView: View {
     /// Undoes one part in the note: only that part goes back; your typing stays. A part you've
     /// changed since is refused, and the card says why.
     private func reviewUndo(_ id: Int) {
-        guard var rv = review else { return }
+        guard var rv = review, !refusedAsViewOnly() else { return }
         let changed = rv.undo(id, on: note)
         review = rv
         if changed { retint(rv) }
@@ -491,7 +493,7 @@ struct NoteDetailView: View {
     }
 
     private func reviewUndoAll() {
-        guard var rv = review else { return }
+        guard var rv = review, !refusedAsViewOnly() else { return }
         let refused = rv.undoAll(on: note)
         review = rv
         if refused == 0 { finishReview() } else { retint(rv) }
@@ -543,7 +545,23 @@ struct NoteDetailView: View {
         controller.clearTint()
     }
 
+    /// A shared note you can only view keeps an AI's change: Undo says so, where the receipt is,
+    /// and the marking stays.
+    private func refusedAsViewOnly() -> Bool {
+        guard collab?.isViewOnly == true else { return false }
+        Task { @MainActor in
+            withAnimation(.smooth(duration: 0.25)) { undoFailed = NoteWrites.viewOnlyMessage }
+            try? await Task.sleep(for: .seconds(4))
+            withAnimation(.smooth(duration: 0.25)) { undoFailed = nil }
+        }
+        return true
+    }
+
+    /// See all changes (AI Changes) lists what your own AIs changed: not for someone else's AI.
+    static func seesAllChanges(_ r: AIEdit.Receipt) -> Bool { AIChangesCenter.shared.store != nil && r.person == nil }
+
     private func undo(_ r: AIEdit.Receipt) {
+        if r.kind == .edit, refusedAsViewOnly() { return }
         withAnimation(.smooth(duration: 0.25)) { receipt = nil }
         if r.staysUntilEdited { controller.clearTint() }
         if r.kind == .pageMade || r.kind == .pageChanged {
@@ -885,7 +903,7 @@ struct NoteDetailView: View {
             Button("Lock Note", systemImage: "lock", action: startLock)
                 .accessibilityIdentifier("editor.lock")
         case .lockNow:
-            Button("Lock Now", systemImage: "lock") { vault.lockNow() }
+            Button("Lock Now", systemImage: "lock") { vault.lockNowByHand() }
                 .accessibilityIdentifier("editor.lockNow")
         case .removeLock:
             Button("Remove Lock", systemImage: "lock.open", action: removeLock)
@@ -1358,14 +1376,14 @@ struct NoteDetailView: View {
             // press offers every change that AI made (AI Changes).
             Menu {
                 Button("See All Changes by \(receipt.by)", systemImage: "clock.arrow.circlepath") { AIChangesCenter.shared.show(ai: receipt.by) }
-                    .disabled(AIChangesCenter.shared.store == nil)
+                    .disabled(!Self.seesAllChanges(receipt))
             } label: {
                 Label(receipt.undoLabel, systemImage: "arrow.uturn.backward")
             } primaryAction: {
                 undo(receipt)
             }
                 .tint(.primary)
-                .accessibilityHint("Puts the note back the way it was before \(receipt.by)'s edit")
+                .accessibilityHint("Puts the note back the way it was before \(receipt.who)'s edit")
                 .accessibilityIdentifier(NoteAIUndo.identifier)
         }
     }

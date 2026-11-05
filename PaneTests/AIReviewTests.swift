@@ -36,7 +36,7 @@ import Testing
         #expect(r.parts[0].removed == ["- [ ] Queue the writes"] && r.parts[0].added == ["- [ ] Queue the writes offline, in order"])
         #expect(r.parts[1].removed.isEmpty && r.parts[1].added == ["- [ ] Have Codex review it"])
         #expect(r.parts[2].removed == ["Keep the old path for a week."] && r.parts[2].added == ["Drop the old path now.", "Tell Leo."])
-        #expect(r.title == "Claude changed 3 parts" && r.position == "1 of 3")
+        #expect(r.title == "Claude changed 4 lines" && r.position == "1 of 3")
     }
 
     @Test func undoingOnePartLeavesTheOthers() throws {

@@ -67,6 +67,8 @@ struct LockedNoteView: View {
             .task(id: note.id) {
                 // A password set (or changed) on another device.
                 await vault.refresh()
+                // Just locked by hand: stay locked, and quiet, until you ask.
+                if vault.takeLockedByHand() { return }
                 if !earlier, !(await biometrics()) { focused = true }
             }
     }
@@ -458,7 +460,7 @@ struct LockedNotesSection: View {
                         .accessibilityIdentifier("settings.notesBiometrics")
                 }
                 if vault.isUnlocked {
-                    Button("Lock Now") { vault.lockNow() }
+                    Button("Lock Now") { vault.lockNowByHand() }
                         .accessibilityIdentifier("settings.lockNow")
                 }
             } header: {
@@ -521,7 +523,7 @@ struct LockedNotesPassword: View {
         } trailing: {
             HStack(spacing: 6) {
                 if vault.isUnlocked {
-                    Button("Lock Now") { vault.lockNow() }
+                    Button("Lock Now") { vault.lockNowByHand() }
                         .buttonStyle(.hoverText).foregroundStyle(SettingsInk.muted)
                         .accessibilityIdentifier("settings.lockNow")
                 }

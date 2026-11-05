@@ -784,3 +784,278 @@ extension NetworkFaults {
     }
 }
 }
+
+/// What the library says when you lose a shared note, for a test to read.
+@MainActor final class SaidRemovals {
+    var all: [SharedRemoval] = []
+}
+
+/// Persona council round 7, bugs 16 to 19: an AI's change to a shared note, losing access to one
+/// (said once, with your text to keep), and a shared note that couldn't sync.
+extension NetworkFaults.SharedLibraryTests {
+    // MARK: Bug 16: an AI's change, marked for everyone
+
+    /// Emil's note shared with Sara and open on her phone; Sara's AI (the MCP server writing as
+    /// her, from another session on her account) adds a line.
+    private func saraAIAddsALine() async throws -> (emil: Device, note: Note, emilSession: CollabSession, phone: Device, mine: Note, onPhone: CollabSession) {
+        server.names = [owner: "Emil Wagman", member: "Sara Lind"]
+        let emil = try device(owner)
+        let (note, emilSession) = try await shared("Offsite plan\n- Venue", on: emil)
+        server.add(member, to: note.id)
+        await emilSession.refreshMembers()
+        let phone = try device(member), ai = try device(member)
+        let mine = try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let onPhone = try #require(phone.library.session(for: mine))
+        let viaAI = try await ai.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let aiSession = try #require(ai.library.session(for: viaAI))
+
+        server.aiWriting[member] = "Claude"
+        type("\n- Budget", in: aiSession)
+        await waitUntil { aiSession.isSent }
+        server.aiWriting[member] = nil
+        return (emil, note, emilSession, phone, mine, onPhone)
+    }
+
+    /// It came in as typing: no tint, no margin marks, no receipt. It's marked as an AI's edit of
+    /// a note of your own is, on every device in the note. Someone else's AI is named with them.
+    @Test func anAIsChangeToASharedNoteIsMarkedForEveryone() async throws {
+        let (_, note, _, _, mine, _) = try await saraAIAddsALine()
+
+        // Emil's note: Sara's AI changed it.
+        await waitUntil { note.aiEditedAt != nil }
+        #expect(note.body == "Offsite plan\n- Venue\n- Budget")
+        #expect(note.aiEditor == "Claude" && note.aiEditorPerson == "Sara")
+        #expect(AIEdit.isUnseen(note))
+        #expect(AIEdit.listLine(note, by: "Claude") == "Edited by Sara's Claude")
+        let receipt = try #require(AIEdit.markSeen(note))
+        #expect(receipt.previous == "Offsite plan\n- Venue", "the tint and the margin marks start from here")
+        #expect(receipt.summary == "Sara's Claude changed 1 line")
+        #expect(receipt.by == "Claude", "the mark is the AI's own")
+        #expect(receipt.undoLabel == "Undo Sara's Claude's changes")
+        #expect(AIReview(receipt)?.title == "Sara's Claude changed 1 line")
+
+        // Sara's phone: her own AI, named as in a note of her own.
+        await waitUntil { mine.aiEditedAt != nil }
+        #expect(mine.aiEditor == "Claude" && mine.aiEditorPerson == nil)
+        #expect(try #require(AIEdit.markSeen(mine)).summary == "Claude changed 1 line")
+    }
+
+    /// Undo on that receipt takes the AI's change out of the document, as your edit, for everyone.
+    /// It wrote `note.body` alone, which never reached the others and the next change put back.
+    @Test func undoingAnAIsChangeToASharedNoteReachesEveryone() async throws {
+        let (emil, note, emilSession, _, _, onPhone) = try await saraAIAddsALine()
+        await waitUntil { note.aiEditedAt != nil }
+        let receipt = try #require(AIEdit.markSeen(note))
+        try await AIEdit.undo(receipt, on: note, library: emil.library)
+        #expect(emilSession.text == "Offsite plan\n- Venue")
+        #expect(note.body == "Offsite plan\n- Venue")
+        await waitUntil { onPhone.text == "Offsite plan\n- Venue" }
+        #expect(onPhone.text == "Offsite plan\n- Venue")
+        // Typing after it keeps it undone.
+        type("\n- Dates", in: emilSession)
+        await waitUntil { onPhone.text.hasSuffix("- Dates") }
+        #expect(onPhone.text == "Offsite plan\n- Venue\n- Dates")
+    }
+
+    /// A shared note's pointer row carries the AI stamps of the note it was before it was shared.
+    /// Sync took them over the change's own, and dropped whose AI it was.
+    @Test func aPointerRowLeavesASharedNotesAIMarkAlone() async throws {
+        let a = try device(member), b = try device(member)
+        let ea = engine(for: a), eb = engine(for: b)
+        let note = a.context.createNote(in: .all, body: "Plan\nStep one")
+        try await a.transport.share(note: note.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+        _ = try await a.library.becomeShared(note, nk: nk)
+        await ea.sync()
+        b.library.install()
+        await eb.sync()
+        let there = try #require(b.context.note(note.id))
+        let at = Date.now
+        AIEdit.arrived(there, ai: "Claude", person: "Emil", previousBody: "Plan", at: at)
+        StubSupabase.update("notes", id: note.id) { row in
+            row["ai_editor"] = "ChatGPT"
+            row["ai_edited_at"] = StubSupabase.stamp(at.addingTimeInterval(60))
+            row["is_pinned"] = true
+        }
+        await eb.sync()
+        #expect(there.isPinned, "the row was taken")
+        #expect(there.aiEditor == "Claude" && there.aiEditorPerson == "Emil")
+        #expect(there.aiEditedAt == at)
+        await ea.stop()
+        await eb.stop()
+    }
+
+    // MARK: Bug 18: not synced yet
+
+    /// Offline, a shared note looked synced. Changes that wait with nothing going up say "Not
+    /// synced yet" after a few seconds; once they're up the line goes again.
+    @Test func aSharedNoteSaysWhenItsChangesHaventSynced() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Shopping", on: emil)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let session = try #require(sara.library.session(for: mine))
+        #expect(session.waitingSince == nil && SharedSyncLine.at(.now, session: session) == nil)
+
+        sara.transport.offline = true
+        type("\n- Milk", in: session)
+        let since = try #require(session.waitingSince)
+        #expect(SharedSyncLine.at(since.addingTimeInterval(1), session: session) == nil, "a moment's wait says nothing")
+        #expect(SharedSyncLine.at(since.addingTimeInterval(SharedSyncLine.after), session: session) == .notSynced)
+        #expect(SharedSyncLine.notSynced.text == "Not synced yet")
+        // More typing offline doesn't start the wait again.
+        await waitUntil(0.2) { false }
+        type("\n- Bread", in: session)
+        #expect(session.waitingSince == since)
+
+        sara.transport.offline = false
+        session.flush()
+        await waitUntil { session.isSent }
+        #expect(session.isSent && session.waitingSince == nil)
+        let sent = try #require(session.sentAt)
+        #expect(session.lastWait >= 0.2)
+        // A wait this short was never said, so "Synced" isn't either.
+        #expect(SharedSyncLine.at(sent, session: session) == nil)
+    }
+
+    /// Typing while online never counts as waiting: each change that goes up starts the wait again.
+    @Test func typingOnlineNeverSaysNotSynced() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Shopping", on: emil)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let session = try #require(sara.library.session(for: mine))
+        for item in ["\n- Milk", "\n- Bread", "\n- Eggs"] { type(item, in: session) }
+        await waitUntil { session.isSent }
+        #expect(session.isSent && session.waitingSince == nil)
+        #expect(session.lastWait < SharedSyncLine.after)
+        #expect(SharedSyncLine.at(.now, session: session) == nil)
+    }
+
+    /// When the line says what: "Not synced yet" after 3 seconds with nothing going up, "Synced"
+    /// for 2 seconds after a wait that was said, nothing otherwise.
+    @Test func theSyncLinesTimes() {
+        let t = Date(timeIntervalSinceReferenceDate: 0)
+        #expect(SharedSyncLine.at(t, waitingSince: nil, sentAt: nil, lastWait: 0) == nil)
+        #expect(SharedSyncLine.at(t + 2.9, waitingSince: t, sentAt: nil, lastWait: 0) == nil)
+        #expect(SharedSyncLine.at(t + 3, waitingSince: t, sentAt: nil, lastWait: 0) == .notSynced)
+        #expect(SharedSyncLine.at(t + 16, waitingSince: t, sentAt: t - 60, lastWait: 20) == .notSynced)
+        #expect(SharedSyncLine.at(t + 1, waitingSince: nil, sentAt: t, lastWait: 16) == .synced)
+        #expect(SharedSyncLine.synced.text == "Synced")
+        #expect(SharedSyncLine.at(t + 2, waitingSince: nil, sentAt: t, lastWait: 16) == nil)
+        #expect(SharedSyncLine.at(t + 1, waitingSince: nil, sentAt: t, lastWait: 0.4) == nil, "no Synced after a wait nobody saw")
+    }
+
+    // MARK: Bugs 17 and 19: losing access
+
+    /// Bug 17: removed from a shared note, the person was left on "No note selected" with nothing
+    /// said. The note goes and they're told once, with its title and who shared it.
+    @Test func beingRemovedIsSaidOnce() async throws {
+        server.names = [owner: "Emil Wagman"]
+        let emil = try device(owner)
+        let (note, _) = try await shared("Trip plan\n- Flights", on: emil)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let said = SaidRemovals()
+        sara.library.onLostAccess = { said.all.append($0) }
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let session = try #require(sara.library.session(for: mine))
+        await session.refreshMembers()
+
+        server.remove(member, from: note.id)
+        await sara.library.reconcile(try await sara.transport.memberships())
+        #expect(mine.deletedAt != nil)
+        #expect(said.all.count == 1)
+        let removal = try #require(said.all.first)
+        #expect(removal.id == mine.id)
+        #expect(removal.alertTitle == "You no longer have access to \u{201C}Trip plan\u{201D}")
+        #expect(removal.message == "Ask Emil to share it with you again if you still need it.")
+        #expect(removal.copy == nil, "nothing typed here, nothing to keep")
+        // Said once: the next look has nothing more to say.
+        await sara.library.reconcile(try await sara.transport.memberships())
+        #expect(said.all.count == 1)
+        // The notes window's queue says it once too.
+        let queue = SharedRemovals()
+        queue.add(removal)
+        queue.add(removal)
+        #expect(queue.queue.count == 1 && queue.current == removal)
+        queue.shown(removal)
+        #expect(queue.current == nil)
+    }
+
+    /// The owner stopping sharing deletes the members' pointers on the server: that comes by sync,
+    /// and is said too. A note whose owner isn't known here asks "its owner".
+    @Test func theOwnerStoppingSharingIsSaid() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Party plan", on: emil)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let said = SaidRemovals()
+        sara.library.onLostAccess = { said.all.append($0) }
+        sara.library.install()
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        // What collab_unshare leaves in a member's row, as sync applies it.
+        mine.deletedAt = .now
+        SharedNotes.pointerArrived?(mine)
+        #expect(said.all.map(\.id) == [mine.id])
+        #expect(said.all.first?.message == "Ask its owner to share it with you again if you still need it.")
+        #expect(mine.sharedDocument == nil)
+    }
+
+    /// Leaving is your own choice: nothing is said, here or on your other devices, which see the
+    /// note go by sync (its pointer goes marked as yours, as a deleted one is).
+    @Test func leavingSaysNothingHereOrOnYourOtherDevices() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Book club", on: emil)
+        server.add(member, to: note.id)
+        let phone = try device(member), mac = try device(member)
+        let said = SaidRemovals()
+        phone.library.onLostAccess = { said.all.append($0) }
+        mac.library.onLostAccess = { said.all.append($0) }
+        let onPhone = try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let onMac = try await mac.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        try await phone.library.leave(onPhone)
+        #expect(onPhone.deletedAt != nil && onPhone.trashedAt != nil)
+
+        mac.library.install()
+        onMac.trashedAt = onPhone.trashedAt
+        onMac.deletedAt = onPhone.deletedAt
+        SharedNotes.pointerArrived?(onMac)
+        #expect(onMac.sharedDocument == nil)
+        #expect(said.all.isEmpty)
+    }
+
+    /// Bug 19: removed while typing, what they'd typed went with the note. When they'd typed in it
+    /// here, the notice offers Keep a Copy: their text, as a note of their own.
+    @Test func removedWhileTypingOffersACopyOfYourText() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Offsite plan\n- Venue", on: emil)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let said = SaidRemovals()
+        sara.library.onLostAccess = { said.all.append($0) }
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let session = try #require(sara.library.session(for: mine))
+        // Typed offline: it never reached the owner.
+        sara.transport.offline = true
+        type("\n- Dinner at 8", in: session)
+        server.remove(member, from: note.id)
+        sara.transport.offline = false
+        await sara.library.reconcile(try await sara.transport.memberships())
+        #expect(mine.deletedAt != nil)
+        let removal = try #require(said.all.first)
+        #expect(removal.copy == "Offsite plan\n- Venue\n- Dinner at 8")
+        #expect(removal.message == "Ask its owner to share it with you again if you still need it. You can keep a copy of it as it is on this Mac.")
+
+        // Keep a Copy: an ordinary note of Sara's with her text, not in Shared with me.
+        let queue = SharedRemovals()
+        queue.add(removal)
+        let copy = try #require(queue.keep(removal, in: sara.context))
+        #expect(queue.current == nil)
+        #expect(copy.body == "Offsite plan\n- Venue\n- Dinner at 8")
+        #expect(!copy.isShared && copy.deletedAt == nil && copy.id != mine.id)
+        #expect(copy.folder?.id != SharedNotes.sharedWithMeID(dataKey: dataKeys[member]!))
+        #expect(copy.folder?.name == "Notes", "Sara has no folder of her own yet: Notes is made for it")
+    }
+}

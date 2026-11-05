@@ -687,7 +687,7 @@ struct TableGridView: View {
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(picked ? AnyShapeStyle(Color.white) : AnyShapeStyle(.secondary))
                 .frame(width: horizontal ? GridMetrics.grip.height : GridMetrics.grip.width, height: horizontal ? GridMetrics.grip.width : GridMetrics.grip.height)
-                .background(picked ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.fill), in: .capsule)
+                .background(picked ? AnyShapeStyle(Color.paneAccent) : AnyShapeStyle(.fill), in: .capsule)
                 .hoverHighlight(Capsule())
                 .position(x: g.center.x - g.hit.minX, y: g.center.y - g.hit.minY)
         }
@@ -727,7 +727,7 @@ struct TableGridView: View {
     @ViewBuilder
     private func panelCross(widths: [CGFloat]) -> some View {
         if let c = panelCell, c.row < draft.rows.count, c.column < widths.count {
-            let tint = Color.accentColor.opacity(0.12)
+            let tint = Color.paneAccent.opacity(0.12)
             ZStack(alignment: .topLeading) {
                 Rectangle().fill(tint)
                     .frame(width: widths.reduce(0, +), height: GridMetrics.row)
@@ -748,14 +748,14 @@ struct TableGridView: View {
     private func pickedTint(widths: [CGFloat]) -> some View {
         switch picked {
         case .row(let r) where r < draft.rows.count:
-            Rectangle().fill(Color.accentColor.opacity(0.16))
-                .overlay(Rectangle().strokeBorder(Color.accentColor, lineWidth: 2))
+            Rectangle().fill(Color.paneAccent.opacity(0.16))
+                .overlay(Rectangle().strokeBorder(Color.paneAccent, lineWidth: 2))
                 .frame(width: widths.reduce(0, +), height: GridMetrics.row)
                 .offset(y: CGFloat(r) * GridMetrics.row)
                 .allowsHitTesting(false)
         case .column(let c) where c < widths.count:
-            Rectangle().fill(Color.accentColor.opacity(0.16))
-                .overlay(Rectangle().strokeBorder(Color.accentColor, lineWidth: 2))
+            Rectangle().fill(Color.paneAccent.opacity(0.16))
+                .overlay(Rectangle().strokeBorder(Color.paneAccent, lineWidth: 2))
                 .frame(width: widths[c], height: CGFloat(draft.rows.count) * GridMetrics.row)
                 .offset(x: widths[..<c].reduce(0, +))
                 .allowsHitTesting(false)
@@ -794,8 +794,8 @@ struct TableGridView: View {
         .overlay {
             if selected {
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.accentColor.opacity(0.12))
-                    .strokeBorder(Color.accentColor, lineWidth: 2)
+                    .fill(Color.paneAccent.opacity(0.12))
+                    .strokeBorder(Color.paneAccent, lineWidth: 2)
                     .allowsHitTesting(false)
             }
         }

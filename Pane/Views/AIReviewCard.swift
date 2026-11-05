@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Review an AI's edit part by part, in a card where the receipt was (AIReview has the rules).
-/// The title and where you are ("Claude changed 3 parts · 1 of 3"), Keep All, Undo All and Done;
+/// The title and where you are ("Claude changed 5 lines · 1 of 3"), Keep All, Undo All and the close ×;
 /// then each part in order, what was there struck through in grey above what the AI wrote, on the
 /// tint the note's changed lines have, with Keep and Undo. ↑ and ↓ move between parts, Return keeps,
 /// ⌫ undoes, Esc is Done (what's left is kept).
@@ -184,9 +184,10 @@ struct AIReviewCard: View {
             .accessibilityIdentifier("review.undoAll")
     }
 
+    /// The app's card close ×, as every card has, not an orange Done (Emil, 4 November, on the
+    /// iPhone's: "why is there a done button? Why is it not a normal X"). Closing keeps what's left.
     private var doneButton: some View {
-        Button("Done", action: done)
-            .buttonStyle(.amberProminent(inSheet ? .regular : .compact))
+        CardCloseButton(size: inSheet ? 30 : 24, action: done)
             .accessibilityIdentifier("review.done")
     }
 
@@ -201,20 +202,20 @@ struct AIReviewCard: View {
                 // part stayed all struck through, so it looked deleted).
                 let undone = part.decision == .undone
                 ForEach(Array(part.removed.enumerated()), id: \.offset) { i, line in
-                    Text(AIReview.shown(line))
+                    AIReview.text(line)
                         .strikethrough(!undone, color: Color.muted)
                         .foregroundStyle(undone ? Color.ink : Color.muted)
                         .accessibilityLabel(undone ? "Back: \(AIReview.shown(line))" : "Was: \(AIReview.shown(line))")
                         .accessibilityIdentifier("review.removed.\(part.id).\(i)")
                 }
                 ForEach(Array(part.added.enumerated()), id: \.offset) { i, line in
-                    Text(AIReview.shown(line))
+                    AIReview.text(line)
                         .foregroundStyle(undone ? Color.muted : Color.ink)
                         .strikethrough(undone, color: Color.muted)
                         .padding(.horizontal, 4)
                         .background(undone ? Color.clear : Color.amberSoft, in: .rect(cornerRadius: 3))
                         .padding(.horizontal, -4)
-                        .accessibilityLabel(undone ? "Taken out: \(AIReview.shown(line))" : "\(review.by) wrote: \(AIReview.shown(line))")
+                        .accessibilityLabel(undone ? "Taken out: \(AIReview.shown(line))" : "\(review.who) wrote: \(AIReview.shown(line))")
                         .accessibilityIdentifier("review.added.\(part.id).\(i)")
                 }
                 if part.conflict {
@@ -308,6 +309,21 @@ private struct CardChrome<S: InsettableShape>: ViewModifier {
 }
 
 extension AIReview {
+    /// The line as the note draws it: a checkbox is a circle (ticked, a filled tick), not the
+    /// letter-like "○" the text form uses (round 7: Opus read the card's tasks as an "O").
+    static func text(_ line: String) -> Text {
+        let s = shown(line)
+        let lead = String(s.prefix { $0 == " " })
+        let rest = s.dropFirst(lead.count)
+        if rest.hasPrefix("\u{25CB} ") {
+            return Text(lead) + Text(Image(systemName: "circle")).foregroundStyle(Color.muted) + Text(" " + rest.dropFirst(2))
+        }
+        if rest.hasPrefix("\u{2713} ") {
+            return Text(lead) + Text(Image(systemName: "checkmark.circle.fill")).foregroundStyle(Color.paneAccent) + Text(" " + rest.dropFirst(2))
+        }
+        return Text(s)
+    }
+
     /// A markdown line as the card shows it: list markers and checkboxes drawn, heading marks dropped.
     static func shown(_ line: String) -> String {
         let indent = line.prefix { $0 == " " || $0 == "\t" }

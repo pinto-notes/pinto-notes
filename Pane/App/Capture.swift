@@ -1,6 +1,8 @@
 #if os(macOS)
 import AppKit
 #endif
+import CryptoKit
+import LocalAuthentication
 import QuartzCore
 import SwiftData
 import SwiftUI
@@ -36,6 +38,8 @@ enum Capture {
             return body.replacingOccurrences(of: "- [ ] Lemons", with: "- [ ] Oat milk\n- [ ] Eggs\n- [ ] Lemons")
         case "standup":
             return body + "\n- Today: review the importer PR, then pair on table editing"
+        case "lisbontrip":
+            return lisbonTripEdit(body)
         default:
             return body
         }
@@ -65,6 +69,14 @@ enum Capture {
             for n in notes where n.title == "Lisbon" || n.title == "Hotel booking" || n.title == "Trip documents" { context.purge(n) }
             let travel = context.allFolders().first { $0.name == "Travel" }
             _ = context.createNote(in: travel.map { .folder($0.id) } ?? .all, body: state == "edited" ? lisbonEdit(lisbonNote) : lisbonNote)
+            try? context.save()
+        }
+        // `-seedTrip`: the "Lisbon trip" note with dates (persona council round 7), in Travel; the
+        // `lisbontrip` scene is the AI's edit of it.
+        if ProcessInfo.processInfo.arguments.contains("-seedTrip") {
+            let travel = context.allFolders().first { $0.name == "Travel" }
+            let trip = context.createNote(in: travel.map { .folder($0.id) } ?? .all, body: lisbonTrip)
+            trip.updatedAt = .now.addingTimeInterval(-20 * 60)
             try? context.save()
         }
         let delay = argument("-aiAfter").flatMap(Double.init) ?? 2.5
@@ -116,6 +128,24 @@ extension Capture {
     }
 }
 
+/// Captures of Face ID (`-uitest -lockFaceID`, a simulator with a face enrolled): the notes key in
+/// memory, handed over after Face ID says yes. A phone's Keychain asks Face ID before it gives the
+/// key out (KeychainKeyStore); the simulator's gives it out without asking, so this asks itself,
+/// with the same system prompt.
+final class CaptureFaceIDKeyStore: LockKeyStore, @unchecked Sendable {
+    private let memory = MemoryKeyStore()
+
+    var biometryName: String? { KeychainKeyStore().biometryName }
+    func save(_ key: SymmetricKey, keyID: String) -> Bool { memory.save(key, keyID: keyID) }
+    func remove() { memory.remove() }
+
+    func load(keyID: String, reason: String) async -> SymmetricKey? {
+        let context = LAContext()
+        guard (try? await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)) == true else { return nil }
+        return await memory.load(keyID: keyID, reason: reason)
+    }
+}
+
 /// The website's Lisbon note, on every platform.
 extension Capture {
     static let lisbonNote = """
@@ -147,6 +177,39 @@ extension Capture {
     static func lisbonEdit(_ body: String) -> String {
         body.replacingOccurrences(of: "- [ ] Day 3 LX Factory", with: "- [ ] Day 3 Sintra, Pena Palace early")
             .replacingOccurrences(of: "| Time Out Market | A bit of everything |", with: "| Time Out Market | A bit of everything |\n| Cervejaria Trindade | Steak |")
+    }
+
+    /// Persona council round 7: a trip note with dates in it (`-seedTrip`), for an AI edit that
+    /// moves the dates, takes out a sentence and adds three tasks.
+    static let lisbonTrip = """
+    Lisbon trip
+
+    Flights on Thursday 14 May, home on Monday 18 May.
+    Memmo Príncipe Real from 14 to 18 May, late checkout asked for.
+
+    Tiles, trams and pastries, at an easy pace.
+    Sara wants one slow morning in Alfama with no plans at all.
+
+    ## Plan
+    - [ ] Tram 28 early, before the crowds
+    - [ ] Day trip to Sintra
+    - [x] Book flights
+    - [x] Hotel in Príncipe Real
+
+    ## Where to eat
+    | Place | Dish |
+    | --- | --- |
+    | Manteigaria | Pastel de nata |
+    | Ramiro | Seafood |
+    """
+
+    /// "Move the trip a week later, drop the slow morning, and add what's left to book": three
+    /// parts to review (the dates, the sentence taken out, the three tasks).
+    static func lisbonTripEdit(_ body: String) -> String {
+        body.replacingOccurrences(of: "Flights on Thursday 14 May, home on Monday 18 May.", with: "Flights on Thursday 21 May, home on Monday 25 May.")
+            .replacingOccurrences(of: "Memmo Príncipe Real from 14 to 18 May,", with: "Memmo Príncipe Real from 21 to 25 May,")
+            .replacingOccurrences(of: "\nSara wants one slow morning in Alfama with no plans at all.", with: "")
+            .replacingOccurrences(of: "- [ ] Day trip to Sintra\n", with: "- [ ] Day trip to Sintra\n- [ ] Train tickets to Sintra from Rossio\n- [ ] Dinner at Ramiro on Friday, book a table\n- [ ] Lisboa cards for the trams\n")
     }
 
 }

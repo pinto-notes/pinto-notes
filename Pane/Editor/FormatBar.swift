@@ -58,7 +58,7 @@ struct FormatBar: View {
             BarButton("Link", "link", action: controller.insertLink)
                 .accessibilityIdentifier("editor.link")
             Button(action: controller.showTablePanel) {
-                BarIcon(systemName: "tablecells.badge.ellipsis", style: AnyShapeStyle(Color.accentColor))
+                BarIcon(systemName: "tablecells.badge.ellipsis", style: AnyShapeStyle(Color.paneAccent))
             }
             .buttonStyle(PressScale())
             .accessibilityLabel("Table")

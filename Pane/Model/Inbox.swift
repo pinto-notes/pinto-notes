@@ -159,6 +159,7 @@ enum ReadableText {
         else if let m = s.firstMatch(of: /^>\s?/) { s = s[m.range.upperBound...] }
         var t = String(s)
         t = t.replacing(/!\[([^\]]*)\]\([^)]*\)/) { $0.output.1.isEmpty ? "" : String($0.output.1) }
+        t = t.replacing(/!\[\[[^\]]*\]\]/, with: "")
         t = t.replacing(/\[\[([^\]|]+)(\|([^\]]+))?\]\]/) { String($0.output.3 ?? $0.output.1) }
         t = t.replacing(/\[([^\]]+)\]\(([^)]+)\)/) { "\($0.output.1) (\($0.output.2))" }
         t = t.replacing(/(\*\*|__|~~|`)/, with: "")

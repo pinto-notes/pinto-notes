@@ -49,10 +49,7 @@ struct AIReviewSheet: View {
 
     /// Counted in lines, as the button in the note says it ("ChatGPT changed 5 lines"), not in
     /// parts, which only the review knows about.
-    static func title(_ r: AIReview) -> String {
-        let n = r.parts.reduce(0) { $0 + max($1.added.count, $1.removed.count) }
-        return "\(r.by) changed \(n == 1 ? "1 line" : "\(n) lines")"
-    }
+    static func title(_ r: AIReview) -> String { r.title }
 
     private var title: some View {
         HStack(spacing: 7) {
@@ -139,21 +136,32 @@ struct AIReviewSheet: View {
         let undone = part.decision == .undone
         return VStack(alignment: .leading, spacing: 6) {
             ForEach(Array(part.removed.enumerated()), id: \.offset) { i, line in
-                Text(AIReview.shown(line))
+                AIReview.text(line)
                     .strikethrough(!undone, color: Color.muted)
                     .foregroundStyle(undone ? Color.ink : Color.muted)
                     .accessibilityLabel(undone ? "Back: \(AIReview.shown(line))" : "Was: \(AIReview.shown(line))")
                     .accessibilityIdentifier("review.removed.\(part.id).\(i)")
             }
-            ForEach(Array(part.added.enumerated()), id: \.offset) { i, line in
-                Text(AIReview.shown(line))
-                    .foregroundStyle(undone ? Color.muted : Color.ink)
-                    .strikethrough(undone, color: Color.muted)
-                    .padding(.horizontal, 4).padding(.vertical, 1)
-                    .background(undone ? Color.clear : Color.amberSoft, in: .rect(cornerRadius: 5))
-                    .padding(.horizontal, -4)
-                    .accessibilityLabel(undone ? "Taken out: \(AIReview.shown(line))" : "\(review.by) wrote: \(AIReview.shown(line))")
-                    .accessibilityIdentifier("review.added.\(part.id).\(i)")
+            // What it wrote, with the note's margin tick beside it: marked by shape too, not only
+            // by colour (round 14 of the UI council).
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(part.added.enumerated()), id: \.offset) { i, line in
+                    AIReview.text(line)
+                        .foregroundStyle(undone ? Color.muted : Color.ink)
+                        .strikethrough(undone, color: Color.muted)
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(undone ? Color.clear : Color.amberSoft, in: .rect(cornerRadius: 5))
+                        .padding(.horizontal, -4)
+                        .accessibilityLabel(undone ? "Taken out: \(AIReview.shown(line))" : "\(review.who) wrote: \(AIReview.shown(line))")
+                        .accessibilityIdentifier("review.added.\(part.id).\(i)")
+                }
+            }
+            .padding(.leading, part.added.isEmpty || undone ? 0 : DecoratedLayoutFragment.tickGap + DecoratedLayoutFragment.tickWidth)
+            .overlay(alignment: .leading) {
+                if !part.added.isEmpty, !undone {
+                    Capsule().fill(Color(PColor.paneAccent)).frame(width: DecoratedLayoutFragment.tickWidth)
+                        .accessibilityHidden(true)
+                }
             }
             if part.conflict {
                 Label(AIReview.conflictLine, systemImage: "exclamationmark.triangle.fill")

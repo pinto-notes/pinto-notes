@@ -148,7 +148,7 @@ import Testing
         let p1 = try #require(big.find("review.part.0"))
         #expect(p1.frame.width > p0.frame.width * 1.4, "wider: \(p0.frame) \(p1.frame)")
         #expect(p1.frame.height > p0.frame.height * 1.4, "bigger text: \(p0.frame) \(p1.frame)")
-        #expect(big.find("review.title")?.text.contains("Claude changed 3 parts") == true)
+        #expect(big.find("review.title")?.text.contains("Claude changed 4 lines") == true)
     }
 
     /// At 24 pt in a narrow note column (520 pt, round 5): the card fits, and Done, Keep and Undo
@@ -166,6 +166,7 @@ import Testing
         // Frames are on the screen (the window is far off it): measured against the card.
         let card = try #require(ax.find("review.card"), "\(ax.ids())")
         #expect(card.frame.width <= 520 - 40, "the card fits the column less the host's margins: \(card.frame)")
+        #expect(ax.find("review.done")?.text.contains("Close") == true, "the Mac card closes with the ×, not an orange Done")
         for id in ["review.done", "review.keep.0", "review.undo.0", "review.part.0"] {
             let e = try #require(ax.find(id), "\(id): \(ax.ids())")
             #expect(e.frame.minX >= card.frame.minX && e.frame.maxX <= card.frame.maxX + 0.5, "\(id) inside the card: \(e.frame) in \(card.frame)")
@@ -203,7 +204,7 @@ import Testing
         let ax = OffscreenAX(Host(review: AIReview(by: "Claude", previous: AIReviewTests.before, after: AIReviewTests.after), note: note) { result.append($0) }, size: Self.size)
         defer { ax.close() }
         await ax.settle()
-        #expect(ax.find("review.title")?.text.contains("Claude changed 3 parts") == true, "\(ax.ids())")
+        #expect(ax.find("review.title")?.text.contains("Claude changed 4 lines") == true, "\(ax.ids())")
         #expect(ax.find("review.position")?.text.contains("1 of 3") == true)
         for id in 0..<3 { #expect(ax.find("review.part.\(id)") != nil, "part \(id)") }
         #expect(try #require(ax.find("review.keep.0"), "\(ax.ids())").press())

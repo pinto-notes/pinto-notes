@@ -22,6 +22,11 @@ final class FakeCollabServer {
     fileprivate var channels: [FakeChannel] = []
     /// Ids handed out but not stored yet: a change still being written when someone pulls.
     var inFlight: Set<Int64> = []
+    /// The AI writing as someone (the MCP server, `pane.client`): their changes are stored naming
+    /// it, as `note_updates.client` does.
+    var aiWriting: [UUID: String] = [:]
+    /// Profile names, for the members list (`display_name`). Nobody has one unless set.
+    var names: [UUID: String] = [:]
 
     func role(_ note: UUID, _ user: UUID) -> String? { members[note]?[user]?.role }
 
@@ -47,7 +52,7 @@ final class FakeCollabServer {
         guard let role = role(note, author) else { throw Collab.Failure.notMember }
         guard role != "viewer" else { throw Collab.Failure.readOnly }
         guard epoch == epochs[note] else { throw Collab.Failure.staleEpoch }
-        let row = Collab.Update(id: nextID, note_id: note, author_id: author, epoch: epoch, ct: ct, client: nil)
+        let row = Collab.Update(id: nextID, note_id: note, author_id: author, epoch: epoch, ct: ct, client: aiWriting[author])
         nextID += 1
         updates.append(row)
         for c in channels where c.note == note && c.open { c.deliver(.update(row)) }
@@ -116,7 +121,7 @@ final class FakeCollabTransport: CollabTransport {
     func members(of note: UUID) async throws -> [Collab.Member] {
         try call("members")
         guard server.role(note, me) != nil else { return [] }
-        return (server.members[note] ?? [:]).map { .init(user_id: $0.key, role: $0.value.role, display_name: nil, avatar_path: nil, public_key: nil, accepted: true) }
+        return (server.members[note] ?? [:]).map { .init(user_id: $0.key, role: $0.value.role, display_name: server.names[$0.key], avatar_path: nil, public_key: nil, accepted: true) }
     }
 
     func share(note: UUID, keyWrap: String, selfWrap: String, head: String) async throws {

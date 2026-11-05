@@ -32,8 +32,18 @@ final class CollabSession {
         var typingUntil: Date?
         /// When their caret last moved or they last typed: the name flag shows for a moment after.
         var movedAt: Date = .now
+        /// When their presence last arrived. It comes every 2 seconds while they're connected.
+        var heardAt: Date = .now
         var isTyping: Bool { (typingUntil ?? .distantPast) > .now }
+        /// Nothing heard from them for a while: their connection or yours is down. Their avatar
+        /// and caret are shown grey until they're heard again (persona council round 7, bug 18).
+        func isStale(at now: Date = .now) -> Bool { now.timeIntervalSince(heardAt) >= Self.staleAfter }
+        /// Presence goes out every 2 seconds: three missed and someone's connection (or yours) is down.
+        static let staleAfter: TimeInterval = 6
     }
+
+    /// A caret whose person isn't heard from: solid grey, on white and on black.
+    static let staleColor = Color(red: 0x8E / 255, green: 0x8E / 255, blue: 0x93 / 255)
 
     struct Member: Identifiable, Equatable {
         let id: UUID
@@ -63,7 +73,11 @@ final class CollabSession {
     @ObservationIgnored private let isStored: Bool
     private(set) var epoch: Int
     let me: UUID
-    let myName: String
+    /// Your name as the others see it: read each time your presence goes out, so a name your
+    /// profile learns after the note opened reaches them without either app opening again
+    /// (persona council round 7, bug 15).
+    var myName: String { nameSource() }
+    @ObservationIgnored private let nameSource: @MainActor () -> String
     /// The note keys this device holds, by epoch: changes and snapshots from before a new key
     /// still open with the one they were sealed with.
     @ObservationIgnored private var keys: [Int: SymmetricKey]
@@ -83,6 +97,18 @@ final class CollabSession {
     private(set) var members: [Member] = []
     /// Whether the server has your changes: false while some wait to go up (offline, say).
     private(set) var isSent = true
+    /// Since when your changes have waited without any going up: nil while the server has them all.
+    /// Each change that goes up starts it again, so typing while online never counts as waiting
+    /// (SharedSyncLine says "Not synced yet" after a while of it).
+    private(set) var waitingSince: Date?
+    /// When the server last got everything after a wait, and the longest stretch of that wait in
+    /// which nothing went up ("Synced" shows for a moment after a long one).
+    private(set) var sentAt: Date?
+    private(set) var lastWait: TimeInterval = 0
+    @ObservationIgnored private var longestWait: TimeInterval = 0
+    /// You changed the text on this device since the app started: losing the note offers your
+    /// copy of it (SharedRemoval).
+    @ObservationIgnored private(set) var typedHere = false
     /// The newest server change this document holds (`SharedDocument.cursor`).
     var lastSeen: Int64 { isClosed ? 0 : record.cursor }
     /// Updates already in the document. Ids don't arrive in order (your own come back from the
@@ -104,6 +130,18 @@ final class CollabSession {
     @ObservationIgnored var onResealed: ((SymmetricKey, Int) -> Void)?
     /// The server says you aren't in the note anymore.
     @ObservationIgnored var onRemoved: (() -> Void)?
+    /// An AI's change reached the text here (the editor has it already): the library marks the
+    /// note as an AI's edit of a note of your own is (SharedLibrary.aiChanged).
+    @ObservationIgnored var onAIChange: ((AIArrival) -> Void)?
+
+    /// A change an AI wrote through its tools (the MCP server, as one of the note's people; the
+    /// server names the AI on the change, `note_updates.client`): which AI, whose it is, and the
+    /// text from just before it.
+    struct AIArrival: Equatable {
+        let ai: String
+        let author: UUID
+        let before: String
+    }
     @ObservationIgnored private var channel: CollabChannel?
     @ObservationIgnored private var joining = false
     @ObservationIgnored private var sending = false
@@ -149,7 +187,8 @@ final class CollabSession {
     static let rewind: Int64 = 64
 
     /// A new shared document holding `initial` (the owner, when sharing). Saved in `record`.
-    static func create(record: SharedDocument, nk: SymmetricKey, initial: String, transport: any CollabTransport, me: UUID, name: String) throws -> CollabSession {
+    static func create(record: SharedDocument, nk: SymmetricKey, initial: String, transport: any CollabTransport, me: UUID,
+                       name: @escaping @autoclosure @MainActor () -> String) throws -> CollabSession {
         let doc = Document(textEncoding: .utf16)
         let body = try doc.putObject(obj: .ROOT, key: "body", ty: .Text)
         try doc.spliceText(obj: body, start: 0, delete: 0, value: initial)
@@ -160,7 +199,8 @@ final class CollabSession {
     }
 
     /// The document as this device has it, with no network: what it saved, and the changes since.
-    static func open(record: SharedDocument, keys: [Int: SymmetricKey], transport: any CollabTransport, me: UUID, name: String) throws -> CollabSession {
+    static func open(record: SharedDocument, keys: [Int: SymmetricKey], transport: any CollabTransport, me: UUID,
+                     name: @escaping @autoclosure @MainActor () -> String) throws -> CollabSession {
         guard !record.saved.isEmpty else { throw CollabCrypto.Failure.malformed }
         let doc = Document(textEncoding: .utf16)
         try CollabText.absorb(record.saved, into: doc)
@@ -171,7 +211,8 @@ final class CollabSession {
 
     /// The document as the server has it, for a device that has none yet: the newest snapshot,
     /// then the changes after it. Saved in `record`.
-    static func load(record: SharedDocument, nk: SymmetricKey, transport: any CollabTransport, me: UUID, name: String) async throws -> CollabSession {
+    static func load(record: SharedDocument, nk: SymmetricKey, transport: any CollabTransport, me: UUID,
+                     name: @escaping @autoclosure @MainActor () -> String) async throws -> CollabSession {
         let pull = try await transport.pull(note: record.id, after: 0)
         let keys = [record.epoch: nk]
         let doc = Document(textEncoding: .utf16)
@@ -200,7 +241,8 @@ final class CollabSession {
         return s
     }
 
-    private init(record: SharedDocument, keys: [Int: SymmetricKey], doc: Document, body: ObjId, transport: any CollabTransport, me: UUID, name: String) {
+    private init(record: SharedDocument, keys: [Int: SymmetricKey], doc: Document, body: ObjId, transport: any CollabTransport, me: UUID,
+                 name: @escaping @MainActor () -> String) {
         noteID = record.id
         epoch = record.epoch
         self.keys = keys
@@ -212,9 +254,35 @@ final class CollabSession {
         self.body = body
         self.transport = transport
         self.me = me
-        myName = name
+        nameSource = name
         text = (try? doc.text(obj: body)) ?? ""
         isSent = record.outbox.isEmpty
+        // Changes typed here before (offline, then the app quit) still wait.
+        if !isSent { waitingSince = .now }
+    }
+
+    /// Every change to `isSent`, so a wait is timed from its start to the moment it ends.
+    private func setSent(_ sent: Bool) {
+        guard sent != isSent else { return }
+        let now = Date.now
+        if sent {
+            if let since = waitingSince { longestWait = max(longestWait, now.timeIntervalSince(since)) }
+            lastWait = longestWait
+            sentAt = now
+            waitingSince = nil
+        } else {
+            longestWait = 0
+            waitingSince = now
+        }
+        isSent = sent
+    }
+
+    /// A change went up and more still wait: the wait starts again from now.
+    private func progressed() {
+        guard !isSent, let since = waitingSince else { return }
+        let now = Date.now
+        longestWait = max(longestWait, now.timeIntervalSince(since))
+        waitingSince = now
     }
 
     /// Your role changed (the server said so).
@@ -363,13 +431,21 @@ final class CollabSession {
             }
         }
         var newest = record.cursor
+        // An AI's change among them: the text from just before the first one, to mark what it changed.
+        var ai: (update: Collab.Update, before: String)?
         for u in pull.updates {
             newest = max(newest, u.id)
-            if take(u) { changed = true }
+            var before: String?
+            if ai == nil, u.client != nil { before = try? doc.text(obj: body) }
+            if take(u) {
+                changed = true
+                if ai == nil, let before { ai = (u, before) }
+            }
         }
         record.cursor = newest
         saveSoon()
         if changed { textChanged() }
+        if let ai { aiArrived(ai.update, before: ai.before) }
         scheduleSnapshot()
     }
 
@@ -377,7 +453,11 @@ final class CollabSession {
         guard !isClosed else { return }
         switch event {
         case .update(let u):
-            if take(u) { textChanged() }
+            let before = text
+            if take(u) {
+                textChanged()
+                aiArrived(u, before: before)
+            }
             saveSoon()
             scheduleSnapshot()
         case .reconnected:
@@ -389,6 +469,7 @@ final class CollabSession {
             var peer = peers[user] ?? Peer(id: user, name: p.name)
             let wasHere = peers[user] != nil
             peer.name = p.name
+            peer.heardAt = .now
             if peer.caret != p.caret || peer.end != p.end { peer.movedAt = .now }
             peer.caret = p.caret
             peer.end = p.end
@@ -429,6 +510,27 @@ final class CollabSession {
         }
     }
 
+    /// A change the server says an AI wrote, once it changed the text here: to the library, after
+    /// the editor has the text. Changes typed on a device name no AI.
+    private func aiArrived(_ u: Collab.Update, before: String) {
+        guard !isClosed, let ai = u.client?.trimmingCharacters(in: .whitespacesAndNewlines), !ai.isEmpty, text != before else { return }
+        onAIChange?(AIArrival(ai: ai, author: u.author_id, before: before))
+    }
+
+    /// The note's owner by first name, once its members have loaded (nil for a nameless owner).
+    var ownerFirstName: String? {
+        guard let owner = members.first(where: { $0.role == "owner" }), owner.name != "Someone" else { return nil }
+        return owner.name.split(separator: " ").first.map(String.init)
+    }
+
+    /// Someone's first name as this note knows it (its members, else their presence), for "Sara's
+    /// Claude". Nil when the note doesn't know them yet.
+    func firstName(of user: UUID) -> String? {
+        let listed = members.first { $0.id == user }?.name
+        let full = listed.flatMap { $0 == "Someone" ? nil : $0 } ?? peers[user]?.name
+        return full.flatMap { $0.split(separator: " ").first.map(String.init) }
+    }
+
     /// The document's text changed from outside: to the editor, the carets, and the note.
     private func textChanged() {
         let mended = mendTicks()
@@ -462,7 +564,7 @@ final class CollabSession {
         guard !change.isEmpty else { return false }
         keep(change)
         record.enqueue(change)
-        isSent = false
+        setSent(false)
         saveSoon()
         return true
     }
@@ -496,13 +598,22 @@ final class CollabSession {
         if !change.isEmpty {
             keep(change)
             record.enqueue(change)
-            isSent = false
+            setSent(false)
+            typedHere = true
         }
         saveSoon()
         typingAt = .now
         flush()
         sendPresence()
         settle()
+    }
+
+    /// An edit of yours made outside the editor (Undo of an AI's change, the widget, Siri): into
+    /// the document and up as typing goes, and to the open editor, which didn't make it. Left out
+    /// of the editor, its next keystroke diffed the old text back over it.
+    func localFromOutside(_ new: String) {
+        local(new, selection: nil)
+        onRemoteText?(text)
     }
 
     /// Your caret, or nil while you aren't editing (then nobody sees a caret for you).
@@ -518,12 +629,12 @@ final class CollabSession {
     /// Sends the changes waiting to go up, oldest first, one at a time. Offline (or any failure
     /// that may pass), they stay, saved, and go when the server answers again.
     func flush() {
-        guard !isClosed, !sending, !record.outbox.isEmpty else { isSent = record.outbox.isEmpty; return }
+        guard !isClosed, !sending, !record.outbox.isEmpty else { setSent(record.outbox.isEmpty); return }
         guard record.canEdit else {
             // A viewer's edits are refused by the server: they stay on this device only until
             // the document is opened again.
             record.pending = []
-            isSent = true
+            setSent(true)
             return
         }
         sending = true
@@ -532,7 +643,7 @@ final class CollabSession {
             let outcome = await sendPending()
             sending = false
             guard !isClosed else { return }
-            isSent = record.pending.isEmpty
+            setSent(record.pending.isEmpty)
             saveSoon()
             switch outcome {
             case .done:
@@ -573,6 +684,7 @@ final class CollabSession {
                 record.sinceSnapshot += 1
                 // Typing may have added more meanwhile; this one is the first still.
                 if record.pending.first == change { record.pending.removeFirst() }
+                progressed()
             } catch let failure as Collab.Failure {
                 switch failure {
                 case .staleEpoch:
@@ -773,12 +885,17 @@ final class CollabSession {
         return Color(red: Double(rgb >> 16 & 0xFF) / 255, green: Double(rgb >> 8 & 0xFF) / 255, blue: Double(rgb & 0xFF) / 255)
     }
 
-    /// Other people's carets and selections for the editor to draw.
-    var remoteCarets: [RemoteCaret] {
+    /// Other people's carets and selections for the editor to draw. Someone not heard from for a
+    /// while is drawn grey, without the name flag: where their caret was, not where it is.
+    var remoteCarets: [RemoteCaret] { remoteCarets(at: .now) }
+
+    func remoteCarets(at now: Date) -> [RemoteCaret] {
         peers.values.compactMap { p in
             guard let s = p.selection else { return nil }
-            return RemoteCaret(id: p.id, name: p.name.split(separator: " ").first.map(String.init) ?? p.name, color: Self.color(for: p.id), range: s,
-                               showsName: Date.now.timeIntervalSince(p.movedAt) < RemoteCaret.flagFor)
+            let stale = p.isStale(at: now)
+            return RemoteCaret(id: p.id, name: p.name.split(separator: " ").first.map(String.init) ?? p.name,
+                               color: stale ? Self.staleColor : Self.color(for: p.id), range: s,
+                               showsName: !stale && now.timeIntervalSince(p.movedAt) < RemoteCaret.flagFor)
         }.sorted { $0.id.uuidString < $1.id.uuidString }
     }
 }

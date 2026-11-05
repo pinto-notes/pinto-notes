@@ -27,6 +27,8 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
+	<key>PaneAccentAsset</key>
+	<string>$(PANE_ACCENT_ASSET)</string>
 	<key>PaneAppGroup</key>
 	<string>$(PANE_APP_GROUP)</string>
 	<key>PaneBundleID</key>

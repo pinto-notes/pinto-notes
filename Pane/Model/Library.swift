@@ -100,12 +100,18 @@ extension ModelContext {
     }
 
     /// The folder new notes go into when "All Notes" is selected.
+    /// Where a note goes when no folder is chosen: your first folder, never "Shared with me". That
+    /// one is made to sort first (sortIndex -1), so new notes in All Notes went into it, where they
+    /// read as shared and aren't.
     func defaultFolder() -> Folder {
-        if let f = allFolders().filter({ $0.parent == nil }).min(by: { $0.sortIndex < $1.sortIndex }) { return f }
+        if let f = allFolders().filter({ $0.parent == nil && !Self.isSharedWithMe($0) }).min(by: { $0.sortIndex < $1.sortIndex }) { return f }
         let f = Folder(name: "Notes")
         insert(f)
         return f
     }
+
+    /// "Shared with me" (SharedNotes.sharedWithMe): its name, sorted ahead of every folder of yours.
+    static func isSharedWithMe(_ f: Folder) -> Bool { f.sortIndex < 0 && f.name == "Shared with me" }
 
     @discardableResult
     func createNote(in scope: Scope, body: String = "") -> Note {
@@ -160,8 +166,11 @@ extension ModelContext {
     /// The note to open at launch: the one you were on, otherwise the one edited last. A blank
     /// note you left open (the app was closed before you typed) is discarded, as leaving it
     /// would have done, instead of opening on an empty page.
-    func noteToReopen(last: UUID?) -> Note? {
+    /// `inTrash`: the window reopens on Recently Deleted, where the note you were on was a
+    /// deleted one: that one reopens, as the list beside it holds it.
+    func noteToReopen(last: UUID?, inTrash: Bool = false) -> Note? {
         func blank(_ n: Note) -> Bool { !n.isLocked && n.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        if inTrash, let last, let n = note(last), n.deletedAt == nil, n.trashedAt != nil { return n }
         if let last, let n = note(last), n.deletedAt == nil, n.trashedAt == nil {
             guard blank(n) else { return n }
             purge(n)

@@ -131,8 +131,10 @@ struct PaneApp: App {
         AIChangesCenter.shared.store = args.contains("-demoHistory") ? HistoryAIChangesStore(history: historyStore, context: context)
             : backend.client.map { SupabaseAIChangesStore(client: $0) }
         // Locked notes: the key behind Face ID / Touch ID, except in tests and captures, which
-        // also start with no notes password.
-        NoteVault.shared = inMemory ? NoteVault(keyStore: MemoryKeyStore(), defaults: MemoryDefaults(), drivesSync: true)
+        // also start with no notes password. Captures of Face ID (`-uitest -lockFaceID`, on a
+        // simulator with a face enrolled) keep the key behind Face ID, as the app does.
+        let captureFaceID = args.contains("-uitest") && args.contains("-lockFaceID")
+        NoteVault.shared = inMemory ? NoteVault(keyStore: captureFaceID ? CaptureFaceIDKeyStore() as LockKeyStore : MemoryKeyStore(), defaults: MemoryDefaults(), drivesSync: true)
             : NoteVault(keyStore: KeychainKeyStore(), drivesSync: true)
         Capture.lockedNotesFromArguments(container.mainContext)
         // Amber Notes Beta only: the two-device check of shared notes, from a local steps file.

@@ -207,13 +207,28 @@ struct AddToPicker: View {
     var body: some View {
         List {
             if model.query.trimmingCharacters(in: .whitespaces).isEmpty {
-                row(ShareWords.newNote, systemImage: "square.and.pencil", picked: model.note == nil, id: "share.note.new") { model.note = nil }
+                Button { pick(nil) } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "square.and.pencil")
+                            .frame(width: 22)
+                            .foregroundStyle(Color("AccentColor"))
+                        Text(ShareWords.newNote).foregroundStyle(.primary)
+                        Spacer(minLength: 8)
+                        tick(model.note == nil)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .tint(.primary)
+                .accessibilityIdentifier("share.note.new")
+                .accessibilityAddTraits(model.note == nil ? .isSelected : [])
             }
             Section(model.query.isEmpty ? "Recent" : "") {
                 ForEach(model.offered) { n in
-                    row(n.title.isEmpty ? ShareWords.newNote : n.title, systemImage: "doc.text", picked: model.note == n.id, id: "share.note.\(n.title)") {
-                        model.note = n.id
-                    }
+                    Button { pick(n.id) } label: { NoteChoiceRow(note: n, picked: model.note == n.id) }
+                        // A list's buttons take the accent colour, every line of them; these read as notes.
+                        .tint(.primary)
+                        .accessibilityIdentifier("share.note.\(n.title)")
+                        .accessibilityAddTraits(model.note == n.id ? .isSelected : [])
                 }
                 if model.offered.isEmpty {
                     Text(ShareWords.noMatch(model.query)).foregroundStyle(.secondary)
@@ -225,24 +240,58 @@ struct AddToPicker: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func row(_ title: String, systemImage: String, picked: Bool, id: String, action: @escaping () -> Void) -> some View {
-        Button {
-            action()
-            dismiss()
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: systemImage)
-                    .frame(width: 20)
-                    .foregroundStyle(Color("AccentColor"))
-                Text(title).foregroundStyle(.primary).lineLimit(1)
-                Spacer(minLength: 8)
-                if picked {
-                    Image(systemName: "checkmark").fontWeight(.semibold).foregroundStyle(Color("AccentColor"))
+    private func pick(_ id: UUID?) {
+        model.note = id
+        dismiss()
+    }
+
+    @ViewBuilder
+    private func tick(_ on: Bool) -> some View {
+        if on { Image(systemName: "checkmark").fontWeight(.semibold).foregroundStyle(Color("AccentColor")) }
+    }
+}
+
+/// A note to pick, as the notes list shows it (Emil, 4 November 2026: every title in the accent
+/// colour "is a really bad choice", and titles alone said too little): the title in ink, then when
+/// it was changed and its first line, then its folder. A tick on the picked one.
+struct NoteChoiceRow: View {
+    let note: ChecklistShelf.Recent
+    let picked: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(note.title.isEmpty ? ShareWords.newNote : note.title)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(Self.when(note.updatedAt))
+                    if let s = note.snippet { Text(s).lineLimit(1) }
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                if let f = note.folder {
+                    Label(f, systemImage: "folder")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .labelStyle(.titleAndIcon)
                 }
             }
-            .contentShape(Rectangle())
+            Spacer(minLength: 8)
+            if picked {
+                Image(systemName: "checkmark").fontWeight(.semibold).foregroundStyle(Color("AccentColor"))
+            }
         }
-        .accessibilityIdentifier(id)
-        .accessibilityAddTraits(picked ? .isSelected : [])
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+
+    /// As the notes list says it: the time today, Yesterday, else the date.
+    static func when(_ d: Date, now: Date = .now, calendar: Calendar = .current) -> String {
+        if calendar.isDate(d, inSameDayAs: now) { return d.formatted(date: .omitted, time: .shortened) }
+        if let y = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(d, inSameDayAs: y) { return "Yesterday" }
+        return d.formatted(.dateTime.day().month(.abbreviated))
     }
 }

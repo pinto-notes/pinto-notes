@@ -18,8 +18,12 @@ private let log = Logger(subsystem: "dev.emilwagman.pane", category: "collab")
 final class CollabStore {
     static var shared: CollabStore?
 
-    /// Your name as others see it in a note.
-    let name: String
+    /// Your name as others see it in a note, read each time it's needed and never kept. The store
+    /// is made at sign-in, often before the profile has its name (a new account's comes with its
+    /// first sync). A copy kept from then said "Someone" on everyone else's screen until the app
+    /// was opened again (persona council round 7, bug 15).
+    var name: String { nameSource() }
+    @ObservationIgnored private let nameSource: @MainActor () -> String
     private(set) var transport: CollabTransport?
     /// The account's identity key and the keys of the people you share with.
     @ObservationIgnored private(set) var identityKeys: CollabKeys?
@@ -77,10 +81,11 @@ final class CollabStore {
         }
     }
 
-    /// The signed-in account's store, over the real backend.
-    static func live(client: SupabaseClient, account: UUID, name: String, crypto: AccountCrypto = .shared) -> CollabStore {
+    /// The signed-in account's store, over the real backend. `name` is asked each time your name
+    /// goes out.
+    static func live(client: SupabaseClient, account: UUID, name: @escaping @MainActor () -> String, crypto: AccountCrypto = .shared) -> CollabStore {
         let transport = SupabaseCollabTransport(client: client, me: account)
-        let store = CollabStore(name: name, transport: transport, dataKey: { crypto.dataKey })
+        let store = CollabStore(name: name(), transport: transport, dataKey: { crypto.dataKey })
         store.linkVault = KeychainLinkVault(account: account)
         store.verified = VerifiedPeople(account: account)
         return store
@@ -94,7 +99,7 @@ final class CollabStore {
         guard isOn, AccountCrypto.shared.isReady else { return }
         if let s = shared, s.me == account { return }
         detach()
-        let store = live(client: client, account: account, name: myName(account: account))
+        let store = live(client: client, account: account, name: { myName(account: account) })
         store.context = context
         shared = store
         // The library is there now (made with the context); shared notes open from their copies
@@ -105,7 +110,8 @@ final class CollabStore {
     }
 
     /// Your name on your caret and in "In this note": the profile's, or its cached copy when no
-    /// view has loaded the profile yet (a launch straight into a note).
+    /// view has loaded the profile yet (a launch straight into a note). Asked again each time it
+    /// goes out, so a name the profile learns later is the one people see.
     static func myName(account: UUID, bound: String? = ProfileStore.shared.name, defaults: UserDefaults = .standard) -> String {
         bound ?? ProfileStore.cachedName(for: account, defaults: defaults) ?? "Someone"
     }
@@ -114,12 +120,14 @@ final class CollabStore {
     static func detach() {
         shared?.stop()
         shared = nil
+        SharedRemovals.shared.clear()
     }
 
-    /// `transport` nil: nothing reaches a server (the screenshot gallery).
-    init(name: String, transport: CollabTransport? = nil, dataKey: @escaping @MainActor () -> SymmetricKey? = { nil },
+    /// `transport` nil: nothing reaches a server (the screenshot gallery). `name` is read each time
+    /// your name is needed (see `name`).
+    init(name: @escaping @autoclosure @MainActor () -> String, transport: CollabTransport? = nil, dataKey: @escaping @MainActor () -> SymmetricKey? = { nil },
          book: CollabKeyBook? = nil) {
-        self.name = name
+        nameSource = name
         self.transport = transport
         dataKeySource = dataKey
         if let transport {
@@ -146,7 +154,10 @@ final class CollabStore {
     private func makeLibrary() {
         library?.closeAll()
         guard let context, let transport else { library = nil; return }
-        let library = SharedLibrary(context: context, transport: transport, name: name, dataKey: dataKeySource) { [weak self] row in
+        // The name as it is when it goes out, not now (a closure of its own, so the library and its
+        // sessions don't hold the store).
+        let name = nameSource
+        let library = SharedLibrary(context: context, transport: transport, name: name(), dataKey: dataKeySource) { [weak self] row in
             guard let self else { throw Collab.Failure.notSignedIn }
             let nk = try await self.openKey(row).nk
             // A new key for a note you're in: your own copy under your data key, for your other
@@ -163,6 +174,8 @@ final class CollabStore {
             self?.removedFrom.insert(noteID)
         }
         library.onSessionClosed = { [weak self] noteID in self?.sessions[noteID] = nil }
+        // Removed, or the owner stopped sharing: said once, over the notes (SharedRemovalAlert).
+        library.onLostAccess = { SharedRemovals.shared.add($0) }
         library.install()
         self.library = library
     }

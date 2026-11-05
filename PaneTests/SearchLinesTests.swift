@@ -85,6 +85,19 @@ import AppKit
         #expect(QuickOpenPanel.height(of: .text(single)) == QuickOpenPanel.Metrics.textRow)
         #endif
     }
+
+    /// Round 7 captures: Go to Note found nothing for "renovaton". When nothing holds the query
+    /// as typed, a note a letter off is found, with its line shown around the word it holds.
+    @Test func goToNoteForgivesATypo() async throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let n = c.mainContext.createNote(in: .all, body: "Kitchen plans\n\nAsk about the renovation budget\nBlue tiles")
+        _ = c.mainContext.createNote(in: .all, body: "Garden\n\nPlant the beans")
+        try c.mainContext.save()
+        let hits = await QuickOpen.textHits(for: "renovaton", in: c)
+        #expect(hits.map(\.id) == [n.id])
+        #expect(hits.first?.snippet.text == "Ask about the renovation budget")
+        #expect(await QuickOpen.textHits(for: "zzzzzz", in: c).isEmpty)
+    }
     #endif
 
     #if os(macOS)

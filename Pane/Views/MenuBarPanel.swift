@@ -144,7 +144,7 @@ struct MenuBarPanel: View {
             HStack(spacing: 10) {
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 16))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Color.paneAccent)
                 Text("New note \u{201C}\(text.trimmingCharacters(in: .whitespacesAndNewlines))\u{201D}")
                     .lineLimit(1)
                     .truncationMode(.tail)

@@ -155,6 +155,16 @@ import Testing
 
     /// No button style reaches for the accent directly: its hovers and presses go through the
     /// Palette, which turns them neutral in the dark.
+    /// Round 7 captures: the keyboard bar's table button and the widget came out system blue.
+    /// Pinto's accent is `Color.paneAccent` (or the asset by name in the widget), never the system's.
+    @Test func noViewReachesForTheSystemAccent() throws {
+        let widget = try String(contentsOf: TestFiles.url("Views").appendingPathComponent("ChecklistWidgetView.swift"), encoding: .utf8)
+        for (name, text) in try Self.appSources() + [("Views/ChecklistWidgetView.swift", widget)] {
+            #expect(!text.contains("Color.accentColor"), "\(name) uses Color.accentColor: use Color.paneAccent")
+        }
+        #expect(!widget.contains("(.tint)"), "the widget names its accent: .tint is system blue there")
+    }
+
     @Test func noButtonStyleHardCodesAmber() throws {
         let src = try String(contentsOf: TestFiles.url("Views").appendingPathComponent("DesignSystem.swift"), encoding: .utf8)
         #expect(!src.contains("Color(Palette.amber).opacity"), "use Palette.buttonHover and friends")
@@ -197,7 +207,7 @@ import Testing
         #expect(CloseCircleStyle.ground(hovering: true, pressed: true) >= CloseCircleStyle.ground(hovering: true, pressed: false))
         #expect(CloseCircleStyle.pressedWash(true) > 0)
         let sources = try Self.appSources()
-        for name in ["Views/SettingsCard.swift", "Views/ConnectWebGuide.swift", "Views/ImportGuide.swift", "Views/MakeAnApp.swift", "Views/TemplateLibrary.swift"] {
+        for name in ["Views/SettingsCard.swift", "Views/ConnectWebGuide.swift", "Views/ImportGuide.swift", "Views/MakeAnApp.swift", "Views/TemplateLibrary.swift", "Views/AIReviewCard.swift"] {
             let text = try #require(sources.first { $0.name == name }).text
             #expect(text.contains("CardCloseButton"), "\(name) closes with CardCloseButton")
             #expect(!text.contains("Image(systemName: \"xmark\")"), "\(name) draws its own ×")

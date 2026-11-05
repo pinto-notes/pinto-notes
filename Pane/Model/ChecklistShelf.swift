@@ -184,6 +184,10 @@ enum ChecklistShelf {
         var id: UUID
         var title: String
         var updatedAt: Date
+        /// Its folder and first line after the title, so a list of notes to pick from reads like
+        /// the notes list (Emil, 4 November 2026: the share sheet's Add to showed titles only).
+        var folder: String? = nil
+        var snippet: String? = nil
     }
 
     /// A tick made in the widget. `done` is what it was set to (not a toggle), so applying it

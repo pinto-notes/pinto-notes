@@ -463,6 +463,25 @@ final class NoteVault {
 
     // MARK: Locking
 
+    /// When you last chose Lock Now. The locked page that follows doesn't ask for Face ID by itself
+    /// (round 7 captures: right after Lock Now it did, and the face looking at the phone opened the
+    /// note again). The Face ID button and the password still open it.
+    private(set) var lockedByHandAt: Date?
+
+    /// Lock Now, chosen by you (the note's menu, Settings), not the idle timer.
+    func lockNowByHand(at now: Date = .now) {
+        lockNow()
+        lockedByHandAt = now
+    }
+
+    /// Whether the locked page showing now should leave Face ID for you to start: true once, for a
+    /// page that comes up within a few seconds of Lock Now.
+    func takeLockedByHand(at now: Date = .now) -> Bool {
+        defer { lockedByHandAt = nil }
+        guard let at = lockedByHandAt else { return false }
+        return now.timeIntervalSince(at) < 3
+    }
+
     func lockNow() {
         guard !keys.isEmpty || !opened.isEmpty else { return }
         // Typing not yet in the note is sealed while the key is still here.

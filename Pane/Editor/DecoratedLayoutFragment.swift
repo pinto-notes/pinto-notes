@@ -170,6 +170,17 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     static let changeBar: CGFloat = 3
     /// The highlight's padding around the words, and its corners.
     static let changePad = CGSize(width: 4, height: 1)
+    /// The tick in the margin beside changed lines: 2 pt wide, 8 pt left of the text, as tall as
+    /// the changed lines. So the change isn't marked by colour alone, and a long note can be
+    /// scanned down its edge (round 14 of the UI council: the marker lost the old margin bar).
+    static let tickWidth: CGFloat = 2
+    static let tickGap: CGFloat = 8
+
+    /// The tick for these runs, `textLeft` being where the text column starts; nil without runs.
+    static func tick(for runs: [CGRect], textLeft: CGFloat) -> CGRect? {
+        guard let top = runs.map(\.minY).min(), let bottom = runs.map(\.maxY).max() else { return nil }
+        return CGRect(x: textLeft - tickGap - tickWidth, y: top, width: tickWidth, height: bottom - top)
+    }
     static let changeRadius: CGFloat = 5
 
     /// One rounded run per laid-out line, around its words (trailing spaces and the newline left
@@ -230,11 +241,18 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             // (Emil, 4 November 2026: the full-width block with a bar "looks pretty cheap").
             // It hugs the text, starting a little before it, so a checklist circle stays clear.
             context.saveGState()
-            context.setFillColor(Self.changeColors(strength).tint)
-            for rect in changeRuns(at: point) {
+            let colors = Self.changeColors(strength)
+            let runs = changeRuns(at: point)
+            context.setFillColor(colors.tint)
+            for rect in runs {
                 context.addPath(CGPath(roundedRect: rect, cornerWidth: Self.changeRadius, cornerHeight: Self.changeRadius, transform: nil))
             }
             context.fillPath()
+            if let tick = Self.tick(for: runs, textLeft: point.x - layoutFragmentFrame.minX) {
+                context.setFillColor(colors.bar)
+                context.addPath(CGPath(roundedRect: tick, cornerWidth: Self.tickWidth / 2, cornerHeight: Self.tickWidth / 2, transform: nil))
+                context.fillPath()
+            }
             context.restoreGState()
         }
         if let (gap, strength) = removalMark {

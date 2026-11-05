@@ -373,4 +373,21 @@ import Testing
         let item = try JSONDecoder().decode(Inbox.Item.self, from: Data(old.utf8))
         #expect(item.note == nil && item.markdown == "Hi")
     }
+
+    /// A note offered to pick (the share sheet's Add to) carries its folder and first line, so it
+    /// reads like the notes list, not a bare title (Emil, 4 November 2026).
+    @Test func aRecentNoteCarriesItsFolderAndFirstLine() throws {
+        #expect(ChecklistShelf.snippet(body: "Lisbon\n\nFour days of **tiles**, trams and pastries.\n- [ ] Tram 28") == "Four days of tiles, trams and pastries.")
+        #expect(ChecklistShelf.snippet(body: "Only a title") == nil)
+        #expect(ChecklistShelf.snippet(body: "T\n" + String(repeating: "a", count: 200))?.count == 80)
+        let old = try JSONDecoder().decode(ChecklistShelf.Recent.self, from: Data(#"{"id":"\#(UUID().uuidString)","title":"Old","updatedAt":0}"#.utf8))
+        #expect(old.folder == nil && old.snippet == nil, "a shelf written before still reads")
+    }
+
+    /// Round 7 captures: the gallery promised a tick "right there", but a tick opens Pinto.
+    @Test func theWidgetSaysATickOpensPinto() {
+        #expect(!ChecklistWidgetCopy.gallery.contains("right there"))
+        #expect(ChecklistWidgetCopy.gallery.contains("tick it in Pinto"))
+        #expect(WidgetTickIntent.openAppWhenRun, "a tick opens the app, as the copy says")
+    }
 }

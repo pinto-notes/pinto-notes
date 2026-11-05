@@ -83,17 +83,21 @@ final class PersonaShowcaseRecordings: XCTestCase {
 
     /// From Safari: share a page about Lisbon › Pinto Notes › Add to "Lisbon" › Add. What the Pinto
     /// Notes share sheet is for: bringing things in from other apps (Emil, 4 November 2026: the
-    /// clip shared a Pinto note into Pinto, which made no sense). The page is served on the Mac
-    /// at PN_PAGE_URL (scripts/persona-showcase-videos.sh starts it).
+    /// clip shared a Pinto note into Pinto, which made no sense). Wikipedia's Trams in Lisbon, or
+    /// PN_PAGE_URL.
     func test3bShareFromSafari() {
         let app = launch([])
         XCTAssertTrue(app.staticTexts["Groceries"].firstMatch.waitForExistence(timeout: 15))
         pause(1)
-        let url = ProcessInfo.processInfo.environment["PN_PAGE_URL"] ?? "http://localhost:8765/"
+        // A real page (Emil, 4 November 2026: a page served from the Mac looked fake). From the
+        // Home Screen, so Safari has no "◂ Pinto Notes" back link.
+        let url = ProcessInfo.processInfo.environment["PN_PAGE_URL"] ?? "https://en.m.wikipedia.org/wiki/Trams_in_Lisbon"
+        XCUIDevice.shared.press(.home)
+        pause(1)
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         safari.open(URL(string: url)!)
         XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 15))
-        XCTAssertTrue(safari.staticTexts["Riding Tram 28 in Lisbon"].firstMatch.waitForExistence(timeout: 20))
+        XCTAssertTrue(safari.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Trams in Lisbon'")).firstMatch.waitForExistence(timeout: 30))
         pause(3)
         try? safari.debugDescription.write(toFile: "/tmp/pn-safari-1.txt", atomically: true, encoding: .utf8)
         var share = safari.buttons["ShareButton"].firstMatch
@@ -145,7 +149,7 @@ final class PersonaShowcaseRecordings: XCTestCase {
         if !field.exists, app.buttons["Search"].firstMatch.exists { app.buttons["Search"].firstMatch.tap() }
         if field.waitForExistence(timeout: 5) {
             field.tap(); pause(0.5)
-            field.typeText("Riding Tram")
+            field.typeText("Trams in Lisbon")
             pause(2)
             let hit = app.cells.containing(NSPredicate(format: "label CONTAINS 'Lisbon'")).firstMatch
             let row = hit.exists ? hit : app.staticTexts["Lisbon"].firstMatch

@@ -365,6 +365,9 @@ extension Color {
     static var muted: Color { Color(Palette.muted) }
     static var amberInk: Color { Color(Palette.amberInk) }
     static var amberSoft: Color { Color(Palette.amberSoft) }
+    /// Pinto's accent, as the theme or accent picker sets it. Not the system accent colour: views in
+    /// another window (the keyboard's bar) or an extension read that as system blue (round 7).
+    static var paneAccent: Color { Color(PColor.paneAccent) }
     static var line: Color { Color(Palette.line) }
     static var soft: Color { Color(Palette.soft) }
     static var card: Color { Color(Palette.card) }

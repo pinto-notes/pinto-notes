@@ -48,7 +48,7 @@ struct ChecklistListQuery: EntityStringQuery {
 /// The widget's one setting: which note.
 struct ChecklistWidgetIntent: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Note"
-    static let description = IntentDescription("A note on your Home Screen. Tap a checklist item to tick it.")
+    static let description = IntentDescription("The note to show. Tap an item to tick it in Pinto.")
 
     @Parameter(title: "Note") var list: ChecklistListEntity?
 }
@@ -87,7 +87,7 @@ struct ChecklistWidget: Widget {
                 .containerBackground(for: .widget) { ChecklistWidgetGround() }
         }
         .configurationDisplayName("Note")
-        .description("A note on your Home Screen: tick a checklist right there, or tap to open it. Touch and hold the widget to pick the note.")
+        .description(Text(verbatim: ChecklistWidgetCopy.gallery))
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

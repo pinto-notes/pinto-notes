@@ -583,7 +583,7 @@ struct SetupTemplateCard: View {
                     .clipShape(shape)
                 .overlay(shape.strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5))
                 .overlay {
-                    if selected { RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2.5).padding(-3) }
+                    if selected { RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.paneAccent, lineWidth: 2.5).padding(-3) }
                 }
                 .shadow(color: .black.opacity(hover ? 0.22 : 0), radius: 12, y: 10)
                 .offset(y: hover && !reduceMotion ? -3 : 0)
@@ -638,7 +638,7 @@ struct SetupTemplateCard: View {
             .clipShape(shape)
             .overlay(shape.strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5))
             .overlay {
-                if selected { RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2.5).padding(-3) }
+                if selected { RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.paneAccent, lineWidth: 2.5).padding(-3) }
             }
             .shadow(color: .black.opacity(hover ? 0.28 : 0), radius: 14, y: 12)
             .offset(y: hover && !reduceMotion ? -3 : 0)

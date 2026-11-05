@@ -163,9 +163,23 @@ struct NoteListView: View {
     /// The store finds them (`localizedStandardContains`, as before): the list no longer holds every
     /// note's text, and reading it a note at a time cost a query per note.
     static func found(_ query: String, in base: [NoteEntry], listedBy order: ListOrder, context: ModelContext) -> [NoteEntry] {
-        let matching = Set((try? context.fetchIdentifiers(FetchDescriptor<Note>(predicate: #Predicate { $0.body.localizedStandardContains(query) }))) ?? [])
+        var matching = Set((try? context.fetchIdentifiers(FetchDescriptor<Note>(predicate: #Predicate { $0.body.localizedStandardContains(query) }))) ?? [])
+        if !base.contains(where: { matching.contains($0.pid) }) { matching = closeMatches(query, context: context) }
         let found = base.filter { matching.contains($0.pid) }
         return order.sortsLike(.standard) ? found : found.sorted { $0.date > $1.date }
+    }
+
+    /// Nothing holds the query as typed: the notes whose words are within a letter or two of it
+    /// (TypoSearch). The store finds the few that hold a piece of it, and only those are read.
+    static func closeMatches(_ query: String, context: ModelContext, limit: Int = 300) -> Set<PersistentIdentifier> {
+        guard TypoSearch.applies(to: query) else { return [] }
+        var out = Set<PersistentIdentifier>()
+        for piece in TypoSearch.probes(query) {
+            var d = FetchDescriptor<Note>(predicate: #Predicate { $0.body.localizedStandardContains(piece) })
+            d.fetchLimit = limit
+            for n in (try? context.fetch(d)) ?? [] where TypoSearch.matches(query, in: n.body) { out.insert(n.persistentModelID) }
+        }
+        return out
     }
 
     private var title: String {
@@ -371,7 +385,7 @@ struct NoteListView: View {
         .overlay {
             if fileDropTargeted {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Color.accentColor.opacity(0.7), style: StrokeStyle(lineWidth: 2, dash: [7, 5]))
+                    .strokeBorder(Color.paneAccent.opacity(0.7), style: StrokeStyle(lineWidth: 2, dash: [7, 5]))
                     .padding(8)
                     .transition(.opacity)
                     .allowsHitTesting(false)

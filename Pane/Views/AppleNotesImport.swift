@@ -935,7 +935,7 @@ struct AppleNotesImportView: View {
                 .frame(height: 30)
                 .background(Color(Palette.field), in: .rect(cornerRadius: 8))
                 // The field draws its own border, and a ring in the app's amber while it has the keyboard.
-                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(searchFocused ? Color.accentColor.opacity(0.7) : Color(Palette.fieldHairline), lineWidth: searchFocused ? 1.5 : 1))
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(searchFocused ? Color.paneAccent.opacity(0.7) : Color(Palette.fieldHairline), lineWidth: searchFocused ? 1.5 : 1))
                 .disabled(progress != nil)
             }
         }
