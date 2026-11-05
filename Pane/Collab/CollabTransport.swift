@@ -173,6 +173,12 @@ enum Collab {
         /// The channel (re)joined and changes are being relayed from now on: anything stored before
         /// may have been missed, so pull.
         case reconnected
+        /// The server won't relay the note's changes on this channel: Realtime refused to subscribe
+        /// to them, in its own words. Presence still works. It keeps trying, and until it relays
+        /// them (`reconnected`), changes come only by pulling. On the local stack in November 2026 it
+        /// refused every subscription, for every phone: its database's realtime schema had been
+        /// migrated by a newer Realtime than the one serving it.
+        case notRelaying(String)
     }
 
     /// What the server refused, by its hint, so callers can act on it.

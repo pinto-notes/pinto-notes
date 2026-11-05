@@ -147,6 +147,12 @@ final class CollabSession {
     @ObservationIgnored private var sending = false
     @ObservationIgnored private var pulling: Task<Void, Never>?
     @ObservationIgnored private var pullAgain = false
+    /// The next pull asks again for the few ids before the cursor (`rewind`).
+    @ObservationIgnored private var pullRewinds = false
+    /// Why the server isn't relaying this note's changes (Realtime refused to subscribe to them,
+    /// in its words); nil while it relays them, or before it has said. Meanwhile the note pulls
+    /// on every beat (2 s), not every 20 s: two people ticking one list see each tick in seconds.
+    @ObservationIgnored private(set) var relayRefused: String?
     /// The last pull reached the server: everything stored up to `lastSeen` is in the document.
     @ObservationIgnored private var pulled = false
     /// Everything the server has is in the document as of the last pull, and every change opened:
@@ -332,10 +338,12 @@ final class CollabSession {
                 let channel = try await transport.join(note: noteID) { [weak self] event in self?.receive(event) }
                 joining = false
                 self.channel = channel
+                CollabScript.trace("joined the note's channel")
                 sendPresence()
             } catch {
                 joining = false
                 log.error("joining the note's channel failed: \(String(describing: error), privacy: .public)")
+                CollabScript.trace("joining the note's channel failed: \(error)")
                 // Refused: most likely removed, or a new key. Offline: nothing to decide yet.
                 if error is Collab.Failure { onKeyChanged?() }
             }
@@ -347,15 +355,17 @@ final class CollabSession {
         // Presence is re-sent now and then, so someone who joins later sees you without waiting.
         // A pull every 20 seconds too: a relayed change can be lost (a dropped socket, a change
         // stored while the channel was joining), and Automerge holds every later one back until the
-        // missing one arrives. An empty pull is one small request.
+        // missing one arrives. An empty pull is one small request. While the server doesn't relay
+        // changes at all, a pull on every beat instead, for what's new since the last one.
         presenceTask?.cancel()
         presenceTask = Task { [weak self] in
             var ticks = 0
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(2))
-                self?.sendPresence()
+                guard let self else { return }
+                sendPresence()
                 ticks += 1
-                if ticks % 10 == 0 { self?.catchUp() }
+                if ticks % 10 == 0 { catchUp() } else if relayRefused != nil { catchUp(rewinding: false) }
             }
         }
     }
@@ -384,15 +394,20 @@ final class CollabSession {
 
     /// Takes in every change the server has after this device's cursor (and the snapshot, when
     /// it's behind the newest one). One at a time; asked again while running, it runs once more.
+    /// `rewinding`: asks again for the few ids before the cursor too (`rewind`). The pulls on every
+    /// beat while changes aren't relayed ask only for what's new; the one every 20 s still rewinds.
     @discardableResult
-    func catchUp() -> Task<Void, Never> {
+    func catchUp(rewinding: Bool = true) -> Task<Void, Never> {
+        if rewinding { pullRewinds = true }
         if let pulling { pullAgain = true; return pulling }
         let task = Task { [weak self] in
             guard let self else { return }
             // Awaiting it means a pull that started after you asked.
             repeat {
                 pullAgain = false
-                await pull()
+                let rewinding = pullRewinds
+                pullRewinds = false
+                await pull(rewinding: rewinding)
             } while pullAgain && !isClosed
             pulling = nil
         }
@@ -400,9 +415,10 @@ final class CollabSession {
         return task
     }
 
-    private func pull() async {
+    private func pull(rewinding: Bool) async {
         guard !isClosed else { return }
-        let after = record.cursor > 0 ? max(record.snapshotUpto, record.cursor - Self.rewind, 0) : 0
+        let back = rewinding ? Self.rewind : 0
+        let after = record.cursor > 0 ? max(record.snapshotUpto, record.cursor - back, 0) : 0
         let pull: Collab.Pull
         do {
             pull = try await transport.pull(note: noteID, after: after)
@@ -435,6 +451,7 @@ final class CollabSession {
         var newest = record.cursor
         // An AI's change among them: the text from just before the first one, to mark what it changed.
         var ai: (update: Collab.Update, before: String)?
+        var taken: [Int64] = []
         for u in pull.updates {
             newest = max(newest, u.id)
             var before: String?
@@ -443,9 +460,12 @@ final class CollabSession {
             traced(u, by: "catch-up", took: took)
             if took {
                 changed = true
+                taken.append(u.id)
                 if ai == nil, let before, !isHeld(u) { ai = (u, before) }
             }
         }
+        // Which way each change came, for the two-phone runs: a change taken here was not relayed.
+        if !taken.isEmpty { CollabScript.trace("catch-up took \(taken.count == 1 ? "change \(taken[0])" : "\(taken.count) changes, \(taken[0]) to \(taken.last!)"), not relayed") }
         record.cursor = newest
         saveSoon()
         if changed { textChanged() }
@@ -460,6 +480,8 @@ final class CollabSession {
         case .update(let u):
             let before = text
             let took = take(u)
+            // Every change the channel relays, for the two-phone runs (an AI's, in more detail, below).
+            CollabScript.trace("relay: change \(u.id) \(u.author_id == me ? "yours" : "someone else's"), \(took ? "taken" : "already here")")
             traced(u, by: "relay", took: took)
             if took {
                 textChanged()
@@ -469,8 +491,17 @@ final class CollabSession {
             saveSoon()
             scheduleSnapshot()
         case .reconnected:
+            CollabScript.trace(relayRefused == nil ? "the server relays this note's changes" : "the server relays this note's changes again")
+            relayRefused = nil
             catchUp()
             flush()
+        case .notRelaying(let why):
+            // Said again each time Realtime tries (every 5 to 10 seconds): told once, until it changes.
+            if relayRefused != why {
+                log.error("the server isn't relaying a shared note's changes: \(why, privacy: .public)")
+                CollabScript.trace("the server isn't relaying this note's changes (\(why)): pulling every 2 s until it does")
+            }
+            relayRefused = why
         case .presence(let user, let ct):
             guard user != me, let k = keys[epoch], let data = try? CollabCrypto.open(.presence, ct, nk: k, note: noteID, extra: user.uuidString),
                   let p = try? JSONDecoder().decode(Presence.self, from: data) else { return }

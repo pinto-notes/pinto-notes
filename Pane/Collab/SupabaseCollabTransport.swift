@@ -200,8 +200,12 @@ final class SupabaseCollabTransport: CollabTransport {
 
     func pull(note: UUID, after: Int64) async throws -> Collab.Pull {
         try await call("pull") {
-            let snapshots: [Collab.Snapshot] = try await client.from("note_snapshots").select("note_id,upto,epoch,ct")
-                .eq("note_id", value: Self.id(note)).order("upto", ascending: false).order("epoch", ascending: false).limit(1)
+            // Only a snapshot past `after`: the device has everything up to there, and would throw
+            // an older one away after downloading it (megabytes, for a long note). While changes
+            // aren't relayed a note pulls every 2 s, so that's asked for on each beat.
+            var newest = client.from("note_snapshots").select("note_id,upto,epoch,ct").eq("note_id", value: Self.id(note))
+            if after > 0 { newest = newest.gt("upto", value: Int(after)) }
+            let snapshots: [Collab.Snapshot] = try await newest.order("upto", ascending: false).order("epoch", ascending: false).limit(1)
                 .execute().value
             let snapshot = snapshots.first.flatMap { s in after == 0 || after < s.upto ? s : nil }
             var from = snapshot?.upto ?? after
@@ -292,11 +296,11 @@ final class SupabaseCollabTransport: CollabTransport {
             },
             // Changes are only relayed once Realtime has subscribed to them, which it says a moment
             // after the channel itself is joined (on staging, sometimes seconds). Whatever was stored
-            // in between is fetched then.
+            // in between is fetched then. It can also refuse, and says why: the session then pulls
+            // on every beat until it relays them.
             Task { @MainActor in
                 for await message in system {
-                    guard message.payload["extension"]?.stringValue == "postgres_changes", message.payload["status"]?.stringValue == "ok" else { continue }
-                    onEvent(.reconnected)
+                    if let event = Self.relayEvent(message.payload) { onEvent(event) }
                 }
             },
             Task { @MainActor in
@@ -315,6 +319,15 @@ final class SupabaseCollabTransport: CollabTransport {
     private struct Here: Codable { let user: String }
 
     nonisolated static let joinTimeout: Duration = .seconds(10)
+
+    /// What a system message from Realtime says about relaying the note's changes (its
+    /// `postgres_changes` extension): `reconnected` once it relays them, `notRelaying` with its
+    /// own words when it refused to subscribe to them. Nil for anything else. A refusal comes again
+    /// each time it tries (every 5 to 10 seconds).
+    nonisolated static func relayEvent(_ payload: JSONObject) -> Collab.Event? {
+        guard payload["extension"]?.stringValue == "postgres_changes", let status = payload["status"]?.stringValue else { return nil }
+        return status == "ok" ? .reconnected : .notRelaying(payload["message"]?.stringValue ?? status)
+    }
 
     /// The sealed presence in a broadcast: `{user, ct}`, inside the message's payload.
     nonisolated static func presence(_ message: JSONObject) -> (user: UUID, ct: String)? {

@@ -124,7 +124,21 @@ final class FakeCollabTransport: CollabTransport {
     var deaf = false {
         didSet { for c in joined { c.deaf = deaf } }
     }
+    /// Realtime refuses to subscribe this device's channels to the note's changes, in these words
+    /// (the local stack in November 2026, for every phone: its database's realtime schema was
+    /// newer than its server). The channel joins and says so; no change is relayed to it.
+    var refusesRelay: String?
     private var joined: [FakeChannel] = []
+
+    /// Realtime subscribed after all (it keeps trying): changes are relayed from here, and the
+    /// channels say so.
+    func relayAgain() {
+        refusesRelay = nil
+        for c in joined where c.refused {
+            c.refused = false
+            c.say(.reconnected)
+        }
+    }
     /// Calls made, by name, for tests that check what went where.
     private(set) var calls: [String] = []
 
@@ -215,6 +229,10 @@ final class FakeCollabTransport: CollabTransport {
         c.deaf = deaf
         server.channels.append(c)
         joined.append(c)
+        if let why = refusesRelay {
+            c.refused = true
+            c.say(.notRelaying(why))
+        }
         return c
     }
 }
@@ -227,6 +245,8 @@ fileprivate final class FakeChannel: CollabChannel {
     var open = true
     /// Relays nothing (FakeCollabTransport.deaf).
     var deaf = false
+    /// Realtime refused to subscribe it to changes (FakeCollabTransport.refusesRelay).
+    var refused = false
 
     init(note: UUID, user: UUID, onEvent: @escaping @MainActor (Collab.Event) -> Void) {
         self.note = note
@@ -235,8 +255,13 @@ fileprivate final class FakeChannel: CollabChannel {
     }
 
     func deliver(_ event: Collab.Event) {
-        guard !deaf else { return }
+        guard !deaf, !refused else { return }
         // As Realtime does: after the write that made it, never inside it.
+        Task { @MainActor in self.onEvent(event) }
+    }
+
+    /// What Realtime says on the channel itself (its system messages): heard even when it relays nothing.
+    func say(_ event: Collab.Event) {
         Task { @MainActor in self.onEvent(event) }
     }
 

@@ -1228,3 +1228,82 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(copy.folder?.name == "Notes", "Sara has no folder of her own yet: Notes is made for it")
     }
 }
+
+/// Persona council round 7, the two-phone take (C9 -v3): Sara joined Emil's list by link, and her
+/// phone got none of his ticks live, only on its pull every 20 seconds. Emil's got none of hers
+/// either: his one quick tick fell on his own pull. The local stack's Realtime refused every
+/// subscription to changes (its database's realtime schema had been migrated by a newer Realtime
+/// than the one serving it) and said so on each channel, every few seconds. The app wasn't
+/// listening, and presence went on working. Now a refusal is heard and traced, and the note pulls
+/// on every beat (2 s) until Realtime relays its changes.
+extension NetworkFaults.SharedLibraryTests {
+    /// What Realtime said on the local stack, word for word (the refusal for a filtered subscription).
+    static let refusal = #"%ArgumentError{message: "errors were found at the given arguments:\n\n  * 1st argument: out of range\n"}"#
+
+    /// Emil's list, shared, and joined by link on Sara's phone, whose changes Realtime won't relay.
+    private func listJoinedWithNoRelay() async throws -> (emilSession: CollabSession, phone: Device, onPhone: CollabSession) {
+        let emil = try device(owner), phone = try device(member)
+        let (note, emilSession) = try await shared("Groceries\n- [ ] Milk\n- [ ] Eggs", on: emil)
+        server.add(member, to: note.id)
+        phone.transport.refusesRelay = Self.refusal
+        let mine = try await joinByLink(note.id, on: phone)
+        let onPhone = try #require(phone.library.session(for: mine))
+        await waitUntil { onPhone.relayRefused != nil }
+        return (emilSession, phone, onPhone)
+    }
+
+    @Test func aJoinedListWhoseChangesAreNotRelayedGetsEachTickInSeconds() async throws {
+        let (emilSession, _, onPhone) = try await listJoinedWithNoRelay()
+        #expect(onPhone.relayRefused == Self.refusal)
+
+        // Emil ticks Milk. Nothing is relayed to the phone: it has the tick on its next beat, not
+        // on the pull every 20 s.
+        emilSession.local("Groceries\n- [x] Milk\n- [ ] Eggs", selection: nil)
+        await waitUntil { emilSession.isSent }
+        let ticked = Date.now
+        await waitUntil(8) { onPhone.text.contains("[x] Milk") }
+        #expect(onPhone.text == "Groceries\n- [x] Milk\n- [ ] Eggs")
+        #expect(Date.now.timeIntervalSince(ticked) < 5, "a beat is 2 s; the pull every 20 s is too late")
+    }
+
+    /// Realtime keeps trying. Once it relays the note's changes, a tick comes at once and the
+    /// pulls on every beat stop: one every 20 s again.
+    @Test func onceChangesAreRelayedAgainTheNoteStopsPullingOnEveryBeat() async throws {
+        let (emilSession, phone, onPhone) = try await listJoinedWithNoRelay()
+        func pulls() -> Int { phone.transport.calls.filter { $0 == "pull" }.count }
+        let refused = pulls()
+        try await Task.sleep(for: .seconds(4.5))
+        #expect(pulls() - refused >= 2, "a pull on each beat while nothing is relayed")
+
+        phone.transport.relayAgain()
+        await waitUntil { onPhone.relayRefused == nil }
+        // The catch-up on relaying again.
+        try await Task.sleep(for: .milliseconds(300))
+        let relayed = pulls()
+        emilSession.local("Groceries\n- [ ] Milk\n- [x] Eggs", selection: nil)
+        await waitUntil(3) { onPhone.text.contains("[x] Eggs") }
+        #expect(onPhone.text == "Groceries\n- [ ] Milk\n- [x] Eggs", "relayed, with no pull until the one every 20 s")
+        try await Task.sleep(for: .seconds(4.5))
+        #expect(pulls() == relayed, "no pull on the beats once changes are relayed")
+    }
+
+    /// Realtime's own words on the channel (its system messages, as the local stack sent them):
+    /// it relays the note's changes, or it refused to.
+    @Test func realtimeSaysOnTheChannelWhetherItRelaysChanges() {
+        func heard(_ payload: JSONObject) -> String? {
+            switch SupabaseCollabTransport.relayEvent(payload) {
+            case .reconnected?: "relays"
+            case .notRelaying(let why)?: why
+            case nil: nil
+            default: "something else"
+            }
+        }
+        #expect(heard(["extension": "postgres_changes", "status": "ok", "message": "Subscribed to PostgreSQL", "channel": "note:4c6f"]) == "relays")
+        #expect(heard(["extension": "postgres_changes", "status": "error", "message": .string(Self.refusal), "channel": "note:4c6f"]) == Self.refusal)
+        let conflict = "Unable to subscribe to changes with given parameters. An exception happened so please check your connect parameters: [schema: public, table: note_updates, filters: []]. Exception: ERROR 42P10 (invalid_column_reference) there is no unique or exclusion constraint matching the ON CONFLICT specification"
+        #expect(heard(["extension": "postgres_changes", "status": "error", "message": .string(conflict)]) == conflict)
+        #expect(heard(["extension": "postgres_changes", "status": "error"]) == "error", "with no message, its status")
+        #expect(heard(["extension": "system", "status": "ok", "message": "Subscribed"]) == nil)
+        #expect(heard(["message": "Subscribed to PostgreSQL"]) == nil)
+    }
+}
