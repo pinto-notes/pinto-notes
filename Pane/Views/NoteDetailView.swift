@@ -306,11 +306,16 @@ struct NoteDetailView: View {
     /// Sharing with people, and the history link from an email.
     private func withCollab(_ content: some View) -> some View {
         content
-            // Undone on another device: the receipt and its marking go here too.
-            .onChange(of: note.body) { _, body in
-                guard let r = receipt, r.isUndone(in: body) else { return }
-                withAnimation(.easeOut(duration: 0.2)) { receipt = nil; reviewResult = r.undoneLine }
-                controller.clearTint()
+            // Undone on another device: the receipt and its marking go here too. A view of its
+            // own, there only with a receipt: reading the text here would work out the whole
+            // pane again on every key.
+            .background {
+                if let receipt {
+                    ReceiptUndoneWatcher(note: note, receipt: receipt) {
+                        withAnimation(.easeOut(duration: 0.2)) { self.receipt = nil; reviewResult = receipt.undoneLine }
+                        controller.clearTint()
+                    }
+                }
             }
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
             .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { for n in notes { context.trash(n) } } }
@@ -2075,6 +2080,20 @@ struct TrashBanner: View {
     }
 
     static let text = "This note is in Recently Deleted."
+}
+
+/// Watches the note's text while a receipt shows, and says when its change has been undone elsewhere.
+private struct ReceiptUndoneWatcher: View {
+    let note: Note
+    let receipt: AIEdit.Receipt
+    let undone: () -> Void
+
+    var body: some View {
+        Color.clear
+            .onChange(of: note.body) { _, body in
+                if receipt.isUndone(in: body) { undone() }
+            }
+    }
 }
 
 /// Where the open note is, right of back and forward (Mac) or the list button (iPad, the Duo
