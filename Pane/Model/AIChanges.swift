@@ -124,8 +124,20 @@ struct EditDiff: Equatable {
     var plus: Int { added.count }
     var minus: Int { removed.count }
 
+    /// Two checklist lines the same but for their box: "- [ ] Hotel" and "- [x] Hotel".
+    static func onlyTheTick(_ a: String, _ b: String) -> Bool {
+        func split(_ s: String) -> (String, String, Bool)? {
+            guard let r = s.range(of: #"^(\s*[-*+] )\[( |x|X)\]"#, options: .regularExpression) else { return nil }
+            let head = String(s[r]), box = head.dropLast().last.map { $0 != " " } ?? false
+            return (String(head.prefix { $0 != "[" }), String(s[r.upperBound...]), box)
+        }
+        guard let x = split(a), let y = split(b) else { return false }
+        return x.0 == y.0 && x.1 == y.1 && x.2 != y.2
+    }
+
     /// Blank lines are left out of both, as the history's tint leaves them out.
-    static func between(_ before: String, _ after: String) -> EditDiff {
+    /// `ticksAsOne` is for showing it: a tick is then the new line alone, marked as changed.
+    static func between(_ before: String, _ after: String, ticksAsOne: Bool = false) -> EditDiff {
         let old = before.components(separatedBy: "\n"), new = after.components(separatedBy: "\n")
         var gone = IndexSet(), came = IndexSet()
         for change in new.difference(from: old) {
@@ -142,6 +154,9 @@ struct EditDiff: Equatable {
                 if !blank(old[i]) { lines.append((old[i], -1)) }
                 i += 1
             } else if j < new.count, came.contains(j) {
+                // A tick or an untick: one line that changed, not the old one taken out and a new
+                // one added, both struck through (council round 16, a16-ai-undo).
+                if ticksAsOne, let last = lines.last, last.1 == -1, Self.onlyTheTick(last.0, new[j]) { lines.removeLast() }
                 lines.append((new[j], blank(new[j]) ? 0 : 1))
                 j += 1
             } else {
@@ -486,7 +501,7 @@ final class AIChangesModel {
         do {
             let (before, after) = try await texts(for: c)
             guard selection == id else { return }
-            diff = EditDiff.between(before ?? "", after)
+            diff = EditDiff.between(before ?? "", after, ticksAsOne: true)
         } catch {
             guard selection == id else { return }
             detailFailed = HistoryError.from(error).aiChangesDescription

@@ -192,6 +192,20 @@ import Testing
         #expect(AIChangeCopy.lines(d) == "+2 \u{2212}1 lines")
     }
 
+    /// A tick is one line that changed, the new one, not the old line taken out and a new one put in
+    /// (council round 16, `a16-ai-undo`: "Hotel in Príncipe Real" twice, both struck through).
+    @Test func aTickIsOneChangedLine() {
+        let d = EditDiff.between("Plan\n\n- [ ] Book flights\n- [ ] Hotel in Príncipe Real", "Plan\n\n- [ ] Book flights\n- [x] Hotel in Príncipe Real", ticksAsOne: true)
+        #expect(d.text == "Plan\n\n- [ ] Book flights\n- [x] Hotel in Príncipe Real")
+        #expect(d.removed.isEmpty)
+        #expect(d.added.map((d.text as NSString).substring) == ["- [x] Hotel in Príncipe Real"])
+        // An untick too; a reworded item is still a line out and a line in.
+        #expect(EditDiff.between("- [x] Eggs", "- [ ] Eggs", ticksAsOne: true).removed.isEmpty)
+        let reworded = EditDiff.between("- [ ] Eggs", "- [x] Six eggs", ticksAsOne: true)
+        #expect(reworded.removed.count == 1 && reworded.added.count == 1)
+        #expect(!EditDiff.onlyTheTick("- [ ] Eggs", "* [x] Eggs"), "another marker is another line")
+    }
+
     /// Lines an edit took out are struck through on a soft red, so they never read as ticked items.
     @Test func removedLinesAreStruckThroughOnABand() throws {
         let d = EditDiff.between("List\n\n- [x] Bread\n- [ ] Eggs", "List\n\n- [x] Bread\n- [ ] Milk")
