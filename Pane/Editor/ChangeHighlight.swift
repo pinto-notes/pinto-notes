@@ -27,6 +27,19 @@ enum ChangeHighlight {
 final class ChangeTint: @unchecked Sendable {
     /// Whole paragraphs (UTF-16, newline included) of the editor's text, in order.
     private(set) var ranges: [NSRange] = []
+    /// Where lines were taken out: the paragraph each gap sits above (or below, at the note's
+    /// end), so the note marks a removal and not only the review (persona council r7).
+    private(set) var removals: [Removal] = []
+
+    struct Removal: Equatable {
+        /// The paragraph next to the gap (UTF-16, newline included).
+        var paragraph: NSRange
+        /// The gap is under the paragraph: what was removed ended the note.
+        var below: Bool
+    }
+
+    /// Everything that's drawn: the changed paragraphs and those next to a removal.
+    private var drawn: [NSRange] { ranges + removals.map(\.paragraph) }
     /// 0 gone, 1 resting, a little over 1 while it arrives.
     private(set) var strength: CGFloat = 0
     /// Redraws these ranges (set by the text view).
@@ -41,22 +54,29 @@ final class ChangeTint: @unchecked Sendable {
     /// How strongly to tint the paragraph starting at `offset`: 0 for not at all.
     func strength(at offset: Int) -> CGFloat {
         guard strength > 0 else { return 0 }
-        return covers(offset) ? strength : 0
+        return ranges.contains { NSLocationInRange(offset, $0) } ? strength : 0
     }
 
     /// Whether any line is tinted right now.
-    var isLit: Bool { strength > 0 && !ranges.isEmpty }
+    var isLit: Bool { strength > 0 && !drawn.isEmpty }
 
     /// Whether the paragraph starting at `offset` is one of the changed lines, tinted or not yet cleared.
-    func covers(_ offset: Int) -> Bool { ranges.contains { NSLocationInRange(offset, $0) } }
+    func covers(_ offset: Int) -> Bool { drawn.contains { NSLocationInRange(offset, $0) } }
+
+    /// The removal next to the paragraph starting at `offset`, and how strongly to draw it.
+    func removal(at offset: Int) -> (Removal, CGFloat)? {
+        guard strength > 0, let r = removals.first(where: { NSLocationInRange(offset, $0.paragraph) }) else { return nil }
+        return (r, strength)
+    }
 
     /// Tints the paragraphs of `text` that `previous` didn't have, then fades them. `untilCleared`:
     /// the tint stays at rest until `stop()` instead of fading.
     @MainActor func play(from previous: String, to text: String, hold: Double = 2.6, untilCleared: Bool = false) {
         stop()
         ranges = Self.paragraphRanges(changedFrom: previous, to: text)
-        guard !ranges.isEmpty else { return }
-        let mine = run, lit = ranges
+        removals = Self.removals(from: previous, to: text)
+        guard !ranges.isEmpty || !removals.isEmpty else { return }
+        let mine = run, lit = drawn
         let easeOut: @Sendable (Double) -> Double = { 1 - pow(1 - $0, 3) }
         let easeInOut: @Sendable (Double) -> Double = { $0 < 0.5 ? 4 * $0 * $0 * $0 : 1 - pow(-2 * $0 + 2, 3) / 2 }
         Task { @MainActor in
@@ -67,6 +87,7 @@ final class ChangeTint: @unchecked Sendable {
             while Self.holdForCapture, mine == run { try? await Task.sleep(for: .seconds(0.1)) }
             guard await animate(to: 0, over: 1.6, easeInOut, run: mine, lit: lit) else { return }
             ranges = []
+            removals = []
         }
     }
 
@@ -88,11 +109,12 @@ final class ChangeTint: @unchecked Sendable {
     /// Clears at once (you started typing, or undid the edit).
     @MainActor func stop() {
         run += 1
-        guard strength > 0 || !ranges.isEmpty else { return }
+        guard strength > 0 || !drawn.isEmpty else { return }
         // Redraw while the lines are still known, so their old tint is painted over.
         strength = 0
-        redraw(ranges)
+        redraw(drawn)
         ranges = []
+        removals = []
     }
 
     /// Line numbers (0-based) of `new` that are added or rewritten compared with `old`. A line
@@ -105,6 +127,54 @@ final class ChangeTint: @unchecked Sendable {
             if !line.trimmingCharacters(in: .whitespaces).isEmpty { out.append(offset) }
         }
         return out.sorted()
+    }
+
+    /// Where non-blank lines of `old` were taken out with nothing written in their place: each
+    /// gap as the paragraph of `new` under it (or over it, when the note's end went). A rewrite
+    /// is tinted, and a line that only moved is neither.
+    static func removals(from old: String, to new: String) -> [Removal] {
+        let a = old.components(separatedBy: "\n"), b = new.components(separatedBy: "\n")
+        let diff = b.difference(from: a).inferringMoves()
+        let blank = { (s: String) in s.trimmingCharacters(in: .whitespaces).isEmpty }
+        var removed = Set<Int>(), inserted = Set<Int>(), written = Set<Int>(), real = Set<Int>()
+        for change in diff {
+            switch change {
+            case .remove(let o, let line, let moved):
+                removed.insert(o)
+                if moved == nil, !blank(line) { real.insert(o) }
+            case .insert(let o, let line, _):
+                inserted.insert(o)
+                if !blank(line) { written.insert(o) }
+            }
+        }
+        guard !real.isEmpty else { return [] }
+        // Walk both texts together: the kept lines line up in order.
+        var gaps = Set<Int>()
+        var i = 0, j = 0
+        while i < a.count || j < b.count {
+            if i < a.count, removed.contains(i) {
+                // Nothing written at this spot: a removal, not a rewrite.
+                if real.contains(i), !written.contains(j), !(j > 0 && written.contains(j - 1)) { gaps.insert(j) }
+                i += 1
+            } else if j < b.count, inserted.contains(j) { j += 1 }
+            else { i += 1; j += 1 }
+        }
+        var starts: [Int] = [], at = 0
+        for (k, line) in b.enumerated() {
+            starts.append(at)
+            at += (line as NSString).length + (k < b.count - 1 ? 1 : 0)
+        }
+        func paragraph(_ k: Int) -> NSRange { NSRange(location: starts[k], length: (k + 1 < starts.count ? starts[k + 1] : at) - starts[k]) }
+        var seen = Set<Int>()
+        return gaps.sorted().compactMap { g in
+            // Over the next line with text, not a blank one between paragraphs.
+            if let k = (g..<b.count).first(where: { !blank(b[$0]) }) {
+                return seen.insert(k).inserted ? Removal(paragraph: paragraph(k), below: false) : nil
+            }
+            // The end went: under the last line with text.
+            guard let k = b.lastIndex(where: { !blank($0) }), seen.insert(-1 - k).inserted else { return nil }
+            return Removal(paragraph: paragraph(k), below: true)
+        }
     }
 
     /// The paragraphs of `new` (as ranges in it, newline included) that `changedLines` finds.
