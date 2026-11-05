@@ -203,7 +203,7 @@ enum AskAI {
     /// Whether a note can be asked about: not locked (an AI can't read it), not deleted, and with
     /// words in it (an empty note has nothing to ask about, nor a title to find it by).
     static func asks(about note: Note) -> Bool {
-        !note.isLocked && note.trashedAt == nil && note.deletedAt == nil && !note.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !note.isLocked && note.trashedAt == nil && note.deletedAt == nil && note.body.contains { !$0.isWhitespace }
     }
 
     /// The note as Ask names it: by the title the list shows (its first line with words in it).

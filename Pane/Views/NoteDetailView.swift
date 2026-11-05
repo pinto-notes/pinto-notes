@@ -31,6 +31,9 @@ struct NoteDetailView: View {
     @State private var asking: AskAI.Target?
     /// "Kept 2, undid 1", for a moment after a review.
     @State private var reviewResult: String?
+    /// Whether this note can be asked about, kept by `NoteAskableWatcher`. Asked here it read the
+    /// note's text, which worked out the whole pane and its toolbar again on every key.
+    @State private var askable = true
     /// The version that didn't open, for Undo on "Reverted to the last working version".
     @State private var revertedFrom: NotePageStore.Page?
     /// A text field in the note's app has focus: no receipt is drawn over it.
@@ -309,6 +312,7 @@ struct NoteDetailView: View {
             // Undone on another device: the receipt and its marking go here too. A view of its
             // own, there only with a receipt: reading the text here would work out the whole
             // pane again on every key.
+            .background { NoteAskableWatcher(note: note) { askable = $0 } }
             .background {
                 if let receipt {
                     ReceiptUndoneWatcher(note: note, receipt: receipt) {
@@ -948,7 +952,8 @@ struct NoteDetailView: View {
         case .history:
             Button(NoteMoreMenu.historyTitle, systemImage: "clock.arrow.circlepath") { showHistory = true }
         case .askAI:
-            AskAIMenuItems(subject: AskAI.subject(note), targets: askTargets) { asking = $0 }
+            // Only its name ("This Note"): the note's text read here worked out the pane again on every key.
+            AskAIMenuItems(subject: .note(.init(title: "")), targets: askTargets) { asking = $0 }
         case .recover:
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
                 .accessibilityIdentifier("editor.recover")
@@ -1474,7 +1479,7 @@ struct NoteDetailView: View {
     /// The AIs this note can be asked about with: none for a locked or deleted note (an AI can't
     /// read it) or one with no title to find it by.
     private var askTargets: [AskAI.Target] {
-        guard !trashed, AskAI.asks(about: note) else { return [] }
+        guard !trashed, askable else { return [] }
         return ConnectedAIs.shared.targets
     }
 
@@ -2080,6 +2085,16 @@ struct TrashBanner: View {
     }
 
     static let text = "This note is in Recently Deleted."
+}
+
+/// Reads the note's text so the pane doesn't have to: only a change of the answer reaches the pane.
+private struct NoteAskableWatcher: View {
+    let note: Note
+    let changed: (Bool) -> Void
+
+    var body: some View {
+        Color.clear.onChange(of: AskAI.asks(about: note), initial: true) { _, asks in changed(asks) }
+    }
 }
 
 /// Watches the note's text while a receipt shows, and says when its change has been undone elsewhere.
