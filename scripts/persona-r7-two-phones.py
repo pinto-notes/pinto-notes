@@ -3,6 +3,9 @@
 (COLLAB_RECORD=<run dir>), for the persona council (round 7, batch 2):
 
   persona-r7-two-phones.py <run dir> <shots/r7 dir>
+  SUFFIX=-v2 persona-r7-two-phones.py …   names a re-take beside the first one (…-v2.mp4, …-v2-contact-sheet.png,
+                                          …-v2-NN-<moment>.png, …-v2-moments.tsv); without it, a clip that's
+                                          there already is never written over
 
 The run dir holds emil.raw.mp4 and sara.raw.mp4 (simctl recordVideo), <who>.started (when each
 recording said "Recording started": its first frame, and its frames' times count from there) and
@@ -12,6 +15,11 @@ moments.tsv (epoch s, moment). Writes three clips, each one unbroken stretch of 
   c10-offline/two-iphones-c10-offline.mp4               the server paused to the merge
   c11-ai-edit-other-device/two-iphones-c11-ai-edit.mp4  the AI's edit on the shared note
   c11-ai-edit-other-device/iphone-c11-ai-edit-own-note.mp4   (Sara's phone) her AI's edit to her own note
+
+Round 7's re-take (SUFFIX=-v2) adds the moments of the shared-note fixes: each phone naming the other,
+"Not synced yet" and the other person grey while the server is paused, "Synced" when it's back, the
+AI's edit marked on both phones, and Sara told she no longer has access, keeping a copy. A moment the
+run didn't see (its wait was missed) isn't in moments.tsv, so no caption claims it.
 
 Each gets <name>-contact-sheet.png (a frame a second, labelled), <name>-NN-<moment>.png (key stills at
 full size, from the recordings) and <name>-moments.tsv (each moment's time in the clip). Under the
@@ -24,6 +32,7 @@ import glob, os, shutil, subprocess, sys, tempfile
 from PIL import Image, ImageDraw, ImageFont
 
 run, out_root = sys.argv[1], sys.argv[2]
+SUFFIX = os.environ.get("SUFFIX", "")
 FPS = 30
 started = {w: float(open(os.path.join(run, f"{w}.started")).read()) for w in ("emil", "sara")}
 moments = []  # (epoch s, name)
@@ -42,7 +51,10 @@ SAYS = {
     "emil-link-can-edit": ("emil", "People with the link: Can edit"),
     "emil-link-copied": ("emil", "Shared: Emil copies the link"),
     "sara-join-question": ("sara", "Sara opens the link: join?"),
-    "sara-joined": ("sara", "Joined: the list opens on Sara's phone"),
+    # Joined, and each phone shows the other (by name, in the re-take) within half a second: one caption.
+    "sara-joined": ("sara", "Joined: the list opens on Sara's phone, and each phone shows the other"),
+    "sara-sees-emil-here": ("both", "Joined: the list opens on Sara's phone, and each phone shows the other"),
+    "emil-sees-sara-here": ("both", "Joined: the list opens on Sara's phone, and each phone shows the other"),
     "emil-ticked": ("both", "Both tick at once"),
     "sara-ticked": ("both", "Both tick at once"),
     "emil-sees-sara-tick": ("emil", "Each sees the other's tick"),
@@ -51,19 +63,34 @@ SAYS = {
     # Typed and ticked a tenth of a second apart: one caption, so neither flashes by.
     "sara-typed-offline": ("sara", "Offline: Sara adds an item and ticks it"),
     "sara-ticked-offline": ("sara", "Offline: Sara adds an item and ticks it"),
+    # "Not synced yet" and both going grey came within a second of each other: one caption.
+    "sara-not-synced": ("sara", "Offline: Sara's phone says Not synced yet, and each shows the other grey"),
+    "sara-sees-emil-grey": ("both", "Offline: Sara's phone says Not synced yet, and each shows the other grey"),
+    "emil-sees-sara-grey": ("both", "Offline: Sara's phone says Not synced yet, and each shows the other grey"),
     "online": ("both", "Back online"),
-    "emil-sees-sara-offline-edits": ("emil", "Merged: Sara's offline edits reach Emil"),
+    # "Synced" and Emil in colour again on Sara's phone, at the same moment.
+    "sara-synced": ("sara", "Back online: Sara's phone says Synced, and shows Emil in colour"),
+    "sara-sees-emil-back": ("sara", "Back online: Sara's phone says Synced, and shows Emil in colour"),
+    # The merge and Sara in colour again on Emil's phone, at the same moment.
+    "emil-sees-sara-offline-edits": ("emil", "Merged: Sara's offline edits reach Emil, and she's in colour again"),
+    "emil-sees-sara-back": ("emil", "Merged: Sara's offline edits reach Emil, and she's in colour again"),
     "ai-edit": ("sara", "Sara's AI edits the note (the local server's MCP function)"),
-    "emil-sees-ai-edit": ("emil", "The AI's edit arrives"),
-    "sara-sees-ai-edit": ("sara", "The AI's edit arrives"),
+    "emil-sees-ai-edit": ("emil", "The AI's edit arrives on Emil's phone"),
+    "sara-sees-ai-edit": ("sara", "The AI's edit arrives on Sara's phone"),
     "emil-share-people": ("emil", "Emil opens Share: Emil and Sara"),
+    "sara-typed-before-removal": ("sara", "Sara adds an item while Emil has Share open"),
     "emil-removed-sara": ("emil", "Removed: Emil removes Sara"),
     "sara-note-gone": ("sara", "Removed: the note leaves Sara's phone"),
+    # In the re-take the note closes and the alert shows at once: one caption (set below).
+    "sara-lost-access": ("sara", "Removed: the note closes on Sara's phone, with an alert"),
+    "sara-kept-copy": ("sara", "Keep a Copy, answered by the script: her copy opens"),
     "sara-own-note": ("sara", "Sara's own note, not shared"),
     "sara-typed-budget": ("sara", "Sara types a line"),
     "private-ai-edit": ("sara", "Her AI reads the note and edits it (the local MCP function)"),
     "sara-sees-own-ai-edit": ("sara", "The AI's edit arrives on her phone"),
 }
+if "sara-lost-access" in first:
+    SAYS["sara-note-gone"] = SAYS["sara-lost-access"]
 FOOT = "Two iPhone simulators · a server on this Mac (local Supabase) · made-up accounts"
 
 def at(name, default=None):
@@ -74,25 +101,37 @@ def latest(*names):
     return max(ts) if ts else None
 
 hold = 3.0
+# Where a key still is taken, after its moment: 1.5 s (the change has landed by then), less for what
+# shows only for a moment ("Synced" stays 2 s) or is about the first moment (Share opening).
+# Sara's typing is stilled before Emil's Remove a second later.
+STILL_AFTER = {"sara-synced": 0.5, "emil-share-open": 0.5, "sara-typed-before-removal": 0.5}
 clips = []
-# c9: from Emil's list before it's shared to the note gone from Sara's phone.
+# c9: from Emil's list before it's shared to the note gone from Sara's phone (and, in the re-take,
+# what her phone says of it and the copy she keeps).
 if at("emil-note") and at("sara-note-gone"):
-    clips.append(dict(folder="c9-two-phones", name="two-iphones-c9-shared-list", phones=("emil", "sara"),
-                      t0=at("emil-note") - 1.5, t1=latest("sara-note-gone", "emil-removed-sara") + hold + 1.5,
-                      keys=["emil-link-copied", "sara-join-question", "sara-joined", "emil-sees-sara-tick", "emil-removed-sara", "sara-note-gone"]))
-# c10: the stretch from just before the pause to Emil's phone showing the merge.
+    clips.append(dict(folder="c9-two-phones", name="two-iphones-c9-shared-list" + SUFFIX, phones=("emil", "sara"),
+                      t0=at("emil-note") - 1.5, t1=latest("sara-note-gone", "emil-removed-sara", "sara-lost-access", "sara-kept-copy") + hold + 1.5,
+                      keys=["emil-share-open", "emil-link-copied", "sara-join-question", "sara-sees-emil-here", "emil-sees-sara-tick",
+                            "sara-typed-before-removal", "emil-removed-sara", "sara-lost-access", "sara-kept-copy"] if SUFFIX else
+                           ["emil-link-copied", "sara-join-question", "sara-joined", "emil-sees-sara-tick", "emil-removed-sara", "sara-note-gone"]))
+# c10: the stretch from just before the pause to Emil's phone showing the merge (and, in the re-take,
+# Sara's phone saying Synced and both back in colour).
 if at("offline") and at("emil-sees-sara-offline-edits"):
-    clips.append(dict(folder="c10-offline", name="two-iphones-c10-offline", phones=("emil", "sara"),
-                      t0=at("offline") - 2.5, t1=at("emil-sees-sara-offline-edits") + hold + 1.5,
-                      keys=["offline", "sara-ticked-offline", "online", "emil-sees-sara-offline-edits"]))
+    clips.append(dict(folder="c10-offline", name="two-iphones-c10-offline" + SUFFIX, phones=("emil", "sara"),
+                      # Ends before the AI's edit begins, so its caption doesn't flash in at the end.
+                      t0=at("offline") - 2.5, t1=min(latest("emil-sees-sara-offline-edits", "sara-synced", "emil-sees-sara-back", "sara-sees-emil-back") + hold + 1.5,
+                                                     at("ai-edit", 1e18) - 0.3),
+                      # Grey on both phones came within a second of "Not synced yet": its still shows all three.
+                      keys=["sara-ticked-offline", "sara-not-synced", "sara-synced", "emil-sees-sara-offline-edits"] if SUFFIX
+                           else ["offline", "sara-ticked-offline", "online", "emil-sees-sara-offline-edits"]))
 # c11: the AI's edit on the shared note, arriving on both phones.
 if at("ai-edit"):
-    clips.append(dict(folder="c11-ai-edit-other-device", name="two-iphones-c11-ai-edit", phones=("emil", "sara"),
+    clips.append(dict(folder="c11-ai-edit-other-device", name="two-iphones-c11-ai-edit" + SUFFIX, phones=("emil", "sara"),
                       t0=at("ai-edit") - 3.0, t1=(latest("emil-sees-ai-edit", "sara-sees-ai-edit") or at("ai-edit")) + hold + 1.5,
                       keys=["ai-edit", "emil-sees-ai-edit", "sara-sees-ai-edit"]))
 # c11, second clip: her AI's edit to her own note, on her phone.
 if at("sara-own-note") and at("sara-sees-own-ai-edit"):
-    clips.append(dict(folder="c11-ai-edit-other-device", name="iphone-c11-ai-edit-own-note", phones=("sara",),
+    clips.append(dict(folder="c11-ai-edit-other-device", name="iphone-c11-ai-edit-own-note" + SUFFIX, phones=("sara",),
                       t0=at("sara-own-note") - 1.0, t1=at("sara-sees-own-ai-edit") + 6.0,
                       keys=["sara-own-note", "sara-typed-budget", "private-ai-edit", "sara-sees-own-ai-edit"]))
 
@@ -122,6 +161,9 @@ def render(c):
     folder = os.path.join(out_root, c["folder"])
     os.makedirs(folder, exist_ok=True)
     dest = os.path.join(folder, c["name"] + ".mp4")
+    # The first takes stay: without a suffix, a clip that's there already is left alone.
+    if not SUFFIX and os.path.exists(dest):
+        sys.exit(f"{dest} is there already: give the re-take a SUFFIX (for example SUFFIX=-v2)")
     # The moments inside the clip (and the one in force when it starts).
     inside = [(t - t0, n) for t, n in moments if n in SAYS]
     offline_from, online_at = at("offline"), at("online")
@@ -245,7 +287,7 @@ def render(c):
     for old in glob.glob(os.path.join(folder, c["name"] + "-[0-9][0-9]-*.png")):
         os.remove(old)
     for k, key in enumerate(sorted((m for m in c["keys"] if m in first), key=lambda m: first[m]), start=1):
-        t = first[key] + 1.5
+        t = first[key] + STILL_AFTER.get(key, 1.5)
         if t > t1:
             t = t1 - 0.2
         shots = []

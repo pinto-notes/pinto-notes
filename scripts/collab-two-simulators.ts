@@ -1,7 +1,10 @@
 // Shared notes in the real app on two iPhone simulators, against the LOCAL stack: Emil shares a
-// checklist with Can edit, Sara joins by the link, both tick at once and each sees the other's
-// tick, the server goes away while Sara edits and ticks, her edits merge when it's back, Sara's AI
-// edits the note through the stack's MCP function and both see it, and Emil removes Sara.
+// checklist with Can edit, Sara joins by the link and each phone names the other, both tick at once
+// and each sees the other's tick, the server goes away while Sara edits and ticks (her phone says
+// "Not synced yet", each shows the other grey), her edits merge when it's back ("Synced"), Sara's AI
+// edits the note through the stack's MCP function and both phones mark it ("Sara's Claude" on
+// Emil's), and Emil removes Sara just after she typed: her phone says she no longer has access, and
+// she keeps a copy.
 //
 //   deno run -A scripts/collab-two-simulators.ts "<path to Amber Notes Beta.app for the simulator>"
 //
@@ -27,7 +30,7 @@
 //                                  is skipped, and the phones speak US English.
 //   COLLAB_HOLD=<s>                holds each moment on screen this long, opens Share while Emil shares and
 //                                  removes Sara (as its button does), and shows Sara the link's question
-//                                  before she joins.
+//                                  before she joins and the lost-access alert before she answers it.
 //   COLLAB_APPEARANCE=light,dark   Emil's phone, then Sara's.
 //   COLLAB_PRIVATE_AI=1            at the end, Sara types a line in a note of her own (not shared), then
 //                                  her AI reads that note and edits it while it's open on her phone.
@@ -201,16 +204,26 @@ const steps = (p: Person, rest: Step[]) => {
   labels.set(p.name, names);
   return out;
 };
+// The waits for what the fixes of persona council round 7 show (a name, grey, "Not synced yet",
+// "Synced", the lost-access alert) are soft: when one doesn't come, the app's log says "missed",
+// no moment is marked for it, the steps go on, and the check below that reads its dump fails. The
+// recording then shows what happened instead.
 const emilSteps = steps(people[0], [
   { create: list }, mark("emil-note"), ...hold(),
-  ...(show ? [{ showShare: true }, mark("emil-share-open"), ...hold()] : []),
+  ...(show ? [{ showShare: true }, mark("emil-share-open"), { dump: "share-open.json" }, ...hold()] : []),
   { access: "edit" }, mark("emil-link-can-edit"), ...hold(), { copyLink: "link.txt" }, mark("emil-link-copied"), ...hold(),
   ...(show ? [{ closeShare: true }] : []),
+  // Sara in the note: by name from the first moment she's here.
+  { waitPresence: { timeout: 300, soft: true } }, mark("emil-sees-sara-here"), { dump: "here-first.json" }, ...hold(), { dump: "here.json" },
   { waitFile: "go-tick.txt" }, { tick: "Book the venue" }, mark("emil-ticked"), { waitText: { text: "- [x] Order lunch", timeout: 90 } }, mark("emil-sees-sara-tick"), ...hold(), { dump: "ticks.json" },
-  { waitFile: "go-online.txt" }, { waitText: { text: "- [x] Book the train", timeout: 240 } }, mark("emil-sees-sara-offline-edits"), ...hold(), { dump: "merged.json" },
+  // The server paused: Sara isn't heard from, and goes grey.
+  { waitFile: "go-offline.txt" }, { waitPresence: { grey: true, timeout: 60, soft: true } }, mark("emil-sees-sara-grey"), ...hold(), { dump: "offline.json" },
+  { waitFile: "go-online.txt" }, { waitText: { text: "- [x] Book the train", timeout: 240 } }, mark("emil-sees-sara-offline-edits"),
+  { waitPresence: { grey: false, timeout: 60, soft: true } }, mark("emil-sees-sara-back"), ...hold(), { dump: "merged.json" },
   { waitFile: "go-ai.txt" }, { waitText: { text: "3-4 November", timeout: 120 } }, mark("emil-sees-ai-edit"), ...hold(), { dump: "ai.json" },
-  { waitFile: "go-remove.txt" }, ...(show ? [{ showShare: true }, mark("emil-share-people"), ...hold()] : []),
-  { remove: "Sara" }, mark("emil-removed-sara"), { wait: 2 }, ...hold(), { dump: "removed.json" }, ...(show ? [{ closeShare: true }] : []),
+  // Share open on Sara, then (once she has typed) Remove.
+  { waitFile: "go-remove.txt" }, ...(show ? [{ showShare: true }, mark("emil-share-people"), ...hold()] : []), { dump: "share-people.json" },
+  { waitFile: "go-remove-now.txt" }, { remove: "Sara" }, mark("emil-removed-sara"), { wait: 2 }, ...hold(), { dump: "removed.json" }, ...(show ? [{ closeShare: true }] : []),
   { waitFile: "go-quit.txt" }, { quit: true },
 ]);
 const saraSteps = steps(people[1], [
@@ -218,12 +231,22 @@ const saraSteps = steps(people[1], [
   ...(show
     ? [{ openLink: { file: "link.txt", question: "join-question.json" } }, mark("sara-join-question"), ...hold(), { answerJoin: "join" }]
     : [{ join: "link.txt" }]),
-  mark("sara-joined"), ...hold(), { dump: "joined.json" },
+  mark("sara-joined"), { waitPresence: { timeout: 60, soft: true } }, mark("sara-sees-emil-here"), { dump: "here-first.json" }, ...hold(), { dump: "joined.json" },
   { waitFile: "go-tick.txt" }, { tick: "Order lunch" }, mark("sara-ticked"), { waitText: { text: "- [x] Book the venue", timeout: 90 } }, mark("sara-sees-emil-tick"), ...hold(), { dump: "ticks.json" },
-  { waitFile: "go-offline.txt" }, { type: { text: "\nBook the train", after: "Print agenda" } }, mark("sara-typed-offline"), { tick: "Book the train" }, mark("sara-ticked-offline"), { wait: 2 }, { dump: "offline.json" },
+  // The server paused while she types and ticks: "Not synced yet" by the people, Emil grey.
+  { waitFile: "go-offline.txt" }, { type: { text: "\nBook the train", after: "Print agenda" } }, mark("sara-typed-offline"), { tick: "Book the train" }, mark("sara-ticked-offline"),
+  { waitSync: { text: "Not synced yet", timeout: 30, soft: true } }, mark("sara-not-synced"),
+  { waitPresence: { grey: true, timeout: 60, soft: true } }, mark("sara-sees-emil-grey"), ...hold(), { dump: "offline.json" },
+  // Back: "Synced" for a moment (2 s), and Emil in colour again.
+  { waitSync: { text: "Synced", timeout: 240, soft: true } }, mark("sara-synced"), { dump: "synced.json" },
+  { waitPresence: { grey: false, timeout: 60, soft: true } }, mark("sara-sees-emil-back"),
   { waitFile: "go-online.txt" }, { waitText: { text: "- [x] Book the train", timeout: 60 } },
   { waitFile: "go-ai.txt" }, { waitText: { text: "3-4 November", timeout: 120 } }, mark("sara-sees-ai-edit"), ...hold(), { dump: "ai.json" },
-  { waitGone: 180 }, mark("sara-note-gone"), ...hold(), { dump: "removed.json" },
+  // She types while Emil has Share open on her; he removes her a moment after.
+  { waitFile: "go-type.txt" }, { type: { text: "\nBring name badges", after: "Book the train" } }, mark("sara-typed-before-removal"), { dump: "typed-before.json" },
+  { waitGone: 180 }, mark("sara-note-gone"),
+  { waitLostAccess: { file: "lost.json", timeout: 60, soft: true } }, mark("sara-lost-access"), ...hold(),
+  { answerLostAccess: { answer: "keepCopy", soft: true } }, mark("sara-kept-copy"), ...hold(), { dump: "removed.json" },
   ...(privateAI
     ? [{ create: trip }, mark("sara-own-note"), ...hold(), { type: { text: "\nBudget 400 euros", after: "Tram 28 tickets" } }, mark("sara-typed-budget"), { wait: 1 }, { dump: "typed.json" },
       { waitFile: "go-private.txt" }, { waitText: { text: "21 to 23 May", timeout: 120 } }, mark("sara-sees-own-ai-edit"), { wait: Math.max(5, HOLD + 2) }, { dump: "private.json" }]
@@ -273,10 +296,19 @@ try {
   // Share and join.
   const link = await waitFor(emil, "link.txt", 300);
   check("Emil shares the checklist with Can edit and copies its link", /\/s\/[^#]+#.+/.test(link), "a /s/<id>#<secret> link");
+  if (show) {
+    const opened = await waitFor(emil, "share-open.json", 10);
+    check("Emil's Share sheet names him the moment it opens", opened.people?.[0]?.me === true && opened.people[0].name === "Emil Test", JSON.stringify(opened.people?.map((p: any) => p.name)));
+  }
   await put(sara, "link.txt", link);
   const joined = await waitFor(sara, "joined.json", 180);
   check("Sara opens the link, joins, and has the note", joined.title === "Offsite plan" && joined.documentOpen === true && joined.text.includes("- [ ] Book the venue"),
     JSON.stringify({ title: joined.title, documentOpen: joined.documentOpen, editable: joined.editable }));
+  // Each phone names the other from the first moment both are in the note (round 7 saw "Someone").
+  const names = (d: any) => (d?.here ?? []).map((p: any) => p.name);
+  const [emilHere, saraHere] = [await waitFor(emil, "here-first.json", 120), await waitFor(sara, "here-first.json", 60)];
+  check("each phone names the other as soon as both are in the note", names(emilHere).includes("Sara Test") && names(saraHere).includes("Emil Test"),
+    JSON.stringify({ emilSees: names(emilHere), saraSees: names(saraHere) }));
 
   // Both tick at once.
   await Promise.all([put(emil, "go-tick.txt"), put(sara, "go-tick.txt")]);
@@ -287,16 +319,23 @@ try {
   // The server goes away while Sara types and ticks; then it's back.
   await shell(offline);
   moment("offline");
-  await put(sara, "go-offline.txt");
-  const off = await waitFor(sara, "offline.json", 120);
+  await Promise.all([put(emil, "go-offline.txt"), put(sara, "go-offline.txt")]);
+  const [off, emilOff] = await Promise.all([waitFor(sara, "offline.json", 150), waitFor(emil, "offline.json", 150)]);
   check("with the server unreachable, Sara types an item and ticks it", off.text.includes("- [x] Book the train"), JSON.stringify(off.text));
-  await sleep(10);
+  const grey = (d: any) => (d?.here ?? []).map((p: any) => `${p.name}${p.grey ? " (grey)" : ""}`);
+  check("offline, Sara's phone says Not synced yet beside the people", off.sync === "Not synced yet", JSON.stringify(off.sync));
+  check("offline, each phone shows the other grey", (off.here ?? []).some((p: any) => p.grey) && (emilOff.here ?? []).some((p: any) => p.grey),
+    JSON.stringify({ emilSees: grey(emilOff), saraSees: grey(off) }));
+  await sleep(2);
   await shell(online);
   moment("online");
   await Promise.all([put(emil, "go-online.txt"), put(sara, "go-online.txt")]);
   const merged = await waitFor(emil, "merged.json", 300);
   check("when it's back, Sara's offline edits reach Emil and merge", merged.text.includes("- [x] Book the train") && merged.text.includes("- [x] Order lunch") && merged.text.split("Book the train").length === 2,
     JSON.stringify(merged.text));
+  const synced = await waitFor(sara, "synced.json", 120);
+  check("when it's back, Sara's phone says Synced", synced.sync === "Synced", JSON.stringify(synced.sync));
+  check("when it's back, Emil shows Sara in colour again", (merged.here ?? []).length > 0 && (merged.here ?? []).every((p: any) => !p.grey), JSON.stringify(grey(merged)));
 
   // Sara's AI edits the note through the stack's MCP function.
   const s = await signIn(people[1]);
@@ -330,12 +369,26 @@ try {
   await Promise.all([put(emil, "go-ai.txt"), put(sara, "go-ai.txt")]);
   const [a1, a2] = await Promise.all([waitFor(emil, "ai.json", 180), waitFor(sara, "ai.json", 180)]);
   check("the AI's edit shows on both phones", e.checks === "ok" && a1.text === a2.text && a1.text.includes("- [x] Pick dates: 3-4 November"), JSON.stringify(a1.text));
+  // Marked on both (its receipt and tint come when the open note shows it): Emil's names whose AI it is.
+  check("both phones mark it as the AI's edit: Sara's Claude on Emil's, Claude on Sara's",
+    a1.ai?.says === "Sara's Claude" && a1.ai?.seen === true && a2.ai?.says === "Claude" && a2.ai?.seen === true, JSON.stringify({ emil: a1.ai, sara: a2.ai }));
 
-  // Emil removes Sara.
+  // Emil opens Share on Sara; she types a line; he removes her a moment after.
   await put(emil, "go-remove.txt");
+  await waitFor(emil, "share-people.json", 120);
+  await put(sara, "go-type.txt");
+  const typed = await waitFor(sara, "typed-before.json", 120);
+  await put(emil, "go-remove-now.txt");
   const [r1, r2] = await Promise.all([waitFor(emil, "removed.json", 120), waitFor(sara, "removed.json", 240)]);
   check("Emil removes Sara: she's gone from his note, and the note from her phone",
     r1.people.length === 1 && r1.people[0].me && !r2.sharedNotes.includes("Offsite plan"), JSON.stringify({ emilSees: r1.people.map((p: any) => p.name), saraHas: r2.sharedNotes }));
+  const lost = await read(sara, "lost.json");
+  const asked = lost ? JSON.parse(lost) : null;
+  check("Sara's phone says she no longer has access, and offers Keep a Copy", asked?.title === "You no longer have access to “Offsite plan”" && asked?.buttons?.includes("Keep a Copy"),
+    JSON.stringify(asked));
+  check("Keep a Copy: her text, with the line she typed, as a note of her own (not shared, not in Shared with me)",
+    typed.text.includes("Bring name badges") && r2.title === "Offsite plan" && r2.sharedNoteID === null && r2.text.includes("Bring name badges") && r2.folder !== "Shared with me",
+    JSON.stringify({ title: r2.title, folder: r2.folder, shared: r2.sharedNoteID !== null }));
 
   // COLLAB_PRIVATE_AI: Sara types a line in a note of her own, her AI reads it there and edits the note
   // while it's open on her phone: the edit arrives by sync, as an AI's edit from anywhere would.
