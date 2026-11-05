@@ -37,9 +37,20 @@ import AppKit
 ///   {"delete": true}                               Delete the open note (the owner's stops sharing)
 ///   {"askDelete": {"file": "asked.txt", "fallback": "press-failed.txt"}}   its question, for a press from outside
 ///   {"waitGone": 90}                               until the open shared note is taken away
+///   {"waitPresence": {"name": "Sara", "grey": true, "timeout": 30}}   until that person (without a name,
+///                                                  anyone) is in the open note, shown grey or not (without "grey", either)
+///   {"waitSync": {"text": "Not synced yet", "timeout": 30}}   until the open note's bar says it ("Synced" too)
+///   {"waitLostAccess": {"file": "lost.json", "timeout": 60}}   until "You no longer have access to …"
+///                                                  shows: its title, message and buttons written to the file
+///   {"answerLostAccess": "keepCopy" | "dontKeep" | "ok"}   as that alert's button does: Keep a Copy opens the copy
 ///   {"startFresh": true}                           Start fresh (the account's notes and links go)
-///   {"dump": "state.json"}                         the open note's text, its share state and saved link
+///   {"dump": "state.json"}                         the open note's text, its share state and saved link, who's
+///                                                  in it, its sync line, its AI mark, and a lost-access alert
 ///   {"wait": 2}, {"quit": true}
+///
+/// The last four take "soft": true (answerLostAccess as {"answer": "keepCopy", "soft": true}): when what
+/// they wait for doesn't come, the log says "<n> <step> missed …" in place of "ok" and the steps go on,
+/// so a recording keeps what happened instead.
 @MainActor
 enum CollabScript {
     nonisolated static let betaBundleID = "dev.emilwagman.pane.beta"
@@ -81,6 +92,8 @@ enum CollabScript {
                 do {
                     try await play(key, value)
                     log("\(n + 1) \(key) ok")
+                } catch let missed as Missed {
+                    log("\(n + 1) \(key) missed \(missed)")
                 } catch {
                     log("\(n + 1) \(key) FAILED \(error)")
                     return
@@ -91,6 +104,8 @@ enum CollabScript {
     }
 
     struct Failed: Error, CustomStringConvertible { let description: String }
+    /// A soft step whose moment didn't come: logged, and the steps go on.
+    struct Missed: Error, CustomStringConvertible { let description: String }
 
     private static func play(_ key: String, _ value: Any) async throws {
         switch key {
@@ -221,6 +236,36 @@ enum CollabScript {
                 guard let n = notes().first(where: { $0.id == id }) else { return true }
                 return n.deletedAt != nil || n.trashedAt != nil || n.sharedNoteID == nil
             }
+        case "waitPresence":
+            // As the people beside the note's title show them: by name, and grey when not heard from.
+            let v = value as? [String: Any] ?? [:]
+            let name = v["name"] as? String, grey = v["grey"] as? Bool
+            let what = "\(name ?? "someone") in the note" + (grey.map { $0 ? ", grey" : ", not grey" } ?? "")
+            try await until(v["timeout"] as? Double ?? 60, what, soft: v["soft"] as? Bool == true) {
+                guard let s = session() else { return false }
+                return here(s).contains { p in
+                    let named = name.map { (p["name"] as? String)?.hasPrefix($0) == true } ?? true
+                    let shown = grey.map { p["grey"] as? Bool == $0 } ?? true
+                    return named && shown
+                }
+            }
+        case "waitSync":
+            let v = value as? [String: Any]
+            let want = value as? String ?? v?["text"] as? String ?? ""
+            try await until(v?["timeout"] as? Double ?? 60, "the note's bar to say \(want)", soft: v?["soft"] as? Bool == true) {
+                session().flatMap { SharedSyncLine.at(.now, session: $0)?.text } == want
+            }
+        case "waitLostAccess":
+            // Removed, or the owner stopped sharing: the alert over the notes (SharedRemovalAlert).
+            let v = value as? [String: Any]
+            try await until(v?["timeout"] as? Double ?? 60, "the lost-access alert", soft: v?["soft"] as? Bool == true) { SharedRemovals.shared.current != nil }
+            try write(json(lostAccessQuestion(SharedRemovals.shared.current!)), to: v?["file"] as? String ?? "lost.json")
+        case "answerLostAccess":
+            let v = value as? [String: Any]
+            let answer = value as? String ?? v?["answer"] as? String ?? ""
+            guard let context else { throw Failed(description: "no store") }
+            if v?["soft"] as? Bool == true, SharedRemovals.shared.current == nil { throw Missed(description: "no lost-access alert showing") }
+            if let copy = try answerLostAccess(answer, removals: .shared, context: context) { open(copy) }
         case "startFresh":
             try await AccountCrypto.shared.startFresh(confirmation: AccountCrypto.startFreshPhrase)
         case "dump":
@@ -281,12 +326,57 @@ enum CollabScript {
     private static func note(titled title: String) -> Note? { notes().first { $0.title == title && $0.deletedAt == nil && $0.trashedAt == nil } }
     private static func sharedNotes() -> [Note] { notes().filter { $0.sharedNoteID != nil && $0.deletedAt == nil } }
 
-    private static func until(_ seconds: Double, _ what: String, _ ok: () -> Bool) async throws {
+    /// `soft`: when the time runs out, the step is missed (logged, and the steps go on), not failed.
+    private static func until(_ seconds: Double, _ what: String, soft: Bool = false, _ ok: () -> Bool) async throws {
         let end = Date.now.addingTimeInterval(seconds)
         while !ok() {
-            guard Date.now < end else { throw Failed(description: "waited \(Int(seconds)) s for \(what)") }
+            guard Date.now < end else {
+                let why = "waited \(Int(seconds)) s for \(what)"
+                if soft { throw Missed(description: why) }
+                throw Failed(description: why)
+            }
             try await Task.sleep(for: .milliseconds(200))
         }
+    }
+
+    /// The open shared note's session, once its document is open here.
+    private static func session() -> CollabSession? {
+        guard let current else { return nil }
+        return CollabStore.shared?.session(for: current.id)
+    }
+
+    /// The people in the note as the avatars beside its title show them (PresenceStack): each by
+    /// name, and grey when not heard from for a while.
+    static func here(_ session: CollabSession, at now: Date = .now) -> [[String: Any]] {
+        session.peers.values.sorted { $0.name < $1.name }.map { ["name": $0.name, "grey": $0.isStale(at: now)] }
+    }
+
+    /// What the lost-access alert says, and its buttons, as SharedRemovalAlert shows them.
+    static func lostAccessQuestion(_ removal: SharedRemoval) -> [String: Any] {
+        ["title": removal.alertTitle, "message": removal.message,
+         "buttons": removal.copy != nil ? [SharedRemoval.keepCopy, SharedRemoval.dontKeep] : ["OK"]]
+    }
+
+    /// The lost-access alert answered as its buttons do (SharedRemovalAlert): Keep a Copy makes your
+    /// text a note of your own and returns it, for the step to open, as the button does; Don't Keep
+    /// and OK let the note go. An answer the alert doesn't offer fails.
+    static func answerLostAccess(_ answer: String, removals: SharedRemovals, context: ModelContext) throws -> Note? {
+        guard let removal = removals.current else { throw Failed(description: "no lost-access alert showing") }
+        let offersCopy = removal.copy != nil
+        switch answer {
+        case "keepCopy" where offersCopy:
+            guard let copy = removals.keep(removal, in: context) else { throw Failed(description: "no copy kept") }
+            return copy
+        case "dontKeep" where offersCopy, "ok" where !offersCopy:
+            removals.shown(removal)
+            return nil
+        default:
+            throw Failed(description: "the alert has no \(answer) (it offers \((lostAccessQuestion(removal)["buttons"] as? [String] ?? []).joined(separator: ", ")))")
+        }
+    }
+
+    private static func json(_ object: [String: Any]) -> String {
+        String(decoding: (try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])) ?? Data(), as: UTF8.self)
     }
 
     private static func write(_ text: String, to name: String) throws {
@@ -321,6 +411,16 @@ enum CollabScript {
             out["sharedNoteID"] = current.sharedNoteID?.uuidString ?? NSNull()
             out["editable"] = editor()?.isEditable ?? NSNull()
             out["documentOpen"] = CollabStore.shared?.session(for: current.id) != nil
+            if let s = CollabStore.shared?.session(for: current.id) {
+                out["here"] = here(s)
+                out["sync"] = SharedSyncLine.at(.now, session: s)?.text ?? NSNull()
+            }
+            // An AI's last change, as the receipt names it ("Sara's Claude"), and whether the open
+            // note has shown it (its receipt and tint come with that).
+            out["ai"] = current.aiEditor.map { by -> [String: Any] in
+                ["by": by, "person": current.aiEditorPerson ?? NSNull(), "says": AIEdit.whose(by, person: current.aiEditorPerson), "seen": !AIEdit.isUnseen(current)]
+            } ?? NSNull()
+            out["folder"] = current.folder?.name ?? NSNull()
             out["deleted"] = current.deletedAt != nil
             out["inRecentlyDeleted"] = current.trashedAt != nil && current.deletedAt == nil
             if let store = CollabStore.shared {
@@ -336,8 +436,8 @@ enum CollabScript {
             }
         }
         out["sharedNotes"] = sharedNotes().map(\.title)
-        let data = (try? JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys])) ?? Data()
-        return String(decoding: data, as: UTF8.self)
+        out["lostAccess"] = SharedRemovals.shared.current.map(lostAccessQuestion) ?? NSNull()
+        return json(out)
     }
 
     // MARK: The editor

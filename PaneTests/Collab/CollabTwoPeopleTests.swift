@@ -401,3 +401,21 @@ extension CollabTwoPeopleTests {
         #expect(!again.isStale())
     }
 }
+
+/// What the two-simulator run's script waits for (CollabScript's waitPresence, and its dump): the
+/// people in the note as the avatars show them, by name, and grey once not heard from.
+extension CollabTwoPeopleTests {
+    @Test func theScriptReadsWhoIsInTheNoteAsTheAvatarsShowThem() async throws {
+        let (emil, sara, note, ids) = try await shared("Offsite plan\n")
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
+        theirs.selectionChanged(NSRange(location: 3, length: 0))
+        await server.eventually { mine.peers[ids.1]?.selection != nil }
+        let peer = try #require(mine.peers[ids.1])
+
+        let now = CollabScript.here(mine, at: peer.heardAt)
+        #expect(now.count == 1)
+        #expect(now.first?["name"] as? String == "Sara" && now.first?["grey"] as? Bool == false)
+        let later = CollabScript.here(mine, at: peer.heardAt.addingTimeInterval(CollabSession.Peer.staleAfter + 0.5))
+        #expect(later.first?["name"] as? String == "Sara" && later.first?["grey"] as? Bool == true)
+    }
+}
