@@ -1081,9 +1081,10 @@ struct CharmSymbol: View {
     var body: some View {
         #if os(macOS)
         if Charm.on, let kind = Charm.kind(forSymbol: name) {
-            CharmIcon(kind: kind, pointSize: pointSize, trigger: trigger)
-                // As small as the symbol it stands in for, in a toolbar or a row.
-                .padding(-(CharmIcon.canvas(pointSize) - pointSize * 1.2) / 2)
+            // Takes exactly the room of the symbol it stands in for (a toolbar button stays the
+            // size of its neighbours) and draws over it, a little past its edges.
+            Image(systemName: name).hidden()
+                .overlay { CharmIcon(kind: kind, pointSize: pointSize, trigger: trigger) }
         } else {
             Image(systemName: name).font(.system(size: pointSize))
         }
