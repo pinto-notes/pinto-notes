@@ -439,12 +439,13 @@ final class CollabSession {
             if ai == nil, u.client != nil { before = try? doc.text(obj: body) }
             if take(u) {
                 changed = true
-                if ai == nil, let before { ai = (u, before) }
+                if ai == nil, let before, !isHeld(u) { ai = (u, before) }
             }
         }
         record.cursor = newest
         saveSoon()
         if changed { textChanged() }
+        aiLanded()
         if let ai { aiArrived(ai.update, before: ai.before) }
         scheduleSnapshot()
     }
@@ -456,6 +457,7 @@ final class CollabSession {
             let before = text
             if take(u) {
                 textChanged()
+                aiLanded()
                 aiArrived(u, before: before)
             }
             saveSoon()
@@ -500,8 +502,11 @@ final class CollabSession {
         }
         do {
             let change = try CollabCrypto.open(.update, u.ct, nk: k, note: noteID, extra: u.author_id.uuidString)
+            let heads = u.client == nil ? nil : doc.heads()
             try CollabText.absorb(change, into: doc)
             keep(change)
+            // An AI's change that didn't go in: Automerge holds it back for one it builds on.
+            if let heads, doc.heads() == heads { hold(u, change) }
             return true
         } catch {
             log.error("a change didn't open or apply: \(String(describing: error), privacy: .public)")
@@ -513,8 +518,40 @@ final class CollabSession {
     /// A change the server says an AI wrote, once it changed the text here: to the library, after
     /// the editor has the text. Changes typed on a device name no AI.
     private func aiArrived(_ u: Collab.Update, before: String) {
-        guard !isClosed, let ai = u.client?.trimmingCharacters(in: .whitespacesAndNewlines), !ai.isEmpty, text != before else { return }
+        guard !isClosed, let ai = u.client?.trimmingCharacters(in: .whitespacesAndNewlines), !ai.isEmpty, !isHeld(u), text != before else { return }
         onAIChange?(AIArrival(ai: ai, author: u.author_id, before: before))
+    }
+
+    /// An AI's change that reached this device before a change it builds on (that one's relay was
+    /// lost, or it was stored a moment late). Automerge holds it back until that one arrives, and
+    /// it then goes in with that one, which no AI wrote: it came in unmarked (persona council round 7,
+    /// bug 16, on the phone of the person whose AI it was). Kept until it lands, then marked.
+    private struct HeldAI {
+        let update: Collab.Update
+        let hash: CollabText.ChangeHash
+    }
+    @ObservationIgnored private var heldAI: [HeldAI] = []
+
+    private func isHeld(_ u: Collab.Update) -> Bool { heldAI.contains { $0.update.id == u.id } }
+
+    /// Keeps an AI's change Automerge held back, by its hash. One the document has already isn't news.
+    private func hold(_ u: Collab.Update, _ change: Data) {
+        guard let hash = CollabText.hash(of: change), doc.change(hash: hash) == nil else { return }
+        heldAI.append(HeldAI(update: u, hash: hash))
+        if heldAI.count > 16 { heldAI.removeFirst() }
+    }
+
+    /// Held AI changes that went in since (what each builds on arrived, as a change or in a snapshot):
+    /// marked now, each from the text as this device has it without that change.
+    private func aiLanded() {
+        guard !heldAI.isEmpty, !isClosed else { return }
+        var landed: [(Collab.Update, String)] = []
+        heldAI.removeAll { held in
+            guard doc.change(hash: held.hash) != nil else { return false }
+            if let before = CollabText.text(without: held.hash, in: doc, body) { landed.append((held.update, before)) }
+            return true
+        }
+        for (u, before) in landed { aiArrived(u, before: before) }
     }
 
     /// The note's owner by first name, once its members have loaded (nil for a nameless owner).

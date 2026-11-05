@@ -1,4 +1,5 @@
 import Automerge
+import CryptoKit
 import Foundation
 
 /// A shared note's text as an Automerge document: the parts of collaboration that touch Automerge.
@@ -47,6 +48,39 @@ enum CollabText {
 
     static func absorb(_ bytes: Data, into doc: Document) throws {
         if doc.heads().isEmpty { try doc.merge(other: try Document(bytes)) } else { try doc.applyEncodedChanges(encoded: bytes) }
+    }
+
+    typealias ChangeHash = Automerge.ChangeHash
+
+    /// A change's hash, from its bytes, so it can be looked for before Automerge has taken it in:
+    /// the SHA-256 of its chunk after the magic bytes and checksum (its type, length and contents),
+    /// as the checksum's four bytes confirm. Nil for anything but one uncompressed change (changes
+    /// typed on a device go up several to a blob; an AI's, written by the MCP server, is one).
+    static func hash(of change: Data) -> ChangeHash? {
+        let b = [UInt8](change)
+        guard b.count > 10, b[0..<4].elementsEqual([0x85, 0x6F, 0x4A, 0x83]), b[8] == 1 else { return nil }
+        var i = 9, length = 0, shift = 0
+        while true {
+            guard i < b.count, shift < 63 else { return nil }
+            let byte = b[i]
+            i += 1
+            length |= Int(byte & 0x7F) << shift
+            if byte & 0x80 == 0 { break }
+            shift += 7
+        }
+        guard length == b.count - i else { return nil }
+        let digest = Data(SHA256.hash(data: b[8...]))
+        guard digest.prefix(4).elementsEqual(b[4..<8]) else { return nil }
+        return digest.heads()?.first
+    }
+
+    /// The text as `doc` holds it without `change` (and anything built on it): everything else it
+    /// has, read at that point in its history. Nil for a change it doesn't have.
+    static func text(without change: ChangeHash, in doc: Document, _ body: ObjId) -> String? {
+        guard let deps = doc.change(hash: change)?.deps else { return nil }
+        let heads = doc.heads()
+        let rest = heads.contains(change) ? heads.subtracting([change]).union(deps) : Set(deps)
+        return try? doc.textAt(obj: body, heads: rest)
     }
 }
 

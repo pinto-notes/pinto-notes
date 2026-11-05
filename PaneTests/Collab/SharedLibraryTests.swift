@@ -884,6 +884,99 @@ extension NetworkFaults.SharedLibraryTests {
         await eb.stop()
     }
 
+    /// Ticks an item, as the checkbox does.
+    private func tick(_ item: String, in session: CollabSession) {
+        session.local(session.text.replacingOccurrences(of: "- [ ] \(item)", with: "- [x] \(item)"), selection: nil)
+    }
+
+    /// The two-phone run on the local server (round 7, c11): Sara's AI edits the note through the
+    /// MCP function, so its change reaches her own phone with her own user id on it, and only by
+    /// catching up (Realtime relayed nothing there), after she typed and ticked offline. Her phone
+    /// marks it as her AI's edit, "Claude changed 1 line", as Emil's marks it "Sara's Claude".
+    @Test func yourAIsChangeIsMarkedOnYourOwnPhone() async throws {
+        server.names = [owner: "Emil Wagman", member: "Sara Lind"]
+        let emil = try device(owner)
+        let (note, emilSession) = try await shared("Offsite plan\n\n- [ ] Book the venue\n- [ ] Pick dates\n- [ ] Order lunch\n- [ ] Print agenda", on: emil)
+        server.add(member, to: note.id)
+        await emilSession.refreshMembers()
+        let phone = try device(member)
+        let mine = try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let onPhone = try #require(phone.library.session(for: mine))
+        emil.transport.deaf = true
+        phone.transport.deaf = true
+
+        // Both tick at once, and each catches up.
+        tick("Book the venue", in: emilSession)
+        tick("Order lunch", in: onPhone)
+        await waitUntil { emilSession.isSent && onPhone.isSent }
+        await onPhone.catchUp().value
+        await emilSession.catchUp().value
+        #expect(onPhone.text == emilSession.text)
+
+        // Offline, she adds an item a key at a time and ticks it. Back online, it goes up.
+        phone.transport.offline = true
+        for key in "\n- [ ] Book the train" { type(String(key), in: onPhone) }
+        tick("Book the train", in: onPhone)
+        phone.transport.offline = false
+        onPhone.flush()
+        await waitUntil { onPhone.isSent }
+        await emilSession.catchUp().value
+        #expect(emilSession.text == onPhone.text)
+        #expect(mine.aiEditedAt == nil)
+
+        // Her AI edits it through the server, as her.
+        let change = try server.aiEdits(note.id, as: member, ai: "Claude", nk: nk) {
+            $0.replacingOccurrences(of: "- [ ] Pick dates", with: "- [x] Pick dates: 3-4 November")
+        }
+        #expect(change.author_id == member && change.client == "Claude")
+        let before = onPhone.text
+        await onPhone.catchUp().value
+        #expect(onPhone.text.contains("- [x] Pick dates: 3-4 November"))
+        await waitUntil { mine.aiEditedAt != nil }
+        #expect(mine.aiEditor == "Claude" && mine.aiEditorPerson == nil, "her own AI, named as in a note of her own")
+        let receipt = try #require(AIEdit.markSeen(mine))
+        #expect(receipt.summary == "Claude changed 1 line")
+        #expect(receipt.previous == before)
+
+        await emilSession.catchUp().value
+        await waitUntil { note.aiEditedAt != nil }
+        #expect(note.aiEditor == "Claude" && note.aiEditorPerson == "Sara")
+    }
+
+    /// Sara's phone missed a change of Emil's (its relay was lost), and her AI's change, made after
+    /// it, reached the phone first: Automerge holds it back until Emil's arrives with the next catch-up,
+    /// and then it lands as a side effect of Emil's, which no AI wrote. It was never marked. It's
+    /// marked when it lands, with its own line only: Emil's was in the text it started from.
+    @Test func yourAIsChangeHeldBackIsMarkedWhenItLands() async throws {
+        let emil = try device(owner)
+        let (note, emilSession) = try await shared("Offsite plan\n- Venue", on: emil)
+        server.add(member, to: note.id)
+        let phone = try device(member)
+        let mine = try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let onPhone = try #require(phone.library.session(for: mine))
+
+        phone.transport.deaf = true
+        type("\n- Dates", in: emilSession)
+        await waitUntil { emilSession.isSent }
+        phone.transport.deaf = false
+        try server.aiEdits(note.id, as: member, ai: "Claude", nk: nk) { $0 + "\n- Budget" }
+        await waitUntil { emilSession.text.hasSuffix("- Budget") }
+        await waitUntil(0.5) { false }
+        #expect(onPhone.text == "Offsite plan\n- Venue", "held back: it builds on Emil's line, which hasn't come")
+        #expect(mine.aiEditedAt == nil)
+
+        await onPhone.catchUp().value
+        #expect(onPhone.text == "Offsite plan\n- Venue\n- Dates\n- Budget")
+        await waitUntil { mine.aiEditedAt != nil }
+        #expect(mine.aiEditor == "Claude" && mine.aiEditorPerson == nil)
+        let receipt = try #require(AIEdit.markSeen(mine))
+        #expect(receipt.previous == "Offsite plan\n- Venue\n- Dates", "only its own line is the AI's")
+        #expect(receipt.summary == "Claude changed 1 line")
+        // Undo takes out its line and leaves Emil's.
+        try await AIEdit.undo(receipt, on: mine, library: phone.library)
+        #expect(onPhone.text == "Offsite plan\n- Venue\n- Dates")
+    }
+
     // MARK: Bug 18: not synced yet
 
     /// Offline, a shared note looked synced. Changes that wait with nothing going up say "Not

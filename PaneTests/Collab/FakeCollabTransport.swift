@@ -1,3 +1,4 @@
+import Automerge
 import CryptoKit
 import Foundation
 @testable import Pane
@@ -82,6 +83,32 @@ final class FakeCollabServer {
 
     func updates(of note: UUID) -> [Collab.Update] { updates.filter { $0.note_id == note } }
     func snapshots(of note: UUID) -> [Collab.Snapshot] { snapshots.filter { $0.note_id == note } }
+
+    /// Someone's AI changing the note through the MCP server (mcp/shared_notes.ts, loadDoc and
+    /// writeDoc): the document as the server has it (the newest snapshot, then every change after
+    /// it), one change from there, sealed with the note's key and stored as that person's, their user
+    /// id on it, with the AI named. None of their devices made it.
+    @discardableResult
+    func aiEdits(_ note: UUID, as user: UUID, ai: String, nk: SymmetricKey, _ edit: (String) -> String) throws -> Collab.Update {
+        let epoch = epochs[note] ?? 1
+        let doc = Document(textEncoding: .utf16)
+        let snapshot = snapshots(of: note).filter { $0.epoch == epoch }.max { $0.upto < $1.upto }
+        if let s = snapshot {
+            try CollabText.absorb(try CollabCrypto.open(.snapshot, s.ct, nk: nk, note: note, extra: String(s.upto)), into: doc)
+        }
+        for u in updates(of: note) where u.id > (snapshot?.upto ?? 0) && !inFlight.contains(u.id) {
+            try CollabText.absorb(try CollabCrypto.open(.update, u.ct, nk: nk, note: note, extra: u.author_id.uuidString), into: doc)
+        }
+        guard case .Object(let body, .Text)? = try doc.get(obj: .ROOT, key: "body") else { throw CollabCrypto.Failure.malformed }
+        let old = try doc.text(obj: body)
+        guard let e = TextDiff.edit(from: old, to: edit(old)) else { throw CollabCrypto.Failure.malformed }
+        let heads = doc.heads()
+        try doc.spliceText(obj: body, start: UInt64(e.range.location), delete: Int64(e.range.length), value: e.replacement.isEmpty ? nil : e.replacement)
+        let change = try doc.encodeChangesSince(heads: heads)
+        aiWriting[user] = ai
+        defer { aiWriting[user] = nil }
+        return try insertUpdate(note: note, author: user, epoch: epoch, ct: try CollabCrypto.seal(.update, change, nk: nk, note: note, epoch: epoch, extra: user.uuidString))
+    }
 }
 
 @MainActor
@@ -92,6 +119,12 @@ final class FakeCollabTransport: CollabTransport {
     var offline = false {
         didSet { for c in server.channels where c.user == me { c.open = !offline } }
     }
+    /// This device's live channel relays nothing (Realtime lost the subscription, or relays lag far
+    /// behind): changes reach it only when it catches up. Its other calls still work.
+    var deaf = false {
+        didSet { for c in joined { c.deaf = deaf } }
+    }
+    private var joined: [FakeChannel] = []
     /// Calls made, by name, for tests that check what went where.
     private(set) var calls: [String] = []
 
@@ -179,7 +212,9 @@ final class FakeCollabTransport: CollabTransport {
         try call("join")
         guard server.role(note, me) != nil else { throw Collab.Failure.notMember }
         let c = FakeChannel(note: note, user: me, onEvent: onEvent)
+        c.deaf = deaf
         server.channels.append(c)
+        joined.append(c)
         return c
     }
 }
@@ -190,6 +225,8 @@ fileprivate final class FakeChannel: CollabChannel {
     let user: UUID
     let onEvent: @MainActor (Collab.Event) -> Void
     var open = true
+    /// Relays nothing (FakeCollabTransport.deaf).
+    var deaf = false
 
     init(note: UUID, user: UUID, onEvent: @escaping @MainActor (Collab.Event) -> Void) {
         self.note = note
@@ -198,6 +235,7 @@ fileprivate final class FakeChannel: CollabChannel {
     }
 
     func deliver(_ event: Collab.Event) {
+        guard !deaf else { return }
         // As Realtime does: after the write that made it, never inside it.
         Task { @MainActor in self.onEvent(event) }
     }
