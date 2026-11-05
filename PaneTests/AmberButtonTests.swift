@@ -165,6 +165,21 @@ import Testing
         #expect(!widget.contains("(.tint)"), "the widget names its accent: .tint is system blue there")
     }
 
+    /// Round 7 captures: an iPhone alert's default button is filled in the system's blue under the
+    /// app's orange label (Keep a Copy, 1.6:1). In an alert, the default button is the Mac's only.
+    @Test func noIPhoneAlertHasADefaultButton() throws {
+        for (name, text) in try Self.appSources() {
+            let lines = text.components(separatedBy: "\n")
+            for (i, line) in lines.enumerated() where line.contains(".keyboardShortcut(.defaultAction)") {
+                let inAlert = lines[max(0, i - 12) ..< i].contains { $0.contains(".alert(") || $0.contains(".confirmationDialog(") }
+                guard inAlert else { continue }
+                let above = lines[..<i].last { !$0.trimmingCharacters(in: .whitespaces).isEmpty } ?? ""
+                #expect(above.contains("#if os(macOS)") || lines[max(0, i - 4) ..< i].contains { $0.contains("#if os(macOS)") },
+                        "\(name):\(i + 1): an alert's default button only on the Mac")
+            }
+        }
+    }
+
     @Test func noButtonStyleHardCodesAmber() throws {
         let src = try String(contentsOf: TestFiles.url("Views").appendingPathComponent("DesignSystem.swift"), encoding: .utf8)
         #expect(!src.contains("Color(Palette.amber).opacity"), "use Palette.buttonHover and friends")

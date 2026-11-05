@@ -1041,7 +1041,12 @@ private struct SharedRemovalAlert: ViewModifier {
                     Button(SharedRemoval.keepCopy) {
                         if let note = removals.keep(removal, in: context) { NoteOpener.shared.open(note.id) }
                     }
+                    #if os(macOS)
+                    // Return keeps it on the Mac. On iPhone a default button is filled in the
+                    // system's blue under the app's orange label, 1.6:1 (round 7 captures): it
+                    // stays a plain alert button in the accent, as the app's other alerts are.
                     .keyboardShortcut(.defaultAction)
+                    #endif
                     Button(SharedRemoval.dontKeep, role: .cancel) { removals.shown(removal) }
                 } else {
                     Button("OK", role: .cancel) { removals.shown(removal) }

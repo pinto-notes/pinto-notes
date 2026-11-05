@@ -58,7 +58,9 @@ struct CodeFileView: View {
         .alert(Self.recoverTitle, isPresented: $askingRecover) {
             Button("Cancel", role: .cancel) {}
             Button("Recover") { withAnimation(.snappy) { context.restore(file) } }
+                #if os(macOS)
                 .keyboardShortcut(.defaultAction)
+                #endif
         } message: {
             Text(Self.recoverMessage)
         }

@@ -1056,7 +1056,9 @@ struct NoteDetailView: View {
             .alert(Self.recoverTitle, isPresented: $askingRecover) {
                 Button("Cancel", role: .cancel) {}
                 Button("Recover") { recoverFromPrompt() }
+                    #if os(macOS)
                     .keyboardShortcut(.defaultAction)
+                    #endif
             } message: {
                 Text(Self.recoverMessage)
             }
