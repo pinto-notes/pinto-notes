@@ -133,7 +133,7 @@ import Testing
         let header = try #require(source.range(of: "Text(\"Folders\")"))
         let rest = source[header.lowerBound...].prefix(1100)
         #expect(rest.contains(".accessibilityAddTraits(.isHeader)"))
-        #expect(rest.contains(".accessibilityElement(children: .contain)"))
+        #expect(rest.contains(".accessibilityAction(named: \"New Folder\")"))
     }
 
     /// File › Import Notes too: a sheet opened over the shut window inherits its "disabled", so

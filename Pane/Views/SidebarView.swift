@@ -584,9 +584,9 @@ struct SidebarView: View {
                             .help("New Folder (\u{21E7}\u{2318}N)")
                             .accessibilityIdentifier("sidebar.newFolder")
                     }
-                    // A section's header merges into one heading: VoiceOver couldn't reach the
-                    // button inside ("Folders, New Folder", round 18).
-                    .accessibilityElement(children: .contain)
+                    // A list section's header is one element to VoiceOver whatever's asked of it
+                    // ("Folders, New Folder", round 18): the button is an action on that heading.
+                    .accessibilityAction(named: "New Folder") { startNewFolder(nil) }
                     .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
                 }
                 #endif
