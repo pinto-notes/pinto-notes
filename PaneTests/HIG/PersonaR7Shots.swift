@@ -133,6 +133,36 @@ import ZIPFoundation
         }
     }
 
+    /// The other choice for the deleted sentence: keep the deletion. The sentence beside it stays,
+    /// and is still there when the note is opened again.
+    @Test func c1KeepingTheDeletionOnTheMac() async throws {
+        guard Self.dir != nil else { return }
+        let folder = "c1-ai-review"
+        ChangeTint.holdForCapture = true
+        defer { ChangeTint.holdForCapture = false }
+        let c = try Self.tripLibrary()
+        try await Self.pressable(c, note: "Lisbon trip", dark: false) { ax in
+            Capture.aiEdit(c.mainContext, title: "Lisbon trip", scene: "lisbontrip", by: "ChatGPT")
+            await ax.settle(2400)
+            let review = try #require(ax.find("receipt.review"), "Review on the receipt")
+            review.press()
+            await ax.settle(1600)
+            for (id, name) in [("review.keep.0", "08-kept-dates-again"), ("review.keep.1", "09-kept-the-deletion"), ("review.keep.2", "10-kept-everything")] {
+                let button = try #require(ax.find(id), "\(id) on the card")
+                button.press()
+                await ax.settle(1600)
+                try Self.save(try Self.picture(ax), folder, "mac-light-\(name)")
+            }
+        }
+        try await Self.pressable(c, note: "Lisbon trip", dark: false) { ax in
+            await ax.settle(1600)
+            try Self.save(try Self.picture(ax), folder, "mac-light-11-reopened-after-deletion")
+        }
+        let body = try Self.note(c, "Lisbon trip").body
+        #expect(body.contains("Tiles, trams and pastries"), "the sentence beside it stays")
+        #expect(!body.contains("Sara wants one slow morning"), "the kept deletion stays deleted")
+    }
+
     // MARK: - C2. Writing on the Mac (dark)
 
     /// A new note written with the keys' own commands (Return, Tab, Shift-Tab go through the
