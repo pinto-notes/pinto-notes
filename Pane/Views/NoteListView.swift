@@ -42,6 +42,8 @@ struct NoteListView: View {
     @State private var searching = false
     /// Counts the requests to put the keys in the field (each press of Search or ⌘F).
     @State private var searchFocus = 0
+    /// How many notes and files the search shows; nil when not searching.
+    @State private var searchResults: Int?
     /// The list header's width beside the window's buttons, for its title (titleRoom).
     @State private var listWidth: CGFloat = 330
     #endif
@@ -142,6 +144,13 @@ struct NoteListView: View {
         return countText(notes: notes, files: files, capitalized: false, trash: trash)
     }
 
+    /// The Mac's line under the folder's name: the results while searching, not the folder's
+    /// whole count (council round 16: "12 notes" over one result).
+    static func macCount(notes: Int, files: Int, results: Int?, trash: Bool) -> String {
+        if let results { return results == 1 ? "1 result" : "\(results) results" }
+        return countText(notes: notes, files: files, capitalized: false, trash: trash)
+    }
+
     static func countText(notes: Int, files: Int, capitalized: Bool, trash: Bool) -> String {
         let n = notes == 1 ? "1 \(capitalized ? "Note" : "note")" : "\(notes) \(capitalized ? "Notes" : "notes")"
         var line = n
@@ -207,7 +216,9 @@ struct NoteListView: View {
         let visible = filtered(from: scopedNotes, all: all)
         let files = scopedFiles
         let visibleFiles = filteredFiles(from: files)
+        let results: Int? = search.isEmpty ? nil : visible.count + visibleFiles.count
         return list(scopedNotes, visible, files, visibleFiles)
+            .onChange(of: results, initial: true) { _, now in searchResults = now }
             #if os(iOS)
             .task { await watchListTip() }
             #endif
@@ -426,7 +437,7 @@ struct NoteListView: View {
                 // was (council rounds 5 and 6).
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                    Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: false))
+                    Text(Self.macCount(notes: scopedNotes.count, files: scopedFiles.count, results: searchResults, trash: scope == .trash))
                         .font(.system(size: 11)).foregroundStyle(Color.muted).monospacedDigit()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -628,7 +639,7 @@ struct NoteListView: View {
                 ToolbarItem(id: "list.title.\(Int(Self.titleRoom(listWidth: listWidth, compose: scope != .trash)))") {
                     VStack(spacing: 0) {
                         Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
-                        Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: false))
+                        Text(Self.macCount(notes: scopedNotes.count, files: scopedFiles.count, results: searchResults, trash: scope == .trash))
                             .font(.system(size: 11))
                             .foregroundStyle(Color.muted)
                             .monospacedDigit()

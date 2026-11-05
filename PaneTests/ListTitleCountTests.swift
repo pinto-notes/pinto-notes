@@ -10,6 +10,14 @@ import UIKit
 /// iPhone's list (Emil, 28 October 2026): the count moves from a footer under the last row to a
 /// small line under the large title, and the date headers line up with the title, not the rows.
 @MainActor @Suite struct ListTitleCountTests {
+    /// The Mac's header counts the results while searching (round 16: "12 notes" over one result).
+    @Test func theMacHeaderCountsResultsWhileSearching() {
+        #expect(NoteListView.macCount(notes: 12, files: 0, results: nil, trash: false) == "12 notes")
+        #expect(NoteListView.macCount(notes: 12, files: 0, results: 1, trash: false) == "1 result")
+        #expect(NoteListView.macCount(notes: 12, files: 0, results: 0, trash: false) == "0 results")
+        #expect(NoteListView.macCount(notes: 12, files: 2, results: 3, trash: false) == "3 results")
+    }
+
     @Test func theCountUnderTheTitle() {
         #expect(NoteListView.titleCount(notes: 3, files: 0, searching: false, trash: false) == "3 notes")
         #expect(NoteListView.titleCount(notes: 1, files: 0, searching: false, trash: false) == "1 note")

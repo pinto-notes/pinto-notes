@@ -287,6 +287,20 @@ struct QuickOpenPanel: View {
     @Environment(\.modelContext) private var context
     #endif
     @State private var query: String
+    /// The query the notes' text has been read for, so "nothing found" waits for the answer.
+    @State private var readFor: String?
+
+    /// What the panel says when a search finds nothing; nil while there's something to show or
+    /// the answer is still coming (council round 16: it just went blank).
+    static func nothingFound(query: String, rows: Int, stillReading: Bool) -> String? {
+        let t = query.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty, rows == 0, !stillReading else { return nil }
+        return "No notes or commands match \u{201C}\(t)\u{201D}."
+    }
+
+    private var stillReading: Bool {
+        searchText != nil && query.trimmingCharacters(in: .whitespaces).count >= QuickOpen.textMinLength && readFor != query
+    }
 
     /// A note found by its text opens at the line (SearchJump).
     private func jumpAndChoose(_ row: QuickOpen.Row) {
@@ -367,6 +381,17 @@ struct QuickOpenPanel: View {
                 list(rows, index: index)
                 Rectangle().fill(Color.line).frame(height: 1)
                 hints
+            } else if let nothing = Self.nothingFound(query: query, rows: rows.count, stillReading: stillReading) {
+                Rectangle().fill(Color.line).frame(height: 1)
+                Text(nothing)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.muted)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 20)
+                    .accessibilityIdentifier("quickOpen.nothing")
             }
         }
         .frame(width: Metrics.width)
@@ -396,6 +421,7 @@ struct QuickOpenPanel: View {
             let found = await searchText(q)
             guard !Task.isCancelled, q == query else { return }
             textHits = found
+            readFor = q
         }
         .onExitCommand { close() }
         .accessibilityIdentifier("quickOpen")
