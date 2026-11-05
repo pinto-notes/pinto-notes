@@ -224,11 +224,13 @@ import Testing
     /// when its buttons change (New Note coming or going), so the slot used to keep the width of
     /// the name it first held: "Notes" left Recently Deleted as "Rec…" (Emil, 3 November 2026).
     /// The slot is now as wide as the room the name may take, whatever list is showing.
+    /// A window wide enough for the name in the bar: in a narrow one (the sidebar hidden) the name
+    /// heads the list instead (`nameAboveList`).
     @Test func theListsNameFitsInRecentlyDeleted() async throws {
         let c = try AppSnapshotTests.container()
         let note = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Groceries" })
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
-            let w = MacWindowChromeTests.window(c, size: CGSize(width: 1000, height: 700))
+            let w = MacWindowChromeTests.window(c, size: CGSize(width: 1400, height: 800))
             defer { w.close() }
             await MacWindowChromeTests.settle(w, 8)
             // The list's header holds More, the name (a slot with no label) and New Note.
