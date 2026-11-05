@@ -122,7 +122,7 @@ struct NoteListView: View {
 
     /// What the list shows, in its order: notes and files together.
     private var orderedItems: [ListEntry] {
-        DateBucket.sections(ordered: ListEntry.merged(notes: filtered, files: filteredFiles(from: scopedFiles), by: order), by: order).flatMap(\.1)
+        withTopHits(DateBucket.sections(ordered: ListEntry.merged(notes: filtered, files: filteredFiles(from: scopedFiles), by: order), by: order)).flatMap(\.1)
     }
 
     /// "12 notes, 3 files", or just the notes when the folder has no files. In Recently Deleted
@@ -155,6 +155,23 @@ struct NoteListView: View {
         guard !q.isEmpty else { return scoped }
         let base = scope == .trash ? scoped : all.filter { !$0.deleted && !$0.trashed }
         return Self.found(q, in: base, listedBy: orderStore.order, context: context)
+    }
+
+    /// While searching, a note whose whole title is the search goes first, under Top Hits.
+    private func withTopHits(_ sections: [(String, [NoteEntry])]) -> [(String, [NoteEntry])] {
+        guard !search.trimmingCharacters(in: .whitespaces).isEmpty else { return sections }
+        return DateBucket.withTopHits(sections) { isTopHit($0) }
+    }
+
+    private func withTopHits(_ sections: [(String, [ListEntry])]) -> [(String, [ListEntry])] {
+        guard !search.trimmingCharacters(in: .whitespaces).isEmpty else { return sections }
+        return DateBucket.withTopHits(sections) { item in
+            if case .note(let entry) = item { isTopHit(entry) } else { false }
+        }
+    }
+
+    private func isTopHit(_ entry: NoteEntry) -> Bool {
+        entry.note(in: context).map { DateBucket.isWholeTitle($0.title, query: search) } ?? false
     }
 
     /// The notes whose text holds `query`, newest first whatever order the list is in: only the
@@ -220,8 +237,8 @@ struct NoteListView: View {
     }
 
     private func list(_ scopedNotes: [NoteEntry], _ visible: [NoteEntry], _ scopedFiles: [Attachment], _ visibleFiles: [Attachment]) -> some View {
-        let noteSections = visibleFiles.isEmpty ? DateBucket.sections(ordered: visible, by: order) : nil
-        let mixedSections = visibleFiles.isEmpty ? nil : DateBucket.sections(ordered: ListEntry.merged(notes: visible, files: visibleFiles, by: order), by: order)
+        let noteSections = visibleFiles.isEmpty ? withTopHits(DateBucket.sections(ordered: visible, by: order)) : nil
+        let mixedSections = visibleFiles.isEmpty ? nil : withTopHits(DateBucket.sections(ordered: ListEntry.merged(notes: visible, files: visibleFiles, by: order), by: order))
         let collapsed = self.collapsed
         // The rows above the first section (the asks below), for finding a note's row in the table.
         let leadingRows = (scope != .trash && search.isEmpty && connectCenter.waiting().first != nil ? 1 : 0)

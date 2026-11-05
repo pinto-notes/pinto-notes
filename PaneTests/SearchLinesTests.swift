@@ -100,6 +100,17 @@ import AppKit
     }
     #endif
 
+    @Test func aWholeTitleIsATopHit() {
+        let sections = [("Today", ["Lisbon 7 day plan", "Groceries"]), ("Previous 30 Days", ["Lisbon 7"])]
+        let moved = DateBucket.withTopHits(sections) { DateBucket.isWholeTitle($0, query: " lisbon 7 ") }
+        #expect(moved.map(\.0) == ["Top Hits", "Today"])
+        #expect(moved.map(\.1) == [["Lisbon 7"], ["Lisbon 7 day plan", "Groceries"]])
+        #expect(DateBucket.isWholeTitle("Café", query: "cafe"))
+        #expect(!DateBucket.isWholeTitle("Lisbon 7 day plan", query: "Lisbon 7"))
+        let same = DateBucket.withTopHits(sections) { _ in false }
+        #expect(same.map(\.0) == sections.map(\.0))
+    }
+
     #if os(macOS)
     /// The panel shows the lines and the count, read through accessibility far off the screen.
     @Test func thePanelShowsTheLinesAndTheCount() async throws {

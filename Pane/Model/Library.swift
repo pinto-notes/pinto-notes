@@ -479,6 +479,31 @@ extension Attachment: DatedListItem {
 
 /// Grouping of the note list by recency, like Apple Notes.
 enum DateBucket {
+    /// Apple Notes' heading for the best matches of a search.
+    static let topHits = "Top Hits"
+
+    /// The items `isTopHit` picks moved out of their sections into "Top Hits", first: a search for
+    /// a note's whole title finds it at the top, however old it is (round 7: "Lisbon 7" came after
+    /// the newer "Lisbon 7 day plan"). Nothing picked, nothing changes.
+    static func withTopHits<Item>(_ sections: [(String, [Item])], isTopHit: (Item) -> Bool) -> [(String, [Item])] {
+        var hits: [Item] = []
+        let rest = sections.compactMap { name, items -> (String, [Item])? in
+            let kept = items.filter { item in
+                guard isTopHit(item) else { return true }
+                hits.append(item)
+                return false
+            }
+            return kept.isEmpty ? nil : (name, kept)
+        }
+        return hits.isEmpty ? sections : [(topHits, hits)] + rest
+    }
+
+    /// The query is the whole title, as search folds them (case and accents).
+    static func isWholeTitle(_ title: String, query: String) -> Bool {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        return !q.isEmpty && title.trimmingCharacters(in: .whitespaces).compare(q, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+    }
+
     static func sections<Item: DatedListItem>(_ notes: [Item], now: Date = .now, calendar: Calendar = .current) -> [(String, [Item])] {
         // Each date read once: model properties aren't free, and a sort reads them often.
         sections(newestFirst: notes.map { ($0, $0.listDate) }.sorted { $0.1 > $1.1 }, now: now, calendar: calendar)
