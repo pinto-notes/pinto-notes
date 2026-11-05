@@ -361,7 +361,7 @@ enum WindowFrameMemory {
     }
 
     /// The notes window's smallest size (its contentMinSize, plus the title bar).
-    static let minimum = CGSize(width: 760, height: 520)
+    static let minimum = CGSize(width: 620, height: 520)
 
     /// The saved frame if enough of it is on a screen you still have; otherwise the default, centred.
     static func frame(saved: CGRect?, screens: [CGRect], main: CGRect) -> CGRect {
@@ -654,7 +654,7 @@ private struct WindowShaper: NSViewRepresentable {
         if compact { window.styleMask.insert(.fullSizeContentView) }
         // Card mode keeps close and minimise; zoom makes no sense for a fixed-size card.
         window.standardWindowButton(.zoomButton)?.isEnabled = !compact
-        window.contentMinSize = compact ? CGSize(width: 300, height: 300) : CGSize(width: 760, height: 520)
+        window.contentMinSize = compact ? CGSize(width: 300, height: 300) : CGSize(width: WindowFrameMemory.minimum.width, height: 520)
         if compact {
             CardWindow.lock(window)
             coordinator.fittedCard = nil

@@ -364,6 +364,7 @@ struct NoteListView: View {
         #endif
         // Less warmth than the sidebar, more than the note.
         .scrollContentBackground(.hidden)
+        .accessibilityLabel("Notes")
         .background(Color(stacked ? Palette.listGround : Palette.page).ignoresSafeArea())
         #if os(macOS)
         // Soft under the toolbar, as the sidebar and Notes: a list's own edge is hard, the window's

@@ -6,6 +6,14 @@ import Testing
 
 /// Checklist items reach VoiceOver as checkboxes (council rounds 2 and 3, 11-04): the circles are
 /// drawn, and all VoiceOver had was the hidden "- [ ]" in the line's text.
+@MainActor @Suite struct SidebarRowWordsTests {
+    @Test func aRowSaysItsCount() {
+        #expect(SidebarRowWords.spoken("Travel", count: 4) == "Travel, 4 notes")
+        #expect(SidebarRowWords.spoken("Notes", count: 1) == "Notes, 1 note")
+        #expect(SidebarRowWords.spoken("Ideas", count: 2, files: 1) == "Ideas, 2 notes, 1 file")
+    }
+}
+
 @MainActor @Suite(.serialized) struct ChecklistAccessibilityTests {
     static let note = "Lisbon\n\n- [ ] Tram 28 early\n- [x] Book flights\n\n```\n- [ ] not a checklist\n```\n"
 

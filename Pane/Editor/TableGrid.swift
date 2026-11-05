@@ -940,6 +940,9 @@ struct TableGridView: View {
                     }
                     begin(GridCell(row: r, column: c), at: Self.caretIndex(in: value, x: p.x, width: width, trailing: false))
                 }
+                // VoiceOver can edit it too: a press is what a click is (round 17: cells could only be read).
+                .accessibilityHint("Edits this cell")
+                .accessibilityAction { begin(GridCell(row: r, column: c), at: (value as NSString).length) }
         }
     }
 

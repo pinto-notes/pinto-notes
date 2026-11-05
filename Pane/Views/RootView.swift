@@ -456,7 +456,8 @@ struct RootView: View {
             detail
                 #if os(macOS)
                 // Room for the note's toolbar; a narrow window drops the sidebar instead, like Notes.
-                .navigationSplitViewColumnWidth(min: 520, ideal: 760)
+                // Small enough to tile on half a 1440 pt screen, with the wider list too (round 17).
+                .navigationSplitViewColumnWidth(min: 360, ideal: 760)
                 .overlay(alignment: .leading) { ColumnHairline() }
                 #endif
         }

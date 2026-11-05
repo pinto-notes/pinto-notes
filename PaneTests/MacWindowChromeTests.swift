@@ -193,21 +193,23 @@ import Testing
             let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
             let sidebar = try #require((split.delegate as? NSSplitViewController)?.splitViewItems.first)
             #expect(!sidebar.isCollapsed)
-            for width in [1200.0, 1000, 980] {
+            for width in [1200.0, 1000, 880] {
                 w.setContentSize(CGSize(width: width, height: 800))
                 w.contentView?.layoutSubtreeIfNeeded()
                 await Self.settle(w, 3)
             }
+            await Self.settle(w, 6)
             #expect(sidebar.isCollapsed, "too narrow for three columns")
-            #expect(w.frame.width <= 1030, "hiding it doesn't widen the window: \(w.frame.width)")
+            #expect(w.frame.width <= 920, "hiding it doesn't widen the window: \(w.frame.width)")
             let widths = (0..<6).map { _ in w.frame.width }
             await Self.settle(w, 6)
             #expect(sidebar.isCollapsed && w.frame.width == widths[0], "and it stays put: no hiding and showing in turn")
             // Hidden, it no longer holds the window wide (council round 13: hiding it raised the
-            // least width from 1,029 to 1,119, so the window widened itself): the list and the note.
-            w.setContentSize(CGSize(width: 880, height: 800))
+            // least width from 1,029 to 1,119, so the window widened itself): the list and the note,
+            // on half of a 1440 pt screen.
+            w.setContentSize(CGSize(width: 720, height: 800))
             await Self.settle(w, 6)
-            #expect(w.frame.width <= 900, "the window goes to the list and the note's width: \(w.frame.width)")
+            #expect(w.frame.width <= 720, "the window goes to the list and the note's width: \(w.frame.width)")
             #expect(sidebar.isCollapsed)
             w.setContentSize(CGSize(width: 1300, height: 800))
             await Self.settle(w, 8)

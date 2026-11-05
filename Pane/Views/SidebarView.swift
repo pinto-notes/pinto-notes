@@ -329,14 +329,21 @@ struct SidebarIcon: View {
     }
 }
 
+/// What VoiceOver says for a sidebar row.
+enum SidebarRowWords {
+    static func spoken(_ name: String, count: Int, files: Int = 0) -> String {
+        let notes = count == 1 ? "1 note" : "\(count) notes"
+        return "\(name), " + (files == 0 ? notes : notes + (files == 1 ? ", 1 file" : ", \(files) files"))
+    }
+}
+
 extension View {
     /// One element per sidebar row, read as "Travel, 4 notes". Without it VoiceOver reads the
     /// folder symbol's own name ("Move") before the row's.
     func rowAccessibility(_ name: String, count: Int, files: Int = 0) -> some View {
-        let notes = count == 1 ? "1 note" : "\(count) notes"
+        // In the label: the Mac's outline dropped a value on these rows (round 17's accessibility dump).
         return accessibilityElement(children: .ignore)
-            .accessibilityLabel(name)
-            .accessibilityValue(files == 0 ? notes : notes + (files == 1 ? ", 1 file" : ", \(files) files"))
+            .accessibilityLabel(SidebarRowWords.spoken(name, count: count, files: files))
     }
 }
 

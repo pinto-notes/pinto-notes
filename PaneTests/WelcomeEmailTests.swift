@@ -28,13 +28,16 @@ import UIKit
         #expect(m.title == "Continue with email")
     }
 
-    @Test func continueWaitsForAnAddressThatLooksReal() async {
+    @Test func continueSaysWhenAnAddressDoesntLookReal() async {
         let (m, _) = model()
-        for typed in ["", "sara", "sara@", "sara@example", "sara @example.com"] {
+        m.flow.email = ""
+        #expect(!m.canContinue)
+        for typed in ["sara", "sara@", "sara@example", "sara @example.com"] {
             m.flow.email = typed
-            #expect(!m.canContinue, "\(typed)")
+            #expect(m.canContinue, "\(typed)")
             await m.primary()
-            #expect(m.flow.step == .email, "Return does nothing for \(typed)")
+            #expect(m.flow.step == .email, "stays on the email for \(typed)")
+            #expect(m.error == EmailSignInFlow.notAnEmail, "and says what's wrong for \(typed)")
         }
         m.flow.email = " sara@example.com "
         #expect(m.canContinue)
