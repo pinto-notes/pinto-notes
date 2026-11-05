@@ -495,7 +495,7 @@ struct AIChangeKey: View {
         HStack(spacing: 14) {
             if added {
                 HStack(spacing: 5) {
-                    RoundedRectangle(cornerRadius: 3).fill(Color.accentColor.opacity(0.24)).frame(width: 16, height: 11)
+                    RoundedRectangle(cornerRadius: 3).fill(Color.paneAccent.opacity(0.24)).frame(width: 16, height: 11)
                     Text(Self.addedName)
                 }
             }
