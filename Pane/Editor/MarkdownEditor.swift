@@ -1163,7 +1163,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     @objc private func undoStackChanged(_ note: Notification) {
-        if (note.object as AnyObject?) === undoManager { reportUndo() }
+        guard (note.object as AnyObject?) === undoManager else { return }
+        // An undo or redo that changed the text without the text view saying so is saved like
+        // typing (on the Mac it wasn't: persona council r7, bug 18).
+        if note.name != .NSUndoManagerDidCloseUndoGroup, text != lastReported, markedTextRange == nil { textDidChange() }
+        reportUndo()
     }
 
     /// Tells the top bar what Undo and Redo can do now, and again a turn later, once a typing
@@ -1690,7 +1694,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     // MARK: Undo in a shared note: only your own edits (OwnUndo)
 
     private lazy var ownUndoManager = OwnUndoManager(view: self)
-    override var undoManager: UndoManager? { controller?.ownUndo != nil ? ownUndoManager : super.undoManager }
+    /// The note's own steps. The window's undo manager is shared with whatever has the keyboard:
+    /// a table cell's field put its typing there too, so the bar's Undo took back the field's last
+    /// few letters, not the cell's text, and then had nothing left (persona council r7, bug 4).
+    private let noteUndoManager = UndoManager()
+    override var undoManager: UndoManager? { controller?.ownUndo != nil ? ownUndoManager : noteUndoManager }
     private var applyingOwnUndo = false
 
     /// Your edit, for undo, unless it's an undo itself.
@@ -2224,6 +2232,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         drawsBackground = false
         isRichText = false
         allowsUndo = true
+        watchUndo()
         isAutomaticQuoteSubstitutionEnabled = false
         isAutomaticDashSubstitutionEnabled = false
         isAutomaticTextReplacementEnabled = false
@@ -2514,6 +2523,23 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     var currentText: String { string }
     var currentSelection: NSRange { selectedRange() }
+
+    /// Undo and Redo of the text view's own typing change the text without a text-did-change, so
+    /// the note kept saving what was typed before it (persona council r7, bug 18): after any undo
+    /// or redo of this view's steps, a text that changed goes the way typing does.
+    private var watchingUndo = false
+    private func watchUndo() {
+        guard !watchingUndo else { return }
+        watchingUndo = true
+        for name: Notification.Name in [.NSUndoManagerDidUndoChange, .NSUndoManagerDidRedoChange] {
+            NotificationCenter.default.addObserver(self, selector: #selector(undoneOrRedone(_:)), name: name, object: nil)
+        }
+    }
+
+    @objc private func undoneOrRedone(_ note: Notification) {
+        guard (note.object as AnyObject?) === undoManager, string != lastReported, !hasMarkedText() else { return }
+        textDidChange(Notification(name: NSText.didChangeNotification, object: self))
+    }
 
     func apply(_ edit: TextEdit) {
         guard shouldChangeText(in: edit.range, replacementString: edit.replacement) else { return }

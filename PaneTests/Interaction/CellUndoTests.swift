@@ -24,11 +24,19 @@ import UIKit
             at += 1
             try? await Task.sleep(for: .seconds(0.05))
         }
+        // The cell's own field puts its typing in the window's undo manager, as UIKit does.
+        let field = UITextField(frame: CGRect(x: 0, y: 0, width: 100, height: 30))
+        window.addSubview(field)
+        if let shared = window.undoManager {
+            shared.registerUndo(withTarget: field) { $0.text = "Ribeira wal" }
+            #expect(v.undoManager !== shared, "the note keeps its own steps")
+        }
         let typed: String = v.text ?? ""
         #expect(typed.contains("| Sat | Ribeira walk |"))
         let undo = try #require(v.undoManager)
         #expect(undo.canUndo)
-        undo.undo()
+        // The bar's Undo.
+        v.undoStep(redo: false)
         try? await Task.sleep(for: .seconds(0.1))
         #expect(v.text == Self.body, "all of it, not one letter: \(String(describing: v.text))")
         #expect(undo.canRedo)

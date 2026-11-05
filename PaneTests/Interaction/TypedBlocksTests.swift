@@ -75,5 +75,29 @@ import Testing
         await h.settle(0.2)
         #expect(h.text == undone, "the late fix was dropped: \(h.text.debugDescription)")
     }
+
+    /// Persona r7 bug 18: after Undo the editor showed the title alone, but the note saved after it
+    /// still held everything typed. What the editor reports (and the note saves) follows Undo.
+    @Test func whatIsSavedFollowsUndo() async {
+        let h = await EditorHarness("")
+        defer { h.close() }
+        var reported: [String] = []
+        h.view.core.onChange = { reported.append($0) }
+        await typeKeys(h, "Porto weekend\nTrain at 8:10")
+        await h.settle(0.3)
+        #expect(reported.last == h.text, "typing is reported")
+        let typed = h.text
+        await h.command(Selector(("undo:")))
+        await h.settle(0.3)
+        #expect(h.text != typed, "Undo took something back: \(h.text.debugDescription)")
+        #expect(reported.last == h.text, "and that's what's saved: \(String(describing: reported.last?.debugDescription))")
+        // SwiftUI hands the note's text back to the editor: it keeps the undone text.
+        h.view.syncExternal(reported.last ?? "")
+        #expect(h.text == reported.last)
+        // Redo too.
+        await h.command(Selector(("redo:")))
+        await h.settle(0.3)
+        #expect(h.text == typed && reported.last == typed, "redo: \(String(describing: reported.last?.debugDescription))")
+    }
 }
 #endif

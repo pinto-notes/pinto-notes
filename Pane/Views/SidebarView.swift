@@ -420,6 +420,14 @@ struct SidebarView: View {
         return (live, trashed)
     }
 
+    /// Whether "All Notes" gets its row: with more than one folder, or when a note is in none (an
+    /// AI's note at the top of the notebook: with one folder it was in no list at all, round 15).
+    static func showsAllNotes(folders: Int, context: ModelContext) -> Bool {
+        if folders > 1 { return true }
+        let loose = #Predicate<Note> { (n: Note) -> Bool in n.folder == nil && n.deletedAt == nil && n.trashedAt == nil }
+        return ((try? context.fetchCount(FetchDescriptor<Note>(predicate: loose))) ?? 0) > 0
+    }
+
     /// A folder's notes as its list counts them. In a window the list's notes count them
     /// (LibraryNotes.listedCount); this reads the folder's own notes.
     static func listedNotes(in folder: Folder, context: ModelContext) -> Int {
@@ -534,8 +542,8 @@ struct SidebarView: View {
             if next.scope != scope { scope = next.scope }
         })) {
             Section {
-                // "All Notes" only earns its row once there's more than one folder.
-                if folders.count > 1 {
+                // "All Notes" only earns its row once there's more than one folder, or a note in none.
+                if Self.showsAllNotes(folders: folders.count, context: context) {
                     CountedRow(title: "All Notes", icon: "tray.full", trash: false, files: files.live, selection: $scope)
                         .tag(Scope.all)
                         .accessibilityIdentifier("sidebar.all")
@@ -989,7 +997,7 @@ struct SidebarView: View {
         let trashed = Self.counts(in: context).trashed + files.trashed
         return List {
             Section {
-                if folders.count > 1 {
+                if Self.showsAllNotes(folders: folders.count, context: context) {
                     FixedFolderRow(title: "All Notes", icon: "tray.full").accessibilityIdentifier("sidebar.all")
                 }
                 ForEach(rows) { row in
