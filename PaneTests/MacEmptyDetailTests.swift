@@ -208,6 +208,9 @@ import Testing
             let editor = try #require(w.contentView.flatMap { MacWindowChromeTests.find(PaneTextView.self, in: $0) }, "and it's open")
             #expect(editor.string.isEmpty)
             #expect(Self.element("detail.newNote", in: root) == nil, "the empty pane has gone")
+            // With the cursor in it, so what you type goes in, as in Notes (council round 16:
+            // "Trip files" typed after ⌘N went nowhere).
+            #expect(w.firstResponder === editor, "the new note has the cursor: \(String(describing: w.firstResponder))")
         }
     }
 

@@ -2255,7 +2255,7 @@ private struct PlatformEditor: NSViewRepresentable {
         controller.target = view
         scroll.documentView = view
         view.setFoot(foot)
-        if autofocus { DispatchQueue.main.async { view.window?.makeFirstResponder(view) } }
+        if autofocus { view.focusWhenShown() }
         // Format › Untick All for this note, not the one before (after this update, not in it).
         DispatchQueue.main.async { [weak controller, weak view] in
             guard let controller, let view, controller.target === view else { return }
@@ -2300,6 +2300,15 @@ final class NoteScrollView: NSScrollView {
     override func tile() {
         super.tile()
         (documentView as? PaneTextView)?.foldDate()
+    }
+
+    /// The find bar opening or closing moves an untouched note's fold with it (findShift).
+    override var isFindBarVisible: Bool {
+        didSet {
+            guard isFindBarVisible != oldValue, let text = documentView as? PaneTextView else { return }
+            tile()
+            text.refold()
+        }
     }
 
     /// Scrolled by hand: the fold is the reader's now, and the inset no longer moves it.
@@ -2697,8 +2706,31 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     static let titleAway: CGFloat = 40
     private var watchingScroll = false
 
+    /// A new note's cursor, waiting for the note to be in its window.
+    private var focusPending = false
+
+    /// The cursor in this note as soon as it's in a window: a new note (⌘N, Today's note) is
+    /// typed into straight away, as in Notes. The editor is made before SwiftUI puts it in the
+    /// window, so asking at once, or a turn later, often found no window and the keyboard
+    /// stayed in the list (council round 16: "Trip files" typed after ⌘N went nowhere).
+    func focusWhenShown() {
+        if let window { window.makeFirstResponder(self) } else { focusPending = true }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let window = self.window, window.firstResponder !== self else { return }
+            self.focusPending = false
+            window.makeFirstResponder(self)
+        }
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        if focusPending, let window {
+            focusPending = false
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.window === window else { return }
+                window.makeFirstResponder(self)
+            }
+        }
         foldDate()
         guard !watchingScroll, let clip = enclosingScrollView?.contentView else { return }
         watchingScroll = true
@@ -2724,9 +2756,17 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// At the fold or within one fold below it, nobody having scrolled since (scrollWheel clears
     /// `foldedAt`): where a width change's own scroll leaves an opened note. Further down is
     /// the reader's place (typing, a search hit), and stays.
+    /// While the find bar is open, the fold is that much higher, so the title sits below the bar
+    /// rather than under it: the bar lies over the top of the note, and Notes moves its note down
+    /// for its bar (council round 15, a5-find-bar). A note scrolled by hand stays where it is.
+    var findShift: CGFloat {
+        guard let scroll = enclosingScrollView, scroll.isFindBarVisible, let bar = scroll.findBarView else { return 0 }
+        return min(Self.fold, bar.frame.height)
+    }
+
     private var nearFold: Bool {
         guard foldedAt != nil, let scroll = enclosingScrollView else { return false }
-        let target = -scroll.contentInsets.top + Self.fold
+        let target = -scroll.contentInsets.top + Self.fold - findShift
         let y = scroll.contentView.bounds.origin.y
         return y >= target - 0.5 && y <= target + Self.fold + 0.5
     }
@@ -2734,8 +2774,19 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// Back to the fold after a width change, unless someone scrolled since.
     private func returnToFold() {
         guard nearFold, let scroll = enclosingScrollView else { return }
-        let target = -scroll.contentInsets.top + Self.fold
+        let target = -scroll.contentInsets.top + Self.fold - findShift
         guard abs(scroll.contentView.bounds.origin.y - target) >= 0.5 else { return }
+        scroll.contentView.scroll(to: NSPoint(x: scroll.contentView.bounds.origin.x, y: target))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        foldedAt = target
+    }
+
+    /// The fold again after the find bar opens or closes, if nobody has scrolled since.
+    func refold() {
+        guard let scroll = enclosingScrollView, let at = foldedAt,
+              DesignLook.readingPage, hasDate, !DateFold.showOnOpen else { return }
+        let target = -scroll.contentInsets.top + Self.fold - findShift
+        guard abs(scroll.contentView.bounds.origin.y - at) < 0.5, abs(at - target) >= 0.5 else { return }
         scroll.contentView.scroll(to: NSPoint(x: scroll.contentView.bounds.origin.x, y: target))
         scroll.reflectScrolledClipView(scroll.contentView)
         foldedAt = target
@@ -2745,7 +2796,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         guard DesignLook.readingPage, hasDate, !DateFold.showOnOpen, window != nil,
               let scroll = enclosingScrollView, scroll.contentView.bounds.height > 0 else { return }
         let clip = scroll.contentView
-        let target = -scroll.contentInsets.top + Self.fold
+        let target = -scroll.contentInsets.top + Self.fold - findShift
         if abs(clip.bounds.origin.y - target) < 0.5 { foldedAt = clip.bounds.origin.y; return }
         // Once drawn, only a fold nobody has scrolled away from moves with the inset.
         if drawn { guard let at = foldedAt, abs(clip.bounds.origin.y - at) < 0.5 else { return } }
@@ -3691,8 +3742,16 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// gives them (council rounds 2 and 3, 11-04: the circles were drawn, the hidden "- [ ]" was
     /// all VoiceOver had). Each says its item, whether it's ticked, and ticks on a press.
     override func accessibilityChildren() -> [Any]? {
-        (super.accessibilityChildren() ?? []) + checklistCheckboxes()
+        // Tables are views laid over the text, which the text view doesn't list itself: without
+        // them VoiceOver heard a table as empty lines (council round 15).
+        let tables = cardHosts.filter { $0.key.hasPrefix("g") }.values.sorted { $0.frame.minY < $1.frame.minY }
+        return (super.accessibilityChildren() ?? []) + checklistCheckboxes() + tables
     }
+
+    /// The checkboxes VoiceOver was last given, kept so the same item is the same element each
+    /// time it asks: made anew on every call, a reader outside the app (VoiceOver, the round 15
+    /// capture's dump) held elements that were already gone and read them as nothing.
+    private var a11yBoxes: [String: ChecklistCheckbox] = [:]
 
     /// Checkboxes for the note's checklist items, in order (the first 300).
     func checklistCheckboxes() -> [ChecklistCheckbox] {
@@ -3706,10 +3765,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                core.checkboxRect(line: range.location, layout: textLayoutManager) != nil {
                 let item = (line as NSString).substring(from: min(list.length, (line as NSString).length))
                     .trimmingCharacters(in: .whitespacesAndNewlines)
-                found.append(ChecklistCheckbox(view: self, line: range.location, label: item, checked: checked))
+                let key = "\(range.location)|\(checked)|\(item)"
+                found.append(a11yBoxes[key] ?? ChecklistCheckbox(view: self, line: range.location, label: item, checked: checked))
             }
             at = NSMaxRange(range)
         }
+        a11yBoxes = Dictionary(found.map { ("\($0.line)|\($0.checked)|\($0.accessibilityLabel() ?? "")", $0) }, uniquingKeysWith: { a, _ in a })
         return found
     }
 

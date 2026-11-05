@@ -33,7 +33,7 @@ import AppKit
     @Test func returnOpensTheNoteAndUndoIsAClickOfItsOwn() throws {
         let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appending(path: "Pane/Views/AIChangesView.swift"), encoding: .utf8)
-        let bar = try #require(src.range(of: "private var bar: some View").map { String(src[$0.lowerBound...].prefix(2200)) })
+        let bar = try #require(src.range(of: "private func actions(_ c: AIChange) -> some View").map { String(src[$0.lowerBound...].prefix(2200)) })
         let undo = try #require(bar.range(of: "Button(\"Undo This Change\")"))
         let open = try #require(bar.range(of: "Button(\"Open Note\")"))
         let undoPart = String(bar[undo.lowerBound..<open.lowerBound])

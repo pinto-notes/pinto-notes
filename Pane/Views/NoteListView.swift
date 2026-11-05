@@ -610,6 +610,8 @@ struct NoteListView: View {
                 }
                 .menuIndicator(.hidden)
                 .tint(.primary)
+                // A toolbar menu's label is drawn as a picture, so VoiceOver had no name (council round 15).
+                .accessibilityLabel("More")
                 .accessibilityIdentifier("list.more")
                 .askAIPopover($asking, subject: askSubject ?? .all, recent: askRecent)
             }
@@ -1176,6 +1178,7 @@ struct ListCompose: View {
         }
         .disabled(off)
         .help(off ? "This note is new and empty" : "New Note (⌘N). Click and hold for New App.")
+        .accessibilityLabel("New Note")
         .newAppTip()
         // The menu bar's quick capture is the other way to start a note.
         .paneTip(MenuBarTip(), arrowEdge: .top)

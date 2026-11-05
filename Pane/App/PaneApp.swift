@@ -1692,7 +1692,8 @@ private struct NoticeAlert: ViewModifier {
                     }
                     .accessibilityIdentifier("notice.disconnect")
                 }
-                Button("OK", role: .cancel) { notices?.dismiss() }
+                // "It Was Me" answers the new-device question; the rest are news (round 15).
+                Button(n.kind == .keyFetched ? "It Was Me" : "OK", role: .cancel) { notices?.dismiss() }
                     .accessibilityIdentifier("notice.ok")
             } message: { _ in
                 Text(text.message)

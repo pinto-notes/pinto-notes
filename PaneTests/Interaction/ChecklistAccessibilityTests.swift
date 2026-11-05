@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import SwiftUI
 import Testing
 @testable import Pane
 
@@ -19,6 +20,19 @@ import Testing
         #expect(boxes.allSatisfy { $0.accessibilityFrame().width > 0 }, "each sits on its circle")
         let children = h.view.accessibilityChildren() ?? []
         #expect(children.filter { $0 is ChecklistCheckbox }.count == 2, "they're the text view's children")
+        // The same item is the same element each time VoiceOver asks (round 15: made anew on
+        // every call, an outside reader held elements already gone and read "?").
+        let again = h.view.checklistCheckboxes()
+        #expect(zip(boxes, again).allSatisfy { $0 === $1 }, "the same elements while the note is unchanged")
+    }
+
+    /// A table reaches VoiceOver as its cells, not as the empty lines of its hidden text.
+    @Test func aTableIsInTheTextsChildren() async {
+        let h = await EditorHarness("Food\n\n| Place | Dish |\n| --- | --- |\n| Ramiro | Seafood |\n", focus: false)
+        defer { h.close() }
+        await h.settle(0.4)
+        let children = h.view.accessibilityChildren() ?? []
+        #expect(children.contains { $0 is NSHostingView<AnyView> }, "the table's view is a child: \(children)")
     }
 
     @Test func aPressTicksTheItemAndLeavesTheCaret() async {

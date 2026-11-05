@@ -335,6 +335,7 @@ struct SettingsCard: View {
             TextField("Search", text: $query, prompt: Text("Search").foregroundStyle(SettingsInk.muted))
                 .textFieldStyle(.plain)
                 .focusEffectDisabled()
+                .accessibilityLabel("Search Settings")
                 .accessibilityIdentifier("settings.search")
             if !query.isEmpty {
                 Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }

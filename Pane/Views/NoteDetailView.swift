@@ -1417,6 +1417,8 @@ struct NoteDetailView: View {
         .tint(.primary)
         .menuIndicator(.hidden)
         .help("Attach")
+        // A toolbar menu's label is drawn as a picture, so VoiceOver had no name (council round 15).
+        .accessibilityLabel("Attach")
         .popover(isPresented: $linkingNote, arrowEdge: .bottom) { noteLinkPicker }
         .modifier(PhotoAttach(isPresented: $pickingPhotos) { urls in controller.insertFiles(context.addAttachments(urls)) })
         .accessibilityIdentifier("editor.attach")
@@ -1488,6 +1490,7 @@ struct NoteDetailView: View {
         .menuIndicator(.hidden)
         .help("More")
         #endif
+        .accessibilityLabel("More")
         #if os(macOS)
         .popover(isPresented: $movingNote, arrowEdge: .bottom) {
             MoveToPicker(current: note.folder?.id) { context.move(note, to: $0) }

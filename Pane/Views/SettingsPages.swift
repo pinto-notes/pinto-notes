@@ -349,8 +349,18 @@ struct TextSizeRow: View {
                 .labelsHidden()
                 .tint(SettingsInk.switchOn)
                 .frame(width: 180)
+                // One element of our own: the Mac's slider read its step number, "0" (round 15).
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Self.label)
                 .accessibilityValue(TextSize.spoken(size))
+                .accessibilityAdjustableAction { direction in
+                    let i = TextSize.index(of: size)
+                    switch direction {
+                    case .increment: TextSize.set(TextSize.steps[min(i + 1, TextSize.steps.count - 1)])
+                    case .decrement: TextSize.set(TextSize.steps[max(i - 1, 0)])
+                    @unknown default: break
+                    }
+                }
                 .accessibilityIdentifier("settings.textSize")
             Text("A").font(.system(size: 19)).foregroundStyle(SettingsInk.muted).accessibilityHidden(true)
             Text("\(Int(size)) pt")
