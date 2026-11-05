@@ -242,20 +242,11 @@ struct PresenceStack: View {
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("collab.viewOnly")
                 }
-                // Your changes are on this device only for now (offline, the server not answering):
-                // said beside the people, and "Synced" for a moment once they're up.
-                if SharedSyncLine.ticking(session) {
-                    TimelineView(.periodic(from: .now, by: 0.5)) { t in
-                        if let line = SharedSyncLine.at(t.date, session: session) {
-                            Text(line.text)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .fixedSize()
-                                .accessibilityIdentifier("collab.sync")
-                        }
-                    }
-                }
+                // On the Mac, beside the people. On the iPhone the bar has no room to spare: the words
+                // pushed Undo along it and back (persona council r7e), so they sit under it (NoteDetailView).
+                #if os(macOS)
+                SharedSyncWords(session: session)
+                #endif
                 avatars
             }
         }
@@ -287,6 +278,27 @@ struct PresenceStack: View {
         let sync = SharedSyncLine.at(.now, session: session).map { "\($0.text). " } ?? ""
         guard !here.isEmpty else { return viewOnly + sync + "People" }
         return viewOnly + sync + "In this note: " + here.map { $0.isStale() ? "\($0.name) (not connected)" : $0.name }.joined(separator: ", ")
+    }
+}
+
+/// Your changes are on this device only for now (offline, the server not answering): said in
+/// words, and "Synced" for a moment once they're up.
+struct SharedSyncWords: View {
+    let session: CollabSession
+
+    var body: some View {
+        if SharedSyncLine.ticking(session) {
+            TimelineView(.periodic(from: .now, by: 0.5)) { t in
+                if let line = SharedSyncLine.at(t.date, session: session) {
+                    Text(line.text)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .accessibilityIdentifier("collab.sync")
+                }
+            }
+        }
     }
 }
 

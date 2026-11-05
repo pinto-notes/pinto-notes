@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import SwiftUI
 
 /// Sharing a note with people: on for everyone signed in, on Mac and iPhone, since release 1.3.
 /// Nothing turns it on or off at launch; tests set `forced`.
@@ -132,13 +131,12 @@ final class ShareController {
     }
 
     private func finished(_ d: Done) {
-        // Eased, so the line under it slides rather than jumps (persona council r7d).
-        withAnimation(.easeOut(duration: 0.2)) { done = d }
+        done = d
         doneTask?.cancel()
         doneTask = Task { [weak self, doneFor] in
             try? await Task.sleep(for: doneFor)
             guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.2)) { self?.done = nil }
+            self?.done = nil
         }
     }
 

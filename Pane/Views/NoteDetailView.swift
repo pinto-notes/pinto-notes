@@ -313,6 +313,11 @@ struct NoteDetailView: View {
             // own, there only with a receipt: reading the text here would work out the whole
             // pane again on every key.
             .background { NoteAskableWatcher(note: note) { askable = $0 } }
+            #if os(iOS)
+            .overlay(alignment: .topTrailing) {
+                if let collab { SharedSyncWords(session: collab).padding(.trailing, 20).padding(.top, 2) }
+            }
+            #endif
             .background {
                 if let receipt {
                     ReceiptUndoneWatcher(note: note, receipt: receipt) {

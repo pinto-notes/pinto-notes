@@ -106,6 +106,8 @@ struct ShareForm: View {
             }
         }
         .formStyle(.grouped)
+        // Someone removed: the rows below slide up rather than jump (persona council r7e).
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: state.people.map(\.id))
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: share.done)
         .navigationTitle("Share")
         #if os(iOS)
