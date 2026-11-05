@@ -52,9 +52,11 @@ import AppKit
         #expect(row.contains("private let lineFont = Font.system(size: 12)"), "who and when at 12 pt, read before Undo (round 4)")
         #expect(!src.contains("NSColor(white:") && src.contains("Rectangle().fill(Color.line)"), "the theme's dividers, solid in High contrast (council round 11)")
         #expect(!src.contains("windowBackgroundColor"), "the list and the bar on the note's ground, not a grey beside black")
-        // One accent (round 5): Done, Undo and the filter in ink, the list's quiet grey selection.
-        let donePart = try #require(bar.range(of: "Button(\"Done\"").map { String(bar[$0.lowerBound...].prefix(120)) })
-        #expect(donePart.contains(".tint(.primary)") && undoPart.contains(".tint(.primary)") && !undoPart.contains("amberProminent"))
+        // One accent (round 5): Undo and the filter in ink, the list's quiet grey selection. Round 16: a
+        // card's × in the corner closes it, like the app's other sheets; no Done bar along the bottom.
+        #expect(src.components(separatedBy: "Button(\"Done\"").count == 2, "only the iPhone's toolbar Done")
+        #expect(src.contains("CardCloseButton(size: 28, action: close)"))
+        #expect(undoPart.contains(".tint(.primary)") && !undoPart.contains("amberProminent"))
         #expect(src.contains(".hoverRow(\"aiChange\", reach: Hover.noteRowReach, selected: model.selection == c.id)") && src.contains(".quietSelection()"))
         let filter = try #require(src.range(of: "struct AIChangesFilter").map { String(src[$0.lowerBound...].prefix(600)) })
         #expect(filter.contains(".tint(.primary)"))
