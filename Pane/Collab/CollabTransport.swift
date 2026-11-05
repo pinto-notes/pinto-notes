@@ -85,6 +85,8 @@ protocol CollabTransport: AnyObject {
 protocol CollabChannel: AnyObject {
     /// Your sealed presence (`amb3p`), to everyone else in the note.
     func send(presence ct: String)
+    /// Tells everyone on the note's channel that who's in it changed. Says nothing else, not even who.
+    func sendMembersChanged()
     func close()
 }
 
@@ -170,6 +172,9 @@ enum Collab {
         case presence(user: UUID, ct: String)
         /// Someone closed the note on their last device, or lost their connection.
         case leave(UUID)
+        /// Someone was removed and the note has a new key: check your memberships now, not at the
+        /// next half-minute check. Only a nudge: the server's memberships say what happened.
+        case membersChanged
         /// The channel (re)joined and changes are being relayed from now on: anything stored before
         /// may have been missed, so pull.
         case reconnected

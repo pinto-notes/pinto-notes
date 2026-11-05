@@ -241,6 +241,9 @@ const saraSteps = steps(people[1], [
   { waitSync: { text: "Synced", timeout: 240, soft: true } }, mark("sara-synced"), { dump: "synced.json" },
   { waitPresence: { grey: false, timeout: 60, soft: true } }, mark("sara-sees-emil-back"),
   { waitFile: "go-online.txt" }, { waitText: { text: "- [x] Book the train", timeout: 60 } },
+  // This script fetches her key to connect her AI. A real connect (/connect) doesn't, so no real
+  // connect shows the new-device alert this fetch would.
+  { keyFetchHere: true },
   { waitFile: "go-ai.txt" }, { waitText: { text: "3-4 November", timeout: 120 } }, mark("sara-sees-ai-edit"), ...hold(), { dump: "ai.json" },
   // She types while Emil has Share open on her; he removes her a moment after.
   { waitFile: "go-type.txt" }, { type: { text: "\nBring name badges", after: "Book the train" } }, mark("sara-typed-before-removal"), { dump: "typed-before.json" },

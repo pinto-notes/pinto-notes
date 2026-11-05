@@ -293,6 +293,7 @@ fileprivate final class FakeChannel: CollabChannel {
     }
 
     func send(presence ct: String) {}
+    func sendMembersChanged() {}
     func close() {
         open = false
         closed = true

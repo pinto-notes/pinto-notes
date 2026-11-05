@@ -193,6 +193,18 @@ import Testing
         #expect(sara.context.note(hers)?.deletedAt != nil)
     }
 
+    @Test func aRemovedPersonFindsOutAtOnceNotAtTheNextCheck() async throws {
+        // Her channel stays open and her half-minute check has just run: only the nudge can tell her in time.
+        server.removedStayOnChannel = true
+        let (emil, sara, note, ids) = try await shared("Plan\n")
+        await sara.store.checkMemberships()
+        let hers = try #require(sara.context.pointer(forShared: note.id)?.id)
+        try await emil.store.remove(ids.1, from: note)
+        await server.eventually { sara.store.removedFrom.contains(hers) }
+        #expect(sara.store.removedFrom.contains(hers))
+        #expect(sara.store.session(for: hers) == nil)
+    }
+
     @Test func presenceReachesTheOtherPersonAndLeavingIsSeen() async throws {
         let (emil, sara, note, ids) = try await shared("Hello\n")
         let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))

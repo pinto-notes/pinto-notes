@@ -249,6 +249,7 @@ final class SupabaseCollabTransport: CollabTransport {
         let live = SupabaseCollabChannel(channel: channel, client: client, me: me)
         let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "note_updates", filter: .eq("note_id", value: Self.id(note)))
         let presence = channel.broadcastStream(event: "presence")
+        let membersChanged = channel.broadcastStream(event: "members")
         let devices = channel.presenceChange()
         let status = channel.statusChange
         let system = channel.system()
@@ -283,6 +284,9 @@ final class SupabaseCollabTransport: CollabTransport {
                     guard let p = Self.presence(message), p.user != me else { continue }
                     onEvent(.presence(user: p.user, ct: p.ct))
                 }
+            },
+            Task { @MainActor in
+                for await _ in membersChanged { onEvent(.membersChanged) }
             },
             Task { @MainActor in
                 var here: [String: UUID] = [:]
@@ -355,6 +359,11 @@ final class SupabaseCollabChannel: CollabChannel {
         guard open else { return }
         let message: JSONObject = ["user": .string(me.uuidString.lowercased()), "ct": .string(ct)]
         Task { await channel.broadcast(event: "presence", message: message) }
+    }
+
+    func sendMembersChanged() {
+        guard open else { return }
+        Task { await channel.broadcast(event: "members", message: [:]) }
     }
 
     func close() {

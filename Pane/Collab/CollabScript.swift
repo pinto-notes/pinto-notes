@@ -47,6 +47,7 @@ import AppKit
 ///   {"dump": "state.json"}                         the open note's text, its share state and saved link, who's
 ///                                                  in it, its sync line, its AI mark, and a lost-access alert
 ///   {"wait": 2}, {"quit": true}
+///   {"keyFetchHere": true}                         the key fetch the run script makes for this account's AI is this device's own, so it asks nothing here
 ///
 /// The last four take "soft": true (answerLostAccess as {"answer": "keepCopy", "soft": true}): when what
 /// they wait for doesn't come, the log says "<n> <step> missed …" in place of "ok" and the steps go on,
@@ -111,6 +112,8 @@ enum CollabScript {
         switch key {
         case "wait":
             try await Task.sleep(for: .seconds(value as? Double ?? 1))
+        case "keyFetchHere":
+            KeyCopyMoment.here = .now
         case "signIn":
             // "again": signs in even when signed in, as Start fresh asks for a recent sign-in.
             let v = value as? [String: Any] ?? [:]

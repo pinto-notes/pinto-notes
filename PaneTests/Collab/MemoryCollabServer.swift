@@ -57,6 +57,10 @@ final class MemoryCollabServer {
     }
 
     /// Waits (up to two seconds) for something to become true: an event delivered, a channel joined.
+    /// As Realtime did on the local stack (round 7, two phones): a removed person's open channel
+    /// isn't cut, so nothing tells their phone until it next asks the server, or someone says so.
+    var removedStayOnChannel = false
+
     func eventually(_ condition: () -> Bool) async {
         for _ in 0..<400 where !condition() { await settle(); try? await Task.sleep(for: .milliseconds(5)) }
     }
@@ -150,7 +154,7 @@ final class MemoryCollabServer {
         notes[note]?.epoch = epoch
         notes[note]?.rekeyAfter = nil
         // A removed person's open channel is cut, as the realtime policy refuses them from now on.
-        if let user { for c in channels[note] ?? [] where c.user == user { c.cut() } }
+        if let user, !removedStayOnChannel { for c in channels[note] ?? [] where c.user == user { c.cut() } }
         return epoch
     }
 
@@ -217,7 +221,8 @@ final class MemoryCollabServer {
         nextID += 1
         let u = Collab.Update(id: nextID, note_id: note, author_id: user, epoch: epoch, ct: ct, client: nil)
         updates[note, default: []].append(u)
-        if !dropRelays { for c in channels[note] ?? [] { deliver(c, .update(u)) } }
+        // Row-level security: Realtime relays a stored change only to people still in the note.
+        if !dropRelays { for c in channels[note] ?? [] where !removedStayOnChannel || members[note]?[c.user] != nil { deliver(c, .update(u)) } }
         return u
     }
 
@@ -247,6 +252,10 @@ final class MemoryCollabServer {
 
     func presence(from c: MemoryChannel, ct: String) {
         for other in channels[c.note] ?? [] where other !== c && other.user != c.user { deliver(other, .presence(user: c.user, ct: ct)) }
+    }
+
+    func membersChanged(from c: MemoryChannel) {
+        for other in channels[c.note] ?? [] where other !== c { deliver(other, .membersChanged) }
     }
 
     func closed(_ c: MemoryChannel) {
@@ -296,6 +305,11 @@ final class MemoryChannel: CollabChannel {
     func send(presence ct: String) {
         guard isOpen else { return }
         server.presence(from: self, ct: ct)
+    }
+
+    func sendMembersChanged() {
+        guard isOpen else { return }
+        server.membersChanged(from: self)
     }
 
     func close() {

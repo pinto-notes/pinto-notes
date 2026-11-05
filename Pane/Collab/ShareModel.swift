@@ -155,6 +155,9 @@ extension CollabStore: ShareBackend {
             wraps.append(Collab.Wrap(user_id: m.user_id, key_wrap: try CollabCrypto.sealNoteKey(nk, from: identity, to: key, party: .init(note: id, epoch: epoch, from: me, to: m.user_id))))
         }
         try await transport.remove(note: id, user: user, epoch: epoch, wraps: wraps)
+        // At once: whoever was removed finds out, and whoever stays gets the new key, without
+        // waiting for the half-minute check. A phone that misses this still has that check.
+        session.announceMembersChanged()
         // The removal waited for changes in flight under the old key (20261104100500): take them
         // now, still with the old key, so the snapshot sealed under the new one holds them.
         await session.catchUp().value

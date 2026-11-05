@@ -316,6 +316,7 @@ final class CollabStore {
     /// library mirrors its text into the note and follows its key.
     private func opened(_ session: CollabSession, note: Note) {
         sessions[note.id] = session
+        session.onMembersChanged = { [weak self] in Task { await self?.checkMemberships() } }
         // A shared note's document just opened: anything the widget or share sheet left for it goes in.
         Task { @MainActor [weak self] in
             guard let self, let context, let library else { return }

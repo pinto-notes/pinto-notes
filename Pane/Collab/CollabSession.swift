@@ -126,6 +126,8 @@ final class CollabSession {
     /// The server refused a change for an old key (or the channel refused you): the library
     /// looks for the new key (`reseal`), or finds you were removed.
     @ObservationIgnored var onKeyChanged: (() -> Void)?
+    /// Someone on the channel said who's in the note changed.
+    @ObservationIgnored var onMembersChanged: (() -> Void)?
     /// A new key was taken (`reseal`): the library keeps it, sealed under your data key.
     @ObservationIgnored var onResealed: ((SymmetricKey, Int) -> Void)?
     /// The server says you aren't in the note anymore.
@@ -495,6 +497,9 @@ final class CollabSession {
             relayRefused = nil
             catchUp()
             flush()
+        case .membersChanged:
+            CollabScript.trace("who's in the note changed: checking memberships")
+            onMembersChanged?()
         case .notRelaying(let why):
             // Said again each time Realtime tries (every 5 to 10 seconds): told once, until it changes.
             if relayRefused != why {
@@ -956,6 +961,9 @@ final class CollabSession {
               let ct = try? CollabCrypto.seal(.presence, data, nk: nk, note: noteID, epoch: epoch, extra: me.uuidString) else { return }
         channel.send(presence: ct)
     }
+
+    /// Tells the others on the channel that who's in the note changed.
+    func announceMembersChanged() { channel?.sendMembersChanged() }
 
     // MARK: Showing people
 
