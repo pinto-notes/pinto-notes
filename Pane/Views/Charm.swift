@@ -29,7 +29,7 @@ enum Charm {
         case .more: rare ? 1.7 : 0.75
         case .sidebar: 0.8
         case .folder: rare ? 1.3 : 1.0
-        case .trash: 2.2
+        case .trash: rare ? 2.2 : 3.0
         case .format: rare ? 1.1 : 0.85
         case .today: rare ? 1.55 : 1.0
         case .undo: rare ? 1.45 : 0.8
@@ -536,10 +536,10 @@ enum Charm {
         } else {
             // A note goes in: the lid opens, the page drops, the lid claps shut. Then it lifts a
             // little, and someone inside looks around, blinks and ducks back down.
-            lift = CharmMath.keys(t, [(0, 0), (0.14, 6), (0.42, 6), (0.5, 0), (0.86, 0), (1.0, 5.2), (1.86, 5.2), (1.96, 0)])
-            tilt = CharmMath.keys(t, [(0, 0), (0.14, -22), (0.42, -22), (0.5, 0), (0.86, 0), (1.0, -5), (1.86, -5), (1.96, 0)])
+            lift = CharmMath.keys(t, [(0, 0), (0.14, 6), (0.42, 6), (0.5, 0), (0.86, 0), (1.02, 7.6), (2.6, 7.6), (2.68, 0)])
+            tilt = CharmMath.keys(t, [(0, 0), (0.14, -22), (0.42, -22), (0.5, 0), (0.86, 0), (1.02, -4), (2.6, -4), (2.68, 0)])
                 + (t > 0.5 && t < 0.86 ? CharmMath.wobble(t - 0.5, amp: 7, freq: 7, damping: 9) : 0)
-                + (t > 1.96 ? CharmMath.wobble(t - 1.96, amp: 5, freq: 7, damping: 20) : 0)
+                + (t > 2.68 ? CharmMath.wobble(t - 2.68, amp: 6, freq: 7, damping: 20) : 0)
             // The clap shakes the can.
             let shake = t > 0.5 && t < 0.86 ? 1 + 0.06 * exp(-9 * (t - 0.5)) * cos((t - 0.5) * 30) : 1
             c.scale(around: CGPoint(x: 12, y: 21), x: 2 - shake, y: shake)
@@ -568,16 +568,37 @@ enum Charm {
         ribs.move(to: CGPoint(x: 10, y: 10.2)); ribs.addLine(to: CGPoint(x: 10.3, y: 17.8))
         ribs.move(to: CGPoint(x: 14, y: 10.2)); ribs.addLine(to: CGPoint(x: 13.7, y: 17.8))
         c.stroke(ribs, with: p.ink, style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
-        do {
+        if rare {
             // Eyes in the gap: open, look left, right, blink, then duck back as the lid shuts.
-            let open = rare ? CharmMath.seg(t, 0.3, 0.42) * (1 - CharmMath.seg(t, 1.6, 1.72)) : CharmMath.seg(t, 1.0, 1.1) * (1 - CharmMath.seg(t, 1.76, 1.86))
-            let look = rare ? CharmMath.keys(t, [(0, 0), (0.55, 0), (0.7, -1.3), (1.0, -1.3), (1.15, 1.3), (1.4, 1.3), (1.55, 0)])
-                : CharmMath.keys(t, [(0, 0), (1.12, 0), (1.22, -1.4), (1.42, -1.4), (1.52, 1.4), (1.7, 1.4), (1.76, 0)])
-            let blink = 1 - (rare ? CharmMath.pulse(t, 1.42, 1.56) : CharmMath.pulse(t, 1.58, 1.68))
+            let open = CharmMath.seg(t, 0.3, 0.42) * (1 - CharmMath.seg(t, 1.6, 1.72))
+            let look = CharmMath.keys(t, [(0, 0), (0.55, 0), (0.7, -1.3), (1.0, -1.3), (1.15, 1.3), (1.4, 1.3), (1.55, 0)])
+            let blink = 1 - CharmMath.pulse(t, 1.42, 1.56)
             let r = 1.3, ry = r * open * max(blink, 0.1)
             if open > 0.01 {
                 for x in [10.2, 13.8] {
                     c.fill(Path(ellipseIn: CGRect(x: x + look - r, y: 5.0 - ry + (1 - open) * 2.0, width: 2 * r, height: 2 * ry)), with: p.ink)
+                }
+            }
+        } else {
+            // Big eyes under the lid: they look left, look right, blink, find you, freeze, and duck.
+            let open = CharmMath.seg(t, 1.02, 1.12) * (1 - CharmMath.seg(t, 2.52, 2.6))
+            let look = CharmMath.keys(t, [(0, 0), (1.26, 0), (1.36, -1), (1.66, -1), (1.78, 1), (2.06, 1), (2.14, 0)])
+            let blink = 1 - CharmMath.pulse(t, 1.56, 1.68)
+            let wide = 1 + 0.1 * CharmMath.seg(t, 2.14, 2.2)
+            if open > 0.01 {
+                c.drawLayer { l in
+                    let r = 2.7 * wide, ry = r * open * max(blink, 0.08), y = 3.9 + (1 - open) * 3
+                    for x in [8.7, 15.3] {
+                        let cx = x + look * 0.9
+                        l.fill(Path(ellipseIn: CGRect(x: cx - r, y: y - ry, width: 2 * r, height: 2 * ry)), with: .color(.primary))
+                    }
+                    // The pupils are holes, so they stay dark on dark and light on light.
+                    l.blendMode = .destinationOut
+                    let pupil = 1.25 * min(1, ry / 1.25)
+                    for x in [8.7, 15.3] {
+                        let cx = x + look * 2.2
+                        l.fill(Path(ellipseIn: CGRect(x: cx - pupil, y: y - pupil, width: 2 * pupil, height: 2 * pupil)), with: .color(.black))
+                    }
                 }
             }
         }

@@ -148,12 +148,16 @@ enum CheckPop {
             hop.addSublayer(tick)
             host.addSublayer(hop)
             let grow = CAKeyframeAnimation(keyPath: "transform.scale")
-            grow.values = [1, 1.42, 0.92, 1]
+            grow.values = [1, 1.3, 0.92, 1]
             grow.keyTimes = [0, 0.38, 0.72, 1]
+            // Up off the line and back. y grows downwards here.
+            let up = CAKeyframeAnimation(keyPath: "transform.translation.y")
+            up.values = [0, -s * 0.5, s * 0.06, 0]
+            up.keyTimes = [0, 0.38, 0.72, 1]
             let show = CAKeyframeAnimation(keyPath: "opacity")
             show.values = [1, 1]
             let group = CAAnimationGroup()
-            group.animations = [grow, show]
+            group.animations = [grow, up, show]
             group.beginTime = CACurrentMediaTime() + 0.12 + Double(i) * 0.055
             group.duration = 0.34
             group.isRemovedOnCompletion = true
