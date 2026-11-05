@@ -10,11 +10,10 @@ import SwiftUI
 /// any frame offscreen and the app draws only while a move plays (the timeline is paused at rest).
 /// Nothing moves with Reduce Motion on.
 ///
-/// In the app, kept few on purpose (Emil, 5 November 2026): three everyday moves that mean
-/// something (Today's page turns to today's date, Format's A leans into italic, a finished list
-/// bursts in CheckPop) and rare surprises, about one hover in 30 (Format's bold, italic and
-/// underline; Today's riffle; the search lens's eye; the trash's eyes on Recently Deleted).
-/// The other glyphs stay drawn here for the concept films but aren't placed in the app.
+/// In the app, kept few on purpose (Emil and the UI council, 5 November 2026): Today's page
+/// turns to today's date, Format's A leans into italic, a finished list bursts (CheckPop), and
+/// rarely (about one hover in 40, once a launch at most) Format tries on bold, italic and
+/// underline. The other glyphs stay drawn here for the concept films but aren't in the app.
 enum Charm {
     enum Kind: String, CaseIterable, Sendable {
         case search, compose, checklist, table, attach, share, more, sidebar, folder, trash
@@ -34,7 +33,7 @@ enum Charm {
         case .sidebar: 0.8
         case .folder: rare ? 1.3 : 1.0
         case .trash: rare ? 2.2 : 0.85
-        case .format: rare ? 1.9 : 0.85
+        case .format: rare ? 1.1 : 0.85
         case .today: rare ? 1.55 : 0.9
         case .undo: rare ? 1.45 : 0.8
         case .settings: rare ? 1.9 : 1.05
@@ -48,20 +47,18 @@ enum Charm {
     /// Which glyphs have a rare version.
     static func hasRare(_ kind: Kind) -> Bool { kind != .sidebar }
 
-    /// Glyphs that stay still on an ordinary hover and only ever play their rare version (the
-    /// lens's eye, the trash's eyes, the smiling dots): a surprise, never a habit.
-    static func rareOnly(_ kind: Kind) -> Bool { [.search, .trash, .more].contains(kind) }
-
-    /// Whether a hover plays anything at all.
-    static func plays(_ kind: Kind, rare: Bool) -> Bool { rare || !rareOnly(kind) }
+    /// The rare versions the app plays: Format's alone (UI council, 5 November 2026). The others
+    /// stay drawn for the concept films.
+    static let rareInApp: Set<Kind> = [.format]
 
     // MARK: The rare roll
 
     /// Hovers so far this run, and whether the last move was rare.
     @MainActor private static var hovers = 0
     @MainActor private static var lastRare = false
-    /// One hover in this many, roughly, plays the rare version.
-    static let rareOdds = 30
+    /// One hover in this many, roughly, plays the rare version, and at most once a launch.
+    static let rareOdds = 40
+    @MainActor private static var rareShown = false
     /// Tests and captures: always (true) or never (false) rare.
     @MainActor static var forcedRare: Bool?
 
@@ -72,9 +69,17 @@ enum Charm {
             return UserDefaults.standard.bool(forKey: "charmRare") && hasRare(kind)
         }
         hovers += 1
-        let rare = hasRare(kind) && hovers > 4 && !lastRare && Int.random(in: 0..<rareOdds) == 0
+        let rare = rareInApp.contains(kind) && hovers > 4 && !lastRare && !rareShown && Int.random(in: 0..<rareOdds) == 0
         lastRare = rare
+        rareShown = rareShown || rare
         return rare
+    }
+
+    /// Tests: a fresh launch's rolls.
+    @MainActor static func resetRolls() {
+        hovers = 0
+        lastRare = false
+        rareShown = false
     }
 
     // MARK: Drawing
@@ -616,7 +621,9 @@ enum Charm {
         var weight = Font.Weight.regular
         var shear = 0.0, hop = 0.0, squash = 0.0, underline = 0.0
         if rare {
-            // Bold, then italic, then underlined, each held a moment, then plain again.
+            // Bold, then italic, then underlined, each held a moment, then plain again: the
+            // keyframes below at 1.8 times the pace, about a second in all.
+            let t = t * 1.8
             let bold = CharmMath.seg(t, 0.1, 0.22) * (1 - CharmMath.seg(t, 0.62, 0.72))
             weight = bold > 0.5 ? .bold : .regular
             shear = -0.24 * CharmMath.easeInOut(CharmMath.seg(t, 0.62, 0.78)) * (1 - CharmMath.easeInOut(CharmMath.seg(t, 1.1, 1.25)))
@@ -640,21 +647,16 @@ enum Charm {
         if underline > 0 {
             var u = Path()
             u.move(to: CGPoint(x: 2.6, y: 20.3)); u.addLine(to: CGPoint(x: 2.6 + 18.8 * underline, y: 20.3))
-            c.stroke(u, with: p.accent, style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+            // The text's colour, not the accent, so it can't read as underline being on.
+            c.stroke(u, with: p.ink, style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
         }
     }
 
     // MARK: Today: the page flips to today's date. Rare: a few days riffle past first.
 
-    private static func today(_ c: inout GraphicsContext, _ t: Double, _ rare: Bool, _ p: Pen, day: Int) {
-        let frame = CGRect(x: 3.6, y: 4.8, width: 16.8, height: 15.6)
-        c.stroke(Path(roundedRect: frame, cornerRadius: 3.2), with: p.ink, style: p.style)
-        c.drawLayer { l in
-            l.clip(to: Path(roundedRect: frame, cornerRadius: 3.2))
-            l.fill(Path(CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: 4.2)), with: p.ink)
-        }
-        // Which number shows, and how far through its flip the page is (1 open, 0 edge on).
-        var shown = day, fold = 1.0
+    /// The page's number at `t` (nil: a blank page) and how far open it is (1 open, 0 edge on).
+    static func todayPage(_ t: Double, _ rare: Bool, day: Int) -> (shown: Int?, fold: Double) {
+        var shown = day, fold = 1.0, blank = false
         let flips = rare ? 5 : 1
         let span = rare ? 0.9 : 0.5
         if t > 0.05, t < 0.05 + span + 0.4 {
@@ -667,6 +669,8 @@ enum Charm {
                 fold = 1
             } else if local < 0.5 {
                 shown = from
+                // The page that turns away is blank, so no wrong date ever shows (UI council).
+                blank = !rare
                 fold = 1 - CharmMath.easeIn(local * 2)
             } else {
                 shown = from + 1
@@ -678,10 +682,20 @@ enum Charm {
                 fold = CharmMath.spring(max(settle, 0), freq: 2.6, damping: 9)
             }
         }
-        shown = ((shown - 1 + 31) % 31) + 1
+        return (blank ? nil : ((shown - 1 + 31) % 31) + 1, fold)
+    }
+
+    private static func today(_ c: inout GraphicsContext, _ t: Double, _ rare: Bool, _ p: Pen, day: Int) {
+        let frame = CGRect(x: 3.6, y: 4.8, width: 16.8, height: 15.6)
+        c.stroke(Path(roundedRect: frame, cornerRadius: 3.2), with: p.ink, style: p.style)
+        c.drawLayer { l in
+            l.clip(to: Path(roundedRect: frame, cornerRadius: 3.2))
+            l.fill(Path(CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: 4.2)), with: p.ink)
+        }
+        let (shown, fold) = todayPage(t, rare, day: day)
         var page = c
         page.scale(around: CGPoint(x: 12, y: 9.0), x: 1, y: max(fold, 0.02))
-        let n = page.resolve(Text("\(shown)").font(.system(size: 8.6, weight: .semibold)).monospacedDigit().foregroundStyle(.primary))
+        let n = page.resolve(Text(shown.map(String.init) ?? "").font(.system(size: 8.6, weight: .semibold)).monospacedDigit().foregroundStyle(.primary))
         page.draw(n, at: CGPoint(x: 12, y: 14.7), anchor: .center)
         // Two rings over the top.
         var rings = Path()
@@ -972,9 +986,7 @@ struct CharmIcon: View {
 
     private func play() {
         guard !reduceMotion, start == nil else { return }
-        let rare = Charm.rollRare(kind)
-        guard Charm.plays(kind, rare: rare) else { return }
-        self.rare = rare
+        rare = Charm.rollRare(kind)
         start = .now
     }
 }

@@ -87,12 +87,6 @@ enum DemoData {
         // Captures of files kept in a folder (`-demoFiles`): a "To read" folder of papers, a photo
         // and a spreadsheet next to a note.
         if ProcessInfo.processInfo.arguments.contains("-demoFiles") { loadFolderFiles(into: context) }
-        // Captures of Recently Deleted (`-demoTrashed`): one note already deleted, so its row shows.
-        if ProcessInfo.processInfo.arguments.contains("-demoTrashed") {
-            let old = context.createNote(in: .folder(main.id), body: "Old shopping list\n\n- [x] Batteries")
-            old.updatedAt = .now.addingTimeInterval(-3 * 86400)
-            old.trashedAt = .now.addingTimeInterval(-86400)
-        }
         try? context.save()
     }
 

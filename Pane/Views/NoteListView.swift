@@ -865,11 +865,7 @@ struct NoteListView: View {
         if !search.isEmpty {
             ContentUnavailableView.search(text: search)
         } else if scope == .trash {
-            ContentUnavailableView {
-                Label { Text("No Deleted Notes") } icon: { CharmSymbol("trash", pointSize: 40) }
-            } description: {
-                Text("Notes and files you delete stay here for 30 days.")
-            }
+            ContentUnavailableView("No Deleted Notes", systemImage: "trash", description: Text("Notes and files you delete stay here for 30 days."))
         } else if case .tag(let name) = scope {
             // The last note with the tag lost it (or went to Recently Deleted).
             ContentUnavailableView("No Notes", systemImage: "number", description: Text("No notes have #\(name)."))
@@ -1111,8 +1107,6 @@ struct ListCompose: View {
         ComposeButton(newNote: newNote, off: off) {
             // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
             Label { Text("New Note") } icon: {
-                // A menu (click and hold for New App): the toolbar shows its label as a still
-                // picture, so Charm's pencil can't play here.
                 ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift)
                     .foregroundStyle(Self.iconStyle(off: off))
             }

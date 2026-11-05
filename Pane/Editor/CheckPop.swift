@@ -76,8 +76,9 @@ enum CheckPop {
         CATransaction.begin()
         for i in 0..<8 {
             let a = Double(i) / 8 * 2 * .pi - .pi / 2
-            let from = CGPoint(x: center.x + cos(a) * s * 0.62, y: center.y + sin(a) * s * 0.62)
-            let to = CGPoint(x: center.x + cos(a) * s * 1.05, y: center.y + sin(a) * s * 1.05)
+            // About 3 pt clear of the box, so the pointer on it doesn't hide them.
+            let from = CGPoint(x: center.x + cos(a) * (s * 0.62 + 1.5), y: center.y + sin(a) * (s * 0.62 + 1.5))
+            let to = CGPoint(x: center.x + cos(a) * (s * 1.05 + 3), y: center.y + sin(a) * (s * 1.05 + 3))
             let d = CAShapeLayer()
             d.bounds = CGRect(x: 0, y: 0, width: dot, height: dot)
             d.path = CGPath(ellipseIn: d.bounds, transform: nil)

@@ -42,26 +42,28 @@ import Testing
         }
     }
 
-    /// The rare version never on the first hovers, and never twice in a row.
+    /// The rare version: Format's only, never on the first hovers, and once a launch at most.
     @Test func rareWaitsItsTurn() {
         Charm.forcedRare = nil
+        Charm.resetRolls()
         var rares: [Bool] = []
-        for _ in 0..<400 { rares.append(Charm.rollRare(.search)) }
+        for _ in 0..<1000 { rares.append(Charm.rollRare(.format)) }
         #expect(!rares.prefix(4).contains(true))
-        #expect(rares.contains(true))
-        #expect(!zip(rares, rares.dropFirst()).contains { $0 && $1 })
-        // About one in `rareOdds` (never more than twice that).
-        #expect(rares.filter { $0 }.count < 400 / Charm.rareOdds * 2)
+        #expect(rares.filter { $0 }.count == 1)
+        Charm.resetRolls()
+        #expect(!(0..<1000).contains { _ in Charm.rollRare(.today) || Charm.rollRare(.search) || Charm.rollRare(.trash) })
+        Charm.resetRolls()
     }
 
-    /// The lens and the trash keep still on an ordinary hover: only their rare version plays.
-    @Test func rareOnlyStaysStill() {
-        for kind in [Charm.Kind.search, .trash, .more] {
-            #expect(!Charm.plays(kind, rare: false), "\(kind)")
-            #expect(Charm.plays(kind, rare: true), "\(kind)")
+    /// Today's ordinary flip never shows another day's number: the page turning away is blank.
+    @Test func todayNeverShowsAnotherDay() {
+        var blanks = 0
+        for t in stride(from: 0.0, to: Charm.duration(.today, rare: false), by: 0.01) {
+            let page = Charm.todayPage(t, false, day: 5)
+            #expect(page.shown == nil || page.shown == 5, "t=\(t): \(String(describing: page.shown))")
+            if page.shown == nil { blanks += 1 }
         }
-        #expect(Charm.plays(.today, rare: false))
-        #expect(Charm.plays(.format, rare: false))
+        #expect(blanks > 0)
     }
 
     /// Every symbol it stands in for maps to a glyph, and others stay symbols.
