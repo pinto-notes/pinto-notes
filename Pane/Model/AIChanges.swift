@@ -221,8 +221,8 @@ enum AIChangeCopy {
     }
 
     /// A change in words, not a diff tool's "+1 −1 lines" (council round 8): one line swapped is
-    /// named ("Changed “Tram 28 early, before the crowds”"), otherwise "Added 2 lines", "Removed a
-    /// line" or "Changed 5 lines". "No visible change" when only blank lines moved.
+    /// named ("Changed “Tram 28” to “Tram 28 early”"), otherwise "Added 2 lines", "Removed 3 lines" or
+    /// "Changed 5 lines". "No visible change" when only blank lines moved.
     static func words(_ d: EditDiff) -> String {
         guard d.plus + d.minus > 0 else { return "No visible change" }
         let count = { (n: Int) in n == 1 ? "a line" : "\(n) lines" }
@@ -236,17 +236,23 @@ enum AIChangeCopy {
                 return ticks.count == 1 ? first : first + " and \(ticks.count - 1) more"
             }
         }
-        if d.plus == 1, d.minus == 1, let r = d.added.first {
-            let marker = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|#+\s+|>\s*)"#)
+        // One line: say which, the way the person reads it (round 18: "Removed a line" made you
+        // open the change to find out). Whole: the list's rows end it in "…" where they run out of
+        // room; the selected change shows it all (council round 10).
+        let marker = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|#+\s+|>\s*)"#)
+        let words = { (r: NSRange) -> String in
             let line = (d.text as NSString).substring(with: r)
-            let text = marker.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: (line as NSString).length), withTemplate: "")
-                .trimmingCharacters(in: .whitespaces)
-            if !text.isEmpty {
-                // Whole: the list's rows end it in "…" where they run out of room; the selected
-                // change shows it all (council round 10: it was cut at 40 characters everywhere).
-                return "Changed \u{201C}\(text)\u{201D}"
+            return marker.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: (line as NSString).length), withTemplate: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if d.plus == 1, d.minus == 1, let r = d.added.first {
+            let now = words(r)
+            let was = d.removed.first.map(words) ?? ""
+            if !now.isEmpty {
+                return was.isEmpty ? "Changed \u{201C}\(now)\u{201D}" : "Changed \u{201C}\(was)\u{201D} to \u{201C}\(now)\u{201D}"
             }
         }
+        if d.plus == 0, d.minus == 1, let r = d.removed.first, !words(r).isEmpty { return "Removed \u{201C}\(words(r))\u{201D}" }
         if d.minus == 0 { return "Added \(count(d.plus))" }
         if d.plus == 0 { return "Removed \(count(d.minus))" }
         return "Changed \(count(max(d.plus, d.minus)))"

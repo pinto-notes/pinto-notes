@@ -430,7 +430,7 @@ enum LockedNotesCopy {
     /// Setting up the password: what locking does, and what an AI sees, as Settings says it
     /// (persona council round 3: this said an AI sees the title, Settings and the server don't).
     /// Short, with the two warnings on their own lines below (council round 16: a dense block).
-    static let setupLine = "One password for all your locked notes, on every device. Their text is encrypted before it syncs, so nobody else can read it, not even us. Titles stay visible to you. An AI sees that a locked note exists, not its title or text."
+    static let setupLine = "One password for all your locked notes, on every device. Nobody else can read them, not even us."
     static let forgetLine = "If you forget this password, your locked notes can\u{2019}t be recovered."
     static let historyLine = "Locking a note removes its earlier versions."
     /// What a connected AI sees of a locked note.

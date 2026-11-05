@@ -91,7 +91,7 @@ import Testing
         let name: (UUID) -> String? = { $0 == trips.id ? "Trips" : nil }
         #expect(AIChangeCopy.summary(change(.edit), before: Self.before, after: Self.after) == "Added Sintra, Pena Palace first")
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo\nThree", after: "A\n\nOne\nTwo, changed\n\nFour") == "Changed 2 lines")
-        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo", after: "A\n\nOne") == "Removed a line")
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo", after: "A\n\nOne") == "Removed \u{201C}Two\u{201D}")
         #expect(AIChangeCopy.summary(change(.edit), before: "# Trip\n\nDay 1", after: "# Lisbon trip\n\nDay 1") == "Renamed to \u{201C}Lisbon trip\u{201D}")
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne", after: "A\n\n\nOne") == "No visible change")
         #expect(AIChangeCopy.summary(change(.created)) == "Created")
@@ -108,13 +108,13 @@ import Testing
         #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\n- [ ] A\n- [ ] B\n- [ ] C\n- [ ] D") == "Added 4 lines", "four is a count")
         #expect(AIChangeCopy.summary(change(.edit), before: list, after: list + "\nA much longer sentence about what we still need to buy") == "Added a line", "a long line is a count")
         // One line swapped is named, short; a bigger rewrite is a count in words (council round 8).
-        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Tram 28\n- Two", after: "A\n\n- [ ] Tram 28 early, before the crowds\n- Two") == "Changed \u{201C}Tram 28 early, before the crowds\u{201D}")
-        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne", after: "A\n\nA very long replacement line that goes on well past forty characters") == "Changed \u{201C}A very long replacement line that goes on well past forty characters\u{201D}", "whole; the row cuts it where it runs out of room")
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Tram 28\n- Two", after: "A\n\n- [ ] Tram 28 early, before the crowds\n- Two") == "Changed \u{201C}Tram 28\u{201D} to \u{201C}Tram 28 early, before the crowds\u{201D}")
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\nOne", after: "A\n\nA very long replacement line that goes on well past forty characters") == "Changed \u{201C}One\u{201D} to \u{201C}A very long replacement line that goes on well past forty characters\u{201D}", "whole; the row cuts it where it runs out of room")
         #expect(!AIChangeCopy.summary(change(.edit), before: "A\n\nOne\nTwo", after: "A\n\nUno\nDos").contains("+"), "never the diff tool's counts")
         // A tick is a tick, not a change of words (council round 9: "Changed “Hotel in Príncipe Real”").
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Hotel in Príncipe Real", after: "A\n\n- [x] Hotel in Príncipe Real") == "Ticked \u{201C}Hotel in Príncipe Real\u{201D}")
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [x] Book flights", after: "A\n\n- [ ] Book flights") == "Unticked \u{201C}Book flights\u{201D}")
-        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Book", after: "A\n\n- [x] Book flights") == "Changed \u{201C}Book flights\u{201D}", "new words too: a change")
+        #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Book", after: "A\n\n- [x] Book flights") == "Changed \u{201C}Book\u{201D} to \u{201C}Book flights\u{201D}", "new words too: a change")
         // Several ticks at once are named, not "Changed 3 lines" (council round 10).
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] Book flights\n- [ ] Hotel\n- [ ] Tram", after: "A\n\n- [x] Book flights\n- [x] Hotel\n- [x] Tram") == "Ticked \u{201C}Book flights\u{201D} and 2 more")
         #expect(AIChangeCopy.summary(change(.edit), before: "A\n\n- [ ] One\n- [x] Two", after: "A\n\n- [x] One\n- [ ] Two") == "Changed 2 lines", "ticked and unticked together: a count")

@@ -360,8 +360,10 @@ enum WindowFrameMemory {
                       height: min(standard.height, screen.height - 80).rounded())
     }
 
-    /// The notes window's smallest size (its contentMinSize, plus the title bar).
-    static let minimum = CGSize(width: 620, height: 520)
+    /// The notes window's smallest size (its contentMinSize, plus the title bar): the list beside a
+    /// hidden sidebar (350) and the note (360). Narrower, the note was cut off at the window's edge
+    /// instead of wrapping (round 18). Still fits half of a 1440 pt screen.
+    static let minimum = CGSize(width: 710, height: 520)
 
     /// The saved frame if enough of it is on a screen you still have; otherwise the default, centred.
     static func frame(saved: CGRect?, screens: [CGRect], main: CGRect) -> CGRect {

@@ -217,6 +217,26 @@ import Testing
         }
     }
 
+    /// At its smallest, with the sidebar hidden, the note fits: its text wraps inside the window
+    /// (round 18: at 620 the list took 350 and the text ran off the right edge).
+    @Test func theNoteFitsAtTheSmallestWindow() async throws {
+        let c = try AppSnapshotTests.container()
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            let w = Self.window(c, size: CGSize(width: 1300, height: 800))
+            defer { w.close() }
+            await Self.settle(w)
+            for width in [1000.0, 880, 720, 600] {
+                w.setContentSize(CGSize(width: width, height: 800))
+                await Self.settle(w, 6)
+            }
+            await Self.settle(w, 6)
+            let text = try #require(w.contentView.flatMap { Self.find(NSTextView.self, in: $0) { $0.isEditable } })
+            let box = text.convert(text.bounds, to: nil)
+            // setContentSize ignores contentMinSize, so measure what the columns need against it.
+            #expect(box.maxX <= WindowFrameMemory.minimum.width + 1, "the note's text ends inside the smallest window: \(box.maxX)")
+        }
+    }
+
     @Test func newFolderIsOnTheFoldersHeading() throws {
         let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
         let heading = try #require(sidebar.range(of: "Text(\"Folders\")").map { String(sidebar[$0.lowerBound...].prefix(600)) })

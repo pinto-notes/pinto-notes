@@ -308,7 +308,7 @@ struct WelcomeEmailForm: View {
         switch model.flow.step {
         case .email, .checking:
             field(focused: focus == .email) {
-                TextField("Email", text: Binding(get: { model.flow.email }, set: { if !model.flow.emailLocked { model.flow.email = $0 } }),
+                TextField("Email", text: Binding(get: { model.flow.email }, set: { if !model.flow.emailLocked { if model.flow.email != $0 { model.error = nil }; model.flow.email = $0 } }),
                           prompt: Text("Email address").foregroundStyle(Color(Palette.placeholder)))
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)

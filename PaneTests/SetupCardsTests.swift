@@ -136,6 +136,14 @@ import Testing
         #expect(rest.contains(".accessibilityAction(named: \"New Folder\")"))
     }
 
+    /// Correcting the address takes the old complaint away; Continue checks again (round 18).
+    @Test func typingClearsTheEmailError() throws {
+        for file in ["SignInView.swift", "WelcomeEmailSignIn.swift"] {
+            let source = try String(contentsOf: TestFiles.url("Views").appending(path: file), encoding: .utf8)
+            #expect(source.contains("email != $0 {") && source.contains("error = nil }; "), "\(file)")
+        }
+    }
+
     /// File › Import Notes too: a sheet opened over the shut window inherits its "disabled", so
     /// its Choose button looked fine and did nothing, with no way forward (round 18).
     @Test func importIsOffBehindASetupCard() throws {
