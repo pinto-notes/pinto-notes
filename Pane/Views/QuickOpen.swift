@@ -296,13 +296,23 @@ struct QuickOpenPanel: View {
         "\(spoken(row)), \(index + 1) of \(count)"
     }
 
+    /// A row as VoiceOver reads it when you move onto it: what's on screen beside the name.
+    static func rowLabel(_ row: QuickOpen.Row) -> String {
+        switch row {
+        case .note(let n): [spoken(row), n.folder, QuickOpen.dateText(n)].compactMap { $0 }.joined(separator: ", ")
+        case .text(let t): [spoken(row), t.folder].compactMap { $0 }.joined(separator: ", ")
+        case .command(let c): [spoken(row), c.shortcut].compactMap { $0 }.joined(separator: ", ")
+        case .search: spoken(row)
+        }
+    }
+
     static func spoken(_ row: QuickOpen.Row) -> String {
         let name: String
         switch row {
         case .note(let n): name = n.title.isEmpty ? "New Note" : n.title
         case .command(let c): name = c.title
         case .text(let t): name = "\(t.title.isEmpty ? "New Note" : t.title): \(t.snippet.text)"
-        case .search(let q): name = "Search all notes for \(q)"
+        case .search(let q): name = "\(QuickOpen.listAllTitle)\(q)"
         }
         return name
     }
@@ -389,6 +399,7 @@ struct QuickOpenPanel: View {
                     .onKeyPress(.downArrow) { highlighted = QuickOpen.step(1, from: index, count: rows.count); return .handled }
                     .onKeyPress(.upArrow) { highlighted = QuickOpen.step(-1, from: index, count: rows.count); return .handled }
                     .onKeyPress(.escape) { close(); return .handled }
+                    .accessibilityLabel("Go to Note")
                     .accessibilityIdentifier("quickOpen.field")
                 // Its own shortcut at the far end, as Spotlight's field is (Emil, 11-03).
                 Text(Self.shortcut)
@@ -475,7 +486,7 @@ struct QuickOpenPanel: View {
                             // One row to VoiceOver, not its loose texts and symbols ("Text With A
                             // Magnifying Glass", round 18), and pressable.
                             .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(Self.spoken(row))
+                            .accessibilityLabel(Self.rowLabel(row))
                             .accessibilityAddTraits(i == index ? [.isButton, .isSelected] : .isButton)
                             .accessibilityAction { jumpAndChoose(row) }
                             .onHover { if $0 { highlighted = i } }

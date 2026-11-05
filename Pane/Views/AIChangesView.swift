@@ -226,6 +226,9 @@ struct AIChangesStatus: View {
 
 #if os(macOS)
 struct MacAIChanges: View {
+    /// Over a change you've undone: the preview still shows what the AI did (round 19: Burrata looked
+    /// as if it were still there).
+    static let undoneLine = "Undone. This is what it changed; it's no longer in the note."
     @Bindable var model: AIChangesModel
     let close: () -> Void
     let open: (AIChange) -> Void
@@ -345,7 +348,7 @@ struct MacAIChanges: View {
             }
             .font(.system(size: 12)).foregroundStyle(.secondary)
         } else if model.undone.contains(c.id) {
-            Label("Undone", systemImage: "checkmark").font(.system(size: 12)).foregroundStyle(.secondary)
+            Label(Self.undoneLine, systemImage: "checkmark").font(.system(size: 12)).foregroundStyle(.secondary)
         } else if let why = model.undoReason(c) {
             Text(why).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
                 .accessibilityIdentifier("aiChanges.undoReason")

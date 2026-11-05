@@ -25,7 +25,7 @@ import Testing
         let c = Self.standard(crypto)
         #expect(c.devices.map(\.name) == [PrivacyCopy.thisDevice, "Sara\u{2019}s MacBook Air", "iPhone"])
         #expect(c.devices[0].kind == .thisDevice && c.devices[0].detail == PrivacyCopy.inUseNow)
-        #expect(c.devices[1].detail == "Seen today")
+        #expect(c.devices[1].detail.hasPrefix("Seen today \u{00B7} added "), "added, as two can share a name")
         #expect(c.devices[2].detail.hasPrefix("Not seen since"), "a phone not seen for six weeks says so")
         #expect(c.devices[1].canRemove && !c.devices[2].canRemove, "Remove… as before: not for a key in iCloud Keychain")
         #expect(c.pintoNotes?.name == "Pinto Notes" && c.pintoNotes?.short == "Helps you back in")

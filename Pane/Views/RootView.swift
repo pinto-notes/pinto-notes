@@ -171,6 +171,8 @@ struct RootView: View {
             .onReceive(NotificationCenter.default.publisher(for: .paneQuickOpen)) { _ in
                 quickOpen = quickOpen == nil ? QuickOpen.noteItems(in: context) : nil
             }
+            // VoiceOver stays in Go to Note while it's open, as with a sheet (round 19).
+            .accessibilityHidden(quickOpen != nil)
             .overlay(alignment: .top) { quickOpenPanel }
             .modifier(ExportAllNotes())
             .onReceive(NotificationCenter.default.publisher(for: .paneTemplates)) { _ in openTemplates() }

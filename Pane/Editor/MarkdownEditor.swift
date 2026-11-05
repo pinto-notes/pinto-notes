@@ -3409,7 +3409,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let bottom = frag.layoutFragmentFrame.minY + (line?.typographicBounds.maxY ?? frag.layoutFragmentFrame.height) + textContainerOrigin.y
         let size = WikiSuggestionList.size(rows: controller.wikiSuggestions.count)
         let x = min(max(caret.minX + textContainerOrigin.x - 8, 0), max(bounds.width - size.width, 0))
-        host.frame = CGRect(origin: CGPoint(x: x, y: bottom + 4), size: size)
+        host.frame = CGRect(origin: CGPoint(x: x, y: bottom + 8), size: size)
     }
 
     // MARK: The / menu

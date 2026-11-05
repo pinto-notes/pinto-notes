@@ -218,7 +218,9 @@ struct SecurityContent: Equatable {
         let this = Opener(kind: .thisDevice, name: PrivacyCopy.thisDevice, detail: PrivacyCopy.inUseNow, short: PrivacyCopy.inUseNow,
                           symbol: platform == "macos" ? "laptopcomputer" : "iphone")
         devices = [this] + others.map { d in
-            let seen = Self.seen(d, now: now)
+            // Devices can share a name: when each was added tells them apart (round 18).
+            let added = d.addedAt.formatted(.dateTime.day().month(.abbreviated).hour().minute())
+            let seen = "\(Self.seen(d, now: now)) \u{00B7} added \(added)"
             return Opener(kind: .device(d.id), name: d.name, detail: seen, short: seen, symbol: d.symbol, canRemove: d.canRemove)
         }
         pintoNotes = serverCopy
