@@ -1325,11 +1325,14 @@ struct PaneCommands: Commands {
             // Not inside Settings: a home anyone finds, beside Import.
             Button("Connect an AI\u{2026}") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
             Divider()
-            Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
-                .disabled(importNotes == nil)
-            ForEach(ImportKind.listed) { kind in
-                Button { importFrom?(kind) } label: { Label { Text(kind.menuTitle) } icon: { ImportOrigin.files(kind).menuImage } }
-                    .disabled(importFrom == nil)
+            // One item in File, the sources inside: six of them crowded it (round 17).
+            Menu("Import Notes") {
+                Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
+                    .disabled(importNotes == nil)
+                ForEach(ImportKind.listed) { kind in
+                    Button { importFrom?(kind) } label: { Label { Text(kind.menuTitle) } icon: { ImportOrigin.files(kind).menuImage } }
+                        .disabled(importFrom == nil)
+                }
             }
             // Your notes as Markdown in their folders, signed in or not.
             Button("Export All Notes\u{2026}") { NotificationCenter.default.post(name: .paneExportNotes, object: nil) }
