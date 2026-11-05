@@ -138,6 +138,9 @@ import AppKit
     @Test func previewIsSecondLine() {
         #expect(NoteText.preview(of: "Title\n\n- [ ] [Link](https://x.y) here") == "Link here")
         #expect(NoteText.preview(of: "Only title") == "No additional text")
+        // Round 7: an Obsidian embed read "!greenhouse.png" in the list.
+        #expect(NoteText.preview(of: "Greenhouse\n\n![[greenhouse.png]]\n\nWater the tomatoes") == "Water the tomatoes")
+        #expect(ReadableText.line("![[plot.png]] the plot") == " the plot")
     }
 }
 

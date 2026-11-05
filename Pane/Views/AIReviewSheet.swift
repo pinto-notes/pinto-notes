@@ -136,7 +136,7 @@ struct AIReviewSheet: View {
         let undone = part.decision == .undone
         return VStack(alignment: .leading, spacing: 6) {
             ForEach(Array(part.removed.enumerated()), id: \.offset) { i, line in
-                Text(AIReview.shown(line))
+                AIReview.text(line)
                     .strikethrough(!undone, color: Color.muted)
                     .foregroundStyle(undone ? Color.ink : Color.muted)
                     .accessibilityLabel(undone ? "Back: \(AIReview.shown(line))" : "Was: \(AIReview.shown(line))")
@@ -146,7 +146,7 @@ struct AIReviewSheet: View {
             // by colour (round 14 of the UI council).
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(Array(part.added.enumerated()), id: \.offset) { i, line in
-                    Text(AIReview.shown(line))
+                    AIReview.text(line)
                         .foregroundStyle(undone ? Color.muted : Color.ink)
                         .strikethrough(undone, color: Color.muted)
                         .padding(.horizontal, 4).padding(.vertical, 1)
