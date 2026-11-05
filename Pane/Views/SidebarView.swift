@@ -692,11 +692,7 @@ struct SidebarView: View {
             ToolbarItem {
                 // The Spotlight-like panel, which finds notes by title and text and runs commands
                 // (Emil, 2 November 2026; it opened the list's search field). ⌘F keeps that field.
-                Button("Search", systemImage: "magnifyingglass") {
-                    NotificationCenter.default.post(name: Self.searchButtonOpens, object: nil)
-                }
-                .help(Self.searchButtonHelp)
-                .accessibilityIdentifier("sidebar.search")
+                SidebarSearchButton(opens: Self.searchButtonOpens, help: Self.searchButtonHelp)
             }
             .sharedBackgroundVisibility(.hidden)
             #endif
@@ -1173,6 +1169,24 @@ private struct CountedRow: View {
 }
 
 #if os(macOS)
+/// Search in the sidebar's toolbar: its lens opens an eye and glances round when you press it.
+private struct SidebarSearchButton: View {
+    let opens: Notification.Name
+    let help: String
+    @State private var looks = 0
+
+    var body: some View {
+        Button {
+            NotificationCenter.default.post(name: opens, object: nil)
+            looks += 1
+        } label: {
+            Label { Text("Search") } icon: { CharmSymbol("magnifyingglass", cue: looks) }
+        }
+        .help(help)
+        .accessibilityIdentifier("sidebar.search")
+    }
+}
+
 /// Recently Deleted's icon: its trash swallows each note you delete, and someone inside looks round.
 private struct TrashRowIcon: View {
     let selected: Bool

@@ -20,7 +20,7 @@ enum Charm {
     /// How long each move runs, ordinary and rare.
     static func duration(_ kind: Kind, rare: Bool) -> Double {
         switch kind {
-        case .search: rare ? 1.9 : 1.0
+        case .search: 1.9
         case .compose: rare ? 1.6 : 1.3
         case .checklist: rare ? 1.5 : 1.3
         case .table: rare ? 1.2 : 1.0
@@ -65,7 +65,7 @@ enum Charm {
         let t = t >= duration(kind, rare: rare) ? 0 : max(t, 0)
         c.drawLayer { c in
         switch kind {
-        case .search: search(&c, t, rare, pen)
+        case .search: search(&c, t, true, pen)
         case .compose: compose(&c, t, rare, pen)
         case .checklist: checklist(&c, t, rare, pen)
         case .table: table(&c, t, rare, pen)
