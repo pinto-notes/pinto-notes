@@ -317,6 +317,9 @@ import Testing
             #expect(text.contains("An AI sees that a locked note exists, not its title or text."), "\(text)")
             #expect(!text.contains("sees the title") && !text.contains("see the title") && !text.contains("titles of locked notes"), "\(text)")
         }
+        // Setting up the password: short, and both warnings in plain view (council round 16).
+        #expect(LockedNotesCopy.setupLine.components(separatedBy: ". ").count <= 4 && LockedNotesCopy.setupLine.count < 240)
+        #expect(LockedNotesCopy.forgetLine.contains("can\u{2019}t be recovered") && LockedNotesCopy.historyLine.contains("earlier versions"))
         #expect(LockedNotesCopy.howTo == "An AI sees that a locked note exists, not its title or text. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu.")
         #expect(!LockedNotesCopy.howTo.contains("AIs"), "\"AIs\" reads as \"Als\"")
         #expect([PrivacyCopy.showRecovery, PrivacyCopy.hideRecovery, PrivacyCopy.saveRecovery] == ["Show Recovery Key", "Hide Recovery Key", "Save Recovery Key\u{2026}"])
