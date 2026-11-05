@@ -237,8 +237,14 @@ struct MacAIChanges: View {
                 Rectangle().fill(Color.line).frame(width: 1)
                 detail
             }
-            Rectangle().fill(Color.line).frame(height: 1)
-            bar
+        }
+        // A card like the app's others: one close × in the corner and the change's actions at the
+        // top beside it, no bar of buttons along the bottom (Emil, 5 November 2026, on Version
+        // History: "it doesn't look like a normal sheet like the other ones do").
+        .overlay(alignment: .topTrailing) {
+            CardCloseButton(size: 28, action: close)
+                .accessibilityIdentifier("aiChanges.done")
+                .padding(.top, 15).padding(.trailing, 16)
         }
         .frame(minWidth: 860, idealWidth: 940, minHeight: 540, idealHeight: 620)
     }
@@ -295,6 +301,7 @@ struct MacAIChanges: View {
             if let c = model.selected {
                 // What the AI did, in full before anyone chooses Undo: the summary on its own lines,
                 // who and when under it (council, 11-04: one 11 pt line cut the action off).
+                HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.title(c)).font(.system(size: 13, weight: .semibold)).lineLimit(1)
                     // Up to three lines (council round 8: two cut it off; round 11: a long rewritten
@@ -308,8 +315,13 @@ struct MacAIChanges: View {
                         .accessibilityIdentifier("aiChanges.summary")
                     Text(AIChangeDetail.byline(c))
                         .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                    status(c)
                 }
-                .padding(.horizontal, 20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                actions(c)
+                }
+                .padding(.leading, 20)
+                .padding(.trailing, 60)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.notePage)
@@ -322,40 +334,40 @@ struct MacAIChanges: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var bar: some View {
-        HStack(spacing: 8) {
-            if model.undoing {
+    /// Undoing, undone, or why it can't be undone: one quiet line under who and when
+    /// (council round 11: the reason sat between Done and Undo).
+    @ViewBuilder
+    private func status(_ c: AIChange) -> some View {
+        if model.undoing {
+            HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
-                Text("Undoing\u{2026}").font(.system(size: 13)).foregroundStyle(.secondary)
-            } else if let c = model.selected, model.undone.contains(c.id) {
-                Label("Undone", systemImage: "checkmark").font(.system(size: 13)).foregroundStyle(.secondary)
-            } else if let c = model.selected, let why = model.undoReason(c) {
-                // Where "Undoing…" and "Undone" show: one status place, buttons on the right
-                // (council round 11: the reason sat between Done and Undo).
-                Text(why).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
-                    .accessibilityIdentifier("aiChanges.undoReason")
+                Text("Undoing\u{2026}")
             }
-            Spacer()
-            Button("Done", action: close).keyboardShortcut(.cancelAction).tint(.primary)
-            if let c = model.selected {
-                // Return opens the note; undoing is a click of its own, never a stray Return on a
-                // sheet you're reading (council, 11-04).
-                Button("Undo This Change") { Task { await model.undo(c) } }
-                    .disabled(!model.canUndo(c) || model.undoing || (c.changesText && model.diff == nil))
-                    .tint(.primary)
-                    .accessibilityHint(model.undoReason(c) ?? "")
-                    .accessibilityIdentifier("aiChanges.undo")
-                Button("Open Note") { open(c) }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.amberProminent)
-                    .disabled(model.note(c) == nil)
-                    .accessibilityIdentifier("aiChanges.open")
-            }
+            .font(.system(size: 12)).foregroundStyle(.secondary)
+        } else if model.undone.contains(c.id) {
+            Label("Undone", systemImage: "checkmark").font(.system(size: 12)).foregroundStyle(.secondary)
+        } else if let why = model.undoReason(c) {
+            Text(why).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                .accessibilityIdentifier("aiChanges.undoReason")
         }
-        .controlSize(.large)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.notePage) // one ground with the preview: grey beside black in the dark (round 4)
+    }
+
+    private func actions(_ c: AIChange) -> some View {
+        HStack(spacing: 8) {
+            // Return opens the note; undoing is a click of its own, never a stray Return on a
+            // sheet you're reading (council, 11-04).
+            Button("Undo This Change") { Task { await model.undo(c) } }
+                .disabled(!model.canUndo(c) || model.undoing || (c.changesText && model.diff == nil))
+                .tint(.primary)
+                .accessibilityHint(model.undoReason(c) ?? "")
+                .accessibilityIdentifier("aiChanges.undo")
+            Button("Open Note") { open(c) }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.amberProminent)
+                .disabled(model.note(c) == nil)
+                .accessibilityIdentifier("aiChanges.open")
+        }
+        .fixedSize()
     }
 }
 

@@ -409,11 +409,20 @@ struct MacVersionHistory: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(nsColor: .windowBackgroundColor))
             }
-            Hairline()
-            bar
+        }
+        // A card like the app's others: one close × in the corner, the action at the top beside
+        // Compare, no bar of buttons along the bottom (Emil, 5 November 2026: "it doesn't look
+        // like a normal sheet like the other ones do").
+        .overlay(alignment: .topTrailing) {
+            CardCloseButton(size: 28, action: close)
+                .accessibilityIdentifier("history.done")
+                .padding(.top, 15).padding(.trailing, 16)
         }
         .frame(minWidth: 820, idealWidth: 900, minHeight: 540, idealHeight: 600)
     }
+
+    /// Room on the right of the top row for the close ×.
+    static let closeRoom: CGFloat = 60
 
     private var hasVersions: Bool { model.phase == .loaded && !model.isEmpty }
 
@@ -465,9 +474,15 @@ struct MacVersionHistory: View {
                         }
                     }
                     Spacer(minLength: 8)
+                    if model.restoring {
+                        ProgressView().controlSize(.small)
+                        Text("Restoring\u{2026}").font(.system(size: 13)).foregroundStyle(.secondary)
+                    }
                     CompareMenu(model: model)
+                    restoreButton
                 }
-                .padding(.horizontal, 20)
+                .padding(.leading, 20)
+                .padding(.trailing, Self.closeRoom)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.notePage)
@@ -478,23 +493,6 @@ struct MacVersionHistory: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var bar: some View {
-        HStack(spacing: 8) {
-            if model.restoring {
-                ProgressView().controlSize(.small)
-                Text("Restoring…").font(.system(size: 13)).foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button("Done", action: close)
-                .keyboardShortcut(.cancelAction)
-            if hasVersions { restoreButton }
-        }
-        .controlSize(.large)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private var restoreButton: some View {
