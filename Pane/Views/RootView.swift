@@ -952,7 +952,7 @@ struct RootView: View {
             selectedNote = id
             return
         }
-        if let n = context.noteToReopen(last: UUID(uuidString: lastNote)) { selectedNote = n.id }
+        if let n = context.noteToReopen(last: UUID(uuidString: lastNote), inTrash: scope == .trash) { selectedNote = n.id }
     }
 
     private func restoreScope() {

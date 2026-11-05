@@ -119,4 +119,17 @@ import Testing
         #expect(ctx.noteToReopen(last: real.id)?.id == real.id)
         #expect(ctx.noteToReopen(last: nil)?.id == real.id)
     }
+
+    /// Reopening on Recently Deleted, on the deleted note you were on: that note opens, not one
+    /// the list beside it doesn't hold (MacEmptyDetailTests saw no note open there).
+    @Test func aDeletedNoteReopensInRecentlyDeleted() throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = ModelContext(c)
+        let live = ctx.createNote(in: .all, body: "Lisbon\n\nTrams")
+        let gone = ctx.createNote(in: .all, body: "Groceries\n\n- [ ] Eggs")
+        ctx.trash(gone)
+        #expect(ctx.noteToReopen(last: gone.id, inTrash: true)?.id == gone.id)
+        #expect(ctx.noteToReopen(last: gone.id)?.id == live.id, "elsewhere, a deleted note doesn't reopen")
+        #expect(ctx.noteToReopen(last: live.id, inTrash: true)?.id == live.id)
+    }
 }

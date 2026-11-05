@@ -148,7 +148,7 @@ import Testing
         let p1 = try #require(big.find("review.part.0"))
         #expect(p1.frame.width > p0.frame.width * 1.4, "wider: \(p0.frame) \(p1.frame)")
         #expect(p1.frame.height > p0.frame.height * 1.4, "bigger text: \(p0.frame) \(p1.frame)")
-        #expect(big.find("review.title")?.text.contains("Claude changed 3 parts") == true)
+        #expect(big.find("review.title")?.text.contains("Claude changed 4 lines") == true)
     }
 
     /// At 24 pt in a narrow note column (520 pt, round 5): the card fits, and Done, Keep and Undo
@@ -203,7 +203,7 @@ import Testing
         let ax = OffscreenAX(Host(review: AIReview(by: "Claude", previous: AIReviewTests.before, after: AIReviewTests.after), note: note) { result.append($0) }, size: Self.size)
         defer { ax.close() }
         await ax.settle()
-        #expect(ax.find("review.title")?.text.contains("Claude changed 3 parts") == true, "\(ax.ids())")
+        #expect(ax.find("review.title")?.text.contains("Claude changed 4 lines") == true, "\(ax.ids())")
         #expect(ax.find("review.position")?.text.contains("1 of 3") == true)
         for id in 0..<3 { #expect(ax.find("review.part.\(id)") != nil, "part \(id)") }
         #expect(try #require(ax.find("review.keep.0"), "\(ax.ids())").press())

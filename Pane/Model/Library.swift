@@ -149,8 +149,11 @@ extension ModelContext {
     /// The note to open at launch: the one you were on, otherwise the one edited last. A blank
     /// note you left open (the app was closed before you typed) is discarded, as leaving it
     /// would have done, instead of opening on an empty page.
-    func noteToReopen(last: UUID?) -> Note? {
+    /// `inTrash`: the window reopens on Recently Deleted, where the note you were on was a
+    /// deleted one: that one reopens, as the list beside it holds it.
+    func noteToReopen(last: UUID?, inTrash: Bool = false) -> Note? {
         func blank(_ n: Note) -> Bool { !n.isLocked && n.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        if inTrash, let last, let n = note(last), n.deletedAt == nil, n.trashedAt != nil { return n }
         if let last, let n = note(last), n.deletedAt == nil, n.trashedAt == nil {
             guard blank(n) else { return n }
             purge(n)

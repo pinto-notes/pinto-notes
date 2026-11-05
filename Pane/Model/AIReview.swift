@@ -100,8 +100,20 @@ struct AIReview: Equatable {
     var kept: Int { parts.filter { $0.decision == .kept }.count }
     var undone: Int { parts.filter { $0.decision == .undone }.count }
 
-    /// The bar's title: "Claude changed 3 parts".
-    var title: String { "\(by) changed \(parts.count == 1 ? "1 part" : "\(parts.count) parts")" }
+    /// How many lines the edit changed, counted one way everywhere: the receipt in the note, the
+    /// iPhone sheet and the Mac card all say this number (round 7 captures: they said 5 lines,
+    /// 6 lines and "3 parts" for one edit). A part counts its longer side, so a sentence taken out
+    /// counts as a line changed, as does a line rewritten. Blank lines don't count.
+    var lineCount: Int {
+        func written(_ lines: [String]) -> Int { lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count }
+        return parts.reduce(0) { $0 + max(written($1.added), written($1.removed)) }
+    }
+    static func lineCount(previous: String, after: String) -> Int {
+        AIReview(by: "", previous: previous, after: after).lineCount
+    }
+
+    /// The title: "Claude changed 5 lines", as the receipt that opens it says.
+    var title: String { "\(by) changed \(lineCount == 1 ? "1 line" : "\(lineCount) lines")" }
     /// "1 of 3", for the part the keys act on.
     var position: String { "\(min(focus, parts.count - 1) + 1) of \(parts.count)" }
     /// Parts you didn't decide on, that stay as the AI wrote them. A part whose Undo was refused

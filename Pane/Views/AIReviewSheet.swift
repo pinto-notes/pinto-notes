@@ -49,10 +49,7 @@ struct AIReviewSheet: View {
 
     /// Counted in lines, as the button in the note says it ("ChatGPT changed 5 lines"), not in
     /// parts, which only the review knows about.
-    static func title(_ r: AIReview) -> String {
-        let n = r.parts.reduce(0) { $0 + max($1.added.count, $1.removed.count) }
-        return "\(r.by) changed \(n == 1 ? "1 line" : "\(n) lines")"
-    }
+    static func title(_ r: AIReview) -> String { r.title }
 
     private var title: some View {
         HStack(spacing: 7) {

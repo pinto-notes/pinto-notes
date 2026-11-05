@@ -49,7 +49,7 @@ enum AIEdit {
         AIEditStore.shared[note.id].created = nil
         guard let previous, previous != note.body else { return nil }
         return Receipt(noteID: note.id, by: by, at: at, previous: previous, after: note.body, previousVersion: version,
-                       lines: ChangeTint.changedLines(from: previous, to: note.body).count, created: created)
+                       lines: AIReview.lineCount(previous: previous, after: note.body), created: created)
     }
 
     /// Puts the note back the way it was before the AI's edit. With version history, it restores

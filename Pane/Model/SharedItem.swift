@@ -15,13 +15,13 @@ enum SharedItem {
         var files: [URL]
     }
 
-    /// Reads every provider in order. Rich text wins over plain text for the same item. A link
-    /// with the page's title (Safari hands it over beside the link) becomes a titled link, so the
-    /// note reads "Riding Tram 28 in Lisbon", not "http://…" (Emil, 4 November 2026).
+    /// Reads every provider in order. Rich text wins over plain text for the same item. The note's
+    /// text is made from them by `compose`.
     @MainActor
     static func read(_ providers: [NSItemProvider], pageTitle: String? = nil, filesInto dir: URL) async -> Content {
-        let named = pageTitle?.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " ")
         var texts: [String] = []
+        var plain: [String] = []
+        var page: URL?
         var files: [URL] = []
         for p in providers {
             if let rich = await richText(p, filesInto: dir) {
@@ -31,20 +31,60 @@ enum SharedItem {
             }
             if p.hasItemConformingToTypeIdentifier(UTType.url.identifier), !p.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier),
                let url = await link(p) {
-                if let t = named, !t.isEmpty, t != url.absoluteString {
-                    texts.append("[\(t.replacingOccurrences(of: "]", with: ")"))](\(url.absoluteString))")
-                } else {
-                    texts.append(url.absoluteString)
-                }
+                if page == nil { page = url }
                 continue
             }
             if p.hasItemConformingToTypeIdentifier(UTType.plainText.identifier),
                let s = await string(p, UTType.plainText.identifier) {
-                texts.append(s); continue
+                texts.append(s); plain.append(s); continue
             }
             if let f = await file(p, into: dir) { files.append(f) }
         }
-        return Content(markdown: texts.joined(separator: "\n\n"), files: files)
+        return Content(markdown: compose(texts: texts, plain: plain, link: page, pageTitle: pageTitle), files: files)
+    }
+
+    /// The note's text from what was shared, pure so it's tested (SharedItemTests).
+    /// - A link alone, with its page's title, is a titled link: "Riding Tram 28 in Lisbon", not
+    ///   "http://…" (Emil, 4 November 2026).
+    /// - Text with a link (a selection shared from Safari) keeps the link under it, so you can go
+    ///   back to the page (round 7 captures).
+    /// - Text whose first line is a long paragraph gets a short title above it, the page's title
+    ///   where there is one: the paragraph was the note's title, ten lines in the title's size,
+    ///   with "No additional text" in the list (round 7 captures).
+    static func compose(texts: [String], plain: [String] = [], link: URL?, pageTitle: String?) -> String {
+        func flat(_ s: String) -> String {
+            s.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        }
+        // A selection's extension item carries the selection itself where a page's carries its title.
+        var named = pageTitle.map(flat).flatMap { $0.isEmpty ? nil : $0 }
+        if let n = named, plain.contains(where: { flat($0) == n }) || n.count > titleLimit * 2 { named = nil }
+        if let n = named, let link, n == link.absoluteString { named = nil }
+        let linkLine = link.map { url in named.map { "[\($0.replacingOccurrences(of: "]", with: ")"))](\(url.absoluteString))" } ?? url.absoluteString }
+        var body = texts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }.joined(separator: "\n\n")
+        guard !body.isEmpty else { return linkLine ?? "" }
+        let first = body.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? ""
+        if first.count > titleLimit, !first.hasPrefix("#") {
+            body = (named ?? shortTitle(first)) + "\n\n" + body
+        }
+        if let linkLine { body += "\n\n" + linkLine }
+        return body
+    }
+
+    /// Past this, a first line reads as a paragraph, not a title.
+    static let titleLimit = 80
+
+    /// A title from a paragraph: its first sentence when that's short, otherwise its first words.
+    static func shortTitle(_ paragraph: String) -> String {
+        let p = paragraph.trimmingCharacters(in: .whitespaces)
+        if let end = p.firstIndex(where: { ".!?".contains($0) }), p.distance(from: p.startIndex, to: end) <= 60 {
+            return String(p[..<end])
+        }
+        var out = ""
+        for word in p.split(separator: " ") {
+            if out.count + word.count + 1 > 50 { break }
+            out += out.isEmpty ? String(word) : " " + word
+        }
+        return (out.isEmpty ? String(p.prefix(50)) : out) + "…"
     }
 
     /// HTML the way the Mac import converts an Apple Notes body: offline, dashed lists kept.

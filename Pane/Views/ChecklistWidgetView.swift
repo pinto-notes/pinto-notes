@@ -72,6 +72,12 @@ struct ChecklistWidgetGround: View {
 }
 
 struct ChecklistWidgetView: View {
+    /// Pinto's orange, named from the asset catalog: a widget's `.tint` came out system blue on the
+    /// Home Screen (round 7 captures). In tinted or clear Home Screens the system recolours it.
+    static var accent: Color {
+        Color(Bundle.main.object(forInfoDictionaryKey: "PaneAccentAsset") as? String ?? "AccentColor")
+    }
+
     let content: ChecklistWidgetContent
     var medium = false
 
@@ -99,7 +105,7 @@ struct ChecklistWidgetView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(n.title)
                     .font(.system(size: ChecklistWidgetLayout.text, weight: .semibold))
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(ChecklistWidgetView.accent)
                     .lineLimit(1)
                     .widgetAccentable()
                     .frame(height: 20)
@@ -131,7 +137,7 @@ struct ChecklistWidgetView: View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(list.title)
                 .font(.system(size: ChecklistWidgetLayout.text, weight: .semibold))
-                .foregroundStyle(.tint)
+                .foregroundStyle(ChecklistWidgetView.accent)
                 .lineLimit(1)
                 .widgetAccentable()
             Spacer(minLength: 4)
@@ -167,7 +173,7 @@ struct ChecklistWidgetView: View {
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: "note.text")
                 .font(.system(size: 22, weight: .regular))
-                .foregroundStyle(.tint)
+                .foregroundStyle(ChecklistWidgetView.accent)
                 .widgetAccentable()
             Spacer(minLength: 0)
             Text(title).font(.system(size: ChecklistWidgetLayout.text, weight: .semibold))
@@ -186,7 +192,7 @@ struct ChecklistWidgetRow: View {
         HStack(spacing: 8) {
             ZStack {
                 if item.done {
-                    Circle().fill(.tint)
+                    Circle().fill(ChecklistWidgetView.accent)
                     Image(systemName: "checkmark")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(.white)
@@ -215,6 +221,12 @@ struct ChecklistWidgetRow: View {
 /// the list with. A widget can't send it by itself (iOS runs it with no time to sync), and a tick
 /// that waited for the next visit left a partner's list stale. Apple Notes' widget only opens the
 /// note. Not offered in Shortcuts (Tick Item is).
+/// What the widget says about itself. A tick opens Pinto at the note and ticks it there (see
+/// WidgetTickIntent), so it doesn't promise a tick "right there" (round 7 captures: it did).
+enum ChecklistWidgetCopy {
+    static let gallery = "A note on your Home Screen. Tap an item to tick it in Pinto, or tap the note to open it. Touch and hold to pick the note."
+}
+
 struct WidgetTickIntent: AppIntent {
     static let title: LocalizedStringResource = "Tick Item in Widget"
     static let isDiscoverable = false

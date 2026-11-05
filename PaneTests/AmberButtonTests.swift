@@ -148,6 +148,16 @@ import Testing
 
     /// No button style reaches for the accent directly: its hovers and presses go through the
     /// Palette, which turns them neutral in the dark.
+    /// Round 7 captures: the keyboard bar's table button and the widget came out system blue.
+    /// Pinto's accent is `Color.paneAccent` (or the asset by name in the widget), never the system's.
+    @Test func noViewReachesForTheSystemAccent() throws {
+        let widget = try String(contentsOf: TestFiles.url("Views").appendingPathComponent("ChecklistWidgetView.swift"), encoding: .utf8)
+        for (name, text) in try Self.appSources() + [("Views/ChecklistWidgetView.swift", widget)] {
+            #expect(!text.contains("Color.accentColor"), "\(name) uses Color.accentColor: use Color.paneAccent")
+        }
+        #expect(!widget.contains("(.tint)"), "the widget names its accent: .tint is system blue there")
+    }
+
     @Test func noButtonStyleHardCodesAmber() throws {
         let src = try String(contentsOf: TestFiles.url("Views").appendingPathComponent("DesignSystem.swift"), encoding: .utf8)
         #expect(!src.contains("Color(Palette.amber).opacity"), "use Palette.buttonHover and friends")

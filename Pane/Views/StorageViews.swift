@@ -111,7 +111,7 @@ struct StorageSectionBody: View {
                         .frame(height: 6)
                         .overlay(alignment: .leading) {
                             GeometryReader { g in
-                                Capsule().fill(u.level == .full ? Color.red : u.level == .nearlyFull ? Color.orange : Color.accentColor)
+                                Capsule().fill(u.level == .full ? Color.red : u.level == .nearlyFull ? Color.orange : Color.paneAccent)
                                     .frame(width: max(6, g.size.width * u.fraction))
                             }
                         }

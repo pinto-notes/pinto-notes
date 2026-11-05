@@ -72,6 +72,26 @@ import AppKit
         #expect(got.files.map(\.pathExtension) == ["png"])
     }
 
+    /// Round 7 captures: a paragraph shared from Safari was the note's title, ten lines of it,
+    /// with no link back to the page.
+    @Test func aSharedParagraphGetsAShortTitleAndKeepsItsPage() {
+        let para = "Lisbon's trams have run since 1873, and the yellow Remodelado cars on line 28 climb through Graça, Alfama and Baixa on streets too steep and narrow for buses."
+        let page = URL(string: "https://en.m.wikipedia.org/wiki/Trams_in_Lisbon")!
+        let md = SharedItem.compose(texts: [para], plain: [para], link: page, pageTitle: "Trams in Lisbon")
+        #expect(md == "Trams in Lisbon\n\n\(para)\n\n[Trams in Lisbon](\(page.absoluteString))")
+        #expect(SharedItem.title(markdown: md, files: []) == "Trams in Lisbon")
+        // The selection handed over where a page's title would be isn't a title.
+        let quiet = SharedItem.compose(texts: [para], plain: [para], link: page, pageTitle: para)
+        #expect(SharedItem.title(markdown: quiet, files: []).count <= 51, "\(quiet)")
+        #expect(quiet.hasSuffix("\n\n" + page.absoluteString))
+        // No page at all: a title from its words, the paragraph under it.
+        let alone = SharedItem.compose(texts: [para], plain: [para], link: nil, pageTitle: nil)
+        #expect(alone.hasPrefix("Lisbon's trams have run since 1873, and the yellow…\n\n" + para), "\(alone)")
+        // A short line stays the title, as before.
+        #expect(SharedItem.compose(texts: ["Call the plumber"], link: nil, pageTitle: nil) == "Call the plumber")
+        #expect(SharedItem.shortTitle("Short one. Then much more text that goes on and on for a long while here.") == "Short one")
+    }
+
     @Test func titleIsTheFirstLine() {
         #expect(SharedItem.title(markdown: "\n# Weekend\nmore", files: []) == "Weekend")
         #expect(SharedItem.title(markdown: "", files: [URL(fileURLWithPath: "/x/scan.pdf")]) == "scan.pdf")

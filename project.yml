@@ -264,6 +264,7 @@ targets:
         PaneAppGroup: $(PANE_APP_GROUP)
         PaneURLScheme: $(PANE_URL_SCHEME)
         PaneBundleID: $(PANE_BUNDLE_ID)
+        PaneAccentAsset: $(PANE_ACCENT_ASSET)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

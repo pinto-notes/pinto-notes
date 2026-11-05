@@ -229,6 +229,27 @@ private actor HeldLockRemote: NoteLockRemote {
         #expect(vault.text(of: a) == "One\n\nsecret one" && vault.text(of: b) == "Two\n\nsecret two")
     }
 
+    /// Round 7 captures: right after Lock Now the locked page asked for Face ID by itself, so the
+    /// face looking at the phone opened the note again. Lock Now by hand leaves the next page quiet,
+    /// once; the idle timer or the app going away still asks as before.
+    @Test func lockNowByHandDoesntAskForFaceIDStraightAway() async throws {
+        let vault = try device(biometry: "Face ID")
+        try await vault.setUp(password: "hunter22", hint: nil)
+        let a = context.createNote(in: .all, body: "One\n\nsecret one")
+        try vault.lock(a)
+        let now = Date()
+        vault.lockNowByHand(at: now)
+        #expect(!vault.isUnlocked)
+        #expect(vault.takeLockedByHand(at: now.addingTimeInterval(0.5)), "the page that follows stays quiet")
+        #expect(!vault.takeLockedByHand(at: now.addingTimeInterval(0.6)), "only once")
+        try await vault.unlock(password: "hunter22")
+        vault.lockNow()
+        #expect(!vault.takeLockedByHand(), "locked by the timer or the app going away: Face ID asks")
+        try await vault.unlock(password: "hunter22")
+        vault.lockNowByHand(at: now)
+        #expect(!vault.takeLockedByHand(at: now.addingTimeInterval(30)), "a page much later asks again")
+    }
+
     @Test func aFewIdleMinutesLockThemAgain() async throws {
         let vault = try device()
         try await vault.setUp(password: "pw", hint: nil)

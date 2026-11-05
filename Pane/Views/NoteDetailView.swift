@@ -885,7 +885,7 @@ struct NoteDetailView: View {
             Button("Lock Note", systemImage: "lock", action: startLock)
                 .accessibilityIdentifier("editor.lock")
         case .lockNow:
-            Button("Lock Now", systemImage: "lock") { vault.lockNow() }
+            Button("Lock Now", systemImage: "lock") { vault.lockNowByHand() }
                 .accessibilityIdentifier("editor.lockNow")
         case .removeLock:
             Button("Remove Lock", systemImage: "lock.open", action: removeLock)

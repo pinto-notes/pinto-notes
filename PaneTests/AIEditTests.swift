@@ -65,6 +65,20 @@ import SwiftUI
         #expect(AIEdit.markSeen(n) == nil, "the receipt shows once")
     }
 
+    /// Round 7 captures: one edit read "changed 5 lines" on the receipt, "6 lines" in the
+    /// iPhone sheet and "3 parts" on the Mac card. It says one number everywhere now.
+    @Test func theReceiptAndTheReviewCountTheSameLines() throws {
+        let before = "Lisbon trip\n\nFlights 14 to 18 May.\nSara wants a slow first morning.\n\n- [x] Book flights"
+        let after = "Lisbon trip\n\nFlights 21 to 25 May.\n\n- [x] Book flights\n- [ ] Book the tram tour\n- [ ] Pack adapters\n- [ ] Tell Sara"
+        let n = Self.note(before)
+        Self.arrive(n, body: after, by: "ChatGPT")
+        let r = try #require(AIEdit.markSeen(n))
+        let review = try #require(AIReview(r))
+        #expect(r.summary == review.title, "receipt \(r.summary), review \(review.title)")
+        #expect(review.title == AIReviewSheet.title(review))
+        #expect(r.summary == "ChatGPT changed 5 lines", "the dates and the sentence taken out (2), and three tasks")
+    }
+
     @Test func twoEditsBeforeYouLookCompareWithTheTextBeforeTheFirst() throws {
         let n = Self.note("List")
         Self.arrive(n, body: "List\nOne", at: .now.addingTimeInterval(-5))

@@ -383,4 +383,11 @@ import Testing
         let old = try JSONDecoder().decode(ChecklistShelf.Recent.self, from: Data(#"{"id":"\#(UUID().uuidString)","title":"Old","updatedAt":0}"#.utf8))
         #expect(old.folder == nil && old.snippet == nil, "a shelf written before still reads")
     }
+
+    /// Round 7 captures: the gallery promised a tick "right there", but a tick opens Pinto.
+    @Test func theWidgetSaysATickOpensPinto() {
+        #expect(!ChecklistWidgetCopy.gallery.contains("right there"))
+        #expect(ChecklistWidgetCopy.gallery.contains("tick it in Pinto"))
+        #expect(WidgetTickIntent.openAppWhenRun, "a tick opens the app, as the copy says")
+    }
 }
