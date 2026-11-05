@@ -76,8 +76,8 @@ enum CheckPop {
         for i in 0..<14 {
             let a = Double(i) / 14 * 2 * .pi - .pi / 2
             let far = i % 2 == 0
-            let dot = s * (far ? 0.2 : 0.14)
-            let reach = s * (far ? 1.55 : 1.05) + 4
+            let dot = s * (far ? 0.3 : 0.2)
+            let reach = s * (far ? 2.3 : 1.5) + 4
             let start = CGPoint(x: center.x + cos(a) * (s * 0.6 + 1.5), y: center.y + sin(a) * (s * 0.6 + 1.5))
             let out = CGPoint(x: center.x + cos(a) * reach, y: center.y + sin(a) * reach)
             // y grows downwards here, so the dots drop as they fade.
