@@ -651,16 +651,21 @@ final class EditorCore {
         return checkboxLine(at: point, layout: layout)
     }
 
-    /// Sorts the checklist around `line` once the ticks stop for `ListEditing.sortDelay`.
-    func sortSoon(after line: Int, _ sort: @escaping @MainActor (Int) -> Void) {
+    /// Sorts the checklist around `line` once the ticks stop for `ListEditing.sortDelay`. Only if
+    /// `text` is still as the tick left it: the lines are offsets into that text, and the sort isn't
+    /// in Undo, so running it after an Undo, a move or an edit damaged the note (round 18: the next
+    /// Undo left "- [ ] Rain jack- [ ] Chargers" and lost an item).
+    func sortSoon(after line: Int, text: @escaping @MainActor () -> String, _ sort: @escaping @MainActor (Int) -> Void) {
         pendingSort?.cancel()
         if !ticked.contains(line) { ticked.append(line) }
+        let seen = text()
         let work = DispatchWorkItem { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let lines = self.ticked
                 self.ticked = []
                 self.pendingSort = nil
+                guard text() == seen else { return }
                 lines.forEach(sort)
             }
         }
@@ -2081,7 +2086,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             CheckPop.play(in: layer, rect: r.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top),
                           completes: CheckPop.completesList(text, lineStart: line))
         }
-        if controller?.sortsTickedItems != false { core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) } }
+        if controller?.sortsTickedItems != false { core.sortSoon(after: line, text: { [weak self] in self?.text ?? "" }) { [weak self] in self?.sortChecklist(around: $0) } }
     }
 
     /// Ticked items sink below the open ones, a moment after the tick, sliding into place.
@@ -3857,7 +3862,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                               completes: CheckPop.completesList(string, lineStart: line))
             }
         }
-        if controller?.sortsTickedItems != false { core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) } }
+        if controller?.sortsTickedItems != false { core.sortSoon(after: line, text: { [weak self] in self?.string ?? "" }) { [weak self] in self?.sortChecklist(around: $0) } }
         NSAccessibility.post(element: self, notification: .valueChanged)
         return true
     }

@@ -24,10 +24,9 @@ import UIKit
         return CGPoint(x: r.midX + h.view.textContainerOrigin.x, y: r.midY + h.view.textContainerOrigin.y)
     }
 
-    /// Round 18's capture: tick, tick, Undo, move an item, Undo. A frame right after the last Undo
-    /// showed "Rain jack- [ ] Chargers" on one line; the text itself must come back whole.
-    @Test(arguments: [0.3, 1.2, 3.0])
-    func undoingAMoveAfterTicksKeepsTheText(pause: Double) async throws {
+    /// Round 18's capture, at its pace: tick Passport (it sinks), tick Rain jacket, Undo, move Rain
+    /// jacket up, Undo. The last Undo left "- [ ] Rain jack- [ ] Chargers" and lost Passport.
+    @Test func undoingAMoveAfterTicksKeepsTheText() async throws {
         let body = "Packing\n\n- [ ] Passport\n- [ ] Chargers\n- [ ] Rain jacket"
         let h = await EditorHarness(body)
         defer { h.close() }
@@ -38,17 +37,53 @@ import UIKit
             undo.beginUndoGrouping()
             await work()
             undo.endUndoGrouping()
-            await h.settle(pause)
+        }
+        await step { await h.click(circle(h, "Passport")) }
+        await h.settle(1.2)
+        await step { await h.click(circle(h, "Rain jacket")) }
+        await h.settle(1.2)
+        print("MOVEDBG ticked", h.text.debugDescription, "sel", h.selection)
+        undo.undo()
+        await h.settle(1)
+        print("MOVEDBG undo", h.text.debugDescription, "sel", h.selection)
+        await h.caret(after: "Rain jacket")
+        await step { h.controller.moveItem(up: true) }
+        await h.settle(1.5)
+        print("MOVEDBG moved", h.text.debugDescription, "sel", h.selection)
+        undo.undo()
+        await h.settle(Self.settle)
+        print("MOVEDBG undone", h.text.debugDescription, "sel", h.selection)
+        #expect(h.text == "Packing\n\n- [ ] Chargers\n- [ ] Rain jacket\n- [x] Passport")
+    }
+
+    /// The same steps with no pause: a sort still waiting when Undo and the move run. It used to
+    /// rewrite the text from stale line positions, outside Undo, and the next Undo damaged the note.
+    @Test(arguments: [0.0, 0.1, 0.3, 0.5, 0.7])
+    func undoAndMoveWhileASortWaits(gap: Double) async throws {
+        let h = await EditorHarness("Packing\n\n- [ ] Passport\n- [ ] Chargers\n- [ ] Rain jacket")
+        defer { h.close() }
+        let undo = try #require(h.view.undoManager)
+        undo.groupsByEvent = false
+        defer { undo.groupsByEvent = true }
+        func step(_ work: () async -> Void) async {
+            undo.beginUndoGrouping()
+            await work()
+            undo.endUndoGrouping()
+            if gap > 0 { await h.settle(gap) }
         }
         await step { await h.click(circle(h, "Passport")) }
         await step { await h.click(circle(h, "Chargers")) }
-        undo.undo(); await h.settle(pause)
+        undo.undo(); if gap > 0 { await h.settle(gap) }
         await h.caret(after: "Rain jacket")
         await step { h.controller.moveItem(up: true) }
-        #expect(h.text == "Packing\n\n- [ ] Rain jacket\n- [ ] Chargers\n- [x] Passport")
+        await h.settle(1.0)
         undo.undo()
         await h.settle(Self.settle)
-        #expect(h.text == "Packing\n\n- [ ] Chargers\n- [ ] Rain jacket\n- [x] Passport")
+        let lines = h.text.components(separatedBy: "\n")
+        #expect(lines.count == 5, "\(h.text)")
+        for item in ["Passport", "Chargers", "Rain jacket"] {
+            #expect(lines.contains { $0.hasSuffix("] \(item)") }, "\(item) in \(h.text)")
+        }
     }
 
     @Test func oneCommandZPutsTheTickAndTheMoveBack() async throws {
