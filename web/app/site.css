@@ -270,7 +270,7 @@ html:has([data-hero-download]) .site-nav a.site-cta { display: none; }
 html[data-theme] { --ground: #1a2123; }
 html[data-theme="leaf"] { --ground: #0b1418; }
 html.fs-at-ground { background: var(--ground); }
-.site-ground { position: relative; z-index: 1; justify-self: start; width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box;
+.site-ground { position: relative; z-index: 1; margin-top: -1px; justify-self: start; width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box;
   padding: 4px var(--gutter) 40px; background: var(--ground); display: grid; justify-items: center; gap: 12px;
   --muted: #cdbfaa; --ink: #fbeedd; --line: rgba(255, 236, 210, 0.18); --soft: rgba(255, 236, 210, 0.08); }
 /* One row: the page links, a hairline, then the social icons; the credit line centred under it. */
@@ -304,22 +304,30 @@ html.fs-at-ground { background: var(--ground); }
    house's windows unlit; it fades away a third of the way in, so that house switches its lights on. */
 .fs-lights { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center bottom; mix-blend-mode: screen; animation: fs-breathe 6s ease-in-out infinite; }
 .fs-bloom { filter: blur(5px); animation-duration: 6s; animation-delay: -3s; }
-.fs-lamps { animation-duration: 4.5s; }
-.fs-lamps.fs-bloom { filter: blur(9px); animation-delay: -1.5s; }
-@keyframes fs-breathe { 0%,100% { opacity: .25; } 50% { opacity: .75; } }
+.fs-lamps { animation-duration: 4s; }
+.fs-lamps.fs-bloom { filter: blur(9px); animation-delay: -2s; }
+@keyframes fs-breathe { 0%,100% { opacity: .2; } 50% { opacity: .85; } }
 .fs-off { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center bottom; animation: fs-off 12s ease-in-out infinite; }
-@keyframes fs-off { 0%, 30% { opacity: 1; } 34% { opacity: .2; } 36% { opacity: .6; } 40%, 88% { opacity: 0; } 100% { opacity: 1; } }
-.fs-smoke { width: 2.6%; height: 19%; transform: translateX(-50%); }
+@keyframes fs-off { 0%, 18% { opacity: 1; } 21% { opacity: .2; } 23% { opacity: .7; } 26%, 90% { opacity: 0; } 100% { opacity: 1; } }
+.fs-smoke { width: 2.6%; transform: translateX(-50%); }
 .fs-smoke svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.fs-smoke path { fill: none; stroke: #e3d2cc; stroke-width: 5; stroke-linecap: round; filter: drop-shadow(0 1px .8px rgba(60,30,30,.3)); opacity: 0; animation: fs-smoke 9s ease-in-out infinite; }
+/* The foot of each stroke stays on the pot (transform origin at the bottom) while the plume lengthens,
+   leans and fades; the wide, blurred haze under it gives the smoke some body. */
+.fs-smoke path { fill: none; stroke: #f3e7e0; stroke-width: 6; stroke-linecap: round; transform-box: fill-box; transform-origin: 50% 100%;
+  filter: drop-shadow(0 1px .8px rgba(60, 30, 30, .25)); opacity: 0; animation: fs-smoke 6s ease-in-out infinite; animation-delay: var(--d, 0s); }
+.fs-smoke path.fs-haze { stroke-width: 15; stroke: #fbf2ec; filter: blur(3px); animation-name: fs-haze; }
 .fs-night .fs-smoke path { stroke: #6d5a5e; filter: none; }
-.fs-smoke path:nth-child(2) { animation-delay: -4.5s; }
-@keyframes fs-smoke { 0% { opacity: 0; transform: translateY(20%) scaleY(.7); } 25% { opacity: .9; } 70% { opacity: .5; } 100% { opacity: 0; transform: translateY(-35%) scaleY(1.1) skewX(-8deg); } }
-.fs-bird { width: 1.1%; height: .6%; animation: fs-fly 24s linear infinite; }
-.fs-bird svg { width: 100%; height: 100%; overflow: visible; display: block; }
-.fs-bird path { fill: none; stroke: #5b4040; stroke-width: 2; stroke-linecap: round; transform-origin: 50% 70%; animation: fs-flap .9s ease-in-out infinite alternate; }
-@keyframes fs-flap { from { transform: scaleY(1); } to { transform: scaleY(.35); } }
-@keyframes fs-fly { 0% { transform: translate(0,0); opacity: 0; } 5%, 95% { opacity: 1; } 100% { transform: translate(-1800%, -300%); opacity: 0; } }
+.fs-smoke path:nth-child(3) { animation-delay: calc(var(--d, 0s) - 3s); }
+@keyframes fs-smoke { 0% { opacity: 0; transform: scaleY(.55); } 22% { opacity: .95; } 65% { opacity: .65; } 100% { opacity: 0; transform: translateY(-10%) scaleY(1.12) skewX(-10deg); } }
+@keyframes fs-haze { 0% { opacity: 0; transform: scaleY(.55); } 25% { opacity: .4; } 65% { opacity: .25; } 100% { opacity: 0; transform: translateY(-10%) scaleY(1.12) skewX(-10deg); } }
+.fs-bird { width: 1.4%; aspect-ratio: 2; animation: fs-fly 12s linear infinite; }
+.fs-bird svg { width: 100%; height: 100%; overflow: visible; display: block; fill: #3f2a2c; }
+/* Wings hinge at the shoulder: two beats, then a long glide with the wings held in a shallow V. */
+.fs-wing { transform-box: view-box; transform-origin: 10px 6.4px; animation: fs-wing-l 2.4s ease-in-out infinite; animation-delay: inherit; }
+.fs-wing-r { animation-name: fs-wing-r; }
+@keyframes fs-wing-l { 0% { transform: rotate(30deg); } 11% { transform: rotate(-28deg); } 22% { transform: rotate(30deg); } 33% { transform: rotate(-28deg); } 46% { transform: rotate(9deg); } 80% { transform: rotate(6deg); } 100% { transform: rotate(30deg); } }
+@keyframes fs-wing-r { 0% { transform: rotate(-30deg); } 11% { transform: rotate(28deg); } 22% { transform: rotate(-30deg); } 33% { transform: rotate(28deg); } 46% { transform: rotate(-9deg); } 80% { transform: rotate(-6deg); } 100% { transform: rotate(-30deg); } }
+@keyframes fs-fly { 0% { transform: translate(0, 0); opacity: 0; } 5% { opacity: 1; } 35% { transform: translate(-1700%, -170%); } 70% { transform: translate(-3600%, -115%); opacity: 1; } 76%, 100% { transform: translate(-3900%, -130%); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .fs-layer, .fs-layer * { animation: none !important; } .fs-off, .fs-bloom, .fs-bird { display: none; } }
 
 /* Content entrance: blur, lift and fade into focus, in order (style="--i: n"). Runs on load and

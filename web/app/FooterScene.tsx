@@ -1,14 +1,37 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef, type CSSProperties } from "react";
 
 /// The paper town under the footer links: dusk on cream pages, night on leaf-brown pages.
-/// Animated by hand in CSS (site.css, "Footer scene"): windows and lamps breathe, one window switches
-/// on, smoke curls from the chimney, two birds cross. Decorative: hidden from assistive tech, still for
+/// Animated by hand in CSS (site.css, "Footer scene"): windows and lamps twinkle, one window switches
+/// on, smoke rises from three chimneys, a small flock crosses. Decorative: hidden from assistive tech, still for
 /// reduced motion.
 const SMOKE = "M10 60 C4 48 16 40 10 28 C5 18 14 10 10 0";
-const SMOKE2 = "M8 60 C2 50 14 42 9 30 C4 20 12 12 9 2";
-const WING = "M1 6 Q5 0 10 6 Q15 0 19 6";
+const SMOKE2 = "M10 60 C15 50 5 42 10 31 C14 21 6 12 10 3";
+// A bird: two wings hinged at the body, so they beat up and down and then glide.
+const WING_L = "M10 6.2 Q6 3.8 0.6 4.9 Q5.6 5.5 10 7.2Z";
+const WING_R = "M10 6.2 Q14 3.8 19.4 4.9 Q14.4 5.5 10 7.2Z";
+// Windows twinkle in three bands, each on its own beat, so the town never pulses as one.
+const BANDS = [
+  { clip: "inset(0 66% 0 0)", delay: "0s", bloom: "-3s" },
+  { clip: "inset(0 33% 0 34%)", delay: "-2s", bloom: "-5s" },
+  { clip: "inset(0 0 0 67%)", delay: "-4s", bloom: "-1s" },
+];
+// Smoke from the big house and two chimneys across the valley. Each plume's foot sits on the top of a
+// chimney pot, measured on the painting (2172 x 724): the span's bottom edge is the pot's top.
+const SMOKES = [
+  { left: "25.8%", top: "26%", height: "19%" },
+  { left: "76.2%", top: "40%", width: "1.9%", height: "15%", "--d": "-2s" } as CSSProperties,
+  { left: "88.9%", top: "29.3%", width: "1.9%", height: "15%", "--d": "-4s" } as CSSProperties,
+];
+// A small flock crossing the evening sky, right to left.
+const BIRDS = [
+  { left: "74%", top: "31%" },
+  { left: "76%", top: "28.4%", width: "1.3%", animationDelay: "-.3s" },
+  { left: "76.3%", top: "34%", width: "1.3%", animationDelay: "-.75s" },
+  { left: "78.2%", top: "26%", width: "1.2%", animationDelay: "-1.1s" },
+  { left: "78.6%", top: "36.4%", width: "1.2%", animationDelay: "-1.5s" },
+];
 
 export default function FooterScene({ night }: { night: boolean }) {
   const root = useRef<HTMLDivElement>(null);
@@ -27,18 +50,17 @@ export default function FooterScene({ night }: { night: boolean }) {
       <img className="fs-plate" src={night ? "/art/footer/home-night.webp" : "/art/footer/home.webp"} alt="" loading="lazy" decoding="async" />
       <div className="fs-layer">
         <div className="fs-sky" />
-        <img className="fs-lights fs-bloom" src={`${base}-windows.webp`} alt="" loading="lazy" />
-        <img className="fs-lights" src={`${base}-windows.webp`} alt="" loading="lazy" />
+        {BANDS.map((b) => <Fragment key={b.clip}>
+          <img className="fs-lights fs-bloom" style={{ clipPath: b.clip, animationDelay: b.bloom }} src={`${base}-windows.webp`} alt="" loading="lazy" />
+          <img className="fs-lights" style={{ clipPath: b.clip, animationDelay: b.delay }} src={`${base}-windows.webp`} alt="" loading="lazy" />
+        </Fragment>)}
         <img className="fs-lights fs-lamps fs-bloom" src={`${base}-lamps.webp`} alt="" loading="lazy" />
         <img className="fs-lights fs-lamps" src={`${base}-lamps.webp`} alt="" loading="lazy" />
         <img className="fs-off" src={`${base}-off.webp`} alt="" loading="lazy" />
-        <span className="fs-smoke" style={{ left: "25.5%", top: "29%" }}>
-          <svg viewBox="0 0 20 60"><path d={SMOKE} /><path d={SMOKE2} /></svg>
-        </span>
-        {!night && <>
-          <span className="fs-bird" style={{ left: "70%", top: "34%" }}><svg viewBox="0 0 20 8"><path d={WING} /></svg></span>
-          <span className="fs-bird" style={{ left: "73%", top: "37%", width: ".9%", animationDelay: "-.6s" }}><svg viewBox="0 0 20 8"><path d={WING} /></svg></span>
-        </>}
+        {SMOKES.map((m) => <span key={m.left} className="fs-smoke" style={m}>
+          <svg viewBox="0 0 20 60"><path className="fs-haze" d={SMOKE} /><path d={SMOKE} /><path d={SMOKE2} /></svg>
+        </span>)}
+        {!night && BIRDS.map((b, i) => <span key={i} className="fs-bird" style={b}><svg viewBox="0 0 20 10"><path className="fs-wing" d={WING_L} /><path className="fs-wing fs-wing-r" d={WING_R} /><ellipse cx="10" cy="6.7" rx="1.2" ry=".8" /></svg></span>)}
       </div>
     </div>
   );
