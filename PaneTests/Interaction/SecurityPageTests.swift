@@ -19,6 +19,14 @@ import Testing
     }
 
     /// The account most have: two other devices, one AI connected (and one disconnected, not shown).
+    /// Each AI in the list has its Disconnect beside it on the Mac (rounds 17 to 20: the footer said
+    /// to, and there was no button).
+    @Test func eachAIHasItsDisconnect() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "PrivacySecurity.swift"), encoding: .utf8)
+        #expect(source.contains("if case .ai(let id) = o.kind, client != nil"))
+        #expect(source.contains("ConnectRevoke.revoke(client, id: id)"))
+    }
+
     @Test func aStandardAccountWithTwoDevicesAndOneAI() async {
         let crypto = await AdvancedProtectionHiddenTests.standard()
         defer { crypto.signedOut() }

@@ -288,6 +288,7 @@ struct PrivacySecuritySection: View {
     @State private var problem: String?
     @State private var adding = false
     @State private var removing: KeyDevice?
+    @State private var disconnecting: UUID?
     @State private var loaded: [Connection] = []
     @State private var showsHow = false
     /// Which way the switch is being turned, while its question is up.
@@ -547,6 +548,10 @@ struct PrivacySecuritySection: View {
             if case .device(let id) = o.kind, o.canRemove, let d = devices.others.first(where: { $0.id == id }) {
                 removeButton(d).buttonStyle(.settings)
             }
+            // Where this page tells you that you can (rounds 17 to 20: it only said so).
+            if case .ai(let id) = o.kind, client != nil {
+                disconnectButton(id, name: o.name).buttonStyle(.settings)
+            }
         }
         .accessibilityIdentifier(o.kind == .thisDevice ? "privacy.thisDevice" : "privacy.device")
     }
@@ -583,6 +588,30 @@ struct PrivacySecuritySection: View {
             AnyView(AddDeviceSheet(crypto: crypto, server: addDeviceServer)
                 .onDisappear { Task { await devices.refresh(crypto) } })
         }
+    }
+
+    private func disconnectButton(_ id: UUID, name: String) -> some View {
+        Button("Disconnect\u{2026}", role: .destructive) { disconnecting = id }
+            .accessibilityLabel("Disconnect \(name)")
+            .accessibilityIdentifier("privacy.disconnectAI")
+            .confirmationDialog("Disconnect \(name)?",
+                                isPresented: Binding(get: { disconnecting == id }, set: { if !$0 { disconnecting = nil } }),
+                                titleVisibility: .visible) {
+                Button("Disconnect", role: .destructive) {
+                    Task {
+                        guard let client else { return }
+                        do {
+                            try await ConnectRevoke.revoke(client, id: id)
+                            await loadConnections()
+                        } catch {
+                            problem = "Couldn\u{2019}t disconnect \(name). Try again."
+                        }
+                        disconnecting = nil
+                    }
+                }
+            } message: {
+                Text("\(name) loses access to your notes at once.")
+            }
     }
 
     private func removeButton(_ d: KeyDevice) -> some View {

@@ -17,12 +17,12 @@ import SwiftUI
                        previousVersion: version, lines: AIReview.lineCount(previous: from, after: to))
     }
 
-    /// Three edits in a row say 3 lines, and Undo goes back to before the first.
+    /// Three edits in a row say 3 changes, and Undo goes back to before the first.
     @Test func editsInARowAreOneChange() {
         let one = r("A\nB\nC", "A2\nB\nC", version: 7)
         let two = r("A2\nB\nC", "A2\nB2\nC", in: 5, version: 8).continuing(one)
         let three = r("A2\nB2\nC", "A2\nB2\nC2", in: 9, version: 9).continuing(two)
-        #expect(three.lines == 3 && three.summary == "ChatGPT changed 3 lines")
+        #expect(three.lines == 3 && three.summary == "ChatGPT made 3 changes")
         #expect(three.previous == "A\nB\nC" && three.previousVersion == 7)
     }
 

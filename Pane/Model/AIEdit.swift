@@ -161,10 +161,12 @@ enum AIEdit {
         /// Whose AI it was, when it isn't yours: their first name (an AI's change to a shared note).
         /// `by` stays the AI's own name, for its mark.
         var person: String? = nil
+        /// How many of the AI's edits this is, in a row. They can come to fewer lines than edits.
+        var edits = 1
 
         enum Kind: Equatable { case edit, pageEdit, dataEdit, pageMade, pageChanged, reverted, heldBack }
 
-        /// One AI's edits in a row are one change: an AI that makes three edits has "changed 3 lines",
+        /// One AI's edits in a row are one change: an AI that makes three edits has "made 3 changes",
         /// all marked, and Undo takes all three back (round 17: it said 1 line, the last one).
         /// `earlier`: the receipt still on the note, if any. Typing between them keeps them apart.
         func continuing(_ earlier: Receipt?) -> Receipt {
@@ -175,6 +177,7 @@ enum AIEdit {
             both.previous = earlier.previous
             both.previousVersion = earlier.previousVersion
             both.lines = AIReview.lineCount(previous: earlier.previous, after: after)
+            both.edits = earlier.edits + 1
             return both
         }
 
@@ -192,6 +195,7 @@ enum AIEdit {
             if kind == .pageMade { return "\(who) made this note an app" }
             if kind == .pageChanged { return "\(who) changed this note's app" }
             if created { return "\(who) wrote this note" }
+            if edits > 1 { return "\(who) made \(edits) changes" }
             return lines == 0 ? "Updated by \(who)" : "\(who) changed \(lines == 1 ? "1 line" : "\(lines) lines")"
         }
 
