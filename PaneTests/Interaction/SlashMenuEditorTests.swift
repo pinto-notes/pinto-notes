@@ -7,6 +7,7 @@ import Testing
 /// The `/` menu in the real Mac editor: offered under the caret as you type `/`, filtered by the
 /// letters after it, run with Return, Tab or a click, put away with Escape.
 @MainActor @Suite(.serialized) struct SlashMenuEditorTests {
+    init() { SlashRecents.clear() }
     func listShown(_ h: EditorHarness) -> Bool { h.view.subviews.contains { $0 is NSHostingView<SlashCommandList> } }
     var end: (EditorHarness) -> Int { { ($0.text as NSString).length } }
 
@@ -51,6 +52,120 @@ import Testing
         await h.press(EditorHarness.tab)
         #expect(h.text == "Plan\n# ", "Title, with the caret ready to write it")
         #expect(h.selection.location == end(h))
+    }
+
+    /// /note runs Link to note: the `[[` titles open where the slash was, to pick a note by name.
+    @Test func linkToNoteOpensTheTitles() async {
+        let h = await EditorHarness("Plan\n")
+        defer { h.close() }
+        await h.select(end(h))
+        await h.type("See /wiki")
+        #expect(h.controller.slashCommands == [.noteLink])
+        await h.press(EditorHarness.returnKey)
+        #expect(h.text == "Plan\nSee [[")
+        #expect(h.controller.wikiQuery != nil, "the titles are offered")
+    }
+
+    /// Shorthand works in the editor, and the command used comes first next time.
+    @Test func shorthandAndRecentInTheEditor() async {
+        let h = await EditorHarness("Plan\nBuy milk")
+        defer { h.close() }
+        await h.select(end(h))
+        await h.type(" /chk")
+        #expect(h.controller.slashCommands == [.checklist])
+        await h.press(EditorHarness.returnKey)
+        #expect(h.text == "Plan\n- [ ] Buy milk ")
+        await h.press(EditorHarness.returnKey)
+        await h.press(EditorHarness.returnKey)
+        await h.type("/")
+        #expect(h.controller.slashCommands.first == .checklist, "used last, offered first")
+        #expect(h.controller.slashCommands.count == SlashCommand.available.count)
+    }
+
+    /// ↑ from the first row goes to the last and ↓ from the last to the first; the menu shows half
+    /// a row more than fits, and a line under the recent ones.
+    @Test func arrowsWrapAndTheMenuShowsThereIsMore() async {
+        let h = await EditorHarness("Plan\n")
+        defer { h.close() }
+        await h.select(end(h))
+        await h.type("/")
+        let n = h.controller.slashCommands.count
+        await h.press(EditorHarness.up)
+        #expect(h.controller.slashChoice == n - 1, "up from the first is the last")
+        await h.press(EditorHarness.down)
+        #expect(h.controller.slashChoice == 0, "down from the last is the first")
+        let size = SlashCommandList.size(rows: n)
+        #expect(size.height == 9.5 * SlashCommandList.rowHeight + 8, "half a row past the fold")
+        #expect(SlashCommandList.size(rows: 3).height == 3 * SlashCommandList.rowHeight + 8, "a short list as tall as its rows")
+        #expect(SlashCommandList.size(rows: 3, recent: 1).height == 3 * SlashCommandList.rowHeight + SlashCommandList.recentLine + 8)
+        #expect(SlashCommandList.size(rows: n, recent: 1).height == 9.5 * SlashCommandList.rowHeight + SlashCommandList.recentLine + 8, "the line under the recents doesn't eat the half row")
+    }
+
+    /// The hint shows on the empty line the caret is on, not on the title's, and not while the
+    /// menu is open or the line has text.
+    @Test func anEmptyLineSaysTypeSlash() async {
+        let h = await EditorHarness("Plan\nMilk\n")
+        defer { h.close() }
+        func hint() -> Bool { h.view.subviews.contains { ($0 as? NSTextField)?.stringValue == PaneTextView.slashHintText } }
+        await h.select(end(h))
+        #expect(hint(), "on the empty line")
+        await h.type("/")
+        #expect(!hint(), "the menu instead")
+        await h.press(EditorHarness.delete)
+        #expect(hint())
+        await h.type("E")
+        #expect(!hint(), "the line has text")
+        await h.select(2)
+        #expect(!hint(), "the title's line has text")
+        let blank = await EditorHarness("")
+        defer { blank.close() }
+        await blank.select(0)
+        func label(_ e: EditorHarness) -> NSTextField? { e.view.subviews.lazy.compactMap { $0 as? NSTextField }.first { $0.identifier?.rawValue == "editor.slashHint" } }
+        #expect(label(blank)?.stringValue == PaneTextView.titleHintText, "an empty note says where its title goes")
+        #expect(label(blank)?.font == MarkdownStyler.titleFont, "in the title's size")
+        await blank.type("P")
+        #expect(label(blank) == nil, "gone at the first letter")
+    }
+
+    /// A new note says "Title" as soon as it has the keyboard, before any click or key.
+    @Test func aNewNoteSaysTitleStraightAway() async {
+        let h = await EditorHarness("")
+        defer { h.close() }
+        h.view.window?.makeFirstResponder(nil)
+        h.view.window?.makeFirstResponder(h.view)
+        try? await Task.sleep(for: .milliseconds(100))
+        let label = h.view.subviews.lazy.compactMap { $0 as? NSTextField }.first { $0.identifier?.rawValue == "editor.slashHint" }
+        #expect(label?.stringValue == PaneTextView.titleHintText)
+    }
+
+    /// Once the menu has been used a few times the hint has done its job and stops.
+    @Test func theHintStopsOnceTheMenuIsKnown() async {
+        let h = await EditorHarness("Plan\n")
+        defer { h.close() }
+        await h.select(end(h))
+        func hint() -> Bool { h.view.subviews.contains { ($0 as? NSTextField)?.stringValue == PaneTextView.slashHintText } }
+        #expect(hint())
+        let shown = h.view.subviews.lazy.compactMap { $0 as? NSTextField }.first { $0.identifier?.rawValue == "editor.slashHint" }
+        #expect(shown?.textColor == PColor.paneSecondary, "muted, so it can be read")
+        for _ in 0..<SlashRecents.learned { SlashRecents.used(.checklist) }
+        await h.press(EditorHarness.right)
+        await h.select(end(h))
+        #expect(!hint(), "learned")
+    }
+
+    /// Filtering says the new first choice, and letters that match nothing say so.
+    @Test func filteringTellsVoiceOver() async {
+        let h = await EditorHarness("Plan\n")
+        defer { h.close() }
+        await h.select(end(h))
+        await h.type("/")
+        #expect(h.controller.lastSlashAnnouncement?.hasPrefix("Formatting menu. ") == true)
+        await h.type("chk")
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(h.controller.lastSlashAnnouncement == "Checklist, 1 of 1, \u{21E7}\u{2318}L")
+        await h.type("zzz")
+        #expect(h.controller.lastSlashAnnouncement == "No matches")
+        #expect(h.controller.slashCommands.isEmpty)
     }
 
     @Test func escapePutsItAwayForThatSlash() async {
@@ -155,7 +270,7 @@ import Testing
         await h.select(end(h))
         await h.type("/warn")
         #expect(h.controller.slashCommands == [.callout])
-        #expect(h.controller.slashName(.callout) == "Warning callout")
+        #expect(h.controller.slashName(.callout) == "Warning Callout")
         #expect(h.controller.slashSymbol(.callout) == Callouts.Kind.warning.symbol)
         await h.press(EditorHarness.returnKey)
         #expect(h.text == "Plan\n> [!warning]\n> ")

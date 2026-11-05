@@ -8,11 +8,52 @@ struct SlashCommandList: View {
     let controller: EditorController
     static let rowHeight: CGFloat = 24
     static let width: CGFloat = 236
+    /// Nine and a half rows show; more scroll, with the choice kept in view (18 commands made a
+    /// list taller than a small window's note). The half row says there's more (council round 13:
+    /// ten whole rows looked like the whole menu).
+    static let maxRows = 9.5
+    /// The line under the recent ones.
+    static let recentLine: CGFloat = 9
+    static let fade: CGFloat = 12
 
     /// The list's size for so many commands (the text view places it before SwiftUI lays it out).
-    static func size(rows: Int) -> CGSize { CGSize(width: width, height: CGFloat(rows) * rowHeight + 8) }
+    static func size(rows: Int, recent: Int = 0) -> CGSize {
+        let line = recent > 0 && recent < rows ? recentLine : 0
+        let full = CGFloat(rows) * rowHeight + line
+        // The line under the recents comes on top of the cap, so half a row still peeks out.
+        return CGSize(width: width, height: min(full, CGFloat(maxRows) * rowHeight + line) + 8)
+    }
 
     var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) { rows }
+                // The half row past the fold fades out rather than being cut through its letters.
+                .mask {
+                    VStack(spacing: 0) {
+                        Color.black
+                        // Not once the end is in view, where the last row is the one you're on.
+                        if Double(controller.slashCommands.count) > Self.maxRows, controller.slashChoice < controller.slashCommands.count - 2 {
+                            LinearGradient(colors: [.black, .black.opacity(0.15)], startPoint: .top, endPoint: .bottom)
+                                .frame(height: Self.fade)
+                        }
+                    }
+                }
+                .scrollIndicators(Double(controller.slashCommands.count) > Self.maxRows ? .automatic : .never)
+                .scrollBounceBehavior(.basedOnSize)
+                .onChange(of: controller.slashChoice) { _, i in
+                    guard controller.slashCommands.indices.contains(i) else { return }
+                    proxy.scrollTo(controller.slashCommands[i])
+                }
+        }
+        .padding(4)
+        .frame(width: Self.width)
+        .background(Color(PColor.panePanel), in: .rect(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(PColor.paneSeparator)))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(EditorController.slashMenuName)
+    }
+
+    private var rows: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(controller.slashCommands.enumerated()), id: \.element) { i, command in
                 Button { controller.runSlash(command) } label: {
@@ -42,14 +83,15 @@ struct SlashCommandList: View {
                 .accessibilityLabel(controller.slashName(command))
                 .accessibilityAddTraits(i == controller.slashChoice ? .isSelected : [])
                 .accessibilityIdentifier("slash.command.\(command.rawValue)")
+                .id(command)
+                if i == controller.slashRecentCount - 1, i < controller.slashCommands.count - 1 {
+                    // Used last, above; the menu's own order, below.
+                    Rectangle().fill(Color(PColor.paneSeparator)).frame(height: 1)
+                        .padding(.vertical, (Self.recentLine - 1) / 2).padding(.horizontal, 8)
+                        .accessibilityHidden(true)
+                }
             }
         }
-        .padding(4)
-        .frame(width: Self.width)
-        .background(Color(PColor.panePanel), in: .rect(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(PColor.paneSeparator)))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Insert")
     }
 }
 #endif
@@ -85,7 +127,7 @@ struct SlashCommandRow: View {
             }
             .padding(.horizontal, 4)
         }
-        .accessibilityLabel("Insert")
+        .accessibilityLabel(EditorController.slashMenuName)
     }
 }
 #endif

@@ -59,7 +59,7 @@ import Testing
                 print("toolbar at \(Int(size.width)): " + items.map { "\($0.label.isEmpty ? "(blank)" : $0.label)@\($0.column) \(Int($0.frame.minX))-\(Int($0.frame.maxX))" }.joined(separator: ", "))
                 func column(_ label: String) -> [Int] { items.filter { $0.label == label }.map(\.column) }
                 try Self.expectSidebarButtons(w, items)
-                #expect(column("Hide Sidebar").isEmpty && column("Show Sidebar").isEmpty, "no sidebar button")
+                #expect(column("Hide Sidebar") == [0] && column("Show Sidebar").isEmpty, "a sidebar button you can see (Emil, 11-04)")
                 #expect(column("New Note") == [1], "compose sits with the list")
                 for label in ["Format", "Checklist", "Table", "Attach", "Share"] {
                     #expect(column(label) == [2], "\(label) stays with the note")
@@ -143,11 +143,92 @@ import Testing
         #expect(ListWidthKeeper.Probe.shownWidth(sidebar: sidebar, list: CGRect(x: 261, y: 0, width: 260, height: 800)) == 261, "beside it, with the divider")
     }
 
-    /// The sidebar's top, left to right: New Folder, Today, Search, all over the sidebar, in the
-    /// toolbar, the same size, not overlapping, and clear of the window's buttons.
+    /// Too narrow for three columns, the sidebar steps aside, and comes back with room, only if it
+    /// hid itself; what you chose stays (Emil, 11-04: it takes too much room on small Macs).
+    @Test func theSidebarStepsAsideInANarrowWindow() {
+        let line = SidebarFit.threeColumns, back = SidebarFit.comeBack
+        var clock = Date(timeIntervalSince1970: 1_000_000)
+        func later() -> Date { clock = clock.addingTimeInterval(1); return clock }
+        #expect(line <= 1469 - 300, "a 13-inch Air's full screen keeps it, with room to spare")
+        #expect(back > line + 90, "the width its own hiding causes (1,029 to 1,119) can't bring it back")
+        var unsized = SidebarFit()
+        #expect(unsized.settled(width: 0, visibility: .all, now: later()) == nil, "no width yet is not narrow")
+        // Opening narrow: no sidebar.
+        var fit = SidebarFit()
+        #expect(fit.settled(width: line - 100, visibility: .all, now: later()) == .doubleColumn)
+        fit.changed(to: .doubleColumn)
+        #expect(fit.settled(width: line + 50, visibility: .doubleColumn, now: later()) == nil, "not back until there's room to spare")
+        #expect(fit.settled(width: back + 10, visibility: .doubleColumn, now: later()) == .all)
+        fit.changed(to: .all)
+        // Its own change settling: a width straight after is ignored.
+        var quick = SidebarFit()
+        let t0 = later()
+        #expect(quick.settled(width: 1029, visibility: .all, now: t0) == .doubleColumn)
+        quick.changed(to: .doubleColumn)
+        #expect(quick.settled(width: back + 1, visibility: .doubleColumn, now: t0.addingTimeInterval(0.2)) == nil, "settling")
+        // You hide it in a wide window: a narrow one and back doesn't bring it back.
+        fit.changed(to: .doubleColumn)
+        #expect(fit.settled(width: line - 10, visibility: .doubleColumn, now: later()) == nil)
+        #expect(fit.settled(width: back + 10, visibility: .doubleColumn, now: later()) == nil, "you hid it")
+        // You show it in a narrow window: it stays while the window stays narrow.
+        var shown = SidebarFit()
+        #expect(shown.settled(width: line - 10, visibility: .all, now: later()) == .doubleColumn)
+        shown.changed(to: .doubleColumn)
+        shown.changed(to: .all)
+        #expect(shown.settled(width: line - 20, visibility: .all, now: later()) == nil, "yours, kept")
+        // A wide window opens with it.
+        var wide = SidebarFit()
+        #expect(wide.settled(width: 1469, visibility: .all, now: later()) == nil)
+    }
+
+    /// A real window made narrow: the sidebar steps aside, and the window lives (council round
+    /// 13 on the Air: hiding it inside the resize's own layout pass looped AppKit's constraints
+    /// until it threw). Wider again, it's back.
+    @Test func aNarrowedWindowHidesTheSidebarAndLives() async throws {
+        let c = try AppSnapshotTests.container()
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            let w = Self.window(c, size: CGSize(width: 1300, height: 800))
+            defer { w.close() }
+            await Self.settle(w)
+            let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
+            let sidebar = try #require((split.delegate as? NSSplitViewController)?.splitViewItems.first)
+            #expect(!sidebar.isCollapsed)
+            for width in [1200.0, 1000, 980] {
+                w.setContentSize(CGSize(width: width, height: 800))
+                w.contentView?.layoutSubtreeIfNeeded()
+                await Self.settle(w, 3)
+            }
+            #expect(sidebar.isCollapsed, "too narrow for three columns")
+            #expect(w.frame.width <= 1030, "hiding it doesn't widen the window: \(w.frame.width)")
+            let widths = (0..<6).map { _ in w.frame.width }
+            await Self.settle(w, 6)
+            #expect(sidebar.isCollapsed && w.frame.width == widths[0], "and it stays put: no hiding and showing in turn")
+            // Hidden, it no longer holds the window wide (council round 13: hiding it raised the
+            // least width from 1,029 to 1,119, so the window widened itself): the list and the note.
+            w.setContentSize(CGSize(width: 880, height: 800))
+            await Self.settle(w, 6)
+            #expect(w.frame.width <= 900, "the window goes to the list and the note's width: \(w.frame.width)")
+            #expect(sidebar.isCollapsed)
+            w.setContentSize(CGSize(width: 1300, height: 800))
+            await Self.settle(w, 8)
+            #expect(!sidebar.isCollapsed, "back with room")
+        }
+    }
+
+    @Test func newFolderIsOnTheFoldersHeading() throws {
+        let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
+        let heading = try #require(sidebar.range(of: "Text(\"Folders\")").map { String(sidebar[$0.lowerBound...].prefix(600)) })
+        #expect(heading.contains("Button(\"New Folder\", systemImage: \"plus\")") && heading.contains(".buttonStyle(.quietIcon"), "a plus with a hover look")
+        #expect(sidebar.contains("Button(toggleSidebar.title, systemImage: \"sidebar.left\")"))
+        #expect(sidebar.contains("ToolbarItem { SidebarToggleButton() }"), "its own view reads the toggle, not the folders'")
+    }
+
+    /// The sidebar's top, left to right: Hide Sidebar, Today, Search, all over the sidebar, in the
+    /// toolbar, the same size, not overlapping, and clear of the window's buttons. New Folder is
+    /// on the Folders heading (Emil, 11-04: the sidebar needed a button of its own).
     static func expectSidebarButtons(_ w: NSWindow, _ items: [(label: String, column: Int, frame: CGRect)]) throws {
         let sidebar = items.filter { $0.column == 0 }
-        #expect(sidebar.map(\.label) == ["New Folder", "Today\u{2019}s note", "Search"], "New Folder, Today, Search over the sidebar: \(sidebar.map(\.label))")
+        #expect(sidebar.map(\.label) == ["Hide Sidebar", "Today\u{2019}s note", "Search"], "Hide Sidebar, Today, Search over the sidebar: \(sidebar.map(\.label))")
         #expect(!items.contains { $0.label == "Show Sidebar" }, "no Show Sidebar while it shows")
         let frames = sidebar.map(\.frame).sorted { $0.minX < $1.minX }
         #expect(sidebar.map(\.frame) == frames, "in that order, left to right")
@@ -250,7 +331,7 @@ import Testing
             #expect(search.count == 1, "one Search button")
             let more = try #require(items.first { $0.label == "More" })
             let buttons = ["Show Sidebar", "Today\u{2019}s note", "Search"].compactMap { l in items.first { $0.label == l } }
-            #expect(buttons.count == 3, "Show Sidebar in New Folder's place, then Today and Search (council round 4): \(items.map(\.label))")
+            #expect(buttons.count == 3, "Show Sidebar where Hide Sidebar was, then Today and Search: \(items.map(\.label))")
             #expect(!items.contains { $0.label == "New Folder" }, "a folder made with the sidebar hidden can't be seen; File › New Folder stays")
             #expect(zip(buttons, buttons.dropFirst()).allSatisfy { $0.frame.maxX <= $1.frame.minX }, "in that order, not overlapping")
             #expect(buttons.allSatisfy { $0.frame.maxX < more.frame.minX }, "before the list's More")
@@ -321,7 +402,8 @@ import Testing
         }
     }
 
-    /// New Folder makes and selects the folder, then edits its name in the sidebar row.
+    /// New Folder (the Folders heading's plus, File › New Folder) makes and selects the folder, then
+    /// edits its name in the sidebar row.
     @Test func sidebarNewFolderNamesItsRow() async throws {
         let c = try AppSnapshotTests.container()
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
@@ -329,7 +411,8 @@ import Testing
             defer { w.close() }
             await Self.settle(w)
             let before = Set(c.mainContext.allFolders().map(\.id))
-            #expect(Self.press(try #require(Self.toolbarItem(w, "New Folder"), "New Folder at the sidebar's top")))
+            #expect(Self.toolbarItem(w, "New Folder") == nil, "on the Folders heading now, not the toolbar")
+            NotificationCenter.default.post(name: .paneNewFolder, object: nil)
             await Self.settle(w, 5)
             let made = try #require(c.mainContext.allFolders().first { !before.contains($0.id) })
             #expect(made.name == "New Folder")

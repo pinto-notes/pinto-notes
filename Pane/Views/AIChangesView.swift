@@ -122,8 +122,16 @@ struct AIChangeDetail: View {
     var body: some View {
         Group {
             if change.changesText, let diff = model.diff {
-                VersionTextView(text: diff.text, changed: diff.added, removed: diff.removed)
-                    .accessibilityIdentifier("aiChanges.diff")
+                VStack(alignment: .leading, spacing: 0) {
+                    // What the two marks mean: a crossed-out line could pass for a done task
+                    // (council round 14).
+                    if !diff.added.isEmpty || !diff.removed.isEmpty {
+                        AIChangeKey(added: !diff.added.isEmpty, removed: !diff.removed.isEmpty)
+                            .padding(.horizontal, 20).padding(.top, 10)
+                    }
+                    VersionTextView(text: diff.text, changed: diff.added, removed: diff.removed)
+                        .accessibilityIdentifier("aiChanges.diff")
+                }
             } else if let failed = model.detailFailed {
                 // With a way out: a failed load could only be left by picking another change
                 // (council round 7).
@@ -469,5 +477,42 @@ struct AIChangesOlderFailed: View {
         .frame(maxWidth: .infinity).padding(.vertical, 8)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("aiChanges.olderFailed")
+    }
+}
+
+/// "Added" and "Removed" over an AI change's preview, each beside the mark it means.
+struct AIChangeKey: View {
+    let added: Bool
+    let removed: Bool
+    static let addedName = "Added"
+    static let removedName = "Removed"
+    static func spoken(added: Bool, removed: Bool) -> String {
+        let s = [added ? "added text is highlighted" : nil, removed ? "removed text is crossed out" : nil].compactMap { $0 }.joined(separator: ", ")
+        return s.prefix(1).uppercased() + s.dropFirst()
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            if added {
+                HStack(spacing: 5) {
+                    RoundedRectangle(cornerRadius: 3).fill(Color.accentColor.opacity(0.24)).frame(width: 16, height: 11)
+                    Text(Self.addedName)
+                }
+            }
+            if removed {
+                HStack(spacing: 5) {
+                    Text("abc").strikethrough().foregroundStyle(.secondary)
+                        .padding(.horizontal, 2)
+                        .background(Color(PColor.systemRed).opacity(0.14), in: .rect(cornerRadius: 3))
+                        .accessibilityHidden(true)
+                    Text(Self.removedName)
+                }
+            }
+        }
+        .font(.system(size: 12))
+        .foregroundStyle(Color.muted)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Self.spoken(added: added, removed: removed))
+        .accessibilityIdentifier("aiChanges.key")
     }
 }

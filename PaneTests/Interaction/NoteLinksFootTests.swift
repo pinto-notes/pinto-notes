@@ -198,8 +198,8 @@ import Testing
     @Test func theLineSaysWhatLinksHere() {
         #expect(NoteLinksSection.summary(linked: 2, mentions: 1) == "Linked from 2 notes \u{00B7} 1 mention")
         #expect(NoteLinksSection.summary(linked: 1, mentions: 0) == "Linked from 1 note")
-        #expect(NoteLinksSection.summary(linked: 0, mentions: 3) == "3 unlinked mentions")
-        #expect(NoteLinksSection.summary(linked: 0, mentions: 1) == "1 unlinked mention")
+        #expect(NoteLinksSection.summary(linked: 0, mentions: 3) == "Mentioned in 3 notes")
+        #expect(NoteLinksSection.summary(linked: 0, mentions: 1) == "Mentioned in 1 note")
         #expect(NoteLinksSection.summary(linked: 4, mentions: 10, more: true) == "Linked from 4 notes \u{00B7} 10+ mentions")
     }
 

@@ -62,10 +62,50 @@ import Testing
     @Test func rankingNamesBeforeWordsBeforeAliases() {
         let all = SlashCommand.allCases
         // "Link" starts with it; the lists have a word that does; "line" is Divider's alias.
-        #expect(SlashCommands.matches("li", in: all) == [.link, .bulleted, .dashed, .numbered, .divider])
+        #expect(SlashCommands.matches("li", in: all) == [.link, .noteLink, .bulleted, .dashed, .numbered, .divider])
         #expect(SlashCommands.matches("h", in: all).prefix(3) == [.heading, .highlight, .title], "Heading and Highlight by name, then Title by h1")
         #expect(SlashCommands.matches("bulleted l", in: all) == [.bulleted], "a two-word name")
         #expect(SlashCommands.matches("che ", in: all) == [.checklist], "a trailing space keeps a match")
+    }
+
+    /// Letters in order find a command when nothing starts with them (Notion's menu needs the
+    /// start of a word), and never crowd a real match.
+    @Test func shorthandFindsACommand() {
+        let all = SlashCommand.allCases
+        #expect(SlashCommands.matches("chk", in: all) == [.checklist])
+        #expect(SlashCommands.matches("cdblk", in: all) == [.codeBlock])
+        #expect(SlashCommands.matches("nmbr", in: all) == [.numbered])
+        #expect(SlashCommands.matches("line", in: all) == [.divider], "a real match only")
+        #expect(SlashCommands.matches("k", in: all).isEmpty, "one letter isn't shorthand")
+        #expect(SlashCommands.matches("note", in: all) == [.noteLink, .callout], "a word of Link to note, then Callout's alias")
+        #expect(SlashCommands.matches("wiki", in: all) == [.noteLink])
+    }
+
+    /// The names the Format menu uses for the same commands.
+    @MainActor @Test func namesMatchTheFormatMenu() throws {
+        #if os(macOS)
+        let root = try SettingsHomeTests.source("Pane/Views/RootView.swift")
+        for c in [SlashCommand.title, .heading, .subheading, .body, .checklist, .bulleted, .dashed, .numbered, .quote, .highlight, .divider, .callout] {
+            #expect(root.contains("Button(\"\(c.name)\")"), "Format › \(c.name)")
+        }
+        #endif
+        #expect(EditorController.slashAnnouncement("Checklist", at: 0, of: 18, shortcut: "\u{21E7}\u{2318}L", opening: true) == "Formatting menu. Checklist, 1 of 18, \u{21E7}\u{2318}L")
+        #expect(EditorController.slashAnnouncement("Table", at: 12, of: 18, shortcut: nil, opening: false) == "Table, 13 of 18")
+    }
+
+    /// What you used last comes first, three of them, newest first; typed or not.
+    @Test func theOnesUsedLastComeFirst() {
+        let all = SlashCommand.allCases
+        #expect(SlashCommands.matches("", in: all, recent: [.table, .checklist]).prefix(3) == [.table, .checklist, .title])
+        #expect(SlashCommands.matches("h", in: all, recent: [.highlight]).prefix(2) == [.highlight, .heading], "a tie goes to the recent one")
+        #expect(SlashCommands.matches("h", in: all, recent: [.title]).first == .heading, "a better match still wins")
+        let defaults = UserDefaults(suiteName: "SlashRecentsTests")!
+        defaults.removePersistentDomain(forName: "SlashRecentsTests")
+        let saved = SlashRecents.defaults
+        SlashRecents.defaults = defaults
+        defer { SlashRecents.defaults = saved }
+        for c in [SlashCommand.title, .table, .checklist, .table, .divider] { SlashRecents.used(c) }
+        #expect(SlashRecents.commands == [.divider, .table, .checklist], "newest first, no repeats, three")
     }
 
     @Test func aSpaceAfterAQueryThatNamesNothingCloses() {
@@ -80,7 +120,8 @@ import Testing
     @Test func everyCommandHasANameSymbolAndAWayToFindIt() {
         for c in SlashCommand.allCases {
             #expect(!c.name.isEmpty && !c.symbol.isEmpty)
-            #expect(c.name.prefix(1) == c.name.prefix(1).uppercased() && c.name.dropFirst() == c.name.dropFirst().lowercased(), "sentence case: \(c.name)")
+            // Title case, as the Format menu names the same things (council round 13).
+            #expect(c.name.split(separator: " ").allSatisfy { w in ["to"].contains(w) || w.prefix(1) == w.prefix(1).uppercased() }, "title case: \(c.name)")
             #expect(SlashCommands.matches(String(c.name.prefix(3)), in: SlashCommand.allCases).contains(c))
         }
         #if os(macOS)

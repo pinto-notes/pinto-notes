@@ -597,7 +597,7 @@ import Testing
         // Round 8: the small print at 11 pt, links and all (10 pt read as miniature).
         let print = LinkLabel.styled(Legal.consentSentence)
         #expect((print.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)?.pointSize == ConsentFooter.size)
-        #expect(ConsentFooter.size == 11)
+        #expect(ConsentFooter.size == 12)
         // The terms on two lines, the two names together on the second, each line measured
         // (council round 10: "Privacy Policy." sat alone).
         let terms = String(Legal.consentLines.characters)

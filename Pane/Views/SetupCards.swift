@@ -27,7 +27,7 @@ enum SetupCards {
     /// one wide card.
     static func width(_ card: Card) -> CGFloat {
         switch card {
-        case .signIn: 340
+        case .signIn: 370 // the small print at 12 pt keeps its four lines (council round 14)
         case .bring: 420
         case .importing, .waiting, .connected: 340
         case .connect: 400

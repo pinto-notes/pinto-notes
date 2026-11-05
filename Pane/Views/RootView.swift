@@ -18,6 +18,14 @@ struct RootView: View {
     @State private var visibility: NavigationSplitViewVisibility = .all
     #if os(macOS)
     @State private var listWidth = ListWidthKeeper.Probe()
+    /// Whether the sidebar hid itself for a narrow window, and the change it's making (SidebarFit).
+    @State private var sidebarFit = SidebarFit()
+    /// Waits for the window's width to hold still before the sidebar acts on it.
+    @State private var sidebarFitWait: Task<Void, Never>?
+    /// The list takes its wider least width (350, for the sidebar's buttons over it) once the
+    /// sidebar has folded away, not while it folds: then the three least widths together pushed
+    /// the window 90 pt wider (council round 13: asked for 1,000, it grew to 1,119).
+    @State private var listRoomy = false
     #endif
     #if os(iOS)
     /// The open notes, for the list beside the note to draw (OpenNotes).
@@ -269,6 +277,28 @@ struct RootView: View {
         }
         #endif
         #if os(macOS)
+        // Too narrow for three columns (a 13-inch screen, a window at half), the sidebar steps
+        // aside on its own and comes back when there's room, unless you hid it yourself
+        // (Emil, 11-04: hiding it only by menu or keys was weird).
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+            // Once the width has held for a moment: a window being made passes through its least
+            // width on the way to its own, and changing the columns inside a resize's layout pass
+            // looped AppKit's constraints until it threw (council round 13, the Air).
+            sidebarFitWait?.cancel()
+            sidebarFitWait = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(SidebarFit.hold))
+                guard !Task.isCancelled, let v = sidebarFit.settled(width: width, visibility: visibility) else { return }
+                withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) { visibility = v }
+            }
+        }
+        .onChange(of: visibility) { _, new in
+            sidebarFit.changed(to: new)
+            if new == .all { listRoomy = false; return }
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(0.4))
+                if visibility != .all { listRoomy = true }
+            }
+        }
         // The list column shows its own title; no window title in the bar.
         .toolbar(removing: .title)
         // ⌘F (Edit › Find › Find…) opens the notes search, unless the note's text has the keys:
@@ -379,14 +409,16 @@ struct RootView: View {
                 .environment(library)
                 .environment(tags)
                 #if os(macOS)
-                // The sidebar hides again (Emil, 11-04, overriding the 11-01 pin): View › Hide
-                // Sidebar (⌃⌘S) gives the note the window. No sidebar button (10-29): it would push
-                // Search off the sidebar's top, which at its narrowest has room for New Folder,
-                // Today and Search beside the window's buttons (10-31).
+                // The sidebar hides with its own button, first beside the window's buttons as in
+                // Notes, and with View › Hide Sidebar (⌃⌘S) (Emil, 11-04: with only the menu and
+                // keys it looked like it couldn't). Ours, not the system's, so it stays in its
+                // place with the sidebar shown or hidden; New Folder moved to the Folders heading.
                 .toolbar(removing: .sidebarToggle)
                 .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
-                .environment(\.showSidebar, visibility == .all ? nil : ShowSidebarAction {
-                    withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) { visibility = .all }
+                .environment(\.toggleSidebar, ToggleSidebarAction(shown: visibility == .all) {
+                    withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) {
+                        visibility = SidebarToggle.toggled(visibility)
+                    }
                 })
                 #else
                 // iPad: room for the title beside the account button.
@@ -401,7 +433,7 @@ struct RootView: View {
                 // beside the window's buttons: 350 pt keeps More and New Note clear of its edge.
                 // 360 at most beside the sidebar, so a missed restore costs the note little (council
                 // round 5, 11-04: it came back at 440 on the Air).
-                .navigationSplitViewColumnWidth(min: visibility == .all ? 260 : 350, ideal: visibility == .all ? 330 : 350, max: visibility == .all ? 360 : 440)
+                .navigationSplitViewColumnWidth(min: listRoomy ? 350 : 260, ideal: visibility == .all ? 330 : 350, max: visibility == .all ? 360 : 440)
                 #else
                 // Large text needs the room more here than in the note beside it.
                 // A window wider than tall and under 1,000 pt (iPhone Duo open like a book): the list is
@@ -1292,6 +1324,9 @@ struct PaneCommands: Commands {
                 Button("Dashed List") { editor?.dashedList() }.keyboardShortcut("8", modifiers: [.command, .shift])
                 Button("Numbered List") { editor?.numberedList() }.keyboardShortcut("9", modifiers: [.command, .shift])
                 Button("Block Quote") { editor?.blockQuote() }.keyboardShortcut("'", modifiers: .command)
+                // Notes' Move List Item Up and Down, for any line (council rounds 13 and 14).
+                Button("Move Item Up") { editor?.moveItem(up: true) }.keyboardShortcut(.upArrow, modifiers: [.command, .control])
+                Button("Move Item Down") { editor?.moveItem(up: false) }.keyboardShortcut(.downArrow, modifiers: [.command, .control])
                 // A line across the note (`---`). No shortcut, as in Pages.
                 Button("Divider") { editor?.insertDivider() }
                 // A tinted panel with a title (`> [!note]`, as in Obsidian). No shortcut.
@@ -1494,14 +1529,66 @@ struct ListWidthKeeper: NSViewRepresentable {
 #endif
 
 #if os(macOS)
-/// The Show Sidebar button's action, while the sidebar is hidden.
-struct ShowSidebarAction: Equatable {
+/// The sidebar button's action, and whether the sidebar shows now.
+struct ToggleSidebarAction: Equatable {
+    let shown: Bool
     let run: () -> Void
     func callAsFunction() { run() }
-    static func == (a: Self, b: Self) -> Bool { true }
+    var title: String { shown ? "Hide Sidebar" : "Show Sidebar" }
+    static func == (a: Self, b: Self) -> Bool { a.shown == b.shown }
 }
 
 extension EnvironmentValues {
-    @Entry var showSidebar: ShowSidebarAction? = nil
+    @Entry var toggleSidebar: ToggleSidebarAction? = nil
+}
+
+/// The sidebar steps aside when the window is too narrow for three columns and comes back when
+/// there's room again. Only on crossing the line, so a sidebar you show in a narrow window stays,
+/// and one you hid stays hidden when the window grows.
+struct SidebarFit: Equatable {
+    /// The sidebar at its narrowest (240), the list (300) and room for the note to read well (560:
+    /// about 70 characters at 13 pt with its margins). A 13-inch Air's full screen is 1,470.
+    static let threeColumns: CGFloat = 1100
+
+    /// It comes back only with this much more room, so the width its own hiding causes (the
+    /// window's least width moves with the columns: 1,029 shown, 1,119 hidden in a test) can't
+    /// bring it straight back and loop.
+    static let comeBack: CGFloat = threeColumns + 120
+    /// Widths for this long after its own change are the change settling, not you.
+    static let settle: TimeInterval = 0.5
+
+    /// The sidebar hid itself, so it may come back by itself.
+    private(set) var autoHidden = false
+    /// The visibility this is setting, to tell its own change from yours.
+    private var setting: NavigationSplitViewVisibility?
+    private var quietUntil = Date.distantPast
+
+    /// How long a width holds before it counts.
+    static let hold: Double = 0.3
+    /// The last width it acted on; a window starts out wide, so a narrow one opens without it.
+    private var last = CGFloat.infinity
+
+    /// The visibility to move to now that the window has settled at `width`, or nil. Only on
+    /// crossing a line from the last settled width.
+    mutating func settled(width: CGFloat, visibility: NavigationSplitViewVisibility, now: Date = .now) -> NavigationSplitViewVisibility? {
+        // No width yet (the window is still being made), or its own change settling.
+        guard width > 1, now >= quietUntil else { return nil }
+        let was = last
+        last = width
+        if was >= Self.threeColumns, width < Self.threeColumns, visibility == .all {
+            autoHidden = true; setting = .doubleColumn; quietUntil = now.addingTimeInterval(Self.settle)
+            return .doubleColumn
+        }
+        if was < Self.comeBack, width >= Self.comeBack, autoHidden, visibility != .all {
+            autoHidden = false; setting = .all; quietUntil = now.addingTimeInterval(Self.settle)
+            return .all
+        }
+        return nil
+    }
+
+    /// Any change it didn't make is yours: then it's yours to keep.
+    mutating func changed(to v: NavigationSplitViewVisibility) {
+        if v == setting { setting = nil } else { autoHidden = false; setting = nil }
+    }
 }
 #endif

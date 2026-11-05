@@ -697,6 +697,29 @@ struct MarkdownStyler {
         return a
     }
 
+    /// A list's hidden marker, `width` wide, its last character (the space before the text) in
+    /// the body's font, still clear: on an empty item that's what the caret is sized by, so it
+    /// stands where the first letter will, the letters' height (Emil, 11-04: on a new checklist
+    /// item it was 13 pt tall and 3 pt high, then jumped as you typed).
+    private func hideMarker(_ range: NSRange, width: CGFloat, in storage: NSMutableAttributedString) {
+        guard range.length > 0 else { return }
+        let space = (" " as NSString).size(withAttributes: [.font: bodyFont]).width
+        let last = NSRange(location: NSMaxRange(range) - 1, length: 1)
+        guard range.length > 1 else {
+            // A number's space: the room goes on its dot, before it.
+            storage.addAttributes(hidden, range: range)
+            storage.addAttributes([.font: bodyFont, .kern: 0], range: last)
+            if range.location > 0 { storage.addAttribute(.kern, value: width - space, range: NSRange(location: range.location - 1, length: 1)) }
+            return
+        }
+        // The room goes on the characters before it, so the last keeps its own width with no kern:
+        // a line's last kern isn't laid out until a letter follows, and the caret stood short.
+        let head = NSRange(location: range.location, length: range.length - 1)
+        storage.addAttributes(hiddenKerned(to: width - space, length: head.length), range: head)
+        storage.addAttributes(hidden, range: last)
+        storage.addAttributes([.font: bodyFont, .kern: 0], range: last)
+    }
+
     /// Where every list marker ends, from the list's indent: a number's dot, a bullet's or a
     /// dash's right edge. The text starts a gap after it, at the gutter.
     static var markerGap: CGFloat { EditorMetrics.body * 0.45 }
@@ -726,14 +749,14 @@ struct MarkdownStyler {
             p.firstLineHeadIndent = pad
             let spaceRange = NSRange(location: number.upperBound, length: prefix.upperBound - number.upperBound)
             let after = max(EditorMetrics.gutter - pad - measured, Self.markerGap)
-            storage.addAttributes(hiddenKerned(to: after, length: spaceRange.length), range: spaceRange)
+            hideMarker(spaceRange, width: after, in: storage)
             p.headIndent = lead + pad + measured + after
         } else {
             // Checklists follow Notes' geometry: the circle starts at the text margin, the text
             // sits a fixed gap after it, and items are spaced a little wider than plain lines.
             let isCheck = list.checkbox != nil
             let width = lead + (isCheck ? EditorMetrics.checkSize + EditorMetrics.checkGap : EditorMetrics.gutter)
-            storage.addAttributes(hiddenKerned(to: width, length: prefix.length), range: prefix)
+            hideMarker(prefix, width: width, in: storage)
             // A bullet or dash ends on the markers' edge, where a number's dot does.
             let half = list.marker == "-" ? LineDecoration.dashWidth / 2 : LineDecoration.bulletRadius
             let markerX = isCheck ? lead + EditorMetrics.checkSize / 2 : lead + Self.markerEnd - half
@@ -793,15 +816,16 @@ struct UTF16Map {
         utf8ToUtf16 = table
     }
 
-    func offset(_ loc: SourceLocation) -> Int {
+    /// `back` takes that many columns off first (cmark's late columns on a lazy line).
+    func offset(_ loc: SourceLocation, back: Int = 0) -> Int {
         let line = min(max(loc.line - 1, 0), lineStarts.count - 1)
-        let u8 = min(lineStarts[line] + loc.column - 1, utf8ToUtf16.count - 1)
+        let u8 = min(lineStarts[line] + loc.column - 1 - back, utf8ToUtf16.count - 1)
         return base + utf8ToUtf16[max(u8, 0)]
     }
 
-    func range(_ r: SourceRange?) -> NSRange? {
+    func range(_ r: SourceRange?, back: Int = 0) -> NSRange? {
         guard let r else { return nil }
-        let a = offset(r.lowerBound), b = offset(r.upperBound)
+        let a = offset(r.lowerBound, back: back), b = offset(r.upperBound, back: back)
         return b >= a ? NSRange(location: a, length: b - a) : nil
     }
 }
@@ -821,6 +845,31 @@ private struct StyleWalker: MarkupWalker {
     private var ns: NSString { storage.string as NSString }
 
     private func safe(_ r: NSRange) -> Bool { r.location >= 0 && NSMaxRange(r) <= ns.length }
+
+    /// An inline node's range, put right where the parser puts it too late. A line straight under
+    /// a list item is part of that item ("lazy continuation"), and cmark reports its columns as
+    /// if the line were indented like the item's text: after "- [ ] " a bold word's asterisks came
+    /// out 6 characters on, so "ri" in "Pastries" was hidden and the asterisks showed (council
+    /// round 15). The range slides back along its own line until it starts with `open` (and, if
+    /// `symmetric`, ends with the same delimiter).
+    private func located(_ found: SourceRange?, open: [String], symmetric: Bool = false) -> NSRange? {
+        guard let r = map.range(found), let found else { return nil }
+        func fits(_ c: NSRange, _ o: String) -> Bool {
+            guard safe(c), c.length > 0 else { return false }
+            let text = ns.substring(with: c)
+            return text.hasPrefix(o) && (!symmetric || (text.count > o.count * 2 && text.hasSuffix(o)))
+        }
+        // Only along its own line: a node across lines keeps the parser's range. The delimiters
+        // in order, each at every shift, so "[" wins over a URL the late range lands inside.
+        if open.contains(where: { fits(r, $0) }) { return r }
+        guard found.lowerBound.line == found.upperBound.line else { return r }
+        for o in open {
+            for back in 1..<max(min(found.lowerBound.column, 25), 1) {
+                if let c = map.range(found, back: back), fits(c, o) { return c }
+            }
+        }
+        return r
+    }
 
     private func addTrait(_ trait: PFontDescriptor.SymbolicTraits, _ r: NSRange) {
         storage.enumerateAttribute(.font, in: r) { value, sub, _ in
@@ -880,21 +929,21 @@ private struct StyleWalker: MarkupWalker {
     }
 
     mutating func visitStrong(_ strong: Strong) {
-        guard let r = map.range(strong.range), safe(r) else { return descendInto(strong) }
+        guard let r = located(strong.range, open: ["**", "__"], symmetric: true), safe(r) else { return descendInto(strong) }
         addTrait(.paneBold, r)
         markDelimiters(r, lead: 2, trail: 2)
         descendInto(strong)
     }
 
     mutating func visitEmphasis(_ emphasis: Emphasis) {
-        guard let r = map.range(emphasis.range), safe(r) else { return descendInto(emphasis) }
+        guard let r = located(emphasis.range, open: ["*", "_"], symmetric: true), safe(r) else { return descendInto(emphasis) }
         addTrait(.paneItalic, r)
         markDelimiters(r, lead: 1, trail: 1)
         descendInto(emphasis)
     }
 
     mutating func visitStrikethrough(_ s: Strikethrough) {
-        guard let r = map.range(s.range), safe(r) else { return descendInto(s) }
+        guard let r = located(s.range, open: ["~"], symmetric: true), safe(r) else { return descendInto(s) }
         let n = delimiterLength(r, char: 0x7E)
         storage.addAttributes([.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: PColor.paneSecondary], range: r)
         markDelimiters(r, lead: n, trail: n)
@@ -902,7 +951,7 @@ private struct StyleWalker: MarkupWalker {
     }
 
     mutating func visitInlineCode(_ code: InlineCode) {
-        guard let r = map.range(code.range), safe(r) else { return }
+        guard let r = located(code.range, open: ["`"], symmetric: true), safe(r) else { return }
         let n = delimiterLength(r, char: 0x60)
         inlineCodeRanges.append(r)
         storage.addAttributes([.font: styler.monoFont, .backgroundColor: PColor.paneFill, .foregroundColor: PColor.paneLabel], range: r)
@@ -910,7 +959,7 @@ private struct StyleWalker: MarkupWalker {
     }
 
     mutating func visitLink(_ link: Link) {
-        guard let r = map.range(link.range), safe(r) else { return descendInto(link) }
+        guard let r = located(link.range, open: ["[", "<", "http"]), safe(r) else { return descendInto(link) }
         let source = ns.substring(with: r)
         if source.hasPrefix("["), let close = source.range(of: "](") {
             let textLen = (source[source.index(after: source.startIndex)..<close.lowerBound] as Substring).utf16.count
@@ -933,7 +982,7 @@ private struct StyleWalker: MarkupWalker {
     }
 
     mutating func visitImage(_ image: Image) {
-        guard let r = map.range(image.range), safe(r) else { return }
+        guard let r = located(image.range, open: ["!["]), safe(r) else { return }
         storage.addAttribute(.foregroundColor, value: PColor.paneSecondary, range: r)
     }
 
@@ -960,12 +1009,24 @@ private struct StyleWalker: MarkupWalker {
 
     mutating func visitTable(_ table: Markdown.Table) {
         guard let r = map.range(table.range), safe(r) else { return descendInto(table) }
+        // Only the lines with pipes, as the grid has them: the parser's range took in the title
+        // straight above a table, and GFM makes the plain line straight below it a row, so both
+        // were set as table source (persona r7: "Porto" and "After" in grey monospace).
+        var lines: [NSRange] = []
+        let ns = self.ns
+        ns.enumerateSubstrings(in: ns.lineRange(for: r), options: [.byParagraphs, .substringNotRequired]) { _, line, enclosing, _ in
+            lines.append(ns.substring(with: line).contains("|") ? enclosing : NSRange(location: NSNotFound, length: 0))
+        }
+        while lines.first?.location == NSNotFound { lines.removeFirst() }
+        while lines.last?.location == NSNotFound { lines.removeLast() }
+        guard let top = lines.first, let bottom = lines.last else { return descendInto(table) }
+        let rows = NSRange(location: top.location, length: NSMaxRange(bottom) - top.location)
         var starts = IndexSet()
-        ns.enumerateSubstrings(in: ns.lineRange(for: r), options: [.byParagraphs, .substringNotRequired]) { _, line, _, _ in
+        ns.enumerateSubstrings(in: rows, options: [.byParagraphs, .substringNotRequired]) { _, line, _, _ in
             starts.insert(line.location)
         }
         tableLineStarts.formUnion(starts)
-        tables.append(ns.lineRange(for: r))
+        tables.append(rows)
         descendInto(table)
     }
 

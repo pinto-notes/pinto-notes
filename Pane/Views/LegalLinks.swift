@@ -52,9 +52,10 @@ extension Legal {
 /// what the app reports about itself (DiagnosticsCopy). One paragraph for VoiceOver.
 struct ConsentFooter: View {
     /// The small print's size on the Mac.
-    static let size: CGFloat = 11
-    /// The small print's column on the sign-in card, as measured on the Air (council round 9).
-    static let column: CGFloat = 242
+    static let size: CGFloat = 12
+    /// The small print's column on the sign-in card, as measured on the Air (council round 9),
+    /// 30 pt wider with the card since it went to 12 pt (round 14), so it stays four lines.
+    static let column: CGFloat = 272
     /// What it sends, then what it never sends and how to stop it.
     static let diagnosticsLines = DiagnosticsCopy.signIn.replacingOccurrences(of: "counts. ", with: "counts.\n")
     var body: some View {
@@ -63,8 +64,8 @@ struct ConsentFooter: View {
         // doesn't do for links inside a sentence (Emil, 2 November 2026).
         // Two short paragraphs, not one block of three lines (council round 6, 11-04): the
         // terms, then what the app sends about itself.
-        // 11 pt, the size of Apple's own sign-in small print; 10 pt footnote read as miniature
-        // (council round 7).
+        // 12 pt: 10 pt footnote read as miniature (council round 7), 11 pt still small beside
+        // the form (round 14).
         VStack(spacing: 6) {
             LinkLabel(text: Legal.consentLines)
                 .frame(maxWidth: .infinity)

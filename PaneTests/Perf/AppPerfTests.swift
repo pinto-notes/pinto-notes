@@ -319,7 +319,7 @@ extension AppPerfTests {
     /// first screen, by moving the table to the row worked out here: SwiftUI's scrollTo found the
     /// row by building every row above it, and every row of a list that doesn't have it (at 20,000
     /// notes, seconds at each launch and folder switch). A section heading is a row.
-    @Test func theSelectedRowIsLookedForOnlyWhereItIs() {
+    @Test func theSelectedRowIsLookedForOnlyWhereItIs() throws {
         struct Item: Identifiable { let id: UUID }
         let ids = (0..<30).map { _ in UUID() }
         let sections: [(String, [Item])] = [("Today", ids[0..<3].map(Item.init)), ("Previous 7 Days", ids[3..<30].map(Item.init))]
@@ -328,6 +328,10 @@ extension AppPerfTests {
         #expect(ShowsSelectedRow.row(of: UUID(), in: sections, collapsed: []) == nil, "not in this list")
         #expect(ShowsSelectedRow.row(of: ids[4], in: sections, collapsed: ["Previous 7 Days"]) == nil, "folded away")
         #expect(ShowsSelectedRow.row(of: ids[4], in: sections, collapsed: ["Today"]) == 3, "a folded section is one row")
+        // On launch the list moves only for a row out of view: centring one it showed slid the
+        // pinned notes under the toolbar's blur (round 15).
+        let list = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Pane/Views/NoteListView.swift"), encoding: .utf8)
+        #expect(list.contains("if let at, at >= Self.firstRows { finder.reveal(row: at) }"))
         // A note opened from elsewhere: the list scrolls only to a row that isn't fully in view.
         let shown = CGRect(x: 0, y: 100, width: 300, height: 600)
         #expect(!ShowsSelectedRow.needsReveal(CGRect(x: 0, y: 200, width: 300, height: 90), shown: shown), "in view: stays")

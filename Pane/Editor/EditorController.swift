@@ -1,4 +1,7 @@
 import Foundation
+#if os(macOS)
+import AppKit
+#endif
 import Observation
 import os
 import UniformTypeIdentifiers
@@ -345,6 +348,8 @@ final class EditorController {
     static func untickedNotice(_ count: Int) -> String { count == 1 ? "Unticked 1 item" : "Unticked \(count) items" }
     func heading(_ level: Int) { guard cell == nil else { return }; perform { ListEditing.heading(in: $0, selection: $1, level: level) } }
 
+    /// Format › Move Item Up / Down: the caret's line or item past its neighbour (`MoveItem`).
+    func moveItem(up: Bool) { guard cell == nil else { return }; perform { MoveItem.move(in: $0, selection: $1, up: up) } }
     func bulletList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .bulleted) } }
     func dashedList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .dashed) } }
     func numberedList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .numbered) } }
@@ -534,21 +539,29 @@ final class EditorController {
     private(set) var slashCommands: [SlashCommand] = []
     /// The one Return takes (Mac).
     var slashChoice = 0
-    /// The callout type the `/query` names (`/warn`): the Callout row says "Warning callout" and
+    /// How many of the first rows are the recent ones, with nothing typed yet: a line goes under
+    /// them, so you can see why the order changed (council round 13).
+    private(set) var slashRecentCount = 0
+    /// The callout type the `/query` names (`/warn`): the Callout row says "Warning Callout" and
     /// inserts one.
     private(set) var slashCalloutKind: Callouts.Kind?
 
     /// A row's name and symbol, with the callout's type when the query names one.
-    func slashName(_ c: SlashCommand) -> String { c == .callout ? slashCalloutKind.map { "\($0.title) callout" } ?? c.name : c.name }
+    func slashName(_ c: SlashCommand) -> String { c == .callout ? slashCalloutKind.map { "\($0.title) Callout" } ?? c.name : c.name }
     func slashSymbol(_ c: SlashCommand) -> String { c == .callout ? slashCalloutKind?.symbol ?? c.symbol : c.symbol }
     /// Where the `/query` is, slash included.
     @ObservationIgnored private(set) var slashQuery: NSRange?
     /// A slash whose menu was put away (Escape): not offered again while typing after it.
     @ObservationIgnored private var slashDismissed: Int?
+    @ObservationIgnored private var slashAnnounceWait: Task<Void, Never>?
 
     private func updateSlash(text: String, selection: NSRange?) {
         guard let sel = selection, !readOnly, cell == nil, WikiLinks.typingQuery(in: text, caret: sel.location) == nil,
-              let found = SlashCommands.active(in: text, selection: sel) else {
+              let found = SlashCommands.active(in: text, selection: sel, recent: SlashRecents.commands) else {
+            // Letters that match nothing close the menu; say so, or VoiceOver hears nothing.
+            if !slashCommands.isEmpty, let sel = selection, SlashCommands.query(in: text, caret: sel.location) != nil {
+                announce(Self.slashNoMatches)
+            }
             slashDismissed = nil
             clearSlash()
             return
@@ -558,9 +571,23 @@ final class EditorController {
         let typed = (text as NSString).substring(with: NSRange(location: found.query.location + 1, length: found.query.length - 1))
         let kind = Callouts.kind(typed: typed)
         if kind != slashCalloutKind { slashCalloutKind = kind }
+        let recent = typed.isEmpty ? SlashRecents.commands.filter(found.commands.contains).count : 0
+        if recent != slashRecentCount { slashRecentCount = recent }
         if found.commands != slashCommands {
+            let opening = slashCommands.isEmpty
             slashCommands = found.commands
             slashChoice = 0
+            if opening {
+                announceSlashChoice(opening: true)
+            } else {
+                // Filtering: say the new first choice once the typing pauses, not at every letter.
+                slashAnnounceWait?.cancel()
+                slashAnnounceWait = Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .milliseconds(150))
+                    guard !Task.isCancelled else { return }
+                    self?.announceSlashChoice(opening: false)
+                }
+            }
         }
     }
 
@@ -574,6 +601,7 @@ final class EditorController {
             return TextEdit(range: q, replacement: "", caret: q.location)
         }
         clearSlash()
+        SlashRecents.used(command)
         switch command {
         case .title: apply(.title)
         case .heading: apply(.heading)
@@ -591,6 +619,8 @@ final class EditorController {
         case .divider: insertDivider()
         case .date: insertDate()
         case .link: insertLink()
+        // The `[[` titles open where it was, so a note is picked by name as you type.
+        case .noteLink: perform { _, sel in TextEdit(range: sel, replacement: "[[", caret: sel.location + 2) }
         case .attach: attach()
         }
     }
@@ -601,9 +631,43 @@ final class EditorController {
         runSlash(slashCommands[min(max(slashChoice, 0), slashCommands.count - 1)])
     }
 
+    /// ↑ and ↓ wrap at the ends, as a Mac menu's do (council round 13).
     func moveSlashChoice(by step: Int) {
         guard !slashCommands.isEmpty else { return }
-        slashChoice = min(max(slashChoice + step, 0), slashCommands.count - 1)
+        let n = slashCommands.count
+        slashChoice = ((slashChoice + step) % n + n) % n
+        announceSlashChoice(opening: false)
+    }
+
+    /// What VoiceOver says as the menu opens and its choice moves: "Checklist, 1 of 18, ⇧⌘L"
+    /// (the caret stays in the text, so nothing else tells it; council round 13).
+    nonisolated static func slashAnnouncement(_ name: String, at i: Int, of n: Int, shortcut: String?, opening: Bool) -> String {
+        var parts = [name, "\(i + 1) of \(n)"]
+        if let shortcut { parts.append(shortcut) }
+        return (opening ? "\(slashMenuName). " : "") + parts.joined(separator: ", ")
+    }
+
+    /// The menu's one name, as the hint calls it ("Type / for formatting").
+    nonisolated static let slashMenuName = "Formatting menu"
+    nonisolated static let slashNoMatches = "No matches"
+
+    private func announceSlashChoice(opening: Bool) {
+        #if os(macOS)
+        guard slashCommands.indices.contains(slashChoice) else { return }
+        let c = slashCommands[slashChoice]
+        announce(Self.slashAnnouncement(slashName(c), at: slashChoice, of: slashCommands.count, shortcut: c.shortcut, opening: opening))
+        #endif
+    }
+
+    /// The last thing said to VoiceOver about the menu (tests read it).
+    @ObservationIgnored private(set) var lastSlashAnnouncement: String?
+
+    private func announce(_ text: String) {
+        lastSlashAnnouncement = text
+        #if os(macOS)
+        NSAccessibility.post(element: NSApp.mainWindow ?? NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+        #endif
     }
 
     func dismissSlash() {
@@ -612,6 +676,8 @@ final class EditorController {
     }
 
     private func clearSlash() {
+        slashAnnounceWait?.cancel()
+        if slashRecentCount != 0 { slashRecentCount = 0 }
         slashQuery = nil
         if slashCalloutKind != nil { slashCalloutKind = nil }
         if !slashCommands.isEmpty { slashCommands = [] }
