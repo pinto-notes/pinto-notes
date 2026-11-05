@@ -43,7 +43,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
 
     /// Where this paragraph starts in the text, and the editor's tint for AI changes.
     private var tintAndOffset: (ChangeTint, Int)? {
-        guard let tlm = textLayoutManager, let tint = (tlm.delegate as? DecoratingLayoutDelegate)?.tint, !tint.ranges.isEmpty,
+        guard let tlm = textLayoutManager, let tint = (tlm.delegate as? DecoratingLayoutDelegate)?.tint, !tint.ranges.isEmpty || !tint.removals.isEmpty,
               let tcm = tlm.textContentManager, let start = textElement?.elementRange?.location else { return nil }
         return (tint, tcm.offset(from: tcm.documentRange.location, to: start))
     }
@@ -185,7 +185,28 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
 
     /// One rounded run per laid-out line, around its words (trailing spaces and the newline left
     /// out), in the drawing context's coordinates.
-    private func changeRuns(at point: CGPoint) -> [CGRect] {
+    /// A removal an AI just made next to this paragraph, and how strongly to draw its mark.
+    var removalMark: (ChangeTint.Removal, CGFloat)? {
+        guard let (tint, offset) = tintAndOffset else { return nil }
+        return tint.removal(at: offset)
+    }
+
+    /// Where lines were taken out: a short dashed line in the gap above this paragraph (below it
+    /// at the note's end), from where the text starts, in the change colour (persona r7: a
+    /// removed sentence left no mark in the note).
+    func removalRect(_ gap: ChangeTint.Removal, at point: CGPoint) -> CGRect {
+        let x = point.x + (textLineFragments.first?.typographicBounds.minX ?? 0)
+        let width = min(Self.removalWidth, max(containerWidth - x, 0))
+        // Halfway across the space between paragraphs (about 22 pt at body size).
+        let y = gap.below
+            ? point.y + (textLineFragments.last?.typographicBounds.maxY ?? layoutFragmentFrame.height) + 6
+            : point.y + (textLineFragments.first?.typographicBounds.minY ?? 0) - 11
+        return CGRect(x: x, y: y - 1, width: width, height: 2)
+    }
+
+    static let removalWidth: CGFloat = 96
+
+    func changeRuns(at point: CGPoint) -> [CGRect] {
         guard let p = textElement as? NSTextParagraph else { return [] }
         let whole = p.attributedString
         // The list marker ("- [ ] ") is drawn as the circle or bullet: the words start after it.
@@ -200,8 +221,10 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             while end > from, let c = UnicodeScalar(text.character(at: end - 1)),
                   CharacterSet.whitespacesAndNewlines.contains(c) { end -= 1 }
             guard end > from else { return nil }
-            let startX = line.locationForCharacter(at: from - range.location).x
-            let endX = line.locationForCharacter(at: end - range.location).x
+            // The paragraph's own indices, as for date chips: counted from the line's start, every
+            // line past a wrap measured the first line's characters and got a sliver (persona r7).
+            let startX = line.locationForCharacter(at: from).x
+            let endX = line.locationForCharacter(at: end).x
             let b = line.typographicBounds
             let baseline = b.minY + line.glyphOrigin.y
             return CGRect(x: point.x + b.minX + startX - Self.changePad.width,
@@ -230,6 +253,18 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
                 context.addPath(CGPath(roundedRect: tick, cornerWidth: Self.tickWidth / 2, cornerHeight: Self.tickWidth / 2, transform: nil))
                 context.fillPath()
             }
+            context.restoreGState()
+        }
+        if let (gap, strength) = removalMark {
+            context.saveGState()
+            context.setStrokeColor(Self.changeColors(strength).bar)
+            context.setLineWidth(1.5)
+            context.setLineCap(.round)
+            context.setLineDash(phase: 0, lengths: [4, 4])
+            let r = removalRect(gap, at: point)
+            context.move(to: CGPoint(x: r.minX, y: r.midY))
+            context.addLine(to: CGPoint(x: r.maxX, y: r.midY))
+            context.strokePath()
             context.restoreGState()
         }
         if let d = decoration {

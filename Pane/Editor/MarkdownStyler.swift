@@ -348,6 +348,7 @@ struct MarkdownStyler {
         }
 
         styleUnderlines(storage, in: full, isActive: isActive, skip: walker.codeRanges)
+        styleBareLinks(storage, in: full, skip: walker.codeRanges + walker.inlineCodeRanges)
         styleWikiLinks(storage, in: full, isActive: isActive)
         styleTags(storage, in: full, selection: active, skip: walker.codeRanges + walker.inlineCodeRanges)
         styleHighlights(storage, in: full, isActive: isActive, skip: walker.codeRanges + walker.inlineCodeRanges)
@@ -400,6 +401,33 @@ struct MarkdownStyler {
             shown.append(g)
         }
         return shown
+    }
+
+    private static let bareLink = try! NSRegularExpression(pattern: #"(?<![\w/<])(?<!\]\()https?://[^\s<>]+"#, options: [.caseInsensitive])
+
+    /// A web address written out in the text is a link, as in Notes: the parser only makes links
+    /// of `<…>` and `[…](…)`, so a pasted or typed address stayed plain (persona council r7).
+    /// Trailing punctuation stays text; addresses already linked, hidden or in code are left alone.
+    private func styleBareLinks(_ storage: NSTextStorage, in scope: NSRange, skip: [NSRange]) {
+        let ns = storage.string as NSString
+        for m in Self.bareLink.matches(in: storage.string, range: scope) {
+            var r = m.range
+            while r.length > 0, let c = UnicodeScalar(ns.character(at: NSMaxRange(r) - 1)), ".,;:!?'\")]*_~".unicodeScalars.contains(c) {
+                // A closing bracket the address opened stays in it (Wikipedia's "…_(city)").
+                if c == ")", ns.substring(with: r).filter({ $0 == "(" }).count >= ns.substring(with: r).filter({ $0 == ")" }).count { break }
+                r.length -= 1
+            }
+            guard r.length > 8, !skip.contains(where: { NSIntersectionRange($0, r).length > 0 }) else { continue }
+            var taken = false
+            storage.enumerateAttributes(in: r) { a, _, stop in
+                let hidden = ((a[.foregroundColor] as? PColor).map { $0.cgColor.alpha == 0 }) ?? false
+                if a[.link] != nil || hidden { taken = true; stop.pointee = true }
+            }
+            guard !taken, let url = URL(string: ns.substring(with: r)) else { continue }
+            storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: r)
+            storage.addAttributes(MarkdownStyler.linkUnderline, range: r)
+            storage.addAttribute(.link, value: url, range: r)
+        }
     }
 
     private static let underline = try! NSRegularExpression(pattern: #"<u>(.+?)</u>"#, options: [.caseInsensitive])
