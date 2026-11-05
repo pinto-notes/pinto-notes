@@ -318,7 +318,7 @@ private struct OfflineSection: View {
     var body: some View {
         if reach != .online {
             Section {
-                Label(OfflineCopy.settings, systemImage: OfflineCopy.symbol(reach))
+                Label(OfflineCopy.settings(reach), systemImage: OfflineCopy.symbol(reach))
                     .foregroundStyle(Color.muted)
                     .accessibilityIdentifier("settings.offline")
             }

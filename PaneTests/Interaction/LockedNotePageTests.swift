@@ -30,7 +30,7 @@ import Testing
             #expect(ax.find("lock.explanation")?.text.contains("Enter your notes password to view this note.") == true)
             #expect(ax.find("lock.password") != nil, "the password field")
             let view = try #require(ax.find("lock.view"))
-            #expect(view.text.contains("View note"), "sentence case: \(view.text)")
+            #expect(view.text.contains("View Note"), "title case: \(view.text)")
             #expect(!view.enabled, "nothing to check until a password is typed")
             #expect(ax.find("lock.biometrics")?.text.contains("Use Touch ID") == true)
             #expect(ax.find("lock.art") == nil, "the lock is a picture: VoiceOver skips it")

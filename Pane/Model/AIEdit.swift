@@ -164,6 +164,23 @@ enum AIEdit {
 
         enum Kind: Equatable { case edit, pageEdit, dataEdit, pageMade, pageChanged, reverted, heldBack }
 
+        /// One AI's edits in a row are one change: an AI that makes three edits has "changed 3 lines",
+        /// all marked, and Undo takes all three back (round 17: it said 1 line, the last one).
+        /// `earlier`: the receipt still on the note, if any. Typing between them keeps them apart.
+        func continuing(_ earlier: Receipt?) -> Receipt {
+            guard let earlier, earlier.noteID == noteID, earlier.by == by, earlier.person == person,
+                  earlier.kind == .edit, kind == .edit, !earlier.created, !created, earlier.after == previous,
+                  abs(at.timeIntervalSince(earlier.at)) < Self.sameChangeWindow, let after else { return self }
+            var both = self
+            both.previous = earlier.previous
+            both.previousVersion = earlier.previousVersion
+            both.lines = AIReview.lineCount(previous: earlier.previous, after: after)
+            return both
+        }
+
+        /// How far apart two edits can be and still be one change, in seconds.
+        static let sameChangeWindow: TimeInterval = 60
+
         /// The AI as the receipt names it: "Claude", or "Sara's Claude".
         var who: String { AIEdit.whose(by, person: person) }
 

@@ -420,7 +420,7 @@ struct SignInView: View {
             }
 
             if flow.step == .forgot(sending: false) {
-                smallButton("Back to sign in", id: "signin.backToSignIn") {
+                smallButton("Back to Sign In", id: "signin.backToSignIn") {
                     flow.backToSignIn()
                     error = nil
                     passwordFocused = true
@@ -605,7 +605,7 @@ struct SignInView: View {
         error = nil
         switch flow.action {
         case .check:
-            guard flow.beginCheck() else { return }
+            guard flow.beginCheck() else { error = EmailSignInFlow.notAnEmail; return }
             let email = flow.email
             Task {
                 let status = try? await backend.accountStatus(email: email)

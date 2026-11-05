@@ -8,7 +8,9 @@ enum OfflineCopy {
         switch reach {
         case .online: return nil
         case .offline: lead = "Offline"
-        case .unreachable: lead = "Can\u{2019}t reach Pinto Notes"
+        case .unreachable:
+            // One row in the sidebar: the longer lead wrapped and pushed everything under it up.
+            return waiting ? "Can\u{2019}t reach Pinto \u{00B7} syncs later" : "Can\u{2019}t reach Pinto Notes"
         }
         return waiting ? "\(lead) \u{00B7} changes sync later" : lead
     }
@@ -17,13 +19,20 @@ enum OfflineCopy {
         reach == .unreachable ? "wifi.exclamationmark" : "wifi.slash"
     }
 
-    /// For an action that needs the server, said where its button is.
-    static func needsNetwork(_ what: String) -> String {
-        "You\u{2019}re offline. Connect to the internet to \(what)."
+    /// For an action that needs the server, said where its button is. It says what's really wrong:
+    /// with Wi-Fi on and only the server away, "You're offline" isn't true (round 17).
+    static func needsNetwork(_ what: String, reach: SyncEngine.Reach = .offline) -> String {
+        reach == .unreachable
+            ? "Can\u{2019}t reach Pinto Notes. Try again to \(what) when it\u{2019}s back."
+            : "You\u{2019}re offline. Connect to the internet to \(what)."
     }
 
-    /// At the top of Settings while offline.
-    static let settings = "You\u{2019}re offline. Your notes work as usual and sync when you\u{2019}re back. Connecting an AI, adding a device and changes to your account need the internet."
+    /// At the top of Settings while offline: one banner, in one voice.
+    static func settings(_ reach: SyncEngine.Reach) -> String {
+        reach == .unreachable
+            ? "Can\u{2019}t reach Pinto Notes. Your notes work as usual and sync when it\u{2019}s back."
+            : "You\u{2019}re offline. Your notes work as usual and sync when you\u{2019}re back."
+    }
 }
 
 extension EnvironmentValues {

@@ -214,7 +214,7 @@ struct SettingsCard: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         if reach != .online {
-                            Label(OfflineCopy.settings, systemImage: OfflineCopy.symbol(reach))
+                            Label(OfflineCopy.settings(reach), systemImage: OfflineCopy.symbol(reach))
                                 .font(.system(size: 12.5))
                                 .foregroundStyle(SettingsInk.muted)
                                 .fixedSize(horizontal: false, vertical: true)

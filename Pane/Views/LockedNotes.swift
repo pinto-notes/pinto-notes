@@ -133,7 +133,7 @@ struct LockedNoteView: View {
                     .accessibilityIdentifier("lock.hint")
                     .padding(.top, 4)
             }
-            Button(action: submit) { Text("View note") }
+            Button(action: submit) { Text("View Note") }
                 .buttonStyle(.amberProminent(.form, wide: true))
                 .amberBusy(working)
                 .disabled(password.isEmpty || working)

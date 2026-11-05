@@ -20,6 +20,8 @@ import Testing
     @Test func undoBringsItBackAndRedoDeletesItAgain() throws {
         let (c, travel, lisbon, _) = try library()
         let ctx = c.mainContext
+        let edited = Date(timeIntervalSinceNow: -86400 * 3)
+        lisbon.updatedAt = edited
         let undo = UndoManager()
         undo.groupsByEvent = false
         var reopened: [UUID] = []
@@ -31,6 +33,7 @@ import Testing
         undo.undo()
         #expect(lisbon.trashedAt == nil, "back from Recently Deleted")
         #expect(lisbon.folder?.id == travel.id && lisbon.isPinned, "in its folder, pinned as it was")
+        #expect(lisbon.updatedAt == edited, "its date as it was, so it goes back to its place in the list")
         #expect(reopened == [lisbon.id], "and selected again")
         #expect(undo.canRedo)
         undo.redo()

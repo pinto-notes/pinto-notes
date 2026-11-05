@@ -291,7 +291,7 @@ extension ModelContext {
     /// has an undo; nor does deleting from Recently Deleted, which asks first.
     func remove(_ notes: [Note], undo: UndoManager?, reopen: (([Note]) -> Void)? = nil) {
         let back = notes.filter { $0.deletedAt == nil && $0.trashedAt == nil && !Self.isBlank($0) && !$0.isShared }
-            .map { (note: $0, folder: $0.folder, pinned: $0.isPinned) }
+            .map { (note: $0, folder: $0.folder, pinned: $0.isPinned, edited: $0.updatedAt) }
         remove(notes)
         guard let undo, !back.isEmpty else { return }
         undo.registerUndo(withTarget: self) { ctx in
@@ -301,6 +301,8 @@ extension ModelContext {
                     if let f = b.folder, f.deletedAt == nil { b.note.folder = f } else { b.note.folder = ctx.defaultFolder() }
                     b.note.isPinned = b.pinned
                     b.note.touch()
+                    // Deleting and undoing isn't an edit: it goes back to its place in the list.
+                    b.note.updatedAt = b.edited
                 }
                 ctx.saveOrReport()
                 let notes = back.map(\.note)

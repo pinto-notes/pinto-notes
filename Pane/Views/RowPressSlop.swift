@@ -15,6 +15,11 @@ enum RowPressSlop {
     /// How far the pointer may travel during a press and still click, in points.
     static let distance: CGFloat = 4
 
+    /// Go to Note is open over the lists: a press on it isn't a press on the row beneath (round 17:
+    /// clicking its field opened the note under the pointer). This asks the lists by position, so
+    /// it doesn't know what lies on top of them; sheets are windows of their own and don't count.
+    static var covered = false
+
     private static var monitor: Any?
     /// A ⌘ or ⇧ press PressSelect picked with: the list doesn't see it, nor its drag or lift.
     private static var picked = false
@@ -68,8 +73,8 @@ enum RowPressSlop {
     /// The row of a list in its window the press is over, if any. Asked of the lists themselves, by
     /// where their rows are: the view under the pointer isn't always inside the list (a row near
     /// the bottom of the note list sits under the window's bottom bar, and is still what's pressed).
-    private static func row(under event: NSEvent) -> (table: NSTableView, row: Int)? {
-        guard let window = event.window, let content = window.contentView else { return nil }
+    static func row(under event: NSEvent) -> (table: NSTableView, row: Int)? {
+        guard !covered, let window = event.window, let content = window.contentView else { return nil }
         func found(in view: NSView) -> (table: NSTableView, row: Int)? {
             if let table = view as? NSTableView {
                 let p = table.convert(event.locationInWindow, from: nil)

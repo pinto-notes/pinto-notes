@@ -951,7 +951,7 @@ struct ConnectChoices: View {
                 if let g = run.guide, rest.contains(g) { fixButton; addedNote }
             }
             if reach != .online {
-                Text(OfflineCopy.needsNetwork("connect an AI")).font(.footnote).foregroundStyle(Color.muted)
+                Text(OfflineCopy.needsNetwork("connect an AI", reach: reach)).font(.footnote).foregroundStyle(Color.muted)
             }
             if let error, reach == .online {
                 Text(error).font(.footnote).foregroundStyle(.red)
@@ -986,7 +986,7 @@ struct ConnectChoices: View {
                 if run.guide == g { fixButton; addedNote }
             }
             if reach != .online {
-                Text(OfflineCopy.needsNetwork("connect an AI")).font(.footnote).foregroundStyle(Color.muted).padding(.top, 8)
+                Text(OfflineCopy.needsNetwork("connect an AI", reach: reach)).font(.footnote).foregroundStyle(Color.muted).padding(.top, 8)
             }
             if let error, reach == .online {
                 Text(error).font(.footnote).foregroundStyle(.red).padding(.top, 8)

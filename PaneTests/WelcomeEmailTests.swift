@@ -116,7 +116,7 @@ import UIKit
         m.flow.email = "offline@example.com"
         await m.primary()
         #expect(m.flow.step == .signIn(fallback: true), "nobody is stuck: a password, and Create an account")
-        #expect(m.title == "Sign in")
+        #expect(m.title == "Sign In")
         m.flow.password = "x"
         await m.primary()
         #expect(m.error == WelcomeEmailModel.offline)

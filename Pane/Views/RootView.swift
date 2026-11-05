@@ -481,6 +481,8 @@ struct RootView: View {
                                searchText: { [container = context.container] q in await QuickOpen.textHits(for: q, in: container) })
                     .padding(.top, 72)
             }
+            .onAppear { RowPressSlop.covered = true }
+            .onDisappear { RowPressSlop.covered = false }
         }
     }
 

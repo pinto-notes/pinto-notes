@@ -525,7 +525,8 @@ struct NoteDetailView: View {
     /// as seeing it, so the list's dot goes; the tint and Undo stay while you read, and go quietly
     /// once you start typing, undo it or leave the note (`staysUntilEdited`).
     private func showAIEdit() {
-        guard let r = AIEdit.markSeen(note) else { return }
+        guard let seen = AIEdit.markSeen(note) else { return }
+        let r = seen.continuing(receipt)
         Telemetry.shared.record(.firstAIEditSeen)
         try? context.save()
         let slow = ChangeTint.slowMotion

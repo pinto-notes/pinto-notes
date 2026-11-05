@@ -986,7 +986,7 @@ struct SetupCardsFlow: View {
     }
 
     private var notNowLink: some View {
-        Button(only == nil ? "Not now" : "Cancel") { notNow() }
+        Button(only == nil ? "Not Now" : "Cancel") { notNow() }
             .keyboardShortcut(.cancelAction)
             .buttonStyle(.hoverLink)
             .accessibilityIdentifier("setup.notNow")
@@ -1094,7 +1094,7 @@ struct SetupCardsFlow: View {
                 }
             }
             HStack(spacing: 8) {
-                Button(only == nil ? "Not now" : "Cancel") { notNow() }
+                Button(only == nil ? "Not Now" : "Cancel") { notNow() }
                     .keyboardShortcut(.cancelAction)
                     .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.notNow")
@@ -1128,7 +1128,7 @@ struct SetupCardsFlow: View {
                 connect(choice)
                 guidePage = SetupCards.guidePage(choice)
             }) {
-                Button(only == nil ? "Not now" : "Cancel") { notNow() }
+                Button(only == nil ? "Not Now" : "Cancel") { notNow() }
                     .keyboardShortcut(.cancelAction)
                     .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.notNow")
