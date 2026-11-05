@@ -35,6 +35,8 @@ struct NoteListView: View {
     private var entries: [NoteEntry] { library.entries(in: context, order: orderStore.order) }
     /// Files kept in folders on their own, listed with the notes.
     @Query(filter: #Predicate<Attachment> { $0.folderID != nil && $0.deletedAt == nil }) private var folderFiles: [Attachment]
+    /// How many notes and files the search shows; nil when not searching.
+    @State private var searchResults: Int?
     @State private var search = ""
     #if os(macOS)
     /// The search field shows at the top of the list while searching: opened by the list's
@@ -42,8 +44,6 @@ struct NoteListView: View {
     @State private var searching = false
     /// Counts the requests to put the keys in the field (each press of Search or ⌘F).
     @State private var searchFocus = 0
-    /// How many notes and files the search shows; nil when not searching.
-    @State private var searchResults: Int?
     /// The list header's width beside the window's buttons, for its title (titleRoom).
     @State private var listWidth: CGFloat = 330
     #endif
