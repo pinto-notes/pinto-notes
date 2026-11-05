@@ -1431,6 +1431,28 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         didSet { if let heldOffset, contentOffset != heldOffset { contentOffset = heldOffset } }
     }
 
+    /// UIKit scrolls the caret into view as the keyboard comes up and as you type. With the caret
+    /// on the note's last line it showed the room under the text too (the foot, the space kept
+    /// free at the bottom), so a short note slid its title under the bar while the line you were
+    /// typing on was well clear of the keyboard (persona council r7, Sara's shared list). A caret
+    /// already in view stays where it is.
+    override func scrollRectToVisible(_ rect: CGRect, animated: Bool) {
+        if Self.caretInView(selection: selectedRange, caret: selectedTextRange.map { caretRect(for: $0.end) },
+                            visible: visibleTextArea) { return }
+        super.scrollRectToVisible(rect, animated: animated)
+    }
+
+    /// The part of the view text can be read in now: under the bars, above the keyboard.
+    var visibleTextArea: CGRect {
+        bounds.inset(by: UIEdgeInsets(top: adjustedContentInset.top, left: 0, bottom: adjustedContentInset.bottom, right: 0))
+    }
+
+    /// Whether a caret (no selection) is wholly inside `visible`, a little air under it included.
+    static func caretInView(selection: NSRange, caret: CGRect?, visible: CGRect) -> Bool {
+        guard selection.length == 0, let caret, !caret.isNull, !caret.isInfinite, caret.height > 0 else { return false }
+        return caret.minY >= visible.minY && caret.maxY + 8 <= visible.maxY
+    }
+
     /// Whether the panel is in the keyboard's place now (tests).
     var showsFormatPanel: Bool { inputView is FormatPanelHost }
 
