@@ -79,6 +79,11 @@ final class SyncEngine {
     /// How often to pull while realtime is down: every `fast`, or every `slow` once nothing has
     /// changed for `slowAfter`. Tests shorten these.
     static var fallbackPoll: (fast: Duration, slow: Duration, slowAfter: TimeInterval) = (.seconds(8), .seconds(30), 300)
+    /// How long after joining realtime the poll keeps going unless something is delivered first.
+    /// A join doesn't mean changes come yet: round 15 a new Mac saw ChatGPT's first edit 26 to
+    /// 37 s late, the poll stopped at the join and only the minute pull brought it.
+    static var deliveringGrace: Duration = .seconds(30)
+    private var grace: Task<Void, Never>?
     private var realtimeTasks: [Task<Void, Never>] = []
     /// Rows the server refused (too big, over a limit), keyed by id with the edit time that
     /// was refused. They're skipped until they change again, so one bad row never blocks
@@ -300,11 +305,11 @@ final class SyncEngine {
         // Realtime takes a moment to start delivering after it joins; a pull covers that gap.
         schedule(after: 2)
         realtimeTasks.append(Task { [weak self] in
-            for await action in notes { await self?.received(action) }
+            for await action in notes { self?.realtimeDelivered(); await self?.received(action) }
         })
         for stream in [folders, files, pages] {
             realtimeTasks.append(Task { [weak self] in
-                for await _ in stream { self?.schedule(after: 0.25) }
+                for await _ in stream { self?.realtimeDelivered(); self?.schedule(after: 0.25) }
             })
         }
         // After sleep or a dropped connection the channel rejoins on its own; whatever
@@ -312,8 +317,8 @@ final class SyncEngine {
         realtimeTasks.append(Task { [weak self] in
             var joined = false
             for await s in joins {
-                guard case .subscribed = s else { self?.realtimeChanged(up: false); continue }
-                self?.realtimeChanged(up: true)
+                guard case .subscribed = s else { self?.grace?.cancel(); self?.realtimeChanged(up: false); continue }
+                self?.realtimeJoined()
                 if joined { self?.schedule(after: 0) }
                 joined = true
             }
@@ -546,6 +551,24 @@ final class SyncEngine {
         updateFallback()
     }
 
+    /// Realtime joined: the poll stops once something arrives through it, or after
+    /// `deliveringGrace`, whichever is first.
+    func realtimeJoined() {
+        grace?.cancel()
+        grace = Task { [weak self] in
+            try? await Task.sleep(for: Self.deliveringGrace)
+            guard !Task.isCancelled else { return }
+            self?.realtimeChanged(up: true)
+        }
+    }
+
+    /// Something came through realtime: it's delivering, so the poll can stop.
+    func realtimeDelivered() {
+        guard !realtimeUp else { return }
+        grace?.cancel(); grace = nil
+        realtimeChanged(up: true)
+    }
+
     /// The app came to the front or went away: the poll only runs while it's in front.
     func setActive(_ isActive: Bool) {
         active = isActive
@@ -597,6 +620,7 @@ final class SyncEngine {
         pushLoop?.cancel()
         pushLoop = nil
         pushWanted = false
+        grace?.cancel(); grace = nil
         realtimeTasks.forEach { $0.cancel() }
         realtimeTasks = []
         if let channel { await channel.unsubscribe() }

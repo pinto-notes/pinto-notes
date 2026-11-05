@@ -208,6 +208,22 @@ extension NetworkFaults {
         try await Task.sleep(for: .milliseconds(700) * s)
         #expect(await pulls(over: 1 * s) == 0, "realtime is back: no polling")
 
+        // Round 15: joined is not delivering. The poll goes on through the grace, and stops
+        // at once when something comes through realtime.
+        engine.realtimeChanged(up: false)
+        let grace = SyncEngine.deliveringGrace
+        SyncEngine.deliveringGrace = .milliseconds(1500) * s
+        defer { SyncEngine.deliveringGrace = grace }
+        engine.realtimeJoined()
+        #expect(await pulls(over: 0.8 * s) > 0, "joined, nothing delivered yet: still polling")
+        try await Task.sleep(for: .milliseconds(900) * s)
+        #expect(await pulls(over: 1 * s) == 0, "past the grace: no polling")
+        engine.realtimeChanged(up: false)
+        engine.realtimeJoined()
+        engine.realtimeDelivered()
+        try await Task.sleep(for: .milliseconds(700) * s)
+        #expect(await pulls(over: 1 * s) == 0, "delivering: no polling")
+
         engine.realtimeChanged(up: false)
         engine.setActive(false)
         #expect(await pulls(over: 1 * s) == 0, "in the background: no polling")
