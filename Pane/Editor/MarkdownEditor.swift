@@ -1323,7 +1323,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
                     // went with the last of them (persona council r7).
                     step.last = .now
                 } else {
-                    undo.removeAllActions()
+                    // The steps under it stay: this one puts back the exact text from before the
+                    // run, so the ones before it line up with the text again. Clearing them left
+                    // nothing to undo after a cell's typing was taken back (persona council r7).
                     let before = (textStorage.string as NSString).replacingCharacters(in: NSRange(location: edit.range.location, length: (edit.replacement as NSString).length), with: old)
                     let step = KeyboardDownStep(base: before)
                     downStep = step

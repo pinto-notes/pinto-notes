@@ -1309,7 +1309,8 @@ struct NoteDetailView: View {
         // Undo, a round button of its own just left of Share and More (Emil, 29 October 2026): it
         // comes once you change the note and goes when there's nothing left since it opened.
         // Before you've changed anything it undoes an AI's edit, whose lines are tinted.
-        if let undoButton = NoteAIUndo.button(canUndo: controller.canUndo, canRedo: controller.canRedo, receipt: receipt,
+        // None on a locked note's page: nothing there to undo (the persona council saw it stay after Lock Now).
+        if readable, let undoButton = NoteAIUndo.button(canUndo: controller.canUndo, canRedo: controller.canRedo, receipt: receipt,
                                               showingPage: showingPage, trashed: trashed) {
             ToolbarItem(placement: .primaryAction) { barUndo(undoButton) }
             ToolbarSpacer(.fixed, placement: .primaryAction)
