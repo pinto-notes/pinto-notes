@@ -113,8 +113,14 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         let fallback = CGRect(x: 2, y: 1, width: 3, height: max(0, layoutFragmentFrame.height - 2))
         guard let first = textLineFragments.first, let last = textLineFragments.last,
               let p = textElement as? NSTextParagraph else { return fallback }
+        // The text's own font: the largest in the paragraph. The first character is the hidden
+        // "> ", in a tiny font, and the bar measured from it was a dot (council round 15).
         let whole = p.attributedString
-        let font = (whole.length > 0 ? whole.attribute(.font, at: 0, effectiveRange: nil) as? PFont : nil) ?? PFont.systemFont(ofSize: EditorMetrics.body)
+        var font = PFont.systemFont(ofSize: EditorMetrics.body)
+        var largest: CGFloat = 0
+        whole.enumerateAttribute(.font, in: NSRange(location: 0, length: whole.length)) { value, _, _ in
+            if let f = value as? PFont, f.pointSize > largest { largest = f.pointSize; font = f }
+        }
         let top = first.typographicBounds.minY + first.glyphOrigin.y - font.ascender
         let bottom = last.typographicBounds.minY + last.glyphOrigin.y - font.descender
         guard bottom > top else { return fallback }
