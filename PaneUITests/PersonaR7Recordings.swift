@@ -630,12 +630,18 @@ final class PersonaR7Recordings: XCTestCase {
         lockNow.tap()
         pause(1.5)
         mark("locked-again")
-        // The page asks Face ID again; this time it isn't recognised, and the password opens it.
-        ask("faceid-nomatch")
-        pause(1.5)
-        mark("face-not-recognised")
+        // Since 5 November the page stays quiet after Lock Now (it used to start Face ID at once).
+        // Whether Face ID asked by itself anyway: a face that doesn't match brings up a Cancel only
+        // while Face ID is asking.
         let cancel = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Cancel"].firstMatch
-        if cancel.waitForExistence(timeout: 3) { cancel.tap() } else if app.buttons["Cancel"].firstMatch.exists { app.buttons["Cancel"].firstMatch.tap() }
+        pause(1.5)
+        ask("faceid-nomatch")
+        if cancel.waitForExistence(timeout: 3) || app.buttons["Cancel"].firstMatch.exists {
+            mark("face-id-asked-by-itself")
+            if cancel.exists { cancel.tap() } else { app.buttons["Cancel"].firstMatch.tap() }
+        } else {
+            mark("locked-again-quiet")
+        }
         pause(1.5)
         let back = app.navigationBars.buttons.element(boundBy: 0)
         if back.exists { back.tap(); pause(2) }
@@ -662,10 +668,14 @@ final class PersonaR7Recordings: XCTestCase {
         more.tap()
         pause(1)
         lockNow.tap()
-        pause(1.5)
+        pause(2)
         ask("faceid-nomatch")
-        pause(1)
-        if cancel.waitForExistence(timeout: 3) { cancel.tap() }
+        if cancel.waitForExistence(timeout: 3) {
+            mark("face-id-asked-by-itself-again")
+            cancel.tap()
+        } else {
+            mark("locked-at-end-quiet")
+        }
         pause(1)
         if back.exists { back.tap(); pause(2) }
         mark("ends-locked")

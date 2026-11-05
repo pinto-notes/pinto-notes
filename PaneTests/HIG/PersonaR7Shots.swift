@@ -15,13 +15,21 @@ import ZIPFoundation
 /// Apple Notes is never read (its import runs on the import tests' fixtures).
 /// Runs only when PERSONA_R7_SHOTS is set:
 /// `TEST_RUNNER_PERSONA_R7_SHOTS=<shots>/r7 scripts/qa-test.sh PaneTests/PersonaR7Shots`
+/// PERSONA_R7_SUFFIX=-v2 names a re-take's files `<name>-v2.png` (and its text files the same way),
+/// next to the first take's, which stay.
 @MainActor @Suite(.serialized) struct PersonaR7Shots {
     static var dir: URL? { ProcessInfo.processInfo.environment["PERSONA_R7_SHOTS"].map { URL(fileURLWithPath: $0) } }
+    static var suffix: String { ProcessInfo.processInfo.environment["PERSONA_R7_SUFFIX"] ?? "" }
 
     static func url(_ folder: String, _ name: String) throws -> URL {
+        try file(folder, name, "png")
+    }
+
+    /// `<folder>/<name><suffix>.<ext>` in the shots folder.
+    static func file(_ folder: String, _ name: String, _ ext: String) throws -> URL {
         let f = try #require(dir).appending(path: folder, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: f, withIntermediateDirectories: true)
-        return f.appending(path: "\(name).png")
+        return f.appending(path: "\(name)\(suffix).\(ext)")
     }
 
     static func save(_ rep: NSBitmapImageRep, _ folder: String, _ name: String) throws {
@@ -130,8 +138,10 @@ import ZIPFoundation
     /// A new note written with the keys' own commands (Return, Tab, Shift-Tab go through the
     /// editor as the keys do), a key at a time with a turn of the run loop after each, as typing
     /// has: # heading, - [ ] checklist, an item indented and outdented, **bold**, [[ with its
-    /// suggestions, a link put in at once as a paste does (a real paste would use this Mac's
-    /// clipboard), a code fence, and a table typed in Markdown.
+    /// suggestions, a web address typed on its own line, a code fence, and a table typed in
+    /// Markdown; then Undo, as ⌘Z sends it to the text view. (The first take, 4 November, put the
+    /// address in at once and left Undo out: typed, the address split, and Undo crashed the
+    /// harness; both fixed on 5 November.)
     @Test func c2WritingOnTheMac() async throws {
         guard Self.dir != nil else { return }
         let folder = "c2-writing"
@@ -169,7 +179,7 @@ import ZIPFoundation
             try Self.save(try PersonaEditorShots.picture(w), folder, "mac-dark-02-link-suggestions")
             await key(ret)
             await key(ret)
-            tv.insertText("https://www.visitporto.travel/en-GB", replacementRange: tv.selectedRange())
+            await type("https://www.visitporto.travel/en-GB")
             await MacWindowChromeTests.settle(w, 2)
             await key(ret); await key(ret)
             for line in ["```", "rsync -av ~/Pictures/Porto/ ~/Backup/", "```"] { await type(line); await key(ret) }
@@ -177,8 +187,16 @@ import ZIPFoundation
             for line in ["| Day | Plan |", "| --- | --- |", "| Saturday | Ribeira walk |", "| Sunday | Serralves |"] { await type(line); await key(ret) }
             await MacWindowChromeTests.settle(w, 10)
             try Self.save(try PersonaEditorShots.picture(w), folder, "mac-dark-03-written")
+            DebouncedSave.flushAll()
             let body = try Self.note(c, "Porto weekend").body
-            try body.write(to: try #require(Self.dir).appending(path: "\(folder)/mac-dark-note-as-stored.md"), atomically: true, encoding: .utf8)
+            try body.write(to: try Self.file(folder, "mac-dark-note-as-stored", "md"), atomically: true, encoding: .utf8)
+            // Undo, as ⌘Z sends it to the text view.
+            tv.undoManager?.undo()
+            await MacWindowChromeTests.settle(w, 10)
+            try Self.save(try PersonaEditorShots.picture(w), folder, "mac-dark-04-after-undo")
+            DebouncedSave.flushAll()
+            let undone = try Self.note(c, "Porto weekend").body
+            try undone.write(to: try Self.file(folder, "mac-dark-note-after-undo", "md"), atomically: true, encoding: .utf8)
         }
     }
 
@@ -202,13 +220,14 @@ import ZIPFoundation
         }
         try ctx.save()
         let count = try ctx.fetchCount(FetchDescriptor<Note>())
-        for (query, name) in [("blue tiles", "buried-phrase"), ("Lisbon 7", "exact-title")] {
+        // A typo too (5 November): the notes list's search forgives one; Go to Note is shown as it is.
+        for (query, name) in [("blue tiles", "buried-phrase"), ("Lisbon 7", "exact-title"), ("renovaton", "typo")] {
             let hits = await QuickOpen.textHits(for: query, in: c)
             let panel = QuickOpenPanel(notes: QuickOpen.noteItems(in: ctx), commands: [], choose: { _ in }, close: {}, initialQuery: query, initialTextHits: hits)
             let rep = try await PersonaAIShots.shoot(panel.padding(20), size: CGSize(width: QuickOpenPanel.Metrics.width + 40, height: 460), dark: true, wait: 1.5)
             try Self.save(rep, "c3-search", "mac-dark-go-to-note-\(name)")
         }
-        try "\(count) notes in the library\n".write(to: try #require(Self.dir).appending(path: "c3-search/mac-library-count.txt"), atomically: true, encoding: .utf8)
+        try "\(count) notes in the library\n".write(to: try Self.file("c3-search", "mac-library-count", "txt"), atomically: true, encoding: .utf8)
     }
 
     // MARK: - C7. Apple Notes import (light)
