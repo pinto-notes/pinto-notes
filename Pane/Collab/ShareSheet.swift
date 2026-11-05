@@ -160,8 +160,9 @@ struct ShareForm: View {
 struct DoneLine: View {
     let text: String
     var body: some View {
+        // Color.primary, not .primary: in a form's footer .primary is the footer's own grey.
         Label(text, systemImage: "checkmark")
-            .foregroundStyle(.primary)
+            .foregroundStyle(Color.primary)
             .transition(.opacity)
             .accessibilityIdentifier("share.done")
     }

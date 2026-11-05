@@ -316,6 +316,9 @@ struct NoteDetailView: View {
             .background {
                 if let receipt {
                     ReceiptUndoneWatcher(note: note, receipt: receipt) {
+                        // Your own Undo in the review says its own line when the review ends,
+                        // which has already taken the receipt when this comes.
+                        guard review == nil, self.receipt != nil else { return }
                         withAnimation(.easeOut(duration: 0.2)) { self.receipt = nil; reviewResult = receipt.undoneLine }
                         controller.clearTint()
                     }
@@ -487,6 +490,8 @@ struct NoteDetailView: View {
                 .task(id: text) {
                     AccessibilityNotification.Announcement(text).post()
                     try? await Task.sleep(for: .seconds(3))
+                    // Cancelled means the line changed: the new one has its own three seconds.
+                    guard !Task.isCancelled else { return }
                     withAnimation(.easeIn(duration: 0.2)) { reviewResult = nil }
                 }
         }

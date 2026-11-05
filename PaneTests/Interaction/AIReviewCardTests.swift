@@ -256,6 +256,27 @@ import Testing
         #expect(result == ["Kept 1, undid 2"], "the last decision ends it with the count")
     }
 
+    /// Undo All in a real note's review: the line that says so stays for its moment. Its own Undo
+    /// also set off "undone on another device"; the second text cancelled the first's timer, and a
+    /// cancelled timer cleared the line at once (persona council r7d, on the iPhone).
+    @Test func undoAllSaysSoAndTheLineStays() async throws {
+        ChangeTint.holdForCapture = true
+        defer { ChangeTint.holdForCapture = false }
+        let c = try PersonaR7Shots.tripLibrary()
+        try await PersonaR7Shots.pressable(c, note: "Lisbon trip", dark: false) { ax in
+            Capture.aiEdit(c.mainContext, title: "Lisbon trip", scene: "lisbontrip", by: "ChatGPT")
+            await ax.settle(1500)
+            #expect(try #require(ax.find("receipt.review"), "\(ax.ids())").press())
+            await ax.settle(800)
+            #expect(try #require(ax.find("review.undoAll"), "\(ax.ids())").press())
+            await ax.settle(800)
+            let line = try #require(ax.find("review.result"), "the line shows: \(ax.ids())")
+            #expect(line.text.contains("Undid ChatGPT\u{2019}s"), "\(line.text)")
+            await ax.settle(1200)
+            #expect(ax.find("review.result") != nil, "and stays for its moment")
+        }
+    }
+
     /// You changed a part after the AI did: its Undo says why and the note keeps your words.
     @Test func aPartYouChangedSaysSoAndKeepsYourTyping() async throws {
         let typed = AIReviewTests.after.replacingOccurrences(of: "Tell Leo.", with: "Tell Leo and Maya.")
