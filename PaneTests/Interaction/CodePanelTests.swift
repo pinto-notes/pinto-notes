@@ -68,5 +68,31 @@ import Testing
         }, "the fence's text")
         #expect(CGFloat(firstInk - panelTop) / scale >= 5, "room above the fence: \(CGFloat(firstInk - panelTop) / scale) pt")
     }
+
+    /// Two Returns leave a code block; one stays in it; an empty block doesn't end at once (round 18).
+    @Test func twoReturnsLeaveACodeBlock() {
+        func caret(_ t: String, _ marker: String = "@") -> (String, NSRange) {
+            let at = (t as NSString).range(of: marker).location
+            return ((t as NSString).replacingOccurrences(of: marker, with: ""), NSRange(location: at, length: 0))
+        }
+        // At the end of the note.
+        var (t, s) = caret("A\n```\nlet x\n@\n```")
+        var e = ListEditing.leaveCodeBlock(in: t, selection: s)
+        #expect(e?.replacement == "```\n")
+        var out = (t as NSString).replacingCharacters(in: e!.range, with: e!.replacement)
+        #expect(out == "A\n```\nlet x\n```\n")
+        #expect(e?.caret == (out as NSString).length)
+        // With text under it, on a new line of its own.
+        (t, s) = caret("```\nlet x\n@\n```\nNext")
+        e = ListEditing.leaveCodeBlock(in: t, selection: s)
+        out = (t as NSString).replacingCharacters(in: e!.range, with: e!.replacement)
+        #expect(out == "```\nlet x\n```\n\nNext")
+        #expect(e?.caret == ("```\nlet x\n```\n" as NSString).length)
+        // Not from a line with code, not from a block's only line.
+        (t, s) = caret("```\nlet x@\n```")
+        #expect(ListEditing.leaveCodeBlock(in: t, selection: s) == nil)
+        (t, s) = caret("```\n@\n```")
+        #expect(ListEditing.leaveCodeBlock(in: t, selection: s) == nil)
+    }
 }
 #endif

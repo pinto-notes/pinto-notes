@@ -13,8 +13,26 @@ struct TextEdit: Equatable {
 /// Editing rules that make lists and checklists feel like Apple Notes.
 /// Pure functions over the markdown source, so they are unit-tested.
 enum ListEditing {
+    /// Return on an empty last line of a code block leaves it: the empty line goes, and the caret
+    /// is on a new line under the block. Two Returns out, the way lists end (round 18: you stayed
+    /// inside however many you pressed).
+    static func leaveCodeBlock(in text: String, selection: NSRange) -> TextEdit? {
+        guard selection.length == 0 else { return nil }
+        let ns = text as NSString
+        guard let block = codeBlock(in: ns, at: selection.location), let close = block.close, close.location > 0 else { return nil }
+        let line = ns.lineRange(for: NSRange(location: selection.location, length: 0))
+        guard NSMaxRange(line) == close.location, line.location != NSMaxRange(block.open),
+              ns.substring(with: line).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        let fence = ns.substring(with: close)
+        let closed = fence.hasSuffix("\n") ? fence : fence + "\n"
+        return TextEdit(range: NSRange(location: line.location, length: NSMaxRange(close) - line.location),
+                        replacement: closed + (fence.hasSuffix("\n") ? "\n" : ""),
+                        caret: line.location + (closed as NSString).length)
+    }
+
     /// Return inside a list item continues the list; on an empty item it ends it.
     static func returnKey(in text: String, selection: NSRange) -> TextEdit? {
+        if let out = leaveCodeBlock(in: text, selection: selection) { return out }
         let ns = text as NSString
         guard selection.location <= ns.length else { return nil }
         let lineRange = ns.lineRange(for: NSRange(location: selection.location, length: 0))
