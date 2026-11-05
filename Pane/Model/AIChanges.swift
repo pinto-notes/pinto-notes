@@ -442,7 +442,7 @@ final class AIChangesModel {
             phase = .loaded
             if selection == nil || selected == nil, let first = changes.first { await select(first.id) }
         } catch {
-            phase = .failed(HistoryError.from(error).localizedDescription)
+            phase = .failed(HistoryError.from(error).aiChangesDescription)
         }
     }
 
@@ -489,7 +489,7 @@ final class AIChangesModel {
             diff = EditDiff.between(before ?? "", after)
         } catch {
             guard selection == id else { return }
-            detailFailed = HistoryError.from(error).localizedDescription
+            detailFailed = HistoryError.from(error).aiChangesDescription
         }
     }
 

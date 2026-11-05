@@ -23,6 +23,7 @@
 		01F8A032F59404B7F22B1A3F /* LegalLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43C8835EE05529FC6C66B17 /* LegalLinks.swift */; };
 		026084E1D300F5B1897A4489 /* AddDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB90883FB5418E63A15FD23 /* AddDevice.swift */; };
 		02BA20468F6CAD64D839D739 /* SearchLinesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00208A9F893096B9B52CE5FD /* SearchLinesTests.swift */; };
+		02D3A943C1BDA56B8FE28151 /* AIChangesCopyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DB493FBA680D589F52026E0 /* AIChangesCopyTests.swift */; };
 		02FF3686D2DF7AA939A76277 /* CodeBoxes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30BFBB10DA2DD2468EE9BE2 /* CodeBoxes.swift */; };
 		0303F797D9849DBE091D09B1 /* NoteRowStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 191532B6C05CC04A487951F6 /* NoteRowStatusTests.swift */; };
 		0366C9B2B821FBA700B2095B /* DailyNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE8E5E057146AF438788DFD /* DailyNotes.swift */; };
@@ -1291,6 +1292,7 @@
 		2CC822E0A1ABBCCDB65B943A /* ShareExtensionUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionUITests.swift; sourceTree = "<group>"; };
 		2D3882A212A64F6177633109 /* template-cover-home-maintenance.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-home-maintenance.jpg"; sourceTree = "<group>"; };
 		2D7294BFFF6A6FCC7F16EF89 /* CollabGallery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabGallery.swift; sourceTree = "<group>"; };
+		2DB493FBA680D589F52026E0 /* AIChangesCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChangesCopyTests.swift; sourceTree = "<group>"; };
 		2DEDC7354927F391C2ED487C /* AIReviewCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIReviewCard.swift; sourceTree = "<group>"; };
 		2E2167FA347940753904964C /* PaneTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PaneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2E585AAB4EEC89DFEE3790F9 /* PasswordResetUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordResetUITests.swift; sourceTree = "<group>"; };
@@ -2467,6 +2469,7 @@
 				111E9C358E5C2A6E9AB85F10 /* AccountGoneTests.swift */,
 				89A5B5992BCBFBD45F14C80D /* AccountLibraryTests.swift */,
 				9BF202EE121B78E2D670FEBB /* AddDeviceTests.swift */,
+				2DB493FBA680D589F52026E0 /* AIChangesCopyTests.swift */,
 				57D0A42EA3923C51FC7DC0A5 /* AIChangesLogTests.swift */,
 				212906CC78A0D33147DA9115 /* AIEditTests.swift */,
 				C971B26721AA72846608E154 /* AIReviewTests.swift */,
@@ -3459,6 +3462,7 @@
 			files = (
 				772C0099F7B9806CC04392D1 /* A11yPicksShots.swift in Sources */,
 				56370CB8266677DA9CC6258B /* AIChangeTickTests.swift in Sources */,
+				02D3A943C1BDA56B8FE28151 /* AIChangesCopyTests.swift in Sources */,
 				0D7E7D7BE11907499A410728 /* AIChangesLogTests.swift in Sources */,
 				6D446FBF212877EA2DCA65AB /* AIChangesSnapshots.swift in Sources */,
 				0EAF1EF814DB06B298E28565 /* AIChangesTests.swift in Sources */,

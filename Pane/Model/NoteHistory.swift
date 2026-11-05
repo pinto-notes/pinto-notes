@@ -176,6 +176,12 @@ enum HistoryError: LocalizedError, Equatable {
         }
     }
 
+    /// The same, said for AI Changes: offline, it isn't this note's versions that can't load
+    /// (round 15: the AI Changes sheet said "to see this note's earlier versions").
+    var aiChangesDescription: String {
+        self == .offline ? "You're offline. Connect to the internet to see what your AIs changed." : (errorDescription ?? "")
+    }
+
     static func from(_ error: Error) -> HistoryError {
         if let h = error as? HistoryError { return h }
         if error is URLError { return .offline }

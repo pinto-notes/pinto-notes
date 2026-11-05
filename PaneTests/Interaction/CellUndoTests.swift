@@ -32,16 +32,16 @@ import UIKit
             at += 1
             try? await Task.sleep(for: .seconds(0.05))
         }
-        // The cell's own field puts its typing in the window's undo manager, as UIKit does.
+        // The cell's field is laid over the text, inside it, and has the keyboard. It records its
+        // typing letter by letter with the undo manager it finds up its responder chain.
         let field = UITextField(frame: CGRect(x: 0, y: 0, width: 100, height: 30))
-        window.addSubview(field)
-        if let shared = window.undoManager {
-            shared.registerUndo(withTarget: field) { $0.text = "Ribeira wal" }
-            #expect(v.undoManager !== shared, "the note keeps its own steps")
-        }
+        v.addSubview(field)
+        #expect(field.becomeFirstResponder())
+        field.undoManager?.registerUndo(withTarget: field) { $0.text = "Ribeira wal" }
+        let undo = try #require(v.noteStack)
+        #expect(field.undoManager !== undo, "the cell's letters stay off the note's steps")
         let typed: String = v.text ?? ""
         #expect(typed.contains("| Sat | Ribeira walk |"))
-        let undo = try #require(v.undoManager)
         #expect(undo.canUndo)
         // The bar's Undo.
         v.undoStep(redo: false)

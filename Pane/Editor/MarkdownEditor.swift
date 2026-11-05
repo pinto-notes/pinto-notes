@@ -841,8 +841,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         lastReported = text
         remember(text)
         // Undo's floor: the note as it opened.
-        undoManager?.removeAllActions()
+        noteStack?.removeAllActions(); typing = nil; typedText = self.text
         observeUndo()
+        if !watchingCells { watchingCells = true; watchCells() }
         core.observe(textStorage)
         core.restyle(textStorage, selection: nil, force: true)
         typingAttributes = core.typingAttributes(text, at: selectedRange.location)
@@ -1141,7 +1142,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func undoLastEdit() {
         if !isFirstResponder { becomeFirstResponder() }
-        undoManager?.undo()
+        noteStack?.undo()
     }
 
     // MARK: Undo
@@ -1150,7 +1151,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     // steps, so ⌘Z, shake, the three-finger swipe and the top bar's Undo all reach the same stack.
 
     func undoStep(redo: Bool) {
-        guard let undo = undoManager else { return }
+        guard let undo = noteStack else { return }
         if redo { if undo.canRedo { undo.redo() } } else if undo.canUndo { undo.undo() }
         reportUndo()
     }
@@ -1163,7 +1164,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     @objc private func undoStackChanged(_ note: Notification) {
-        guard (note.object as AnyObject?) === undoManager else { return }
+        guard (note.object as AnyObject?) === noteStack else { return }
         // An undo or redo that changed the text without the text view saying so is saved like
         // typing (on the Mac it wasn't: persona council r7, bug 18).
         if note.name != .NSUndoManagerDidCloseUndoGroup, text != lastReported, markedTextRange == nil { textDidChange() }
@@ -1176,7 +1177,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         let report = { [weak self] in
             guard let self, let controller = self.controller, controller.target === self else { return }
             // A quick, quiet fade in and out.
-            withAnimation(.easeOut(duration: 0.18)) { controller.undoChanged(canUndo: self.undoManager?.canUndo == true, canRedo: self.undoManager?.canRedo == true) }
+            withAnimation(.easeOut(duration: 0.18)) { controller.undoChanged(canUndo: self.noteStack?.canUndo == true, canRedo: self.noteStack?.canRedo == true) }
         }
         report()
         DispatchQueue.main.async(execute: report)
@@ -1312,11 +1313,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             // view drops its typing steps on a change like this anyway). This change is a step of
             // its own, so a tick with the keyboard down can be undone. (Not while that step is
             // being undone or redone: clearing the stack then hung the undo manager.)
-            if let undo = undoManager {
+            if let undo = noteStack {
                 if undo.isUndoing || undo.isRedoing {
                     downStep = nil
                     let back = TextEdit(range: NSRange(location: edit.range.location, length: (edit.replacement as NSString).length), replacement: old, caret: -1)
-                    undo.registerUndo(withTarget: self) { $0.apply(back) }
+                    undo.registerUndo(withTarget: stepTarget) { $0.view?.apply(back) }
                 } else if let step = downStep, undo.canUndo, Date.now.timeIntervalSince(step.last) < KeyboardDownStep.joinWithin {
                     // More of the same run (typing in a table cell): the step already there takes
                     // it back too. One step per letter took back one letter, and the Undo button
@@ -1329,7 +1330,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
                     let before = (textStorage.string as NSString).replacingCharacters(in: NSRange(location: edit.range.location, length: (edit.replacement as NSString).length), with: old)
                     let step = KeyboardDownStep(base: before)
                     downStep = step
-                    undo.registerUndo(withTarget: self) { $0.revert(to: step) }
+                    typing = nil
+                    undo.registerUndo(withTarget: stepTarget) { $0.view?.revert(to: step) }
                 }
             }
             let caret = min(edit.caret, textStorage.length)
@@ -1338,7 +1340,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
                 selectedRange = caret >= 0 ? NSRange(location: caret, length: 0)
                     : TextDiff.map(keep, through: TextDiff.Edit(range: edit.range, replacement: edit.replacement))
             }
+            writingStorage = true
             textDidChange()
+            writingStorage = false
             return
         }
         guard let start = position(from: beginningOfDocument, offset: edit.range.location),
@@ -1346,9 +1350,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
               let range = textRange(from: start, to: end) else { return }
         core.applyingEdit = true
         // A tick's step of Undo (`asOneStep`) covers it: none of the text view's own.
-        if quietEdit { undoManager?.disableUndoRegistration() }
+        if quietEdit { noteStack?.disableUndoRegistration() }
         replace(range, withText: edit.replacement)
-        if quietEdit { undoManager?.enableUndoRegistration() }
+        if quietEdit { noteStack?.enableUndoRegistration() }
         core.applyingEdit = false
         if let keep = edit.selection, NSMaxRange(keep) <= (text as NSString).length { selectedRange = keep }
         else if edit.caret >= 0 { selectedRange = NSRange(location: min(edit.caret, (text as NSString).length), length: 0) }
@@ -1596,6 +1600,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     private func textDidChange() {
         guard markedTextRange == nil else { return }
         takeWhatArrivedWhileComposing()
+        recordTyping()
         core.layoutDelegate.tint.stop()
         // Rows still sliding would cover the new text.
         core.endSlides()
@@ -1679,7 +1684,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         lastReported = new
         remember(new)
         replaceText(with: new)
-        undoManager?.removeAllActions()
+        noteStack?.removeAllActions(); typing = nil; typedText = text
         clearTint()
         // A shorter version: back inside the text, not scrolled past its end.
         layoutIfNeeded()
@@ -1707,22 +1712,50 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         textStorage.replaceCharacters(in: edit.range, with: edit.replacement)
         // Undo steps recorded against the old text would land in the wrong place now. In a shared
         // note your own steps move with the change instead (OwnUndo).
-        if let own = controller?.ownUndo { own.transform(through: edit) } else { undoManager?.removeAllActions() }
+        if let own = controller?.ownUndo { own.transform(through: edit) } else { noteStack?.removeAllActions(); typing = nil; typedText = text }
         reportUndo()
         selectedRange = TextDiff.map(keep, through: edit)
         core.restyle(textStorage, selection: editingSelection, force: true)
         settleOverlays(after: NSMaxRange(edit.range) + (edit.replacement as NSString).length)
         setContentOffset(offset, animated: false)
+        // Not yours to undo as typing: the next run of typing starts from here.
+        typing = nil; typedText = text; typedSelection = selectedRange
     }
 
     // MARK: Undo in a shared note: only your own edits (OwnUndo)
 
     private lazy var ownUndoManager = OwnUndoManager(view: self)
-    /// The note's own steps. The window's undo manager is shared with whatever has the keyboard:
-    /// a table cell's field put its typing there too, so the bar's Undo took back the field's last
-    /// few letters, not the cell's text, and then had nothing left (persona council r7, bug 4).
+    /// The note's steps, or in a shared note only your own edits. Its own manager, not UIKit's:
+    /// UIKit clears all of its manager's steps when the text changes without the keyboard (a
+    /// table cell's typing), so the note's typing before it went (persona council r7). UIKit
+    /// records no typing in a manager of the view's own, so the view records it (`recordTyping`).
+    var noteStack: UndoManager? { controller?.ownUndo != nil ? ownUndoManager : noteUndoManager }
     private let noteUndoManager = UndoManager()
-    override var undoManager: UndoManager? { controller?.ownUndo != nil ? ownUndoManager : noteUndoManager }
+    /// A table cell's field asks this view for its undo manager (the cells are laid over the
+    /// text, inside it). Its per-letter steps went on top of the note's, so the bar's Undo took
+    /// back its last letter, not the cell's text, and then had nothing left (persona council r7,
+    /// bug 4). While a cell has the keyboard they go here instead; the note's own step for that
+    /// typing (KeyboardDownStep) stays on the note's stack.
+    private let cellFieldUndo = UndoManager()
+    private weak var editingCell: UITextField?
+    private var watchingCells = false
+    override var undoManager: UndoManager? {
+        if let cell = editingCell, cell.isFirstResponder, !isFirstResponder { return cellFieldUndo }
+        return noteStack
+    }
+    private func watchCells() {
+        NotificationCenter.default.addObserver(self, selector: #selector(cellBegan(_:)), name: UITextField.textDidBeginEditingNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(cellEnded(_:)), name: UITextField.textDidEndEditingNotification, object: nil)
+    }
+    @objc private func cellBegan(_ note: Notification) {
+        guard let field = note.object as? UITextField, field.isDescendant(of: self) else { return }
+        editingCell = field
+    }
+    @objc private func cellEnded(_ note: Notification) {
+        guard let field = note.object as? UITextField, field === editingCell else { return }
+        editingCell = nil
+        cellFieldUndo.removeAllActions()
+    }
     private var applyingOwnUndo = false
 
     /// Your edit, for undo, unless it's an undo itself.
@@ -2032,7 +2065,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         asOneStep { apply(edit) }
         if NSMaxRange(keep) <= (text as NSString).length { selectedRange = keep }
         setContentOffset(offset, animated: false)
-        undoManager?.setActionName(name)
+        noteStack?.setActionName(name)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
@@ -2042,6 +2075,39 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         let before = text ?? "", selection = selectedRange
         withoutUndo(change)
         registerStep(back: before, selection: selection)
+        typing = nil; typedText = text
+    }
+
+    /// Typing close together (and Return, a list's own edits, a paste), one step of Undo back to
+    /// the text before it, as UIKit groups typing. A pause, or any other step, starts the next.
+    private final class TypingRun {
+        static let joinWithin: TimeInterval = 1.5
+        var last = Date.now
+    }
+    private var typing: TypingRun?
+    /// Set while `apply` writes into the storage with the keyboard down (it has its own step).
+    private var writingStorage = false
+    /// The text as the last change left it: what a new run of typing goes back to.
+    private var typedText = ""
+    private var typedSelection = NSRange(location: 0, length: 0)
+
+    private func recordTyping() {
+        let now = text ?? ""
+        defer { typedText = now; typedSelection = selectedRange }
+        guard controller?.ownUndo == nil, !quietEdit, now != typedText, let undo = noteStack,
+              !undo.isUndoing, !undo.isRedoing, undo.isUndoRegistrationEnabled else { return }
+        // A change written straight into the storage (a table cell's typing) has its own step.
+        guard !writingStorage else { return }
+        // More of the same run: soon after, and where the last change left the caret (typing
+        // somewhere else is a step of its own, as in UIKit).
+        let at = TextDiff.edit(from: typedText, to: now).map { $0.range.location == typedSelection.location || NSMaxRange($0.range) == typedSelection.location } ?? false
+        if let run = typing, at, undo.canUndo, Date.now.timeIntervalSince(run.last) < TypingRun.joinWithin {
+            run.last = .now
+            return
+        }
+        registerStep(back: typedText, selection: typedSelection)
+        typing = TypingRun()
+        downStep = nil
     }
 
     /// Set while a change goes in without a step of Undo of its own (`apply`).
@@ -2063,9 +2129,10 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     private func registerStep(back to: String, selection: NSRange) {
         guard to != text else { return }
-        undoManager?.registerUndo(withTarget: stepTarget) { target in
+        noteStack?.registerUndo(withTarget: stepTarget) { target in
             guard let view = target.view else { return }
             let now = view.text ?? "", kept = view.selectedRange
+            view.typing = nil
             view.core.endSlides()
             if let e = TextDiff.edit(from: now, to: to) {
                 view.withoutUndo { view.apply(TextEdit(range: e.range, replacement: e.replacement, caret: -1)) }
