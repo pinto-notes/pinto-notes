@@ -349,7 +349,12 @@ final class EditorController {
     func heading(_ level: Int) { guard cell == nil else { return }; perform { ListEditing.heading(in: $0, selection: $1, level: level) } }
 
     /// Format › Move Item Up / Down: the caret's line or item past its neighbour (`MoveItem`).
-    func moveItem(up: Bool) { guard cell == nil else { return }; perform { MoveItem.move(in: $0, selection: $1, up: up) } }
+    /// Its own step of Undo, the caret back where it was: a plain edit's Undo selects all the text
+    /// it put back, here the two lines that swapped (round 18).
+    func moveItem(up: Bool) {
+        guard cell == nil, let t = target, !readOnly, let edit = MoveItem.move(in: t.currentText, selection: t.currentSelection, up: up) else { return }
+        t.applyMove(edit, named: "Move Item")
+    }
     func bulletList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .bulleted) } }
     func dashedList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .dashed) } }
     func numberedList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .numbered) } }
@@ -864,6 +869,8 @@ protocol EditorTarget: TextHost {
     /// Makes `edit` as one step of Undo named `name` ("Undo Untick All"), the caret, scroll and
     /// keyboard left as they are.
     func applyStep(_ edit: TextEdit, named name: String)
+    /// The same, but the caret goes where `edit` says; Undo puts it back.
+    func applyMove(_ edit: TextEdit, named name: String)
     /// Removes table `index` as one undoable edit, the keyboard back in the text.
     func deleteGrid(_ index: Int)
     /// Undoes the last edit (the notice's Undo).
@@ -887,6 +894,7 @@ protocol EditorTarget: TextHost {
 
 extension EditorTarget {
     func applyStep(_ edit: TextEdit, named name: String) { apply(edit) }
+    func applyMove(_ edit: TextEdit, named name: String) { apply(edit) }
     func tablePanelChanged(shown: Bool) {}
     func deleteGrid(_ index: Int) {}
     func undoLastEdit() {}

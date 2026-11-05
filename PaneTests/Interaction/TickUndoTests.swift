@@ -26,6 +26,30 @@ import UIKit
 
     /// Round 18's capture, at its pace: tick Passport (it sinks), tick Rain jacket, Undo, move Rain
     /// jacket up, Undo. The last Undo left "- [ ] Rain jack- [ ] Chargers" and lost Passport.
+    /// Undoing a move leaves a caret where it was, not the two swapped lines selected (round 18's
+    /// shot had them highlighted), and Redo takes the caret along with the item.
+    @Test func undoingAMovePutsTheCaretBack() async throws {
+        let body = "Packing\n\n- [ ] Passport\n- [ ] Chargers\n- [ ] Rain jacket"
+        let h = await EditorHarness(body)
+        defer { h.close() }
+        let undo = try #require(h.view.undoManager)
+        let at = (body as NSString).range(of: "Rain").location + 2
+        h.view.setSelectedRange(NSRange(location: at, length: 0))
+        h.controller.moveItem(up: true)
+        await h.settle(0.2)
+        #expect(h.text == "Packing\n\n- [ ] Passport\n- [ ] Rain jacket\n- [ ] Chargers")
+        let moved = h.selection
+        #expect(moved.length == 0)
+        #expect(undo.undoActionName == "Move Item")
+        undo.undo()
+        await h.settle(0.2)
+        #expect(h.text == body)
+        #expect(h.selection == NSRange(location: at, length: 0))
+        undo.redo()
+        await h.settle(0.2)
+        #expect(h.selection == moved)
+    }
+
     @Test func undoingAMoveAfterTicksKeepsTheText() async throws {
         let body = "Packing\n\n- [ ] Passport\n- [ ] Chargers\n- [ ] Rain jacket"
         let h = await EditorHarness(body)
@@ -42,17 +66,13 @@ import UIKit
         await h.settle(1.2)
         await step { await h.click(circle(h, "Rain jacket")) }
         await h.settle(1.2)
-        print("MOVEDBG ticked", h.text.debugDescription, "sel", h.selection)
         undo.undo()
         await h.settle(1)
-        print("MOVEDBG undo", h.text.debugDescription, "sel", h.selection)
         await h.caret(after: "Rain jacket")
         await step { h.controller.moveItem(up: true) }
         await h.settle(1.5)
-        print("MOVEDBG moved", h.text.debugDescription, "sel", h.selection)
         undo.undo()
         await h.settle(Self.settle)
-        print("MOVEDBG undone", h.text.debugDescription, "sel", h.selection)
         #expect(h.text == "Packing\n\n- [ ] Chargers\n- [ ] Rain jacket\n- [x] Passport")
     }
 
@@ -84,6 +104,16 @@ import UIKit
         for item in ["Passport", "Chargers", "Rain jacket"] {
             #expect(lines.contains { $0.hasSuffix("] \(item)") }, "\(item) in \(h.text)")
         }
+    }
+
+    /// A click on a circle ticks it even with the keyboard elsewhere, as in Notes (round 18: on the
+    /// Air the first click after opening a note did nothing).
+    @Test func theFirstClickOnACircleTicks() async {
+        let h = await EditorHarness("Packing\n\n- [ ] Passport\n- [ ] Chargers", focus: false)
+        defer { h.close() }
+        await h.click(circle(h, "Passport"))
+        await h.settle(0.1)
+        #expect(h.text.contains("- [x] Passport"), "\(h.text)")
     }
 
     @Test func oneCommandZPutsTheTickAndTheMoveBack() async throws {

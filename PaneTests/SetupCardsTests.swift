@@ -127,6 +127,14 @@ import Testing
         #expect(source.contains("if behindSetupCard { return nil }"))
     }
 
+    /// File › Import Notes too: a sheet opened over the shut window inherits its "disabled", so
+    /// its Choose button looked fine and did nothing, with no way forward (round 18).
+    @Test func importIsOffBehindASetupCard() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "RootView.swift"), encoding: .utf8)
+        #expect(source.contains(".focusedSceneValue(\\.importAction, behindSetupCard ? nil"))
+        #expect(source.contains(".focusedSceneValue(\\.importFromAction, behindSetupCard ? nil"))
+    }
+
     /// The library's line: what an AI is for until you have it, then when you last used it, and
     /// how many accounts when there are two (two Claudes).
     @Test func theLibrarySaysWhatYouHave() {

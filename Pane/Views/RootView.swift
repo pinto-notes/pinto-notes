@@ -119,8 +119,8 @@ struct RootView: View {
             .onAppear { Telemetry.shared.notesShown() }
             .focusedSceneValue(\.newNoteAction, newNoteCommand)
             .focusedSceneValue(\.editorController, editor)
-            .focusedSceneValue(\.importAction, { showImport = true })
-            .focusedSceneValue(\.importFromAction, { kind in importFiles = []; importing = kind })
+            .focusedSceneValue(\.importAction, behindSetupCard ? nil : { showImport = true })
+            .focusedSceneValue(\.importFromAction, behindSetupCard ? nil : { kind in importFiles = []; importing = kind })
             .focusedSceneValue(\.deleteNoteAction, deleteAction)
             // A template or shared note to add, from a link.
             .noteSourceHandler()

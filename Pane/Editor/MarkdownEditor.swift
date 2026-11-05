@@ -2126,6 +2126,12 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
+    func applyMove(_ edit: TextEdit, named name: String) {
+        core.endSlides()
+        asOneStep { apply(edit) }
+        noteStack?.setActionName(name)
+    }
+
     /// Makes `change` as one step of Undo that puts the whole text back as it was, so the sort that
     /// follows a tick (done `withoutUndo`) goes back with it, as in Notes. Steps below it stay.
     private func asOneStep(_ change: () -> Void) {
@@ -3992,6 +3998,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         undoManager?.setActionName(name)
     }
 
+
+    func applyMove(_ edit: TextEdit, named name: String) {
+        core.endSlides()
+        asOneStep { apply(edit) }
+        undoManager?.setActionName(name)
+    }
 
     /// Makes `change` as one step of Undo that puts the whole text back as it was, so the sort that
     /// follows a tick (done `withoutUndo`) goes back with it, as in Notes. Steps below it stay.
