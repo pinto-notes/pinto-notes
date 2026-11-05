@@ -127,6 +127,15 @@ import Testing
         #expect(source.contains("if behindSetupCard { return nil }"))
     }
 
+    /// A section's header merges into one heading, which hid New Folder from VoiceOver (round 18).
+    @Test func voiceOverReachesNewFolderInTheHeading() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "SidebarView.swift"), encoding: .utf8)
+        let header = try #require(source.range(of: "Text(\"Folders\")"))
+        let rest = source[header.lowerBound...].prefix(1100)
+        #expect(rest.contains(".accessibilityAddTraits(.isHeader)"))
+        #expect(rest.contains(".accessibilityElement(children: .contain)"))
+    }
+
     /// File › Import Notes too: a sheet opened over the shut window inherits its "disabled", so
     /// its Choose button looked fine and did nothing, with no way forward (round 18).
     @Test func importIsOffBehindASetupCard() throws {

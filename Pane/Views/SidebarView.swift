@@ -571,7 +571,7 @@ struct SidebarView: View {
                 // heading at the very top, under the window's buttons (Emil, 2 November 2026).
                 if Self.showsHeading(folders: roots.count, trashed: files.trashed) {
                     HStack {
-                        Text("Folders")
+                        Text("Folders").accessibilityAddTraits(.isHeader)
                         Spacer()
                         // New Folder, where the folders are (it was a fourth toolbar button's place):
                         // a 22 pt target, its right edge on the counts' (council round 13: 16 pt,
@@ -584,6 +584,9 @@ struct SidebarView: View {
                             .help("New Folder (\u{21E7}\u{2318}N)")
                             .accessibilityIdentifier("sidebar.newFolder")
                     }
+                    // A section's header merges into one heading: VoiceOver couldn't reach the
+                    // button inside ("Folders, New Folder", round 18).
+                    .accessibilityElement(children: .contain)
                     .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
                 }
                 #endif
