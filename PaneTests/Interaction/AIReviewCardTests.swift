@@ -166,6 +166,7 @@ import Testing
         // Frames are on the screen (the window is far off it): measured against the card.
         let card = try #require(ax.find("review.card"), "\(ax.ids())")
         #expect(card.frame.width <= 520 - 40, "the card fits the column less the host's margins: \(card.frame)")
+        #expect(ax.find("review.done")?.text.contains("Close") == true, "the Mac card closes with the ×, not an orange Done")
         for id in ["review.done", "review.keep.0", "review.undo.0", "review.part.0"] {
             let e = try #require(ax.find(id), "\(id): \(ax.ids())")
             #expect(e.frame.minX >= card.frame.minX && e.frame.maxX <= card.frame.maxX + 0.5, "\(id) inside the card: \(e.frame) in \(card.frame)")

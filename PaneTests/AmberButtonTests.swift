@@ -207,7 +207,7 @@ import Testing
         #expect(CloseCircleStyle.ground(hovering: true, pressed: true) >= CloseCircleStyle.ground(hovering: true, pressed: false))
         #expect(CloseCircleStyle.pressedWash(true) > 0)
         let sources = try Self.appSources()
-        for name in ["Views/SettingsCard.swift", "Views/ConnectWebGuide.swift", "Views/ImportGuide.swift", "Views/MakeAnApp.swift", "Views/TemplateLibrary.swift"] {
+        for name in ["Views/SettingsCard.swift", "Views/ConnectWebGuide.swift", "Views/ImportGuide.swift", "Views/MakeAnApp.swift", "Views/TemplateLibrary.swift", "Views/AIReviewCard.swift"] {
             let text = try #require(sources.first { $0.name == name }).text
             #expect(text.contains("CardCloseButton"), "\(name) closes with CardCloseButton")
             #expect(!text.contains("Image(systemName: \"xmark\")"), "\(name) draws its own ×")

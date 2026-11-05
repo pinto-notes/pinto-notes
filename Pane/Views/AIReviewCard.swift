@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Review an AI's edit part by part, in a card where the receipt was (AIReview has the rules).
-/// The title and where you are ("Claude changed 3 parts · 1 of 3"), Keep All, Undo All and Done;
+/// The title and where you are ("Claude changed 5 lines · 1 of 3"), Keep All, Undo All and the close ×;
 /// then each part in order, what was there struck through in grey above what the AI wrote, on the
 /// tint the note's changed lines have, with Keep and Undo. ↑ and ↓ move between parts, Return keeps,
 /// ⌫ undoes, Esc is Done (what's left is kept).
@@ -184,9 +184,10 @@ struct AIReviewCard: View {
             .accessibilityIdentifier("review.undoAll")
     }
 
+    /// The app's card close ×, as every card has, not an orange Done (Emil, 4 November, on the
+    /// iPhone's: "why is there a done button? Why is it not a normal X"). Closing keeps what's left.
     private var doneButton: some View {
-        Button("Done", action: done)
-            .buttonStyle(.amberProminent(inSheet ? .regular : .compact))
+        CardCloseButton(size: inSheet ? 30 : 24, action: done)
             .accessibilityIdentifier("review.done")
     }
 
