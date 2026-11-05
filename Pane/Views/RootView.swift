@@ -117,7 +117,7 @@ struct RootView: View {
         return popups(imports(lifecycle(split)).newAppSheet())
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
             .onAppear { Telemetry.shared.notesShown() }
-            .focusedSceneValue(\.newNoteAction, newNote)
+            .focusedSceneValue(\.newNoteAction, newNoteCommand)
             .focusedSceneValue(\.editorController, editor)
             .focusedSceneValue(\.importAction, { showImport = true })
             .focusedSceneValue(\.importFromAction, { kind in importFiles = []; importing = kind })
@@ -833,6 +833,12 @@ struct RootView: View {
         #else
         return content.background(Color.notePage.ignoresSafeArea())
         #endif
+    }
+
+    /// File › New Note and ⌘N: off while a setup card is up, as the notes behind it are shut.
+    private var newNoteCommand: (() -> Void)? {
+        if behindSetupCard { return nil }
+        return { newNote() }
     }
 
     private func newNote() {

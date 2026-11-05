@@ -66,7 +66,6 @@ import Testing
         try await shot(flow(.init(card: .waiting)), "5-waiting", library: full, dark: dark)
         try await shot(flow(.init(card: .waiting, ai: .claude)), "5-waiting-claude", library: full, dark: dark)
         try await shot(flow(.init(card: .connected)), "6-connected", library: full, dark: dark)
-        try await shot(flow(.init(card: .set)), "7-set", library: full, dark: dark)
         try await shot(flow(.init(card: .gallery)), "8-gallery", library: full, dark: dark)
         try await shot(flow(.init(card: .gallery, ai: .claude)), "8-gallery-claude", library: full, dark: dark)
         try await shot(flow(.init(card: .gallery, ai: .other)), "8-gallery-other", library: full, dark: dark)

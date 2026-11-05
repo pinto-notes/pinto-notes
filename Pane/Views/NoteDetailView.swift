@@ -920,6 +920,13 @@ struct NoteDetailView: View {
             // An app built outside the AI tools (scripts/build-app.ts output, or one HTML file).
             Button("Dev: Import App File…", systemImage: "square.and.arrow.down") { importingApp = true }
                 .accessibilityIdentifier("editor.devImportApp")
+        case .duplicate:
+            // The copy opens, as in Notes: it's what you asked for.
+            Button("Duplicate Note", systemImage: "plus.square.on.square") {
+                let made = context.createNote(in: note.folder.map { .folder($0.id) } ?? .all, body: note.body)
+                onOpenNote(made.id, false)
+            }
+            .accessibilityIdentifier("editor.duplicate")
         case .moveTo:
             #if os(macOS)
             // One item, whatever the number of folders: the folders are in the picker it opens.
@@ -1541,7 +1548,7 @@ enum NoteMoreMenu {
         #endif
     }
 
-    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, share, history, askAI, recover, delete }
+    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, duplicate, moveTo, share, history, askAI, recover, delete }
 
     /// In groups split by lines, as Apple Notes groups a note's menu (Emil, 2 November 2026): Open
     /// Note in New Window on the Mac (not in the note's own window); what the note is (pinned,
@@ -1571,7 +1578,9 @@ enum NoteMoreMenu {
         // Sharing has its own button beside More, on iPhone and iPad as on the Mac.
         if !locked, !shared { rest.append(.history) }
         let ask: [[Item]] = asks && !locked ? [[.askAI]] : []
-        return out + [about, rest] + ask + [[.delete]]
+        // As on the note's row (NoteRowMenu): a locked note's text isn't here to copy.
+        let copy: [[Item]] = locked ? [] : [[.duplicate]]
+        return out + [about] + copy + [rest] + ask + [[.delete]]
     }
 }
 

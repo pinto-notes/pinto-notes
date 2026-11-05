@@ -9,7 +9,7 @@ import SwiftUI
 /// `OnboardingStore` as the card window (`OnboardingFlow`), so resuming, the funnel and Help ›
 /// Show Setup Guide work the same.
 ///
-///     Sign in to Pinto.  ->  Bring in your notes?  ->  Connect your AI.  ->  You're set.
+///     Sign in to Pinto.  ->  Bring in your notes?  ->  Connect your AI.  ->  a new note, ready to type.
 ///                                                       -> (an AI connected) What should ChatGPT make first?
 ///
 /// The name step is never asked here: the name comes from Apple or Google, or the Mac's own.
@@ -20,7 +20,7 @@ enum SetupCards {
 
     /// What the card shows.
     enum Card: Hashable {
-        case signIn, bring, importing, connect, waiting, connected, set, gallery, making, prompt
+        case signIn, bring, importing, connect, waiting, connected, gallery, making, prompt
     }
 
     /// The card's width for each: just enough for its one line and its choice. The gallery is the
@@ -31,7 +31,6 @@ enum SetupCards {
         case .bring: 420
         case .importing, .waiting, .connected: 340
         case .connect: 400
-        case .set: 300
         case .gallery: 736
         case .making: 320
         case .prompt: 380
@@ -191,7 +190,6 @@ enum SetupCards {
     static func connectedTitle(_ ai: AI) -> String { "\(ai.Name) is connected." }
     /// Another AI: the address is on the clipboard, to paste into it.
     static let otherLine = "The address is copied. Paste it into your AI\u{2019}s connector settings."
-    static let setTitle = "You\u{2019}re set."
 
     // MARK: The first note
 
@@ -705,7 +703,7 @@ struct SetupCardsFlow: View {
 
     enum Only: String, Identifiable { case importNotes, connectAI; var id: String { rawValue } }
 
-    private enum Connecting: Equatable { case choosing, waiting, connected, set(connected: Bool) }
+    private enum Connecting: Equatable { case choosing, waiting, connected }
 
     @State private var source: ImportOrigin = .appleNotes
     @State private var ai: SetupCards.AI = .chatgpt
@@ -738,7 +736,7 @@ struct SetupCardsFlow: View {
             switch connecting {
             case .choosing: return .connect
             case .waiting: return .waiting
-            case .connected, .set: return .connected
+            case .connected: return .connected
             }
         case nil: break
         }
@@ -749,7 +747,6 @@ struct SetupCardsFlow: View {
             case .choosing: return .connect
             case .waiting: return .waiting
             case .connected: return .connected
-            case .set: return .set
             }
         case .tryIt: return .gallery
         }
@@ -798,7 +795,6 @@ struct SetupCardsFlow: View {
         case .connect: connect
         case .waiting: waiting
         case .connected: connectedCard
-        case .set: set
         case .gallery: gallery
         case .making: makingCard
         case .prompt: promptCard
@@ -1146,16 +1142,6 @@ struct SetupCardsFlow: View {
 
     private var connectedCard: some View { ConnectedPanel(ai: shownAI) }
 
-    private var set: some View {
-        VStack(spacing: 16) {
-            title(SetupCards.setTitle)
-            Button("Done") { done() }
-                .buttonStyle(.amberProminent(.regular, wide: true))
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("setup.done")
-        }
-    }
-
     private var gallery: some View {
         VStack(spacing: 18) {
             title(SetupCards.galleryTitle(shownAI))
@@ -1257,10 +1243,10 @@ struct SetupCardsFlow: View {
         if store.step == .bring { store.advance(connected: false) }
     }
 
-    /// Not now, on the first run: on to the next card. On its own, the card closes.
+    /// Not now, on the first run: setup is over and the person is writing, with no card to dismiss
+    /// first (round 17: "You're set." stood between them and the note). On its own, the card closes.
     private func notNow() {
-        if only != nil { finish(nil); return }
-        withAnimation { connecting = .set(connected: false) }
+        finish(only != nil ? nil : .newNote)
     }
 
     private func startConnect() {
@@ -1283,15 +1269,9 @@ struct SetupCardsFlow: View {
             try? await Task.sleep(for: .seconds(1.4))
             guard connecting == .connected else { return }
             if only != nil { finish(nil); return }
-            withAnimation { connecting = .set(connected: true) }
+            if store?.advance(connected: true) == true { return }
+            finish(.newNote)
         }
-    }
-
-    /// You're set: the gallery once an AI is connected, else the notes.
-    private func done() {
-        guard case .set(let connected) = connecting else { return }
-        if connected, store?.advance(connected: true) == true { return }
-        finish(.newNote)
     }
 
     /// The template's note is added (as the website's "Use template" adds it), the AI opens with

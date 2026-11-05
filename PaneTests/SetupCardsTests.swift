@@ -10,7 +10,7 @@ import Testing
 @MainActor @Suite struct SetupCardsTests {
     /// Every card fits the narrowest notes window (760 pt), with room either side.
     @Test func everyCardFitsTheNarrowestWindow() {
-        let cards: [SetupCards.Card] = [.signIn, .bring, .importing, .connect, .waiting, .connected, .set, .gallery, .making]
+        let cards: [SetupCards.Card] = [.signIn, .bring, .importing, .connect, .waiting, .connected, .gallery, .making]
         for card in cards { #expect(SetupCards.width(card) <= 760 - 2 * 12, "\(card)") }
         #expect(cards.map(SetupCards.width).max() == SetupCards.width(.gallery), "the gallery is the one wide card")
     }
@@ -100,6 +100,28 @@ import Testing
         for at in ways {
             #expect(lines[at + 1] == ".keyboardShortcut(.cancelAction)", "\(lines[at])")
         }
+    }
+
+    /// Not now ends setup on a new note, ready to type. "You're set." with one Done button stood
+    /// between the person and writing, and ⌘N made notes behind it (round 17).
+    @Test func notNowGoesStraightToWriting() async throws {
+        let store = OnboardingStore(defaults: TestDefaults())
+        store.showForPreview(.connect)
+        var landed: [Onboarding.Landing?] = []
+        let flow = SetupCardsFlow(store: store, backend: Backend(), finish: { landed.append($0) })
+        let ax = OffscreenAX(flow.modelContainer(for: Note.self, inMemory: true), size: CGSize(width: 600, height: 500))
+        defer { ax.close() }
+        await ax.settle(500)
+        #expect(try #require(ax.find("setup.notNow")).press())
+        await ax.settle(300)
+        #expect(landed == [.newNote])
+    }
+
+    /// ⌘N and ⇧⌘N do nothing while a setup card is up: the notes behind it are shut.
+    @Test func newNoteIsOffBehindASetupCard() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "RootView.swift"), encoding: .utf8)
+        #expect(source.contains(".focusedSceneValue(\\.newNoteAction, newNoteCommand)"))
+        #expect(source.contains("if behindSetupCard { return nil }"))
     }
 
     /// The library's line: what an AI is for until you have it, then when you last used it, and
