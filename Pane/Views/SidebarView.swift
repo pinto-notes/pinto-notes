@@ -389,6 +389,8 @@ struct SidebarView: View {
     @State private var deletingFolder: Folder?
     /// Folders picked together with ⌘ or ⇧ (Mac), beside the one shown: Delete takes them all.
     @State private var picked: Set<UUID> = []
+    /// The folder shown in place of All Notes while there's only one (see `Scope.settled`).
+    @State private var standIn: UUID?
     /// Several picked folders waiting on Delete's question.
     @State private var deletingFolders: [Folder] = []
     @State private var showSettings = false
@@ -626,6 +628,8 @@ struct SidebarView: View {
         .onChange(of: folders.map(\.id)) { _, _ in settleScope() }
         // Launch restores All Notes after this list first appears.
         .onChange(of: scope) { _, _ in settleScope() }
+        // An AI's loose note synced in: All Notes, where it shows.
+        .onChange(of: looseNotes) { _, _ in settleScope() }
         // Right-click anywhere in the sidebar; a folder's own menu comes from its row.
         .contextMenu(forSelectionType: Scope.self) { items in
             if items.isEmpty || items.contains(.all) || items.contains(.trash) {
@@ -1029,9 +1033,13 @@ struct SidebarView: View {
 
     /// Keeps the selection on something that exists (see `Scope.settled`).
     private func settleScope() {
-        let settled = Scope.settled(scope, liveFolders: folders.map(\.id))
-        if settled != scope { scope = settled }
+        let settled = Scope.settled(scope, liveFolders: folders.map(\.id), loose: looseNotes, standIn: standIn)
+        standIn = settled.standIn
+        if settled.scope != scope { scope = settled.scope }
     }
+
+    /// Whether a live note is in no folder.
+    private var looseNotes: Bool { folders.count <= 1 && Self.showsAllNotes(folders: folders.count, context: context) }
 
     /// A drag is over a folder's row, or has left it.
     private func folderTargeted(_ over: Bool, _ id: UUID) {

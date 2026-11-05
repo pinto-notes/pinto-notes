@@ -20,6 +20,19 @@ import Testing
         #expect(Scope.settled(.trash, liveFolders: [a]) == .trash)
     }
 
+    /// Round 15: a new Mac opened on Notes (1 note) while the AI's three notes, in no folder,
+    /// synced in after it and showed in no list. All Notes comes back for them; a folder you
+    /// picked stays.
+    @Test func aLooseNoteBringsAllNotesBack() {
+        let first = Scope.settled(.all, liveFolders: [a], loose: false, standIn: nil)
+        #expect(first.scope == .folder(a) && first.standIn == a)
+        let synced = Scope.settled(first.scope, liveFolders: [a], loose: true, standIn: first.standIn)
+        #expect(synced.scope == .all && synced.standIn == nil, "the AI's notes arrived: All Notes")
+        #expect(Scope.settled(.all, liveFolders: [a], loose: true, standIn: nil).scope == .all, "loose from the start")
+        #expect(Scope.settled(.folder(a), liveFolders: [a], loose: true, standIn: nil).scope == .folder(a), "picked, kept")
+        #expect(Scope.settled(.folder(a), liveFolders: [a], loose: true, standIn: b).scope == .folder(a), "another stand-in is not this pick")
+    }
+
     /// Recently Deleted is in the sidebar only while something is in it, like Notes (2026-10-11:
     /// it was listed with 0 for an account that had never deleted anything).
     @Test func recentlyDeletedIsListedOnlyWhileItHoldsSomething() {

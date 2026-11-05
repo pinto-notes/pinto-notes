@@ -18,10 +18,21 @@ enum Scope: Hashable, Codable {
     /// folder list is showing) stays that way: selecting a row there without pushing it
     /// leaves the row marked and deaf to taps.
     static func settled(_ scope: Scope?, liveFolders: [UUID]) -> Scope? {
+        settled(scope, liveFolders: liveFolders, loose: false, standIn: nil).scope
+    }
+
+    /// The same, knowing whether a note is in no folder (an AI's note at the top of the
+    /// notebook), when All Notes keeps its row with one folder. `standIn` is the folder put in
+    /// for All Notes earlier: while it's still what's shown, All Notes comes back once a loose
+    /// note arrives (round 15: a new Mac opened on Notes, 1 note, with the AI's notes synced in
+    /// after and nowhere in view). A folder you picked yourself stays.
+    static func settled(_ scope: Scope?, liveFolders: [UUID], loose: Bool, standIn: UUID?) -> (scope: Scope?, standIn: UUID?) {
         var s = scope
-        if case .folder(let id)? = s, !liveFolders.contains(id) { s = .all }
-        if s == .all, liveFolders.count == 1 { s = .folder(liveFolders[0]) }
-        return s
+        var kept = standIn.flatMap { s == .folder($0) ? $0 : nil }
+        if case .folder(let id)? = s, !liveFolders.contains(id) { s = .all; kept = nil }
+        if loose, kept != nil { return (.all, nil) }
+        if s == .all, liveFolders.count == 1, !loose { s = .folder(liveFolders[0]); kept = liveFolders[0] }
+        return (s, kept)
     }
 }
 
