@@ -74,17 +74,19 @@ enum SharedItem {
     static let titleLimit = 80
 
     /// A title from a paragraph: its first sentence when that's short, otherwise its first words.
+    /// Short enough to sit on a line or two at the note's title size on iPhone (round 7: at 50
+    /// characters it took three).
     static func shortTitle(_ paragraph: String) -> String {
         let p = paragraph.trimmingCharacters(in: .whitespaces)
-        if let end = p.firstIndex(where: { ".!?".contains($0) }), p.distance(from: p.startIndex, to: end) <= 60 {
+        if let end = p.firstIndex(where: { ".!?".contains($0) }), p.distance(from: p.startIndex, to: end) <= 40 {
             return String(p[..<end])
         }
         var out = ""
         for word in p.split(separator: " ") {
-            if out.count + word.count + 1 > 50 { break }
+            if out.count + word.count + 1 > 32 { break }
             out += out.isEmpty ? String(word) : " " + word
         }
-        return (out.isEmpty ? String(p.prefix(50)) : out) + "…"
+        return (out.isEmpty ? String(p.prefix(32)) : out) + "…"
     }
 
     /// HTML the way the Mac import converts an Apple Notes body: offline, dashed lists kept.

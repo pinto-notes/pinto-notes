@@ -49,6 +49,14 @@ enum TypoSearch {
         }
     }
 
+    /// The word in `text` closest to the query's longest word, as it's written there: a found
+    /// note's line is shown around it ("renovation" for "renovaton").
+    static func closeWord(_ query: String, in text: String) -> String? {
+        guard let w = words(query).max(by: { $0.count < $1.count }) else { return nil }
+        let k = allowed(w)
+        return words(text).first { h in h.hasPrefix(w) || (k > 0 && abs(h.count - w.count) <= k && distance(w, h, limit: k) <= k) }
+    }
+
     /// Edit distance (insert, delete, replace), stopping early past `limit`.
     static func distance(_ a: String, _ b: String, limit: Int) -> Int {
         let a = Array(a), b = Array(b)

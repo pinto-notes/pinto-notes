@@ -82,11 +82,11 @@ import AppKit
         #expect(SharedItem.title(markdown: md, files: []) == "Trams in Lisbon")
         // The selection handed over where a page's title would be isn't a title.
         let quiet = SharedItem.compose(texts: [para], plain: [para], link: page, pageTitle: para)
-        #expect(SharedItem.title(markdown: quiet, files: []).count <= 51, "\(quiet)")
+        #expect(SharedItem.title(markdown: quiet, files: []).count <= 33, "\(quiet)")
         #expect(quiet.hasSuffix("\n\n" + page.absoluteString))
         // No page at all: a title from its words, the paragraph under it.
         let alone = SharedItem.compose(texts: [para], plain: [para], link: nil, pageTitle: nil)
-        #expect(alone.hasPrefix("Lisbon's trams have run since 1873, and the yellow…\n\n" + para), "\(alone)")
+        #expect(alone.hasPrefix("Lisbon's trams have run since…\n\n" + para), "\(alone)")
         // A short line stays the title, as before.
         #expect(SharedItem.compose(texts: ["Call the plumber"], link: nil, pageTitle: nil) == "Call the plumber")
         #expect(SharedItem.shortTitle("Short one. Then much more text that goes on and on for a long while here.") == "Short one")
