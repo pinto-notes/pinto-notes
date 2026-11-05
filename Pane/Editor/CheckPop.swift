@@ -146,6 +146,14 @@ enum CheckPop {
             tick.lineCap = .round
             tick.lineJoin = .round
             hop.addSublayer(tick)
+            // Covers the real circle while its copy is up, or the list shows two.
+            let cover = CAShapeLayer()
+            cover.frame = r.insetBy(dx: -0.5, dy: -0.5)
+            cover.path = CGPath(ellipseIn: cover.bounds, transform: nil)
+            cover.fillColor = Palette.page.cgColor
+            cover.zPosition = 9
+            cover.opacity = 0
+            host.addSublayer(cover)
             host.addSublayer(hop)
             let grow = CAKeyframeAnimation(keyPath: "transform.scale")
             grow.values = [1, 1.3, 0.92, 1]
@@ -163,6 +171,12 @@ enum CheckPop {
             group.isRemovedOnCompletion = true
             group.delegate = LayerRemover(hop)
             hop.add(group, forKey: "wave")
+            let hide = CAKeyframeAnimation(keyPath: "opacity")
+            hide.values = [1, 1]
+            hide.beginTime = group.beginTime
+            hide.duration = group.duration
+            hide.delegate = LayerRemover(cover)
+            cover.add(hide, forKey: "wave")
         }
         CATransaction.commit()
     }
