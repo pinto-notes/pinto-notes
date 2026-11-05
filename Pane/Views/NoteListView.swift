@@ -1410,6 +1410,12 @@ struct ShowsSelectedRow: ViewModifier {
                 guard let at = new.flatMap(row) else { return }
                 DispatchQueue.main.async { finder.reveal(row: at) }
             }
+            // The open note moved in the list (typing dates it Today): it stays in view. It went
+            // off the top and no row showed as open (persona council r7d).
+            .onChange(of: selected.flatMap(row)) { _, at in
+                guard let at else { return }
+                DispatchQueue.main.async { finder.reveal(row: at) }
+            }
     }
 
     private struct TableFinder: NSViewRepresentable {

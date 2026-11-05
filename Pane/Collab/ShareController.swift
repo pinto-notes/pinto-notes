@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 
 /// Sharing a note with people: on for everyone signed in, on Mac and iPhone, since release 1.3.
 /// Nothing turns it on or off at launch; tests set `forced`.
@@ -61,6 +62,9 @@ final class ShareController {
     /// Someone was removed while the note has a link: it's a new link now, and the sheet says so
     /// for as long as it's open (persona council r7: the row looked as if the old link still worked).
     private(set) var linkReplaced = false
+    /// Who was just removed, for the line that says so ("Sara removed").
+    private(set) var removedName: String?
+    var removedLine: String { removedName.map { "\($0) removed" } ?? Done.removed(UUID()).text }
     @ObservationIgnored var timeout: Duration = .seconds(20)
 
     enum Work: Equatable { case link, access, remove(UUID), leave }
@@ -128,12 +132,13 @@ final class ShareController {
     }
 
     private func finished(_ d: Done) {
-        done = d
+        // Eased, so the line under it slides rather than jumps (persona council r7d).
+        withAnimation(.easeOut(duration: 0.2)) { done = d }
         doneTask?.cancel()
         doneTask = Task { [weak self, doneFor] in
             try? await Task.sleep(for: doneFor)
             guard !Task.isCancelled else { return }
-            self?.done = nil
+            withAnimation(.easeOut(duration: 0.2)) { self?.done = nil }
         }
     }
 
@@ -148,6 +153,7 @@ final class ShareController {
         await run(.remove(person.id)) { try await self.backend.remove(person.id, from: self.note) }
         if state.problem == nil {
             linkReplaced = state.access != .off
+            removedName = ShareCopy.first(person.name)
             finished(.removed(person.id))
         }
     }

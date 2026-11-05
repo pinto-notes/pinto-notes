@@ -54,7 +54,7 @@ import Testing
     @Test func undoAllPutsItAllBackAndKeepAllChangesNothing() throws {
         var r = AIReview(by: "Claude", previous: Self.before, after: Self.after)
         let (text, refused) = r.undoAll(in: Self.after)
-        #expect(refused == 0 && text == Self.before && r.result == "Undid 3")
+        #expect(refused == 0 && text == Self.before && r.result == "Undid Claude\u{2019}s 3 changes")
         var k = AIReview(by: "Claude", previous: Self.before, after: Self.after)
         k.keepAll()
         #expect(k.isFinished && k.result == "Kept 3")

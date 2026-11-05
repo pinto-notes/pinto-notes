@@ -66,7 +66,7 @@ struct ShareForm: View {
                 }
             } footer: {
                 VStack(alignment: .leading, spacing: 6) {
-                    if case .removed = share.done { DoneLine(text: ShareController.Done.removed(UUID()).text) }
+                    if case .removed = share.done { DoneLine(text: share.removedLine) }
                     Text(ShareCopy.privacy)
                 }
             }
@@ -161,7 +161,7 @@ struct DoneLine: View {
     let text: String
     var body: some View {
         Label(text, systemImage: "checkmark")
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.primary)
             .transition(.opacity)
             .accessibilityIdentifier("share.done")
     }

@@ -331,7 +331,10 @@ struct MarkdownStyler {
             if let q = line.range(of: #"^[ \t]*>[ \t]?"#, options: .regularExpression) {
                 let len = (line[q.lowerBound..<q.upperBound] as Substring).utf16.count
                 let prefix = NSRange(location: lineRange.location, length: len)
-                storage.addAttributes(hiddenKerned(to: 16, length: len), range: prefix)
+                // As a list's marker: its last character in the body's font, so on an empty quote line
+                // the bar is a line tall and the caret stands where the first letter will
+                // (persona council r7d: a dot of a bar, the caret left of the text).
+                if len > 1 { hideMarker(prefix, width: 16, in: storage) } else { storage.addAttributes(hiddenKerned(to: 16, length: len), range: prefix) }
                 storage.addAttribute(.paneLine, value: LineDecoration(.quote), range: enclosing)
                 let body = NSRange(location: prefix.upperBound, length: lineRange.length - len)
                 storage.enumerateAttribute(.link, in: body) { link, sub, _ in

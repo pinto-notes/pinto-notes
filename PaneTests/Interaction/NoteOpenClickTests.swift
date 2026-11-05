@@ -114,6 +114,27 @@ import Testing
         return (rig, c, { w.close(); restore() })
     }
 
+    /// Typing dates the open note Today and its row moves up: the list goes with it, so the open
+    /// note never leaves the list's view (persona council r7d, a real Mac window).
+    @Test func theOpenNoteStaysInViewWhenItMovesUp() async throws {
+        let (rig, c, done) = try await Self.rig()
+        defer { done() }
+        let last = try #require(rig.rows.last)
+        rig.scrollList(toRow: last, below: 200)
+        await MacWindowChromeTests.settle(rig.window, 5)
+        let scroll = try #require(rig.list.enclosingScrollView)
+        let before = scroll.contentView.bounds.origin.y
+        #expect(rig.list.rect(ofRow: try #require(rig.rows.first)).maxY < before + scroll.contentInsets.top, "the top rows are out of view")
+
+        rig.notes[15].updatedAt = .now
+        try c.mainContext.save()
+        await MacWindowChromeTests.settle(rig.window, 15)
+
+        let first = rig.list.rect(ofRow: try #require(rig.rows.first))
+        let top = scroll.contentView.bounds.origin.y + scroll.contentInsets.top
+        #expect(first.minY >= top - 0.5 && first.maxY <= top + scroll.contentView.bounds.height, "the moved note's row, the first, shows: \(first), top \(top)")
+    }
+
     /// Clicks spread over the rows (the far left, the top and bottom edges, the ••• corner), with
     /// the list at rest and scrolled so a date heading would sit over the top row.
     @Test func everyClickOpensItsNoteWhereverItLands() async throws {

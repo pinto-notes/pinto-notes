@@ -78,6 +78,7 @@ import Testing
         #expect(share.state.link != nil && share.state.link != oldLink)
         #expect(share.confirmingRemove == nil && share.working == nil)
         #expect(share.linkReplaced, "the sheet says the old link no longer works")
+        #expect(share.removedLine.hasSuffix(" removed") && share.removedLine != "Removed", "says who: \(share.removedLine)")
     }
 
     /// You can't remove yourself, and only the owner removes or changes the link.

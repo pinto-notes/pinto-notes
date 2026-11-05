@@ -137,7 +137,11 @@ struct AIReview: Equatable {
         case (0, _): "Undid \(u)"
         default: "Kept \(k), undid \(u)"
         }
-        guard n > 0 else { return decided ?? "Kept 0" }
+        guard n > 0 else {
+            // Everything undone: whose change, not a count (persona council r7d: "Undid 1").
+            if k == 0, u > 0 { return u == 1 ? "Undid \(by)\u{2019}s change" : "Undid \(by)\u{2019}s \(u) changes" }
+            return decided ?? "Kept 0"
+        }
         let rest = n == 1 ? "1 part left as \(by) wrote it" : "\(n) parts left as \(by) wrote them"
         return decided.map { "\($0) \u{00B7} \(rest)" } ?? rest
     }
