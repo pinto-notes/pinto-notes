@@ -214,7 +214,7 @@ struct AIReviewCard: View {
                         .padding(.horizontal, 4)
                         .background(undone ? Color.clear : Color.amberSoft, in: .rect(cornerRadius: 3))
                         .padding(.horizontal, -4)
-                        .accessibilityLabel(undone ? "Taken out: \(AIReview.shown(line))" : "\(review.by) wrote: \(AIReview.shown(line))")
+                        .accessibilityLabel(undone ? "Taken out: \(AIReview.shown(line))" : "\(review.who) wrote: \(AIReview.shown(line))")
                         .accessibilityIdentifier("review.added.\(part.id).\(i)")
                 }
                 if part.conflict {

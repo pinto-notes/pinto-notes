@@ -1,7 +1,7 @@
 import Foundation
 
 /// Changes to a note's text made outside its editor: Siri and Shortcuts, a tick in the widget,
-/// "Add to a note" in the share sheet.
+/// "Add to a note" in the share sheet, Undo and Review of an AI's change.
 ///
 /// A shared note's text lives in its document (SharedLibrary). Writing `note.body` alone looks
 /// fine for a moment, then the document's next change mirrors over it: the edit never reaches the
@@ -18,8 +18,8 @@ enum NoteWrites {
         case notReady
     }
 
-    static let viewOnlyMessage = "You can view this note, not change it."
-    static let notReadyMessage = "This shared note isn't ready yet. Open it in Pinto Notes, then try again."
+    nonisolated static let viewOnlyMessage = "You can view this note, not change it."
+    nonisolated static let notReadyMessage = "This shared note isn't ready yet. Open it in Pinto Notes, then try again."
 
     /// Siri and Shortcuts can run just after launch, before sharing has started: a shared note
     /// waits a few seconds for it and for its document before the change is tried.
@@ -52,7 +52,8 @@ enum NoteWrites {
         guard session.record.canEdit, !session.isViewOnly else { return .viewOnly }
         let new = try edit(session.text)
         guard new != session.text else { return .unchanged }
-        session.local(new, selection: nil)
+        // The open editor takes it too (it didn't make it).
+        session.localFromOutside(new)
         library.mirror(session.text, into: note)
         return .changed
     }

@@ -1554,8 +1554,10 @@ final class SyncEngine {
         n.trashedAt = r.trashed_at
         n.deletedAt = r.deleted_at
         n.serverVersion = r.version ?? n.serverVersion
-        // Older servers don't send these: keep what we had.
-        if r.ai_edited_at != nil {
+        // Older servers don't send these: keep what we had. A shared note's pointer carries the
+        // stamps of the note it was before it was shared: an AI's change to a shared note comes
+        // with the change itself (SharedLibrary.aiChanged), and the old stamps would hide it.
+        if r.ai_edited_at != nil, r.shared_note_id == nil {
             n.aiEditor = r.ai_editor
             n.aiEditedAt = r.ai_edited_at
         }

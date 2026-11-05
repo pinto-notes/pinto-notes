@@ -333,3 +333,71 @@ import Testing
         #expect(row.rekey_after == nil)
     }
 }
+
+/// A name the test can change, read wherever the app reads yours (ProfileStore's).
+@MainActor private final class NameBox {
+    var name: String
+    init(_ name: String) { self.name = name }
+}
+
+/// Persona council round 7: bugs 15 and 18, between two people through the in-memory server.
+extension CollabTwoPeopleTests {
+    /// Bug 15: the name was read once, when the store was made, before the profile had settled,
+    /// so others saw "Someone" until a relaunch. It's read each time presence goes out, so a name
+    /// learned later reaches them.
+    @Test func aNameLearnedLaterReachesTheOthers() async throws {
+        let emilID = server.account("Emil"), saraID = server.account("Sara")
+        let box = NameBox("Someone")
+        let key = SymmetricKey(size: .bits256)
+        let container = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let store = CollabStore(name: box.name, transport: server.transport(for: emilID), dataKey: { key },
+                                book: CollabKeyBook(account: emilID, defaults: TestDefaults()))
+        store.context = container.mainContext
+        let sara = try device(saraID, name: "Sara")
+        let note = Note(body: "Trip plan\n")
+        container.mainContext.insert(note)
+        try await store.setAccess(.edit, for: note)
+        let url = try #require(store.linkURL(note))
+        #expect(await sara.store.join(url))
+        await server.eventually { server.channelCount(note.id) == 2 }
+        let mine = try #require(store.session(for: note.id))
+        let theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
+
+        mine.selectionChanged(NSRange(location: 1, length: 0))
+        await server.eventually { theirs.peers[emilID]?.selection == NSRange(location: 1, length: 0) }
+        #expect(theirs.peers[emilID]?.name == "Someone")
+
+        // The profile settles after sharing started.
+        box.name = "Emil"
+        #expect(store.name == "Emil" && store.library?.name == "Emil" && mine.myName == "Emil")
+        mine.selectionChanged(NSRange(location: 2, length: 0))
+        await server.eventually { theirs.peers[emilID]?.name == "Emil" }
+        #expect(theirs.peers[emilID]?.name == "Emil")
+    }
+
+    /// Bug 18: with the server gone for 16 seconds both phones still looked connected. Someone not
+    /// heard from for a while goes grey: their avatar, and their caret without its name flag.
+    /// Heard again, they're back in their colour.
+    @Test func someoneNotHeardFromGoesGrey() async throws {
+        let (emil, sara, note, ids) = try await shared("Hello there\n")
+        let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
+        theirs.selectionChanged(NSRange(location: 3, length: 0))
+        await server.eventually { mine.peers[ids.1]?.selection != nil }
+        let peer = try #require(mine.peers[ids.1])
+        #expect(!peer.isStale())
+        let live = try #require(mine.remoteCarets(at: .now).first)
+        #expect(live.color == CollabSession.color(for: ids.1) && live.showsName)
+
+        let later = peer.heardAt.addingTimeInterval(CollabSession.Peer.staleAfter + 0.5)
+        #expect(peer.isStale(at: later))
+        let grey = try #require(mine.remoteCarets(at: later).first)
+        #expect(grey.color == CollabSession.staleColor)
+        #expect(!grey.showsName)
+
+        theirs.selectionChanged(NSRange(location: 5, length: 0))
+        await server.eventually { mine.peers[ids.1]?.selection == NSRange(location: 5, length: 0) }
+        let again = try #require(mine.peers[ids.1])
+        #expect(again.heardAt > peer.heardAt)
+        #expect(!again.isStale())
+    }
+}

@@ -141,6 +141,8 @@ struct RootView: View {
             .alert(refusal?.title ?? "", isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } })) {
                 Button("OK") {}
             } message: { Text(refusal?.message ?? "") }
+            // A shared note you lost access to: said once, and the note closes.
+            .modifier(SharedRemovalAlert(selection: $selection))
             #if os(iOS)
             .alert("Launch alert", isPresented: $launchAlert) { Button("OK", role: .cancel) {} }
             #endif
@@ -1015,6 +1017,38 @@ struct MultipleSelectionView: View {
             .monospacedDigit()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityIdentifier("detail.multiple")
+    }
+}
+
+/// A shared note you're no longer in (SharedRemovals): said once over the notes, with Keep a Copy
+/// when you'd typed in it here (persona council round 7, bugs 17 and 19). The note has gone from
+/// the library already; open, it closes as a deleted note does: back to the list on iPhone,
+/// nothing selected on the Mac.
+private struct SharedRemovalAlert: ViewModifier {
+    @Binding var selection: Set<UUID>
+    @Environment(\.modelContext) private var context
+
+    func body(content: Content) -> some View {
+        let removals = SharedRemovals.shared
+        let current = removals.current
+        content
+            .onChange(of: removals.queue.map(\.id), initial: true) { _, gone in
+                if !selection.isDisjoint(with: gone) { selection.subtract(gone) }
+            }
+            .alert(current?.alertTitle ?? "", isPresented: Binding(get: { current != nil }, set: { if !$0, let current { removals.shown(current) } }),
+                   presenting: current) { removal in
+                if removal.copy != nil {
+                    Button(SharedRemoval.keepCopy) {
+                        if let note = removals.keep(removal, in: context) { NoteOpener.shared.open(note.id) }
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    Button(SharedRemoval.dontKeep, role: .cancel) { removals.shown(removal) }
+                } else {
+                    Button("OK", role: .cancel) { removals.shown(removal) }
+                }
+            } message: { removal in
+                Text(removal.message)
+            }
     }
 }
 

@@ -152,7 +152,7 @@ struct AIReviewSheet: View {
                         .padding(.horizontal, 4).padding(.vertical, 1)
                         .background(undone ? Color.clear : Color.amberSoft, in: .rect(cornerRadius: 5))
                         .padding(.horizontal, -4)
-                        .accessibilityLabel(undone ? "Taken out: \(AIReview.shown(line))" : "\(review.by) wrote: \(AIReview.shown(line))")
+                        .accessibilityLabel(undone ? "Taken out: \(AIReview.shown(line))" : "\(review.who) wrote: \(AIReview.shown(line))")
                         .accessibilityIdentifier("review.added.\(part.id).\(i)")
                 }
             }

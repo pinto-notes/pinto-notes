@@ -35,8 +35,29 @@ enum AIEdit {
     /// The unseen AI change is a whole note it wrote.
     static func wroteIt(_ note: Note) -> Bool { AIEditStore.shared[note.id].created ?? false }
 
-    /// The list row's line, in place of the note's preview, until you open it.
-    static func listLine(_ note: Note, by ai: String) -> String { wroteIt(note) ? "Written by \(ai)" : "Edited by \(ai)" }
+    /// The list row's line, in place of the note's preview, until you open it. Someone else's AI
+    /// is named with them (a shared note): "Edited by Sara's Claude".
+    static func listLine(_ note: Note, by ai: String) -> String {
+        let who = whose(ai, person: note.aiEditorPerson)
+        return wroteIt(note) ? "Written by \(who)" : "Edited by \(who)"
+    }
+
+    /// An AI as a note names it: "Claude", or "Sara's Claude" when it's someone else's.
+    nonisolated static func whose(_ ai: String, person: String?) -> String { person.map { "\($0)'s \(ai)" } ?? ai }
+
+    /// Who an AI's change is from when the note doesn't know their name yet.
+    static let someone = "Someone"
+
+    /// An AI's change to a shared note, as it reached this device (SharedLibrary.aiChanged): marked
+    /// as an AI's edit of a note of your own is, from the text before it. `person`: whose AI it is
+    /// when it isn't yours (their first name).
+    static func arrived(_ note: Note, ai: String, person: String?, previousBody: String, at: Date = .now) {
+        let previousAt = note.aiEditedAt
+        note.aiEditor = ai
+        note.aiEditorPerson = person
+        note.aiEditedAt = at
+        arrived(note, previousBody: previousBody, previousEditAt: previousAt, quiet: false)
+    }
 
     /// You've opened it: the list marker goes. Returns what the receipt and tint need, once.
     static func markSeen(_ note: Note) -> Receipt? {
@@ -49,7 +70,7 @@ enum AIEdit {
         AIEditStore.shared[note.id].created = nil
         guard let previous, previous != note.body else { return nil }
         return Receipt(noteID: note.id, by: by, at: at, previous: previous, after: note.body, previousVersion: version,
-                       lines: AIReview.lineCount(previous: previous, after: note.body), created: created)
+                       lines: AIReview.lineCount(previous: previous, after: note.body), created: created, person: note.aiEditorPerson)
     }
 
     /// Puts the note back the way it was before the AI's edit. With version history, it restores
@@ -57,12 +78,21 @@ enum AIEdit {
     /// it (signed out, or an edit this device had no version for), the old text goes up as your edit.
     /// If you've typed since the edit landed, only the AI's change is taken out and your typing
     /// stays; when your typing touched the same lines, nothing changes and Undo says why.
-    static func undo(_ receipt: Receipt, on note: Note) async throws {
+    static func undo(_ receipt: Receipt, on note: Note, library: SharedLibrary? = CollabStore.shared?.library) async throws {
         guard note.id == receipt.noteID else { return }
         // A note the AI wrote goes to Recently Deleted, where you can still get it back.
         if receipt.created {
             note.modelContext?.trash(note)
             return
+        }
+        // A shared note's text is its document's: the AI's change comes out of it as your edit, for
+        // everyone in the note (NoteWrites), and is refused for Can view.
+        if note.isShared {
+            switch try NoteWrites.change(note, library: library, { try undone(receipt, in: $0) }) {
+            case .changed, .unchanged: return
+            case .viewOnly: throw UndoError.viewOnly
+            case .notReady: throw UndoError.notReady
+            }
         }
         // Typing that isn't in the note yet counts as typed since the edit.
         DebouncedSave.flushAll()
@@ -84,9 +114,27 @@ enum AIEdit {
         note.touch()
     }
 
+    /// `current` without the AI's change: the text from before it when nothing changed since,
+    /// otherwise only its change taken out. Throws when your edits touched the lines it changed.
+    static func undone(_ receipt: Receipt, in current: String) throws -> String {
+        if receipt.after == nil || current == receipt.after { return receipt.previous }
+        guard let after = receipt.after, let undone = revert(receipt.previous, after, in: current) else { throw UndoError.editedSince }
+        return undone
+    }
+
     enum UndoError: LocalizedError {
         case editedSince
-        var errorDescription: String? { "Couldn't undo. You've changed those lines since." }
+        /// A shared note you can only view.
+        case viewOnly
+        /// A shared note whose document isn't open on this device.
+        case notReady
+        var errorDescription: String? {
+            switch self {
+            case .editedSince: "Couldn't undo. You've changed those lines since."
+            case .viewOnly: NoteWrites.viewOnlyMessage
+            case .notReady: NoteWrites.notReadyMessage
+            }
+        }
     }
 
     /// Takes the change from `before` to `after` back out of `current`, which is `after` with
@@ -110,18 +158,24 @@ enum AIEdit {
         var created = false
         /// Note pages (prototype): an edit made on the note's page, or a page an AI made.
         var kind: Kind = .edit
+        /// Whose AI it was, when it isn't yours: their first name (an AI's change to a shared note).
+        /// `by` stays the AI's own name, for its mark.
+        var person: String? = nil
 
         enum Kind: Equatable { case edit, pageEdit, dataEdit, pageMade, pageChanged, reverted, heldBack }
 
+        /// The AI as the receipt names it: "Claude", or "Sara's Claude".
+        var who: String { AIEdit.whose(by, person: person) }
+
         var summary: String {
             if kind == .reverted { return "Reverted to the last working version" }
-            if kind == .heldBack { return "\(by)'s new version didn't pass its checks: kept the working one" }
-            if kind == .dataEdit, by != AIGlyph.page { return "\(by) changed this app's data" }
+            if kind == .heldBack { return "\(who)'s new version didn't pass its checks: kept the working one" }
+            if kind == .dataEdit, by != AIGlyph.page { return "\(who) changed this app's data" }
             if kind == .pageEdit || kind == .dataEdit { return "Changed in the app" }
-            if kind == .pageMade { return "\(by) made this note an app" }
-            if kind == .pageChanged { return "\(by) changed this note's app" }
-            if created { return "\(by) wrote this note" }
-            return lines == 0 ? "Updated by \(by)" : "\(by) changed \(lines == 1 ? "1 line" : "\(lines) lines")"
+            if kind == .pageMade { return "\(who) made this note an app" }
+            if kind == .pageChanged { return "\(who) changed this note's app" }
+            if created { return "\(who) wrote this note" }
+            return lines == 0 ? "Updated by \(who)" : "\(who) changed \(lines == 1 ? "1 line" : "\(lines) lines")"
         }
 
         /// An AI's edit of the note's text stays marked (the tint, and Undo) until you start
@@ -130,18 +184,18 @@ enum AIEdit {
         var staysUntilEdited: Bool { kind == .edit }
 
         /// For VoiceOver on the Undo button, which shows only "Undo".
-        var undoLabel: String { created ? "Undo, removes the note \(by) wrote" : "Undo \(by)'s changes" }
+        var undoLabel: String { created ? "Undo, removes the note \(who) wrote" : "Undo \(who)'s changes" }
 
         /// For the navigation bar over a note's app, where there's room for a word or two.
         var shortSummary: String {
             switch kind {
             case .reverted: "Reverted"
             case .heldBack: "Kept the working one"
-            case .dataEdit where by != AIGlyph.page: "\(by) changed it"
+            case .dataEdit where by != AIGlyph.page: "\(who) changed it"
             case .pageEdit, .dataEdit: "Changed"
-            case .pageMade: "\(by) made it"
-            case .pageChanged: "\(by) updated it"
-            case .edit: created ? "\(by) wrote it" : "\(by) edited"
+            case .pageMade: "\(who) made it"
+            case .pageChanged: "\(who) updated it"
+            case .edit: created ? "\(who) wrote it" : "\(who) edited"
             }
         }
     }
@@ -162,6 +216,9 @@ final class AIEditStore {
         var previous: String?
         var previousVersion: Int64?
         var created: Bool?
+        /// Whose AI made the last change, when it isn't yours: their first name (a shared note,
+        /// "Sara's Claude"). Goes whenever the AI is set again (`Note.aiEditor`).
+        var person: String?
     }
 
     static let shared = AIEditStore(file: PaneApp.isUnitTestHost || ProcessInfo.processInfo.arguments.contains("-uitest") ? nil : defaultFile)
@@ -214,10 +271,21 @@ final class AIEditStore {
 }
 
 extension Note {
-    /// The connected AI that last changed this note, and when (from the server).
+    /// The connected AI that last changed this note, and when (from the server, or for a shared
+    /// note from the change itself). Setting it forgets whose AI the last one was (`aiEditorPerson`).
     @MainActor var aiEditor: String? {
         get { AIEditStore.shared[id].editor }
-        set { AIEditStore.shared[id].editor = newValue }
+        set {
+            var entry = AIEditStore.shared[id]
+            entry.editor = newValue
+            entry.person = nil
+            AIEditStore.shared[id] = entry
+        }
+    }
+    /// Whose AI it was, when it isn't yours: their first name (a shared note). Set after `aiEditor`.
+    @MainActor var aiEditorPerson: String? {
+        get { AIEditStore.shared[id].person }
+        set { AIEditStore.shared[id].person = newValue }
     }
     @MainActor var aiEditedAt: Date? {
         get { AIEditStore.shared[id].editedAt }
