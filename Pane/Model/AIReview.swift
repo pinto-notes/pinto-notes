@@ -36,6 +36,9 @@ struct AIReview: Equatable {
     }
 
     let by: String
+    /// Whose AI it was, when it isn't yours (a shared note): "Sara's Claude". `by` stays the AI's
+    /// own name, for its mark.
+    var person: String? = nil
     let previous: String
     private(set) var parts: [Part]
     /// The note as the review leaves it, without anything you typed: the AI's text, less the parts undone.
@@ -61,6 +64,7 @@ struct AIReview: Equatable {
     init?(_ r: AIEdit.Receipt) {
         guard r.kind == .edit, !r.created, let after = r.after else { return nil }
         self.init(by: r.by, previous: r.previous, after: after)
+        person = r.person
         if parts.isEmpty { return nil }
     }
 
@@ -113,7 +117,9 @@ struct AIReview: Equatable {
     }
 
     /// The title: "Claude changed 5 lines", as the receipt that opens it says.
-    var title: String { "\(by) changed \(lineCount == 1 ? "1 line" : "\(lineCount) lines")" }
+    /// The AI as the review names it: "Claude", or "Sara's Claude".
+    var who: String { AIEdit.whose(by, person: person) }
+    var title: String { "\(who) changed \(lineCount == 1 ? "1 line" : "\(lineCount) lines")" }
     /// "1 of 3", for the part the keys act on.
     var position: String { "\(min(focus, parts.count - 1) + 1) of \(parts.count)" }
     /// Parts you didn't decide on, that stay as the AI wrote them. A part whose Undo was refused
@@ -213,21 +219,40 @@ struct AIReview: Equatable {
     // MARK: In the note
 
     /// Undoes one part in the note itself, past any typing not saved yet. False when you changed
-    /// the part since (it's marked, and the note is left alone).
+    /// the part since (it's marked, and the note is left alone). A shared note's part comes out of
+    /// its document, as your edit, for everyone in it (NoteWrites).
     @MainActor @discardableResult
     mutating func undo(_ id: Int, on note: Note) -> Bool {
         DebouncedSave.flushAll()
-        guard let text = try? undo(id, in: note.body) else { return false }
-        Self.write(text, to: note)
-        return true
+        guard note.isShared else {
+            guard let text = try? undo(id, in: note.body) else { return false }
+            Self.write(text, to: note)
+            return true
+        }
+        var undone = false
+        NoteWrites.change(note) { current in
+            guard let text = try? undo(id, in: current) else { return current }
+            undone = true
+            return text
+        }
+        return undone
     }
 
     /// Undoes every part left in the note; returns how many were refused.
     @MainActor @discardableResult
     mutating func undoAll(on note: Note) -> Int {
         DebouncedSave.flushAll()
-        let (text, refused) = undoAll(in: note.body)
-        Self.write(text, to: note)
+        guard note.isShared else {
+            let (text, refused) = undoAll(in: note.body)
+            Self.write(text, to: note)
+            return refused
+        }
+        var refused = 0
+        NoteWrites.change(note) { current in
+            let (text, n) = undoAll(in: current)
+            refused = n
+            return text
+        }
         return refused
     }
 

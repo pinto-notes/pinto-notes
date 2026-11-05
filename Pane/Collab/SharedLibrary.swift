@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import Observation
 import SwiftData
 import os
 
@@ -15,13 +16,15 @@ private let log = Logger(subsystem: "dev.emilwagman.pane", category: "collab")
 /// search and links work as for any note; nothing sends it.
 ///
 /// Decided: leaving a note, or being removed from it, takes it out of your library on all your
-/// devices, as in Apple Notes. No private copy is kept.
+/// devices, as in Apple Notes. No private copy is kept, unless you'd typed in it here and choose
+/// Keep a Copy when told you lost it (SharedRemoval).
 @MainActor
 final class SharedLibrary {
     let context: ModelContext
     let transport: any CollabTransport
-    /// Your name as others see it in a note.
-    let name: String
+    /// Your name as others see it in a note, as it is now (CollabStore.name).
+    var name: String { nameSource() }
+    private let nameSource: @MainActor () -> String
     var me: UUID { transport.me }
     /// The account's data key: each note key is kept here sealed under it, so a shared note opens
     /// offline. Nil while the notes aren't open on this device.
@@ -36,6 +39,9 @@ final class SharedLibrary {
     var onOpen: ((CollabSession, Note) -> Void)?
     /// Called with a note's id when it leaves your library (you left, or were removed).
     var onClose: ((UUID) -> Void)?
+    /// Called when a note left your library because you're no longer in it, not by your own
+    /// choice: what to tell you, once (the store hands it to SharedRemovals).
+    var onLostAccess: ((SharedRemoval) -> Void)?
     /// Called with a note's id when its session closed for good (it left your library, or isn't
     /// shared anymore).
     var onSessionClosed: ((UUID) -> Void)?
@@ -58,12 +64,12 @@ final class SharedLibrary {
         }
     }
 
-    init(context: ModelContext, transport: any CollabTransport, name: String,
+    init(context: ModelContext, transport: any CollabTransport, name: @escaping @autoclosure @MainActor () -> String,
          dataKey: @escaping @MainActor () -> SymmetricKey?,
          openKey: @escaping @MainActor (Collab.Membership) async throws -> SymmetricKey) {
         self.context = context
         self.transport = transport
-        self.name = name
+        nameSource = name
         self.dataKey = dataKey
         self.openKey = openKey
     }
@@ -76,7 +82,13 @@ final class SharedLibrary {
             // The library has a shared note now: the next look goes through it.
             self.nothingShared = false
             // Deleted on another of your devices (you left there), or by the owner stopping sharing.
-            if note.deletedAt != nil { self.forget(note); return }
+            // Only the owner's stopping is news: your own leaving comes marked as yours (removeLocally).
+            if note.deletedAt != nil {
+                let removal = note.trashedAt == nil && note.sharedNoteID != note.id ? self.lostAccess(note) : nil
+                self.forget(note)
+                if let removal { self.onLostAccess?(removal) }
+                return
+            }
             guard note.sharedDocument == nil else { return }
             Task { await self.ensureDocument(note) }
         }
@@ -112,8 +124,9 @@ final class SharedLibrary {
         record.pointerOnServer = false
         context.insert(record)
         let session: CollabSession
+        let name = nameSource
         do {
-            session = try CollabSession.create(record: record, nk: nk, initial: note.body, transport: transport, me: me, name: name)
+            session = try CollabSession.create(record: record, nk: nk, initial: note.body, transport: transport, me: me, name: name())
         } catch {
             context.delete(record)
             throw error
@@ -158,8 +171,9 @@ final class SharedLibrary {
         record.role = role
         record.setKey(try CollabCrypto.selfWrap(nk, dataKey: dk, note: shared, epoch: epoch), epoch: epoch)
         let session: CollabSession
+        let name = nameSource
         do {
-            session = try await CollabSession.load(record: record, nk: nk, transport: transport, me: me, name: name)
+            session = try await CollabSession.load(record: record, nk: nk, transport: transport, me: me, name: name())
         } catch {
             if record.saved.isEmpty { context.delete(record) }
             throw error
@@ -196,8 +210,9 @@ final class SharedLibrary {
               let dk = dataKey() else { return nil }
         let keys = record.openKeys(dataKey: dk)
         guard keys[record.epoch] != nil else { return nil }
+        let name = nameSource
         do {
-            let session = try CollabSession.open(record: record, keys: keys, transport: transport, me: me, name: name)
+            let session = try CollabSession.open(record: record, keys: keys, transport: transport, me: me, name: name())
             open(session, note: note)
             return session
         } catch {
@@ -235,7 +250,8 @@ final class SharedLibrary {
                 record.role = row.role
                 record.pointerOnServer = true
                 record.setKey(try CollabCrypto.selfWrap(nk, dataKey: dk, note: shared, epoch: row.epoch), epoch: row.epoch)
-                let session = try await CollabSession.load(record: record, nk: nk, transport: transport, me: me, name: name)
+                let name = nameSource
+                let session = try await CollabSession.load(record: record, nk: nk, transport: transport, me: me, name: name())
                 note.sharedDocument = record
                 note.body = session.text
                 context.saveOrReport()
@@ -278,6 +294,10 @@ final class SharedLibrary {
             guard let self, let note else { return }
             self.removeLocally(note)
         }
+        session.onAIChange = { [weak self, weak session, weak note] arrival in
+            guard let self, let session, let note else { return }
+            self.aiChanged(arrival, in: session, note: note)
+        }
         onOpen?(session, note)
         session.connect()
     }
@@ -295,6 +315,17 @@ final class SharedLibrary {
             note.updatedAt = .now
             context.saveSoon()
         }
+    }
+
+    /// An AI's change reached the note's document (someone's AI, through its tools): the note
+    /// takes the text now and is marked as an AI's edit of a note of your own is, with the tint,
+    /// the margin marks and the receipt. Your own AI reads "Claude changed 2 lines"; someone
+    /// else's is named with them, "Sara's Claude changed 2 lines" (persona council round 7, bug 16).
+    func aiChanged(_ arrival: CollabSession.AIArrival, in session: CollabSession, note: Note) {
+        guard note.deletedAt == nil else { return }
+        mirror(session.text, into: note)
+        let person = arrival.author == me ? nil : session.firstName(of: arrival.author) ?? AIEdit.someone
+        AIEdit.arrived(note, ai: arrival.ai, person: person, previousBody: arrival.before)
     }
 
     // MARK: Keys, removal and leaving
@@ -446,14 +477,15 @@ final class SharedLibrary {
     func leave(_ note: Note) async throws {
         guard let shared = note.sharedNoteID else { throw Problem.notShared }
         try await transport.leave(note: shared)
-        removeLocally(note)
+        removeLocally(note, byYou: true)
     }
 
     /// You're not in the note anymore (you left, or were removed): the note goes from this
     /// device and, through its pointer's deletion, from your others. Its document goes with it.
     /// Your own note never goes this way: if its shared note is gone, it's yours again, with the
-    /// text it had.
-    func removeLocally(_ note: Note) {
+    /// text it had. `byYou`: you left (Leave Note, or deleting it); otherwise you're told, once
+    /// (`onLostAccess`).
+    func removeLocally(_ note: Note, byYou: Bool = false) {
         if note.sharedNoteID == note.id {
             // The newest text this device has: the open document's, else the stored one's (the
             // note's own copy can be behind when it wasn't open).
@@ -464,19 +496,43 @@ final class SharedLibrary {
             context.saveOrReport()
             return
         }
+        // Removed, or the owner stopped sharing: what to say, from the document before it goes.
+        // A note you'd moved to Recently Deleted you left yourself.
+        let removal = byYou || note.trashedAt != nil ? nil : lostAccess(note)
         forget(note)
         note.body = ""
         note.deletedAt = .now
+        // Your own leaving is marked as yours (as deleting it is), so your other devices, which see
+        // the note go through sync, don't tell you that you lost it.
+        if byYou, note.trashedAt == nil { note.trashedAt = note.deletedAt }
         note.touch()
         context.saveOrReport()
         onClose?(note.id)
+        if let removal { onLostAccess?(removal) }
+    }
+
+    /// What to tell you about a note you're no longer in, from what this device has of it, before
+    /// its document goes: its title, who shared it, and your text when you'd typed in it here (in
+    /// this run of the app, or changes still waiting to go up). Nil for a note whose document this
+    /// device never had (nothing of it was shown here).
+    func lostAccess(_ note: Note) -> SharedRemoval? {
+        let session = sessions[note.id]
+        guard session != nil || note.sharedDocument != nil else { return nil }
+        let text = session?.text ?? note.sharedDocument?.storedText() ?? ""
+        let typed = session.map { $0.typedHere || !$0.isSent } ?? !(note.sharedDocument?.outbox.isEmpty ?? true)
+        let blank = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        // The copy goes where the note was, unless that was Shared with me (it's not shared).
+        let sharedWithMe = dataKey().map { SharedNotes.sharedWithMeID(dataKey: $0) }
+        return SharedRemoval(id: note.id, title: blank ? "" : NoteText.title(of: text), owner: session?.ownerFirstName,
+                             copy: typed && !blank ? text : nil, folder: note.folder.flatMap { $0.id == sharedWithMe ? nil : $0.id },
+                             sharedWithMe: sharedWithMe)
     }
 
     /// Start fresh: the server deleted the account's shared notes and memberships with its keys.
     /// Every shared note goes from this device now, not on the next look at memberships.
     func startedFresh() {
         let shared = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID != nil && $0.deletedAt == nil }))) ?? []
-        for note in shared { removeLocally(note) }
+        for note in shared { removeLocally(note, byYou: true) }
     }
 
     /// The note's document and session go from this device; the note itself is left as it is
@@ -515,5 +571,71 @@ extension SharedDocument {
             out[epoch] = k
         }
         return out
+    }
+}
+
+// MARK: Losing access
+
+/// A shared note that went from this device because you're no longer in it: its owner removed you
+/// or stopped sharing it (the server doesn't say which). Said once, as Apple Notes does, with your
+/// text to keep as a note of your own when you'd typed in it here (persona council round 7, bugs
+/// 17 and 19).
+struct SharedRemoval: Identifiable, Equatable {
+    /// The note's id in your library (gone from it now).
+    let id: UUID
+    /// Empty when the note had no text.
+    let title: String
+    /// Who shared it, by first name, when this device knew.
+    let owner: String?
+    /// The text as it was on this device, when you'd typed in it: kept only if you choose.
+    let copy: String?
+    /// Where the note was in your library: the copy goes there.
+    let folder: UUID?
+    /// Your Shared with me folder, which the copy never goes in (it isn't shared).
+    var sharedWithMe: UUID? = nil
+
+    var alertTitle: String {
+        title.isEmpty ? "You no longer have access to a shared note" : "You no longer have access to \u{201C}\(title)\u{201D}"
+    }
+
+    var message: String {
+        let ask = "Ask \(owner ?? "its owner") to share it with you again if you still need it."
+        guard copy != nil else { return ask }
+        return ask + " You can keep a copy of it as it is on this \(InstallID.kind)."
+    }
+
+    static let keepCopy = "Keep a Copy"
+    static let dontKeep = "Don\u{2019}t Keep"
+}
+
+/// Notes you lost access to, waiting to be said (SharedRemovalAlert, over the notes), oldest first.
+/// Emptied when you sign out.
+@MainActor @Observable
+final class SharedRemovals {
+    static let shared = SharedRemovals()
+    private(set) var queue: [SharedRemoval] = []
+    var current: SharedRemoval? { queue.first }
+
+    func add(_ removal: SharedRemoval) {
+        guard !queue.contains(where: { $0.id == removal.id }) else { return }
+        queue.append(removal)
+    }
+
+    func shown(_ removal: SharedRemoval) { queue.removeAll { $0.id == removal.id } }
+
+    func clear() { queue = [] }
+
+    /// Keep a Copy: the text as a note of your own, where the shared note was, or else in your
+    /// first folder that isn't Shared with me (the default folder can be that one: it sorts first).
+    @discardableResult
+    func keep(_ removal: SharedRemoval, in context: ModelContext) -> Note? {
+        shown(removal)
+        guard let text = removal.copy else { return nil }
+        if let id = removal.folder, let folder = context.folder(id), folder.deletedAt == nil {
+            return context.createNote(in: .folder(folder.id), body: text)
+        }
+        let own = context.allFolders().filter { $0.parent == nil && $0.id != removal.sharedWithMe }.min { $0.sortIndex < $1.sortIndex }
+            ?? context.createFolder(named: "Notes")
+        return context.createNote(in: .folder(own.id), body: text)
     }
 }
