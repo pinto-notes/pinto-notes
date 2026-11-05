@@ -42,19 +42,6 @@ import Testing
         }
     }
 
-    /// The rare version: Format's only, never on the first hovers, and once a launch at most.
-    @Test func rareWaitsItsTurn() {
-        Charm.forcedRare = nil
-        Charm.resetRolls()
-        var rares: [Bool] = []
-        for _ in 0..<1000 { rares.append(Charm.rollRare(.format)) }
-        #expect(!rares.prefix(4).contains(true))
-        #expect(rares.filter { $0 }.count == 1)
-        Charm.resetRolls()
-        #expect(!(0..<1000).contains { _ in Charm.rollRare(.today) || Charm.rollRare(.search) || Charm.rollRare(.trash) })
-        Charm.resetRolls()
-    }
-
     /// Today's ordinary flip never shows another day's number: the page turning away is blank.
     @Test func todayNeverShowsAnotherDay() {
         var blanks = 0

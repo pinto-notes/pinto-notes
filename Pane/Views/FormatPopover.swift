@@ -155,8 +155,6 @@ struct FormatButton: View {
     @State private var showing = false
     @State private var current: ListEditing.ParagraphStyle?
     @State private var inCallout = false
-    /// The pointer is on the button: the A leans into italic (Charm).
-    @State private var hovering = false
 
     var body: some View {
         Button {
@@ -164,9 +162,8 @@ struct FormatButton: View {
             inCallout = controller.target.map { Self.inCallout($0.currentText, $0.currentSelection) } ?? false
             showing.toggle()
         } label: {
-            Label { Text("Format") } icon: { CharmSymbol("textformat", trigger: hovering) }
+            Label("Format", systemImage: "textformat")
         }
-        .onHover { hovering = $0 }
         .help("Format")
         .popover(isPresented: $showing, arrowEdge: .bottom) {
             FormatPopover(controller: controller, current: current, inCallout: inCallout) { showing = false }

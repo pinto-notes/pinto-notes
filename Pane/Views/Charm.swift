@@ -1,19 +1,16 @@
 import SwiftUI
 
-/// Small moments of life in the app's glyphs, in the spirit of iOS 27.2's Genmoji button: under
-/// the pointer a glyph does one short thing that fits what it is (the search lens glances left and
-/// right, the pencil writes a line, the trash lifts its lid), then settles exactly where it was.
-/// Once in a while, never on the first few hovers and never twice running, it does its rare
-/// version instead (the lens grows an eye, eyes peek out of the trash).
+/// Small moments of life in the app's glyphs: a glyph does one short thing that fits what it is,
+/// then settles exactly where it was. Each glyph also has a rarer, sillier version, drawn for the
+/// concept films (the lens grows an eye, eyes peek out of the trash).
 ///
 /// Every glyph is drawn from one number, the seconds since the move began, so a test can draw
 /// any frame offscreen and the app draws only while a move plays (the timeline is paused at rest).
 /// Nothing moves with Reduce Motion on.
 ///
-/// In the app, kept few on purpose (Emil and the UI council, 5 November 2026): Today's page
-/// turns to today's date, Format's A leans into italic, a finished list bursts (CheckPop), and
-/// rarely (about one hover in 40, once a launch at most) Format tries on bold, italic and
-/// underline. The other glyphs stay drawn here for the concept films but aren't in the app.
+/// In the app, one rule (Emil, 5 November 2026): motion only answers something you did, never a
+/// hover. Today's page turns to today's date when you open today's note and when the day
+/// changes; finishing a list bursts (CheckPop). The other glyphs aren't placed in the app.
 enum Charm {
     enum Kind: String, CaseIterable, Sendable {
         case search, compose, checklist, table, attach, share, more, sidebar, folder, trash
@@ -46,41 +43,6 @@ enum Charm {
 
     /// Which glyphs have a rare version.
     static func hasRare(_ kind: Kind) -> Bool { kind != .sidebar }
-
-    /// The rare versions the app plays: Format's alone (UI council, 5 November 2026). The others
-    /// stay drawn for the concept films.
-    static let rareInApp: Set<Kind> = [.format]
-
-    // MARK: The rare roll
-
-    /// Hovers so far this run, and whether the last move was rare.
-    @MainActor private static var hovers = 0
-    @MainActor private static var lastRare = false
-    /// One hover in this many, roughly, plays the rare version, and at most once a launch.
-    static let rareOdds = 40
-    @MainActor private static var rareShown = false
-    /// Tests and captures: always (true) or never (false) rare.
-    @MainActor static var forcedRare: Bool?
-
-    @MainActor static func rollRare(_ kind: Kind) -> Bool {
-        if let forcedRare { return forcedRare && hasRare(kind) }
-        // Captures: `-uitest -charmRare YES` plays every glyph's rare version.
-        if ProcessInfo.processInfo.arguments.contains("-uitest"), UserDefaults.standard.object(forKey: "charmRare") != nil {
-            return UserDefaults.standard.bool(forKey: "charmRare") && hasRare(kind)
-        }
-        hovers += 1
-        let rare = rareInApp.contains(kind) && hovers > 4 && !lastRare && !rareShown && Int.random(in: 0..<rareOdds) == 0
-        lastRare = rare
-        rareShown = rareShown || rare
-        return rare
-    }
-
-    /// Tests: a fresh launch's rolls.
-    @MainActor static func resetRolls() {
-        hovers = 0
-        lastRare = false
-        rareShown = false
-    }
 
     // MARK: Drawing
 
@@ -950,17 +912,15 @@ enum CharmMath {
 
 // MARK: - The view
 
-/// A glyph that plays its move when the pointer comes onto it (or onto `trigger`'s owner, such as
-/// a whole sidebar row), then rests. `pointSize` matches the SF Symbol it stands in for.
+/// A glyph that plays its move each time `cue` changes (something the person did), then rests.
+/// `pointSize` matches the SF Symbol it stands in for.
 struct CharmIcon: View {
     let kind: Charm.Kind
     var pointSize: CGFloat = 16
-    /// When set, the move plays as this turns true (a row's hover) rather than on the glyph's own.
-    var trigger: Bool?
+    var cue = 0
     /// The accent for ink trails and ticks; the tint when nil.
     var accent: Color?
     @State private var start: Date?
-    @State private var rare = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     static func canvas(_ pointSize: CGFloat) -> CGFloat { (pointSize * 1.4).rounded() }
@@ -969,25 +929,21 @@ struct CharmIcon: View {
         let side = Self.canvas(pointSize)
         TimelineView(.animation(paused: start == nil)) { tl in
             let t = start.map { tl.date.timeIntervalSince($0) } ?? 0
-            CharmFrame(kind: kind, t: t, rare: rare, accent: accent)
+            CharmFrame(kind: kind, t: t, accent: accent)
         }
         .frame(width: side, height: side)
-        .contentShape(.rect)
-        .onHover { if trigger == nil, $0 { play() } }
-        .onChange(of: trigger) { _, on in if on == true { play() } }
+        .onChange(of: cue) {
+            guard !reduceMotion else { return }
+            start = .now
+        }
         .task(id: start) {
             guard let start else { return }
-            let d = Charm.duration(kind, rare: rare) - Date.now.timeIntervalSince(start)
+            let d = Charm.duration(kind, rare: false) - Date.now.timeIntervalSince(start)
             try? await Task.sleep(for: .seconds(max(d, 0) + 0.05))
             if self.start == start { self.start = nil }
         }
+        .allowsHitTesting(false)
         .accessibilityHidden(true)
-    }
-
-    private func play() {
-        guard !reduceMotion, start == nil else { return }
-        rare = Charm.rollRare(kind)
-        start = .now
     }
 }
 
@@ -1053,29 +1009,17 @@ extension Charm {
     }
 }
 
-/// Plays a button's glyph when the pointer comes onto any part of the button, not just the glyph:
-/// the pointer then sits beside the glyph rather than on it, so the move is seen.
-/// `CharmHover { on in Button { … } label: { Label { … } icon: { CharmSymbol(name, trigger: on) } } }`
-struct CharmHover<Content: View>: View {
-    @ViewBuilder let content: (Bool) -> Content
-    @State private var on = false
-
-    var body: some View {
-        content(on).onHover { on = $0 }
-    }
-}
-
-/// An SF Symbol, or the glyph that stands in for it while charms are on. `trigger` plays it from
-/// a hover outside it (a whole sidebar row); without one it plays when the pointer is on it.
+/// An SF Symbol, or the glyph that stands in for it while charms are on, which plays its move
+/// each time `cue` changes.
 struct CharmSymbol: View {
     let name: String
     var pointSize: CGFloat = 16
-    var trigger: Bool?
+    var cue = 0
 
-    init(_ name: String, pointSize: CGFloat = 16, trigger: Bool? = nil) {
+    init(_ name: String, pointSize: CGFloat = 16, cue: Int = 0) {
         self.name = name
         self.pointSize = pointSize
-        self.trigger = trigger
+        self.cue = cue
     }
 
     var body: some View {
@@ -1084,7 +1028,7 @@ struct CharmSymbol: View {
             // Takes exactly the room of the symbol it stands in for (a toolbar button stays the
             // size of its neighbours) and draws over it, a little past its edges.
             Image(systemName: name).hidden()
-                .overlay { CharmIcon(kind: kind, pointSize: pointSize, trigger: trigger) }
+                .overlay { CharmIcon(kind: kind, pointSize: pointSize, cue: cue) }
         } else {
             Image(systemName: name).font(.system(size: pointSize))
         }
