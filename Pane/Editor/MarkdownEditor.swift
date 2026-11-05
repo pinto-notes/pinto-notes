@@ -3304,11 +3304,21 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
               controller?.slashCommands.isEmpty ?? true else { return nil }
         if string.isEmpty { return Self.titleHintText }
         guard SlashRecents.uses < SlashRecents.learned,
-              let font = core.emptyLineFont(string, at: selectedRange().location), font != MarkdownStyler.titleFont else { return nil }
+              let font = core.emptyLineFont(string, at: selectedRange().location), font != MarkdownStyler.titleFont,
+              !Self.followsTable(string, at: selectedRange().location) else { return nil }
         return Self.slashHintText
     }
 
     func showsSlashHint() -> Bool { caretHint() == Self.slashHintText }
+
+    /// The line just above `location` is a table's: a hint there sat against the table's edge
+    /// (persona council r7d).
+    static func followsTable(_ text: String, at location: Int) -> Bool {
+        let ns = text as NSString
+        let start = ns.lineRange(for: NSRange(location: min(location, ns.length), length: 0)).location
+        guard start > 0 else { return false }
+        return ns.substring(with: ns.lineRange(for: NSRange(location: start - 1, length: 0))).trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("|")
+    }
 
     func layoutSlashHint() {
         guard let hint = caretHint(), let tlm = textLayoutManager, let tcm = tlm.textContentManager,

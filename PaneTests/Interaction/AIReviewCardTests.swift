@@ -11,6 +11,37 @@ import Testing
 /// a part changed since says so and the note keeps your typing. Pressed through accessibility in a
 /// window far off the screen.
 @MainActor @Suite(.serialized) struct AIReviewCardTests {
+    /// A struck line rules through its words, not its checkbox: a line through the circle read as
+    /// a ticked box (persona council r7c).
+    @Test func aStruckChecklistLineLeavesItsCircleClear() throws {
+        func pixels(_ struck: Bool) throws -> (data: [UInt8], w: Int, h: Int) {
+            let r = ImageRenderer(content: AIReview.text("- [ ] Pick dates", struck: struck).font(.system(size: 20)).foregroundStyle(.black).background(.white))
+            r.scale = 2
+            let bitmap = NSBitmapImageRep(cgImage: try #require(r.cgImage))
+            let w = bitmap.pixelsWide, h = bitmap.pixelsHigh
+            var out = [UInt8](); out.reserveCapacity(w * h)
+            for y in 0..<h { for x in 0..<w { out.append(UInt8((bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceGray)?.whiteComponent ?? 0) * 255)) } }
+            return (out, w, h)
+        }
+        let plain = try pixels(false), struck = try pixels(true)
+        #expect(plain.w == struck.w && plain.h == struck.h)
+        // The circle: about the first line-height across.
+        let circle = 40
+        var inCircle = 0, inWords = 0
+        for y in 0..<plain.h { for x in 0..<plain.w where plain.data[y * plain.w + x] != struck.data[y * plain.w + x] {
+            if x < circle { inCircle += 1 } else { inWords += 1 }
+        } }
+        #expect(inCircle == 0, "nothing ruled through the circle: \(inCircle) pixels")
+        #expect(inWords > 100, "the words are ruled through: \(inWords) pixels")
+    }
+
+    @Test func noSlashHintAgainstATablesEdge() {
+        let text = "Title\n\n| A | B |\n|---|---|\n| 1 | 2 |\n"
+        #expect(PaneTextView.followsTable(text, at: (text as NSString).length), "the line under a table")
+        #expect(!PaneTextView.followsTable(text + "\n", at: (text as NSString).length + 1), "a blank line below it")
+        #expect(!PaneTextView.followsTable("Title\n\n", at: 7))
+    }
+
     /// The card over a real note, wired as the note view wires it (AIReview's undo on the note).
     struct Host: View {
         @State var review: AIReview

@@ -202,16 +202,14 @@ struct AIReviewCard: View {
                 // part stayed all struck through, so it looked deleted).
                 let undone = part.decision == .undone
                 ForEach(Array(part.removed.enumerated()), id: \.offset) { i, line in
-                    AIReview.text(line)
-                        .strikethrough(!undone, color: Color.muted)
+                    AIReview.text(line, struck: !undone)
                         .foregroundStyle(undone ? Color.ink : Color.muted)
                         .accessibilityLabel(undone ? "Back: \(AIReview.shown(line))" : "Was: \(AIReview.shown(line))")
                         .accessibilityIdentifier("review.removed.\(part.id).\(i)")
                 }
                 ForEach(Array(part.added.enumerated()), id: \.offset) { i, line in
-                    AIReview.text(line)
+                    AIReview.text(line, struck: undone)
                         .foregroundStyle(undone ? Color.muted : Color.ink)
-                        .strikethrough(undone, color: Color.muted)
                         .padding(.horizontal, 4)
                         .background(undone ? Color.clear : Color.amberSoft, in: .rect(cornerRadius: 3))
                         .padding(.horizontal, -4)
@@ -311,17 +309,20 @@ private struct CardChrome<S: InsettableShape>: ViewModifier {
 extension AIReview {
     /// The line as the note draws it: a checkbox is a circle (ticked, a filled tick), not the
     /// letter-like "○" the text form uses (round 7: Opus read the card's tasks as an "O").
-    static func text(_ line: String) -> Text {
+    /// `struck` rules through the words only: a line through the circle read as a ticked box
+    /// (persona council r7c).
+    static func text(_ line: String, struck: Bool = false) -> Text {
         let s = shown(line)
         let lead = String(s.prefix { $0 == " " })
         let rest = s.dropFirst(lead.count)
+        func words(_ w: some StringProtocol) -> Text { Text(String(w)).strikethrough(struck, color: Color.muted) }
         if rest.hasPrefix("\u{25CB} ") {
-            return Text(lead) + Text(Image(systemName: "circle")).foregroundStyle(Color.muted) + Text(" " + rest.dropFirst(2))
+            return Text(lead) + Text(Image(systemName: "circle")).foregroundStyle(Color.muted) + Text(" ") + words(rest.dropFirst(2))
         }
         if rest.hasPrefix("\u{2713} ") {
-            return Text(lead) + Text(Image(systemName: "checkmark.circle.fill")).foregroundStyle(Color.paneAccent) + Text(" " + rest.dropFirst(2))
+            return Text(lead) + Text(Image(systemName: "checkmark.circle.fill")).foregroundStyle(Color.paneAccent) + Text(" ") + words(rest.dropFirst(2))
         }
-        return Text(s)
+        return words(s)
     }
 
     /// A markdown line as the card shows it: list markers and checkboxes drawn, heading marks dropped.
