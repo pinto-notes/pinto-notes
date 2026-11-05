@@ -1044,6 +1044,7 @@
 		EEB15458B34B4C85EC6C9EDE /* MacEmptyDetailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74C3858D7115D915A84DF1F9 /* MacEmptyDetailTests.swift */; };
 		EEE5D6310D591DDA45514520 /* AllowSheetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43324C7785F4C59035DABD60 /* AllowSheetTests.swift */; };
 		EF5FA3E4964C257EA768A12D /* SidebarCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22F6E51FB808A5AE5B56E98E /* SidebarCards.swift */; };
+		EF8DA77BBA7434BE258301BB /* FilePanelLabelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016D40351BAEA54A487293AF /* FilePanelLabelTests.swift */; };
 		EFAC942E69893F0E6EA5B5ED /* CollabScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19F18EFC180D18F05B904827 /* CollabScript.swift */; };
 		F06C63A50FD4F976355471A8 /* SettingsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3520A0FE8D011FB9720866C4 /* SettingsCard.swift */; };
 		F0D87957CAA84B40A46A334F /* SharedDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D124B8907A00FB061D8E03A /* SharedDelete.swift */; };
@@ -1169,6 +1170,7 @@
 		00C914D1C89C1A28F957DF97 /* BundleRename.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleRename.swift; sourceTree = "<group>"; };
 		00DCB857B69E6D8507AAD6E4 /* Backend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Backend.swift; sourceTree = "<group>"; };
 		013B39AAC56FEB3BD1C5CC69 /* ListMenusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListMenusTests.swift; sourceTree = "<group>"; };
+		016D40351BAEA54A487293AF /* FilePanelLabelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePanelLabelTests.swift; sourceTree = "<group>"; };
 		017777D0BAA64878F98D3A48 /* InlineNameField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineNameField.swift; sourceTree = "<group>"; };
 		01C445BFD3C61467F8EF1FCB /* Keep */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Keep; path = PaneTests/Fixtures/Keep; sourceTree = SOURCE_ROOT; };
 		020E4F46F8521511BB37EAAA /* MarkdownEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditor.swift; sourceTree = "<group>"; };
@@ -2910,6 +2912,7 @@
 				43E8A6FCC628AE1EBA3DFCBF /* DateChipShots.swift */,
 				7445A08E777B5138830E17A8 /* DesignLookSnapshots.swift */,
 				A71A223E8C23019D361E3656 /* DividerShots.swift */,
+				016D40351BAEA54A487293AF /* FilePanelLabelTests.swift */,
 				E9B2AACF92D630BFBA10B051 /* FileViewerSnapshots.swift */,
 				6BD1216B6D4DCB8FA429A9E9 /* FolderFilesMacShots.swift */,
 				85DCD4307028741585A99583 /* FormatPopoverSnapshots.swift */,
@@ -3586,6 +3589,7 @@
 				7E2EA31EB61B678C8D93773D /* ExtremesTests.swift in Sources */,
 				5DA254F2F90696D86D8E7471 /* FakeCollabTransport.swift in Sources */,
 				C785F0780DE69D802E7DDA51 /* FileOutTests.swift in Sources */,
+				EF8DA77BBA7434BE258301BB /* FilePanelLabelTests.swift in Sources */,
 				10E125DEB27CD7EB75A784D2 /* FileRowClickTests.swift in Sources */,
 				E140651BA8DFAA471F7B4D54 /* FileViewerSnapshots.swift in Sources */,
 				0CE0371340DA493B4BBB03B0 /* FindBeforeClickingTests.swift in Sources */,

@@ -348,9 +348,9 @@ struct CompareMenu: View {
             }
         } label: {
             #if os(macOS)
-            Text(model.compareWith == nil ? "Compare with\u{2026}" : "Comparing")
+            Text(model.compareWith == nil ? "Compare With\u{2026}" : "Comparing")
             #else
-            Label("Compare with\u{2026}", systemImage: "arrow.left.arrow.right")
+            Label("Compare With\u{2026}", systemImage: "arrow.left.arrow.right")
             #endif
         }
         #if os(macOS)

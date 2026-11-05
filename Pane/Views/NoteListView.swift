@@ -618,7 +618,7 @@ struct NoteListView: View {
                 .menuIndicator(.hidden)
                 .tint(.primary)
                 // A toolbar menu's label is drawn as a picture, so VoiceOver had no name (council round 15).
-                .accessibilityLabel("More")
+                .accessibilityLabel("List Options")
                 .accessibilityIdentifier("list.more")
                 .askAIPopover($asking, subject: askSubject ?? .all, recent: askRecent)
             }

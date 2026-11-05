@@ -1473,13 +1473,19 @@ enum Seed {
     /// The line that marks the sample app note (it counts as seeded, like the welcome note).
     static let sampleAppLine = "This note is also an app, made by AI: switch between App and Text at the top."
 
+    #if os(macOS)
+    private static let tapOrClick = "Click"
+    #else
+    private static let tapOrClick = "Tap"
+    #endif
+
     static let welcome = """
     Welcome to Pinto Notes
 
     Pinto Notes is a place for notes. Write in **markdown** and it styles itself as you type, with the syntax hidden until you need it.
 
     ## The basics
-    - [ ] Tap a circle to check it off
+    - [ ] \(tapOrClick) a circle to check it off
     - [x] Lists continue when you press Return
     * Press Return on an empty item to end a list
     - Start a line with * for bullets or - for dashes

@@ -141,6 +141,9 @@ import AppKit
         // Round 7: an Obsidian embed read "!greenhouse.png" in the list.
         #expect(NoteText.preview(of: "Greenhouse\n\n![[greenhouse.png]]\n\nWater the tomatoes") == "Water the tomatoes")
         #expect(ReadableText.line("![[plot.png]] the plot") == " the plot")
+        // Round 16: an attached picture read "!tram.png"; a PDF keeps its name.
+        #expect(NoteText.preview(of: "Trip files\n\n![tram.png](pane-file:6d1f0000-0000-0000-0000-000000000001)\n\nTickets") == "Tickets")
+        #expect(NoteText.preview(of: "Trip files\n\n[ticket.pdf](pane-file:6d1f0000-0000-0000-0000-000000000002)") == "ticket.pdf")
     }
 }
 
