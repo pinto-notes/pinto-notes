@@ -240,7 +240,9 @@ import UIKit
         #expect(both["RootView"] == nil, "typing never works the window out")
         #expect(both["NoteRow"] == nil, "nor a row of the list under the note")
         #expect((both["FormatBar"] ?? 0) <= 1, "nor the bar above the keyboard, past its first update")
-        #expect((perKey["NoteDetailView"] ?? 0) <= 1, "the note pane only for Undo becoming possible")
+        // Once for Undo becoming possible, once for the save, which lands while the keys are
+        // still going (measured 11-05: 1 before typing could be undone, the save alone).
+        #expect((perKey["NoteDetailView"] ?? 0) <= 2, "the note pane only for Undo becoming possible and the save")
         // Left as it is (see the audit): each save still works out the folders under the stack up
         // to three times, from SwiftData's queries. More than that is a new trigger.
         #expect((save["SidebarView"] ?? 0) <= 3)

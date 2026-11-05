@@ -199,12 +199,12 @@ import UIKit
         AIChangesTests.tap(try #require(Self.yours(in: window)))
         try? await Task.sleep(for: .seconds(0.4))
         #expect(view.text == Self.body + "!", "the tick undone, the typing kept")
-        // A change made with the keyboard down is a new floor: the text view drops its typing
-        // steps when its text changes that way.
-        #expect(Self.yours(in: window) == nil)
-        controller.undo()
-        try? await Task.sleep(for: .seconds(0.3))
-        #expect(view.text == Self.body + "!", "never past it")
+        // The typing before it is a step still: Undo goes on back through the note, as in Notes
+        // (persona council r7; it used to stop at a change made with the keyboard down).
+        AIChangesTests.tap(try #require(Self.yours(in: window), "Undo stays for the typing"))
+        try? await Task.sleep(for: .seconds(0.4))
+        #expect(view.text == Self.body, "the typing undone too")
+        #expect(Self.yours(in: window) == nil, "nothing left: Undo goes")
     }
 
     // MARK: With an AI's edit
