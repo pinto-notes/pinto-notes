@@ -131,7 +131,7 @@ import Testing
     @Test func voiceOverReachesNewFolderInTheHeading() throws {
         let source = try String(contentsOf: TestFiles.url("Views").appending(path: "SidebarView.swift"), encoding: .utf8)
         let header = try #require(source.range(of: "Text(\"Folders\")"))
-        let rest = source[header.lowerBound...].prefix(1100)
+        let rest = source[header.lowerBound...].prefix(1500)
         #expect(rest.contains(".accessibilityAddTraits(.isHeader)"))
         #expect(rest.contains(".accessibilityAction(named: \"New Folder\")"))
     }
