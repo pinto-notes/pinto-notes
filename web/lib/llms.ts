@@ -15,7 +15,7 @@ function summary(): string[] {
     "",
     `> ${WHAT_IT_IS}`,
     "",
-    `Pinto Notes was called Amber Notes until October 2026. Not to be confused with other products called AmberNotes or Amber Notes (meeting transcription and AI note-taking services). This one is the notes app at pintonotes.com, made by Emil Wagman (${MAKER_URL}) at Incredible (${INCREDIBLE_URL}).`,
+    `Pinto Notes was called Amber Notes until October 2026. Not to be confused with other products called AmberNotes or Amber Notes (meeting transcription and AI note-taking services). This one is the notes app at pintonotes.com, made by Emil Wagman (${MAKER_URL}), CTO of Incredible (${INCREDIBLE_URL}).`,
     "",
     "## Facts",
     "",

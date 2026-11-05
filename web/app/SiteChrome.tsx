@@ -165,7 +165,7 @@ export default function SiteChrome({ stars, children }: { version: string | null
               <a href={LINKEDIN_URL} target="_blank" rel="me noopener noreferrer" aria-label="Emil Wagman on LinkedIn"><LinkedInGlyph /></a>
             </div>
           </div>
-          <p className="site-credit">Made by <a className="site-maker" href={MAKER_URL} target="_blank" rel="me noopener">Emil Wagman</a> at <a className="site-maker" href="https://incredible.one" target="_blank" rel="noopener">Incredible</a>. Not affiliated with Apple, OpenAI or Anthropic.</p>
+          <p className="site-credit">Made by <a className="site-maker" href={MAKER_URL} target="_blank" rel="me noopener">Emil Wagman</a>, CTO of <a className="site-maker" href="https://incredible.one" target="_blank" rel="noopener">Incredible</a>. Not affiliated with Apple, OpenAI or Anthropic.</p>
         </div>
       </footer>
     </div>
