@@ -280,5 +280,10 @@ final class PaneAppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         pushLog.error("no push token: \(String(describing: error), privacy: .public)")
     }
+
+    /// Edit › Find when nothing in the window took it: the open note's find bar (FindRouter).
+    @MainActor @objc func performFindPanelAction(_ sender: Any?) {
+        FindRouter.find(in: NSApp.keyWindow ?? NSApp.mainWindow, sender: sender)
+    }
 }
 #endif

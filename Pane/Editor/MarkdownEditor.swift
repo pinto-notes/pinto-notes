@@ -2296,6 +2296,33 @@ final class GridHostingView: NSHostingView<AnyView> {
 
 /// The note's scroll view. Its tiling (a new size, the toolbar's inset arriving) is part of the
 /// layout pass before a frame is drawn, so the note folds its date there (PaneTextView.foldDate).
+/// ⌘F when the keys aren't in the note (just after the app opens they're with the list): finds in
+/// the open note, as in Notes, or searches the notes when none is open. The app delegate calls it,
+/// last in the chain, so a text view that has the keys still takes ⌘F first (council round 16:
+/// ⌘F straight after launch did nothing).
+@MainActor enum FindRouter {
+    /// The note's own text view: the biggest one on show in the window.
+    static func editor(in window: NSWindow?) -> PaneTextView? {
+        guard let root = window?.contentView else { return nil }
+        var found: [PaneTextView] = []
+        func walk(_ v: NSView) {
+            if let t = v as? PaneTextView, t.enclosingScrollView is NoteScrollView, !t.isHiddenOrHasHiddenAncestor { found.append(t) }
+            v.subviews.forEach(walk)
+        }
+        walk(root)
+        return found.max { $0.visibleRect.width * $0.visibleRect.height < $1.visibleRect.width * $1.visibleRect.height }
+    }
+
+    static func find(in window: NSWindow?, sender: Any?) {
+        guard let window, let e = editor(in: window) else {
+            NotificationCenter.default.post(name: .paneSearchNotes, object: nil)
+            return
+        }
+        window.makeFirstResponder(e)
+        e.performFindPanelAction(sender)
+    }
+}
+
 final class NoteScrollView: NSScrollView {
     override func tile() {
         super.tile()
