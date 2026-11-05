@@ -353,7 +353,16 @@ struct QuickOpenPanel: View {
         static let maxList: CGFloat = 392
     }
 
-    private var rows: [QuickOpen.Row] { QuickOpen.rows(notes: notes, commands: commands, query: query, textHits: textHits) }
+    private var rows: [QuickOpen.Row] {
+        Self.shown(QuickOpen.rows(notes: notes, commands: commands, query: query, textHits: textHits), stillReading: stillReading)
+    }
+
+    /// "Show all notes with" alone, once the notes' text has been read, promises a list that's empty
+    /// (round 17: it stood in for saying nothing matched).
+    static func shown(_ rows: [QuickOpen.Row], stillReading: Bool) -> [QuickOpen.Row] {
+        if !stillReading, rows.count == 1, case .search = rows[0] { return [] }
+        return rows
+    }
 
     var body: some View {
         #if DEBUG
