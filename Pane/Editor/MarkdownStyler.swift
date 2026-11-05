@@ -280,6 +280,10 @@ struct MarkdownStyler {
                     // Written out while the block is edited, with room from the block's edge.
                     storage.addAttributes([.foregroundColor: PColor.paneSecondary, .font: monoFont], range: lineRange)
                 }
+                // An open edge's room is the block's own line spacing, so the panel drawn there never
+                // covers the line above or below (council round 16: over a quote's descenders).
+                if open && !prev { p.paragraphSpacingBefore = Self.openEdge }
+                if open && !next { p.paragraphSpacing = Self.openEdge }
                 storage.addAttribute(.paragraphStyle, value: p, range: enclosing)
                 sawTitle = true
                 return
@@ -754,6 +758,8 @@ struct MarkdownStyler {
     static var markerEnd: CGFloat { EditorMetrics.gutter - markerGap }
 
     /// A code block's padding: inside its sides, and its hidden fences' height.
+    /// The room past an open code block's text, at its first and last lines.
+    static let openEdge: CGFloat = 8
     static let codePad: CGFloat = 14
 
     private func styleList(_ list: ListPrefix, lineRange: NSRange, enclosing: NSRange, storage: NSTextStorage) {

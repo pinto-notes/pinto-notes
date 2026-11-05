@@ -363,7 +363,9 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
 
         case .code(let first, let last, let label, let open):
             // A line that shows text at the block's edge gets the block's padding drawn past it.
-            panel(ctx, o: o, h: h, first: first, last: last, fill: PColor.paneFill, radius: 10, stroke: nil, outside: open ? 8 : 0)
+            // An open edge's room is in the line's own spacing (MarkdownStyler.openEdge), not drawn past it.
+            _ = open
+            panel(ctx, o: o, h: h, first: first, last: last, fill: PColor.paneFill, radius: 10, stroke: nil, outside: 0)
             if let label {
                 // The language, small and grey, floating in the block's top right corner, on the
                 // block's colour so a long first line runs under it.

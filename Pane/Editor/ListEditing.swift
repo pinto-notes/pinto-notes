@@ -497,10 +497,26 @@ enum ListEditing {
             return TextEdit(range: whole, replacement: body, caret: b, selection: b > a ? NSRange(location: a, length: b - a) : nil)
         }
         let span = lines(in: ns, touching: selection)
-        let content = ns.substring(with: span)
+        var content = ns.substring(with: span)
+        // Quoted lines (a Return after a quote keeps its "> "): the code block takes their place, so
+        // the marks go rather than ending up inside it as "> let count" (council round 16, a3).
+        var before = 0, inside = 0
+        let quoted = content.split(separator: "\n", omittingEmptySubsequences: false).enumerated()
+            .filter { $0.offset > 0 || !$0.element.isEmpty }.allSatisfy { $0.element.hasPrefix(">") || $0.element.isEmpty }
+        if quoted, content.hasPrefix(">") {
+            var out: [String] = [], at = span.location
+            for line in content.components(separatedBy: "\n") {
+                let mark = line.hasPrefix("> ") ? 2 : line.hasPrefix(">") ? 1 : 0
+                if at + mark <= selection.location { before += mark }
+                else if at < NSMaxRange(selection) { inside += min(mark, max(0, NSMaxRange(selection) - at)) }
+                out.append(String(line.dropFirst(mark)))
+                at += (line as NSString).length + 1
+            }
+            content = out.joined(separator: "\n")
+        }
         let replacement = content.hasSuffix("\n") ? "```\n" + content + "```\n" : "```\n" + content + "\n```"
-        return TextEdit(range: span, replacement: replacement, caret: NSMaxRange(selection) + 4,
-                        selection: selection.length > 0 ? NSRange(location: selection.location + 4, length: selection.length) : nil)
+        return TextEdit(range: span, replacement: replacement, caret: NSMaxRange(selection) + 4 - before - inside,
+                        selection: selection.length > 0 ? NSRange(location: selection.location + 4 - before, length: selection.length - inside) : nil)
     }
 
     /// Format → Increase / Decrease Indent: nests the caret's list item (or every selected one)

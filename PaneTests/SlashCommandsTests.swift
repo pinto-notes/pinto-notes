@@ -81,6 +81,26 @@ import Testing
         #expect(SlashCommands.matches("wiki", in: all) == [.noteLink])
     }
 
+    /// A code block made on a line that carries on a quote: the quote marks go, and the code
+    /// starts clean (council round 16, `a3-slash-code`: "> let count = 1" inside the block).
+    @Test func aCodeBlockOnAQuotedLineDropsTheQuoteMarks() {
+        func apply(_ e: TextEdit, to text: String) -> String { (text as NSString).replacingCharacters(in: e.range, with: e.replacement) }
+        let text = "> Pack shoes.\n> "
+        let at = (text as NSString).length
+        let e = ListEditing.toggleCodeBlock(in: text, selection: NSRange(location: at, length: 0))
+        let out = apply(e, to: text)
+        #expect(out == "> Pack shoes.\n```\n\n```", "the quote above stays a quote: \(out.debugDescription)")
+        #expect(e.caret == ("> Pack shoes.\n```\n" as NSString).length, "the caret on the block's empty line")
+        // Two quoted lines selected: both come out of the quote, the selection follows the text.
+        let two = "> let a = 1\n> let b = 2"
+        let e2 = ListEditing.toggleCodeBlock(in: two, selection: NSRange(location: 0, length: (two as NSString).length))
+        #expect(apply(e2, to: two) == "```\nlet a = 1\nlet b = 2\n```")
+        #expect(e2.selection == NSRange(location: 4, length: ("let a = 1\nlet b = 2" as NSString).length))
+        // A plain line is untouched by any of this.
+        let plain = ListEditing.toggleCodeBlock(in: "let c = 3", selection: NSRange(location: 9, length: 0))
+        #expect(apply(plain, to: "let c = 3") == "```\nlet c = 3\n```" && plain.caret == 13)
+    }
+
     /// The names the Format menu uses for the same commands.
     @MainActor @Test func namesMatchTheFormatMenu() throws {
         #if os(macOS)
