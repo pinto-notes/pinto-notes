@@ -60,6 +60,23 @@ extension TableInteractionTests {
         #expect(h.selection.location > NSMaxRange(tableRange), "leaving the table from the bottom lands after it")
     }
 
+    /// ⇧Tab goes back a cell, as in Notes (council round 16: it left the table). AppKit sends
+    /// ⇧Tab as a back-tab character, not a Tab with Shift held.
+    @Test func shiftTabGoesBackACell() async {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        await h.caret(after: "is here.")
+        await h.press(EditorHarness.down)
+        await h.press(EditorHarness.down)
+        #expect(await h.until { h.gridHasFocus })
+        func cellText() -> String? { (h.focusedGridField as? NSTextField)?.stringValue }
+        #expect(await h.until { cellText() == "Shortcut" })
+        await h.press(EditorHarness.tab)
+        #expect(await h.until { cellText() == "Does" }, "Tab moves on a cell")
+        await h.press((48, "\u{19}"), .shift)
+        #expect(await h.until { cellText() == "Shortcut" }, "⇧Tab is back in the first cell, not out of the table: \(String(describing: cellText()))")
+    }
+
     @Test func tableAtEndOfNoteGetsALineAfterOnClick() async {
         let text = "Title\n\n| a | b |\n| --- | --- |\n| 1 | 2 |"
         let h = await EditorHarness(text)

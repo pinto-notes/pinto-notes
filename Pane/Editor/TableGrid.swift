@@ -844,6 +844,13 @@ struct TableGridView: View {
             step(from: f, by: press.modifiers.contains(.shift) ? -1 : 1, cols: cols)
             return .handled
         }
+        // AppKit sends ⇧Tab as a back-tab character, which `.tab` doesn't match: it moved the
+        // keyboard out of the table (council round 16). Back a cell, as in Notes.
+        .onKeyPress(KeyEquivalent("\u{19}"), phases: .down) { _ in
+            guard let f = current else { return .ignored }
+            step(from: f, by: -1, cols: cols)
+            return .handled
+        }
     }
 
     private func columnHandleLabel(_ c: Int) -> String {
