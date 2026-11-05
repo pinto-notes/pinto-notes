@@ -40,6 +40,24 @@ import Testing
         }
     }
 
+    /// The page never makes the window taller: the window takes its smallest size from what's in
+    /// it (.contentSize), and it grew past the screen's bottom with a locked note open (round 17).
+    @Test func thePageNeverMakesTheWindowTaller() async throws {
+        let scene = try await LockedSharedScene.make(biometry: "Touch ID")
+        try await Self.with(scene) {
+            let host = NSHostingView(rootView: LockedNoteView(note: scene.locked).modelContainer(scene.container))
+            host.frame = CGRect(origin: .zero, size: Self.pageSize)
+            let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 600, height: 440), styleMask: [.titled], backing: .buffered, defer: false)
+            w.isReleasedWhenClosed = false
+            w.contentView = host
+            defer { w.close() }
+            try? await Task.sleep(for: .milliseconds(500))
+            // The smallest height is measured at the smallest width, where the words wrap one to a line.
+            #expect(w.contentMinSize.height < Self.pageSize.height, "asks for \(w.contentMinSize)")
+            #expect(w.frame.height < Self.pageSize.height + 60, "grew to \(w.frame.size)")
+        }
+    }
+
     /// No Touch ID button where the Mac has none (or it's turned off).
     @Test func noTouchIDWhereThereIsNone() async throws {
         let scene = try await LockedSharedScene.make(biometry: nil)

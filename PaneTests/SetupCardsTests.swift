@@ -89,6 +89,19 @@ import Testing
         #expect(lines.contains { $0.hasPrefix(".shadow(") })
     }
 
+    /// Escape moves on from every step of setup: Skip, Not now and Cancel are its cancel buttons.
+    /// A rig pressing Escape on "Bring in your notes?" got nowhere (round 17). Reads the source,
+    /// as a keyboard shortcut isn't visible from outside the button.
+    @Test func escapeLeavesEverySetupStep() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "SetupCards.swift"), encoding: .utf8)
+        let lines = source.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        let ways = lines.indices.filter { lines[$0].hasPrefix("Button(only == nil ?") }
+        #expect(ways.count >= 3)
+        for at in ways {
+            #expect(lines[at + 1] == ".keyboardShortcut(.cancelAction)", "\(lines[at])")
+        }
+    }
+
     /// The library's line: what an AI is for until you have it, then when you last used it, and
     /// how many accounts when there are two (two Claudes).
     @Test func theLibrarySaysWhatYouHave() {

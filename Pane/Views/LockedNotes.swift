@@ -75,7 +75,7 @@ struct LockedNoteView: View {
 
     @ViewBuilder private var container: some View {
         #if os(macOS)
-        page.frame(maxWidth: .infinity, maxHeight: .infinity)
+        page.frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         #else
         // Centred in the room the keyboard leaves, and scrolled when a large text size needs more.
         GeometryReader { room in

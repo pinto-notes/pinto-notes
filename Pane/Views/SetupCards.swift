@@ -848,7 +848,7 @@ struct SetupCardsFlow: View {
             }
             HStack(spacing: 8) {
                 Button(only == nil ? "Skip" : "Cancel") { skipBring() }
-                    .keyboardShortcut(only == nil ? nil : .cancelAction)
+                    .keyboardShortcut(.cancelAction)
                     .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.skip")
                 Button(shownBringAI ? bringOverWay.button : SetupCards.importTitle(shownSource)) {
@@ -991,6 +991,7 @@ struct SetupCardsFlow: View {
 
     private var notNowLink: some View {
         Button(only == nil ? "Not now" : "Cancel") { notNow() }
+            .keyboardShortcut(.cancelAction)
             .buttonStyle(.hoverLink)
             .accessibilityIdentifier("setup.notNow")
     }
@@ -1098,6 +1099,7 @@ struct SetupCardsFlow: View {
             }
             HStack(spacing: 8) {
                 Button(only == nil ? "Not now" : "Cancel") { notNow() }
+                    .keyboardShortcut(.cancelAction)
                     .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.notNow")
                 Button(shownAI.button) { startConnect() }
@@ -1131,6 +1133,7 @@ struct SetupCardsFlow: View {
                 guidePage = SetupCards.guidePage(choice)
             }) {
                 Button(only == nil ? "Not now" : "Cancel") { notNow() }
+                    .keyboardShortcut(.cancelAction)
                     .buttonStyle(.secondary(.regular))
                     .accessibilityIdentifier("setup.notNow")
             }
