@@ -145,6 +145,28 @@ import Testing
         }
     }
 
+    /// Plain lines typed fast, then Return: the hint is on the new empty line, not over the text above.
+    @Test func theHintFollowsReturnAfterPlainLines() async {
+        let h = await EditorHarness("Trip\n\nOffline addition")
+        defer { h.close() }
+        await h.select((h.view.string as NSString).length)
+        await h.press(EditorHarness.returnKey)
+        h.view.insertText("second line here", replacementRange: h.view.selectedRange())
+        await h.press(EditorHarness.returnKey)
+        // The last paragraph's fragment also holds the empty line after it, so measure its first line only.
+        let at = (h.view.string as NSString).range(of: "second line here").location
+        let frag = h.lineRect(at: at)
+        let tlm = h.view.textLayoutManager!, tcm = tlm.textContentManager!
+        let first = tlm.textLayoutFragment(for: tcm.location(tcm.documentRange.location, offsetBy: at)!)!.textLineFragments.first!.typographicBounds
+        let above = CGRect(x: frag.minX, y: frag.minY + first.minY, width: first.width, height: first.height)
+        for wait in [0.0, 0.3] {
+            await h.settle(wait)
+            let label = h.view.subviews.lazy.compactMap { $0 as? NSTextField }.first { $0.identifier?.rawValue == "editor.slashHint" }
+            guard let label else { Issue.record("no hint after \(wait) s"); continue }
+            #expect(label.frame.minY >= above.maxY - 1, "below the typed line after \(wait) s: hint \(label.frame), line \(above)")
+        }
+    }
+
     /// A new note says "Title" as soon as it has the keyboard, before any click or key.
     @Test func aNewNoteSaysTitleStraightAway() async {
         let h = await EditorHarness("")

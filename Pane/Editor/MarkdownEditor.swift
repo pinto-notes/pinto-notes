@@ -3385,7 +3385,22 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     func showsSlashHint() -> Bool { caretHint() == Self.slashHintText }
 
+    private var slashHintRecheck = false
+
     func layoutSlashHint() {
+        placeSlashHint()
+        // The styler restyles the line just typed after the caret moves (its spacing changes), so
+        // the caret's empty line shifts down a few points once this call has run: the hint sat
+        // 4 pt into the text above (council, 11-05). Place it again once the edit has finished.
+        guard !slashHintRecheck else { return }
+        slashHintRecheck = true
+        DispatchQueue.main.async { [weak self] in
+            self?.slashHintRecheck = false
+            self?.placeSlashHint()
+        }
+    }
+
+    private func placeSlashHint() {
         guard let hint = caretHint(), let tlm = textLayoutManager, let tcm = tlm.textContentManager,
               let loc = tcm.location(tcm.documentRange.location, offsetBy: selectedRange().location) else {
             slashHint?.removeFromSuperview()
