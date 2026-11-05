@@ -3647,6 +3647,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let table = controller.tableMenu(grid: grid, cell: cell, line: nil)
         let menu = NSMenu()
         menu.autoenablesItems = false
+        // Table items only: AppKit otherwise adds AutoFill, which has nothing to fill in a cell.
+        menu.allowsContextMenuPlugIns = false
+        if #available(macOS 15.0, *) { menu.automaticallyInsertsWritingToolsItems = false }
         for (i, section) in table.sections.enumerated() {
             if i > 0 { menu.addItem(.separator()) }
             for entry in section {
