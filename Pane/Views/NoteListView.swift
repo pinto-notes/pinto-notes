@@ -20,6 +20,7 @@ struct NoteListView: View {
     /// Lock Note or Remove Lock from a note's long-press or right-click menu (ListLockFlow).
     @State private var lockRequest: ListLockRequest?
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.undoManager) private var undoManager
 
     /// Every note, fetched again only when a save adds or deletes one (see LibraryNotes).
     @State private var ownLibrary = LibraryNotes()
@@ -1151,7 +1152,7 @@ struct NoteListView: View {
         let touchedSelection = !selection.isDisjoint(with: ids)
         let firstIndex = ordered.firstIndex { ids.contains($0.id) }
         withAnimation(.snappy(duration: 0.25)) {
-            context.remove(notes)
+            context.remove(notes, undo: undoManager) { back in selection = Set(back.map(\.id)) }
             context.remove(files: files)
             if touchedSelection {
                 let rest = ordered.filter { !ids.contains($0.id) }

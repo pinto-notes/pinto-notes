@@ -7,6 +7,7 @@ struct RootView: View {
     @Environment(\.modelContext) private var context
     @Environment(OnboardingStore.self) private var onboarding: OnboardingStore?
     @Environment(\.behindSetupCard) private var behindSetupCard
+    @Environment(\.undoManager) private var undoManager
     #if os(iOS)
     /// On iPhone a folder is pushed once the first layout is done (see `lifecycle`).
     @State private var scope: Scope?
@@ -755,7 +756,7 @@ struct RootView: View {
 
     private func removeNow(_ notes: [Note]) {
         withAnimation(.snappy(duration: 0.25)) {
-            context.remove(notes)
+            context.remove(notes, undo: undoManager) { back in selection = Set(back.map(\.id)) }
             selection = []
         }
     }

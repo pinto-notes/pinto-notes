@@ -285,6 +285,34 @@ extension ModelContext {
         }
     }
 
+    /// Delete Note that ⌘Z takes back, as in Notes: the notes return to their folders, pinned
+    /// as they were, and `reopen` selects them again (council round 16: ⌘Z after Delete Note did
+    /// nothing). A blank note is gone for good and a shared one stops being shared, so neither
+    /// has an undo; nor does deleting from Recently Deleted, which asks first.
+    func remove(_ notes: [Note], undo: UndoManager?, reopen: (([Note]) -> Void)? = nil) {
+        let back = notes.filter { $0.deletedAt == nil && $0.trashedAt == nil && !Self.isBlank($0) && !$0.isShared }
+            .map { (note: $0, folder: $0.folder, pinned: $0.isPinned) }
+        remove(notes)
+        guard let undo, !back.isEmpty else { return }
+        undo.registerUndo(withTarget: self) { ctx in
+            MainActor.assumeIsolated {
+                for b in back where b.note.trashedAt != nil && b.note.deletedAt == nil {
+                    b.note.trashedAt = nil
+                    if let f = b.folder, f.deletedAt == nil { b.note.folder = f } else { b.note.folder = ctx.defaultFolder() }
+                    b.note.isPinned = b.pinned
+                    b.note.touch()
+                }
+                ctx.saveOrReport()
+                let notes = back.map(\.note)
+                reopen?(notes)
+                // Redo deletes them again.
+                undo.registerUndo(withTarget: ctx) { ctx in MainActor.assumeIsolated { ctx.remove(notes, undo: undo, reopen: reopen) } }
+                undo.setActionName(notes.count == 1 ? "Delete Note" : "Delete Notes")
+            }
+        }
+        undo.setActionName(back.count == 1 ? "Delete Note" : "Delete Notes")
+    }
+
     func move(_ notes: [Note], to folder: Folder) {
         for n in notes { move(n, to: folder) }
     }

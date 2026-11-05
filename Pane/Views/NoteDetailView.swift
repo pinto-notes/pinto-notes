@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 
 struct NoteDetailView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.undoManager) private var undoManager
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openWindow) private var openWindow
@@ -946,7 +947,10 @@ struct NoteDetailView: View {
                 DestructiveMenuButton("Delete Note", systemImage: "trash") {
                     // A shared note asks first: people lose it, or it leaves your notes.
                     if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
-                    else { withAnimation(.snappy) { context.trash(note) } }
+                    else {
+                        let open = onOpenNote
+                        withAnimation(.snappy) { context.remove([note], undo: undoManager) { back in if let n = back.first { open(n.id, false) } } }
+                    }
                 }
             }
         }
