@@ -309,7 +309,7 @@ struct NoteDetailView: View {
             // Undone on another device: the receipt and its marking go here too.
             .onChange(of: note.body) { _, body in
                 guard let r = receipt, r.isUndone(in: body) else { return }
-                withAnimation(.easeOut(duration: 0.2)) { receipt = nil }
+                withAnimation(.easeOut(duration: 0.2)) { receipt = nil; reviewResult = r.undoneLine }
                 controller.clearTint()
             }
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
@@ -2096,9 +2096,9 @@ struct NoteBreadcrumbs: View {
             next = f.parent
         }
         guard !folders.isEmpty else { return [(.all, "All Notes")] }
-        // Deep folders: the outermost, then the two nearest the note.
-        let shown = folders.count > 3 ? [folders[0]] + folders.suffix(2) : folders
-        return shown.map { (.folder($0.id), $0.name) }
+        // Deep folders: the two nearest the note. Three names pushed Share and ••• into the
+        // toolbar's overflow in a narrow window (persona council r7).
+        return folders.suffix(2).map { (.folder($0.id), $0.name) }
     }
 
     var body: some View {

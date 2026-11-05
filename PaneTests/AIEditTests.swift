@@ -53,6 +53,7 @@ import SwiftUI
         #expect(!r.isUndone(in: "Plan\n- [x] Pick dates: 3-4 November\n"))
         #expect(r.isUndone(in: "Plan\n- [ ] Pick dates"), "back to the text before it, whatever the last newline")
         #expect(!r.isUndone(in: "Plan\n- [ ] Pick dates\nAnd a new line"), "the note went on from there: not the same as before")
+        #expect(r.undoneLine == "Claude\u{2019}s change was undone")
         var made = r
         made.kind = .pageMade
         #expect(!made.isUndone(in: "Plan\n- [ ] Pick dates"), "an app's change isn't in the text")

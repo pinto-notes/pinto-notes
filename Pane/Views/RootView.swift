@@ -945,7 +945,6 @@ struct RootView: View {
     /// Shows a note asked for from outside the window, switching to All Notes if it isn't in view.
     private func reveal(_ id: UUID?, waited: Int = 0) {
         guard let id, let note = context.note(id), note.deletedAt == nil else { return }
-        NoteOpener.shared.request = nil
         #if os(iOS)
         // One screen at a time, UIKit drops a push made while an alert is up or still closing,
         // yet the note stays selected: Join on a shared note's link left its row chosen in All
@@ -954,7 +953,10 @@ struct RootView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { reveal(id, waited: waited + 1) }
             return
         }
+        if waited > 0 { CollabScript.trace("the note waited \(waited) tenths of a second to open") }
         #endif
+        // Cleared only now: until it opens, the empty pane doesn't offer a new note (EmptyDetailView).
+        NoteOpener.shared.request = nil
         if note.trashedAt != nil { scope = .trash } else if case .folder(let f) = scope, note.folder?.id == f {} else {
             #if os(iOS)
             // Its folder's list under it, as for a note search found, so back leads there.
@@ -1064,6 +1066,9 @@ struct EmptyDetailView: View {
 
     static let title = "No note selected"
 
+    /// A note is on its way (Keep a Copy, a join): nothing flashes before it opens (persona council r7).
+    static func showsWords(opening: UUID?) -> Bool { opening == nil }
+
     var body: some View {
         // Words, and one way on (Emil, 11-03: no app icon on the empty states).
         VStack(spacing: 14) {
@@ -1090,6 +1095,7 @@ struct EmptyDetailView: View {
                 #endif
             }
         }
+        .opacity(Self.showsWords(opening: NoteOpener.shared.request) ? 1 : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
@@ -1386,10 +1392,16 @@ struct PaneCommands: Commands {
 /// Whether an alert or sheet is up in any of the app's windows.
 @MainActor
 enum Presentation {
+    /// An alert up, or anything still opening or closing: what makes UIKit drop a push. Waiting on
+    /// anything else presented could hold a joined note back for seconds with nothing on screen
+    /// saying why (persona council r7: 4.8 s in one take of three, cause not pinned down further).
     static var isActive: Bool {
         UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
-            .contains { $0.rootViewController?.presentedViewController != nil }
+            .contains { window in
+                guard let shown = window.rootViewController?.presentedViewController else { return false }
+                return shown is UIAlertController || shown.isBeingDismissed || shown.isBeingPresented
+            }
     }
 
     /// Whether a note asked to open waits another tenth of a second: only on one screen at a

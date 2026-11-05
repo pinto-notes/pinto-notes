@@ -242,7 +242,8 @@ import UIKit
         let a = Folder(name: "A"), b = Folder(name: "B", parent: a), d = Folder(name: "D", parent: b), e = Folder(name: "E", parent: d)
         [a, b, d, e].forEach { c.mainContext.insert($0) }
         note.folder = e
-        #expect(NoteBreadcrumbs.path(note).map { $0.name } == ["A", "D", "E"], "deep: the outermost and the two nearest")
+        #expect(NoteBreadcrumbs.path(note).map { $0.name } == ["D", "E"], "deep: the two nearest")
+        #expect(EmptyDetailView.showsWords(opening: nil) && !EmptyDetailView.showsWords(opening: UUID()), "no flash of the empty pane while a note is on its way")
         note.trashedAt = .now
         #expect(NoteBreadcrumbs.path(note).map { $0.scope } == [.trash])
     }

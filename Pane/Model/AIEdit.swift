@@ -170,6 +170,10 @@ enum AIEdit {
             kind == .edit && !created && body.trimmingCharacters(in: .whitespacesAndNewlines) == previous.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
+        /// Said where the receipt was when that happens elsewhere, so the line going back doesn't
+        /// read as sync losing a change (persona council r7).
+        var undoneLine: String { "\(who)\u{2019}s change was undone" }
+
         /// The AI as the receipt names it: "Claude", or "Sara's Claude".
         var who: String { AIEdit.whose(by, person: person) }
 
