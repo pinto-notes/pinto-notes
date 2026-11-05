@@ -144,6 +144,19 @@ import Testing
         }
     }
 
+    /// The Recently Deleted banner pushes the note down instead of lying over its title (round 18).
+    @Test func theTrashBannerMakesRoomForTheNote() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "NoteDetailView.swift"), encoding: .utf8)
+        #expect(source.contains(".padding(.top, note.trashedAt != nil ? TrashBanner.height : 0)"))
+    }
+
+    /// Go to Note's rows are one element each for VoiceOver, and pressable (round 18).
+    @Test func goToNoteRowsAreRowsToVoiceOver() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "QuickOpen.swift"), encoding: .utf8)
+        #expect(source.contains(".accessibilityElement(children: .ignore)"))
+        #expect(source.contains(".accessibilityAction { jumpAndChoose(row) }"))
+    }
+
     /// File › Import Notes too: a sheet opened over the shut window inherits its "disabled", so
     /// its Choose button looked fine and did nothing, with no way forward (round 18).
     @Test func importIsOffBehindASetupCard() throws {

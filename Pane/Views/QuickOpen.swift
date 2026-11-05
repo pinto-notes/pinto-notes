@@ -293,6 +293,10 @@ struct QuickOpenPanel: View {
     /// What VoiceOver says for the highlighted row: the keyboard stays in the field while the
     /// arrows move, so it has to be told (council round 16: the list was silent).
     static func spoken(_ row: QuickOpen.Row, at index: Int, of count: Int) -> String {
+        "\(spoken(row)), \(index + 1) of \(count)"
+    }
+
+    static func spoken(_ row: QuickOpen.Row) -> String {
         let name: String
         switch row {
         case .note(let n): name = n.title.isEmpty ? "New Note" : n.title
@@ -300,7 +304,7 @@ struct QuickOpenPanel: View {
         case .text(let t): name = "\(t.title.isEmpty ? "New Note" : t.title): \(t.snippet.text)"
         case .search(let q): name = "Search all notes for \(q)"
         }
-        return "\(name), \(index + 1) of \(count)"
+        return name
     }
 
     /// What the panel says when a search finds nothing; nil while there's something to show or
@@ -468,6 +472,12 @@ struct QuickOpenPanel: View {
                         rowView(row, on: i == index)
                             .id(row.id)
                             .onTapGesture { jumpAndChoose(row) }
+                            // One row to VoiceOver, not its loose texts and symbols ("Text With A
+                            // Magnifying Glass", round 18), and pressable.
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(Self.spoken(row))
+                            .accessibilityAddTraits(i == index ? [.isButton, .isSelected] : .isButton)
+                            .accessibilityAction { jumpAndChoose(row) }
                             .onHover { if $0 { highlighted = i } }
                     }
                 }

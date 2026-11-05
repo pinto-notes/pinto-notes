@@ -1054,12 +1054,24 @@ struct NoteDetailView: View {
         return content
             // A deleted note says so at its top, with Recover (Emil, 11-03); typing, clicking or
             // tapping into it still asks to recover it, like Notes (Emil, 10-30).
+            #if os(macOS)
+            // Room made by hand: the editor's text doesn't move for a safe area, so the banner lay
+            // over the note's title (round 18).
+            .padding(.top, note.trashedAt != nil ? TrashBanner.height : 0)
+            .overlay(alignment: .top) {
+                if note.trashedAt != nil {
+                    TrashBanner { Self.recover(note, in: context, editor: controller) }
+                        .transition(.opacity)
+                }
+            }
+            #else
             .safeAreaInset(edge: .top, spacing: 0) {
                 if note.trashedAt != nil {
                     TrashBanner { Self.recover(note, in: context, editor: controller) }
                         .transition(.opacity)
                 }
             }
+            #endif
             .ignoresSafeArea(.container, edges: .bottom)
             .background(Color.notePage.ignoresSafeArea())
             .onChange(of: note.trashedAt, initial: true) { _, at in
@@ -2053,6 +2065,8 @@ struct LinkBackButton: ViewModifier {
 /// The line at the top of a note in Recently Deleted: what it is, and Recover.
 struct TrashBanner: View {
     var recover: () -> Void
+    /// What it takes at the top of the note, margins included.
+    static let height: CGFloat = 60
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
