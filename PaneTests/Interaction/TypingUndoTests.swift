@@ -53,6 +53,50 @@ import Testing
         #expect(h.text.contains("xabc"), "and all of it again")
     }
 
+    /// The whole way through a real cell: its field, its draft and the note. A burst of typing is
+    /// one ⌘Z, the field shows it, and the note and the field stay the same afterwards.
+    @Test func undoInACellTakesBackTheBurstAndStays() async throws {
+        let base = "Porto\n\n| Day | Plan |\n| --- | --- |\n| Sat | Sea |\n"
+        let h = await EditorHarness(base, width: 640, focus: true)
+        defer { h.close() }
+        await h.caret(after: "Porto")
+        await h.press(EditorHarness.down) // blank line
+        await h.press(EditorHarness.down) // into the table
+        #expect(await h.until(5) { h.gridHasFocus })
+        await h.settle(0.3)
+        let undo = try #require(h.view.undoManager)
+        undo.groupsByEvent = false
+        defer { undo.groupsByEvent = true }
+        func field() -> String { (h.window.firstResponder as? NSTextView)?.string ?? "<no field>" }
+        func burst(_ letters: String) async {
+            undo.beginUndoGrouping()
+            for ch in letters { TableInteractionTests.typeIntoFocusedCell(h, String(ch)); await h.settle(0.02) }
+            await h.settle(0.2)
+            undo.endUndoGrouping()
+        }
+        await burst("abc")
+        #expect(h.text.contains("abc"), "typed: \(h.text.debugDescription)")
+        #expect(undo.canUndo, "the first burst after the cell took the keyboard is a step")
+        undo.undo(); await h.settle(0.5)
+        #expect(h.text == base, "one Undo, the whole burst: \(h.text.debugDescription) field \(field())")
+        #expect(field() == "Day", "the field shows it: \(field())")
+        undo.redo(); await h.settle(0.5)
+        #expect(h.text.contains("abc"), "Redo: \(h.text.debugDescription)")
+        #expect(field().contains("abc"), "the field too: \(field())")
+        undo.undo(); await h.settle(0.5)
+        #expect(h.text == base, "and back again: \(h.text.debugDescription)")
+        // Straight after an Undo, typing is a step of its own.
+        await burst("xy")
+        await h.settle(1.6)
+        await burst("pq")
+        #expect(h.text.contains("xypq"), "both bursts: \(h.text.debugDescription)")
+        undo.undo(); await h.settle(0.5)
+        #expect(h.text.contains("xy") && !h.text.contains("pq"), "the last burst: \(h.text.debugDescription) field \(field())")
+        undo.undo(); await h.settle(0.5)
+        #expect(h.text == base, "the one before: \(h.text.debugDescription) field \(field())")
+        #expect(field() == "Day", "field: \(field())")
+    }
+
     /// Words on one line are still one step, as in Notes.
     @Test func typingOnALineStaysOneRun() async throws {
         let h = await EditorHarness("Title", width: 640, focus: true)

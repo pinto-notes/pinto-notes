@@ -3297,6 +3297,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// When a table cell's typing last went in (`applyCellEdit`).
     private var cellEditAt: Date?
+    private weak var cellEditField: AnyObject?
     static let cellEditJoin: TimeInterval = 1.5
 
     private var slashHost: NSHostingView<SlashCommandList>?
@@ -3839,9 +3840,14 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// Typing in a table cell, close together: one step of Undo back to the text before the first
     /// of it, as on the iPhone. ⌘Z took back one letter (persona council r7e, a real Mac window).
     func applyCellEdit(_ edit: TextEdit) {
+        // A cell taking the keyboard commits what it already holds. That's no typing: counted as
+        // some, the first real key joined it and left no step at all.
+        guard (string as NSString).substring(with: edit.range) != edit.replacement else { return }
         let before = string, selection = selectedRange()
-        let joins = cellEditAt.map { Date.now.timeIntervalSince($0) < Self.cellEditJoin } ?? false
+        let field = (window?.firstResponder as? NSTextView)?.delegate as AnyObject?
+        let joins = field === cellEditField && (cellEditAt.map { Date.now.timeIntervalSince($0) < Self.cellEditJoin } ?? false)
         cellEditAt = .now
+        cellEditField = field
         withoutUndo { apply(edit) }
         if !joins {
             breakUndoCoalescing()
@@ -3862,6 +3868,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             let now = view.string, kept = view.selectedRange()
             view.core.endSlides()
             view.breakUndoCoalescing()
+            view.cellEditAt = nil // What's typed after an Undo is a new step.
             if let e = TextDiff.edit(from: now, to: to) {
                 view.withoutUndo { view.apply(TextEdit(range: e.range, replacement: e.replacement, caret: -1)) }
             }
