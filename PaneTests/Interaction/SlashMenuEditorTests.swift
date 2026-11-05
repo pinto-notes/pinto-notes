@@ -127,6 +127,24 @@ import Testing
         #expect(label(blank) == nil, "gone at the first letter")
     }
 
+    /// Ending a list with Return twice: the hint is on the new empty line, never over the item
+    /// above while the lines settle (council round 16, `a2-checklist-build`: over "Shoes" for 0.7 s).
+    @Test func theHintNeverSitsOnTheLineAbove() async {
+        let h = await EditorHarness("Packing\n\n- [ ] Passport\n- [ ] Shoes")
+        defer { h.close() }
+        await h.select((h.view.string as NSString).length)
+        await h.press(EditorHarness.returnKey)
+        await h.press(EditorHarness.returnKey)
+        let shoes = h.lineRect(at: (h.view.string as NSString).range(of: "Shoes").location)
+        // Straight after the keys, and once they've settled.
+        for wait in [0.0, 0.3] {
+            await h.settle(wait)
+            let label = h.view.subviews.lazy.compactMap { $0 as? NSTextField }.first { $0.identifier?.rawValue == "editor.slashHint" }
+            guard let label else { Issue.record("no hint after \(wait) s"); continue }
+            #expect(label.frame.minY >= shoes.maxY - 1, "below Shoes after \(wait) s: hint \(label.frame), Shoes \(shoes)")
+        }
+    }
+
     /// A new note says "Title" as soon as it has the keyboard, before any click or key.
     @Test func aNewNoteSaysTitleStraightAway() async {
         let h = await EditorHarness("")

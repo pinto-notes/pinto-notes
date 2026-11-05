@@ -3392,6 +3392,16 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             slashHint = nil
             return
         }
+        // Lines that just changed (Return ending a list restyles the item above) can still be laid
+        // out where they were: the caret's line then overlaps the one above, and the hint sat on
+        // "Shoes" (council round 16). Its own line and the one before, laid out first.
+        let ns = string as NSString
+        let at = selectedRange().location
+        let from = ns.lineRange(for: NSRange(location: max(0, min(at, ns.length) - 1), length: 0)).location
+        if let start = tcm.location(tcm.documentRange.location, offsetBy: max(0, ns.lineRange(for: NSRange(location: max(0, from - 1), length: 0)).location)),
+           let range = NSTextRange(location: start, end: loc) {
+            tlm.ensureLayout(for: range)
+        }
         var caret: CGRect?
         tlm.enumerateTextSegments(in: NSTextRange(location: loc), type: .selection, options: [.rangeNotRequired]) { _, r, _, _ in caret = r; return false }
         guard let caret else { return }
