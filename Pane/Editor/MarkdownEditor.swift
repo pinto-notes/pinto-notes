@@ -2909,6 +2909,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
         switch selector {
         case #selector(insertNewline(_:)):
+            // Undo goes back a line at a time: without this, ⌘Z took everything typed since the
+            // caret last moved, a whole new note back to its empty title (persona council r7d, a
+            // real Mac window). Return and the line after it are one step.
+            breakUndoCoalescing()
             if foldReturn(selectedRange()) { return true }
             if let e = ListEditing.returnKey(in: string, selection: selectedRange()) { apply(e); return true }
         case #selector(deleteBackward(_:)), #selector(deleteForward(_:)):
