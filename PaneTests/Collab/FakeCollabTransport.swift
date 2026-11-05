@@ -139,6 +139,21 @@ final class FakeCollabTransport: CollabTransport {
             c.say(.reconnected)
         }
     }
+
+    /// A slow network: each pull waits until `releasePulls()`, as a document still loading when
+    /// something else asks for the same note.
+    var holdsPulls = false
+    private var held: [CheckedContinuation<Void, Never>] = []
+    /// Pulls waiting (`holdsPulls`).
+    var heldPulls: Int { held.count }
+
+    func releasePulls() {
+        holdsPulls = false
+        let waiting = held
+        held = []
+        for pull in waiting { pull.resume() }
+    }
+
     /// Calls made, by name, for tests that check what went where.
     private(set) var calls: [String] = []
 
@@ -209,6 +224,7 @@ final class FakeCollabTransport: CollabTransport {
 
     func pull(note: UUID, after: Int64) async throws -> Collab.Pull {
         try call("pull")
+        if holdsPulls { await withCheckedContinuation { held.append($0) } }
         return server.pull(note: note, user: me, after: after)
     }
 
@@ -227,6 +243,12 @@ final class FakeCollabTransport: CollabTransport {
         guard server.role(note, me) != nil else { throw Collab.Failure.notMember }
         let c = FakeChannel(note: note, user: me, onEvent: onEvent)
         c.deaf = deaf
+        // As Realtime's client does (supabase-swift 2.55.2): a device keeps one channel per note.
+        // Joining a note it has a channel for already hands back that channel
+        // (RealtimeClientV2.channel), and the change listener this join adds is refused, since the
+        // channel is subscribed by then (RealtimeChannelV2._onPostgresChange). That session hears
+        // no change live, only on its pull every 20 s.
+        c.secondChannel = joined.contains { $0.note == note && !$0.closed }
         server.channels.append(c)
         joined.append(c)
         if let why = refusesRelay {
@@ -247,6 +269,11 @@ fileprivate final class FakeChannel: CollabChannel {
     var deaf = false
     /// Realtime refused to subscribe it to changes (FakeCollabTransport.refusesRelay).
     var refused = false
+    /// Joined while this device had a channel for the note open: Realtime's client handed back
+    /// that one, without this join's change listener (FakeCollabTransport.join).
+    var secondChannel = false
+    /// Closed by its session (`open` also goes false while offline).
+    private(set) var closed = false
 
     init(note: UUID, user: UUID, onEvent: @escaping @MainActor (Collab.Event) -> Void) {
         self.note = note
@@ -255,7 +282,7 @@ fileprivate final class FakeChannel: CollabChannel {
     }
 
     func deliver(_ event: Collab.Event) {
-        guard !deaf, !refused else { return }
+        guard !deaf, !refused, !secondChannel else { return }
         // As Realtime does: after the write that made it, never inside it.
         Task { @MainActor in self.onEvent(event) }
     }
@@ -266,5 +293,8 @@ fileprivate final class FakeChannel: CollabChannel {
     }
 
     func send(presence ct: String) {}
-    func close() { open = false }
+    func close() {
+        open = false
+        closed = true
+    }
 }

@@ -47,6 +47,9 @@ final class SharedLibrary {
     var onSessionClosed: ((UUID) -> Void)?
     /// Notes being loaded from the server, so a pointer arriving twice loads once.
     private var loading: [UUID: Task<CollabSession?, Never>] = [:]
+    /// Notes being joined (`adopt`), by shared id: the join's task (its note's id), and whether it
+    /// sends the note's pointer.
+    private var adopting: [UUID: (task: Task<UUID, Error>, announce: Bool)] = [:]
     /// The last look found no memberships and no shared notes in the library.
     private var nothingShared = false
     /// How many times reconcile went through the library's notes (for tests).
@@ -151,8 +154,44 @@ final class SharedLibrary {
     /// `announce`: the note's pointer goes to your other devices. False for a note found joined on
     /// another device: that device sent its pointer, and this one's would put the note back in
     /// "Shared with me" if you'd moved it there; the pointer arriving puts it in its place.
+    ///
+    /// One join at a time for a note. A link join can still be loading the document when the
+    /// membership check (every 30 s) finds the membership with no note for it here, or the other
+    /// way round. Both opened the note: two sessions on its one record, and Realtime's client
+    /// gave the second the first one's channel with no change listener, so the note you had open
+    /// got no change live (persona council round 7). The second now waits and gets the first
+    /// one's note.
     @discardableResult
     func adopt(shared: UUID, nk: SymmetricKey, epoch: Int, role: String, announce: Bool = true) async throws -> Note {
+        while let running = adopting[shared] {
+            // Failed, or the note went meanwhile: this one tries.
+            guard let id = try? await running.task.value, let note = context.note(id), note.deletedAt == nil,
+                  let s = sessions[id] else { continue }
+            if epoch > s.epoch { s.reseal(nk: nk, epoch: epoch) }
+            // The check got there first and took the pointer as sent by another device. It's
+            // this device's join, so its pointer goes to your other devices.
+            if announce, !running.announce, let record = note.sharedDocument, record.pointerOnServer {
+                record.pointerOnServer = false
+                note.touch()
+                context.saveOrReport()
+            }
+            return note
+        }
+        // The note's id: a SwiftData note stays on the main actor.
+        let task = Task<UUID, Error> { [weak self] in
+            guard let self else { throw CancellationError() }
+            // Cleared before anyone waiting hears back, so they never wait on it twice.
+            defer { self.adopting[shared] = nil }
+            // A pointer's document being fetched meanwhile (`ensureDocument`): that one first.
+            if let running = self.loading[shared] { _ = await running.value }
+            return try await self.adoptNow(shared: shared, nk: nk, epoch: epoch, role: role, announce: announce).id
+        }
+        adopting[shared] = (task, announce)
+        guard let note = context.note(try await task.value) else { throw Problem.notShared }
+        return note
+    }
+
+    private func adoptNow(shared: UUID, nk: SymmetricKey, epoch: Int, role: String, announce: Bool) async throws -> Note {
         nothingShared = false
         guard let dk = dataKey() else { throw Problem.noDataKey }
         // The pointer this account has already (from another device, or from before you left),
@@ -229,6 +268,12 @@ final class SharedLibrary {
         guard let shared = note.sharedNoteID else {
             log.error("\(note.id, privacy: .public) has no shared document: it isn't a shared note here")
             return nil
+        }
+        // Being joined right now (by link, or by the membership check): that join's session, so
+        // the note opens once (`adopt`).
+        while let joining = adopting[shared] {
+            _ = try? await joining.task.value
+            if let s = session(for: note) { return s }
         }
         if let running = loading[shared] { return await running.value }
         let task = Task<CollabSession?, Never> { [weak self] in

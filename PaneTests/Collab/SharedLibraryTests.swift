@@ -790,6 +790,11 @@ extension NetworkFaults {
     var all: [SharedRemoval] = []
 }
 
+/// The sessions a library opened (its `onOpen`), for a test to count.
+@MainActor final class OpenedSessions {
+    var all: [CollabSession] = []
+}
+
 /// Persona council round 7, bugs 16 to 19: an AI's change to a shared note, losing access to one
 /// (said once, with your text to keep), and a shared note that couldn't sync.
 extension NetworkFaults.SharedLibraryTests {
@@ -1305,5 +1310,118 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(heard(["extension": "postgres_changes", "status": "error"]) == "error", "with no message, its status")
         #expect(heard(["extension": "system", "status": "ok", "message": "Subscribed"]) == nil)
         #expect(heard(["message": "Subscribed to PostgreSQL"]) == nil)
+    }
+}
+
+/// Found while chasing round 7's missing relays: a note joined by link opened twice when the
+/// membership check (every 30 s) ran while the join was still loading the document. The check
+/// saw a membership with no note for it here and adopted it too, or fetched the document for
+/// the pointer your other device had sent. Two sessions then shared the note's record, and the
+/// second one's channel was the first's without a change listener (Realtime's client keeps one
+/// channel per note on a device), so the note you had open got no change live. It also undid
+/// the join's pointer for your other devices. Now the second ask waits for the first and gets
+/// its note.
+extension NetworkFaults.SharedLibraryTests {
+    /// Waits for the channel to be joined, and a moment more for a second join, if there is one.
+    private func joinsSettle(_ d: Device) async throws {
+        await waitUntil { d.transport.calls.contains("join") }
+        try await Task.sleep(for: .milliseconds(300))
+    }
+
+    @Test func aLinkJoinAndTheMembershipCheckAtOnceOpenTheNoteOnce() async throws {
+        let emil = try device(owner), phone = try device(member)
+        let (note, emilSession) = try await shared("Groceries\n- [ ] Milk", on: emil)
+        // Sara's link join: collab_join_link made her a member.
+        server.add(member, to: note.id)
+        let opened = OpenedSessions()
+        phone.library.onOpen = { s, _ in opened.all.append(s) }
+        // The document is slow to come: the join is still loading it when the membership check
+        // finds the membership, and no note for it here.
+        phone.transport.holdsPulls = true
+        // The note's id: a SwiftData note stays on the main actor.
+        let joining = Task { try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor").id }
+        await waitUntil { phone.transport.heldPulls == 1 }
+        let rows = try await phone.transport.memberships()
+        let checking = Task { await phone.library.reconcile(rows) }
+        // The check loading it too (a second pull) would show here.
+        await waitUntil(1) { phone.transport.heldPulls == 2 }
+        phone.transport.releasePulls()
+        let mine = try #require(phone.context.note(try await joining.value))
+        await checking.value
+        try await joinsSettle(phone)
+
+        #expect(opened.all.count == 1, "one session for the note")
+        #expect(phone.transport.calls.filter { $0 == "join" }.count == 1, "one channel")
+        let onPhone = try #require(phone.library.session(for: mine))
+        #expect(opened.all.first === onPhone)
+        // The join's pointer still goes to Sara's other devices.
+        #expect(mine.dirty && mine.sharedDocument?.pointerOnServer == false)
+        // Emil ticks Milk: the note Sara has open gets it live, not on its pull every 20 s.
+        emilSession.local("Groceries\n- [x] Milk", selection: nil)
+        await waitUntil(3) { onPhone.text.contains("[x] Milk") }
+        #expect(onPhone.text == "Groceries\n- [x] Milk", "relayed live")
+    }
+
+    /// The other way round: the membership check began first (as for a note joined on another
+    /// device), and the link join asks while it loads. One session, and the join still sends the
+    /// note's pointer to your other devices.
+    @Test func theMembershipCheckFirstThenTheLinkJoinOpenTheNoteOnce() async throws {
+        let emil = try device(owner), phone = try device(member)
+        let (note, emilSession) = try await shared("Groceries\n- [ ] Milk", on: emil)
+        server.add(member, to: note.id)
+        let opened = OpenedSessions()
+        phone.library.onOpen = { s, _ in opened.all.append(s) }
+        phone.transport.holdsPulls = true
+        let rows = try await phone.transport.memberships()
+        let checking = Task { await phone.library.reconcile(rows) }
+        await waitUntil { phone.transport.heldPulls == 1 }
+        let joining = Task { try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor").id }
+        await waitUntil(1) { phone.transport.heldPulls == 2 }
+        phone.transport.releasePulls()
+        await checking.value
+        let mine = try #require(phone.context.note(try await joining.value))
+        try await joinsSettle(phone)
+
+        #expect(opened.all.count == 1, "one session for the note")
+        #expect(phone.transport.calls.filter { $0 == "join" }.count == 1, "one channel")
+        #expect(mine.dirty && mine.sharedDocument?.pointerOnServer == false, "the join's pointer goes to Sara's other devices")
+        let onPhone = try #require(phone.library.session(for: mine))
+        emilSession.local("Groceries\n- [x] Milk", selection: nil)
+        await waitUntil(3) { onPhone.text.contains("[x] Milk") }
+        #expect(onPhone.text == "Groceries\n- [x] Milk", "relayed live")
+    }
+
+    /// Sara joined on her Mac first, and its pointer reached the phone by sync with no document
+    /// yet. She opens the link on the phone too while the membership check fetches the
+    /// pointer's document: one session.
+    @Test func aLinkJoinWhileTheMembershipCheckFetchesThePointersDocumentOpensTheNoteOnce() async throws {
+        let emil = try device(owner), phone = try device(member)
+        let (note, emilSession) = try await shared("Groceries\n- [ ] Milk", on: emil)
+        server.add(member, to: note.id)
+        let dk = dataKeys[member]!
+        let pointer = Note(body: SharedNotes.placeholder(title: "Groceries"), folder: SharedNotes.sharedWithMe(phone.context, dataKey: dk))
+        pointer.id = SharedNotes.noteID(for: note.id, dataKey: dk)
+        pointer.sharedNoteID = note.id
+        phone.context.insert(pointer)
+        let opened = OpenedSessions()
+        phone.library.onOpen = { s, _ in opened.all.append(s) }
+        phone.transport.holdsPulls = true
+        let joining = Task { try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor").id }
+        await waitUntil { phone.transport.heldPulls == 1 }
+        let rows = try await phone.transport.memberships()
+        let checking = Task { await phone.library.reconcile(rows) }
+        await waitUntil(1) { phone.transport.heldPulls == 2 }
+        phone.transport.releasePulls()
+        let mine = try #require(phone.context.note(try await joining.value))
+        await checking.value
+        try await joinsSettle(phone)
+
+        #expect(mine.id == pointer.id)
+        #expect(opened.all.count == 1, "one session for the note")
+        #expect(phone.transport.calls.filter { $0 == "join" }.count == 1, "one channel")
+        let onPhone = try #require(phone.library.session(for: mine))
+        emilSession.local("Groceries\n- [x] Milk", selection: nil)
+        await waitUntil(3) { onPhone.text.contains("[x] Milk") }
+        #expect(onPhone.text == "Groceries\n- [x] Milk", "relayed live")
     }
 }
