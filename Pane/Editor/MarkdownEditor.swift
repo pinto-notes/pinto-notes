@@ -176,6 +176,16 @@ final class EditorCore {
 
     /// Restyles if the text changed or the caret moved to another line.
     /// `selection` is nil when you're not editing: then all syntax stays hidden.
+    private var lastLinkEdit: NSRange?
+    private static let writtenLink = try! NSRegularExpression(pattern: #"\[[^\]\n]*\]\([^)\n]*\)"#)
+
+    /// The written link on `line` the caret is inside or the selection touches.
+    static func linkBeingEdited(_ ns: NSString, line: NSRange, selection s: NSRange) -> NSRange? {
+        writtenLink.matches(in: ns as String, range: line).lazy.map(\.range).first { r in
+            s.length > 0 ? NSIntersectionRange(s, r).length > 0 : (s.location > r.location && s.location < NSMaxRange(r))
+        }
+    }
+
     func restyle(_ storage: NSTextStorage, selection: NSRange?, force: Bool) {
         let ns = storage.string as NSString
         var line = NSRange(location: NSNotFound, length: 0)
@@ -187,8 +197,11 @@ final class EditorCore {
         let dateEdit = selection.flatMap { sel in
             line.location == NSNotFound ? nil : NoteDates.dates(in: storage.string, range: line).first { NoteDates.editing($0.range, selection: sel) }?.range
         }
-        if !force, dirty == nil, !needsFull, !folds.dirty, line == lastActiveLine, dateEdit == lastDateEdit { return }
+        // A written link's markup shows only with the caret inside it, the same way.
+        let linkEdit = selection.flatMap { sel in line.location == NSNotFound ? nil : Self.linkBeingEdited(ns, line: line, selection: sel) }
+        if !force, dirty == nil, !needsFull, !folds.dirty, line == lastActiveLine, dateEdit == lastDateEdit, linkEdit == lastLinkEdit { return }
         lastDateEdit = dateEdit
+        lastLinkEdit = linkEdit
         let previous = lastActiveLine
         lastActiveLine = line
         let structure = self.structure(of: storage.string)

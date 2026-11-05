@@ -229,6 +229,7 @@ struct MarkdownStyler {
         var tableLines = IndexSet()
 
         var walker = StyleWalker(storage: storage, map: map, styler: self, isActive: isActive)
+        walker.selection = editing ? active : nil
         walker.visit(doc)
         codeLines = walker.codeLineStarts
         tableLines = walker.tableLineStarts
@@ -870,6 +871,8 @@ private struct StyleWalker: MarkupWalker {
     let map: UTF16Map
     let styler: MarkdownStyler
     let isActive: (NSRange) -> Bool
+    /// The caret or selection, for what shows only with the caret inside it (a link's markup).
+    var selection: NSRange?
     var codeLineStarts = IndexSet()
     var tableLineStarts = IndexSet()
     var tables: [NSRange] = []
@@ -1003,7 +1006,12 @@ private struct StyleWalker: MarkupWalker {
             if let dest = link.destination, let url = URL(string: dest) {
                 storage.addAttribute(.link, value: url, range: textRange)
             }
-            let dim = styler.hiddenOrDim(active: isActive(r))
+            // Only with the caret inside it, or a selection over it: anywhere else on the line the
+            // address stays out of the way (council round 16: it popped out at the end of the line).
+            let inside = selection.map { s in
+                s.length > 0 ? NSIntersectionRange(s, r).length > 0 : (s.location > r.location && s.location < NSMaxRange(r))
+            } ?? false
+            let dim = styler.hiddenOrDim(active: inside)
             storage.addAttributes(dim, range: NSRange(location: r.location, length: 1))
             storage.addAttributes(dim, range: NSRange(location: textRange.upperBound, length: NSMaxRange(r) - textRange.upperBound))
         } else {

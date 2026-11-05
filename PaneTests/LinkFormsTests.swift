@@ -60,3 +60,36 @@ struct LinkFormsTests {
         #expect(LineEmbed.find(in: "https://a.com").first.map { $0.height } == LineEmbed.compactHeight)
     }
 }
+
+#if os(macOS)
+import AppKit
+
+/// A written link's markup stays hidden with the caret beside it, and shows only when the caret is
+/// inside it to edit (council round 16: the URL popped out with the caret at the end of the line).
+@MainActor @Suite(.serialized) struct LinkMarkupRevealTests {
+    @Test func theMarkupShowsOnlyWithTheCaretInside() async {
+        let text = "Trip\n\nSee [Visit Lisboa](https://visitlisboa.com)\n\nAfter"
+        let h = await EditorHarness(text)
+        defer { h.close() }
+        let ns = text as NSString
+        let link = ns.range(of: "[Visit Lisboa](https://visitlisboa.com)")
+        let bracket = ns.range(of: "](").location
+        func shows() -> Bool {
+            let c = h.view.textStorage?.attribute(.foregroundColor, at: bracket, effectiveRange: nil) as? NSColor
+            return c == PColor.paneTertiary
+        }
+        await h.select(NSMaxRange(link))
+        await h.settle(0.2)
+        #expect(!shows(), "caret after the link, at the end of its line")
+        await h.select(link.location - 2)
+        await h.settle(0.2)
+        #expect(!shows(), "caret earlier on the same line")
+        await h.select(bracket + 5)
+        await h.settle(0.2)
+        #expect(shows(), "caret inside the link")
+        await h.select(ns.range(of: "After").location)
+        await h.settle(0.2)
+        #expect(!shows(), "caret on another line")
+    }
+}
+#endif
