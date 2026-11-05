@@ -40,6 +40,9 @@ import AppKit
 ///   {"waitPresence": {"name": "Sara", "grey": true, "timeout": 30}}   until that person (without a name,
 ///                                                  anyone) is in the open note, shown grey or not (without "grey", either)
 ///   {"waitSync": {"text": "Not synced yet", "timeout": 30}}   until the open note's bar says it ("Synced" too)
+///   {"deadLink": {"file": "link.txt", "out": "old-link.json"}}   opens a link and writes whether it opened and what it said
+///   {"dismissJoinProblem": true}   the OK on that message
+///   {"reviewAI": "open"}   the open note's AI receipt opens its review; "undoAll" presses Undo All
 ///   {"waitLostAccess": {"file": "lost.json", "timeout": 60}}   until "You no longer have access to …"
 ///                                                  shows: its title, message and buttons written to the file
 ///   {"answerLostAccess": "keepCopy" | "dontKeep" | "ok"}   as that alert's button does: Keep a Copy opens the copy
@@ -57,6 +60,7 @@ enum CollabScript {
     nonisolated static let betaBundleID = "dev.emilwagman.pane.beta"
     /// Asks the open note's Delete question, as Delete Note in its menu does (NoteDetailView).
     static let askDelete = Notification.Name("pane.collabScriptAskDelete")
+    static let reviewAI = Notification.Name("pane.collabScriptReviewAI")
 
     /// The steps file, when this app is Amber Notes Beta and was opened with `-collabScript <path>`.
     nonisolated static func requested(arguments: [String], bundleID: String?) -> URL? {
@@ -174,6 +178,20 @@ enum CollabScript {
             try await until(60, "the link's question") { joinAsked() != nil || joinFailed() != nil }
             if let why = joinFailed() { throw Failed(description: why) }
             try write(question(joinAsked()!), to: v["question"] ?? "join-question.json")
+        case "deadLink":
+            // A link that should no longer open: its message stays up, and what happened is written down.
+            let v = value as? [String: String] ?? [:]
+            let before = Set(sharedNotes().map(\.id))
+            JoinCenter.shared.open(try link(v["file"] ?? "link.txt"))
+            try await until(60, "the link's answer") { joinAsked() != nil || joinFailed() != nil || sharedNotes().contains { !before.contains($0.id) } }
+            let says = joinFailed()
+            let answer = try JSONSerialization.data(withJSONObject: ["opened": says == nil, "says": says ?? ""] as [String: Any])
+            try write(String(decoding: answer, as: UTF8.self), to: v["out"] ?? "old-link.json")
+        case "dismissJoinProblem":
+            JoinCenter.shared.dismissProblem()
+        case "reviewAI":
+            // The receipt's button, or the review's Undo All.
+            NotificationCenter.default.post(name: reviewAI, object: value as? String)
         case "answerJoin":
             // The question's Join, or Not Now.
             let before = Set(sharedNotes().map(\.id))

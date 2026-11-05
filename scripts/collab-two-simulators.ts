@@ -221,6 +221,8 @@ const emilSteps = steps(people[0], [
   { waitFile: "go-online.txt" }, { waitText: { text: "- [x] Book the train", timeout: 240 } }, mark("emil-sees-sara-offline-edits"),
   { waitPresence: { grey: false, timeout: 60, soft: true } }, mark("emil-sees-sara-back"), ...hold(), { dump: "merged.json" },
   { waitFile: "go-ai.txt" }, { waitText: { text: "3-4 November", timeout: 120 } }, mark("emil-sees-ai-edit"), ...hold(), { dump: "ai.json" },
+  // He opens the receipt for Sara's Claude's change and undoes it, as its buttons do: it goes back on both phones.
+  { waitFile: "go-review.txt" }, { reviewAI: "open" }, { wait: 1 }, mark("emil-review-open"), ...hold(), { reviewAI: "undoAll" }, { wait: 1 }, mark("emil-review-undone"), ...hold(), { dump: "ai-undone.json" },
   // Share open on Sara, then (once she has typed) Remove.
   { waitFile: "go-remove.txt" }, ...(show ? [{ showShare: true }, mark("emil-share-people"), ...hold()] : []), { dump: "share-people.json" },
   { waitFile: "go-remove-now.txt" }, { remove: "Sara" }, mark("emil-removed-sara"), { wait: 2 }, ...hold(), { dump: "removed.json" }, ...(show ? [{ closeShare: true }] : []),
@@ -245,11 +247,14 @@ const saraSteps = steps(people[1], [
   // connect shows the new-device alert this fetch would.
   { keyFetchHere: true },
   { waitFile: "go-ai.txt" }, { waitText: { text: "3-4 November", timeout: 120 } }, mark("sara-sees-ai-edit"), ...hold(), { dump: "ai.json" },
+  { waitFile: "go-review.txt" }, { waitText: { text: "- [ ] Pick dates", timeout: 120 } }, mark("sara-sees-undo"), ...hold(), { dump: "ai-undone.json" },
   // She types while Emil has Share open on her; he removes her a moment after.
   { waitFile: "go-type.txt" }, { type: { text: "\nBring name badges", after: "Book the train" } }, mark("sara-typed-before-removal"), { dump: "typed-before.json" },
   { waitGone: 180 }, mark("sara-note-gone"),
   { waitLostAccess: { file: "lost.json", timeout: 60, soft: true } }, mark("sara-lost-access"), ...hold(),
   { answerLostAccess: { answer: "keepCopy", soft: true } }, mark("sara-kept-copy"), ...hold(), { dump: "removed.json" },
+  // The link she joined with, opened again: it was replaced when Emil removed her.
+  { deadLink: { file: "link.txt", out: "old-link.json" } }, { wait: 1 }, mark("sara-old-link"), ...hold(), { dismissJoinProblem: true },
   ...(privateAI
     ? [{ create: trip }, mark("sara-own-note"), ...hold(), { type: { text: "\nBudget 400 euros", after: "Tram 28 tickets" } }, mark("sara-typed-budget"), { wait: 1 }, { dump: "typed.json" },
       { waitFile: "go-private.txt" }, { waitText: { text: "21 to 23 May", timeout: 120 } }, mark("sara-sees-own-ai-edit"), { wait: Math.max(5, HOLD + 2) }, { dump: "private.json" }]
@@ -376,6 +381,12 @@ try {
   check("both phones mark it as the AI's edit: Sara's Claude on Emil's, Claude on Sara's",
     a1.ai?.says === "Sara's Claude" && a1.ai?.seen === true && a2.ai?.says === "Claude" && a2.ai?.seen === true, JSON.stringify({ emil: a1.ai, sara: a2.ai }));
 
+  // Emil opens the receipt and undoes the change: both phones go back to the line before it.
+  await Promise.all([put(emil, "go-review.txt"), put(sara, "go-review.txt")]);
+  const [u1, u2] = await Promise.all([waitFor(emil, "ai-undone.json", 180), waitFor(sara, "ai-undone.json", 180)]);
+  check("Emil undoes Sara's Claude's change from its receipt, and it goes back on both phones",
+    u1.text === u2.text && u1.text.includes("- [ ] Pick dates") && !u1.text.includes("3-4 November"), JSON.stringify(u2.text));
+
   // Emil opens Share on Sara; she types a line; he removes her a moment after.
   await put(emil, "go-remove.txt");
   await waitFor(emil, "share-people.json", 120);
@@ -392,6 +403,9 @@ try {
   check("Keep a Copy: her text, with the line she typed, as a note of her own (not shared, not in Shared with me)",
     typed.text.includes("Bring name badges") && r2.title === "Offsite plan" && r2.sharedNoteID === null && r2.text.includes("Bring name badges") && r2.folder !== "Shared with me",
     JSON.stringify({ title: r2.title, folder: r2.folder, shared: r2.sharedNoteID !== null }));
+
+  const oldLink = await waitFor(sara, "old-link.json", 120);
+  check("the link Sara joined with no longer opens for her", oldLink.opened === false && oldLink.says?.length > 0, JSON.stringify(oldLink));
 
   // COLLAB_PRIVATE_AI: Sara types a line in a note of her own, her AI reads it there and edits the note
   // while it's open on her phone: the edit arrives by sync, as an AI's edit from anywhere would.

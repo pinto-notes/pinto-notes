@@ -80,6 +80,10 @@ SAYS = {
     "emil-share-people": ("emil", "Emil opens Share: Emil and Sara"),
     "sara-typed-before-removal": ("sara", "Sara adds an item while Emil has Share open"),
     "emil-removed-sara": ("emil", "Removed: Emil removes Sara"),
+    "emil-review-open": ("emil", "Emil opens the receipt on Sara's Claude's change"),
+    "emil-review-undone": ("emil", "Emil presses Undo All (the script presses it)"),
+    "sara-sees-undo": ("sara", "The line goes back on Sara's phone"),
+    "sara-old-link": ("sara", "Sara opens the old link: it doesn't open"),
     "sara-note-gone": ("sara", "Removed: the note leaves Sara's phone"),
     # In the re-take the note closes and the alert shows at once: one caption (set below).
     "sara-lost-access": ("sara", "Removed: the note closes on Sara's phone, with an alert"),
@@ -129,6 +133,16 @@ if at("ai-edit"):
     clips.append(dict(folder="c11-ai-edit-other-device", name="two-iphones-c11-ai-edit" + SUFFIX, phones=("emil", "sara"),
                       t0=at("ai-edit") - 3.0, t1=(latest("emil-sees-ai-edit", "sara-sees-ai-edit") or at("ai-edit")) + hold + 1.5,
                       keys=["ai-edit", "emil-sees-ai-edit", "sara-sees-ai-edit"]))
+# c11, the receipt: Emil undoes the AI's change on the shared note, and Sara sees it go back.
+if at("emil-review-open") and at("sara-sees-undo"):
+    clips.append(dict(folder="c11-ai-edit-other-device", name="two-iphones-c11-receipt" + SUFFIX, phones=("emil", "sara"),
+                      t0=at("emil-review-open") - 2.0, t1=latest("emil-review-undone", "sara-sees-undo") + hold + 2.0,
+                      keys=["emil-review-open", "emil-review-undone", "sara-sees-undo"]))
+# c9, the old link: the sheet Emil sees after removing her, then the link on Sara's phone.
+if at("sara-old-link"):
+    clips.append(dict(folder="c9-two-phones", name="two-iphones-c9-old-link" + SUFFIX, phones=("emil", "sara"),
+                      t0=at("emil-removed-sara") - 1.0, t1=at("sara-old-link") + hold + 2.0,
+                      keys=["emil-removed-sara", "sara-lost-access", "sara-kept-copy", "sara-old-link"]))
 # c11, second clip: her AI's edit to her own note, on her phone.
 if at("sara-own-note") and at("sara-sees-own-ai-edit"):
     clips.append(dict(folder="c11-ai-edit-other-device", name="iphone-c11-ai-edit-own-note" + SUFFIX, phones=("sara",),

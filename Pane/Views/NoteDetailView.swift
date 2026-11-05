@@ -315,6 +315,9 @@ struct NoteDetailView: View {
             .onReceive(NotificationCenter.default.publisher(for: CollabScript.askDelete)) { _ in
                 if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
             }
+            .onReceive(NotificationCenter.default.publisher(for: CollabScript.reviewAI)) { n in
+                if n.object as? String == "undoAll" { reviewUndoAll() } else if let receipt { startReview(receipt) }
+            }
             #if os(iOS)
             // On the Mac, Share is the toolbar's popover (ShareButton), opened by the same flag.
             .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, backend: store) } }
