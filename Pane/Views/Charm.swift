@@ -9,6 +9,12 @@ import SwiftUI
 /// Every glyph is drawn from one number, the seconds since the move began, so a test can draw
 /// any frame offscreen and the app draws only while a move plays (the timeline is paused at rest).
 /// Nothing moves with Reduce Motion on.
+///
+/// In the app, kept few on purpose (Emil, 5 November 2026): three everyday moves that mean
+/// something (Today's page turns to today's date, Format's A leans into italic, a finished list
+/// bursts in CheckPop) and rare surprises, about one hover in 30 (Format's bold, italic and
+/// underline; Today's riffle; the search lens's eye; the trash's eyes on Recently Deleted).
+/// The other glyphs stay drawn here for the concept films but aren't placed in the app.
 enum Charm {
     enum Kind: String, CaseIterable, Sendable {
         case search, compose, checklist, table, attach, share, more, sidebar, folder, trash
@@ -42,13 +48,20 @@ enum Charm {
     /// Which glyphs have a rare version.
     static func hasRare(_ kind: Kind) -> Bool { kind != .sidebar }
 
+    /// Glyphs that stay still on an ordinary hover and only ever play their rare version (the
+    /// lens's eye, the trash's eyes, the smiling dots): a surprise, never a habit.
+    static func rareOnly(_ kind: Kind) -> Bool { [.search, .trash, .more].contains(kind) }
+
+    /// Whether a hover plays anything at all.
+    static func plays(_ kind: Kind, rare: Bool) -> Bool { rare || !rareOnly(kind) }
+
     // MARK: The rare roll
 
     /// Hovers so far this run, and whether the last move was rare.
     @MainActor private static var hovers = 0
     @MainActor private static var lastRare = false
     /// One hover in this many, roughly, plays the rare version.
-    static let rareOdds = 8
+    static let rareOdds = 30
     /// Tests and captures: always (true) or never (false) rare.
     @MainActor static var forcedRare: Bool?
 
@@ -959,7 +972,9 @@ struct CharmIcon: View {
 
     private func play() {
         guard !reduceMotion, start == nil else { return }
-        rare = Charm.rollRare(kind)
+        let rare = Charm.rollRare(kind)
+        guard Charm.plays(kind, rare: rare) else { return }
+        self.rare = rare
         start = .now
     }
 }
@@ -1023,6 +1038,18 @@ extension Charm {
         case "tray.full": .tray
         default: nil
         }
+    }
+}
+
+/// Plays a button's glyph when the pointer comes onto any part of the button, not just the glyph:
+/// the pointer then sits beside the glyph rather than on it, so the move is seen.
+/// `CharmHover { on in Button { … } label: { Label { … } icon: { CharmSymbol(name, trigger: on) } } }`
+struct CharmHover<Content: View>: View {
+    @ViewBuilder let content: (Bool) -> Content
+    @State private var on = false
+
+    var body: some View {
+        content(on).onHover { on = $0 }
     }
 }
 

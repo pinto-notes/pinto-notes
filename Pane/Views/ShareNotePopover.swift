@@ -194,7 +194,7 @@ struct ShareButton: View {
     @State private var showing = false
 
     var body: some View {
-        Button { showing.toggle() } label: { Label { Text("Share") } icon: { CharmSymbol("square.and.arrow.up") } }
+        Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up") }
             .help("Share")
             .popover(isPresented: $showing, arrowEdge: .bottom) {
                 ShareNotePopover(title: note.title, text: note.body, store: store, trashed: note.trashedAt != nil, people: people) { showing = false }

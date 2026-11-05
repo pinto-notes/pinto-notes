@@ -54,6 +54,16 @@ import Testing
         #expect(rares.filter { $0 }.count < 400 / Charm.rareOdds * 2)
     }
 
+    /// The lens and the trash keep still on an ordinary hover: only their rare version plays.
+    @Test func rareOnlyStaysStill() {
+        for kind in [Charm.Kind.search, .trash, .more] {
+            #expect(!Charm.plays(kind, rare: false), "\(kind)")
+            #expect(Charm.plays(kind, rare: true), "\(kind)")
+        }
+        #expect(Charm.plays(.today, rare: false))
+        #expect(Charm.plays(.format, rare: false))
+    }
+
     /// Every symbol it stands in for maps to a glyph, and others stay symbols.
     @Test func standsInForSymbols() {
         for name in ["magnifyingglass", "square.and.pencil", "checklist", "tablecells", "paperclip", "square.and.arrow.up",

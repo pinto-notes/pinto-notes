@@ -46,12 +46,15 @@ struct TodayButton: View {
     @Environment(\.todaysNote) private var todaysNote
 
     var body: some View {
-        Button { todaysNote?.open() } label: { Label { Text("Today\u{2019}s note") } icon: { CharmSymbol("calendar") } }
-            #if os(macOS)
-            .help("Today\u{2019}s note (⌘T)")
-            #endif
-            .disabled(todaysNote == nil)
-            .accessibilityIdentifier(identifier)
+        // The page turns when the pointer comes onto the button (Charm).
+        CharmHover { on in
+            Button { todaysNote?.open() } label: { Label { Text("Today\u{2019}s note") } icon: { CharmSymbol("calendar", trigger: on) } }
+                #if os(macOS)
+                .help("Today\u{2019}s note (⌘T)")
+                #endif
+                .disabled(todaysNote == nil)
+                .accessibilityIdentifier(identifier)
+        }
     }
 }
 

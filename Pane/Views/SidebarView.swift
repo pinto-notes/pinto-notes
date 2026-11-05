@@ -706,11 +706,16 @@ struct SidebarView: View {
             ToolbarItem {
                 // The Spotlight-like panel, which finds notes by title and text and runs commands
                 // (Emil, 2 November 2026; it opened the list's search field). ⌘F keeps that field.
-                Button("Search", systemImage: "magnifyingglass") {
-                    NotificationCenter.default.post(name: Self.searchButtonOpens, object: nil)
+                // Still, except now and then the lens looks back (Charm, rare).
+                CharmHover { on in
+                    Button {
+                        NotificationCenter.default.post(name: Self.searchButtonOpens, object: nil)
+                    } label: {
+                        Label { Text("Search") } icon: { CharmSymbol("magnifyingglass", trigger: on) }
+                    }
+                    .help(Self.searchButtonHelp)
+                    .accessibilityIdentifier("sidebar.search")
                 }
-                .help(Self.searchButtonHelp)
-                .accessibilityIdentifier("sidebar.search")
             }
             .sharedBackgroundVisibility(.hidden)
             #endif
@@ -1155,7 +1160,7 @@ private struct CountedRow: View {
     /// The sidebar's selection, read here in the row: the sidebar itself isn't worked out again
     /// when it changes (it is an equatable view), and the row draws its own selection on the Mac.
     @Binding var selection: Scope?
-    /// The pointer is on the row (its glyph's move, Charm).
+    /// The pointer is on the row: Recently Deleted's trash may peek (Charm, rare).
     @State private var hovering = false
 
     var body: some View {
@@ -1174,7 +1179,7 @@ private struct CountedRow: View {
                         .foregroundStyle(.secondary)
                 }
             } icon: {
-                SidebarIcon(name: icon, selected: selected, hovering: hovering)
+                SidebarIcon(name: icon, selected: selected, hovering: trash ? hovering : nil)
             }
             .sidebarRowLabel()
             .rowAccessibility(title, count: count, files: files)
@@ -1349,7 +1354,7 @@ private struct FolderTree: View {
                 rowText(selected: selected, hovering: hovering, listed: listed)
                 #endif
             } icon: {
-                SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder", selected: selected, hovering: hovering)
+                SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder", selected: selected)
                     .contentTransition(.symbolEffect(.replace))
             }
             .sidebarRowLabel()

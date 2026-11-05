@@ -1194,7 +1194,7 @@ struct NoteDetailView: View {
                 .tint(.primary)
                 .accessibilityIdentifier(NoteAIUndo.yoursIdentifier)
             } else {
-                Button(action: controller.undo) { Label { Text("Undo") } icon: { CharmSymbol("arrow.uturn.backward") } }
+                Button("Undo", systemImage: "arrow.uturn.backward", action: controller.undo)
                     .tint(.primary)
                     .accessibilityIdentifier(NoteAIUndo.yoursIdentifier)
             }
@@ -1584,13 +1584,13 @@ struct NoteToolbarStage<Pane: View>: View {
                     ToolbarItemGroup {
                         Group {
                             FormatButton(controller: controller)
-                            Button(action: controller.checklist) { Label { Text("Checklist") } icon: { CharmSymbol("checklist") } }
+                            Button("Checklist", systemImage: "checklist", action: controller.checklist)
                                 .help("Checklist (⇧⌘L)")
                             if let menu = controller.currentTableMenu {
                                 Menu { TableMenuItems(menu: menu) } label: { Label("Table", systemImage: "tablecells") }
                                     .help("Table")
                             } else {
-                                Button(action: controller.insertTable) { Label { Text("Table") } icon: { CharmSymbol("tablecells") } }
+                                Button("Table", systemImage: "tablecells", action: controller.insertTable)
                                     .help("Table (⌥⌘T)")
                             }
                             shown.attachment
