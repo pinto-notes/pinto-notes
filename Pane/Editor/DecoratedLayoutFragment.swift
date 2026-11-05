@@ -411,11 +411,17 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     }
 
     /// A panel that joins with its neighbours: only the block's outer corners are round.
+    /// How far a line's panel starts below its top and ends above its foot (negative: past it).
+    /// Inner edges overlap by 1 pt: each line is its own layer, and two antialiased edges meeting
+    /// at a fraction of a pixel left a light seam across the block. The overlap reaches down into
+    /// the next line, never up: each line draws over the one before, and a panel reaching up
+    /// painted over the foot of its letters ("greeting" read "greetina", council round 15).
+    static func panelEdges(first: Bool, last: Bool, outside: CGFloat) -> (top: CGFloat, bottom: CGFloat) {
+        (first ? 2 - outside : 0, last ? 2 - outside : -1)
+    }
+
     private func panel(_ ctx: CGContext, o: CGPoint, h: CGFloat, first: Bool, last: Bool, fill: PColor, radius: CGFloat, stroke: PColor?, outside: CGFloat = 0) {
-        // Inner edges reach 1 pt into the next line: each line is its own layer, and two
-        // antialiased edges meeting at a fraction of a pixel left a light seam across the block.
-        let top: CGFloat = first ? 2 - outside : -1
-        let bottom: CGFloat = last ? 2 - outside : -1
+        let (top, bottom) = Self.panelEdges(first: first, last: last, outside: outside)
         // From the column's edge, not the paragraph's indent (a code line's padding).
         let rect = CGRect(x: o.x - layoutFragmentFrame.minX, y: o.y + top, width: containerWidth, height: h - top - bottom)
         ctx.addPath(roundedPath(rect, top: first ? radius : 0, bottom: last ? radius : 0))
