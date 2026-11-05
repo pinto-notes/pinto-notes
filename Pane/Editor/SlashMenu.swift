@@ -24,6 +24,9 @@ struct SlashCommandList: View {
         return CGSize(width: width, height: min(full, CGFloat(maxRows) * rowHeight + line) + 8)
     }
 
+    /// What VoiceOver says for the chosen command.
+    static func spoken(_ name: String, at index: Int, of count: Int) -> String { "\(name), \(index + 1) of \(count)" }
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical) { rows }
@@ -43,6 +46,12 @@ struct SlashCommandList: View {
                 .onChange(of: controller.slashChoice) { _, i in
                     guard controller.slashCommands.indices.contains(i) else { return }
                     proxy.scrollTo(controller.slashCommands[i])
+                }
+                // The keyboard stays in the text while the arrows move the choice, so VoiceOver has
+                // to be told what's chosen (council round 16: the menu was silent).
+                .onChange(of: controller.slashChoice, initial: true) { _, i in
+                    guard controller.slashCommands.indices.contains(i) else { return }
+                    AccessibilityNotification.Announcement(Self.spoken(controller.slashName(controller.slashCommands[i]), at: i, of: controller.slashCommands.count)).post()
                 }
         }
         .padding(4)

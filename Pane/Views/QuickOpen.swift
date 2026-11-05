@@ -290,6 +290,19 @@ struct QuickOpenPanel: View {
     /// The query the notes' text has been read for, so "nothing found" waits for the answer.
     @State private var readFor: String?
 
+    /// What VoiceOver says for the highlighted row: the keyboard stays in the field while the
+    /// arrows move, so it has to be told (council round 16: the list was silent).
+    static func spoken(_ row: QuickOpen.Row, at index: Int, of count: Int) -> String {
+        let name: String
+        switch row {
+        case .note(let n): name = n.title.isEmpty ? "New Note" : n.title
+        case .command(let c): name = c.title
+        case .text(let t): name = "\(t.title.isEmpty ? "New Note" : t.title): \(t.snippet.text)"
+        case .search(let q): name = "Search all notes for \(q)"
+        }
+        return "\(name), \(index + 1) of \(count)"
+    }
+
     /// What the panel says when a search finds nothing; nil while there's something to show or
     /// the answer is still coming (council round 16: it just went blank).
     static func nothingFound(query: String, rows: Int, stillReading: Bool) -> String? {
@@ -422,6 +435,9 @@ struct QuickOpenPanel: View {
             guard !Task.isCancelled, q == query else { return }
             textHits = found
             readFor = q
+        }
+        .onChange(of: rows.indices.contains(index) ? Self.spoken(rows[index], at: index, of: rows.count) : Self.nothingFound(query: query, rows: rows.count, stillReading: stillReading)) { _, said in
+            if let said { AccessibilityNotification.Announcement(said).post() }
         }
         .onExitCommand { close() }
         .accessibilityIdentifier("quickOpen")

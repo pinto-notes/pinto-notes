@@ -2693,6 +2693,13 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 cardHosts[item.key] = h
                 return h
             }()
+            // VoiceOver hears a table as one, with its size, rather than as loose cells (round 16).
+            if case .grid(let g, _, _) = item.content, let grid = host as? GridHostingView {
+                grid.setAccessibilityElement(true)
+                grid.setAccessibilityRole(.group)
+                grid.setAccessibilityRoleDescription("table")
+                grid.setAccessibilityLabel(g.spokenSize)
+            }
             if cardContent[item.key] != item.content {
                 host.rootView = item.view
                 cardContent[item.key] = item.content

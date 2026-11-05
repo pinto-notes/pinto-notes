@@ -156,6 +156,13 @@ struct GridTable: Equatable {
     /// font came out narrower than the drawn text, and a tight table cut its dates ("2026-10-…").
     static var cellFont: PFont { PFont.monospacedDigitSystemFont(ofSize: EditorMetrics.body, weight: .regular) }
 
+    /// What VoiceOver says for the table as a whole, before its cells.
+    var spokenSize: String {
+        let c = columns == 1 ? "1 column" : "\(columns) columns"
+        let r = rows.count == 1 ? "1 row" : "\(rows.count) rows"
+        return "Table, \(c), \(r)"
+    }
+
     /// Widths that fit each column's text, as in Notes and Obsidian: a table whose text fills most
     /// of the width (70%) stretches to it, a short one keeps its own width (council round 2, 11-04:
     /// two short columns ran 860 pt wide with the sidebar hidden). A table a little too
@@ -915,7 +922,6 @@ struct TableGridView: View {
                 .font(.system(size: EditorMetrics.body, weight: r == 0 ? .semibold : .regular))
                 .monospacedDigit()
                 .lineLimit(1)
-                .accessibilityAddTraits(.isButton)
                 .padding(.horizontal, GridMetrics.inset)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .contentShape(.rect)

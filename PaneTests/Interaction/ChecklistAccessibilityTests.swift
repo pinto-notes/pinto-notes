@@ -33,6 +33,9 @@ import Testing
         await h.settle(0.4)
         let children = h.view.accessibilityChildren() ?? []
         #expect(children.contains { $0 is NSHostingView<AnyView> }, "the table's view is a child: \(children)")
+        let table = children.compactMap { $0 as? GridHostingView }.first
+        #expect(table?.accessibilityLabel() == "Table, 2 columns, 2 rows")
+        #expect(table?.accessibilityRoleDescription() == "table")
     }
 
     @Test func aPressTicksTheItemAndLeavesTheCaret() async {
