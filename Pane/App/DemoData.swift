@@ -269,6 +269,11 @@ enum DemoData {
         case "beforeOatEggs" where body.hasPrefix("Groceries"):
             // App Store: the list before ChatGPT adds oat milk and eggs.
             return body.replacingOccurrences(of: "- [ ] Oat milk\n", with: "").replacingOccurrences(of: "- [x] Eggs\n", with: "")
+        case "lastOne" where body.hasPrefix("Groceries"):
+            // Charm captures: one item left, so ticking it finishes the list.
+            return body.split(separator: "\n", omittingEmptySubsequences: false).map {
+                $0.hasPrefix("- [ ] ") && $0 != "- [ ] Dark chocolate" ? "- [x] " + $0.dropFirst(6) : String($0)
+            }.joined(separator: "\n")
         case "lisbon" where body.hasPrefix("Lisbon"):
             return body.replacingOccurrences(of: "- [ ] Day trip to Sintra", with: "- [ ] Day trip to Sintra\n- [ ] Late checkout requested, confirm by 10 May")
         default:

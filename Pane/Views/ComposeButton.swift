@@ -44,14 +44,23 @@ struct ComposeButton<Label: View>: View {
 struct TodayButton: View {
     var identifier = "list.today"
     @Environment(\.todaysNote) private var todaysNote
+    /// Times the page has turned: on opening today's note and when the day changes (Charm).
+    @State private var turns = 0
 
     var body: some View {
-        Button { todaysNote?.open() } label: { Label("Today\u{2019}s note", systemImage: "calendar") }
-            #if os(macOS)
-            .help("Today\u{2019}s note (⌘T)")
-            #endif
-            .disabled(todaysNote == nil)
-            .accessibilityIdentifier(identifier)
+        Button {
+            todaysNote?.open()
+            turns += 1
+        } label: {
+            Label { Text("Today\u{2019}s note") } icon: { CharmSymbol("calendar", cue: turns) }
+        }
+        #if os(macOS)
+        .help("Today\u{2019}s note (⌘T)")
+        #endif
+        .disabled(todaysNote == nil)
+        .accessibilityIdentifier(identifier)
+        // A new day: the page turns to its date.
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged).receive(on: RunLoop.main)) { _ in turns += 1 }
     }
 }
 

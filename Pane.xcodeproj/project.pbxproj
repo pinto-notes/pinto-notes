@@ -886,6 +886,7 @@
 		C4F35A71EEF833908127290E /* Backlinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A37C9F239F34435A2AC59C8 /* Backlinks.swift */; };
 		C516F973C1547CD5514A60DA /* template-app-budget-log.data.json in Resources */ = {isa = PBXBuildFile; fileRef = 21C0F2F96714C56888E2C6A7 /* template-app-budget-log.data.json */; };
 		C5B310173A0C2B0C09D8092D /* HeadingFoldInteractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8BF3C64DC2081F44DF15118 /* HeadingFoldInteractionTests.swift */; };
+		C5BCBB00BE93DCE5F4199F8A /* Charm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38844D28999CCC179E6181D8 /* Charm.swift */; };
 		C5DB73A17AD6622AE77C692A /* KeyCopySync.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA308C1A257FEFA51B0594D /* KeyCopySync.swift */; };
 		C67F73D849AF2E836059063E /* htm.js in Resources */ = {isa = PBXBuildFile; fileRef = F9AB7B84121134A7EF8CBE69 /* htm.js */; };
 		C6C7BCD3CFABD48733B100ED /* template-app-trip-plan-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = DFFC49BCF62DBB16BFC2CF8D /* template-app-trip-plan-light.jpg */; };
@@ -938,6 +939,7 @@
 		D256D21B65BA82C3DED1777A /* FormatPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBAE6116415336DA1C500A87 /* FormatPopover.swift */; };
 		D27B960C6EB2CD6BB7F56F84 /* WhatsNew.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFFEBDDE84EB3DB20AA0F63 /* WhatsNew.swift */; };
 		D296B798F12D5CBF3F284D23 /* PresenceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA17BA72700473F0D52D9105 /* PresenceViews.swift */; };
+		D317B228E38B25C17FEEAFF1 /* Charm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38844D28999CCC179E6181D8 /* Charm.swift */; };
 		D3FB73D832E7F1736AD7C35B /* amber-router.module.js in Resources */ = {isa = PBXBuildFile; fileRef = F238F5CBF7C5E4F2F4B5172F /* amber-router.module.js */; };
 		D48F87E78AFE583C4562AA6C /* TableInteractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7B3FEBC5E8B405D61B40897 /* TableInteractionTests.swift */; };
 		D49F57F54EB1B22444DB5F5C /* ConnectScan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27BC2BBC304C6026622F0BF6 /* ConnectScan.swift */; };
@@ -1110,6 +1112,7 @@
 		FED98958CC1697484A0A2034 /* NotePageDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DB0DAFE95B79BD85E820E69 /* NotePageDevice.swift */; };
 		FF3F953ED93EA33419712AAA /* ChangeRunsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 182902CA5EE64A3BC5BD1D5D /* ChangeRunsTests.swift */; };
 		FF5CDD8F58939E13D3DACCD8 /* AppPlaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD85277F3CDC38C49076FC74 /* AppPlaceTests.swift */; };
+		FF656347C2397D37F29B6534 /* CharmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA7B4DACE2AD7BE6CDBB1E8B /* CharmTests.swift */; };
 		FF9F6BFD97A3C3BD33AB9E3F /* AmberButtonDynamicTypeSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19A3CFE92D58ADD46C8269EB /* AmberButtonDynamicTypeSnapshots.swift */; };
 		FFCAF6FD05D62F0A79C4EB00 /* LibraryNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E83727777F1E5326F635569 /* LibraryNotesTests.swift */; };
 		FFD2036BD626E2CF49BCB214 /* template-app-habit-tracker.project.json in Resources */ = {isa = PBXBuildFile; fileRef = 7F99F9FABF79933DBD9B01F4 /* template-app-habit-tracker.project.json */; };
@@ -1334,6 +1337,7 @@
 		35D79FDD1B9E683ACD5F3BCA /* OldNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OldNameTests.swift; sourceTree = "<group>"; };
 		36878BCDD9303087FC52E288 /* PersonaAIShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaAIShots.swift; sourceTree = "<group>"; };
 		37C6B4F675EF00B712CB8496 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		38844D28999CCC179E6181D8 /* Charm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charm.swift; sourceTree = "<group>"; };
 		3891EC4D2DC7BF10221F3CBC /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		38F0AEB582BF7312B3E6B60F /* WindowMinHeightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowMinHeightTests.swift; sourceTree = "<group>"; };
 		391E1B77188C7A5C680CB730 /* LinkFormsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkFormsTests.swift; sourceTree = "<group>"; };
@@ -1714,6 +1718,7 @@
 		B7EF24AE2E626C3818961777 /* CollabTwoPeopleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabTwoPeopleTests.swift; sourceTree = "<group>"; };
 		B820025AD4E790E4B4400339 /* AskAITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskAITests.swift; sourceTree = "<group>"; };
 		BA556478557561D612E636AF /* TemplateLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateLibrary.swift; sourceTree = "<group>"; };
+		BA7B4DACE2AD7BE6CDBB1E8B /* CharmTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharmTests.swift; sourceTree = "<group>"; };
 		BAC7D1ED7E22C1612C2680B3 /* SaveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveTests.swift; sourceTree = "<group>"; };
 		BAE155CC8D3D50CB90D4C532 /* ApplePinsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplePinsTests.swift; sourceTree = "<group>"; };
 		BB1588B95C77F9BB5C79117D /* ListOrderSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListOrderSnapshots.swift; sourceTree = "<group>"; };
@@ -2163,6 +2168,7 @@
 				0764F99ACC543A8CA43370C0 /* AskAI.swift */,
 				3203BD32205C8FF6C76FEBEE /* AttachMenu.swift */,
 				99629D4F11ED9D35B4B851A2 /* BlurMotion.swift */,
+				38844D28999CCC179E6181D8 /* Charm.swift */,
 				39B15BAE937AA38FE2E0983D /* ChecklistWidgetView.swift */,
 				E30BFBB10DA2DD2468EE9BE2 /* CodeBoxes.swift */,
 				83735DC9F6164AB1CB604086 /* CodeFileView.swift */,
@@ -2507,6 +2513,7 @@
 				0B2965B65AD833118261881C /* BundleRenameTests.swift */,
 				1D8FCB6149FD618F2DDC1846 /* CalloutsTests.swift */,
 				7EE83FEA708670187B731359 /* CellTextTests.swift */,
+				BA7B4DACE2AD7BE6CDBB1E8B /* CharmTests.swift */,
 				44D9F09C27B3E8D0B1800C10 /* ChecklistShelfTests.swift */,
 				DFCA13DCB9435718E4F5BF8C /* ChecklistSortTests.swift */,
 				4EC731CAF256A4640C5F718E /* CodexConnectTests.swift */,
@@ -3531,6 +3538,7 @@
 				AC2264A58613A3184C2FCD65 /* CellTextTests.swift in Sources */,
 				573A5781D657DC61BA7CCC9C /* CellUndoTests.swift in Sources */,
 				FF3F953ED93EA33419712AAA /* ChangeRunsTests.swift in Sources */,
+				FF656347C2397D37F29B6534 /* CharmTests.swift in Sources */,
 				0F2167830A044A4D1335D8E8 /* CheckRingContrastTests.swift in Sources */,
 				2B79F93CCA1F36CE17BC3A81 /* ChecklistAccessibilityTests.swift in Sources */,
 				AA100C2A163E634F34F0F8D1 /* ChecklistCaretTests.swift in Sources */,
@@ -3863,6 +3871,7 @@
 				CAB01CDDDC766A30F3AC9024 /* CaptureBestApps.swift in Sources */,
 				E5ED369E1DF898AB48AE9104 /* CellText.swift in Sources */,
 				DA72C1EDB78E9365335D08F0 /* ChangeHighlight.swift in Sources */,
+				C5BCBB00BE93DCE5F4199F8A /* Charm.swift in Sources */,
 				B2F7CE0BA4833686E5050E97 /* CheckPop.swift in Sources */,
 				4133D9E85E7ED42CEA947380 /* ChecklistShelf.swift in Sources */,
 				8A030E37755C4A84595935F2 /* ChecklistShelfSync.swift in Sources */,
@@ -4207,6 +4216,7 @@
 				7FBD5A13A103939FE62E07D7 /* CaptureBestApps.swift in Sources */,
 				5036F4C2F4DF9F584BAAF731 /* CellText.swift in Sources */,
 				13517336EAED99CD82EEF612 /* ChangeHighlight.swift in Sources */,
+				D317B228E38B25C17FEEAFF1 /* Charm.swift in Sources */,
 				36E6FA211A8FFB7B9FD39936 /* CheckPop.swift in Sources */,
 				827B58B798EABF3857F1F283 /* ChecklistShelf.swift in Sources */,
 				BB625FCC7A233F54F9FCA88E /* ChecklistShelfSync.swift in Sources */,

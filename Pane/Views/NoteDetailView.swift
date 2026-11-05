@@ -1415,6 +1415,7 @@ struct NoteDetailView: View {
             }
             .disabled(hidden)
         } label: {
+            // A menu's label: the toolbar shows it as a still picture, so the symbol (Charm can't play here).
             Label("Attach", systemImage: "paperclip")
         }
         .disabled(note.isLocked || showingPage)
