@@ -164,6 +164,12 @@ enum AIEdit {
 
         enum Kind: Equatable { case edit, pageEdit, dataEdit, pageMade, pageChanged, reverted, heldBack }
 
+        /// The note is back to what it was before the edit: undone here or, on a shared note, by
+        /// someone else. There's nothing left for the receipt to speak of (persona council r7).
+        func isUndone(in body: String) -> Bool {
+            kind == .edit && !created && body.trimmingCharacters(in: .whitespacesAndNewlines) == previous.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
         /// The AI as the receipt names it: "Claude", or "Sara's Claude".
         var who: String { AIEdit.whose(by, person: person) }
 

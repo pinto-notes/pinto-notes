@@ -425,6 +425,8 @@ try {
     check("her AI's edit arrives on her phone, and the line she typed stays", e2.checks === "ok" && mine.text.includes("Flights 21 to 23 May") && mine.text.includes("Budget 400 euros") && !mine.text.includes("slow first morning"),
       JSON.stringify(mine.text));
   }
+  // The last hold on Sara's phone, with Emil's still on screen beside it.
+  await sleep(HOLD + 3);
   await Promise.all([put(emil, "go-quit.txt"), put(sara, "go-quit.txt")]);
   await sleep(2);
   ok = results.every((r) => r[1]);

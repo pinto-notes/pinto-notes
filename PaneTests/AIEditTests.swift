@@ -47,6 +47,17 @@ import SwiftUI
         #expect(ChangeTint.paragraphRanges(changedFrom: old, to: new).count == 4, "the grid's four lines are tinted")
     }
 
+    /// On a shared note: someone else undid the change, so the receipt has nothing left to say.
+    @Test func aReceiptKnowsItsChangeIsUndone() {
+        let r = AIEdit.Receipt(noteID: UUID(), by: "Claude", at: .now, previous: "Plan\n- [ ] Pick dates\n", after: "Plan\n- [x] Pick dates: 3-4 November\n", lines: 1)
+        #expect(!r.isUndone(in: "Plan\n- [x] Pick dates: 3-4 November\n"))
+        #expect(r.isUndone(in: "Plan\n- [ ] Pick dates"), "back to the text before it, whatever the last newline")
+        #expect(!r.isUndone(in: "Plan\n- [ ] Pick dates\nAnd a new line"), "the note went on from there: not the same as before")
+        var made = r
+        made.kind = .pageMade
+        #expect(!made.isUndone(in: "Plan\n- [ ] Pick dates"), "an app's change isn't in the text")
+    }
+
     /// Opened from a search on the iPhone: the found line lights up, and only that line (persona council r7).
     @MainActor @Test func aFoundLineLightsUpAlone() {
         let tint = ChangeTint()

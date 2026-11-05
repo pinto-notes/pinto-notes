@@ -211,7 +211,8 @@ enum CollabScript {
         case "remove":
             // As the person's menu in Share: Remove from Note, then Remove on its question.
             let name = value as? String ?? ""
-            let share = try controller()
+            // The open sheet's own controller when Share is open, so the sheet shows what follows.
+            let share = try ShareController.current ?? controller()
             try await until(30, "\(name) in the note") { share.refresh(); return share.state.people.contains { !$0.isMe && $0.name.hasPrefix(name) } }
             share.askRemove(share.state.people.first { !$0.isMe && $0.name.hasPrefix(name) }!)
             await share.confirmRemove()

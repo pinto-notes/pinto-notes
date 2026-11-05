@@ -306,6 +306,12 @@ struct NoteDetailView: View {
     /// Sharing with people, and the history link from an email.
     private func withCollab(_ content: some View) -> some View {
         content
+            // Undone on another device: the receipt and its marking go here too.
+            .onChange(of: note.body) { _, body in
+                guard let r = receipt, r.isUndone(in: body) else { return }
+                withAnimation(.easeOut(duration: 0.2)) { receipt = nil }
+                controller.clearTint()
+            }
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
             .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { for n in notes { context.trash(n) } } }
             .alert(SharedNoteLimits.filesTitle, isPresented: $refusingSharedFiles) {
