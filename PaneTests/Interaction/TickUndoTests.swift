@@ -24,6 +24,33 @@ import UIKit
         return CGPoint(x: r.midX + h.view.textContainerOrigin.x, y: r.midY + h.view.textContainerOrigin.y)
     }
 
+    /// Round 18's capture: tick, tick, Undo, move an item, Undo. A frame right after the last Undo
+    /// showed "Rain jack- [ ] Chargers" on one line; the text itself must come back whole.
+    @Test(arguments: [0.3, 1.2, 3.0])
+    func undoingAMoveAfterTicksKeepsTheText(pause: Double) async throws {
+        let body = "Packing\n\n- [ ] Passport\n- [ ] Chargers\n- [ ] Rain jacket"
+        let h = await EditorHarness(body)
+        defer { h.close() }
+        let undo = try #require(h.view.undoManager)
+        undo.groupsByEvent = false
+        defer { undo.groupsByEvent = true }
+        func step(_ work: () async -> Void) async {
+            undo.beginUndoGrouping()
+            await work()
+            undo.endUndoGrouping()
+            await h.settle(pause)
+        }
+        await step { await h.click(circle(h, "Passport")) }
+        await step { await h.click(circle(h, "Chargers")) }
+        undo.undo(); await h.settle(pause)
+        await h.caret(after: "Rain jacket")
+        await step { h.controller.moveItem(up: true) }
+        #expect(h.text == "Packing\n\n- [ ] Rain jacket\n- [ ] Chargers\n- [x] Passport")
+        undo.undo()
+        await h.settle(Self.settle)
+        #expect(h.text == "Packing\n\n- [ ] Chargers\n- [ ] Rain jacket\n- [x] Passport")
+    }
+
     @Test func oneCommandZPutsTheTickAndTheMoveBack() async throws {
         let h = await EditorHarness(Self.body)
         defer { h.close() }
