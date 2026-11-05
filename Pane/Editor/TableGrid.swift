@@ -49,6 +49,29 @@ struct GridTable: Equatable {
         return out
     }
 
+    /// The table and cell a place in the text is in, if it's in one: rows count from the header
+    /// (row 0) with the line under it left out, columns from the first cell. For putting the
+    /// keyboard where an Undo changed a table, as Notes does.
+    static func cell(at location: Int, in text: String) -> (grid: Int, cell: GridCell)? {
+        let ns = text as NSString
+        guard let table = find(in: text).first(where: { NSLocationInRange(location, $0.range) || location == NSMaxRange($0.range) }) else { return nil }
+        var row = 0, found: GridCell?
+        ns.enumerateSubstrings(in: table.range, options: [.byParagraphs, .substringNotRequired]) { _, line, enclosing, stop in
+            let t = ns.substring(with: line).trimmingCharacters(in: .whitespaces)
+            guard t.hasPrefix("|") else { return }
+            let delimiter = row == 1 && isDelimiter(t) && found == nil
+            if location >= line.location, location <= NSMaxRange(line) {
+                let before = ns.substring(with: NSRange(location: line.location, length: location - line.location))
+                let pipes = before.filter { $0 == "|" }.count
+                found = GridCell(row: delimiter ? 0 : (row > 1 ? row - 1 : row), column: max(0, min(pipes - 1, table.columns - 1)))
+                stop.pointee = true
+                return
+            }
+            row += 1
+        }
+        return found.map { (table.index, $0) }
+    }
+
     /// The most cells a table can have and still be shown as a live grid. Bigger tables
     /// (a pasted export, say) stay styled markdown: a grid of 100,000 cells overruns
     /// SwiftUI and takes the app down. NoteStructure applies the same rule, so both

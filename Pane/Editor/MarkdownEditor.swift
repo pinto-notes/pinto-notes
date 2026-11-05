@@ -1295,6 +1295,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         downStep = nil
         guard let diff = TextDiff.edit(from: textStorage.string, to: step.base) else { return }
         apply(TextEdit(range: diff.range, replacement: diff.replacement, caret: -1))
+        placeAfterUndo(at: diff.range.location + (diff.replacement as NSString).length)
     }
 
     func apply(_ edit: TextEdit) {
@@ -1426,9 +1427,10 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     /// twice, and the text view followed it, showing the folded date for a moment.
     private var heldOffset: CGPoint?
 
-    private func holdOffset() {
-        heldOffset = contentOffset
-        DispatchQueue.main.asyncAfter(deadline: .now() + FormatPanelMotion.holdDuration) { [weak self] in self?.heldOffset = nil }
+    private func holdOffset(for duration: TimeInterval = FormatPanelMotion.holdDuration) {
+        let held = contentOffset
+        heldOffset = held
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in if self?.heldOffset == held { self?.heldOffset = nil } }
     }
 
     override var contentOffset: CGPoint {
@@ -1744,9 +1746,45 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         return noteStack
     }
     private func watchCells() {
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(cellBegan(_:)), name: UITextField.textDidBeginEditingNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(cellEnded(_:)), name: UITextField.textDidEndEditingNotification, object: nil)
     }
+    /// The keyboard is coming up. With the caret clear of where it will be, the text stays where it
+    /// is: as it came up, a short note slid its title half under the bar with the line you were on
+    /// well above the keyboard (persona council r7, Sara's shared list, c9 v3).
+    @objc func keyboardWillShow(_ note: Notification) {
+        guard isFirstResponder, let end = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect,
+              let range = selectedTextRange else { return }
+        let keyboard = convert(end, from: nil)
+        let caret = caretRect(for: range.end)
+        guard Self.keepsPlaceForKeyboard(caret: caret, keyboardTop: keyboard.minY, visibleTop: contentOffset.y + adjustedContentInset.top) else { return }
+        let duration = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+        holdOffset(for: duration + 0.15)
+    }
+
+    /// Whether the caret is in view above the keyboard's top (both in the text view's coordinates).
+    static func keepsPlaceForKeyboard(caret: CGRect, keyboardTop: CGFloat, visibleTop: CGFloat) -> Bool {
+        guard !caret.isNull, !caret.isInfinite, caret.height > 0 else { return false }
+        return caret.minY >= visibleTop && caret.maxY + 8 <= keyboardTop
+    }
+
+    /// After an Undo the keyboard goes where the text changed, as in Notes: the table cell it
+    /// changed, or the note's text if a cell had it and the change was outside the table
+    /// (persona council r7: the caret stayed in the lower cell when "Plan" left the header).
+    func placeAfterUndo(at location: Int) {
+        let text = textStorage.string
+        guard location <= (text as NSString).length else { return }
+        if let (grid, cell) = GridTable.cell(at: location, in: text) {
+            guard editingCell != nil || !isFirstResponder else { return }
+            core.gridFocus = GridFocusRequest(grid: grid, cell: cell)
+            layoutCards()
+        } else if let cell = editingCell, cell.isFirstResponder {
+            becomeFirstResponder()
+            selectedRange = NSRange(location: location, length: 0)
+        }
+    }
+
     @objc private func cellBegan(_ note: Notification) {
         guard let field = note.object as? UITextField, field.isDescendant(of: self) else { return }
         editingCell = field
@@ -2134,10 +2172,10 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             let now = view.text ?? "", kept = view.selectedRange
             view.typing = nil
             view.core.endSlides()
-            if let e = TextDiff.edit(from: now, to: to) {
-                view.withoutUndo { view.apply(TextEdit(range: e.range, replacement: e.replacement, caret: -1)) }
-            }
+            let e = TextDiff.edit(from: now, to: to)
+            if let e { view.withoutUndo { view.apply(TextEdit(range: e.range, replacement: e.replacement, caret: -1)) } }
             if NSMaxRange(selection) <= (to as NSString).length { view.selectedRange = selection }
+            if let e { view.placeAfterUndo(at: e.range.location + (e.replacement as NSString).length) }
             // Registered while undoing, this is the Redo.
             view.registerStep(back: now, selection: kept)
         }

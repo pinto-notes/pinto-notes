@@ -109,6 +109,7 @@
 		109B20C5787E217ED3BB8F40 /* ConnectScan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27BC2BBC304C6026622F0BF6 /* ConnectScan.swift */; };
 		10E125DEB27CD7EB75A784D2 /* FileRowClickTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63CE49D5ADFD8035C941B77 /* FileRowClickTests.swift */; };
 		11762F8C4D3EBA91FE271470 /* WikiSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6437AEF31BCCDC5E8092B053 /* WikiSuggestions.swift */; };
+		118A771F56BC19168609D257 /* CodePanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D89F68B0B9451351F57688FF /* CodePanelTests.swift */; };
 		11FC3EEB0BD887FA89890D4E /* template-app-trip-plan-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = DFFC49BCF62DBB16BFC2CF8D /* template-app-trip-plan-light.jpg */; };
 		12587D0238EB3182ED133F09 /* ToolbarGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD35A6994110D17D56D7D8D7 /* ToolbarGlyph.swift */; };
 		1266A659701827E7CE9B46E7 /* LargeLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 746937C9DAE4700BDCEE8FCF /* LargeLibraryTests.swift */; };
@@ -1790,6 +1791,7 @@
 		D802554DDA691DB172FD65B2 /* SyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngine.swift; sourceTree = "<group>"; };
 		D82B1491DE222D4C7AFA3D82 /* MultiSelectTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiSelectTests.swift; sourceTree = "<group>"; };
 		D8557D9F309C0E08A9FC9B02 /* project.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = project.yml; sourceTree = "<group>"; };
+		D89F68B0B9451351F57688FF /* CodePanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodePanelTests.swift; sourceTree = "<group>"; };
 		D8C79D6376F7F23926CA3317 /* NoteApps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteApps.swift; sourceTree = "<group>"; };
 		D8DB086BC7C7196273F175FA /* template-cover-daily-standup.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-daily-standup.jpg"; sourceTree = "<group>"; };
 		D95167E06D5ECDFDE2B86394 /* Sync */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Sync; path = Pane/Sync; sourceTree = SOURCE_ROOT; };
@@ -2349,6 +2351,7 @@
 				8BDEFF02B8B16DE3DF974509 /* ChecklistInteractionTests.swift */,
 				F7306680E0E335C07172C36F /* ChecklistLookTests.swift */,
 				66122A2F372A20CB63D5C4E5 /* ChecklistTickReorderTests.swift */,
+				D89F68B0B9451351F57688FF /* CodePanelTests.swift */,
 				CE513B4359CF9208ED64848E /* DailyNotesEditorTests.swift */,
 				F2420C2E740EDE053613ADC0 /* DateFoldMacTests.swift */,
 				B12E93E586DA584BB19BA183 /* EditorAccessibilityTests.swift */,
@@ -3521,6 +3524,7 @@
 				63C41ADC2C64BAFF051850CD /* ChromeSnapshots.swift in Sources */,
 				B27F4E6472272D310EF1588E /* CodeBlockShots.swift in Sources */,
 				C47DF4C37D203CD351C84805 /* CodeFileSnapshots.swift in Sources */,
+				118A771F56BC19168609D257 /* CodePanelTests.swift in Sources */,
 				456D0112F2C410ACE05EBE35 /* CodexConnectSnapshots.swift in Sources */,
 				0035E9C0C51B49FAF2F34D95 /* CodexConnectTests.swift in Sources */,
 				97EDA879D7694FBEE56F05A1 /* CollabCryptoTests.swift in Sources */,
