@@ -17,6 +17,33 @@ import UIKit
         #expect(!PaneTextView.caretInView(selection: at, caret: nil, visible: visible))
     }
 
+    @Test func theKeyboardComingUpLeavesACaretInViewWhereItIs() async throws {
+        #expect(PaneTextView.keepsPlaceForKeyboard(caret: CGRect(x: 20, y: 300, width: 2, height: 20), keyboardTop: 500, visibleTop: 100))
+        #expect(!PaneTextView.keepsPlaceForKeyboard(caret: CGRect(x: 20, y: 490, width: 2, height: 20), keyboardTop: 500, visibleTop: 100), "under it: scroll to it")
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let v = PaneTextView(frame: window.bounds)
+        let body = "Offsite plan\n\n- [x] Book the venue\n- [ ] Pick dates\n- [x] Order lunch\n- [ ] Print agenda\n"
+        v.configure(text: body, header: "Today 09:41")
+        window.addSubview(v)
+        window.isHidden = false
+        defer { window.isHidden = true }
+        v.layoutIfNeeded()
+        v.becomeFirstResponder()
+        v.selectedRange = NSRange(location: (body as NSString).length, length: 0)
+        let before = v.contentOffset
+        // The keyboard's frame on screen, as UIKit posts it.
+        let frame = CGRect(x: 0, y: 844 - 336, width: 390, height: 336)
+        v.keyboardWillShow(Notification(name: UIResponder.keyboardWillShowNotification, object: nil,
+                                        userInfo: [UIResponder.keyboardFrameEndUserInfoKey: frame, UIResponder.keyboardAnimationDurationUserInfoKey: 0.25]))
+        // What UIKit does as the keyboard comes up: the room below changes and the text is moved.
+        v.contentInset.bottom += 336
+        v.contentOffset = CGPoint(x: 0, y: before.y + 16)
+        #expect(abs(v.contentOffset.y - before.y) < 0.5, "the title stays: \(before.y) to \(v.contentOffset.y)")
+        try? await Task.sleep(for: .seconds(0.6))
+        v.contentOffset = CGPoint(x: 0, y: before.y + 40)
+        #expect(abs(v.contentOffset.y - before.y - 40) < 0.5, "and once it's up, you can scroll again")
+    }
+
     @Test func typingOnAShortNotesLastLineKeepsItsTitle() async throws {
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
         let v = PaneTextView(frame: window.bounds)

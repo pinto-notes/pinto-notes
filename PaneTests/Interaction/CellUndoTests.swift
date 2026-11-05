@@ -51,9 +51,25 @@ import UIKit
         v.undoStep(redo: false)
         try? await Task.sleep(for: .seconds(0.1))
         #expect(v.text == Self.body, "and a second Undo takes it back: \(String(describing: v.text))")
+        // As in Notes, the keyboard goes to where that Undo changed the text: after "Porto".
+        #expect(v.isFirstResponder, "the note's text has the keyboard again, not the lower cell")
+        #expect(v.selectedRange == NSRange(location: 5, length: 0))
         undo.redo(); undo.redo()
         try? await Task.sleep(for: .seconds(0.1))
         #expect(v.text == typed, "and back")
+    }
+
+    /// Where an Undo lands in a table: the cell it changed, header first, delimiter skipped.
+    @Test func anUndoInATableFindsItsCell() {
+        let text = "Porto\n\n| Day | Plan |\n| --- | --- |\n| Sat | Walk |\n\nAfter"
+        let ns = text as NSString
+        let plan = ns.range(of: "Plan").location
+        #expect(GridTable.cell(at: plan + 4, in: text)?.cell == GridCell(row: 0, column: 1))
+        let sat = ns.range(of: "Sat").location
+        #expect(GridTable.cell(at: sat, in: text)?.cell == GridCell(row: 1, column: 0))
+        #expect(GridTable.cell(at: ns.range(of: "Walk").location, in: text)?.cell == GridCell(row: 1, column: 1))
+        #expect(GridTable.cell(at: 3, in: text) == nil, "outside the table")
+        #expect(GridTable.cell(at: ns.range(of: "After").location, in: text) == nil)
     }
 }
 #endif
