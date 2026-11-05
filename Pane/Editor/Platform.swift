@@ -64,7 +64,8 @@ extension PColor {
         // The welcome note's ring: the muted brown-grey, faint.
         Palette.pair(0x74604C, 0.45, 0xBCB0A3, 0.45)
         #else
-        NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.45, alpha: 1) : NSColor(white: 0.58, alpha: 1) }
+        // Dark: Notes' systemGray on black, about 6:1 (council round 16: 0.45 read faint).
+        NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.56, alpha: 1) : NSColor(white: 0.58, alpha: 1) }
         #endif
     }
 

@@ -99,6 +99,7 @@
 		0E9EA88BAC8BA4649E44E2E7 /* NotionDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C7531A2015FDCBFA16D9DFF /* NotionDatabase.swift */; };
 		0EAF1EF814DB06B298E28565 /* AIChangesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15190FE695CC65B9B6F8E540 /* AIChangesTests.swift */; };
 		0ED845C9D35EA0852A7477A5 /* BlurMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99629D4F11ED9D35B4B851A2 /* BlurMotion.swift */; };
+		0F2167830A044A4D1335D8E8 /* CheckRingContrastTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF7B30DCB58346B0DD1A4EBD /* CheckRingContrastTests.swift */; };
 		0F46C8D98BE583B848F7ED64 /* htm.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 586174156618B0DB73BFE5A7 /* htm.module.js */; };
 		0F5DB7BF6D4ABC653F3234D3 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64B3C5141EE3AF3984622FC /* Palette.swift */; };
 		0F8AC422B05724904A762144 /* ListMenusUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D5EF9D12158BB937DAD38F /* ListMenusUITests.swift */; };
@@ -1726,6 +1727,7 @@
 		BED0CD995961135B2CEAD915 /* BigLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BigLibraryTests.swift; sourceTree = "<group>"; };
 		BEFA368EF8F56909D229B913 /* Library.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Library.swift; sourceTree = "<group>"; };
 		BF048ED9FB00FF3C28B4B09C /* NoteListMenus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteListMenus.swift; sourceTree = "<group>"; };
+		BF7B30DCB58346B0DD1A4EBD /* CheckRingContrastTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckRingContrastTests.swift; sourceTree = "<group>"; };
 		BFD0E9BB40489A8CB8356B19 /* template-app-habit-tracker.data.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-habit-tracker.data.json"; sourceTree = "<group>"; };
 		C0835B2D8323645A8216DE37 /* SignedOutPrivacyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedOutPrivacyTests.swift; sourceTree = "<group>"; };
 		C0AC25F37C1666CBB35BBB0C /* NoteStructure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStructure.swift; sourceTree = "<group>"; };
@@ -2894,6 +2896,7 @@
 				338A90129ABA3668433D376B /* BlogSnapshots.swift */,
 				EE3F0850899A60224D97F6FE /* CalloutShots.swift */,
 				D644521E566EE2551C79AFD8 /* ChecklistWidgetShots.swift */,
+				BF7B30DCB58346B0DD1A4EBD /* CheckRingContrastTests.swift */,
 				7EC3B59C9BD747592E9D9EDE /* ChromeSnapshots.swift */,
 				43AD36432C3AD464FC4DD430 /* CodeBlockShots.swift */,
 				1B4A785E0E10C6BB3865280D /* CodeFileSnapshots.swift */,
@@ -3525,6 +3528,7 @@
 				AC2264A58613A3184C2FCD65 /* CellTextTests.swift in Sources */,
 				573A5781D657DC61BA7CCC9C /* CellUndoTests.swift in Sources */,
 				FF3F953ED93EA33419712AAA /* ChangeRunsTests.swift in Sources */,
+				0F2167830A044A4D1335D8E8 /* CheckRingContrastTests.swift in Sources */,
 				2B79F93CCA1F36CE17BC3A81 /* ChecklistAccessibilityTests.swift in Sources */,
 				AA100C2A163E634F34F0F8D1 /* ChecklistCaretTests.swift in Sources */,
 				253C140607541209FC05DCDD /* ChecklistInteractionTests.swift in Sources */,
