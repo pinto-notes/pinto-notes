@@ -280,6 +280,11 @@ targets:
   PaneTests:
     type: bundle.unit-test
     supportedDestinations: [iOS, macOS]
+    # PaneTestsLoaded (PaneTests/Harness/ClosedWindows.swift).
+    info:
+      path: PaneTests/Info.generated.plist
+      properties:
+        NSPrincipalClass: PaneTests.PaneTestsLoaded
     sources:
       - path: PaneTests
         excludes: [Fixtures]

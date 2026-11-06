@@ -299,7 +299,10 @@ private extension Process {
     /// handing it over, and the token nowhere in what's shown. (End to end, on 13 October 2026:
     /// `codex app-server`'s mcpServerStatus/list against a local server got "Authorization: Bearer
     /// <token>" on initialize and tools/list through this helper.)
+    /// Asked for by name (TEST_RUNNER_PINTO_REAL_CODEX=1): it uses the Mac's own Codex and the
+    /// system's keychain tool, and in a full run on 6 November it sat 15 minutes and failed.
     @Test func theRealCodexTakesTheToken() async throws {
+        guard ProcessInfo.processInfo.environment["PINTO_REAL_CODEX"] != nil else { return }
         guard await ConnectShell.exists(.codex) else { return }
         let home = FileManager.default.temporaryDirectory.appending(path: "pinto-codex-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)

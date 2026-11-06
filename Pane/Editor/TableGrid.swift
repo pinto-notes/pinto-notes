@@ -485,6 +485,37 @@ struct GridCell: Hashable {
     var column: Int
 }
 
+/// The window the grid is in, once it's in one: with no key window (the Mac in the background, or
+/// more than one window with a field), "the field being edited" is otherwise a guess among them all.
+final class GridWindow {
+    #if os(macOS)
+    weak var window: NSWindow?
+    #else
+    weak var window: UIWindow?
+    #endif
+}
+
+#if os(macOS)
+private struct GridWindowReader: NSViewRepresentable {
+    let holder: GridWindow
+    final class Reader: NSView {
+        var holder: GridWindow?
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            holder?.window = window
+        }
+    }
+    func makeNSView(context: Context) -> Reader {
+        let v = Reader()
+        v.holder = holder
+        return v
+    }
+    func updateNSView(_ v: Reader, context: Context) {
+        holder.window = v.window
+    }
+}
+#endif
+
 struct TableGridView: View {
     let table: GridTable
     /// Writes the edited table back into the note.
@@ -497,6 +528,7 @@ struct TableGridView: View {
     /// Arrowing out of the top (false) or bottom (true) row hands the keyboard back to the text.
     var exit: (Bool) -> Void = { _ in }
 
+    @State private var hostWindow = GridWindow()
     @State private var draft: GridTable
     /// Copies of the typing on their way through the note and back.
     @State private var echoes = GridEchoes()
@@ -596,12 +628,16 @@ struct TableGridView: View {
             if let cell = focusRequest?.cell { DispatchQueue.main.async { go(cell) } }
         }
         .onChange(of: focusRequest) { _, r in if let r { DispatchQueue.main.async { go(r.cell) } } }
+        #if os(macOS)
+        .background(GridWindowReader(holder: hostWindow))
+        #endif
         .onChange(of: focus) { _, new in
             qaTrace("grid focus -> \(String(describing: new))")
             #if os(macOS)
             // ⌘Z in a cell is the note's, a step for the whole of the typing (applyCellEdit), not
             // the field's, a letter at a time. The window's one field editor gets its Undo back after.
-            DispatchQueue.main.async { CellField.setFieldUndo(new == nil) }
+            let field = hostWindow.window
+            DispatchQueue.main.async { CellField.setFieldUndo(new == nil, in: field) }
             #endif
             if new == nil {
                 // The old cell's field going away can knock focus out before the new
@@ -621,15 +657,16 @@ struct TableGridView: View {
                 controller?.tableFocused(grid: table.index, cell: new)
                 // Editing commands (bold, a link, the Format panel) act on this cell now.
                 let binding = cellBinding(new.row, new.column)
+                let holder = hostWindow
                 controller?.cell = CellHost(grid: table.index, cell: new, read: { binding.wrappedValue }, selected: {
-                    CellField.selection() ?? NSRange(location: (binding.wrappedValue as NSString).length, length: 0)
+                    CellField.selection(in: holder.window) ?? NSRange(location: (binding.wrappedValue as NSString).length, length: 0)
                 }, write: { edit in
                     let now = binding.wrappedValue as NSString
                     guard NSMaxRange(edit.range) <= now.length else { return }
                     binding.wrappedValue = now.replacingCharacters(in: edit.range, with: edit.replacement)
                     let after = edit.selection ?? NSRange(location: max(edit.caret, 0), length: 0)
                     // Once the field shows the new text.
-                    DispatchQueue.main.async { CellField.select(after) }
+                    DispatchQueue.main.async { CellField.select(after, in: holder.window) }
                 })
             }
             guard caretToEnd else { return }
@@ -638,10 +675,10 @@ struct TableGridView: View {
             #if os(macOS)
             // The field selects everything as it takes focus; put a caret at the end instead.
             // The field selects all once its editor is installed, a turn or two later.
+            let own = hostWindow.window
             func place(_ tries: Int) {
                 DispatchQueue.main.async {
-                    let windows = [NSApp.keyWindow].compactMap { $0 } + NSApp.windows
-                    guard let editor = windows.lazy.compactMap({ $0.firstResponder as? NSTextView }).first(where: { $0.isFieldEditor }) else {
+                    guard let editor = CellField.editor(in: own) else {
                         if tries > 0 { place(tries - 1) }
                         return
                     }
@@ -1157,20 +1194,20 @@ enum CellField {
         return windows.lazy.compactMap(find).first
     }
 
-    static func selection() -> NSRange? {
+    static func selection(in window: UIWindow? = nil) -> NSRange? {
         guard let f = field(), let r = f.selectedTextRange else { return nil }
         let start = f.offset(from: f.beginningOfDocument, to: r.start)
         return NSRange(location: start, length: f.offset(from: r.start, to: r.end))
     }
 
-    static func select(_ range: NSRange) {
+    static func select(_ range: NSRange, in window: UIWindow? = nil) {
         guard let f = field(), let a = f.position(from: f.beginningOfDocument, offset: range.location),
               let b = f.position(from: a, offset: range.length) else { return }
         f.selectedTextRange = f.textRange(from: a, to: b)
     }
     #else
     /// `window`: the note's own, when known. With two notes open the other may have a field too.
-    private static func editor(in window: NSWindow? = nil) -> NSTextView? {
+    static func editor(in window: NSWindow? = nil) -> NSTextView? {
         if let window { return (window.firstResponder as? NSTextView).flatMap { $0.isFieldEditor ? $0 : nil } }
         let windows = [NSApp.keyWindow].compactMap { $0 } + NSApp.windows
         return windows.lazy.compactMap { $0.firstResponder as? NSTextView }.first { $0.isFieldEditor }
@@ -1181,9 +1218,9 @@ enum CellField {
     /// Whether the field being edited keeps its own Undo. Off for a cell, on again when it's left:
     /// the last field editor is kept, since by then it has no first responder to be found by.
     private static weak var cellEditor: NSTextView?
-    static func setFieldUndo(_ on: Bool) {
+    static func setFieldUndo(_ on: Bool, in window: NSWindow? = nil) {
         if on { cellEditor?.allowsUndo = true; cellEditor = nil; return }
-        guard let e = editor() else { return }
+        guard let e = editor(in: window) else { return }
         e.allowsUndo = false
         cellEditor = e
     }

@@ -128,6 +128,29 @@ extension TableInteractionTests {
 
 #if os(macOS)
 extension TableInteractionTests {
+    /// With no key window (a Mac in the background) the caret went to the first field editor of any
+    /// window, hidden ones too, and the cell stayed all selected: the next key replaced its text.
+    @Test func aHiddenWindowsFieldDoesNotTakeTheCaret() async throws {
+        let hidden = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 200, height: 60), styleMask: [.titled], backing: .buffered, defer: false)
+        hidden.isReleasedWhenClosed = false
+        let field = NSTextField(string: "Other")
+        hidden.contentView?.addSubview(field)
+        hidden.orderFrontRegardless()
+        hidden.makeFirstResponder(field)
+        hidden.orderOut(nil)
+        defer { hidden.close() }
+        #expect((hidden.firstResponder as? NSTextView)?.isFieldEditor == true, "a field editor, hidden")
+
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        await h.caret(after: "is here.")
+        await h.press(EditorHarness.down)
+        await h.press(EditorHarness.down)
+        await h.settle(0.1)
+        let editor = h.window.firstResponder as? NSTextView
+        #expect(editor?.selectedRange() == NSRange(location: 8, length: 0), "caret after “Shortcut”")
+    }
+
     @Test func arrowingIntoACellDoesNotSelectItsText() async {
         let h = await EditorHarness(Self.note)
         defer { h.close() }
