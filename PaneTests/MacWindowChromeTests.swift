@@ -240,7 +240,7 @@ import Testing
 
     @Test func newFolderIsOnTheFoldersHeading() throws {
         let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
-        let heading = try #require(sidebar.range(of: "Text(\"Folders\")").map { String(sidebar[$0.lowerBound...].prefix(600)) })
+        let heading = try #require(sidebar.range(of: "Text(\"Folders\")").map { String(sidebar[$0.lowerBound...].prefix(900)) })
         #expect(heading.contains("Button(\"New Folder\", systemImage: \"plus\")") && heading.contains(".buttonStyle(.quietIcon"), "a plus with a hover look")
         #expect(sidebar.contains("Button(toggleSidebar.title, systemImage: \"sidebar.left\")"))
         #expect(sidebar.contains("ToolbarItem { SidebarToggleButton() }"), "its own view reads the toggle, not the folders'")

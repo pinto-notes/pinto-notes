@@ -17,6 +17,8 @@ import SwiftUI
         window = NSWindow(contentRect: CGRect(origin: CGPoint(x: -20000, y: -20000), size: size), styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.title = name
+        // Not by its title: a note's pane names its window for VoiceOver (WindowSpokenTitle).
+        window.setAccessibilityIdentifier(name)
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         let host = NSHostingController(rootView: view)
         host.sizingOptions = []
@@ -65,7 +67,7 @@ import SwiftUI
     private var root: AXUIElement? {
         let app = AXUIElementCreateApplication(getpid())
         AXUIElementSetMessagingTimeout(app, 5)
-        return Element.children(app).first { Element.string($0, kAXTitleAttribute) == name }
+        return Element.children(app).first { Element.string($0, "AXIdentifier") == name }
     }
 
     func find(_ id: String) -> Element? {
@@ -82,7 +84,7 @@ import SwiftUI
     func ids() -> [String] {
         var out: [String] = []
         func walk(_ e: AXUIElement, _ depth: Int) {
-            if let i = Element.string(e, "AXIdentifier") { out.append(i) }
+            if let i = Element.string(e, "AXIdentifier"), i != name { out.append(i) }
             guard depth < 40 else { return }
             for k in Element.children(e) { walk(k, depth + 1) }
         }
