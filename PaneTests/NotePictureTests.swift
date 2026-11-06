@@ -193,6 +193,13 @@ import SwiftUI
         #expect(tall.isEmpty, "a dark divider at \(tall.prefix(4))")
     }
 
+    /// In the real app a link came out system blue: a text view colours its links, and here there's none.
+    @Test func aLinkIsNotSystemBlue() throws {
+        let picture = try #require(NotePicture.render(Self.request("Title\n\nSee [the hotel booking page](https://example.com) for details"), look: .init(background: .paper)))
+        let blue: (UInt8, UInt8, UInt8) -> Bool = { r, g, b in b > 170 && r < 90 && g < 150 }
+        #expect(Self.pixels(picture.image, in: CGRect(x: 0, y: 0, width: 1, height: 1), blue) == 0)
+    }
+
     @Test func columnsFillTheWidth() {
         #expect(NotePicture.fitted([50, 150], to: 400) == [100, 300], "room to spare goes to each")
     }

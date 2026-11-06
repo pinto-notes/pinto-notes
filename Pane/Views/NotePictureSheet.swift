@@ -135,6 +135,7 @@ struct NotePictureSheet: View {
     }
 
     private var choices: some View {
+        // Share is the one orange thing here (DESIGN.md): these two stay in the neutral ink.
         HStack(spacing: 16) {
             Picker("Appearance", selection: Binding(get: { look.dark }, set: { dark = $0 })) {
                 Text("Light").tag(false)
@@ -143,9 +144,11 @@ struct NotePictureSheet: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .fixedSize()
+            .tint(.primary)
             .accessibilityIdentifier("picture.appearance")
             Spacer(minLength: 0)
             Toggle("Pinto Notes mark", isOn: $showsMark)
+                .tint(.primary)
                 .accessibilityIdentifier("picture.mark")
                 #if os(iOS)
                 .fixedSize()

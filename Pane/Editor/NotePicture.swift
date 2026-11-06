@@ -161,6 +161,7 @@ enum NotePicture {
         let styled = styler.apply(to: storage, active: NSRange(location: NSNotFound, length: 0))
         let embeds = placeEmbeds(styled.embeds, storage: storage, column: column, imageURL: request.imageURL)
         placeTables(styled.grids, storage: storage)
+        drawLinksAsTheEditorDoes(storage)
 
         layout.ensureLayout(for: layout.documentRange)
         var textHeight: CGFloat = 0
@@ -265,6 +266,22 @@ enum NotePicture {
             storage.addAttribute(.paragraphStyle, value: style, range: line)
             return PlacedEmbed(embed: embed, image: image, size: size)
         }
+    }
+
+    /// A text view colours its links itself; with none here they would come out system blue. The
+    /// picture isn't clickable, so the words keep the look and lose the link.
+    private static func drawLinksAsTheEditorDoes(_ storage: NSTextStorage) {
+        let whole = NSRange(location: 0, length: storage.length)
+        var links: [NSRange] = []
+        storage.enumerateAttribute(.link, in: whole) { value, range, _ in if value != nil { links.append(range) } }
+        guard !links.isEmpty else { return }
+        storage.beginEditing()
+        for range in links {
+            storage.removeAttribute(.link, range: range)
+            storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: range)
+            storage.addAttributes(MarkdownStyler.linkUnderline, range: range)
+        }
+        storage.endEditing()
     }
 
     /// A table's row here: the editor's has room for its handles, and these aren't touched.
