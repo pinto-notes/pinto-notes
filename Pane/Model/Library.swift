@@ -237,7 +237,7 @@ extension ModelContext {
         if Self.isBlank(note) { purge(note); return }
         note.trashedAt = .now
         note.isPinned = false
-        note.touch()
+        note.touchKeepingDate()
         saveOrReport()
         // A shared note deleted, as in Apple Notes: yours stops being shared (and goes to Recently
         // Deleted, as now); someone else's you leave.
@@ -263,7 +263,7 @@ extension ModelContext {
     func restore(_ note: Note) {
         note.trashedAt = nil
         if note.folder == nil || note.folder?.deletedAt != nil { note.folder = defaultFolder() }
-        note.touch()
+        note.touchKeepingDate()
         saveOrReport()
     }
 
@@ -292,7 +292,7 @@ extension ModelContext {
     /// opens instead, as the delete itself did (round 19: it left the deleted note open).
     func remove(_ notes: [Note], undo: UndoManager?, reopen: (([Note]) -> Void)? = nil, gone: (() -> Void)? = nil) {
         let back = notes.filter { $0.deletedAt == nil && $0.trashedAt == nil && !Self.isBlank($0) && !$0.isShared }
-            .map { (note: $0, folder: $0.folder, pinned: $0.isPinned, edited: $0.updatedAt) }
+            .map { (note: $0, folder: $0.folder, pinned: $0.isPinned) }
         remove(notes)
         guard let undo, !back.isEmpty else { return }
         undo.registerUndo(withTarget: self) { ctx in
@@ -301,9 +301,8 @@ extension ModelContext {
                     b.note.trashedAt = nil
                     if let f = b.folder, f.deletedAt == nil { b.note.folder = f } else { b.note.folder = ctx.defaultFolder() }
                     b.note.isPinned = b.pinned
-                    b.note.touch()
                     // Deleting and undoing isn't an edit: it goes back to its place in the list.
-                    b.note.updatedAt = b.edited
+                    b.note.touchKeepingDate()
                 }
                 ctx.saveOrReport()
                 let notes = back.map(\.note)
@@ -331,14 +330,13 @@ extension ModelContext {
     @discardableResult
     func move(_ notes: [Note], to folder: Folder, undo: UndoManager?) -> () -> Void {
         let back = notes.filter { $0.folder?.id != folder.id || $0.trashedAt != nil }
-            .map { (note: $0, folder: $0.folder, trashed: $0.trashedAt, edited: $0.updatedAt) }
+            .map { (note: $0, folder: $0.folder, trashed: $0.trashedAt) }
         move(notes, to: folder)
         let restore = { @MainActor [self] in
             for b in back {
                 b.note.folder = b.folder
                 b.note.trashedAt = b.trashed
-                b.note.touch()
-                b.note.updatedAt = b.edited
+                b.note.touchKeepingDate()
             }
             saveOrReport()
         }
@@ -373,7 +371,7 @@ extension ModelContext {
 
     func togglePin(_ note: Note) {
         note.isPinned.toggle()
-        note.touch()
+        note.touchKeepingDate()
         saveOrReport()
     }
 
@@ -382,7 +380,7 @@ extension ModelContext {
         guard note.folder?.id != folder.id || note.trashedAt != nil else { return }
         note.folder = folder
         note.trashedAt = nil
-        note.touch()
+        note.touchKeepingDate()
         saveOrReport()
     }
 

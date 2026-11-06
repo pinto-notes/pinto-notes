@@ -128,6 +128,17 @@ final class Note {
         modelContext?.saveSoon()
     }
 
+    /// Moved, deleted, recovered or pinned: not an edit, so the date you see stays, as in Notes (the
+    /// note used to jump to Today). It still syncs. A millisecond on, so that a change made while a
+    /// push is in flight isn't taken for what was sent (SyncEngine's `updatedAt <= sentAt`). Devices
+    /// pull by the server's own clock, so they still hear of it.
+    @MainActor func touchKeepingDate() {
+        updatedAt = updatedAt.addingTimeInterval(0.001)
+        dirty = true
+        SyncSignal.changed()
+        modelContext?.saveSoon()
+    }
+
     var isLocked: Bool { lockedBody != nil }
 
     /// A shared note: its text is a shared document's (collaboration), never synced as a note.

@@ -37,6 +37,29 @@ import Testing
         #expect(view.contains("if !Self.captureWithoutToolbar, note.trashedAt == nil {"), "and the toolbar's fade leaves a deleted note's title alone")
     }
 
+    /// Moved, deleted, recovered or pinned, a note keeps its date, as in Notes: it used to jump to
+    /// Today (council rounds 21 to 24). Each still goes up in the next sync.
+    @Test func organisingANoteKeepsItsDate() throws {
+        let (c, travel, lisbon, _) = try library()
+        let ctx = c.mainContext
+        let edited = Date(timeIntervalSinceNow: -86400 * 3)
+        func check(_ what: String, _ change: () -> Void) {
+            lisbon.updatedAt = edited
+            lisbon.dirty = false
+            change()
+            #expect(abs(lisbon.updatedAt.timeIntervalSince(edited)) < 0.1, "\(what) keeps the date")
+            #expect(lisbon.updatedAt > edited, "\(what) still counts as newer than what was sent")
+            #expect(lisbon.dirty, "\(what) still syncs")
+        }
+        let other = Folder(name: "Other")
+        ctx.insert(other)
+        check("a move") { ctx.move(lisbon, to: other) }
+        check("a move back") { ctx.move([lisbon], to: travel, undo: nil) }
+        check("a pin") { ctx.togglePin(lisbon) }
+        check("a delete") { ctx.trash(lisbon) }
+        check("a recover") { ctx.restore(lisbon) }
+    }
+
     @Test func undoBringsItBackAndRedoDeletesItAgain() throws {
         let (c, travel, lisbon, _) = try library()
         let ctx = c.mainContext
@@ -53,7 +76,7 @@ import Testing
         undo.undo()
         #expect(lisbon.trashedAt == nil, "back from Recently Deleted")
         #expect(lisbon.folder?.id == travel.id && lisbon.isPinned, "in its folder, pinned as it was")
-        #expect(lisbon.updatedAt == edited, "its date as it was, so it goes back to its place in the list")
+        #expect(abs(lisbon.updatedAt.timeIntervalSince(edited)) < 1, "its date as it was, so it goes back to its place in the list")
         #expect(reopened == [lisbon.id], "and selected again")
         #expect(undo.canRedo)
         undo.redo()

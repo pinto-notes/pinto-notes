@@ -138,6 +138,59 @@ extension NetworkFaults {
 
     /// Realtime is down: nothing arrives by itself, and the next pull (the minute timer,
     /// foreground, reconnect) brings everything.
+    /// A move keeps the note's date and still reaches the other device, which pulls by the server's
+    /// clock, not by the note's date.
+    @Test func aMoveKeepsItsDateAndReachesTheOtherDevice() async throws {
+        let (n, m) = try await sharedNote("Lisbon\n\nTrams")
+        let edited = Date(timeIntervalSinceNow: -86400 * 5)
+        n.updatedAt = edited
+        n.dirty = true
+        await phone.engine.sync()
+        await mac.engine.sync()
+        let folder = Folder(name: "Travel")
+        phone.context.insert(folder)
+        folder.dirty = true
+        phone.context.move(n, to: folder)
+        await phone.engine.sync()
+        await mac.engine.sync()
+        #expect(!n.dirty)
+        #expect(m.folder?.id == folder.id, "the other device has the move")
+        #expect(abs(m.updatedAt.timeIntervalSince(edited)) < 1, "and the date")
+        // Deleted and recovered: the same.
+        phone.context.trash(n)
+        await phone.engine.sync()
+        await mac.engine.sync()
+        #expect(m.trashedAt != nil)
+        phone.context.restore(n)
+        await phone.engine.sync()
+        await mac.engine.sync()
+        #expect(m.trashedAt == nil)
+        #expect(abs(m.updatedAt.timeIntervalSince(edited)) < 1)
+    }
+
+    /// A move made while a push is in flight isn't taken for what was sent: at every moment of the
+    /// push, it still reaches the other device.
+    @Test(arguments: [50, 150, 250, 350, 450, 550, 650, 750, 850, 950])
+    func aMoveDuringAPushStillGoesUp(ms: Int) async throws {
+        let (n, m) = try await sharedNote("Lisbon\n\nTrams")
+        let folder = phone.context.createFolder(named: "Travel")
+        folder.dirty = true
+        await phone.engine.sync()
+        await mac.engine.sync()
+        n.body += "\nMore"
+        n.touch()
+        NetFault.config = .init(delay: 0.2)
+        let pushing = Task { await phone.engine.sync() }
+        try await Task.sleep(for: .milliseconds(ms))
+        phone.context.move(n, to: folder)
+        await pushing.value
+        NetFault.config = .init()
+        await phone.engine.sync()
+        await mac.engine.sync()
+        #expect(m.folder?.id == folder.id, "the move wasn't lost")
+        await phone.engine.stop(); await mac.engine.stop()
+    }
+
     @Test func withoutRealtimeThePullCatchesUp() async throws {
         let (n, m) = try await sharedNote("Plan\n")
         _ = await type("typed while the socket was down", into: n, on: phone)

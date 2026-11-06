@@ -99,7 +99,7 @@ import Testing
         undo.endUndoGrouping()
         #expect(note.folder?.id == ideas.id)
         undo.undo()
-        #expect(note.folder?.id == travel.id && note.updatedAt == date, "back where it was, its date too")
+        #expect(note.folder?.id == travel.id && abs(note.updatedAt.timeIntervalSince(date)) < 1, "back where it was, its date too")
         undo.redo()
         #expect(note.folder?.id == ideas.id)
     }
@@ -115,7 +115,7 @@ import Testing
         let back = ctx.move([note], to: ideas, undo: undo)
         undo.endUndoGrouping()
         back()
-        #expect(note.folder?.id == travel.id && note.updatedAt == date)
+        #expect(note.folder?.id == travel.id && abs(note.updatedAt.timeIntervalSince(date)) < 1)
         #expect(!undo.canUndo, "⌘Z doesn't move it back a second time")
     }
 
