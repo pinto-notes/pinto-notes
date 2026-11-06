@@ -318,20 +318,6 @@ struct PrivacySecuritySection: View {
 
     var body: some View {
         page
-            // At the top: the page runs past the window's foot, which cut a toast at the bottom in half.
-            .overlay(alignment: .top) {
-                if let disconnected {
-                    Toast(text: disconnected)
-                        .padding(.top, 12)
-                        .transition(.opacity)
-                        .accessibilityIdentifier("privacy.disconnected")
-                        .task(id: disconnected) {
-                            try? await Task.sleep(for: .seconds(3))
-                            guard !Task.isCancelled else { return }
-                            withAnimation(.easeIn(duration: 0.2)) { self.disconnected = nil }
-                        }
-                }
-            }
             .task {
                 await crypto.recheck()
                 await devices.refresh(crypto)
@@ -486,6 +472,14 @@ struct PrivacySecuritySection: View {
                         .accessibilityIdentifier("privacy.onlyThisDevice")
                 }
                 if let problem { Text(problem).font(.system(size: 12.5)).foregroundStyle(.red) }
+                // Stays while the page is open: the row just vanished before (round 22), and a toast
+                // over this page was cut by its foot, then lay over its words (rounds 23, 24).
+                if let disconnected {
+                    Label(disconnected, systemImage: "checkmark.circle.fill")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(Color.ink)
+                        .accessibilityIdentifier("privacy.disconnected")
+                }
             }
             .padding(.horizontal, 4)
             SettingsGroup(header: PrivacyCopy.whoCanOpen, footer: c.ais.isEmpty ? nil : PrivacyCopy.aiFooter) {

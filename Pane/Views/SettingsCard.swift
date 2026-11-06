@@ -132,9 +132,9 @@ struct SettingsCard: View {
 
     /// While searching, the page beside the results is the first result's (rounds 20 to 23: "sync"
     /// listed Account's rows beside Appearance). Clearing the search goes back to where you were.
-    static func pageWhileSearching(_ found: [SettingsIndex.Entry]) -> SettingsPlace? {
-        found.first { $0.menu == nil }?.place
-    }
+    static func pageWhileSearching(_ found: [SettingsIndex.Entry]) -> SettingsPlace? { firstPage(of: found)?.place }
+    /// That result, the one row that looks chosen (round 24: every row on its page did).
+    static func firstPage(of found: [SettingsIndex.Entry]) -> SettingsIndex.Entry? { found.first { $0.menu == nil } }
 
     private var shown: SettingsPlace {
         if !query.isEmpty, let hit = Self.pageWhileSearching(found) { return hit }
@@ -248,7 +248,9 @@ struct SettingsCard: View {
                 }
                 .scrollIndicators(.automatic)
                 .scrollBounceBehavior(.basedOnSize)
-                .background(NoInitialFocus())
+                // Not while searching: the page changes as you type, and this took the keyboard from
+                // the search field, so "sync" stopped at "s" (round 24).
+                .background { if query.isEmpty { NoInitialFocus() } }
                 .id(shown)
             }
             .settingsProbe("area")
@@ -388,7 +390,7 @@ struct SettingsCard: View {
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
-                        .background(highlight(entry.menu == nil && shown == entry.place))
+                        .background(highlight(entry.menu == nil && entry == Self.firstPage(of: found)))
                         .contentShape(.rect)
                         .hoverRow(reach: EdgeInsets())
                     }

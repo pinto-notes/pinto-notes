@@ -39,6 +39,7 @@ import Testing
         #expect(SidebarView.dropTarget(work, over: true, id: ideas, dropped: false) == ideas)
         #expect(SidebarView.dropTarget(ideas, over: false, id: work, dropped: false) == ideas, "leaving another row")
         #expect(SidebarView.dropTarget(work, over: false, id: ideas, dropped: true) == nil, "dropped on Ideas with Work lit")
+        #expect(SidebarView.dropTarget(nil, over: true, id: work, dropped: false, buttonDown: false) == nil, "said after the drop")
     }
 
     @Test func theEndOfADragSelectsNothingMore() {

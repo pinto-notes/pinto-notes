@@ -1055,19 +1055,29 @@ struct SidebarView: View {
     /// Whether a live note is in no folder.
     private var looseNotes: Bool { folders.count <= 1 && Self.showsAllNotes(folders: folders.count, context: context) }
 
+    private static var mouseIsDown: Bool {
+        #if os(macOS)
+        NSEvent.pressedMouseButtons & 1 != 0
+        #else
+        true
+        #endif
+    }
+
     /// Said by a drop: no row is lit any more.
     static let everyRow = UUID()
 
     /// The row lit during a drag. A drop puts out every row: the list's "left this row" didn't
     /// always come, and Work stayed filled after a drop on Ideas (round 22).
-    static func dropTarget(_ current: UUID?, over: Bool, id: UUID, dropped: Bool) -> UUID? {
-        if dropped { return nil }
+    static func dropTarget(_ current: UUID?, over: Bool, id: UUID, dropped: Bool, buttonDown: Bool = true) -> UUID? {
+        // With the button up the drag is over, whatever a row says now: a row said so after the
+        // drop and stayed lit (round 24, the app's own Q4 planning).
+        if dropped || !buttonDown { return nil }
         return over ? id : (current == id ? nil : current)
     }
 
     /// A drag is over a folder's row, or has left it.
     private func folderTargeted(_ over: Bool, _ id: UUID) {
-        withAnimation(.snappy(duration: 0.18)) { dropTarget = Self.dropTarget(dropTarget, over: over, id: id, dropped: id == Self.everyRow) }
+        withAnimation(.snappy(duration: 0.18)) { dropTarget = Self.dropTarget(dropTarget, over: over, id: id, dropped: id == Self.everyRow, buttonDown: Self.mouseIsDown) }
     }
 
     /// Rename: on the Mac the name is typed in the folder's row, as in Notes; on iPhone in an alert.
