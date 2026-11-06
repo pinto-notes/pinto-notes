@@ -236,6 +236,69 @@ import SwiftUI
         #expect(Self.pixels(picture.image, in: Self.cardBody) { $0 > 200 && $1 < 60 && $2 < 60 } > 10000)
     }
 
+    // MARK: Apps
+
+    /// A flat picture standing in for an app: its colour is easy to find afterwards.
+    static func flat(width: Int, height: Int, _ r: CGFloat, _ g: CGFloat, _ b: CGFloat) -> CGImage {
+        let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.setFillColor(CGColor(srgbRed: r, green: g, blue: b, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        return ctx.makeImage()!
+    }
+
+    @Test func anAppIsOnTheCardWhole() throws {
+        let shot = Self.flat(width: 2000, height: 1400, 0, 0, 1)
+        let picture = try #require(NotePicture.render(app: shot, look: .init(background: .paper)))
+        #expect(picture.image.width == NotePicture.pixelWidth)
+        #expect(!picture.fadesOut, "an app is never faded")
+        #expect(Self.pixels(picture.image, in: CGRect(x: 0.3, y: 0.3, width: 0.4, height: 0.3)) { $0 < 20 && $1 < 20 && $2 > 230 } > 100_000)
+    }
+
+    /// An iPhone's app is far taller than 4:5: a narrower card, and nothing cut off.
+    @Test func aTallAppFitsByNarrowingTheCard() {
+        let layout = NotePicture.appLayout(aspect: 2.1, footer: 60)
+        #expect(layout.canvasHeight <= 1250)
+        #expect(layout.card.width < 600)
+        #expect(abs((layout.card.height - 60) / layout.card.width - 2.1) < 0.01, "the app keeps its shape")
+        #expect(layout.card.minY >= 0 && layout.card.maxY <= layout.canvasHeight)
+        #expect(abs(layout.card.midX - 500) <= 1)
+    }
+
+    @Test func aWideAppUsesTheWidth() {
+        let layout = NotePicture.appLayout(aspect: 0.5, footer: 0)
+        #expect(layout.card.width == 840)
+        #expect(layout.canvasHeight == 750, "still shows the scene around it")
+    }
+
+    @Test func theMarkOnAnAppCanBeTurnedOff() throws {
+        let shot = Self.flat(width: 1000, height: 800, 0, 0, 1)
+        let orange: (UInt8, UInt8, UInt8) -> Bool = { r, g, b in r > 200 && g < 170 && b < 90 }
+        let whole = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let on = try #require(NotePicture.render(app: shot, look: .init(background: .paper, showsMark: true)))
+        let off = try #require(NotePicture.render(app: shot, look: .init(background: .paper, showsMark: false)))
+        #expect(Self.pixels(on.image, in: whole, orange) > 200)
+        #expect(Self.pixels(off.image, in: whole, orange) == 0)
+    }
+
+    /// An app in a note used to be a grey panel with its name.
+    @Test func anAppEmbeddedInANoteIsDrawn() throws {
+        let id = UUID()
+        NoteWidgets.update(id, html: "<p>app</p>", enabled: true)
+        defer { NoteWidgets.update(id, html: nil) }
+        let text = "Title\n\n[Habits](pane-note:\(id.uuidString))\n\nAfter"
+        let green: (UInt8, UInt8, UInt8) -> Bool = { r, g, b in r < 20 && g > 230 && b < 20 }
+        let whole = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let shot = Self.flat(width: 800, height: 400, 0, 1, 0)
+        let with = try #require(NotePicture.render(Self.request(text), look: .init(background: .paper), apps: [id: shot]))
+        #expect(Self.pixels(with.image, in: whole, green) > 100_000)
+        let without = try #require(NotePicture.render(Self.request(text), look: .init(background: .paper)))
+        #expect(Self.pixels(without.image, in: whole, green) == 0, "no picture of it: its name, in a panel")
+    }
+
+    @Test func aNoteNotOnScreenHasNoLivePicture() async {
+        #expect(await NotePageLive.snapshot(UUID(), dark: false) == nil)
+    }
+
     /// The sheet itself, drawn from a window that's never shown.
     #if os(macOS)
     @Test func sheetShots() async throws {
@@ -279,6 +342,10 @@ import SwiftUI
             ("embeds-hills", Self.request("Links\n\nBefore the link.\n\nhttps://www.pintonotes.com/help\n\n![[Other note]]\n\nAfter them."), .init(background: .hills)),
             ("nomark-sea", Self.request("Trip to Lisbon\n\nSlow mornings, long lunches."), .init(background: .sea, showsMark: false)),
         ]
+        let app = try #require(NotePicture.render(app: Self.flat(width: 780, height: 1600, 0.95, 0.95, 0.93), look: .init(background: .orchard)))
+        try #require(NotePicture.png(app.image)).write(to: dir.appending(path: "app-tall-orchard.png"))
+        let wide = try #require(NotePicture.render(app: Self.flat(width: 2000, height: 1300, 0.95, 0.95, 0.93), look: .init(background: .hills)))
+        try #require(NotePicture.png(wide.image)).write(to: dir.appending(path: "app-wide-hills.png"))
         for (name, request, look) in scenes {
             let start = Date()
             let picture = try #require(NotePicture.render(request, look: look))

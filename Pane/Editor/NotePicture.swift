@@ -19,6 +19,8 @@ enum NotePicture {
         let passage: Passage
         /// Where a picture in the note is on this device.
         var imageURL: (UUID) -> URL? = { _ in nil }
+        /// The note is showing its app: a picture of the app, not of the note's text.
+        var app: UUID?
     }
 
     struct Passage: Equatable {
@@ -131,12 +133,81 @@ enum NotePicture {
 
     // MARK: Drawing
 
-    static func render(_ request: Request, look: Look, pixelWidth: Int = NotePicture.pixelWidth) -> Rendered? {
+    /// `apps`: pictures of the apps embedded in the note, by note.
+    static func render(_ request: Request, look: Look, apps: [UUID: CGImage] = [:], pixelWidth: Int = NotePicture.pixelWidth) -> Rendered? {
         guard !request.passage.text.isEmpty else { return nil }
-        return withAppearance(dark: look.dark) { draw(request, look: look, pixelWidth: pixelWidth) }
+        return withAppearance(dark: look.dark) { draw(request, look: look, apps: apps, pixelWidth: pixelWidth) }
     }
 
-    private static func draw(_ request: Request, look: Look, pixelWidth: Int) -> Rendered? {
+    /// Where an app's picture goes, in points of a canvas `canvasWidth` wide. The whole app always
+    /// shows: fading out suits text, not controls. A tall one gets a narrower card, and more scene.
+    static func appLayout(aspect: CGFloat, canvasWidth: CGFloat = 1000, footer: CGFloat) -> (canvasHeight: CGFloat, card: CGRect) {
+        let margin = (canvasWidth * 0.08).rounded()
+        var width = canvasWidth - margin * 2
+        let tallest = canvasWidth * Self.tallest - margin * 2
+        if width * aspect + footer > tallest { width = ((tallest - footer) / max(aspect, 0.01)).rounded() }
+        let height = (width * aspect + footer).rounded()
+        let canvas = max(height + margin * 2, canvasWidth * shortest).rounded()
+        return (canvas, CGRect(x: ((canvasWidth - width) / 2).rounded(), y: ((canvas - height) / 2).rounded(), width: width, height: height))
+    }
+
+    /// An app, as it is on screen, on the same card and scene as a note.
+    static func render(app image: CGImage, look: Look, pixelWidth: Int = NotePicture.pixelWidth) -> Rendered? {
+        withAppearance(dark: look.dark) {
+            let canvasWidth: CGFloat = 1000
+            let footer: CGFloat = look.showsMark ? 60 : 0
+            let layout = appLayout(aspect: CGFloat(image.height) / max(CGFloat(image.width), 1), canvasWidth: canvasWidth, footer: footer)
+            let scale = CGFloat(pixelWidth) / canvasWidth
+            guard let ctx = canvas(width: pixelWidth, points: layout.canvasHeight, scale: scale) else { return nil }
+            drawBackground(look.background, in: CGRect(x: 0, y: 0, width: canvasWidth, height: layout.canvasHeight), ctx: ctx)
+            let shape = CGPath(roundedRect: layout.card, cornerWidth: 28, cornerHeight: 28, transform: nil)
+            drawCard(shape, dark: look.dark, scale: scale, ctx: ctx)
+            ctx.saveGState()
+            ctx.addPath(shape)
+            ctx.clip()
+            drawImage(image, in: CGRect(x: layout.card.minX, y: layout.card.minY, width: layout.card.width, height: layout.card.height - footer), ctx: ctx)
+            ctx.restoreGState()
+            if look.showsMark {
+                withTextContext(ctx) {
+                    drawMark(at: CGPoint(x: layout.card.minX + 28, y: layout.card.maxY - 44), size: 28, body: 20, ctx: ctx)
+                }
+            }
+            strokeCardEdge(shape, dark: look.dark, ctx: ctx)
+            return ctx.makeImage().map { Rendered(image: $0, fadesOut: false) }
+        }
+    }
+
+    /// Top left, y down, in points: what the text system draws in.
+    private static func canvas(width: Int, points: CGFloat, scale: CGFloat) -> CGContext? {
+        guard let ctx = CGContext(data: nil, width: width, height: Int((points * scale).rounded()), bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.translateBy(x: 0, y: CGFloat(ctx.height))
+        ctx.scaleBy(x: scale, y: -scale)
+        ctx.setShouldAntialias(true)
+        ctx.interpolationQuality = .high
+        return ctx
+    }
+
+    private static func drawCard(_ shape: CGPath, dark: Bool, scale: CGFloat, ctx: CGContext) {
+        ctx.saveGState()
+        // A shadow's offset is in device pixels, whatever the transform: down is negative.
+        ctx.setShadow(offset: CGSize(width: 0, height: -10 * scale), blur: 36 * scale, color: CGColor(gray: 0, alpha: dark ? 0.45 : 0.22))
+        ctx.addPath(shape)
+        ctx.setFillColor(PColor.panePage.cgColor)
+        ctx.fillPath()
+        ctx.restoreGState()
+    }
+
+    /// The card's edge, on a dark scene.
+    private static func strokeCardEdge(_ shape: CGPath, dark: Bool, ctx: CGContext) {
+        guard dark else { return }
+        ctx.addPath(shape)
+        ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.1))
+        ctx.setLineWidth(1)
+        ctx.strokePath()
+    }
+
+    private static func draw(_ request: Request, look: Look, apps: [UUID: CGImage], pixelWidth: Int) -> Rendered? {
         let body = EditorMetrics.body
         let column = (body * columnInBodies).rounded()
         let pad = body * 2
@@ -159,7 +230,7 @@ enum NotePicture {
         var styler = MarkdownStyler()
         styler.firstLineIsTitle = request.passage.startsAtTitle
         let styled = styler.apply(to: storage, active: NSRange(location: NSNotFound, length: 0))
-        let embeds = placeEmbeds(styled.embeds, storage: storage, column: column, imageURL: request.imageURL)
+        let embeds = placeEmbeds(styled.embeds, storage: storage, column: column, imageURL: request.imageURL, apps: apps)
         placeTables(styled.grids, storage: storage)
         drawLinksAsTheEditorDoes(storage)
 
@@ -178,26 +249,14 @@ enum NotePicture {
         let canvasHeight = max(cardHeight + margin * 2, canvasWidth * shortest).rounded()
 
         let scale = CGFloat(pixelWidth) / canvasWidth
-        guard let ctx = CGContext(data: nil, width: pixelWidth, height: Int((canvasHeight * scale).rounded()), bitsPerComponent: 8, bytesPerRow: 0,
-                                  space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
-        // Top left, y down, in points: what the text system draws in.
-        ctx.translateBy(x: 0, y: CGFloat(ctx.height))
-        ctx.scaleBy(x: scale, y: -scale)
-        ctx.setShouldAntialias(true)
-        ctx.interpolationQuality = .high
+        guard let ctx = canvas(width: pixelWidth, points: canvasHeight, scale: scale) else { return nil }
 
         drawBackground(look.background, in: CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight), ctx: ctx)
 
         let card = CGRect(x: margin, y: ((canvasHeight - cardHeight) / 2).rounded(), width: cardWidth, height: cardHeight)
         let shape = CGPath(roundedRect: card, cornerWidth: 20, cornerHeight: 20, transform: nil)
         let page = PColor.panePage.cgColor
-        ctx.saveGState()
-        // A shadow's offset is in device pixels, whatever the transform: down is negative.
-        ctx.setShadow(offset: CGSize(width: 0, height: -10 * scale), blur: 36 * scale, color: CGColor(gray: 0, alpha: look.dark ? 0.45 : 0.22))
-        ctx.addPath(shape)
-        ctx.setFillColor(page)
-        ctx.fillPath()
-        ctx.restoreGState()
+        drawCard(shape, dark: look.dark, scale: scale, ctx: ctx)
 
         let origin = CGPoint(x: card.minX + pad, y: card.minY + pad)
         withTextContext(ctx) {
@@ -217,13 +276,7 @@ enum NotePicture {
                 drawMark(at: CGPoint(x: origin.x, y: origin.y + shownText + pad * 0.6), size: (body * 1.35).rounded(), body: body, ctx: ctx)
             }
         }
-        if look.dark {
-            // The card's edge, on a dark scene.
-            ctx.addPath(shape)
-            ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.1))
-            ctx.setLineWidth(1)
-            ctx.strokePath()
-        }
+        strokeCardEdge(shape, dark: look.dark, ctx: ctx)
         return ctx.makeImage().map { Rendered(image: $0, fadesOut: fadesOut) }
     }
 
@@ -235,7 +288,7 @@ enum NotePicture {
         let size: CGSize
     }
 
-    private static func placeEmbeds(_ embeds: [LineEmbed], storage: NSTextStorage, column: CGFloat, imageURL: (UUID) -> URL?) -> [PlacedEmbed] {
+    private static func placeEmbeds(_ embeds: [LineEmbed], storage: NSTextStorage, column: CGFloat, imageURL: (UUID) -> URL?, apps: [UUID: CGImage]) -> [PlacedEmbed] {
         guard !embeds.isEmpty else { return [] }
         let ns = storage.string as NSString
         storage.beginEditing()
@@ -243,19 +296,31 @@ enum NotePicture {
         return embeds.map { embed in
             var image: CGImage?
             var size = CGSize(width: column, height: (EditorMetrics.body * 3).rounded())
-            if case .image(let id, _) = embed.kind {
+            func fit(_ loaded: CGImage) -> CGSize {
+                let aspect = CGFloat(loaded.width) / max(CGFloat(loaded.height), 1)
+                var height = column / max(aspect, 0.01)
+                let cap = column * 0.9
+                var width = column
+                if height > cap { height = cap; width = height * aspect }
+                return CGSize(width: width.rounded(), height: max(height.rounded(), 40))
+            }
+            switch embed.kind {
+            case .image(let id, _):
                 if let url = imageURL(id), let loaded = loadImage(url) {
                     image = loaded
-                    let aspect = CGFloat(loaded.width) / max(CGFloat(loaded.height), 1)
-                    var height = column / max(aspect, 0.01)
-                    let cap = column * 0.9
-                    var width = column
-                    if height > cap { height = cap; width = height * aspect }
-                    size = CGSize(width: width.rounded(), height: max(height.rounded(), 40))
+                    size = fit(loaded)
                 } else {
                     // Not on this device: its name in a panel.
                     size.height = (column * 0.3).rounded()
                 }
+            case .note(let id, _):
+                // An app in the note, when there's a picture of it. Otherwise its name.
+                if let shot = apps[id] {
+                    image = shot
+                    size = fit(shot)
+                }
+            default:
+                break
             }
             let line = ns.lineRange(for: embed.range)
             let style = NSMutableParagraphStyle()

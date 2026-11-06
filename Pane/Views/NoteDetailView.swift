@@ -1511,9 +1511,10 @@ struct NoteDetailView: View {
     private func sharePicture() {
         let target = controller.target
         let passage = NotePicture.passage(in: target?.currentText ?? note.body, selection: target?.currentSelection)
-        pictureRequest = NotePicture.Request(title: note.title, passage: passage) { [controller] id in
+        // A note showing its app: the app, as you see it.
+        pictureRequest = NotePicture.Request(title: note.title, passage: passage, imageURL: { [controller] id in
             controller.resolveAttachment(id).map { FileStore.url(for: $0.id, filename: $0.filename) }
-        }
+        }, app: showingPage ? note.id : nil)
     }
 
     #if os(macOS)

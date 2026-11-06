@@ -19,6 +19,8 @@ struct NotePictureSheet: View {
     @State private var rendered: NotePicture.Rendered?
     @State private var done: Done?
     @State private var problem: String?
+    /// The first picture has been drawn, or found impossible.
+    @State private var finished = false
     #if os(macOS)
     @State private var sharing: URL?
     #endif
@@ -48,7 +50,7 @@ struct NotePictureSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
         }
-        .task(id: look.key) { draw() }
+        .task(id: look.key) { await draw() }
         #else
         VStack(spacing: 14) {
             preview.frame(maxHeight: 400)
@@ -59,13 +61,26 @@ struct NotePictureSheet: View {
         }
         .padding(20)
         .frame(width: 560)
-        .task(id: look.key) { draw() }
+        .task(id: look.key) { await draw() }
         #endif
     }
 
-    private func draw() {
-        rendered = NotePicture.render(request, look: look)
+    /// The picture stays as it is until the next is ready, so the sheet doesn't blink.
+    private func draw() async {
+        let look = look
+        let next: NotePicture.Rendered?
+        if let app = request.app {
+            let shot = await NotePageLive.snapshot(app, dark: look.dark)
+            guard !Task.isCancelled else { return }
+            next = shot.flatMap { NotePicture.render(app: $0, look: look) }
+        } else {
+            let apps = await NotePageLive.embedded(in: request.passage.text, dark: look.dark)
+            guard !Task.isCancelled else { return }
+            next = NotePicture.render(request, look: look, apps: apps)
+        }
+        rendered = next
         done = nil
+        finished = true
     }
 
     @ViewBuilder private var preview: some View {
@@ -78,10 +93,14 @@ struct NotePictureSheet: View {
                 .accessibilityElement()
                 .accessibilityLabel("The picture, on \(look.background.name)")
                 .accessibilityIdentifier("picture.preview")
-        } else {
-            Text("There's nothing in this note to show yet.")
+        } else if finished {
+            Text(request.app == nil ? "There's nothing in this note to show yet." : "The app couldn't be pictured. Close this and try again once it has opened.")
+                .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 180)
+                .accessibilityIdentifier("picture.none")
+        } else {
+            ProgressView().frame(maxWidth: .infinity, minHeight: 180)
         }
     }
 
