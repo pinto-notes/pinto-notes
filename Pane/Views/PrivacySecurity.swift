@@ -94,6 +94,8 @@ enum PrivacyCopy {
     /// Signed out, the page still says how it works (persona council, 4 November 2026: Marcus
     /// reads it before he signs in), as for a new account: Pinto Notes keeps a copy of its key.
     static let signedOutLine = "Sign in to see each device and AI that can open your notes. This is how it works for a new account."
+    /// Signed in, and this Mac hasn't finished setting up: "Sign in" was wrong (round 24).
+    static let settingUpLine = "Your devices and AIs show here once this Mac has finished setting up. This is how it works for a new account."
     static var signedOutHow: [(symbol: String, title: String, line: String)] {
         how(serverCopy: true, advanced: false, keychain: false, recovery: false)
     }
@@ -1189,11 +1191,12 @@ struct PDFFile: FileDocument {
 /// as a new account has them, and the website's longer page; then the notes password, if there is
 /// one, and the foot (diagnostics and the terms).
 struct SignedOutPrivacyPage: View {
+    var signedIn = false
     let sync: SyncEngine?
 
     var body: some View {
         SettingsStack {
-            Text(PrivacyCopy.signedOutLine)
+            Text(signedIn ? PrivacyCopy.settingUpLine : PrivacyCopy.signedOutLine)
                 .font(.system(size: 13))
                 .foregroundStyle(SettingsInk.text)
                 .fixedSize(horizontal: false, vertical: true)

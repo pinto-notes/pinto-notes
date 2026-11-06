@@ -28,6 +28,11 @@ struct SlashCommandList: View {
 
     /// What VoiceOver says for the chosen command.
     static func spoken(_ name: String, at index: Int, of count: Int) -> String { "\(name), \(index + 1) of \(count)" }
+    /// "Shift Command H" for ⇧⌘H: VoiceOver doesn't read the symbols (round 22).
+    static func spokenShortcut(_ keys: String) -> String {
+        let names: [Character: String] = ["\u{2303}": "Control", "\u{2325}": "Option", "\u{21E7}": "Shift", "\u{2318}": "Command"]
+        return keys.map { names[$0] ?? String($0) }.joined(separator: " ")
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -92,7 +97,7 @@ struct SlashCommandList: View {
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(controller.slashName(command))
+                .accessibilityLabel(Self.spoken(command.shortcut.map { "\(controller.slashName(command)), \(Self.spokenShortcut($0))" } ?? controller.slashName(command), at: i, of: controller.slashCommands.count))
                 .accessibilityAddTraits(i == controller.slashChoice ? .isSelected : [])
                 .accessibilityIdentifier("slash.command.\(command.rawValue)")
                 .id(command)

@@ -22,7 +22,7 @@ import SwiftUI
         let one = r("A\nB\nC", "A2\nB\nC", version: 7)
         let two = r("A2\nB\nC", "A2\nB2\nC", in: 5, version: 8).continuing(one)
         let three = r("A2\nB2\nC", "A2\nB2\nC2", in: 9, version: 9).continuing(two)
-        #expect(three.lines == 3 && three.summary == "ChatGPT made 3 edits")
+        #expect(three.lines == 3 && three.summary == "ChatGPT made 3 changes")
         #expect(three.previous == "A\nB\nC" && three.previousVersion == 7)
     }
 

@@ -1,5 +1,7 @@
 #if os(macOS)
 import AppKit
+import Observation
+import SwiftData
 import Testing
 @testable import Pane
 
@@ -154,6 +156,48 @@ import Testing
     /// An outline whose arrow sits in the first 20 pt of each row.
     final class Arrows: NSOutlineView {
         override func frameOfOutlineCell(atRow row: Int) -> NSRect { NSRect(x: 0, y: 0, width: 20, height: 20) }
+    }
+}
+
+extension PressSelectTests {
+    /// A row hears the drag move on by itself, without the sidebar being worked out again (rounds
+    /// 21 to 24: the first row crossed stayed lit).
+    @Test func aRowHearsTheDragMoveOn() {
+        let drops = FolderDropState()
+        drops.id = UUID()
+        final class Heard: @unchecked Sendable { var yes = false }
+        let heard = Heard()
+        withObservationTracking { _ = drops.id } onChange: { heard.yes = true }
+        drops.id = UUID()
+        #expect(heard.yes)
+    }
+
+    /// A note moves with a move's cursor; a file from Finder is copied in (round 24: the green +).
+    @Test func aRowsDropSaysMoveForOurOwnItems() {
+        #expect(FolderDrop.operation(ours: true) == .move)
+        #expect(FolderDrop.operation(ours: false) == .copy)
+    }
+
+    /// The line under the note names where ⌘Z took it (round 24).
+    @Test func undoingAMoveSaysWhereItWent() {
+        #expect(ModelContext.movedBackLine(["Travel"]) == "Moved back to Travel")
+        #expect(ModelContext.movedBackLine(["Travel", "Travel"]) == "Moved back to Travel")
+        #expect(ModelContext.movedBackLine(["Travel", "Ideas"]) == "Moved back")
+        #expect(ModelContext.movedBackLine([nil]) == "Moved back")
+    }
+
+    /// A slash row says its shortcut in words: symbols aren't read out (round 22).
+    @Test func aSlashRowSaysItsShortcut() {
+        #expect(SlashCommandList.spokenShortcut("\u{21E7}\u{2318}H") == "Shift Command H")
+        #expect(SlashCommandList.spokenShortcut("\u{2325}\u{2318}T") == "Option Command T")
+        #expect(SlashCommandList.spokenShortcut("\u{2318}'") == "Command '")
+    }
+
+    @Test func aTableLineIsReadAsItsCells() {
+        #expect(PaneTextView.spokenTableRow("| Place | Dish |\n") == "Place, Dish")
+        #expect(PaneTextView.spokenTableRow("| --- | :-: |") == "Table")
+        #expect(PaneTextView.spokenTableRow("| Ramiro |  |") == "Ramiro, blank")
+        #expect(PaneTextView.spokenTableRow("Plain text") == nil)
     }
 }
 #endif

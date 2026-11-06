@@ -15,10 +15,19 @@ struct DeleteAccountButton: View {
     @State private var working = false
     @State private var error: String?
 
+    /// On a Mac's white card, system red measures 3.6:1; this is 5.7:1 (round 24).
+    static var ink: Color {
+        #if os(macOS)
+        SettingsInk.dynamic(NSColor(srgbRed: 0.769, green: 0.157, blue: 0.11, alpha: 1), .systemRed)
+        #else
+        .red
+        #endif
+    }
+
     var body: some View {
         Button(role: .destructive) { asking = true } label: {
             HStack(spacing: 8) {
-                Text(working ? "Deleting Account\u{2026}" : title).foregroundStyle(.red)
+                Text(working ? "Deleting Account\u{2026}" : title).foregroundStyle(Self.ink)
                 if working { ProgressView().controlSize(.small) }
             }
         }

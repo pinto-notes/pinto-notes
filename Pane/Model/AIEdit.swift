@@ -195,7 +195,7 @@ enum AIEdit {
             if kind == .pageMade { return "\(who) made this note an app" }
             if kind == .pageChanged { return "\(who) changed this note's app" }
             if created { return "\(who) wrote this note" }
-            if edits > 1 { return "\(who) made \(edits) edits" }
+            if edits > 1 { return "\(who) made \(edits) changes" }
             return lines == 0 ? "Updated by \(who)" : "\(who) changed \(lines == 1 ? "1 line" : "\(lines) lines")"
         }
 

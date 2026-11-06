@@ -990,7 +990,7 @@ struct NoteDetailView: View {
                 DestructiveMenuButton("Delete Now…", systemImage: "trash") { confirmingPurge = true }
                     .accessibilityIdentifier("editor.deleteNow")
             } else {
-                DestructiveMenuButton("Delete Note", systemImage: "trash") {
+                DestructiveMenuButton("Delete", systemImage: "trash") {
                     // A shared note asks first: people lose it, or it leaves your notes.
                     if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
                     else {

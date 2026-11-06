@@ -210,6 +210,20 @@ enum TextSize {
 
     static var body: CGFloat { size(stored: UserDefaults.standard.double(forKey: key)) }
 
+    /// The sidebar and note list grow too at the bigger sizes, so someone who needs big notes can
+    /// read what's around them (council, rounds 21 to 24). The first two stops stay as they were.
+    static func interfaceScale(stored: Double) -> CGFloat {
+        switch size(stored: stored) {
+        case 24: 1.35
+        case 20: 1.2
+        case 17: 1.08
+        default: 1
+        }
+    }
+    static var interfaceScale: CGFloat { interfaceScale(stored: UserDefaults.standard.double(forKey: key)) }
+    /// A size in the sidebar or note list, at the size chosen.
+    static func interface(_ points: CGFloat) -> CGFloat { (points * interfaceScale).rounded() }
+
     /// The size a stored value stands for: the standard one when nothing is stored. A size from
     /// the 11-24 pt build before the stops goes to the stop at or above it (16 → 17, 22 → 24), so
     /// nobody's bigger text drops back to 13 on update.

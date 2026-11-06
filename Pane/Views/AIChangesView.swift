@@ -109,7 +109,7 @@ struct AIChangeRow: View {
 
     private var line: String {
         var parts = [change.ai, VersionHistoryModel.time(change.at)]
-        if change.edits > 1 { parts.append("\(change.edits) edits") }
+        if change.edits > 1 { parts.append("\(change.edits) changes") }
         if model.undone.contains(change.id) { parts.append("Undone") } else if change.trashed, change.kind != .deleted { parts.append("In Recently Deleted") }
         return parts.joined(separator: " \u{00B7} ")
     }
@@ -119,9 +119,9 @@ struct AIChangeRow: View {
 struct AIChangeDetail: View {
     let model: AIChangesModel
     let change: AIChange
-    /// An undone change is history: faded and named, not marks that look live (rounds 22 and 23).
-    static let undoneKey = "What it had changed. This is no longer in the note."
-    static let undoneOpacity = 0.5
+    /// An undone change is history, and says so above its marks (rounds 22 to 24). Not faded:
+    /// faded lines measured under 3:1, and "no longer in the note" sat above lines that were back.
+    static let undoneKey = "Undone. This is what it changed."
     private var undone: Bool { model.undone.contains(change.id) }
 
     var body: some View {
@@ -131,16 +131,15 @@ struct AIChangeDetail: View {
                     // What the two marks mean: a crossed-out line could pass for a done task
                     // (council round 14).
                     if undone {
-                        Text(Self.undoneKey)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                        Label(Self.undoneKey, systemImage: "arrow.uturn.backward")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.primary)
                             .padding(.horizontal, 20).padding(.top, 10)
                     } else if !diff.added.isEmpty || !diff.removed.isEmpty {
                         AIChangeKey(added: !diff.added.isEmpty, removed: !diff.removed.isEmpty)
                             .padding(.horizontal, 20).padding(.top, 10)
                     }
                     VersionTextView(text: diff.text, changed: diff.added, removed: diff.removed)
-                        .opacity(undone ? Self.undoneOpacity : 1)
                         .accessibilityIdentifier("aiChanges.diff")
                 }
             } else if let failed = model.detailFailed {

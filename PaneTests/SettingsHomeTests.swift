@@ -71,7 +71,11 @@ import Testing
         let all = Set(SettingsPlace.allCases)
         let found = SettingsIndex.matches("sync", available: all, advancedProtection: false, recoveryKey: false)
         #expect(SettingsCard.pageWhileSearching(found) == found.first { $0.menu == nil }?.place)
-        #expect(SettingsCard.pageWhileSearching(found) == .account, "beside Sync now, Account")
+        #expect(SettingsCard.pageWhileSearching(found) == .account, "beside Sync status, Account")
+        // The result says what's on the page, and "sync now" still finds it.
+        #expect(found.contains { $0.label == "Sync status" })
+        #expect(!found.contains { $0.label == "Sync now" }, "the page has no button by that name")
+        #expect(SettingsIndex.matches("sync now", available: all).contains { $0.label == "Sync status" })
         #expect(SettingsCard.pageWhileSearching([]) == nil, "nothing found: the page you were on")
     }
 

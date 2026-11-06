@@ -346,8 +346,14 @@ extension ModelContext {
         undo.registerUndo(withTarget: self) { ctx in
             MainActor.assumeIsolated {
                 restore()
+                // The line under the note says what's true now (round 24: "Moved to Ideas" stayed
+                // after ⌘Z had taken the note home).
+                NotificationCenter.default.post(name: .paneNotesMoved, object: Self.movedBackLine(back.map { $0.folder?.name }))
                 undo.registerUndo(withTarget: ctx) { again in
-                    MainActor.assumeIsolated { again.move(back.map(\.note), to: folder, undo: undo) }
+                    MainActor.assumeIsolated {
+                        let reversal = again.move(back.map(\.note), to: folder, undo: undo)
+                        NotificationCenter.default.post(name: .paneNotesMoved, object: "Moved to \(folder.name)", userInfo: ["undo": reversal])
+                    }
                 }
             }
         }
@@ -356,6 +362,13 @@ extension ModelContext {
             restore()
             undo.removeAllActions(withTarget: self)
         }
+    }
+
+    /// One folder they all went back to is named; otherwise it just says they went back.
+    nonisolated static func movedBackLine(_ folders: [String?]) -> String {
+        let names = Set(folders)
+        if names.count == 1, let only = names.first, let name = only { return "Moved back to \(name)" }
+        return "Moved back"
     }
 
     func togglePin(_ note: Note) {

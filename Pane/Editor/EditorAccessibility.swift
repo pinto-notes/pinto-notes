@@ -69,7 +69,25 @@ extension PaneTextView: NSAccessibilityCustomRotorItemSearchDelegate {
             if let c = color as? NSColor, (c.usingColorSpace(.sRGB)?.alphaComponent ?? 1) == 0 { return }
             out.append(text.attributedSubstring(from: run))
         }
+        // A table's lines are hidden under its grid: read as a line, a row says its cells, not nothing
+        // (round 22: six blank lines). Across lines, the table's own element has them.
+        if out.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let row = spokenTableRow((text.string as NSString).substring(with: r)) {
+            return NSAttributedString(string: row)
+        }
         return out
+    }
+
+    /// "Place, Dish" for "| Place | Dish |"; "Table" for the line under its header. Nil if it isn't
+    /// one line of a table.
+    static func spokenTableRow(_ line: String) -> String? {
+        let t = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.hasPrefix("|"), !t.contains("\n") else { return nil }
+        let cells = t.split(separator: "|", omittingEmptySubsequences: false).dropFirst()
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        let filled = (t.hasSuffix("|") ? Array(cells.dropLast()) : cells)
+        if filled.allSatisfy({ !$0.isEmpty && $0.allSatisfy { "-:".contains($0) } }) { return "Table" }
+        return filled.map { $0.isEmpty ? "blank" : $0 }.joined(separator: ", ")
     }
 
     override func accessibilityString(for range: NSRange) -> String? {

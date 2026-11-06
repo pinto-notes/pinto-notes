@@ -376,6 +376,7 @@ struct NoteListView: View {
         // Soft under the toolbar, as the sidebar and Notes: a list's own edge is hard, the window's
         // grey title bar with a line under it (Emil, 10-30, in Recently Deleted).
         .scrollEdgeEffectStyle(.soft, for: .top)
+        .modifier(FollowsTextSize())
         #endif
         .overlay {
             if visible.isEmpty && visibleFiles.isEmpty && !library.isLoading && !behindSetupCard { emptyState }
@@ -709,7 +710,7 @@ struct NoteListView: View {
                 // One weight lighter than before, in a 40 pt row like Notes' (NoteListGeometryTests).
                 // C and D: small, semibold and muted, a label over the rows rather than a title.
                 Text(section.0)
-                    .font(DesignLook.calmList ? .system(size: 12, weight: .semibold) : .title3.weight(.semibold))
+                    .font(.system(size: TextSize.interface(DesignLook.calmList ? 12 : 15), weight: .semibold))
                     .foregroundStyle(DesignLook.calmList ? Color.muted : Color.ink)
                     .textCase(nil)
                     .padding(.top, NoteListView.headingTop)
@@ -1876,6 +1877,14 @@ final class LibraryNotes {
 }
 
 /// Row type and spacing, matched to Apple Notes on each platform.
+#if os(macOS)
+/// Rows are worked out again when the interface's size changes.
+struct FollowsTextSize: ViewModifier {
+    @AppStorage(TextSize.key) private var stored: Double = 0
+    func body(content: Content) -> some View { content.id(TextSize.interfaceScale(stored: stored)) }
+}
+#endif
+
 enum RowMetrics {
     /// iPhone: the room either side of a row's text inside its card.
     static let sideInset: CGFloat = 20
@@ -1888,10 +1897,10 @@ enum RowMetrics {
     // here it keeps the folder rows' gap (owner: "the note title and subtitle needs a bit of
     // spacing"). The list adds 4 pt above and below a row and 16 at its left
     // (NoteListGeometryTests).
-    static let title = Font.system(size: 13, weight: .bold)
-    static let detail = Font.system(size: 12)
+    static var title: Font { .system(size: TextSize.interface(13), weight: .bold) }
+    static var detail: Font { .system(size: TextSize.interface(12)) }
     /// C and D: the folder line, a size under the detail.
-    static let folder = Font.system(size: 11)
+    static var folder: Font { .system(size: TextSize.interface(11)) }
     /// C and D: room the hairlines used to give, as air above and below each row.
     static var calmAir: CGFloat { DesignLook.calmList ? 3 : 0 }
     static let spacing: CGFloat = 3

@@ -334,7 +334,7 @@ struct TextSizeRow: View {
     @AppStorage(TextSize.key) private var stored: Double = 0
 
     static let label = "Note text"
-    static let footer = "Note text on this Mac. Make Text Bigger and Make Text Smaller in the View menu change it too."
+    static let footer = "Note text on this Mac. At the bigger sizes, the sidebar and note list grow with it. Make Text Bigger and Make Text Smaller in the View menu change it too."
 
     var body: some View {
         let size = TextSize.size(stored: stored)
