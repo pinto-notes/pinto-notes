@@ -1179,10 +1179,11 @@ private struct TrashDrop: ViewModifier {
     @Environment(\.modelContext) private var context
     let active: Bool
     @Binding var over: Bool
+    @State private var lid = TrashLidHold()
 
     func body(content: Content) -> some View {
         if active {
-            content.onDrop(of: [.paneItem], delegate: TrashDropDelegate(context: context, over: $over))
+            content.onDrop(of: [.paneItem], delegate: TrashDropDelegate(context: context, over: $over, lid: lid))
         } else {
             content
         }
@@ -1193,12 +1194,13 @@ private struct TrashDrop: ViewModifier {
 private struct TrashDropDelegate: DropDelegate {
     let context: ModelContext
     @Binding var over: Bool
+    let lid: TrashLidHold
 
-    func dropEntered(info: DropInfo) { over = true }
-    func dropExited(info: DropInfo) { over = false }
+    func dropEntered(info: DropInfo) { lid.entered { over = $0 } }
+    func dropExited(info: DropInfo) { lid.left { over = $0 } }
     func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
     func performDrop(info: DropInfo) -> Bool {
-        over = false
+        lid.dropped { over = $0 }
         DropLoader.load(info.itemProviders(for: [.paneItem])) { [context] items, _ in
             withAnimation(.snappy) { context.trashDropped(items) }
         }

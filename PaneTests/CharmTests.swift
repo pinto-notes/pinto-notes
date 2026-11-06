@@ -44,6 +44,25 @@ import Testing
         #expect(try Self.difference(frame(0), rest) == 0)
     }
 
+    /// Letting go reports the note leaving just before the drop: the lid must not blink shut between.
+    @Test func theTrashLidStaysOpenThroughADrop() async throws {
+        let hold = TrashLidHold(wait: .milliseconds(60))
+        var open = false
+        hold.entered { open = $0 }
+        #expect(open)
+        hold.left { open = $0 }
+        hold.dropped { open = $0 }
+        #expect(open, "still open as the note goes in")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(!open, "and shut afterwards")
+        // A note carried back over it in time keeps it open.
+        hold.entered { open = $0 }
+        hold.left { open = $0 }
+        hold.entered { open = $0 }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(open)
+    }
+
     /// Every move, ordinary and rare, has settled back onto the glyph at rest by its last frame
     /// (no jump when it stops), and moves in between. The note's tick is left out: it stays ticked.
     @Test(arguments: Charm.Kind.allCases.filter { $0 != .tick })

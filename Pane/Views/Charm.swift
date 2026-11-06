@@ -1071,6 +1071,32 @@ struct CharmFrame: View, @preconcurrency Animatable {
     }
 }
 
+/// Keeps the trash's lid open from a note arriving until the trash has it. Letting go of a drag
+/// reports the note leaving before it reports the drop: without the wait the lid shuts, then opens again.
+@MainActor final class TrashLidHold {
+    private var shut: Task<Void, Never>?
+    private let wait: Duration
+
+    init(wait: Duration = .milliseconds(320)) { self.wait = wait }
+
+    func entered(_ set: (Bool) -> Void) {
+        shut?.cancel()
+        set(true)
+    }
+
+    func left(_ set: @escaping @MainActor (Bool) -> Void) { shutSoon(set) }
+
+    func dropped(_ set: @escaping @MainActor (Bool) -> Void) { shutSoon(set) }
+
+    private func shutSoon(_ set: @escaping @MainActor (Bool) -> Void) {
+        shut?.cancel()
+        shut = Task { [wait] in
+            try? await Task.sleep(for: wait)
+            if !Task.isCancelled { set(false) }
+        }
+    }
+}
+
 extension GraphicsContext {
     /// Turns what's drawn next by `angle` about `p`.
     mutating func rotate(around p: CGPoint, by angle: Angle) {
