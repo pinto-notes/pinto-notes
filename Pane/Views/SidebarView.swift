@@ -1175,7 +1175,6 @@ private struct CountedRow: View {
     }
 }
 
-#if os(macOS)
 /// What the pointer promises over a drop target: something already in the app moves, so no green
 /// plus; a file from outside is copied in, and the plus is right.
 func dropOperation(fromThisApp: Bool) -> DropOperation { fromThisApp ? .move : .copy }
@@ -1198,6 +1197,7 @@ private struct MoveDropDelegate: DropDelegate {
     }
 }
 
+#if os(macOS)
 /// Recently Deleted takes notes and files dragged onto it, as in Notes.
 private struct TrashDrop: ViewModifier {
     @Environment(\.modelContext) private var context
