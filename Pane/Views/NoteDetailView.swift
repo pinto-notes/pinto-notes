@@ -1946,8 +1946,13 @@ struct NoteToolbarStage<Pane: View>: View {
                             Button("Checklist", systemImage: "checklist", action: controller.checklist)
                                 .help("Checklist (⇧⌘L)")
                             if let menu = controller.currentTableMenu {
-                                Menu { TableMenuItems(menu: menu) } label: { Label("Table", systemImage: "tablecells") }
-                                    .help("Table")
+                                // Same place and shape as the button it replaces, in the accent: the
+                                // bar regrouped and Aa slid 22 pt with the caret in a table (round 22).
+                                Menu { TableMenuItems(menu: menu) } label: {
+                                    Label("Table", systemImage: "tablecells").foregroundStyle(Color.amberInk)
+                                }
+                                .menuIndicator(.hidden)
+                                .help("Table")
                             } else {
                                 Button("Table", systemImage: "tablecells", action: controller.insertTable)
                                     .help("Table (⌥⌘T)")
