@@ -78,7 +78,10 @@ describe("Use template on the page", () => {
     act(() => attempts.calls[0].done(false));
     const s = sheet()!;
     expect(s.getAttribute("role")).toBe("dialog");
-    expect(s.textContent).toContain("Didn't open?");
+    // Most people here don't have the app yet: it says what to do next, not that something failed.
+    expect(s.textContent).toContain("This template opens in Pinto Notes");
+    expect(s.textContent).toContain("Get the app, then come back to this page.");
+    expect(s.textContent).not.toContain("Didn't open");
     expect(s.querySelector('a[href="/download/mac"]')?.textContent).toContain("Get Pinto Notes for Mac");
     expect(s.textContent).toContain("Already have it?");
     expect(document.activeElement).toBe(s);
@@ -87,6 +90,13 @@ describe("Use template on the page", () => {
     act(() => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
     expect(sheet()).toBeNull();
     expect(document.activeElement).toBe(button());
+  });
+
+  it("calls a shared note a note on the sheet", () => {
+    act(() => root.render(<OpenInApp href="/open/copy/abc" app="ambernotes://copy/abc">Use this note</OpenInApp>));
+    click();
+    act(() => attempts.calls[0].done(false));
+    expect(sheet()!.textContent).toContain("This note opens in Pinto Notes");
   });
 
   it("tries again from the sheet", () => {

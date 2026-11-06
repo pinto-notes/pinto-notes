@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { OPEN_WAIT_MS, SITE_EVENT, openEvent, openRequested, validAppLink, withoutOpen } from "@/lib/open-in-app";
+import { OPEN_WAIT_MS, SITE_EVENT, openEvent, openRequested, opensWhat, validAppLink, withoutOpen } from "@/lib/open-in-app";
 import type { SiteEvent } from "@/lib/posthog";
 import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
 import { tryApp } from "./open/try-app";
@@ -73,14 +73,16 @@ export default function OpenInApp({ href, app, className, label, labelIos, auto 
       <a ref={link} className={className} href={href} aria-label={name} onClick={onClick} aria-busy={state === "trying" || undefined} data-opening={state === "trying" || undefined}>
         {children}
       </a>
-      {state === "fallback" && createPortal(<OpenSheet onRetry={retry} onClose={close} />, document.body)}
+      {state === "fallback" && createPortal(<OpenSheet what={opensWhat(app)} onRetry={retry} onClose={close} />, document.body)}
     </>
   );
 }
 
 /// The sheet when Pinto Notes didn't open: quiet, at the bottom of the window, never in the way of
-/// the page. Escape or Close puts it away and focus goes back to the button.
-function OpenSheet({ onRetry, onClose }: { onRetry: () => void; onClose: () => void }) {
+/// the page. Most people who see it just don't have the app yet, so it says what to do next rather
+/// than sounding like a failure; "Try again" is for the few who do. Escape or Close puts it away and
+/// focus goes back to the button.
+function OpenSheet({ what, onRetry, onClose }: { what: "template" | "note"; onRetry: () => void; onClose: () => void }) {
   const id = useId();
   const sheet = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -91,8 +93,8 @@ function OpenSheet({ onRetry, onClose }: { onRetry: () => void; onClose: () => v
   }, [onClose]);
   return (
     <div ref={sheet} className="open-sheet" role="dialog" aria-modal="false" aria-labelledby={id} tabIndex={-1}>
-      <p className="open-sheet-title" id={id}>Didn&apos;t open?</p>
-      <p className="open-sheet-text">Pinto Notes isn&apos;t on this device yet, or the browser didn&apos;t hand the link over.</p>
+      <p className="open-sheet-title" id={id}>This {what} opens in Pinto Notes</p>
+      <p className="open-sheet-text">It&apos;s free. Get the app, then come back to this page.</p>
       <div className="open-sheet-actions">
         <a className="open-sheet-get" href="/download/mac"><AppleGlyph /> Get Pinto Notes for Mac</a>
         {APP_STORE_LIVE && <a className="open-sheet-iphone" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it for iPhone</a>}
