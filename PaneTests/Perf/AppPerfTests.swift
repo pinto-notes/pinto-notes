@@ -271,6 +271,40 @@ extension AppPerfTests {
         #expect(pick.picked == [lisbon.id], "selected: \(pick.picked.count)")
     }
 
+    /// A folder opened with nothing of it open: its top note opens, as in Notes.
+    @Test func aFolderOpensOnItsTopNote() async throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let ideas = ctx.createFolder(named: "Ideas"), travel = ctx.createFolder(named: "Travel")
+        let older = ctx.createNote(in: .folder(ideas.id), body: "Older\n\nWords")
+        older.updatedAt = Date(timeIntervalSinceNow: -86_400)
+        let top = ctx.createNote(in: .folder(ideas.id), body: "Top\n\nWords")
+        _ = ctx.createNote(in: .folder(travel.id), body: "Elsewhere\n\nWords")
+        try ctx.save()
+        let box = ScopeBox(), pick = PickBox()
+        box.scope = .folder(travel.id)
+        let (w, host) = window(PickedList(box: box, pick: pick).modelContainer(c))
+        defer { w.close() }
+        func turn() async {
+            for _ in 0..<8 {
+                try? await Task.sleep(for: .milliseconds(60))
+                host.layoutSubtreeIfNeeded()
+                w.displayIfNeeded()
+            }
+        }
+        await turn()
+        pick.picked = []
+        box.scope = .folder(ideas.id)
+        await turn()
+        #expect(pick.picked == [top.id], "selected: \(pick.picked.count)")
+        // A note already open stays open.
+        pick.picked = [older.id]
+        await turn()
+        box.scope = .all
+        await turn()
+        #expect(pick.picked == [older.id])
+    }
+
     struct ScopedList: View {
         let box: ScopeBox
         var body: some View { NoteListView(scope: box.scope, selection: .constant([]), onNewNote: {}) }

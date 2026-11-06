@@ -346,6 +346,9 @@ struct NoteListView: View {
                 ?? mixedSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }).map { leadingRows + $0 }
         })
         .id(ListIdentity(scope: scope, library: library.wholesale))
+        #if os(macOS)
+        .modifier(OpensTopNote(scope: scope, top: visible.first?.id, selection: $selection))
+        #endif
         #endif
         #if os(iOS)
         // iPhone: grouped cards on a grey ground. As columns: the Mac's list, rows on white with a
@@ -1435,10 +1438,11 @@ struct ShowsSelectedRow: ViewModifier {
                 // Once the list has its new order: `row` here is the one from before it.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { revealAsked &+= 1 }
             }
-            // A note that an edit or a restore sent up the list: the list goes with it (round 21). Not
+            // A note that an edit, a restore or an Undo sent along the list: the list goes with it
+            // (round 21 up; round 23 down: Undo of a move left Lisbon cut by the window's foot). Not
             // for a row that shifted because of another note: someone reading further down stays there.
             .onChange(of: selected.flatMap(row)) { old, new in
-                guard let old, let new, new + 1 < old else { return }
+                guard let old, let new, abs(new - old) > 1 else { return }
                 DispatchQueue.main.async { finder.reveal(row: new) }
             }
             .onChange(of: revealAsked) {
@@ -2448,3 +2452,21 @@ enum SearchLines {
         Text(l.before).foregroundStyle(rest) + Text(l.match).foregroundStyle(Color.ink).fontWeight(.semibold) + Text(l.after).foregroundStyle(rest)
     }
 }
+
+#if os(macOS)
+/// Another folder with nothing of it open: its top note opens, as in Notes (round 23: Ideas opened
+/// on "No note selected"). A turn later, once the note that isn't here has closed.
+private struct OpensTopNote: ViewModifier {
+    let scope: Scope
+    let top: UUID?
+    @Binding var selection: Set<UUID>
+
+    func body(content: Content) -> some View {
+        content.onChange(of: scope) { _, _ in
+            DispatchQueue.main.async {
+                if selection.isEmpty, let top { selection = [top] }
+            }
+        }
+    }
+}
+#endif
