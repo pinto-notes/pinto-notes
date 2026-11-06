@@ -159,6 +159,22 @@ import Testing
         #expect(!echoes.isStale(table("Seax"), at: start.addingTimeInterval(2)), "too long after the key")
     }
 
+    /// ⌘B, a space, a word, a space, ⌘B, and on: "**bold** end", as the keys really go (r7h, on the
+    /// Air: "bold end" all bold with its marks on show). ListEditingTests has the parts.
+    @Test func boldWithSpacesAroundItAsTyped() async throws {
+        let h = await EditorHarness("Title\n\nplain", width: 640, focus: true)
+        defer { h.close() }
+        h.view.setSelectedRange(NSRange(location: (h.text as NSString).length, length: 0))
+        func type(_ s: String) async { for c in s { h.view.insertText(String(c), replacementRange: h.view.selectedRange()); await h.settle(0.02) } }
+        await type(" ")
+        h.controller.bold(); await h.settle(0.05)
+        await type(" ")
+        await type("bold ")
+        h.controller.bold(); await h.settle(0.05)
+        await type("end")
+        #expect(h.text == "Title\n\nplain  **bold** end")
+    }
+
     /// ⌘B stepping out of bold only moves the caret: no press of ⌘Z goes on it.
     @Test func steppingOutOfBoldIsNoStepOfUndo() async throws {
         let text = "plain **bold**"

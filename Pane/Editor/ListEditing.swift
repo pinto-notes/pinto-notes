@@ -378,6 +378,12 @@ enum ListEditing {
     /// (persona council r7e, a real Mac window). Nil when the caret isn't there.
     static func stepPastClose(in text: String, at caret: Int, token: String) -> TextEdit? {
         let ns = text as NSString, t = (token as NSString).length
+        // "bold " and ⌘B: "**bold **" isn't bold. The space comes out past the marks.
+        if caret >= 2, caret + t <= ns.length, ns.substring(with: NSRange(location: caret - 1, length: 1)) == " ",
+           ns.substring(with: NSRange(location: caret, length: t)) == token,
+           stepPastClose(in: ns.replacingCharacters(in: NSRange(location: caret - 1, length: 1), with: ""), at: caret - 1, token: token) != nil {
+            return TextEdit(range: NSRange(location: caret - 1, length: 1 + t), replacement: token + " ", caret: caret + t)
+        }
         guard caret >= 1, caret + t <= ns.length,
               ns.substring(with: NSRange(location: caret, length: t)) == token else { return nil }
         let line = ns.lineRange(for: NSRange(location: caret, length: 0))

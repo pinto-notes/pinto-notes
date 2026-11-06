@@ -256,15 +256,6 @@ struct FormatState: Equatable, Sendable {
     static func toggle(_ kind: Inline, in text: String, selection: NSRange, stepsPast: Bool = true) -> TextEdit {
         if stepsPast, selection.length == 0, let token = stepToken(kind),
            let past = ListEditing.stepPastClose(in: text, at: selection.location, token: token) { return past }
-        // "bold " and ⌘B: "**bold **" isn't bold either. The space comes out past the marks.
-        if stepsPast, selection.length == 0, let token = stepToken(kind) {
-            let ns = text as NSString, t = (token as NSString).length, at = selection.location
-            if at >= 2, at + t <= ns.length, ns.substring(with: NSRange(location: at - 1, length: 1)) == " ",
-               ns.substring(with: NSRange(location: at, length: t)) == token,
-               let past = ListEditing.stepPastClose(in: ns.replacingCharacters(in: NSRange(location: at - 1, length: 1), with: ""), at: at - 1, token: token), past.caret == at - 1 + t {
-                return TextEdit(range: NSRange(location: at - 1, length: 1 + t), replacement: token + " ", caret: at + t)
-            }
-        }
         if let span = spans(in: text, selection: selection).first(where: { $0.kind == kind }) {
             let inner = span.inner
             func map(_ p: Int) -> Int { span.outer.location + min(max(0, p - inner.location), inner.length) }
