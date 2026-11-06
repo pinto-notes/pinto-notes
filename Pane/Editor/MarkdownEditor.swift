@@ -4082,6 +4082,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
         if controller?.sortsTickedItems != false { core.sortSoon(after: line, text: { [weak self] in self?.string ?? "" }) { [weak self] in self?.sortChecklist(around: $0) } }
         NSAccessibility.post(element: self, notification: .valueChanged)
+        let ns = string as NSString
+        let said = ns.substring(with: ns.lineRange(for: NSRange(location: line, length: 0)))
+        if let list = ListPrefix(line: said) {
+            let words = (said as NSString).substring(from: min(list.length, (said as NSString).length)).trimmingCharacters(in: .whitespacesAndNewlines)
+            controller?.announceTick((edit.replacement == "x" ? "Checked, " : "Unchecked, ") + words)
+        }
         return true
     }
 
@@ -4124,6 +4130,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         a11yBoxes = Dictionary(found.map { ("\($0.line)|\($0.checked)|\($0.accessibilityLabel() ?? "")", $0) }, uniquingKeysWith: { a, _ in a })
         return found
     }
+
+    /// Whether the line starting at `line` is drawn with a circle.
+    func drawsCheckbox(line: Int) -> Bool { core.checkboxRect(line: line, layout: textLayoutManager) != nil }
 
     /// The circle of the checklist item on `line`, in screen coordinates.
     func checkboxScreenFrame(line: Int) -> CGRect {

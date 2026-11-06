@@ -243,7 +243,7 @@ import Testing
         defer { h.close() }
         await h.select((h.view.string as NSString).length)
         let v = h.view
-        #expect(v.accessibilityCustomRotors().map(\.type) == [.heading, .link])
+        #expect(v.accessibilityCustomRotors().map(\.type) == [.heading, .link, .custom])
         let title = v.rotorResult(heading: true, from: nil, next: true)
         #expect(title?.customLabel == "Lisbon", "the title first")
         let plan = v.rotorResult(heading: true, from: title?.targetRange, next: true)

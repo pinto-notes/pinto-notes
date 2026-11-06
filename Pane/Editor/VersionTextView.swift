@@ -54,6 +54,36 @@ struct VersionTextView {
 }
 
 #if os(macOS)
+/// A version as VoiceOver says it: without its markdown, and with what each highlight and crossing
+/// out shows (real VoiceOver in AI Changes read "- [ ] Burrata" and couldn't tell the two apart).
+final class VersionReadingTextView: NSTextView {
+    static func spokenLine(_ text: NSAttributedString, in range: NSRange) -> NSAttributedString {
+        let said = PaneTextView.spokenLine(text, in: range)
+        let r = NSIntersectionRange(range, NSRange(location: 0, length: text.length))
+        guard r.length > 0, r == (text.string as NSString).lineRange(for: NSRange(location: r.location, length: 0)) else { return said }
+        // Marks hide under the first characters, so look at the line's last words.
+        let last = NSRange(location: NSMaxRange(r) - 1, length: 1)
+        let word = NSMaxRange(r) >= 2 && (text.string as NSString).character(at: last.location) == 0x0A
+            ? NSRange(location: last.location - 1, length: 1) : last
+        let a = text.attributes(at: word.location, effectiveRange: nil)
+        let lead = a[.strikethroughStyle] != nil && a[.backgroundColor] != nil ? "Removed, " : a[.paneChanged] != nil ? "Added, " : nil
+        guard let lead else { return said }
+        let out = NSMutableAttributedString(string: lead)
+        out.append(said)
+        return out
+    }
+
+    override func accessibilityString(for range: NSRange) -> String? {
+        guard let storage = textStorage else { return super.accessibilityString(for: range) }
+        return Self.spokenLine(storage, in: range).string
+    }
+
+    override func accessibilityAttributedString(for range: NSRange) -> NSAttributedString? {
+        guard let storage = textStorage else { return super.accessibilityAttributedString(for: range) }
+        return Self.spokenLine(storage, in: range)
+    }
+}
+
 extension VersionTextView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -63,7 +93,7 @@ extension VersionTextView: NSViewRepresentable {
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
         scroll.scrollerStyle = .overlay
-        let view = NSTextView(usingTextLayoutManager: true)
+        let view = VersionReadingTextView(usingTextLayoutManager: true)
         view.textLayoutManager?.delegate = context.coordinator.layoutDelegate
         view.isEditable = false
         view.isSelectable = true

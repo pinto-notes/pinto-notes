@@ -169,7 +169,8 @@ extension PaneTextView: NSAccessibilityCustomRotorItemSearchDelegate {
 
     override func accessibilityCustomRotors() -> [NSAccessibilityCustomRotor] {
         [NSAccessibilityCustomRotor(rotorType: .heading, itemSearchDelegate: self),
-         NSAccessibilityCustomRotor(rotorType: .link, itemSearchDelegate: self)]
+         NSAccessibilityCustomRotor(rotorType: .link, itemSearchDelegate: self),
+         NSAccessibilityCustomRotor(label: Self.checklistRotorLabel, itemSearchDelegate: self)]
     }
 
     /// The headings' words: the title line, then every `#` line, without its hashes.
@@ -202,7 +203,34 @@ extension PaneTextView: NSAccessibilityCustomRotorItemSearchDelegate {
         return out
     }
 
+    /// The way to an item's line: walking the text goes word by word, one line at a time. Landed
+    /// on one, ⇧⌘U ticks it.
+    static let checklistRotorLabel = "Checklist items"
+
+    func checklistRotorResult(from: NSRange?, next: Bool, filter: String = "") -> NSAccessibilityCustomRotor.ItemResult? {
+        let ns = string as NSString
+        var boxes = checklistCheckboxes()
+        if !filter.isEmpty { boxes = boxes.filter { ($0.accessibilityLabel() ?? "").localizedCaseInsensitiveContains(filter) } }
+        // By line: the range handed back starts after the item's marks, on its words.
+        let at = from.map { ns.lineRange(for: NSRange(location: $0.location, length: 0)).location }
+        guard let box = next ? boxes.first(where: { at == nil || $0.line > at! }) : boxes.last(where: { at == nil || $0.line < at! })
+        else { return nil }
+        let line = ns.lineRange(for: NSRange(location: box.line, length: 0))
+        let words = ns.range(of: box.accessibilityLabel() ?? "", options: [], range: line)
+        let result = NSAccessibilityCustomRotor.ItemResult(targetElement: self)
+        result.targetRange = words.location == NSNotFound ? NSRange(location: box.line, length: 0) : words
+        result.customLabel = (box.checked ? "Checked, " : "Unchecked, ") + (box.accessibilityLabel() ?? "")
+        return result
+    }
+
     nonisolated func rotor(_ rotor: NSAccessibilityCustomRotor, resultFor search: NSAccessibilityCustomRotor.SearchParameters) -> NSAccessibilityCustomRotor.ItemResult? {
+        if rotor.type == .custom {
+            let next = search.searchDirection == .next, filter = search.filterString
+            let from = search.currentItem?.targetRange
+            nonisolated(unsafe) var out: NSAccessibilityCustomRotor.ItemResult?
+            MainActor.assumeIsolated { out = checklistRotorResult(from: from, next: next, filter: filter) }
+            return out
+        }
         let heading = rotor.type == .heading, from = search.currentItem?.targetRange
         let next = search.searchDirection == .next, filter = search.filterString
         // VoiceOver asks on the main thread; the result isn't Sendable, so it's handed out as is.

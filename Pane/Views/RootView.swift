@@ -1403,6 +1403,12 @@ struct PaneCommands: Commands {
                 Button("Monostyled") { editor?.code() }.keyboardShortcut("m", modifiers: [.command, .shift])
                 Divider()
                 Button("Checklist") { editor?.checklist() }.keyboardShortcut("l", modifiers: [.command, .shift])
+                #if os(macOS)
+                // ⇧⌘U, as Notes' Mark as Checked: no pointer needed.
+                Button(EditorController.tickTitle(ticked: editor?.caretItemTicked)) { editor?.tickItem() }
+                    .keyboardShortcut("u", modifiers: [.command, .shift])
+                    .disabled(editor?.caretItemTicked == nil)
+                #endif
                 // Notes' Uncheck All, in the app's word: on in a checklist with something ticked.
                 Button(EditorController.untickAllTitle) { editor?.untickAll() }
                     .keyboardShortcut("l", modifiers: [.command, .option, .shift])

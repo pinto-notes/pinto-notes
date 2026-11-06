@@ -374,12 +374,41 @@ final class EditorController {
 
     /// The caret is in a checklist with something ticked: Format › Untick All is on.
     private(set) var canUntickAll = false
+    /// The item the caret is on: ticked or not. Nil when its line isn't a checklist item (Format › Tick Item).
+    private(set) var caretItemTicked: Bool?
 
     /// Follows the caret (`typingChanged`), so the menu item enables as it moves.
     func updateUntick(text: String, selection: NSRange?) {
         let at = (selection ?? target?.currentSelection)?.location
         let can = cell == nil && !readOnly && at.map { ListEditing.tickedCount(in: text, at: $0) > 0 } == true
         if can != canUntickAll { canUntickAll = can }
+        var ticked: Bool?
+        if cell == nil, !readOnly, let at, at <= (text as NSString).length {
+            let ns = text as NSString
+            let line = ns.lineRange(for: NSRange(location: at, length: 0))
+            ticked = ListPrefix(line: ns.substring(with: line))?.checkbox
+            #if os(macOS)
+            // Only a line drawn as an item: in a code block, "- [ ]" is just text.
+            if ticked != nil, let view = target as? PaneTextView, !view.drawsCheckbox(line: line.location) { ticked = nil }
+            #endif
+        }
+        if ticked != caretItemTicked { caretItemTicked = ticked }
+    }
+
+    /// The menu's word for what ⌘⇧U will do.
+    static func tickTitle(ticked: Bool?) -> String { ticked == true ? "Untick Item" : "Tick Item" }
+
+    /// Format › Tick Item (⌘⇧U, Notes' Mark as Checked): the item the caret is on, with no pointer.
+    /// VoiceOver can't get to a circle by walking the text, so this is also how it ticks.
+    func tickItem() {
+        #if os(macOS)
+        guard cell == nil, !readOnly, let view = target as? PaneTextView else { return }
+        let ns = view.string as NSString
+        let line = ns.lineRange(for: NSRange(location: view.selectedRange().location, length: 0)).location
+        guard view.drawsCheckbox(line: line) else { return }
+        view.tick(line: line)
+        updateUntick(text: view.string, selection: view.selectedRange())
+        #endif
     }
 
     /// Unticks every item in the checklist at `location` (the caret's, by default), as Notes'
@@ -714,6 +743,13 @@ final class EditorController {
 
     /// The last thing said to VoiceOver about the menu (tests read it).
     @ObservationIgnored private(set) var lastSlashAnnouncement: String?
+
+    /// "Checked, Oat milk" after a tick, whichever way it was made; what the circle's look says.
+    @ObservationIgnored private(set) var lastTickAnnouncement: String?
+    func announceTick(_ text: String) {
+        lastTickAnnouncement = text
+        announce(text)
+    }
 
     private func announce(_ text: String) {
         lastSlashAnnouncement = text
