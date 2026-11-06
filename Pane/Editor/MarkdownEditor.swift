@@ -4056,14 +4056,20 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // The circle's place before the edit: right after it, TextKit may not have placed the
         // line again yet, and the pop landed a row or two higher, over the heading.
         let circle = core.checkboxRect(line: line, layout: textLayoutManager)
+        let others = CheckPop.otherLines(string, lineStart: line).compactMap { core.checkboxRect(line: $0, layout: textLayoutManager) }
         let keep = selectedRange()
         asOneStep { apply(edit) }
         setSelectedRange(keep)
         if edit.replacement == "x", let r = circle, let host = layer {
+            let origin = textContainerOrigin
+            let completes = CheckPop.completesList(string, lineStart: line)
             // In this view's light or dark, so the pop is the colour of the circle it lands on.
             effectiveAppearance.performAsCurrentDrawingAppearance {
-                CheckPop.play(in: host, rect: r.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y),
-                              completes: CheckPop.completesList(string, lineStart: line))
+                let rect = r.offsetBy(dx: origin.x, dy: origin.y)
+                CheckPop.play(in: host, rect: rect, completes: completes)
+                if completes, Charm.on {
+                    CheckPop.wave(in: host, from: rect, circles: others.map { $0.offsetBy(dx: origin.x, dy: origin.y) })
+                }
             }
         }
         if controller?.sortsTickedItems != false { core.sortSoon(after: line, text: { [weak self] in self?.string ?? "" }) { [weak self] in self?.sortChecklist(around: $0) } }

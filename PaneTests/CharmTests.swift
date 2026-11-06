@@ -9,8 +9,9 @@ import Testing
 @MainActor @Suite(.serialized) struct CharmTests {
     /// A frame's pixels (RGBA), drawn offscreen at 4x.
     static func pixels(_ kind: Charm.Kind, t: Double, rare: Bool = false) throws -> [UInt8] {
+        let room = 24 * Charm.bleed(kind)
         let view = CharmFrame(kind: kind, t: t, rare: rare, accent: .orange, day: 4)
-            .frame(width: 24, height: 24).foregroundStyle(.black).background(.white)
+            .frame(width: room, height: room).foregroundStyle(.black).background(.white)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 4
         let rep = NSBitmapImageRep(cgImage: try #require(renderer.cgImage))
@@ -28,6 +29,55 @@ import Testing
         return Double(n) / Double(a.count / 4)
     }
 
+    /// A note held over the trash stands its lid open, and letting go shuts it exactly.
+    @Test func theTrashWaitsOpenUnderADraggedNote() throws {
+        func frame(_ agape: Double) throws -> [UInt8] {
+            let room = 24 * Charm.bleed(.trash)
+            let renderer = ImageRenderer(content: CharmFrame(kind: .trash, accent: .orange, agape: agape).frame(width: room, height: room).foregroundStyle(.black).background(.white))
+            renderer.scale = 4
+            let rep = NSBitmapImageRep(cgImage: try #require(renderer.cgImage))
+            let data = try #require(rep.bitmapData)
+            return Array(UnsafeBufferPointer(start: data, count: rep.bytesPerRow * rep.pixelsHigh))
+        }
+        let rest = try Self.pixels(.trash, t: 0)
+        #expect(try Self.difference(frame(1), rest) > 0.005)
+        #expect(try Self.difference(frame(0), rest) == 0)
+    }
+
+    /// The page arrives from the note's side, not out of nowhere above the lid, and ends inside the can.
+    @Test func theDeletedPageArcsInFromTheNotesSide() {
+        let start = TrashPage.at(fall: 0), top = TrashPage.at(fall: 0.4), end = TrashPage.at(fall: 1)
+        #expect(start.x > 24, "starts beside the can")
+        #expect(top.y < start.y, "rises over the lid")
+        #expect(end.x == 12, "centred on the can")
+        #expect(end.y > 7.2, "below the rim, so gone")
+        // Its whole flight fits the canvas, or it arrives as a sliver.
+        let edge = 12 * Charm.bleed(.trash)
+        for f in stride(from: 0.0, through: 1, by: 0.05) {
+            let p = TrashPage.at(fall: f)
+            #expect(p.y - 6 >= 12 - edge && p.x + 6 <= 12 + edge)
+        }
+    }
+
+    /// Letting go reports the note leaving just before the drop: the lid must not blink shut between.
+    @Test func theTrashLidStaysOpenThroughADrop() async throws {
+        let hold = TrashLidHold(wait: .milliseconds(60))
+        var open = false
+        hold.entered { open = $0 }
+        #expect(open)
+        hold.left { open = $0 }
+        hold.dropped { open = $0 }
+        #expect(open, "still open as the note goes in")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(!open, "and shut afterwards")
+        // A note carried back over it in time keeps it open.
+        hold.entered { open = $0 }
+        hold.left { open = $0 }
+        hold.entered { open = $0 }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(open)
+    }
+
     /// Every move, ordinary and rare, has settled back onto the glyph at rest by its last frame
     /// (no jump when it stops), and moves in between. The note's tick is left out: it stays ticked.
     @Test(arguments: Charm.Kind.allCases.filter { $0 != .tick })
@@ -42,15 +92,29 @@ import Testing
         }
     }
 
-    /// Today's ordinary flip never shows another day's number: the page turning away is blank.
-    @Test func todayNeverShowsAnotherDay() {
-        var blanks = 0
-        for t in stride(from: 0.0, to: Charm.duration(.today, rare: false), by: 0.01) {
-            let page = Charm.todayPage(t, false, day: 5)
-            #expect(page.shown == nil || page.shown == 5, "t=\(t): \(String(describing: page.shown))")
-            if page.shown == nil { blanks += 1 }
+    /// Today's torn page flies clear of the icon: mid-flight it has ink well below the calendar, at rest none.
+    @Test func tornPageLeavesTheIcon() throws {
+        func inkBelowIcon(_ t: Double) throws -> Int {
+            let room = 24 * Charm.bleed(.today)
+            let view = CharmFrame(kind: .today, t: t, accent: .orange, day: 5).frame(width: room, height: room).foregroundStyle(.black).background(.white)
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 2
+            let rep = NSBitmapImageRep(cgImage: try #require(renderer.cgImage))
+            let top = Int((room / 2 + 12 + 3) * 2)
+            var n = 0
+            for y in top..<rep.pixelsHigh { for x in 0..<rep.pixelsWide where (rep.colorAt(x: x, y: y)?.brightnessComponent ?? 1) < 0.5 { n += 1 } }
+            return n
         }
-        #expect(blanks > 0)
+        #expect(try inkBelowIcon(0) == 0)
+        #expect(try inkBelowIcon(0.75) > 40)
+    }
+
+    /// A finished list's other circles are found for the wave, and a neighbouring paragraph isn't one.
+    @Test func waveTakesTheRestOfTheList() {
+        let text = "Title\n- [x] Milk\n- [x] Eggs\n- [x] Bread\n\nAfter"
+        let eggs = (text as NSString).range(of: "- [x] Eggs").location
+        let found = CheckPop.otherLines(text, lineStart: eggs)
+        #expect(found.sorted() == [(text as NSString).range(of: "- [x] Milk").location, (text as NSString).range(of: "- [x] Bread").location])
     }
 
     /// Every symbol it stands in for maps to a glyph, and others stay symbols.

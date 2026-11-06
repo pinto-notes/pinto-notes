@@ -667,14 +667,15 @@ struct SidebarView: View {
                 Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }
             }
         }
-        .dropDestination(for: PaneDragItem.self) { items, _ in
+        .onDrop(of: [.paneItem], delegate: MoveDropDelegate(types: [.paneItem]) { providers in
             // Dropping a folder on empty sidebar space moves it to the top level.
-            var moved = false
-            for item in items where item.kind == .folder {
-                if let f = context.folder(item.id) { context.move(f, into: nil); moved = true }
+            DropLoader.load(providers) { items, _ in
+                for item in items where item.kind == .folder {
+                    if let f = context.folder(item.id) { context.move(f, into: nil) }
+                }
             }
-            return moved
-        }
+            return true
+        })
         #if os(iOS)
         .navigationTitle("Folders")
         #else
@@ -758,11 +759,7 @@ struct SidebarView: View {
             ToolbarItem {
                 // The Spotlight-like panel, which finds notes by title and text and runs commands
                 // (Emil, 2 November 2026; it opened the list's search field). ⌘F keeps that field.
-                Button("Search", systemImage: "magnifyingglass") {
-                    NotificationCenter.default.post(name: Self.searchButtonOpens, object: nil)
-                }
-                .help(Self.searchButtonHelp)
-                .accessibilityIdentifier("sidebar.search")
+                SidebarSearchButton(opens: Self.searchButtonOpens, help: Self.searchButtonHelp)
             }
             .sharedBackgroundVisibility(.hidden)
             #endif
@@ -1283,6 +1280,8 @@ private struct CountedRow: View {
     /// The sidebar's selection, read here in the row: the sidebar itself isn't worked out again
     /// when it changes (it is an equatable view), and the row draws its own selection on the Mac.
     @Binding var selection: Scope?
+    /// A note is held over Recently Deleted.
+    @State private var noteOver = false
 
     var body: some View {
         #if DEBUG
@@ -1300,17 +1299,125 @@ private struct CountedRow: View {
                         .foregroundStyle(.secondary)
                 }
             } icon: {
+                #if os(macOS)
+                if trash { TrashRowIcon(selected: selected, noteOver: noteOver) } else { SidebarIcon(name: icon, selected: selected) }
+                #else
                 SidebarIcon(name: icon, selected: selected)
+                #endif
             }
             .sidebarRowLabel()
             .rowAccessibility(title, count: count, files: files)
             .hoverRow(title, reach: Hover.sidebarReach(), selected: selected)
             .quietSelection()
+            #if os(macOS)
+            .modifier(TrashDrop(active: trash, over: $noteOver))
+            #endif
         }
     }
 }
 
+/// What the pointer promises over a drop target: something already in the app moves, so no green
+/// plus; a file from outside is copied in, and the plus is right.
+func dropOperation(fromThisApp: Bool) -> DropOperation { fromThisApp ? .move : .copy }
+
+/// A drop target that says "move" for things dragged inside the app.
+private struct MoveDropDelegate: DropDelegate {
+    let types: [UTType]
+    var targeted: (Bool) -> Void = { _ in }
+    let perform: ([NSItemProvider]) -> Bool
+
+    func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: types) }
+    func dropEntered(info: DropInfo) { targeted(true) }
+    func dropExited(info: DropInfo) { targeted(false) }
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: dropOperation(fromThisApp: info.hasItemsConforming(to: [.paneItem])))
+    }
+    func performDrop(info: DropInfo) -> Bool {
+        targeted(false)
+        return perform(info.itemProviders(for: types))
+    }
+}
+
 #if os(macOS)
+/// Recently Deleted takes notes and files dragged onto it, as in Notes.
+private struct TrashDrop: ViewModifier {
+    @Environment(\.modelContext) private var context
+    let active: Bool
+    @Binding var over: Bool
+    @State private var lid = TrashLidHold()
+
+    func body(content: Content) -> some View {
+        if active {
+            content.onDrop(of: [.paneItem], delegate: TrashDropDelegate(context: context, over: $over, lid: lid))
+        } else {
+            content
+        }
+    }
+}
+
+/// A move, not a copy: no green plus on the pointer.
+private struct TrashDropDelegate: DropDelegate {
+    let context: ModelContext
+    @Binding var over: Bool
+    let lid: TrashLidHold
+
+    func dropEntered(info: DropInfo) { lid.entered { over = $0 } }
+    func dropExited(info: DropInfo) { lid.left { over = $0 } }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: dropOperation(fromThisApp: true)) }
+    func performDrop(info: DropInfo) -> Bool {
+        lid.dropped { over = $0 }
+        DropLoader.load(info.itemProviders(for: [.paneItem])) { [context] items, _ in
+            withAnimation(.snappy) { context.trashDropped(items) }
+        }
+        return true
+    }
+}
+
+/// Search in the sidebar's toolbar: its lens opens an eye and glances round when you press it.
+private struct SidebarSearchButton: View {
+    let opens: Notification.Name
+    let help: String
+    @State private var looks = 0
+
+    var body: some View {
+        Button {
+            NotificationCenter.default.post(name: opens, object: nil)
+            looks += 1
+        } label: {
+            Label { Text("Search") } icon: { CharmSymbol("magnifyingglass", cue: looks) }
+        }
+        .help(help)
+        .accessibilityIdentifier("sidebar.search")
+    }
+}
+
+/// Recently Deleted's icon: its trash swallows each note you delete, and someone inside looks round.
+private struct TrashRowIcon: View {
+    let selected: Bool
+    var noteOver = false
+    @State private var gulps = 0
+    @Environment(\.controlActiveState) private var active
+
+    var body: some View {
+        Group {
+            if Charm.on {
+                Image(systemName: "trash").font(DesignLook.isCandidate ? SidebarStyle.candidateIconFont : SidebarStyle.iconFont).hidden()
+                    .overlay { CharmIcon(kind: .trash, pointSize: DesignLook.isCandidate ? 14 : 16, cue: gulps, agape: noteOver) }
+            } else {
+                Image(systemName: "trash").font(DesignLook.isCandidate ? SidebarStyle.candidateIconFont : SidebarStyle.iconFont)
+            }
+        }
+        .foregroundStyle(selected ? AnyShapeStyle(.tint) : active == .inactive ? AnyShapeStyle(.tertiary)
+            : DesignLook.isCandidate ? AnyShapeStyle(Color.muted) : AnyShapeStyle(.primary))
+        .frame(minWidth: DesignLook.isCandidate ? 20 : nil)
+        .onReceive(NotificationCenter.default.publisher(for: .paneNoteTrashed)) { _ in gulps += 1 }
+        .task {
+            // The first note deleted brought this row: it answers that one too.
+            if let last = Charm.lastTrashed, Date.now.timeIntervalSince(last) < 1 { gulps += 1 }
+        }
+    }
+}
+
 /// Recently Deleted was open and its last note left (recovered, or deleted for good): its row is
 /// gone, so the list shows the notes again. A view of its own that reads the list's count of
 /// Recently Deleted, so it follows the notes without the sidebar working out its rows again.

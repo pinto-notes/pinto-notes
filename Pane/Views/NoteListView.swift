@@ -1902,6 +1902,25 @@ struct FollowsTextSize: ViewModifier {
 }
 #endif
 
+/// What follows the pointer when a note is dragged: its name on a solid chip. (The Mac's drag draws
+/// this offscreen, where a glass capsule and a Label's text came out as a lone icon.)
+struct NoteDragPreview: View {
+    let title: String
+    let symbol: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: symbol).font(.system(size: 12)).foregroundStyle(.secondary)
+            Text(title).font(.system(size: 13, weight: .semibold)).lineLimit(1).foregroundStyle(.primary)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .frame(maxWidth: 220, alignment: .leading)
+        .fixedSize()
+        .background(Color(Palette.page), in: .rect(cornerRadius: 9))
+        .overlay { RoundedRectangle(cornerRadius: 9).strokeBorder(.secondary.opacity(0.35), lineWidth: 1) }
+    }
+}
+
 enum RowMetrics {
     /// iPhone: the room either side of a row's text inside its card.
     static let sideInset: CGFloat = 20
@@ -2034,9 +2053,7 @@ private struct ListRow: View, @MainActor Equatable {
             // of a short title (Emil, 2 November 2026). Before the drag, so the whole row drags.
             .frame(maxWidth: .infinity, alignment: .leading)
             .draggable(PaneDragItem(kind: .note, id: note.id, others: dragWith)) {
-                Label(dragWith != nil ? "\(selectedCount) Notes" : note.title, systemImage: dragWith != nil ? "doc.on.doc" : "note.text")
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                    .glassEffect(.regular, in: .capsule)
+                NoteDragPreview(title: dragWith != nil ? "\(selectedCount) Notes" : note.title, symbol: dragWith != nil ? "doc.on.doc" : "note.text")
             }
             .swipeActions(edge: .leading) {
                 if note.trashedAt == nil {

@@ -20,7 +20,7 @@ enum Charm {
     /// How long each move runs, ordinary and rare.
     static func duration(_ kind: Kind, rare: Bool) -> Double {
         switch kind {
-        case .search: rare ? 1.9 : 1.0
+        case .search: 1.9
         case .compose: rare ? 1.6 : 1.3
         case .checklist: rare ? 1.5 : 1.3
         case .table: rare ? 1.2 : 1.0
@@ -29,9 +29,9 @@ enum Charm {
         case .more: rare ? 1.7 : 0.75
         case .sidebar: 0.8
         case .folder: rare ? 1.3 : 1.0
-        case .trash: rare ? 2.2 : 0.85
+        case .trash: rare ? 2.2 : 3.0
         case .format: rare ? 1.1 : 0.85
-        case .today: rare ? 1.55 : 0.9
+        case .today: rare ? 1.55 : 1.0
         case .undo: rare ? 1.45 : 0.8
         case .settings: rare ? 1.9 : 1.05
         case .lock: rare ? 1.65 : 0.85
@@ -51,18 +51,23 @@ enum Charm {
         var ink: GraphicsContext.Shading
         var accent: GraphicsContext.Shading
         var line: CGFloat = 1.55
+        /// How far the trash's lid stands open under a dragged note, 0 to 1.
+        var agape: Double = 0
         var style: StrokeStyle { StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round) }
     }
 
+    /// How much room a glyph's canvas takes around its 24 units: Today's torn page flies clear of the icon.
+    static func bleed(_ kind: Kind) -> Double { kind == .today ? 2.5 : kind == .trash ? 2.5 : 1 }
+
     static func draw(_ kind: Kind, in c: inout GraphicsContext, size: CGSize, t: Double, rare: Bool, pen: Pen, day: Int) {
-        let s = min(size.width, size.height) / 24
+        let s = min(size.width, size.height) / (24 * bleed(kind))
         c.translateBy(x: (size.width - 24 * s) / 2, y: (size.height - 24 * s) / 2)
         c.scaleBy(x: s, y: s)
         // Past the end, the resting frame.
         let t = t >= duration(kind, rare: rare) ? 0 : max(t, 0)
         c.drawLayer { c in
         switch kind {
-        case .search: search(&c, t, rare, pen)
+        case .search: search(&c, t, true, pen)
         case .compose: compose(&c, t, rare, pen)
         case .checklist: checklist(&c, t, rare, pen)
         case .table: table(&c, t, rare, pen)
@@ -531,9 +536,29 @@ enum Charm {
             lift = CharmMath.keys(t, [(0, 0), (0.25, 5.4), (1.75, 5.4), (1.85, 0)])
             tilt = CharmMath.keys(t, [(0, 0), (0.25, -4), (1.75, -4), (1.85, 0)]) + CharmMath.wobble(max(t - 1.85, 0), amp: t > 1.85 ? 5 : 0, freq: 6, damping: 9)
         } else {
-            lift = CharmMath.keys(t, [(0, 0), (0.16, 2.2), (0.36, 2.2), (0.48, 0)])
-            tilt = CharmMath.keys(t, [(0, 0), (0.16, -14), (0.36, -14), (0.48, 0)]) + (t > 0.48 ? CharmMath.wobble(t - 0.48, amp: 6, freq: 7, damping: 10) : 0)
+            // A note goes in: the lid opens, the page drops, the lid claps shut. Then it lifts a
+            // little, and someone inside looks around, blinks and ducks back down.
+            lift = CharmMath.keys(t, [(0, 0), (0.14, 6), (0.42, 6), (0.5, 0), (0.86, 0), (1.02, 7.6), (2.6, 7.6), (2.68, 0)])
+            tilt = CharmMath.keys(t, [(0, 0), (0.14, -22), (0.42, -22), (0.5, 0), (0.86, 0), (1.02, -4), (2.6, -4), (2.68, 0)])
+                + (t > 0.5 && t < 0.86 ? CharmMath.wobble(t - 0.5, amp: 7, freq: 7, damping: 9) : 0)
+                + (t > 2.68 ? CharmMath.wobble(t - 2.68, amp: 6, freq: 7, damping: 20) : 0)
+            // The clap shakes the can.
+            let shake = t > 0.5 && t < 0.86 ? 1 + 0.06 * exp(-9 * (t - 0.5)) * cos((t - 0.5) * 30) : 1
+            c.scale(around: CGPoint(x: 12, y: 21), x: 2 - shake, y: shake)
+            // The page falling in, seen only above the rim.
+            if t > 0.06, t < 0.5 {
+                let page = TrashPage.at(fall: (t - 0.06) / 0.34)
+                c.drawLayer { l in
+                    l.clip(to: Path(CGRect(x: -6, y: -14, width: 44, height: 21.2)))
+                    l.translateBy(x: page.x, y: page.y)
+                    l.rotate(by: .degrees(page.degrees))
+                    l.fill(Path(roundedRect: CGRect(x: -3.6, y: -4.6, width: 7.2, height: 9.2), cornerRadius: 1.2), with: p.ink)
+                }
+            }
         }
+        // A note held over it: the lid waits open.
+        lift = max(lift, 6 * p.agape)
+        tilt = min(tilt, -22 * p.agape)
         // The can.
         var can = Path()
         can.move(to: CGPoint(x: 5.6, y: 7.2))
@@ -556,6 +581,28 @@ enum Charm {
             if open > 0.01 {
                 for x in [10.2, 13.8] {
                     c.fill(Path(ellipseIn: CGRect(x: x + look - r, y: 5.0 - ry + (1 - open) * 2.0, width: 2 * r, height: 2 * ry)), with: p.ink)
+                }
+            }
+        } else {
+            // Big eyes under the lid: they look left, look right, blink, find you, freeze, and duck.
+            let open = CharmMath.seg(t, 1.02, 1.12) * (1 - CharmMath.seg(t, 2.52, 2.6))
+            let look = CharmMath.keys(t, [(0, 0), (1.26, 0), (1.36, -1), (1.66, -1), (1.78, 1), (2.06, 1), (2.14, 0)])
+            let blink = 1 - CharmMath.pulse(t, 1.56, 1.68)
+            let wide = 1 + 0.1 * CharmMath.seg(t, 2.14, 2.2)
+            if open > 0.01 {
+                c.drawLayer { l in
+                    let r = 2.7 * wide, ry = r * open * max(blink, 0.08), y = 3.9 + (1 - open) * 3
+                    for x in [8.7, 15.3] {
+                        let cx = x + look * 0.9
+                        l.fill(Path(ellipseIn: CGRect(x: cx - r, y: y - ry, width: 2 * r, height: 2 * ry)), with: .color(.primary))
+                    }
+                    // The pupils are holes, so they stay dark on dark and light on light.
+                    l.blendMode = .destinationOut
+                    let pupil = 1.25 * min(1, ry / 1.25)
+                    for x in [8.7, 15.3] {
+                        let cx = x + look * 2.2
+                        l.fill(Path(ellipseIn: CGRect(x: cx - pupil, y: y - pupil, width: 2 * pupil, height: 2 * pupil)), with: .color(.black))
+                    }
                 }
             }
         }
@@ -648,6 +695,7 @@ enum Charm {
     }
 
     private static func today(_ c: inout GraphicsContext, _ t: Double, _ rare: Bool, _ p: Pen, day: Int) {
+        if !rare { todayTear(&c, t, p, day: day); return }
         let frame = CGRect(x: 3.6, y: 4.8, width: 16.8, height: 15.6)
         c.stroke(Path(roundedRect: frame, cornerRadius: 3.2), with: p.ink, style: p.style)
         c.drawLayer { l in
@@ -665,6 +713,55 @@ enum Charm {
         rings.move(to: CGPoint(x: 15.8, y: 3.0)); rings.addLine(to: CGPoint(x: 15.8, y: 6.2))
         Charm.clear(c, rings, stroke: StrokeStyle(lineWidth: 3.2, lineCap: .round))
         c.stroke(rings, with: p.ink, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+    }
+
+    /// Today's page tears off: the calendar dips, the page rips free, sails up and falls away out of
+    /// the icon, and the calendar bounces back with today's page on it. Both pages show today, so
+    /// no other date ever appears.
+    private static func todayTear(_ c: inout GraphicsContext, _ t: Double, _ p: Pen, day: Int) {
+        let release = 0.11
+        let after = max(t - release, 0)
+        // The dip before the rip, then a bounce that settles.
+        let squash = t <= 0 ? 1 : t < release
+            ? 1 - 0.1 * CharmMath.easeOut(t / release)
+            : 1 + 0.13 * exp(-7.5 * after) * sin(after * 17 + 1.25 * .pi) * -1 * (t < 0.95 ? 1 : 0)
+        let frame = CGRect(x: 3.6, y: 4.8, width: 16.8, height: 15.6)
+        func digit(_ c: GraphicsContext, at p: CGPoint) {
+            c.draw(c.resolve(Text(String(day)).font(.system(size: 8.6, weight: .semibold)).monospacedDigit().foregroundStyle(.primary)), at: p, anchor: .center)
+        }
+        var g = c
+        g.scale(around: CGPoint(x: 12, y: 20.4), x: 2 - squash, y: squash)
+        g.stroke(Path(roundedRect: frame, cornerRadius: 3.2), with: p.ink, style: p.style)
+        g.drawLayer { l in
+            l.clip(to: Path(roundedRect: frame, cornerRadius: 3.2))
+            l.fill(Path(CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: 4.2)), with: p.ink)
+        }
+        // Today's fresh page: it's there the moment the old one leaves, and pops up into place.
+        var fresh = g
+        let pop = t <= 0 ? 1 : CharmMath.spring(max(t - release - 0.06, 0), freq: 2.6, damping: 8)
+        fresh.scale(around: CGPoint(x: 12, y: 14.7), x: 0.55 + 0.45 * pop, y: 0.55 + 0.45 * pop)
+        digit(fresh, at: CGPoint(x: 12, y: 14.7))
+        var rings = Path()
+        rings.move(to: CGPoint(x: 8.2, y: 3.0)); rings.addLine(to: CGPoint(x: 8.2, y: 6.2))
+        rings.move(to: CGPoint(x: 15.8, y: 3.0)); rings.addLine(to: CGPoint(x: 15.8, y: 6.2))
+        Charm.clear(g, rings, stroke: StrokeStyle(lineWidth: 3.2, lineCap: .round))
+        g.stroke(rings, with: p.ink, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+        // The torn page, solid so it reads at 16 pt, with the number cut out of it.
+        guard t > 0, after < 0.86 else { return }
+        let x = 12 + 15 * after + 1.2 * sin(after * 15)
+        let y = 14.6 - 26 * after + 62 * after * after
+        let turn = 12 + 150 * after * (0.55 + after)
+        let shrink = 1 - 0.28 * CharmMath.seg(after, 0.1, 0.8)
+        c.opacity = 1 - CharmMath.seg(after, 0.58, 0.84)
+        c.drawLayer { l in
+            l.translateBy(x: x, y: y)
+            l.rotate(by: .degrees(turn))
+            l.scaleBy(x: shrink, y: shrink)
+            l.fill(Path(roundedRect: CGRect(x: -7.4, y: -6.4, width: 14.8, height: 12.8), cornerRadius: 2.2), with: p.ink)
+            var cut = l
+            cut.blendMode = .destinationOut
+            cut.draw(cut.resolve(Text(String(day)).font(.system(size: 8.6, weight: .bold)).monospacedDigit().foregroundStyle(.black)), at: .zero, anchor: .center)
+        }
     }
 
     // MARK: Undo: the arrow winds back and springs home. Rare: a whole turn backwards.
@@ -920,6 +1017,8 @@ struct CharmIcon: View {
     var cue = 0
     /// The accent for ink trails and ticks; the tint when nil.
     var accent: Color?
+    /// A note is held over it (the trash's lid waits open).
+    var agape = false
     @State private var start: Date?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -929,8 +1028,10 @@ struct CharmIcon: View {
         let side = Self.canvas(pointSize)
         TimelineView(.animation(paused: start == nil)) { tl in
             let t = start.map { tl.date.timeIntervalSince($0) } ?? 0
-            CharmFrame(kind: kind, t: t, accent: accent)
+            let room = side * Charm.bleed(kind)
+            CharmFrame(kind: kind, t: t, accent: accent, agape: agape && !reduceMotion ? 1 : 0).frame(width: room, height: room)
         }
+        .animation(.spring(duration: 0.28, bounce: 0.35), value: agape)
         .frame(width: side, height: side)
         .onChange(of: cue) {
             guard !reduceMotion else { return }
@@ -948,17 +1049,59 @@ struct CharmIcon: View {
 }
 
 /// One frame of a glyph's move, at `t` seconds in (0: at rest).
-struct CharmFrame: View {
+struct CharmFrame: View, @preconcurrency Animatable {
     let kind: Charm.Kind
     var t: Double = 0
     var rare = false
     var accent: Color?
     var day = Calendar.current.component(.day, from: .now)
+    var agape: Double = 0
+
+    var animatableData: Double {
+        get { agape }
+        set { agape = newValue }
+    }
 
     var body: some View {
         Canvas { c, size in
-            let pen = Charm.Pen(ink: .style(.foreground), accent: accent.map { .color($0) } ?? .style(.tint))
+            let pen = Charm.Pen(ink: .style(.foreground), accent: accent.map { .color($0) } ?? .style(.tint), agape: agape)
             Charm.draw(kind, in: &c, size: size, t: t, rare: rare, pen: pen, day: day)
+        }
+    }
+}
+
+/// The deleted page's flight: it comes from the right, where the notes are and where a dragged one is let
+/// go, arcs over the open lid and drops into the can.
+enum TrashPage {
+    static func at(fall: Double) -> (x: Double, y: Double, degrees: Double) {
+        let f = min(max(fall, 0), 1), rest = 1 - min(f / 0.6, 1)
+        let y = f < 0.4 ? -2 - 9 * sin(f / 0.4 * .pi / 2) : -11 + 25 * pow((f - 0.4) / 0.6, 2)
+        return (12 + 16 * rest * rest, y, 30 - 40 * f)
+    }
+}
+
+/// Keeps the trash's lid open from a note arriving until the trash has it. Letting go of a drag
+/// reports the note leaving before it reports the drop: without the wait the lid shuts, then opens again.
+@MainActor final class TrashLidHold {
+    private var shut: Task<Void, Never>?
+    private let wait: Duration
+
+    init(wait: Duration = .milliseconds(320)) { self.wait = wait }
+
+    func entered(_ set: (Bool) -> Void) {
+        shut?.cancel()
+        set(true)
+    }
+
+    func left(_ set: @escaping @MainActor (Bool) -> Void) { shutSoon(set) }
+
+    func dropped(_ set: @escaping @MainActor (Bool) -> Void) { shutSoon(set) }
+
+    private func shutSoon(_ set: @escaping @MainActor (Bool) -> Void) {
+        shut?.cancel()
+        shut = Task { [wait] in
+            try? await Task.sleep(for: wait)
+            if !Task.isCancelled { set(false) }
         }
     }
 }
@@ -980,7 +1123,19 @@ extension GraphicsContext {
 
 // MARK: - In the app
 
+extension Notification.Name {
+    /// A note went to Recently Deleted: its row's trash answers.
+    static let paneNoteTrashed = Notification.Name("pane.noteTrashed")
+}
+
 extension Charm {
+    /// When a note last went to Recently Deleted: the first one brings the row itself, too late to hear it.
+    @MainActor static var lastTrashed: Date?
+    @MainActor static func noteTrashed() {
+        lastTrashed = .now
+        NotificationCenter.default.post(name: .paneNoteTrashed, object: nil)
+    }
+
     /// On unless turned off with `defaults write <bundle id> charmOff -bool YES` (a concept that
     /// may not stay; off, every place shows its SF Symbol as before).
     static var on: Bool { !UserDefaults.standard.bool(forKey: "charmOff") }

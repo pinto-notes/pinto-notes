@@ -231,6 +231,24 @@ extension ModelContext {
         return moved
     }
 
+    /// Notes and files dragged onto Recently Deleted go there; anything already in it stays put.
+    func trashDropped(_ items: [PaneDragItem]) {
+        for item in items {
+            switch item.kind {
+            case .note:
+                for id in item.ids {
+                    if let n = note(id), n.trashedAt == nil { trash(n) }
+                }
+            case .file:
+                for id in item.ids {
+                    if let f = attachment(id), f.trashedAt == nil { trash(f) }
+                }
+            case .folder:
+                break
+            }
+        }
+    }
+
     func trash(_ note: Note) {
         // A blank note has nothing to recover: deleting it removes it for good, as leaving one
         // does, never an empty row in Recently Deleted (Emil, 3 November 2026).
@@ -242,6 +260,9 @@ extension ModelContext {
         // A shared note deleted, as in Apple Notes: yours stops being shared (and goes to Recently
         // Deleted, as now); someone else's you leave.
         if note.isShared { SharedNotes.trashed?(note) }
+        #if os(macOS)
+        Charm.noteTrashed()
+        #endif
     }
 
     /// No text and nothing locked: what leaving or deleting a note throws away.

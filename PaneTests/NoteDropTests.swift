@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 import Testing
 #if os(macOS)
 import AppKit
@@ -14,6 +15,40 @@ import AppKit
     init() throws {
         let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         ctx = ModelContext(c)
+    }
+
+    // MARK: Dropped on Recently Deleted
+
+    /// Dragged onto Recently Deleted, as in Notes: the notes go there, a folder doesn't, and one
+    /// already in there keeps its date.
+    @Test func notesDroppedOnRecentlyDeletedGoThere() throws {
+        let a = ctx.createNote(in: .all, body: "Soup\nleeks")
+        let b = ctx.createNote(in: .all, body: "Bread\nflour")
+        let keep = ctx.createNote(in: .all, body: "Keep\nme")
+        let old = ctx.createNote(in: .all, body: "Old\nnote")
+        ctx.trash(old)
+        let when = try #require(old.trashedAt)
+        let folder = Folder(name: "Trip")
+        ctx.insert(folder)
+        ctx.trashDropped([PaneDragItem(kind: .note, id: a.id, others: [b.id]), PaneDragItem(kind: .note, id: old.id), PaneDragItem(kind: .folder, id: folder.id)])
+        #expect(a.trashedAt != nil && b.trashedAt != nil)
+        #expect(keep.trashedAt == nil)
+        #expect(old.trashedAt == when)
+        #expect(folder.deletedAt == nil)
+    }
+
+    /// Moving a note into a folder is a move: the green plus means a copy, and there isn't one.
+    @Test func movingInsideTheAppShowsNoPlus() {
+        #expect(dropOperation(fromThisApp: true) == .move)
+        #expect(dropOperation(fromThisApp: false) == .copy, "a file from Finder is copied in")
+    }
+
+    /// The chip that follows a dragged note shows its name, not a lone icon.
+    @Test func aDraggedNoteShowsItsName() throws {
+        let short = ImageRenderer(content: NoteDragPreview(title: "A", symbol: "note.text"))
+        let long = ImageRenderer(content: NoteDragPreview(title: "Hotel booking", symbol: "note.text"))
+        let w = try #require(long.cgImage?.width), s = try #require(short.cgImage?.width)
+        #expect(w > s + 40)
     }
 
     // MARK: Dropped into a note's text
