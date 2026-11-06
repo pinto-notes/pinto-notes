@@ -229,7 +229,7 @@ struct AIChangesStatus: View {
 struct MacAIChanges: View {
     /// Over a change you've undone: the preview still shows what the AI did (round 19: Burrata looked
     /// as if it were still there).
-    static let undoneLine = "Undone. No longer in the note."
+    static let undoneLine = "Undone. Anything you typed since stayed."
     @Bindable var model: AIChangesModel
     let close: () -> Void
     let open: (AIChange) -> Void

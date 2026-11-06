@@ -1027,7 +1027,7 @@ struct NoteListView: View {
                 DestructiveMenuButton("Delete \(notes.count) Notes Forever…", systemImage: "trash") { remove(ids) }
             } else {
                 Menu("Move \(notes.count) Notes to", systemImage: "folder") {
-                    FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { context.move(notes, to: f) } }
+                    FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { context.move(notes, to: f, undo: undoManager) } }
                 }
                 Divider()
                 DestructiveMenuButton("Delete \(notes.count) Notes", systemImage: "trash") { remove(ids) }
@@ -1070,7 +1070,7 @@ struct NoteListView: View {
             ShareLink(item: note.body, preview: SharePreview(note.title))
         case .move:
             Menu("Move to", systemImage: "folder") {
-                FolderMenuItems(folders: folders, current: note.folder?.id) { f in withAnimation(.snappy) { context.move(note, to: f) } }
+                FolderMenuItems(folders: folders, current: note.folder?.id) { f in withAnimation(.snappy) { context.move([note], to: f, undo: undoManager) } }
             }
         case .history:
             // The note's own Version History: the note opens and shows it (AppPlaceCenter).
@@ -1131,7 +1131,7 @@ struct NoteListView: View {
 
     /// Moves notes and files together.
     private func move(_ ids: Set<UUID>, to folder: Folder) {
-        context.move(ids.compactMap { context.note($0) }, to: folder)
+        context.move(ids.compactMap { context.note($0) }, to: folder, undo: undoManager)
         for f in ids.compactMap({ context.attachment($0) }) where f.folderID != nil { context.move(f, to: folder) }
     }
 
@@ -1434,6 +1434,12 @@ struct ShowsSelectedRow: ViewModifier {
                 guard let id = n.object as? UUID, id == selected else { return }
                 // Once the list has its new order: `row` here is the one from before it.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { revealAsked &+= 1 }
+            }
+            // A note that an edit or a restore sent up the list: the list goes with it (round 21). Not
+            // for a row that shifted because of another note: someone reading further down stays there.
+            .onChange(of: selected.flatMap(row)) { old, new in
+                guard let old, let new, new + 1 < old else { return }
+                DispatchQueue.main.async { finder.reveal(row: new) }
             }
             .onChange(of: revealAsked) {
                 guard let at = selected.flatMap(row) else { return }

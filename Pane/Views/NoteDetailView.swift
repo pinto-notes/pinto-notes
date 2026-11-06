@@ -205,6 +205,9 @@ struct NoteDetailView: View {
             .sheet(isPresented: $showHistory) {
                 if let history = NoteHistory.shared { VersionHistorySheet(note: note, history: history) }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .paneNotesMoved)) { n in
+                if let said = n.object as? String { withAnimation(.smooth(duration: 0.2)) { reviewResult = said } }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .paneVersionRestored)) { n in
                 if (n.object as? UUID) == note.id { withAnimation(.smooth(duration: 0.2)) { reviewResult = VersionHistoryModel.restoredLine } }
             }
@@ -574,7 +577,11 @@ struct NoteDetailView: View {
 
     private func undo(_ r: AIEdit.Receipt) {
         if r.kind == .edit, refusedAsViewOnly() { return }
-        withAnimation(.smooth(duration: 0.25)) { receipt = nil }
+        withAnimation(.smooth(duration: 0.25)) {
+            receipt = nil
+            // Press, then done (round 21: the text changed back with no word).
+            if r.kind == .edit { reviewResult = "Undone" }
+        }
         if r.staysUntilEdited { controller.clearTint() }
         if r.kind == .pageMade || r.kind == .pageChanged {
             // The note's text never changed: the page goes back to what it was (the new one is kept).
@@ -947,7 +954,7 @@ struct NoteDetailView: View {
                 .accessibilityIdentifier("editor.moveTo")
             #else
             Menu("Move to", systemImage: "folder") {
-                FolderMenuItems(folders: context.allFolders(), current: note.folder?.id) { f in context.move(note, to: f) }
+                FolderMenuItems(folders: context.allFolders(), current: note.folder?.id) { f in context.move([note], to: f, undo: undoManager) }
             }
             #endif
         case .share:
@@ -1536,7 +1543,7 @@ struct NoteDetailView: View {
         .accessibilityLabel("More")
         #if os(macOS)
         .popover(isPresented: $movingNote, arrowEdge: .bottom) {
-            MoveToPicker(current: note.folder?.id) { context.move(note, to: $0) }
+            MoveToPicker(current: note.folder?.id) { context.move([note], to: $0, undo: undoManager) }
         }
         // Move Note… from Go to Note (⌘O).
         .onReceive(NotificationCenter.default.publisher(for: .paneMoveNote)) { _ in if !trashed { movingNote = true } }

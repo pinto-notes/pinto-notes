@@ -447,7 +447,7 @@ struct MacVersionHistory: View {
                 ForEach(model.days) { day in
                     Section(day.title) {
                         ForEach(day.entries) { entry in
-                            VersionRow(entry: entry).tag(entry.id)
+                            VersionRow(entry: entry).quietSelection().tag(entry.id)
                                 .listRowSeparator(.hidden)
                         }
                     }

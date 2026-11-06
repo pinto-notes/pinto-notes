@@ -80,6 +80,30 @@ import Testing
         #expect(AIChangeCopy.title == "AI Changes")
     }
 
+    @Test func aMixedEditNamesItsItems() {
+        let c = AIChange(id: "c", kind: .edit, noteID: UUID(), ai: "ChatGPT", at: .now)
+        #expect(AIChangeCopy.summary(c, before: "Shop\n\n- [ ] Coffee beans\n- [ ] Lemons\n- [ ] Eggs", after: "Shop\n\n- [ ] Decaf coffee\n- [ ] Burrata\n- [ ] Eggs")
+                == "Added Decaf coffee and Burrata; removed Coffee beans and Lemons")
+        #expect(AIChangeCopy.summary(c, before: "Shop\n\nOne\nTwo\nThree", after: "Shop\n\nOne, new\nTwo, new\nThree") == "Changed 2 lines", "sentences stay a count")
+    }
+
+    @Test func aMoveHasUndoAndRedo() throws {
+        let c = try AIChangesTests.container(), ctx = c.mainContext
+        let travel = ctx.createFolder(named: "Travel"), ideas = ctx.createFolder(named: "Ideas")
+        let note = ctx.createNote(in: .folder(travel.id), body: "Lisbon")
+        let date = note.updatedAt
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        undo.beginUndoGrouping()
+        ctx.move([note], to: ideas, undo: undo)
+        undo.endUndoGrouping()
+        #expect(note.folder?.id == ideas.id)
+        undo.undo()
+        #expect(note.folder?.id == travel.id && note.updatedAt == date, "back where it was, its date too")
+        undo.redo()
+        #expect(note.folder?.id == ideas.id)
+    }
+
     @Test func summariesSayWhatChanged() throws {
         let c = try Self.container()
         let trips = Folder(name: "Trips")

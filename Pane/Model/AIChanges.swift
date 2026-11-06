@@ -249,6 +249,21 @@ enum AIChangeCopy {
             return marker.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: (line as NSString).length), withTemplate: "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
+        // A few list items added and taken out: which (round 21: "Changed 2 lines" beside "3 edits").
+        if d.plus >= 1, d.minus >= 1, d.plus + d.minus > 2, d.plus <= 3, d.minus <= 3 {
+            let ns = d.text as NSString
+            let item = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)"#)
+            let isItem = { (r: NSRange) in
+                let line = ns.substring(with: r)
+                return item.firstMatch(in: line, range: NSRange(location: 0, length: (line as NSString).length)) != nil
+            }
+            if (d.added + d.removed).allSatisfy(isItem), Set(d.added.map(words)) != Set(d.removed.map(words)) {
+                let list = { (names: [String]) in
+                    names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " and " + names.last!
+                }
+                return "Added \(list(d.added.map(words))); removed \(list(d.removed.map(words)))"
+            }
+        }
         if d.plus == 1, d.minus == 1, let r = d.added.first {
             let now = words(r)
             let was = d.removed.first.map(words) ?? ""

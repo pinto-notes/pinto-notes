@@ -1310,6 +1310,7 @@ private struct FolderTree: View {
     /// The folder a drag is over, if any.
     let dropTarget: UUID?
     let targeted: (Bool, UUID) -> Void
+    @Environment(\.undoManager) private var undoManager
     /// What the folder's menu does.
     let actions: FolderMenuActions
     /// The first folder at the top level (Notes): it has no Move To.
@@ -1407,8 +1408,11 @@ private struct FolderTree: View {
                     switch item.kind {
                     case .note:
                         // A dragged multi-selection moves together.
-                        for id in item.ids {
-                            if let n = context.note(id) { context.move(n, to: folder); moved = true }
+                        let notes = item.ids.compactMap { context.note($0) }
+                        if !notes.isEmpty {
+                            context.move(notes, to: folder, undo: undoManager)
+                            moved = true
+                            NotificationCenter.default.post(name: .paneNotesMoved, object: "Moved to \(folder.name)")
                         }
                     case .folder:
                         if item.id != folder.id, let f = context.folder(item.id) { context.move(f, into: folder); moved = true }
@@ -1421,6 +1425,8 @@ private struct FolderTree: View {
                 if !urls.isEmpty, !context.importFiles(urls, into: .folder(folder.id)).isEmpty { moved = true }
                 if moved { withAnimation(.snappy) { expanded = true } }
             }
+            // A drop doesn't always say the drag has left the row (round 21: its icon stayed filled).
+            targeted(false, folder.id)
             return true
         }
         #if os(iOS)
@@ -1820,3 +1826,8 @@ struct SidebarToggleButton: View {
     }
 }
 #endif
+
+extension Notification.Name {
+    /// Notes went to a folder: the note's page says so (the object is what to say).
+    static let paneNotesMoved = Notification.Name("pane.notesMoved")
+}

@@ -325,6 +325,30 @@ extension ModelContext {
         for n in notes { move(n, to: folder) }
     }
 
+    /// A move ⌘Z takes back, into the folders they came from with their dates as they were, and
+    /// ⇧⌘Z does again (round 21: a dropped note had no way back but dragging it home).
+    func move(_ notes: [Note], to folder: Folder, undo: UndoManager?) {
+        let back = notes.filter { $0.folder?.id != folder.id || $0.trashedAt != nil }
+            .map { (note: $0, folder: $0.folder, trashed: $0.trashedAt, edited: $0.updatedAt) }
+        move(notes, to: folder)
+        guard let undo, !back.isEmpty else { return }
+        undo.registerUndo(withTarget: self) { ctx in
+            MainActor.assumeIsolated {
+                for b in back {
+                    b.note.folder = b.folder
+                    b.note.trashedAt = b.trashed
+                    b.note.touch()
+                    b.note.updatedAt = b.edited
+                }
+                ctx.saveOrReport()
+                undo.registerUndo(withTarget: ctx) { again in
+                    MainActor.assumeIsolated { again.move(back.map(\.note), to: folder, undo: undo) }
+                }
+            }
+        }
+        undo.setActionName("Move")
+    }
+
     func togglePin(_ note: Note) {
         note.isPinned.toggle()
         note.touch()
