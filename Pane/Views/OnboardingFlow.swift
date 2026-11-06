@@ -184,15 +184,22 @@ struct OnboardingFlow: View {
             .frame(height: 24)
             // The step going out and the one coming in share one place while they cross.
             ZStack(alignment: .topLeading) {
-                VStack(alignment: .leading, spacing: Metrics.gap) {
-                    heading
-                    middle
+                // A step taller than the card scrolls, and the buttons stay at the foot.
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Metrics.gap) {
+                        heading
+                        middle
+                    }
+                    .padding(.top, 28)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
-                .padding(.top, 28)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .scrollBounceBehavior(.basedOnSize)
+                // Asks for no height of its own, so the card's size decides and the buttons stay on it.
+                .frame(minHeight: 0, idealHeight: 0, maxHeight: .infinity, alignment: .topLeading)
                 .id(step)
                 .transition(stepTransition)
             }
+            .frame(maxHeight: .infinity, alignment: .topLeading)
             Spacer(minLength: 16)
             actions
         }

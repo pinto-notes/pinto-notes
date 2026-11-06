@@ -965,14 +965,20 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         setNeedsLayout()
     }
 
+    /// The foot's frame: lined up with the text, which starts the line fragment's padding inside
+    /// the inset (the Mac's editor has no padding, the iPhone's does).
+    static func footFrame(inset: UIEdgeInsets, padding: CGFloat, width: CGFloat, y: CGFloat, height: CGFloat) -> CGRect {
+        CGRect(x: inset.left + padding, y: y, width: max(0, width - inset.left - inset.right - 2 * padding), height: height)
+    }
+
     /// Under the last line, across the text's width.
     private func placeFoot() {
         guard let host = footHost, let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return }
         // Lazy TextKit 2 layout: see the Mac's placeFoot.
         if (footModel?.height ?? 0) > 0.5 { tlm.ensureLayout(for: tcm.documentRange) }
         let used = tlm.usageBoundsForTextContainer.maxY
-        let frame = CGRect(x: textContainerInset.left, y: textContainerInset.top + used + EditorFoot.gap,
-                           width: max(0, bounds.width - textContainerInset.left - textContainerInset.right), height: max(footModel?.height ?? 0, 1))
+        let frame = Self.footFrame(inset: textContainerInset, padding: textContainer.lineFragmentPadding, width: bounds.width,
+                                   y: textContainerInset.top + used + EditorFoot.gap, height: max(footModel?.height ?? 0, 1))
         if host.view.frame != frame { host.view.frame = frame }
     }
 

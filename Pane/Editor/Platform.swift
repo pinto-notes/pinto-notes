@@ -61,8 +61,8 @@ extension PColor {
     /// ring read 1.7:1 on white, under the 3:1 a control needs), still lighter than secondary text.
     static var paneCheckRing: PColor {
         #if os(iOS)
-        // The welcome note's ring: the muted brown-grey, faint.
-        Palette.pair(0x74604C, 0.45, 0xBCB0A3, 0.45)
+        // The muted brown-grey, at the 3:1 a control needs on white and on black (0.45 read 2:1).
+        Palette.pair(0x74604C, 0.7, 0xBCB0A3, 0.55)
         #else
         // Dark: Notes' systemGray on black, about 6:1 (council round 16: 0.45 read faint).
         NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.56, alpha: 1) : NSColor(white: 0.58, alpha: 1) }
@@ -136,10 +136,6 @@ enum EditorMetrics {
     #endif
     /// The empty circle's hairline: about 1.1 pt on iPhone, never under 1 pt.
     static var checkStroke: CGFloat {
-        #if os(macOS)
-        // D (reading page): a lighter ring, so a list of open items doesn't read as a form.
-        if DesignLook.readingPage { return 0.75 }
-        #endif
         #if os(iOS)
         return max(1, body * 0.094)
         #else
