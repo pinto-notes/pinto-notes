@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pintonotes.com">pintonotes.com</a> &nbsp;·&nbsp; <a href="#connect-an-ai-in-a-minute">Connect an AI</a> &nbsp;·&nbsp; <a href="#contribute">Contribute</a> &nbsp;·&nbsp; iPhone app coming soon
+  <a href="https://pintonotes.com">pintonotes.com</a> &nbsp;·&nbsp; <a href="https://apps.apple.com/app/id6817253103">On the App Store</a> &nbsp;·&nbsp; <a href="#connect-an-ai-in-a-minute">Connect an AI</a> &nbsp;·&nbsp; <a href="#contribute">Contribute</a> &nbsp;·&nbsp; Formerly Amber Notes
 </p>
 
 Pinto Notes is a notes app for Mac and iPhone that ChatGPT, Claude, Claude Code and Codex can read and edit. Ask ChatGPT on your phone and Claude at your desk: both work in the same note, and every change says who made it.
@@ -62,6 +62,18 @@ Pinto Notes is a notes app for Mac and iPhone that ChatGPT, Claude, Claude Code 
 3. Approve the connection when Pinto Notes asks.
 
 Then try "find my Lisbon note and add a day in Sintra". (The plugin keeps its old id, `amber-notes`, so existing installs keep working.)
+
+## What it does
+
+- **AI edits you can see and undo.** Whatever an assistant writes is tinted and labeled with its name, and one tap undoes it.
+- **Version history.** Every change keeps the previous version, with who made it: you on iPhone, you on Mac, or which AI.
+- **A note can also be an app.** Ask your AI to turn a note into a small app, like a habit tracker you tick each day or a budget that adds itself up. The note's text stays underneath.
+- **Apple Notes import** on the Mac, and **Evernote** (.enex), **Google Keep** (Takeout) and **Markdown or text** imports on the Mac and iPhone, bring your notes over.
+- **Sync between iPhone and Mac** in about half a second.
+- **Encrypted.** Notes are sealed on your devices before upload. Who can open them, and how AI access works, is under [Privacy and security](#privacy-and-security).
+- **Free and open source,** MIT licensed.
+
+New versions ship most days. Star the repo to follow along, and see [Releases](https://github.com/pinto-notes/pinto-notes/releases) or the [changelog](https://pintonotes.com/changelog) for what changed.
 
 <p align="center">
   <img src="docs/images/mac-dark.png" width="900" alt="Pinto Notes in dark mode on the Mac: a Lisbon trip plan open, and a dot on the Groceries note that says Edited by ChatGPT">
