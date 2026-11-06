@@ -97,6 +97,42 @@ import Testing
         #expect(field() == "Day", "field: \(field())")
     }
 
+    /// Typing inside a cell's word, then Undo: the caret goes back to where the typing began, so the
+    /// next key lands there (it went to the end of the cell). Redo puts it after the typing again.
+    @Test func undoInACellPutsTheCaretBack() async throws {
+        let base = "Porto\n\n| Seafood | Plan |\n| --- | --- |\n| Sat | Sea |\n"
+        let h = await EditorHarness(base, width: 640, focus: true)
+        defer { h.close() }
+        await h.caret(after: "Porto")
+        await h.press(EditorHarness.down)
+        await h.press(EditorHarness.down)
+        #expect(await h.until(5) { h.gridHasFocus })
+        await h.settle(0.3)
+        let undo = try #require(h.view.undoManager)
+        undo.groupsByEvent = false
+        defer { undo.groupsByEvent = true }
+        func editor() throws -> NSTextView { try #require(h.window.firstResponder as? NSTextView) }
+        try editor().setSelectedRange(NSRange(location: 3, length: 0))
+        undo.beginUndoGrouping()
+        for ch in "xy" { TableInteractionTests.typeIntoFocusedCell(h, String(ch)); await h.settle(0.02) }
+        await h.settle(0.2)
+        undo.endUndoGrouping()
+        #expect(try editor().string == "Seaxyfood")
+        #expect(try editor().selectedRange() == NSRange(location: 5, length: 0))
+
+        undo.undo(); await h.settle(0.5)
+        #expect(try editor().string == "Seafood")
+        #expect(try editor().selectedRange() == NSRange(location: 3, length: 0), "back where the typing began")
+        undo.redo(); await h.settle(0.5)
+        #expect(try editor().string == "Seaxyfood")
+        #expect(try editor().selectedRange() == NSRange(location: 5, length: 0), "after the typing")
+        undo.undo(); await h.settle(0.5)
+        undo.beginUndoGrouping()
+        TableInteractionTests.typeIntoFocusedCell(h, "z"); await h.settle(0.2)
+        undo.endUndoGrouping()
+        #expect(try editor().string == "Seazfood", "the next key lands there")
+    }
+
     /// Words on one line are still one step, as in Notes.
     @Test func typingOnALineStaysOneRun() async throws {
         let h = await EditorHarness("Title", width: 640, focus: true)

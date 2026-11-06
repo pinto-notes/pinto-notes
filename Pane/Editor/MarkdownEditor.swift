@@ -3848,10 +3848,13 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let joins = field === cellEditField && (cellEditAt.map { Date.now.timeIntervalSince($0) < Self.cellEditJoin } ?? false)
         cellEditAt = .now
         cellEditField = field
+        // The field has the key already: where its caret was before it, for Undo to go back to.
+        let grew = (edit.replacement as NSString).length - edit.range.length
+        let cell = CellField.selection().map { NSRange(location: max($0.location - grew, 0), length: 0) }
         withoutUndo { apply(edit) }
         if !joins {
             breakUndoCoalescing()
-            registerStep(back: before, selection: selection)
+            registerStep(back: before, selection: selection, cell: cell)
         }
     }
 
@@ -3862,10 +3865,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         change()
     }
 
-    private func registerStep(back to: String, selection: NSRange) {
+    /// `cell`: a table cell's typing, and where the caret goes in its field.
+    private func registerStep(back to: String, selection: NSRange, cell: NSRange? = nil) {
         guard to != string else { return }
         undoManager?.registerUndo(withTarget: self) { view in
             let now = view.string, kept = view.selectedRange()
+            let keptCell = cell == nil ? nil : CellField.selection()
             view.core.endSlides()
             view.breakUndoCoalescing()
             view.cellEditAt = nil // What's typed after an Undo is a new step.
@@ -3873,8 +3878,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 view.withoutUndo { view.apply(TextEdit(range: e.range, replacement: e.replacement, caret: -1)) }
             }
             if NSMaxRange(selection) <= (to as NSString).length { view.setSelectedRange(selection) }
+            // The grid gives the field its new text a turn or two later, with the caret at the end.
+            if let cell {
+                DispatchQueue.main.async { DispatchQueue.main.async { CellField.select(cell) } }
+            }
             // Registered while undoing, this is the Redo.
-            view.registerStep(back: now, selection: kept)
+            view.registerStep(back: now, selection: kept, cell: keptCell)
         }
     }
 
