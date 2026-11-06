@@ -174,7 +174,7 @@ import SwiftUI
         let picture = try #require(NotePicture.render(Self.request(text), look: .init(background: .paper, showsMark: false)))
         let grey: (UInt8, UInt8, UInt8) -> Bool = { r, g, b in r > 225 && r < 250 && r == g && g == b }
         // The header's fill reaches the card's right-hand side.
-        #expect(Self.pixels(picture.image, in: CGRect(x: 0.72, y: 0.3, width: 0.1, height: 0.4), grey) > 500)
+        #expect(Self.pixels(picture.image, in: CGRect(x: 0.72, y: 0.3, width: 0.1, height: 0.4), grey) > 300, "Mac and iPhone metrics differ")
         // The last of the three rows has words in the table's lower third.
         let dark: (UInt8, UInt8, UInt8) -> Bool = { r, g, b in r < 90 && g < 90 && b < 90 }
         #expect(Self.pixels(picture.image, in: CGRect(x: 0.1, y: 0.55, width: 0.8, height: 0.12), dark) > 200)
