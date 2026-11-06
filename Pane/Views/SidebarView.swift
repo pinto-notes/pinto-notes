@@ -1403,14 +1403,6 @@ private struct FolderTree: View {
                     .contentTransition(.symbolEffect(.replace))
             }
             .sidebarRowLabel()
-            // The row a drop lands on says so (round 22: only a thin outline's fill, on the wrong row).
-            .background {
-                if dropTarget == folder.id {
-                    RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
-                        .fill(Color.amberInk.opacity(0.16))
-                        .padding(.horizontal, -6).padding(.vertical, -3)
-                }
-            }
             .rowAccessibility(folder.name, count: listed ?? 0, files: files[folder.id] ?? 0)
         }
         .quietSelection()
@@ -1447,6 +1439,8 @@ private struct FolderTree: View {
             }
             // A drop doesn't always say the drag has left the row (round 21: its icon stayed filled).
             targeted(false, SidebarView.everyRow)
+            // A row can say it's targeted after the drop has landed (round 22: Travel stayed lit).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { targeted(false, SidebarView.everyRow) }
             return true
         }
         #if os(iOS)
