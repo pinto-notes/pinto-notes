@@ -71,6 +71,8 @@ struct ShareNotePopover: View {
     /// Captures: the way it opens on, and the page Collaborate opens on.
     var startingWay: ShareWays.Way?
     var collaboratePage: CollaborateRows.Page?
+    /// Share as Picture, under every way: a picture is none of them.
+    var picture: (() -> Void)?
     let close: () -> Void
 
     @State private var way: ShareWays.Way?
@@ -122,6 +124,10 @@ struct ShareNotePopover: View {
                 case .people: if let share { CollaborateRows(share: share, startingPage: collaboratePage) }
                 case .link: linkRows
                 case .copy: copyRows
+                }
+                if let picture, !trashed {
+                    Divider().padding(.horizontal, 6).padding(.vertical, 4)
+                    row("Share as Picture…", "photo", id: "share.picture", action: picture)
                 }
             }
             .padding(6)
@@ -248,12 +254,13 @@ struct ShareButton: View {
     var people: ShareBackend?
     /// Open: also from the toolbar's avatars.
     @Binding var showing: Bool
+    var picture: (() -> Void)?
 
     var body: some View {
         Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up") }
             .help("Share")
             .popover(isPresented: $showing, arrowEdge: .bottom) {
-                SharePopoverLive(note: note, store: store, people: people) { showing = false }
+                SharePopoverLive(note: note, store: store, people: people, picture: picture) { showing = false }
             }
     }
 }
@@ -262,18 +269,20 @@ struct ShareButton: View {
 private struct SharePopoverLive: View {
     let note: Note
     let store: ShareLinkStore
+    var picture: (() -> Void)?
     let close: () -> Void
     @State private var share: ShareController?
 
-    init(note: Note, store: ShareLinkStore, people: ShareBackend?, close: @escaping () -> Void) {
+    init(note: Note, store: ShareLinkStore, people: ShareBackend?, picture: (() -> Void)? = nil, close: @escaping () -> Void) {
         self.note = note
         self.store = store
+        self.picture = picture
         self.close = close
         _share = State(initialValue: people.map { ShareController(note: note, backend: $0) })
     }
 
     var body: some View {
-        ShareNotePopover(title: note.title, text: note.body, store: store, trashed: note.trashedAt != nil, share: share, close: close)
+        ShareNotePopover(title: note.title, text: note.body, store: store, trashed: note.trashedAt != nil, share: share, picture: picture, close: close)
             .task {
                 guard let share else { return }
                 ShareController.current = share

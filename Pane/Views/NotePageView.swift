@@ -637,6 +637,7 @@ struct NotePageView: View {
                     s.onReady = {}
                     NotePageTiming.shown(noteID, "interactive")
                     withAnimation(.easeOut(duration: 0.15)) { ready = true }
+                    NotePageLive.register(s.webView, noteID)
                     // The picture for next time, once the page has settled.
                     snapshotTask?.cancel()
                     if preview == nil {
@@ -755,6 +756,85 @@ struct NotePageView: View {
         #else
         Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, alignment: .top).allowsHitTesting(false)
         #endif
+    }
+}
+
+/// Each app on screen now, for a picture of it as it is (Share as Picture). The snapshots below
+/// can be days old: they exist to cover a page while it loads.
+@MainActor
+enum NotePageLive {
+    private final class Box { weak var view: WKWebView?; init(_ view: WKWebView) { self.view = view } }
+    private static var views: [UUID: Box] = [:]
+
+    static func register(_ view: WKWebView, _ id: UUID) {
+        views = views.filter { $0.value.view != nil }
+        views[id] = Box(view)
+    }
+
+    /// The app as it is, light or dark. The page follows the view's appearance, so it's set for a
+    /// moment if it differs. Nil when the app isn't on screen, or doesn't answer in time.
+    static func snapshot(_ id: UUID, dark: Bool) async -> CGImage? {
+        guard let web = views[id]?.view, web.window != nil else { return nil }
+        #if os(iOS)
+        let before = web.overrideUserInterfaceStyle
+        let want: UIUserInterfaceStyle = dark ? .dark : .light
+        let changes = web.traitCollection.userInterfaceStyle != want
+        if changes { web.overrideUserInterfaceStyle = want }
+        defer { if changes { web.overrideUserInterfaceStyle = before } }
+        #else
+        let before = web.appearance
+        let changes = (web.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua) != dark
+        if changes { web.appearance = NSAppearance(named: dark ? .darkAqua : .aqua) }
+        defer { if changes { web.appearance = before } }
+        #endif
+        // Time for the page to draw itself again.
+        if changes { try? await Task.sleep(for: .milliseconds(250)) }
+        return await shot(web)
+    }
+
+    private static func shot(_ web: WKWebView) async -> CGImage? {
+        await withCheckedContinuation { (done: CheckedContinuation<CGImage?, Never>) in
+            var answered = false
+            func answer(_ image: CGImage?) {
+                guard !answered else { return }
+                answered = true
+                done.resume(returning: image)
+            }
+            let config = WKSnapshotConfiguration()
+            config.afterScreenUpdates = true
+            web.takeSnapshot(with: config) { image, _ in
+                #if os(iOS)
+                MainActor.assumeIsolated { answer(image?.cgImage) }
+                #else
+                MainActor.assumeIsolated { answer(image?.cgImage(forProposedRect: nil, context: nil, hints: nil)) }
+                #endif
+            }
+            // The sheet doesn't wait on a page that's stuck.
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(3))
+                answer(nil)
+            }
+        }
+    }
+
+    /// Pictures of the apps embedded in `text`: live where they're on screen, else the last one kept
+    /// (which may be behind the app's data). An app with neither shows as its name.
+    static func embedded(in text: String, dark: Bool) async -> [UUID: CGImage] {
+        var out: [UUID: CGImage] = [:]
+        for embed in LineEmbed.find(in: text) {
+            guard case .note(let id, _) = embed.kind else { continue }
+            if let live = await snapshot(id, dark: dark) {
+                out[id] = live
+            } else if let page = NotePageStore.shared[id], NotePageSnapshots.shared.has(id, html: page.html, dark: dark, variant: "widget"),
+                      let kept = NotePageSnapshots.shared.image(id, html: page.html, dark: dark, variant: "widget") {
+                #if os(iOS)
+                out[id] = kept.cgImage
+                #else
+                out[id] = kept.cgImage(forProposedRect: nil, context: nil, hints: nil)
+                #endif
+            }
+        }
+        return out
     }
 }
 

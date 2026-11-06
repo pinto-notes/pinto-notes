@@ -1943,8 +1943,16 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     /// The menu over a long press or the caret: in a checklist with something ticked, Untick All
     /// in This List first, as Notes puts its list commands there.
     func textView(_ textView: UITextView, editMenuForTextIn range: NSRange, suggestedActions: [UIMenuElement]) -> UIMenu? {
-        guard let untick = untickAction(at: range.location) else { return nil }
-        return UIMenu(children: [untick] + suggestedActions)
+        let extra = [untickAction(at: range.location), sharePictureAction(for: range)].compactMap { $0 }
+        return extra.isEmpty ? nil : UIMenu(children: extra + suggestedActions)
+    }
+
+    /// "Share as Picture…" for text that's selected.
+    func sharePictureAction(for range: NSRange) -> UIAction? {
+        guard range.length > 0, controller?.canSharePicture() == true else { return nil }
+        return UIAction(title: EditorController.sharePictureTitle, image: UIImage(systemName: "photo")) { [weak self] _ in
+            self?.controller?.sharePicture()
+        }
     }
 
     /// "Untick All in This List" for the checklist at `location`; nil when nothing in it is ticked.
@@ -3581,6 +3589,17 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Right-click on a line that is only a link: show it compact or as a card (Emil, 11-01).
     /// On a checklist with ticks (its circle or its text): Untick All in This List.
+    /// "Share as Picture…" for text that's selected.
+    func sharePictureMenuItem() -> NSMenuItem? {
+        guard selectedRange().length > 0, controller?.canSharePicture() == true else { return nil }
+        let item = NSMenuItem(title: EditorController.sharePictureTitle, action: #selector(TableMenuAction.fire), keyEquivalent: "")
+        let action = TableMenuAction { [weak self] in self?.controller?.sharePicture() }
+        item.target = action
+        item.representedObject = action
+        item.image = NSImage(systemSymbolName: "photo", accessibilityDescription: nil)
+        return item
+    }
+
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event) ?? NSMenu()
         let point = convert(event.locationInWindow, from: nil)
@@ -3591,6 +3610,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let inner = CGPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
         let listAt = core.tickTarget(at: inner, viewY: point.y, layout: textLayoutManager) ?? min(index, max(ns.length - 1, 0))
         if let item = untickMenuItem(at: listAt) {
+            menu.insertItem(item, at: 0)
+            menu.insertItem(.separator(), at: 1)
+        }
+        if let item = sharePictureMenuItem() {
             menu.insertItem(item, at: 0)
             menu.insertItem(.separator(), at: 1)
         }
