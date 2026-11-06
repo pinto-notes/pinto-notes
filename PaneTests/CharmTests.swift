@@ -29,6 +29,21 @@ import Testing
         return Double(n) / Double(a.count / 4)
     }
 
+    /// A note held over the trash stands its lid open, and letting go shuts it exactly.
+    @Test func theTrashWaitsOpenUnderADraggedNote() throws {
+        func frame(_ agape: Double) throws -> [UInt8] {
+            let room = 24 * Charm.bleed(.trash)
+            let renderer = ImageRenderer(content: CharmFrame(kind: .trash, accent: .orange, agape: agape).frame(width: room, height: room).foregroundStyle(.black).background(.white))
+            renderer.scale = 4
+            let rep = NSBitmapImageRep(cgImage: try #require(renderer.cgImage))
+            let data = try #require(rep.bitmapData)
+            return Array(UnsafeBufferPointer(start: data, count: rep.bytesPerRow * rep.pixelsHigh))
+        }
+        let rest = try Self.pixels(.trash, t: 0)
+        #expect(try Self.difference(frame(1), rest) > 0.005)
+        #expect(try Self.difference(frame(0), rest) == 0)
+    }
+
     /// Every move, ordinary and rare, has settled back onto the glyph at rest by its last frame
     /// (no jump when it stops), and moves in between. The note's tick is left out: it stays ticked.
     @Test(arguments: Charm.Kind.allCases.filter { $0 != .tick })

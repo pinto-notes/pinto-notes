@@ -1137,6 +1137,8 @@ private struct CountedRow: View {
     /// The sidebar's selection, read here in the row: the sidebar itself isn't worked out again
     /// when it changes (it is an equatable view), and the row draws its own selection on the Mac.
     @Binding var selection: Scope?
+    /// A note is held over Recently Deleted.
+    @State private var noteOver = false
 
     var body: some View {
         #if DEBUG
@@ -1155,7 +1157,7 @@ private struct CountedRow: View {
                 }
             } icon: {
                 #if os(macOS)
-                if trash { TrashRowIcon(selected: selected) } else { SidebarIcon(name: icon, selected: selected) }
+                if trash { TrashRowIcon(selected: selected, noteOver: noteOver) } else { SidebarIcon(name: icon, selected: selected) }
                 #else
                 SidebarIcon(name: icon, selected: selected)
                 #endif
@@ -1164,11 +1166,34 @@ private struct CountedRow: View {
             .rowAccessibility(title, count: count, files: files)
             .hoverRow(title, reach: Hover.sidebarReach(), selected: selected)
             .quietSelection()
+            #if os(macOS)
+            .modifier(TrashDrop(active: trash, over: $noteOver))
+            #endif
         }
     }
 }
 
 #if os(macOS)
+/// Recently Deleted takes notes and files dragged onto it, as in Notes.
+private struct TrashDrop: ViewModifier {
+    @Environment(\.modelContext) private var context
+    let active: Bool
+    @Binding var over: Bool
+
+    func body(content: Content) -> some View {
+        if active {
+            content.onDrop(of: [.paneItem], isTargeted: $over) { providers in
+                DropLoader.load(providers) { items, _ in
+                    withAnimation(.snappy) { context.trashDropped(items) }
+                }
+                return true
+            }
+        } else {
+            content
+        }
+    }
+}
+
 /// Search in the sidebar's toolbar: its lens opens an eye and glances round when you press it.
 private struct SidebarSearchButton: View {
     let opens: Notification.Name
@@ -1190,6 +1215,7 @@ private struct SidebarSearchButton: View {
 /// Recently Deleted's icon: its trash swallows each note you delete, and someone inside looks round.
 private struct TrashRowIcon: View {
     let selected: Bool
+    var noteOver = false
     @State private var gulps = 0
     @Environment(\.controlActiveState) private var active
 
@@ -1197,7 +1223,7 @@ private struct TrashRowIcon: View {
         Group {
             if Charm.on {
                 Image(systemName: "trash").font(DesignLook.isCandidate ? SidebarStyle.candidateIconFont : SidebarStyle.iconFont).hidden()
-                    .overlay { CharmIcon(kind: .trash, pointSize: DesignLook.isCandidate ? 14 : 16, cue: gulps) }
+                    .overlay { CharmIcon(kind: .trash, pointSize: DesignLook.isCandidate ? 14 : 16, cue: gulps, agape: noteOver) }
             } else {
                 Image(systemName: "trash").font(DesignLook.isCandidate ? SidebarStyle.candidateIconFont : SidebarStyle.iconFont)
             }

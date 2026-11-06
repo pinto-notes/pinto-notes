@@ -51,6 +51,8 @@ enum Charm {
         var ink: GraphicsContext.Shading
         var accent: GraphicsContext.Shading
         var line: CGFloat = 1.55
+        /// How far the trash's lid stands open under a dragged note, 0 to 1.
+        var agape: Double = 0
         var style: StrokeStyle { StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round) }
     }
 
@@ -555,6 +557,9 @@ enum Charm {
                 }
             }
         }
+        // A note held over it: the lid waits open.
+        lift = max(lift, 6 * p.agape)
+        tilt = min(tilt, -22 * p.agape)
         // The can.
         var can = Path()
         can.move(to: CGPoint(x: 5.6, y: 7.2))
@@ -1013,6 +1018,8 @@ struct CharmIcon: View {
     var cue = 0
     /// The accent for ink trails and ticks; the tint when nil.
     var accent: Color?
+    /// A note is held over it (the trash's lid waits open).
+    var agape = false
     @State private var start: Date?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -1023,8 +1030,9 @@ struct CharmIcon: View {
         TimelineView(.animation(paused: start == nil)) { tl in
             let t = start.map { tl.date.timeIntervalSince($0) } ?? 0
             let room = side * Charm.bleed(kind)
-            CharmFrame(kind: kind, t: t, accent: accent).frame(width: room, height: room)
+            CharmFrame(kind: kind, t: t, accent: accent, agape: agape && !reduceMotion ? 1 : 0).frame(width: room, height: room)
         }
+        .animation(.spring(duration: 0.28, bounce: 0.35), value: agape)
         .frame(width: side, height: side)
         .onChange(of: cue) {
             guard !reduceMotion else { return }
@@ -1042,16 +1050,22 @@ struct CharmIcon: View {
 }
 
 /// One frame of a glyph's move, at `t` seconds in (0: at rest).
-struct CharmFrame: View {
+struct CharmFrame: View, @preconcurrency Animatable {
     let kind: Charm.Kind
     var t: Double = 0
     var rare = false
     var accent: Color?
     var day = Calendar.current.component(.day, from: .now)
+    var agape: Double = 0
+
+    var animatableData: Double {
+        get { agape }
+        set { agape = newValue }
+    }
 
     var body: some View {
         Canvas { c, size in
-            let pen = Charm.Pen(ink: .style(.foreground), accent: accent.map { .color($0) } ?? .style(.tint))
+            let pen = Charm.Pen(ink: .style(.foreground), accent: accent.map { .color($0) } ?? .style(.tint), agape: agape)
             Charm.draw(kind, in: &c, size: size, t: t, rare: rare, pen: pen, day: day)
         }
     }
