@@ -40,6 +40,9 @@ final class EditorController {
     var downloading: Set<UUID> = []
     /// Looks up a file by id (set by the note screen, which has the model context).
     @ObservationIgnored var resolveAttachment: (UUID) -> Attachment? = { _ in nil }
+    /// Share as Picture, for the selection's menu.
+    @ObservationIgnored var sharePicture: () -> Void = {}
+    @ObservationIgnored var canSharePicture: () -> Bool = { false }
     /// Copies files into Pane (set by the note screen, which has the model context).
     @ObservationIgnored var addFiles: ([URL]) -> [Attachment] = { _ in [] }
     @ObservationIgnored var addData: (Data, String, UTType) -> Attachment? = { _, _, _ in nil }
@@ -328,6 +331,7 @@ final class EditorController {
     /// The words on Format › Untick All, the right-click and long-press menus, and Edit › Undo.
     static let untickAllTitle = "Untick All"
     static let untickListTitle = "Untick All in This List"
+    static let sharePictureTitle = "Share as Picture…"
 
     /// The caret is in a checklist with something ticked: Format › Untick All is on.
     private(set) var canUntickAll = false

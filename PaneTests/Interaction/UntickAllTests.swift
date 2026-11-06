@@ -157,3 +157,31 @@ import AppKit
     }
     #endif
 }
+
+#if os(macOS)
+/// Share as Picture in the selection's menu.
+@MainActor @Suite struct SharePictureMenuTests {
+    @Test func offeredForSelectedTextOnly() async throws {
+        let h = await EditorHarness("Title\n\nSome words here")
+        defer { h.close() }
+        var asked = 0
+        h.controller.canSharePicture = { true }
+        h.controller.sharePicture = { asked += 1 }
+        h.view.setSelectedRange(NSRange(location: 8, length: 0))
+        #expect(h.view.sharePictureMenuItem() == nil, "a caret alone selects nothing")
+        h.view.setSelectedRange(NSRange(location: 7, length: 4))
+        let item = try #require(h.view.sharePictureMenuItem())
+        #expect(item.title == EditorController.sharePictureTitle)
+        _ = item.target?.perform(item.action, with: item)
+        #expect(asked == 1)
+    }
+
+    @Test func notInALockedOrDeletedNote() async throws {
+        let h = await EditorHarness("Title\n\nSome words here")
+        defer { h.close() }
+        h.controller.canSharePicture = { false }
+        h.view.setSelectedRange(NSRange(location: 7, length: 4))
+        #expect(h.view.sharePictureMenuItem() == nil)
+    }
+}
+#endif

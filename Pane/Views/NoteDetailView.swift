@@ -100,6 +100,7 @@ struct NoteDetailView: View {
     @State private var failedPages: Set<String> = []
     /// Share with people: the sheet on iPhone, the popover's Collaborate on the Mac.
     @State private var showPeople = false
+    @State private var pictureRequest: NotePicture.Request?
     @State private var confirmingSharedDelete: [Note]?
     /// A file dropped, pasted or attached into a shared note: said, not taken.
     @State private var refusingSharedFiles = false
@@ -215,6 +216,7 @@ struct NoteDetailView: View {
             .overlay(alignment: .bottom) { keyCard }
             .modifier(HostAskAlert(ask: $hostAsk))
             .sheet(item: $addingKey) { d in APIKeyForm(draft: d) }
+            .sheet(item: $pictureRequest) { NotePictureSheet(request: $0) }
             .sheet(isPresented: $showNetLog) { NotePageNetLogView(noteID: note.id) }
             .sheet(isPresented: $showMakeApp) { MakeAppSheet(noteID: note.id, title: note.title, body_: note.body) }
             .sheet(item: firstOpenSheet) { m in
@@ -1301,6 +1303,8 @@ struct NoteDetailView: View {
         let context = self.context
         let sync = self.sync
         controller.resolveAttachment = { id in context.attachment(id) }
+        controller.sharePicture = { sharePicture() }
+        controller.canSharePicture = { [note] in !note.isLocked && note.trashedAt == nil }
         controller.resolveNoteModel = { id in context.note(id) }
         // A note dragged in from the list is linked by its title. Not this note to itself.
         controller.noteLinkTitle = { [own = note.id] id in
@@ -1498,13 +1502,24 @@ struct NoteDetailView: View {
         ShareLinkMenuSection(store: shareLinks, note: note)
         Section {
             SendCopyItem(note: note)
+            Button("Share as Picture…", systemImage: "photo") { sharePicture() }
+                .accessibilityIdentifier("share.picture")
+        }
+    }
+
+    /// The selection if there is one, else the whole note (NotePicture.passage).
+    private func sharePicture() {
+        let target = controller.target
+        let passage = NotePicture.passage(in: target?.currentText ?? note.body, selection: target?.currentSelection)
+        pictureRequest = NotePicture.Request(title: note.title, passage: passage) { [controller] id in
+            controller.resolveAttachment(id).map { FileStore.url(for: $0.id, filename: $0.filename) }
         }
     }
 
     #if os(macOS)
     /// The toolbar's Share: a plain button with a popover (ShareNotePopover), in one group with More.
     private var shareMenu: some View {
-        ShareButton(note: note, store: shareLinks, people: CollabFeature.isOn ? CollabStore.shared : nil, showing: $showPeople)
+        ShareButton(note: note, store: shareLinks, people: CollabFeature.isOn ? CollabStore.shared : nil, showing: $showPeople, picture: { sharePicture() })
             // A locked note can't be shared, and its text isn't here to send; a deleted one isn't shared.
             .disabled(note.isLocked || trashed)
             .paneTip(ShareLinkTip(), arrowEdge: .top)
