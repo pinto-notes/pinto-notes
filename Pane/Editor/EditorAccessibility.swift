@@ -65,8 +65,11 @@ extension PaneTextView: NSAccessibilityCustomRotorItemSearchDelegate {
         let r = NSIntersectionRange(range, NSRange(location: 0, length: text.length))
         let out = NSMutableAttributedString()
         guard r.length > 0 else { return out }
-        text.enumerateAttribute(.foregroundColor, in: r) { color, run, _ in
-            if let c = color as? NSColor, (c.usingColorSpace(.sRGB)?.alphaComponent ?? 1) == 0 { return }
+        text.enumerateAttributes(in: r) { a, run, _ in
+            if let c = a[.foregroundColor] as? NSColor, (c.usingColorSpace(.sRGB)?.alphaComponent ?? 1) == 0 { return }
+            // Hidden marks are also this small, and a quote gives its whole line a colour, so colour
+            // alone read a quote's marks out (first real VoiceOver pass).
+            if let f = a[.font] as? NSFont, f.pointSize < 0.1 { return }
             out.append(text.attributedSubstring(from: run))
         }
         // A table's lines are hidden under its grid: read as a line, a row says its cells, not nothing

@@ -22,9 +22,9 @@ import Testing
     @Test func theCaretsLineIsReadWithoutItsMarks() async {
         ScreenReader.forced = true
         defer { ScreenReader.forced = nil }
-        let h = await EditorHarness("Lisbon\n## Plan\n**Pastries** in May\n- [x] Book flights\n- [ ] Tram 28\n> Hills\nSee [the site](https://example.com) now\n")
+        let h = await EditorHarness("Lisbon\n## Plan\n**Pastries** in May\n- [x] Book flights\n- [ ] Tram 28\n> Hills\nSee [the site](https://example.com) now\n> Some `code`, ~~gone~~ and [a link](https://example.com) here\n")
         defer { h.close() }
-        let wants = [(1, "Heading, Plan"), (2, "Pastries in May"), (3, "Checked, Book flights"), (4, "Unchecked, Tram 28"), (5, "Quote, Hills"), (6, "See the site now")]
+        let wants = [(1, "Heading, Plan"), (2, "Pastries in May"), (3, "Checked, Book flights"), (4, "Unchecked, Tram 28"), (5, "Quote, Hills"), (6, "See the site now"), (7, "Quote, Some code, gone and a link here")]
         for (n, want) in wants {
             let r = line(h, n)
             await h.select(r.location + 2)
