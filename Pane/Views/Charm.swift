@@ -538,7 +538,7 @@ enum Charm {
         } else {
             // A note goes in: the lid opens, the page drops, the lid claps shut. Then it lifts a
             // little, and someone inside looks around, blinks and ducks back down.
-            lift = CharmMath.keys(t, [(0, 0), (0.14, 6), (0.42, 6), (0.5, 0), (0.86, 0), (1.02, 7.6), (2.6, 7.6), (2.68, 0)])
+            lift = CharmMath.keys(t, [(0, 0), (0.14, 6), (0.42, 6), (0.5, 0), (0.86, 0), (1.02, 8.6), (2.6, 8.6), (2.68, 0)])
             tilt = CharmMath.keys(t, [(0, 0), (0.14, -22), (0.42, -22), (0.5, 0), (0.86, 0), (1.02, -4), (2.6, -4), (2.68, 0)])
                 + (t > 0.5 && t < 0.86 ? CharmMath.wobble(t - 0.5, amp: 7, freq: 7, damping: 9) : 0)
                 + (t > 2.68 ? CharmMath.wobble(t - 2.68, amp: 6, freq: 7, damping: 20) : 0)
@@ -586,23 +586,20 @@ enum Charm {
             }
         } else {
             // Big eyes under the lid: they look left, look right, blink, find you, freeze, and duck.
+            // Drawn in the icon's own line and colour, open inside, so they read as part of it.
             let open = CharmMath.seg(t, 1.02, 1.12) * (1 - CharmMath.seg(t, 2.52, 2.6))
             let look = CharmMath.keys(t, [(0, 0), (1.26, 0), (1.36, -1), (1.66, -1), (1.78, 1), (2.06, 1), (2.14, 0)])
             let blink = 1 - CharmMath.pulse(t, 1.56, 1.68)
             let wide = 1 + 0.1 * CharmMath.seg(t, 2.14, 2.2)
             if open > 0.01 {
-                c.drawLayer { l in
-                    let r = 2.7 * wide, ry = r * open * max(blink, 0.08), y = 3.9 + (1 - open) * 3
-                    for x in [8.7, 15.3] {
-                        let cx = x + look * 0.9
-                        l.fill(Path(ellipseIn: CGRect(x: cx - r, y: y - ry, width: 2 * r, height: 2 * ry)), with: .color(.primary))
-                    }
-                    // The pupils are holes, so they stay dark on dark and light on light.
-                    l.blendMode = .destinationOut
-                    let pupil = 1.25 * min(1, ry / 1.25)
-                    for x in [8.7, 15.3] {
-                        let cx = x + look * 2.2
-                        l.fill(Path(ellipseIn: CGRect(x: cx - pupil, y: y - pupil, width: 2 * pupil, height: 2 * pupil)), with: .color(.black))
+                let r = 2.3 * wide, ry = r * open * max(blink, 0.08), y = 4.2 + (1 - open) * 3
+                for x in [8.8, 15.2] {
+                    let cx = x + look * 0.7
+                    c.stroke(Path(ellipseIn: CGRect(x: cx - r, y: y - ry, width: 2 * r, height: 2 * ry)), with: p.ink, style: StrokeStyle(lineWidth: 1.2))
+                    // The pupil goes as the lid of the eye comes down.
+                    let pupil = 0.9 * min(1, max(ry - 1, 0) / 1)
+                    if pupil > 0 {
+                        c.fill(Path(ellipseIn: CGRect(x: cx + look * 0.7 - pupil, y: y - pupil, width: 2 * pupil, height: 2 * pupil)), with: p.ink)
                     }
                 }
             }
