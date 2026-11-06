@@ -15,9 +15,9 @@ describe("the iPhone app is on the App Store", () => {
   it("makes the hero's iPhone button look pressable", () => {
     const rule = readFileSync("app/_home/hero.module.css", "utf8").match(/\.iphone \{[^}]*\}/)?.[0] ?? "";
     expect(rule).toContain("color: #2a1a0c");
-    expect(rule).toContain("background: #fff");
+    expect(rule).toContain("background: #f3e4d0");
     expect(rule).not.toContain("transparent");
-    expect(rule).not.toContain("inset"); // a plain white button, no outline
+    expect(rule).not.toContain("inset"); // a soft fill, no outline
   });
 
   // A line behind APP_STORE_LIVE is fine: it no longer shows. These forms were always hard-coded.
