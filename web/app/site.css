@@ -221,6 +221,9 @@ html:has([data-hero-download]) .site-nav a.site-cta { display: none; }
 }
 .site-sheet-cta-quiet { background: var(--soft); color: var(--ink); }
 .site-sheet-for { display: grid; gap: 8px; }
+/* On an iPhone the Mac app is a line under the button, not a second button. */
+.site-sheet-maclink { justify-self: center; padding: 8px 12px; font-size: 15px; font-weight: 600; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.site-sheet-maclink:hover { color: var(--ink); }
 /* The same switch as the pages' platform note: an iPhone gets the iPhone words, Windows, Android and
    Linux get "For iPhone and Mac", everyone else the Mac download. */
 .site-sheet-for.site-sheet-ios, .site-sheet-for.site-sheet-other { display: none; }
@@ -487,6 +490,10 @@ html.fs-at-ground { background: var(--ground); }
 }
 .open-sheet-get { background: var(--cta-bg); color: var(--cta-ink); }
 .open-sheet-iphone { background: var(--soft); color: var(--ink); }
+/* On an iPhone the iPhone app comes first and is the filled one. */
+:root[data-platform="ios"] .open-sheet-iphone { order: -1; background: var(--cta-bg); color: var(--cta-ink); }
+:root[data-platform="ios"] .open-sheet-get { background: var(--soft); color: var(--ink); }
+:root[data-platform="ios"] .place-get-mac { order: 1; }
 .open-sheet-again { margin: 4px 0 0; color: var(--muted); }
 .open-sheet-again button {
   min-height: 40px; padding: 0 2px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--link); cursor: pointer;

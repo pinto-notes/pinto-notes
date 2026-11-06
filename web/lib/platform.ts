@@ -14,10 +14,11 @@ export const PREVIEWS: [string, string][] = [["windows", "Windows"], ["android",
 /// Runs in <head> before first paint and marks <html> with data-platform, so site.css shows the
 /// right call to action from the first frame: nothing flashes and nothing moves. A platform it
 /// can't tell is "other", which keeps the page as the server sent it. An iPad that says it's a Mac
-/// is told apart by its touch screen. A preview (?as=) wins over the real platform and also sets
+/// is told apart by its touch screen, and a phone-sized window on a Mac gets the iPhone layout, since
+/// that is the shape it has (the Mac download stays a link under the button). A preview (?as=) wins over the real platform and also sets
 /// data-as. The consent page's CSP allows this script by its hash (lib/connect-csp.ts), so change
 /// it only here.
-export const platformScript = `(function(){try{var n=navigator,d=document.documentElement,v=null,ok=/^(${PREVIEWS.map(([as]) => as).join("|")})$/;try{var q=/[?&]as=([a-z]+)(?:&|$)/.exec(location.search);v=q&&q[1]}catch(e){}try{var s=sessionStorage;if(v==="off")s.removeItem("${PREVIEW_KEY}");else if(ok.test(v))s.setItem("${PREVIEW_KEY}",v);else v=s.getItem("${PREVIEW_KEY}")}catch(e){}if(ok.test(v)){d.dataset.platform=v==="iphone"?"ios":v;d.dataset.as=v;return}var u=n.userAgent||"",h=(n.userAgentData&&n.userAgentData.platform)||"";d.dataset.platform=/iPhone|iPad|iPod/.test(u)||(/Macintosh/.test(u)&&n.maxTouchPoints>1)?"ios":/Android/.test(u)||h==="Android"?"android":/Windows/.test(u)||h==="Windows"?"windows":/Macintosh|Mac OS X/.test(u)||h==="macOS"?"mac":/CrOS/.test(u)?"other":/Linux|X11/.test(u)||h==="Linux"?"linux":"other"}catch(e){}})();`;
+export const platformScript = `(function(){try{var n=navigator,d=document.documentElement,v=null,ok=/^(${PREVIEWS.map(([as]) => as).join("|")})$/;try{var q=/[?&]as=([a-z]+)(?:&|$)/.exec(location.search);v=q&&q[1]}catch(e){}try{var s=sessionStorage;if(v==="off")s.removeItem("${PREVIEW_KEY}");else if(ok.test(v))s.setItem("${PREVIEW_KEY}",v);else v=s.getItem("${PREVIEW_KEY}")}catch(e){}if(ok.test(v)){d.dataset.platform=v==="iphone"?"ios":v;d.dataset.as=v;return}var u=n.userAgent||"",h=(n.userAgentData&&n.userAgentData.platform)||"";d.dataset.platform=/iPhone|iPad|iPod/.test(u)||(/Macintosh/.test(u)&&(n.maxTouchPoints>1||d.clientWidth<=600))?"ios":/Android/.test(u)||h==="Android"?"android":/Windows/.test(u)||h==="Windows"?"windows":/Macintosh|Mac OS X/.test(u)||h==="macOS"?"mac":/CrOS/.test(u)?"other":/Linux|X11/.test(u)||h==="Linux"?"linux":"other"}catch(e){}})();`;
 
 /// The address of "Send myself the link": an email to nobody yet, with the link in it. It works
 /// without scripts, and it's what opens where the browser has no share sheet.

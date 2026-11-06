@@ -101,7 +101,7 @@ export default function MobileMenu({ path, stars: built, appStoreLive = APP_STOR
               {appStoreLive
                 ? <a className="site-sheet-cta" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer"><AppleGlyph /> Download for iPhone</a>
                 : <p>Pinto Notes for iPhone is coming to the App Store soon.</p>}
-              <a className="site-sheet-cta site-sheet-cta-quiet" href="/download"><AppleGlyph /> Download for Mac</a>
+              <a className="site-sheet-maclink" href="/download">Download for Mac</a>
             </div>
             {/* Windows, Android and Linux: the header's own words there. */}
             <div className="site-sheet-for site-sheet-other">
