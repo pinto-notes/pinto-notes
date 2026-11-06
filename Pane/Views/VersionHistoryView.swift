@@ -232,7 +232,7 @@ struct VersionAuthorMark: View {
             case .you(let device):
                 Image(systemName: Self.symbol(device)).resizable().scaledToFit().foregroundStyle(.secondary)
             case .person:
-                Image(systemName: "person.2.fill").resizable().scaledToFit().foregroundStyle(.secondary)
+                Image(systemName: Self.symbol(nil)).resizable().scaledToFit().foregroundStyle(.secondary)
             }
         }
         .frame(width: size, height: size)

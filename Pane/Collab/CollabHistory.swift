@@ -59,7 +59,8 @@ enum CollabHistory {
             let (who, restored) = parse(change.message)
             if var run = open, !restored, !run.restored, !isAI(who), !run.who.contains(where: isAI) {
                 let gap = clock.timeIntervalSince(run.end)
-                if run.who.contains(who) ? gap <= burst : gap < together {
+                // One person's own pauses are allowed for. Writing together lasts while it's that close.
+                if run.who == [who] ? gap <= burst : gap < together {
                     if !run.who.contains(who) { run.who.append(who) }
                     run.end = clock
                     run.last = i

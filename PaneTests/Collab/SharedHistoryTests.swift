@@ -60,6 +60,18 @@ import Testing
         #expect(list[0].version.author == .person("You and Sara"))
     }
 
+    /// Seen in the two-phone film: Sara's edit a minute after they'd typed together joined the
+    /// together version, so there was no version from just before it to go back to.
+    @Test func anEditAfterWritingTogetherIsItsOwnVersion() throws {
+        let (doc, body) = try document()
+        try edit(doc, body, "a", CollabHistory.stamp(emilID), at: 1000)
+        try edit(doc, body, "b", CollabHistory.stamp(saraID), at: 1001)
+        try edit(doc, body, "c", CollabHistory.stamp(saraID), at: 1060)
+        let list = runs(doc)
+        #expect(list.map(\.version.author) == [.person("Sara"), .person("You and Sara")])
+        #expect(try doc.textAt(obj: body, heads: list[1].heads) == "ab")
+    }
+
     @Test func anAIsEditAndARestoreAlwaysStandAlone() throws {
         let (doc, body) = try document()
         let me = CollabHistory.stamp(emilID)

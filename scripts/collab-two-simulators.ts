@@ -90,7 +90,7 @@ async function signIn(p: Person) {
 
 // MARK: Simulators
 
-const runtime = JSON.parse(await simctl("list", "runtimes", "-j")).runtimes.filter((r: any) => r.isAvailable && r.platform === "iOS").at(-1).identifier;
+const runtime = JSON.parse(await simctl("list", "runtimes", "-j")).runtimes.filter((r: any) => r.isAvailable && r.platform === "iOS" && r.supportedDeviceTypes?.some((d: any) => d.name === "iPhone 17")).at(-1).identifier;
 const devices: { udid: string; dir: string; person: Person }[] = [];
 const label = (d: { person: Person }) => d.person.name;
 
