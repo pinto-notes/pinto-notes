@@ -37,6 +37,12 @@ import AppKit
         #expect(folder.deletedAt == nil)
     }
 
+    /// Moving a note into a folder is a move: the green plus means a copy, and there isn't one.
+    @Test func movingInsideTheAppShowsNoPlus() {
+        #expect(dropOperation(fromThisApp: true) == .move)
+        #expect(dropOperation(fromThisApp: false) == .copy, "a file from Finder is copied in")
+    }
+
     /// The chip that follows a dragged note shows its name, not a lone icon.
     @Test func aDraggedNoteShowsItsName() throws {
         let short = ImageRenderer(content: NoteDragPreview(title: "A", symbol: "note.text"))

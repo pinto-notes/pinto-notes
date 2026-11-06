@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// What to call the signed-in person where the app shows who they are: the name on their profile.
 /// Never an email address: with Sign in with Apple that can be a relay address
@@ -601,14 +602,15 @@ struct SidebarView: View {
                 Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }
             }
         }
-        .dropDestination(for: PaneDragItem.self) { items, _ in
+        .onDrop(of: [.paneItem], delegate: MoveDropDelegate(types: [.paneItem]) { providers in
             // Dropping a folder on empty sidebar space moves it to the top level.
-            var moved = false
-            for item in items where item.kind == .folder {
-                if let f = context.folder(item.id) { context.move(f, into: nil); moved = true }
+            DropLoader.load(providers) { items, _ in
+                for item in items where item.kind == .folder {
+                    if let f = context.folder(item.id) { context.move(f, into: nil) }
+                }
             }
-            return moved
-        }
+            return true
+        })
         #if os(iOS)
         .navigationTitle("Folders")
         #else
@@ -1174,6 +1176,28 @@ private struct CountedRow: View {
 }
 
 #if os(macOS)
+/// What the pointer promises over a drop target: something already in the app moves, so no green
+/// plus; a file from outside is copied in, and the plus is right.
+func dropOperation(fromThisApp: Bool) -> DropOperation { fromThisApp ? .move : .copy }
+
+/// A drop target that says "move" for things dragged inside the app.
+private struct MoveDropDelegate: DropDelegate {
+    let types: [UTType]
+    var targeted: (Bool) -> Void = { _ in }
+    let perform: ([NSItemProvider]) -> Bool
+
+    func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: types) }
+    func dropEntered(info: DropInfo) { targeted(true) }
+    func dropExited(info: DropInfo) { targeted(false) }
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: dropOperation(fromThisApp: info.hasItemsConforming(to: [.paneItem])))
+    }
+    func performDrop(info: DropInfo) -> Bool {
+        targeted(false)
+        return perform(info.itemProviders(for: types))
+    }
+}
+
 /// Recently Deleted takes notes and files dragged onto it, as in Notes.
 private struct TrashDrop: ViewModifier {
     @Environment(\.modelContext) private var context
@@ -1198,7 +1222,7 @@ private struct TrashDropDelegate: DropDelegate {
 
     func dropEntered(info: DropInfo) { lid.entered { over = $0 } }
     func dropExited(info: DropInfo) { lid.left { over = $0 } }
-    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: dropOperation(fromThisApp: true)) }
     func performDrop(info: DropInfo) -> Bool {
         lid.dropped { over = $0 }
         DropLoader.load(info.itemProviders(for: [.paneItem])) { [context] items, _ in
@@ -1431,7 +1455,7 @@ private struct FolderTree: View {
         }
         // Notes, folders and files from inside the app, and files and folders from Finder, Mail or
         // Safari: they land in this folder.
-        .onDrop(of: [.paneItem, .fileURL], isTargeted: Binding(get: { dropTarget == folder.id }, set: { over in targeted(over, folder.id) })) { providers in
+        .onDrop(of: [.paneItem, .fileURL], delegate: MoveDropDelegate(types: [.paneItem, .fileURL], targeted: { over in targeted(over, folder.id) }) { providers in
             DropLoader.load(providers) { items, urls in
                 var moved = false
                 for item in items {
@@ -1453,7 +1477,7 @@ private struct FolderTree: View {
                 if moved { withAnimation(.snappy) { expanded = true } }
             }
             return true
-        }
+        })
         #if os(iOS)
         // The folder's first notes above its menu, as in Notes.
         .contextMenu {
