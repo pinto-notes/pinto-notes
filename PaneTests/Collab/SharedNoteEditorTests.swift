@@ -111,6 +111,8 @@ extension NetworkFaults {
         await waitUntil { !controller.readOnly && controller.ownUndo != nil }
         #expect(!controller.readOnly)
         #expect(controller.ownUndo != nil)
+        // The view takes keys on the next pass of the window, after the controller says so.
+        await waitUntil { text.isEditable }
         type("\nEggs", into: text)
         await waitUntil { session.text == "Groceries\nMilk\nEggs" }
         #expect(session.text == "Groceries\nMilk\nEggs")
