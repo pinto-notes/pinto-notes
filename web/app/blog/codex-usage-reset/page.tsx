@@ -165,7 +165,7 @@ export default function Page() {
       </p>
       <p>
         One thing a reset can&apos;t give back is where a long session had got to when the limit hit. I make Pinto Notes, a
-        notes app for Mac, and keeping a short running note that Codex reads and updates means a new session picks up where the
+        notes app for iPhone and Mac, and keeping a short running note that Codex reads and updates means a new session picks up where the
         old one stopped. <a href="/blog/notes-in-claude-code-and-codex">Notes in Claude Code and Codex</a> shows the
         one-command setup.
       </p>

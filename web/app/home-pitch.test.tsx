@@ -21,9 +21,11 @@ describe("the home page", () => {
     expect(html).toContain("application/ld+json");
   });
 
-  it("offers the Mac download, says the iPhone app is coming, and never says iPad", () => {
+  it("offers the Mac download and the App Store, and never says iPad", () => {
     expect(page).toContain("Download for Mac");
-    expect(page).toContain("Coming to iPhone");
+    expect(page).toContain("Get it for iPhone");
+    expect(page).toContain("https://apps.apple.com/app/id6817253103");
+    expect(page).not.toContain("Coming to iPhone");
     expect(page).not.toMatch(/iPad/);
   });
 

@@ -33,7 +33,7 @@ describe("what the phone menu holds", () => {
     const pages = hrefs(header).filter((h) => h.startsWith("/") && h !== "/download" && h !== "/download/mac");
     expect(pages).toEqual(MENU_PAGES.map((p) => p.href));
     expect(header).toContain("https://github.com/pinto-notes/pinto-notes");
-    expect(header).toContain(">For Mac</a>");
+    expect(header).toContain(">For iPhone and Mac</a>");
   });
 
   it("marks the current page, on the pages under it too", () => {

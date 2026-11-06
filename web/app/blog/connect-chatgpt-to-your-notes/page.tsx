@@ -102,7 +102,7 @@ export default function Page() {
         chat and explain it all again, and if you switch to Claude, it starts from zero.
       </p>
       <p>
-        What you actually want is one notebook that ChatGPT can read and write, that you can open like any note (on the Mac today, iPhone soon), and that Claude sees too. Pinto Notes is built for that, and it works with ChatGPT and Claude.
+        What you actually want is one notebook that ChatGPT can read and write, that you can open like any note (on your iPhone or Mac), and that Claude sees too. Pinto Notes is built for that, and it works with ChatGPT and Claude.
       </p>
       <AIConnect caption="The goal: ChatGPT and Claude working in the same notes." />
 

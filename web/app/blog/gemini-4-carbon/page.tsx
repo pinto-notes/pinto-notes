@@ -124,8 +124,8 @@ export default function Page() {
       <Keep title="A prompt to run on Argon now and Carbon later" text={RERUN} />
       <p>
         I keep prompts like this in a note so I can rerun them on every new model, as I did for <a
-        href="/blog/gpt-6-astra-use-cases">GPT-6 Astra</a>. I make Pinto Notes, a notes app for Mac that ChatGPT, Claude, Claude
-        Code and Codex can read and edit once you allow it (the iPhone app is coming soon). It doesn&apos;t connect to Gemini, so
+        href="/blog/gpt-6-astra-use-cases">GPT-6 Astra</a>. I make Pinto Notes, a notes app for iPhone and Mac that ChatGPT, Claude, Claude
+        Code and Codex can read and edit once you allow it. It doesn&apos;t connect to Gemini, so
         there you paste the prompt in.
       </p>
     </PostPage>

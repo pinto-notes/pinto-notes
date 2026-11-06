@@ -10,7 +10,7 @@ export const metadata = postMetadata("plan-a-trip-with-chatgpt-or-claude", { tit
 // during the trip; each day as a timeline with its bookings; Share a day or the trip as text; grouped packing that
 // stays for the next trip; no item reordering within a day, no costs, map or weather; no network unless allowed).
 // Re-checked on growth/apps-bar for the upgraded app. The
-// iPhone app isn't on the App Store yet. What ChatGPT and Claude do in a chat is described as what you can check.
+// iPhone app has been on the App Store since 6 Nov 2026. What ChatGPT and Claude do in a chat is described as what you can check.
 
 const PROMPT = `Plan a 4-day trip to Lisbon for two, 22 to 25 October. We like food, views and walking. Not museums. We're staying in Príncipe Real and don't want a car.
 
@@ -108,7 +108,7 @@ export default function Page() {
       <h2 id="keep">Keep the plan where you can edit it</h2>
       <p>
         Once the plan is roughly right, it needs a home where you can change it without asking the AI, tick off what&apos;s paid and
-        packed, and still let the AI add to it. I make Pinto Notes, a notes app for Mac (iPhone coming soon) that ChatGPT, Claude and Claude Code can read and edit once you allow them. A note in it can hold a small app, and the <a href="/templates/trip-plan">Trip plan
+        packed, and still let the AI add to it. I make Pinto Notes, a notes app for iPhone and Mac that ChatGPT, Claude and Claude Code can read and edit once you allow them. A note in it can hold a small app, and the <a href="/templates/trip-plan">Trip plan
         template</a> is a note with a trip planner app already built, with a sample Lisbon trip to replace.
       </p>
       <Steps>

@@ -11,8 +11,7 @@ export const metadata = postMetadata("budget-tracker-with-chatgpt-or-claude", { 
 // per category; currency; monthly bills added on their day; roll-over; a six-month chart; no income,
 // per-month budgets or export; no bank connection). Re-checked on growth/apps-bar for the upgraded app.
 // YNAB checked 14 Oct: no official MCP server or ChatGPT app; community MCP servers with API tokens exist (usecarly, GitHub).
-// The sums are computed by the app (src/lib/budget.ts), not by the AI. The iPhone app isn't on the App Store
-// yet. What ChatGPT and Claude build in a chat is described as what you can check yourself.
+// The sums are computed by the app (src/lib/budget.ts), not by the AI. The iPhone app has been on the App Store since 6 Nov 2026. What ChatGPT and Claude build in a chat is described as what you can check yourself.
 
 const PROMPT = `Build me a simple monthly budget tracker as a small interactive app.
 
@@ -103,7 +102,7 @@ export default function Page() {
 
       <h2 id="template">A budget your AI keeps</h2>
       <p>
-        That&apos;s the <a href="/templates/budget-log">budget template</a> in Pinto Notes, the notes app I make for Mac (iPhone coming soon). It&apos;s a
+        That&apos;s the <a href="/templates/budget-log">budget template</a> in Pinto Notes, the notes app I make for iPhone and Mac. It&apos;s a
         note with a small app in it. Choose Start budgeting, set your categories, then <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT or Claude</a> once.
       </p>
       <PostFigure src="/blog/pinto/budget-log-expenses-mac-light" width={1280} height={900} maxWidth={640}

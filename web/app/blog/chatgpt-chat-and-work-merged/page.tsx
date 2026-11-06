@@ -145,7 +145,7 @@ export default function Page() {
         memory full</a>.
       </p>
       <p>
-        That&apos;s why I make Pinto Notes, a notes app for Mac that ChatGPT, Claude, Claude Code and Codex can read and edit
+        That&apos;s why I make Pinto Notes, a notes app for iPhone and Mac that ChatGPT, Claude, Claude Code and Codex can read and edit
         after you allow it. <a href="/blog/connect-chatgpt-to-your-notes">Connect ChatGPT to your notes</a> shows the setup.
       </p>
     </PostPage>

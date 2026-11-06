@@ -23,7 +23,7 @@ export const MAKER_GITHUB = "https://github.com/emilwagman";
 export const INCREDIBLE_URL = "https://incredible.one";
 
 // The iPhone app. Flipping this shows the App Store button and turns on Safari's Smart App Banner.
-export const APP_STORE_LIVE = false;
+export const APP_STORE_LIVE = true;
 export const APP_STORE_ID = "6817253103";
 export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}`;
 

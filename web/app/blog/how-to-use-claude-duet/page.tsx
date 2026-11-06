@@ -144,8 +144,8 @@ export default function Page() {
       <p>
         Duet carries Claude&apos;s memory with it, which is handy and hard to look inside. Things you&apos;ll want to read and edit
         yourself, like a hiring plan or the opening checklist, are better in notes. (I compared the two in <a
-        href="/blog/claude-memory-vs-notes">Claude memory vs notes</a>.) I make Pinto Notes, a notes app for Mac that Claude can
-        read and edit once you allow it (the iPhone app is coming soon). Because Duet uses the connectors you&apos;ve added in
+        href="/blog/claude-memory-vs-notes">Claude memory vs notes</a>.) I make Pinto Notes, a notes app for iPhone and Mac that Claude can
+        read and edit once you allow it. Because Duet uses the connectors you&apos;ve added in
         Claude, it should reach your notes the same way. I&apos;m still on the waitlist, so I haven&apos;t tried it yet.
       </p>
     </PostPage>

@@ -39,7 +39,7 @@ export const organization: Thing = {
   name: SITE_NAME,
   url: SITE_URL,
   logo: `${SITE_URL}/mark.png`,
-  description: "Makers of Pinto Notes, the free, open-source notes app for Mac that ChatGPT and Claude can use.",
+  description: "Makers of Pinto Notes, the free, open-source notes app for iPhone and Mac that ChatGPT and Claude can use.",
   founder: { "@id": PERSON_ID },
   sameAs: SAME_AS,
 };
@@ -81,7 +81,7 @@ export function app(version: string | null): Thing {
     description:
       APP_STORE_LIVE
         ? "A simple notes app for iPhone and Mac that ChatGPT, Claude, Claude Code, Codex and Incredible can read and edit, with your approval. Imports your Apple Notes, syncs in about a second, keeps every version an AI changes, and stores notes as markdown."
-        : "A simple notes app for Mac that ChatGPT, Claude, Claude Code, Codex and Incredible can read and edit, with your approval. The iPhone app is coming soon. Imports your Apple Notes, keeps every version an AI changes, and stores notes as markdown.",
+        : "A simple notes app for iPhone and Mac that ChatGPT, Claude, Claude Code, Codex and Incredible can read and edit, with your approval. The iPhone app is coming soon. Imports your Apple Notes, keeps every version an AI changes, and stores notes as markdown.",
     applicationCategory: "ProductivityApplication",
     operatingSystem: APP_STORE_LIVE ? "iOS, macOS" : "macOS",
     softwareRequirements: APP_STORE_LIVE ? "macOS 26 or later; iOS 26 or later" : "macOS 26 or later",

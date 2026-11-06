@@ -11,7 +11,7 @@ export const metadata = postMetadata("flashcards-with-chatgpt-or-claude", { titl
 // study-flashcards.app (README.md, docs/README.md: Again, Hard, Good and Easy with growing intervals per card, five
 // boxes that follow the interval; a streak and 12-week calendar; quick add and Paste many; Study and Cards tabs; add,
 // edit, delete with Undo; topic pills; no typed answers, multiple choice or images). Re-checked on growth/apps-bar for
-// the upgraded app. The iPhone app isn't on the App Store yet.
+// the upgraded app. The iPhone app has been on the App Store since 6 Nov 2026.
 
 const PROMPT = `Make flashcards from the notes below.
 
@@ -118,7 +118,7 @@ export default function Page() {
 
       <h2 id="template">Cards that live next to your notes</h2>
       <p>
-        I make Pinto Notes, a notes app for Mac (iPhone coming soon) that ChatGPT, Claude and Claude Code can read and edit once you allow them.
+        I make Pinto Notes, a notes app for iPhone and Mac that ChatGPT, Claude and Claude Code can read and edit once you allow them.
         A note in it can hold a small app. The <a href="/templates/study-flashcards">Study notes and flashcards template</a> is a note
         with a flashcard app already built, with sample biology cards to replace. Your lecture notes can sit in the same notebook, so
         the AI that writes the cards reads the notes they came from, and the one you ask &ldquo;what do I keep getting wrong?&rdquo; sees

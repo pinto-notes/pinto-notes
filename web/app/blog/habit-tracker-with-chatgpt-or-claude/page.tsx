@@ -10,7 +10,7 @@ export const metadata = postMetadata("habit-tracker-with-chatgpt-or-claude", { t
 // Today, Month and Habits screens; schedules (every day, some weekdays, times a week); skip days that keep the
 // streak; a habit's own page; add, rename, reorder and remove with Undo; days kept on remove; counted habits;
 // no notifications). Re-checked on growth/apps-bar for the upgraded app. The "Make my note an app" wording is the make_app prompt in
-// supabase/functions/mcp/files_tools.ts. The iPhone app isn't on the App Store yet. What ChatGPT and Claude
+// supabase/functions/mcp/files_tools.ts. The iPhone app has been on the App Store since 6 Nov 2026. What ChatGPT and Claude
 // build in a chat is described as what you can check yourself, not as tested behaviour.
 
 const PROMPT = `Build me a habit tracker as a small interactive app I can use right here.
@@ -99,7 +99,7 @@ export default function Page() {
 
       <h2 id="template">A tracker your AI can update</h2>
       <p>
-        That&apos;s what I built into Pinto Notes, a notes app for Mac (iPhone coming soon) that ChatGPT and Claude can read and write once you allow them. A note can hold a small app, and the <a href="/templates/habit-tracker">habit tracker template</a> is one: choose Start
+        That&apos;s what I built into Pinto Notes, a notes app for iPhone and Mac that ChatGPT and Claude can read and write once you allow them. A note can hold a small app, and the <a href="/templates/habit-tracker">habit tracker template</a> is one: choose Start
         tracking, then <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT or Claude</a> once.
       </p>
       <PostFigure src="/blog/pinto/habit-tracker-month-mac-light" width={1280} height={900} maxWidth={640}
