@@ -97,7 +97,7 @@ describe("Use template on the page", () => {
   });
 
   it("calls a shared note a note on the sheet", () => {
-    act(() => root.render(<OpenInApp href="/open/copy/abc" app="ambernotes://copy/abc">Use this note</OpenInApp>));
+    act(() => root.render(<OpenInApp href="/open/copy/abc" app="pintonotes://copy/abc">Use this note</OpenInApp>));
     click();
     act(() => attempts.calls[0].done(false));
     expect(sheet()!.textContent).toContain("This note opens in Pinto Notes");
