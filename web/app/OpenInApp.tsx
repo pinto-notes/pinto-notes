@@ -96,8 +96,8 @@ function OpenSheet({ what, onRetry, onClose }: { what: "template" | "note"; onRe
       <p className="open-sheet-title" id={id}>This {what} opens in Pinto Notes</p>
       <p className="open-sheet-text">It&apos;s free. Get the app, then come back to this page.</p>
       <div className="open-sheet-actions">
-        <a className="open-sheet-get" href="/download/mac"><AppleGlyph /> Get Pinto Notes for Mac</a>
-        {APP_STORE_LIVE && <a className="open-sheet-iphone" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it for iPhone</a>}
+        <a className="open-sheet-get" href="/download/mac"><AppleGlyph /> Get it for Mac</a>
+        {APP_STORE_LIVE && <a className="open-sheet-iphone" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer"><AppleGlyph /> Get it for iPhone</a>}
       </div>
       <p className="open-sheet-again">Already have it? <button type="button" onClick={onRetry}>Try again</button></p>
       <button type="button" className="open-sheet-close" aria-label="Close" onClick={onClose}>

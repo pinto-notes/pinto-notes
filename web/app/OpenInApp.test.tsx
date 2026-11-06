@@ -82,7 +82,11 @@ describe("Use template on the page", () => {
     expect(s.textContent).toContain("This template opens in Pinto Notes");
     expect(s.textContent).toContain("Get the app, then come back to this page.");
     expect(s.textContent).not.toContain("Didn't open");
-    expect(s.querySelector('a[href="/download/mac"]')?.textContent).toContain("Get Pinto Notes for Mac");
+    expect(s.querySelector('a[href="/download/mac"]')?.textContent).toContain("Get it for Mac");
+    // The two buttons match, so the first choice never looks like the lesser one.
+    expect(s.querySelector(".open-sheet-iphone")?.textContent).toContain("Get it for iPhone");
+    expect(s.querySelector(".open-sheet-iphone svg")).not.toBeNull();
+    expect(s.querySelector(".open-sheet-get svg")).not.toBeNull();
     expect(s.textContent).toContain("Already have it?");
     expect(document.activeElement).toBe(s);
     expect(events).toEqual([{ event: "use_template_not_found", properties: { path: "/", template: "habit-tracker" }, leaves: false }]);
