@@ -771,6 +771,23 @@ final class EditorController {
         t.focusGrid(grid, cell: next)
     }
 
+    /// What a cell holds, as you'd read it.
+    func cellText(grid: Int, cell: GridCell) -> String? {
+        guard let g = target.flatMap({ t in GridTable.find(in: t.currentText).first { $0.index == grid } }),
+              cell.row < g.rows.count, cell.column < g.rows[cell.row].count else { return nil }
+        return g.rows[cell.row][cell.column]
+    }
+
+    /// Puts `value` in a cell, on one line: a table cell has only one (Cut and Paste in its menu).
+    func setCell(_ value: String, grid: Int, cell: GridCell) {
+        guard let t = target, !readOnly else { return }
+        let all = GridTable.find(in: t.currentText)
+        guard grid < all.count, cell.row < all[grid].rows.count, cell.column < all[grid].rows[cell.row].count else { return }
+        var g = all[grid]
+        g.rows[cell.row][cell.column] = value.components(separatedBy: .newlines).filter { !$0.isEmpty }.joined(separator: " ")
+        t.apply(TextEdit(range: all[grid].range, replacement: g.markdown, caret: -1))
+    }
+
     /// A table's add bar: a row at the bottom or a column at the end, keyboard in it.
     func addToTable(_ kind: GridAdd, grid: Int) {
         guard let t = target, let g = GridTable.find(in: t.currentText).first(where: { $0.index == grid }) else { return }

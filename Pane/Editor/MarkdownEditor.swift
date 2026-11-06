@@ -3732,6 +3732,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Right-click on a line that is only a link: show it compact or as a card (Emil, 11-01).
     /// On a checklist with ticks (its circle or its text): Untick All in This List.
+    private static func copyToClipboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
     /// A table cell's right-click menu: add or delete its row or column, or the table.
     func tableCellMenu(host: GridHostingView, cell: GridCell) -> NSMenu? {
         guard let controller, !controller.readOnly,
@@ -3742,6 +3747,30 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Table items only: AppKit otherwise adds AutoFill, which has nothing to fill in a cell.
         menu.allowsContextMenuPlugIns = false
         if #available(macOS 15.0, *) { menu.automaticallyInsertsWritingToolsItems = false }
+        // What any text's menu starts with (round 21: only the table's own commands). A cell being
+        // typed in has the text's own menu; this one is for the whole cell.
+        let held = controller.cellText(grid: grid, cell: cell) ?? ""
+        let clipboard: [(String, String, Bool, () -> Void)] = [
+            ("Cut", "scissors", !held.isEmpty, { [weak controller] in
+                Self.copyToClipboard(held)
+                controller?.setCell("", grid: grid, cell: cell)
+            }),
+            ("Copy", "doc.on.doc", !held.isEmpty, { Self.copyToClipboard(held) }),
+            ("Paste", "doc.on.clipboard", NSPasteboard.general.string(forType: .string) != nil, { [weak controller] in
+                if let s = NSPasteboard.general.string(forType: .string) { controller?.setCell(s, grid: grid, cell: cell) }
+            }),
+        ]
+        for (title, symbol, enabled, run) in clipboard {
+            let item = NSMenuItem(title: title, action: #selector(TableMenuAction.fire), keyEquivalent: "")
+            let action = TableMenuAction(run)
+            item.target = action
+            item.representedObject = action
+            item.isEnabled = enabled
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+            item.setAccessibilityIdentifier("table.menu.\(title)")
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
         for (i, section) in table.sections.enumerated() {
             if i > 0 { menu.addItem(.separator()) }
             for entry in section {

@@ -1406,6 +1406,8 @@ struct ShowsSelectedRow: ViewModifier {
 
     /// This list's table, found once the list is in a window.
     @State private var finder = TableFinder.Probe()
+    /// Counts the asks to show the selected row again.
+    @State private var revealAsked = 0
 
     func body(content: Content) -> some View {
         content
@@ -1416,6 +1418,7 @@ struct ShowsSelectedRow: ViewModifier {
                 // list centred on a row it already showed slid its first notes under the toolbar's
                 // blur, a smudge at rest (round 15, two judges of the quiet.md comparison).
                 DispatchQueue.main.async {
+                    finder.dragsMoveNotes()
                     if let at, at >= Self.firstRows { finder.reveal(row: at) }
                 }
             }
@@ -1429,9 +1432,12 @@ struct ShowsSelectedRow: ViewModifier {
             // (round 20: the selected row was off screen after Restore This Version).
             .onReceive(NotificationCenter.default.publisher(for: .paneVersionRestored)) { n in
                 guard let id = n.object as? UUID, id == selected else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    if let at = row(id) { finder.reveal(row: at) }
-                }
+                // Once the list has its new order: `row` here is the one from before it.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { revealAsked &+= 1 }
+            }
+            .onChange(of: revealAsked) {
+                guard let at = selected.flatMap(row) else { return }
+                DispatchQueue.main.async { finder.reveal(row: at) }
             }
     }
 
@@ -1462,11 +1468,18 @@ struct ShowsSelectedRow: ViewModifier {
             }
 
             /// Centres `row` when any of it is out of view (under the toolbar or past the foot).
+            /// A drag from a row carries the note, whichever way the mouse first moves, as in Notes.
+            /// By default a drag starting upwards selected every row it crossed as well (round 21:
+            /// a note dragged to a folder left that folder on "2 Notes Selected"). ⌘ and ⇧ select several.
+            func dragsMoveNotes() { find()?.verticalMotionCanBeginDrag = true }
+
             func reveal(row: Int) {
                 guard let table = find(), row < table.numberOfRows, let scroll = table.enclosingScrollView else { return }
                 let clip = scroll.contentView.bounds
                 let insets = scroll.contentInsets
-                let shown = CGRect(x: clip.minX, y: clip.minY + insets.top, width: clip.width, height: clip.height - insets.top - insets.bottom)
+                // The heading pinned at the top covers what's under it.
+                let band = table.numberOfRows > 0 ? table.rect(ofRow: 0).height : 0
+                let shown = CGRect(x: clip.minX, y: clip.minY + insets.top + band, width: clip.width, height: clip.height - insets.top - insets.bottom - band)
                 if ShowsSelectedRow.needsReveal(table.rect(ofRow: row), shown: shown) { center(row: row) }
             }
 

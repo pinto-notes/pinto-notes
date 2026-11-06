@@ -6,8 +6,10 @@ import SwiftUI
 /// one, Escape puts it away; a click runs one too. The same panel as the `[[` titles.
 struct SlashCommandList: View {
     let controller: EditorController
-    static let rowHeight: CGFloat = 24
-    static let width: CGFloat = 236
+    /// Grows with the note's text, to half as big again (round 21: 13 pt beside 24 pt text).
+    static var scale: CGFloat { min(EditorMetrics.scale, 1.5) }
+    static var rowHeight: CGFloat { (24 * scale).rounded() }
+    static var width: CGFloat { (236 * scale).rounded() }
     /// Nine and a half rows show; more scroll, with the choice kept in view (18 commands made a
     /// list taller than a small window's note). The half row says there's more (council round 13:
     /// ten whole rows looked like the whole menu).
@@ -68,17 +70,17 @@ struct SlashCommandList: View {
                 Button { controller.runSlash(command) } label: {
                     HStack(spacing: 8) {
                         Image(systemName: controller.slashSymbol(command))
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 12 * Self.scale, weight: .medium))
                             .foregroundStyle(.secondary)
-                            .frame(width: 18)
+                            .frame(width: 18 * Self.scale)
                         Text(controller.slashName(command))
-                            .font(.system(size: 13))
+                            .font(.system(size: 13 * Self.scale))
                             .foregroundStyle(Color.ink)
                             .lineLimit(1)
                         Spacer(minLength: 8)
                         if let shortcut = command.shortcut {
                             Text(shortcut)
-                                .font(.system(size: 12))
+                                .font(.system(size: 12 * Self.scale))
                                 // Readable on the chosen row's tint too (round 20: 1.67:1).
                                 .foregroundStyle(i == controller.slashChoice ? Color.ink : Color.muted)
                         }

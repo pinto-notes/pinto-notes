@@ -41,6 +41,43 @@ import Testing
         #expect(h.view.string == "Trip\n- [ ] Hat")
     }
 
+    /// A cell's right-click menu starts with Cut, Copy and Paste, and they work on the cell (round 21).
+    @Test func aCellsMenuHasTheClipboard() async throws {
+        let h = await EditorHarness("Lisbon\n\n| Place | Dish |\n| --- | --- |\n| Manteigaria | Pastel |\n\nEnd\n")
+        defer { h.close() }
+        await h.settle(0.3)
+        let host = try #require(h.view.subviews.compactMap { $0 as? GridHostingView }.first)
+        let cell = GridCell(row: 1, column: 0)
+        // The clipboard is the developer's: it goes back as it was.
+        var kept: [NSPasteboardItem] = []
+        for item in NSPasteboard.general.pasteboardItems ?? [] {
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) { copy.setData(data, forType: type) }
+            }
+            kept.append(copy)
+        }
+        defer {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.writeObjects(kept)
+        }
+        let menu = try #require(h.view.tableCellMenu(host: host, cell: cell))
+        #expect(menu.items.prefix(3).map(\.title) == ["Cut", "Copy", "Paste"])
+        #expect(menu.items[3].isSeparatorItem)
+        func press(_ i: Int) { (menu.items[i].representedObject as? TableMenuAction)?.fire() }
+        let controller = try #require(h.view.controller)
+        press(1)
+        #expect(NSPasteboard.general.string(forType: .string) == "Manteigaria")
+        press(0)
+        await h.settle(0.1)
+        #expect(controller.cellText(grid: 0, cell: cell) == "", "Cut empties it")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("Ramiro\nSeafood", forType: .string)
+        press(2)
+        await h.settle(0.1)
+        #expect(controller.cellText(grid: 0, cell: cell) == "Ramiro Seafood", "one line")
+    }
+
     /// Print and Export as PDF: the note in pages, its tables drawn on them (round 21: the words
     /// were in the file, hidden, and the table was a hole), and the note's look back afterwards,
     /// in dark mode as well (round 20: neither was in the File menu).

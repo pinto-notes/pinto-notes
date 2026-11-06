@@ -166,7 +166,7 @@ enum AIEdit {
 
         enum Kind: Equatable { case edit, pageEdit, dataEdit, pageMade, pageChanged, reverted, heldBack }
 
-        /// One AI's edits in a row are one change: an AI that makes three edits has "made 3 changes",
+        /// One AI's edits in a row are one change: an AI that makes three edits has "made 3 edits",
         /// all marked, and Undo takes all three back (round 17: it said 1 line, the last one).
         /// `earlier`: the receipt still on the note, if any. Typing between them keeps them apart.
         func continuing(_ earlier: Receipt?) -> Receipt {
@@ -195,7 +195,7 @@ enum AIEdit {
             if kind == .pageMade { return "\(who) made this note an app" }
             if kind == .pageChanged { return "\(who) changed this note's app" }
             if created { return "\(who) wrote this note" }
-            if edits > 1 { return "\(who) made \(edits) changes" }
+            if edits > 1 { return "\(who) made \(edits) edits" }
             return lines == 0 ? "Updated by \(who)" : "\(who) changed \(lines == 1 ? "1 line" : "\(lines) lines")"
         }
 

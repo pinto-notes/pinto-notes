@@ -234,7 +234,9 @@ struct AIReceipt: View {
                     .accessibilityHint("Goes through each part \(receipt.who) changed, to keep or undo it")
                     .accessibilityIdentifier("receipt.review")
             }
-            if let seeAll, receipt.kind == .edit, !compact {
+            // Undo and Review are enough beside each other; Review leads on to the rest (round 21: three
+            // equal links in a small strip). Only where there's no Review, the way to all of them.
+            if let seeAll, receipt.kind == .edit, !compact, review == nil {
                 Divider().frame(height: 14)
                 Button("See all changes", action: seeAll)
                     .buttonStyle(.hoverLink)

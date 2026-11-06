@@ -230,6 +230,48 @@ extension AppPerfTests {
 
     /// The scope of a list in a test, changed the way the sidebar changes it.
     @MainActor @Observable final class ScopeBox { var scope: Scope = .all }
+    @MainActor @Observable final class PickBox { var picked: Set<UUID> = [] }
+    struct PickedList: View {
+        let box: ScopeBox
+        @Bindable var pick: PickBox
+        var body: some View { NoteListView(scope: box.scope, selection: $pick.picked, onNewNote: {}) }
+    }
+
+    /// A note moved to a folder, the folder opened: one note selected (round 21: Lisbon dragged to
+    /// Ideas, and Ideas opened with "2 Notes Selected", Lisbon and App ideas).
+    @Test func openingTheFolderANoteMovedToKeepsOneSelected() async throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let ideas = ctx.createFolder(named: "Ideas"), travel = ctx.createFolder(named: "Travel")
+        var all: [Note] = []
+        for i in 0..<12 {
+            let n = ctx.createNote(in: .folder((i % 3 == 0 ? ideas : travel).id), body: "Note \(i)\n\nWords")
+            n.updatedAt = Date(timeIntervalSinceNow: -Double(i) * 86_400 * 3)
+            all.append(n)
+        }
+        try ctx.save()
+        let lisbon = all[6]
+        lisbon.folder = travel
+        let box = ScopeBox(), pick = PickBox()
+        pick.picked = [lisbon.id]
+        let (w, host) = window(PickedList(box: box, pick: pick).modelContainer(c))
+        defer { w.close() }
+        func turn() async {
+            for _ in 0..<8 {
+                try? await Task.sleep(for: .milliseconds(60))
+                host.layoutSubtreeIfNeeded()
+                w.displayIfNeeded()
+            }
+        }
+        await turn()
+        ctx.move(lisbon, to: ideas)
+        await turn()
+        box.scope = .folder(ideas.id)
+        await turn()
+        #expect(pick.picked == [lisbon.id], "selected: \(pick.picked.count)")
+        #expect(FileRowClickTests.table(in: host)?.verticalMotionCanBeginDrag == true, "a drag upwards carries the note and selects nothing")
+    }
+
     struct ScopedList: View {
         let box: ScopeBox
         var body: some View { NoteListView(scope: box.scope, selection: .constant([]), onNewNote: {}) }
