@@ -330,6 +330,7 @@ struct NoteDetailView: View {
                         // Someone else undid part of it: the tint and the count follow what's left.
                         guard review == nil, self.receipt != nil else { return }
                         self.receipt = left
+                        reviewResult = left.partlyUndoneLine
                         Task { @MainActor in
                             try? await Task.sleep(for: .seconds(0.15))
                             if self.receipt == left { controller.tintChanges(from: left.previous, untilCleared: true) }
@@ -370,7 +371,8 @@ struct NoteDetailView: View {
                 AIReviewSheet(review: Binding(get: { review ?? AIReview(by: "", previous: "", after: "") }, set: { review = $0 }),
                               undo: reviewUndo, undoAll: reviewUndoAll, done: finishReview,
                               reveal: { id in if let at = review?.location(of: id, in: note.body) { controller.reveal(at) } })
-                    .presentationDetents([.medium, .large])
+                    // One change needs less than half the screen; the note stays in view above it.
+                    .presentationDetents(review?.parts.count == 1 ? [.fraction(0.36), .large] : [.medium, .large])
                     .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             }
             #endif

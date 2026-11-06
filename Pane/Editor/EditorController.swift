@@ -261,6 +261,9 @@ final class EditorController {
         if now != format { format = now }
     }
 
+    /// The text the last inline format left, to tell a second press from typing on after it.
+    private var inlineToggled: String?
+
     /// One of the panel's controls, on the selection or the caret's line, as Notes does it.
     func apply(_ control: FormatControl) {
         guard let t = host, !readOnly else { return }
@@ -276,7 +279,9 @@ final class EditorController {
         case .monostyled:
             perform { ListEditing.toggleCodeBlock(in: $0, selection: $1) }
         case .bold, .italic, .underline, .strikethrough, .highlight:
-            perform { FormatState.toggle(control.inline!, in: $0, selection: $1) }
+            let again = inlineToggled == t.currentText
+            perform { FormatState.toggle(control.inline!, in: $0, selection: $1, stepsPast: !again) }
+            inlineToggled = again ? nil : t.currentText
         case .bulleted, .dashed, .numbered, .quote:
             // A code block or a heading becomes body text first: a list item is body text.
             if state.monostyled { perform { ListEditing.toggleCodeBlock(in: $0, selection: $1) } }

@@ -27,11 +27,11 @@ for p in python3 /usr/local/bin/python3; do "$p" -c 'import PIL' 2>/dev/null && 
 # test → capture folder, clip name, appearance
 typeset -A FOLDER CLIP MODE
 FOLDER=(testC1AIReview c1-ai-review testC2Writing c2-writing testC2KeyboardStill c2-writing testC3Search c3-search
-        testC4ShareSheet c4-share-sheet testC5LockedNote c5-locked-note testC6Widget c6-widget testC6TimedChecklist c6-widget)
+        testC4ShareSheet c4-share-sheet testC5LockedNote c5-locked-note testC6Widget c6-widget testC6TimedChecklist c6-widget testC8BigLibrary c8-big-vault)
 CLIP=(testC1AIReview c1-ai-review testC2Writing c2-writing testC2KeyboardStill c2-keyboard-still testC3Search c3-search
-      testC4ShareSheet c4-share-sheet testC5LockedNote c5-locked-note testC6Widget c6-widget testC6TimedChecklist c6-timed-checklist)
+      testC4ShareSheet c4-share-sheet testC5LockedNote c5-locked-note testC6Widget c6-widget testC6TimedChecklist c6-timed-checklist testC8BigLibrary c8-big-library)
 MODE=(testC1AIReview dark testC2Writing light testC2KeyboardStill light testC3Search dark
-      testC4ShareSheet light testC5LockedNote dark testC6Widget light testC6TimedChecklist light)
+      testC4ShareSheet light testC5LockedNote dark testC6Widget light testC6TimedChecklist light testC8BigLibrary dark)
 ALL=(testC6Widget testC6TimedChecklist testC1AIReview testC2Writing testC2KeyboardStill testC3Search testC4ShareSheet testC5LockedNote)
 # Each clip's key stills (3 to 6); its other screenshots go in more-stills/.
 typeset -A KEYS

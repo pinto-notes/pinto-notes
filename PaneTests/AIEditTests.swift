@@ -60,6 +60,7 @@ import SwiftUI
         #expect(left.lines == 1 && left.summary == "Sara's Claude changed 1 line")
         #expect(left.after == "Plan\n- [ ] Dates: May\n- Lunch\n- [x] Train")
         #expect(left.previous == previous)
+        #expect(left.partlyUndoneLine == "One of Sara's Claude\u{2019}s changes was undone")
         #expect(r.withPartsUndone(in: "Plan\n- [ ] Dates: May\n- Lunch\n- [x] Your own words") == nil, "changed by someone, not back to what it was")
     }
 

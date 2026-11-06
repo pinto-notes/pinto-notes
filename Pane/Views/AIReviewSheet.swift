@@ -78,10 +78,15 @@ struct AIReviewSheet: View {
                     ForEach(Array(review.parts.enumerated()), id: \.element.id) { i, part in
                         row(part, index: i).id(part.id)
                     }
-                    if many && !review.undecided.isEmpty { all }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
+            }
+            // Always in view: under the parts, the half-height sheet cut them off at its edge.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if many && !review.undecided.isEmpty {
+                    all.padding(.horizontal, 16).padding(.vertical, 10).background(Self.background)
+                }
             }
             .onChange(of: review.focus) { _, f in
                 guard review.parts.indices.contains(f) else { return }

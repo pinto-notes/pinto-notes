@@ -228,7 +228,12 @@ struct MarkdownStyler {
         var codeLines = IndexSet()
         var tableLines = IndexSet()
 
-        var walker = StyleWalker(storage: storage, map: map, styler: self, isActive: isActive)
+        // Bold, italic and the like: their markers show only with the caret in or against them, so
+        // ⌘B reads as bold, as in Notes, and not as asterisks for as long as you're on the line.
+        func touchesCaret(_ r: NSRange) -> Bool {
+            editing && NSMaxRange(active) >= r.location && active.location <= NSMaxRange(r)
+        }
+        var walker = StyleWalker(storage: storage, map: map, styler: self, isActive: isActive, touchesCaret: touchesCaret)
         walker.visit(doc)
         codeLines = walker.codeLineStarts
         tableLines = walker.tableLineStarts
@@ -867,6 +872,7 @@ private struct StyleWalker: MarkupWalker {
     let map: UTF16Map
     let styler: MarkdownStyler
     let isActive: (NSRange) -> Bool
+    let touchesCaret: (NSRange) -> Bool
     var codeLineStarts = IndexSet()
     var tableLineStarts = IndexSet()
     var tables: [NSRange] = []
@@ -911,7 +917,7 @@ private struct StyleWalker: MarkupWalker {
 
     /// Hides (or dims) `count` characters at each end of `r`.
     private func markDelimiters(_ r: NSRange, lead: Int, trail: Int) {
-        let dim = styler.hiddenOrDim(active: isActive(r))
+        let dim = styler.hiddenOrDim(active: touchesCaret(r))
         if lead > 0, r.length >= lead { storage.addAttributes(dim, range: NSRange(location: r.location, length: lead)) }
         if trail > 0, r.length >= lead + trail { storage.addAttributes(dim, range: NSRange(location: NSMaxRange(r) - trail, length: trail)) }
     }

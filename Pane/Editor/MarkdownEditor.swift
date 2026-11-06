@@ -191,8 +191,14 @@ final class EditorCore {
         let dateEdit = selection.flatMap { sel in
             line.location == NSNotFound ? nil : NoteDates.dates(in: storage.string, range: line).first { NoteDates.editing($0.range, selection: sel) }?.range
         }
-        if !force, dirty == nil, !needsFull, !folds.dirty, line == lastActiveLine, dateEdit == lastDateEdit { return }
+        // Bold and the like show their markers only while the caret is in them: on a line with any,
+        // each caret move may change that.
+        let emphasisCaret = selection.flatMap { sel in
+            line.location != NSNotFound && ns.substring(with: line).contains(where: { "*_~`".contains($0) }) ? sel : nil
+        }
+        if !force, dirty == nil, !needsFull, !folds.dirty, line == lastActiveLine, dateEdit == lastDateEdit, emphasisCaret == lastEmphasisCaret { return }
         lastDateEdit = dateEdit
+        lastEmphasisCaret = emphasisCaret
         let previous = lastActiveLine
         lastActiveLine = line
         let structure = self.structure(of: storage.string)
@@ -261,6 +267,7 @@ final class EditorCore {
 
     /// The date the caret was last inside (it shows as written).
     private var lastDateEdit: NSRange?
+    private var lastEmphasisCaret: NSRange?
 
     /// The callout icon under a point of the text container: its rect there and where its line
     /// starts. A tap or click on it opens the callout's type menu.
@@ -1617,6 +1624,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         remember(text)
         core.onChange(text)
         controller?.typingChanged(text: text, selection: editingSelection)
+        // A shared note's stack closes no undo groups, so nothing else tells the bar: typing
+        // left Undo missing until someone else's edit came in (persona council r7f).
+        if controller?.ownUndo != nil { reportUndo() }
     }
 
     /// The last body we reported or received, to tell outside edits from our own.
@@ -3880,7 +3890,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             if NSMaxRange(selection) <= (to as NSString).length { view.setSelectedRange(selection) }
             // The grid gives the field its new text a turn or two later, with the caret at the end.
             if let cell {
-                DispatchQueue.main.async { DispatchQueue.main.async { CellField.select(cell) } }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { CellField.select(cell) }
             }
             // Registered while undoing, this is the Redo.
             view.registerStep(back: now, selection: kept, cell: keptCell)

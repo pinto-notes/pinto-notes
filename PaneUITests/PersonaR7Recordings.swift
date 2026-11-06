@@ -349,6 +349,48 @@ final class PersonaR7Recordings: XCTestCase {
     /// The largest demo library there is: 1,284 notes as imported from Apple Notes (many with
     /// near-identical titles), and four notes written for this. An exact title, a phrase deep in
     /// a note, a word from a checklist and a typo; then a result opened, edited, and back.
+    /// The Mac's 1,000 note vault in size and shape, in the phone's own store: scrolling, search,
+    /// opening a note, ticking a task. Seeded here, not synced from the Mac.
+    func testC8BigLibrary() {
+        begin("c8-big-library")
+        let launched = Date()
+        let app = launch(["-seedManyNotes", "1000"])
+        let header = app.staticTexts.matching(NSPredicate(format: "label ENDSWITH ' notes'")).firstMatch
+        XCTAssertTrue(header.waitForExistence(timeout: 90), "the library")
+        record("count: \(header.label), \(String(format: "%.1f", Date().timeIntervalSince(launched))) s from launch with seeding")
+        pause(1.5)
+        mark("library")
+        for _ in 0..<4 { app.swipeUp(velocity: .fast); pause(0.6) }
+        mark("scrolled")
+        for _ in 0..<2 { app.swipeDown(velocity: .fast); pause(0.5) }
+        let field = searchField(app)
+        field.tap()
+        pause(0.8)
+        typeSlowly(app, "word733", beat: 0.08)
+        pause(2)
+        mark("search-word")
+        let row = app.staticTexts["Note 0733"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 8), "the note in the results")
+        row.tap()
+        let editor = app.textViews["editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        pause(1.5)
+        mark("note-open")
+        app.navigationBars.buttons.firstMatch.tap()
+        pause(1)
+        clear(field)
+        typeSlowly(app, "Note 0990", beat: 0.08)
+        pause(2)
+        mark("search-title")
+        let second = app.staticTexts["Note 0990"].firstMatch
+        XCTAssertTrue(second.waitForExistence(timeout: 8))
+        second.tap()
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        pause(1.5)
+        mark("note-with-table")
+        record("end")
+    }
+
     func testC3Search() {
         begin("c3-search")
         var lines = (1...42).map { "Day \($0): " + ["Measured the wall by the window again.", "Called the plumber about the sink.", "Looked at handles for the drawers.", "Read about worktops; oak needs oil twice a year."][$0 % 4] }

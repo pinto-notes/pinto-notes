@@ -193,6 +193,9 @@ enum AIEdit {
         /// read as sync losing a change (persona council r7).
         var undoneLine: String { "\(who)\u{2019}s change was undone" }
 
+        /// The same when only part of it was undone elsewhere.
+        var partlyUndoneLine: String { "One of \(who)\u{2019}s changes was undone" }
+
         /// The AI as the receipt names it: "Claude", or "Sara's Claude".
         var who: String { AIEdit.whose(by, person: person) }
 

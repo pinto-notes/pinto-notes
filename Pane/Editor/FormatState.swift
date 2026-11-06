@@ -251,8 +251,10 @@ struct FormatState: Equatable, Sendable {
     /// Bold, italic, underline, strikethrough or highlight, on or off, for the selection (or the word under
     /// the caret). Taking it off removes the marks around the text it's in. What was selected stays
     /// selected, on the same letters, so the panel shows it on and a second tap takes it off.
-    static func toggle(_ kind: Inline, in text: String, selection: NSRange) -> TextEdit {
-        if selection.length == 0, let token = stepToken(kind),
+    /// `stepsPast`: with the caret at the end of the format, step out of it and keep it, for what's
+    /// typed next. Off right after the toggle that made it: pressed twice, it comes off again.
+    static func toggle(_ kind: Inline, in text: String, selection: NSRange, stepsPast: Bool = true) -> TextEdit {
+        if stepsPast, selection.length == 0, let token = stepToken(kind),
            let past = ListEditing.stepPastClose(in: text, at: selection.location, token: token) { return past }
         if let span = spans(in: text, selection: selection).first(where: { $0.kind == kind }) {
             let inner = span.inner

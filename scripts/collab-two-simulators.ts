@@ -230,6 +230,9 @@ const emilSteps = steps(people[0], [
   // The server paused again: both change the same line.
   { waitFile: "go-conflict.txt" }, { type: { text: " for 40 people", after: "Print agenda" } }, mark("emil-typed-same-line"), ...hold(), { dump: "conflict.json" },
   { waitFile: "go-online2.txt" }, { waitText: { text: "in colour", timeout: 240 } }, mark("emil-sees-same-line-merged"), ...hold(), { dump: "conflict-merged.json" },
+  // Offline once more: both replace the same word, differently.
+  { waitFile: "go-clash.txt" }, { replace: { from: "lunch", to: "sandwiches" } }, mark("emil-replaced-word"), ...hold(), { dump: "clash.json" },
+  { waitFile: "go-online3.txt" }, { waitText: { text: "pizza", timeout: 240 } }, mark("emil-sees-clash-merged"), ...hold(), { dump: "clash-merged.json" },
   // Share open on Sara, then (once she has typed) Remove.
   { waitFile: "go-remove.txt" }, ...(show ? [{ showShare: true }, mark("emil-share-people"), ...hold()] : []), { dump: "share-people.json" },
   { waitFile: "go-remove-now.txt" }, { remove: "Sara" }, mark("emil-removed-sara"), { wait: 2 }, ...hold(), { dump: "removed.json" }, ...(show ? [{ closeShare: true }] : []),
@@ -270,6 +273,8 @@ const saraAfterRelaunch = (() => {
   for (const s of [
     { keyFetchHere: true }, { wait: 2 }, { open: "Offsite plan" }, { waitText: { text: "in colour", timeout: 60 } }, mark("sara-relaunched-offline"), ...hold(), { dump: "relaunched.json" },
     { waitFile: "go-online2.txt" }, { waitText: { text: "for 40 people", timeout: 240 } }, mark("sara-sees-same-line-merged"), ...hold(), { dump: "conflict-merged.json" },
+    { waitFile: "go-clash.txt" }, { replace: { from: "lunch", to: "pizza" } }, mark("sara-replaced-word"), ...hold(), { dump: "clash.json" },
+    { waitFile: "go-online3.txt" }, { waitText: { text: "sandwiches", timeout: 240 } }, mark("sara-sees-clash-merged"), ...hold(), { dump: "clash-merged.json" },
   // She types while Emil has Share open on her; he removes her a moment after.
   { waitFile: "go-type.txt" }, { type: { text: "\nBring name badges", after: "Book the train" } }, mark("sara-typed-before-removal"), { dump: "typed-before.json" },
   { waitGone: 180 }, mark("sara-note-gone"),
@@ -431,7 +436,8 @@ try {
   await shell(offline);
   moment("offline-same-line");
   await Promise.all([put(emil, "go-conflict.txt"), put(sara, "go-conflict.txt")]);
-  await Promise.all([waitFor(emil, "conflict.json", 120), waitFor(sara, "conflict.json", 120)]);
+  const [, typedOff] = await Promise.all([waitFor(emil, "conflict.json", 120), waitFor(sara, "conflict.json", 120)]);
+  check("after typing, Sara's bar offers Undo", typedOff.canUndo === true, JSON.stringify(typedOff.canUndo));
   await simctl("terminate", sara.udid, bundle);
   moment("sara-app-quit");
   await sleep(2);
@@ -445,6 +451,17 @@ try {
   await Promise.all([put(emil, "go-online2.txt"), put(sara, "go-online2.txt")]);
   const [c1, c2] = await Promise.all([waitFor(emil, "conflict-merged.json", 300), waitFor(sara, "conflict-merged.json", 300)]);
   check("both edits to the same line are kept, the same on both phones", c1.text === c2.text && c1.text.includes("for 40 people") && c1.text.includes("in colour"), JSON.stringify(c1.text));
+
+  // Offline again: each replaces the same word with a different one. Nobody's words are dropped.
+  await shell(offline);
+  moment("offline-clash");
+  await Promise.all([put(emil, "go-clash.txt"), put(sara, "go-clash.txt")]);
+  await Promise.all([waitFor(emil, "clash.json", 120), waitFor(sara, "clash.json", 120)]);
+  await shell(online);
+  moment("online-clash");
+  await Promise.all([put(emil, "go-online3.txt"), put(sara, "go-online3.txt")]);
+  const [w1, w2] = await Promise.all([waitFor(emil, "clash-merged.json", 300), waitFor(sara, "clash-merged.json", 300)]);
+  check("both replace the same word offline: both phones agree and neither word is lost", w1.text === w2.text && w1.text.includes("sandwiches") && w1.text.includes("pizza"), JSON.stringify(w1.text));
 
   // Emil opens Share on Sara; she types a line; he removes her a moment after.
   await put(emil, "go-remove.txt");

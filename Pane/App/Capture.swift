@@ -79,6 +79,21 @@ enum Capture {
             trip.updatedAt = .now.addingTimeInterval(-20 * 60)
             try? context.save()
         }
+        // `-seedManyNotes 1000`: a library the size of a real one (persona council round 7), in the
+        // shape of the Mac's big vault capture: links, tasks and a table in some.
+        if let count = argument("-seedManyNotes").flatMap(Int.init) {
+            let name = { (i: Int) in "Note \(String(format: "%04d", i))" }
+            for i in 0..<count {
+                var body = "\(name(i))\n\nA paragraph of ordinary writing for note \(i), long enough to wrap on a phone and to be worth searching for: word\(i) sits here.\n\n"
+                for step in [1, 7, 53] { body += "- See [[\(name((i + step) % count))]]\n" }
+                body += "\n"
+                if i % 3 == 0 { body += "## Tasks\n- [ ] Open task \(i)\n- [x] Done task \(i)\n\n" }
+                if i % 10 == 0 { body += "| Item | Count |\n| --- | --- |\n| Row \(i) | \(i) |\n" }
+                let note = context.createNote(in: .all, body: body)
+                note.updatedAt = .now.addingTimeInterval(-3 * 3600 * Double(count - (i + 9) % count))
+            }
+            try? context.save()
+        }
         let delay = argument("-aiAfter").flatMap(Double.init) ?? 2.5
         if let title = argument("-aiEdit") {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {

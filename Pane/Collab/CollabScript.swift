@@ -202,6 +202,10 @@ enum CollabScript {
         case "type":
             let v = value as? [String: String] ?? [:]
             try await type(v["text"] ?? "", after: v["after"])
+        case "replace":
+            // The words selected and typed over, as a person does.
+            let v = value as? [String: String] ?? [:]
+            try await replace(v["from"] ?? "", with: v["to"] ?? "")
         case "waitText":
             let v = value as? [String: Any]
             let want = value as? String ?? v?["text"] as? String ?? ""
@@ -440,6 +444,7 @@ enum CollabScript {
             out["text"] = editorText() ?? current.body
             out["sharedNoteID"] = current.sharedNoteID?.uuidString ?? NSNull()
             out["editable"] = editor()?.isEditable ?? NSNull()
+            out["canUndo"] = editor()?.controller?.canUndo ?? NSNull()
             out["documentOpen"] = CollabStore.shared?.session(for: current.id) != nil
             if let s = CollabStore.shared?.session(for: current.id) {
                 out["here"] = here(s)
@@ -518,6 +523,26 @@ enum CollabScript {
                                              eventNumber: 0, clickCount: 1, pressure: 1) else { throw Failed(description: "\(item) has no box") }
         // Handed to the text view in this process, as AppKit would; nothing is posted to the system.
         view.mouseDown(with: click)
+        #endif
+    }
+
+    private static func replace(_ words: String, with new: String) async throws {
+        try await until(60, "the editor to take typing") { editor()?.isEditable == true }
+        let view = editor()!
+        #if os(iOS)
+        if !view.isFirstResponder { view.becomeFirstResponder(); try await Task.sleep(for: .seconds(0.5)) }
+        let r = (view.text as NSString).range(of: words)
+        guard r.location != NSNotFound else { throw Failed(description: "no \(words) in the note") }
+        view.selectedRange = r
+        try await Task.sleep(for: .seconds(0.4))
+        view.insertText(new)
+        #else
+        view.window?.makeFirstResponder(view)
+        let r = (view.string as NSString).range(of: words)
+        guard r.location != NSNotFound else { throw Failed(description: "no \(words) in the note") }
+        view.setSelectedRange(r)
+        try await Task.sleep(for: .seconds(0.4))
+        view.insertText(new, replacementRange: r)
         #endif
     }
 

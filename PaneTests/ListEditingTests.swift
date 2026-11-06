@@ -175,6 +175,23 @@ import AppKit
         #expect((font?.pointSize ?? 99) < 1, "** should be hidden when the caret is elsewhere")
     }
 
+    /// ⌘B reads as bold while you type on after it, as in Notes: the markers show only with the
+    /// caret in or against the bold (they showed for as long as you stayed on the line).
+    @Test func boldsMarkersShowOnlyWithTheCaretInThem() {
+        let text = "Title\nsome **bold** text\nlast"
+        func hidden(caret: Int) -> Bool {
+            let storage = NSTextStorage(string: text)
+            MarkdownStyler().apply(to: storage, active: NSRange(location: caret, length: 0))
+            return ((storage.attribute(.font, at: 11, effectiveRange: nil) as? PFont)?.pointSize ?? 99) < 1
+        }
+        let line = (text as NSString).range(of: "some")
+        let bold = (text as NSString).range(of: "**bold**")
+        #expect(hidden(caret: line.location), "on the line, before the bold")
+        #expect(hidden(caret: (text as NSString).range(of: " text").location + 5), "on the line, after it")
+        #expect(!hidden(caret: bold.location + 4), "inside it")
+        #expect(!hidden(caret: NSMaxRange(bold)), "right after its close, where Backspace would take it")
+    }
+
     @Test func showsSyntaxOnTheActiveLine() {
         let storage = NSTextStorage(string: "Title\nsome **bold** text\nlast")
         MarkdownStyler().apply(to: storage, active: NSRange(location: 12, length: 0))

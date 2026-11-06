@@ -104,6 +104,12 @@ SAYS = {
     "online-same-line": ("both", "Back online"),
     "emil-sees-same-line-merged": ("emil", "Merged: both additions on one line"),
     "sara-sees-same-line-merged": ("sara", "Merged: both additions on one line"),
+    "offline-clash": ("both", "Offline again"),
+    "emil-replaced-word": ("emil", "Offline: Emil replaces \u201clunch\u201d with \u201csandwiches\u201d"),
+    "sara-replaced-word": ("sara", "Offline: Sara replaces \u201clunch\u201d with \u201cpizza\u201d"),
+    "online-clash": ("both", "Back online"),
+    "emil-sees-clash-merged": ("emil", "Merged: what the line says on both phones"),
+    "sara-sees-clash-merged": ("sara", "Merged: what the line says on both phones"),
     "sara-own-note": ("sara", "Sara's own note, not shared"),
     "sara-typed-budget": ("sara", "Sara types a line"),
     "private-ai-edit": ("sara", "Her AI reads the note and edits it (the local MCP function)"),
@@ -164,6 +170,11 @@ if at("offline-same-line") and at("emil-sees-same-line-merged"):
     clips.append(dict(folder="c10-offline", name="two-iphones-c10-same-line" + SUFFIX, phones=("emil", "sara"),
                       t0=at("offline-same-line") - 2.0, t1=latest("emil-sees-same-line-merged", "sara-sees-same-line-merged") + hold + 1.5,
                       keys=["emil-typed-same-line", "sara-typed-same-line", "sara-relaunched-offline", "emil-sees-same-line-merged", "sara-sees-same-line-merged"]))
+# c10, the same word replaced two ways offline.
+if at("offline-clash") and at("emil-sees-clash-merged"):
+    clips.append(dict(folder="c10-offline", name="two-iphones-c10-same-word" + SUFFIX, phones=("emil", "sara"),
+                      t0=at("offline-clash") - 2.0, t1=latest("emil-sees-clash-merged", "sara-sees-clash-merged") + hold + 1.5,
+                      keys=["emil-replaced-word", "sara-replaced-word", "emil-sees-clash-merged", "sara-sees-clash-merged"]))
 # c9, the old link: the sheet Emil sees after removing her, then the link on Sara's phone.
 if at("sara-old-link"):
     clips.append(dict(folder="c9-two-phones", name="two-iphones-c9-old-link" + SUFFIX, phones=("emil", "sara"),
