@@ -1718,10 +1718,18 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
               let start = tcm.location(tcm.documentRange.location, offsetBy: range.location),
               let end = tcm.location(start, offsetBy: range.length),
               let found = NSTextRange(location: start, end: end) else { return }
-        tlm.addRenderingAttribute(.backgroundColor, value: UIColor.systemYellow.withAlphaComponent(0.45), for: found)
-        Task { [weak tlm] in
-            try? await Task.sleep(for: .seconds(2.5))
-            tlm?.removeRenderingAttribute(.backgroundColor, for: found)
+        tlm.ensureLayout(for: found)
+        // Views over the word: this text view's own drawing doesn't take a rendering attribute's
+        // background (the first try showed nothing, in the film).
+        tlm.enumerateTextSegments(in: found, type: .standard, options: []) { _, frame, _, _ in
+            let mark = UIView(frame: frame.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top).insetBy(dx: -2, dy: 0))
+            mark.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.4)
+            mark.layer.cornerRadius = 3
+            mark.isUserInteractionEnabled = false
+            mark.isAccessibilityElement = false
+            addSubview(mark)
+            UIView.animate(withDuration: 0.5, delay: 2.5, options: [.allowUserInteraction]) { mark.alpha = 0 } completion: { _ in mark.removeFromSuperview() }
+            return true
         }
     }
 
