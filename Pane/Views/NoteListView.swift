@@ -1719,7 +1719,8 @@ struct NoteDragPreview: View {
         .padding(.horizontal, 10).padding(.vertical, 6)
         .frame(maxWidth: 220, alignment: .leading)
         .fixedSize()
-        .background(Color(Palette.row), in: .rect(cornerRadius: 9))
+        .background(Color(Palette.page), in: .rect(cornerRadius: 9))
+        .overlay { RoundedRectangle(cornerRadius: 9).strokeBorder(.secondary.opacity(0.35), lineWidth: 1) }
     }
 }
 
