@@ -26,6 +26,10 @@ struct AIChange: Identifiable, Hashable, Sendable {
     var toFolder: UUID?
     /// The note is in Recently Deleted now.
     var trashed = false
+    /// Edits one after another by one AI that this one change stands for (`AIChangeCopy.sessions`).
+    var edits = 1
+    /// When the first of them was made.
+    var startedAt: Date?
 
     /// It changed the note's text, so there is a before and an after to compare.
     var changesText: Bool { kind == .edit || kind == .restore || kind == .created }
@@ -290,6 +294,30 @@ enum AIChangeCopy {
         return title.isEmpty ? nil : title
     }
 
+    /// How far apart an AI's edits can be and still be one session.
+    static let sessionGap: TimeInterval = 10 * 60
+
+    /// An AI's edits to a note one straight after another, nothing between them, are one change: one
+    /// row, one diff, one Undo, as they were one request (round 20: three unrelated-looking rows,
+    /// and undoing the last left the first two). Each edit stays in the note's version history.
+    /// Newest first in, newest first out.
+    static func sessions(_ changes: [AIChange]) -> [AIChange] {
+        var out: [AIChange] = []
+        for c in changes {
+            if var newer = out.last, newer.kind == .edit, c.kind == .edit, newer.noteID == c.noteID, newer.ai == c.ai,
+               let joint = newer.beforeVersion, joint == c.afterVersion,
+               (newer.startedAt ?? newer.at).timeIntervalSince(c.at) <= sessionGap {
+                newer.beforeVersion = c.beforeVersion
+                newer.edits += 1
+                newer.startedAt = c.at
+                out[out.count - 1] = newer
+            } else {
+                out.append(c)
+            }
+        }
+        return out
+    }
+
     static func days(_ changes: [AIChange], now: Date = .now, calendar: Calendar = .current) -> [AIChangeDay] {
         var out: [AIChangeDay] = []
         for c in changes {
@@ -399,7 +427,10 @@ final class AIChangesModel {
     enum Phase: Equatable { case loading, loaded, failed(String) }
 
     private(set) var phase: Phase = .loading
+    /// What's listed: `loaded`, an AI's edits in a row as one.
     private(set) var changes: [AIChange] = []
+    /// Every change read so far, one by one, for paging.
+    private var loaded: [AIChange] = []
     private(set) var days: [AIChangeDay] = []
     private(set) var hasMore = false
     /// The next page failed to load; the list ends on a row that says so with Try Again
@@ -456,7 +487,8 @@ final class AIChangesModel {
         phase = .loading
         do {
             let page = try await store.changes(before: nil, limit: Self.page, ai: filter)
-            changes = page
+            loaded = page
+            changes = AIChangeCopy.sessions(page)
             olderFailed = false
             hasMore = page.count == Self.page
             regroup()
@@ -468,11 +500,17 @@ final class AIChangesModel {
     }
 
     func loadMore() async {
-        guard hasMore, !olderFailed, let last = changes.last else { return }
+        guard hasMore, !olderFailed, let last = loaded.last else { return }
         do {
             let page = try await store.changes(before: last.at, limit: Self.page, ai: filter)
-            let seen = Set(changes.map(\.id))
-            changes += page.filter { !seen.contains($0.id) }
+            let seen = Set(loaded.map(\.id))
+            loaded += page.filter { !seen.contains($0.id) }
+            // The page may carry on the last session, which then starts earlier than it worked out.
+            if let open = changes.last {
+                texts[open.id] = nil
+                summaries[open.id] = nil
+            }
+            changes = AIChangeCopy.sessions(loaded)
             hasMore = page.count == Self.page
             regroup()
         } catch {

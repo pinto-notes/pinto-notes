@@ -27,6 +27,32 @@ import AppKit
         try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     }
 
+    @Test func aConnectedAIShowsItsMark() {
+        #expect(SecurityContent.aiMark("Claude", title: "My helper") == "Claude")
+        #expect(SecurityContent.aiMark(nil, title: "ChatGPT") == "ChatGPT", "by its name")
+        #expect(SecurityContent.aiMark(nil, title: "My helper") == nil, "no mark to show")
+    }
+
+    /// One AI's edits in a row read as one change; anything between them keeps them apart (round 20).
+    @Test func editsInARowAreOneSession() {
+        let note = UUID(), other = UUID()
+        let t = Date(timeIntervalSince1970: 1_000_000)
+        func edit(_ id: String, _ before: Int64, _ after: Int64?, ago: TimeInterval, ai: String = "ChatGPT", note n: UUID? = nil) -> AIChange {
+            AIChange(id: id, kind: .edit, noteID: n ?? note, ai: ai, at: t.addingTimeInterval(-ago), beforeVersion: before, afterVersion: after)
+        }
+        let one = AIChangeCopy.sessions([edit("c", 3, nil, ago: 0), edit("b", 2, 3, ago: 60), edit("a", 1, 2, ago: 120)])
+        #expect(one.count == 1)
+        #expect(one[0].id == "c" && one[0].edits == 3)
+        #expect(one[0].beforeVersion == 1 && one[0].afterVersion == nil, "from before the first to after the last")
+        #expect(AIChangeCopy.sessions([edit("b", 3, nil, ago: 0), edit("a", 1, 2, ago: 60)]).count == 2, "someone else's version between them")
+        #expect(AIChangeCopy.sessions([edit("b", 2, nil, ago: 0, ai: "Claude"), edit("a", 1, 2, ago: 60)]).count == 2, "another AI")
+        #expect(AIChangeCopy.sessions([edit("b", 2, nil, ago: 0, note: other), edit("a", 1, 2, ago: 60)]).count == 2, "another note")
+        #expect(AIChangeCopy.sessions([edit("b", 2, nil, ago: 0), edit("a", 1, 2, ago: AIChangeCopy.sessionGap + 1)]).count == 2, "hours apart")
+        // The gap counts from the edit next to it, so a long session stays one.
+        let long = AIChangeCopy.sessions([edit("c", 3, nil, ago: 0), edit("b", 2, 3, ago: 500), edit("a", 1, 2, ago: 1000)])
+        #expect(long.count == 1)
+    }
+
     #if os(macOS)
     /// The AI Changes window: Return opens the note, never undoes (a stray Return while reading
     /// changed the note, council 11-04), and the summary has room to say what the AI did.

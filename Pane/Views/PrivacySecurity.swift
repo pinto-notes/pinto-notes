@@ -151,6 +151,12 @@ extension AccountCrypto {
 /// What Settings › Security shows, read from the account: everything that can open your notes, in
 /// the groups the page draws. Pure, so tests check it without drawing a thing.
 struct SecurityContent: Equatable {
+    /// The AI whose mark a connection shows: its own, or the one its name says (round 20: a
+    /// connected Claude and ChatGPT with a key beside them).
+    static func aiMark(_ mark: String?, title: String) -> String? {
+        mark ?? (VersionAuthorMark.asset(title) != nil ? title : nil)
+    }
+
     struct Opener: Identifiable, Equatable {
         enum Kind: Equatable { case thisDevice, device(UUID), pintoNotes, ai(UUID) }
         let kind: Kind
@@ -228,7 +234,7 @@ struct SecurityContent: Equatable {
             : nil
         ais = connections.filter { $0.revoked_at == nil }.map { c in
             Opener(kind: .ai(c.id), name: c.title, detail: PrivacyCopy.aiRow, short: PrivacyCopy.aiTile,
-                   symbol: c.mark == nil ? c.symbol : nil, ai: c.mark)
+                   symbol: SecurityContent.aiMark(c.mark, title: c.title) == nil ? c.symbol : nil, ai: SecurityContent.aiMark(c.mark, title: c.title))
         }
         recovery = RecoveryKeyOffer.shown(serverCopy: serverCopy, protection: protection) ? (recoverySaved ? .saved : .notSaved) : nil
         showsProtection = AdvancedProtection.shown(protection)

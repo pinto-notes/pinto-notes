@@ -109,6 +109,7 @@ struct AIChangeRow: View {
 
     private var line: String {
         var parts = [change.ai, VersionHistoryModel.time(change.at)]
+        if change.edits > 1 { parts.append("\(change.edits) edits") }
         if model.undone.contains(change.id) { parts.append("Undone") } else if change.trashed, change.kind != .deleted { parts.append("In Recently Deleted") }
         return parts.joined(separator: " \u{00B7} ")
     }
