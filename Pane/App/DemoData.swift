@@ -193,7 +193,12 @@ enum DemoData {
             ctx.endPDFPage()
         }
         ctx.closePDF()
-        guard let doc = PDFDocument(data: data as Data) else { return data as Data }
+        guard let drawn = PDFDocument(data: data as Data) else { return data as Data }
+        // Into a new document: macOS 27 drops an outline added to a document opened from data.
+        let doc = PDFDocument()
+        for i in 0 ..< drawn.pageCount {
+            if let page = drawn.page(at: i)?.copy() as? PDFPage { doc.insert(page, at: i) }
+        }
         let root = PDFOutline()
         for (i, chapter) in chapters.enumerated() {
             guard let page = doc.page(at: i + 1) else { continue }

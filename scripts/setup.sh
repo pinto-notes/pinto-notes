@@ -5,7 +5,7 @@
 #   scripts/setup.sh --open          the same, then open the app
 #   scripts/setup.sh --local-only    no Docker and no backend: notes stay on this Mac, no sign-in
 #
-# It checks for Xcode 26, Homebrew and Docker and says what to do when one is missing, installs
+# It checks for Xcode 27, Homebrew and Docker and says what to do when one is missing, installs
 # XcodeGen and the Supabase CLI with Homebrew if they aren't there, gives the app a name and bundle
 # id of its own (scripts/make-it-yours.sh), starts the local backend (supabase start), and builds
 # the Mac app into build/ddqa, where scripts/qa-test.sh's tests reuse it. Safe to run again: each step that's already done is skipped.
@@ -38,14 +38,14 @@ if [[ $dev != */Xcode*.app/* ]]; then
   # Only the Command Line Tools are selected (the usual case on a new Mac): use Xcode itself.
   xcode=$(ls -d /Applications/Xcode.app /Applications/Xcode*.app 2>/dev/null | head -1)
   [[ -n $xcode ]] || stop "Xcode isn't installed." \
-    "Install Xcode 26 from the App Store (about 15 GB, 20 to 40 minutes), open it once and let it" \
+    "Install Xcode 27 from the App Store (about 15 GB, 20 to 40 minutes), open it once and let it" \
     "install its components, then run scripts/setup.sh again."
   dev=$xcode/Contents/Developer
 fi
 export DEVELOPER_DIR=$dev
 xv=$(xcodebuild -version 2>/dev/null | head -1 | awk '{print $2}')
-[[ ${xv%%.*} -ge 26 ]] 2>/dev/null || stop "This Xcode is ${xv:-not working} ($dev); Pinto Notes needs Xcode 26 or later." \
-  "Install Xcode 26 from the App Store, open it once, then run scripts/setup.sh again."
+[[ ${xv%%.*} -ge 27 ]] 2>/dev/null || stop "This Xcode is ${xv:-not working} ($dev); Pinto Notes needs Xcode 27 or later." \
+  "Install Xcode 27 from the App Store, open it once, then run scripts/setup.sh again."
 if ! xcodebuild -checkFirstLaunchStatus >/dev/null 2>&1; then
   stop "Xcode hasn't finished setting up." "Open Xcode once and let it install its components, or run:" \
     "  sudo xcodebuild -runFirstLaunch" "then run scripts/setup.sh again."
