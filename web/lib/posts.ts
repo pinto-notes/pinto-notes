@@ -272,7 +272,7 @@ export const posts: Post[] = [
     excerpt: "Grok takes any MCP server as a custom connector. The steps on grok.com and in Grok Build, and what xAI's docs leave out.",
     category: "Guides",
     date: "2026-10-13",
-    updated: "2026-10-13",
+    updated: "2026-11-06",
     image: SHOTS.historyBurst,
     thumb: cover("pistachio", "xai-grok-bot", 1600, 840, "The Grok Bot face on an orange background, from xAI"),
     draft: false,
