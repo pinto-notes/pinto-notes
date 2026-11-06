@@ -31,6 +31,7 @@ enum RowPressSlop {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { event in
             let through = MainActor.assumeIsolated {
+                if event.type == .leftMouseDown { PressSelect.pressBegan() }
                 if picked, event.type != .leftMouseDown {
                     if event.type == .leftMouseUp { picked = false }
                     return false

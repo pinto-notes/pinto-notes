@@ -250,7 +250,8 @@ struct NoteListView: View {
         let behind = behindSetupCard
         let listSelection = Binding(get: { selection }, set: { new in
             guard !behind else { return }
-            RowClickLog.listSet(selection, new); selection = new
+            let kept = PressSelect.selection(from: selection, asking: new, byKey: NSApp.currentEvent?.type == .keyDown)
+            RowClickLog.listSet(selection, kept); selection = kept
         })
         #else
         // Beside the note (iPad, iPhone Duo open) the list is told nothing is selected, so it draws
@@ -1418,7 +1419,6 @@ struct ShowsSelectedRow: ViewModifier {
                 // list centred on a row it already showed slid its first notes under the toolbar's
                 // blur, a smudge at rest (round 15, two judges of the quiet.md comparison).
                 DispatchQueue.main.async {
-                    finder.dragsMoveNotes()
                     if let at, at >= Self.firstRows { finder.reveal(row: at) }
                 }
             }
@@ -1474,11 +1474,6 @@ struct ShowsSelectedRow: ViewModifier {
             }
 
             /// Centres `row` when any of it is out of view (under the toolbar or past the foot).
-            /// A drag from a row carries the note, whichever way the mouse first moves, as in Notes.
-            /// By default a drag starting upwards selected every row it crossed as well (round 21:
-            /// a note dragged to a folder left that folder on "2 Notes Selected"). ⌘ and ⇧ select several.
-            func dragsMoveNotes() { find()?.verticalMotionCanBeginDrag = true }
-
             func reveal(row: Int) {
                 guard let table = find(), row < table.numberOfRows, let scroll = table.enclosingScrollView else { return }
                 let clip = scroll.contentView.bounds

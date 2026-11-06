@@ -33,6 +33,20 @@ import Testing
                            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: clicks, pressure: 1)!
     }
 
+    @Test func theEndOfADragSelectsNothingMore() {
+        let (table, _, window) = list()
+        PressSelect.pressBegan()
+        #expect(PressSelect.selection(from: [1], asking: [1, 2]) == [1, 2], "no drag: the list may extend")
+        PressSelect.press(press(window), on: table, row: 3)
+        PressSelect.dragged()
+        #expect(PressSelect.selection(from: [1], asking: [1, 2]) == [1], "the row beside the folder it was dropped on")
+        #expect(PressSelect.selection(from: [1], asking: [2]) == [2], "another note opened is not an extension")
+        #expect(PressSelect.selection(from: [1], asking: [1, 2], byKey: true) == [1, 2], "⌘A after a drag")
+        PressSelect.lifted()
+        PressSelect.pressBegan()
+        #expect(PressSelect.selection(from: [1], asking: [1, 2]) == [1, 2], "a new press starts clean")
+    }
+
     @Test func aPressSelectsTheRowAtOnce() {
         let (table, _, window) = list()
         PressSelect.press(press(window), on: table, row: 3)

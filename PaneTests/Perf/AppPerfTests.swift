@@ -269,7 +269,6 @@ extension AppPerfTests {
         box.scope = .folder(ideas.id)
         await turn()
         #expect(pick.picked == [lisbon.id], "selected: \(pick.picked.count)")
-        #expect(FileRowClickTests.table(in: host)?.verticalMotionCanBeginDrag == true, "a drag upwards carries the note and selects nothing")
     }
 
     struct ScopedList: View {
