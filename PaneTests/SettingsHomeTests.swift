@@ -67,6 +67,14 @@ import Testing
     }
 
     /// Appearance by any of the words people use for it.
+    @Test func searchShowsTheFirstResultsPage() {
+        let all = Set(SettingsPlace.allCases)
+        let found = SettingsIndex.matches("sync", available: all, advancedProtection: false, recoveryKey: false)
+        #expect(SettingsCard.pageWhileSearching(found) == found.first { $0.menu == nil }?.place)
+        #expect(SettingsCard.pageWhileSearching(found) == .account, "beside Sync now, Account")
+        #expect(SettingsCard.pageWhileSearching([]) == nil, "nothing found: the page you were on")
+    }
+
     @Test func searchFindsAppearance() {
         let all = Set(SettingsPlace.allCases)
         for word in ["appearance", "theme", "dark", "light", "dark mode", "colour", "color", "accent", "Theme", "DARK MODE"] {
@@ -313,7 +321,9 @@ import Testing
         #expect(LockedNotesCopy.footer.contains("An AI sees that a locked note exists") && LockedNotesCopy.footer.contains("stays with that AI"))
         // Every place that explains locked notes says the same; none says an AI sees the title.
         let how = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Locked notes" }?.line ?? ""
-        for text in [LockedNotesCopy.setupLine, LockedNotesCopy.footer, LockedNotesCopy.howTo, PrivacyCopy.lockedLine, how] {
+        // (Set Password has its own short line since fdbcca48; it says nothing an AI could contradict.)
+        #expect(!LockedNotesCopy.setupLine.contains("title"))
+        for text in [LockedNotesCopy.footer, LockedNotesCopy.howTo, PrivacyCopy.lockedLine, how] {
             #expect(text.contains("An AI sees that a locked note exists, not its title or text."), "\(text)")
             #expect(!text.contains("sees the title") && !text.contains("see the title") && !text.contains("titles of locked notes"), "\(text)")
         }

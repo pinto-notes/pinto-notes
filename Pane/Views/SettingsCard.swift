@@ -130,7 +130,20 @@ struct SettingsCard: View {
         SettingsPlace.groups(available: available).first?.first ?? .appearance
     }
 
-    private var shown: SettingsPlace { path.last ?? current }
+    /// While searching, the page beside the results is the first result's (rounds 20 to 23: "sync"
+    /// listed Account's rows beside Appearance). Clearing the search goes back to where you were.
+    static func pageWhileSearching(_ found: [SettingsIndex.Entry]) -> SettingsPlace? {
+        found.first { $0.menu == nil }?.place
+    }
+
+    private var shown: SettingsPlace {
+        if !query.isEmpty, let hit = Self.pageWhileSearching(found) { return hit }
+        return path.last ?? current
+    }
+
+    private var found: [SettingsIndex.Entry] {
+        SettingsIndex.matches(query, available: available, advancedProtection: advancedProtection, recoveryKey: recoveryKey)
+    }
     private var current: SettingsPlace { selected ?? start.flatMap { available.contains($0) ? $0 : nil } ?? Self.first(available) }
 
     var body: some View {
@@ -351,7 +364,6 @@ struct SettingsCard: View {
 
     /// What search finds: each setting by its words, with the page it's on; a click opens the page.
     @ViewBuilder private var results: some View {
-        let found = SettingsIndex.matches(query, available: available, advancedProtection: advancedProtection, recoveryKey: recoveryKey)
         if found.isEmpty {
             Text("No settings match \u{201C}\(query)\u{201D}")
                 .font(.system(size: 12))
