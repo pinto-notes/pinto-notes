@@ -121,17 +121,27 @@ import Testing
         defer { w.close() }
         try? await Task.sleep(for: .seconds(0.5))
         host.layoutSubtreeIfNeeded()
-        let slider = try #require(MacWindowChromeTests.find(NSSlider.self, in: host))
-        #expect(slider.numberOfTickMarks == 5, "a stop for each size")
-        // SwiftUI's slider runs from 0 to 1 underneath.
-        func at() -> Double { (slider.doubleValue - slider.minValue) / (slider.maxValue - slider.minValue) }
-        #expect(at() == 0, "13 pt")
+        #expect(TextSize.steps.count == 5, "a stop for each size")
+        // As VoiceOver reaches it: from macOS 27 SwiftUI's slider is no NSSlider.
+        let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
+        NSApp.accessibilitySetValue(true, forAttribute: enhanced)
+        defer { NSApp.accessibilitySetValue(false, forAttribute: enhanced) }
+        func element() -> NSObject? { MacEmptyDetailTests.element("settings.textSize", in: host) }
+        for _ in 0..<30 where element() == nil {
+            try? await Task.sleep(for: .milliseconds(100))
+            host.layoutSubtreeIfNeeded()
+        }
+        func said() -> String? {
+            let e = element()
+            // A value of words is its description; the slider's own value is the stop's number.
+            return e?.value(forKey: "accessibilityValueDescription") as? String ?? e?.value(forKey: "accessibilityValue") as? String
+        }
+        #expect(said() == TextSize.spoken(13), "13 pt")
         TextSize.set(20)
         try? await Task.sleep(for: .seconds(0.3))
         host.layoutSubtreeIfNeeded()
-        #expect(abs(at() - 0.75) < 0.001, "the fourth stop: it follows View › Make Text Bigger")
-        slider.doubleValue = slider.maxValue
-        _ = slider.sendAction(slider.action, to: slider.target)
+        #expect(said() == TextSize.spoken(20), "the fourth stop: it follows View › Make Text Bigger")
+        _ = try #require(element()).perform(#selector(NSAccessibilityProtocol.accessibilityPerformIncrement))
         try? await Task.sleep(for: .seconds(0.1))
         #expect(TextSize.body == 24, "moving it sets the size")
     }

@@ -101,14 +101,16 @@ import Testing
     static func reachableButtons(_ w: NSWindow) throws -> [String] {
         let column = try noteColumn(w)
         return (w.toolbar?.items ?? []).filter { item in
-            guard let v = item.view, v.window != nil, v.convert(v.bounds, to: nil).midX > column.minX else { return false }
+            guard !item.isHidden, let v = item.view, v.window != nil, v.convert(v.bounds, to: nil).midX > column.minX else { return false }
             var controls: [NSControl] = []
             func look(_ v: NSView) {
                 if let c = v as? NSControl { controls.append(c) }
                 v.subviews.forEach(look)
             }
             look(v)
-            return controls.contains { $0.isEnabled }
+            // From macOS 27 SwiftUI draws a toolbar's buttons itself, with no NSControl in the item:
+            // there, a named item being shown is the answer.
+            return controls.isEmpty ? !item.label.isEmpty : controls.contains { $0.isEnabled }
         }.map(\.label)
     }
 
