@@ -498,6 +498,143 @@ import ZIPFoundation
 
     /// The vault through Obsidian's import (what it found, done), its notes in the window, a link
     /// followed, then Export All Notes and what it wrote.
+    /// A vault the size of a real one: 1,000 notes in nested folders, with front matter, tags,
+    /// links, checklists, tables, code and pictures. Written, imported into a store on disk, opened,
+    /// exported, and what came through counted against what went in.
+    static func bigVault() throws -> (root: URL, sent: [String: Int]) {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appending(path: "r7-bigvault-\(UUID().uuidString)/Everything vault")
+        func write(_ path: String, _ text: String) throws {
+            let u = root.appending(path: path)
+            try fm.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try text.write(to: u, atomically: true, encoding: .utf8)
+        }
+        try write(".obsidian/app.json", "{\"attachmentFolderPath\": \"Attachments\"}\n")
+        let rep = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 64, pixelsHigh: 40, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSColor(red: 0.45, green: 0.62, blue: 0.42, alpha: 1).setFill()
+        CGRect(x: 0, y: 0, width: 64, height: 40).fill()
+        NSColor(red: 0.95, green: 0.78, blue: 0.4, alpha: 1).setFill()
+        CGRect(x: 0, y: 26, width: 64, height: 14).fill()
+        NSGraphicsContext.current = nil
+        let png = try #require(rep.representation(using: .png, properties: [:]))
+        try fm.createDirectory(at: root.appending(path: "Attachments"), withIntermediateDirectories: true)
+        let folders = ["Daily", "Projects/Greenhouse", "Projects/Book", "Projects/House", "Reading/Books", "Reading/Papers", "People", "Work/Clients", "Work/Meetings", "Ideas", "Recipes", "Travel"]
+        let name = { (i: Int) in "Note \(String(format: "%04d", i))" }
+        var sent = ["notes": 0, "open tasks": 0, "done tasks": 0, "links": 0, "pictures": 0, "tables": 0, "code blocks": 0, "tagged notes": 0]
+        for i in 0..<1000 {
+            var text = "---\ntags: [topic-\(i % 20)]\ncreated: 2025-\(String(format: "%02d", i % 12 + 1))-\(String(format: "%02d", i % 28 + 1))\n---\n# \(name(i))\n\nA paragraph of ordinary writing for note \(i), long enough to wrap on a phone and to be worth searching for: word\(i) sits here.\n\n"
+            sent["notes"]! += 1; sent["tagged notes"]! += 1
+            for step in [1, 7, 53] { text += "- See [[\(name((i + step) % 1000))]]\n"; sent["links"]! += 1 }
+            text += "\n"
+            if i % 3 == 0 { text += "## Tasks\n- [ ] Open task \(i)\n- [x] Done task \(i)\n\n"; sent["open tasks"]! += 1; sent["done tasks"]! += 1 }
+            if i % 10 == 0 { text += "| Item | Count |\n| --- | --- |\n| Row \(i) | \(i) |\n\n"; sent["tables"]! += 1 }
+            if i % 15 == 0 { text += "```swift\nlet n = \(i)\n```\n\n"; sent["code blocks"]! += 1 }
+            if i % 10 == 5 {
+                try png.write(to: root.appending(path: "Attachments/picture-\(i).png"))
+                text += "![[picture-\(i).png]]\n\n"; sent["pictures"]! += 1
+            }
+            let path = "\(folders[i % folders.count])/\(name(i)).md"
+            try write(path, text)
+            // As a vault used for a while: last changed over the past months, Note 0990 most lately.
+            let changed = Date.now.addingTimeInterval(-3600 * Double(1000 - (i + 9) % 1000) * 3)
+            try fm.setAttributes([.modificationDate: changed], ofItemAtPath: root.appending(path: path).path)
+        }
+        return (root, sent)
+    }
+
+    /// What a set of notes' text holds, counted the same way as `bigVault` counted what went in.
+    static func counts(_ bodies: [String], pictures: (String) -> Int) -> [String: Int] {
+        var out = ["notes": bodies.count, "open tasks": 0, "done tasks": 0, "links": 0, "pictures": 0, "tables": 0, "code blocks": 0, "tagged notes": 0]
+        for b in bodies {
+            out["open tasks"]! += b.components(separatedBy: "- [ ] ").count - 1
+            out["done tasks"]! += b.components(separatedBy: "- [x] ").count - 1
+            out["links"]! += b.matches(of: /\[\[Note \d{4}\]\]/).count
+            out["pictures"]! += pictures(b)
+            out["tables"]! += b.components(separatedBy: "| Item | Count |").count - 1
+            out["code blocks"]! += b.components(separatedBy: "```swift").count - 1
+            out["tagged notes"]! += b.contains("#topic-") || b.contains("- topic-") ? 1 : 0
+        }
+        return out
+    }
+
+    @Test func c8BigVault() async throws {
+        guard Self.dir != nil else { return }
+        let folder = "c8-big-vault"
+        let (vault, sent) = try Self.bigVault()
+        defer { try? FileManager.default.removeItem(at: vault.deletingLastPathComponent()) }
+        let store = FileManager.default.temporaryDirectory.appending(path: "r7-bigvault-store-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: store, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: store) }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(url: store.appending(path: "big.store")))
+        Seed.ensureLibrary(c.mainContext, demo: false, welcome: false)
+
+        var clock = ContinuousClock.now
+        func lap() -> Double {
+            let d = ContinuousClock.now - clock
+            clock = .now
+            return Double(d.components.seconds) + Double(d.components.attoseconds) / 1e18
+        }
+        let source = ImportKind.obsidian.inspect(vault)
+        let inspected = lap()
+        let summary = await ImportKind.obsidian.run([source], into: .perSource, context: c.mainContext, progress: { _, _ in }, shouldStop: { false })
+        try c.mainContext.save()
+        WikiDirectory.invalidate()
+        let imported = lap()
+
+        let notes = try c.mainContext.fetch(FetchDescriptor<Note>()).filter { $0.deletedAt == nil && $0.title.hasPrefix("Note ") }
+        let inPinto = Self.counts(notes.map(\.body)) { $0.components(separatedBy: "![").count - 1 }
+        let titles = Set(notes.map(\.title))
+        let links = notes.flatMap { $0.body.matches(of: /\[\[(Note \d{4})\]\]/).map { String($0.1) } }
+        let broken = links.filter { !titles.contains($0) }.count
+        _ = lap()
+
+        var opened = 0.0
+        try await PersonaEditorShots.window(c, note: "Note 0990", dark: true) { w in
+            opened = lap()
+            try Self.save(try PersonaEditorShots.picture(w), folder, "mac-dark-01-note-with-table-code")
+            let tv = try PersonaEditorShots.editor(w)
+            let r = (tv.string as NSString).range(of: "Note 0997")
+            if r.location != NSNotFound, let link = tv.textStorage?.attribute(.link, at: r.location, effectiveRange: nil) {
+                _ = tv.textView(tv, clickedOnLink: link, at: r.location)
+            }
+            await MacWindowChromeTests.settle(w, 24)
+            try MacEmptyDetailTests.list(w).scrollRowToVisible(0)
+            await MacWindowChromeTests.settle(w, 3)
+            try Self.save(try PersonaEditorShots.picture(w), folder, "mac-dark-02-followed-link")
+        }
+        try await PersonaEditorShots.window(c, note: "Note 0985", dark: true) { w in
+            try Self.save(try PersonaEditorShots.picture(w), folder, "mac-dark-03-note-with-picture")
+        }
+
+        _ = lap()
+        let made = try await NoteExport.make(c.mainContext)
+        let exported = lap()
+        let out = FileManager.default.temporaryDirectory.appending(path: "r7-bigexport-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: out); try? FileManager.default.removeItem(at: made.zip.deletingLastPathComponent()) }
+        try FileManager.default.unzipItem(at: made.zip, to: out)
+        let files = FileManager.default.enumerator(at: out, includingPropertiesForKeys: nil)?.compactMap { $0 as? URL } ?? []
+        let mds = files.filter { $0.pathExtension == "md" && $0.lastPathComponent.hasPrefix("Note ") }
+        let backOut = Self.counts(try mds.map { try String(contentsOf: $0, encoding: .utf8) }) { $0.components(separatedBy: "![").count - 1 }
+        let picturesOut = files.filter { $0.pathExtension == "png" }.count
+
+        var report = "Import, 1,000 note vault, on this machine\n\n"
+        report += String(format: "Reading the vault   %6.2f s\nImporting           %6.2f s\nOpening the window  %6.2f s\nExport All Notes    %6.2f s\n\n", inspected, imported, opened, exported)
+        report += "Imported notes: \(summary.notes). Pictures: \(summary.attachments). Links to a missing note: \(broken) of \(links.count).\n\n"
+        report += "".padding(toLength: 16, withPad: " ", startingAt: 0) + "In vault  In Pinto  Exported\n"
+        for key in ["notes", "tagged notes", "links", "open tasks", "done tasks", "tables", "code blocks", "pictures"] {
+            let row = [sent[key]!, inPinto[key]!, backOut[key]!].map { String($0).padding(toLength: 10, withPad: " ", startingAt: 0) }.joined()
+            report += key.padding(toLength: 16, withPad: " ", startingAt: 0) + row + "\n"
+        }
+        report += "\nPicture files in the export: \(picturesOut).\n"
+        report += "Export: \(made.notes) notes, \(made.files) files. Timings are from a developer's Mac with an offscreen window.\n"
+        try report.write(to: try Self.file(folder, "report", "txt"), atomically: true, encoding: .utf8)
+        try Self.save(try await PersonaAIShots.shoot(PlainText(title: "1,000 notes, in and out", text: report), size: CGSize(width: 760, height: CGFloat(report.components(separatedBy: "\n").count) * 17 + 110), dark: true, wait: 0.8), folder, "mac-dark-04-counts")
+        let sample = try #require(mds.first { $0.lastPathComponent == "Note 0990.md" })
+        let sampleText = try String(contentsOf: sample, encoding: .utf8)
+        try Self.save(try await PersonaAIShots.shoot(PlainText(title: sample.pathComponents.suffix(4).joined(separator: "/"), text: sampleText), size: CGSize(width: 760, height: CGFloat(sampleText.components(separatedBy: "\n").count) * 17 + 110), dark: true, wait: 0.8), folder, "mac-dark-05-exported-note")
+    }
+
     @Test func c8ObsidianInAndOut() async throws {
         guard Self.dir != nil else { return }
         let folder = "c8-obsidian"

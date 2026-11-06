@@ -458,12 +458,15 @@ final class CollabSession {
             newest = max(newest, u.id)
             var before: String?
             if ai == nil, u.client != nil { before = try? doc.text(obj: body) }
+            let heads = before == nil ? nil : doc.heads()
             let took = take(u)
             traced(u, by: "catch-up", took: took)
             if took {
                 changed = true
                 taken.append(u.id)
-                if ai == nil, let before, !isHeld(u) { ai = (u, before) }
+                // An AI's change this document already has isn't news. After a relaunch the old ones
+                // come round again, and someone's typing later in the batch was credited to the AI.
+                if ai == nil, let before, !isHeld(u), doc.heads() != heads { ai = (u, before) }
             }
         }
         // Which way each change came, for the two-phone runs: a change taken here was not relayed.

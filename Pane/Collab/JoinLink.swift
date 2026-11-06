@@ -130,8 +130,8 @@ enum JoinCopy {
     }
 
     static let joining = "Opening shared note…"
-    static let failedTitle = "The shared note didn't open"
-    static let failed = "This link didn't open. Ask for a new one."
+    static let failedTitle = "The shared note didn’t open"
+    static let failed = "This link didn’t open. Ask for a new one."
     static let slow = "Opening the note took too long. Check your connection and open the link again."
     static let unavailable = "Sharing isn't available in this version of Pinto Notes."
 }

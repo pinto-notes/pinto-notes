@@ -48,6 +48,21 @@ import SwiftUI
     }
 
     /// On a shared note: someone else undid the change, so the receipt has nothing left to say.
+    /// Sara keeps one of Claude's two changes and undoes the other: Emil's receipt said "changed 2
+    /// lines" after that (persona council r7, two phones).
+    @Test func aReceiptFollowsAPartUndoneElsewhere() throws {
+        let previous = "Plan\n- [ ] Dates\n- Lunch\n- [x] Train"
+        let after = "Plan\n- [ ] Dates: May\n- Lunch\n- [x] The 9:10 train"
+        let r = AIEdit.Receipt(noteID: UUID(), by: "Claude", at: .now, previous: previous, after: after, lines: 2, person: "Sara")
+        #expect(r.withPartsUndone(in: after) == nil, "both parts still there")
+        #expect(r.withPartsUndone(in: previous) == nil, "both gone: that's isUndone")
+        let left = try #require(r.withPartsUndone(in: "Plan\n- [ ] Dates: May\n- Lunch\n- [x] Train"))
+        #expect(left.lines == 1 && left.summary == "Sara's Claude changed 1 line")
+        #expect(left.after == "Plan\n- [ ] Dates: May\n- Lunch\n- [x] Train")
+        #expect(left.previous == previous)
+        #expect(r.withPartsUndone(in: "Plan\n- [ ] Dates: May\n- Lunch\n- [x] Your own words") == nil, "changed by someone, not back to what it was")
+    }
+
     @Test func aReceiptKnowsItsChangeIsUndone() {
         let r = AIEdit.Receipt(noteID: UUID(), by: "Claude", at: .now, previous: "Plan\n- [ ] Pick dates\n", after: "Plan\n- [x] Pick dates: 3-4 November\n", lines: 1)
         #expect(!r.isUndone(in: "Plan\n- [x] Pick dates: 3-4 November\n"))

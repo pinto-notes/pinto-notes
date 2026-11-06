@@ -88,6 +88,22 @@ SAYS = {
     # In the re-take the note closes and the alert shows at once: one caption (set below).
     "sara-lost-access": ("sara", "Removed: the note closes on Sara's phone, with an alert"),
     "sara-kept-copy": ("sara", "Keep a Copy, answered by the script: her copy opens"),
+    "ai-edit-two-parts": ("sara", "Sara's AI changes two lines (the local server's MCP function)"),
+    "sara-sees-two-part-edit": ("sara", "The two changes arrive on both phones"),
+    "emil-sees-two-part-edit": ("emil", "The two changes arrive on both phones"),
+    "sara-review2-open": ("sara", "Sara opens the review"),
+    "sara-kept-one": ("sara", "Sara keeps the dates (the script presses Keep)"),
+    "sara-undid-other": ("sara", "Sara undoes the train (the script presses Undo)"),
+    "emil-sees-sara-decision": ("emil", "Her decision reaches Emil: dates kept, train back"),
+    "offline-same-line": ("both", "Offline again: the server's gateway is paused"),
+    "emil-typed-same-line": ("emil", "Offline: Emil adds to \u201cPrint agenda\u201d"),
+    "sara-typed-same-line": ("sara", "Offline: Sara adds to the same line"),
+    "sara-not-synced-again": ("sara", "Offline: each phone has only its own edit"),
+    "sara-app-quit": ("sara", "Sara's app is quit (the script ends it)"),
+    "sara-relaunched-offline": ("sara", "Reopened, still offline: her edit is there"),
+    "online-same-line": ("both", "Back online"),
+    "emil-sees-same-line-merged": ("emil", "Merged: both additions on one line"),
+    "sara-sees-same-line-merged": ("sara", "Merged: both additions on one line"),
     "sara-own-note": ("sara", "Sara's own note, not shared"),
     "sara-typed-budget": ("sara", "Sara types a line"),
     "private-ai-edit": ("sara", "Her AI reads the note and edits it (the local MCP function)"),
@@ -138,6 +154,16 @@ if at("emil-review-open") and at("sara-sees-undo"):
     clips.append(dict(folder="c11-ai-edit-other-device", name="two-iphones-c11-receipt" + SUFFIX, phones=("emil", "sara"),
                       t0=at("emil-review-open") - 2.0, t1=latest("emil-review-undone", "sara-sees-undo") + hold + 2.0,
                       keys=["emil-review-open", "emil-review-undone", "sara-sees-undo"]))
+# c11, keeping one of two changes: Sara decides, and Emil's phone follows.
+if at("sara-review2-open") and at("sara-undid-other"):
+    clips.append(dict(folder="c11-ai-edit-other-device", name="two-iphones-c11-keep-one-undo-one" + SUFFIX, phones=("emil", "sara"),
+                      t0=at("ai-edit-two-parts") - 2.0, t1=latest("sara-undid-other", "emil-sees-sara-decision") + hold + 1.5,
+                      keys=["sara-sees-two-part-edit", "sara-review2-open", "sara-kept-one", "sara-undid-other", "emil-sees-sara-decision"]))
+# c10, the same line: both edit it offline, Sara's app is quit and reopened, then they merge.
+if at("offline-same-line") and at("emil-sees-same-line-merged"):
+    clips.append(dict(folder="c10-offline", name="two-iphones-c10-same-line" + SUFFIX, phones=("emil", "sara"),
+                      t0=at("offline-same-line") - 2.0, t1=latest("emil-sees-same-line-merged", "sara-sees-same-line-merged") + hold + 1.5,
+                      keys=["emil-typed-same-line", "sara-typed-same-line", "sara-relaunched-offline", "emil-sees-same-line-merged", "sara-sees-same-line-merged"]))
 # c9, the old link: the sheet Emil sees after removing her, then the link on Sara's phone.
 if at("sara-old-link"):
     clips.append(dict(folder="c9-two-phones", name="two-iphones-c9-old-link" + SUFFIX, phones=("emil", "sara"),

@@ -170,6 +170,25 @@ enum AIEdit {
             kind == .edit && !created && body.trimmingCharacters(in: .whitespacesAndNewlines) == previous.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
+        /// On a shared note someone can undo part of the edit: the receipt speaks of what's left of
+        /// it. Nil when every part is still there, or none is (`isUndone`).
+        func withPartsUndone(in body: String) -> Receipt? {
+            guard var review = AIReview(self), var text = after else { return nil }
+            let now = Set(AIReview.lines(body))
+            var undone = 0
+            for part in review.parts {
+                let gone = part.added.isEmpty || !part.added.allSatisfy(now.contains)
+                guard gone, part.removed.allSatisfy(now.contains), let back = try? review.undo(part.id, in: text) else { continue }
+                text = back
+                undone += 1
+            }
+            guard undone > 0, text != previous else { return nil }
+            var left = self
+            left.after = text
+            left.lines = AIReview.lineCount(previous: previous, after: text)
+            return left
+        }
+
         /// Said where the receipt was when that happens elsewhere, so the line going back doesn't
         /// read as sync losing a change (persona council r7).
         var undoneLine: String { "\(who)\u{2019}s change was undone" }

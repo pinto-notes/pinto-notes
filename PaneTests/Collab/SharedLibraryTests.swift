@@ -821,6 +821,26 @@ extension NetworkFaults.SharedLibraryTests {
         return (emil, note, emilSession, phone, mine, onPhone)
     }
 
+    /// The app quit and opened again with an AI's old change coming round in catching up, and
+    /// someone's typing after it: the typing isn't the AI's (r7, two phones: Emil's line on Sara's
+    /// phone read "Claude changed 1 line").
+    @Test func anAIsOldChangeComingRoundDoesntClaimSomeonesTyping() async throws {
+        let (_, note, emilSession, phone, mine, onPhone) = try await saraAIAddsALine()
+        await waitUntil { mine.aiEditedAt != nil && onPhone.text.contains("Budget") && note.body.contains("Budget") }
+        _ = AIEdit.markSeen(mine)
+        let seen = mine.aiEditedAt
+        phone.library.closeAll()
+
+        type("\n- Emil's line", in: emilSession)
+        await waitUntil { emilSession.isSent }
+        mine.sharedDocument!.cursor = 0
+        let again = try #require(phone.library.session(for: mine))
+        await again.catchUp().value
+        #expect(again.text.contains("Emil's line"))
+        #expect(mine.aiEditedAt == seen, "no new AI change")
+        #expect(!AIEdit.isUnseen(mine))
+    }
+
     /// It came in as typing: no tint, no margin marks, no receipt. It's marked as an AI's edit of
     /// a note of your own is, on every device in the note. Someone else's AI is named with them.
     @Test func anAIsChangeToASharedNoteIsMarkedForEveryone() async throws {

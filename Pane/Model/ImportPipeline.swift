@@ -239,6 +239,15 @@ final class ImportWriter {
         return unique.isEmpty ? nil : unique.map { "#" + $0 }.joined(separator: " ")
     }
 
+    /// The note with its tag line at the end: on the note's own last line if that holds only
+    /// tags, so a note's tags don't stack up with a gap between them (`#garden`, then `#home`).
+    static func adding(_ tags: String, to text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let last = trimmed.split(separator: "\n", omittingEmptySubsequences: false).last.map(String.init) ?? ""
+        let onlyTags = !last.isEmpty && trimmed != last && last.split(separator: " ").allSatisfy { $0.wholeMatch(of: /#[^\s#]+/) != nil }
+        return onlyTags ? trimmed + " " + tags : text + "\n\n" + tags
+    }
+
     /// The body without a first line that only repeats the title.
     static func dropRepeatedTitle(_ body: String, title: String) -> String {
         guard let first = body.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false).first,

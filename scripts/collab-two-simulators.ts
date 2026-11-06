@@ -157,12 +157,13 @@ async function stopRecordings() {
 const tails: ReturnType<typeof setInterval>[] = [];
 function tail(d: (typeof devices)[number]) {
   if (!recordDir) return;
-  const who = d.person.name.toLowerCase(), names = labels.get(d.person.name)!;
+  const who = d.person.name.toLowerCase();
   let seen = 0;
   tails.push(setInterval(() => {
     let text: string;
     try { text = Deno.readTextFileSync(file(d, "collab-script.log")); } catch { return; }
-    const lines = text.split("\n").filter(Boolean), now = Date.now() / 1000;
+    const lines = text.split("\n").filter(Boolean), now = Date.now() / 1000, names = labels.get(d.person.name)!;
+    if (lines.length < seen) seen = 0; // A relaunch began a new log.
     for (const line of lines.slice(seen)) {
       Deno.writeTextFileSync(`${recordDir}/${who}-steps.tsv`, `${now.toFixed(3)}\t${line}\n`, { append: true });
       const n = line.match(/^\S+ (\d+) \S+ ok$/)?.[1];
@@ -223,6 +224,12 @@ const emilSteps = steps(people[0], [
   { waitFile: "go-ai.txt" }, { waitText: { text: "3-4 November", timeout: 120 } }, mark("emil-sees-ai-edit"), ...hold(), { dump: "ai.json" },
   // He opens the receipt for Sara's Claude's change and undoes it, as its buttons do: it goes back on both phones.
   { waitFile: "go-review.txt" }, { reviewAI: "open" }, { wait: 1 }, mark("emil-review-open"), ...hold(), { reviewAI: "undoAll" }, { wait: 1 }, mark("emil-review-undone"), ...hold(), { dump: "ai-undone.json" },
+  // Sara decides on an AI edit in two parts: what she keeps and undoes reaches him.
+  { waitFile: "go-ai2.txt" }, { waitText: { text: "5-6 November", timeout: 120 } }, mark("emil-sees-two-part-edit"), ...hold(),
+  { waitFile: "go-review2.txt" }, { waitText: { text: "- [x] Book the train", timeout: 120 } }, mark("emil-sees-sara-decision"), ...hold(), { dump: "review2.json" },
+  // The server paused again: both change the same line.
+  { waitFile: "go-conflict.txt" }, { type: { text: " for 40 people", after: "Print agenda" } }, mark("emil-typed-same-line"), ...hold(), { dump: "conflict.json" },
+  { waitFile: "go-online2.txt" }, { waitText: { text: "in colour", timeout: 240 } }, mark("emil-sees-same-line-merged"), ...hold(), { dump: "conflict-merged.json" },
   // Share open on Sara, then (once she has typed) Remove.
   { waitFile: "go-remove.txt" }, ...(show ? [{ showShare: true }, mark("emil-share-people"), ...hold()] : []), { dump: "share-people.json" },
   { waitFile: "go-remove-now.txt" }, { remove: "Sara" }, mark("emil-removed-sara"), { wait: 2 }, ...hold(), { dump: "removed.json" }, ...(show ? [{ closeShare: true }] : []),
@@ -248,6 +255,21 @@ const saraSteps = steps(people[1], [
   { keyFetchHere: true },
   { waitFile: "go-ai.txt" }, { waitText: { text: "3-4 November", timeout: 120 } }, mark("sara-sees-ai-edit"), ...hold(), { dump: "ai.json" },
   { waitFile: "go-review.txt" }, { waitText: { text: "- [ ] Pick dates", timeout: 120 } }, mark("sara-sees-undo"), ...hold(), { dump: "ai-undone.json" },
+  // Claude's edit in two parts: she keeps one and undoes the other.
+  { waitFile: "go-ai2.txt" }, { waitText: { text: "5-6 November", timeout: 120 } }, mark("sara-sees-two-part-edit"), ...hold(),
+  { waitFile: "go-review2.txt" }, { reviewAI: "open" }, { wait: 1 }, mark("sara-review2-open"), ...hold(),
+  { reviewAI: "keepNext" }, { wait: 1 }, mark("sara-kept-one"), ...hold(), { reviewAI: "undoNext" }, { wait: 1 }, mark("sara-undid-other"), ...hold(), { dump: "review2.json" },
+  // The server paused again: both change the same line. Then this app is quit (the run does that).
+  { waitFile: "go-conflict.txt" }, { type: { text: " in colour", after: "Print agenda" } }, mark("sara-typed-same-line"),
+  { waitSync: { text: "Not synced yet", timeout: 30, soft: true } }, mark("sara-not-synced-again"), ...hold(), { dump: "conflict.json" },
+  { wait: 900 },
+]);
+// Sara's phone from its relaunch, the server still away: her edit has to be there without it.
+const saraAfterRelaunch = (() => {
+  const out: Step[] = [], names = new Map<number, string>();
+  for (const s of [
+    { keyFetchHere: true }, { wait: 2 }, { open: "Offsite plan" }, { waitText: { text: "in colour", timeout: 60 } }, mark("sara-relaunched-offline"), ...hold(), { dump: "relaunched.json" },
+    { waitFile: "go-online2.txt" }, { waitText: { text: "for 40 people", timeout: 240 } }, mark("sara-sees-same-line-merged"), ...hold(), { dump: "conflict-merged.json" },
   // She types while Emil has Share open on her; he removes her a moment after.
   { waitFile: "go-type.txt" }, { type: { text: "\nBring name badges", after: "Book the train" } }, mark("sara-typed-before-removal"), { dump: "typed-before.json" },
   { waitGone: 180 }, mark("sara-note-gone"),
@@ -259,8 +281,13 @@ const saraSteps = steps(people[1], [
     ? [{ create: trip }, mark("sara-own-note"), ...hold(), { type: { text: "\nBudget 400 euros", after: "Tram 28 tickets" } }, mark("sara-typed-budget"), { wait: 1 }, { dump: "typed.json" },
       { waitFile: "go-private.txt" }, { waitText: { text: "21 to 23 May", timeout: 120 } }, mark("sara-sees-own-ai-edit"), { wait: Math.max(5, HOLD + 2) }, { dump: "private.json" }]
     : []),
-  { waitFile: "go-quit.txt" }, { quit: true },
-]);
+    { waitFile: "go-quit.txt" }, { quit: true },
+  ] as Step[]) {
+    if (typeof s._mark === "string") names.set(out.length, s._mark);
+    else out.push(s);
+  }
+  return { out, names };
+})();
 
 const file = (d: { dir: string }, name: string) => `${d.dir}/tmp/${name}`;
 const put = (d: { dir: string }, name: string, text = "go") => Deno.writeTextFile(file(d, name), text);
@@ -386,6 +413,38 @@ try {
   const [u1, u2] = await Promise.all([waitFor(emil, "ai-undone.json", 180), waitFor(sara, "ai-undone.json", 180)]);
   check("Emil undoes Sara's Claude's change from its receipt, and it goes back on both phones",
     u1.text === u2.text && u1.text.includes("- [ ] Pick dates") && !u1.text.includes("3-4 November"), JSON.stringify(u2.text));
+
+  // Sara's Claude changes two lines; she keeps one change and undoes the other, on her phone.
+  // fetch numbers its lines; edit wants the text without them.
+  const body = ((await ai("fetch", { id: path })).text as string).replace(/^\s*\d+\t/gm, "");
+  const part = body.slice(body.indexOf("- [ ] Pick dates"), body.indexOf("Book the train") + "Book the train".length);
+  const e3 = await ai("edit", { path, old_string: part, new_string: part.replace("Pick dates", "Pick dates: 5-6 November").replace("Book the train", "Book the 9:10 train") });
+  moment("ai-edit-two-parts");
+  await Promise.all([put(emil, "go-ai2.txt"), put(sara, "go-ai2.txt")]);
+  await sleep(HOLD + 3);
+  await Promise.all([put(emil, "go-review2.txt"), put(sara, "go-review2.txt")]);
+  const [d1, d2] = await Promise.all([waitFor(emil, "review2.json", 180), waitFor(sara, "review2.json", 180)]);
+  check("Sara keeps one of Claude's two changes and undoes the other, and both phones agree",
+    e3.checks === "ok" && d1.text === d2.text && d1.text.includes("Pick dates: 5-6 November") && d1.text.includes("Book the train") && !d1.text.includes("9:10"), JSON.stringify(d1.text));
+
+  // The server away again: both change the same line, and Sara's app is quit and opened again.
+  await shell(offline);
+  moment("offline-same-line");
+  await Promise.all([put(emil, "go-conflict.txt"), put(sara, "go-conflict.txt")]);
+  await Promise.all([waitFor(emil, "conflict.json", 120), waitFor(sara, "conflict.json", 120)]);
+  await simctl("terminate", sara.udid, bundle);
+  moment("sara-app-quit");
+  await sleep(2);
+  labels.set("Sara", saraAfterRelaunch.names);
+  await Deno.writeTextFile(file(sara, "steps2.json"), JSON.stringify(saraAfterRelaunch.out));
+  await simctl("launch", sara.udid, bundle, "-collabScript", file(sara, "steps2.json"));
+  const again = await waitFor(sara, "relaunched.json", 150);
+  check("quit and opened again with the server away, Sara's offline edit is still there", again.text.includes("Print agenda in colour"), JSON.stringify(again.text));
+  await shell(online);
+  moment("online-same-line");
+  await Promise.all([put(emil, "go-online2.txt"), put(sara, "go-online2.txt")]);
+  const [c1, c2] = await Promise.all([waitFor(emil, "conflict-merged.json", 300), waitFor(sara, "conflict-merged.json", 300)]);
+  check("both edits to the same line are kept, the same on both phones", c1.text === c2.text && c1.text.includes("for 40 people") && c1.text.includes("in colour"), JSON.stringify(c1.text));
 
   // Emil opens Share on Sara; she types a line; he removes her a moment after.
   await put(emil, "go-remove.txt");

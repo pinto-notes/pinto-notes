@@ -605,7 +605,7 @@ final class MarkdownImporter {
         var markdown = titleLine
         let rest = ImportWriter.dropRepeatedTitle(body, title: titleLine)
         if !rest.isEmpty { markdown += "\n" + rest }
-        if let tags = ImportWriter.tagLine(parsed.tags, besides: rest) { markdown += "\n\n" + tags }
+        if let tags = ImportWriter.tagLine(parsed.tags, besides: rest) { markdown = ImportWriter.adding(tags, to: markdown) }
         let dirs = Array(note.path.dropLast(isBundle ? 2 : 1).dropFirst(tree.commonPrefix)).map(Self.cleanName)
         let folder = writer.folder(source: source.name, path: dirs, destination)
         if writer.add(markdown: markdown, created: created, updated: updated, in: folder, files: files, frontMatter: parsed.kept) {

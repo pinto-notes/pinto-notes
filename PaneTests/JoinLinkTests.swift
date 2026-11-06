@@ -123,12 +123,12 @@ import Testing
 
     /// A failed join after Join says why.
     @Test func aFailedJoinSaysWhy() async {
-        let (c, _) = Self.center(answer: "This link didn't open. Ask for a new one.")
+        let (c, _) = Self.center(answer: "This link didn’t open. Ask for a new one.")
         c.open(Self.link)
         await Self.settle(c)
         c.accept()
         await Self.settle(c)
-        #expect(c.phase == .failed("This link didn't open. Ask for a new one."))
+        #expect(c.phase == .failed("This link didn’t open. Ask for a new one."))
     }
 
     /// With sharing off, links do nothing (the release that doesn't have it).

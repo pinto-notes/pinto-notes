@@ -123,7 +123,7 @@ import Testing
         let link = try #require(emil.store.linkURL(note))
         server.offline = true
         #expect(await sara.store.preview(link) == nil)
-        #expect(sara.store.joinProblem == "This link didn't open. Ask for a new one.")
+        #expect(sara.store.joinProblem == "This link didn’t open. Ask for a new one.")
         server.offline = false
         // A dropped connection twice over: the connection is named.
         #expect(CollabStore.joinFailure(URLError(.networkConnectionLost)).contains("couldn't be reached"))

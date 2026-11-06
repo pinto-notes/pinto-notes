@@ -190,7 +190,7 @@ enum CollabScript {
         case "dismissJoinProblem":
             JoinCenter.shared.dismissProblem()
         case "reviewAI":
-            // The receipt's button, or the review's Undo All.
+            // The receipt's button, or the review's Undo All, or Keep or Undo on its next part.
             NotificationCenter.default.post(name: reviewAI, object: value as? String)
         case "answerJoin":
             // The question's Join, or Not Now.

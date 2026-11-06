@@ -326,6 +326,14 @@ struct NoteDetailView: View {
                         guard review == nil, self.receipt != nil else { return }
                         withAnimation(.easeOut(duration: 0.2)) { self.receipt = nil; reviewResult = receipt.undoneLine }
                         controller.clearTint()
+                    } partlyUndone: { left in
+                        // Someone else undid part of it: the tint and the count follow what's left.
+                        guard review == nil, self.receipt != nil else { return }
+                        self.receipt = left
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .seconds(0.15))
+                            if self.receipt == left { controller.tintChanges(from: left.previous, untilCleared: true) }
+                        }
                     }
                 }
             }
@@ -339,7 +347,19 @@ struct NoteDetailView: View {
                 if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
             }
             .onReceive(NotificationCenter.default.publisher(for: CollabScript.reviewAI)) { n in
-                if n.object as? String == "undoAll" { reviewUndoAll() } else if let receipt { startReview(receipt) }
+                switch n.object as? String {
+                case "undoAll": reviewUndoAll()
+                // The next undecided part's Keep and Undo, as the review's buttons do.
+                case "keepNext":
+                    guard var rv = review, let part = rv.parts.first(where: { $0.decision == nil }) else { return }
+                    rv.keep(part.id)
+                    review = rv
+                    if rv.isFinished { finishReview() }
+                case "undoNext":
+                    if let part = review?.parts.first(where: { $0.decision == nil }) { reviewUndo(part.id) }
+                default:
+                    if let receipt { startReview(receipt) }
+                }
             }
             #if os(iOS)
             // On the Mac, Share is the toolbar's popover (ShareButton), opened by the same flag.
@@ -507,6 +527,10 @@ struct NoteDetailView: View {
     private func startReview(_ r: AIEdit.Receipt) {
         guard let rv = AIReview(r) else { return }
         reviewResult = nil
+        #if os(iOS)
+        // The review is a half-height sheet: with the keyboard up it hid all but the top of Keep.
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        #endif
         withAnimation(.spring(duration: 0.35, bounce: 0.15)) { review = rv }
     }
 
@@ -2112,11 +2136,13 @@ private struct ReceiptUndoneWatcher: View {
     let note: Note
     let receipt: AIEdit.Receipt
     let undone: () -> Void
+    let partlyUndone: (AIEdit.Receipt) -> Void
 
     var body: some View {
         Color.clear
             .onChange(of: note.body) { _, body in
                 if receipt.isUndone(in: body) { undone() }
+                else if note.isShared, let left = receipt.withPartsUndone(in: body) { partlyUndone(left) }
             }
     }
 }

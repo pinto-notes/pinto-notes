@@ -71,6 +71,9 @@ import ZIPFoundation
         #expect(ImportWriter.tagLine(["home", "Big ideas", "work"], besides: "Plan #home\n\n#big-ideas") == "#work")
         #expect(ImportWriter.tagLine(["home"], besides: "Plan #home") == nil)
         #expect(ImportWriter.tagLine(["home"], besides: "Plan [x](#home)") == "#home", "only a hashtag counts")
+        #expect(ImportWriter.adding("#home", to: "Plan\n\nText\n\n#garden\n") == "Plan\n\nText\n\n#garden #home", "one line of tags, not two with a gap")
+        #expect(ImportWriter.adding("#home", to: "Plan\n\nText about #garden") == "Plan\n\nText about #garden\n\n#home", "a sentence isn't a tag line")
+        #expect(ImportWriter.adding("#home", to: "#garden") == "#garden\n\n#home", "a title isn't a tag line")
     }
 
     @Test func theTitleIsTheFirstHeadingElseNone() {

@@ -270,7 +270,7 @@ extension CollabStore: ShareBackend {
             NoteOpener.shared.open(note.id)
             return true
         } catch {
-            joinProblem = Self.isDropped(error) ? Self.joinFailure(error) : "This link didn't open. Ask for a new one."
+            joinProblem = Self.isDropped(error) ? Self.joinFailure(error) : "This link didn’t open. Ask for a new one."
             return false
         }
     }
@@ -297,7 +297,7 @@ extension CollabStore: ShareBackend {
     /// What to say when a link couldn't be read: the connection, or the link itself.
     static func joinFailure(_ error: Error) -> String {
         (error as NSError).domain == NSURLErrorDomain ? "Pinto Notes couldn't be reached. Check your connection and open the link again."
-            : "This link didn't open. Ask for a new one."
+            : "This link didn’t open. Ask for a new one."
     }
 
     /// Your memberships, checked now and then: a new key (someone was removed, or the link was
