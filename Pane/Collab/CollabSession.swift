@@ -200,6 +200,7 @@ final class CollabSession {
         let doc = Document(textEncoding: .utf16)
         let body = try doc.putObject(obj: .ROOT, key: "body", ty: .Text)
         try doc.spliceText(obj: body, start: 0, delete: 0, value: initial)
+        doc.commitWith(message: CollabHistory.stamp(me))
         record.saved = doc.save()
         record.tail = Data()
         record.tailChanges = 0
@@ -659,6 +660,7 @@ final class CollabSession {
         let change: Data
         do {
             for r in drops.reversed() { try doc.spliceText(obj: body, start: UInt64(r.location), delete: Int64(r.length), value: nil) }
+            doc.commitWith(message: CollabHistory.stamp(me), timestamp: now())
             change = try doc.encodeChangesSince(heads: before)
         } catch {
             log.error("mending a tick failed: \(String(describing: error), privacy: .public)")
@@ -688,6 +690,7 @@ final class CollabSession {
         do {
             try doc.spliceText(obj: body, start: UInt64(edit.range.location), delete: Int64(edit.range.length),
                                value: edit.replacement.isEmpty ? nil : edit.replacement)
+            doc.commitWith(message: CollabHistory.stamp(me, restored: restoring), timestamp: now())
             // Only this edit: others' changes taken in since aren't sent back as yours.
             change = try doc.encodeChangesSince(heads: before)
         } catch {
@@ -717,6 +720,33 @@ final class CollabSession {
     func localFromOutside(_ new: String) {
         local(new, selection: nil)
         onRemoteText?(text)
+    }
+
+    // MARK: Version history
+
+    /// The clock changes are stamped with; tests set it.
+    var now: () -> Date = { .now }
+    private var restoring = false
+
+    /// You may change this note, so may restore an earlier version of it.
+    var canWrite: Bool { record.canEdit && !isViewOnly }
+
+    func historyRuns() -> [CollabHistory.Run] {
+        CollabHistory.runs(in: doc, me: me, start: historyStart, now: now()) { [self] in firstName(of: $0) ?? "Someone" }
+    }
+
+    /// When a change without a time (made before changes had them) is taken to be from.
+    var historyStart: Date = .distantPast
+
+    func text(at heads: Set<CollabText.ChangeHash>) -> String? {
+        try? doc.textAt(obj: body, heads: heads)
+    }
+
+    /// An earlier version's text, written as an edit of yours marked as a restore.
+    func restore(_ old: String) {
+        restoring = true
+        defer { restoring = false }
+        localFromOutside(old)
     }
 
     /// Your caret, or nil while you aren't editing (then nobody sees a caret for you).

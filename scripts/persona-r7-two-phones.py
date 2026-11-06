@@ -116,6 +116,12 @@ SAYS = {
     "sara-sees-sentences-merged": ("sara", "Neither sentence is lost, and each phone asks which to keep"),
     "sara-chose-sentence": ("sara", "Sara keeps her sentence"),
     "emil-sees-sentence-choice": ("emil", "Emil's phone says what Sara chose"),
+    "sara-changed-line": ("sara", "Sara changes the line"),
+    "emil-sees-later-edit": ("emil", "It changes on Emil's phone"),
+    "emil-history-list": ("emil", "Emil opens Version History: each version says who wrote it"),
+    "emil-history-version": ("emil", "The version before Sara's edit"),
+    "emil-restored": ("emil", "Emil restores it"),
+    "sara-sees-restore": ("sara", "Sara's phone has it too"),
     "emil-sees-clash-merged": ("emil", "Merged: both words kept, and each phone asks which to keep"),
     "sara-sees-clash-merged": ("sara", "Merged: both words kept, and each phone asks which to keep"),
     "sara-chose": ("sara", "Sara chooses pizza (the script presses it)"),
@@ -190,6 +196,11 @@ if at("offline-sentence") and at("emil-sees-sentences-merged"):
     clips.append(dict(folder="c10-offline", name="two-iphones-c10-same-sentence" + SUFFIX, phones=("emil", "sara"),
                       t0=at("offline-sentence") - 2.0, t1=latest("emil-sees-sentences-merged", "sara-sees-sentences-merged", "sara-chose-sentence", "emil-sees-sentence-choice") + hold + 1.5,
                       keys=["emil-rewrote-line", "sara-rewrote-line", "emil-sees-sentences-merged", "sara-sees-sentences-merged", "sara-chose-sentence", "emil-sees-sentence-choice"]))
+# c15, version history of the shared note: Sara changes a line, Emil restores the version before it.
+if at("sara-changed-line") and at("emil-restored"):
+    clips.append(dict(folder="c15-shared-history", name="two-iphones-c15-version-history" + SUFFIX, phones=("emil", "sara"),
+                      t0=at("sara-changed-line") - 2.0, t1=latest("emil-restored", "sara-sees-restore") + hold + 1.5,
+                      keys=["sara-changed-line", "emil-sees-later-edit", "emil-history-list", "emil-history-version", "emil-restored", "sara-sees-restore"]))
 # c9, the old link: the sheet Emil sees after removing her, then the link on Sara's phone.
 if at("sara-old-link"):
     clips.append(dict(folder="c9-two-phones", name="two-iphones-c9-old-link" + SUFFIX, phones=("emil", "sara"),

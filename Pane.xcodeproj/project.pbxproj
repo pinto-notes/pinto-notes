@@ -24,6 +24,7 @@
 		026084E1D300F5B1897A4489 /* AddDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB90883FB5418E63A15FD23 /* AddDevice.swift */; };
 		02BA20468F6CAD64D839D739 /* SearchLinesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00208A9F893096B9B52CE5FD /* SearchLinesTests.swift */; };
 		02D3A943C1BDA56B8FE28151 /* AIChangesCopyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DB493FBA680D589F52026E0 /* AIChangesCopyTests.swift */; };
+		02D9CC34DCE10E480F9097E2 /* CollabHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 646475A4A3029E5C1D4CEC6C /* CollabHistory.swift */; };
 		02FF3686D2DF7AA939A76277 /* CodeBoxes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30BFBB10DA2DD2468EE9BE2 /* CodeBoxes.swift */; };
 		0303F797D9849DBE091D09B1 /* NoteRowStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 191532B6C05CC04A487951F6 /* NoteRowStatusTests.swift */; };
 		0366C9B2B821FBA700B2095B /* DailyNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE8E5E057146AF438788DFD /* DailyNotes.swift */; };
@@ -89,6 +90,7 @@
 		0D31B2E5C2082D78B0FFD6A4 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA6ECF7DA4BD18007EE9AD20 /* RootView.swift */; };
 		0D3EAD2F503174B76B8D17CD /* template-app-study-flashcards.data.json in Resources */ = {isa = PBXBuildFile; fileRef = 6E7E10B519DA24BDFE5025EF /* template-app-study-flashcards.data.json */; };
 		0D7E7D7BE11907499A410728 /* AIChangesLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D0A42EA3923C51FC7DC0A5 /* AIChangesLogTests.swift */; };
+		0D887D8034E1598746A79E40 /* SharedHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 758740FA2EB633CCAAF752F1 /* SharedHistoryTests.swift */; };
 		0DB07CB4B8B8AD5A02FC8406 /* FormatPopoverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1E2F1F299DF8F502D2E6AD9 /* FormatPopoverTests.swift */; };
 		0DCE9C13346B5F177FA67A9B /* SidebarCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22F6E51FB808A5AE5B56E98E /* SidebarCards.swift */; };
 		0DF10BFEAD1A3237F73111BD /* WelcomeEmailUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A7256E614CEFF0684BB4C92 /* WelcomeEmailUITests.swift */; };
@@ -1002,6 +1004,7 @@
 		E1532F5AED5412F02988BC10 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 2362C327276BB2E859165EFB /* ZIPFoundation */; };
 		E1A83EADA533E099B72CE9F3 /* DebouncedSave.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301899D6EDE0A22460BBE357 /* DebouncedSave.swift */; };
 		E1AD63DF7A3F2CDD138899C0 /* PictureShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8D56148E3044A9C6EA1D3DF /* PictureShots.swift */; };
+		E1D02460E99635CAAFDD31D7 /* CollabHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 646475A4A3029E5C1D4CEC6C /* CollabHistory.swift */; };
 		E218F4F2C5C0C3821DDB2DEC /* Onboarding.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 09235F26E4A1346438B99659 /* Onboarding.xcassets */; };
 		E269E6CE6C29AD8F633022CE /* Files.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E39767B1556B484757CE36 /* Files.swift */; };
 		E306A79CB20942BD700B0DE3 /* QuickIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D808247B906B82B0336FF1E /* QuickIntents.swift */; };
@@ -1488,6 +1491,7 @@
 		641F847428D60D9F54899530 /* ReorderSlide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReorderSlide.swift; sourceTree = "<group>"; };
 		6437AEF31BCCDC5E8092B053 /* WikiSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiSuggestions.swift; sourceTree = "<group>"; };
 		643D6098FA0EE7C18618080F /* OfflineUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineUITests.swift; sourceTree = "<group>"; };
+		646475A4A3029E5C1D4CEC6C /* CollabHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabHistory.swift; sourceTree = "<group>"; };
 		64816024A9749AC715351868 /* VersionHistorySnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionHistorySnapshots.swift; sourceTree = "<group>"; };
 		64C6DCA985E0C6F7F1691585 /* NoteUndoButtonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteUndoButtonTests.swift; sourceTree = "<group>"; };
 		65052FE76C0F2BF131DDA2C7 /* PushTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTests.swift; sourceTree = "<group>"; };
@@ -1543,6 +1547,7 @@
 		74C3858D7115D915A84DF1F9 /* MacEmptyDetailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacEmptyDetailTests.swift; sourceTree = "<group>"; };
 		75759167CE7F0B24B4814F25 /* keycopy-vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "keycopy-vectors.json"; sourceTree = "<group>"; };
 		758321D9F9783C849CA65451 /* SecurityPageShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityPageShots.swift; sourceTree = "<group>"; };
+		758740FA2EB633CCAAF752F1 /* SharedHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedHistoryTests.swift; sourceTree = "<group>"; };
 		7637BBECC7048C6C96F739D2 /* CellText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellText.swift; sourceTree = "<group>"; };
 		7693F09926468E8130148F1D /* ImportSources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSources.swift; sourceTree = "<group>"; };
 		76C98109111422D10C0858EF /* ImportGuideFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportGuideFlow.swift; sourceTree = "<group>"; };
@@ -2464,6 +2469,7 @@
 				ED450707209CA52772670C64 /* CollabCrypto.swift */,
 				58E462452EB0E75152BD5846 /* CollabDemo.swift */,
 				2D7294BFFF6A6FCC7F16EF89 /* CollabGallery.swift */,
+				646475A4A3029E5C1D4CEC6C /* CollabHistory.swift */,
 				1C8E3D18304D08BE3BDF26DA /* CollabKeys.swift */,
 				19F18EFC180D18F05B904827 /* CollabScript.swift */,
 				3C3136DA96503DF8954D6202 /* CollabSession.swift */,
@@ -2790,6 +2796,7 @@
 				90D1AB85C70555A16131836E /* LinkStateTests.swift */,
 				F31B34B51B88407DD35D083F /* MemoryCollabServer.swift */,
 				239E33A6B222E8CCE6BA3C15 /* SharedDeleteTests.swift */,
+				758740FA2EB633CCAAF752F1 /* SharedHistoryTests.swift */,
 				2EFA5CCD5CFCA8C224C2A102 /* SharedLibraryTests.swift */,
 				3A89888BA134B0D17719F024 /* SharedNoteEditorTests.swift */,
 				136D44143CF1D9F784F68C69 /* SharedNoteLimitsTests.swift */,
@@ -3797,6 +3804,7 @@
 				B237718862CAC6006FF8A62D /* ShareNotePopoverTests.swift in Sources */,
 				010CCD929EF0815F619AC5F7 /* ShareTruthTests.swift in Sources */,
 				ED9FFFE44B9CA18CE34D9BDA /* SharedDeleteTests.swift in Sources */,
+				0D887D8034E1598746A79E40 /* SharedHistoryTests.swift in Sources */,
 				96B237B90524B4A6B154FB93 /* SharedItemTests.swift in Sources */,
 				06BA806E2F4127776ACE7AD1 /* SharedLibraryTests.swift in Sources */,
 				C2D93304A5E51790246DCA92 /* SharedNoteEditorTests.swift in Sources */,
@@ -3907,6 +3915,7 @@
 				BB36CE499FB6058AD22BE480 /* CollabCrypto.swift in Sources */,
 				2AE7549782184B7FBB04A141 /* CollabDemo.swift in Sources */,
 				908B0F44123BFF045480313F /* CollabGallery.swift in Sources */,
+				E1D02460E99635CAAFDD31D7 /* CollabHistory.swift in Sources */,
 				3A02B0875470F6F342244643 /* CollabKeys.swift in Sources */,
 				EFAC942E69893F0E6EA5B5ED /* CollabScript.swift in Sources */,
 				BA5EBB2CB956D7B9D0594A07 /* CollabSession.swift in Sources */,
@@ -4254,6 +4263,7 @@
 				88089B0C85B669E16722247F /* CollabCrypto.swift in Sources */,
 				17B3D5C6ED05EE3B383A60E0 /* CollabDemo.swift in Sources */,
 				8053D090FB2A6F564DBA4479 /* CollabGallery.swift in Sources */,
+				02D9CC34DCE10E480F9097E2 /* CollabHistory.swift in Sources */,
 				3A0428B9D417AD59AC69F1F7 /* CollabKeys.swift in Sources */,
 				30F5B54F71B24676E554E808 /* CollabScript.swift in Sources */,
 				37C1D212EBEE11126B9718BE /* CollabSession.swift in Sources */,

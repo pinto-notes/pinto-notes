@@ -209,7 +209,9 @@ struct NoteDetailView: View {
                 Button("OK") {}
             } message: { Text(lockProblem ?? "") }
             .sheet(isPresented: $showHistory) {
-                if let history = NoteHistory.shared { VersionHistorySheet(note: note, history: history) }
+                if let history = NoteHistory.shared {
+                    VersionHistorySheet(note: note, history: collab.map(history.forShared) ?? history)
+                }
             }
             .onChange(of: controller.clashAnswer) { _, answer in
                 guard let answer else { return }
@@ -373,6 +375,9 @@ struct NoteDetailView: View {
             .onReceive(NotificationCenter.default.publisher(for: CollabScript.askDelete)) { _ in
                 if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
             }
+            .onReceive(NotificationCenter.default.publisher(for: CollabScript.history)) { n in
+                if n.object as? String == "open", historyOffered { showHistory = true }
+            }
             .onReceive(NotificationCenter.default.publisher(for: CollabScript.reviewAI)) { n in
                 switch n.object as? String {
                 case "undoAll": reviewUndoAll()
@@ -416,9 +421,9 @@ struct NoteDetailView: View {
     /// The open shared note's session, when there is one.
     private var collab: CollabSession? { CollabStore.shared?.session(for: note) }
 
-    /// Version History, for a note that has one to show: not a locked note's, and not a shared
-    /// note's (parked: its text is the shared document, not the note's versions).
-    private var historyOffered: Bool { !note.isLocked && !note.isShared }
+    /// Version History, for a note that has one to show: not a locked note's. A shared note's comes
+    /// from its document, so it's there once the document is open.
+    private var historyOffered: Bool { !note.isLocked && (!note.isShared || collab != nil) }
 
     #if os(iOS)
     /// On iPhone the note's tips sit just above the toolbar: a popover from a toolbar button

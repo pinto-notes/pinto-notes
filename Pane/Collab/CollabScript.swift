@@ -43,6 +43,7 @@ import AppKit
 ///   {"deadLink": {"file": "link.txt", "out": "old-link.json"}}   opens a link and writes whether it opened and what it said
 ///   {"dismissJoinProblem": true}   the OK on that message
 ///   {"reviewAI": "open"}   the open note's AI receipt opens its review; "undoAll" presses Undo All
+///   {"history": "open"}   the open note's Version History; "pick" opens its newest earlier version (iPhone); "restore" presses Restore This Version
 ///   {"waitLostAccess": {"file": "lost.json", "timeout": 60}}   until "You no longer have access to …"
 ///                                                  shows: its title, message and buttons written to the file
 ///   {"answerLostAccess": "keepCopy" | "dontKeep" | "ok"}   as that alert's button does: Keep a Copy opens the copy
@@ -61,6 +62,7 @@ enum CollabScript {
     /// Asks the open note's Delete question, as Delete Note in its menu does (NoteDetailView).
     static let askDelete = Notification.Name("pane.collabScriptAskDelete")
     static let reviewAI = Notification.Name("pane.collabScriptReviewAI")
+    static let history = Notification.Name("pane.collabScriptHistory")
 
     /// The steps file, when this app is Amber Notes Beta and was opened with `-collabScript <path>`.
     nonisolated static func requested(arguments: [String], bundleID: String?) -> URL? {
@@ -192,6 +194,8 @@ enum CollabScript {
         case "reviewAI":
             // The receipt's button, or the review's Undo All, or Keep or Undo on its next part.
             NotificationCenter.default.post(name: reviewAI, object: value as? String)
+        case "history":
+            NotificationCenter.default.post(name: history, object: value as? String)
         case "answerJoin":
             // The question's Join, or Not Now.
             let before = Set(sharedNotes().map(\.id))

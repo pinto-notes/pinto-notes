@@ -39,6 +39,8 @@ final class VersionHistoryModel {
     var selected: HistoryEntry? { entries.first { $0.id == selection } }
     /// Only the current version: nothing to go back to.
     var isEmpty: Bool { entries.allSatisfy(\.version.isCurrent) }
+    /// False for someone who can only view a shared note: they can look back, not write.
+    var canRestore: Bool { history.store.canRestore }
 
     func load() async {
         phase = .loading
@@ -66,8 +68,8 @@ final class VersionHistoryModel {
             let text = try await history.body(of: note, entry.version)
             guard selection == id else { return }
             previewText = text
-            changed = entry.version.isCurrent ? [] : HistoryDiff.changedLines(in: text, comparedTo: note.body)
-            sameAsNow = entry.version.isCurrent || HistoryDiff.sameText(text, note.body)
+            changed = entry.version.isCurrent ? [] : HistoryDiff.changedLines(in: text, comparedTo: history.currentText(of: note))
+            sameAsNow = entry.version.isCurrent || HistoryDiff.sameText(text, history.currentText(of: note))
             await compareAgain()
         } catch {
             guard selection == id else { return }
@@ -149,6 +151,7 @@ final class VersionHistoryModel {
             case .ai(let name): s = "Restored by \(name)"
             case .you(let device?): s = "Restored by you on \(device)"
             case .you(nil): s = "Restored by you"
+            case .person(let name): s = "Restored by \(name)"
             }
         }
         if e.count > 1 { s += " · \(e.count) edits" }
@@ -184,6 +187,10 @@ struct VersionHistorySheet: View {
         content
             .task { await model.load() }
             .task { await restoreFromLaunchArguments() }
+            .onReceive(NotificationCenter.default.publisher(for: CollabScript.history)) { n in
+                guard n.object as? String == "restore" else { return }
+                Task { if await model.restore() { dismiss() } }
+            }
             .alert("Couldn't restore this version", isPresented: Binding(get: { model.restoreError != nil }, set: { if !$0 { model.restoreError = nil } })) {
                 Button("OK") {}
             } message: { Text(model.restoreError ?? "") }
@@ -224,6 +231,8 @@ struct VersionAuthorMark: View {
                 }
             case .you(let device):
                 Image(systemName: Self.symbol(device)).resizable().scaledToFit().foregroundStyle(.secondary)
+            case .person:
+                Image(systemName: "person.2.fill").resizable().scaledToFit().foregroundStyle(.secondary)
             }
         }
         .frame(width: size, height: size)
@@ -501,14 +510,16 @@ struct MacVersionHistory: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var restoreButton: some View {
-        Button("Restore This Version") {
-            Task { if await model.restore() { close() } }
+    @ViewBuilder private var restoreButton: some View {
+        if model.canRestore {
+            Button("Restore This Version") {
+                Task { if await model.restore() { close() } }
+            }
+            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.amberProminent)
+            .disabled(model.selected == nil || model.selected?.version.isCurrent == true || model.previewText == nil || model.restoring)
+            .accessibilityIdentifier("history.restore")
         }
-        .keyboardShortcut(.defaultAction)
-        .buttonStyle(.amberProminent)
-        .disabled(model.selected == nil || model.selected?.version.isCurrent == true || model.previewText == nil || model.restoring)
-        .accessibilityIdentifier("history.restore")
     }
 }
 
@@ -557,6 +568,10 @@ struct PhoneVersionHistory: View {
                 PhoneVersionPreview(model: model, id: id, close: close)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: CollabScript.history)) { n in
+            guard n.object as? String == "pick", let first = model.entries.first(where: { !$0.version.isCurrent }) else { return }
+            path = [first.id]
+        }
         .task(id: model.phase) {
             // Captures: open the picked version once the list has been on screen a moment.
             guard model.phase == .loaded, let pick = HistoryLaunch.pick, model.entries.indices.contains(pick), path.isEmpty else { return }
@@ -601,7 +616,7 @@ struct PhoneVersionPreview: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .primaryAction) { CompareMenu(model: model) } }
         .safeAreaInset(edge: .bottom) {
-            if model.selected?.version.isCurrent == false {
+            if model.selected?.version.isCurrent == false, model.canRestore {
                 Button {
                     Task { if await model.restore() { close() } }
                 } label: {

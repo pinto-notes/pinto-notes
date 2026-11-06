@@ -22,6 +22,8 @@ struct NoteVersion: Identifiable, Hashable, Sendable {
 enum VersionAuthor: Equatable, Hashable, Sendable {
     case you(device: String?)
     case ai(String)
+    /// Someone else in a shared note, or several people writing together ("You and Sara").
+    case person(String)
 
     static let devices: Set<String> = ["iPhone", "iPad", "Mac"]
 
@@ -45,6 +47,7 @@ enum VersionAuthor: Equatable, Hashable, Sendable {
         case .you(let device?): "You on \(device)"
         case .you(nil): "You"
         case .ai(let name): name
+        case .person(let name): name
         }
     }
 
@@ -201,6 +204,16 @@ protocol NoteHistoryStore: AnyObject {
     /// Writes `version`'s text as the note's newest version. Returns the note as the server now
     /// has it, or nil when the store has no server (the text is then written here).
     func restore(note: UUID, version: Int64) async throws -> NoteDTO?
+    /// The note's text as this store holds it, for one that isn't the note's own (a shared note's
+    /// document). Restoring then writes to that store, and nothing else is written here.
+    var liveText: String? { get }
+    /// False when you can look but not change the note.
+    var canRestore: Bool { get }
+}
+
+extension NoteHistoryStore {
+    var liveText: String? { nil }
+    var canRestore: Bool { true }
 }
 
 /// The history on the server, fetched when you open it. Nothing is cached.
@@ -348,8 +361,17 @@ final class NoteHistory {
 
     /// A version's text; the current version's is the note's own.
     func body(of note: Note, _ v: NoteVersion) async throws -> String {
-        if v.isCurrent { return note.body }
+        if v.isCurrent { return currentText(of: note) }
         do { return try await store.body(of: note.id, version: v.version) } catch { throw HistoryError.from(error) }
+    }
+
+    /// The text versions are compared with: the note as it is now.
+    func currentText(of note: Note) -> String { store.liveText ?? note.body }
+
+    /// The history of an open shared note, from its document.
+    func forShared(_ session: CollabSession) -> NoteHistory {
+        session.historyStart = context.note(session.noteID)?.createdAt ?? .distantPast
+        return NoteHistory(store: SharedHistoryStore(session: session), context: context, sync: nil)
     }
 
     /// See the type's comment. Uses the app's shared history.
@@ -361,6 +383,11 @@ final class NoteHistory {
     func restore(noteID: UUID, toVersion version: Int64) async throws {
         guard let note = context.note(noteID) else { throw HistoryError.gone }
         FeatureUse.mark(.versionHistory)
+        if store.liveText != nil {
+            do { _ = try await store.restore(note: noteID, version: version) } catch { throw HistoryError.from(error) }
+            NotificationCenter.default.post(name: Self.restored, object: noteID)
+            return
+        }
         // Your latest typing goes up first, so the server keeps it as the version being replaced.
         DebouncedSave.flushAll()
         if let sync, note.dirty {

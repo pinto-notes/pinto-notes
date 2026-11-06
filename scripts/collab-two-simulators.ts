@@ -187,6 +187,7 @@ async function cleanup() {
 
 const EMIL_LINE = "Ask the hotel to cater for forty people.";
 const SARA_LINE = "Everyone brings their own lunch this year.";
+const LATER_LINE = "Lunch is cancelled, nobody told me why.";
 const list = "Offsite plan\n\n- [ ] Book the venue\n- [ ] Pick dates\n- [ ] Order lunch\n- [ ] Print agenda\n";
 // Sara's own note for COLLAB_PRIVATE_AI, and her AI's edit to it: new dates, a sentence out, three tasks in.
 const trip = "Lisbon weekend\n\nFlights 14 to 16 May. We stay near Alfama.\n\nSara wants a slow first morning, no plans before eleven.\n\n- [ ] Book the hotel\n- [ ] Tram 28 tickets\n";
@@ -241,6 +242,10 @@ const emilSteps = steps(people[0], [
   { waitFile: "go-sentence.txt" }, { replace: { from: "Order pizza", to: EMIL_LINE } }, mark("emil-rewrote-line"), ...hold(), { dump: "sentence.json" },
   { waitFile: "go-online4.txt" }, { waitText: { text: SARA_LINE, timeout: 240 } }, { waitClash: 30 }, mark("emil-sees-sentences-merged"), ...hold(), { dump: "sentence-merged.json" },
   { waitFile: "go-choose2.txt" }, { waitText: { text: "] " + SARA_LINE + "\n", timeout: 120 } }, { wait: 1 }, mark("emil-sees-sentence-choice"), ...hold(), { dump: "sentence-chosen.json" },
+  // Version history: Sara changes the line; he opens the history, looks at the version before it and restores it.
+  { waitFile: "go-history.txt" }, { waitText: { text: LATER_LINE, timeout: 120 } }, { wait: 1 }, mark("emil-sees-later-edit"), ...hold(),
+  { history: "open" }, { wait: 2 }, mark("emil-history-list"), ...hold(), { history: "pick" }, { wait: 2 }, mark("emil-history-version"), ...hold(),
+  { history: "restore" }, { wait: 2 }, mark("emil-restored"), ...hold(), { dump: "history-restored.json" },
   // Share open on Sara, then (once she has typed) Remove.
   { waitFile: "go-remove.txt" }, ...(show ? [{ showShare: true }, mark("emil-share-people"), ...hold()] : []), { dump: "share-people.json" },
   { waitFile: "go-remove-now.txt" }, { remove: "Sara" }, mark("emil-removed-sara"), { wait: 2 }, ...hold(), { dump: "removed.json" }, ...(show ? [{ closeShare: true }] : []),
@@ -287,6 +292,9 @@ const saraAfterRelaunch = (() => {
     { waitFile: "go-sentence.txt" }, { replace: { from: "Order pizza", to: SARA_LINE } }, mark("sara-rewrote-line"), ...hold(), { dump: "sentence.json" },
     { waitFile: "go-online4.txt" }, { waitText: { text: EMIL_LINE, timeout: 240 } }, { waitClash: 30 }, mark("sara-sees-sentences-merged"), ...hold(), { dump: "sentence-merged.json" },
     { waitFile: "go-choose2.txt" }, { keepClash: SARA_LINE }, { wait: 1 }, mark("sara-chose-sentence"), ...hold(), { dump: "sentence-chosen.json" },
+  // She changes the line; his restore of the version before it reaches her.
+  { waitFile: "go-history.txt" }, { replace: { from: SARA_LINE, to: LATER_LINE } }, mark("sara-changed-line"),
+  { waitText: { text: SARA_LINE, timeout: 180 } }, { wait: 1 }, mark("sara-sees-restore"), ...hold(), { dump: "history-restored.json" },
   // She types while Emil has Share open on her; he removes her a moment after.
   { waitFile: "go-type.txt" }, { type: { text: "\nBring name badges", after: "Book the train" } }, mark("sara-typed-before-removal"), { dump: "typed-before.json" },
   { waitGone: 180 }, mark("sara-note-gone"),
@@ -491,6 +499,12 @@ try {
   await Promise.all([put(emil, "go-choose2.txt"), put(sara, "go-choose2.txt")]);
   const [q1, q2] = await Promise.all([waitFor(emil, "sentence-chosen.json", 180), waitFor(sara, "sentence-chosen.json", 180)]);
   check("Sara keeps her sentence: the same on both phones, and the question goes from both", q1.text === q2.text && q1.text.includes(SARA_LINE) && !q1.text.includes(EMIL_LINE) && q1.clash === null && q2.clash === null, JSON.stringify({ emil: q1.text, sara: q2.text }));
+
+  // More than CollabHistory.together after her last edit, so it stands as a version of its own.
+  await sleep(12);
+  await Promise.all([put(emil, "go-history.txt"), put(sara, "go-history.txt")]);
+  const [h1, h2] = await Promise.all([waitFor(emil, "history-restored.json", 240), waitFor(sara, "history-restored.json", 240)]);
+  check("Emil restores the version before Sara's edit from Version History: the same on both phones", h1.text === h2.text && h1.text.includes(SARA_LINE) && !h1.text.includes(LATER_LINE), JSON.stringify([h1.text, h2.text]));
 
   // Emil opens Share on Sara; she types a line; he removes her a moment after.
   await put(emil, "go-remove.txt");

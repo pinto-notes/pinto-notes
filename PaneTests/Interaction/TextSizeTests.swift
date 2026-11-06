@@ -136,6 +136,7 @@ import Testing
             // A value of words is its description; the slider's own value is the stop's number.
             return e?.value(forKey: "accessibilityValueDescription") as? String ?? e?.value(forKey: "accessibilityValue") as? String
         }
+        #expect(element()?.value(forKey: "accessibilityRole") as? String == "AXSlider", "VoiceOver calls it a slider")
         #expect(said() == TextSize.spoken(13), "13 pt")
         TextSize.set(20)
         try? await Task.sleep(for: .seconds(0.3))

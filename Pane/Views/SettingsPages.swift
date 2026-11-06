@@ -349,8 +349,7 @@ struct TextSizeRow: View {
                 .labelsHidden()
                 .tint(SettingsInk.switchOn)
                 .frame(width: 180)
-                // One element of our own: the Mac's slider read its step number, "0" (round 15).
-                .accessibilityElement(children: .ignore)
+                // Its name and size in words: the Mac's slider read its step number, "0" (round 15).
                 .accessibilityLabel(Self.label)
                 .accessibilityValue(TextSize.spoken(size))
                 .accessibilityAdjustableAction { direction in
