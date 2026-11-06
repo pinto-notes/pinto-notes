@@ -614,6 +614,12 @@ final class CollabSession {
         for (u, before) in landed { aiArrived(u, before: before) }
     }
 
+    /// The one other person in the note by first name, when there's just one and it's known.
+    var onlyOtherName: String? {
+        let others = members.filter { $0.id != me }
+        return others.count == 1 ? firstName(of: others[0].id) : nil
+    }
+
     /// The note's owner by first name, once its members have loaded (nil for a nameless owner).
     var ownerFirstName: String? {
         guard let owner = members.first(where: { $0.role == "owner" }), owner.name != "Someone" else { return nil }

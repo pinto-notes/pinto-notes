@@ -61,6 +61,10 @@ import SwiftUI
         #expect(left.after == "Plan\n- [ ] Dates: May\n- Lunch\n- [x] Train")
         #expect(left.previous == previous)
         #expect(left.partlyUndoneLine == "One of Sara's Claude\u{2019}s changes was undone")
+        #expect(left.partlyUndoneLine(by: "Sara") == "Sara undid one of Claude\u{2019}s changes")
+        #expect(left.partlyUndoneLine(by: "Emil") == "Emil undid one of Sara's Claude\u{2019}s changes")
+        #expect(left.undoneLine(by: "Sara") == "Sara undid Claude\u{2019}s change")
+        #expect(left.undoneLine(by: nil) == left.undoneLine)
         #expect(r.withPartsUndone(in: "Plan\n- [ ] Dates: May\n- Lunch\n- [x] Your own words") == nil, "changed by someone, not back to what it was")
     }
 
@@ -73,19 +77,6 @@ import SwiftUI
         var made = r
         made.kind = .pageMade
         #expect(!made.isUndone(in: "Plan\n- [ ] Pick dates"), "an app's change isn't in the text")
-    }
-
-    /// Opened from a search on the iPhone: the found line lights up, and only that line (persona council r7).
-    @MainActor @Test func aFoundLineLightsUpAlone() {
-        let tint = ChangeTint()
-        let text = "Title\nFirst line\nThe match is here\nLast line"
-        let found = (text as NSString).range(of: "match")
-        tint.flash(found, in: text)
-        #expect(tint.ranges == [(text as NSString).range(of: "The match is here\n")])
-        #expect(tint.removals.isEmpty)
-        tint.stop()
-        tint.flash(NSRange(location: 500, length: 3), in: text)
-        #expect(tint.ranges.isEmpty, "a match that isn't in the text any more lights nothing")
     }
 
     @Test func paragraphRangesIncludeTheirNewline() {

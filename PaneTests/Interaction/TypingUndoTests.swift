@@ -112,25 +112,66 @@ import Testing
         undo.groupsByEvent = false
         defer { undo.groupsByEvent = true }
         func editor() throws -> NSTextView { try #require(h.window.firstResponder as? NSTextView) }
+        // The caret comes back a moment after the change: wait for it, the machine may be busy.
+        func caret(at location: Int) async -> Bool {
+            await h.until(5) { (h.window.firstResponder as? NSTextView)?.selectedRange() == NSRange(location: location, length: 0) }
+        }
         try editor().setSelectedRange(NSRange(location: 3, length: 0))
         undo.beginUndoGrouping()
         for ch in "xy" { TableInteractionTests.typeIntoFocusedCell(h, String(ch)); await h.settle(0.02) }
         await h.settle(0.2)
         undo.endUndoGrouping()
         #expect(try editor().string == "Seaxyfood")
-        #expect(try editor().selectedRange() == NSRange(location: 5, length: 0))
+        #expect(await caret(at: 5))
 
         undo.undo(); await h.settle(0.5)
         #expect(try editor().string == "Seafood")
-        #expect(try editor().selectedRange() == NSRange(location: 3, length: 0), "back where the typing began")
+        #expect(await caret(at: 3), "back where the typing began")
         undo.redo(); await h.settle(0.5)
         #expect(try editor().string == "Seaxyfood")
-        #expect(try editor().selectedRange() == NSRange(location: 5, length: 0), "after the typing")
-        undo.undo(); await h.settle(0.5)
+        #expect(await caret(at: 5), "after the typing")
+        undo.undo()
+        #expect(await caret(at: 3))
+        await h.settle(0.2)
         undo.beginUndoGrouping()
         TableInteractionTests.typeIntoFocusedCell(h, "z"); await h.settle(0.2)
         undo.endUndoGrouping()
         #expect(try editor().string == "Seazfood", "the next key lands there")
+    }
+
+    /// Two keys, and the first one's copy of the table comes back after the second is in: it's
+    /// ignored, the last one's isn't, and later on an old-looking table (an Undo) goes in.
+    @Test func anOlderCopyOfACellsTypingDoesntOverwriteIt() {
+        func table(_ cell: String) -> GridTable { GridTable.find(in: "| \(cell) | b |\n| --- | --- |\n| 1 | 2 |\n")[0] }
+        let start = Date.now
+        let echoes = GridEchoes()
+        echoes.sent(table("Seax"), at: start)
+        echoes.sent(table("Seaxy"), at: start)
+        #expect(echoes.isStale(table("Seax"), at: start))
+        #expect(!echoes.isStale(table("Seaxy"), at: start), "the newest")
+        #expect(!echoes.isStale(table("Seax"), at: start), "nothing on its way any more: this is an Undo")
+
+        echoes.sent(table("Seax"), at: start)
+        echoes.sent(table("Seaxy"), at: start)
+        #expect(!echoes.isStale(table("Sea"), at: start), "not a copy: an Undo or someone else")
+        echoes.sent(table("Seax"), at: start)
+        echoes.sent(table("Seaxy"), at: start)
+        #expect(!echoes.isStale(table("Seax"), at: start.addingTimeInterval(2)), "too long after the key")
+    }
+
+    /// ⌘B stepping out of bold only moves the caret: no press of ⌘Z goes on it.
+    @Test func steppingOutOfBoldIsNoStepOfUndo() async throws {
+        let text = "plain **bold**"
+        let h = await EditorHarness(text, width: 640, focus: true)
+        defer { h.close() }
+        let undo = try #require(h.view.undoManager)
+        undo.removeAllActions()
+        h.view.setSelectedRange(NSRange(location: (text as NSString).length - 2, length: 0))
+        h.controller.bold()
+        await h.settle()
+        #expect(h.text == text)
+        #expect(h.view.selectedRange().location == (text as NSString).length, "past the close")
+        #expect(!undo.canUndo)
     }
 
     /// Words on one line are still one step, as in Notes.

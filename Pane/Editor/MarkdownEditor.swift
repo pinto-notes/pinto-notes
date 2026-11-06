@@ -1310,6 +1310,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     func apply(_ edit: TextEdit) {
+        // Only the caret moves (bold stepped out of): not a change, and no step of Undo.
+        if edit.range.length == 0, edit.replacement.isEmpty {
+            if edit.caret >= 0 { selectedRange = NSRange(location: min(edit.caret, textStorage.length), length: 0) }
+            return
+        }
         // The keyboard is somewhere else, in a table cell say. Through the text-input call
         // below, iOS then ran the new text past that keyboard's smart punctuation a moment
         // later: a table's `---` came out as `—` and it was a table no more. Straight into
@@ -1667,8 +1672,19 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func clearTint() { core.layoutDelegate.tint.stop() }
 
-    /// Opened from a search: the line with the match lights up, then fades.
-    func flashFound(_ range: NSRange) { core.layoutDelegate.tint.flash(range, in: currentText) }
+    /// Opened from a search: the word found is marked for a moment, as on the Mac. Not the whole
+    /// paragraph, and not in the tint that means an AI changed it (persona council r7g).
+    func flashFound(_ range: NSRange) {
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager,
+              let start = tcm.location(tcm.documentRange.location, offsetBy: range.location),
+              let end = tcm.location(start, offsetBy: range.length),
+              let found = NSTextRange(location: start, end: end) else { return }
+        tlm.addRenderingAttribute(.backgroundColor, value: UIColor.systemYellow.withAlphaComponent(0.45), for: found)
+        Task { [weak tlm] in
+            try? await Task.sleep(for: .seconds(2.5))
+            tlm?.removeRenderingAttribute(.backgroundColor, for: found)
+        }
+    }
 
     /// Lays the text out from the top to past `offset`, then places tables and cards again.
     private func settleOverlays(after offset: Int) {
@@ -1731,7 +1747,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         textStorage.replaceCharacters(in: edit.range, with: edit.replacement)
         // Undo steps recorded against the old text would land in the wrong place now. In a shared
         // note your own steps move with the change instead (OwnUndo).
-        if let own = controller?.ownUndo { own.transform(through: edit) } else { noteStack?.removeAllActions(); typing = nil; typedText = text }
+        if let own = controller?.ownUndo {
+            if let clash = own.clash(with: edit) { controller?.clash = clash }
+            own.transform(through: edit)
+            controller?.clashStillStands(in: text)
+        } else { noteStack?.removeAllActions(); typing = nil; typedText = text }
         reportUndo()
         selectedRange = TextDiff.map(keep, through: edit)
         core.restyle(textStorage, selection: editingSelection, force: true)
@@ -2688,6 +2708,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     func apply(_ edit: TextEdit) {
+        // Only the caret moves (⌘B stepping out of bold): not a change, and no step of Undo.
+        if edit.range.length == 0, edit.replacement.isEmpty {
+            if edit.caret >= 0 { setSelectedRange(NSRange(location: min(edit.caret, (string as NSString).length), length: 0)) }
+            return
+        }
         guard shouldChangeText(in: edit.range, replacementString: edit.replacement) else { return }
         core.applyingEdit = true
         textStorage?.replaceCharacters(in: edit.range, with: edit.replacement)
@@ -3239,7 +3264,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         storage.replaceCharacters(in: edit.range, with: edit.replacement)
         // Undo steps recorded against the old text would land in the wrong place now. In a shared
         // note your own steps move with the change instead (OwnUndo).
-        if let own = controller?.ownUndo { own.transform(through: edit) } else { undoManager?.removeAllActions() }
+        if let own = controller?.ownUndo {
+            if let clash = own.clash(with: edit) { controller?.clash = clash }
+            own.transform(through: edit)
+            controller?.clashStillStands(in: string)
+        } else { undoManager?.removeAllActions() }
         setSelectedRange(TextDiff.map(keep, through: edit))
         core.restyle(storage, selection: editingSelection, force: true)
         // Tables and cards below the change moved: lay the text out down to them before placing them,
@@ -3860,7 +3889,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         cellEditField = field
         // The field has the key already: where its caret was before it, for Undo to go back to.
         let grew = (edit.replacement as NSString).length - edit.range.length
-        let cell = CellField.selection().map { NSRange(location: max($0.location - grew, 0), length: 0) }
+        let cell = CellField.selection(in: window).map { NSRange(location: max($0.location - grew, 0), length: 0) }
         withoutUndo { apply(edit) }
         if !joins {
             breakUndoCoalescing()
@@ -3880,7 +3909,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         guard to != string else { return }
         undoManager?.registerUndo(withTarget: self) { view in
             let now = view.string, kept = view.selectedRange()
-            let keptCell = cell == nil ? nil : CellField.selection()
+            let keptCell = cell == nil ? nil : CellField.selection(in: view.window)
+            let fieldWas = CellField.text(in: view.window)
             view.core.endSlides()
             view.breakUndoCoalescing()
             view.cellEditAt = nil // What's typed after an Undo is a new step.
@@ -3888,10 +3918,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 view.withoutUndo { view.apply(TextEdit(range: e.range, replacement: e.replacement, caret: -1)) }
             }
             if NSMaxRange(selection) <= (to as NSString).length { view.setSelectedRange(selection) }
-            // The grid gives the field its new text a turn or two later, with the caret at the end.
-            if let cell {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { CellField.select(cell) }
-            }
+            if let cell { CellField.select(cell, in: view.window, onceChangedFrom: fieldWas) }
             // Registered while undoing, this is the Redo.
             view.registerStep(back: now, selection: kept, cell: keptCell)
         }

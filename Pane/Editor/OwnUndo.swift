@@ -58,6 +58,38 @@ final class OwnUndo {
         undos.append(Step(at: NSRange(location: edit.range.location, length: newLength), old: old, new: new, time: t))
     }
 
+    /// You and someone else replaced the same words while apart. A merge keeps both, run together
+    /// ("sandwichespizza"), so the note says so and asks which to keep (SharedClashCard).
+    struct Clash: Equatable {
+        /// What you both replaced, what you wrote, what they wrote, and the merged text as it stands.
+        let replaced: String, mine: String, theirs: String, merged: String
+    }
+
+    /// `edit`, someone else's, is that: only new words (their taking out the old ones already
+    /// happened here too), up against words you put in place of others. The text alone can't tell
+    /// this from them typing on after your word, so a space first, a lone character or punctuation
+    /// don't count: those read as adding, not as words run together.
+    func clash(with edit: TextDiff.Edit) -> Clash? {
+        guard edit.range.length == 0, (edit.replacement as NSString).length >= 2,
+              let first = undos.lastIndex(where: { !$0.old.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !$0.new.isEmpty }) else { return nil }
+        // What you wrote there: typing after a pause is a step of its own.
+        var mine = undos[first].new, end = NSMaxRange(undos[first].at)
+        for step in undos[(first + 1)...] where step.old.isEmpty && step.at.location == end {
+            mine += step.new
+            end = NSMaxRange(step.at)
+        }
+        let start = undos[first].at.location, at = edit.range.location
+        guard at >= start, at <= end else { return nil }
+        // A diff can start the insert a few letters in, where the two begin alike ("pastapizza").
+        let merged = (mine as NSString).replacingCharacters(in: NSRange(location: at - start, length: 0), with: edit.replacement)
+        let theirs: String
+        if merged.hasPrefix(mine) { theirs = String(merged.dropFirst(mine.count)) }
+        else if merged.hasSuffix(mine) { theirs = String(merged.dropLast(mine.count)) }
+        else { return nil }
+        guard let a = theirs.first, let z = theirs.last, a.isLetter || a.isNumber, z.isLetter || z.isNumber else { return nil }
+        return Clash(replaced: undos[first].old, mine: mine, theirs: theirs, merged: merged)
+    }
+
     /// Someone else's edit: your steps move with it, and a step it changed is dropped.
     func transform(through edit: TextDiff.Edit) {
         move(&undos, through: edit)

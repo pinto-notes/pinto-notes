@@ -2155,7 +2155,7 @@ struct NoteRow: View {
     private var found: SearchLines.Found? {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty, !note.isLocked else { return nil }
-        return SearchLines.find(in: note.body, query: q, skipping: note.title)
+        return SearchLines.find(in: note.body, query: q, skipping: note.title, lead: SearchLines.rowLead)
     }
 }
 
@@ -2369,6 +2369,9 @@ enum SearchLines {
     }
 
     private static let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+    /// A list row shares its line with the date, so little comes before the text or it's cut off
+    /// the end (persona council r7g: "for: word…" for a search of word733).
+    static let rowLead = 10
 
     /// The lines of `body` that hold `query` (case and accents aside), each with its markup taken
     /// out and cut to show the text near its start; `skipping` leaves out a line that reads as the

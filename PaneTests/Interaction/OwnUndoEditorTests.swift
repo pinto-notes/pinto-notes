@@ -31,6 +31,43 @@ import Testing
         #expect(h.text == "Team offsite\nAgenda first\nBring snacks")
     }
 
+    /// Both replaced the same word: the editor asks, a choice takes the place of both as your edit,
+    /// and someone else's choice ends the question.
+    @Test func theSameWordReplacedTwiceAsksWhichToKeep() async throws {
+        for chosenHere in [true, false] {
+            let h = await EditorHarness("Order lunch")
+            defer { h.close() }
+            h.controller.ownUndo = OwnUndo()
+            h.view.allowsUndo = false
+            h.view.setSelectedRange(NSRange(location: 6, length: 5))
+            h.view.insertText("sandwiches", replacementRange: NSRange(location: 6, length: 5))
+            await h.settle()
+            h.view.syncExternal("Order sandwichespizza")
+            await h.settle()
+            #expect(h.controller.clash?.merged == "sandwichespizza")
+            if chosenHere {
+                h.controller.keepClash("pizza")
+            } else {
+                h.view.syncExternal("Order pizza")
+            }
+            await h.settle()
+            #expect(h.text == "Order pizza")
+            #expect(h.controller.clash == nil)
+        }
+        // Both, and they no longer run together.
+        let h = await EditorHarness("Order lunch")
+        defer { h.close() }
+        h.controller.ownUndo = OwnUndo()
+        h.view.allowsUndo = false
+        h.view.insertText("sandwiches", replacementRange: NSRange(location: 6, length: 5))
+        await h.settle()
+        h.view.syncExternal("Order sandwichespizza")
+        await h.settle()
+        h.controller.keepClash("sandwiches pizza")
+        await h.settle()
+        #expect(h.text == "Order sandwiches pizza")
+    }
+
     /// An undo is reported like typing, so it's saved and sent to the others.
     @Test func anUndoIsReportedLikeTyping() async throws {
         let h = await EditorHarness("Notes\n")

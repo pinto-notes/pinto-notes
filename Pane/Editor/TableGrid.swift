@@ -487,6 +487,8 @@ struct TableGridView: View {
     var exit: (Bool) -> Void = { _ in }
 
     @State private var draft: GridTable
+    /// Copies of the typing on their way through the note and back.
+    @State private var echoes = GridEchoes()
     /// Edges with more columns past them (see GridOverflow).
     @State private var overflow = GridOverflow()
     @Environment(\.colorSchemeContrast) private var contrast
@@ -566,6 +568,10 @@ struct TableGridView: View {
         .coordinateSpace(.named(GridHitBox.space))
         .onChange(of: table) { _, new in
             guard new != draft else { return }
+            // An older copy of our own typing, come back from the note after newer keys: taking it
+            // rewrites the field and throws the caret to the end of the cell, so the next key lands
+            // in the wrong place. The newest copy is on its way.
+            if echoes.isStale(new) { return }
             // A row or column the menus removed: the cell being edited may be gone.
             if let e = editing, e.row >= new.rows.count || e.column >= max(new.columns, 1) { editing = nil }
             // Our own edit coming back from the note keeps what's on screen: the note's
@@ -1052,6 +1058,7 @@ struct TableGridView: View {
                 guard r < draft.rows.count else { return }
                 while draft.rows[r].count <= c { draft.rows[r].append("") }
                 draft.rows[r][c] = value
+                echoes.sent(draft)
                 commit(draft)
             })
     }
@@ -1086,6 +1093,33 @@ struct TableGridView: View {
 
 }
 
+/// A cell's typing goes into the note and comes back as the table. On a busy machine a key's copy
+/// can come back after the next key is in, and must not overwrite it. Only for a moment after a
+/// key: an Undo or someone else's edit goes in as it is, even if it reads like an older copy.
+final class GridEchoes {
+    private var pending: [[[String]]] = []
+    private var lastSent = Date.distantPast
+    private let window: TimeInterval
+
+    init(window: TimeInterval = 1) { self.window = window }
+
+    func sent(_ table: GridTable, at now: Date = .now) {
+        pending.append(GridTable.find(in: table.markdown).first?.rows ?? table.rows)
+        if pending.count > 16 { pending.removeFirst() }
+        lastSent = now
+    }
+
+    /// Whether `table` is one of those copies with a newer one still to come.
+    func isStale(_ table: GridTable, at now: Date = .now) -> Bool {
+        guard now.timeIntervalSince(lastSent) < window, let i = pending.firstIndex(of: table.rows) else {
+            pending = []
+            return false
+        }
+        pending.removeFirst(i + 1)
+        return !pending.isEmpty
+    }
+}
+
 /// The cell being edited's own text field: its selection, read and set (the editing commands
 /// act on it; see CellHost).
 @MainActor
@@ -1113,12 +1147,14 @@ enum CellField {
         f.selectedTextRange = f.textRange(from: a, to: b)
     }
     #else
-    private static func editor() -> NSTextView? {
+    /// `window`: the note's own, when known. With two notes open the other may have a field too.
+    private static func editor(in window: NSWindow? = nil) -> NSTextView? {
+        if let window { return (window.firstResponder as? NSTextView).flatMap { $0.isFieldEditor ? $0 : nil } }
         let windows = [NSApp.keyWindow].compactMap { $0 } + NSApp.windows
         return windows.lazy.compactMap { $0.firstResponder as? NSTextView }.first { $0.isFieldEditor }
     }
 
-    static func selection() -> NSRange? { editor()?.selectedRange() }
+    static func selection(in window: NSWindow? = nil) -> NSRange? { editor(in: window)?.selectedRange() }
 
     /// Whether the field being edited keeps its own Undo. Off for a cell, on again when it's left:
     /// the last field editor is kept, since by then it has no first responder to be found by.
@@ -1130,9 +1166,21 @@ enum CellField {
         cellEditor = e
     }
 
-    static func select(_ range: NSRange) {
-        guard let e = editor(), NSMaxRange(range) <= (e.string as NSString).length else { return }
+    static func select(_ range: NSRange, in window: NSWindow? = nil) {
+        guard let e = editor(in: window), NSMaxRange(range) <= (e.string as NSString).length else { return }
         e.setSelectedRange(range)
+    }
+
+    static func text(in window: NSWindow? = nil) -> String? { editor(in: window)?.string }
+
+    /// The grid gives the field its new text a turn or two later, with the caret at the end, and
+    /// later still on a busy machine: waits for that, up to a second, rather than a set time.
+    static func select(_ range: NSRange, in window: NSWindow?, onceChangedFrom was: String?, tries: Int = 40) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.025) {
+            if text(in: window) == was, tries > 0 { select(range, in: window, onceChangedFrom: was, tries: tries - 1); return }
+            // The turn it arrived in may still put the caret at the end.
+            DispatchQueue.main.async { select(range, in: window) }
+        }
     }
     #endif
 }

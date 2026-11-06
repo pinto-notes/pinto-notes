@@ -232,7 +232,9 @@ const emilSteps = steps(people[0], [
   { waitFile: "go-online2.txt" }, { waitText: { text: "in colour", timeout: 240 } }, mark("emil-sees-same-line-merged"), ...hold(), { dump: "conflict-merged.json" },
   // Offline once more: both replace the same word, differently.
   { waitFile: "go-clash.txt" }, { replace: { from: "lunch", to: "sandwiches" } }, mark("emil-replaced-word"), ...hold(), { dump: "clash.json" },
-  { waitFile: "go-online3.txt" }, { waitText: { text: "pizza", timeout: 240 } }, mark("emil-sees-clash-merged"), ...hold(), { dump: "clash-merged.json" },
+  { waitFile: "go-online3.txt" }, { waitText: { text: "pizza", timeout: 240 } }, { waitClash: 30 }, mark("emil-sees-clash-merged"), ...hold(), { dump: "clash-merged.json" },
+  // Sara chooses; the question goes from his phone too.
+  { waitFile: "go-choose.txt" }, { waitText: { text: "Order pizza\n", timeout: 120 } }, mark("emil-sees-choice"), ...hold(), { dump: "clash-chosen.json" },
   // Share open on Sara, then (once she has typed) Remove.
   { waitFile: "go-remove.txt" }, ...(show ? [{ showShare: true }, mark("emil-share-people"), ...hold()] : []), { dump: "share-people.json" },
   { waitFile: "go-remove-now.txt" }, { remove: "Sara" }, mark("emil-removed-sara"), { wait: 2 }, ...hold(), { dump: "removed.json" }, ...(show ? [{ closeShare: true }] : []),
@@ -274,7 +276,8 @@ const saraAfterRelaunch = (() => {
     { keyFetchHere: true }, { wait: 2 }, { open: "Offsite plan" }, { waitText: { text: "in colour", timeout: 60 } }, mark("sara-relaunched-offline"), ...hold(), { dump: "relaunched.json" },
     { waitFile: "go-online2.txt" }, { waitText: { text: "for 40 people", timeout: 240 } }, mark("sara-sees-same-line-merged"), ...hold(), { dump: "conflict-merged.json" },
     { waitFile: "go-clash.txt" }, { replace: { from: "lunch", to: "pizza" } }, mark("sara-replaced-word"), ...hold(), { dump: "clash.json" },
-    { waitFile: "go-online3.txt" }, { waitText: { text: "sandwiches", timeout: 240 } }, mark("sara-sees-clash-merged"), ...hold(), { dump: "clash-merged.json" },
+    { waitFile: "go-online3.txt" }, { waitText: { text: "sandwiches", timeout: 240 } }, { waitClash: 30 }, mark("sara-sees-clash-merged"), ...hold(), { dump: "clash-merged.json" },
+    { waitFile: "go-choose.txt" }, { keepClash: "pizza" }, { wait: 1 }, mark("sara-chose"), ...hold(), { dump: "clash-chosen.json" },
   // She types while Emil has Share open on her; he removes her a moment after.
   { waitFile: "go-type.txt" }, { type: { text: "\nBring name badges", after: "Book the train" } }, mark("sara-typed-before-removal"), { dump: "typed-before.json" },
   { waitGone: 180 }, mark("sara-note-gone"),
@@ -461,7 +464,10 @@ try {
   moment("online-clash");
   await Promise.all([put(emil, "go-online3.txt"), put(sara, "go-online3.txt")]);
   const [w1, w2] = await Promise.all([waitFor(emil, "clash-merged.json", 300), waitFor(sara, "clash-merged.json", 300)]);
-  check("both replace the same word offline: both phones agree and neither word is lost", w1.text === w2.text && w1.text.includes("sandwiches") && w1.text.includes("pizza"), JSON.stringify(w1.text));
+  check("both replace the same word offline: both phones agree, neither word is lost, and both ask which to keep", w1.text === w2.text && w1.text.includes("sandwiches") && w1.text.includes("pizza") && w1.clash && w2.clash, JSON.stringify({ text: w1.text, emil: w1.clash, sara: w2.clash }));
+  await Promise.all([put(emil, "go-choose.txt"), put(sara, "go-choose.txt")]);
+  const [k1, k2] = await Promise.all([waitFor(emil, "clash-chosen.json", 180), waitFor(sara, "clash-chosen.json", 180)]);
+  check("Sara chooses pizza: both phones say so, and the question goes from both", k1.text === k2.text && k1.text.includes("Order pizza\n") && !k1.text.includes("sandwiches") && k1.clash === null && k2.clash === null, JSON.stringify({ text: k1.text, emil: k1.clash, sara: k2.clash }));
 
   // Emil opens Share on Sara; she types a line; he removes her a moment after.
   await put(emil, "go-remove.txt");

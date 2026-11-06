@@ -28,7 +28,23 @@ final class EditorController {
     /// Collaboration (prototype): other people's carets in a shared note, drawn over the text.
     var remoteCarets: [RemoteCaret] = []
     /// In a shared note, Undo takes back only your own edits.
-    var ownUndo: OwnUndo?
+    var ownUndo: OwnUndo? { didSet { clash = nil } }
+    /// The same words replaced differently by you and someone else, until one is chosen.
+    var clash: OwnUndo.Clash?
+
+    /// One of the two: it takes the place of both, as your edit, for everyone in the note.
+    func keepClash(_ words: String) {
+        guard let c = clash, let t = host, !readOnly else { return }
+        clash = nil
+        let r = (t.currentText as NSString).range(of: c.merged)
+        guard r.location != NSNotFound else { return }
+        t.apply(TextEdit(range: r, replacement: words, caret: -1))
+    }
+
+    /// Someone chose, or changed the words: nothing left to ask.
+    func clashStillStands(in text: String) {
+        if let c = clash, !text.contains(c.merged) { clash = nil }
+    }
     /// Ticked items sink below the open ones a moment after the tick, except in a shared note.
     /// The move rewrites the list, and two people's rewrites at once merge into doubled lines
     /// (CollabTwoPeopleTests.whyTicksStayPutInASharedNote). There a tick changes one character and

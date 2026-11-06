@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 
 /// Sharing a note with people: on for everyone signed in, on Mac and iPhone, since release 1.3.
 /// Nothing turns it on or off at launch; tests set `forced`.
@@ -150,9 +151,11 @@ final class ShareController {
         confirmingRemove = nil
         await run(.remove(person.id)) { try await self.backend.remove(person.id, from: self.note) }
         if state.problem == nil {
-            linkReplaced = state.access != .off
-            removedName = ShareCopy.first(person.name)
-            finished(.removed(person.id))
+            withAnimation(Self.settle(.remove(person.id))) {
+                linkReplaced = state.access != .off
+                removedName = ShareCopy.first(person.name)
+                finished(.removed(person.id))
+            }
         }
     }
 
@@ -181,8 +184,22 @@ final class ShareController {
         } catch {
             state.problem = Self.failed(work)
         }
-        working = nil
-        refresh()
+        // Someone removed: the rows below slide up with the same change that takes the row out. A
+        // modifier on the Form doesn't reach the list's own removal (31 px in a frame, council r7g).
+        withAnimation(Self.settle(work)) {
+            working = nil
+            refresh()
+        }
+    }
+
+    private static func settle(_ work: Work) -> Animation? {
+        guard case .remove = work else { return nil }
+        #if os(iOS)
+        let reduce = UIAccessibility.isReduceMotionEnabled
+        #else
+        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        #endif
+        return reduce ? nil : .easeOut(duration: 0.2)
     }
 
     struct TimedOut: Error {}

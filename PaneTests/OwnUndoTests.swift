@@ -42,6 +42,39 @@ import Testing
     }
 
     /// Typing in a row is one step; a new line starts the next, as the system groups typing.
+    /// Both replaced "lunch": the merge reads "sandwichespizza", and the note asks. Plain typing
+    /// beside what you wrote, or anywhere else, asks nothing.
+    @Test func theSameWordsReplacedTwiceIsAClash() throws {
+        let text = "Order lunch" as NSString
+        let u = OwnUndo()
+        u.record(TextDiff.Edit(range: text.range(of: "lunch"), replacement: "sandwiches"), in: text as String)
+        let after = NSRange(location: 16, length: 0), before = NSRange(location: 6, length: 0)
+        #expect(u.clash(with: TextDiff.Edit(range: after, replacement: "pizza")) == .init(replaced: "lunch", mine: "sandwiches", theirs: "pizza", merged: "sandwichespizza"))
+        #expect(u.clash(with: TextDiff.Edit(range: before, replacement: "pizza"))?.merged == "pizzasandwiches")
+        #expect(u.clash(with: TextDiff.Edit(range: NSRange(location: 2, length: 0), replacement: "pizza")) == nil, "elsewhere")
+        #expect(u.clash(with: TextDiff.Edit(range: NSRange(location: 6, length: 10), replacement: "pizza")) == nil, "they changed what you wrote")
+        #expect(u.clash(with: TextDiff.Edit(range: after, replacement: " ")) == nil, "a space isn't words")
+        #expect(u.clash(with: TextDiff.Edit(range: after, replacement: " tomorrow")) == nil, "they typed on after your word")
+        #expect(u.clash(with: TextDiff.Edit(range: after, replacement: "s")) == nil, "one letter is typing")
+        #expect(u.clash(with: TextDiff.Edit(range: after, replacement: ", please")) == nil, "nor is punctuation")
+
+        // Both begin with a p: the diff inserts "astap" after it, and it's still pasta and pizza.
+        let alike = OwnUndo()
+        alike.record(TextDiff.Edit(range: text.range(of: "lunch"), replacement: "pizza"), in: text as String)
+        #expect(alike.clash(with: TextDiff.Edit(range: NSRange(location: 7, length: 0), replacement: "astap")) == .init(replaced: "lunch", mine: "pizza", theirs: "pasta", merged: "pastapizza"))
+        #expect(alike.clash(with: TextDiff.Edit(range: NSRange(location: 8, length: 0), replacement: "xx")) == nil, "typing inside your word")
+
+        let typed = OwnUndo()
+        typed.record(TextDiff.Edit(range: NSRange(location: 5, length: 0), replacement: " more"), in: "Order")
+        #expect(typed.clash(with: TextDiff.Edit(range: NSRange(location: 10, length: 0), replacement: " words")) == nil, "you only added: nothing was replaced")
+
+        let slow = OwnUndo()
+        slow.groupWithin = 0
+        slow.record(TextDiff.Edit(range: text.range(of: "lunch"), replacement: "sand"), in: text as String)
+        slow.record(TextDiff.Edit(range: NSRange(location: 10, length: 0), replacement: "wiches"), in: "Order sand")
+        #expect(slow.clash(with: TextDiff.Edit(range: after, replacement: "pizza"))?.mine == "sandwiches", "typed with a pause")
+    }
+
     @Test func typingInARowIsOneStep() throws {
         let undo = OwnUndo()
         var text = ""

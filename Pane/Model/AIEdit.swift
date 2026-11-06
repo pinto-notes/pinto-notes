@@ -196,6 +196,23 @@ enum AIEdit {
         /// The same when only part of it was undone elsewhere.
         var partlyUndoneLine: String { "One of \(who)\u{2019}s changes was undone" }
 
+        /// The same, saying who did it, when that's known: the one other person in a shared note.
+        func undoneLine(by person: String?) -> String {
+            guard let person else { return undoneLine }
+            return "\(person) undid \(whoAfter(person))\u{2019}s change"
+        }
+
+        func partlyUndoneLine(by person: String?) -> String {
+            guard let person else { return partlyUndoneLine }
+            return "\(person) undid one of \(whoAfter(person))\u{2019}s changes"
+        }
+
+        /// "Sara undid one of Claude's changes", not "of Sara's Claude's".
+        private func whoAfter(_ person: String) -> String {
+            for own in ["\(person)\u{2019}s ", "\(person)'s "] where who.hasPrefix(own) { return String(who.dropFirst(own.count)) }
+            return who
+        }
+
         /// The AI as the receipt names it: "Claude", or "Sara's Claude".
         var who: String { AIEdit.whose(by, person: person) }
 

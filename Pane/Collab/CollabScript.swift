@@ -206,6 +206,13 @@ enum CollabScript {
             // The words selected and typed over, as a person does.
             let v = value as? [String: String] ?? [:]
             try await replace(v["from"] ?? "", with: v["to"] ?? "")
+        case "keepClash":
+            // The word's button on the card that asks which to keep; it asks first or this fails.
+            let word = value as? String ?? ""
+            try await until(60, "the question about the same words") { editor()?.controller?.clash != nil }
+            editor()?.controller?.keepClash(word)
+        case "waitClash":
+            try await until(value as? Double ?? 60, "the question about the same words") { editor()?.controller?.clash != nil }
         case "waitText":
             let v = value as? [String: Any]
             let want = value as? String ?? v?["text"] as? String ?? ""
@@ -445,6 +452,7 @@ enum CollabScript {
             out["sharedNoteID"] = current.sharedNoteID?.uuidString ?? NSNull()
             out["editable"] = editor()?.isEditable ?? NSNull()
             out["canUndo"] = editor()?.controller?.canUndo ?? NSNull()
+            out["clash"] = editor()?.controller?.clash.map { $0.merged } ?? NSNull()
             out["documentOpen"] = CollabStore.shared?.session(for: current.id) != nil
             if let s = CollabStore.shared?.session(for: current.id) {
                 out["here"] = here(s)

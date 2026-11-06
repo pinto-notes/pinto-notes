@@ -324,13 +324,13 @@ struct NoteDetailView: View {
                         // Your own Undo in the review says its own line when the review ends,
                         // which has already taken the receipt when this comes.
                         guard review == nil, self.receipt != nil else { return }
-                        withAnimation(.easeOut(duration: 0.2)) { self.receipt = nil; reviewResult = receipt.undoneLine }
+                        withAnimation(.easeOut(duration: 0.2)) { self.receipt = nil; reviewResult = receipt.undoneLine(by: collab?.onlyOtherName) }
                         controller.clearTint()
                     } partlyUndone: { left in
                         // Someone else undid part of it: the tint and the count follow what's left.
                         guard review == nil, self.receipt != nil else { return }
                         self.receipt = left
-                        reviewResult = left.partlyUndoneLine
+                        reviewResult = left.partlyUndoneLine(by: collab?.onlyOtherName)
                         Task { @MainActor in
                             try? await Task.sleep(for: .seconds(0.15))
                             if self.receipt == left { controller.tintChanges(from: left.previous, untilCleared: true) }
@@ -439,7 +439,20 @@ struct NoteDetailView: View {
     /// after a few seconds; Undo stays in the Edit menu, ⌘Z and shake.
     @ViewBuilder
     private var editorNotice: some View {
-        if let n = controller.notice {
+        if let clash = controller.clash {
+            SharedClashCard(clash: clash, other: collab?.onlyOtherName, keep: { words in
+                withAnimation(.smooth(duration: 0.2)) { controller.keepClash(words) }
+            }, keepBoth: {
+                withAnimation(.smooth(duration: 0.2)) { controller.keepClash(clash.mine + " " + clash.theirs) }
+            })
+            .padding(.horizontal, 16)
+            #if os(macOS)
+            .padding(.bottom, 20)
+            #else
+            .padding(.bottom, controller.isEditing ? 12 : 64)
+            #endif
+            .transition(AIReceipt.transition(reduceMotion: reduceMotion))
+        } else if let n = controller.notice {
             Toast(text: n.text, undo: n.canUndo ? { withAnimation(.smooth(duration: 0.2)) { controller.undoNotice() } } : nil)
                 .padding(.horizontal, 24)
                 #if os(macOS)

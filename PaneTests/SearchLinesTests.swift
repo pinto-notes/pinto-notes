@@ -62,6 +62,11 @@ import AppKit
         #expect(SearchLines.find(in: "Sintra\n\nPena first", query: "sintra", skipping: "Sintra") == nil)
         #expect(SearchLines.find(in: Self.trip, query: "porto") == nil)
         #expect(SearchLines.find(in: Self.trip, query: "  ") == nil)
+
+        // A row's line is short, the date beside it: the whole word found shows, what's in front cut.
+        let far = try #require(SearchLines.find(in: "A long enough sentence to be worth searching for: word733 and on", query: "word733", lead: SearchLines.rowLead)?.lines.first)
+        #expect(far.before.count <= SearchLines.rowLead + 1 && far.before.hasPrefix("\u{2026}"), "\(far.before)")
+        #expect(far.match == "word733")
     }
 
     /// Go to Note: a note found by its text carries its lines and the count past them, and its
@@ -134,7 +139,7 @@ import AppKit
         defer { ax.close() }
         await ax.settle()
         let row = try #require(ax.find("note.Lisbon trip"), "\(ax.ids())")
-        for line in ["Fly to Lisbon on Friday", "Tram 28 across lisbon", "Lisbon cards for the museums", "4 more in this note"] {
+        for line in ["Fly to Lisbon on Friday", "across lisbon", "Lisbon cards for the museums", "4 more in this note"] {
             #expect(row.text.contains(line), "\(line): \(row.text)")
         }
         // No search: the preview, no count.

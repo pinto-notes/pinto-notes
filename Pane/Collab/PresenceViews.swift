@@ -336,3 +336,45 @@ enum SharedSyncLine: Equatable {
         }
     }
 }
+
+/// You and someone else replaced the same words while apart: both are in the note, run together.
+/// Which to keep, or both with a space between. Nothing's chosen for you, and nothing's lost.
+struct SharedClashCard: View {
+    let clash: OwnUndo.Clash
+    /// The one other person in the note, when there's just one.
+    let other: String?
+    let keep: (String) -> Void
+    let keepBoth: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("You and \(other ?? "someone else") both changed \u{201C}\(clash.replaced)\u{201D}")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            HStack(spacing: 8) {
+                choice(clash.mine, id: "clash.mine")
+                choice(clash.theirs, id: "clash.theirs")
+            }
+            Button("Keep both", action: keepBoth)
+                .buttonStyle(.hoverLink)
+                .font(.footnote)
+                .foregroundStyle(Color.muted)
+                .accessibilityIdentifier("clash.both")
+        }
+        .padding(14)
+        .frame(maxWidth: 420, alignment: .leading)
+        .background(Color.card, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.lg, style: .continuous).strokeBorder(Color.secondary.opacity(0.25)))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("clash.card")
+    }
+
+    private func choice(_ words: String, id: String) -> some View {
+        Button { keep(words) } label: { Text(words).lineLimit(1).truncationMode(.tail) }
+            .buttonStyle(.secondary(.regular, wide: true))
+            .accessibilityLabel("Keep \(words)")
+            .accessibilityIdentifier(id)
+    }
+}
