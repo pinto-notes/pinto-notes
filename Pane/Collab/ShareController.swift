@@ -134,6 +134,9 @@ final class ShareController {
     private func finished(_ d: Done) {
         done = d
         doneTask?.cancel()
+        // "Sara removed" stays while the sheet's open. Going, it took its line with it and everything
+        // under it jumped, two seconds after the removal; a Form won't animate that (persona council r7).
+        if case .removed = d { return }
         doneTask = Task { [weak self, doneFor] in
             try? await Task.sleep(for: doneFor)
             guard !Task.isCancelled else { return }
@@ -194,12 +197,15 @@ final class ShareController {
 
     private static func settle(_ work: Work) -> Animation? {
         guard case .remove = work else { return nil }
+        return moves(.easeOut(duration: 0.2))
+    }
+
+    private static func moves(_ animation: Animation) -> Animation? {
         #if os(iOS)
-        let reduce = UIAccessibility.isReduceMotionEnabled
+        UIAccessibility.isReduceMotionEnabled ? nil : animation
         #else
-        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : animation
         #endif
-        return reduce ? nil : .easeOut(duration: 0.2)
     }
 
     struct TimedOut: Error {}

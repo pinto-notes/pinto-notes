@@ -191,6 +191,9 @@ import Testing
         share.askRemove(share.state.people[1])
         await share.confirmRemove()
         #expect(share.done == .removed(Self.sara) && share.done?.text == "Removed")
+        // It stays: going, it took its line with it and the rows under it jumped.
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(share.done == .removed(Self.sara))
         await share.setAccess(.view)
         #expect(share.done == .linkChanged)
         share.shareFinished(sent: true, copied: true)
