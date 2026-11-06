@@ -32,6 +32,40 @@ import Testing
         }
     }
 
+    /// VoiceOver reads a note in windows and counts on by the length that comes back, so a window
+    /// keeps its length: shorter text stopped reading aloud mid-word (Air, 6 November 2026).
+    @Test func aWindowOfTextKeepsItsLengthWithoutMarks() async {
+        ScreenReader.forced = true
+        defer { ScreenReader.forced = nil }
+        let text = "Lisbon\n## Plan\nA **bold** word\n- [x] Book flights\n- [ ] Tram 28\n> Some ~~old~~ [link](https://example.com)\n\n| Place | Dish |\n| --- | --- |\n| Ramiro | Seafood |\n"
+        let h = await EditorHarness(text)
+        defer { h.close() }
+        await h.select(2)
+        let all = (h.view.string as NSString).length
+        for r in [NSRange(location: 3, length: 40), NSRange(location: 0, length: all), NSRange(location: 10, length: 30)] {
+            let said = h.view.accessibilityString(for: r) ?? ""
+            #expect((said as NSString).length == r.length, "\(r)")
+            #expect(h.view.accessibilityAttributedString(for: r)?.length == r.length, "\(r)")
+        }
+        let whole = h.view.accessibilityString(for: NSRange(location: 0, length: all)) ?? ""
+        for mark in ["**", "##", "~~", "[link]", "https", "[x]", "[ ]"] { #expect(!whole.contains(mark), "\(mark) in \(whole)") }
+        #expect(whole.contains("Done, Book flights") && whole.contains("To do Tram 28") && whole.contains("link"), "\(whole)")
+        #expect(whole.contains("Ramiro") && whole.contains("Seafood") && !whole.contains("|") && !whole.contains("---"), "\(whole.replacingOccurrences(of: "\n", with: "/"))")
+    }
+
+    /// VoiceOver moves the caret as it reads. The caret stays where it put it, or reading stops, and
+    /// typing there still goes after the checklist's mark (Air, 6 November 2026).
+    @Test func theCaretStaysWhereVoiceOverPutIt() async {
+        ScreenReader.forced = true
+        defer { ScreenReader.forced = nil }
+        let h = await EditorHarness("Trip\n- [ ] Hat")
+        defer { h.close() }
+        await h.select(5)
+        #expect(h.view.selectedRange().location == 5, "left at the line's start")
+        await h.type("A")
+        #expect(h.view.string == "Trip\n- [ ] AHat", "\(h.view.string)")
+    }
+
     @Test func aLinesKindIsSaid() {
         #expect(PaneTextView.spokenLead("### Plan\n") == "Heading, ")
         #expect(PaneTextView.spokenLead("  - [X] Done") == "Checked, ")

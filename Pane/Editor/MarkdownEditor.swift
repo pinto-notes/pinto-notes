@@ -3482,7 +3482,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         guard !hasMarkedText(), let storage = textStorage else { return }
         revealFolds()
         if core.disarm(unless: selectedRange()) { layoutCards() }
-        if window?.firstResponder === self,
+        // VoiceOver moves the caret as it reads aloud. Moved again from here, it takes that for
+        // you and stops, at the first checklist item (trace on the Air, 6 November 2026). What
+        // you type still lands in the right place (insertText).
+        if window?.firstResponder === self, inKeyDown || !ScreenReader.isOn,
            let fix = core.caretFix(string, selectedRange(), byKeyboard: inKeyDown) {
             resolve(fix)
             return
@@ -3718,7 +3721,13 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     private var inKeyDown = false
 
     /// "[ ]" and a space makes a checklist item (`ListEditing.spaceKey`).
-    override func insertText(_ string: Any, replacementRange: NSRange) {
+    override func insertText(_ string: Any, replacementRange asked: NSRange) {
+        var replacementRange = asked
+        if ScreenReader.isOn, asked.location == NSNotFound || asked == selectedRange(),
+           let fix = core.caretFix(self.string, selectedRange(), byKeyboard: false) {
+            resolve(fix)
+            replacementRange = NSRange(location: NSNotFound, length: 0)
+        }
         if (string as? String) == " ", replacementRange.location == NSNotFound || replacementRange == selectedRange(), !hasMarkedText(), controller?.readOnly != true,
            let edit = ListEditing.spaceKey(in: self.string, selection: selectedRange) {
             apply(edit)

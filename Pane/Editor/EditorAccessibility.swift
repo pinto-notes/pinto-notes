@@ -84,13 +84,54 @@ extension PaneTextView: NSAccessibilityCustomRotorItemSearchDelegate {
     /// A line as VoiceOver says it: what kind of line it is, then its words. A ticked item and an
     /// unticked one otherwise sound the same (first real VoiceOver pass, 6 November 2026).
     static func spokenLine(_ text: NSAttributedString, in range: NSRange) -> NSAttributedString {
-        let words = spoken(text, in: range)
         let ns = text.string as NSString
         let r = NSIntersectionRange(range, NSRange(location: 0, length: ns.length))
-        guard r.length > 0, r.location == 0 || ns.character(at: r.location - 1) == 10,
-              let lead = spokenLead(ns.substring(with: ns.lineRange(for: NSRange(location: r.location, length: 0)))) else { return words }
+        guard r.length > 0 else { return NSAttributedString() }
+        let line = ns.lineRange(for: NSRange(location: r.location, length: 0))
+        let wholeLine = r.location == line.location && NSMaxRange(r) <= NSMaxRange(line) && (NSMaxRange(r) == NSMaxRange(line) || ns.substring(with: NSRange(location: NSMaxRange(r), length: NSMaxRange(line) - NSMaxRange(r))).allSatisfy(\.isNewline))
+        guard wholeLine else { return spokenInPlace(text, in: r) }
+        let words = spoken(text, in: r)
+        guard let lead = spokenLead(ns.substring(with: line)) else { return words }
         let out = NSMutableAttributedString(string: lead)
         out.append(words)
+        return out
+    }
+
+    /// The range's text at its own length, hidden characters as spaces. VoiceOver reads a note in
+    /// windows and counts its way on by what comes back: shorter text lost its place, and reading
+    /// aloud stopped mid-word at the first checklist item (trace on the Air, 6 November 2026).
+    /// A checklist's six hidden marks have room to say its state.
+    static func spokenInPlace(_ text: NSAttributedString, in range: NSRange) -> NSAttributedString {
+        let out = NSMutableAttributedString(attributedString: text.attributedSubstring(from: range))
+        text.enumerateAttributes(in: range) { a, run, _ in
+            let clear = (a[.foregroundColor] as? NSColor).map { ($0.usingColorSpace(.sRGB)?.alphaComponent ?? 1) == 0 } ?? false
+            let tiny = (a[.font] as? NSFont).map { $0.pointSize < 0.1 } ?? false
+            guard clear || tiny else { return }
+            let here = NSRange(location: run.location - range.location, length: run.length)
+            out.replaceCharacters(in: here, with: String(repeating: " ", count: run.length))
+        }
+        let ns = text.string as NSString
+        var at = range.location
+        while at < NSMaxRange(range) {
+            let line = ns.lineRange(for: NSRange(location: at, length: 0))
+            defer { at = max(NSMaxRange(line), at + 1) }
+            let seen = NSIntersectionRange(line, range)
+            let raw = ns.substring(with: line)
+            let here = NSRange(location: seen.location - range.location, length: seen.length)
+            // A table's text is hidden under its grid: read aloud it's still there, without its
+            // pipes. A window can start part way along a row.
+            if raw.hasPrefix("|") {
+                let part = ns.substring(with: seen)
+                let plain = spokenTableRow(raw) == "Table" ? String(repeating: " ", count: seen.length)
+                    : part.replacingOccurrences(of: "|", with: " ")
+                out.replaceCharacters(in: here, with: plain)
+                continue
+            }
+            let word = raw.lowercased().hasPrefix("- [x] ") ? "Done, " : raw.hasPrefix("- [ ] ") ? "To do " : nil
+            if let word, seen.location == line.location, seen.length >= 6 {
+                out.replaceCharacters(in: NSRange(location: here.location, length: 6), with: word)
+            }
+        }
         return out
     }
 
