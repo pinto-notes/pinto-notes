@@ -14,7 +14,7 @@
 .ctas { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .ctas > div { margin: 0; }
 .iphone { display: inline-flex; align-items: center; gap: 9px; min-height: 50px; padding: 0 24px; border-radius: 14px; font-size: 16px; font-weight: 700; color: #2a1a0c;
-  background: #fff; box-shadow: inset 0 0 0 1.5px #2a1a0c, 0 6px 16px -8px rgba(42, 26, 12, 0.35); text-decoration: none; transition: background-color 0.15s, transform 0.15s; }
+  background: #fff; box-shadow: 0 10px 24px -10px rgba(42, 26, 12, 0.3); text-decoration: none; transition: background-color 0.15s, transform 0.15s; }
 .iphone:hover { background: #fbe9d0; transform: translateY(-1px); }
 /* On an iPhone this is the one to press, so it fills like Download for Mac does on a Mac. */
 :global(:root[data-platform="ios"]) .iphone { background: #2a1a0c; color: #fff; box-shadow: none; }

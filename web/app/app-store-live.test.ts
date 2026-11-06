@@ -17,6 +17,7 @@ describe("the iPhone app is on the App Store", () => {
     expect(rule).toContain("color: #2a1a0c");
     expect(rule).toContain("background: #fff");
     expect(rule).not.toContain("transparent");
+    expect(rule).not.toContain("inset"); // a plain white button, no outline
   });
 
   // A line behind APP_STORE_LIVE is fine: it no longer shows. These forms were always hard-coded.
