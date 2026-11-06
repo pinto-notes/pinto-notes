@@ -1182,15 +1182,27 @@ private struct TrashDrop: ViewModifier {
 
     func body(content: Content) -> some View {
         if active {
-            content.onDrop(of: [.paneItem], isTargeted: $over) { providers in
-                DropLoader.load(providers) { items, _ in
-                    withAnimation(.snappy) { context.trashDropped(items) }
-                }
-                return true
-            }
+            content.onDrop(of: [.paneItem], delegate: TrashDropDelegate(context: context, over: $over))
         } else {
             content
         }
+    }
+}
+
+/// A move, not a copy: no green plus on the pointer.
+private struct TrashDropDelegate: DropDelegate {
+    let context: ModelContext
+    @Binding var over: Bool
+
+    func dropEntered(info: DropInfo) { over = true }
+    func dropExited(info: DropInfo) { over = false }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+    func performDrop(info: DropInfo) -> Bool {
+        over = false
+        DropLoader.load(info.itemProviders(for: [.paneItem])) { [context] items, _ in
+            withAnimation(.snappy) { context.trashDropped(items) }
+        }
+        return true
     }
 }
 

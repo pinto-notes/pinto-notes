@@ -36,6 +36,14 @@ import AppKit
         #expect(folder.deletedAt == nil)
     }
 
+    /// The chip that follows a dragged note shows its name, not a lone icon.
+    @Test func aDraggedNoteShowsItsName() throws {
+        let short = ImageRenderer(content: NoteDragPreview(title: "A", symbol: "note.text"))
+        let long = ImageRenderer(content: NoteDragPreview(title: "Hotel booking", symbol: "note.text"))
+        let w = try #require(long.cgImage?.width), s = try #require(short.cgImage?.width)
+        #expect(w > s + 40)
+    }
+
     // MARK: Dropped into a note's text
 
     @Test func notesDroppedIntoTextAreLinkedThere() {
