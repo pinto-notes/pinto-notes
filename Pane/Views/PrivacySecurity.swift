@@ -295,6 +295,8 @@ struct PrivacySecuritySection: View {
     @State private var adding = false
     @State private var removing: KeyDevice?
     @State private var disconnecting: UUID?
+    /// The line after a Disconnect: the row just vanished otherwise (round 22).
+    @State private var disconnected: String?
     @State private var loaded: [Connection] = []
     @State private var showsHow = false
     /// Which way the switch is being turned, while its question is up.
@@ -316,6 +318,19 @@ struct PrivacySecuritySection: View {
 
     var body: some View {
         page
+            .overlay(alignment: .bottom) {
+                if let disconnected {
+                    Toast(text: disconnected)
+                        .padding(.bottom, 20)
+                        .transition(.opacity)
+                        .accessibilityIdentifier("privacy.disconnected")
+                        .task(id: disconnected) {
+                            try? await Task.sleep(for: .seconds(3))
+                            guard !Task.isCancelled else { return }
+                            withAnimation(.easeIn(duration: 0.2)) { self.disconnected = nil }
+                        }
+                }
+            }
             .task {
                 await crypto.recheck()
                 await devices.refresh(crypto)
@@ -609,6 +624,8 @@ struct PrivacySecuritySection: View {
                         do {
                             try await ConnectRevoke.revoke(client, id: id)
                             await loadConnections()
+                            AccessibilityNotification.Announcement("\(name) disconnected").post()
+                            withAnimation(.smooth(duration: 0.2)) { disconnected = "\(name) disconnected" }
                         } catch {
                             problem = "Couldn\u{2019}t disconnect \(name). Try again."
                         }
@@ -616,7 +633,7 @@ struct PrivacySecuritySection: View {
                     }
                 }
             } message: {
-                Text("\(name) loses access to your notes at once.")
+                Text("\(name) loses access to your notes at once. Your notes and its past edits stay here.")
             }
     }
 

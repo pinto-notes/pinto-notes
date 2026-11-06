@@ -1028,7 +1028,7 @@ struct NoteListView: View {
                 DestructiveMenuButton("Delete \(notes.count) Notes Forever…", systemImage: "trash") { remove(ids) }
             } else {
                 Menu("Move \(notes.count) Notes to", systemImage: "folder") {
-                    FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { context.move(notes, to: f, undo: undoManager) } }
+                    FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { _ = context.move(notes, to: f, undo: undoManager) } }
                 }
                 Divider()
                 DestructiveMenuButton("Delete \(notes.count) Notes", systemImage: "trash") { remove(ids) }
@@ -1071,7 +1071,7 @@ struct NoteListView: View {
             ShareLink(item: note.body, preview: SharePreview(note.title))
         case .move:
             Menu("Move to", systemImage: "folder") {
-                FolderMenuItems(folders: folders, current: note.folder?.id) { f in withAnimation(.snappy) { context.move([note], to: f, undo: undoManager) } }
+                FolderMenuItems(folders: folders, current: note.folder?.id) { f in withAnimation(.snappy) { _ = context.move([note], to: f, undo: undoManager) } }
             }
         case .history:
             // The note's own Version History: the note opens and shows it (AppPlaceCenter).

@@ -344,6 +344,8 @@ extension View {
         // In the label: the Mac's outline dropped a value on these rows (round 17's accessibility dump).
         return accessibilityElement(children: .ignore)
             .accessibilityLabel(SidebarRowWords.spoken(name, count: count, files: files))
+            // A label alone made an element of no known role (round 22's dump: AXUnknown).
+            .accessibilityAddTraits(.isStaticText)
     }
 }
 
@@ -1053,9 +1055,19 @@ struct SidebarView: View {
     /// Whether a live note is in no folder.
     private var looseNotes: Bool { folders.count <= 1 && Self.showsAllNotes(folders: folders.count, context: context) }
 
+    /// Said by a drop: no row is lit any more.
+    static let everyRow = UUID()
+
+    /// The row lit during a drag. A drop puts out every row: the list's "left this row" didn't
+    /// always come, and Work stayed filled after a drop on Ideas (round 22).
+    static func dropTarget(_ current: UUID?, over: Bool, id: UUID, dropped: Bool) -> UUID? {
+        if dropped { return nil }
+        return over ? id : (current == id ? nil : current)
+    }
+
     /// A drag is over a folder's row, or has left it.
     private func folderTargeted(_ over: Bool, _ id: UUID) {
-        withAnimation(.snappy(duration: 0.18)) { dropTarget = over ? id : (dropTarget == id ? nil : dropTarget) }
+        withAnimation(.snappy(duration: 0.18)) { dropTarget = Self.dropTarget(dropTarget, over: over, id: id, dropped: id == Self.everyRow) }
     }
 
     /// Rename: on the Mac the name is typed in the folder's row, as in Notes; on iPhone in an alert.
@@ -1391,6 +1403,14 @@ private struct FolderTree: View {
                     .contentTransition(.symbolEffect(.replace))
             }
             .sidebarRowLabel()
+            // The row a drop lands on says so (round 22: only a thin outline's fill, on the wrong row).
+            .background {
+                if dropTarget == folder.id {
+                    RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
+                        .fill(Color.amberInk.opacity(0.16))
+                        .padding(.horizontal, -6).padding(.vertical, -3)
+                }
+            }
             .rowAccessibility(folder.name, count: listed ?? 0, files: files[folder.id] ?? 0)
         }
         .quietSelection()
@@ -1410,9 +1430,9 @@ private struct FolderTree: View {
                         // A dragged multi-selection moves together.
                         let notes = item.ids.compactMap { context.note($0) }
                         if !notes.isEmpty {
-                            context.move(notes, to: folder, undo: undoManager)
+                            let back = context.move(notes, to: folder, undo: undoManager)
                             moved = true
-                            NotificationCenter.default.post(name: .paneNotesMoved, object: "Moved to \(folder.name)")
+                            NotificationCenter.default.post(name: .paneNotesMoved, object: "Moved to \(folder.name)", userInfo: ["undo": back])
                         }
                     case .folder:
                         if item.id != folder.id, let f = context.folder(item.id) { context.move(f, into: folder); moved = true }
@@ -1426,7 +1446,7 @@ private struct FolderTree: View {
                 if moved { withAnimation(.snappy) { expanded = true } }
             }
             // A drop doesn't always say the drag has left the row (round 21: its icon stayed filled).
-            targeted(false, folder.id)
+            targeted(false, SidebarView.everyRow)
             return true
         }
         #if os(iOS)

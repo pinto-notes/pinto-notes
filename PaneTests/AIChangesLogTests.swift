@@ -104,6 +104,21 @@ import Testing
         #expect(note.folder?.id == ideas.id)
     }
 
+    @Test func aMovesToastUndoTakesItBack() throws {
+        let c = try AIChangesTests.container(), ctx = c.mainContext
+        let travel = ctx.createFolder(named: "Travel"), ideas = ctx.createFolder(named: "Ideas")
+        let note = ctx.createNote(in: .folder(travel.id), body: "Lisbon")
+        let date = note.updatedAt
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        undo.beginUndoGrouping()
+        let back = ctx.move([note], to: ideas, undo: undo)
+        undo.endUndoGrouping()
+        back()
+        #expect(note.folder?.id == travel.id && note.updatedAt == date)
+        #expect(!undo.canUndo, "⌘Z doesn't move it back a second time")
+    }
+
     @Test func summariesSayWhatChanged() throws {
         let c = try Self.container()
         let trips = Folder(name: "Trips")

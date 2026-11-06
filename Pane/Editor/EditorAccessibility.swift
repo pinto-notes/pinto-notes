@@ -11,6 +11,9 @@ import UniformTypeIdentifiers
 /// markdown the styler hides (drawn in a clear colour: "## ", "- [ ] ", "**", a link's URL).
 extension PaneTextView {
     /// The note on pages: its width fits the page, on light paper in dark mode too.
+    /// The PDF's Title and the print job's name: the note's, not the window's (round 22: "All Notes").
+    override var printJobTitle: String { Self.fileName(for: string) }
+
     private func printOperation(_ info: NSPrintInfo) -> NSPrintOperation {
         if let manager = textLayoutManager { manager.ensureLayout(for: manager.documentRange) }
         info.horizontalPagination = .fit

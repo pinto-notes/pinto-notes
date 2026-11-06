@@ -33,6 +33,14 @@ import Testing
                            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: clicks, pressure: 1)!
     }
 
+    @Test func aDropPutsOutEveryLitRow() {
+        let work = UUID(), ideas = UUID()
+        #expect(SidebarView.dropTarget(nil, over: true, id: work, dropped: false) == work)
+        #expect(SidebarView.dropTarget(work, over: true, id: ideas, dropped: false) == ideas)
+        #expect(SidebarView.dropTarget(ideas, over: false, id: work, dropped: false) == ideas, "leaving another row")
+        #expect(SidebarView.dropTarget(work, over: false, id: ideas, dropped: true) == nil, "dropped on Ideas with Work lit")
+    }
+
     @Test func theEndOfADragSelectsNothingMore() {
         let (table, _, window) = list()
         PressSelect.pressBegan()

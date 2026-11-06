@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 import PDFKit
+import SwiftUI
 import Testing
 @testable import Pane
 
@@ -81,6 +82,33 @@ import Testing
     /// Print and Export as PDF: the note in pages, its tables drawn on them (round 21: the words
     /// were in the file, hidden, and the table was a hole), and the note's look back afterwards,
     /// in dark mode as well (round 20: neither was in the File menu).
+    @Test func theSlashMenuIsInVoiceOversTree() async {
+        let h = await EditorHarness("Trip\n")
+        defer { h.close() }
+        await h.settle(0.2)
+        h.view.setSelectedRange(NSRange(location: 5, length: 0))
+        await h.type("/")
+        await h.settle(0.3)
+        let hosts = (h.view.accessibilityChildren() ?? []).compactMap { $0 as? NSHostingView<SlashCommandList> }
+        #expect(hosts.count == 1, "the list and its rows can be reached")
+    }
+
+    @Test func aPDFIsNamedAfterItsNote() async {
+        let h = await EditorHarness("Lisbon\n\nWords\n")
+        defer { h.close() }
+        #expect(h.view.printJobTitle == PaneTextView.fileName(for: "Lisbon\n\nWords\n"))
+    }
+
+    @Test func theWindowIsSpokenAsTheOpenNote() {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 100, height: 100), styleMask: [.titled], backing: .buffered, defer: false)
+        let probe = WindowSpokenTitle.Probe()
+        probe.title = "Lisbon"
+        window.contentView?.addSubview(probe)
+        #expect(window.accessibilityTitle() == "Lisbon")
+        probe.title = "Hotel"
+        #expect(window.accessibilityTitle() == "Hotel")
+    }
+
     @Test func theNoteExportsAsAPDF() async throws {
         /// How much of the page is dark ink, and the file's pages.
         func exported(_ text: String) async throws -> (ink: Int, pages: Int, words: String) {

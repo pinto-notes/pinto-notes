@@ -34,6 +34,8 @@ struct NoteDetailView: View {
     @State private var asking: AskAI.Target?
     /// "Kept 2, undid 1", for a moment after a review.
     @State private var reviewResult: String?
+    /// The Undo on that line, when what it reports can be taken back.
+    @State private var reviewResultUndo: (() -> Void)?
     /// The version that didn't open, for Undo on "Reverted to the last working version".
     @State private var revertedFrom: NotePageStore.Page?
     /// A text field in the note's app has focus: no receipt is drawn over it.
@@ -206,13 +208,21 @@ struct NoteDetailView: View {
                 if let history = NoteHistory.shared { VersionHistorySheet(note: note, history: history) }
             }
             .onReceive(NotificationCenter.default.publisher(for: .paneNotesMoved)) { n in
-                if let said = n.object as? String { withAnimation(.smooth(duration: 0.2)) { reviewResult = said } }
+                if let said = n.object as? String {
+                    withAnimation(.smooth(duration: 0.2)) {
+                        reviewResult = said
+                        reviewResultUndo = n.userInfo?["undo"] as? () -> Void
+                    }
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .paneVersionRestored)) { n in
                 if (n.object as? UUID) == note.id { withAnimation(.smooth(duration: 0.2)) { reviewResult = VersionHistoryModel.restoredLine } }
             }
             #if os(iOS)
             .safeAreaInset(edge: .bottom, spacing: 0) { if !showingPage { phoneTips } }
+            #endif
+            #if os(macOS)
+            .background(WindowSpokenTitle(title: note.title))
             #endif
             .overlay(alignment: .bottom) { aiReceipt }
             .overlay(alignment: .bottom) { reviewDone }
@@ -471,14 +481,23 @@ struct NoteDetailView: View {
     @ViewBuilder
     private var reviewDone: some View {
         if let text = reviewResult {
-            Toast(text: text)
+            Toast(text: text, undo: reviewResultUndo.map { undo in
+                {
+                    undo()
+                    withAnimation(.smooth(duration: 0.2)) {
+                        reviewResultUndo = nil
+                        reviewResult = "Undone"
+                    }
+                }
+            })
                 .padding(.bottom, 20)
                 .transition(AIReceipt.transition(reduceMotion: reduceMotion))
                 .accessibilityIdentifier("review.result")
                 .task(id: text) {
                     AccessibilityNotification.Announcement(text).post()
-                    try? await Task.sleep(for: .seconds(3))
-                    withAnimation(.easeIn(duration: 0.2)) { reviewResult = nil }
+                    try? await Task.sleep(for: .seconds(reviewResultUndo == nil ? 3 : 6))
+                    guard !Task.isCancelled else { return }
+                    withAnimation(.easeIn(duration: 0.2)) { reviewResult = nil; reviewResultUndo = nil }
                 }
         }
     }
@@ -2185,3 +2204,22 @@ struct NoteBreadcrumbs: View {
             .accessibilityHidden(true)
     }
 }
+
+#if os(macOS)
+/// VoiceOver names the window after the open note; the title drawn in the bar stays the list's
+/// (round 22's dump: the window was "All Notes" with Lisbon open).
+struct WindowSpokenTitle: NSViewRepresentable {
+    let title: String
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ view: Probe, context: Context) { view.title = title }
+
+    final class Probe: NSView {
+        var title = "" { didSet { apply() } }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            apply()
+        }
+        private func apply() { window?.setAccessibilityTitle(title) }
+    }
+}
+#endif

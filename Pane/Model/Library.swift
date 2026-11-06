@@ -327,26 +327,35 @@ extension ModelContext {
 
     /// A move ⌘Z takes back, into the folders they came from with their dates as they were, and
     /// ⇧⌘Z does again (round 21: a dropped note had no way back but dragging it home).
-    func move(_ notes: [Note], to folder: Folder, undo: UndoManager?) {
+    /// Returns what the toast's Undo does: the same way back, and the step off ⌘Z's list.
+    @discardableResult
+    func move(_ notes: [Note], to folder: Folder, undo: UndoManager?) -> () -> Void {
         let back = notes.filter { $0.folder?.id != folder.id || $0.trashedAt != nil }
             .map { (note: $0, folder: $0.folder, trashed: $0.trashedAt, edited: $0.updatedAt) }
         move(notes, to: folder)
-        guard let undo, !back.isEmpty else { return }
+        let restore = { @MainActor [self] in
+            for b in back {
+                b.note.folder = b.folder
+                b.note.trashedAt = b.trashed
+                b.note.touch()
+                b.note.updatedAt = b.edited
+            }
+            saveOrReport()
+        }
+        guard let undo, !back.isEmpty else { return restore }
         undo.registerUndo(withTarget: self) { ctx in
             MainActor.assumeIsolated {
-                for b in back {
-                    b.note.folder = b.folder
-                    b.note.trashedAt = b.trashed
-                    b.note.touch()
-                    b.note.updatedAt = b.edited
-                }
-                ctx.saveOrReport()
+                restore()
                 undo.registerUndo(withTarget: ctx) { again in
                     MainActor.assumeIsolated { again.move(back.map(\.note), to: folder, undo: undo) }
                 }
             }
         }
         undo.setActionName("Move")
+        return { [self] in
+            restore()
+            undo.removeAllActions(withTarget: self)
+        }
     }
 
     func togglePin(_ note: Note) {

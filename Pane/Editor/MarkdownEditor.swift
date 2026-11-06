@@ -3966,7 +3966,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Tables are views laid over the text, which the text view doesn't list itself: without
         // them VoiceOver heard a table as empty lines (council round 15).
         let tables = cardHosts.filter { $0.key.hasPrefix("g") }.values.sorted { $0.frame.minY < $1.frame.minY }
-        return (super.accessibilityChildren() ?? []) + checklistCheckboxes() + tables
+        // The / and [[ lists are subviews too: VoiceOver couldn't reach their rows (round 22).
+        let lists: [NSView] = [slashHost, wikiHost].compactMap { $0 }
+        return (super.accessibilityChildren() ?? []) + checklistCheckboxes() + tables + lists
     }
 
     /// The checkboxes VoiceOver was last given, kept so the same item is the same element each
