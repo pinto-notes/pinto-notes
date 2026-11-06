@@ -17,6 +17,28 @@ import Testing
         return lines[n]
     }
 
+    /// With VoiceOver on, the caret's line is read without its markdown, and says what kind of line
+    /// it is (first real VoiceOver pass, 6 November 2026: it read "## The basics" and "**markdown**").
+    @Test func theCaretsLineIsReadWithoutItsMarks() async {
+        ScreenReader.forced = true
+        defer { ScreenReader.forced = nil }
+        let h = await EditorHarness("Lisbon\n## Plan\n**Pastries** in May\n- [x] Book flights\n- [ ] Tram 28\n> Hills\nSee [the site](https://example.com) now\n")
+        defer { h.close() }
+        let wants = [(1, "Heading, Plan"), (2, "Pastries in May"), (3, "Checked, Book flights"), (4, "Unchecked, Tram 28"), (5, "Quote, Hills"), (6, "See the site now")]
+        for (n, want) in wants {
+            let r = line(h, n)
+            await h.select(r.location + 2)
+            #expect(h.view.accessibilityString(for: r) == want, "line \(n)")
+        }
+    }
+
+    @Test func aLinesKindIsSaid() {
+        #expect(PaneTextView.spokenLead("### Plan\n") == "Heading, ")
+        #expect(PaneTextView.spokenLead("  - [X] Done") == "Checked, ")
+        #expect(PaneTextView.spokenLead("#tag") == nil)
+        #expect(PaneTextView.spokenLead("Plain") == nil)
+    }
+
     /// Space after "[]" or "[ ]" makes a checklist item, on a plain line or after a dash; "- [ ]"
     /// is one already, and brackets in code or text stay brackets (round 20).
     @Test func typedBracketsMakeAChecklistItem() async {
@@ -152,13 +174,13 @@ import Testing
         defer { h.close() }
         await h.select((h.view.string as NSString).length)
         let v = h.view
-        #expect(v.accessibilityString(for: line(h, 1)) == "Plan", "no hashes")
-        #expect(v.accessibilityString(for: line(h, 2)) == "Tram 28", "no \"- [ ]\": the checkbox says it")
+        #expect(v.accessibilityString(for: line(h, 1)) == "Heading, Plan", "no hashes")
+        #expect(v.accessibilityString(for: line(h, 2)) == "Unchecked, Tram 28", "no \"- [ ]\": the checkbox says it")
         #expect(v.accessibilityString(for: line(h, 3)) == "Pastries in May", "no asterisks")
         let links = v.accessibilityString(for: line(h, 4)) ?? ""
         #expect(!links.contains("https") && !links.contains("[") && !links.contains("("), "\(links)")
         #expect(links.contains("the site") && links.contains("Hotel booking"), "\(links)")
-        #expect(v.accessibilityAttributedString(for: line(h, 1))?.string == "Plan")
+        #expect(v.accessibilityAttributedString(for: line(h, 1))?.string == "Heading, Plan")
         // The ranges are the note's own: the text keeps its characters for editing.
         #expect(v.accessibilityNumberOfCharacters() == (v.string as NSString).length)
     }

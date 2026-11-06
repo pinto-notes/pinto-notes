@@ -78,6 +78,29 @@ extension PaneTextView: NSAccessibilityCustomRotorItemSearchDelegate {
         return out
     }
 
+    /// A line as VoiceOver says it: what kind of line it is, then its words. A ticked item and an
+    /// unticked one otherwise sound the same (first real VoiceOver pass, 6 November 2026).
+    static func spokenLine(_ text: NSAttributedString, in range: NSRange) -> NSAttributedString {
+        let words = spoken(text, in: range)
+        let ns = text.string as NSString
+        let r = NSIntersectionRange(range, NSRange(location: 0, length: ns.length))
+        guard r.length > 0, r.location == 0 || ns.character(at: r.location - 1) == 10,
+              let lead = spokenLead(ns.substring(with: ns.lineRange(for: NSRange(location: r.location, length: 0)))) else { return words }
+        let out = NSMutableAttributedString(string: lead)
+        out.append(words)
+        return out
+    }
+
+    /// "Checked, " for "- [x] Done". Nil for a plain line.
+    static func spokenLead(_ line: String) -> String? {
+        let t = line.drop { $0 == " " || $0 == "\t" }
+        for (start, lead) in [("- [x] ", "Checked, "), ("- [X] ", "Checked, "), ("* [x] ", "Checked, "), ("- [ ] ", "Unchecked, "), ("* [ ] ", "Unchecked, "), ("> ", "Quote, ")]
+        where t.hasPrefix(start) { return lead }
+        let hashes = t.prefix { $0 == "#" }.count
+        if (1...6).contains(hashes), t.dropFirst(hashes).first == " " { return "Heading, " }
+        return nil
+    }
+
     /// "Place, Dish" for "| Place | Dish |"; "Table" for the line under its header. Nil if it isn't
     /// one line of a table.
     static func spokenTableRow(_ line: String) -> String? {
@@ -92,12 +115,12 @@ extension PaneTextView: NSAccessibilityCustomRotorItemSearchDelegate {
 
     override func accessibilityString(for range: NSRange) -> String? {
         guard let storage = textStorage else { return super.accessibilityString(for: range) }
-        return Self.spoken(storage, in: range).string
+        return Self.spokenLine(storage, in: range).string
     }
 
     override func accessibilityAttributedString(for range: NSRange) -> NSAttributedString? {
         guard let storage = textStorage else { return super.accessibilityAttributedString(for: range) }
-        return Self.spoken(storage, in: range)
+        return Self.spokenLine(storage, in: range)
     }
 
     override func accessibilityCustomRotors() -> [NSAccessibilityCustomRotor] {

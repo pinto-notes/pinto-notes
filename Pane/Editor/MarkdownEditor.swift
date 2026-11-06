@@ -4,6 +4,23 @@ import SwiftData
 #endif
 import os
 
+/// A screen reader is running. Its user hears the note, not its markdown: the marks that show on
+/// the caret's line stay hidden, or VoiceOver reads them out (first real VoiceOver pass, 6 November
+/// 2026: "## The basics", "**markdown**", "[links](https://apple.com)").
+@MainActor enum ScreenReader {
+    /// Tests only.
+    static var forced: Bool?
+    static var isOn: Bool {
+        if let forced { return forced }
+        #if os(macOS)
+        return NSWorkspace.shared.isVoiceOverEnabled
+        #else
+        return UIAccessibility.isVoiceOverRunning
+        #endif
+    }
+}
+
+
 /// Notes dropped into a note's text, in the system log ("drop"), so a real drag can be checked
 /// without a picture of the screen.
 enum TextDrop {
@@ -190,7 +207,8 @@ final class EditorCore {
         }
     }
 
-    func restyle(_ storage: NSTextStorage, selection: NSRange?, force: Bool) {
+    func restyle(_ storage: NSTextStorage, selection caret: NSRange?, force: Bool) {
+        let selection = ScreenReader.isOn ? nil : caret
         let ns = storage.string as NSString
         var line = NSRange(location: NSNotFound, length: 0)
         if let selection, ns.length > 0 {
