@@ -56,6 +56,7 @@ import Testing
         var isTinted: Bool { false }
         func clearTint() {}
         func syncExternal(_ new: String) {}
+        func syncDocument(_ new: String) {}
         func showRemoteCarets(_ carets: [RemoteCaret]) {}
     }
 

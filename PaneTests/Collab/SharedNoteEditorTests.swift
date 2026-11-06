@@ -82,6 +82,43 @@ extension NetworkFaults {
         #expect(!note.dirty)
     }
 
+    /// Seen in the two-phone run: Emil restored a version with a line Sara had typed before. Her
+    /// document took it and her editor kept showing the newer line, as an echo of her own typing,
+    /// and her next keystroke would have written that line back.
+    @Test func theDocumentGoingBackToWhatYouTypedShowsInTheEditor() async throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = c.mainContext
+        let transport = FakeCollabTransport(server: server, me: me)
+        let key = dataKey
+        let store = CollabStore(name: "Emil", transport: transport, dataKey: { key })
+        store.context = context
+        let previous = CollabStore.shared
+        CollabStore.shared = store
+        defer { CollabStore.shared = previous; store.stop() }
+
+        let note = context.createNote(in: .all, body: "Groceries\nMilk")
+        try context.save()
+        try await transport.share(note: note.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+        let session = try await #require(store.library).becomeShared(note, nk: nk)
+        note.dirty = false
+        let (w, text) = host(note, in: c)
+        defer { w.close() }
+        await waitUntil { text.string == "Groceries\nMilk" && text.isEditable }
+
+        type("\nEggs", into: text)
+        await waitUntil { session.text == "Groceries\nMilk\nEggs" }
+        type("\nTea", into: text)
+        await waitUntil { session.text == "Groceries\nMilk\nEggs\nTea" }
+
+        session.restore("Groceries\nMilk\nEggs")
+        await waitUntil { text.string == "Groceries\nMilk\nEggs" }
+        #expect(text.string == "Groceries\nMilk\nEggs")
+        // And what's typed next builds on it.
+        type("\nJam", into: text)
+        await waitUntil { session.text == "Groceries\nMilk\nEggs\nJam" }
+        #expect(session.text == "Groceries\nMilk\nEggs\nJam")
+    }
+
     /// A cold launch or a widget tap: the note is drawn before sharing has started. Once the store
     /// is up with the note's document, the open note takes typing into it without being reopened
     /// (persona council rounds 4 to 6).

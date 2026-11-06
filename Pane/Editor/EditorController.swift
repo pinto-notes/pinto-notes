@@ -962,6 +962,9 @@ protocol EditorTarget: TextHost {
     func clearTint()
     /// Takes text that changed elsewhere (sync, a collaborator), replacing only what differs.
     func syncExternal(_ new: String)
+    /// A shared note's document changed: its text is the note, so this is taken even if it's text
+    /// you typed earlier (someone put it back).
+    func syncDocument(_ new: String)
     /// Takes a restored version even if it's text you typed earlier (which `syncExternal` takes
     /// for its own echo), clears the undo steps and the tint, and keeps the scroll in the text.
     func takeRestored(_ new: String)

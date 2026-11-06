@@ -1864,7 +1864,7 @@ private struct CollabWiring: ViewModifier {
                     own.onChange = { [weak own] in if let own { OwnUndoFile.saveSoon(id, own) } }
                 }
                 controller.ownUndo = own
-                session.onRemoteText = { [weak controller] text in controller?.target?.syncExternal(text) }
+                session.onRemoteText = { [weak controller] text in controller?.target?.syncDocument(text) }
                 // Carets go straight to the text view, not through SwiftUI's next update, so they move
                 // in the same frame as the text.
                 session.onCarets = { [weak controller] carets in controller?.target?.showRemoteCarets(carets) }

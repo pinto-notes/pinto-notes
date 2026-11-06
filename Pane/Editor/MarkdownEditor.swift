@@ -1748,6 +1748,11 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // The note still holds text we typed a moment ago (it's saved once typing
         // pauses): that's not a change from elsewhere.
         if reported.contains(new.hashValue) { return }
+        syncDocument(new)
+    }
+
+    func syncDocument(_ new: String) {
+        guard new != lastReported else { return }
         // Mid-composition (an input method, dictation) the text can't change under it:
         // the change is taken in when the composition ends (textDidChange).
         if markedTextRange != nil { arrivedWhileComposing = new; return }
@@ -3430,6 +3435,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // The note still holds text we typed a moment ago (it's saved once typing
         // pauses): that's not a change from elsewhere.
         if reported.contains(new.hashValue) { return }
+        syncDocument(new)
+    }
+
+    func syncDocument(_ new: String) {
+        guard new != lastReported else { return }
         // Mid-composition (a dead key, an input method) the text can't change under it:
         // the change is taken in when the composition ends (textDidChange).
         if hasMarkedText() { arrivedWhileComposing = new; return }
