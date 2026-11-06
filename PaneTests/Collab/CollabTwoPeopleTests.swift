@@ -191,6 +191,20 @@ import Testing
         #expect(sara.store.removedFrom.contains(hers))
         #expect(sara.store.session(for: hers) == nil)
         #expect(sara.context.note(hers)?.deletedAt != nil)
+        // Nobody's signed in with this store: no alert for the window that opens next. It stayed
+        // queued and covered the Mac window of every test after this one.
+        #expect(SharedRemovals.shared.queue.isEmpty)
+    }
+
+    /// The signed-in account's store is the one that says so.
+    @Test func theSignedInStoreSaysSoOverTheNotes() async throws {
+        let (emil, sara, note, ids) = try await shared("Plan\n")
+        let previous = CollabStore.shared
+        CollabStore.shared = sara.store
+        defer { CollabStore.shared = previous; SharedRemovals.shared.clear() }
+        try await emil.store.remove(ids.1, from: note)
+        await sara.store.checkMemberships()
+        #expect(SharedRemovals.shared.current?.title == "Plan")
     }
 
     @Test func aRemovedPersonFindsOutAtOnceNotAtTheNextCheck() async throws {

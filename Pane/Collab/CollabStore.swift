@@ -175,7 +175,10 @@ final class CollabStore {
         }
         library.onSessionClosed = { [weak self] noteID in self?.sessions[noteID] = nil }
         // Removed, or the owner stopped sharing: said once, over the notes (SharedRemovalAlert).
-        library.onLostAccess = { SharedRemovals.shared.add($0) }
+        // Only the signed-in account's store: another that's still winding down has nobody to tell.
+        library.onLostAccess = { [weak self] removal in
+            if let self, self === CollabStore.shared { SharedRemovals.shared.add(removal) }
+        }
         library.install()
         self.library = library
     }

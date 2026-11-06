@@ -972,7 +972,13 @@ struct RootView: View {
 
     /// Shows a note asked for from outside the window, switching to All Notes if it isn't in view.
     private func reveal(_ id: UUID?, waited: Int = 0) {
-        guard let id, let note = context.note(id), note.deletedAt == nil else { return }
+        guard let id else { return }
+        guard let note = context.note(id), note.deletedAt == nil else {
+            // Gone (a widget's link to a deleted note): nothing's on its way, so the empty pane
+            // isn't waiting for it (EmptyDetailView).
+            if NoteOpener.shared.request == id { NoteOpener.shared.request = nil }
+            return
+        }
         #if os(iOS)
         // One screen at a time, UIKit drops a push made while an alert is up or still closing,
         // yet the note stays selected: Join on a shared note's link left its row chosen in All

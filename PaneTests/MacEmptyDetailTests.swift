@@ -204,7 +204,21 @@ import Testing
         await MacWindowChromeTests.settle(w2, 4)
         try await Self.deselect(w2)
         await MacWindowChromeTests.settle(w2, 3)
-        #expect(Self.element("detail.newNote", in: try #require(w2.contentView)) != nil)
+        #expect(await Self.waitForElement("detail.newNote", in: w2) != nil)
+    }
+
+    /// As `element`, for a window just opened. SwiftUI builds its accessibility tree once an
+    /// assistive app asks, a moment later on a busy machine: says one did, and looks for 3 seconds.
+    /// (A fixed wait, or a tree left over from the test before, made these pass or fail by order.)
+    static func waitForElement(_ id: String, in w: NSWindow) async -> NSObject? {
+        let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
+        NSApp.accessibilitySetValue(true, forAttribute: enhanced)
+        defer { NSApp.accessibilitySetValue(false, forAttribute: enhanced) }
+        for _ in 0..<30 {
+            await MacWindowChromeTests.settle(w, 1)
+            if let root = w.contentView, let found = element(id, in: root) { return found }
+        }
+        return nil
     }
 
     static func element(_ id: String, in element: Any, depth: Int = 0) -> NSObject? {
@@ -217,6 +231,22 @@ import Testing
         return nil
     }
 
+    /// A widget's link to a note that's since gone: nothing to open, so nothing's on its way. The
+    /// request stayed, and the empty pane stayed blank, with its New Note hidden.
+    @Test func aRequestForANoteThatsGoneLeavesTheEmptyPaneAsItWas() async throws {
+        let c = try AppSnapshotTests.container()
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            NoteOpener.shared.request = UUID()
+            defer { NoteOpener.shared.request = nil }
+            let w = MacWindowChromeTests.window(c, size: Self.size)
+            defer { w.close() }
+            await MacWindowChromeTests.settle(w)
+            try await Self.deselect(w)
+            #expect(NoteOpener.shared.request == nil)
+            #expect(await Self.waitForElement("detail.newNote", in: w) != nil)
+        }
+    }
+
     /// Persona council 11-04: "No note selected" with nothing to do there. Now a quiet line and a
     /// New Note button (⌘N shown); pressing it makes a note and opens it, as File › New Note does.
     @Test func theEmptyPaneOffersNewNote() async throws {
@@ -227,12 +257,8 @@ import Testing
             defer { w.close() }
             await MacWindowChromeTests.settle(w)
             try await Self.deselect(w)
-            // SwiftUI builds its accessibility tree once an assistive app asks; say one did.
-            NSApp.accessibilitySetValue(true, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface"))
-            defer { NSApp.accessibilitySetValue(false, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")) }
-            await MacWindowChromeTests.settle(w, 3)
             let root = try #require(w.contentView)
-            let button = try #require(Self.element("detail.newNote", in: root), "a New Note button on the empty pane")
+            let button = try #require(await Self.waitForElement("detail.newNote", in: w), "a New Note button on the empty pane")
             #expect(button.value(forKey: "accessibilityLabel") as? String == "New Note")
             #expect(EmptyDetailView.title == "No note selected")
             #expect(button.responds(to: #selector(NSAccessibilityProtocol.accessibilityPerformPress)))
