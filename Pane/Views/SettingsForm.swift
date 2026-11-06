@@ -10,7 +10,6 @@ enum SettingsInk {
         Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light })
     }
 
-    /// The card: white, pure black in the dark.
     /// The theme's page: Settings follows the theme like the notes do (Emil, 6 November 2026).
     static var ground: Color { Color(Palette.page) }
     /// A box of rows, a summary: a step off the ground.
@@ -54,19 +53,6 @@ struct SettingsSummary<Content: View>: View {
 }
 
 /// A group of rows under a short header, in a box, a hairline between each two; a line under it.
-/// A row button that fills a group box: one line, the whole width, the row's hover.
-struct SettingsRowButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 14))
-            .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .contentShape(.rect)
-            .background(configuration.isPressed ? SettingsInk.selection : .clear)
-            .hoverRow(reach: EdgeInsets())
-    }
-}
-
 struct SettingsGroup<Content: View>: View {
     var header: String? = nil
     var footer: String? = nil

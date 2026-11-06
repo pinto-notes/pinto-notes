@@ -798,4 +798,17 @@ extension ButtonStyle where Self == SettingsButtonStyle {
     /// A button on a Settings row.
     static var settings: SettingsButtonStyle { .init() }
 }
+
+/// A row button that fills a group box: one line, the whole width, the row's hover.
+struct SettingsRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 14))
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(.rect)
+            .background(configuration.isPressed ? SettingsInk.selection : .clear)
+            .hoverRow(reach: EdgeInsets())
+    }
+}
 #endif
