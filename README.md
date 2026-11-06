@@ -143,7 +143,7 @@ Folder and target names still say "Pane", the app's working name. The Xcode proj
 <details>
 <summary><b>Build from source</b></summary>
 
-You need macOS 26 with Xcode 26, Homebrew, and Docker (for the local Supabase stack). A fresh clone runs entirely on your machine.
+You need macOS 26.6 or later with Xcode 27, Homebrew, and Docker (for the local Supabase stack). A fresh clone runs entirely on your machine.
 
 ```sh
 git clone --filter=blob:none https://github.com/pinto-notes/pinto-notes.git
@@ -187,7 +187,7 @@ Everything the app needs runs on one Supabase project:
 
 ## Make it yours
 
-Clone it, build your own copy and change it however you like, by hand or with Claude Code or Codex. No paid Apple account needed: you need macOS 26, Xcode 26, Homebrew and, for sign-in and sync, Docker Desktop.
+Clone it, build your own copy and change it however you like, by hand or with Claude Code or Codex. No paid Apple account needed: you need macOS 26.6 or later, Xcode 27, Homebrew and, for sign-in and sync, Docker Desktop.
 
 ```sh
 git clone --filter=blob:none https://github.com/pinto-notes/pinto-notes.git

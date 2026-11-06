@@ -37,6 +37,11 @@ struct RootView: View {
     @State private var openNotes = OpenNotes()
     /// The window's size, for the two layouts the columns can't choose by width class alone.
     @State private var windowSize: CGSize = .zero
+    /// The whole window from what the geometry reports: a Duo open like a book keeps a strip down
+    /// one side for the clock and camera, and the fold is halfway across the screen, strip included.
+    static func wholeWindow(_ size: CGSize, _ insets: EdgeInsets) -> CGSize {
+        CGSize(width: size.width + insets.leading + insets.trailing, height: size.height + insets.top + insets.bottom)
+    }
     /// iPhone Duo open like a book (about 951 × 669 pt): half the window, so the list ends at the fold.
     private var bookHalf: CGFloat? {
         guard sizeClass != .compact, windowSize.width > windowSize.height, windowSize.width < 1000 else { return nil }
@@ -280,7 +285,7 @@ struct RootView: View {
         // view each reports a compact width, even on a 13-inch iPad.
         .environment(\.stackedNotes, sizeClass == .compact)
         .modifier(NoteFirstStyle(on: noteFirst))
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { windowSize = $0 }
+        .onGeometryChange(for: CGSize.self) { Self.wholeWindow($0.size, $0.safeAreaInsets) } action: { windowSize = $0 }
         // Columns too narrow to share (the Duo held upright, an iPad mini upright): one screen at
         // a time, as on the iPhone (twoColumns).
         .onChange(of: noteFirst, initial: true) { _, on in

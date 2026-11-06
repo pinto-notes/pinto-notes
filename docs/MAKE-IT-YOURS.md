@@ -9,7 +9,7 @@ You don't need a paid Apple developer account. Without one you get the Mac app a
 | | Why | How long |
 |---|---|---|
 | A Mac with macOS 26 | The app is built for macOS 26 and iOS 26 | |
-| Xcode 26 | Builds the app. Install it from the App Store, then open it once so it installs its parts | 20 to 40 minutes, about 15 GB |
+| Xcode 27 | Builds the app. Install it from the App Store, then open it once so it installs its parts | 20 to 40 minutes, about 15 GB |
 | [Homebrew](https://brew.sh) | Installs XcodeGen and the Supabase CLI for you | a few minutes |
 | [Docker Desktop](https://www.docker.com/products/docker-desktop) (optional) | Runs the local backend, so you can sign in and sync on this Mac. Without it, notes stay on this Mac | a few minutes |
 
@@ -28,7 +28,7 @@ scripts/setup.sh
 The clone is about 300 MB. It takes 1 to 6 minutes, depending on your connection: `--filter=blob:none` downloads the files of the newest version only, and fetches older ones when git needs them (switching branches, for example, fetches more). A plain `git clone` works too, at about 400 MB.
 
 ```
-✓ Xcode 26.4.1
+✓ Xcode 27.2
 ✓ XcodeGen 2.46.0, Supabase CLI 2.75.0
 ✓ Your app is My Pinto Notes (local.kim.notes). To rename it: scripts/make-it-yours.sh --name "…" --bundle-id com.you.notes
 → Starting the local backend (the first time downloads about 3 GB of Docker images: 5 to 15 minutes)
@@ -191,7 +191,7 @@ The app is SwiftUI for iPhone and Mac, with a TextKit 2 editor. Folder and targe
 | The Mac's format menu and toolbar | `Pane/Views/FormatPopover.swift`, the `.toolbar` in `Pane/Views/RootView.swift` and `Pane/Views/NoteDetailView.swift`, glyphs in `Pane/Views/ToolbarGlyph.swift` |
 | The app's name | `scripts/make-it-yours.sh --name` for the name under the icon; the words inside the app are in the views (search for "Pinto Notes") |
 | The first notes in a new library | `Seed.ensureLibrary` and the welcome text in `Pane/App/PaneApp.swift` |
-| The icon | `Pane/Resources/AppIcon.icon` (open it in Icon Composer, which comes with Xcode 26), `Assets.xcassets/AppIcon.appiconset` for older systems, `Mark` and `MenuBarIcon` for the mark inside the app |
+| The icon | `Pane/Resources/AppIcon.icon` (open it in Icon Composer, which comes with Xcode 27), `Assets.xcassets/AppIcon.appiconset` for older systems, `Mark` and `MenuBarIcon` for the mark inside the app |
 | The AI server's tools | `supabase/functions/mcp/files_tools.ts`, deployed with `supabase functions deploy mcp --project-ref <ref>` |
 | The sign-in emails | `scripts/auth-emails.ts`, then `deno run -A scripts/auth-emails.ts write` |
 

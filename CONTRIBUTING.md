@@ -29,7 +29,7 @@ Good ideas become issues, credited to you, and you're first in line to build it 
 
 ## Set up (about 15 minutes, most of it downloads)
 
-You need macOS 26 with Xcode 26, Homebrew, and Docker (for the local backend). No Apple developer account.
+You need macOS 26.6 or later with Xcode 27, Homebrew, and Docker (for the local backend). No Apple developer account.
 
 ```sh
 git clone https://github.com/pinto-notes/pinto-notes.git && cd pinto-notes

@@ -62,7 +62,7 @@ jobs:
     # The name is a required check of the main branch's ruleset.
     name: App tests (macOS)
     if: (github.event_name == 'pull_request' && !github.event.pull_request.draft) || github.event_name == 'push'
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 20
     env:
       XC_FLAGS: ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
@@ -103,7 +103,7 @@ jobs:
         if: steps.paths.outputs.app == 'true'
         id: xcode
         run: |
-          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          XCODE=/Applications/Xcode_27.2.app
           [ -n "$XCODE" ] && sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
           echo "version=$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')" >> "$GITHUB_OUTPUT"
@@ -188,7 +188,7 @@ jobs:
     name: Nightly, every app test (macOS, reports only)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     continue-on-error: true
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 45
     env:
       # The suites that time things or count bodies (PaneTests/Perf), run after the others.
@@ -203,7 +203,7 @@ jobs:
       - name: Select the newest Xcode
         id: xcode
         run: |
-          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          XCODE=/Applications/Xcode_27.2.app
           [ -n "$XCODE" ] && sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
           echo "version=$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')" >> "$GITHUB_OUTPUT"
@@ -313,7 +313,7 @@ jobs:
     name: Nightly, a fresh clone builds with no secrets (macOS, reports only)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     continue-on-error: true
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -321,7 +321,7 @@ jobs:
           ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
       - name: Select the newest Xcode
         run: |
-          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          XCODE=/Applications/Xcode_27.2.app
           [ -n "$XCODE" ] && sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
       - name: Tools
