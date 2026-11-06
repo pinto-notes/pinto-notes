@@ -385,7 +385,11 @@ extension NetworkFaults {
         #expect(SyncStatusLabel.away(.synced(last), reach: .online) == nil)
         #expect(SyncStatusLabel.away(.syncing, reach: .offline) == nil)
         #expect(SyncStatusLabel.away(.offline("You\u{2019}re offline"), reach: .offline) == nil)
-        #expect(OfflineCopy.line(.unreachable, waiting: true) == "Can\u{2019}t reach Pinto Notes \u{00B7} changes sync later")
+        #expect(OfflineCopy.line(.unreachable, waiting: true) == "Can\u{2019}t reach Pinto \u{00B7} syncs later")
+        // With only the server away, nothing says "You're offline".
+        #expect(!OfflineCopy.settings(.unreachable).contains("offline"))
+        #expect(!OfflineCopy.needsNetwork("delete your account", reach: .unreachable).contains("offline"))
+        #expect(OfflineCopy.settings(.offline).hasPrefix("You\u{2019}re offline"))
     }
 }
 }

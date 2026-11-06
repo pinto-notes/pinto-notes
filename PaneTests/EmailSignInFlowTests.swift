@@ -11,7 +11,8 @@ import Testing
         #expect(f.buttonTitle == "Continue")
         #expect(!f.buttonEnabled)
         f.email = "you@"
-        #expect(!f.buttonEnabled)
+        #expect(f.buttonEnabled, "pressing it says what's wrong")
+        #expect(!EmailSignInFlow.notAnEmail.isEmpty)
         let refused = f.beginCheck()
         #expect(!refused)
         f.email = "  you@example.com "
@@ -30,7 +31,7 @@ import Testing
         f.finishCheck(.password)
         #expect(f.step == .signIn(fallback: false))
         #expect(f.showsPassword)
-        #expect(f.buttonTitle == "Sign in")
+        #expect(f.buttonTitle == "Sign In")
         #expect(!f.buttonEnabled)
         f.password = "x"
         #expect(f.buttonEnabled)
@@ -42,7 +43,7 @@ import Testing
         _ = f.beginCheck()
         f.finishCheck(.new)
         #expect(f.step == .create)
-        #expect(f.buttonTitle == "Create account")
+        #expect(f.buttonTitle == "Create Account")
         f.password = "short"
         #expect(!f.buttonEnabled)
         f.password = "twelve chars"
@@ -123,7 +124,7 @@ import Testing
         #expect(!f.showsPassword)
         #expect(f.emailLocked, "the link goes to the email already typed")
         #expect(!f.showsApple, "a password account stays on the password path")
-        #expect(f.buttonTitle == "Email me a link")
+        #expect(f.buttonTitle == "Email Me a Link")
         let first = f.beginReset()
         let second = f.beginReset()
         #expect(first)
@@ -132,7 +133,7 @@ import Testing
         f.finishReset(sent: true)
         #expect(f.step == .forgotSent)
         #expect(!f.showsApple)
-        #expect(f.buttonTitle == "Back to sign in")
+        #expect(f.buttonTitle == "Back to Sign In")
         f.backToSignIn()
         #expect(f.step == .signIn(fallback: false))
         #expect(f.showsPassword)

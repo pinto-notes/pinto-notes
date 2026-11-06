@@ -334,7 +334,7 @@ struct TextSizeRow: View {
     @AppStorage(TextSize.key) private var stored: Double = 0
 
     static let label = "Note text"
-    static let footer = "Note text on this Mac. Make Text Bigger and Make Text Smaller in the View menu change it too."
+    static let footer = "Note text on this Mac. At the bigger sizes, the sidebar and note list grow with it. Make Text Bigger and Make Text Smaller in the View menu change it too."
 
     var body: some View {
         let size = TextSize.size(stored: stored)
@@ -349,8 +349,18 @@ struct TextSizeRow: View {
                 .labelsHidden()
                 .tint(SettingsInk.switchOn)
                 .frame(width: 180)
+                // One element of our own: the Mac's slider read its step number, "0" (round 15).
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Self.label)
                 .accessibilityValue(TextSize.spoken(size))
+                .accessibilityAdjustableAction { direction in
+                    let i = TextSize.index(of: size)
+                    switch direction {
+                    case .increment: TextSize.set(TextSize.steps[min(i + 1, TextSize.steps.count - 1)])
+                    case .decrement: TextSize.set(TextSize.steps[max(i - 1, 0)])
+                    @unknown default: break
+                    }
+                }
                 .accessibilityIdentifier("settings.textSize")
             Text("A").font(.system(size: 19)).foregroundStyle(SettingsInk.muted).accessibilityHidden(true)
             Text("\(Int(size)) pt")

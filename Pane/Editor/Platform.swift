@@ -64,7 +64,8 @@ extension PColor {
         // The welcome note's ring: the muted brown-grey, faint.
         Palette.pair(0x74604C, 0.45, 0xBCB0A3, 0.45)
         #else
-        NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.45, alpha: 1) : NSColor(white: 0.58, alpha: 1) }
+        // Dark: Notes' systemGray on black, about 6:1 (council round 16: 0.45 read faint).
+        NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.56, alpha: 1) : NSColor(white: 0.58, alpha: 1) }
         #endif
     }
 
@@ -208,6 +209,20 @@ enum TextSize {
     static let actualTitle = "Actual Size"
 
     static var body: CGFloat { size(stored: UserDefaults.standard.double(forKey: key)) }
+
+    /// The sidebar and note list grow too at the bigger sizes, so someone who needs big notes can
+    /// read what's around them (council, rounds 21 to 24). The first two stops stay as they were.
+    static func interfaceScale(stored: Double) -> CGFloat {
+        switch size(stored: stored) {
+        case 24: 1.35
+        case 20: 1.2
+        case 17: 1.08
+        default: 1
+        }
+    }
+    static var interfaceScale: CGFloat { interfaceScale(stored: UserDefaults.standard.double(forKey: key)) }
+    /// A size in the sidebar or note list, at the size chosen.
+    static func interface(_ points: CGFloat) -> CGFloat { (points * interfaceScale).rounded() }
 
     /// The size a stored value stands for: the standard one when nothing is stored. A size from
     /// the 11-24 pt build before the stops goes to the stop at or above it (16 → 17, 22 → 24), so

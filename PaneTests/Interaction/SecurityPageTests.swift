@@ -19,13 +19,21 @@ import Testing
     }
 
     /// The account most have: two other devices, one AI connected (and one disconnected, not shown).
+    /// Each AI in the list has its Disconnect beside it on the Mac (rounds 17 to 20: the footer said
+    /// to, and there was no button).
+    @Test func eachAIHasItsDisconnect() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "PrivacySecurity.swift"), encoding: .utf8)
+        #expect(source.contains("if case .ai(let id) = o.kind, client != nil"))
+        #expect(source.contains("ConnectRevoke.revoke(client, id: id)"))
+    }
+
     @Test func aStandardAccountWithTwoDevicesAndOneAI() async {
         let crypto = await AdvancedProtectionHiddenTests.standard()
         defer { crypto.signedOut() }
         let c = Self.standard(crypto)
         #expect(c.devices.map(\.name) == [PrivacyCopy.thisDevice, "Sara\u{2019}s MacBook Air", "iPhone"])
         #expect(c.devices[0].kind == .thisDevice && c.devices[0].detail == PrivacyCopy.inUseNow)
-        #expect(c.devices[1].detail == "Seen today")
+        #expect(c.devices[1].detail.hasPrefix("Seen today \u{00B7} added "), "added, as two can share a name")
         #expect(c.devices[2].detail.hasPrefix("Not seen since"), "a phone not seen for six weeks says so")
         #expect(c.devices[1].canRemove && !c.devices[2].canRemove, "Remove… as before: not for a key in iCloud Keychain")
         #expect(c.pintoNotes?.name == "Pinto Notes" && c.pintoNotes?.short == "Helps you back in")

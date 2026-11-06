@@ -360,8 +360,10 @@ enum WindowFrameMemory {
                       height: min(standard.height, screen.height - 80).rounded())
     }
 
-    /// The notes window's smallest size (its contentMinSize, plus the title bar).
-    static let minimum = CGSize(width: 760, height: 520)
+    /// The notes window's smallest size (its contentMinSize, plus the title bar): the list beside a
+    /// hidden sidebar (350) and the note (360). Narrower, the note was cut off at the window's edge
+    /// instead of wrapping (round 18). Still fits half of a 1440 pt screen.
+    static let minimum = CGSize(width: 710, height: 520)
 
     /// The saved frame if enough of it is on a screen you still have; otherwise the default, centred.
     static func frame(saved: CGRect?, screens: [CGRect], main: CGRect) -> CGRect {
@@ -654,7 +656,7 @@ private struct WindowShaper: NSViewRepresentable {
         if compact { window.styleMask.insert(.fullSizeContentView) }
         // Card mode keeps close and minimise; zoom makes no sense for a fixed-size card.
         window.standardWindowButton(.zoomButton)?.isEnabled = !compact
-        window.contentMinSize = compact ? CGSize(width: 300, height: 300) : CGSize(width: 760, height: 520)
+        window.contentMinSize = compact ? CGSize(width: 300, height: 300) : CGSize(width: WindowFrameMemory.minimum.width, height: 520)
         if compact {
             CardWindow.lock(window)
             coordinator.fittedCard = nil
@@ -1473,13 +1475,19 @@ enum Seed {
     /// The line that marks the sample app note (it counts as seeded, like the welcome note).
     static let sampleAppLine = "This note is also an app, made by AI: switch between App and Text at the top."
 
+    #if os(macOS)
+    private static let tapOrClick = "Click"
+    #else
+    private static let tapOrClick = "Tap"
+    #endif
+
     static let welcome = """
     Welcome to Pinto Notes
 
     Pinto Notes is a place for notes. Write in **markdown** and it styles itself as you type, with the syntax hidden until you need it.
 
     ## The basics
-    - [ ] Tap a circle to check it off
+    - [ ] \(tapOrClick) a circle to check it off
     - [x] Lists continue when you press Return
     * Press Return on an empty item to end a list
     - Start a line with * for bullets or - for dashes
@@ -1692,7 +1700,8 @@ private struct NoticeAlert: ViewModifier {
                     }
                     .accessibilityIdentifier("notice.disconnect")
                 }
-                Button("OK", role: .cancel) { notices?.dismiss() }
+                // "It Was Me" answers the new-device question; the rest are news (round 15).
+                Button(n.kind == .keyFetched ? "It Was Me" : "OK", role: .cancel) { notices?.dismiss() }
                     .accessibilityIdentifier("notice.ok")
             } message: { _ in
                 Text(text.message)

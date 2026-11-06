@@ -94,6 +94,8 @@ enum PrivacyCopy {
     /// Signed out, the page still says how it works (persona council, 4 November 2026: Marcus
     /// reads it before he signs in), as for a new account: Pinto Notes keeps a copy of its key.
     static let signedOutLine = "Sign in to see each device and AI that can open your notes. This is how it works for a new account."
+    /// Signed in, and this Mac hasn't finished setting up: "Sign in" was wrong (round 24).
+    static let settingUpLine = "Your devices and AIs show here once this Mac has finished setting up. This is how it works for a new account."
     static var signedOutHow: [(symbol: String, title: String, line: String)] {
         how(serverCopy: true, advanced: false, keychain: false, recovery: false)
     }
@@ -151,6 +153,12 @@ extension AccountCrypto {
 /// What Settings › Security shows, read from the account: everything that can open your notes, in
 /// the groups the page draws. Pure, so tests check it without drawing a thing.
 struct SecurityContent: Equatable {
+    /// The AI whose mark a connection shows: its own, or the one its name says (round 20: a
+    /// connected Claude and ChatGPT with a key beside them).
+    static func aiMark(_ mark: String?, title: String) -> String? {
+        mark ?? (VersionAuthorMark.asset(title) != nil ? title : nil)
+    }
+
     struct Opener: Identifiable, Equatable {
         enum Kind: Equatable { case thisDevice, device(UUID), pintoNotes, ai(UUID) }
         let kind: Kind
@@ -218,7 +226,9 @@ struct SecurityContent: Equatable {
         let this = Opener(kind: .thisDevice, name: PrivacyCopy.thisDevice, detail: PrivacyCopy.inUseNow, short: PrivacyCopy.inUseNow,
                           symbol: platform == "macos" ? "laptopcomputer" : "iphone")
         devices = [this] + others.map { d in
-            let seen = Self.seen(d, now: now)
+            // Devices can share a name: when each was added tells them apart (round 18).
+            let added = d.addedAt.formatted(.dateTime.day().month(.abbreviated).hour().minute())
+            let seen = "\(Self.seen(d, now: now)) \u{00B7} added \(added)"
             return Opener(kind: .device(d.id), name: d.name, detail: seen, short: seen, symbol: d.symbol, canRemove: d.canRemove)
         }
         pintoNotes = serverCopy
@@ -226,7 +236,7 @@ struct SecurityContent: Equatable {
             : nil
         ais = connections.filter { $0.revoked_at == nil }.map { c in
             Opener(kind: .ai(c.id), name: c.title, detail: PrivacyCopy.aiRow, short: PrivacyCopy.aiTile,
-                   symbol: c.mark == nil ? c.symbol : nil, ai: c.mark)
+                   symbol: SecurityContent.aiMark(c.mark, title: c.title) == nil ? c.symbol : nil, ai: SecurityContent.aiMark(c.mark, title: c.title))
         }
         recovery = RecoveryKeyOffer.shown(serverCopy: serverCopy, protection: protection) ? (recoverySaved ? .saved : .notSaved) : nil
         showsProtection = AdvancedProtection.shown(protection)
@@ -286,6 +296,9 @@ struct PrivacySecuritySection: View {
     @State private var problem: String?
     @State private var adding = false
     @State private var removing: KeyDevice?
+    @State private var disconnecting: UUID?
+    /// The line after a Disconnect: the row just vanished otherwise (round 22).
+    @State private var disconnected: String?
     @State private var loaded: [Connection] = []
     @State private var showsHow = false
     /// Which way the switch is being turned, while its question is up.
@@ -461,6 +474,14 @@ struct PrivacySecuritySection: View {
                         .accessibilityIdentifier("privacy.onlyThisDevice")
                 }
                 if let problem { Text(problem).font(.system(size: 12.5)).foregroundStyle(.red) }
+                // Stays while the page is open: the row just vanished before (round 22), and a toast
+                // over this page was cut by its foot, then lay over its words (rounds 23, 24).
+                if let disconnected {
+                    Label(disconnected, systemImage: "checkmark.circle.fill")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(Color.ink)
+                        .accessibilityIdentifier("privacy.disconnected")
+                }
             }
             .padding(.horizontal, 4)
             SettingsGroup(header: PrivacyCopy.whoCanOpen, footer: c.ais.isEmpty ? nil : PrivacyCopy.aiFooter) {
@@ -545,6 +566,10 @@ struct PrivacySecuritySection: View {
             if case .device(let id) = o.kind, o.canRemove, let d = devices.others.first(where: { $0.id == id }) {
                 removeButton(d).buttonStyle(.settings)
             }
+            // Where this page tells you that you can (rounds 17 to 20: it only said so).
+            if case .ai(let id) = o.kind, client != nil {
+                disconnectButton(id, name: o.name).buttonStyle(.settings)
+            }
         }
         .accessibilityIdentifier(o.kind == .thisDevice ? "privacy.thisDevice" : "privacy.device")
     }
@@ -581,6 +606,32 @@ struct PrivacySecuritySection: View {
             AnyView(AddDeviceSheet(crypto: crypto, server: addDeviceServer)
                 .onDisappear { Task { await devices.refresh(crypto) } })
         }
+    }
+
+    private func disconnectButton(_ id: UUID, name: String) -> some View {
+        Button("Disconnect\u{2026}", role: .destructive) { disconnecting = id }
+            .accessibilityLabel("Disconnect \(name)")
+            .accessibilityIdentifier("privacy.disconnectAI")
+            .confirmationDialog("Disconnect \(name)?",
+                                isPresented: Binding(get: { disconnecting == id }, set: { if !$0 { disconnecting = nil } }),
+                                titleVisibility: .visible) {
+                Button("Disconnect", role: .destructive) {
+                    Task {
+                        guard let client else { return }
+                        do {
+                            try await ConnectRevoke.revoke(client, id: id)
+                            await loadConnections()
+                            AccessibilityNotification.Announcement("\(name) disconnected").post()
+                            withAnimation(.smooth(duration: 0.2)) { disconnected = "\(name) disconnected" }
+                        } catch {
+                            problem = "Couldn\u{2019}t disconnect \(name). Try again."
+                        }
+                        disconnecting = nil
+                    }
+                }
+            } message: {
+                Text("\(name) loses access to your notes at once. Your notes and its past edits stay here.")
+            }
     }
 
     private func removeButton(_ d: KeyDevice) -> some View {
@@ -1140,11 +1191,12 @@ struct PDFFile: FileDocument {
 /// as a new account has them, and the website's longer page; then the notes password, if there is
 /// one, and the foot (diagnostics and the terms).
 struct SignedOutPrivacyPage: View {
+    var signedIn = false
     let sync: SyncEngine?
 
     var body: some View {
         SettingsStack {
-            Text(PrivacyCopy.signedOutLine)
+            Text(signedIn ? PrivacyCopy.settingUpLine : PrivacyCopy.signedOutLine)
                 .font(.system(size: 13))
                 .foregroundStyle(SettingsInk.text)
                 .fixedSize(horizontal: false, vertical: true)

@@ -9,6 +9,11 @@ struct NoteListView: View {
     /// Several notes can be selected (⌘-click, ⇧-click, ⌘A on the Mac; on iPhone, Select Notes in the ••• menu, Edit in Recently Deleted, or a two-finger swipe).
     @Binding var selection: Set<UUID>
     let onNewNote: () -> Void
+    /// Set while the list shows its empty state, so the note pane beside it stays blank rather than
+    /// saying "No note selected" under the list's own "No Notes" (council round 16).
+    var showsEmpty: Binding<Bool> = .constant(false)
+    /// Set while the list shows search results, so the note pane points at them.
+    var showsResults: Binding<Bool> = .constant(false)
     #if os(iOS)
     @State private var editMode: EditMode = .inactive
     /// What Move (a long-press, Select Notes, Recently Deleted) is moving, while its sheet is up.
@@ -17,6 +22,7 @@ struct NoteListView: View {
     /// Lock Note or Remove Lock from a note's long-press or right-click menu (ListLockFlow).
     @State private var lockRequest: ListLockRequest?
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.undoManager) private var undoManager
 
     /// Every note, fetched again only when a save adds or deletes one (see LibraryNotes).
     @State private var ownLibrary = LibraryNotes()
@@ -31,6 +37,8 @@ struct NoteListView: View {
     private var entries: [NoteEntry] { library.entries(in: context, order: orderStore.order) }
     /// Files kept in folders on their own, listed with the notes.
     @Query(filter: #Predicate<Attachment> { $0.folderID != nil && $0.deletedAt == nil }) private var folderFiles: [Attachment]
+    /// How many notes and files the search shows; nil when not searching.
+    @State private var searchResults: Int?
     @State private var search = ""
     #if os(macOS)
     /// The search field shows at the top of the list while searching: opened by the list's
@@ -138,6 +146,13 @@ struct NoteListView: View {
         return countText(notes: notes, files: files, capitalized: false, trash: trash)
     }
 
+    /// The Mac's line under the folder's name: the results while searching, not the folder's
+    /// whole count (council round 16: "12 notes" over one result).
+    static func macCount(notes: Int, files: Int, results: Int?, trash: Bool) -> String {
+        if let results { return results == 1 ? "1 result" : "\(results) results" }
+        return countText(notes: notes, files: files, capitalized: false, trash: trash)
+    }
+
     static func countText(notes: Int, files: Int, capitalized: Bool, trash: Bool) -> String {
         let n = notes == 1 ? "1 \(capitalized ? "Note" : "note")" : "\(notes) \(capitalized ? "Notes" : "notes")"
         var line = n
@@ -220,7 +235,9 @@ struct NoteListView: View {
         let visible = filtered(from: scopedNotes, all: all)
         let files = scopedFiles
         let visibleFiles = filteredFiles(from: files)
+        let results: Int? = search.isEmpty ? nil : visible.count + visibleFiles.count
         return list(scopedNotes, visible, files, visibleFiles)
+            .onChange(of: results, initial: true) { _, now in searchResults = now }
             #if os(iOS)
             .task { await watchListTip() }
             #endif
@@ -250,7 +267,8 @@ struct NoteListView: View {
         let behind = behindSetupCard
         let listSelection = Binding(get: { selection }, set: { new in
             guard !behind else { return }
-            RowClickLog.listSet(selection, new); selection = new
+            let kept = PressSelect.selection(from: selection, asking: new, byKey: NSApp.currentEvent?.type == .keyDown)
+            RowClickLog.listSet(selection, kept); selection = kept
         })
         #else
         // Beside the note (iPad, iPhone Duo open) the list is told nothing is selected, so it draws
@@ -345,6 +363,9 @@ struct NoteListView: View {
                 ?? mixedSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }).map { leadingRows + $0 }
         })
         .id(ListIdentity(scope: scope, library: library.wholesale))
+        #if os(macOS)
+        .modifier(OpensTopNote(scope: scope, top: visible.first?.id, selection: $selection))
+        #endif
         #endif
         #if os(iOS)
         // iPhone: grouped cards on a grey ground. As columns: the Mac's list, rows on white with a
@@ -366,14 +387,22 @@ struct NoteListView: View {
         #endif
         // Less warmth than the sidebar, more than the note.
         .scrollContentBackground(.hidden)
+        .accessibilityLabel("Notes")
         .background(Color(stacked ? Palette.listGround : Palette.page).ignoresSafeArea())
         #if os(macOS)
         // Soft under the toolbar, as the sidebar and Notes: a list's own edge is hard, the window's
         // grey title bar with a line under it (Emil, 10-30, in Recently Deleted).
         .scrollEdgeEffectStyle(.soft, for: .top)
+        .modifier(FollowsTextSize())
         #endif
         .overlay {
             if visible.isEmpty && visibleFiles.isEmpty && !library.isLoading && !behindSetupCard { emptyState }
+        }
+        .onChange(of: visible.isEmpty && visibleFiles.isEmpty && !library.isLoading && !behindSetupCard, initial: true) { _, now in
+            if showsEmpty.wrappedValue != now { showsEmpty.wrappedValue = now }
+        }
+        .onChange(of: !search.isEmpty, initial: true) { _, now in
+            if showsResults.wrappedValue != now { showsResults.wrappedValue = now }
         }
         #if os(iOS)
         .sheet(isPresented: $showSettings) {
@@ -436,7 +465,7 @@ struct NoteListView: View {
                 // was (council rounds 5 and 6).
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                    Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: false))
+                    Text(Self.macCount(notes: scopedNotes.count, files: scopedFiles.count, results: searchResults, trash: scope == .trash))
                         .font(.system(size: 11)).foregroundStyle(Color.muted).monospacedDigit()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -457,6 +486,9 @@ struct NoteListView: View {
             }
         }
         // "Show all notes with …" from Go to Note (⌘O) carries the text to search for.
+        .onReceive(NotificationCenter.default.publisher(for: .paneDeleteNotes)) { n in
+            if let ids = n.object as? Set<UUID> { performRemove(ids) }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .paneSearchNotes)) { n in
             if let text = n.object as? String { search = text }
             searching = true
@@ -627,6 +659,8 @@ struct NoteListView: View {
                 }
                 .menuIndicator(.hidden)
                 .tint(.primary)
+                // A toolbar menu's label is drawn as a picture, so VoiceOver had no name (council round 15).
+                .accessibilityLabel("List Options")
                 .accessibilityIdentifier("list.more")
                 .askAIPopover($asking, subject: askSubject ?? .all, recent: askRecent)
             }
@@ -636,7 +670,7 @@ struct NoteListView: View {
                 ToolbarItem(id: "list.title.\(Int(Self.titleRoom(listWidth: listWidth, compose: scope != .trash)))") {
                     VStack(spacing: 0) {
                         Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
-                        Text(countText(notes: scopedNotes.count, files: scopedFiles.count, capitalized: false))
+                        Text(Self.macCount(notes: scopedNotes.count, files: scopedFiles.count, results: searchResults, trash: scope == .trash))
                             .font(.system(size: 11))
                             .foregroundStyle(Color.muted)
                             .monospacedDigit()
@@ -693,7 +727,7 @@ struct NoteListView: View {
                 // One weight lighter than before, in a 40 pt row like Notes' (NoteListGeometryTests).
                 // C and D: small, semibold and muted, a label over the rows rather than a title.
                 Text(section.0)
-                    .font(DesignLook.calmList ? .system(size: 12, weight: .semibold) : .title3.weight(.semibold))
+                    .font(.system(size: TextSize.interface(DesignLook.calmList ? 12 : 15), weight: .semibold))
                     .foregroundStyle(DesignLook.calmList ? Color.muted : Color.ink)
                     .textCase(nil)
                     .padding(.top, NoteListView.headingTop)
@@ -970,9 +1004,14 @@ struct NoteListView: View {
                 EmptyLibraryActions(onNewNote: onNewNote, imports: imports)
             }
         } else {
-            // "No Notes", like Notes: the compose button is the one way to start a note.
+            // "No Notes", and the one way to start one here (council round 16: the note pane said
+            // "No note selected" beside it, with its own New Note). The note pane stays blank.
             ContentUnavailableView {
                 Text("No Notes")
+            } actions: {
+                Button("New Note", action: onNewNote)
+                    .buttonStyle(.secondary)
+                    .accessibilityIdentifier("list.empty.newNote")
             }
         }
     }
@@ -1010,7 +1049,7 @@ struct NoteListView: View {
                 DestructiveMenuButton("Delete \(notes.count) Notes Forever…", systemImage: "trash") { remove(ids) }
             } else {
                 Menu("Move \(notes.count) Notes to", systemImage: "folder") {
-                    FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { context.move(notes, to: f) } }
+                    FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { _ = context.move(notes, to: f, undo: undoManager) } }
                 }
                 Divider()
                 DestructiveMenuButton("Delete \(notes.count) Notes", systemImage: "trash") { remove(ids) }
@@ -1053,7 +1092,7 @@ struct NoteListView: View {
             ShareLink(item: note.body, preview: SharePreview(note.title))
         case .move:
             Menu("Move to", systemImage: "folder") {
-                FolderMenuItems(folders: folders, current: note.folder?.id) { f in withAnimation(.snappy) { context.move(note, to: f) } }
+                FolderMenuItems(folders: folders, current: note.folder?.id) { f in withAnimation(.snappy) { _ = context.move([note], to: f, undo: undoManager) } }
             }
         case .history:
             // The note's own Version History: the note opens and shows it (AppPlaceCenter).
@@ -1114,7 +1153,7 @@ struct NoteListView: View {
 
     /// Moves notes and files together.
     private func move(_ ids: Set<UUID>, to folder: Folder) {
-        context.move(ids.compactMap { context.note($0) }, to: folder)
+        context.move(ids.compactMap { context.note($0) }, to: folder, undo: undoManager)
         for f in ids.compactMap({ context.attachment($0) }) where f.folderID != nil { context.move(f, to: folder) }
     }
 
@@ -1154,17 +1193,14 @@ struct NoteListView: View {
         let files = ids.compactMap { context.attachment($0) }.filter { $0.folderID != nil }
         let touchedSelection = !selection.isDisjoint(with: ids)
         let firstIndex = ordered.firstIndex { ids.contains($0.id) }
+        let rest = ordered.filter { !ids.contains($0.id) }
+        let next: Set<UUID> = firstIndex.flatMap { i in rest.isEmpty ? nil : [rest[min(i, rest.count - 1)].id] } ?? []
+        let choose = $selection
         withAnimation(.snappy(duration: 0.25)) {
-            context.remove(notes)
+            context.remove(notes, undo: undoManager, reopen: { back in selection = Set(back.map(\.id)) },
+                           gone: touchedSelection ? { choose.wrappedValue = next } : nil)
             context.remove(files: files)
-            if touchedSelection {
-                let rest = ordered.filter { !ids.contains($0.id) }
-                if let i = firstIndex, !rest.isEmpty {
-                    selection = [rest[min(i, rest.count - 1)].id]
-                } else {
-                    selection = []
-                }
-            }
+            if touchedSelection { selection = next }
         }
     }
 }
@@ -1193,6 +1229,7 @@ struct ListCompose: View {
         }
         .disabled(off)
         .help(off ? "This note is new and empty" : "New Note (⌘N). Click and hold for New App.")
+        .accessibilityLabel("New Note")
         .newAppTip()
         // The menu bar's quick capture is the other way to start a note.
         .paneTip(MenuBarTip(), arrowEdge: .top)
@@ -1391,6 +1428,8 @@ struct ShowsSelectedRow: ViewModifier {
 
     /// This list's table, found once the list is in a window.
     @State private var finder = TableFinder.Probe()
+    /// Counts the asks to show the selected row again.
+    @State private var revealAsked = 0
 
     func body(content: Content) -> some View {
         content
@@ -1410,10 +1449,22 @@ struct ShowsSelectedRow: ViewModifier {
                 guard let at = new.flatMap(row) else { return }
                 DispatchQueue.main.async { finder.reveal(row: at) }
             }
-            // The open note moved in the list (typing dates it Today): it stays in view. It went
-            // off the top and no row showed as open (persona council r7d).
-            .onChange(of: selected.flatMap(row)) { _, at in
-                guard let at else { return }
+            // A version restored moves the note to the top of the list: the list goes with it
+            // (round 20: the selected row was off screen after Restore This Version).
+            .onReceive(NotificationCenter.default.publisher(for: .paneVersionRestored)) { n in
+                guard let id = n.object as? UUID, id == selected else { return }
+                // Once the list has its new order: `row` here is the one from before it.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { revealAsked &+= 1 }
+            }
+            // A note that an edit, a restore or an Undo sent along the list: the list goes with it
+            // (round 21 up; round 23 down: Undo of a move left Lisbon cut by the window's foot). Not
+            // for a row that shifted because of another note: someone reading further down stays there.
+            .onChange(of: selected.flatMap(row)) { old, new in
+                guard let old, let new, abs(new - old) > 1 else { return }
+                DispatchQueue.main.async { finder.reveal(row: new) }
+            }
+            .onChange(of: revealAsked) {
+                guard let at = selected.flatMap(row) else { return }
                 DispatchQueue.main.async { finder.reveal(row: at) }
             }
     }
@@ -1449,7 +1500,9 @@ struct ShowsSelectedRow: ViewModifier {
                 guard let table = find(), row < table.numberOfRows, let scroll = table.enclosingScrollView else { return }
                 let clip = scroll.contentView.bounds
                 let insets = scroll.contentInsets
-                let shown = CGRect(x: clip.minX, y: clip.minY + insets.top, width: clip.width, height: clip.height - insets.top - insets.bottom)
+                // The heading pinned at the top covers what's under it.
+                let band = table.numberOfRows > 0 ? table.rect(ofRow: 0).height : 0
+                let shown = CGRect(x: clip.minX, y: clip.minY + insets.top + band, width: clip.width, height: clip.height - insets.top - insets.bottom - band)
                 if ShowsSelectedRow.needsReveal(table.rect(ofRow: row), shown: shown) { center(row: row) }
             }
 
@@ -1468,9 +1521,14 @@ struct ShowsSelectedRow: ViewModifier {
                 let near = max(0, table.row(at: NSPoint(x: 1, y: centred + insets.top + 1)) - 1)
                 let rows = Array(near..<min(table.numberOfRows, near + 6))
                 let frames = rows.map { table.rect(ofRow: $0) }
-                let headings = rows.map { r in table.delegate?.tableView?(table, isGroupRow: r) ?? false }
                 // Every section starts with its heading, so row 0 is one: the pinned band's height.
                 let band = table.numberOfRows > 0 ? table.rect(ofRow: 0).height : 0
+                // SwiftUI's list doesn't answer the delegate's question, and asking for row views
+                // would build them off screen; a heading has the height row 0 has (round 20: every
+                // launch stopped with "Yesterday" under the pinned "Today", an empty group by the look of it).
+                let headings = rows.indices.map { i in
+                    (table.delegate?.tableView?(table, isGroupRow: rows[i]) ?? false) || abs(frames[i].height - band) < 1
+                }
                 let y = min(max(top, ShowsSelectedRow.snapped(centred, topInset: insets.top, rows: frames, headings: headings, band: band)), bottom)
                 clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: y))
                 scroll.reflectScrolledClipView(clip)
@@ -1836,6 +1894,14 @@ final class LibraryNotes {
 }
 
 /// Row type and spacing, matched to Apple Notes on each platform.
+#if os(macOS)
+/// Rows are worked out again when the interface's size changes.
+struct FollowsTextSize: ViewModifier {
+    @AppStorage(TextSize.key) private var stored: Double = 0
+    func body(content: Content) -> some View { content.id(TextSize.interfaceScale(stored: stored)) }
+}
+#endif
+
 enum RowMetrics {
     /// iPhone: the room either side of a row's text inside its card.
     static let sideInset: CGFloat = 20
@@ -1848,10 +1914,10 @@ enum RowMetrics {
     // here it keeps the folder rows' gap (owner: "the note title and subtitle needs a bit of
     // spacing"). The list adds 4 pt above and below a row and 16 at its left
     // (NoteListGeometryTests).
-    static let title = Font.system(size: 13, weight: .bold)
-    static let detail = Font.system(size: 12)
+    static var title: Font { .system(size: TextSize.interface(13), weight: .bold) }
+    static var detail: Font { .system(size: TextSize.interface(12)) }
     /// C and D: the folder line, a size under the detail.
-    static let folder = Font.system(size: 11)
+    static var folder: Font { .system(size: TextSize.interface(11)) }
     /// C and D: room the hairlines used to give, as air above and below each row.
     static var calmAir: CGFloat { DesignLook.calmList ? 3 : 0 }
     static let spacing: CGFloat = 3
@@ -2415,3 +2481,21 @@ enum SearchLines {
         Text(l.before).foregroundStyle(rest) + Text(l.match).foregroundStyle(Color.ink).fontWeight(.semibold) + Text(l.after).foregroundStyle(rest)
     }
 }
+
+#if os(macOS)
+/// Another folder with nothing of it open: its top note opens, as in Notes (round 23: Ideas opened
+/// on "No note selected"). A turn later, once the note that isn't here has closed.
+private struct OpensTopNote: ViewModifier {
+    let scope: Scope
+    let top: UUID?
+    @Binding var selection: Set<UUID>
+
+    func body(content: Content) -> some View {
+        content.onChange(of: scope) { _, _ in
+            DispatchQueue.main.async {
+                if selection.isEmpty, let top { selection = [top] }
+            }
+        }
+    }
+}
+#endif

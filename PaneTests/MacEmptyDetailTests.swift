@@ -173,6 +173,40 @@ import Testing
 
     /// The accessibility element with `id` under `element`, as VoiceOver finds it. SwiftUI's own
     /// elements answer only through the selectors, not a Swift cast.
+    /// An empty folder says so once, in the list, with the one New Note there; the note pane beside
+    /// it is blank, as in Notes (council round 16, `a1-empty-folder`: "No Notes" beside "No note
+    /// selected" and a second New Note).
+    @Test func anEmptyFolderSaysSoOnce() async throws {
+        let c = try AppSnapshotTests.container()
+        let empty = Folder(name: "Empty")
+        c.mainContext.insert(empty)
+        try c.mainContext.save()
+        let d = UserDefaults.standard
+        let keepNote = d.object(forKey: "lastNote"), keepScope = d.object(forKey: "lastScope")
+        defer {
+            if let keepNote { d.set(keepNote, forKey: "lastNote") } else { d.removeObject(forKey: "lastNote") }
+            if let keepScope { d.set(keepScope, forKey: "lastScope") } else { d.removeObject(forKey: "lastScope") }
+        }
+        d.removeObject(forKey: "lastNote")
+        d.set(try JSONEncoder().encode(Scope.folder(empty.id)), forKey: "lastScope")
+        let w = MacWindowChromeTests.window(c, size: Self.size)
+        defer { w.close() }
+        NSApp.accessibilitySetValue(true, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface"))
+        defer { NSApp.accessibilitySetValue(false, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")) }
+        await MacWindowChromeTests.settle(w, 8)
+        let root = try #require(w.contentView)
+        #expect(Self.element("list.empty.newNote", in: root) != nil, "New Note in the empty list")
+        #expect(Self.element("detail.newNote", in: root) == nil, "and none on the note pane")
+        // A folder with notes, nothing selected: the note pane offers New Note again.
+        d.removeObject(forKey: "lastScope")
+        let w2 = MacWindowChromeTests.window(c, size: Self.size)
+        defer { w2.close() }
+        await MacWindowChromeTests.settle(w2, 4)
+        try await Self.deselect(w2)
+        await MacWindowChromeTests.settle(w2, 3)
+        #expect(Self.element("detail.newNote", in: try #require(w2.contentView)) != nil)
+    }
+
     static func element(_ id: String, in element: Any, depth: Int = 0) -> NSObject? {
         guard depth < 60, let e = element as? NSObject else { return nil }
         if e.responds(to: #selector(NSAccessibilityProtocol.accessibilityIdentifier)), e.value(forKey: "accessibilityIdentifier") as? String == id { return e }
@@ -208,6 +242,9 @@ import Testing
             let editor = try #require(w.contentView.flatMap { MacWindowChromeTests.find(PaneTextView.self, in: $0) }, "and it's open")
             #expect(editor.string.isEmpty)
             #expect(Self.element("detail.newNote", in: root) == nil, "the empty pane has gone")
+            // With the cursor in it, so what you type goes in, as in Notes (council round 16:
+            // "Trip files" typed after ⌘N went nowhere).
+            #expect(w.firstResponder === editor, "the new note has the cursor: \(String(describing: w.firstResponder))")
         }
     }
 

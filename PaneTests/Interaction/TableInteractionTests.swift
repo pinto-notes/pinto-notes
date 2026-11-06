@@ -60,6 +60,48 @@ extension TableInteractionTests {
         #expect(h.selection.location > NSMaxRange(tableRange), "leaving the table from the bottom lands after it")
     }
 
+    /// ⇧Tab goes back a cell, as in Notes (council round 16: it left the table). AppKit sends
+    /// ⇧Tab as a back-tab character, not a Tab with Shift held.
+    @Test func shiftTabGoesBackACell() async {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        await h.caret(after: "is here.")
+        await h.press(EditorHarness.down)
+        await h.press(EditorHarness.down)
+        #expect(await h.until { h.gridHasFocus })
+        func cellText() -> String? { (h.focusedGridField as? NSTextField)?.stringValue }
+        #expect(await h.until { cellText() == "Shortcut" })
+        await h.press(EditorHarness.tab)
+        #expect(await h.until { cellText() == "Does" }, "Tab moves on a cell")
+        await h.press((48, "\u{19}"), .shift)
+        #expect(await h.until { cellText() == "Shortcut" }, "⇧Tab is back in the first cell, not out of the table: \(String(describing: cellText()))")
+    }
+
+    /// A right-click on a cell offers its row and column, as in Notes (round 16: it selected the
+    /// whole table and offered only text items).
+    @Test func rightClickOnACellOffersRowsAndColumns() async throws {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        await h.settle(0.3)
+        func hosts(_ v: NSView) -> [GridHostingView] { (v as? GridHostingView).map { [$0] } ?? v.subviews.flatMap(hosts) }
+        let host = try #require(hosts(h.view).first)
+        // The second row's first cell ("⌘B"): below the handle strip, header and one row.
+        let local = CGPoint(x: 30, y: GridMetrics.handle + GridMetrics.row * 1.5)
+        let inWindow = host.convert(CGPoint(x: local.x, y: host.isFlipped ? local.y : host.bounds.height - local.y), to: nil)
+        let event = try #require(NSEvent.mouseEvent(with: .rightMouseDown, location: inWindow, modifierFlags: [], timestamp: 0,
+                                                    windowNumber: h.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        // Right-clicks reach the table's own view (its cells don't take them), which asks itself.
+        let menu = host.menu(for: event)
+        let titles = menu?.items.map(\.title) ?? []
+        #expect(titles.contains("Add Row Below") && titles.contains("Delete Column"), "menu: \(titles)")
+        // Add Row Below adds one under the cell's row ("⌘B"), not at the end.
+        let add = try #require(menu?.items.first { $0.title == "Add Row Below" })
+        (add.representedObject as? TableMenuAction)?.fire()
+        await h.settle(0.2)
+        let rows = GridTable.find(in: h.text)[0].rows
+        #expect(rows.count == 4 && rows[2].allSatisfy(\.isEmpty) && rows[3].first == "⌘⇧L", "rows: \(rows)")
+    }
+
     @Test func tableAtEndOfNoteGetsALineAfterOnClick() async {
         let text = "Title\n\n| a | b |\n| --- | --- |\n| 1 | 2 |"
         let h = await EditorHarness(text)

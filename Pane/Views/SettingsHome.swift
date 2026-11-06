@@ -112,7 +112,7 @@ enum SettingsIndex {
 
     static let all: [Entry] = ([
         ("Name", .account), ("Photo", .account), ("Sign Out", .account), ("Remove notes from this Mac", .account),
-        ("Sync now", .account), ("Storage used", .account), ("Delete account", .account),
+        ("Storage used", .account), ("Delete account", .account),
         ("Connect ChatGPT", .ai), ("Connect Claude", .ai), ("Connect Grok", .ai), ("Connect Codex", .ai), ("Connected AIs", .ai),
         ("Disconnect", .ai), ("App previews", .ai), ("Keys for apps", .appKeys),
         (recoveryKey, .security), ("Devices", .security), ("Add a device", .security), (advancedProtection, .security),
@@ -121,6 +121,8 @@ enum SettingsIndex {
         ("Light or dark mode", .appearance), ("Theme", .appearance), ("Show in menu bar", .appearance),
     ] as [(String, SettingsPlace)]).map { Entry(label: $0.0, place: $0.1) }
         + [Entry(label: "Accent colour", place: .appearance, also: ["Accent color"]),
+           // Named for what the page shows; its status line is what syncs when pressed (round 24).
+           Entry(label: "Sync status", place: .account, also: ["Sync now"]),
            Entry(label: "Your account", place: .account, also: ["Profile", "Email", "Signed in with", "Sync"]),
            Entry(label: "Storage", place: .account, also: ["Space", "Recently Deleted", "Earlier versions", "Full"]),
            Entry(label: "Export All Notes", place: .account, also: ["Export notes", "Markdown", "Backup"], menu: .export),

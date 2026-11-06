@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import UniformTypeIdentifiers
 
 /// What VoiceOver gets from the note on the Mac: the words as they're drawn, and rotors for its
 /// headings and links, as Notes gives them (council rounds 13 and 14: VoiceOver read "## Plan"
@@ -8,6 +9,56 @@ import AppKit
 /// The text keeps its characters, so every range VoiceOver asks about is the note's own and
 /// editing with VoiceOver lands where it should; only what's spoken for a range leaves out the
 /// markdown the styler hides (drawn in a clear colour: "## ", "- [ ] ", "**", a link's URL).
+extension PaneTextView {
+    /// The note on pages: its width fits the page, on light paper in dark mode too.
+    /// The PDF's Title and the print job's name: the note's, not the window's (round 22: "All Notes").
+    override var printJobTitle: String { Self.fileName(for: string) }
+
+    private func printOperation(_ info: NSPrintInfo) -> NSPrintOperation {
+        if let manager = textLayoutManager { manager.ensureLayout(for: manager.documentRange) }
+        info.horizontalPagination = .fit
+        info.verticalPagination = .automatic
+        info.isHorizontallyCentered = false
+        info.isVerticallyCentered = false
+        return NSPrintOperation(view: self, printInfo: info)
+    }
+
+    func printNote() {
+        let op = printOperation(NSPrintInfo.shared.copy() as! NSPrintInfo)
+        op.jobTitle = Self.fileName(for: string)
+        onPaper(op)
+    }
+
+    /// The PDF of the note at `url`, with no panels.
+    func writePDF(to url: URL) {
+        let info = NSPrintInfo.shared.copy() as! NSPrintInfo
+        info.jobDisposition = .save
+        info.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = url
+        let op = printOperation(info)
+        op.showsPrintPanel = false
+        op.showsProgressPanel = false
+        onPaper(op)
+    }
+
+    func exportPDF() {
+        guard let window else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.nameFieldStringValue = Self.fileName(for: string)
+        panel.beginSheetModal(for: window) { [weak self] answer in
+            guard answer == .OK, let url = panel.url else { return }
+            self?.writePDF(to: url)
+        }
+    }
+
+    /// The note's title as a file name: its first line, without its markdown or a path's slash.
+    static func fileName(for text: String) -> String {
+        let first = text.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? ""
+        let plain = first.drop { $0 == "#" || $0 == " " }.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        return plain.isEmpty ? "New Note" : plain
+    }
+}
+
 extension PaneTextView: NSAccessibilityCustomRotorItemSearchDelegate {
     /// The part of `text` in `range` as it reads on screen: hidden characters left out.
     static func spoken(_ text: NSAttributedString, in range: NSRange) -> NSAttributedString {
@@ -18,7 +69,25 @@ extension PaneTextView: NSAccessibilityCustomRotorItemSearchDelegate {
             if let c = color as? NSColor, (c.usingColorSpace(.sRGB)?.alphaComponent ?? 1) == 0 { return }
             out.append(text.attributedSubstring(from: run))
         }
+        // A table's lines are hidden under its grid: read as a line, a row says its cells, not nothing
+        // (round 22: six blank lines). Across lines, the table's own element has them.
+        if out.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let row = spokenTableRow((text.string as NSString).substring(with: r)) {
+            return NSAttributedString(string: row)
+        }
         return out
+    }
+
+    /// "Place, Dish" for "| Place | Dish |"; "Table" for the line under its header. Nil if it isn't
+    /// one line of a table.
+    static func spokenTableRow(_ line: String) -> String? {
+        let t = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.hasPrefix("|"), !t.contains("\n") else { return nil }
+        let cells = t.split(separator: "|", omittingEmptySubsequences: false).dropFirst()
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        let filled = (t.hasSuffix("|") ? Array(cells.dropLast()) : cells)
+        if filled.allSatisfy({ !$0.isEmpty && $0.allSatisfy { "-:".contains($0) } }) { return "Table" }
+        return filled.map { $0.isEmpty ? "blank" : $0 }.joined(separator: ", ")
     }
 
     override func accessibilityString(for range: NSRange) -> String? {

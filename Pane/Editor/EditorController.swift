@@ -332,6 +332,14 @@ final class EditorController {
     func underline() { perform { ListEditing.underline(in: $0, selection: $1) } }
     func strikethrough() { perform { ListEditing.wrap(in: $0, selection: $1, with: "~~") } }
     func code() { perform { ListEditing.wrap(in: $0, selection: $1, with: "`") } }
+    /// Format › Code Block, the same as "/code": the caret's lines fenced (round 20: only the
+    /// slash menu had it).
+    func codeBlock() { apply(.monostyled) }
+    #if os(macOS)
+    /// File › Print and Export as PDF: the note the way it reads, on white paper.
+    func printNote() { (target as? PaneTextView)?.printNote() }
+    func exportPDF() { (target as? PaneTextView)?.exportPDF() }
+    #endif
     /// Format › Highlight: `==text==` on the selection or the word under the caret, or off again.
     func highlight() { perform { FormatState.toggle(.highlight, in: $0, selection: $1) } }
     func checklist() {
@@ -370,7 +378,12 @@ final class EditorController {
     func heading(_ level: Int) { guard cell == nil else { return }; perform { ListEditing.heading(in: $0, selection: $1, level: level) } }
 
     /// Format › Move Item Up / Down: the caret's line or item past its neighbour (`MoveItem`).
-    func moveItem(up: Bool) { guard cell == nil else { return }; perform { MoveItem.move(in: $0, selection: $1, up: up) } }
+    /// Its own step of Undo, the caret back where it was: a plain edit's Undo selects all the text
+    /// it put back, here the two lines that swapped (round 18).
+    func moveItem(up: Bool) {
+        guard cell == nil, let t = target, !readOnly, let edit = MoveItem.move(in: t.currentText, selection: t.currentSelection, up: up) else { return }
+        t.applyMove(edit, named: "Move Item")
+    }
     func bulletList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .bulleted) } }
     func dashedList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .dashed) } }
     func numberedList() { guard cell == nil else { return }; perform { ListEditing.toggleLineStyle(in: $0, selection: $1, .numbered) } }
@@ -779,6 +792,23 @@ final class EditorController {
         t.focusGrid(grid, cell: next)
     }
 
+    /// What a cell holds, as you'd read it.
+    func cellText(grid: Int, cell: GridCell) -> String? {
+        guard let g = target.flatMap({ t in GridTable.find(in: t.currentText).first { $0.index == grid } }),
+              cell.row < g.rows.count, cell.column < g.rows[cell.row].count else { return nil }
+        return g.rows[cell.row][cell.column]
+    }
+
+    /// Puts `value` in a cell, on one line: a table cell has only one (Cut and Paste in its menu).
+    func setCell(_ value: String, grid: Int, cell: GridCell) {
+        guard let t = target, !readOnly else { return }
+        let all = GridTable.find(in: t.currentText)
+        guard grid < all.count, cell.row < all[grid].rows.count, cell.column < all[grid].rows[cell.row].count else { return }
+        var g = all[grid]
+        g.rows[cell.row][cell.column] = value.components(separatedBy: .newlines).filter { !$0.isEmpty }.joined(separator: " ")
+        t.apply(TextEdit(range: all[grid].range, replacement: g.markdown, caret: -1))
+    }
+
     /// A table's add bar: a row at the bottom or a column at the end, keyboard in it.
     func addToTable(_ kind: GridAdd, grid: Int) {
         guard let t = target, let g = GridTable.find(in: t.currentText).first(where: { $0.index == grid }) else { return }
@@ -885,6 +915,8 @@ protocol EditorTarget: TextHost {
     /// Makes `edit` as one step of Undo named `name` ("Undo Untick All"), the caret, scroll and
     /// keyboard left as they are.
     func applyStep(_ edit: TextEdit, named name: String)
+    /// The same, but the caret goes where `edit` says; Undo puts it back.
+    func applyMove(_ edit: TextEdit, named name: String)
     /// Removes table `index` as one undoable edit, the keyboard back in the text.
     func deleteGrid(_ index: Int)
     /// Undoes the last edit (the notice's Undo).
@@ -908,6 +940,7 @@ protocol EditorTarget: TextHost {
 
 extension EditorTarget {
     func applyStep(_ edit: TextEdit, named name: String) { apply(edit) }
+    func applyMove(_ edit: TextEdit, named name: String) { apply(edit) }
     func tablePanelChanged(shown: Bool) {}
     func deleteGrid(_ index: Int) {}
     func undoLastEdit() {}

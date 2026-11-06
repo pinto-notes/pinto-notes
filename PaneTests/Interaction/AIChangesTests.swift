@@ -27,13 +27,39 @@ import AppKit
         try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     }
 
+    @Test func aConnectedAIShowsItsMark() {
+        #expect(SecurityContent.aiMark("Claude", title: "My helper") == "Claude")
+        #expect(SecurityContent.aiMark(nil, title: "ChatGPT") == "ChatGPT", "by its name")
+        #expect(SecurityContent.aiMark(nil, title: "My helper") == nil, "no mark to show")
+    }
+
+    /// One AI's edits in a row read as one change; anything between them keeps them apart (round 20).
+    @Test func editsInARowAreOneSession() {
+        let note = UUID(), other = UUID()
+        let t = Date(timeIntervalSince1970: 1_000_000)
+        func edit(_ id: String, _ before: Int64, _ after: Int64?, ago: TimeInterval, ai: String = "ChatGPT", note n: UUID? = nil) -> AIChange {
+            AIChange(id: id, kind: .edit, noteID: n ?? note, ai: ai, at: t.addingTimeInterval(-ago), beforeVersion: before, afterVersion: after)
+        }
+        let one = AIChangeCopy.sessions([edit("c", 3, nil, ago: 0), edit("b", 2, 3, ago: 60), edit("a", 1, 2, ago: 120)])
+        #expect(one.count == 1)
+        #expect(one[0].id == "c" && one[0].edits == 3)
+        #expect(one[0].beforeVersion == 1 && one[0].afterVersion == nil, "from before the first to after the last")
+        #expect(AIChangeCopy.sessions([edit("b", 3, nil, ago: 0), edit("a", 1, 2, ago: 60)]).count == 2, "someone else's version between them")
+        #expect(AIChangeCopy.sessions([edit("b", 2, nil, ago: 0, ai: "Claude"), edit("a", 1, 2, ago: 60)]).count == 2, "another AI")
+        #expect(AIChangeCopy.sessions([edit("b", 2, nil, ago: 0, note: other), edit("a", 1, 2, ago: 60)]).count == 2, "another note")
+        #expect(AIChangeCopy.sessions([edit("b", 2, nil, ago: 0), edit("a", 1, 2, ago: AIChangeCopy.sessionGap + 1)]).count == 2, "hours apart")
+        // The gap counts from the edit next to it, so a long session stays one.
+        let long = AIChangeCopy.sessions([edit("c", 3, nil, ago: 0), edit("b", 2, 3, ago: 500), edit("a", 1, 2, ago: 1000)])
+        #expect(long.count == 1)
+    }
+
     #if os(macOS)
     /// The AI Changes window: Return opens the note, never undoes (a stray Return while reading
     /// changed the note, council 11-04), and the summary has room to say what the AI did.
     @Test func returnOpensTheNoteAndUndoIsAClickOfItsOwn() throws {
         let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appending(path: "Pane/Views/AIChangesView.swift"), encoding: .utf8)
-        let bar = try #require(src.range(of: "private var bar: some View").map { String(src[$0.lowerBound...].prefix(2200)) })
+        let bar = try #require(src.range(of: "private func actions(_ c: AIChange) -> some View").map { String(src[$0.lowerBound...].prefix(2200)) })
         let undo = try #require(bar.range(of: "Button(\"Undo This Change\")"))
         let open = try #require(bar.range(of: "Button(\"Open Note\")"))
         let undoPart = String(bar[undo.lowerBound..<open.lowerBound])
@@ -52,9 +78,11 @@ import AppKit
         #expect(row.contains("private let lineFont = Font.system(size: 12)"), "who and when at 12 pt, read before Undo (round 4)")
         #expect(!src.contains("NSColor(white:") && src.contains("Rectangle().fill(Color.line)"), "the theme's dividers, solid in High contrast (council round 11)")
         #expect(!src.contains("windowBackgroundColor"), "the list and the bar on the note's ground, not a grey beside black")
-        // One accent (round 5): Done, Undo and the filter in ink, the list's quiet grey selection.
-        let donePart = try #require(bar.range(of: "Button(\"Done\"").map { String(bar[$0.lowerBound...].prefix(120)) })
-        #expect(donePart.contains(".tint(.primary)") && undoPart.contains(".tint(.primary)") && !undoPart.contains("amberProminent"))
+        // One accent (round 5): Undo and the filter in ink, the list's quiet grey selection. Round 16: a
+        // card's × in the corner closes it, like the app's other sheets; no Done bar along the bottom.
+        #expect(src.components(separatedBy: "Button(\"Done\"").count == 2, "only the iPhone's toolbar Done")
+        #expect(src.contains("CardCloseButton(size: 28, action: close)"))
+        #expect(undoPart.contains(".tint(.primary)") && !undoPart.contains("amberProminent"))
         #expect(src.contains(".hoverRow(\"aiChange\", reach: Hover.noteRowReach, selected: model.selection == c.id)") && src.contains(".quietSelection()"))
         let filter = try #require(src.range(of: "struct AIChangesFilter").map { String(src[$0.lowerBound...].prefix(600)) })
         #expect(filter.contains(".tint(.primary)"))

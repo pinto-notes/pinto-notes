@@ -1,5 +1,7 @@
 #if os(macOS)
 import AppKit
+import PDFKit
+import SwiftUI
 import Testing
 @testable import Pane
 
@@ -13,6 +15,136 @@ import Testing
         var lines: [NSRange] = []
         ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: [.byLines, .substringNotRequired]) { _, r, _, _ in lines.append(r) }
         return lines[n]
+    }
+
+    /// Space after "[]" or "[ ]" makes a checklist item, on a plain line or after a dash; "- [ ]"
+    /// is one already, and brackets in code or text stay brackets (round 20).
+    @Test func typedBracketsMakeAChecklistItem() async {
+        func typed(_ before: String, rest: String = "") -> String? {
+            let at = NSRange(location: (before as NSString).length, length: 0)
+            let text = before + rest
+            guard let e = ListEditing.spaceKey(in: text, selection: at) else { return nil }
+            return (text as NSString).replacingCharacters(in: e.range, with: e.replacement)
+        }
+        #expect(typed("Trip\n[]") == "Trip\n- [ ] ")
+        #expect(typed("Trip\n[ ]") == "Trip\n- [ ] ")
+        #expect(typed("[x]") == "- [x] ")
+        #expect(typed("  [ ]") == "  - [ ] ", "keeps its indent")
+        #expect(typed("- []") == "- [ ] ", "after a dash")
+        #expect(typed("[ ]", rest: "Hat") == "- [ ] Hat", "words after the caret stay")
+        #expect(typed("- [ ]") == nil, "the space makes it an item by itself")
+        #expect(typed("See [ ]") == nil, "not in the middle of a line")
+        #expect(typed("```\n[ ]") == nil, "not in code")
+        let h = await EditorHarness("Trip\n")
+        defer { h.close() }
+        await h.select((h.view.string as NSString).length)
+        for c in "[ ] Hat" { await h.type(String(c)) }
+        #expect(h.view.string == "Trip\n- [ ] Hat")
+    }
+
+    /// A cell's right-click menu starts with Cut, Copy and Paste, and they work on the cell (round 21).
+    @Test func aCellsMenuHasTheClipboard() async throws {
+        let h = await EditorHarness("Lisbon\n\n| Place | Dish |\n| --- | --- |\n| Manteigaria | Pastel |\n\nEnd\n")
+        defer { h.close() }
+        await h.settle(0.3)
+        let host = try #require(h.view.subviews.compactMap { $0 as? GridHostingView }.first)
+        let cell = GridCell(row: 1, column: 0)
+        // The clipboard is the developer's: it goes back as it was.
+        var kept: [NSPasteboardItem] = []
+        for item in NSPasteboard.general.pasteboardItems ?? [] {
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) { copy.setData(data, forType: type) }
+            }
+            kept.append(copy)
+        }
+        defer {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.writeObjects(kept)
+        }
+        let menu = try #require(h.view.tableCellMenu(host: host, cell: cell))
+        #expect(menu.items.prefix(3).map(\.title) == ["Cut", "Copy", "Paste"])
+        #expect(menu.items[3].isSeparatorItem)
+        func press(_ i: Int) { (menu.items[i].representedObject as? TableMenuAction)?.fire() }
+        let controller = try #require(h.view.controller)
+        press(1)
+        #expect(NSPasteboard.general.string(forType: .string) == "Manteigaria")
+        press(0)
+        await h.settle(0.1)
+        #expect(controller.cellText(grid: 0, cell: cell) == "", "Cut empties it")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("Ramiro\nSeafood", forType: .string)
+        press(2)
+        await h.settle(0.1)
+        #expect(controller.cellText(grid: 0, cell: cell) == "Ramiro Seafood", "one line")
+    }
+
+    /// Print and Export as PDF: the note in pages, its tables drawn on them (round 21: the words
+    /// were in the file, hidden, and the table was a hole), and the note's look back afterwards,
+    /// in dark mode as well (round 20: neither was in the File menu).
+    @Test func theSlashMenuIsInVoiceOversTree() async {
+        let h = await EditorHarness("Trip\n")
+        defer { h.close() }
+        await h.settle(0.2)
+        h.view.setSelectedRange(NSRange(location: 5, length: 0))
+        await h.type("/")
+        await h.settle(0.3)
+        let hosts = (h.view.accessibilityChildren() ?? []).compactMap { $0 as? NSHostingView<SlashCommandList> }
+        #expect(hosts.count == 1, "the list and its rows can be reached")
+    }
+
+    @Test func aPDFIsNamedAfterItsNote() async {
+        let h = await EditorHarness("Lisbon\n\nWords\n")
+        defer { h.close() }
+        #expect(h.view.printJobTitle == PaneTextView.fileName(for: "Lisbon\n\nWords\n"))
+    }
+
+    @Test func theWindowIsSpokenAsTheOpenNote() {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 100, height: 100), styleMask: [.titled], backing: .buffered, defer: false)
+        let probe = WindowSpokenTitle.Probe()
+        probe.title = "Lisbon"
+        window.contentView?.addSubview(probe)
+        #expect(window.accessibilityTitle() == "Lisbon")
+        probe.title = "Hotel"
+        #expect(window.accessibilityTitle() == "Hotel")
+    }
+
+    @Test func theNoteExportsAsAPDF() async throws {
+        /// How much of the page is dark ink, and the file's pages.
+        func exported(_ text: String) async throws -> (ink: Int, pages: Int, words: String) {
+            let h = await EditorHarness(text)
+            defer { h.close() }
+            await h.settle(0.3)
+            h.view.appearance = NSAppearance(named: .darkAqua)
+            await h.settle(0.2)
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
+            defer { try? FileManager.default.removeItem(at: url) }
+            h.view.writePDF(to: url)
+            #expect(h.view.appearance?.name == .darkAqua, "the look is back")
+            #expect(h.view.subviews.allSatisfy { !($0 is NSImageView) }, "the stand-in pictures are gone")
+            #expect(h.view.subviews.allSatisfy { !($0 is GridHostingView && $0.isHidden) }, "the tables are back")
+            let pdf = try #require(PDFDocument(url: url))
+            let page = try #require(pdf.page(at: 0))
+            let size = page.bounds(for: .mediaBox).size
+            let image = page.thumbnail(of: CGSize(width: size.width * 2, height: size.height * 2), for: .mediaBox)
+            let rep = try #require(image.tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)))
+            var ink = 0
+            for y in stride(from: 0, to: rep.pixelsHigh, by: 2) {
+                for x in stride(from: 0, to: rep.pixelsWide, by: 2) {
+                    if let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB), c.brightnessComponent < 0.5 { ink += 1 }
+                }
+            }
+            return (ink, pdf.pageCount, pdf.string ?? "")
+        }
+        let top = "Lisbon\n\nTram 28\n\n"
+        let plain = try await exported(top + "End\n")
+        let table = try await exported(top + "| Place | Dish |\n| --- | --- |\n| Manteigaria | Pastel de nata |\n| Time Out Market | A bit of everything |\n\nEnd\n")
+        #expect(plain.pages == 1)
+        #expect(plain.words.contains("Tram 28"), "\(plain.words)")
+        #expect(plain.ink > 50, "dark ink on the page in dark mode: \(plain.ink)")
+        #expect(Double(table.ink) > Double(plain.ink) * 1.3, "the table is drawn: \(table.ink) against \(plain.ink)")
+        #expect(PaneTextView.fileName(for: "# Plan / May\nText") == "Plan - May")
+        #expect(PaneTextView.fileName(for: "") == "New Note")
     }
 
     @Test func linesReadAsTheyLook() async {

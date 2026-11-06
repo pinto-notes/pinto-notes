@@ -115,6 +115,9 @@ final class VersionHistoryModel {
         e.version.isCurrent ? "Current version" : "\(heading(e.version)) · \(byline(e))"
     }
 
+    /// What the note's page says once a version is back (round 20: the sheet just closed).
+    static let restoredLine = "Version restored"
+
     /// Restores the selected version. True when it's done and the history can close.
     func restore() async -> Bool {
         guard let entry = selected, !entry.version.isCurrent, !restoring else { return false }
@@ -122,6 +125,7 @@ final class VersionHistoryModel {
         defer { restoring = false }
         do {
             try await history.restore(noteID: note.id, toVersion: entry.version.version)
+            NotificationCenter.default.post(name: .paneVersionRestored, object: note.id)
             return true
         } catch {
             restoreError = HistoryError.from(error).localizedDescription
@@ -348,9 +352,9 @@ struct CompareMenu: View {
             }
         } label: {
             #if os(macOS)
-            Text(model.compareWith == nil ? "Compare with\u{2026}" : "Comparing")
+            Text(model.compareWith == nil ? "Compare With\u{2026}" : "Comparing")
             #else
-            Label("Compare with\u{2026}", systemImage: "arrow.left.arrow.right")
+            Label("Compare With\u{2026}", systemImage: "arrow.left.arrow.right")
             #endif
         }
         #if os(macOS)
@@ -409,11 +413,20 @@ struct MacVersionHistory: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(nsColor: .windowBackgroundColor))
             }
-            Hairline()
-            bar
+        }
+        // A card like the app's others: one close × in the corner, the action at the top beside
+        // Compare, no bar of buttons along the bottom (Emil, 5 November 2026: "it doesn't look
+        // like a normal sheet like the other ones do").
+        .overlay(alignment: .topTrailing) {
+            CardCloseButton(size: 28, action: close)
+                .accessibilityIdentifier("history.done")
+                .padding(.top, 15).padding(.trailing, 16)
         }
         .frame(minWidth: 820, idealWidth: 900, minHeight: 540, idealHeight: 600)
     }
+
+    /// Room on the right of the top row for the close ×.
+    static let closeRoom: CGFloat = 60
 
     private var hasVersions: Bool { model.phase == .loaded && !model.isEmpty }
 
@@ -434,7 +447,7 @@ struct MacVersionHistory: View {
                 ForEach(model.days) { day in
                     Section(day.title) {
                         ForEach(day.entries) { entry in
-                            VersionRow(entry: entry).tag(entry.id)
+                            VersionRow(entry: entry).quietSelection().tag(entry.id)
                                 .listRowSeparator(.hidden)
                         }
                     }
@@ -465,9 +478,17 @@ struct MacVersionHistory: View {
                         }
                     }
                     Spacer(minLength: 8)
-                    CompareMenu(model: model)
+                    if model.restoring {
+                        ProgressView().controlSize(.small)
+                        Text("Restoring\u{2026}").font(.system(size: 13)).foregroundStyle(.secondary)
+                    }
+                    // The buttons keep their full titles; the date and the summary wrap instead
+                    // (council round 16: "Restore This Ver…").
+                    CompareMenu(model: model).fixedSize()
+                    restoreButton.fixedSize()
                 }
-                .padding(.horizontal, 20)
+                .padding(.leading, 20)
+                .padding(.trailing, Self.closeRoom)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.notePage)
@@ -478,23 +499,6 @@ struct MacVersionHistory: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var bar: some View {
-        HStack(spacing: 8) {
-            if model.restoring {
-                ProgressView().controlSize(.small)
-                Text("Restoring…").font(.system(size: 13)).foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button("Done", action: close)
-                .keyboardShortcut(.cancelAction)
-            if hasVersions { restoreButton }
-        }
-        .controlSize(.large)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private var restoreButton: some View {
@@ -615,3 +619,8 @@ struct PhoneVersionPreview: View {
     }
 }
 #endif
+
+extension Notification.Name {
+    /// A version of the note (its id, as the object) is back.
+    static let paneVersionRestored = Notification.Name("pane.versionRestored")
+}

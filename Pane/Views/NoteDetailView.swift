@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 
 struct NoteDetailView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.undoManager) private var undoManager
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openWindow) private var openWindow
@@ -25,6 +26,8 @@ struct NoteDetailView: View {
     @State private var choosingAttachment = false
     /// "ChatGPT changed 5 lines · Undo", while an AI's edit that just landed is on show.
     @State private var receipt: AIEdit.Receipt?
+    /// An AI's edit on its way to `receipt`.
+    @State private var landingReceipt: AIEdit.Receipt?
     /// Reviewing the AI's edit part by part, in place of the receipt (AIReviewCard).
     @State private var review: AIReview?
     /// Ask an AI about this note: the AI picked in the toolbar or the ••• menu, while its popover shows.
@@ -34,6 +37,8 @@ struct NoteDetailView: View {
     /// Whether this note can be asked about, kept by `NoteAskableWatcher`. Asked here it read the
     /// note's text, which worked out the whole pane and its toolbar again on every key.
     @State private var askable = true
+    /// The Undo on that line, when what it reports can be taken back.
+    @State private var reviewResultUndo: (() -> Void)?
     /// The version that didn't open, for Undo on "Reverted to the last working version".
     @State private var revertedFrom: NotePageStore.Page?
     /// A text field in the note's app has focus: no receipt is drawn over it.
@@ -205,8 +210,22 @@ struct NoteDetailView: View {
             .sheet(isPresented: $showHistory) {
                 if let history = NoteHistory.shared { VersionHistorySheet(note: note, history: history) }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .paneNotesMoved)) { n in
+                if let said = n.object as? String {
+                    withAnimation(.smooth(duration: 0.2)) {
+                        reviewResult = said
+                        reviewResultUndo = n.userInfo?["undo"] as? () -> Void
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .paneVersionRestored)) { n in
+                if (n.object as? UUID) == note.id { withAnimation(.smooth(duration: 0.2)) { reviewResult = VersionHistoryModel.restoredLine } }
+            }
             #if os(iOS)
             .safeAreaInset(edge: .bottom, spacing: 0) { if !showingPage { phoneTips } }
+            #endif
+            #if os(macOS)
+            .background(WindowSpokenTitle(title: note.title))
             #endif
             .overlay(alignment: .bottom) { aiReceipt }
             .overlay(alignment: .bottom) { reviewDone }
@@ -523,16 +542,24 @@ struct NoteDetailView: View {
     @ViewBuilder
     private var reviewDone: some View {
         if let text = reviewResult {
-            Toast(text: text)
+            Toast(text: text, undo: reviewResultUndo.map { undo in
+                {
+                    undo()
+                    withAnimation(.smooth(duration: 0.2)) {
+                        reviewResultUndo = nil
+                        reviewResult = "Undone"
+                    }
+                }
+            })
                 .padding(.bottom, 20)
                 .transition(AIReceipt.transition(reduceMotion: reduceMotion))
                 .accessibilityIdentifier("review.result")
                 .task(id: text) {
                     AccessibilityNotification.Announcement(text).post()
-                    try? await Task.sleep(for: .seconds(3))
-                    // Cancelled means the line changed: the new one has its own three seconds.
+                    try? await Task.sleep(for: .seconds(reviewResultUndo == nil ? 3 : 6))
+                    // Cancelled means the line changed: the new one has its own time.
                     guard !Task.isCancelled else { return }
-                    withAnimation(.easeIn(duration: 0.2)) { reviewResult = nil }
+                    withAnimation(.easeIn(duration: 0.2)) { reviewResult = nil; reviewResultUndo = nil }
                 }
         }
     }
@@ -591,13 +618,19 @@ struct NoteDetailView: View {
     /// as seeing it, so the list's dot goes; the tint and Undo stay while you read, and go quietly
     /// once you start typing, undo it or leave the note (`staysUntilEdited`).
     private func showAIEdit() {
-        guard let r = AIEdit.markSeen(note) else { return }
+        guard let seen = AIEdit.markSeen(note) else { return }
+        // The earlier one may not be on screen yet: a sync lands an AI's edits a moment apart, inside
+        // the wait below (round 18: three edits said "changed 1 line" and marked one).
+        let r = seen.continuing(landingReceipt ?? receipt)
+        landingReceipt = r
         Telemetry.shared.record(.firstAIEditSeen)
         try? context.save()
         let slow = ChangeTint.slowMotion
         Task { @MainActor in
             // Let the editor take the new text first.
             try? await Task.sleep(for: .seconds(0.15 * slow))
+            guard landingReceipt == r else { return } // a later edit took it over
+            landingReceipt = nil
             guard note.id == r.noteID else { return }
             controller.tintChanges(from: r.previous, untilCleared: r.staysUntilEdited)
             withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
@@ -629,7 +662,11 @@ struct NoteDetailView: View {
 
     private func undo(_ r: AIEdit.Receipt) {
         if r.kind == .edit, refusedAsViewOnly() { return }
-        withAnimation(.smooth(duration: 0.25)) { receipt = nil }
+        withAnimation(.smooth(duration: 0.25)) {
+            receipt = nil
+            // Press, then done (round 21: the text changed back with no word).
+            if r.kind == .edit { reviewResult = "Undone" }
+        }
         if r.staysUntilEdited { controller.clearTint() }
         if r.kind == .pageMade || r.kind == .pageChanged {
             // The note's text never changed: the page goes back to what it was (the new one is kept).
@@ -686,7 +723,9 @@ struct NoteDetailView: View {
                     // through the folder's name or the buttons (persona council 11-04: it did, at 60%);
                     // a short fade below it, so the text isn't cut off at a hard line.
                     .overlay(alignment: .top) {
-                        if !Self.captureWithoutToolbar {
+                        // Not under the deleted note's banner: the text starts below it, and this
+                        // would cover its title (round 19).
+                        if !Self.captureWithoutToolbar, note.trashedAt == nil {
                             LinearGradient(stops: Self.toolbarCover.map { .init(color: Color.notePage.opacity($0.opacity), location: $0.location) },
                                            startPoint: .top, endPoint: .bottom)
                                 .frame(height: NoteDetailView.toolbarFade)
@@ -986,6 +1025,13 @@ struct NoteDetailView: View {
             // An app built outside the AI tools (scripts/build-app.ts output, or one HTML file).
             Button("Dev: Import App File…", systemImage: "square.and.arrow.down") { importingApp = true }
                 .accessibilityIdentifier("editor.devImportApp")
+        case .duplicate:
+            // The copy opens, as in Notes: it's what you asked for.
+            Button("Duplicate Note", systemImage: "plus.square.on.square") {
+                let made = context.createNote(in: note.folder.map { .folder($0.id) } ?? .all, body: note.body)
+                onOpenNote(made.id, false)
+            }
+            .accessibilityIdentifier("editor.duplicate")
         case .moveTo:
             #if os(macOS)
             // One item, whatever the number of folders: the folders are in the picker it opens.
@@ -993,7 +1039,7 @@ struct NoteDetailView: View {
                 .accessibilityIdentifier("editor.moveTo")
             #else
             Menu("Move to", systemImage: "folder") {
-                FolderMenuItems(folders: context.allFolders(), current: note.folder?.id) { f in context.move(note, to: f) }
+                FolderMenuItems(folders: context.allFolders(), current: note.folder?.id) { f in context.move([note], to: f, undo: undoManager) }
             }
             #endif
         case .share:
@@ -1011,10 +1057,19 @@ struct NoteDetailView: View {
                 DestructiveMenuButton("Delete Now…", systemImage: "trash") { confirmingPurge = true }
                     .accessibilityIdentifier("editor.deleteNow")
             } else {
-                DestructiveMenuButton("Delete Note", systemImage: "trash") {
+                DestructiveMenuButton("Delete", systemImage: "trash") {
                     // A shared note asks first: people lose it, or it leaves your notes.
                     if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
-                    else { withAnimation(.snappy) { context.trash(note) } }
+                    else {
+                        #if os(macOS)
+                        // By way of the list, which knows the note's neighbour: it opens next,
+                        // like Notes (round 18: the deleted note stayed open under its banner).
+                        NotificationCenter.default.post(name: .paneDeleteNotes, object: Set([note.id]))
+                        #else
+                        let open = onOpenNote
+                        withAnimation(.snappy) { context.remove([note], undo: undoManager) { back in if let n = back.first { open(n.id, false) } } }
+                        #endif
+                    }
                 }
             }
         }
@@ -1110,12 +1165,24 @@ struct NoteDetailView: View {
         return content
             // A deleted note says so at its top, with Recover (Emil, 11-03); typing, clicking or
             // tapping into it still asks to recover it, like Notes (Emil, 10-30).
+            #if os(macOS)
+            // Room made by hand: the editor's text doesn't move for a safe area, so the banner lay
+            // over the note's title (round 18).
+            .padding(.top, note.trashedAt != nil ? TrashBanner.height : 0)
+            .overlay(alignment: .top) {
+                if note.trashedAt != nil {
+                    TrashBanner { Self.recover(note, in: context, editor: controller) }
+                        .transition(.opacity)
+                }
+            }
+            #else
             .safeAreaInset(edge: .top, spacing: 0) {
                 if note.trashedAt != nil {
                     TrashBanner { Self.recover(note, in: context, editor: controller) }
                         .transition(.opacity)
                 }
             }
+            #endif
             .ignoresSafeArea(.container, edges: .bottom)
             .background(Color.notePage.ignoresSafeArea())
             .onChange(of: note.trashedAt, initial: true) { _, at in
@@ -1481,12 +1548,15 @@ struct NoteDetailView: View {
             }
             .disabled(hidden)
         } label: {
+            // A menu's label: the toolbar shows it as a still picture, so the symbol (Charm can't play here).
             Label("Attach", systemImage: "paperclip")
         }
         .disabled(note.isLocked || showingPage)
         .tint(.primary)
         .menuIndicator(.hidden)
         .help("Attach")
+        // A toolbar menu's label is drawn as a picture, so VoiceOver had no name (council round 15).
+        .accessibilityLabel("Attach")
         .popover(isPresented: $linkingNote, arrowEdge: .bottom) { noteLinkPicker }
         .modifier(PhotoAttach(isPresented: $pickingPhotos) { urls in controller.insertFiles(context.addAttachments(urls)) })
         .accessibilityIdentifier("editor.attach")
@@ -1558,9 +1628,10 @@ struct NoteDetailView: View {
         .menuIndicator(.hidden)
         .help("More")
         #endif
+        .accessibilityLabel("More")
         #if os(macOS)
         .popover(isPresented: $movingNote, arrowEdge: .bottom) {
-            MoveToPicker(current: note.folder?.id) { context.move(note, to: $0) }
+            MoveToPicker(current: note.folder?.id) { context.move([note], to: $0, undo: undoManager) }
         }
         // Move Note… from Go to Note (⌘O).
         .onReceive(NotificationCenter.default.publisher(for: .paneMoveNote)) { _ in if !trashed { movingNote = true } }
@@ -1603,7 +1674,7 @@ enum NoteMoreMenu {
         #endif
     }
 
-    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, moveTo, share, history, askAI, recover, delete }
+    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, duplicate, moveTo, share, history, askAI, recover, delete }
 
     /// In groups split by lines, as Apple Notes groups a note's menu (Emil, 2 November 2026): Open
     /// Note in New Window on the Mac (not in the note's own window); what the note is (pinned,
@@ -1633,7 +1704,9 @@ enum NoteMoreMenu {
         // Sharing has its own button beside More, on iPhone and iPad as on the Mac.
         if !locked, !shared { rest.append(.history) }
         let ask: [[Item]] = asks && !locked ? [[.askAI]] : []
-        return out + [about, rest] + ask + [[.delete]]
+        // As on the note's row (NoteRowMenu): a locked note's text isn't here to copy.
+        let copy: [[Item]] = locked ? [] : [[.duplicate]]
+        return out + [about] + copy + [rest] + ask + [[.delete]]
     }
 }
 
@@ -1942,8 +2015,13 @@ struct NoteToolbarStage<Pane: View>: View {
                             Button("Checklist", systemImage: "checklist", action: controller.checklist)
                                 .help("Checklist (⇧⌘L)")
                             if let menu = controller.currentTableMenu {
-                                Menu { TableMenuItems(menu: menu) } label: { Label("Table", systemImage: "tablecells") }
-                                    .help("Table")
+                                // Same place and shape as the button it replaces, in the accent: the
+                                // bar regrouped and Aa slid 22 pt with the caret in a table (round 22).
+                                Menu { TableMenuItems(menu: menu) } label: {
+                                    Label("Table", systemImage: "tablecells").foregroundStyle(Color.amberInk)
+                                }
+                                .menuIndicator(.hidden)
+                                .help("Table")
                             } else {
                                 Button("Table", systemImage: "tablecells", action: controller.insertTable)
                                     .help("Table (⌥⌘T)")
@@ -2105,6 +2183,8 @@ struct LinkBackButton: ViewModifier {
 /// The line at the top of a note in Recently Deleted: what it is, and Recover.
 struct TrashBanner: View {
     var recover: () -> Void
+    /// What it takes at the top of the note, margins included.
+    static let height: CGFloat = 60
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -2224,3 +2304,22 @@ struct NoteBreadcrumbs: View {
             .accessibilityHidden(true)
     }
 }
+
+#if os(macOS)
+/// VoiceOver names the window after the open note; the title drawn in the bar stays the list's
+/// (round 22's dump: the window was "All Notes" with Lisbon open).
+struct WindowSpokenTitle: NSViewRepresentable {
+    let title: String
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ view: Probe, context: Context) { view.title = title }
+
+    final class Probe: NSView {
+        var title = "" { didSet { apply() } }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            apply()
+        }
+        private func apply() { window?.setAccessibilityTitle(title) }
+    }
+}
+#endif

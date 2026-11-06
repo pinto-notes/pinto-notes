@@ -193,25 +193,48 @@ import Testing
             let split = try #require(w.contentView.flatMap { Self.find(NSSplitView.self, in: $0) })
             let sidebar = try #require((split.delegate as? NSSplitViewController)?.splitViewItems.first)
             #expect(!sidebar.isCollapsed)
-            for width in [1200.0, 1000, 980] {
+            for width in [1200.0, 1000, 880] {
                 w.setContentSize(CGSize(width: width, height: 800))
                 w.contentView?.layoutSubtreeIfNeeded()
                 await Self.settle(w, 3)
             }
+            await Self.settle(w, 6)
             #expect(sidebar.isCollapsed, "too narrow for three columns")
-            #expect(w.frame.width <= 1030, "hiding it doesn't widen the window: \(w.frame.width)")
+            #expect(w.frame.width <= 920, "hiding it doesn't widen the window: \(w.frame.width)")
             let widths = (0..<6).map { _ in w.frame.width }
             await Self.settle(w, 6)
             #expect(sidebar.isCollapsed && w.frame.width == widths[0], "and it stays put: no hiding and showing in turn")
             // Hidden, it no longer holds the window wide (council round 13: hiding it raised the
-            // least width from 1,029 to 1,119, so the window widened itself): the list and the note.
-            w.setContentSize(CGSize(width: 880, height: 800))
+            // least width from 1,029 to 1,119, so the window widened itself): the list and the note,
+            // on half of a 1440 pt screen.
+            w.setContentSize(CGSize(width: 720, height: 800))
             await Self.settle(w, 6)
-            #expect(w.frame.width <= 900, "the window goes to the list and the note's width: \(w.frame.width)")
+            #expect(w.frame.width <= 720, "the window goes to the list and the note's width: \(w.frame.width)")
             #expect(sidebar.isCollapsed)
             w.setContentSize(CGSize(width: 1300, height: 800))
             await Self.settle(w, 8)
             #expect(!sidebar.isCollapsed, "back with room")
+        }
+    }
+
+    /// At its smallest, with the sidebar hidden, the note fits: its text wraps inside the window
+    /// (round 18: at 620 the list took 350 and the text ran off the right edge).
+    @Test func theNoteFitsAtTheSmallestWindow() async throws {
+        let c = try AppSnapshotTests.container()
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            let w = Self.window(c, size: CGSize(width: 1300, height: 800))
+            defer { w.close() }
+            await Self.settle(w)
+            for width in [1000.0, 880, 720, 600] {
+                w.setContentSize(CGSize(width: width, height: 800))
+                await Self.settle(w, 6)
+            }
+            await Self.settle(w, 6)
+            let least = try #require(w.contentView).fittingSize.width
+            #expect(least >= WindowFrameMemory.minimum.width - 1, "the content holds the window at its least: \(least)")
+            let text = try #require(w.contentView.flatMap { Self.find(NSTextView.self, in: $0) { $0.isEditable } })
+            let box = text.convert(text.bounds, to: nil)
+            #expect(box.maxX <= WindowFrameMemory.minimum.width + 1, "the note's text ends inside the smallest window: \(box.maxX)")
         }
     }
 

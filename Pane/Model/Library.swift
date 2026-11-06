@@ -237,7 +237,7 @@ extension ModelContext {
         if Self.isBlank(note) { purge(note); return }
         note.trashedAt = .now
         note.isPinned = false
-        note.touch()
+        note.touchKeepingDate()
         saveOrReport()
         // A shared note deleted, as in Apple Notes: yours stops being shared (and goes to Recently
         // Deleted, as now); someone else's you leave.
@@ -263,7 +263,7 @@ extension ModelContext {
     func restore(_ note: Note) {
         note.trashedAt = nil
         if note.folder == nil || note.folder?.deletedAt != nil { note.folder = defaultFolder() }
-        note.touch()
+        note.touchKeepingDate()
         saveOrReport()
     }
 
@@ -285,13 +285,93 @@ extension ModelContext {
         }
     }
 
+    /// Delete Note that ⌘Z takes back, as in Notes: the notes return to their folders, pinned
+    /// as they were, and `reopen` selects them again (council round 16: ⌘Z after Delete Note did
+    /// nothing). A blank note is gone for good and a shared one stops being shared, so neither
+    /// has an undo; nor does deleting from Recently Deleted, which asks first. `gone`: what Redo
+    /// opens instead, as the delete itself did (round 19: it left the deleted note open).
+    func remove(_ notes: [Note], undo: UndoManager?, reopen: (([Note]) -> Void)? = nil, gone: (() -> Void)? = nil) {
+        let back = notes.filter { $0.deletedAt == nil && $0.trashedAt == nil && !Self.isBlank($0) && !$0.isShared }
+            .map { (note: $0, folder: $0.folder, pinned: $0.isPinned) }
+        remove(notes)
+        guard let undo, !back.isEmpty else { return }
+        undo.registerUndo(withTarget: self) { ctx in
+            MainActor.assumeIsolated {
+                for b in back where b.note.trashedAt != nil && b.note.deletedAt == nil {
+                    b.note.trashedAt = nil
+                    if let f = b.folder, f.deletedAt == nil { b.note.folder = f } else { b.note.folder = ctx.defaultFolder() }
+                    b.note.isPinned = b.pinned
+                    // Deleting and undoing isn't an edit: it goes back to its place in the list.
+                    b.note.touchKeepingDate()
+                }
+                ctx.saveOrReport()
+                let notes = back.map(\.note)
+                reopen?(notes)
+                // Redo deletes them again.
+                undo.registerUndo(withTarget: ctx) { ctx in
+                    MainActor.assumeIsolated {
+                        ctx.remove(notes, undo: undo, reopen: reopen, gone: gone)
+                        gone?()
+                    }
+                }
+                undo.setActionName(notes.count == 1 ? "Delete Note" : "Delete Notes")
+            }
+        }
+        undo.setActionName(back.count == 1 ? "Delete Note" : "Delete Notes")
+    }
+
     func move(_ notes: [Note], to folder: Folder) {
         for n in notes { move(n, to: folder) }
     }
 
+    /// A move ⌘Z takes back, into the folders they came from with their dates as they were, and
+    /// ⇧⌘Z does again (round 21: a dropped note had no way back but dragging it home).
+    /// Returns what the toast's Undo does: the same way back, and the step off ⌘Z's list.
+    @discardableResult
+    func move(_ notes: [Note], to folder: Folder, undo: UndoManager?) -> () -> Void {
+        let back = notes.filter { $0.folder?.id != folder.id || $0.trashedAt != nil }
+            .map { (note: $0, folder: $0.folder, trashed: $0.trashedAt) }
+        move(notes, to: folder)
+        let restore = { @MainActor [self] in
+            for b in back {
+                b.note.folder = b.folder
+                b.note.trashedAt = b.trashed
+                b.note.touchKeepingDate()
+            }
+            saveOrReport()
+        }
+        guard let undo, !back.isEmpty else { return restore }
+        undo.registerUndo(withTarget: self) { ctx in
+            MainActor.assumeIsolated {
+                restore()
+                // The line under the note says what's true now (round 24: "Moved to Ideas" stayed
+                // after ⌘Z had taken the note home).
+                NotificationCenter.default.post(name: .paneNotesMoved, object: Self.movedBackLine(back.map { $0.folder?.name }))
+                undo.registerUndo(withTarget: ctx) { again in
+                    MainActor.assumeIsolated {
+                        let reversal = again.move(back.map(\.note), to: folder, undo: undo)
+                        NotificationCenter.default.post(name: .paneNotesMoved, object: "Moved to \(folder.name)", userInfo: ["undo": reversal])
+                    }
+                }
+            }
+        }
+        undo.setActionName("Move")
+        return { [self] in
+            restore()
+            undo.removeAllActions(withTarget: self)
+        }
+    }
+
+    /// One folder they all went back to is named; otherwise it just says they went back.
+    nonisolated static func movedBackLine(_ folders: [String?]) -> String {
+        let names = Set(folders)
+        if names.count == 1, let only = names.first, let name = only { return "Moved back to \(name)" }
+        return "Moved back"
+    }
+
     func togglePin(_ note: Note) {
         note.isPinned.toggle()
-        note.touch()
+        note.touchKeepingDate()
         saveOrReport()
     }
 
@@ -300,7 +380,7 @@ extension ModelContext {
         guard note.folder?.id != folder.id || note.trashedAt != nil else { return }
         note.folder = folder
         note.trashedAt = nil
-        note.touch()
+        note.touchKeepingDate()
         saveOrReport()
     }
 

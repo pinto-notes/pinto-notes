@@ -577,6 +577,9 @@ import Testing
         let now = Date.now
         let notice = AccountNotice(id: 7, kind: .keyFetched, created_at: now.addingTimeInterval(-5))
         #expect(notice.text().title == "A new device opened your notes" && notice.text().message.contains("reset your password"))
+        // Short: when, and what to do if it wasn't you (council round 15).
+        #expect(notice.text().message.split(separator: ".").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count <= 3,
+                "\(notice.text().message)")
         #expect(ledger.unseen([notice], now: now).map(\.id) == [7], "another device says it")
         #expect(ledger.unseen([notice], now: now, fetchedHere: now.addingTimeInterval(-6)).isEmpty, "the device that just got the key doesn't")
         #expect(ledger.unseen([notice], now: now).isEmpty, "and never does later")

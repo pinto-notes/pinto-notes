@@ -95,7 +95,7 @@ final class WelcomeEmailModel {
         error = nil
         switch flow.action {
         case .check:
-            guard flow.beginCheck() else { return }
+            guard flow.beginCheck() else { error = EmailSignInFlow.notAnEmail; return }
             let email = flow.email
             let status = try? await auth.status(email)
             guard flow.step == .checking, flow.email == email else { return }
@@ -219,7 +219,7 @@ final class WelcomeEmailModel {
         switch flow.step {
         case .email, .checking: "Continue with email"
         // The server couldn't say whether the email has an account.
-        case .signIn(fallback: true): "Sign in"
+        case .signIn(fallback: true): "Sign In"
         case .signIn, .apple, .forgot, .forgotSent: "Welcome back"
         case .create: "Create your account"
         case .confirm: "Check your email"
@@ -308,7 +308,7 @@ struct WelcomeEmailForm: View {
         switch model.flow.step {
         case .email, .checking:
             field(focused: focus == .email) {
-                TextField("Email", text: Binding(get: { model.flow.email }, set: { if !model.flow.emailLocked { model.flow.email = $0 } }),
+                TextField("Email", text: Binding(get: { model.flow.email }, set: { if !model.flow.emailLocked { if model.flow.email != $0 { model.error = nil }; model.flow.email = $0 } }),
                           prompt: Text("Email address").foregroundStyle(Color(Palette.placeholder)))
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
@@ -333,7 +333,7 @@ struct WelcomeEmailForm: View {
             }
             if creating { passwordRule }
             errorLine
-            mainButton(creating ? "Create account" : "Sign in")
+            mainButton(creating ? "Create Account" : "Sign In")
             if model.flow.offersReset {
                 link("Forgot password?", id: "signin.forgot") { model.forgotPassword() }
             }
@@ -348,12 +348,12 @@ struct WelcomeEmailForm: View {
         case .forgot:
             line("We'll email you a link to choose a new password.", id: "signin.forgotNote")
             errorLine
-            mainButton("Email me a link")
-            link("Back to sign in", id: "signin.backToSignIn") { model.backToSignIn() }
+            mainButton("Email Me a Link")
+            link("Back to Sign In", id: "signin.backToSignIn") { model.backToSignIn() }
         case .forgotSent:
             line("If an account uses this email, we've sent it a link. Open it on any device to choose a new password. The link works for one hour.",
                  id: "signin.resetSent")
-            mainButton("Back to sign in")
+            mainButton("Back to Sign In")
         case .confirm:
             line("Enter the 6-digit code we sent to this address.", id: "signin.codeLine")
             CodeBoxes(code: $model.flow.code, focus: $focus, disabled: model.working, shakes: model.shakes, ring: Color.ink)

@@ -26,6 +26,10 @@ struct AIChange: Identifiable, Hashable, Sendable {
     var toFolder: UUID?
     /// The note is in Recently Deleted now.
     var trashed = false
+    /// Edits one after another by one AI that this one change stands for (`AIChangeCopy.sessions`).
+    var edits = 1
+    /// When the first of them was made.
+    var startedAt: Date?
 
     /// It changed the note's text, so there is a before and an after to compare.
     var changesText: Bool { kind == .edit || kind == .restore || kind == .created }
@@ -124,8 +128,20 @@ struct EditDiff: Equatable {
     var plus: Int { added.count }
     var minus: Int { removed.count }
 
+    /// Two checklist lines the same but for their box: "- [ ] Hotel" and "- [x] Hotel".
+    static func onlyTheTick(_ a: String, _ b: String) -> Bool {
+        func split(_ s: String) -> (String, String, Bool)? {
+            guard let r = s.range(of: #"^(\s*[-*+] )\[( |x|X)\]"#, options: .regularExpression) else { return nil }
+            let head = String(s[r]), box = head.dropLast().last.map { $0 != " " } ?? false
+            return (String(head.prefix { $0 != "[" }), String(s[r.upperBound...]), box)
+        }
+        guard let x = split(a), let y = split(b) else { return false }
+        return x.0 == y.0 && x.1 == y.1 && x.2 != y.2
+    }
+
     /// Blank lines are left out of both, as the history's tint leaves them out.
-    static func between(_ before: String, _ after: String) -> EditDiff {
+    /// `ticksAsOne` is for showing it: a tick is then the new line alone, marked as changed.
+    static func between(_ before: String, _ after: String, ticksAsOne: Bool = false) -> EditDiff {
         let old = before.components(separatedBy: "\n"), new = after.components(separatedBy: "\n")
         var gone = IndexSet(), came = IndexSet()
         for change in new.difference(from: old) {
@@ -142,6 +158,9 @@ struct EditDiff: Equatable {
                 if !blank(old[i]) { lines.append((old[i], -1)) }
                 i += 1
             } else if j < new.count, came.contains(j) {
+                // A tick or an untick: one line that changed, not the old one taken out and a new
+                // one added, both struck through (council round 16, a16-ai-undo).
+                if ticksAsOne, let last = lines.last, last.1 == -1, Self.onlyTheTick(last.0, new[j]) { lines.removeLast() }
                 lines.append((new[j], blank(new[j]) ? 0 : 1))
                 j += 1
             } else {
@@ -206,8 +225,8 @@ enum AIChangeCopy {
     }
 
     /// A change in words, not a diff tool's "+1 −1 lines" (council round 8): one line swapped is
-    /// named ("Changed “Tram 28 early, before the crowds”"), otherwise "Added 2 lines", "Removed a
-    /// line" or "Changed 5 lines". "No visible change" when only blank lines moved.
+    /// named ("Changed “Tram 28” to “Tram 28 early”"), otherwise "Added 2 lines", "Removed 3 lines" or
+    /// "Changed 5 lines". "No visible change" when only blank lines moved.
     static func words(_ d: EditDiff) -> String {
         guard d.plus + d.minus > 0 else { return "No visible change" }
         let count = { (n: Int) in n == 1 ? "a line" : "\(n) lines" }
@@ -221,17 +240,38 @@ enum AIChangeCopy {
                 return ticks.count == 1 ? first : first + " and \(ticks.count - 1) more"
             }
         }
-        if d.plus == 1, d.minus == 1, let r = d.added.first {
-            let marker = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|#+\s+|>\s*)"#)
+        // One line: say which, the way the person reads it (round 18: "Removed a line" made you
+        // open the change to find out). Whole: the list's rows end it in "…" where they run out of
+        // room; the selected change shows it all (council round 10).
+        let marker = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|#+\s+|>\s*)"#)
+        let words = { (r: NSRange) -> String in
             let line = (d.text as NSString).substring(with: r)
-            let text = marker.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: (line as NSString).length), withTemplate: "")
-                .trimmingCharacters(in: .whitespaces)
-            if !text.isEmpty {
-                // Whole: the list's rows end it in "…" where they run out of room; the selected
-                // change shows it all (council round 10: it was cut at 40 characters everywhere).
-                return "Changed \u{201C}\(text)\u{201D}"
+            return marker.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: (line as NSString).length), withTemplate: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        // A few list items added and taken out: which (round 21: "Changed 2 lines" beside "3 edits").
+        if d.plus >= 1, d.minus >= 1, d.plus + d.minus > 2, d.plus <= 3, d.minus <= 3 {
+            let ns = d.text as NSString
+            let item = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)"#)
+            let isItem = { (r: NSRange) in
+                let line = ns.substring(with: r)
+                return item.firstMatch(in: line, range: NSRange(location: 0, length: (line as NSString).length)) != nil
+            }
+            if (d.added + d.removed).allSatisfy(isItem), Set(d.added.map(words)) != Set(d.removed.map(words)) {
+                let list = { (names: [String]) in
+                    names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " and " + names.last!
+                }
+                return "Added \(list(d.added.map(words))); removed \(list(d.removed.map(words)))"
             }
         }
+        if d.plus == 1, d.minus == 1, let r = d.added.first {
+            let now = words(r)
+            let was = d.removed.first.map(words) ?? ""
+            if !now.isEmpty {
+                return was.isEmpty ? "Changed \u{201C}\(now)\u{201D}" : "Changed \u{201C}\(was)\u{201D} to \u{201C}\(now)\u{201D}"
+            }
+        }
+        if d.plus == 0, d.minus == 1, let r = d.removed.first, !words(r).isEmpty { return "Removed \u{201C}\(words(r))\u{201D}" }
         if d.minus == 0 { return "Added \(count(d.plus))" }
         if d.plus == 0 { return "Removed \(count(d.minus))" }
         return "Changed \(count(max(d.plus, d.minus)))"
@@ -267,6 +307,30 @@ enum AIChangeCopy {
         guard let first = b.first, a.first != first, Array(a.dropFirst()) == Array(b.dropFirst()) else { return nil }
         let title = first.replacing(/^#+\s*/, with: "").trimmingCharacters(in: .whitespaces)
         return title.isEmpty ? nil : title
+    }
+
+    /// How far apart an AI's edits can be and still be one session.
+    static let sessionGap: TimeInterval = 10 * 60
+
+    /// An AI's edits to a note one straight after another, nothing between them, are one change: one
+    /// row, one diff, one Undo, as they were one request (round 20: three unrelated-looking rows,
+    /// and undoing the last left the first two). Each edit stays in the note's version history.
+    /// Newest first in, newest first out.
+    static func sessions(_ changes: [AIChange]) -> [AIChange] {
+        var out: [AIChange] = []
+        for c in changes {
+            if var newer = out.last, newer.kind == .edit, c.kind == .edit, newer.noteID == c.noteID, newer.ai == c.ai,
+               let joint = newer.beforeVersion, joint == c.afterVersion,
+               (newer.startedAt ?? newer.at).timeIntervalSince(c.at) <= sessionGap {
+                newer.beforeVersion = c.beforeVersion
+                newer.edits += 1
+                newer.startedAt = c.at
+                out[out.count - 1] = newer
+            } else {
+                out.append(c)
+            }
+        }
+        return out
     }
 
     static func days(_ changes: [AIChange], now: Date = .now, calendar: Calendar = .current) -> [AIChangeDay] {
@@ -378,7 +442,10 @@ final class AIChangesModel {
     enum Phase: Equatable { case loading, loaded, failed(String) }
 
     private(set) var phase: Phase = .loading
+    /// What's listed: `loaded`, an AI's edits in a row as one.
     private(set) var changes: [AIChange] = []
+    /// Every change read so far, one by one, for paging.
+    private var loaded: [AIChange] = []
     private(set) var days: [AIChangeDay] = []
     private(set) var hasMore = false
     /// The next page failed to load; the list ends on a row that says so with Try Again
@@ -435,7 +502,8 @@ final class AIChangesModel {
         phase = .loading
         do {
             let page = try await store.changes(before: nil, limit: Self.page, ai: filter)
-            changes = page
+            loaded = page
+            changes = AIChangeCopy.sessions(page)
             olderFailed = false
             hasMore = page.count == Self.page
             regroup()
@@ -447,11 +515,17 @@ final class AIChangesModel {
     }
 
     func loadMore() async {
-        guard hasMore, !olderFailed, let last = changes.last else { return }
+        guard hasMore, !olderFailed, let last = loaded.last else { return }
         do {
             let page = try await store.changes(before: last.at, limit: Self.page, ai: filter)
-            let seen = Set(changes.map(\.id))
-            changes += page.filter { !seen.contains($0.id) }
+            let seen = Set(loaded.map(\.id))
+            loaded += page.filter { !seen.contains($0.id) }
+            // The page may carry on the last session, which then starts earlier than it worked out.
+            if let open = changes.last {
+                texts[open.id] = nil
+                summaries[open.id] = nil
+            }
+            changes = AIChangeCopy.sessions(loaded)
             hasMore = page.count == Self.page
             regroup()
         } catch {
@@ -486,7 +560,7 @@ final class AIChangesModel {
         do {
             let (before, after) = try await texts(for: c)
             guard selection == id else { return }
-            diff = EditDiff.between(before ?? "", after)
+            diff = EditDiff.between(before ?? "", after, ticksAsOne: true)
         } catch {
             guard selection == id else { return }
             detailFailed = HistoryError.from(error).aiChangesDescription

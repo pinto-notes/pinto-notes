@@ -66,5 +66,46 @@ import Testing
             check("Note \(i)")
         }
     }
+
+    /// ⌘F's bar lies over the top of the note. An untouched note moves down for it, so the title
+    /// sits below the bar, as in Notes, and goes back when the bar closes (council round 15,
+    /// a5-find-bar: the bar covered the title).
+    @Test func theFindBarMovesAnUntouchedNoteDown() async throws {
+        guard DesignLook.readingPage else { return }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let folder = ctx.createFolder(named: "Notes")
+        let lines = (0..<80).map { "Line \($0) of the note" }.joined(separator: "\n")
+        let n = ctx.createNote(in: .folder(folder.id), body: "Lisbon\n\n\(lines)")
+        try ctx.save()
+        let d = UserDefaults.standard
+        let keep = (d.object(forKey: "lastNote"), d.object(forKey: "lastScope"))
+        defer {
+            if let v = keep.0 { d.set(v, forKey: "lastNote") } else { d.removeObject(forKey: "lastNote") }
+            if let v = keep.1 { d.set(v, forKey: "lastScope") } else { d.removeObject(forKey: "lastScope") }
+        }
+        d.set(try JSONEncoder().encode(Scope.folder(folder.id)), forKey: "lastScope")
+        d.set(n.id.uuidString, forKey: "lastNote")
+        let w = MacWindowChromeTests.window(c, size: CGSize(width: 1180, height: 760))
+        defer { w.close() }
+        await MacWindowChromeTests.settle(w, 10)
+        let e = try #require(w.contentView.flatMap { MacWindowChromeTests.find(PaneTextView.self, in: $0) })
+        let scroll = try #require(e.enclosingScrollView)
+        func past() -> CGFloat { scroll.contentView.bounds.origin.y + scroll.contentInsets.top }
+        #expect(abs(past() - PaneTextView.fold) < 0.5, "opens folded: \(past())")
+        let show = NSMenuItem(); show.tag = NSTextFinder.Action.showFindInterface.rawValue
+        e.performTextFinderAction(show)
+        await MacWindowChromeTests.settle(w, 1)
+        #expect(scroll.isFindBarVisible)
+        let bar = try #require(scroll.findBarView)
+        #expect(bar.frame.height > 0)
+        let shift = min(PaneTextView.fold, bar.frame.height)
+        #expect(abs(past() - (PaneTextView.fold - shift)) < 0.5, "moved down by the bar: \(past()), bar \(bar.frame.height)")
+        let hide = NSMenuItem(); hide.tag = NSTextFinder.Action.hideFindInterface.rawValue
+        e.performTextFinderAction(hide)
+        await MacWindowChromeTests.settle(w, 1)
+        #expect(!scroll.isFindBarVisible)
+        #expect(abs(past() - PaneTextView.fold) < 0.5, "and back when it closes: \(past())")
+    }
 }
 #endif

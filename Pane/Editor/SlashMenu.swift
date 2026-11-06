@@ -6,8 +6,10 @@ import SwiftUI
 /// one, Escape puts it away; a click runs one too. The same panel as the `[[` titles.
 struct SlashCommandList: View {
     let controller: EditorController
-    static let rowHeight: CGFloat = 24
-    static let width: CGFloat = 236
+    /// Grows with the note's text, to half as big again (round 21: 13 pt beside 24 pt text).
+    static var scale: CGFloat { min(EditorMetrics.scale, 1.5) }
+    static var rowHeight: CGFloat { (24 * scale).rounded() }
+    static var width: CGFloat { (236 * scale).rounded() }
     /// Nine and a half rows show; more scroll, with the choice kept in view (18 commands made a
     /// list taller than a small window's note). The half row says there's more (council round 13:
     /// ten whole rows looked like the whole menu).
@@ -22,6 +24,14 @@ struct SlashCommandList: View {
         let full = CGFloat(rows) * rowHeight + line
         // The line under the recents comes on top of the cap, so half a row still peeks out.
         return CGSize(width: width, height: min(full, CGFloat(maxRows) * rowHeight + line) + 8)
+    }
+
+    /// What VoiceOver says for the chosen command.
+    static func spoken(_ name: String, at index: Int, of count: Int) -> String { "\(name), \(index + 1) of \(count)" }
+    /// "Shift Command H" for ⇧⌘H: VoiceOver doesn't read the symbols (round 22).
+    static func spokenShortcut(_ keys: String) -> String {
+        let names: [Character: String] = ["\u{2303}": "Control", "\u{2325}": "Option", "\u{21E7}": "Shift", "\u{2318}": "Command"]
+        return keys.map { names[$0] ?? String($0) }.joined(separator: " ")
     }
 
     var body: some View {
@@ -44,6 +54,12 @@ struct SlashCommandList: View {
                     guard controller.slashCommands.indices.contains(i) else { return }
                     proxy.scrollTo(controller.slashCommands[i])
                 }
+                // The keyboard stays in the text while the arrows move the choice, so VoiceOver has
+                // to be told what's chosen (council round 16: the menu was silent).
+                .onChange(of: controller.slashChoice, initial: true) { _, i in
+                    guard controller.slashCommands.indices.contains(i) else { return }
+                    AccessibilityNotification.Announcement(Self.spoken(controller.slashName(controller.slashCommands[i]), at: i, of: controller.slashCommands.count)).post()
+                }
         }
         .padding(4)
         .frame(width: Self.width)
@@ -59,18 +75,19 @@ struct SlashCommandList: View {
                 Button { controller.runSlash(command) } label: {
                     HStack(spacing: 8) {
                         Image(systemName: controller.slashSymbol(command))
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 12 * Self.scale, weight: .medium))
                             .foregroundStyle(.secondary)
-                            .frame(width: 18)
+                            .frame(width: 18 * Self.scale)
                         Text(controller.slashName(command))
-                            .font(.system(size: 13))
+                            .font(.system(size: 13 * Self.scale))
                             .foregroundStyle(Color.ink)
                             .lineLimit(1)
                         Spacer(minLength: 8)
                         if let shortcut = command.shortcut {
                             Text(shortcut)
-                                .font(.system(size: 12))
-                                .foregroundStyle(.tertiary)
+                                .font(.system(size: 12 * Self.scale))
+                                // Readable on the chosen row's tint too (round 20: 1.67:1).
+                                .foregroundStyle(i == controller.slashChoice ? Color.ink : Color.muted)
                         }
                     }
                     .padding(.horizontal, 8)
@@ -80,7 +97,7 @@ struct SlashCommandList: View {
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(controller.slashName(command))
+                .accessibilityLabel(Self.spoken(command.shortcut.map { "\(controller.slashName(command)), \(Self.spokenShortcut($0))" } ?? controller.slashName(command), at: i, of: controller.slashCommands.count))
                 .accessibilityAddTraits(i == controller.slashChoice ? .isSelected : [])
                 .accessibilityIdentifier("slash.command.\(command.rawValue)")
                 .id(command)

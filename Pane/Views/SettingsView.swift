@@ -154,7 +154,7 @@ struct SettingsView: View {
                 securityPage
             } else {
                 // Signed out: how it works, the notes password if there is one, diagnostics and the terms.
-                SignedOutPrivacyPage(sync: sync)
+                SignedOutPrivacyPage(signedIn: isSignedIn, sync: sync)
             }
         // A form of its own, one level down; the card scrolls, so it takes a height.
         case .appKeys: SettingsPage { APIKeysSection() }.frame(height: 460)
@@ -318,7 +318,7 @@ private struct OfflineSection: View {
     var body: some View {
         if reach != .online {
             Section {
-                Label(OfflineCopy.settings, systemImage: OfflineCopy.symbol(reach))
+                Label(OfflineCopy.settings(reach), systemImage: OfflineCopy.symbol(reach))
                     .foregroundStyle(Color.muted)
                     .accessibilityIdentifier("settings.offline")
             }

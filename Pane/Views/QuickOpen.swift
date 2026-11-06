@@ -287,6 +287,47 @@ struct QuickOpenPanel: View {
     @Environment(\.modelContext) private var context
     #endif
     @State private var query: String
+    /// The query the notes' text has been read for, so "nothing found" waits for the answer.
+    @State private var readFor: String?
+
+    /// What VoiceOver says for the highlighted row: the keyboard stays in the field while the
+    /// arrows move, so it has to be told (council round 16: the list was silent).
+    static func spoken(_ row: QuickOpen.Row, at index: Int, of count: Int) -> String {
+        "\(spoken(row)), \(index + 1) of \(count)"
+    }
+
+    /// A row as VoiceOver reads it when you move onto it: what's on screen beside the name.
+    static func rowLabel(_ row: QuickOpen.Row) -> String {
+        switch row {
+        case .note(let n): [spoken(row), n.folder, QuickOpen.dateText(n)].compactMap { $0 }.joined(separator: ", ")
+        case .text(let t): [spoken(row), t.folder].compactMap { $0 }.joined(separator: ", ")
+        case .command(let c): [spoken(row), c.shortcut].compactMap { $0 }.joined(separator: ", ")
+        case .search: spoken(row)
+        }
+    }
+
+    static func spoken(_ row: QuickOpen.Row) -> String {
+        let name: String
+        switch row {
+        case .note(let n): name = n.title.isEmpty ? "New Note" : n.title
+        case .command(let c): name = c.title
+        case .text(let t): name = "\(t.title.isEmpty ? "New Note" : t.title): \(t.snippet.text)"
+        case .search(let q): name = "\(QuickOpen.listAllTitle)\(q)"
+        }
+        return name
+    }
+
+    /// What the panel says when a search finds nothing; nil while there's something to show or
+    /// the answer is still coming (council round 16: it just went blank).
+    static func nothingFound(query: String, rows: Int, stillReading: Bool) -> String? {
+        let t = query.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty, rows == 0, !stillReading else { return nil }
+        return "No notes or commands match \u{201C}\(t)\u{201D}."
+    }
+
+    private var stillReading: Bool {
+        searchText != nil && query.trimmingCharacters(in: .whitespaces).count >= QuickOpen.textMinLength && readFor != query
+    }
 
     /// A note found by its text opens at the line (SearchJump).
     private func jumpAndChoose(_ row: QuickOpen.Row) {
@@ -326,7 +367,23 @@ struct QuickOpenPanel: View {
         static let maxList: CGFloat = 392
     }
 
-    private var rows: [QuickOpen.Row] { QuickOpen.rows(notes: notes, commands: commands, query: query, textHits: textHits) }
+    private var rows: [QuickOpen.Row] {
+        Self.shown(QuickOpen.rows(notes: notes, commands: commands, query: query, textHits: textHits), stillReading: stillReading)
+    }
+
+    /// "Show all notes with" alone promises a list that may be empty (round 17: it stood in for
+    /// saying nothing matched), so it waits for the notes' text; meanwhile the panel says it's
+    /// looking (round 20: the row showed, then "No notes" replaced it a second later, and Return
+    /// in between opened an empty list).
+    static func shown(_ rows: [QuickOpen.Row], stillReading: Bool) -> [QuickOpen.Row] {
+        if rows.count == 1, case .search = rows[0] { return [] }
+        return rows
+    }
+
+    /// The line while the only thing left to come is what the notes' text holds.
+    static func looking(query: String, rows: Int, stillReading: Bool) -> String? {
+        rows == 0 && stillReading && !query.trimmingCharacters(in: .whitespaces).isEmpty ? "Searching your notes\u{2026}" : nil
+    }
 
     var body: some View {
         #if DEBUG
@@ -349,6 +406,7 @@ struct QuickOpenPanel: View {
                     .onKeyPress(.downArrow) { highlighted = QuickOpen.step(1, from: index, count: rows.count); return .handled }
                     .onKeyPress(.upArrow) { highlighted = QuickOpen.step(-1, from: index, count: rows.count); return .handled }
                     .onKeyPress(.escape) { close(); return .handled }
+                    .accessibilityLabel("Go to Note")
                     .accessibilityIdentifier("quickOpen.field")
                 // Its own shortcut at the far end, as Spotlight's field is (Emil, 11-03).
                 Text(Self.shortcut)
@@ -367,6 +425,17 @@ struct QuickOpenPanel: View {
                 list(rows, index: index)
                 Rectangle().fill(Color.line).frame(height: 1)
                 hints
+            } else if let nothing = Self.nothingFound(query: query, rows: rows.count, stillReading: stillReading) ?? Self.looking(query: query, rows: rows.count, stillReading: stillReading) {
+                Rectangle().fill(Color.line).frame(height: 1)
+                Text(nothing)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.muted)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 20)
+                    .accessibilityIdentifier("quickOpen.nothing")
             }
         }
         .frame(width: Metrics.width)
@@ -396,8 +465,15 @@ struct QuickOpenPanel: View {
             let found = await searchText(q)
             guard !Task.isCancelled, q == query else { return }
             textHits = found
+            readFor = q
+        }
+        .onChange(of: rows.indices.contains(index) ? Self.spoken(rows[index], at: index, of: rows.count) : Self.nothingFound(query: query, rows: rows.count, stillReading: stillReading)) { _, said in
+            if let said { AccessibilityNotification.Announcement(said).post() }
         }
         .onExitCommand { close() }
+        // VoiceOver stays in the panel: what's behind it isn't reachable (round 20: AppKit's table
+        // and text view stayed in the tree under the window's hidden split view).
+        .accessibilityAddTraits(.isModal)
         .accessibilityIdentifier("quickOpen")
     }
 
@@ -417,6 +493,12 @@ struct QuickOpenPanel: View {
                         rowView(row, on: i == index)
                             .id(row.id)
                             .onTapGesture { jumpAndChoose(row) }
+                            // One row to VoiceOver, not its loose texts and symbols ("Text With A
+                            // Magnifying Glass", round 18), and pressable.
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(Self.rowLabel(row))
+                            .accessibilityAddTraits(i == index ? [.isButton, .isSelected] : .isButton)
+                            .accessibilityAction { jumpAndChoose(row) }
                             .onHover { if $0 { highlighted = i } }
                     }
                 }
@@ -539,9 +621,9 @@ struct QuickOpenPanel: View {
 
     private var hints: some View {
         HStack(spacing: 14) {
-            hint("↑↓", "choose")
-            hint("↩", "open")
-            hint("esc", "close")
+            hint("↑↓", "choose", spoken: "Up and Down arrows")
+            hint("↩", "open", spoken: "Return")
+            hint("esc", "close", spoken: "Escape")
             Spacer()
         }
         .font(.system(size: 11.5))
@@ -550,7 +632,7 @@ struct QuickOpenPanel: View {
         .frame(height: 30)
     }
 
-    private func hint(_ key: String, _ what: String) -> some View {
+    private func hint(_ key: String, _ what: String, spoken: String) -> some View {
         HStack(spacing: 5) {
             Text(key)
                 .font(.system(size: 10.5, weight: .semibold))
@@ -559,6 +641,9 @@ struct QuickOpenPanel: View {
                 .background(Color.soft, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
             Text(what)
         }
+        // VoiceOver read the keys' symbols (round 20).
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(spoken): \(what)")
     }
 }
 /// The panel's window, read once it's in one, so losing the cursor can ask whether it was key.

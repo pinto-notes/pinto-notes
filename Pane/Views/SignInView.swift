@@ -324,7 +324,7 @@ struct SignInView: View {
             field(focused: focus == .email && flow.showsEmailField) {
                 ZStack(alignment: .leading) {
                     // Edits while it's being checked are ignored, so the answer matches the email.
-                    TextField("Email", text: Binding(get: { flow.email }, set: { if !flow.emailLocked { flow.email = $0 } }),
+                    TextField("Email", text: Binding(get: { flow.email }, set: { if !flow.emailLocked { if flow.email != $0 { error = nil }; flow.email = $0 } }),
                               prompt: Text("Email").foregroundStyle(Color(Palette.placeholder)))
                         .textContentType(.username)
                         #if os(iOS)
@@ -363,7 +363,7 @@ struct SignInView: View {
                 }
                 .buttonStyle(.hoverLink)
                 .font(.footnote)
-                .foregroundStyle(.tint)
+                .foregroundStyle(Color.amberInk)
                 .accessibilityIdentifier("signin.back")
                 .transition(.opacity)
             }
@@ -420,7 +420,7 @@ struct SignInView: View {
             }
 
             if flow.step == .forgot(sending: false) {
-                smallButton("Back to sign in", id: "signin.backToSignIn") {
+                smallButton("Back to Sign In", id: "signin.backToSignIn") {
                     flow.backToSignIn()
                     error = nil
                     passwordFocused = true
@@ -506,7 +506,7 @@ struct SignInView: View {
         Button(title, action: action)
             .buttonStyle(.hoverLink)
             .font(.footnote)
-            .foregroundStyle(.tint)
+            .foregroundStyle(Color.amberInk)
             .frame(minHeight: 28)
             .contentShape(.rect)
             .transition(.opacity)
@@ -605,7 +605,7 @@ struct SignInView: View {
         error = nil
         switch flow.action {
         case .check:
-            guard flow.beginCheck() else { return }
+            guard flow.beginCheck() else { error = EmailSignInFlow.notAnEmail; return }
             let email = flow.email
             Task {
                 let status = try? await backend.accountStatus(email: email)

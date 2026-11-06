@@ -162,6 +162,13 @@ struct GridTable: Equatable {
     /// font came out narrower than the drawn text, and a tight table cut its dates ("2026-10-…").
     static var cellFont: PFont { PFont.monospacedDigitSystemFont(ofSize: EditorMetrics.body, weight: .regular) }
 
+    /// What VoiceOver says for the table as a whole, before its cells.
+    var spokenSize: String {
+        let c = columns == 1 ? "1 column" : "\(columns) columns"
+        let r = rows.count == 1 ? "1 row" : "\(rows.count) rows"
+        return "Table, \(c), \(r)"
+    }
+
     /// Widths that fit each column's text, as in Notes and Obsidian: a table whose text fills most
     /// of the width (70%) stretches to it, a short one keeps its own width (council round 2, 11-04:
     /// two short columns ran 860 pt wide with the sidebar hidden). A table a little too
@@ -407,6 +414,10 @@ final class GridHitBox {
     var targets: [GridLine: CGRect] = [:]
     /// The add-a-row and add-a-column bars, while they show (see GridMetrics.growBelow).
     var adds: [GridAdd: CGRect] = [:]
+    /// The cells not being edited, where they are (for the Mac's right-click menu).
+    var cells: [GridCell: CGRect] = [:]
+
+    func cell(at p: CGPoint) -> GridCell? { cells.first { $0.value.contains(p) }?.key }
 
     /// Whether a click or tap at `p` (host coordinates) is the table's. The bands around the table
     /// (the reach above, the grow strips right and below) are only where a handle or bar is in
@@ -861,6 +872,13 @@ struct TableGridView: View {
             step(from: f, by: press.modifiers.contains(.shift) ? -1 : 1, cols: cols)
             return .handled
         }
+        // AppKit sends ⇧Tab as a back-tab character, which `.tab` doesn't match: it moved the
+        // keyboard out of the table (council round 16). Back a cell, as in Notes.
+        .onKeyPress(KeyEquivalent("\u{19}"), phases: .down) { _ in
+            guard let f = current else { return .ignored }
+            step(from: f, by: -1, cols: cols)
+            return .handled
+        }
     }
 
     private func columnHandleLabel(_ c: Int) -> String {
@@ -921,7 +939,6 @@ struct TableGridView: View {
                 .font(.system(size: EditorMetrics.body, weight: r == 0 ? .semibold : .regular))
                 .monospacedDigit()
                 .lineLimit(1)
-                .accessibilityAddTraits(.isButton)
                 .padding(.horizontal, GridMetrics.inset)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .contentShape(.rect)
@@ -929,6 +946,8 @@ struct TableGridView: View {
                 // A click here puts a caret in the text, so the pointer says so, like Notes; over a
                 // link's words it's the pointing hand, since a click there opens the note.
                 .modifier(CellLinkPointer(value: value))
+                // Where it is, for the right-click menu (GridHostingView.menu(for:)).
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(GridHitBox.space)) } action: { box?.cells[GridCell(row: r, column: c)] = $0 }
                 #endif
                 .onTapGesture { p in
                     // A link's words open its note (a Notion row's page), as a link in the text does.
@@ -938,6 +957,9 @@ struct TableGridView: View {
                     }
                     begin(GridCell(row: r, column: c), at: Self.caretIndex(in: value, x: p.x, width: width, trailing: false))
                 }
+                // VoiceOver can edit it too: a press is what a click is (round 17: cells could only be read).
+                .accessibilityHint("Edits this cell")
+                .accessibilityAction { begin(GridCell(row: r, column: c), at: (value as NSString).length) }
         }
     }
 

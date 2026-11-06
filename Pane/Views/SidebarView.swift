@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// What to call the signed-in person where the app shows who they are: the name on their profile.
 /// Never an email address: with Sign in with Apple that can be a relay address
@@ -218,7 +219,20 @@ struct SidebarRowText<Trailing: View>: View {
         #endif
     }
 
-    private var beside: some View {
+    @ViewBuilder private var beside: some View {
+        #if os(macOS)
+        // At the standard size, the list's own font.
+        if TextSize.interfaceScale > 1 {
+            row.font(.system(size: TextSize.interface(13)))
+        } else {
+            row
+        }
+        #else
+        row
+        #endif
+    }
+
+    private var row: some View {
         HStack {
             #if os(macOS)
             Text(title).foregroundStyle(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
@@ -230,7 +244,7 @@ struct SidebarRowText<Trailing: View>: View {
             #if os(macOS)
             // One column for every row's count and its ••• under the pointer, their right edges on
             // one line, and as far in from the selection's edge as the icon is on the left.
-            trailing.frame(minWidth: SidebarStyle.trailingColumn, alignment: .trailing).padding(.trailing, SidebarStyle.trailingInset)
+            trailing.frame(minWidth: SidebarStyle.trailingColumn * TextSize.interfaceScale, alignment: .trailing).padding(.trailing, SidebarStyle.trailingInset)
             #else
             trailing
             #endif
@@ -272,7 +286,7 @@ extension View {
 
 enum SidebarStyle {
     #if os(macOS)
-    static let iconFont = Font.system(size: 17, weight: .regular)
+    static var iconFont: Font { .system(size: TextSize.interface(17), weight: .regular) }
     /// The candidates' icon (DesignLook, DESIGN.md Icons): medium, and smaller and lighter than the
     /// name beside it, so the names lead.
     static let candidateIconFont = Font.system(size: 14, weight: .medium)
@@ -329,20 +343,31 @@ struct SidebarIcon: View {
     }
 }
 
+/// What VoiceOver says for a sidebar row.
+enum SidebarRowWords {
+    static func spoken(_ name: String, count: Int, files: Int = 0) -> String {
+        let notes = count == 1 ? "1 note" : "\(count) notes"
+        return "\(name), " + (files == 0 ? notes : notes + (files == 1 ? ", 1 file" : ", \(files) files"))
+    }
+}
+
 extension View {
     /// One element per sidebar row, read as "Travel, 4 notes". Without it VoiceOver reads the
     /// folder symbol's own name ("Move") before the row's.
     func rowAccessibility(_ name: String, count: Int, files: Int = 0) -> some View {
-        let notes = count == 1 ? "1 note" : "\(count) notes"
+        // In the label: the Mac's outline dropped a value on these rows (round 17's accessibility dump).
         return accessibilityElement(children: .ignore)
-            .accessibilityLabel(name)
-            .accessibilityValue(files == 0 ? notes : notes + (files == 1 ? ", 1 file" : ", \(files) files"))
+            .accessibilityLabel(SidebarRowWords.spoken(name, count: count, files: files))
+            // A label alone made an element of no known role (round 22's dump: AXUnknown).
+            .accessibilityAddTraits(.isStaticText)
     }
 }
 
 extension Notification.Name {
     /// Asks the sidebar to start a new folder (from the list's "⋯" menu).
     static let paneNewFolder = Notification.Name("pane.newFolder")
+    /// Delete these notes (a Set of ids), already asked about: the list does it and opens the neighbour.
+    static let paneDeleteNotes = Notification.Name("pane.deleteNotes")
     /// A folder's Rename (its id in `object`), from outside its menus: the Mac opens its name in its row.
     static let paneRenameFolder = Notification.Name("pane.renameFolder")
     /// Delete Folder for the folder whose id is the object, as its menu does: asks first when it holds anything.
@@ -385,7 +410,7 @@ struct SidebarView: View {
     @State private var folderLimitReached = false
     @State private var newFolderParent: Folder??
     @State private var nameDraft = ""
-    @State private var dropTarget: UUID?
+    @State private var drops = FolderDropState()
     @State private var deletingFolder: Folder?
     /// Folders picked together with ⌘ or ⇧ (Mac), beside the one shown: Delete takes them all.
     @State private var picked: Set<UUID> = []
@@ -551,7 +576,7 @@ struct SidebarView: View {
                         .accessibilityIdentifier("sidebar.all")
                 }
                 ForEach(roots) { folder in
-                    FolderTree(folder: folder, files: files.byFolder, selection: $scope, naming: $namingFolder, dropTarget: dropTarget, targeted: folderTargeted, actions: folderMenuActions, notesID: roots.first?.id, picked: picked)
+                    FolderTree(folder: folder, files: files.byFolder, selection: $scope, naming: $namingFolder, drops: drops, targeted: folderTargeted, actions: folderMenuActions, notesID: roots.first?.id, picked: picked)
                 }
                 // Last in the same list, like Notes, and like Notes only while something is in it.
                 CountedRow(title: "Recently Deleted", icon: "trash", trash: true, files: files.trashed, selection: $scope)
@@ -564,7 +589,7 @@ struct SidebarView: View {
                 // heading at the very top, under the window's buttons (Emil, 2 November 2026).
                 if Self.showsHeading(folders: roots.count, trashed: files.trashed) {
                     HStack {
-                        Text("Folders")
+                        Text("Folders").foregroundStyle(Color.muted).accessibilityAddTraits(.isHeader)
                         Spacer()
                         // New Folder, where the folders are (it was a fourth toolbar button's place):
                         // a 22 pt target, its right edge on the counts' (council round 13: 16 pt,
@@ -577,6 +602,9 @@ struct SidebarView: View {
                             .help("New Folder (\u{21E7}\u{2318}N)")
                             .accessibilityIdentifier("sidebar.newFolder")
                     }
+                    // A list section's header is one element to VoiceOver whatever's asked of it
+                    // ("Folders, New Folder", round 18): the button is an action on that heading.
+                    .accessibilityAction(named: "New Folder") { startNewFolder(nil) }
                     .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
                 }
                 #endif
@@ -618,6 +646,9 @@ struct SidebarView: View {
             if DesignLook.calmList { Color.clear.frame(height: 4) } else { SidebarHeader(leading: SidebarStyle.edge(nested: nested)) }
         }
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
+        #if os(macOS)
+        .modifier(FollowsTextSize())
+        #endif
         #endif
         .onAppear(perform: settleScope)
         // What Ask an AI offers in the folders' menus: loaded on sign-in, and again when a
@@ -1041,9 +1072,29 @@ struct SidebarView: View {
     /// Whether a live note is in no folder.
     private var looseNotes: Bool { folders.count <= 1 && Self.showsAllNotes(folders: folders.count, context: context) }
 
+    private static var mouseIsDown: Bool {
+        #if os(macOS)
+        NSEvent.pressedMouseButtons & 1 != 0
+        #else
+        true
+        #endif
+    }
+
+    /// Said by a drop: no row is lit any more.
+    static let everyRow = UUID()
+
+    /// The row lit during a drag. A drop puts out every row: the list's "left this row" didn't
+    /// always come, and Work stayed filled after a drop on Ideas (round 22).
+    static func dropTarget(_ current: UUID?, over: Bool, id: UUID, dropped: Bool, buttonDown: Bool = true) -> UUID? {
+        // With the button up the drag is over, whatever a row says now: a row said so after the
+        // drop and stayed lit (round 24, the app's own Q4 planning).
+        if dropped || !buttonDown { return nil }
+        return over ? id : (current == id ? nil : current)
+    }
+
     /// A drag is over a folder's row, or has left it.
     private func folderTargeted(_ over: Bool, _ id: UUID) {
-        withAnimation(.snappy(duration: 0.18)) { dropTarget = over ? id : (dropTarget == id ? nil : dropTarget) }
+        drops.id = Self.dropTarget(drops.id, over: over, id: id, dropped: id == Self.everyRow, buttonDown: Self.mouseIsDown)
     }
 
     /// Rename: on the Mac the name is typed in the folder's row, as in Notes; on iPhone in an alert.
@@ -1167,6 +1218,58 @@ struct SidebarView: View {
 /// "All Notes" or "Recently Deleted" with its count, as the list counts its notes (LibraryNotes):
 /// the row hears only when that count changes. It used to follow every note with a query and
 /// count by asking the store, which read every note's row from disk, on each change.
+/// The folder a drag is over, read by the rows that show it. Given to rows as a value it never
+/// reached them during a drag: the first row crossed stayed lit, and no other lit, through rounds
+/// 21 to 24 (the log: the target moved on, no row was worked out again).
+@MainActor @Observable final class FolderDropState {
+    var id: UUID?
+}
+
+private struct FolderDropIcon: View {
+    let drops: FolderDropState
+    let id: UUID
+    let selected: Bool
+    var body: some View {
+        SidebarIcon(name: drops.id == id ? "folder.fill" : "folder", selected: selected)
+    }
+}
+
+/// The row under a drag, tinted: an icon alone is easy to miss.
+private struct FolderDropFill: View {
+    let drops: FolderDropState
+    let id: UUID
+    let reach: EdgeInsets
+    var body: some View {
+        if drops.id == id {
+            RoundedRectangle(cornerRadius: Hover.pillRadius, style: .continuous)
+                .fill(.tint.opacity(0.18))
+                .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
+        }
+    }
+}
+
+/// A folder's row as a place to drop. Its own delegate so that a note moves with a move's cursor
+/// (round 24: the green + said copy), and a row lights as the drag enters and goes out as it leaves.
+struct FolderDrop: DropDelegate {
+    static let types: [UTType] = [.paneItem, .fileURL]
+    let over: (Bool) -> Void
+    let land: ([NSItemProvider]) -> Void
+
+    /// Items of ours move; a file from outside is copied in.
+    static func operation(ours: Bool) -> DropOperation { ours ? .move : .copy }
+
+    func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: Self.types) }
+    func dropEntered(info: DropInfo) { over(true) }
+    func dropExited(info: DropInfo) { over(false) }
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: Self.operation(ours: info.hasItemsConforming(to: [.paneItem])))
+    }
+    func performDrop(info: DropInfo) -> Bool {
+        land(info.itemProviders(for: Self.types))
+        return true
+    }
+}
+
 private struct CountedRow: View {
     @Environment(\.modelContext) private var context
     /// The window's notes as the list keeps them: the counts come from there, and the row hears
@@ -1296,8 +1399,9 @@ private struct FolderTree: View {
     /// when it changes): the row draws its own selection on the Mac.
     @Binding var selection: Scope?
     /// The folder a drag is over, if any.
-    let dropTarget: UUID?
+    let drops: FolderDropState
     let targeted: (Bool, UUID) -> Void
+    @Environment(\.undoManager) private var undoManager
     /// What the folder's menu does.
     let actions: FolderMenuActions
     /// The first folder at the top level (Notes): it has no Move To.
@@ -1310,13 +1414,13 @@ private struct FolderTree: View {
     /// Ask an AI about this folder: the AI picked in its menu, while the popover shows.
     @State private var asking: AskAI.Target?
 
-    init(folder: Folder, files: [UUID: Int], selection: Binding<Scope?>, naming: Binding<UUID?>, dropTarget: UUID?, targeted: @escaping (Bool, UUID) -> Void,
+    init(folder: Folder, files: [UUID: Int], selection: Binding<Scope?>, naming: Binding<UUID?>, drops: FolderDropState, targeted: @escaping (Bool, UUID) -> Void,
          actions: FolderMenuActions, notesID: UUID? = nil, depth: Int = 0, picked: Set<UUID> = []) {
         self.folder = folder
         self.files = files
         _selection = selection
         _naming = naming
-        self.dropTarget = dropTarget
+        self.drops = drops
         self.targeted = targeted
         self.actions = actions
         self.notesID = notesID
@@ -1347,7 +1451,7 @@ private struct FolderTree: View {
     private var tree: some View {
             DisclosureGroup(isExpanded: $expanded) {
                 ForEach(folder.liveChildren) { child in
-                    FolderTree(folder: child, files: files, selection: $selection, naming: $naming, dropTarget: dropTarget, targeted: targeted, actions: actions, notesID: notesID, depth: depth + 1, picked: picked)
+                    FolderTree(folder: child, files: files, selection: $selection, naming: $naming, drops: drops, targeted: targeted, actions: actions, notesID: notesID, depth: depth + 1, picked: picked)
                 }
             } label: { label }
     }
@@ -1374,11 +1478,11 @@ private struct FolderTree: View {
                 rowText(selected: selected, hovering: hovering, listed: listed)
                 #endif
             } icon: {
-                SidebarIcon(name: dropTarget == folder.id ? "folder.fill" : "folder", selected: selected)
-                    .contentTransition(.symbolEffect(.replace))
+                FolderDropIcon(drops: drops, id: folder.id, selected: selected)
             }
             .sidebarRowLabel()
             .rowAccessibility(folder.name, count: listed ?? 0, files: files[folder.id] ?? 0)
+            .background { FolderDropFill(drops: drops, id: folder.id, reach: Hover.sidebarReach(depth: depth)) }
         }
         .quietSelection()
         .tag(Scope.folder(folder.id))
@@ -1388,15 +1492,18 @@ private struct FolderTree: View {
         }
         // Notes, folders and files from inside the app, and files and folders from Finder, Mail or
         // Safari: they land in this folder.
-        .onDrop(of: [.paneItem, .fileURL], isTargeted: Binding(get: { dropTarget == folder.id }, set: { over in targeted(over, folder.id) })) { providers in
+        .onDrop(of: FolderDrop.types, delegate: FolderDrop(over: { targeted($0, folder.id) }) { providers in
             DropLoader.load(providers) { items, urls in
                 var moved = false
                 for item in items {
                     switch item.kind {
                     case .note:
                         // A dragged multi-selection moves together.
-                        for id in item.ids {
-                            if let n = context.note(id) { context.move(n, to: folder); moved = true }
+                        let notes = item.ids.compactMap { context.note($0) }
+                        if !notes.isEmpty {
+                            let back = context.move(notes, to: folder, undo: undoManager)
+                            moved = true
+                            NotificationCenter.default.post(name: .paneNotesMoved, object: "Moved to \(folder.name)", userInfo: ["undo": back])
                         }
                     case .folder:
                         if item.id != folder.id, let f = context.folder(item.id) { context.move(f, into: folder); moved = true }
@@ -1409,8 +1516,11 @@ private struct FolderTree: View {
                 if !urls.isEmpty, !context.importFiles(urls, into: .folder(folder.id)).isEmpty { moved = true }
                 if moved { withAnimation(.snappy) { expanded = true } }
             }
-            return true
-        }
+            // A drop doesn't always say the drag has left the row (round 21: its icon stayed filled).
+            targeted(false, SidebarView.everyRow)
+            // A row can say it's targeted after the drop has landed (round 22: Travel stayed lit).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { targeted(false, SidebarView.everyRow) }
+        })
         #if os(iOS)
         // The folder's first notes above its menu, as in Notes.
         .contextMenu {
@@ -1499,7 +1609,7 @@ enum FolderAction: String, CaseIterable, Identifiable {
 /// each pass (180 rows against 72 for three saves).
 extension FolderTree: @MainActor Equatable {
     static func == (a: FolderTree, b: FolderTree) -> Bool {
-        a.folder.id == b.folder.id && a.files == b.files && a.selection == b.selection && a.dropTarget == b.dropTarget
+        a.folder.id == b.folder.id && a.files == b.files && a.selection == b.selection
             && a.notesID == b.notesID && a.depth == b.depth && a.picked == b.picked
     }
 }
@@ -1808,3 +1918,8 @@ struct SidebarToggleButton: View {
     }
 }
 #endif
+
+extension Notification.Name {
+    /// Notes went to a folder: the note's page says so (the object is what to say).
+    static let paneNotesMoved = Notification.Name("pane.notesMoved")
+}

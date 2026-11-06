@@ -13,8 +13,46 @@ struct TextEdit: Equatable {
 /// Editing rules that make lists and checklists feel like Apple Notes.
 /// Pure functions over the markdown source, so they are unit-tested.
 enum ListEditing {
+    /// Return on an empty last line of a code block leaves it: the empty line goes, and the caret
+    /// is on a new line under the block. Two Returns out, the way lists end (round 18: you stayed
+    /// inside however many you pressed).
+    static func leaveCodeBlock(in text: String, selection: NSRange) -> TextEdit? {
+        guard selection.length == 0 else { return nil }
+        let ns = text as NSString
+        guard let block = codeBlock(in: ns, at: selection.location), let close = block.close, close.location > 0 else { return nil }
+        let line = ns.lineRange(for: NSRange(location: selection.location, length: 0))
+        guard NSMaxRange(line) == close.location, line.location != NSMaxRange(block.open),
+              ns.substring(with: line).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        let fence = ns.substring(with: close)
+        let closed = fence.hasSuffix("\n") ? fence : fence + "\n"
+        return TextEdit(range: NSRange(location: line.location, length: NSMaxRange(close) - line.location),
+                        replacement: closed + (fence.hasSuffix("\n") ? "\n" : ""),
+                        caret: line.location + (closed as NSString).length)
+    }
+
+    private static let typedBox = try! NSRegularExpression(pattern: #"^([ \t]*)(?:[-*+][ \t]+)?\[([ xX]?)\]$"#)
+
+    /// Space typed right after "[]" or "[ ]" at the start of a line, or "[]" after a dash: the line
+    /// is a checklist item, as Notion's and Obsidian's people type one. "- [ ]" needs nothing: the
+    /// space makes it an item as it stands. Not inside a code block, where brackets are code.
+    static func spaceKey(in text: String, selection: NSRange) -> TextEdit? {
+        guard selection.length == 0 else { return nil }
+        let ns = text as NSString
+        guard selection.location <= ns.length else { return nil }
+        let start = ns.lineRange(for: NSRange(location: selection.location, length: 0)).location
+        let typed = ns.substring(with: NSRange(location: start, length: selection.location - start))
+        let whole = NSRange(location: 0, length: (typed as NSString).length)
+        guard let m = typedBox.firstMatch(in: typed, range: whole), codeBlock(in: ns, at: selection.location) == nil else { return nil }
+        let indent = (typed as NSString).substring(with: m.range(at: 1))
+        let mark = (typed as NSString).substring(with: m.range(at: 2))
+        if mark == " ", ListPrefix(line: typed + " ") != nil { return nil }
+        let line = indent + "- [\(mark.isEmpty ? " " : mark.lowercased())] "
+        return TextEdit(range: NSRange(location: start, length: whole.length), replacement: line, caret: start + (line as NSString).length)
+    }
+
     /// Return inside a list item continues the list; on an empty item it ends it.
     static func returnKey(in text: String, selection: NSRange) -> TextEdit? {
+        if let out = leaveCodeBlock(in: text, selection: selection) { return out }
         let ns = text as NSString
         guard selection.location <= ns.length else { return nil }
         let lineRange = ns.lineRange(for: NSRange(location: selection.location, length: 0))
@@ -516,10 +554,26 @@ enum ListEditing {
             return TextEdit(range: whole, replacement: body, caret: b, selection: b > a ? NSRange(location: a, length: b - a) : nil)
         }
         let span = lines(in: ns, touching: selection)
-        let content = ns.substring(with: span)
+        var content = ns.substring(with: span)
+        // Quoted lines (a Return after a quote keeps its "> "): the code block takes their place, so
+        // the marks go rather than ending up inside it as "> let count" (council round 16, a3).
+        var before = 0, inside = 0
+        let quoted = content.split(separator: "\n", omittingEmptySubsequences: false).enumerated()
+            .filter { $0.offset > 0 || !$0.element.isEmpty }.allSatisfy { $0.element.hasPrefix(">") || $0.element.isEmpty }
+        if quoted, content.hasPrefix(">") {
+            var out: [String] = [], at = span.location
+            for line in content.components(separatedBy: "\n") {
+                let mark = line.hasPrefix("> ") ? 2 : line.hasPrefix(">") ? 1 : 0
+                if at + mark <= selection.location { before += mark }
+                else if at < NSMaxRange(selection) { inside += min(mark, max(0, NSMaxRange(selection) - at)) }
+                out.append(String(line.dropFirst(mark)))
+                at += (line as NSString).length + 1
+            }
+            content = out.joined(separator: "\n")
+        }
         let replacement = content.hasSuffix("\n") ? "```\n" + content + "```\n" : "```\n" + content + "\n```"
-        return TextEdit(range: span, replacement: replacement, caret: NSMaxRange(selection) + 4,
-                        selection: selection.length > 0 ? NSRange(location: selection.location + 4, length: selection.length) : nil)
+        return TextEdit(range: span, replacement: replacement, caret: NSMaxRange(selection) + 4 - before - inside,
+                        selection: selection.length > 0 ? NSRange(location: selection.location + 4 - before, length: selection.length - inside) : nil)
     }
 
     /// Format → Increase / Decrease Indent: nests the caret's list item (or every selected one)

@@ -10,6 +10,40 @@ import SwiftUI
 
 /// An AI's edit arriving: which lines count as changed, what "seen" means, Undo, and the
 /// columns the server sends.
+@MainActor @Suite struct AIEditsInARowTests {
+    let id = UUID()
+    func r(_ from: String, _ to: String, by: String = "ChatGPT", in seconds: TimeInterval = 0, version: Int64? = nil) -> AIEdit.Receipt {
+        AIEdit.Receipt(noteID: id, by: by, at: Date(timeIntervalSinceReferenceDate: seconds), previous: from, after: to,
+                       previousVersion: version, lines: AIReview.lineCount(previous: from, after: to))
+    }
+
+    /// Three edits in a row say 3 changes, and Undo goes back to before the first.
+    @Test func editsInARowAreOneChange() {
+        let one = r("A\nB\nC", "A2\nB\nC", version: 7)
+        let two = r("A2\nB\nC", "A2\nB2\nC", in: 5, version: 8).continuing(one)
+        let three = r("A2\nB2\nC", "A2\nB2\nC2", in: 9, version: 9).continuing(two)
+        #expect(three.lines == 3 && three.summary == "ChatGPT made 3 changes")
+        #expect(three.previous == "A\nB\nC" && three.previousVersion == 7)
+    }
+
+    /// Typing between them, another AI, or a long gap keep them apart.
+    /// Edits that land before the first is on screen still add up: the note chains from the one on
+    /// its way (round 18: three edits in one sync said "changed 1 line").
+    @Test func editsLandingTogetherChainFromTheOneOnItsWay() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "NoteDetailView.swift"), encoding: .utf8)
+        #expect(source.contains("seen.continuing(landingReceipt ?? receipt)"))
+        #expect(source.contains("guard landingReceipt == r else { return }"))
+    }
+
+    @Test func otherChangesStaySeparate() {
+        let one = r("A", "A2")
+        #expect(r("A2 typed", "A3", in: 5).continuing(one).previous == "A2 typed")
+        #expect(r("A2", "A3", by: "Claude", in: 5).continuing(one).previous == "A2")
+        #expect(r("A2", "A3", in: 600).continuing(one).previous == "A2")
+        #expect(r("A2", "A3", in: 5).continuing(nil).previous == "A2")
+    }
+}
+
 @MainActor @Suite struct AIEditTests {
     /// A note on its own; nothing here needs a store.
     static func note(_ body: String) -> Note { Note(body: body) }

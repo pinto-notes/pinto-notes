@@ -180,6 +180,16 @@ final class EditorCore {
 
     /// Restyles if the text changed or the caret moved to another line.
     /// `selection` is nil when you're not editing: then all syntax stays hidden.
+    private var lastLinkEdit: NSRange?
+    private static let writtenLink = try! NSRegularExpression(pattern: #"\[[^\]\n]*\]\([^)\n]*\)"#)
+
+    /// The written link on `line` the caret is inside or the selection touches.
+    static func linkBeingEdited(_ ns: NSString, line: NSRange, selection s: NSRange) -> NSRange? {
+        writtenLink.matches(in: ns as String, range: line).lazy.map(\.range).first { r in
+            s.length > 0 ? NSIntersectionRange(s, r).length > 0 : (s.location > r.location && s.location < NSMaxRange(r))
+        }
+    }
+
     func restyle(_ storage: NSTextStorage, selection: NSRange?, force: Bool) {
         let ns = storage.string as NSString
         var line = NSRange(location: NSNotFound, length: 0)
@@ -196,9 +206,12 @@ final class EditorCore {
         let emphasisCaret = selection.flatMap { sel in
             line.location != NSNotFound && ns.substring(with: line).contains(where: { "*_~`".contains($0) }) ? sel : nil
         }
-        if !force, dirty == nil, !needsFull, !folds.dirty, line == lastActiveLine, dateEdit == lastDateEdit, emphasisCaret == lastEmphasisCaret { return }
+        // A written link's markup shows only with the caret inside it, the same way.
+        let linkEdit = selection.flatMap { sel in line.location == NSNotFound ? nil : Self.linkBeingEdited(ns, line: line, selection: sel) }
+        if !force, dirty == nil, !needsFull, !folds.dirty, line == lastActiveLine, dateEdit == lastDateEdit, emphasisCaret == lastEmphasisCaret, linkEdit == lastLinkEdit { return }
         lastDateEdit = dateEdit
         lastEmphasisCaret = emphasisCaret
+        lastLinkEdit = linkEdit
         let previous = lastActiveLine
         lastActiveLine = line
         let structure = self.structure(of: storage.string)
@@ -649,16 +662,21 @@ final class EditorCore {
         return checkboxLine(at: point, layout: layout)
     }
 
-    /// Sorts the checklist around `line` once the ticks stop for `ListEditing.sortDelay`.
-    func sortSoon(after line: Int, _ sort: @escaping @MainActor (Int) -> Void) {
+    /// Sorts the checklist around `line` once the ticks stop for `ListEditing.sortDelay`. Only if
+    /// `text` is still as the tick left it: the lines are offsets into that text, and the sort isn't
+    /// in Undo, so running it after an Undo, a move or an edit damaged the note (round 18: the next
+    /// Undo left "- [ ] Rain jack- [ ] Chargers" and lost an item).
+    func sortSoon(after line: Int, text: @escaping @MainActor () -> String, _ sort: @escaping @MainActor (Int) -> Void) {
         pendingSort?.cancel()
         if !ticked.contains(line) { ticked.append(line) }
+        let seen = text()
         let work = DispatchWorkItem { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let lines = self.ticked
                 self.ticked = []
                 self.pendingSort = nil
+                guard text() == seen else { return }
                 lines.forEach(sort)
             }
         }
@@ -1589,6 +1607,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         if text == "\n", let edit = ListEditing.returnKey(in: self.text, selection: range) {
             apply(edit); return false
         }
+        if text == " ", let edit = ListEditing.spaceKey(in: self.text, selection: range) {
+            apply(edit); return false
+        }
         if text.isEmpty {
             // Backspace deletes the character before the caret; a selection deletes itself.
             let sel = selectedRange
@@ -2102,9 +2123,10 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         setContentOffset(offset, animated: false)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         if edit.replacement == "x", let r = circle {
-            CheckPop.play(in: layer, rect: r.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top))
+            CheckPop.play(in: layer, rect: r.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top),
+                          completes: CheckPop.completesList(text, lineStart: line))
         }
-        if controller?.sortsTickedItems != false { core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) } }
+        if controller?.sortsTickedItems != false { core.sortSoon(after: line, text: { [weak self] in self?.text ?? "" }) { [weak self] in self?.sortChecklist(around: $0) } }
     }
 
     /// Ticked items sink below the open ones, a moment after the tick, sliding into place.
@@ -2142,6 +2164,12 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         setContentOffset(offset, animated: false)
         noteStack?.setActionName(name)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    func applyMove(_ edit: TextEdit, named name: String) {
+        core.endSlides()
+        asOneStep { apply(edit) }
+        noteStack?.setActionName(name)
     }
 
     /// Makes `change` as one step of Undo that puts the whole text back as it was, so the sort that
@@ -2292,7 +2320,7 @@ private struct PlatformEditor: NSViewRepresentable {
         controller.target = view
         scroll.documentView = view
         view.setFoot(foot)
-        if autofocus { DispatchQueue.main.async { view.window?.makeFirstResponder(view) } }
+        if autofocus { view.focusWhenShown() }
         // Format › Untick All for this note, not the one before (after this update, not in it).
         DispatchQueue.main.async { [weak controller, weak view] in
             guard let controller, let view, controller.target === view else { return }
@@ -2322,6 +2350,25 @@ private struct PlatformEditor: NSViewRepresentable {
 /// table: a click there is the table's only on a bar, otherwise it goes to the text.
 final class GridHostingView: NSHostingView<AnyView> {
     var box: GridHitBox?
+    /// The right-click menu for a cell: its row and column, as in Notes. Without it the click
+    /// fell through to the text, which selected the whole table and offered only text items
+    /// (council round 16).
+    var cellMenu: ((GridHostingView, GridCell) -> NSMenu?)?
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        var p = convert(event.locationInWindow, from: nil)
+        if !isFlipped { p.y = bounds.height - p.y }
+        if let cell = box?.cell(at: p), let menu = cellMenu?(self, cell) { return menu }
+        return super.menu(for: event)
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        if let menu = menu(for: event), menu.items.first?.representedObject is TableMenuAction {
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+        } else {
+            super.rightMouseDown(with: event)
+        }
+    }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         var p = convert(point, from: superview)
@@ -2333,10 +2380,46 @@ final class GridHostingView: NSHostingView<AnyView> {
 
 /// The note's scroll view. Its tiling (a new size, the toolbar's inset arriving) is part of the
 /// layout pass before a frame is drawn, so the note folds its date there (PaneTextView.foldDate).
+/// ⌘F when the keys aren't in the note (just after the app opens they're with the list): finds in
+/// the open note, as in Notes, or searches the notes when none is open. The app delegate calls it,
+/// last in the chain, so a text view that has the keys still takes ⌘F first (council round 16:
+/// ⌘F straight after launch did nothing).
+@MainActor enum FindRouter {
+    /// The note's own text view: the biggest one on show in the window.
+    static func editor(in window: NSWindow?) -> PaneTextView? {
+        guard let root = window?.contentView else { return nil }
+        var found: [PaneTextView] = []
+        func walk(_ v: NSView) {
+            if let t = v as? PaneTextView, t.enclosingScrollView is NoteScrollView, !t.isHiddenOrHasHiddenAncestor { found.append(t) }
+            v.subviews.forEach(walk)
+        }
+        walk(root)
+        return found.max { $0.visibleRect.width * $0.visibleRect.height < $1.visibleRect.width * $1.visibleRect.height }
+    }
+
+    static func find(in window: NSWindow?, sender: Any?) {
+        guard let window, let e = editor(in: window) else {
+            NotificationCenter.default.post(name: .paneSearchNotes, object: nil)
+            return
+        }
+        window.makeFirstResponder(e)
+        e.performFindPanelAction(sender)
+    }
+}
+
 final class NoteScrollView: NSScrollView {
     override func tile() {
         super.tile()
         (documentView as? PaneTextView)?.foldDate()
+    }
+
+    /// The find bar opening or closing moves an untouched note's fold with it (findShift).
+    override var isFindBarVisible: Bool {
+        didSet {
+            guard isFindBarVisible != oldValue, let text = documentView as? PaneTextView else { return }
+            tile()
+            text.refold()
+        }
     }
 
     /// Scrolled by hand: the fold is the reader's now, and the inset no longer moves it.
@@ -2374,6 +2457,48 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     private var cardHosts: [String: NSHostingView<AnyView>] = [:]
+    /// Every card gets a host, not only those in view: the whole note is going on paper.
+    private var onPaperNow = false
+
+    /// Runs `operation` on the note as paper shows it: the light look in dark mode too, no date,
+    /// every table and picture there. SwiftUI's cards don't draw into a print context (a PDF had a
+    /// hole where its table was), so for the run each is a picture of itself. All put back after.
+    func onPaper(_ operation: NSPrintOperation) {
+        let look = appearance, background = drawsBackground, date = headerLabel.isHidden
+        appearance = NSAppearance(named: .aqua)
+        drawsBackground = false
+        headerLabel.isHidden = true
+        onPaperNow = true
+        layoutCards(animated: false)
+        layoutSubtreeIfNeeded()
+        // A turn for SwiftUI to take the light look and draw.
+        RunLoop.main.run(until: Date().addingTimeInterval(0.25))
+        let hosts = Array(cardHosts.values)
+        let pictures = hosts.map { host -> NSImageView in
+            let picture = NSImageView(frame: host.frame)
+            picture.imageScaling = .scaleAxesIndependently
+            if let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+                host.cacheDisplay(in: host.bounds, to: rep)
+                let image = NSImage(size: host.bounds.size)
+                image.addRepresentation(rep)
+                picture.image = image
+            }
+            host.isHidden = true
+            addSubview(picture)
+            return picture
+        }
+        defer {
+            pictures.forEach { $0.removeFromSuperview() }
+            hosts.forEach { $0.isHidden = false }
+            onPaperNow = false
+            headerLabel.isHidden = date
+            appearance = look
+            drawsBackground = background
+            layoutCards(animated: false)
+        }
+        operation.run()
+    }
+
     #if DEBUG
     var renderedCardKeys: Set<String> { Set(cardHosts.keys) }
     #endif
@@ -2635,7 +2760,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             cardHosts[k] = nil
             cardContent[k] = nil
         }
-        let viewport = enclosingScrollView?.documentVisibleRect ?? visibleRect
+        let viewport = onPaperNow ? bounds : (enclosingScrollView?.documentVisibleRect ?? visibleRect)
         for item in items {
             // Keep visited hosts alive, including a table being edited while scrolled away.
             // A new offscreen table needs a host only when it has a pending focus request.
@@ -2650,6 +2775,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 if case .grid(let g, _, _) = item.content {
                     let grid = GridHostingView(rootView: item.view)
                     grid.box = core.gridBoxes[g.index]
+                    grid.cellMenu = { [weak self] host, cell in self?.tableCellMenu(host: host, cell: cell) }
                     h = grid
                 } else {
                     h = NSHostingView(rootView: item.view)
@@ -2660,6 +2786,13 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 cardHosts[item.key] = h
                 return h
             }()
+            // VoiceOver hears a table as one, with its size, rather than as loose cells (round 16).
+            if case .grid(let g, _, _) = item.content, let grid = host as? GridHostingView {
+                grid.setAccessibilityElement(true)
+                grid.setAccessibilityRole(.group)
+                grid.setAccessibilityRoleDescription("table")
+                grid.setAccessibilityLabel(g.spokenSize)
+            }
             if cardContent[item.key] != item.content {
                 host.rootView = item.view
                 cardContent[item.key] = item.content
@@ -2739,8 +2872,31 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     static let titleAway: CGFloat = 40
     private var watchingScroll = false
 
+    /// A new note's cursor, waiting for the note to be in its window.
+    private var focusPending = false
+
+    /// The cursor in this note as soon as it's in a window: a new note (⌘N, Today's note) is
+    /// typed into straight away, as in Notes. The editor is made before SwiftUI puts it in the
+    /// window, so asking at once, or a turn later, often found no window and the keyboard
+    /// stayed in the list (council round 16: "Trip files" typed after ⌘N went nowhere).
+    func focusWhenShown() {
+        if let window { window.makeFirstResponder(self) } else { focusPending = true }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let window = self.window, window.firstResponder !== self else { return }
+            self.focusPending = false
+            window.makeFirstResponder(self)
+        }
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        if focusPending, let window {
+            focusPending = false
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.window === window else { return }
+                window.makeFirstResponder(self)
+            }
+        }
         foldDate()
         guard !watchingScroll, let clip = enclosingScrollView?.contentView else { return }
         watchingScroll = true
@@ -2766,9 +2922,17 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// At the fold or within one fold below it, nobody having scrolled since (scrollWheel clears
     /// `foldedAt`): where a width change's own scroll leaves an opened note. Further down is
     /// the reader's place (typing, a search hit), and stays.
+    /// While the find bar is open, the fold is that much higher, so the title sits below the bar
+    /// rather than under it: the bar lies over the top of the note, and Notes moves its note down
+    /// for its bar (council round 15, a5-find-bar). A note scrolled by hand stays where it is.
+    var findShift: CGFloat {
+        guard let scroll = enclosingScrollView, scroll.isFindBarVisible, let bar = scroll.findBarView else { return 0 }
+        return min(Self.fold, bar.frame.height)
+    }
+
     private var nearFold: Bool {
         guard foldedAt != nil, let scroll = enclosingScrollView else { return false }
-        let target = -scroll.contentInsets.top + Self.fold
+        let target = -scroll.contentInsets.top + Self.fold - findShift
         let y = scroll.contentView.bounds.origin.y
         return y >= target - 0.5 && y <= target + Self.fold + 0.5
     }
@@ -2776,8 +2940,19 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// Back to the fold after a width change, unless someone scrolled since.
     private func returnToFold() {
         guard nearFold, let scroll = enclosingScrollView else { return }
-        let target = -scroll.contentInsets.top + Self.fold
+        let target = -scroll.contentInsets.top + Self.fold - findShift
         guard abs(scroll.contentView.bounds.origin.y - target) >= 0.5 else { return }
+        scroll.contentView.scroll(to: NSPoint(x: scroll.contentView.bounds.origin.x, y: target))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        foldedAt = target
+    }
+
+    /// The fold again after the find bar opens or closes, if nobody has scrolled since.
+    func refold() {
+        guard let scroll = enclosingScrollView, let at = foldedAt,
+              DesignLook.readingPage, hasDate, !DateFold.showOnOpen else { return }
+        let target = -scroll.contentInsets.top + Self.fold - findShift
+        guard abs(scroll.contentView.bounds.origin.y - at) < 0.5, abs(at - target) >= 0.5 else { return }
         scroll.contentView.scroll(to: NSPoint(x: scroll.contentView.bounds.origin.x, y: target))
         scroll.reflectScrolledClipView(scroll.contentView)
         foldedAt = target
@@ -2787,7 +2962,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         guard DesignLook.readingPage, hasDate, !DateFold.showOnOpen, window != nil,
               let scroll = enclosingScrollView, scroll.contentView.bounds.height > 0 else { return }
         let clip = scroll.contentView
-        let target = -scroll.contentInsets.top + Self.fold
+        let target = -scroll.contentInsets.top + Self.fold - findShift
         if abs(clip.bounds.origin.y - target) < 0.5 { foldedAt = clip.bounds.origin.y; return }
         // Once drawn, only a fold nobody has scrolled away from moves with the inset.
         if drawn { guard let at = foldedAt, abs(clip.bounds.origin.y - at) < 0.5 else { return } }
@@ -3329,7 +3504,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let bottom = frag.layoutFragmentFrame.minY + (line?.typographicBounds.maxY ?? frag.layoutFragmentFrame.height) + textContainerOrigin.y
         let size = WikiSuggestionList.size(rows: controller.wikiSuggestions.count)
         let x = min(max(caret.minX + textContainerOrigin.x - 8, 0), max(bounds.width - size.width, 0))
-        host.frame = CGRect(origin: CGPoint(x: x, y: bottom + 4), size: size)
+        host.frame = CGRect(origin: CGPoint(x: x, y: bottom + 8), size: size)
     }
 
     // MARK: The / menu
@@ -3371,13 +3546,37 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         guard start > 0 else { return false }
         return ns.substring(with: ns.lineRange(for: NSRange(location: start - 1, length: 0))).trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("|")
     }
+    private var slashHintRecheck = false
 
     func layoutSlashHint() {
+        placeSlashHint()
+        // The styler restyles the line just typed after the caret moves (its spacing changes), so
+        // the caret's empty line shifts down a few points once this call has run: the hint sat
+        // 4 pt into the text above (council, 11-05). Place it again once the edit has finished.
+        guard !slashHintRecheck else { return }
+        slashHintRecheck = true
+        DispatchQueue.main.async { [weak self] in
+            self?.slashHintRecheck = false
+            self?.placeSlashHint()
+        }
+    }
+
+    private func placeSlashHint() {
         guard let hint = caretHint(), let tlm = textLayoutManager, let tcm = tlm.textContentManager,
               let loc = tcm.location(tcm.documentRange.location, offsetBy: selectedRange().location) else {
             slashHint?.removeFromSuperview()
             slashHint = nil
             return
+        }
+        // Lines that just changed (Return ending a list restyles the item above) can still be laid
+        // out where they were: the caret's line then overlaps the one above, and the hint sat on
+        // "Shoes" (council round 16). Its own line and the one before, laid out first.
+        let ns = string as NSString
+        let at = selectedRange().location
+        let from = ns.lineRange(for: NSRange(location: max(0, min(at, ns.length) - 1), length: 0)).location
+        if let start = tcm.location(tcm.documentRange.location, offsetBy: max(0, ns.lineRange(for: NSRange(location: max(0, from - 1), length: 0)).location)),
+           let range = NSTextRange(location: start, end: loc) {
+            tlm.ensureLayout(for: range)
         }
         var caret: CGRect?
         tlm.enumerateTextSegments(in: NSTextRange(location: loc), type: .selection, options: [.rangeNotRequired]) { _, r, _, _ in caret = r; return false }
@@ -3399,7 +3598,13 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let h = label.frame.height
         label.frame.origin = CGPoint(x: caret.minX + textContainerOrigin.x + 1,
                                      y: caret.midY + textContainerOrigin.y - h / 2)
+        // A picture's or file's card can reach over the line after it: half a hint under a PDF
+        // chip reads as a bug (council round 16). Tables' views have add bars that overlap by design.
+        label.isHidden = Self.hintCovered(label.frame, by: cardHosts.values.filter { !($0 is GridHostingView) }.map(\.frame))
     }
+
+    /// Whether a card lies over the hint.
+    static func hintCovered(_ hint: CGRect, by cards: [CGRect]) -> Bool { cards.contains { $0.intersects(hint) } }
 
     /// Shows the commands for the `/query` being typed under its line (over it when there's no
     /// room below in the visible part of the note), or takes them away.
@@ -3485,6 +3690,16 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// True while a key press is being handled, so caret moves know they came from the keyboard.
     private var inKeyDown = false
+
+    /// "[ ]" and a space makes a checklist item (`ListEditing.spaceKey`).
+    override func insertText(_ string: Any, replacementRange: NSRange) {
+        if (string as? String) == " ", replacementRange.location == NSNotFound || replacementRange == selectedRange(), !hasMarkedText(), controller?.readOnly != true,
+           let edit = ListEditing.spaceKey(in: self.string, selection: selectedRange) {
+            apply(edit)
+            return
+        }
+        super.insertText(string, replacementRange: replacementRange)
+    }
 
     override func keyDown(with event: NSEvent) {
         // Recently Deleted: typing asks to recover the note first, like Notes. Moving around and
@@ -3581,6 +3796,61 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Right-click on a line that is only a link: show it compact or as a card (Emil, 11-01).
     /// On a checklist with ticks (its circle or its text): Untick All in This List.
+    private static func copyToClipboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    /// A table cell's right-click menu: add or delete its row or column, or the table.
+    func tableCellMenu(host: GridHostingView, cell: GridCell) -> NSMenu? {
+        guard let controller, !controller.readOnly,
+              let key = cardHosts.first(where: { $0.value === host })?.key, key.hasPrefix("g"), let grid = Int(key.dropFirst()) else { return nil }
+        let table = controller.tableMenu(grid: grid, cell: cell, line: nil)
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        // Table items only: AppKit otherwise adds AutoFill, which has nothing to fill in a cell.
+        menu.allowsContextMenuPlugIns = false
+        if #available(macOS 15.0, *) { menu.automaticallyInsertsWritingToolsItems = false }
+        // What any text's menu starts with (round 21: only the table's own commands). A cell being
+        // typed in has the text's own menu; this one is for the whole cell.
+        let held = controller.cellText(grid: grid, cell: cell) ?? ""
+        let clipboard: [(String, String, Bool, () -> Void)] = [
+            ("Cut", "scissors", !held.isEmpty, { [weak controller] in
+                Self.copyToClipboard(held)
+                controller?.setCell("", grid: grid, cell: cell)
+            }),
+            ("Copy", "doc.on.doc", !held.isEmpty, { Self.copyToClipboard(held) }),
+            ("Paste", "doc.on.clipboard", NSPasteboard.general.string(forType: .string) != nil, { [weak controller] in
+                if let s = NSPasteboard.general.string(forType: .string) { controller?.setCell(s, grid: grid, cell: cell) }
+            }),
+        ]
+        for (title, symbol, enabled, run) in clipboard {
+            let item = NSMenuItem(title: title, action: #selector(TableMenuAction.fire), keyEquivalent: "")
+            let action = TableMenuAction(run)
+            item.target = action
+            item.representedObject = action
+            item.isEnabled = enabled
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+            item.setAccessibilityIdentifier("table.menu.\(title)")
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
+        for (i, section) in table.sections.enumerated() {
+            if i > 0 { menu.addItem(.separator()) }
+            for entry in section {
+                let item = NSMenuItem(title: entry.title, action: #selector(TableMenuAction.fire), keyEquivalent: "")
+                let action = TableMenuAction(entry.run)
+                item.target = action
+                item.representedObject = action
+                item.isEnabled = entry.enabled
+                item.image = NSImage(systemSymbolName: entry.systemImage, accessibilityDescription: nil)
+                item.setAccessibilityIdentifier("table.menu.\(entry.title)")
+                menu.addItem(item)
+            }
+        }
+        return menu
+    }
+
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event) ?? NSMenu()
         let point = convert(event.locationInWindow, from: nil)
@@ -3742,10 +4012,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         if edit.replacement == "x", let r = circle, let host = layer {
             // In this view's light or dark, so the pop is the colour of the circle it lands on.
             effectiveAppearance.performAsCurrentDrawingAppearance {
-                CheckPop.play(in: host, rect: r.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
+                CheckPop.play(in: host, rect: r.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y),
+                              completes: CheckPop.completesList(string, lineStart: line))
             }
         }
-        if controller?.sortsTickedItems != false { core.sortSoon(after: line) { [weak self] in self?.sortChecklist(around: $0) } }
+        if controller?.sortsTickedItems != false { core.sortSoon(after: line, text: { [weak self] in self?.string ?? "" }) { [weak self] in self?.sortChecklist(around: $0) } }
         NSAccessibility.post(element: self, notification: .valueChanged)
         return true
     }
@@ -3756,8 +4027,18 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// gives them (council rounds 2 and 3, 11-04: the circles were drawn, the hidden "- [ ]" was
     /// all VoiceOver had). Each says its item, whether it's ticked, and ticks on a press.
     override func accessibilityChildren() -> [Any]? {
-        (super.accessibilityChildren() ?? []) + checklistCheckboxes()
+        // Tables are views laid over the text, which the text view doesn't list itself: without
+        // them VoiceOver heard a table as empty lines (council round 15).
+        let tables = cardHosts.filter { $0.key.hasPrefix("g") }.values.sorted { $0.frame.minY < $1.frame.minY }
+        // The / and [[ lists are subviews too: VoiceOver couldn't reach their rows (round 22).
+        let lists: [NSView] = [slashHost, wikiHost].compactMap { $0 }
+        return (super.accessibilityChildren() ?? []) + checklistCheckboxes() + tables + lists
     }
+
+    /// The checkboxes VoiceOver was last given, kept so the same item is the same element each
+    /// time it asks: made anew on every call, a reader outside the app (VoiceOver, the round 15
+    /// capture's dump) held elements that were already gone and read them as nothing.
+    private var a11yBoxes: [String: ChecklistCheckbox] = [:]
 
     /// Checkboxes for the note's checklist items, in order (the first 300).
     func checklistCheckboxes() -> [ChecklistCheckbox] {
@@ -3771,10 +4052,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                core.checkboxRect(line: range.location, layout: textLayoutManager) != nil {
                 let item = (line as NSString).substring(from: min(list.length, (line as NSString).length))
                     .trimmingCharacters(in: .whitespacesAndNewlines)
-                found.append(ChecklistCheckbox(view: self, line: range.location, label: item, checked: checked))
+                let key = "\(range.location)|\(checked)|\(item)"
+                found.append(a11yBoxes[key] ?? ChecklistCheckbox(view: self, line: range.location, label: item, checked: checked))
             }
             at = NSMaxRange(range)
         }
+        a11yBoxes = Dictionary(found.map { ("\($0.line)|\($0.checked)|\($0.accessibilityLabel() ?? "")", $0) }, uniquingKeysWith: { a, _ in a })
         return found
     }
 
@@ -3865,6 +4148,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         undoManager?.setActionName(name)
     }
 
+
+    func applyMove(_ edit: TextEdit, named name: String) {
+        core.endSlides()
+        asOneStep { apply(edit) }
+        undoManager?.setActionName(name)
+    }
 
     /// Makes `change` as one step of Undo that puts the whole text back as it was, so the sort that
     /// follows a tick (done `withoutUndo`) goes back with it, as in Notes. Steps below it stay.

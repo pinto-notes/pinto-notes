@@ -60,6 +60,9 @@ struct EmailSignInFlow: Equatable {
 
     var trimmedEmail: String { email.trimmingCharacters(in: .whitespacesAndNewlines) }
 
+    /// What a press of Continue says when the address can't be one.
+    static let notAnEmail = "That doesn\u{2019}t look like an email address."
+
     /// Good enough to ask about: something@something.something.
     var emailLooksValid: Bool {
         trimmedEmail.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil
@@ -104,10 +107,10 @@ struct EmailSignInFlow: Equatable {
     var buttonTitle: String? {
         switch action {
         case .check: "Continue"
-        case .signIn: "Sign in"
-        case .create: "Create account"
-        case .sendReset: "Email me a link"
-        case .backToSignIn: "Back to sign in"
+        case .signIn: "Sign In"
+        case .create: "Create Account"
+        case .sendReset: "Email Me a Link"
+        case .backToSignIn: "Back to Sign In"
         case .verify: "Confirm"
         case nil: nil
         }
@@ -115,7 +118,8 @@ struct EmailSignInFlow: Equatable {
 
     var buttonEnabled: Bool {
         switch step {
-        case .email: emailLooksValid
+        // Any text: pressing it with a mistyped address says what's wrong, not nothing (round 17).
+        case .email: !trimmedEmail.isEmpty
         case .checking, .apple, .forgot(sending: true): false
         case .signIn: !password.isEmpty
         case .create: password.count >= Self.minimumPassword

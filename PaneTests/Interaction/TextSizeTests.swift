@@ -53,6 +53,9 @@ import Testing
         #expect(TextSizeRow.label == "Note text", "the row under the Text size header doesn't repeat it")
         #expect(TextSize.size(stored: 20) == 20)
         #expect(TextSize.spoken(17) == "17 points")
+        // The sidebar and list stay as they are at the first stops and grow at the big ones.
+        #expect(TextSize.interfaceScale(stored: 0) == 1 && TextSize.interfaceScale(stored: 15) == 1)
+        #expect(TextSize.interfaceScale(stored: 17) > 1 && TextSize.interfaceScale(stored: 24) > TextSize.interfaceScale(stored: 20))
         #expect(TextSize.biggerTitle == "Make Text Bigger" && TextSize.smallerTitle == "Make Text Smaller" && TextSize.actualTitle == "Actual Size")
     }
 

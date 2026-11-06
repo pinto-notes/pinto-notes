@@ -10,8 +10,11 @@ import Testing
 @MainActor @Suite struct SetupCardsTests {
     /// Every card fits the narrowest notes window (760 pt), with room either side.
     @Test func everyCardFitsTheNarrowestWindow() {
-        let cards: [SetupCards.Card] = [.signIn, .bring, .importing, .connect, .waiting, .connected, .set, .gallery, .making]
-        for card in cards { #expect(SetupCards.width(card) <= 760 - 2 * 12, "\(card)") }
+        let cards: [SetupCards.Card] = [.signIn, .bring, .importing, .connect, .waiting, .connected, .gallery, .making]
+        // Only the first run reaches the gallery, in a window at its default size. What the menus
+        // open later fits the narrowest window.
+        for card in cards where card != .gallery { #expect(SetupCards.width(card) <= WindowFrameMemory.minimum.width - 2 * 12, "\(card)") }
+        #expect(SetupCards.width(.gallery) <= WindowFrameMemory.standard.width - 2 * 12)
         #expect(cards.map(SetupCards.width).max() == SetupCards.width(.gallery), "the gallery is the one wide card")
     }
 
@@ -87,6 +90,90 @@ import Testing
         let fill = try #require(lines.firstIndex { $0.hasPrefix("shape.fill(SetupCards.ground)") })
         #expect(lines.indices.filter { lines[$0].hasPrefix(".shadow(") }.allSatisfy { $0 == fill + 1 || $0 == fill + 2 })
         #expect(lines.contains { $0.hasPrefix(".shadow(") })
+    }
+
+    /// Escape moves on from every step of setup: Skip, Not now and Cancel are its cancel buttons.
+    /// A rig pressing Escape on "Bring in your notes?" got nowhere (round 17). Reads the source,
+    /// as a keyboard shortcut isn't visible from outside the button.
+    @Test func escapeLeavesEverySetupStep() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "SetupCards.swift"), encoding: .utf8)
+        let lines = source.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        let ways = lines.indices.filter { lines[$0].hasPrefix("Button(only == nil ?") }
+        #expect(ways.count >= 3)
+        for at in ways {
+            #expect(lines[at + 1] == ".keyboardShortcut(.cancelAction)", "\(lines[at])")
+        }
+    }
+
+    /// Not now ends setup on a new note, ready to type. "You're set." with one Done button stood
+    /// between the person and writing, and ⌘N made notes behind it (round 17).
+    @Test func notNowGoesStraightToWriting() async throws {
+        let store = OnboardingStore(defaults: TestDefaults())
+        store.showForPreview(.connect)
+        var landed: [Onboarding.Landing?] = []
+        let flow = SetupCardsFlow(store: store, backend: Backend(), finish: { landed.append($0) })
+        let ax = OffscreenAX(flow.modelContainer(for: Note.self, inMemory: true), size: CGSize(width: 600, height: 500))
+        defer { ax.close() }
+        await ax.settle(500)
+        #expect(try #require(ax.find("setup.notNow")).press())
+        await ax.settle(300)
+        #expect(landed == [.newNote])
+    }
+
+    /// ⌘N and ⇧⌘N do nothing while a setup card is up: the notes behind it are shut.
+    @Test func newNoteIsOffBehindASetupCard() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "RootView.swift"), encoding: .utf8)
+        #expect(source.contains(".focusedSceneValue(\\.newNoteAction, newNoteCommand)"))
+        #expect(source.contains("if behindSetupCard { return nil }"))
+    }
+
+    /// A section's header merges into one heading, which hid New Folder from VoiceOver (round 18).
+    @Test func voiceOverReachesNewFolderInTheHeading() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "SidebarView.swift"), encoding: .utf8)
+        let header = try #require(source.range(of: "Text(\"Folders\")"))
+        let rest = source[header.lowerBound...].prefix(1500)
+        #expect(rest.contains(".accessibilityAddTraits(.isHeader)"))
+        #expect(rest.contains(".accessibilityAction(named: \"New Folder\")"))
+    }
+
+    /// Correcting the address takes the old complaint away; Continue checks again (round 18).
+    @Test func typingClearsTheEmailError() throws {
+        for file in ["SignInView.swift", "WelcomeEmailSignIn.swift"] {
+            let source = try String(contentsOf: TestFiles.url("Views").appending(path: file), encoding: .utf8)
+            #expect(source.contains("email != $0 {") && source.contains("error = nil }; "), "\(file)")
+        }
+    }
+
+    /// The Recently Deleted banner pushes the note down instead of lying over its title (round 18).
+    @Test func theTrashBannerMakesRoomForTheNote() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "NoteDetailView.swift"), encoding: .utf8)
+        #expect(source.contains(".padding(.top, note.trashedAt != nil ? TrashBanner.height : 0)"))
+    }
+
+    /// Go to Note's rows are one element each for VoiceOver, and pressable (round 18).
+    @Test func goToNoteRowsAreRowsToVoiceOver() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "QuickOpen.swift"), encoding: .utf8)
+        #expect(source.contains(".accessibilityElement(children: .ignore)"))
+        #expect(source.contains(".accessibilityAction { jumpAndChoose(row) }"))
+    }
+
+    /// Deleting the open note opens its neighbour, from More and from Edit, like Notes (round 18).
+    @Test func deletingGoesByWayOfTheList() throws {
+        let views = try TestFiles.url("Views")
+        let more = try String(contentsOf: views.appending(path: "NoteDetailView.swift"), encoding: .utf8)
+        let root = try String(contentsOf: views.appending(path: "RootView.swift"), encoding: .utf8)
+        let list = try String(contentsOf: views.appending(path: "NoteListView.swift"), encoding: .utf8)
+        #expect(more.contains("post(name: .paneDeleteNotes, object: Set([note.id]))"))
+        #expect(root.contains("post(name: .paneDeleteNotes, object: Set(notes.map(\\.id)))"))
+        #expect(list.contains("publisher(for: .paneDeleteNotes)") && list.contains("performRemove(ids)"))
+    }
+
+    /// File › Import Notes too: a sheet opened over the shut window inherits its "disabled", so
+    /// its Choose button looked fine and did nothing, with no way forward (round 18).
+    @Test func importIsOffBehindASetupCard() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "RootView.swift"), encoding: .utf8)
+        #expect(source.contains(".focusedSceneValue(\\.importAction, behindSetupCard ? nil"))
+        #expect(source.contains(".focusedSceneValue(\\.importFromAction, behindSetupCard ? nil"))
     }
 
     /// The library's line: what an AI is for until you have it, then when you last used it, and

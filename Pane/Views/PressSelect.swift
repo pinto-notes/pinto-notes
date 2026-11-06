@@ -24,6 +24,22 @@ enum PressSelect {
     /// The press that selected a row, and the rows selected before it.
     private static var pressed: (table: NSTableView, before: IndexSet)?
 
+    /// The press now over, or still held, became a drag.
+    private(set) static var draggedFromRow = false
+
+    /// A new press: whatever the last one dragged is over.
+    static func pressBegan() { draggedFromRow = false }
+
+    /// What the list's selection becomes when it asks for `new`. The list ends a drag by selecting
+    /// from the dragged row to the row level with the pointer, the row beside the folder it was
+    /// dropped on (round 21: a note dragged to a folder left "2 Notes Selected"). A drag from a row
+    /// carries notes and selects none; ⌘ and ⇧ pick several, and the keyboard still can. Also a drag
+    /// straight up or down, where the list would pick the rows it crosses.
+    static func selection<ID: Hashable>(from old: Set<ID>, asking new: Set<ID>, byKey: Bool = false) -> Set<ID> {
+        guard draggedFromRow, !byKey, new.count > 1, new != old else { return new }
+        return old
+    }
+
     /// The press on a row, before the list sees it. `table` and `row`: where it landed.
     static func press(_ event: NSEvent, on table: NSTableView, row: Int) {
         if pressed != nil || narrowing != nil { lifted() }
@@ -94,6 +110,7 @@ enum PressSelect {
 
     /// The press became a drag: the selection, and so the open note, go back to what they were.
     static func dragged() {
+        draggedFromRow = true
         narrowing = nil
         guard let (table, before) = pressed else { return }
         pressed = nil

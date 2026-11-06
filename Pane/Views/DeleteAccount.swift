@@ -15,10 +15,19 @@ struct DeleteAccountButton: View {
     @State private var working = false
     @State private var error: String?
 
+    /// On a Mac's white card, system red measures 3.6:1; this is 5.7:1 (round 24).
+    static var ink: Color {
+        #if os(macOS)
+        SettingsInk.dynamic(NSColor(srgbRed: 0.769, green: 0.157, blue: 0.11, alpha: 1), .systemRed)
+        #else
+        .red
+        #endif
+    }
+
     var body: some View {
         Button(role: .destructive) { asking = true } label: {
             HStack(spacing: 8) {
-                Text(working ? "Deleting Account\u{2026}" : title).foregroundStyle(.red)
+                Text(working ? "Deleting Account\u{2026}" : title).foregroundStyle(Self.ink)
                 if working { ProgressView().controlSize(.small) }
             }
         }
@@ -31,7 +40,7 @@ struct DeleteAccountButton: View {
             Text("Every note, folder, file, earlier version, AI connection and share link is deleted from the cloud and from this device, with the key that opens them. This can't be undone. To keep a copy, export your notes first.")
         }
         if reach != .online, !working {
-            Text(OfflineCopy.needsNetwork("delete your account"))
+            Text(OfflineCopy.needsNetwork("delete your account", reach: reach))
                 .foregroundStyle(.secondary)
                 .font(.callout)
         }
@@ -162,10 +171,15 @@ extension View {
     /// The save panel and the alert an export shows.
     func noteExportPanels(_ exporter: NoteExporter) -> some View {
         @Bindable var exporter = exporter
-        return fileMover(isPresented: $exporter.saving, file: exporter.made?.zip) { exporter.saved($0) }
-            // The panel moves the finished zip where you choose, and its button said "Move": it sounded
-            // like the notes would leave the app (newcomer audit, 2026-10-12).
-            .fileDialogConfirmationLabel("Export")
+        // On a view of its own: the label reaches every file panel under the view it's set on, so on
+        // the window it made Attach File's button say "Export" too (council round 16, a12).
+        return background {
+            Color.clear
+                .fileMover(isPresented: $exporter.saving, file: exporter.made?.zip) { exporter.saved($0) }
+                // The panel moves the finished zip where you choose, and its button said "Move": it
+                // sounded like the notes would leave the app (newcomer audit, 2026-10-12).
+                .fileDialogConfirmationLabel("Export")
+        }
             // Said so it can't be missed: an export that isn't whole.
             .alert(exporter.leftOut?.title ?? "", isPresented: Binding(get: { exporter.leftOut != nil }, set: { if !$0 { exporter.leftOut = nil } })) {
                 Button("OK", role: .cancel) {}

@@ -187,7 +187,7 @@ extension ImportGuide {
                    line: "Files that end in .md or .txt. Each folder becomes a folder here.",
                    choose: "Choose Folder or .zip…", found: nil, fileSymbol: "doc.text"),
         success: (363, "They're in a folder named {folder}, subfolders and pictures included."), exampleFolder: "Notion export",
-        wrongFile: ("No notes in this one",
+        wrongFile: ("No Markdown or text files found",
                     "Choose a folder or .zip with .md or .txt files in it."))
 
     #if os(iOS)

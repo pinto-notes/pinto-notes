@@ -7,12 +7,17 @@ struct RootView: View {
     @Environment(\.modelContext) private var context
     @Environment(OnboardingStore.self) private var onboarding: OnboardingStore?
     @Environment(\.behindSetupCard) private var behindSetupCard
+    @Environment(\.undoManager) private var undoManager
     #if os(iOS)
     /// On iPhone a folder is pushed once the first layout is done (see `lifecycle`).
     @State private var scope: Scope?
     #else
     @State private var scope: Scope? = .all
     #endif
+    /// The note list is showing its empty state: the note pane stays blank (NoteListView.showsEmpty).
+    @State private var listEmpty = false
+    /// The list shows search results: the empty note pane points at them.
+    @State private var listSearching = false
     /// The list's selection; one note opens in the editor, several show a summary like Notes.
     @State private var selection: Set<UUID> = []
     @State private var visibility: NavigationSplitViewVisibility = .all
@@ -111,13 +116,18 @@ struct RootView: View {
         #if DEBUG
         RenderProbe.count("RootView", context: context)
         #endif
+        #if os(macOS)
+        // The window sizes to its content here, and contentMinSize alone didn't hold it (round 19:
+        // it still went to 621 and cut the note off).
+        let split = split.frame(minWidth: WindowFrameMemory.minimum.width)
+        #endif
         return popups(imports(lifecycle(split)).newAppSheet())
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
             .onAppear { Telemetry.shared.notesShown() }
-            .focusedSceneValue(\.newNoteAction, newNote)
+            .focusedSceneValue(\.newNoteAction, newNoteCommand)
             .focusedSceneValue(\.editorController, editor)
-            .focusedSceneValue(\.importAction, { showImport = true })
-            .focusedSceneValue(\.importFromAction, { kind in importFiles = []; importing = kind })
+            .focusedSceneValue(\.importAction, behindSetupCard ? nil : { showImport = true })
+            .focusedSceneValue(\.importFromAction, behindSetupCard ? nil : { kind in importFiles = []; importing = kind })
             .focusedSceneValue(\.deleteNoteAction, deleteAction)
             // A template or shared note to add, from a link.
             .noteSourceHandler()
@@ -163,6 +173,8 @@ struct RootView: View {
             .onReceive(NotificationCenter.default.publisher(for: .paneQuickOpen)) { _ in
                 quickOpen = quickOpen == nil ? QuickOpen.noteItems(in: context) : nil
             }
+            // VoiceOver stays in Go to Note while it's open, as with a sheet (round 19).
+            .accessibilityHidden(quickOpen != nil)
             .overlay(alignment: .top) { quickOpenPanel }
             .modifier(ExportAllNotes())
             .onReceive(NotificationCenter.default.publisher(for: .paneTemplates)) { _ in openTemplates() }
@@ -389,7 +401,7 @@ struct RootView: View {
                 .environment(library)
                 .phoneScreen()
                 .navigationDestination(item: $scope) { s in
-                    NoteListView(scope: s, selection: $selection, onNewNote: newNote)
+                    NoteListView(scope: s, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty, showsResults: $listSearching)
                         .equatable()
                         .environment(library)
                         .environment(openNotes)
@@ -427,7 +439,7 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
                 #endif
         } content: {
-            NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote)
+            NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty, showsResults: $listSearching)
                 .equatable()
                 .environment(library)
                 #if os(macOS)
@@ -453,7 +465,8 @@ struct RootView: View {
             detail
                 #if os(macOS)
                 // Room for the note's toolbar; a narrow window drops the sidebar instead, like Notes.
-                .navigationSplitViewColumnWidth(min: 520, ideal: 760)
+                // Small enough to tile on half a 1440 pt screen, with the wider list too (round 17).
+                .navigationSplitViewColumnWidth(min: 360, ideal: 760)
                 .overlay(alignment: .leading) { ColumnHairline() }
                 #endif
         }
@@ -478,6 +491,8 @@ struct RootView: View {
                                searchText: { [container = context.container] q in await QuickOpen.textHits(for: q, in: container) })
                     .padding(.top, 72)
             }
+            .onAppear { RowPressSlop.covered = true }
+            .onDisappear { RowPressSlop.covered = false }
         }
     }
 
@@ -752,8 +767,15 @@ struct RootView: View {
     }
 
     private func removeNow(_ notes: [Note]) {
+        #if os(macOS)
+        // Not from Recently Deleted (forever, asked elsewhere): the list opens the neighbour, like Notes.
+        if notes.allSatisfy({ $0.trashedAt == nil }) {
+            NotificationCenter.default.post(name: .paneDeleteNotes, object: Set(notes.map(\.id)))
+            return
+        }
+        #endif
         withAnimation(.snappy(duration: 0.25)) {
-            context.remove(notes)
+            context.remove(notes, undo: undoManager) { back in selection = Set(back.map(\.id)) }
             selection = []
         }
     }
@@ -811,8 +833,8 @@ struct RootView: View {
         let content = Group {
             if shown.count > 1 {
                 MultipleSelectionView(count: shown.count, items: shown.contains { context.attachment($0) != nil })
-            } else if !behindSetupCard {
-                EmptyDetailView(newNote: newNote)
+            } else if !behindSetupCard && !listEmpty {
+                listSearching ? EmptyDetailView(title: EmptyDetailView.pickResult) : EmptyDetailView(newNote: newNote)
             } else {
                 Color.clear
             }
@@ -830,6 +852,12 @@ struct RootView: View {
         #else
         return content.background(Color.notePage.ignoresSafeArea())
         #endif
+    }
+
+    /// File › New Note and ⌘N: off while a setup card is up, as the notes behind it are shut.
+    private var newNoteCommand: (() -> Void)? {
+        if behindSetupCard { return nil }
+        return { newNote() }
     }
 
     private func newNote() {
@@ -1065,6 +1093,9 @@ struct EmptyDetailView: View {
     var newNote: (() -> Void)? = nil
 
     static let title = "No note selected"
+    /// With search results in the list (round 20: "No note selected", and a New Note, beside them).
+    static let pickResult = "Select a result to open it"
+    var title = EmptyDetailView.title
 
     /// A note is on its way (Keep a Copy, a join): nothing flashes before it opens (persona council r7).
     static func showsWords(opening: UUID?) -> Bool { opening == nil }
@@ -1072,7 +1103,7 @@ struct EmptyDetailView: View {
     var body: some View {
         // Words, and one way on (Emil, 11-03: no app icon on the empty states).
         VStack(spacing: 14) {
-            Text(Self.title)
+            Text(title)
                 .font(.callout)
                 .foregroundStyle(Color.muted)
             if let newNote {
@@ -1320,15 +1351,26 @@ struct PaneCommands: Commands {
             Divider()
             Button(MacHelp.connectHelp) { MacHelp.helpConnecting() }
         }
+        // The note on paper or as a PDF, as Notes has them (round 20).
+        CommandGroup(replacing: .printItem) {
+            Button("Export as PDF\u{2026}") { editor?.exportPDF() }
+                .disabled(editor == nil)
+            Button("Print\u{2026}") { editor?.printNote() }
+                .keyboardShortcut("p")
+                .disabled(editor == nil)
+        }
         CommandGroup(replacing: .importExport) {
             // Not inside Settings: a home anyone finds, beside Import.
             Button("Connect an AI\u{2026}") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
             Divider()
-            Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
-                .disabled(importNotes == nil)
-            ForEach(ImportKind.listed) { kind in
-                Button { importFrom?(kind) } label: { Label { Text(kind.menuTitle) } icon: { ImportOrigin.files(kind).menuImage } }
-                    .disabled(importFrom == nil)
+            // One item in File, the sources inside: six of them crowded it (round 17).
+            Menu("Import Notes") {
+                Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
+                    .disabled(importNotes == nil)
+                ForEach(ImportKind.listed) { kind in
+                    Button { importFrom?(kind) } label: { Label { Text(kind.menuTitle) } icon: { ImportOrigin.files(kind).menuImage } }
+                        .disabled(importFrom == nil)
+                }
             }
             // Your notes as Markdown in their folders, signed in or not.
             Button("Export All Notes\u{2026}") { NotificationCenter.default.post(name: .paneExportNotes, object: nil) }
@@ -1373,6 +1415,7 @@ struct PaneCommands: Commands {
                 Button("Move Item Up") { editor?.moveItem(up: true) }.keyboardShortcut(.upArrow, modifiers: [.command, .control])
                 Button("Move Item Down") { editor?.moveItem(up: false) }.keyboardShortcut(.downArrow, modifiers: [.command, .control])
                 // A line across the note (`---`). No shortcut, as in Pages.
+                Button("Code Block") { editor?.codeBlock() }
                 Button("Divider") { editor?.insertDivider() }
                 // A tinted panel with a title (`> [!note]`, as in Obsidian). No shortcut.
                 Button("Callout") { editor?.insertCallout() }
