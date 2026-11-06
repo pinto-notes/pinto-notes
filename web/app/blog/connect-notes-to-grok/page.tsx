@@ -1,5 +1,3 @@
-import { SHOTS } from "@/lib/posts";
-import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
@@ -15,7 +13,8 @@ export const metadata = postMetadata("connect-notes-to-grok", { title: "How to c
 // MCP servers page (/build/features/mcp-servers: grok mcp add --transport http, OAuth handled automatically, list,
 // doctor, --scope project, ~/.claude.json and .mcp.json read as compatibility sources) and Grok Bot's Use the computer
 // and apps (connectors are plugins from Connect apps). Some third-party guides say custom connectors need a paid plan;
-// xAI's docs say all users, and the text says to check. Pinto Notes hasn't been tested with Grok, and the text says so.
+// xAI's docs say all users, and the text says to check. 6 November 2026: Emil connected Pinto Notes to Grok and it works.
+// Which Grok surface wasn't recorded, so the Grok Build commands stay marked as xAI's documented ones.
 
 const FAQ = [
   { q: "Does Grok support MCP?", a: [
@@ -127,7 +126,7 @@ export default function Page() {
         server, and says OAuth is handled automatically: a browser opens the first time Grok Build uses it.
       </p>
       <Keep title="Add a remote MCP server to Grok Build" code text={BUILD}
-        note="These are xAI's documented commands for any remote server, with the Pinto Notes address filled in. I haven't tested Pinto Notes with Grok Build yet." />
+        note="These are xAI's documented commands for any remote server, with the Pinto Notes address filled in. I haven't run these two in Grok Build myself." />
       <p>
         The server is added for your user, in <code>~/.grok/config.toml</code>. Add <code>--scope project</code> to keep it in the current
         project&apos;s <code>.grok/config.toml</code> instead. <code>grok mcp list</code> shows what&apos;s set up, and <code>/mcps</code> inside
@@ -163,20 +162,18 @@ export default function Page() {
       </p>
       <p>
         Pinto Notes is one. It&apos;s the notes app for iPhone and Mac that I make, with a hosted server at <code>{MCP_URL}</code> that
-        signs in with OAuth. ChatGPT, Claude, Claude Code and Codex use it today. I haven&apos;t tested Pinto Notes with Grok yet,
-        so treat this as what the steps should look like, going by xAI&apos;s docs and how the server works with other apps:
+        signs in with OAuth. ChatGPT, Claude, Claude Code and Codex use it, and I&apos;ve connected it to Grok too. The steps:
       </p>
       <ol>
         <li>Add <code>{MCP_URL}</code> as a Custom connector on grok.com, or with the Grok Build command above.</li>
-        <li>A page on pintonotes.com opens. Sign in, and it shows a two-digit number.</li>
-        <li>Pinto Notes on your Mac asks whether to allow the app. Type the number, choose Read Only or Read and Edit, then Allow.</li>
+        <li>A page on pintonotes.com opens. Sign in.</li>
+        <li>The page shows who&apos;s asking and what&apos;s shared. Choose Allow. If you use Advanced protection, you approve it in Pinto Notes on your Mac instead.</li>
       </ol>
-      <Figure shot={SHOTS.consent} caption="The sheet when ChatGPT asks. For Grok, it adds a warning that Pinto Notes doesn't recognize the app." />
       <p>
-        Pinto Notes names ChatGPT and Claude on that sheet. Any other app, Grok included, gets a warning that Pinto Notes
-        doesn&apos;t recognize it, so allow it only if you just started connecting it yourself. After that, every change Grok makes is
-        tinted in the note with an Undo, and the version before it is kept. If you try it before I do, I&apos;d like to hear how it
-        went. <a href="/blog/mcp-server">The Pinto Notes MCP server</a> lists every tool, and its <a href="/blog/mcp-server#install">install
+        Pinto Notes names ChatGPT and Claude on that page. Any other app, Grok included, gets a warning that Pinto Notes
+        doesn&apos;t know the app, so allow it only if you started connecting it yourself. After that, every change Grok makes is
+        tinted in the note with an Undo, and the version before it is kept. <a href="/blog/mcp-server">The Pinto Notes MCP server</a> lists
+        every tool, and its <a href="/blog/mcp-server#install">install
         steps</a> include Gemini CLI.
       </p>
       <Keep title="A first request once it's connected" text={ASK}
