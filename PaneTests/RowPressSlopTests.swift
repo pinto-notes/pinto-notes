@@ -7,6 +7,15 @@ import Testing
 /// points of travel (2026-10-11: 9 of 13 clicks on notes selected nothing in 1.2.4).
 @MainActor @Suite(.serialized) struct RowPressSlopTests {
     /// With Go to Note over the list, a press on the panel never reaches the row beneath it.
+    @Test func aDragsSwallowedLiftIsHandedBack() throws {
+        #expect(!RowPressSlop.liftIsLost(releasedTicks: 0) && !RowPressSlop.liftIsLost(releasedTicks: 1), "a real lift may still be queued")
+        #expect(RowPressSlop.liftIsLost(releasedTicks: 2))
+        let drag = try #require(NSEvent.mouseEvent(with: .leftMouseDragged, location: NSPoint(x: 30, y: 40), modifierFlags: [], timestamp: 0,
+                                                   windowNumber: 7, context: nil, eventNumber: 3, clickCount: 1, pressure: 1))
+        let up = try #require(RowPressSlop.lift(after: drag))
+        #expect(up.type == .leftMouseUp && up.locationInWindow == drag.locationInWindow && up.windowNumber == 7)
+    }
+
     @Test func aPressUnderGoToNoteIsntOnARow() {
         final class Rows: NSTableView { override func row(at point: NSPoint) -> Int { 0 } }
         let table = Rows(frame: CGRect(x: 0, y: 0, width: 200, height: 100))

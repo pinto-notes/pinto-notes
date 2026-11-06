@@ -47,11 +47,57 @@ enum RowPressSlop {
                 if let pressed { PressSelect.press(event, on: pressed.table, row: pressed.row) }
                 let through = passes(event.type, at: event.locationInWindow, onRow: pressed != nil)
                 if event.type == .leftMouseUp { PressSelect.lifted() }
-                if event.type == .leftMouseDragged, through { PressSelect.dragged() }
+                if event.type == .leftMouseDragged, through {
+                    PressSelect.dragged()
+                    watchForLostLift(event)
+                }
+                if event.type == .leftMouseUp { stopWatchingLift() }
                 return through
             }
             return through ? event : nil
         }
+    }
+
+    // MARK: The lift a drag swallows
+
+    private static var liftWatch: Timer?
+    private static var lastDrag: NSEvent?
+    private static var releasedTicks = 0
+
+    /// The drag session takes the button's lift, so the list goes on waiting for it, and the
+    /// keys wait behind the list: ⌘Z after a drop did nothing until the next click (round 23,
+    /// logged on the real app: no key reached the app, and Undo's group stayed open). Once the
+    /// button is up and no lift has come, the app hands the list one of its own.
+    private static func watchForLostLift(_ event: NSEvent) {
+        lastDrag = event
+        guard liftWatch == nil else { return }
+        releasedTicks = 0
+        let timer = Timer(timeInterval: 0.05, repeats: true) { _ in
+            MainActor.assumeIsolated {
+                releasedTicks = NSEvent.pressedMouseButtons & 1 == 0 ? releasedTicks + 1 : 0
+                guard liftIsLost(releasedTicks: releasedTicks) else { return }
+                let from = lastDrag
+                stopWatchingLift()
+                if let from, let up = lift(after: from) { NSApp.postEvent(up, atStart: true) }
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        liftWatch = timer
+    }
+
+    private static func stopWatchingLift() {
+        liftWatch?.invalidate()
+        liftWatch = nil
+        lastDrag = nil
+    }
+
+    /// Two looks with the button up: a real lift is still in the queue at the first.
+    static func liftIsLost(releasedTicks: Int) -> Bool { releasedTicks >= 2 }
+
+    /// The lift to post, in the app only, where the drag last was.
+    static func lift(after drag: NSEvent) -> NSEvent? {
+        NSEvent.mouseEvent(with: .leftMouseUp, location: drag.locationInWindow, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                           windowNumber: drag.windowNumber, context: nil, eventNumber: drag.eventNumber, clickCount: 1, pressure: 0)
     }
 
     /// Whether the row gets this event. `onRow`: a press that lands on a list row.
