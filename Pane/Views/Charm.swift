@@ -57,7 +57,7 @@ enum Charm {
     }
 
     /// How much room a glyph's canvas takes around its 24 units: Today's torn page flies clear of the icon.
-    static func bleed(_ kind: Kind) -> Double { kind == .today ? 2.5 : kind == .trash ? 2.5 : 1 }
+    static func bleed(_ kind: Kind) -> Double { kind == .today ? 2.5 : kind == .trash ? 1.6 : 1 }
 
     static func draw(_ kind: Kind, in c: inout GraphicsContext, size: CGSize, t: Double, rare: Bool, pen: Pen, day: Int) {
         let s = min(size.width, size.height) / (24 * bleed(kind))
@@ -547,11 +547,12 @@ enum Charm {
             c.scale(around: CGPoint(x: 12, y: 21), x: 2 - shake, y: shake)
             // The page falling in, seen only above the rim.
             if t > 0.06, t < 0.5 {
-                let page = TrashPage.at(fall: (t - 0.06) / 0.34)
+                let fall = (t - 0.06) / 0.34
+                let y = -11 + 25 * fall * fall
                 c.drawLayer { l in
-                    l.clip(to: Path(CGRect(x: -6, y: -14, width: 44, height: 21.2)))
-                    l.translateBy(x: page.x, y: page.y)
-                    l.rotate(by: .degrees(page.degrees))
+                    l.clip(to: Path(CGRect(x: -6, y: -14, width: 36, height: 21.2)))
+                    l.translateBy(x: 12, y: y)
+                    l.rotate(by: .degrees(14 - 24 * fall))
                     l.fill(Path(roundedRect: CGRect(x: -3.6, y: -4.6, width: 7.2, height: 9.2), cornerRadius: 1.2), with: p.ink)
                 }
             }
@@ -1067,16 +1068,6 @@ struct CharmFrame: View, @preconcurrency Animatable {
             let pen = Charm.Pen(ink: .style(.foreground), accent: accent.map { .color($0) } ?? .style(.tint), agape: agape)
             Charm.draw(kind, in: &c, size: size, t: t, rare: rare, pen: pen, day: day)
         }
-    }
-}
-
-/// The deleted page's flight: it comes from the right, where the notes are and where a dragged one is let
-/// go, arcs over the open lid and drops into the can.
-enum TrashPage {
-    static func at(fall: Double) -> (x: Double, y: Double, degrees: Double) {
-        let f = min(max(fall, 0), 1), rest = 1 - min(f / 0.6, 1)
-        let y = f < 0.4 ? -2 - 9 * sin(f / 0.4 * .pi / 2) : -11 + 25 * pow((f - 0.4) / 0.6, 2)
-        return (12 + 16 * rest * rest, y, 30 - 40 * f)
     }
 }
 

@@ -44,21 +44,6 @@ import Testing
         #expect(try Self.difference(frame(0), rest) == 0)
     }
 
-    /// The page arrives from the note's side, not out of nowhere above the lid, and ends inside the can.
-    @Test func theDeletedPageArcsInFromTheNotesSide() {
-        let start = TrashPage.at(fall: 0), top = TrashPage.at(fall: 0.4), end = TrashPage.at(fall: 1)
-        #expect(start.x > 24, "starts beside the can")
-        #expect(top.y < start.y, "rises over the lid")
-        #expect(end.x == 12, "centred on the can")
-        #expect(end.y > 7.2, "below the rim, so gone")
-        // Its whole flight fits the canvas, or it arrives as a sliver.
-        let edge = 12 * Charm.bleed(.trash)
-        for f in stride(from: 0.0, through: 1, by: 0.05) {
-            let p = TrashPage.at(fall: f)
-            #expect(p.y - 6 >= 12 - edge && p.x + 6 <= 12 + edge)
-        }
-    }
-
     /// Letting go reports the note leaving just before the drop: the lid must not blink shut between.
     @Test func theTrashLidStaysOpenThroughADrop() async throws {
         let hold = TrashLidHold(wait: .milliseconds(60))
