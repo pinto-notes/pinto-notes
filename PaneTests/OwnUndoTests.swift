@@ -82,6 +82,21 @@ import Testing
         #expect(u.clash(with: TextDiff.Edit(range: NSRange(location: 6, length: 0), replacement: "6"))?.merged == "56")
     }
 
+    /// Whole sentences, full stop and all, are a clash; a full stop alone isn't.
+    @Test func sentencesClashToo() throws {
+        let u = OwnUndo()
+        u.record(TextDiff.Edit(range: NSRange(location: 0, length: 11), replacement: "Ask the hotel."), in: "Order pizza")
+        let c = u.clash(with: TextDiff.Edit(range: NSRange(location: 14, length: 0), replacement: "Bring your own."))
+        #expect(c?.mine == "Ask the hotel." && c?.theirs == "Bring your own.")
+        #expect(u.clash(with: TextDiff.Edit(range: NSRange(location: 14, length: 0), replacement: "..")) == nil)
+    }
+
+    /// A sentence chosen on the other phone is named by its first whole words.
+    @MainActor @Test func aLongChoiceIsCutAtAWord() {
+        #expect(EditorController.shortened("pizza") == "pizza")
+        #expect(EditorController.shortened("Everyone brings their own lunch this year.") == "\u{201C}Everyone brings their\u{2026}\u{201D}")
+    }
+
     /// Edit on a plane, the app closes, land: what you replaced is kept, and the question comes.
     /// It isn't Undo, and text that's moved on since keeps nothing.
     @Test func aRelaunchKeepsWhatYouReplaced() throws {

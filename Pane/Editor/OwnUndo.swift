@@ -94,7 +94,8 @@ final class OwnUndo {
         if merged.hasPrefix(mine) { theirs = String(merged.dropFirst(mine.count)) }
         else if merged.hasSuffix(mine) { theirs = String(merged.dropLast(mine.count)) }
         else { return nil }
-        guard let a = theirs.first, let z = theirs.last, a.isLetter || a.isNumber, z.isLetter || z.isNumber else { return nil }
+        // Words of theirs, a sentence's full stop included. Spaces or punctuation alone aren't a choice.
+        guard let a = theirs.first, let z = theirs.last, a.isLetter || a.isNumber, !z.isWhitespace else { return nil }
         // One character after a word is typing on. Beside one or two of yours it's "5" and "6".
         guard theirs.count >= 2 || mine.count <= 2 else { return nil }
         return Clash(replaced: steps[first].old, mine: mine, theirs: theirs, merged: merged)

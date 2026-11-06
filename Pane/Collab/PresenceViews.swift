@@ -353,15 +353,17 @@ struct SharedClashCard: View {
                 .foregroundStyle(Color.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
-            HStack(spacing: 8) {
+            // Sentences stacked and readable; words side by side.
+            if clash.mine.count + clash.theirs.count > 28 {
                 choice(clash.mine, id: "clash.mine")
                 choice(clash.theirs, id: "clash.theirs")
-                Button("Keep both", action: keepBoth)
-                    .buttonStyle(.hoverLink)
-                    .font(.footnote)
-                    .foregroundStyle(Color.muted)
-                    .fixedSize()
-                    .accessibilityIdentifier("clash.both")
+                both
+            } else {
+                HStack(spacing: 8) {
+                    choice(clash.mine, id: "clash.mine")
+                    choice(clash.theirs, id: "clash.theirs")
+                    both
+                }
             }
         }
         .padding(10)
@@ -372,8 +374,17 @@ struct SharedClashCard: View {
         .accessibilityIdentifier("clash.card")
     }
 
+    private var both: some View {
+        Button("Keep both", action: keepBoth)
+            .buttonStyle(.hoverLink)
+            .font(.footnote)
+            .foregroundStyle(Color.muted)
+            .fixedSize()
+            .accessibilityIdentifier("clash.both")
+    }
+
     private func choice(_ words: String, id: String) -> some View {
-        Button { keep(words) } label: { Text(words).lineLimit(1).truncationMode(.tail) }
+        Button { keep(words) } label: { Text(words).lineLimit(2).truncationMode(.tail).multilineTextAlignment(.center) }
             .buttonStyle(.secondary(.regular, wide: true))
             .accessibilityLabel("Keep \(words)")
             .accessibilityIdentifier(id)

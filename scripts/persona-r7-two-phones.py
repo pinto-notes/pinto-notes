@@ -108,6 +108,14 @@ SAYS = {
     "emil-replaced-word": ("emil", "Offline: Emil replaces \u201clunch\u201d with \u201csandwiches\u201d"),
     "sara-replaced-word": ("sara", "Offline: Sara replaces \u201clunch\u201d with \u201cpizza\u201d"),
     "online-clash": ("both", "Back online"),
+    "offline-sentence": ("both", "Offline again"),
+    "emil-rewrote-line": ("emil", "Offline: Emil rewrites the line"),
+    "sara-rewrote-line": ("sara", "Offline: Sara rewrites the same line"),
+    "online-sentence": ("both", "Back online"),
+    "emil-sees-sentences-merged": ("emil", "Neither sentence is lost, and each phone asks which to keep"),
+    "sara-sees-sentences-merged": ("sara", "Neither sentence is lost, and each phone asks which to keep"),
+    "sara-chose-sentence": ("sara", "Sara keeps her sentence"),
+    "emil-sees-sentence-choice": ("emil", "Emil's phone says what Sara chose"),
     "emil-sees-clash-merged": ("emil", "Merged: both words kept, and each phone asks which to keep"),
     "sara-sees-clash-merged": ("sara", "Merged: both words kept, and each phone asks which to keep"),
     "sara-chose": ("sara", "Sara chooses pizza (the script presses it)"),
@@ -177,6 +185,11 @@ if at("offline-clash") and at("emil-sees-clash-merged"):
     clips.append(dict(folder="c10-offline", name="two-iphones-c10-same-word" + SUFFIX, phones=("emil", "sara"),
                       t0=at("offline-clash") - 2.0, t1=latest("emil-sees-clash-merged", "sara-sees-clash-merged", "sara-chose", "emil-sees-choice") + hold + 1.5,
                       keys=["emil-replaced-word", "sara-replaced-word", "emil-sees-clash-merged", "sara-sees-clash-merged", "sara-chose", "emil-sees-choice"]))
+# c10, a whole line rewritten two ways offline.
+if at("offline-sentence") and at("emil-sees-sentences-merged"):
+    clips.append(dict(folder="c10-offline", name="two-iphones-c10-same-sentence" + SUFFIX, phones=("emil", "sara"),
+                      t0=at("offline-sentence") - 2.0, t1=latest("emil-sees-sentences-merged", "sara-sees-sentences-merged", "sara-chose-sentence", "emil-sees-sentence-choice") + hold + 1.5,
+                      keys=["emil-rewrote-line", "sara-rewrote-line", "emil-sees-sentences-merged", "sara-sees-sentences-merged", "sara-chose-sentence", "emil-sees-sentence-choice"]))
 # c9, the old link: the sheet Emil sees after removing her, then the link on Sara's phone.
 if at("sara-old-link"):
     clips.append(dict(folder="c9-two-phones", name="two-iphones-c9-old-link" + SUFFIX, phones=("emil", "sara"),

@@ -48,8 +48,17 @@ final class EditorController {
         guard let c = clash, !text.contains(c.merged) else { return }
         clash = nil
         if text.contains(c.mine + " " + c.theirs) { clashAnswer = "kept both" }
-        else if text.contains(c.theirs), !text.contains(c.mine) { clashAnswer = "chose \(c.theirs)" }
-        else if text.contains(c.mine), !text.contains(c.theirs) { clashAnswer = "chose \(c.mine)" }
+        else if text.contains(c.theirs), !text.contains(c.mine) { clashAnswer = "chose \(Self.shortened(c.theirs))" }
+        else if text.contains(c.mine), !text.contains(c.theirs) { clashAnswer = "chose \(Self.shortened(c.mine))" }
+    }
+
+    /// A sentence fits a one-line note by its first words.
+    static func shortened(_ words: String) -> String {
+        guard words.count > 28 else { return words }
+        var cut = String(words.prefix(24))
+        // Whole words: "Everyone brings their", not "their ow".
+        if let space = cut.lastIndex(of: " ") { cut = String(cut[..<space]) }
+        return "\u{201C}" + cut + "\u{2026}\u{201D}"
     }
     /// Ticked items sink below the open ones a moment after the tick, except in a shared note.
     /// The move rewrites the list, and two people's rewrites at once merge into doubled lines
