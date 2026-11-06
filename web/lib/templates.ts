@@ -119,6 +119,10 @@ export function useLabel(t: Pick<Template, "slug" | "app">, on: "desktop" | "ios
   return on === "ios" && !APP_TEMPLATE_VERBS_IPHONE ? USE_TEMPLATE : verb;
 }
 
+/// Where the template works, for "Free. Needs Pinto Notes for ...". A template with an app waits for
+/// the same iPhone build as its button's words; every other template opens on both.
+export const needsOn = (t: Pick<Template, "app">) => (t.app && !APP_TEMPLATE_VERBS_IPHONE ? "Mac" : "iPhone or Mac");
+
 /// The universal link the app opens (https://ambernotes.app/open/template/<slug>).
 export const useLink = (slug: string) => `${APP_LINK_URL}/open/template/${slug}`;
 /// The same, as the site's own buttons link it: a path, so a preview or local build stays on itself.

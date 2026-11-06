@@ -462,9 +462,9 @@ html.fs-at-ground { background: var(--ground); }
 @media (hover: hover) { .site-footer button.site-footlink:hover { color: var(--ink); } }
 .site-footer button.site-footlink:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 6px; }
 
-/* "Didn't open?" (app/OpenInApp.tsx): when Use template or Use this note didn't reach Pinto Notes,
-   a small sheet centred at the bottom of the window, above the cookie bar, with the Mac app and
-   another try. It never dims or blocks the page. */
+/* "This template opens in Pinto Notes" (app/OpenInApp.tsx): when Use template or Use this note
+   didn't reach Pinto Notes, a small sheet centred at the bottom of the window, above the cookie bar,
+   with the app and another try. It never dims or blocks the page. */
 .open-sheet {
   position: fixed; z-index: 60;
   left: max(var(--gutter), env(safe-area-inset-left)); right: max(var(--gutter), env(safe-area-inset-right));
@@ -483,9 +483,10 @@ html.fs-at-ground { background: var(--ground); }
 @keyframes open-sheet-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .open-sheet-title { margin: 0; font-weight: 700; font-size: 16px; }
 .open-sheet-text { margin: 0; color: var(--muted); text-wrap: pretty; }
-.open-sheet-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+/* The two buttons match: same width and an icon each, side by side or stacked when the sheet is narrow. */
+.open-sheet-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-top: 10px; }
 .open-sheet-get, .open-sheet-iphone {
-  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 12px;
   font-weight: 600; text-decoration: none;
 }
 .open-sheet-get { background: var(--cta-bg); color: var(--cta-ink); }
