@@ -115,6 +115,9 @@ final class VersionHistoryModel {
         e.version.isCurrent ? "Current version" : "\(heading(e.version)) · \(byline(e))"
     }
 
+    /// What the note's page says once a version is back (round 20: the sheet just closed).
+    static let restoredLine = "Version restored"
+
     /// Restores the selected version. True when it's done and the history can close.
     func restore() async -> Bool {
         guard let entry = selected, !entry.version.isCurrent, !restoring else { return false }
@@ -122,6 +125,7 @@ final class VersionHistoryModel {
         defer { restoring = false }
         do {
             try await history.restore(noteID: note.id, toVersion: entry.version.version)
+            NotificationCenter.default.post(name: .paneVersionRestored, object: note.id)
             return true
         } catch {
             restoreError = HistoryError.from(error).localizedDescription
@@ -615,3 +619,8 @@ struct PhoneVersionPreview: View {
     }
 }
 #endif
+
+extension Notification.Name {
+    /// A version of the note (its id, as the object) is back.
+    static let paneVersionRestored = Notification.Name("pane.versionRestored")
+}

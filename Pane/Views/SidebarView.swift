@@ -573,7 +573,7 @@ struct SidebarView: View {
                 // heading at the very top, under the window's buttons (Emil, 2 November 2026).
                 if Self.showsHeading(folders: roots.count, trashed: files.trashed) {
                     HStack {
-                        Text("Folders").accessibilityAddTraits(.isHeader)
+                        Text("Folders").foregroundStyle(Color.muted).accessibilityAddTraits(.isHeader)
                         Spacer()
                         // New Folder, where the folders are (it was a fourth toolbar button's place):
                         // a 22 pt target, its right edge on the counts' (council round 13: 16 pt,

@@ -16,6 +16,8 @@ struct RootView: View {
     #endif
     /// The note list is showing its empty state: the note pane stays blank (NoteListView.showsEmpty).
     @State private var listEmpty = false
+    /// The list shows search results: the empty note pane points at them.
+    @State private var listSearching = false
     /// The list's selection; one note opens in the editor, several show a summary like Notes.
     @State private var selection: Set<UUID> = []
     @State private var visibility: NavigationSplitViewVisibility = .all
@@ -399,7 +401,7 @@ struct RootView: View {
                 .environment(library)
                 .phoneScreen()
                 .navigationDestination(item: $scope) { s in
-                    NoteListView(scope: s, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty)
+                    NoteListView(scope: s, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty, showsResults: $listSearching)
                         .equatable()
                         .environment(library)
                         .environment(openNotes)
@@ -437,7 +439,7 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
                 #endif
         } content: {
-            NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty)
+            NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty, showsResults: $listSearching)
                 .equatable()
                 .environment(library)
                 #if os(macOS)
@@ -832,7 +834,7 @@ struct RootView: View {
             if shown.count > 1 {
                 MultipleSelectionView(count: shown.count, items: shown.contains { context.attachment($0) != nil })
             } else if !behindSetupCard && !listEmpty {
-                EmptyDetailView(newNote: newNote)
+                listSearching ? EmptyDetailView(title: EmptyDetailView.pickResult) : EmptyDetailView(newNote: newNote)
             } else {
                 Color.clear
             }
@@ -1084,11 +1086,14 @@ struct EmptyDetailView: View {
     var newNote: (() -> Void)? = nil
 
     static let title = "No note selected"
+    /// With search results in the list (round 20: "No note selected", and a New Note, beside them).
+    static let pickResult = "Select a result to open it"
+    var title = EmptyDetailView.title
 
     var body: some View {
         // Words, and one way on (Emil, 11-03: no app icon on the empty states).
         VStack(spacing: 14) {
-            Text(Self.title)
+            Text(title)
                 .font(.callout)
                 .foregroundStyle(Color.muted)
             if let newNote {
@@ -1335,6 +1340,14 @@ struct PaneCommands: Commands {
             Divider()
             Button(MacHelp.connectHelp) { MacHelp.helpConnecting() }
         }
+        // The note on paper or as a PDF, as Notes has them (round 20).
+        CommandGroup(replacing: .printItem) {
+            Button("Export as PDF\u{2026}") { editor?.exportPDF() }
+                .disabled(editor == nil)
+            Button("Print\u{2026}") { editor?.printNote() }
+                .keyboardShortcut("p")
+                .disabled(editor == nil)
+        }
         CommandGroup(replacing: .importExport) {
             // Not inside Settings: a home anyone finds, beside Import.
             Button("Connect an AI\u{2026}") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
@@ -1391,6 +1404,7 @@ struct PaneCommands: Commands {
                 Button("Move Item Up") { editor?.moveItem(up: true) }.keyboardShortcut(.upArrow, modifiers: [.command, .control])
                 Button("Move Item Down") { editor?.moveItem(up: false) }.keyboardShortcut(.downArrow, modifiers: [.command, .control])
                 // A line across the note (`---`). No shortcut, as in Pages.
+                Button("Code Block") { editor?.codeBlock() }
                 Button("Divider") { editor?.insertDivider() }
                 // A tinted panel with a title (`> [!note]`, as in Obsidian). No shortcut.
                 Button("Callout") { editor?.insertCallout() }

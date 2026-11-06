@@ -248,7 +248,7 @@ struct NotesPasswordSetupSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.tint(Color.ink) }
                 ToolbarItem(placement: .confirmationAction) {
                     if working { ProgressView().controlSize(.small) } else {
                         Button("Done", action: done).disabled(!ready).accessibilityIdentifier("setup.done")
@@ -310,7 +310,7 @@ struct NotesPasswordPrompt: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.tint(Color.ink) }
                 ToolbarItem(placement: .confirmationAction) {
                     if working { ProgressView().controlSize(.small) } else {
                         Button("OK", action: submit).disabled(password.isEmpty).accessibilityIdentifier("prompt.ok")
@@ -393,7 +393,7 @@ struct ChangeNotesPasswordSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.tint(Color.ink) }
                 ToolbarItem(placement: .confirmationAction) {
                     if working { ProgressView().controlSize(.small) } else {
                         Button("Done", action: done).disabled(!ready)

@@ -30,6 +30,26 @@ enum ListEditing {
                         caret: line.location + (closed as NSString).length)
     }
 
+    private static let typedBox = try! NSRegularExpression(pattern: #"^([ \t]*)(?:[-*+][ \t]+)?\[([ xX]?)\]$"#)
+
+    /// Space typed right after "[]" or "[ ]" at the start of a line, or "[]" after a dash: the line
+    /// is a checklist item, as Notion's and Obsidian's people type one. "- [ ]" needs nothing: the
+    /// space makes it an item as it stands. Not inside a code block, where brackets are code.
+    static func spaceKey(in text: String, selection: NSRange) -> TextEdit? {
+        guard selection.length == 0 else { return nil }
+        let ns = text as NSString
+        guard selection.location <= ns.length else { return nil }
+        let start = ns.lineRange(for: NSRange(location: selection.location, length: 0)).location
+        let typed = ns.substring(with: NSRange(location: start, length: selection.location - start))
+        let whole = NSRange(location: 0, length: (typed as NSString).length)
+        guard let m = typedBox.firstMatch(in: typed, range: whole), codeBlock(in: ns, at: selection.location) == nil else { return nil }
+        let indent = (typed as NSString).substring(with: m.range(at: 1))
+        let mark = (typed as NSString).substring(with: m.range(at: 2))
+        if mark == " ", ListPrefix(line: typed + " ") != nil { return nil }
+        let line = indent + "- [\(mark.isEmpty ? " " : mark.lowercased())] "
+        return TextEdit(range: NSRange(location: start, length: whole.length), replacement: line, caret: start + (line as NSString).length)
+    }
+
     /// Return inside a list item continues the list; on an empty item it ends it.
     static func returnKey(in text: String, selection: NSRange) -> TextEdit? {
         if let out = leaveCodeBlock(in: text, selection: selection) { return out }

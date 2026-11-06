@@ -311,6 +311,14 @@ final class EditorController {
     func underline() { perform { ListEditing.underline(in: $0, selection: $1) } }
     func strikethrough() { perform { ListEditing.wrap(in: $0, selection: $1, with: "~~") } }
     func code() { perform { ListEditing.wrap(in: $0, selection: $1, with: "`") } }
+    /// Format › Code Block, the same as "/code": the caret's lines fenced (round 20: only the
+    /// slash menu had it).
+    func codeBlock() { apply(.monostyled) }
+    #if os(macOS)
+    /// File › Print and Export as PDF: the note the way it reads, on white paper.
+    func printNote() { (target as? PaneTextView)?.printNote() }
+    func exportPDF() { (target as? PaneTextView)?.exportPDF() }
+    #endif
     /// Format › Highlight: `==text==` on the selection or the word under the caret, or off again.
     func highlight() { perform { FormatState.toggle(.highlight, in: $0, selection: $1) } }
     func checklist() {

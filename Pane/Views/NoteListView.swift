@@ -12,6 +12,8 @@ struct NoteListView: View {
     /// Set while the list shows its empty state, so the note pane beside it stays blank rather than
     /// saying "No note selected" under the list's own "No Notes" (council round 16).
     var showsEmpty: Binding<Bool> = .constant(false)
+    /// Set while the list shows search results, so the note pane points at them.
+    var showsResults: Binding<Bool> = .constant(false)
     #if os(iOS)
     @State private var editMode: EditMode = .inactive
     /// What Move (a long-press, Select Notes, Recently Deleted) is moving, while its sheet is up.
@@ -376,6 +378,9 @@ struct NoteListView: View {
         }
         .onChange(of: visible.isEmpty && visibleFiles.isEmpty && !library.isLoading && !behindSetupCard, initial: true) { _, now in
             if showsEmpty.wrappedValue != now { showsEmpty.wrappedValue = now }
+        }
+        .onChange(of: !search.isEmpty, initial: true) { _, now in
+            if showsResults.wrappedValue != now { showsResults.wrappedValue = now }
         }
         #if os(iOS)
         .sheet(isPresented: $showSettings) {
@@ -1420,6 +1425,14 @@ struct ShowsSelectedRow: ViewModifier {
                 guard let at = new.flatMap(row) else { return }
                 DispatchQueue.main.async { finder.reveal(row: at) }
             }
+            // A version restored moves the note to the top of the list: the list goes with it
+            // (round 20: the selected row was off screen after Restore This Version).
+            .onReceive(NotificationCenter.default.publisher(for: .paneVersionRestored)) { n in
+                guard let id = n.object as? UUID, id == selected else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    if let at = row(id) { finder.reveal(row: at) }
+                }
+            }
     }
 
     private struct TableFinder: NSViewRepresentable {
@@ -1472,9 +1485,14 @@ struct ShowsSelectedRow: ViewModifier {
                 let near = max(0, table.row(at: NSPoint(x: 1, y: centred + insets.top + 1)) - 1)
                 let rows = Array(near..<min(table.numberOfRows, near + 6))
                 let frames = rows.map { table.rect(ofRow: $0) }
-                let headings = rows.map { r in table.delegate?.tableView?(table, isGroupRow: r) ?? false }
                 // Every section starts with its heading, so row 0 is one: the pinned band's height.
                 let band = table.numberOfRows > 0 ? table.rect(ofRow: 0).height : 0
+                // SwiftUI's list doesn't answer the delegate's question, and asking for row views
+                // would build them off screen; a heading has the height row 0 has (round 20: every
+                // launch stopped with "Yesterday" under the pinned "Today", an empty group by the look of it).
+                let headings = rows.indices.map { i in
+                    (table.delegate?.tableView?(table, isGroupRow: rows[i]) ?? false) || abs(frames[i].height - band) < 1
+                }
                 let y = min(max(top, ShowsSelectedRow.snapped(centred, topInset: insets.top, rows: frames, headings: headings, band: band)), bottom)
                 clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: y))
                 scroll.reflectScrolledClipView(clip)

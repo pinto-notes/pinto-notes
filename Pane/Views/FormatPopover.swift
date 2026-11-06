@@ -60,6 +60,7 @@ struct FormatPopover: View {
             rule
             row("Block Quote", inCallout ? nil : .quote, mark: .bar, action: controller.blockQuote)
             row("Callout", nil, ticked: inCallout, mark: .callout) { controller.insertCallout() }
+            row("Code Block", nil, font: .system(size: 13, design: .monospaced), action: controller.codeBlock)
             row("Divider", nil, mark: .line, action: controller.insertDivider)
         }
         .padding(.vertical, 6)

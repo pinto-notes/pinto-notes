@@ -79,7 +79,8 @@ struct SlashCommandList: View {
                         if let shortcut = command.shortcut {
                             Text(shortcut)
                                 .font(.system(size: 12))
-                                .foregroundStyle(.tertiary)
+                                // Readable on the chosen row's tint too (round 20: 1.67:1).
+                                .foregroundStyle(i == controller.slashChoice ? Color.ink : Color.muted)
                         }
                     }
                     .padding(.horizontal, 8)

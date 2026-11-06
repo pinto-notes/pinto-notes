@@ -363,7 +363,7 @@ struct SignInView: View {
                 }
                 .buttonStyle(.hoverLink)
                 .font(.footnote)
-                .foregroundStyle(.tint)
+                .foregroundStyle(Color.amberInk)
                 .accessibilityIdentifier("signin.back")
                 .transition(.opacity)
             }
@@ -506,7 +506,7 @@ struct SignInView: View {
         Button(title, action: action)
             .buttonStyle(.hoverLink)
             .font(.footnote)
-            .foregroundStyle(.tint)
+            .foregroundStyle(Color.amberInk)
             .frame(minHeight: 28)
             .contentShape(.rect)
             .transition(.opacity)

@@ -1591,6 +1591,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         if text == "\n", let edit = ListEditing.returnKey(in: self.text, selection: range) {
             apply(edit); return false
         }
+        if text == " ", let edit = ListEditing.spaceKey(in: self.text, selection: range) {
+            apply(edit); return false
+        }
         if text.isEmpty {
             // Backspace deletes the character before the caret; a selection deletes itself.
             let sel = selectedRange
@@ -2417,6 +2420,48 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     private var cardHosts: [String: NSHostingView<AnyView>] = [:]
+    /// Every card gets a host, not only those in view: the whole note is going on paper.
+    private var onPaperNow = false
+
+    /// Runs `operation` on the note as paper shows it: the light look in dark mode too, no date,
+    /// every table and picture there. SwiftUI's cards don't draw into a print context (a PDF had a
+    /// hole where its table was), so for the run each is a picture of itself. All put back after.
+    func onPaper(_ operation: NSPrintOperation) {
+        let look = appearance, background = drawsBackground, date = headerLabel.isHidden
+        appearance = NSAppearance(named: .aqua)
+        drawsBackground = false
+        headerLabel.isHidden = true
+        onPaperNow = true
+        layoutCards(animated: false)
+        layoutSubtreeIfNeeded()
+        // A turn for SwiftUI to take the light look and draw.
+        RunLoop.main.run(until: Date().addingTimeInterval(0.25))
+        let hosts = Array(cardHosts.values)
+        let pictures = hosts.map { host -> NSImageView in
+            let picture = NSImageView(frame: host.frame)
+            picture.imageScaling = .scaleAxesIndependently
+            if let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+                host.cacheDisplay(in: host.bounds, to: rep)
+                let image = NSImage(size: host.bounds.size)
+                image.addRepresentation(rep)
+                picture.image = image
+            }
+            host.isHidden = true
+            addSubview(picture)
+            return picture
+        }
+        defer {
+            pictures.forEach { $0.removeFromSuperview() }
+            hosts.forEach { $0.isHidden = false }
+            onPaperNow = false
+            headerLabel.isHidden = date
+            appearance = look
+            drawsBackground = background
+            layoutCards(animated: false)
+        }
+        operation.run()
+    }
+
     #if DEBUG
     var renderedCardKeys: Set<String> { Set(cardHosts.keys) }
     #endif
@@ -2678,7 +2723,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             cardHosts[k] = nil
             cardContent[k] = nil
         }
-        let viewport = enclosingScrollView?.documentVisibleRect ?? visibleRect
+        let viewport = onPaperNow ? bounds : (enclosingScrollView?.documentVisibleRect ?? visibleRect)
         for item in items {
             // Keep visited hosts alive, including a table being edited while scrolled away.
             // A new offscreen table needs a host only when it has a pending focus request.
@@ -3581,6 +3626,16 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// True while a key press is being handled, so caret moves know they came from the keyboard.
     private var inKeyDown = false
+
+    /// "[ ]" and a space makes a checklist item (`ListEditing.spaceKey`).
+    override func insertText(_ string: Any, replacementRange: NSRange) {
+        if (string as? String) == " ", replacementRange.location == NSNotFound || replacementRange == selectedRange(), !hasMarkedText(), controller?.readOnly != true,
+           let edit = ListEditing.spaceKey(in: self.string, selection: selectedRange) {
+            apply(edit)
+            return
+        }
+        super.insertText(string, replacementRange: replacementRange)
+    }
 
     override func keyDown(with event: NSEvent) {
         // Recently Deleted: typing asks to recover the note first, like Notes. Moving around and

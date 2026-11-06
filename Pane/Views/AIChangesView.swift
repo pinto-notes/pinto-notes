@@ -228,7 +228,7 @@ struct AIChangesStatus: View {
 struct MacAIChanges: View {
     /// Over a change you've undone: the preview still shows what the AI did (round 19: Burrata looked
     /// as if it were still there).
-    static let undoneLine = "Undone. This is what it changed; it's no longer in the note."
+    static let undoneLine = "Undone. No longer in the note."
     @Bindable var model: AIChangesModel
     let close: () -> Void
     let open: (AIChange) -> Void
@@ -359,11 +359,14 @@ struct MacAIChanges: View {
         HStack(spacing: 8) {
             // Return opens the note; undoing is a click of its own, never a stray Return on a
             // sheet you're reading (council, 11-04).
-            Button("Undo This Change") { Task { await model.undo(c) } }
-                .disabled(!model.canUndo(c) || model.undoing || (c.changesText && model.diff == nil))
-                .tint(.primary)
-                .accessibilityHint(model.undoReason(c) ?? "")
-                .accessibilityIdentifier("aiChanges.undo")
+            // Once undone there's nothing to press: the line above says so (round 20: a greyed button).
+            if !model.undone.contains(c.id) {
+                Button("Undo This Change") { Task { await model.undo(c) } }
+                    .disabled(!model.canUndo(c) || model.undoing || (c.changesText && model.diff == nil))
+                    .tint(.primary)
+                    .accessibilityHint(model.undoReason(c) ?? "")
+                    .accessibilityIdentifier("aiChanges.undo")
+            }
             Button("Open Note") { open(c) }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.amberProminent)

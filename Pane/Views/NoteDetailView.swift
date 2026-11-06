@@ -205,6 +205,9 @@ struct NoteDetailView: View {
             .sheet(isPresented: $showHistory) {
                 if let history = NoteHistory.shared { VersionHistorySheet(note: note, history: history) }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .paneVersionRestored)) { n in
+                if (n.object as? UUID) == note.id { withAnimation(.smooth(duration: 0.2)) { reviewResult = VersionHistoryModel.restoredLine } }
+            }
             #if os(iOS)
             .safeAreaInset(edge: .bottom, spacing: 0) { if !showingPage { phoneTips } }
             #endif
