@@ -57,7 +57,7 @@ enum Charm {
     }
 
     /// How much room a glyph's canvas takes around its 24 units: Today's torn page flies clear of the icon.
-    static func bleed(_ kind: Kind) -> Double { kind == .today ? 2.5 : kind == .trash ? 2.4 : 1 }
+    static func bleed(_ kind: Kind) -> Double { kind == .today ? 2.5 : kind == .trash ? 2.5 : 1 }
 
     static func draw(_ kind: Kind, in c: inout GraphicsContext, size: CGSize, t: Double, rare: Bool, pen: Pen, day: Int) {
         let s = min(size.width, size.height) / (24 * bleed(kind))
