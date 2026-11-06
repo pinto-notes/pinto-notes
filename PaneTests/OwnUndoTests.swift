@@ -75,6 +75,41 @@ import Testing
         #expect(slow.clash(with: TextDiff.Edit(range: after, replacement: "pizza"))?.mine == "sandwiches", "typed with a pause")
     }
 
+    /// "5" and "6" for "4" is a clash, though one letter after a word is typing.
+    @Test func shortReplacementsClashToo() throws {
+        let u = OwnUndo()
+        u.record(TextDiff.Edit(range: NSRange(location: 5, length: 1), replacement: "5"), in: "Gate 4")
+        #expect(u.clash(with: TextDiff.Edit(range: NSRange(location: 6, length: 0), replacement: "6"))?.merged == "56")
+    }
+
+    /// Edit on a plane, the app closes, land: what you replaced is kept, and the question comes.
+    /// It isn't Undo, and text that's moved on since keeps nothing.
+    @Test func aRelaunchKeepsWhatYouReplaced() throws {
+        let u = OwnUndo()
+        let before = "Order lunch" as NSString
+        u.record(TextDiff.Edit(range: before.range(of: "lunch"), replacement: "pizza"), in: before as String)
+        let kept = u.toKeep
+        #expect(kept.count == 1)
+
+        let next = OwnUndo()
+        next.remember(kept, in: "Order pizza")
+        #expect(!next.canUndo, "not a step of Undo")
+        #expect(next.clash(with: TextDiff.Edit(range: NSRange(location: 11, length: 0), replacement: "sandwiches"))?.merged == "pizzasandwiches")
+        // They move with the text, and go when it's touched.
+        next.transform(through: TextDiff.Edit(range: NSRange(location: 0, length: 0), replacement: "To "))
+        #expect(next.toKeep.first?.location == 9)
+        next.transform(through: TextDiff.Edit(range: NSRange(location: 9, length: 5), replacement: "soup"))
+        #expect(next.toKeep.isEmpty)
+
+        let stale = OwnUndo()
+        stale.remember(kept, in: "Something else now")
+        #expect(stale.toKeep.isEmpty)
+        let old = OwnUndo()
+        old.now = { Date().addingTimeInterval(30 * 24 * 3600) }
+        old.remember(kept, in: "Order pizza")
+        #expect(old.toKeep.isEmpty, "weeks old: that went long ago")
+    }
+
     @Test func typingInARowIsOneStep() throws {
         let undo = OwnUndo()
         var text = ""

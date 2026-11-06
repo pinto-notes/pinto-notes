@@ -1342,13 +1342,14 @@ private struct MoveDropDelegate: DropDelegate {
 /// Recently Deleted takes notes and files dragged onto it, as in Notes.
 private struct TrashDrop: ViewModifier {
     @Environment(\.modelContext) private var context
+    @Environment(\.undoManager) private var undoManager
     let active: Bool
     @Binding var over: Bool
     @State private var lid = TrashLidHold()
 
     func body(content: Content) -> some View {
         if active {
-            content.onDrop(of: [.paneItem], delegate: TrashDropDelegate(context: context, over: $over, lid: lid))
+            content.onDrop(of: [.paneItem], delegate: TrashDropDelegate(context: context, undo: undoManager, over: $over, lid: lid))
         } else {
             content
         }
@@ -1358,6 +1359,7 @@ private struct TrashDrop: ViewModifier {
 /// A move, not a copy: no green plus on the pointer.
 private struct TrashDropDelegate: DropDelegate {
     let context: ModelContext
+    let undo: UndoManager?
     @Binding var over: Bool
     let lid: TrashLidHold
 
@@ -1366,8 +1368,8 @@ private struct TrashDropDelegate: DropDelegate {
     func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: dropOperation(fromThisApp: true)) }
     func performDrop(info: DropInfo) -> Bool {
         lid.dropped { over = $0 }
-        DropLoader.load(info.itemProviders(for: [.paneItem])) { [context] items, _ in
-            withAnimation(.snappy) { context.trashDropped(items) }
+        DropLoader.load(info.itemProviders(for: [.paneItem])) { [context, undo] items, _ in
+            withAnimation(.snappy) { context.trashDropped(items, undo: undo) }
         }
         return true
     }

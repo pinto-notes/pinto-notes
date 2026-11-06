@@ -53,6 +53,8 @@ import Testing
             await h.settle()
             #expect(h.text == "Order pizza")
             #expect(h.controller.clash == nil)
+            // Chosen on the other phone, this one says what they chose. Chosen here, nothing to say.
+            #expect(h.controller.clashAnswer == (chosenHere ? nil : "chose pizza"))
         }
         // Both, and they no longer run together.
         let h = await EditorHarness("Order lunch")

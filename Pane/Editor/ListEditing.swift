@@ -39,6 +39,21 @@ enum ListEditing {
         guard selection.length == 0 else { return nil }
         let ns = text as NSString
         guard selection.location <= ns.length else { return nil }
+        // ⌘B and then a space: "** bold**" isn't bold, and the marks stay on show. The space goes
+        // before the marks, and the caret stays between them.
+        let at = selection.location
+        for (open, close) in [("***", "***"), ("**", "**"), ("~~", "~~"), ("==", "=="), ("*", "*"), ("<u>", "</u>")] {
+            let o = (open as NSString).length, c = (close as NSString).length
+            guard at >= o, at + c <= ns.length, ns.substring(with: NSRange(location: at - o, length: o)) == open,
+                  ns.substring(with: NSRange(location: at, length: c)) == close else { continue }
+            // Inside "**b**", one * either side of the caret is no pair of empty marks.
+            func word(_ i: Int) -> Bool {
+                guard i >= 0, i < ns.length else { return false }
+                return ns.substring(with: NSRange(location: i, length: 1)).first.map { $0.isLetter || $0.isNumber } ?? false
+            }
+            if word(at - o - 1) || word(at + c) { continue }
+            return TextEdit(range: NSRange(location: at - o, length: 0), replacement: " ", caret: at + 1)
+        }
         let start = ns.lineRange(for: NSRange(location: selection.location, length: 0)).location
         let typed = ns.substring(with: NSRange(location: start, length: selection.location - start))
         let whole = NSRange(location: 0, length: (typed as NSString).length)

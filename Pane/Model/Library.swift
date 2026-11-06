@@ -232,13 +232,13 @@ extension ModelContext {
     }
 
     /// Notes and files dragged onto Recently Deleted go there; anything already in it stays put.
-    func trashDropped(_ items: [PaneDragItem]) {
+    func trashDropped(_ items: [PaneDragItem], undo: UndoManager? = nil) {
+        // One step of ⌘Z for the drop, as Delete Note has.
+        remove(items.filter { $0.kind == .note }.flatMap(\.ids).compactMap { note($0) }.filter { $0.trashedAt == nil }, undo: undo)
         for item in items {
             switch item.kind {
             case .note:
-                for id in item.ids {
-                    if let n = note(id), n.trashedAt == nil { trash(n) }
-                }
+                break
             case .file:
                 for id in item.ids {
                     if let f = attachment(id), f.trashedAt == nil { trash(f) }

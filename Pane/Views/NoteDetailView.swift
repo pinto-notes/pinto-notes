@@ -211,6 +211,11 @@ struct NoteDetailView: View {
             .sheet(isPresented: $showHistory) {
                 if let history = NoteHistory.shared { VersionHistorySheet(note: note, history: history) }
             }
+            .onChange(of: controller.clashAnswer) { _, answer in
+                guard let answer else { return }
+                controller.clashAnswer = nil
+                withAnimation(.smooth(duration: 0.2)) { reviewResult = "\(collab?.onlyOtherName ?? "Someone") \(answer)" }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .paneNotesMoved)) { n in
                 if let said = n.object as? String {
                     withAnimation(.smooth(duration: 0.2)) {
@@ -1847,7 +1852,13 @@ private struct CollabWiring: ViewModifier {
                     return
                 }
                 // Undo takes back only what you typed, not what the others did.
-                controller.ownUndo = OwnUndo()
+                let own = OwnUndo()
+                if !note.isLocked {
+                    let id = note.id
+                    own.remember(OwnUndoFile.load(id), in: controller.target?.currentText ?? note.body)
+                    own.onChange = { [weak own] in if let own { OwnUndoFile.saveSoon(id, own) } }
+                }
+                controller.ownUndo = own
                 session.onRemoteText = { [weak controller] text in controller?.target?.syncExternal(text) }
                 // Carets go straight to the text view, not through SwiftUI's next update, so they move
                 // in the same frame as the text.

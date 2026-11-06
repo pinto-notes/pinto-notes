@@ -37,6 +37,24 @@ import AppKit
         #expect(folder.deletedAt == nil)
     }
 
+    /// ⌘Z after the drop brings back what you dragged, not the note you deleted before it.
+    @Test func undoAfterADropOnRecentlyDeletedBringsItBack() throws {
+        let earlier = ctx.createNote(in: .all, body: "Earlier\nnote")
+        let a = ctx.createNote(in: .all, body: "Soup\nleeks")
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        undo.beginUndoGrouping()
+        ctx.remove([earlier], undo: undo)
+        undo.endUndoGrouping()
+        undo.beginUndoGrouping()
+        ctx.trashDropped([PaneDragItem(kind: .note, id: a.id)], undo: undo)
+        undo.endUndoGrouping()
+        #expect(a.trashedAt != nil)
+        undo.undo()
+        #expect(a.trashedAt == nil)
+        #expect(earlier.trashedAt != nil)
+    }
+
     /// Moving a note into a folder is a move: the green plus means a copy, and there isn't one.
     @Test func movingInsideTheAppShowsNoPlus() {
         #expect(dropOperation(fromThisApp: true) == .move)

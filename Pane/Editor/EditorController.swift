@@ -31,6 +31,8 @@ final class EditorController {
     var ownUndo: OwnUndo? { didSet { clash = nil } }
     /// The same words replaced differently by you and someone else, until one is chosen.
     var clash: OwnUndo.Clash?
+    /// What someone else decided about it ("chose pizza"), for the note to say who.
+    var clashAnswer: String?
 
     /// One of the two: it takes the place of both, as your edit, for everyone in the note.
     func keepClash(_ words: String) {
@@ -43,7 +45,11 @@ final class EditorController {
 
     /// Someone chose, or changed the words: nothing left to ask.
     func clashStillStands(in text: String) {
-        if let c = clash, !text.contains(c.merged) { clash = nil }
+        guard let c = clash, !text.contains(c.merged) else { return }
+        clash = nil
+        if text.contains(c.mine + " " + c.theirs) { clashAnswer = "kept both" }
+        else if text.contains(c.theirs), !text.contains(c.mine) { clashAnswer = "chose \(c.theirs)" }
+        else if text.contains(c.mine), !text.contains(c.theirs) { clashAnswer = "chose \(c.mine)" }
     }
     /// Ticked items sink below the open ones a moment after the tick, except in a shared note.
     /// The move rewrites the list, and two people's rewrites at once merge into doubled lines

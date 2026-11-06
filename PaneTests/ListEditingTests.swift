@@ -13,6 +13,28 @@ import AppKit
         return (text as NSString).replacingCharacters(in: e.range, with: e.replacement)
     }
 
+    /// ⌘B and then a space: "** bold**" isn't bold and its marks stay on show. The space goes
+    /// before the marks, and the caret stays between them (persona council r7g).
+    @Test func aSpaceBetweenEmptyMarksGoesBeforeThem() {
+        for (open, close) in [("**", "**"), ("*", "*"), ("***", "***"), ("~~", "~~"), ("==", "=="), ("<u>", "</u>")] {
+            let t = "plain " + open + close
+            let e = ListEditing.spaceKey(in: t, selection: NSRange(location: 6 + (open as NSString).length, length: 0))
+            #expect(apply(t, e) == "plain  " + open + close, "\(open)")
+            #expect(e?.caret == 7 + (open as NSString).length, "\(open)")
+        }
+        // In the marks of a word that's there.
+        #expect(ListEditing.spaceKey(in: "a **b** c", selection: NSRange(location: 3, length: 0)) == nil)
+        #expect(ListEditing.spaceKey(in: "a **b** c", selection: NSRange(location: 6, length: 0)) == nil)
+    }
+
+    /// "bold " and ⌘B: "**bold **" isn't bold either. The space comes out past the marks.
+    @Test func commandBAfterASpaceLeavesTheSpaceOutside() {
+        let t = "plain **bold **"
+        let f = FormatState.toggle(.bold, in: t, selection: NSRange(location: 13, length: 0))
+        #expect(apply(t, f) == "plain **bold** ")
+        #expect(f.caret == 15)
+    }
+
     /// Bold with nothing selected, some words, Return: the note showed a literal ** on both lines.
     /// ⌘B, typing, ⌘B: the bold stays and the caret is past its marks (persona council r7e).
     @Test func commandBAtTheEndOfBoldStepsOutAndKeepsIt() {
