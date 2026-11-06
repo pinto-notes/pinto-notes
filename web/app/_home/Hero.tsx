@@ -1,5 +1,6 @@
 "use client";
 
+import { APP_STORE_URL } from "@/lib/site";
 import { useEffect, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { Download } from "./Download";
@@ -48,14 +49,14 @@ export function Hero() {
         <p className={`${x.lede} rise`} style={rise(1)}>Every chat starts from zero. Give ChatGPT and Claude your notes, and they finally know your life.</p>
         <div className={`${x.ctas} rise`} style={rise(2)}>
           <Download note={false} />
-          <span className={x.soon} aria-disabled="true">
+          <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
             <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
-            Coming to iPhone
-          </span>
+            Get it for iPhone
+          </a>
           {/* Off a Mac (an iPhone, Windows, Android): the iPhone button leads, the Mac download is a link under it. */}
           <a className={x.offMac} href="/download">Download for Mac</a>
         </div>
-        <p className={`${x.fine} rise pi-apple pi-not-ios`} style={rise(3)}>Free for Mac. Works with ChatGPT and Claude.</p>
+        <p className={`${x.fine} rise pi-apple pi-not-ios`} style={rise(3)}>Free for iPhone and Mac. Works with ChatGPT and Claude.</p>
       </div>
       <div className={`${x.card} rise`} style={rise(1)} role="img"
         aria-label="Over a woman's shoulder at dusk in San Francisco. She says: Plan tomorrow. Run before work, and the dentist. ChatGPT answers: Done. You also need to book the Lisbon flights by Friday. Added that too. Her Tomorrow note in Pinto Notes fills in on her phone.">

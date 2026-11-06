@@ -1,10 +1,10 @@
 // The home page's shared words: the page title, the download lines and the template taglines.
 export const G = {
   title: "Pinto Notes: one notes app for every AI you use",
-  description: "Notes for Mac that ChatGPT, Claude, Claude Code and Codex can read and edit, with your OK. The iPhone app is coming soon. Imports Apple Notes. Free and open source.",
+  description: "Notes for iPhone and Mac that ChatGPT, Claude, Claude Code and Codex can read and edit, with your OK. Imports Apple Notes. Free and open source.",
   h1: "One notes app for every AI you use.",
   lede: "ChatGPT, Claude, Claude Code and Codex read and edit your notes, with your OK.",
-  quiet: "Free for Mac. Brings your Apple Notes over.",
+  quiet: "Free for iPhone and Mac. Brings your Apple Notes over.",
   notebook: {
     title: "Every AI you use, one notebook.",
     lede: "Ask ChatGPT on your phone and Claude at your desk. Both work in the same note, and each change says who made it.",
@@ -24,8 +24,8 @@ export const G = {
     title: "Feels like Apple Notes. Brings yours over.",
     lede: "Import Apple Notes in one go. Folders, checklists and tables come along, and Apple Notes stays as it is.",
     /** ?alt=art: the picture and the import card, no phone. */
-    ledeAlt: "Import Apple Notes in one go. Folders, checklists and tables come along, and Apple Notes stays as it is. Mac today, iPhone app coming soon.",
-    soon: "iPhone app coming soon",
+    ledeAlt: "Import Apple Notes in one go. Folders, checklists and tables come along, and Apple Notes stays as it is.",
+    soon: "On iPhone and Mac",
   },
   control: {
     title: "You decide what your AI can touch.",
@@ -33,6 +33,6 @@ export const G = {
   closing: {
     title: "Start with the notes you already have.",
     /** Emil, 14 October: the closing works as D round 2 had it; no steps, no extra lines. */
-    fine: "Requires macOS 26. iPhone app coming soon.",
+    fine: "Requires macOS 26 or iOS 26.",
   },
 };

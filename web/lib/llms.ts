@@ -3,7 +3,7 @@ import { GITHUB_URL } from "./github";
 import { published } from "./posts";
 import { searchTitle, templates } from "./templates";
 import { MCP_TOOLS } from "./mcp-tools";
-import { FEED_PATH, INCREDIBLE_URL, MAKER_URL, SITE_URL } from "./site";
+import { APP_STORE_URL, FEED_PATH, INCREDIBLE_URL, MAKER_URL, SITE_URL } from "./site";
 import { FAQ } from "../app/help/questions";
 
 /// /llms.txt (llmstxt.org): a plain summary for AI assistants and agents, with links to the pages
@@ -15,7 +15,7 @@ function summary(): string[] {
     "",
     `> ${WHAT_IT_IS}`,
     "",
-    `Pinto Notes was called Amber Notes until October 2026. Not to be confused with other products called AmberNotes or Amber Notes (meeting transcription and AI note-taking services). This one is the notes app at pintonotes.com, made by Emil Wagman (${MAKER_URL}) at Incredible (${INCREDIBLE_URL}).`,
+    `Pinto Notes was called Amber Notes until October 2026. Not to be confused with other products called AmberNotes or Amber Notes (meeting transcription and AI note-taking services). This one is the notes app at pintonotes.com, made by Emil Wagman (${MAKER_URL}), CTO of Incredible (${INCREDIBLE_URL}).`,
     "",
     "## Facts",
     "",
@@ -51,6 +51,7 @@ function summary(): string[] {
     "## More",
     "",
     `- [Download for Mac](${SITE_URL}/download): free, macOS 26 or later.`,
+    `- [Pinto Notes for iPhone](${APP_STORE_URL}): free on the App Store, iOS 26 or later.`,
     `- [Help and FAQ](${SITE_URL}/help)`,
     `- [Changelog](${SITE_URL}/changelog)`,
     `- [Privacy & Security](${SITE_URL}/privacy-security): what's stored, what's encrypted, every log and how long it's kept.`,

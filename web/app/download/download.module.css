@@ -35,3 +35,5 @@
 .more p { margin: 0; max-width: 46em; }
 .more strong { color: var(--ink); }
 .more a { color: var(--link); font-weight: 600; }
+.req a { color: inherit; text-underline-offset: 3px; }
+.req a:hover { color: var(--ink, #2a1a0c); }

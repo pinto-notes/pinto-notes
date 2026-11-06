@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Metadata } from "next";
-import { pageMetadata } from "@/lib/site";
+import { APP_STORE_URL, pageMetadata } from "@/lib/site";
 import { MAC_DOWNLOAD_PATH } from "@/lib/downloads";
 import { latestVersion } from "@/lib/changelog";
 import { JsonLd, app, breadcrumbs, incredible, maker, organization } from "@/lib/structured-data";
@@ -10,8 +10,8 @@ import styles from "./download.module.css";
 import { ClosingBand } from "@/lib/ClosingBand";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Download Pinto Notes for Mac",
-  description: "Download Pinto Notes, the free notes app for Mac that ChatGPT and Claude can read and edit. Needs macOS 26 or later.",
+  title: "Download Pinto Notes for iPhone and Mac",
+  description: "Download Pinto Notes, the free notes app for iPhone and Mac that ChatGPT and Claude can read and edit. Needs macOS 26 or iOS 26.",
   path: "/download",
   image: { url: "/download/opengraph-image", alt: "Download Pinto Notes for Mac. Free, for macOS 26 or later." },
 });
@@ -39,24 +39,28 @@ export default function Download() {
       <JsonLd graph={[app(latestVersion()), organization, maker, incredible, breadcrumbs([{ name: "Pinto Notes", path: "/" }, { name: "Download for Mac", path: "/download" }])]} />
       <section className={styles.hero}>
         <img className={`${styles.icon} rise`} style={r(0)} src="/mark-256.png" alt="" width={128} height={128} />
-        <h1 className={`${styles.title} rise`} style={r(1)}>Download Pinto Notes for Mac</h1>
+        <h1 className={`${styles.title} rise`} style={r(1)}>Download Pinto Notes</h1>
         {release ? (
           <>
-            <p className={`${styles.meta} rise`} style={r(2)}>
+            <p className={`${styles.meta} rise pi-not-ios`} style={r(2)}>
               Version {release.version} · {size} · {date}
             </p>
-            <a className={`${styles.button} rise pi-apple`} style={r(3)} href={MAC_DOWNLOAD_PATH} download={release.file} data-hero-download="">
+            <div className="pi pi-ios">
+              <a className={`${styles.button} rise`} style={r(3)} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer"><Apple /> Download for iPhone</a>
+            </div>
+            <a className={`${styles.button} rise pi-apple pi-not-ios`} style={r(3)} href={MAC_DOWNLOAD_PATH} download={release.file} data-hero-download="">
               <Apple /> Download for Mac
             </a>
             <PlatformNote place="download" className="rise" style={r(3)} />
-            <p className={`${styles.req} rise`} style={r(4)}>Free · Requires macOS {macos} or later</p>
+            <p className={`${styles.req} pi pi-ios`}>Free · Requires iOS 26 or later</p>
+            <p className={`${styles.req} rise pi-not-ios`} style={r(4)}>Free · Requires macOS {macos} or later · <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it for iPhone</a></p>
           </>
         ) : (
           <p className={`${styles.meta} rise`} style={r(2)}>The first Mac release is on its way.</p>
         )}
       </section>
 
-      <section className={styles.steps} aria-label="How to install">
+      <section className={`${styles.steps} pi-not-ios`} aria-label="How to install">
         <div className={`${styles.step} rise`} style={r(5)}>
           <div className={styles.art} aria-hidden="true">
             <div className={styles.dmg}><span>DMG</span></div>

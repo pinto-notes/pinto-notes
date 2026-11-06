@@ -6,6 +6,7 @@ import DownloadLink from "./DownloadLink";
 import GitHubLink, { GitHubGlyph } from "./GitHubLink";
 import PlatformNote from "./PlatformNote";
 import MobileMenu from "./MobileMenu";
+import FooterScene from "./FooterScene";
 import { ownTopBar, themeFor } from "@/lib/theme";
 import PROMPTS from "@/lib/try-prompts.json";
 import { isBlogList } from "@/lib/blog-list";
@@ -141,31 +142,31 @@ export default function SiteChrome({ stars, children }: { version: string | null
       </header>
       <main className="site-main">{children}</main>
       <footer className="site-footer">
-        <div className="site-footrow">
-          <nav aria-label="More">
-            <a href="/templates">Templates</a>
-            <a href="/blog">Blog</a>
-            <a href="/changelog">Changelog</a>
-            <a href="/privacy-security">Privacy & Security</a>
-            <a href="/privacy">Privacy Policy</a>
-            <a href="/terms">Terms</a>
-            <a href="/help">Help</a>
-            {/* Opens the cookie banner again (app/ConsentBanner.tsx); only in builds with PostHog. */}
-            {process.env.NEXT_PUBLIC_POSTHOG_KEY && (
-              <button type="button" className="site-footlink" onClick={() => window.dispatchEvent(new Event(CONSENT_OPEN_EVENT))}>Cookie settings</button>
-            )}
-          </nav>
-          <span className="site-footsep" aria-hidden="true" />
-          <div className="site-social">
-            <GitHubLink stars={stars} />
-            <a href={X_URL} target="_blank" rel="me noopener noreferrer" aria-label="Emil Wagman on X"><XGlyph /></a>
-            <a href={LINKEDIN_URL} target="_blank" rel="me noopener noreferrer" aria-label="Emil Wagman on LinkedIn"><LinkedInGlyph /></a>
+        <FooterScene night={themeFor(path) === "leaf"} />
+        <div className="site-ground">
+          <div className="site-footrow">
+            <nav aria-label="More">
+              <a href="/templates">Templates</a>
+              <a href="/blog">Blog</a>
+              <a href="/changelog">Changelog</a>
+              <a href="/privacy-security">Privacy & Security</a>
+              <a href="/privacy">Privacy Policy</a>
+              <a href="/terms">Terms</a>
+              <a href="/help">Help</a>
+              {/* Opens the cookie banner again (app/ConsentBanner.tsx); only in builds with PostHog. */}
+              {process.env.NEXT_PUBLIC_POSTHOG_KEY && (
+                <button type="button" className="site-footlink" onClick={() => window.dispatchEvent(new Event(CONSENT_OPEN_EVENT))}>Cookie settings</button>
+              )}
+            </nav>
+            <span className="site-footsep" aria-hidden="true" />
+            <div className="site-social">
+              <GitHubLink stars={stars} />
+              <a href={X_URL} target="_blank" rel="me noopener noreferrer" aria-label="Emil Wagman on X"><XGlyph /></a>
+              <a href={LINKEDIN_URL} target="_blank" rel="me noopener noreferrer" aria-label="Emil Wagman on LinkedIn"><LinkedInGlyph /></a>
+            </div>
           </div>
+          <p className="site-credit">Made by <a className="site-maker" href={MAKER_URL} target="_blank" rel="me noopener">Emil Wagman</a>, CTO of <a className="site-maker" href="https://incredible.one" target="_blank" rel="noopener">Incredible</a>. Not affiliated with Apple, OpenAI or Anthropic.</p>
         </div>
-        <p className="site-credit">Made by <a className="site-maker" href={MAKER_URL} target="_blank" rel="me noopener">Emil Wagman</a> at <a className="site-maker" href="https://incredible.one" target="_blank" rel="noopener">Incredible</a>. Formerly <a className="site-maker" href="/amber-notes">Amber Notes</a>. Works with ChatGPT and Claude. Not affiliated with Apple, OpenAI or Anthropic.</p>
-        <svg className="site-wordmark" viewBox="0 0 1000 170" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-          <text x="500" y="160" textAnchor="middle" textLength="980" lengthAdjust="spacingAndGlyphs">Pinto Notes</text>
-        </svg>
       </footer>
     </div>
   );

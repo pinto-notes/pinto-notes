@@ -13,11 +13,16 @@
 .lede { margin: -10px 0 0; max-width: 30em; font-size: clamp(19px, 1.5vw, 23px); line-height: 1.4; color: #4a3826; }
 .ctas { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .ctas > div { margin: 0; }
-.soon { display: inline-flex; align-items: center; gap: 9px; min-height: 50px; padding: 0 22px; border-radius: 14px; font-size: 16px; font-weight: 650; color: #6b5a48;
-  background: transparent; box-shadow: inset 0 0 0 1.5px rgba(80, 45, 10, 0.22); cursor: default; }
-.soon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+.iphone { display: inline-flex; align-items: center; gap: 9px; min-height: 50px; padding: 0 24px; border-radius: 14px; font-size: 16px; font-weight: 700; color: #2a1a0c;
+  background: #f3e4d0; text-decoration: none; transition: background-color 0.15s; }
+.iphone:hover { background: #ecd9c0; }
+/* On an iPhone this is the one to press, so it fills like Download for Mac does on a Mac. */
+:global(:root[data-platform="ios"]) .iphone { background: #2a1a0c; color: #fff; box-shadow: none; }
+:global(:root[data-platform="ios"]) .iphone:hover { background: #3d2814; }
+:global(:root[data-platform="ios"]) .iphone svg { stroke: currentColor; }
+.iphone svg { width: 17px; height: 17px; fill: none; stroke: #a08467; stroke-width: 1.5; stroke-linecap: round; }
 .fine { margin: -14px 0 0; font-size: 13.5px; font-weight: 600; color: #8a7a68; }
-/* Off a Mac (lib/platform.ts marks <html>): "Coming to iPhone" centred, the Mac download as a link under it. */
+/* Off a Mac (lib/platform.ts marks <html>): "Get it for iPhone" centred, the Mac download as a link under it. */
 .offMac { display: none; }
 :global(:root:is([data-platform="ios"], [data-platform="windows"], [data-platform="android"], [data-platform="linux"])) .ctas { width: 100%; flex-direction: column; gap: 14px; }
 :global(:root:is([data-platform="ios"], [data-platform="windows"], [data-platform="android"], [data-platform="linux"])) .offMac {

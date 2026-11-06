@@ -213,6 +213,12 @@ describe("Use template and Use this note in a browser", () => {
     expect(redirects).toContainEqual({ source: "/open/copy/:slug", destination: "/n/:slug?open=1", permanent: true });
   });
 
+  it.runIf(APP_TEMPLATES.live)("says where a template works: both for a plain one, the Mac for one with an app until its iPhone build", async () => {
+    const text = async (slug: string) => renderToStaticMarkup(await TemplatePage(params(slug))).replace(/<[^>]+>/g, "");
+    expect(await text("meeting-notes")).toContain("Free. Needs Pinto Notes for iPhone or Mac.");
+    expect(await text("habit-tracker")).toContain("Free. Needs Pinto Notes for Mac.");
+  });
+
   it.runIf(APP_TEMPLATES.live)("keeps Use template the universal link, with nothing of the attempt in the page as served", async () => {
     const html = renderToStaticMarkup(await TemplatePage(params("habit-tracker")));
     // The button is still the universal link, for a copied link or a click without JavaScript: the

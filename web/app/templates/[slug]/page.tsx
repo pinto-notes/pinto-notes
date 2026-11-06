@@ -4,7 +4,7 @@ import { APP_TEMPLATES, pageMetadata } from "@/lib/site";
 import { JsonLd, breadcrumbs, faqPage, maker, organization, templateHowTo, templateWork } from "@/lib/structured-data";
 import { templateSeo } from "@/lib/template-seo";
 import { COVERS, coverPath } from "@/lib/template-covers";
-import { anchor, appLink, authorLink, changedCount, instructions, noteTitle, searchTitle, template, templates, usePath, type Template } from "@/lib/templates";
+import { anchor, appLink, authorLink, changedCount, instructions, noteTitle, searchTitle, template, templates, usePath, type Template, needsOn } from "@/lib/templates";
 import Card from "../Card";
 import OpenInApp from "../../OpenInApp";
 import CopyButton from "../CopyButton";
@@ -125,7 +125,7 @@ export default async function Page({ params }: Props) {
                 </PromptCopy>
               )}
             </div>
-            <p className={`${s.fine} rise`} style={at(3)}>Free. Needs <a href="/download">Pinto Notes for Mac</a>.</p>
+            <p className={`${s.fine} rise`} style={at(3)}>Free. Needs <a href="/download">Pinto Notes</a> for {needsOn(t)}.</p>
           </header>
           <div className={`${s.heroExample} rise-soft`} style={at(2)}>
             {/* The filled note leads; the template's cover sits behind it as its stage, as on its card. */}
@@ -198,7 +198,7 @@ export default async function Page({ params }: Props) {
         actions={APP_TEMPLATES.live
           ? <OpenInApp className={bandButton.primary} href={usePath(t.slug)} app={appLink(t.slug)}><UseLabel t={t} /></OpenInApp>
           : undefined}
-        fine={APP_TEMPLATES.live ? <>Free. Needs Pinto Notes for Mac.</> : undefined}
+        fine={APP_TEMPLATES.live ? <>Free. Needs Pinto Notes for {needsOn(t)}.</> : undefined}
       />
     </div>
   );

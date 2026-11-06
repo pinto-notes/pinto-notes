@@ -221,6 +221,9 @@ html:has([data-hero-download]) .site-nav a.site-cta { display: none; }
 }
 .site-sheet-cta-quiet { background: var(--soft); color: var(--ink); }
 .site-sheet-for { display: grid; gap: 8px; }
+/* On an iPhone the Mac app is a line under the button, not a second button. */
+.site-sheet-maclink { justify-self: center; padding: 8px 12px; font-size: 15px; font-weight: 600; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.site-sheet-maclink:hover { color: var(--ink); }
 /* The same switch as the pages' platform note: an iPhone gets the iPhone words, Windows, Android and
    Linux get "For iPhone and Mac", everyone else the Mac download. */
 .site-sheet-for.site-sheet-ios, .site-sheet-for.site-sheet-other { display: none; }
@@ -262,14 +265,23 @@ html:has([data-hero-download]) .site-nav a.site-cta { display: none; }
 .site-footer {
   view-transition-name: site-footer;
   width: 100%; max-width: 1240px; margin: 120px auto 0; padding: 0 var(--gutter); box-sizing: border-box;
-  display: grid; justify-items: center; gap: 12px; text-align: center; overflow: hidden;
+  display: grid; justify-items: center; text-align: center;
 }
+/* The ground the footer town stands on: the links and credit sit on it, in cream, full width. Its colour
+   is the plate's own bottom edge, so the trees run straight into it. Once the town is in view the page
+   behind turns the same colour (app/FooterScene.tsx), so scrolling past the end never shows cream. */
+html[data-theme] { --ground: #1a2123; }
+html[data-theme="leaf"] { --ground: #0b1418; }
+html.fs-at-ground { background: var(--ground); }
+.site-ground { position: relative; z-index: 1; margin-top: -1px; justify-self: start; width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box;
+  padding: 4px var(--gutter) 40px; background: var(--ground); display: grid; justify-items: center; gap: 12px;
+  --muted: #cdbfaa; --ink: #fbeedd; --line: rgba(255, 236, 210, 0.18); --soft: rgba(255, 236, 210, 0.08); }
 /* One row: the page links, a hairline, then the social icons; the credit line centred under it. */
 .site-footrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 20px; }
 .site-footer nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 20px; }
 .site-footsep { width: 1px; height: 16px; background: var(--line); }
 @media (max-width: 480px) { .site-footsep { display: none; } }
-.site-credit { max-width: 60ch; text-align: center; text-wrap: balance; }
+.site-credit { max-width: 80ch; text-align: center; text-wrap: pretty; }
 .site-footer a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; min-height: 36px; display: inline-flex; align-items: center; }
 @media (hover: hover) { .site-footer a:hover { color: var(--ink); } }
 .site-footer p { margin: 0; font-size: 13px; color: var(--muted); }
@@ -278,9 +290,48 @@ html:has([data-hero-download]) .site-nav a.site-cta { display: none; }
 @media (hover: hover) { .site-social a:hover { background: var(--soft); } }
 .site-social a.site-gh { width: auto; gap: 6px; padding: 0 10px; font-variant-numeric: tabular-nums; }
 .site-footer a.site-maker { display: inline; min-height: 0; color: var(--ink); font-size: inherit; text-decoration: underline; text-decoration-color: var(--amber); text-underline-offset: 3px; }
-/* The big faded name: an SVG so it always fits the footer's width, centred, never cut at the sides. */
-.site-wordmark { display: block; width: 100%; height: auto; margin-top: 24px; margin-bottom: -2.2%; overflow: visible; user-select: none; }
-.site-wordmark text { fill: var(--wordmark); font: 800 176px -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif; letter-spacing: -8px; }
+
+/* ── Footer scene (app/FooterScene.tsx): a cut-paper town under the links, the full width of the
+   window, its sky fading into the page. Hand animation on a 12 s loop; still for reduced motion. ── */
+.fs { position: relative; justify-self: start; width: 100vw; margin-left: calc(50% - 50vw); margin-top: var(--fs-rise, -8vw); aspect-ratio: 3 / 1; z-index: 0; overflow: hidden; pointer-events: none; user-select: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%); mask-image: linear-gradient(to bottom, transparent 0%, #000 22%); }
+.fs::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 14%; background: linear-gradient(to bottom, transparent, var(--ground)); }
+.fs-plate { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center bottom; display: block; }
+.fs-layer, .fs-sky { position: absolute; inset: 0; }
+.fs-layer > * { position: absolute; }
+.fs-sky { background: radial-gradient(60% 55% at 60% 52%, rgba(255,200,140,.55), rgba(255,200,140,0) 70%); mix-blend-mode: soft-light; animation: fs-sky 12s ease-in-out infinite; }
+.fs-night .fs-sky { background: radial-gradient(60% 40% at 60% 60%, rgba(255,170,110,.35), rgba(255,170,110,0) 70%); }
+@keyframes fs-sky { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
+/* Lights: the plate's own lit-window and lamp pixels (tools/lightlayers.py), so every glow sits
+   exactly on its window. A sharp copy brightens, a blurred copy blooms. The "off" layer paints one
+   house's windows unlit; it fades away a third of the way in, so that house switches its lights on. */
+.fs-lights { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center bottom; mix-blend-mode: screen; animation: fs-breathe 6s ease-in-out infinite; }
+.fs-bloom { filter: blur(5px); animation-duration: 6s; animation-delay: -3s; }
+.fs-lamps { animation-duration: 4s; }
+.fs-lamps.fs-bloom { filter: blur(9px); animation-delay: -2s; }
+@keyframes fs-breathe { 0%,100% { opacity: .2; } 50% { opacity: .85; } }
+.fs-off { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center bottom; animation: fs-off 12s ease-in-out infinite; }
+@keyframes fs-off { 0%, 18% { opacity: 1; } 21% { opacity: .2; } 23% { opacity: .7; } 26%, 90% { opacity: 0; } 100% { opacity: 1; } }
+.fs-smoke { width: 2.6%; transform: translateX(-50%); }
+.fs-smoke svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+/* The foot of each stroke stays on the pot (transform origin at the bottom) while the plume lengthens,
+   leans and fades; the wide, blurred haze under it gives the smoke some body. */
+.fs-smoke path { fill: none; stroke: #f3e7e0; stroke-width: 6; stroke-linecap: round; transform-box: fill-box; transform-origin: 50% 100%;
+  filter: drop-shadow(0 1px .8px rgba(60, 30, 30, .25)); opacity: 0; animation: fs-smoke 6s ease-in-out infinite; animation-delay: var(--d, 0s); }
+.fs-smoke path.fs-haze { stroke-width: 15; stroke: #fbf2ec; filter: blur(3px); animation-name: fs-haze; }
+.fs-night .fs-smoke path { stroke: #6d5a5e; filter: none; }
+.fs-smoke path:nth-child(3) { animation-delay: calc(var(--d, 0s) - 3s); }
+@keyframes fs-smoke { 0% { opacity: 0; transform: scaleY(.55); } 22% { opacity: .95; } 65% { opacity: .65; } 100% { opacity: 0; transform: translateY(-10%) scaleY(1.12) skewX(-10deg); } }
+@keyframes fs-haze { 0% { opacity: 0; transform: scaleY(.55); } 25% { opacity: .4; } 65% { opacity: .25; } 100% { opacity: 0; transform: translateY(-10%) scaleY(1.12) skewX(-10deg); } }
+.fs-bird { width: 1.4%; aspect-ratio: 2; animation: fs-fly 12s linear infinite; }
+.fs-bird svg { width: 100%; height: 100%; overflow: visible; display: block; fill: #3f2a2c; }
+/* Wings hinge at the shoulder: two beats, then a long glide with the wings held in a shallow V. */
+.fs-wing { transform-box: view-box; transform-origin: 10px 6.4px; animation: fs-wing-l 2.4s ease-in-out infinite; animation-delay: inherit; }
+.fs-wing-r { animation-name: fs-wing-r; }
+@keyframes fs-wing-l { 0% { transform: rotate(30deg); } 11% { transform: rotate(-28deg); } 22% { transform: rotate(30deg); } 33% { transform: rotate(-28deg); } 46% { transform: rotate(9deg); } 80% { transform: rotate(6deg); } 100% { transform: rotate(30deg); } }
+@keyframes fs-wing-r { 0% { transform: rotate(-30deg); } 11% { transform: rotate(28deg); } 22% { transform: rotate(-30deg); } 33% { transform: rotate(28deg); } 46% { transform: rotate(-9deg); } 80% { transform: rotate(-6deg); } 100% { transform: rotate(-30deg); } }
+@keyframes fs-fly { 0% { transform: translate(0, 0); opacity: 0; } 5% { opacity: 1; } 35% { transform: translate(-1700%, -170%); } 70% { transform: translate(-3600%, -115%); opacity: 1; } 76%, 100% { transform: translate(-3900%, -130%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fs-layer, .fs-layer * { animation: none !important; } .fs-off, .fs-bloom, .fs-bird { display: none; } }
 
 /* Content entrance: blur, lift and fade into focus, in order (style="--i: n"). Runs on load and
    after every navigation. Exits are handled by the view transition (a quick fade). */
@@ -411,9 +462,9 @@ html:has([data-hero-download]) .site-nav a.site-cta { display: none; }
 @media (hover: hover) { .site-footer button.site-footlink:hover { color: var(--ink); } }
 .site-footer button.site-footlink:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 6px; }
 
-/* "Didn't open?" (app/OpenInApp.tsx): when Use template or Use this note didn't reach Pinto Notes,
-   a small sheet centred at the bottom of the window, above the cookie bar, with the Mac app and
-   another try. It never dims or blocks the page. */
+/* "This template opens in Pinto Notes" (app/OpenInApp.tsx): when Use template or Use this note
+   didn't reach Pinto Notes, a small sheet centred at the bottom of the window, above the cookie bar,
+   with the app and another try. It never dims or blocks the page. */
 .open-sheet {
   position: fixed; z-index: 60;
   left: max(var(--gutter), env(safe-area-inset-left)); right: max(var(--gutter), env(safe-area-inset-right));
@@ -432,13 +483,18 @@ html:has([data-hero-download]) .site-nav a.site-cta { display: none; }
 @keyframes open-sheet-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .open-sheet-title { margin: 0; font-weight: 700; font-size: 16px; }
 .open-sheet-text { margin: 0; color: var(--muted); text-wrap: pretty; }
-.open-sheet-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+/* The two buttons match: same width and an icon each, side by side or stacked when the sheet is narrow. */
+.open-sheet-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-top: 10px; }
 .open-sheet-get, .open-sheet-iphone {
-  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 12px;
   font-weight: 600; text-decoration: none;
 }
 .open-sheet-get { background: var(--cta-bg); color: var(--cta-ink); }
 .open-sheet-iphone { background: var(--soft); color: var(--ink); }
+/* On an iPhone the iPhone app comes first and is the filled one. */
+:root[data-platform="ios"] .open-sheet-iphone { order: -1; background: var(--cta-bg); color: var(--cta-ink); }
+:root[data-platform="ios"] .open-sheet-get { background: var(--soft); color: var(--ink); }
+:root[data-platform="ios"] .place-get-mac { order: 1; }
 .open-sheet-again { margin: 4px 0 0; color: var(--muted); }
 .open-sheet-again button {
   min-height: 40px; padding: 0 2px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--link); cursor: pointer;

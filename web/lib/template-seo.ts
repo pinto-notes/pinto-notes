@@ -9,7 +9,7 @@
 /// and "itinerary template" (~450k and ~50k), "flashcard maker" (flashcards, ~450k, mostly printable).
 ///
 /// Truth: only what the template apps in content/templates/<slug>.app do (they reach the app from
-/// this site, so they change when the site deploys) and what Mac 1.2.26 does. The iPhone app isn't on the App Store yet, and there's no iPad app.
+/// this site, so they change when the site deploys) and what Mac 1.2.26 does. There's no iPad app in 1.2.
 
 export type TemplateSeo = {
   h1: string;
@@ -26,7 +26,7 @@ export type TemplateSeo = {
 };
 
 const IPHONE =
-  "The Mac app is a free download now, for macOS 26 or later. The iPhone app isn't on the App Store yet, so for now the app runs on your Mac and your AI can update it from any device where you use ChatGPT or Claude.";
+  "Pinto Notes is free for Mac (macOS 26 or later) and iPhone (iOS 26 or later). Your AI can update the app from any device where you use ChatGPT or Claude.";
 
 const AI_SAME_DATA = { name: "Your AI sees the same data", text: "Do it yourself, or ask your AI to." };
 

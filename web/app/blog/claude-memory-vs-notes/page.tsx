@@ -77,7 +77,7 @@ export default function Page() {
           <tbody>
             <tr><th scope="row">Who writes it</th><td>Claude, plus what you ask it to remember</td><td>You, and Claude when you ask it to</td></tr>
             <tr><th scope="row">Exact wording</th><td>Short topics in Claude&apos;s words</td><td>The whole text, as written</td></tr>
-            <tr><th scope="row">Where you read it</th><td>Claude&apos;s settings</td><td>Your notes app, on your Mac (iPhone soon)</td></tr>
+            <tr><th scope="row">Where you read it</th><td>Claude&apos;s settings</td><td>Your notes app, on your iPhone or Mac</td></tr>
             <tr><th scope="row">Lists you tick off</th><td>No</td><td>Yes, as checklists</td></tr>
             <tr><th scope="row">Other AI apps</th><td>Claude only</td><td>Any app that connects to the notes app, such as ChatGPT or Claude Code</td></tr>
             <tr><th scope="row">A change you didn&apos;t want</th><td>Edit or delete the topic</td><td>In Pinto Notes: Undo, and earlier versions kept</td></tr>
@@ -155,7 +155,7 @@ export default function Page() {
       <h2 id="amber-notes">Why I built Pinto Notes this way</h2>
       <AIConnect ais={["claude", "chatgpt", "claude-code", "codex"]} caption="One set of notes that Claude, ChatGPT, Claude Code and Codex all read and add to." />
       <p>
-        I make Pinto Notes, a notes app for Mac (iPhone coming soon) that Claude, ChatGPT, Claude Code and Codex can use. When Claude adds to a note
+        I make Pinto Notes, a notes app for iPhone and Mac that Claude, ChatGPT, Claude Code and Codex can use. When Claude adds to a note
         it changes only those lines, the change shows up tinted with Undo, and the version before is kept in the note&apos;s history, with
         Claude named as the one who made it. Your notes are encrypted on your devices, and an AI reads them only after you approve it;
         locked notes stay out of reach even then.

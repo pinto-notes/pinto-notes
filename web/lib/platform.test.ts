@@ -10,8 +10,8 @@ function tab(start: Record<string, string> = {}) {
 }
 
 /// Runs the <head> script the way a browser would, and gives back what it put on <html>.
-function run(navigator: Nav | undefined, search = "", sessionStorage: unknown = tab()) {
-  const html = { dataset: {} as Record<string, string> };
+function run(navigator: Nav | undefined, search = "", sessionStorage: unknown = tab(), clientWidth?: number) {
+  const html = { dataset: {} as Record<string, string>, clientWidth };
   new Function("navigator", "document", "location", "sessionStorage", platformScript)(navigator, { documentElement: html }, { search }, sessionStorage);
   return html.dataset;
 }
@@ -40,6 +40,13 @@ describe("the visitor's platform, before first paint", () => {
     ["chromeOS", "other"], ["googlebot", "other"],
   ] as const)("reads %s as %s", (ua, platform) => {
     expect(run({ userAgent: UA[ua] }).platform).toBe(platform);
+  });
+
+  it("leads with the iPhone app in a phone-sized window on a Mac, and only then", () => {
+    expect(run({ userAgent: UA.mac }, "", tab(), 390).platform).toBe("ios");
+    expect(run({ userAgent: UA.mac }, "", tab(), 600).platform).toBe("ios");
+    expect(run({ userAgent: UA.mac }, "", tab(), 1440).platform).toBe("mac");
+    expect(run({ userAgent: UA.windows }, "", tab(), 390).platform).toBe("windows");
   });
 
   it("tells an iPad that says it's a Mac by its touch screen", () => {

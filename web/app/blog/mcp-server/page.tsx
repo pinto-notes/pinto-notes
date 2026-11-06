@@ -15,7 +15,7 @@ export default function Page() {
   return (
     <PostPage
       slug="mcp-server"
-      intro={<>Pinto Notes, the notes app for Mac (iPhone coming soon), has a remote MCP server built in. This page is for developers and anyone curious how it works: the address, how an AI app signs in and gets approved, and every tool it can call.</>}
+      intro={<>Pinto Notes, the notes app for iPhone and Mac, has a remote MCP server built in. This page is for developers and anyone curious how it works: the address, how an AI app signs in and gets approved, and every tool it can call.</>}
       hero={<PostFigure priority src="/blog/news/anthropic-mcp-announcement" width={1600} height={900} maxWidth={800}
         alt="Anthropic's illustration for the launch of the Model Context Protocol: white paper-cut shapes on a terracotta background, joined by a black line to a single white circle."
         caption="MCP, the open standard Anthropic launched in 2024, which ChatGPT, Claude and the rest now use to reach other apps. Image: Anthropic." />}

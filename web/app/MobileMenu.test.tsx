@@ -33,7 +33,7 @@ describe("what the phone menu holds", () => {
     const pages = hrefs(header).filter((h) => h.startsWith("/") && h !== "/download" && h !== "/download/mac");
     expect(pages).toEqual(MENU_PAGES.map((p) => p.href));
     expect(header).toContain("https://github.com/pinto-notes/pinto-notes");
-    expect(header).toContain(">For Mac</a>");
+    expect(header).toContain(">For iPhone and Mac</a>");
   });
 
   it("marks the current page, on the pages under it too", () => {
@@ -51,10 +51,13 @@ describe("what the phone menu holds", () => {
   });
 
   it("tells an iPhone where the iPhone app stands, and links the App Store only once it's there", () => {
-    expect(text(part(menu(), "site-sheet-ios"))).toBe("Pinto Notes for iPhone is coming to the App Store soon. Download for Mac");
+    expect(text(part(menu(), "site-sheet-ios"))).toBe("Pinto Notes for iPhone is coming to the App Store soon.Download for Mac");
     expect(hrefs(part(menu(), "site-sheet-ios"))).toEqual(["/download"]);
     expect(menu()).not.toContain("apps.apple.com");
     expect(hrefs(part(menu(true), "site-sheet-ios"))).toEqual(["https://apps.apple.com/app/id6817253103", "/download"]);
+    // The Mac app is a line under the button there, not a second button.
+    expect(part(menu(true), "site-sheet-ios")).toContain('class="site-sheet-maclink" href="/download">Download for Mac</a>');
+    expect(part(menu(true), "site-sheet-ios")).not.toContain("site-sheet-cta-quiet");
   });
 
   it("says what the header says to Windows, Android and Linux", () => {

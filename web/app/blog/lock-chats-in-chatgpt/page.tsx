@@ -155,8 +155,7 @@ export default function Page() {
         caption="Locked notes in Pinto Notes are encrypted with a key made from your password." />
       <p>
         A chat is a good place to work a plan out, and a less good place to keep it, since a forgotten PIN takes the whole
-        conversation with it. I make Pinto Notes, a notes app for Mac that Claude can read and edit once you approve it (ChatGPT and the
-        iPhone app are coming soon). Its locked notes are encrypted with a key made from your password, which stays on your
+        conversation with it. I make Pinto Notes, a notes app for iPhone and Mac that ChatGPT and Claude can read and edit once you approve them. Its locked notes are encrypted with a key made from your password, which stays on your
         devices, and a connected AI only sees their titles. <a href="/blog/encrypted-notes-app-for-ai">How its encryption
         works</a> has the details and the limits.
       </p>
