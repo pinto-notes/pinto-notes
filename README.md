@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pintonotes.com">pintonotes.com</a> &nbsp;·&nbsp; The iPhone app is coming to the App Store soon &nbsp;·&nbsp; Formerly Amber Notes
+  <a href="https://pintonotes.com">pintonotes.com</a> &nbsp;·&nbsp; <a href="https://apps.apple.com/app/id6817253103">On the App Store</a> &nbsp;·&nbsp; Formerly Amber Notes
 </p>
 
 <p align="center">
@@ -73,7 +73,7 @@ Then try "find my Lisbon note and add a day in Sintra". The plugin keeps its old
 - **A note can also be an app.** Ask your AI to turn a note into a small app, like a habit tracker you tick each day or a budget that adds itself up. The note's text stays underneath.
 - **Apple Notes import** on the Mac, and **Evernote** (.enex), **Google Keep** (Takeout) and **Markdown or text** imports on the Mac and iPhone, bring your notes over.
 - **Sync between iPhone and Mac** in about half a second.
-- **End-to-end encrypted.** Notes are sealed on your devices before upload. How AI access works with that is under [Privacy and security](#privacy-and-security).
+- **Encrypted.** Notes are sealed on your devices before upload. Who can open them, and how AI access works, is under [Privacy and security](#privacy-and-security).
 - **Free and open source,** MIT licensed.
 
 New versions ship most days. Star the repo to follow along, and see [Releases](https://github.com/pinto-notes/pinto-notes/releases) or the [changelog](https://pintonotes.com/changelog) for what changed.
