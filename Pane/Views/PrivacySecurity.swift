@@ -318,10 +318,11 @@ struct PrivacySecuritySection: View {
 
     var body: some View {
         page
-            .overlay(alignment: .bottom) {
+            // At the top: the page runs past the window's foot, which cut a toast at the bottom in half.
+            .overlay(alignment: .top) {
                 if let disconnected {
                     Toast(text: disconnected)
-                        .padding(.bottom, 20)
+                        .padding(.top, 12)
                         .transition(.opacity)
                         .accessibilityIdentifier("privacy.disconnected")
                         .task(id: disconnected) {
