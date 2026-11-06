@@ -281,10 +281,18 @@ struct PaneApp: App {
                     // In dark mode its edge vanished into the black notes window behind it
                     // (council rounds 7 to 9): a faint inner line, as dark system windows have.
                     .overlay { SettingsWindowEdge() }
+                    // A window with a toolbar has the notes window's larger corners and its buttons
+                    // in the same place; without one it had small corners of its own (Emil, 11-06).
+                    .toolbar {
+                        ToolbarItem { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
+                            .sharedBackgroundVisibility(.hidden)
+                    }
+                    .toolbar(removing: .title)
             }
         }
         .modelContainer(container)
         .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified)
         .windowResizability(.contentSize)
         .defaultPosition(.center)
         .restorationBehavior(.disabled)

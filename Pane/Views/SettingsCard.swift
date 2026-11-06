@@ -16,7 +16,7 @@ extension EnvironmentValues {
     /// The window's content size: the card's, the sidebar and one page column.
     // 720 tall so Appearance (text size and its sample) and Privacy and security fit without
     // scrolling (council round 6, 11-04: both ran past the bottom at 600). Fits a 13-inch Mac.
-    static let size = CGSize(width: 880, height: 720)
+    static let size = CGSize(width: 900, height: 720)
     /// Room above the sidebar for the window's buttons (it runs to the top, like System Settings').
     static let titleBar: CGFloat = 38
     /// The title bar's safe area on a hidden-title-bar window.
@@ -98,7 +98,7 @@ struct SettingsCard: View {
 
     /// The same card as Templates, so the two read as one kind of place.
     static let size = TemplateLibraryView.size
-    static let sidebarWidth: CGFloat = 210
+    static let sidebarWidth: CGFloat = 230
     /// Room around the card on a window smaller than it.
     static let margin: CGFloat = 24
     /// The content column's widest: the rows read as one column, centred in the page area, not a
@@ -217,10 +217,11 @@ struct SettingsCard: View {
     @ViewBuilder private func card(framed: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: framed ? 22 : 0, style: .continuous)
         HStack(spacing: 0) {
-            // Flat, on the card's own ground, like System Settings' sidebar (direction A).
+            // The notes window's sidebar: its glass and the theme's colour over it (Emil, 6 November 2026).
             sidebar
                 .frame(width: Self.sidebarWidth)
                 .frame(maxHeight: .infinity, alignment: .top)
+                .background { Color(Palette.sidebarWarmth).background(.regularMaterial).ignoresSafeArea() }
             SettingsInk.hairline.frame(width: 0.5)
             VStack(spacing: 0) {
                 header
@@ -282,11 +283,6 @@ struct SettingsCard: View {
             }
             .frame(minHeight: 28)
             .overlay(alignment: .leading) { if !path.isEmpty { back.offset(x: -34) } }
-            Text(shown.intro)
-                .font(.system(size: 13))
-                .foregroundStyle(SettingsInk.muted)
-                .lineLimit(2)
-                .accessibilityIdentifier("settings.intro")
         }
         .padding(.horizontal, Self.pageInset)
         .frame(maxWidth: Self.pageWidth)
@@ -346,7 +342,7 @@ struct SettingsCard: View {
     /// Search on the sidebar's own ground: a hairline, no fill of its own.
     private var searchField: some View {
         HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(SettingsInk.muted)
+            Image(systemName: "magnifyingglass").font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
             TextField("Search", text: $query, prompt: Text("Search").foregroundStyle(SettingsInk.muted))
                 .textFieldStyle(.plain)
                 .focusEffectDisabled()
@@ -358,10 +354,10 @@ struct SettingsCard: View {
                     .accessibilityLabel("Clear search")
             }
         }
-        .font(.system(size: 13))
-        .padding(.horizontal, 9)
-        .frame(height: 28)
-        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(SettingsInk.hairline, lineWidth: 1))
+        .font(.system(size: 14))
+        .padding(.horizontal, 10)
+        .frame(height: 34)
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(SettingsInk.hairline, lineWidth: 1))
     }
 
     /// What search finds: each setting by its words, with the page it's on; a click opens the page.
@@ -407,12 +403,12 @@ struct SettingsCard: View {
     @ViewBuilder private func icon(_ p: SettingsPlace, on: Bool) -> some View {
         Group {
             if p == .account, case .signedIn = backend.state {
-                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 20)
+                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 22)
             } else {
-                Image(systemName: p.symbol).font(.system(size: 13)).foregroundStyle(on ? SettingsInk.text : SettingsInk.icon)
+                Image(systemName: p.symbol).font(.system(size: 16)).foregroundStyle(on ? SettingsInk.text : SettingsInk.icon)
             }
         }
-        .frame(width: 20)
+        .frame(width: 24)
     }
 
     private func row(_ p: SettingsPlace) -> some View {
@@ -421,13 +417,13 @@ struct SettingsCard: View {
             HStack(spacing: 9) {
                 icon(p, on: on)
                 Text(p.title)
-                    .font(.system(size: 13, weight: on ? .semibold : .regular))
+                    .font(.system(size: 14, weight: on ? .semibold : .regular))
                     .foregroundStyle(SettingsInk.text)
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
             .background(highlight(on))
             .contentShape(.rect)
             .hoverRow(reach: EdgeInsets())

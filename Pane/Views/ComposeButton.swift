@@ -42,6 +42,11 @@ struct ComposeButton<Label: View>: View {
 /// Today's note in one press, beside New Note on the iPhone and at the top of the Mac sidebar,
 /// like Obsidian's calendar button in its ribbon.
 struct TodayButton: View {
+    /// The calendar with today's date on it, one flat symbol. `turns` redraws it when the day changes.
+    static func symbol(for date: Date, calendar: Calendar = .current) -> String {
+        "\(calendar.component(.day, from: date)).calendar"
+    }
+
     var identifier = "list.today"
     @Environment(\.todaysNote) private var todaysNote
     /// Times the page has turned: on opening today's note and when the day changes (Charm).
@@ -52,7 +57,9 @@ struct TodayButton: View {
             todaysNote?.open()
             turns += 1
         } label: {
-            Label { Text("Today\u{2019}s note") } icon: { CharmSymbol("calendar", cue: turns) }
+            Label { Text("Today\u{2019}s note") } icon: {
+                if Charm.on { CharmSymbol("calendar", cue: turns) } else { Image(systemName: Self.symbol(for: .now)) }
+            }
         }
         #if os(macOS)
         .help("Today\u{2019}s note (⌘T)")

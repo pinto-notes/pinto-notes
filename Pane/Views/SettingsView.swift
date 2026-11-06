@@ -134,7 +134,7 @@ struct SettingsView: View {
     var places: Set<SettingsPlace> {
         var out: Set<SettingsPlace> = [.account, .appearance, .security]
         if tabs.contains(.ai) { out.insert(.ai) }
-        if NoteApps.enabled, isSignedIn { out.insert(.appKeys) }
+        // Keys for apps is parked (Emil, 6 November 2026): nothing leads to it for now.
         return out
     }
 

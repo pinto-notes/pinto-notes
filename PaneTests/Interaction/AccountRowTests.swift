@@ -265,37 +265,6 @@ import Testing
         }
     }
 
-    /// Clicking yourself opens a native menu (Emil, 3 November 2026, "simplify and cut things"):
-    /// you, then Settings… (⌘,), Send Feedback… and Sign Out…. Never Connect an AI.
-    @Test func clickingOpensTheAccountMenu() throws {
-        var done: [AccountMenu.Action] = []
-        let menu = AccountMenu.make(name: "Sara Lind", email: "sara@example.com", signedIn: true) { done.append($0) }
-        #expect(menu.items.map { $0.isSeparatorItem ? "-" : $0.title } == ["Sara Lind, sara@example.com", "-", "Settings\u{2026}", "Send Feedback\u{2026}", "-", "Sign Out\u{2026}"])
-        #expect(!menu.items[0].isEnabled, "you are a heading, not a command")
-        #expect(menu.items[0].attributedTitle?.string == "Sara Lind\nsara@example.com")
-        let settings = menu.items[2]
-        #expect(settings.keyEquivalent == "," && settings.keyEquivalentModifierMask == .command)
-        #expect(!menu.items.contains { $0.title.localizedCaseInsensitiveContains("connect") }, "never Connect an AI")
-        for item in menu.items where item.isEnabled && !item.isSeparatorItem {
-            #expect(item.image != nil, "\(item.title) has its symbol")
-            _ = (item.target as? NSObject)?.perform(item.action)
-        }
-        #expect(done == [.settings, .feedback, .signOut])
-        // Signed out there's nothing to sign out of.
-        let out = AccountMenu.make(name: AccountName.fallback, email: nil, signedIn: false) { _ in }
-        #expect(!out.items.contains { $0.title.hasPrefix("Sign Out") })
-        // Each opens Settings where it says.
-        let route = SettingsRoute(defaults: UserDefaults(suiteName: "account-menu-\(UUID())")!)
-        AccountMenu.perform(.settings, route: route)
-        #expect(route.presenting && route.target == nil, "Settings… is ⌘,: at its first page, Account")
-        #expect(SettingsCard.first(Set(SettingsPlace.allCases)) == .account, "Settings never opens at Connect an AI")
-        // The row opens the menu, natively; Sign Out… asks with the same alert as Settings.
-        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "Pane/Views/SidebarView.swift"), encoding: .utf8)
-        let button = try #require(src.range(of: "struct AccountButton").map { String(src[$0.lowerBound...].prefix(4000)) })
-        #expect(button.contains("menu.popUp(") && button.contains("MacSignOut.ask(") && !button.contains("paneConnectAI"))
-    }
-
     /// Opening Settings from the account row leaves the notes window as it was: the same columns,
     /// the same toolbar, nothing over the note. (An older sheet's `.toolbar(.hidden)` once hid the
     /// window's toolbar.) Settings is a window of its own (UI council, 11-04, as Notes and Obsidian

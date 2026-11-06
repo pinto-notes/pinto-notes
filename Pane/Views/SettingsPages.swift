@@ -86,23 +86,23 @@ struct AccountSettingsPage: View {
 
     @ViewBuilder private func signedIn(email: String) -> some View {
         SettingsSummary {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 16) {
                     photo
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 6) {
                         name
                         Text(Self.shownEmail(email, apple: backend.apple != nil, google: backend.google))
                             .font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
                             .lineLimit(1).truncationMode(.middle)
                             .textSelection(.enabled)
-                            .padding(.leading, 4)
+                            .padding(.leading, 8)
                             .accessibilityIdentifier("settings.signedInWith")
-                        syncStatus.padding(.leading, 4)
                         if let problem = profile.problem {
-                            Text(problem).font(.system(size: 12)).foregroundStyle(.red).padding(.leading, 4)
+                            Text(problem).font(.system(size: 12)).foregroundStyle(.red).padding(.leading, 8)
                         }
                     }
-                    Spacer(minLength: 0)
+                    Spacer(minLength: 8)
+                    syncStatus
                 }
                 if let u = storage.usage {
                     SettingsInk.hairline.frame(height: 0.5)
@@ -112,24 +112,35 @@ struct AccountSettingsPage: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings.accountSummary")
-        HStack(spacing: 12) {
-            SignOutButton(backend: backend, sync: sync, red: false).buttonStyle(.settings)
-            Spacer(minLength: 12)
-            // Quiet, but there: the App Store asks for deleting an account inside the app.
+        VStack(spacing: 0) {
+            SignOutButton(backend: backend, sync: sync, red: false).buttonStyle(SettingsRowButtonStyle())
+            SettingsInk.hairline.frame(height: 0.5).padding(.leading, 16)
+            // The App Store asks for deleting an account inside the app.
             DeleteAccountButton(backend: backend, title: "Delete Account\u{2026}")
-                .buttonStyle(.hoverText)
-                .font(.system(size: 12.5))
+                .buttonStyle(SettingsRowButtonStyle())
                 .settingsProbe("account.delete")
         }
-        .padding(.horizontal, 4)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(SettingsInk.group))
+        .clipShape(.rect(cornerRadius: 12, style: .continuous))
     }
 
     /// Your photo: click it for Choose Photo… and Remove Photo. A photo can be dropped on it too.
     private var photo: some View {
         Button { showPhotoMenu() } label: {
             ZStack {
-                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 54)
+                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 64)
                 if profile.working { ProgressView().controlSize(.small) }
+            }
+            // Says it can be changed, without a hover (Emil, 6 November 2026).
+            .overlay(alignment: .bottomTrailing) {
+                Image(systemName: "pencil")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SettingsInk.text)
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(SettingsInk.raised))
+                    .overlay(Circle().strokeBorder(SettingsInk.edge, lineWidth: 0.5))
+                    .offset(x: 3, y: 3)
+                    .accessibilityHidden(true)
             }
             .background(MenuAnchorView(anchor: photoMenu))
         }
@@ -161,17 +172,18 @@ struct AccountSettingsPage: View {
         TextField("Name", text: $draft, prompt: Text("Add your name").foregroundStyle(SettingsInk.muted))
             .labelsHidden()
             .textFieldStyle(.plain)
-            .font(.system(size: 17, weight: .semibold))
+            .font(.system(size: 15, weight: .semibold))
             .foregroundStyle(SettingsInk.text)
             .focused($editing)
             .onSubmit { Task { await profile.setName(draft) } }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 1)
-            .background(RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(editing ? SettingsInk.ground : nameHover ? SettingsInk.selection : .clear))
-            .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(editing ? SettingsInk.edge : .clear, lineWidth: 1))
+            .padding(.horizontal, 8)
+            .frame(height: 32)
+            // Always a field, so it reads as one you can type in (Emil, 6 November 2026).
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(editing ? SettingsInk.ground : nameHover ? SettingsInk.selection : SettingsInk.group))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(editing ? SettingsInk.edge : SettingsInk.hairline, lineWidth: 1))
             .onHover { nameHover = $0 }
-            .frame(maxWidth: 300, alignment: .leading)
+            .frame(maxWidth: 240, alignment: .leading)
             .accessibilityLabel("Name")
             .accessibilityIdentifier("settings.profileName")
             .settingsProbe("account.name")

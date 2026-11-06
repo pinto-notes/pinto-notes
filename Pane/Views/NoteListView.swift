@@ -23,6 +23,9 @@ struct NoteListView: View {
     @State private var lockRequest: ListLockRequest?
     @Environment(\.openWindow) private var openWindow
     @Environment(\.undoManager) private var undoManager
+    #if os(macOS)
+    @Environment(\.listSidebarHidden) private var listSidebarHidden
+    #endif
 
     /// Every note, fetched again only when a save adds or deletes one (see LibraryNotes).
     @State private var ownLibrary = LibraryNotes()
@@ -393,6 +396,7 @@ struct NoteListView: View {
         // Soft under the toolbar, as the sidebar and Notes: a list's own edge is hard, the window's
         // grey title bar with a line under it (Emil, 10-30, in Recently Deleted).
         .scrollEdgeEffectStyle(.soft, for: .top)
+        .modifier(ListEdgeQuiet())
         .modifier(FollowsTextSize())
         #endif
         .overlay {
@@ -638,32 +642,21 @@ struct NoteListView: View {
                 SearchComposeBar(newNote: onNewNote, hidesCompose: scope == .trash, tip: true, search: $search)
             }
             #else
-            // Emil's draft (10-29): the list's round "⋯" on the left, the folder's name and count
-            // centred, compose on the right.
-            ToolbarItem {
-                Menu {
-                    ListOrderMenu(store: orderStore, scope: scope)
-                    Divider()
-                    Button("New Folder", systemImage: "folder.badge.plus") { NotificationCenter.default.post(name: .paneNewFolder, object: nil) }
-                    Button(ListMoreMenu.addFilesTitle(folder: context.folderNameForFiles(scope)), systemImage: "doc.badge.plus") { addingFiles = true }
-                        .disabled(scope == .trash)
-                        .accessibilityIdentifier("list.addFile")
-                    Divider()
-                    // One item: the sources, with their icons, are in the choice it opens.
-                    Button("Import…", systemImage: "square.and.arrow.down") { choosingImport = true }
-                        .accessibilityIdentifier("list.import")
-                    // Ask an AI about this folder, or every note, when one is connected.
-                    askItems
-                } label: {
-                    Label("More", systemImage: "ellipsis")
+            // Sidebar hidden: the window's plain buttons on the left, the list's two together on
+            // the right, one group. Round "⋯" beside a plain Search looked like a mistake (Emil,
+            // 6 November 2026).
+            if sidebarHidden {
+                ToolbarSpacer(.flexible)
+                ToolbarItemGroup {
+                    listMore
+                    if scope != .trash {
+                        ListCompose(selected: selection.count == 1 ? selection.first : nil, newNote: onNewNote)
+                    }
                 }
-                .menuIndicator(.hidden)
-                .tint(.primary)
-                // A toolbar menu's label is drawn as a picture, so VoiceOver had no name (council round 15).
-                .accessibilityLabel("List Options")
-                .accessibilityIdentifier("list.more")
-                .askAIPopover($asking, subject: askSubject ?? .all, recent: askRecent)
-            }
+            } else {
+                // Emil's draft (10-29): the list's round "⋯" on the left, the folder's name and count
+                // centred, compose on the right.
+                            ToolbarItem { listMore }
             ToolbarSpacer(.flexible)
             if Self.titleRoom(listWidth: listWidth, compose: scope != .trash) > 0 {
                 // A new slot when the room changes: the bar keeps a slot's first width otherwise.
@@ -694,9 +687,40 @@ struct NoteListView: View {
                     ListCompose(selected: selection.count == 1 ? selection.first : nil, newNote: onNewNote)
                 }
             }
+            }
             #endif
         }
     }
+
+    #if os(macOS)
+    /// True while the window's sidebar is hidden.
+    private var sidebarHidden: Bool { listSidebarHidden }
+
+    private var listMore: some View {
+        Menu {
+            ListOrderMenu(store: orderStore, scope: scope)
+            Divider()
+            Button("New Folder", systemImage: "folder.badge.plus") { NotificationCenter.default.post(name: .paneNewFolder, object: nil) }
+            Button(ListMoreMenu.addFilesTitle(folder: context.folderNameForFiles(scope)), systemImage: "doc.badge.plus") { addingFiles = true }
+                .disabled(scope == .trash)
+                .accessibilityIdentifier("list.addFile")
+            Divider()
+            // One item: the sources, with their icons, are in the choice it opens.
+            Button("Import…", systemImage: "square.and.arrow.down") { choosingImport = true }
+                .accessibilityIdentifier("list.import")
+            // Ask an AI about this folder, or every note, when one is connected.
+            askItems
+        } label: {
+            Label("More", systemImage: "ellipsis")
+        }
+        .menuIndicator(.hidden)
+        .tint(.primary)
+        // A toolbar menu's label is drawn as a picture, so VoiceOver had no name (council round 15).
+        .accessibilityLabel("List Options")
+        .accessibilityIdentifier("list.more")
+        .askAIPopover($asking, subject: askSubject ?? .all, recent: askRecent)
+    }
+    #endif
 
     /// One date's notes (and files), collapsible, under its heading.
     private func dateSection<Item: Identifiable, Row: View>(_ section: (String, [Item]), @ViewBuilder row: @escaping (Item) -> Row) -> some View {
@@ -742,8 +766,8 @@ struct NoteListView: View {
         #if os(iOS)
         .headerProminence(stacked ? .increased : .standard)
         #else
-        // C and D: no rule under a heading; spacing does the work.
-        .listSectionSeparator(DesignLook.calmList ? .hidden : .automatic)
+        // No rule under a heading, in every look; spacing does the work (Emil, 6 November 2026).
+        .listSectionSeparator(.hidden)
         #endif
     }
 
@@ -2513,6 +2537,65 @@ private struct OpensTopNote: ViewModifier {
                 if selection.isEmpty, let top { selection = [top] }
             }
         }
+    }
+}
+#endif
+
+#if os(macOS)
+/// macOS 27 rules lines this app doesn't want: under a pinned date heading, and a bright divider
+/// beside the note. No setting turns them off (Emil, 6 November 2026). The toolbar edge's and the
+/// divider's are hidden by the system's names: if one changes, that line simply comes back. The
+/// heading's belongs to the row the table floats over the list, so date headings scroll with the
+/// notes instead. The divider still drags.
+struct ListEdgeQuiet: ViewModifier {
+    func body(content: Content) -> some View {
+        content.background { ListEdgeLine() }
+    }
+}
+
+struct ListEdgeLine: NSViewRepresentable {
+    final class Probe: NSView {
+        private var last = Date.distantPast
+        private var watch: NSObjectProtocol?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let watch { NotificationCenter.default.removeObserver(watch) }
+            watch = nil
+            guard window != nil else { return }
+            watch = NotificationCenter.default.addObserver(forName: NSWindow.didUpdateNotification, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.hide() }
+            }
+        }
+
+        private func hide() {
+            guard Date.now.timeIntervalSince(last) > 1, let frame = window?.contentView?.superview, let root = frame.layer else { return }
+            last = .now
+            ListEdgeLine.hideLines(in: root)
+            func walk(_ v: NSView) {
+                if String(describing: type(of: v)) == "NSSplitDividerView", v.frame.width >= 1 { v.alphaValue = 0 }
+                if let table = v as? NSTableView { ListEdgeLine.stopFloating(table) }
+                v.subviews.forEach(walk)
+            }
+            walk(frame)
+        }
+    }
+
+    /// The sidebar's source list keeps its own behaviour.
+    static func stopFloating(_ table: NSTableView) {
+        if table.style != .sourceList, table.floatsGroupRows { table.floatsGroupRows = false }
+    }
+
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ view: Probe, context: Context) {}
+
+    /// Hides the toolbar edge's separator and the split view's divider ground under `root`.
+    static func hideLines(in root: CALayer) {
+        func walk(_ l: CALayer) {
+            if l.name == "Separator" || (l.name == "DividerBackground" && l.bounds.width >= 1) { l.isHidden = true }
+            l.sublayers?.forEach(walk)
+        }
+        walk(root)
     }
 }
 #endif

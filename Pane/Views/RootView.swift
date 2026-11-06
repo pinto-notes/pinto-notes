@@ -176,6 +176,9 @@ struct RootView: View {
             }
             #if os(macOS)
             .onReceive(NotificationCenter.default.publisher(for: .paneQuickOpen)) { _ in
+                #if os(macOS)
+                if let closed = QuickOpen.closedByClick, Date.now.timeIntervalSince(closed) < 0.3 { return }
+                #endif
                 quickOpen = quickOpen == nil ? QuickOpen.noteItems(in: context) : nil
             }
             // VoiceOver stays in Go to Note while it's open, as with a sheet (round 19).
@@ -448,6 +451,7 @@ struct RootView: View {
                 .equatable()
                 .environment(library)
                 #if os(macOS)
+                .environment(\.listSidebarHidden, visibility != .all)
                 // With the sidebar hidden its New Folder, Today and Search sit over this column
                 // beside the window's buttons: 350 pt keeps More and New Note clear of its edge.
                 // 360 at most beside the sidebar, so a missed restore costs the note little (council
@@ -1501,14 +1505,24 @@ struct SoftToolbarEdge: NSViewRepresentable {
 /// one pixel wide, against the note's leading edge.
 struct ColumnHairline: View {
     @Environment(\.displayScale) private var scale
+    /// Fainter than the system's separator, which read as a hard edge once the list had a ground
+    /// of its own (Emil, 6 November 2026).
+    static let colour = Color(nsColor: NSColor(name: nil) {
+        $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 1, alpha: 0.09) : NSColor(white: 0, alpha: 0.08)
+    })
+
+    /// macOS 27 draws its own divider here, so a second line only made it harder.
+    static var systemDrawsIt: Bool { if #available(macOS 27, *) { true } else { false } }
 
     var body: some View {
-        Rectangle()
-            .fill(Color(nsColor: .separatorColor))
-            .frame(width: 1 / max(scale, 1))
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        if !Self.systemDrawsIt {
+            Rectangle()
+                .fill(Self.colour)
+                .frame(width: 1 / max(scale, 1))
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
     }
 }
 #endif
@@ -1651,6 +1665,8 @@ struct ToggleSidebarAction: Equatable {
 
 extension EnvironmentValues {
     @Entry var toggleSidebar: ToggleSidebarAction? = nil
+    /// The notes list: the window's sidebar is hidden, so its buttons sit beside the list's.
+    @Entry var listSidebarHidden = false
 }
 
 /// The sidebar steps aside when the window is too narrow for three columns and comes back when

@@ -25,17 +25,6 @@ enum SettingsPlace: String, Hashable, CaseIterable, Identifiable {
         }
     }
 
-    /// The line under the page's title: what the page is for, in one plain sentence.
-    var intro: String {
-        switch self {
-        case .account: "Your name, your sync and the space your notes take."
-        case .ai: "Let your AI read and edit your notes when you ask."
-        case .appearance: "How Pinto Notes looks on this Mac."
-        case .security: "Who can open your notes, and what is shared."
-        case .appKeys: "Keys the apps in your notes use to reach other services."
-        }
-    }
-
     /// Monochrome, like System Settings' sidebar in its plain form. Account shows your photo instead.
     var symbol: String {
         switch self {
@@ -114,7 +103,7 @@ enum SettingsIndex {
         ("Name", .account), ("Photo", .account), ("Sign Out", .account), ("Remove notes from this Mac", .account),
         ("Storage used", .account), ("Delete account", .account),
         ("Connect ChatGPT", .ai), ("Connect Claude", .ai), ("Connect Grok", .ai), ("Connect Codex", .ai), ("Connected AIs", .ai),
-        ("Disconnect", .ai), ("App previews", .ai), ("Keys for apps", .appKeys),
+        ("Disconnect", .ai), ("App previews", .ai),
         (recoveryKey, .security), ("Devices", .security), ("Add a device", .security), (advancedProtection, .security),
         ("Locked notes password", .security), ("Touch ID", .security), ("Lock Now", .security),
         ("Share diagnostics and usage", .security), ("Terms of Service", .security), ("Privacy Policy", .security), ("How it works", .security),

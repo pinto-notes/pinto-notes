@@ -25,7 +25,6 @@ import Testing
         #expect(SettingsCard.first(all) == .account, "Settings opens at Account, never at Connect an AI")
         #expect(SettingsCard.first([.appearance, .security]) == .appearance)
         for place in SettingsPlace.allCases {
-            #expect(!place.intro.isEmpty && place.intro.hasSuffix(".") && !place.intro.contains("\u{2014}"), "\(place) has one plain line under its title")
         }
     }
 
@@ -143,7 +142,8 @@ import Testing
                     "\(word): found while it's on")
         }
         #expect(SettingsIndex.matches("security", available: all).allSatisfy { $0.label != "Advanced protection" })
-        for place in SettingsPlace.allCases {
+        // Keys for apps is parked: nothing leads to it, search included.
+        for place in SettingsPlace.allCases where place != .appKeys {
             #expect(SettingsIndex.all.contains { $0.place == place }, "\(place) has words to find it by")
         }
     }
@@ -519,7 +519,7 @@ import Testing
             #expect(frames.all[part] != nil, "\(part) is there")
         }
         let photo = try #require(frames.all["account.photo"]), name = try #require(frames.all["account.name"])
-        #expect(name.minX > photo.maxX && status.minY > name.minY, "the name beside the photo, the status under it")
+        #expect(name.minX > photo.maxX && status.minX >= name.maxX && status.maxY <= name.maxY + 8, "the name beside the photo, the status top right")
         // What the status runs when clicked: a sync.
         AccountSettingsPage.syncNow(nil) { synced.n += 1 }
         for _ in 0..<20 where synced.n == 0 { try await Task.sleep(for: .milliseconds(50)) }

@@ -21,7 +21,7 @@ enum CheckPop {
     /// `rect` is the circle in `host`'s coordinates (y grows downwards, as in text views).
     static func play(in host: CALayer, rect: CGRect, completes: Bool = false) {
         guard !reduceMotion, rect.width > 0 else { return }
-        if completes, Charm.on { burst(in: host, rect: rect) }
+        if completes { burst(in: host, rect: rect) }
         let s = rect.width
         let pop = CALayer()
         pop.frame = rect
@@ -73,11 +73,12 @@ enum CheckPop {
         let s = rect.width
         let center = CGPoint(x: rect.midX, y: rect.midY)
         CATransaction.begin()
-        for i in 0..<14 {
-            let a = Double(i) / 14 * 2 * .pi - .pi / 2
+        // Calmer than it was (Emil, 6 November 2026: "a little bit too over the top").
+        for i in 0..<10 {
+            let a = Double(i) / 10 * 2 * .pi - .pi / 2
             let far = i % 2 == 0
-            let dot = s * (far ? 0.3 : 0.2)
-            let reach = s * (far ? 2.3 : 1.5) + 4
+            let dot = s * (far ? 0.24 : 0.16)
+            let reach = s * (far ? 1.7 : 1.2) + 3
             let start = CGPoint(x: center.x + cos(a) * (s * 0.6 + 1.5), y: center.y + sin(a) * (s * 0.6 + 1.5))
             let out = CGPoint(x: center.x + cos(a) * reach, y: center.y + sin(a) * reach)
             // y grows downwards here, so the dots drop as they fade.

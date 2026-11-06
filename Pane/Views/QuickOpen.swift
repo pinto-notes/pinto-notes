@@ -276,6 +276,10 @@ extension Notification.Name {
 /// The panel itself: a search line, then the rows. Solid card, the shared shadow, no animation
 /// (it's opened all day; frequent things are instant).
 struct QuickOpenPanel: View {
+    #if os(macOS)
+    @State private var panelFrame = CGRect.zero
+    @State private var clickWatch: Any?
+    #endif
     let notes: [QuickOpen.NoteItem]
     let commands: [QuickOpen.CommandItem]
     let choose: (QuickOpen.Row) -> Void
@@ -472,6 +476,21 @@ struct QuickOpenPanel: View {
             if let said { AccessibilityNotification.Announcement(said).post() }
         }
         .onExitCommand { close() }
+        #if os(macOS)
+        // A click on nothing that takes focus left it open (Emil, 6 November 2026): any click
+        // outside closes it, and still does what it would have.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { panelFrame = $0 }
+        .onAppear {
+            clickWatch = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
+                guard let w = window.value, event.window === w,
+                      QuickOpen.isOutside(event.locationInWindow, of: panelFrame, windowHeight: w.contentLayoutRect.maxY) else { return event }
+                QuickOpen.closedByClick = .now
+                close()
+                return event
+            }
+        }
+        .onDisappear { if let clickWatch { NSEvent.removeMonitor(clickWatch) }; clickWatch = nil }
+        #endif
         // VoiceOver stays in the panel: what's behind it isn't reachable (round 20: AppKit's table
         // and text view stayed in the tree under the window's hidden split view).
         .accessibilityAddTraits(.isModal)
@@ -661,4 +680,16 @@ private struct WindowFinder: NSViewRepresentable {
     func updateNSView(_ v: Probe, context: Context) { v.found = found; found.value = v.window }
 }
 
+#endif
+
+#if os(macOS)
+extension QuickOpen {
+    /// When a click outside last closed the panel: that click on the Search button shouldn't open it again.
+    nonisolated(unsafe) static var closedByClick: Date?
+
+    /// Whether a click (window coordinates, y up) is outside the panel (SwiftUI's global, y down).
+    static func isOutside(_ point: CGPoint, of panel: CGRect, windowHeight: CGFloat) -> Bool {
+        !panel.isEmpty && !panel.contains(CGPoint(x: point.x, y: windowHeight - point.y))
+    }
+}
 #endif

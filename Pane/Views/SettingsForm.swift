@@ -11,9 +11,10 @@ enum SettingsInk {
     }
 
     /// The card: white, pure black in the dark.
-    static let ground = dynamic(.white, .black)
+    /// The theme's page: Settings follows the theme like the notes do (Emil, 6 November 2026).
+    static var ground: Color { Color(Palette.page) }
     /// A box of rows, a summary: a step off the ground.
-    static let group = dynamic(NSColor(white: 0.965, alpha: 1), NSColor(white: 0.085, alpha: 1))
+    static let group = dynamic(NSColor(white: 0, alpha: 0.04), NSColor(white: 1, alpha: 0.085))
     /// The selected page in the sidebar: the one selection look.
     static let selection = dynamic(NSColor(white: 0, alpha: 0.07), NSColor(white: 1, alpha: 0.13))
     static let hairline = dynamic(NSColor(white: 0, alpha: 0.09), NSColor(white: 1, alpha: 0.13))
@@ -21,8 +22,8 @@ enum SettingsInk {
     static let raised = dynamic(.white, NSColor(white: 0.16, alpha: 1))
     /// A button's and the card's own edge.
     static let edge = dynamic(NSColor(white: 0, alpha: 0.12), NSColor(white: 1, alpha: 0.18))
-    static let text = dynamic(NSColor(white: 0.1, alpha: 1), NSColor(white: 0.93, alpha: 1))
-    static let muted = dynamic(NSColor(white: 0.42, alpha: 1), NSColor(white: 0.62, alpha: 1))
+    static var text: Color { Color.ink }
+    static var muted: Color { Color.muted }
     static let icon = dynamic(NSColor(white: 0.32, alpha: 1), NSColor(white: 0.72, alpha: 1))
     /// A switch that is on: ink, never a second orange on the page. In the dark a grey deep enough
     /// that the white knob stands out at 4:1 (0.62 put it at 2.7:1 and read as switched off or
@@ -53,6 +54,19 @@ struct SettingsSummary<Content: View>: View {
 }
 
 /// A group of rows under a short header, in a box, a hairline between each two; a line under it.
+/// A row button that fills a group box: one line, the whole width, the row's hover.
+struct SettingsRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 14))
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(.rect)
+            .background(configuration.isPressed ? SettingsInk.selection : .clear)
+            .hoverRow(reach: EdgeInsets())
+    }
+}
+
 struct SettingsGroup<Content: View>: View {
     var header: String? = nil
     var footer: String? = nil

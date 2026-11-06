@@ -1124,9 +1124,12 @@ extension Charm {
         NotificationCenter.default.post(name: .paneNoteTrashed, object: nil)
     }
 
-    /// On unless turned off with `defaults write <bundle id> charmOff -bool YES` (a concept that
-    /// may not stay; off, every place shows its SF Symbol as before).
-    static var on: Bool { !UserDefaults.standard.bool(forKey: "charmOff") }
+    /// Parked (Emil, 6 November 2026): fun, but some icons moved and most didn't, which read as
+    /// inconsistent. Off, every place shows its SF Symbol. Finishing a checklist isn't an icon and
+    /// stays (CheckPop). `defaults write <bundle id> charmOn -bool
+    /// YES` brings them back to look at; flatten each glyph's strokes first, as dimmed they show
+    /// where the lines cross.
+    static var on: Bool { UserDefaults.standard.bool(forKey: "charmOn") }
 
     /// The glyph that stands in for an SF Symbol, where there is one.
     static func kind(forSymbol name: String) -> Kind? {

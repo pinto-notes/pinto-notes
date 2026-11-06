@@ -28,6 +28,6 @@ enum ToolbarGlyph {
     }
 
     /// The compose pencil's ink sits right of and below the symbol's centre.
-    static let composeShift = CGSize(width: -0.75, height: 0.25)
+    static let composeShift = CGSize(width: -0.25, height: -0.75)
 }
 #endif

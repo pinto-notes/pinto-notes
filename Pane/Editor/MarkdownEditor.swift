@@ -2933,8 +2933,25 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
     }
 
+    private var keyWatch: [NSObjectProtocol] = []
+    /// The window went behind another: no caret shows, so neither does the hint at it.
+    private var windowLostFocus = false
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        // The hint at the caret goes and comes with the window's focus, as the caret does.
+        keyWatch.forEach(NotificationCenter.default.removeObserver)
+        keyWatch = []
+        if let window {
+            for (name, lost) in [(NSWindow.didBecomeKeyNotification, false), (NSWindow.didResignKeyNotification, true)] {
+                keyWatch.append(NotificationCenter.default.addObserver(forName: name, object: window, queue: nil) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        self?.windowLostFocus = lost
+                        self?.layoutSlashHint()
+                    }
+                })
+            }
+        }
         if focusPending, let window {
             focusPending = false
             DispatchQueue.main.async { [weak self] in
@@ -3580,16 +3597,22 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// What the faint hint at the caret says, if anything: "Title" in an empty note, the / hint
     /// on an empty body line.
     func caretHint() -> String? {
-        guard window?.firstResponder === self, controller?.isEditing ?? false, isEditable, selectedRange().length == 0,
+        // Only while the caret is really there: with the app behind another, no caret, no hint.
+        guard window?.firstResponder === self, !windowLostFocus, controller?.isEditing ?? false, isEditable, selectedRange().length == 0,
               controller?.slashCommands.isEmpty ?? true else { return nil }
         if string.isEmpty { return Self.titleHintText }
-        guard SlashRecents.uses < SlashRecents.learned,
+        // Only on the note's last line, where you go on writing: on every blank line it jumped
+        // around as the arrow keys passed through them (Emil, 6 November 2026).
+        guard Self.onLastLine(string, at: selectedRange().location), SlashRecents.uses < SlashRecents.learned,
               let font = core.emptyLineFont(string, at: selectedRange().location), font != MarkdownStyler.titleFont,
               !Self.followsTable(string, at: selectedRange().location) else { return nil }
         return Self.slashHintText
     }
 
     func showsSlashHint() -> Bool { caretHint() == Self.slashHintText }
+
+    /// The caret is on the text's last line, and nothing comes after it.
+    static func onLastLine(_ text: String, at location: Int) -> Bool { location >= (text as NSString).length }
 
     /// The line just above `location` is a table's: a hint there sat against the table's edge
     /// (persona council r7d).
@@ -4091,7 +4114,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             effectiveAppearance.performAsCurrentDrawingAppearance {
                 let rect = r.offsetBy(dx: origin.x, dy: origin.y)
                 CheckPop.play(in: host, rect: rect, completes: completes)
-                if completes, Charm.on {
+                if completes {
                     CheckPop.wave(in: host, from: rect, circles: others.map { $0.offsetBy(dx: origin.x, dy: origin.y) })
                 }
             }

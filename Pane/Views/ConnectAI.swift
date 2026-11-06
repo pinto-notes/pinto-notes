@@ -1756,7 +1756,7 @@ struct ConnectAISection: View {
 /// things"). One row per AI there is (never Mistral): a connected one says when it was last used,
 /// with Disconnect…; the others say who makes them, with Connect…. Under the list, always in view,
 /// one line on what is sent and to which company (App Review 5.1.2 rejected 1.2 for hiding it).
-/// "Having trouble?" is in the Help menu (Help Connecting an AI…); Keys for apps is a small link
+/// "Having trouble?" is in the Help menu (Help Connecting an AI…); Keys for apps was a small link, parked 6 November 2026,
 /// at the foot. Connect runs the setup card's flows: ChatGPT and Claude open the browser's connect
 /// page, Grok's and Another AI's guides open over the wait, Codex is added on this Mac, Incredible
 /// connects from its app.
@@ -1875,17 +1875,6 @@ struct ConnectAIPage: View {
             }
             if NoteApps.enabled {
                 if NoteApps.realPreviews { AppPreviewSection(client: client, plain: true) }
-                Button { openPlace?(.appKeys) } label: {
-                    HStack(spacing: 4) {
-                        Text(SettingsPlace.appKeys.title)
-                        Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).accessibilityHidden(true)
-                    }
-                }
-                .buttonStyle(.hoverLink)
-                .font(.system(size: 12))
-                .foregroundStyle(SettingsInk.muted)
-                .padding(.horizontal, 4)
-                .accessibilityIdentifier("settings.appKeys")
             }
         }
         .onAppear {

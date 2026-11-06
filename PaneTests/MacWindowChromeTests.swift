@@ -570,7 +570,8 @@ import Testing
     /// Emil (10-30): "there is no visible separation between note and notes list" in the dark. A
     /// one-pixel separator runs between them, from the window's top edge (the toolbar band) to the
     /// bottom, light and dark: it stands out from the ground on both sides, and is one pixel wide.
-    @Test func aHairlineSeparatesTheListFromTheNote() async throws {
+    /// Before macOS 27. From 27 the system's own divider is the line, softened by ListEdgeLine.
+    @Test(.enabled(if: !ColumnHairline.systemDrawsIt)) func aHairlineSeparatesTheListFromTheNote() async throws {
         let c = try AppSnapshotTests.container()
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
             for dark in [false, true] {

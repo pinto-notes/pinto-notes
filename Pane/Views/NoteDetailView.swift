@@ -2308,7 +2308,7 @@ struct NoteBreadcrumbs: View {
             ForEach(Array(path.enumerated()), id: \.offset) { i, step in
                 if i > 0 { chevron }
                 Button(step.name) { open(step.scope) }
-                    .buttonStyle(.quiet)
+                    .buttonStyle(.quietSoft)
                     .accessibilityHint("Shows the folder in the list")
                     .accessibilityIdentifier("note.crumb.\(i)")
                     #if os(macOS)

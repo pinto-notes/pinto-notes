@@ -359,19 +359,22 @@ struct QuietButtonStyle: ButtonStyle {
     var icon = false
     /// Room around a bare symbol, so the fill isn't tight on its ink.
     var padding: CGFloat = 0
+    /// Beside toolbar buttons: a fill as light as theirs, and the word keeps its colour.
+    var soft = false
 
     /// How far a quiet text button's word sits in from its edge: a Back above a heading moves left
     /// by this much, so the word lines up with the heading.
     static let inset = ButtonSize.compact.padding * 0.75
 
     func makeBody(configuration: Configuration) -> some View {
-        QuietButton(configuration: configuration, size: size, icon: icon, padding: padding)
+        QuietButton(configuration: configuration, size: size, icon: icon, padding: padding, soft: soft)
     }
 }
 
 extension ButtonStyle where Self == QuietButtonStyle {
     static var quiet: QuietButtonStyle { .init() }
     static func quiet(_ size: ButtonSize) -> QuietButtonStyle { .init(size: size) }
+    static var quietSoft: QuietButtonStyle { .init(soft: true) }
     static var quietIcon: QuietButtonStyle { .init(icon: true) }
     static func quietIcon(padding: CGFloat) -> QuietButtonStyle { .init(icon: true, padding: padding) }
 }
@@ -381,6 +384,7 @@ private struct QuietButton: View {
     let size: ButtonSize
     let icon: Bool
     let padding: CGFloat
+    var soft = false
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.isFocused) private var isFocused
     @Environment(\.hoverPreview) private var preview
@@ -408,13 +412,15 @@ private struct QuietButton: View {
             let shape = AnyShape(RoundedRectangle(cornerRadius: size.radius, style: .continuous))
             configuration.label
                 .font(.system(size: size.textSize, weight: .semibold))
-                .foregroundStyle(on || configuration.isPressed ? Color.ink : Color.muted)
+                .foregroundStyle(!soft && (on || configuration.isPressed) ? Color.ink : Color.muted)
                 .opacity(isEnabled ? 1 : 0.5)
                 .lineLimit(1)
                 .padding(.horizontal, size.padding * 0.75)
                 .frame(minHeight: size.height)
                 .background {
-                    if configuration.isPressed { shape.fill(Color.soft).overlay(shape.fill(Color(Palette.quietPressed))) }
+                    if soft {
+                        if configuration.isPressed { shape.fill(Hover.fill) } else if on { shape.fill(Hover.row) }
+                    } else if configuration.isPressed { shape.fill(Color.soft).overlay(shape.fill(Color(Palette.quietPressed))) }
                     else if on { shape.fill(Color.soft) }
                 }
                 .modifier(ButtonChrome(shape: shape, pressed: configuration.isPressed, focused: isFocused))
