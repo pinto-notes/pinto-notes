@@ -33,9 +33,10 @@ enum PressSelect {
     /// What the list's selection becomes when it asks for `new`. The list ends a drag by selecting
     /// from the dragged row to the row level with the pointer, the row beside the folder it was
     /// dropped on (round 21: a note dragged to a folder left "2 Notes Selected"). A drag from a row
-    /// carries notes and selects none; ⌘ and ⇧ pick several, and the keyboard still can.
+    /// carries notes and selects none; ⌘ and ⇧ pick several, and the keyboard still can. Also a drag
+    /// straight up or down, where the list would pick the rows it crosses.
     static func selection<ID: Hashable>(from old: Set<ID>, asking new: Set<ID>, byKey: Bool = false) -> Set<ID> {
-        guard draggedFromRow, !byKey, !old.isEmpty, new.count > old.count, new.isSuperset(of: old) else { return new }
+        guard draggedFromRow, !byKey, new.count > 1, new != old else { return new }
         return old
     }
 

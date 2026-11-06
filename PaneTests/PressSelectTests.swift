@@ -40,6 +40,7 @@ import Testing
         PressSelect.press(press(window), on: table, row: 3)
         PressSelect.dragged()
         #expect(PressSelect.selection(from: [1], asking: [1, 2]) == [1], "the row beside the folder it was dropped on")
+        #expect(PressSelect.selection(from: [1], asking: [2, 3]) == [1], "rows the drag crossed, without the first")
         #expect(PressSelect.selection(from: [1], asking: [2]) == [2], "another note opened is not an extension")
         #expect(PressSelect.selection(from: [1], asking: [1, 2], byKey: true) == [1, 2], "⌘A after a drag")
         PressSelect.lifted()
