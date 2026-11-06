@@ -224,7 +224,9 @@ import Testing
         report("Settings sidebar search, 8 edits", times, context)
         let counts = RenderProbe.values(in: context)
         #expect(counts["SettingsCard", default: 0] >= times.count)
-        #expect(counts["SettingsPage"] == nil, "the unchanged page does not follow the search field")
+        // The page beside the results is the first result's (round 24): it changes when that does,
+        // here to the first result's page and back, and doesn't follow each key.
+        #expect(counts["SettingsPage", default: 0] <= 2, "the page doesn't follow the search field")
         let earlier = try #require(navigation.open)
         earlier(.appKeys)
         await update(window)

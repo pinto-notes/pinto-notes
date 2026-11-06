@@ -300,7 +300,8 @@ struct QuickOpenPanel: View {
     static func rowLabel(_ row: QuickOpen.Row) -> String {
         switch row {
         case .note(let n): [spoken(row), n.folder, QuickOpen.dateText(n)].compactMap { $0 }.joined(separator: ", ")
-        case .text(let t): [spoken(row), t.folder].compactMap { $0 }.joined(separator: ", ")
+        // Everything the row shows: the other lines and how many more were left out of VoiceOver.
+        case .text(let t): ([spoken(row)] + t.others.map(\.text) + [t.more > 0 ? SearchLines.moreLine(t.more) : nil, t.folder]).compactMap { $0 }.joined(separator: ", ")
         case .command(let c): [spoken(row), c.shortcut].compactMap { $0 }.joined(separator: ", ")
         case .search: spoken(row)
         }
@@ -497,6 +498,7 @@ struct QuickOpenPanel: View {
                             // Magnifying Glass", round 18), and pressable.
                             .accessibilityElement(children: .ignore)
                             .accessibilityLabel(Self.rowLabel(row))
+                            .accessibilityIdentifier("quickOpen.row")
                             .accessibilityAddTraits(i == index ? [.isButton, .isSelected] : .isButton)
                             .accessibilityAction { jumpAndChoose(row) }
                             .onHover { if $0 { highlighted = i } }

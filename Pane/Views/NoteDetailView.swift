@@ -1171,6 +1171,9 @@ struct NoteDetailView: View {
             // Room made by hand: the editor's text doesn't move for a safe area, so the banner lay
             // over the note's title (round 18).
             .padding(.top, note.trashedAt != nil ? TrashBanner.height : 0)
+            // Pushed down, the editor no longer reaches the toolbar, and the column wore the
+            // window's grey band above the banner (Emil, 30 October).
+            .background { if note.trashedAt != nil { SoftToolbarEdge().ignoresSafeArea() } }
             .overlay(alignment: .top) {
                 if note.trashedAt != nil {
                     TrashBanner { Self.recover(note, in: context, editor: controller) }

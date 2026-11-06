@@ -127,8 +127,10 @@ import AppKit
         let ax = OffscreenAX(panel, size: CGSize(width: QuickOpenPanel.Metrics.width, height: 360))
         defer { ax.close() }
         await ax.settle()
-        let more = try #require(ax.find("quickOpen.more"), "\(ax.ids())")
-        #expect(more.text.contains("4 more in this note"), "\(more.text)")
+        // One element to VoiceOver, saying all that the row shows.
+        let row = try #require(ax.find("quickOpen.row"), "\(ax.ids())")
+        #expect(row.text.contains("Fly to Lisbon on Friday") && row.text.contains("Tram 28 across lisbon"), "\(row.text)")
+        #expect(row.text.contains("4 more in this note"), "\(row.text)")
     }
 
     /// The list's search: a row shows the lines that hold the text and the count, as one element.
