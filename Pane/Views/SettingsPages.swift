@@ -971,8 +971,24 @@ struct HelpSettingsPage: View {
                     #endif
                 }
                 .padding(.top, 4)
+                #if os(iOS)
+                // The open section has no row insets; line the text up with the rows' content.
+                .padding(.horizontal, 18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                #endif
             }
         }
+    }
+
+    @ViewBuilder private var writeButtons: some View {
+        Button(HelpCopy.writeToMe) { sendFeedback() }
+            .settingsRowButton()
+            .lineLimit(1)
+            .accessibilityIdentifier("settings.feedback")
+        Button(HelpCopy.questions) { openURL(HelpCopy.supportPage) }
+            .settingsRowButton()
+            .lineLimit(1)
+            .accessibilityIdentifier("settings.support")
     }
 
     /// Emil's photo and a hello, with Write to me and the answers.
@@ -987,13 +1003,10 @@ struct HelpSettingsPage: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(HelpCopy.greeting).font(.headline).foregroundStyle(Color.ink)
                 Text(HelpCopy.greetingLine).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 8) {
-                    Button(HelpCopy.writeToMe) { sendFeedback() }
-                        .settingsRowButton()
-                        .accessibilityIdentifier("settings.feedback")
-                    Button(HelpCopy.questions) { openURL(HelpCopy.supportPage) }
-                        .settingsRowButton()
-                        .accessibilityIdentifier("settings.support")
+                // Side by side when they fit; one under the other on a narrow iPhone, never wrapped.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) { writeButtons }
+                    VStack(alignment: .leading, spacing: 8) { writeButtons }
                 }
                 .padding(.top, 6)
                 if noMail {
