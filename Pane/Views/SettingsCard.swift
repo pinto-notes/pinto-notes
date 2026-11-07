@@ -405,13 +405,13 @@ struct SettingsCard: View {
         .scrollBounceBehavior(.basedOnSize)
     }
 
-    /// A page's icon: monochrome; Account is your photo.
+    /// A page's icon in the accent, as iPhone's Settings rows have them; Account is your photo.
     @ViewBuilder private func icon(_ p: SettingsPlace, on: Bool) -> some View {
         Group {
             if p == .account, case .signedIn = backend.state {
                 AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 18)
             } else {
-                Image(systemName: p.symbol).font(.system(size: 14)).foregroundStyle(on ? SettingsInk.text : SettingsInk.icon)
+                Image(systemName: p.symbol).font(.system(size: 14)).foregroundStyle(Color.paneAccent)
             }
         }
         .frame(width: 20)

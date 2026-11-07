@@ -90,6 +90,8 @@ struct StorageSection: View {
 }
 
 struct StorageSectionBody: View {
+    /// What counts, on the Mac's Storage page too.
+    static let footer = "Notes, files and apps count. So do Recently Deleted and older versions, for 30 days. Files can be up to 100 MB."
     let usage: StorageUsage?
     @Environment(\.networkReach) private var reach
 
@@ -132,7 +134,7 @@ struct StorageSectionBody: View {
                 Text("Counting\u{2026}").foregroundStyle(.secondary)
             }
         } footer: {
-            Text("Notes, files and apps count. So do Recently Deleted and older versions, for 30 days. Files can be up to 100 MB.")
+            Text(Self.footer)
         }
     }
 }

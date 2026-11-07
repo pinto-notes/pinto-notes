@@ -13,13 +13,9 @@ import PDFKit
 enum PrivacyCopy {
     /// What a connected AI may do, in Allow's words without its "It": "can read, create and edit …".
     static let aiMay = String(ConnectCopy.scope.dropFirst("It ".count))
-    static let title = "Security"
-    /// Where the page is, in a sentence: the Mac calls it Privacy and security (3 November 2026).
-    #if os(macOS)
-    static let settingsPath = "Settings \u{203A} Privacy and security"
-    #else
-    static let settingsPath = "Settings \u{203A} Security"
-    #endif
+    static let title = SettingsNames.security
+    /// Where the page is, in a sentence: the same name on the Mac and iPhone (7 November 2026).
+    static let settingsPath = "Settings \u{203A} \(SettingsNames.security)"
     /// The page's question and its one-line answer. "Encrypted", never "end-to-end": that's said
     /// only in "How it works" with Advanced protection on.
     static let whoCanOpen = "Who can open your notes"
@@ -1224,21 +1220,13 @@ struct SignedOutPrivacyPage: View {
     }
 }
 
-/// The foot of Privacy and security: Share diagnostics and usage with what it sends, How it
-/// works, then the terms and the privacy policy. There signed out too.
+/// The foot of Security and privacy: How it works, then the terms and the privacy policy. There
+/// signed out too. Share diagnostics and usage is on General.
 struct PrivacyFoot: View {
     /// Nil: no How it works link (signed out, its lines are on the page itself).
     var how: (() -> Void)?
-    @AppStorage(Telemetry.consentKey) private var share = true
 
     var body: some View {
-        SettingsGroup(footer: DiagnosticsCopy.footer) {
-            SettingsLine(title: DiagnosticsCopy.title) {
-                Toggle(DiagnosticsCopy.title, isOn: Binding(get: { share }, set: { share = $0; Telemetry.shared.consent = $0 }))
-                    .settingsSwitch()
-                    .accessibilityIdentifier("settings.diagnostics")
-            }
-        }
         VStack(alignment: .leading, spacing: 8) {
             if let how {
                 Button(action: how) {

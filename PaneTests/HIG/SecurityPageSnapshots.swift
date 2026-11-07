@@ -118,6 +118,17 @@ import UIKit
             if let tab { route.open(tab) }
             return SettingsView(backend: backend, sync: nil, crypto: crypto, devices: devices, connections: SecurityPageSnapshots.ais, route: route)
         }
+        // The three icon sets for AI Connections, General and Appearance (7 November 2026).
+        if ProcessInfo.processInfo.environment["PANE_ICON_LOOKS"] != nil {
+            defer { unsetenv("PANE_SETTINGS_ICONS") }
+            for set in SettingsIcons.Choice.allCases {
+                setenv("PANE_SETTINGS_ICONS", set.rawValue, 1)
+                for dark in [false, true] {
+                    try await ListLayoutSnapshots.shoot(view(nil), "phone-icons-\(set.rawValue)-\(dark ? "dark" : "light")", dark: dark, wait: 1.5)
+                }
+            }
+            return
+        }
         let tabs: [SettingsTab?] = [nil] + SettingsTab.phoneGroups.flatMap { $0 } + [.account]
         for tab in tabs {
             let name = "phone-\(tab?.rawValue ?? "home")"

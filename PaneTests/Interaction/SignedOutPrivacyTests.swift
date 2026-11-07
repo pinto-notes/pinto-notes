@@ -6,7 +6,7 @@ import Testing
 
 /// Privacy and security signed out (persona council, 4 November 2026: Marcus reads it before he
 /// signs in): every "How it works" line is on the page, as a new account has them, locked notes
-/// said as the app says them everywhere, with the diagnostics and the terms still under them.
+/// said as the app says them everywhere, with the terms under them (diagnostics are on General).
 @MainActor @Suite(.serialized) struct SignedOutPrivacyTests {
     @Test func signedOutThePageSaysHowItWorks() async throws {
         let settings = SettingsView(backend: Backend(), sync: nil)
@@ -27,7 +27,7 @@ import Testing
         #expect(ais.text.contains("Each AI you connect " + PrivacyCopy.aiMay), "what it may do comes first: \(ais.text)")
         #expect(ConnectCopy.scope == "It " + PrivacyCopy.aiMay)
         #expect(ax.find("privacy.learnMore") != nil, "the website's longer page")
-        #expect(ax.find("settings.diagnostics") != nil, "diagnostics stay: \(ax.ids())")
+        #expect(ax.find("settings.diagnostics") == nil, "diagnostics are on General now, as on iPhone: \(ax.ids())")
         // As a new account has it: Pinto Notes keeps a copy of the key, said with what it means.
         let titles = PrivacyCopy.signedOutHow.map(\.title)
         #expect(titles.contains("Pinto Notes keeps a copy of your key") && titles.contains("That means Pinto Notes could open them"))

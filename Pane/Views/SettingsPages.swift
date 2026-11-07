@@ -3,15 +3,15 @@ import AppKit
 import Supabase
 import SwiftUI
 
-// The pages of Settings on the Mac, in the System Settings form (SettingsForm). Four pages since
-// 3 November 2026 ("simplify and cut things"): Account, Connect an AI, Appearance, Privacy and
-// security. What left Settings is in a menu (MacHelp, the Help menu, the account menu).
+// The pages of Settings on the Mac, in the System Settings form (SettingsForm). The same pages as
+// iPhone's Settings since 7 November 2026: Account, AI Connections, General, Appearance, Security
+// and privacy, Storage, Help and feedback. The Help menu keeps its links too (MacHelp).
 
 // MARK: Account
 
 /// Account: one card (Emil, 3 November 2026: "simplify and cut things"). Your photo (click it to
 /// change or remove it), your name (edit it on the card), your email, the sync status (click it to
-/// sync now) and the space used. Under the card, Sign Out… and a quiet Delete Account…. Export is
+/// sync now). The space used is on Storage. Under the card, Sign Out… and a quiet Delete Account…. Export is
 /// File › Export All Notes…; Sign in with Apple is offered only when signing in.
 struct AccountSettingsPage: View {
     let backend: Backend
@@ -21,7 +21,6 @@ struct AccountSettingsPage: View {
     /// Signed out: Sign In… closes Settings, which covers the sign-in card, and puts the caret in its email field.
     var close: () -> Void = {}
     @State private var profile = ProfileStore.shared
-    @State private var storage = StorageStore.shared
     @State private var draft = ""
     @State private var importing = false
     @State private var photoMenu = MenuAnchor()
@@ -37,7 +36,6 @@ struct AccountSettingsPage: View {
             }
         }
         .task(id: backend.state) { await profile.bind(backend) }
-        .task(id: backend.state) { await storage.refresh(backend.client, force: false) }
         .onAppear { draft = profile.name ?? "" }
         // The name as it arrives, unless you are typing a different one.
         .onChange(of: profile.name) { _, new in if !editing || draft.isEmpty { draft = new ?? "" } }
@@ -86,7 +84,7 @@ struct AccountSettingsPage: View {
 
     @ViewBuilder private func signedIn(email: String) -> some View {
         // You at the top, centred, as System Settings shows your Apple Account (Emil, 7 November
-        // 2026); then storage and sync as rows; then Sign Out and Delete.
+        // 2026); then sync as a row; then Sign Out and Delete.
         VStack(spacing: 20) {
         VStack(spacing: 8) {
             photo.padding(.bottom, 4)
@@ -104,9 +102,6 @@ struct AccountSettingsPage: View {
         .padding(.top, 4)
         .padding(.bottom, 6)
         SettingsGroup {
-            if let u = storage.usage {
-                storageBar(u).padding(.vertical, 12)
-            }
             HStack {
                 Text("Sync").font(.system(size: 13)).foregroundStyle(SettingsInk.text)
                 Spacer(minLength: 8)
@@ -218,39 +213,6 @@ struct AccountSettingsPage: View {
         }
     }
 
-    private func storageBar(_ u: StorageUsage) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Storage").font(.system(size: 13)).foregroundStyle(SettingsInk.text)
-                Spacer()
-                Text(Self.storageLine(u)).font(.system(size: 13)).monospacedDigit().foregroundStyle(SettingsInk.muted)
-                if u.level != .fine {
-                    Text(u.level == .full ? "Full" : "Almost full")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(u.level == .full ? Color.red : Color.orange)
-                }
-            }
-            // A bar of its own: the Mac's progress bar doesn't take a tint.
-            Capsule().fill(SettingsInk.selection)
-                .frame(height: 6)
-                .overlay(alignment: .leading) {
-                    GeometryReader { g in
-                        Capsule().fill(u.level == .full ? Color.red : u.level == .nearlyFull ? Color.orange : SettingsInk.text)
-                            .frame(width: max(6, g.size.width * u.fraction))
-                    }
-                }
-                .accessibilityElement()
-                .accessibilityLabel("Storage used")
-                .accessibilityValue(u.summary)
-            if let warning = u.warning {
-                Text(warning.detail)
-                    .font(.system(size: 12)).foregroundStyle(SettingsInk.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .accessibilityIdentifier("settings.storage")
-    }
-
     @ViewBuilder private var signedOut: some View {
         SettingsSummary {
             HStack(spacing: 14) {
@@ -283,13 +245,143 @@ struct AccountSettingsPage: View {
     }
 }
 
+// MARK: General
+
+/// General: the menu bar item, the setup guide and the diagnostics switch, as on iPhone (less the
+/// menu bar). Keys for apps is parked on the Mac (Emil, 6 November 2026).
+struct GeneralSettingsPage: View {
+    var signedIn: Bool
+    /// Closes Settings, so the setup guide shows.
+    var close: () -> Void = {}
+    @AppStorage(MenuBarSettings.key) private var menuBar = true
+    @AppStorage(Telemetry.consentKey) private var share = true
+
+    static let menuBarDetail = "Write or find a note with the window closed."
+
+    var body: some View {
+        SettingsStack {
+            SettingsGroup {
+                SettingsLine(title: "Show in menu bar", detail: Self.menuBarDetail) {
+                    Toggle("Show in menu bar", isOn: $menuBar)
+                        .settingsSwitch()
+                        .accessibilityIdentifier("settings.menuBar")
+                }
+            }
+            if HelpPage.offersSetupGuide(signedIn: signedIn) {
+                SettingsGroup(footer: HelpCopy.setupGuideFooter) {
+                    Button { HelpPage.playSetupGuide(close: close) } label: {
+                        SettingsLinkLine(title: "Show Setup Guide", trailing: "chevron.right")
+                    }
+                    .buttonStyle(.plain)
+                    .hoverRow()
+                    .accessibilityIdentifier("settings.setupGuide")
+                }
+            }
+            SettingsGroup(footer: DiagnosticsCopy.footer) {
+                SettingsLine(title: DiagnosticsCopy.title) {
+                    Toggle(DiagnosticsCopy.title, isOn: Binding(get: { share }, set: { share = $0; Telemetry.shared.consent = $0 }))
+                        .settingsSwitch()
+                        .accessibilityIdentifier("settings.diagnostics")
+                }
+            }
+        }
+    }
+}
+
+// MARK: Storage
+
+/// Storage: the space used against the limit, what takes it, and what counts, as on iPhone.
+struct StorageSettingsPage: View {
+    let backend: Backend
+    @State private var storage = StorageStore.shared
+    @Environment(\.networkReach) private var reach
+
+    var body: some View {
+        SettingsStack {
+            SettingsGroup(footer: StorageSectionBody.footer) {
+                if let u = storage.usage {
+                    storageBar(u).padding(.vertical, 12)
+                    ForEach(u.parts, id: \.name) { part in
+                        SettingsLine(title: part.name) {
+                            Text(StorageUsage.size(part.bytes)).font(.system(size: 13)).monospacedDigit().foregroundStyle(SettingsInk.muted)
+                        }
+                    }
+                } else {
+                    SettingsLine(title: reach != .online ? "Counted when you\u{2019}re online." : "Counting\u{2026}") { EmptyView() }
+                }
+            }
+        }
+        .task(id: backend.state) { await storage.refresh(backend.client, force: false) }
+    }
+
+    private func storageBar(_ u: StorageUsage) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Storage").font(.system(size: 13)).foregroundStyle(SettingsInk.text)
+                Spacer()
+                Text(AccountSettingsPage.storageLine(u)).font(.system(size: 13)).monospacedDigit().foregroundStyle(SettingsInk.muted)
+                if u.level != .fine {
+                    Text(u.level == .full ? "Full" : "Almost full")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(u.level == .full ? Color.red : Color.orange)
+                }
+            }
+            // A bar of its own: the Mac's progress bar doesn't take a tint.
+            Capsule().fill(SettingsInk.selection)
+                .frame(height: 6)
+                .overlay(alignment: .leading) {
+                    GeometryReader { g in
+                        Capsule().fill(u.level == .full ? Color.red : u.level == .nearlyFull ? Color.orange : SettingsInk.text)
+                            .frame(width: max(6, g.size.width * u.fraction))
+                    }
+                }
+                .accessibilityElement()
+                .accessibilityLabel("Storage used")
+                .accessibilityValue(u.summary)
+            if let warning = u.warning {
+                Text(warning.detail)
+                    .font(.system(size: 12)).foregroundStyle(SettingsInk.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityIdentifier("settings.storage")
+    }
+
+}
+
+// MARK: Help and feedback
+
+/// Help and feedback: answers, a message to us, an issue, the project on GitHub and what's new,
+/// as on iPhone. The Help menu has the same items. The version is at the foot of the sidebar.
+struct HelpSettingsPage: View {
+    var body: some View {
+        SettingsStack {
+            SettingsGroup(footer: HelpCopy.feedbackFooter) {
+                link(HelpCopy.questions, symbol: "questionmark.circle", id: "settings.support") { MacHelp.questions() }
+                link(HelpCopy.feedback, symbol: "envelope", id: "settings.feedback") { MacHelp.sendFeedback() }
+                link("Report an issue", symbol: "exclamationmark.bubble", id: "settings.reportIssue") { MacHelp.reportIssue() }
+            }
+            SettingsGroup(footer: HelpCopy.openSourceFooter) {
+                link(MacHelp.githubTitle, symbol: "chevron.left.forwardslash.chevron.right", id: "settings.github") { MacHelp.github() }
+                link(WhatsNew.title, symbol: "sparkles.rectangle.stack", id: "settings.whatsNew") { NSWorkspace.shared.open(WhatsNew.changelogURL) }
+            }
+        }
+    }
+
+    private func link(_ title: String, symbol: String, id: String, run: @escaping () -> Void) -> some View {
+        Button(action: run) { SettingsLinkLine(title: title, symbol: symbol) }
+            .buttonStyle(.plain)
+            .hoverRow()
+            .accessibilityIdentifier(id)
+    }
+}
+
 // MARK: Appearance
 
 /// Appearance: System, Light and Dark as pictures of the window; the theme and its accent; the
-/// menu bar item.
+/// size of note text.
 struct AppearanceSettingsPage: View {
     @State private var mode = AppearanceModeStore.shared
-    @AppStorage(MenuBarSettings.key) private var menuBar = true
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -333,13 +425,6 @@ struct AppearanceSettingsPage: View {
             SettingsGroup(header: "Text size", footer: TextSizeRow.footer) {
                 TextSizeRow()
                 TextSizeSample()
-            }
-            SettingsGroup {
-                SettingsLine(title: "Show in menu bar", detail: "Write or find a note with the window closed.") {
-                    Toggle("Show in menu bar", isOn: $menuBar)
-                        .settingsSwitch()
-                        .accessibilityIdentifier("settings.menuBar")
-                }
             }
         }
         .onAppear { AppearancePage.onScreen += 1 }

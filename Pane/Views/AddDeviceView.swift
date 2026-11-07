@@ -16,7 +16,7 @@ enum AddDeviceCopy {
     static let gateWhy = "You already have notes in this account. They are encrypted, and only your own devices can open them."
     /// What to do, on the device that already opens the notes: named, so it's clear which one.
     static func gateSteps(_ kind: String = InstallID.kind) -> [String] {
-        ["On your \(otherDevices(kind)), open Pinto Notes \u{203A} Settings \u{203A} Security \u{203A} Add a device.", scanOrType]
+        ["On your \(otherDevices(kind)), open Pinto Notes \u{203A} Settings \u{203A} \(SettingsNames.security) \u{203A} Add a device.", scanOrType]
     }
     /// A Mac has no camera to scan with: an iPhone or iPad scans the code, a Mac types it
     /// (newcomer audit #21). You only do it once.
