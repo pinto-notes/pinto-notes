@@ -118,7 +118,7 @@ export const posts: Post[] = [
     date: "2026-10-13",
     updated: "2026-10-14",
     image: SHOTS.budgetApp,
-    thumb: cover("butter", "budget", 1600, 1000, "Three growing stacks of gold coins"),
+    thumb: cover("apricot", "app-budget-tracker-with-chatgpt-or-claude", 1600, 1000, "The budget app in a Pinto Notes note on a Mac, on a painted orchard"),
     draft: false,
   },
   {
@@ -250,7 +250,7 @@ export const posts: Post[] = [
     date: "2026-10-01",
     updated: "2026-10-01",
     image: SHOTS.consentE2ee,
-    thumb: cover("dusk", "encrypted", 1600, 1000, "A note with a padlock, between the ChatGPT and Claude marks"),
+    thumb: cover("fern", "app-encrypted-notes-app-for-ai", 1600, 1000, "A locked note in Pinto Notes on a Mac, asking for the notes password, on painted hills"),
     draft: false,
   },
   {
@@ -286,7 +286,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-28",
     image: SHOTS.connectChatGPT,
-    thumb: cover("paper", "openai-apps-in-chatgpt", 1600, 900, "A stacked-layers app icon on a soft blue gradient, OpenAI's picture for apps in ChatGPT"),
+    thumb: cover("harbor", "app-connect-chatgpt-to-your-notes", 1600, 1000, "A Groceries note in Pinto Notes on a Mac with five lines ChatGPT added, on a painted sea"),
     draft: false,
   },
   {
@@ -322,7 +322,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: SHOTS.importSheet,
-    thumb: cover("soft", "move-from-apple-notes", 1600, 1000, "A notes icon with an arrow to the Pinto Notes icon"),
+    thumb: cover("teal", "app-move-from-apple-notes", 1600, 1000, "Pinto Notes on a Mac with folders, a note list and a Lisbon trip note, on painted hills"),
     draft: false,
   },
   {
@@ -334,7 +334,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-14",
     image: SHOTS.connectList,
-    thumb: cover("dark", "claude-code-codex", 1600, 1000, "A terminal with the Claude and OpenAI marks, with an arrow to a note"),
+    thumb: cover("plum", "app-notes-in-claude-code-and-codex", 1600, 1000, "Standup notes in Pinto Notes on a Mac with a line Claude Code added, on a painted dusk"),
     draft: false,
   },
   {
@@ -346,7 +346,7 @@ export const posts: Post[] = [
     date: "2026-09-30",
     updated: "2026-10-02",
     image: SHOTS.consent,
-    thumb: cover("amber", "anthropic-mcp", 1600, 840, "White paper shapes joined to one hub on orange, Anthropic's picture for the Model Context Protocol"),
+    thumb: cover("butter", "app-mcp-server", 1600, 1000, "Connect an AI in Pinto Notes on a Mac, with ChatGPT and Claude Code connected, on a painted orchard"),
     draft: false,
   },
   {
@@ -405,9 +405,11 @@ export const categoryPath = (c: Category) => `/blog/category/${categoryAnchor(c)
 export const categoryFromAnchor = (anchor: string): Category | undefined => categories().find((c) => categoryAnchor(c) === anchor);
 
 /// The front of the blog (decided 7 November 2026): posts about Pinto Notes and what people do with it,
+/// plus the AI notes comparison, which Emil wanted on the front.
 /// shown as cards on /blog. Every other post answers a search; those live on /blog/answers, in the
 /// sitemap and in the posts that link to them, but not on /blog.
 export const FEATURED = [
+  "best-ai-notes-app",
   "connect-chatgpt-to-your-notes",
   "notes-in-claude-code-and-codex",
   "budget-tracker-with-chatgpt-or-claude",
