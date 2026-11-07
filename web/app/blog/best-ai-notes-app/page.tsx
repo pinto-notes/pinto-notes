@@ -16,7 +16,7 @@ const ROWS: Row[] = [
   { app: "Notion", price: "Free; Notion AI on Business, $20 a member a month billed yearly", ai: "Notion AI and agents (a trial on Free and Plus)", reach: "Yes, official MCP server, every plan", where: "Mac, iPhone, Windows, Android, web" },
   { app: "Mem", price: "Free (25 messages a month); Plus $9, Pro $29 a month", ai: "Mem chat and Mem Agent", reach: "Yes, official MCP server", where: "Mac, iPhone, Windows, web" },
   { app: "Evernote", price: "Free (50 notes, 1 device); Starter $99 a year (1,000 notes)", ai: "AI Assistant, AI Edit, transcription", reach: "Yes on paid plans, MCP server in beta", where: "Mac, iPhone, Windows, Android, web" },
-  { app: "Apple Notes", price: "Comes with your Mac and iPhone", ai: "Writing Tools, recording summaries, Siri AI (beta)", reach: "Claude, on your Mac only", where: "Mac, iPhone (iCloud.com in a browser)" },
+  { app: "Apple Notes", price: "Comes with your Mac and iPhone", ai: "Writing Tools, recording summaries, Siri AI (beta)", reach: "On your Mac only: ChatGPT reads an open note, Claude reads and writes", where: "Mac, iPhone (iCloud.com in a browser)" },
   { app: "Reflect", price: "Free on Mac; $99 a year on iPhone", ai: "Uses your own OpenAI, Anthropic or Google key", reach: "No connector; a command-line tool on your Mac", where: "Mac, iPhone" },
   { app: "Obsidian", price: "Free; Sync from $4 a month billed yearly", ai: "None built in; community plugins", reach: "Agents on your computer, through the official CLI or plugins", where: "Mac, iPhone, Windows, Android, Linux" },
 ];
@@ -35,7 +35,7 @@ const FAQ = [
     "Apple Notes is it. With Apple Intelligence it rewrites and proofreads, transcribes and summarizes recordings, and in iOS 27 and macOS 27, Siri AI (beta) can find and create notes.",
   ] },
   { q: "Can ChatGPT or Claude use Apple Notes?", a: [
-    "Claude can on a Mac, through Anthropic's Apple Notes connector. From your phone or the web, neither can open Apple Notes.",
+    "Only on a Mac. Claude can read and write your notes through Anthropic's Apple Notes connector, and the ChatGPT Mac app can read the note you have open, but not change it. From your phone or the web, neither can open Apple Notes.",
   ] },
   { q: "Do I have to pay for AI twice?", a: [
     "It depends on the kind of app. Notion and Mem charge for their own AI, which you'd pay for alongside any ChatGPT or Claude plan you keep. Pinto Notes and Notion's MCP server let the ChatGPT or Claude you already have work in your notes. Reflect and many Obsidian plugins use an API key, which the AI company bills separately from a ChatGPT or Claude subscription.",
@@ -196,11 +196,11 @@ export default function Page() {
         hand a request to ChatGPT through Apple&apos;s ChatGPT extension.
       </p>
       <p>
-        It&apos;s free and already on your devices. On a Mac, Claude can read and write your notes through Anthropic&apos;s Apple Notes connector.
+        It&apos;s free and already on your devices. On a Mac, Claude can read and write your notes through Anthropic&apos;s Apple Notes connector, and the ChatGPT app can read the note you have open, but not change it.
       </p>
       <p>
-        <strong>Where it falls short:</strong> no ChatGPT or Claude chat on your phone or the web can open your notes; Claude&apos;s connector
-        works only on a Mac. Siri AI is in beta, in six languages to start, and not yet on iPhone in the EU.
+        <strong>Where it falls short:</strong> no ChatGPT or Claude chat on your phone or the web can open your notes; both work only
+        on a Mac. Siri AI is in beta, in six languages to start, and not yet on iPhone in the EU.
       </p>
       <p><strong>Best for:</strong> people who want AI help with no new app and no new bill.</p>
       <p>
@@ -301,6 +301,7 @@ export default function Page() {
         <a href="https://github.com/team-reflect/reflect-open">Reflect Open</a>, <a href="https://obsidian.md/pricing">Obsidian pricing</a>,{" "}
         <a href="https://obsidian.md/help/cli">Obsidian CLI</a>, <a href="https://community.obsidian.md/plugins/copilot">Copilot for Obsidian</a>,{" "}
         <a href="https://support.apple.com/en-us/121115">Apple Intelligence</a>, <a href="https://support.apple.com/en-us/118442">Apple Notes recordings</a>,{" "}
+        <a href="https://help.openai.com/en/articles/10119604-work-with-apps-on-macos">ChatGPT Work with Apps</a>,{" "}
         <a href="https://www.granola.ai/pricing">Granola pricing</a>, <a href="https://otter.ai/pricing">Otter pricing</a>,{" "}
         <a href="https://chatgpt.com/pricing">ChatGPT pricing</a> and{" "}
         <a href="https://support.claude.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp">Claude custom connectors</a>.
