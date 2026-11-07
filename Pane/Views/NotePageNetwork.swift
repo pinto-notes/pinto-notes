@@ -281,7 +281,8 @@ extension NotePageNetwork {
     /// `ask` shows "This app wants to reach …" once per host; `needKey` shows the card for a key
     /// that isn't set up.
     @MainActor
-    static func fetch(_ m: [String: Any], note: Note, html: String, ask: (String) async -> Bool, needKey: (KeyNeed) async -> Void) async throws -> [String: Any] {
+    /// `log` is the app's; tests give their own, so another test wiping the library can't clear it.
+    static func fetch(_ m: [String: Any], note: Note, html: String, log: NotePageNetLog = .shared, ask: (String) async -> Bool, needKey: (KeyNeed) async -> Void) async throws -> [String: Any] {
         guard let s = m["url"] as? String, let url = URL(string: s), allowedScheme(url), let host = hostKey(url) else {
             throw NotePage.OpError("amber.fetch takes an https address.")
         }
@@ -299,7 +300,6 @@ extension NotePageNetwork {
         } else if rule(for: host, in: needs.hosts) == nil {
             throw NotePage.OpError("This app didn't declare \(host). Add it to <meta name=\"amber-needs\">.")
         }
-        let log = NotePageNetLog.shared
         // Approved once per declared host or pattern.
         let approval = rule(for: host, in: needs.hosts) ?? host
         if key == nil, !log.isApproved(approval, for: note.id) {

@@ -521,10 +521,11 @@ import AppKit
         let host = "127.0.0.1:\(port)"
         let html = #"<meta name="amber-needs" content='{"hosts":["\#(host)"],"keys":[{"name":"Demo","hosts":["\#(host)"],"header":"X-Api-Key: {key}"}]}'>"#
         let note = Note(body: "Trip\n\nMeet Sara at the Alfama gate")
+        let netLog = NotePageNetLog(defaults: nil)
         var asked: [String] = []
         var needed: [String] = []
         func fetch(_ m: [String: Any], allow: Bool = true) async throws -> [String: Any] {
-            try await NotePageNetwork.fetch(m, note: note, html: html, ask: { asked.append($0); return allow }, needKey: { needed.append($0.name) })
+            try await NotePageNetwork.fetch(m, note: note, html: html, log: netLog, ask: { asked.append($0); return allow }, needKey: { needed.append($0.name) })
         }
         // Undeclared hosts never go out; a refusal sends nothing.
         await #expect(throws: NotePage.OpError.self) { _ = try await fetch(["url": "https://example.com/"]) }
@@ -535,7 +536,7 @@ import AppKit
         #expect(r["status"] as? Int == 200 && r["body"] as? String == #"{"ok":true}"#)
         _ = try await fetch(["url": "http://\(host)/b"])
         #expect(asked == [host, host])
-        let log = NotePageNetLog.shared.entries[note.id] ?? []
+        let log = netLog.entries[note.id] ?? []
         #expect(log.count == 2 && log[0].carriesNoteText && !log[1].carriesNoteText)
         // A key that isn't set up shows the card instead of sending.
         await #expect(throws: NotePage.OpError.self) { _ = try await fetch(["url": "http://\(host)/k", "key": "Demo"]) }
@@ -546,8 +547,8 @@ import AppKit
         let k = try await fetch(["url": "http://\(host)/k?echo=s3cret-value", "key": "Demo"])
         #expect(!(k.description.contains("s3cret-value") && !(k["body"] as? String ?? "").contains("s3cret")))
         #expect(echo.requests.last?.contains("X-Api-Key: s3cret-value") == true)
-        #expect(NotePageNetLog.shared.entries[note.id]?.last?.url.contains("s3cret-value") == false)
-        #expect(NotePageNetLog.shared.entries[note.id]?.last?.key == "Demo")
+        #expect(netLog.entries[note.id]?.last?.url.contains("s3cret-value") == false)
+        #expect(netLog.entries[note.id]?.last?.key == "Demo")
         // A key listed for other hosts isn't sent here.
         APIKeyStore.shared.save(.init(name: "Demo", hosts: ["api.example.com"], header: "X-Api-Key: {key}"), value: "s3cret-value")
         await #expect(throws: NotePage.OpError("The Demo key isn't sent to \(host).")) { _ = try await fetch(["url": "http://\(host)/k", "key": "Demo"]) }
@@ -1571,17 +1572,18 @@ import AppKit
         for _ in 0..<100 where hop.port == nil || hop.port?.rawValue == 0 { try await Task.sleep(for: .milliseconds(20)) }
         let from = "127.0.0.1:\(hop.port!.rawValue)", to = "localhost:\(tport)"
         let note = Note(body: "Redirects")
+        let netLog = NotePageNetLog(defaults: nil)
         func fetch(_ hosts: [String]) async throws -> [String: Any] {
             let html = #"<meta name="amber-needs" content='{"hosts":\#(hosts.map { "\"\($0)\"" }.joined(separator: ","))]}'>"#
                 .replacingOccurrences(of: "{\"hosts\":", with: "{\"hosts\":[")
-            return try await NotePageNetwork.fetch(["url": "http://\(from)/start"], note: note, html: html, ask: { _ in true }, needKey: { _ in })
+            return try await NotePageNetwork.fetch(["url": "http://\(from)/start"], note: note, html: html, log: netLog, ask: { _ in true }, needKey: { _ in })
         }
         // Not declared: not followed, and nothing reaches it.
         await #expect(throws: NotePage.OpError.self) { _ = try await fetch([from]) }
         #expect(target.requests.isEmpty)
-        #expect(NotePageNetLog.shared.entries[note.id]?.last?.url.contains("/landed") == true)
+        #expect(netLog.entries[note.id]?.last?.url.contains("/landed") == true)
         // Declared and allowed: followed, and the hop is logged.
-        NotePageNetLog.shared.approve(to, for: note.id)
+        netLog.approve(to, for: note.id)
         let r = try await fetch([from, to])
         #expect(r["status"] as? Int == 200)
         #expect(target.requests.count == 1)
