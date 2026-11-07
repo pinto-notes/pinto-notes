@@ -15,7 +15,7 @@ import Testing
     @Test func theSidebarIsTheIPhonesList() {
         let all = Set(SettingsPlace.allCases)
         let groups = SettingsPlace.groups(available: all)
-        #expect(groups == [[.account], [.ai, .general, .appearance], [.security, .storage], [.help]])
+        #expect(groups == [[.account], [.general, .ai, .appearance], [.security, .storage], [.help]])
         #expect(!groups.joined().contains(.appKeys), "Keys for apps is not in the sidebar")
         #expect(SettingsPlace.ai.title == "AI Connections")
         #expect(SettingsPlace.security.title == "Security and privacy")
@@ -47,15 +47,13 @@ import Testing
         let source = try Self.source("Pane/Views/SettingsView.swift")
         #expect(source.contains("ForEach(Array(SettingsTab.phoneGroups.enumerated())"), "the iPhone list is built from phoneGroups")
         #expect(!source.contains("\"Connect an AI\" : tab.title"), "the iPhone row says the page's own name")
-        // The three icon sets are all outlines (no filled half-circle), each symbol different.
-        for set in SettingsIcons.Choice.allCases {
-            let s = SettingsIcons.symbols(set)
-            #expect(Set([s.ai, s.general, s.appearance]).count == 3)
-            #expect(![s.ai, s.general, s.appearance].contains { $0.contains(".fill") })
-            #expect(NSImage(systemSymbolName: s.ai, accessibilityDescription: nil) != nil
-                    && NSImage(systemSymbolName: s.general, accessibilityDescription: nil) != nil
-                    && NSImage(systemSymbolName: s.appearance, accessibilityDescription: nil) != nil, "\(set) symbols exist")
-        }
+        // The Mac sidebar's groups part clearly: a gap many times the gap between rows.
+        #expect(SettingsCard.groupGap >= 20 && SettingsCard.groupGap >= SettingsCard.tabGap * 6, "a group gap, not a flaw")
+        // Emil's pick (B, 7 November 2026): outlines, each symbol different, and each exists.
+        let picked = [SettingsIcons.ai, SettingsIcons.general, SettingsIcons.appearance]
+        #expect(picked == ["link", "gearshape", "textformat.size"])
+        #expect(Set(picked).count == 3 && !picked.contains { $0.contains(".fill") })
+        for s in picked { #expect(NSImage(systemSymbolName: s, accessibilityDescription: nil) != nil, "\(s) exists") }
     }
 
     static func source(_ path: String) throws -> String {

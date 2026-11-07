@@ -87,17 +87,6 @@ import Testing
                                                 (.security, "privacy"), (.storage, "storage"), (.help, "help")]
         var rows: [[(String, NSBitmapImageRep)]] = []
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
-            // The three icon sets for AI Connections, General and Appearance (7 November 2026).
-            if ProcessInfo.processInfo.environment["PANE_ICON_LOOKS"] != nil {
-                defer { unsetenv("PANE_SETTINGS_ICONS") }
-                for set in SettingsIcons.Choice.allCases {
-                    setenv("PANE_SETTINGS_ICONS", set.rawValue, 1)
-                    for dark in [false, true] {
-                        try save(try await shoot(window(view(.general), library: lib), dark: dark), "icons-\(set.rawValue)-\(dark ? "dark" : "light")", in: dir)
-                    }
-                }
-                return
-            }
             for (place, name) in pages {
                 var row: [(String, NSBitmapImageRep)] = []
                 for dark in [false, true] {

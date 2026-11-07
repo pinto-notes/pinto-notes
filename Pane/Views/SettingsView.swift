@@ -12,7 +12,7 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
     var id: String { rawValue }
 
     /// The rows under you, in groups: the same on iPhone and in the Mac's sidebar (SettingsPlace.groups).
-    static let phoneGroups: [[SettingsTab]] = [[.ai, .general, .appearance], [.security, .storage], [.help]]
+    static let phoneGroups: [[SettingsTab]] = [[.general, .ai, .appearance], [.security, .storage], [.help]]
 
     var title: String {
         switch self {
@@ -51,28 +51,11 @@ enum SettingsNames {
 
 /// Settings' page symbols, the same on the Mac and iPhone: one outline family.
 enum SettingsIcons {
-    /// Three candidate sets for AI Connections, General and Appearance, while one is picked.
-    /// Captures choose one with PANE_SETTINGS_ICONS=A, B or C.
-    enum Choice: String, CaseIterable { case a = "A", b = "B", c = "C" }
-
-    static var choice: Choice {
-        #if DEBUG
-        if let v = ProcessInfo.processInfo.environment["PANE_SETTINGS_ICONS"], let s = Choice(rawValue: v.uppercased()) { return s }
-        #endif
-        return .a
-    }
-
-    static func symbols(_ set: Choice) -> (ai: String, general: String, appearance: String) {
-        switch set {
-        case .a: ("sparkle", "slider.horizontal.3", "paintbrush")
-        case .b: ("link", "gearshape", "textformat.size")
-        case .c: ("wand.and.sparkles", "switch.2", "sun.max")
-        }
-    }
-
-    static var ai: String { symbols(choice).ai }
-    static var general: String { symbols(choice).general }
-    static var appearance: String { symbols(choice).appearance }
+    /// Picked by Emil from three sets on 7 November 2026 (B): a link for what's connected, the
+    /// gear for General, the text-size glyph for Appearance.
+    static let ai = "link"
+    static let general = "gearshape"
+    static let appearance = "textformat.size"
     static let security = "lock.shield"
     static let storage = "externaldrive"
     static let help = "questionmark.circle"
