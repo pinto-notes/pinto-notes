@@ -1165,7 +1165,9 @@ struct SidebarView: View {
 /// 21 to 24 (the log: the target moved on, no row was worked out again).
 @MainActor @Observable final class FolderDropState {
     /// The row under a drag.
-    var id: UUID?
+    var id: UUID? { didSet { if id != nil { landedLast = nil } } }
+    /// The row a drop last landed in: only it fades slowly; a row the drag only passed goes at once.
+    private(set) var landedLast: UUID?
     /// The row something has just landed in: lit a moment longer, then it fades.
     private(set) var landed: UUID?
     /// How many drops each row has taken: each one plays its icon's bounce.
@@ -1182,6 +1184,7 @@ struct SidebarView: View {
 
     func land(_ folder: UUID) {
         landings[folder, default: 0] += 1
+        landedLast = folder
         hold(folder, for: Self.landedHold)
     }
 
@@ -1208,15 +1211,34 @@ private struct FolderDropIcon: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         let lit = drops.lit(id)
-        SidebarIcon(name: lit ? "folder.fill" : "folder", selected: selected || lit)
-            .scaleEffect(!reduceMotion && drops.id == id ? 1.1 : 1)
-            .animation(reduceMotion ? nil : .spring(duration: 0.2, bounce: 0.3), value: drops.id == id)
+        DropOpenIcon(symbol: "folder", kind: .folder, open: lit, selected: selected || lit)
             .keyframeAnimator(initialValue: 1.0, trigger: drops.landings[id] ?? 0) { content, scale in
                 content.scaleEffect(reduceMotion ? 1 : scale)
             } keyframes: { _ in
                 SpringKeyframe(1.28, duration: 0.14, spring: .snappy)
                 SpringKeyframe(1, duration: 0.3, spring: .bouncy)
             }
+    }
+}
+
+/// A row's icon that opens while something is held over it (Emil, 7 November 2026): the folder drops
+/// its front and shows a page, the trash lifts its lid. At rest it's the system's symbol, as every
+/// other row has; the drawn one fades in only while it's needed.
+private struct DropOpenIcon: View {
+    let symbol: String
+    let kind: Charm.Kind
+    let open: Bool
+    let selected: Bool
+
+    var body: some View {
+        ZStack {
+            SidebarIcon(name: symbol, selected: selected).opacity(open ? 0 : 1)
+            CharmIcon(kind: kind, pointSize: DesignLook.isCandidate ? 14 : 16, agape: open)
+                .foregroundStyle(.tint)
+                .opacity(open ? 1 : 0)
+        }
+        // Back to the symbol once it has shut.
+        .animation(open ? .easeOut(duration: 0.08) : .easeOut(duration: 0.1).delay(0.14), value: open)
     }
 }
 
@@ -1231,7 +1253,7 @@ private struct FolderDropFill: View {
             .fill(.tint.opacity(0.3))
             .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
             .opacity(lit ? 1 : 0)
-            .animation(.easeOut(duration: lit ? 0.08 : 0.3), value: lit)
+            .animation(.easeOut(duration: lit ? 0.08 : drops.landedLast == id ? 0.3 : 0.06), value: lit)
     }
 }
 
@@ -1280,8 +1302,9 @@ private struct CountedRow: View {
         let selected = selection == (trash ? .trash : .all)
         let counts = library.libraryCounts(context: context)
         let count = trash ? counts.trashed : counts.live
-        // Recently Deleted has no row while nothing is in it.
-        if !trash || SidebarView.showsTrash(notes: count, files: files) {
+        // Recently Deleted has no row while nothing is in it, or a note being dragged has nowhere
+        // to be thrown away.
+        if !trash || SidebarView.showsTrash(notes: count, files: files) || NoteDragging.shared.active {
             Label {
                 SidebarRowText(title: title, selected: selected) {
                     Text(count + files, format: .number)
@@ -1297,6 +1320,14 @@ private struct CountedRow: View {
             }
             .sidebarRowLabel()
             .rowAccessibility(title, count: count, files: files)
+            .background {
+                let reach = Hover.sidebarReach()
+                RoundedRectangle(cornerRadius: Hover.pillRadius, style: .continuous)
+                    .fill(.tint.opacity(0.3))
+                    .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
+                    .opacity(noteOver ? 1 : 0)
+                    .animation(.easeOut(duration: noteOver ? 0.08 : 0.06), value: noteOver)
+            }
             .hoverRow(title, reach: Hover.sidebarReach(), selected: selected)
             .quietSelection()
             #if os(macOS)
@@ -1396,7 +1427,7 @@ private struct TrashRowIcon: View {
                 Image(systemName: "trash").font(DesignLook.isCandidate ? SidebarStyle.candidateIconFont : SidebarStyle.iconFont).hidden()
                     .overlay { CharmIcon(kind: .trash, pointSize: DesignLook.isCandidate ? 14 : 16, cue: gulps, agape: noteOver) }
             } else {
-                Image(systemName: "trash").font(DesignLook.isCandidate ? SidebarStyle.candidateIconFont : SidebarStyle.iconFont)
+                DropOpenIcon(symbol: "trash", kind: .trash, open: noteOver, selected: selected)
             }
         }
         .foregroundStyle(selected ? AnyShapeStyle(.tint) : active == .inactive ? AnyShapeStyle(.tertiary)

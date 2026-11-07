@@ -10,6 +10,25 @@ import AppKit
 /// Here the pointer's first few points of travel during a press on a row are kept from the row:
 /// it sees a press that stays put, then a lift, and selects. Past `distance` the moves go through
 /// and the drag starts, from where the pointer then is.
+/// A note or a folder is being dragged out of a list: Recently Deleted shows even when empty.
+@MainActor @Observable final class NoteDragging {
+    static let shared = NoteDragging()
+    private(set) var active = false
+    private var ends = 0
+    /// The drop lands after the lift, so the row outlasts it.
+    static let linger: Duration = .milliseconds(900)
+
+    func began() { ends += 1; if !active { active = true } }
+    func ended() {
+        ends += 1
+        let this = ends
+        Task { @MainActor in
+            try? await Task.sleep(for: Self.linger)
+            if ends == this { active = false }
+        }
+    }
+}
+
 @MainActor
 enum RowPressSlop {
     /// How far the pointer may travel during a press and still click, in points.
@@ -23,6 +42,8 @@ enum RowPressSlop {
     private static var monitor: Any?
     /// A ⌘ or ⇧ press PressSelect picked with: the list doesn't see it, nor its drag or lift.
     private static var picked = false
+    /// The press now held began on a row.
+    private static var pressedRow = false
     /// Where the press now held began, when it began on a row and hasn't become a drag.
     private static var origin: NSPoint?
 
@@ -47,11 +68,17 @@ enum RowPressSlop {
                 if let pressed { PressSelect.press(event, on: pressed.table, row: pressed.row) }
                 let through = passes(event.type, at: event.locationInWindow, onRow: pressed != nil)
                 if event.type == .leftMouseUp { PressSelect.lifted() }
+                if event.type == .leftMouseDown { pressedRow = pressed != nil }
                 if event.type == .leftMouseDragged, through {
                     PressSelect.dragged()
                     watchForLostLift(event)
+                    if pressedRow { NoteDragging.shared.began() }
                 }
-                if event.type == .leftMouseUp { stopWatchingLift() }
+                if event.type == .leftMouseUp {
+                    stopWatchingLift()
+                    if pressedRow { NoteDragging.shared.ended() }
+                    pressedRow = false
+                }
                 return through
             }
             return through ? event : nil

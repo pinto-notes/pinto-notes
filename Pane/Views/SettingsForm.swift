@@ -48,7 +48,7 @@ struct SettingsSummary<Content: View>: View {
         content
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(SettingsInk.group))
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(SettingsInk.group))
     }
 }
 
@@ -62,13 +62,13 @@ struct SettingsGroup<Content: View>: View {
         VStack(alignment: .leading, spacing: 7) {
             if let header {
                 Text(header)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(SettingsInk.muted)
-                    .padding(.leading, 4)
+                    .padding(.leading, 10)
                     .accessibilityAddTraits(.isHeader)
             }
             _VariadicView.Tree(SettingsDivided(inset: 14)) { content }
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(SettingsInk.group))
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(SettingsInk.group))
             if let footer {
                 Text(footer)
                     .font(.system(size: 12))
@@ -116,8 +116,8 @@ struct SettingsLine<Leading: View, Trailing: View>: View {
             Spacer(minLength: 12)
             trailing
         }
-        .padding(.vertical, 9)
-        .frame(minHeight: 44)
+        .padding(.vertical, 8)
+        .frame(minHeight: 40)
     }
 }
 

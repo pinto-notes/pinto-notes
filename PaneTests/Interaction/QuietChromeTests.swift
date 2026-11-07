@@ -133,6 +133,24 @@ import Testing
         #expect(shape.lowerBound < drag.lowerBound, "the shape comes before the drag")
     }
 
+    /// The folder and the trash open while something's held over them; the trash shows during a drag.
+    @Test func iconsOpenUnderADragAndTheTrashWaits() async throws {
+        let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
+        #expect(sidebar.contains("DropOpenIcon(symbol: \"folder\", kind: .folder, open: lit"))
+        #expect(sidebar.contains("DropOpenIcon(symbol: \"trash\", kind: .trash, open: noteOver"))
+        #expect(sidebar.contains("|| NoteDragging.shared.active"))
+        let charm = try SettingsHomeTests.source("Pane/Views/Charm.swift")
+        #expect(charm.contains("let open = max(moving, p.agape)"), "the folder's front drops for a held note")
+        let drag = NoteDragging()
+        #expect(!drag.active)
+        drag.began()
+        #expect(drag.active)
+        drag.ended()
+        #expect(drag.active, "still there for the drop, which lands after the lift")
+        try await Task.sleep(for: NoteDragging.linger + .milliseconds(150))
+        #expect(!drag.active)
+    }
+
     /// A folder stays lit a moment after a drop and bounces once per drop; a later drop restarts it.
     @Test func aFolderReactsWhenSomethingLands() async throws {
         let drops = FolderDropState(), a = UUID(), b = UUID()

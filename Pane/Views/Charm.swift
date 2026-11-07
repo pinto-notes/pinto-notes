@@ -486,7 +486,9 @@ enum Charm {
 
     private static func folder(_ c: inout GraphicsContext, _ t: Double, _ rare: Bool, _ p: Pen) {
         let end = duration(.folder, rare: rare)
-        let open = t > 0 ? (t < end - 0.32 ? CharmMath.spring(t, freq: 2.2, damping: 9) : 1 - CharmMath.easeInOut(CharmMath.seg(t, end - 0.32, end))) : 0
+        let moving = t > 0 ? (t < end - 0.32 ? CharmMath.spring(t, freq: 2.2, damping: 9) : 1 - CharmMath.easeInOut(CharmMath.seg(t, end - 0.32, end))) : 0
+        // A note held over it: it waits open.
+        let open = max(moving, p.agape)
         var back = Path()
         back.move(to: CGPoint(x: 2.8, y: 17))
         back.addLine(to: CGPoint(x: 2.8, y: 7.6))

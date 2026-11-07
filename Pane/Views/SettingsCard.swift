@@ -15,7 +15,7 @@ extension EnvironmentValues {
     /// The window's content size: the card's, the sidebar and one page column.
     // 720 tall so Appearance (text size and its sample) and Privacy and security fit without
     // scrolling (council round 6, 11-04: both ran past the bottom at 600). Fits a 13-inch Mac.
-    static let size = CGSize(width: 820, height: 660)
+    static let size = CGSize(width: 760, height: 640)
     /// Room above the sidebar for the window's buttons (it runs to the top, like System Settings').
     static let titleBar: CGFloat = 38
     /// The title bar's safe area on a hidden-title-bar window.
@@ -95,21 +95,22 @@ struct SettingsCard: View {
     @Environment(\.modelContext) private var context
     #endif
 
-    /// One solid ground, a hairline between sidebar and page (Emil chose it over the glass sidebar
-    /// and top tabs, 7 November 2026).
+    /// Copied from System Settings, measured on macOS 27 (Emil, 7 November 2026: "copy someone"):
+    /// its sidebar's width, field, account row and rows, its page margins, title and cards. Solid,
+    /// as Emil chose over glass and tabs.
     static let size = SettingsWindow.size
-    static let sidebarWidth: CGFloat = 200
+    static let sidebarWidth: CGFloat = 232
     /// Room around the card on a window smaller than it.
     static let margin: CGFloat = 24
     /// The content column's widest: the rows read as one column, centred in the page area, not a
     /// stretch across the card (Emil, 2 November 2026).
-    static let contentWidth: CGFloat = 540
+    static let contentWidth: CGFloat = 488
     /// How far a page's own content sits in from its edges.
     static let pageInset: CGFloat = 20
     /// A page's widest: the content column and the page's own inset each side.
     static let pageWidth: CGFloat = contentWidth + 2 * pageInset
     /// Between the page and the card's sides on a narrow card, room for Back left of the title.
-    static let gutter: CGFloat = 16
+    static let gutter: CGFloat = 0
     /// Between two tabs, so their selection fill never touches the hover of the next.
     static let tabGap: CGFloat = 3
     /// The card's coordinate space, for `settingsProbe`.
@@ -220,6 +221,7 @@ struct SettingsCard: View {
             sidebar
                 .frame(width: Self.sidebarWidth)
                 .frame(maxHeight: .infinity, alignment: .top)
+                .background(SettingsInk.group)
             SettingsInk.hairline.frame(width: 0.5)
             pageArea
         }
@@ -274,9 +276,10 @@ struct SettingsCard: View {
     /// Back (one level down) just left of it, and × (Esc) at the card's corner.
     private var header: some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 0) {
+            HStack(spacing: 6) {
+                if !path.isEmpty { back }
                 Text(shown.title)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(SettingsInk.text)
                     .lineLimit(1)
                     .accessibilityAddTraits(.isHeader)
@@ -284,7 +287,6 @@ struct SettingsCard: View {
                 Spacer(minLength: 0)
             }
             .frame(minHeight: 28)
-            .overlay(alignment: .leading) { if !path.isEmpty { back.offset(x: -34) } }
         }
         .padding(.horizontal, Self.pageInset)
         .frame(maxWidth: Self.pageWidth)
@@ -300,7 +302,7 @@ struct SettingsCard: View {
                     .padding(.trailing, 14)
             }
         }
-        .padding(.top, inWindow ? SettingsWindow.titleBar : 14)
+        .padding(.top, inWindow ? SettingsWindow.titleBar : 12)
     }
 
     private var back: some View {
@@ -319,9 +321,10 @@ struct SettingsCard: View {
         VStack(alignment: .leading, spacing: 0) {
             searchField.padding(.bottom, 10)
             if query.isEmpty {
-                ForEach(Array(SettingsPlace.groups(available: available).enumerated()), id: \.offset) { i, group in
-                    if i > 0 { Color.clear.frame(height: 14) }
-                    VStack(spacing: Self.tabGap) { ForEach(group) { row($0) } }
+                if available.contains(.account) { accountRow.padding(.bottom, 10) }
+                ForEach(Array(SettingsPlace.groups(available: available).map { $0.filter { $0 != .account } }.filter { !$0.isEmpty }.enumerated()), id: \.offset) { i, group in
+                    if i > 0 { Color.clear.frame(height: 12) }
+                    VStack(spacing: 0) { ForEach(group) { row($0) } }
                 }
             } else {
                 results
@@ -359,7 +362,8 @@ struct SettingsCard: View {
         .font(.system(size: 13))
         .padding(.horizontal, 8)
         .frame(height: 28)
-        .background(SettingsInk.group, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .background(SettingsInk.group, in: Capsule())
+        .overlay(Capsule().strokeBorder(SettingsInk.hairline, lineWidth: 0.5))
     }
 
     /// What search finds: each setting by its words, with the page it's on; a click opens the page.
@@ -413,6 +417,31 @@ struct SettingsCard: View {
         .frame(width: 20)
     }
 
+    /// Who you are, at the top, as System Settings has it: a photo, your name, what kind of account.
+    private var accountRow: some View {
+        let on = current == .account
+        let named = AccountName.isSet(profile.name)
+        return Button { open(.account) } label: {
+            HStack(spacing: 9) {
+                AvatarView(photo: profile.shownPhoto, name: named ? profile.name : nil, size: 36)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(named ? (profile.name ?? "Account") : "Account").font(.system(size: 13, weight: .semibold)).foregroundStyle(SettingsInk.text).lineLimit(1)
+                    Text("Pinto account").font(.system(size: 11.5)).foregroundStyle(SettingsInk.muted).lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 6)
+            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+            .background(highlight(on))
+            .contentShape(.rect)
+            .hoverRow(reach: EdgeInsets())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
+        .accessibilityIdentifier("settings.account")
+        .settingsProbe("tab.account")
+    }
+
     private func row(_ p: SettingsPlace) -> some View {
         let on = current == p
         return Button { open(p) } label: {
@@ -425,7 +454,7 @@ struct SettingsCard: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
             .background(highlight(on))
             .contentShape(.rect)
             .hoverRow(reach: EdgeInsets())
@@ -437,7 +466,7 @@ struct SettingsCard: View {
     }
 
     private func highlight(_ on: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 7, style: .continuous).fill(on ? SettingsInk.selection : .clear)
+        RoundedRectangle(cornerRadius: 10, style: .continuous).fill(on ? SettingsInk.selection : .clear)
     }
 }
 

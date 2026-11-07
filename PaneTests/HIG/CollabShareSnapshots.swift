@@ -88,7 +88,8 @@ import UIKit
             for (name, state, moment, verify) in Self.states {
                 let share = await Self.controller(state, moment)
                 let view = ShareNotePopover(title: "Team offsite", text: "Team offsite", store: store, linkAvailable: true, share: share,
-                                            startingWay: .people, collaboratePage: verify.map { .verify($0) }, close: {})
+                                            startingWay: .people, collaboratePage: verify.map { .verify($0) },
+                                            pictureRequest: { NotePicture.Request(title: "Dinner Guide", passage: NotePicture.passage(in: "Dinner Guide\n\nA plan.", selection: nil), imageURL: { _ in nil }, app: nil) }, close: {})
                     .tint(Color(PColor.paneAccent))
                 try await AppSnapshotTests.render(view, name: "mac-\(dark ? "dark" : "light")-\(name)", dark: dark)
             }
