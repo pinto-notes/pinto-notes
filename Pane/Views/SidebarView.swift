@@ -1014,6 +1014,9 @@ struct SidebarView: View {
     /// Whether a live note is in no folder.
     private var looseNotes: Bool { folders.count <= 1 && Self.showsAllNotes(folders: folders.count, context: context) }
 
+    /// The mouse button is held: a drag still going, not a let-go.
+    static var dragButtonDown: Bool { mouseIsDown }
+
     private static var mouseIsDown: Bool {
         #if os(macOS)
         NSEvent.pressedMouseButtons & 1 != 0
@@ -1393,7 +1396,7 @@ private struct TrashDropDelegate: DropDelegate {
     let lid: TrashLidHold
 
     func dropEntered(info: DropInfo) { lid.entered { over = $0 } }
-    func dropExited(info: DropInfo) { lid.left { over = $0 } }
+    func dropExited(info: DropInfo) { lid.left(buttonDown: SidebarView.dragButtonDown) { over = $0 } }
     func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: dropOperation(fromThisApp: true)) }
     func performDrop(info: DropInfo) -> Bool {
         lid.dropped { over = $0 }

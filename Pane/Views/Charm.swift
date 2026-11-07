@@ -1083,7 +1083,16 @@ struct CharmFrame: View, @preconcurrency Animatable {
         set(true)
     }
 
-    func left(_ set: @escaping @MainActor (Bool) -> Void) { shutSoon(set) }
+    /// Carried away with the button still down, it shuts at once, as a folder does (Emil, 7 November
+    /// 2026: it lingered half a second). Only a let-go, which reports leaving before the drop, waits.
+    func left(buttonDown: Bool = false, _ set: @escaping @MainActor (Bool) -> Void) {
+        if buttonDown {
+            shut?.cancel()
+            set(false)
+        } else {
+            shutSoon(set)
+        }
+    }
 
     func dropped(_ set: @escaping @MainActor (Bool) -> Void) { shutSoon(set) }
 

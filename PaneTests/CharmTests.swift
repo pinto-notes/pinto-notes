@@ -63,6 +63,15 @@ import Testing
         #expect(open)
     }
 
+    /// Carried away with the button still down, the lid shuts at once, like a folder's highlight.
+    @Test func theTrashLidShutsAtOnceWhenANoteIsCarriedAway() {
+        let hold = TrashLidHold(wait: .milliseconds(320))
+        var open = false
+        hold.entered { open = $0 }
+        hold.left(buttonDown: true) { open = $0 }
+        #expect(!open, "no half-second linger")
+    }
+
     /// Every move, ordinary and rare, has settled back onto the glyph at rest by its last frame
     /// (no jump when it stops), and moves in between. The note's tick is left out: it stays ticked.
     @Test(arguments: Charm.Kind.allCases.filter { $0 != .tick })
