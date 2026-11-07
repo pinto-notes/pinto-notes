@@ -122,6 +122,7 @@ final class ShareController {
     /// The share sheet or menu closed: it was sent somewhere (or copied), or not.
     func shareFinished(sent: Bool, copied: Bool) {
         if sent { finished(.shared(copied: copied)) }
+        if sent { Funnel.record(.shareStep(.inviteSent)) }
     }
 
     /// "They match" on someone's safety code.
@@ -154,6 +155,7 @@ final class ShareController {
         confirmingRemove = nil
         await run(.remove(person.id)) { try await self.backend.remove(person.id, from: self.note) }
         if state.problem == nil {
+            Funnel.record(.shareStep(.removed))
             withAnimation(Self.settle(.remove(person.id))) {
                 linkReplaced = state.access != .off
                 removedName = ShareCopy.first(person.name)
@@ -170,7 +172,7 @@ final class ShareController {
     func confirmLeave() async {
         confirmingLeave = false
         await run(.leave) { try await self.backend.leave(self.note) }
-        if state.problem == nil { left = true }
+        if state.problem == nil { left = true; Funnel.record(.shareStep(.left)) }
     }
 
     private func run(_ work: Work, _ step: @escaping @MainActor @Sendable () async throws -> Void) async {
