@@ -133,7 +133,31 @@ final class NotePageNetLog {
     init(defaults: UserDefaults?) {
         self.defaults = defaults
         if let d = defaults?.data(forKey: "notePageApprovedHosts"), let a = try? JSONDecoder().decode([UUID: Set<String>].self, from: d) { approved = a }
-        if let d = defaults?.data(forKey: "notePageNetLog"), let e = try? JSONDecoder().decode([UUID: [Entry]].self, from: d) { entries = e }
+        if let d = defaults?.data(forKey: "notePageNetLog"), let e = try? JSONDecoder().decode([UUID: [Entry]].self, from: d) {
+            entries = e.mapValues { $0.map(Self.kept) }
+            // A log written before 2026-11-07 kept whole bodies and addresses on disk: those go now.
+            if entries != e { persist() }
+        }
+    }
+
+    /// What of a request stays on disk after the app quits: when, how, where (scheme, host and
+    /// path) and what came back, never what was sent or the query, which can carry note text.
+    /// The whole request is shown while the app is open.
+    nonisolated static func kept(_ e: Entry) -> Entry {
+        var k = e
+        k.sent = ""
+        if var c = URLComponents(string: e.url) {
+            c.query = nil
+            c.fragment = nil
+            k.url = c.string ?? ""
+        } else {
+            k.url = ""
+        }
+        return k
+    }
+
+    private func persist() {
+        defaults?.set(try? JSONEncoder().encode(entries.mapValues { $0.map(Self.kept) }), forKey: "notePageNetLog")
     }
 
     func isApproved(_ host: String, for id: UUID) -> Bool { approved[id]?.contains(host) == true }
@@ -151,7 +175,23 @@ final class NotePageNetLog {
     func add(_ e: Entry, for id: UUID) {
         entries[id, default: []].append(e)
         entries[id] = Array(entries[id]!.suffix(200))
-        defaults?.set(try? JSONEncoder().encode(entries), forKey: "notePageNetLog")
+        persist()
+    }
+
+    /// A note deleted for good, or its app removed: what it was allowed to reach and sent goes.
+    func forgetNote(_ id: UUID) {
+        approved[id] = nil
+        entries[id] = nil
+        defaults?.set(try? JSONEncoder().encode(approved), forKey: "notePageApprovedHosts")
+        persist()
+    }
+
+    /// The library left this device (sign out and remove, another account, account deleted).
+    func forgetAll() {
+        approved = [:]
+        entries = [:]
+        defaults?.removeObject(forKey: "notePageApprovedHosts")
+        defaults?.removeObject(forKey: "notePageNetLog")
     }
 }
 

@@ -277,6 +277,8 @@ struct NoteDetailView: View {
                                      remove: {
                                          // The note's text stays as it is, and the app is kept: Previous App brings it back.
                                          NotePageStore.shared.setHere(note.id, nil)
+                                         // What it reached and sent goes with it.
+                                         NotePageNetLog.shared.forgetNote(note.id)
                                          shownPage = nil
                                          mode = .text
                                      })
