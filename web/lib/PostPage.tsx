@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import legal from "./legal.module.css";
 import p from "./post.module.css";
-import { Avatar, Figure, PostCard, longDate, readingMinutes } from "./blog";
+import { Announcement, Avatar, Figure, PostCard, longDate, readingMinutes } from "./blog";
 import { ClosingBand } from "./ClosingBand";
 import { AUTHOR, CATEGORY_COVERS, categoryPath, morePosts, post, type Category, type Post } from "./posts";
 import { MAKER_URL, SITE_URL, pageMetadata } from "./site";
@@ -109,12 +109,13 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
               <li><a href={categoryPath(x.category)}>{x.category}</a></li>
             </ol>
           </nav>
+          {x.announcement && <Announcement />}
           <h1 className={p.title}>{x.title}</h1>
           <div className={p.byline}>
             <Avatar size={32} />
             <p>
               <a className={p.author} href={MAKER_URL} rel="author">{AUTHOR.name}</a>
-              <span className={p.meta}><time dateTime={x.date}>{longDate(x.date)}</time><span aria-hidden="true"> · </span>{minutes} min read</span>
+              <span className={p.meta}><time dateTime={x.date}>{longDate(x.date)}</time></span>
             </p>
             <Share x={x} />
           </div>

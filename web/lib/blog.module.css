@@ -177,3 +177,9 @@
 /* A cover (the topic's launch picture or a drawing of its apps) fills the whole picture, uncropped by
    the capture's frame, shadow and fade. */
 .thumb[data-art] img { inset: 0; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0; background: none; box-shadow: none; -webkit-mask-image: none; mask-image: none; }
+
+/* A launch's label (Emil, 7 November 2026): a solid amber pill, so news reads as news next to the guides. */
+.announce {
+  justify-self: start; align-self: center; display: inline-block; padding: 4px 10px 3px; border-radius: 999px;
+  background: var(--amber); color: #1f1407; font-size: 12px; line-height: 1.2; font-weight: 750; letter-spacing: 0.05em; text-transform: uppercase;
+}

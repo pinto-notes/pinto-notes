@@ -9,7 +9,7 @@ export default function Page() {
   return (
     <PostPage
       slug="pinto-notes-for-iphone"
-      intro={<>Pinto Notes is on the App Store. The same notes as on your Mac, on your phone, and free.</>}
+      intro={<>Pinto Notes for iPhone is out now on the App Store. Until now it was a Mac app. Today the same notes are on your phone, and it&apos;s free.</>}
       hero={<></>}
     >
       <h2>Your notes, a second after your AI writes them</h2>

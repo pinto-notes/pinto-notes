@@ -30,6 +30,10 @@ export const SHELVES: Shelf[] = [
     title: "Your AI and your notes",
     line: "So ChatGPT and Claude know what you know, without pasting it in every time.",
     items: [
+      { slug: "connect-chatgpt-to-your-notes", ask: "How do I connect ChatGPT to my notes?" },
+      { slug: "notes-in-claude-code-and-codex", ask: "Can Claude Code and Codex use my notes?" },
+      { slug: "budget-tracker-with-chatgpt-or-claude", ask: "Can my AI keep a budget for me?" },
+      { slug: "encrypted-notes-app-for-ai", ask: "Can an encrypted notes app work with AI?" },
       { slug: "chatgpt-and-apple-notes", ask: "Can ChatGPT use Apple Notes?" },
       { slug: "claude-and-apple-notes", ask: "Can Claude use Apple Notes?" },
       { slug: "obsidian-mcp", ask: "Can Claude use my Obsidian vault?" },
@@ -41,6 +45,7 @@ export const SHELVES: Shelf[] = [
     title: "Notes apps, compared",
     line: "Read on each maker's own pages, with the prices of the day.",
     items: [
+      { slug: "best-ai-notes-app", ask: "What's the best AI notes app?" },
       { slug: "best-notes-app-for-mac", ask: "What's the best notes app for Mac?" },
     ],
   },

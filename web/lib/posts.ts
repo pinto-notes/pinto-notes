@@ -25,6 +25,9 @@ export type Post = {
   /// The card's picture: its own ground and one focal capture, so no two posts look alike.
   thumb: Thumb;
   draft: boolean;
+  /// A launch of something new in the app: labelled "Announcement" on its card and above its title
+  /// (Emil, 7 November 2026: "right now it's honestly not that clear" that these are news).
+  announcement?: true;
 };
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
@@ -75,15 +78,16 @@ export const SHOTS = {
 export const posts: Post[] = [
   {
     slug: "pinto-notes-for-iphone",
-    title: "Pinto Notes is on iPhone",
-    description: "Pinto Notes is on the App Store: the notes from your Mac on your iPhone, free. What your AI's changes look like on the phone, and how to connect.",
-    excerpt: "The same notes as on your Mac, on your phone, and free. Ask ChatGPT to add something, and it's in the note a second later, with Undo next to it.",
+    title: "Introducing Pinto Notes for iPhone",
+    description: "Pinto Notes for iPhone is out now on the App Store, free. Your Mac notes on your phone, and what your AI's changes look like there.",
+    excerpt: "Out now on the App Store, and free. The same notes as on your Mac, on your phone. Ask ChatGPT to add something, and it's in the note a second later, with Undo next to it.",
     category: "Building Pinto Notes",
     date: "2026-11-07",
     updated: "2026-11-07",
     image: { src: "/blog/launch/iphone-chatgpt-changed-groceries.webp", alt: "A Groceries list in Pinto Notes on iPhone with five lines ChatGPT added tinted amber, and ChatGPT changed 5 lines, Undo.", width: 660, height: 1434, window: false, phone: true },
     thumb: cover("ice", "app-pinto-notes-for-iphone", 1600, 1000, "Pinto Notes on iPhone, a grocery list ChatGPT just added to, on a painted sea"),
     draft: false,
+    announcement: true,
   },
   {
     slug: "import-your-notes",
@@ -96,6 +100,7 @@ export const posts: Post[] = [
     image: { src: "/blog/launch/import-google-keep-guide.webp", alt: "Pinto Notes' Google Keep import guide on a Mac: Bring your Google Keep notes, then step 1, Ask Google for your notes.", width: 1600, height: 1000, window: false },
     thumb: cover("mist", "app-import-your-notes", 1600, 1000, "Pinto Notes' import guide for Google Keep and 27 notes from Obsidian, on a painted sea"),
     draft: false,
+    announcement: true,
   },
   {
     slug: "best-ai-notes-app",
@@ -428,19 +433,10 @@ export const categoryPath = (c: Category) => `/blog/category/${categoryAnchor(c)
 
 export const categoryFromAnchor = (anchor: string): Category | undefined => categories().find((c) => categoryAnchor(c) === anchor);
 
-/// The front of the blog (decided 7 November 2026): posts about Pinto Notes and what people do with it,
-/// plus the AI notes comparison, which Emil wanted on the front.
-/// shown as cards on /blog. Every other post answers a search; those live on /blog/answers, in the
-/// sitemap and in the posts that link to them, but not on /blog.
-export const FEATURED = [
-  "pinto-notes-for-iphone",
-  "import-your-notes",
-  "best-ai-notes-app",
-  "connect-chatgpt-to-your-notes",
-  "notes-in-claude-code-and-codex",
-  "budget-tracker-with-chatgpt-or-claude",
-  "encrypted-notes-app-for-ai",
-];
+/// The front of the blog: announcements only (Emil, 7 November 2026: "the Pinto Notes blog immediately
+/// became only for announcements"). Every other post answers a search; those live on /blog/answers,
+/// in the sitemap and in the posts that link to them, but not on /blog.
+export const FEATURED = posts.filter((p) => p.announcement && !p.draft).map((p) => p.slug);
 export const isFeatured = (p: Post) => FEATURED.includes(p.slug);
 
 /// Posts per page on the index and on each category page.
