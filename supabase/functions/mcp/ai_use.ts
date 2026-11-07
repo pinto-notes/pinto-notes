@@ -1,5 +1,5 @@
 // How much each account uses its AI connections: one count per account, UTC day, kind of AI, kind
-// of tool and outcome (migration 20261107150000_ai_use_daily.sql). Only the tool's category and
+// of tool and outcome (migration 20261107170000_ai_use_daily.sql). Only the tool's category and
 // whether it worked are counted; never its arguments, the note, the connection's name or its host.
 // docs/Technical/app-telemetry.md, "AI use on the server", says what is kept and how to read it.
 

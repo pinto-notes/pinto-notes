@@ -1,4 +1,4 @@
-// AI use after connecting (ai_use.ts, migration 20261107150000_ai_use_daily.sql), through the request
+// AI use after connecting (ai_use.ts, migration 20261107170000_ai_use_daily.sql), through the request
 // handler with real connections. By default on an in-process Postgres (PGlite). With AI_USE_PG_URL
 // pointing at the LOCAL stack's Postgres, the same tests run in a throwaway database made there and
 // dropped at the end (never production: anything but 127.0.0.1 or localhost is refused):
@@ -216,7 +216,7 @@ Deno.test("a request counts only for the account that owns its connection; nobod
   }
 });
 
-Deno.test("a sign-in's kind is where its approval went; rows go with the account and after 400 days", async () => {
+Deno.test("a sign-in's kind is where its approval went; rows go with the account and after 365 days", async () => {
   const { sql, done } = await database();
   try {
     const a = await person(sql);
@@ -233,13 +233,13 @@ Deno.test("a sign-in's kind is where its approval went; rows go with the account
       assert(r, host);
       assertEquals((await sql<{ ai: string }[]>`select public.ai_use_kind('oauth', 'Claude', ${host}) as ai`)[0].ai, ai, host);
     }
-    // Kept 400 days.
+    // Kept 365 days.
     await sql`insert into public.ai_use_daily (user_id, day, ai, category, outcome, count) values
-      (${a.id}, (now() at time zone 'utc')::date - 401, 'claude', 'edit', 'ok', 5),
-      (${a.id}, (now() at time zone 'utc')::date - 399, 'claude', 'edit', 'ok', 5)`;
+      (${a.id}, (now() at time zone 'utc')::date - 366, 'claude', 'edit', 'ok', 5),
+      (${a.id}, (now() at time zone 'utc')::date - 364, 'claude', 'edit', 'ok', 5)`;
     await sql`select public.ai_use_forget()`;
     const days = (await sql<{ age: number }[]>`select ((now() at time zone 'utc')::date - day) as age from public.ai_use_daily where category = 'edit'`).map((r) => Number(r.age));
-    assertEquals(days, [399]);
+    assertEquals(days, [364]);
     // The daily active view: one account, counted once under each kind it used.
     const active = await sql<{ ai: string; accounts: number }[]>`select ai, accounts from public.ai_use_active_daily where day = (now() at time zone 'utc')::date order by ai`;
     assertEquals(active.map((r) => [r.ai, Number(r.accounts)]), [["chatgpt", 1], ["claude", 1], ["other", 1]]);

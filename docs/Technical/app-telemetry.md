@@ -222,7 +222,7 @@ the `account` server function would need to ask PostHog for it with a private ke
 ## AI use on the server
 
 The apps can't see what a connected AI does, so the MCP server counts it
-(`supabase/functions/mcp/ai_use.ts`, migration `20261107150000_ai_use_daily.sql`). It sends
+(`supabase/functions/mcp/ai_use.ts`, migration `20261107170000_ai_use_daily.sql`). It sends
 nothing to PostHog: the edge functions have no PostHog key, and the counts stay in the database.
 
 `public.ai_use_daily` holds one row per account, UTC day, kind of AI, kind of tool and outcome,
@@ -245,7 +245,7 @@ with a count. Nothing else: no tool arguments, no note or file, no connection na
   A disconnected connection counts nothing.
 - **Who can read it:** the service role only. The table has row-level security and no policy;
   `anon` and `authenticated` have no grants on it, on `count_ai_use` or on the view.
-- **Kept:** 400 days (`ai_use_forget`, daily from pg_cron as `amber-forget-ai-use`).
+- **Kept:** 365 days (`ai_use_forget`, daily from pg_cron as `amber-forget-ai-use`).
 - **Daily active AI accounts:** the view `public.ai_use_active_daily` (`day`, `ai`, `accounts`,
   `calls`; successful calls only).
 

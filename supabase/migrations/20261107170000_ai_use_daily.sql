@@ -8,7 +8,7 @@
 -- request can only ever count for the account that owns that connection.
 --
 -- Only the service role reads it (no policy for anon or authenticated). Rows go with the account
--- (on delete cascade) and are kept 400 days at most (ai_use_forget, daily from pg_cron).
+-- (on delete cascade) and are kept 365 days at most (ai_use_forget, daily from pg_cron).
 
 create table if not exists public.ai_use_daily (
   user_id  uuid not null references auth.users (id) on delete cascade,
@@ -57,10 +57,10 @@ language sql security definer set search_path = '' as $$
 $$;
 revoke all on function public.count_ai_use(uuid, text, boolean, integer) from public, anon, authenticated;
 
--- Kept 400 days.
+-- Kept 365 days, as the privacy policy says (12 months).
 create or replace function public.ai_use_forget() returns void
 language sql security definer set search_path = '' as $$
-  delete from public.ai_use_daily where day < (now() at time zone 'utc')::date - 400
+  delete from public.ai_use_daily where day < (now() at time zone 'utc')::date - 365
 $$;
 revoke all on function public.ai_use_forget() from public, anon, authenticated;
 
