@@ -1172,7 +1172,22 @@ final class SyncEngine {
             if s.updated_at > n.updatedAt { apply(s, to: n); return server }
             return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
         }
-        if s.body == n.body && s.locked_body == n.lockedBody && Self.sameProps(s, n) { return server }
+        if s.body == n.body && s.locked_body == n.lockedBody && Self.sameProps(s, n) {
+            // The same text, but not necessarily the same place: a move, trash, restore or pin made
+            // here and one made elsewhere are put together, each side's change kept.
+            let mine = Place(n), theirs = Place(s)
+            guard !mine.same(as: theirs), let sv = s.version else { return server }
+            let base = syncedPlace[n.id].flatMap { $0.version == n.serverVersion ? $0.place : nil }
+            let merged = Place.merge(base: base, mine: mine, theirs: theirs)
+            var patch = NoteDTO(n).patch
+            merged.write(to: &patch)
+            let saved: [NoteDTO] = try await client.from("notes").update(patch)
+                .eq("id", value: n.id).eq("version", value: Int(sv)).select().execute().value
+            // Moved on again meanwhile: the next push tries again.
+            guard saved.first != nil else { return [] }
+            if !merged.same(as: mine) { merged.write(to: n, folder: merged.folder.flatMap { context.folder($0) }) }
+            return saved
+        }
         // A locked note's text is sealed: there's nothing to merge line by line.
         let sealed = s.locked_body != nil || n.lockedBody != nil
         // Both typed since the version we last had: where the edits don't touch the same lines,
@@ -1614,8 +1629,76 @@ final class SyncEngine {
     /// What was last sent of the API key names (pushAPIKeyNames).
     private var lastKeyNames: String?
 
+    /// Where each note was at the server version this device last had: the starting point when a
+    /// move, trash or pin here meets another one there. For this run of the app only.
+    private var syncedPlace: [UUID: (version: Int64, place: Place)] = [:]
+
     private func remember(_ r: NoteDTO) {
-        if let v = r.version { synced[r.id] = (v, r.body, r.hasProps ? r.front_matter : synced[r.id]?.props) }
+        if let v = r.version {
+            synced[r.id] = (v, r.body, r.hasProps ? r.front_matter : synced[r.id]?.props)
+            syncedPlace[r.id] = (v, Place(r))
+        }
+    }
+
+    /// A note's place apart from its text: its folder, parent note, pin, and whether it's in
+    /// Recently Deleted or deleted for good.
+    struct Place {
+        var folder: UUID?
+        var parent: UUID?
+        var pinned: Bool
+        var trashed: Date?
+        var deleted: Date?
+
+        init(folder: UUID?, parent: UUID?, pinned: Bool, trashed: Date?, deleted: Date?) {
+            (self.folder, self.parent, self.pinned, self.trashed, self.deleted) = (folder, parent, pinned, trashed, deleted)
+        }
+        init(_ n: Note) { self.init(folder: n.folder?.id, parent: n.parentID, pinned: n.isPinned, trashed: n.trashedAt, deleted: n.deletedAt) }
+        init(_ r: NoteDTO) { self.init(folder: r.folder_id, parent: r.parent_id, pinned: r.is_pinned, trashed: r.trashed_at, deleted: r.deleted_at) }
+
+        /// The server keeps microseconds; a Date round-trips a hair off.
+        private static func near(_ a: Date?, _ b: Date?) -> Bool {
+            switch (a, b) {
+            case (nil, nil): true
+            case let (x?, y?): abs(x.timeIntervalSince(y)) < 0.001
+            default: false
+            }
+        }
+
+        func same(as o: Place) -> Bool {
+            folder == o.folder && parent == o.parent && pinned == o.pinned && Self.near(trashed, o.trashed) && Self.near(deleted, o.deleted)
+        }
+
+        /// Each part from the side that changed it since `base`; where both did, or there's no
+        /// base, this device's. Deleted for good on either side stays deleted.
+        static func merge(base: Place?, mine: Place, theirs: Place) -> Place {
+            func pick<T>(_ m: T, _ t: T, _ b: T?, _ eq: (T, T) -> Bool) -> T {
+                guard let b else { return m }
+                return eq(m, b) ? t : m
+            }
+            var p = Place(folder: pick(mine.folder, theirs.folder, base.map(\.folder), ==),
+                          parent: pick(mine.parent, theirs.parent, base.map(\.parent), ==),
+                          pinned: pick(mine.pinned, theirs.pinned, base.map(\.pinned), ==),
+                          trashed: pick(mine.trashed, theirs.trashed, base.map(\.trashed), near),
+                          deleted: pick(mine.deleted, theirs.deleted, base.map(\.deleted), near))
+            if p.deleted == nil { p.deleted = mine.deleted ?? theirs.deleted }
+            return p
+        }
+
+        func write(to patch: inout NoteDTO.Patch) {
+            patch.folder_id = folder
+            patch.parent_id = parent
+            patch.is_pinned = pinned
+            patch.trashed_at = trashed
+            patch.deleted_at = deleted
+        }
+
+        @MainActor func write(to n: Note, folder f: Folder?) {
+            n.folder = f
+            n.parentID = parent
+            n.isPinned = pinned
+            n.trashedAt = trashed
+            n.deletedAt = deleted
+        }
     }
 
     private func apply(_ r: NoteDTO, to n: Note) {
