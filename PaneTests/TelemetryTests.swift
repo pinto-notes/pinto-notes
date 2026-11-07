@@ -656,3 +656,143 @@ private final class TelemetryDocToken {}
         #expect(props[.how] == .word(KeyReadyHow.created))
     }
 }
+
+// MARK: Which settings are used
+
+/// settings_state once a day, setting_changed when the person changes one, settings_page_opened
+/// for each page: closed words, flags and numbers only, and nothing with Share diagnostics off.
+@MainActor
+@Suite struct SettingsUsageTests {
+    private func usage(_ d: UserDefaults, on: Bool = true, day: @escaping () -> Date = { Date(timeIntervalSince1970: 86400 * 20_000 + 3600) })
+        -> (SettingsUsage, () -> [TelemetryEvent]) {
+        let u = SettingsUsage()
+        var seen: [TelemetryEvent] = []
+        u.defaults = d
+        u.loginOn = { false }
+        u.isOn = { on }
+        u.now = day
+        u.record = { seen.append($0) }
+        return (u, { seen })
+    }
+
+    @Test func untouchedSettingsReadAsTheirDefaults() {
+        let v = SettingsUsage.values(TestDefaults(), loginOn: false)
+        #expect(v[.appearance] == .word(AppearanceMode.system))
+        #expect(v[.theme] == .word(Theme.standard) && v[.accent] == .word(AccentChoice.theme))
+        #expect(v[.textSize] == .number(13))
+        #expect(v[.todayFolder] == .word(TodayFolderWord.default) && v[.todayTitle] == .word(TodaysNoteSettings.Title.long))
+        #expect(v[.todayTemplate] == .flag(false) && v[.todayOnLaunch] == .flag(false))
+        #expect(v[.tickedToBottom] == .flag(true), "ticked items have always sunk")
+        #if os(macOS)
+        #expect(v[.menuBar] == .flag(true) && v[.quickNoteShortcut] == .flag(false) && v[.openAtLogin] == .flag(false))
+        #expect(v.count == SettingName.allCases.count)
+        #endif
+    }
+
+    /// The exact properties of a day's settings_state, as they go out: never a folder's or a
+    /// template's name, never a shortcut's keys.
+    @Test func theDailyStateSaysEachSettingInClosedWords() async throws {
+        let d = TestDefaults()
+        d.set("dark", forKey: AppearanceModeStore.key); d.set("sepia", forKey: ThemeStore.themeKey); d.set("blue", forKey: ThemeStore.accentKey)
+        d.set(17.0, forKey: TextSize.key); d.set("Journal of Lisa", forKey: TodaysNoteSettings.folderKey)
+        d.set("weekday", forKey: TodaysNoteSettings.titleKey); d.set(UUID().uuidString, forKey: TodaysNoteSettings.templateKey)
+        d.set(true, forKey: TodaysNoteSettings.launchKey); d.set(false, forKey: ChecklistSorting.key)
+        #if os(macOS)
+        d.set(false, forKey: MenuBarSettings.key)
+        d.set(try JSONEncoder().encode(QuickNoteHotKey.Shortcut(keyCode: 45, modifiers: 2048, display: "\u{2325}N")), forKey: QuickNoteHotKey.key)
+        #endif
+        let config = TelemetryConfig(key: "phc_test", host: TelemetryGate.defaultHost,
+                                     context: TelemetryContext(appVersion: VersionNumber("1.3"), appBuild: nil, osVersion: nil, platform: .macos, deviceClass: .mac, channel: .release, distribution: .direct))
+        let transport = StubTransport()
+        let telemetry = Telemetry(config: config, transport: transport, defaults: TestDefaults())
+        telemetry.record(.settingsState(SettingsUsage.values(d, loginOn: true)))
+        await telemetry.flush()
+        let e = try #require(transport.events.first)
+        #expect(e["event"] as? String == "settings_state")
+        let p = try #require(e["properties"] as? [String: Any])
+        #expect(p["appearance"] as? String == "dark" && p["theme"] as? String == "sepia" && p["accent"] as? String == "blue")
+        #expect(p["text_size"] as? Int == 17)
+        #expect(p["today_folder"] as? String == "custom" && p["today_title"] as? String == "weekday")
+        #expect(p["today_template"] as? Bool == true && p["today_on_launch"] as? Bool == true && p["ticked_to_bottom"] as? Bool == false)
+        #if os(macOS)
+        #expect(p["menu_bar"] as? Bool == false && p["quick_note_shortcut"] as? Bool == true && p["open_at_login"] as? Bool == true)
+        #endif
+        let text = String(decoding: try #require(transport.bodies.first), as: UTF8.self)
+        #expect(!text.contains("Lisa") && !text.contains("Journal") && !text.contains("\u{2325}"), "no names, no keys")
+    }
+
+    @Test func theStateGoesOutOnceADay() {
+        var when = Date(timeIntervalSince1970: 86400 * 20_000 + 3600)
+        let (u, seen) = usage(TestDefaults(), day: { when })
+        u.becameActive(); u.becameActive()
+        when.addTimeInterval(3600 * 5)
+        u.becameActive()
+        #expect(seen().count == 1, "the same day: once")
+        when.addTimeInterval(86400)
+        u.becameActive()
+        #expect(seen().count == 2 && seen().allSatisfy { $0.name == .settingsState }, "the next day: again")
+    }
+
+    @Test func nothingWithDiagnosticsOff() async {
+        let off = TestDefaults()
+        off.set(false, forKey: Telemetry.consentKey)
+        let config = TelemetryConfig(key: "phc_test", host: TelemetryGate.defaultHost,
+                                     context: TelemetryContext(appVersion: nil, appBuild: nil, osVersion: nil, platform: .macos, deviceClass: .mac, channel: .release, distribution: .direct))
+        let transport = StubTransport()
+        let telemetry = Telemetry(config: config, transport: transport, defaults: off)
+        let d = TestDefaults()
+        let u = SettingsUsage()
+        u.defaults = d; u.loginOn = { false }
+        u.isOn = { telemetry.isOn }
+        u.record = { telemetry.record($0) }
+        u.start()
+        u.becameActive()
+        d.set("slate", forKey: ThemeStore.themeKey); u.check()
+        u.opened(.general)
+        await telemetry.flush()
+        #expect(transport.events.isEmpty)
+        #expect(d.object(forKey: SettingsUsage.dayKey) == nil, "the day isn't used up while off")
+    }
+
+    @Test func aChangeSaysWhichSettingAndItsNewValue() {
+        let d = TestDefaults()
+        let (u, seen) = usage(d)
+        u.start()
+        u.check()
+        #expect(seen().isEmpty, "nothing changed")
+        d.set("sepia", forKey: ThemeStore.themeKey)
+        d.set(true, forKey: TodaysNoteSettings.launchKey)
+        d.set("Journal", forKey: TodaysNoteSettings.folderKey)
+        d.set("lastNote-something", forKey: "lastNote")
+        u.check()
+        #expect(seen() == [.settingChanged(.theme, .word(Theme.sepia)), .settingChanged(.todayFolder, .word(TodayFolderWord.custom)),
+                           .settingChanged(.todayOnLaunch, .flag(true))])
+        u.check()
+        #expect(seen().count == 3, "said once")
+        let p = TelemetryEvent.settingChanged(.theme, .word(Theme.sepia)).properties
+        #expect(p == [.setting: .word(SettingName.theme), .value: .word(Theme.sepia)])
+    }
+
+    #if os(macOS)
+    /// Open at login lives with the system, not in the defaults: its switch asks again.
+    @Test func openAtLoginIsReadWhenItsSwitchIsFlipped() {
+        var on = false
+        let (u, seen) = usage(TestDefaults())
+        u.loginOn = { on }
+        u.start()
+        on = true
+        u.check()
+        #expect(seen().isEmpty, "not asked on every write")
+        u.check(asksSystem: true)
+        #expect(seen() == [.settingChanged(.openAtLogin, .flag(true))])
+    }
+    #endif
+
+    @Test func eachPageHasAWord() {
+        #expect(TelemetryEvent.settingsPageOpened(.storage).properties == [.settingsPage: .word(SettingsPageWord.storage)])
+        for tab in SettingsTab.allCases { #expect(SettingsPageWord(rawValue: tab.rawValue) != nil, "\(tab)") }
+        #if os(macOS)
+        for place in SettingsPlace.allCases { #expect(SettingsPageWord(place).rawValue == (place == .appKeys ? "app_keys" : place.rawValue)) }
+        #endif
+    }
+}

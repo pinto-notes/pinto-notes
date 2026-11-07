@@ -275,7 +275,7 @@ struct GeneralSettingsPage: View {
                     ShortcutRecorder()
                 }
                 SettingsLine(title: GeneralCopy.login) {
-                    Toggle(GeneralCopy.login, isOn: Binding(get: { login }, set: { on in LoginItem.set(on); login = LoginItem.isOn }))
+                    Toggle(GeneralCopy.login, isOn: Binding(get: { login }, set: { on in LoginItem.set(on); login = LoginItem.isOn; SettingsUsage.shared.check(asksSystem: true) }))
                         .settingsSwitch()
                         .accessibilityIdentifier("settings.openAtLogin")
                 }

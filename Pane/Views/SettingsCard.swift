@@ -253,6 +253,7 @@ struct SettingsCard: View {
                                 .accessibilityIdentifier("settings.offline")
                         }
                         page(shown)
+                            .onAppear { SettingsUsage.shared.opened(SettingsPageWord(shown)) }
                             .environment(\.settingsAsPage, true)
                             .environment(\.openSettingsPlace, OpenSettingsPlace { path.append($0) })
                     }

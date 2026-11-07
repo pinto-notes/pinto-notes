@@ -109,6 +109,7 @@ struct SettingsView: View {
                 }
                 .navigationDestination(for: SettingsTab.self) { tab in
                     page(tab)
+                        .onAppear { SettingsUsage.shared.opened(SettingsPageWord(tab)) }
                         .navigationTitle(tab.title)
                         .navigationBarTitleDisplayMode(.inline)
                 }

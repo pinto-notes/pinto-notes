@@ -92,6 +92,33 @@ than once (a person goes back, or tries again); each is sent when it happens.
 `kind` on `import_step`, `connect_step` and `link_device_step` is one of `offline`, `timeout`,
 `network`, `cancelled`, `http`, `database`, `storage`, `auth`, `decoding`, `crypto`, `file`, `other`.
 
+## Settings
+
+Which settings people use, so the ones nobody changes can go. A setting's value is a yes or no,
+a number or one of the closed words below: never a folder's or a note's name, never the keys of a
+shortcut.
+
+| Event | When | Properties |
+|---|---|---|
+| `settings_state` | Once a day (UTC) per device, when the app comes to the front | Every setting below, as it is on this device |
+| `setting_changed` | The person changed a setting (in Settings, or with View › Make Text Bigger) | `setting`: one of the setting names below; `value`: its new value |
+| `settings_page_opened` | A page of Settings was opened | `settings_page`: `account`, `ai`, `general`, `appearance`, `security`, `storage`, `help`, `app_keys` |
+
+| Setting | Values | Where |
+|---|---|---|
+| `appearance` | `system`, `light`, `dark` | Mac, iPhone |
+| `theme` | `default`, `paper`, `sepia`, `slate`, `forest`, `contrast` | Mac, iPhone |
+| `accent` | `theme` (the theme's own), `blue`, `green`, `purple`, `red`, `graphite` | Mac, iPhone |
+| `text_size` | The note text's size in points: 13, 15, 17, 20 or 24 | Mac, iPhone |
+| `today_folder` | `default` (Daily), `custom` (another folder; never its name) | Mac, iPhone |
+| `today_title` | `long` (7 November 2026), `iso` (2026-11-07), `weekday` (Saturday 7 November) | Mac, iPhone |
+| `today_template` | Yes or no: today's note starts from a template | Mac, iPhone |
+| `today_on_launch` | Yes or no: Pinto opens on today's note | Mac, iPhone |
+| `ticked_to_bottom` | Yes or no | Mac, iPhone |
+| `menu_bar` | Yes or no | Mac |
+| `quick_note_shortcut` | Yes or no: a shortcut is set (never which keys) | Mac |
+| `open_at_login` | Yes or no | Mac |
+
 ## Error reports
 
 | Event | When | Properties |

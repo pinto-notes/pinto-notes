@@ -93,8 +93,12 @@ enum TelemetryLifecycle {
         let active = NSApplication.didBecomeActiveNotification
         let leaving = [(NSApplication.didResignActiveNotification, false), (NSApplication.willTerminateNotification, true)]
         #endif
+        SettingsUsage.shared.start()
         observers.append(center.addObserver(forName: active, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { Telemetry.shared.becameActive(signedIn: signedIn()) }
+            MainActor.assumeIsolated {
+                Telemetry.shared.becameActive(signedIn: signedIn())
+                SettingsUsage.shared.becameActive()
+            }
         })
         for (name, quitting) in leaving {
             observers.append(center.addObserver(forName: name, object: nil, queue: .main) { _ in
@@ -116,6 +120,89 @@ enum TelemetryLifecycle {
         Task { await Telemetry.shared.resigning(quitting: quitting) }
         #endif
     }
+}
+
+/// Which settings people use (docs/Technical/app-telemetry.md): every setting's value once a day,
+/// a change when the person makes one, and the Settings pages they open. Nothing is recorded with
+/// Share diagnostics off (Telemetry.record).
+@MainActor
+final class SettingsUsage {
+    static let shared = SettingsUsage()
+    /// The day (UTC, days since 1970) the last `settings_state` went out.
+    static let dayKey = "telemetry.settingsDay"
+
+    var defaults: UserDefaults = .standard
+    var loginOn: () -> Bool = {
+        #if os(macOS)
+        LoginItem.isOn
+        #else
+        false
+        #endif
+    }
+    var record: (TelemetryEvent) -> Void = { Telemetry.shared.record($0) }
+    var isOn: () -> Bool = { Telemetry.shared.isOn }
+    var now: () -> Date = { .now }
+    private var last: [SettingName: TelemetryValue]?
+    /// Open at login as last read: the system is asked at start, once a day and when its switch
+    /// is flipped, not on every write to the defaults.
+    private var login = false
+    private var watch: NSObjectProtocol?
+
+    /// Every setting's value as `defaults` holds it, each as it reads when never changed.
+    static func values(_ d: UserDefaults, loginOn: Bool) -> [SettingName: TelemetryValue] {
+        let folder = d.string(forKey: TodaysNoteSettings.folderKey)?.trimmingCharacters(in: .whitespaces) ?? ""
+        var v: [SettingName: TelemetryValue] = [
+            .appearance: .word(d.string(forKey: AppearanceModeStore.key).flatMap(AppearanceMode.init) ?? .system),
+            .theme: .word(d.string(forKey: ThemeStore.themeKey).flatMap(Theme.init) ?? .standard),
+            .accent: .word(d.string(forKey: ThemeStore.accentKey).flatMap(AccentChoice.init) ?? .theme),
+            .textSize: .number(Int(TextSize.size(stored: d.double(forKey: TextSize.key)))),
+            .todayFolder: .word(folder.isEmpty || DailyNotes.same(folder, DailyNotes.folderName) ? TodayFolderWord.default : .custom),
+            .todayTitle: .word(d.string(forKey: TodaysNoteSettings.titleKey).flatMap(TodaysNoteSettings.Title.init) ?? .long),
+            .todayTemplate: .flag(d.string(forKey: TodaysNoteSettings.templateKey).flatMap(UUID.init) != nil),
+            .todayOnLaunch: .flag(d.bool(forKey: TodaysNoteSettings.launchKey)),
+            .tickedToBottom: .flag(d.object(forKey: ChecklistSorting.key) as? Bool ?? true),
+        ]
+        #if os(macOS)
+        v[.menuBar] = .flag(d.object(forKey: MenuBarSettings.key) as? Bool ?? true)
+        v[.quickNoteShortcut] = .flag(d.data(forKey: QuickNoteHotKey.key) != nil)
+        v[.openAtLogin] = .flag(loginOn)
+        #endif
+        return v
+    }
+
+    /// Notes where things stand, and watches for changes from now on.
+    func start() {
+        login = loginOn()
+        last = Self.values(defaults, loginOn: login)
+        guard watch == nil else { return }
+        watch = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: defaults, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.check() }
+        }
+    }
+
+    /// Once a day: every setting's value.
+    func becameActive() {
+        guard isOn() else { return }
+        let day = Int(now().timeIntervalSince1970 / 86400)
+        guard defaults.object(forKey: Self.dayKey) as? Int != day else { return }
+        defaults.set(day, forKey: Self.dayKey)
+        login = loginOn()
+        record(.settingsState(Self.values(defaults, loginOn: login)))
+    }
+
+    /// A setting that changed since the last look: one `setting_changed` for each. `asksSystem`:
+    /// read Open at login again (its switch was flipped).
+    func check(asksSystem: Bool = false) {
+        if asksSystem { login = loginOn() }
+        let now = Self.values(defaults, loginOn: login)
+        defer { last = now }
+        guard let last else { return }
+        for name in SettingName.allCases {
+            if let value = now[name], value != last[name] { record(.settingChanged(name, value)) }
+        }
+    }
+
+    func opened(_ page: SettingsPageWord) { record(.settingsPageOpened(page)) }
 }
 
 #if os(iOS)

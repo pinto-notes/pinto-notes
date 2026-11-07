@@ -59,6 +59,14 @@ enum TelemetryProperty: String, CaseIterable, Sendable {
     case failed
     // The funnels (onboarding, imports, connecting an AI, signing in, adding a device).
     case step, action, source, page, ai, role
+    // Which settings are used (settings_state, setting_changed, settings_page_opened).
+    case appearance, theme, accent
+    case textSize = "text_size"
+    case todayFolder = "today_folder", todayTitle = "today_title", todayTemplate = "today_template"
+    case todayOnLaunch = "today_on_launch", tickedToBottom = "ticked_to_bottom", menuBar = "menu_bar"
+    case quickNoteShortcut = "quick_note_shortcut", openAtLogin = "open_at_login"
+    case setting, value
+    case settingsPage = "settings_page"
 
     static let frameSlots: [TelemetryProperty] = [.frame0, .frame1, .frame2, .frame3, .frame4, .frame5, .frame6, .frame7]
 }
@@ -308,6 +316,48 @@ enum LinkStep: String, TelemetryWord {
     case gaveUp = "gave_up"
 }
 
+// MARK: Settings words
+//
+// Which settings people use, so the ones nobody changes can go (Emil, 7 November 2026). A
+// setting's value is a yes or no, a number, or one of these closed words: never a folder's or a
+// note's name, never the keys of a shortcut.
+
+/// A setting, by the name its value goes under in `settings_state` (the same as its property).
+enum SettingName: String, TelemetryWord {
+    case appearance, theme, accent
+    case textSize = "text_size"
+    case todayFolder = "today_folder", todayTitle = "today_title", todayTemplate = "today_template"
+    case todayOnLaunch = "today_on_launch", tickedToBottom = "ticked_to_bottom", menuBar = "menu_bar"
+    case quickNoteShortcut = "quick_note_shortcut", openAtLogin = "open_at_login"
+
+    var property: TelemetryProperty { TelemetryProperty(rawValue: rawValue)! }
+}
+
+/// Today's note's folder: the one it starts with, or one the person picked. Never its name.
+enum TodayFolderWord: String, TelemetryWord { case `default`, custom }
+
+/// A page of Settings, Mac or iPhone.
+enum SettingsPageWord: String, TelemetryWord {
+    case account, ai, general, appearance, security, storage, help
+    case appKeys = "app_keys"
+
+    #if os(macOS)
+    init(_ place: SettingsPlace) {
+        switch place {
+        case .appKeys: self = .appKeys
+        default: self = SettingsPageWord(rawValue: place.rawValue) ?? .general
+        }
+    }
+    #endif
+
+    init(_ tab: SettingsTab) { self = SettingsPageWord(rawValue: tab.rawValue) ?? .general }
+}
+
+extension AppearanceMode: TelemetryWord {}
+extension Theme: TelemetryWord {}
+extension AccentChoice: TelemetryWord {}
+extension TodaysNoteSettings.Title: TelemetryWord {}
+
 enum Platform: String, TelemetryWord { case ios, macos }
 enum DeviceClass: String, TelemetryWord { case iphone, ipad, mac }
 enum BuildChannel: String, TelemetryWord { case release, beta, debug }
@@ -327,6 +377,8 @@ enum TelemetryWords {
         add(Distribution.self)
         add(OnboardingStep.self); add(FunnelAction.self); add(ImportSourceKind.self); add(ImportStep.self); add(CountBucket.self)
         add(ConnectAIKind.self); add(ConnectFunnelStep.self); add(SignInStep.self); add(LinkRole.self); add(LinkStep.self)
+        add(SettingName.self); add(TodayFolderWord.self); add(SettingsPageWord.self); add(AppearanceMode.self); add(Theme.self)
+        add(AccentChoice.self); add(TodaysNoteSettings.Title.self)
         return words
     }()
 }
@@ -374,6 +426,13 @@ enum TelemetryEvent: Equatable, Sendable {
     case signInStep(SignInMethod?, SignInStep, kind: SignInFailureKind? = nil)
     case linkDeviceStep(LinkRole, LinkStep, kind: FailureKind? = nil)
 
+    // Settings: which are used.
+    /// Every setting's value on this device, once a day (SettingsUsage).
+    case settingsState([SettingName: TelemetryValue])
+    /// The person changed a setting: which, and its new value.
+    case settingChanged(SettingName, TelemetryValue)
+    case settingsPageOpened(SettingsPageWord)
+
     // Errors
     case keychainFailed(item: KeychainItem, operation: KeychainOperation, status: Int)
     case keyStartup(KeyStartupOutcome, hadKey: Bool, store: KeyStoreKind)
@@ -399,6 +458,7 @@ enum TelemetryEvent: Equatable, Sendable {
         case aiConnected = "ai_connected", firstAIEditSeen = "first_ai_edit_seen"
         case onboardingStep = "onboarding_step", importStep = "import_step", connectStep = "connect_step"
         case signInStep = "sign_in_step", linkDeviceStep = "link_device_step"
+        case settingsState = "settings_state", settingChanged = "setting_changed", settingsPageOpened = "settings_page_opened"
         case keychainFailed = "keychain_failed", keyStartup = "key_startup", syncFailed = "sync_failed"
         case uploadRefused = "upload_refused", rowUnreadable = "row_unreadable", fileDownloadFailed = "file_download_failed"
         case signInFailed = "sign_in_failed", storeOpenFailed = "store_open_failed", storeSaveFailed = "store_save_failed"
@@ -422,6 +482,9 @@ enum TelemetryEvent: Equatable, Sendable {
         case .connectStep: .connectStep
         case .signInStep: .signInStep
         case .linkDeviceStep: .linkDeviceStep
+        case .settingsState: .settingsState
+        case .settingChanged: .settingChanged
+        case .settingsPageOpened: .settingsPageOpened
         case .keychainFailed: .keychainFailed
         case .keyStartup: .keyStartup
         case .syncFailed: .syncFailed
@@ -457,6 +520,9 @@ enum TelemetryEvent: Equatable, Sendable {
         case .connectStep(let ai, let step, let kind): Self.word([.ai: .word(ai), .step: .word(step)], .kind, kind)
         case .signInStep(let method, let step, let kind): Self.word(Self.word([.step: .word(step)], .method, method), .kind, kind)
         case .linkDeviceStep(let role, let step, let kind): Self.word([.role: .word(role), .step: .word(step)], .kind, kind)
+        case .settingsState(let values): Dictionary(uniqueKeysWithValues: values.map { ($0.key.property, $0.value) })
+        case .settingChanged(let name, let value): [.setting: .word(name), .value: value]
+        case .settingsPageOpened(let page): [.settingsPage: .word(page)]
         case .keychainFailed(let item, let operation, let status):
             [.item: .word(item), .operation: .word(operation), .status: .number(status)]
         case .keyStartup(let outcome, let hadKey, let store):
@@ -515,6 +581,11 @@ enum TelemetryEvent: Equatable, Sendable {
         .gateShown(.addDevice), .firstNoteCreated, .firstSync(milliseconds: 1234), .aiConnected(.claude), .firstAIEditSeen,
         .onboardingStep(.bring, .skipped), .importStep(.appleNotes, .done, count: .upTo99), .connectStep(.chatgpt, .failed, kind: .network),
         .signInStep(.email, .failed, kind: .badCode), .linkDeviceStep(.newDevice, .codeShown),
+        .settingsState([.appearance: .word(AppearanceMode.dark), .theme: .word(Theme.paper), .accent: .word(AccentChoice.blue),
+                        .textSize: .number(15), .todayFolder: .word(TodayFolderWord.custom), .todayTitle: .word(TodaysNoteSettings.Title.iso),
+                        .todayTemplate: .flag(true), .todayOnLaunch: .flag(false), .tickedToBottom: .flag(true), .menuBar: .flag(true),
+                        .quickNoteShortcut: .flag(false), .openAtLogin: .flag(false)]),
+        .settingChanged(.theme, .word(Theme.sepia)), .settingsPageOpened(.general),
         .keychainFailed(item: .keySynced, operation: .save, status: -34018),
         .keyStartup(.wait, hadKey: true, store: .keychain),
         .syncFailed(FailureSummary(kind: .database, status: nil, code: .rowSecurity, hint: .wrongKey), runs: 3),
