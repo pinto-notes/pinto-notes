@@ -442,7 +442,7 @@ struct SettingsCard: View {
         .settingsProbe("tab.account")
     }
 
-    /// Under your name: the email you sign in with ("Pinto account" said nothing), or how to sign in.
+    /// Under your name: the email you sign in with (a label saying what kind of account said nothing), or how to sign in.
     static func accountLine(_ backend: Backend) -> String {
         if case .signedIn(let email) = backend.state { return backend.displayEmail ?? email }
         return "Sign in to sync"
