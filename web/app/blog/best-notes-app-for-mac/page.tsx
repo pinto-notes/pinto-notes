@@ -107,7 +107,7 @@ export default function Page() {
       </p>
 
       <h2 id="pinto-notes">1. Pinto Notes: best if you use ChatGPT or Claude</h2>
-      <PostFigure src="/blog/amber-notes-chatgpt-edit-undo" width={1260} height={1520} maxWidth={520} kind="cutout"
+      <PostFigure src="/blog/amber-notes-chatgpt-edit-undo" width={1260} height={1520} maxWidth={520}
         alt="A Groceries note in Pinto Notes on a Mac. The five lines ChatGPT just added are tinted, and a bar at the bottom says ChatGPT changed 5 lines, with Undo."
         caption="When ChatGPT changes a note, Pinto Notes tints the lines and offers Undo." />
       <p>
