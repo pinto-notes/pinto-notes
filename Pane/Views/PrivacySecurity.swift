@@ -270,7 +270,7 @@ struct PrivacySecurityView: View {
 }
 #endif
 
-/// Settings › Security and privacy, the page on the Mac and iPhone alike: who can open your notes,
+/// Settings › Privacy, the page on the Mac and iPhone alike: who can open your notes,
 /// a picture of every mark over one line on how they're kept; then your devices (Remove…, Add a
 /// device…), what helps you back in, the AIs while they're connected (Disconnect…), locked notes,
 /// and "How it works" with the terms. The recovery key (shown behind Face ID or Touch ID or the passcode, saved by printing, as a PDF or
@@ -394,6 +394,8 @@ struct PrivacySecuritySection: View {
             }
         }
         LockedNotesSection(sync: sync)
+        // What the app sends about itself sits with who can open your notes (Emil, 7 November 2026).
+        DiagnosticsSection()
         Section {
             Button { showsHow = true } label: {
                 SettingsLinkRow(title: PrivacyCopy.howItWorks, symbol: "info.circle", trailing: "chevron.right")
@@ -1058,7 +1060,7 @@ struct PDFFile: FileDocument {
     }
 }
 
-/// Security and privacy signed out, or while this device finishes setting up: one line on what
+/// Privacy signed out, or while this device finishes setting up: one line on what
 /// signing in adds, every "How it works" line as a new account has them, and the website's longer
 /// page, with the terms under them; then the notes password, if there is one.
 struct SignedOutPrivacyPage: View {
@@ -1099,6 +1101,7 @@ struct SignedOutPrivacyPage: View {
                 LegalLinksRow()
             }
             if NoteVault.shared.isSetUp { LockedNotesSection(sync: sync) }
+            DiagnosticsSection()
         }
     }
 }

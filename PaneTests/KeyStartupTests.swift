@@ -517,7 +517,7 @@ import Testing
         #expect(AddDeviceCopy.gateTitle("iPhone") == "Link this iPhone to open your notes")
         #expect(AddDeviceCopy.gateTitle("iPad") == "Link this iPad to open your notes")
         #expect(AddDeviceCopy.gateWhy == "You already have notes in this account. They are encrypted, and only your own devices can open them.")
-        #expect(AddDeviceCopy.gateSteps("Mac") == ["On your iPhone, iPad or other Mac, open Pinto Notes \u{203A} Settings \u{203A} Security and privacy \u{203A} Add a device.",
+        #expect(AddDeviceCopy.gateSteps("Mac") == ["On your iPhone, iPad or other Mac, open Pinto Notes \u{203A} Settings \u{203A} Privacy \u{203A} Add a device.",
                                                    "On an iPhone or iPad, scan this code. On a Mac, type the code under it. You only do this once."])
         // A Mac can't scan (newcomer audit #21): nothing tells one to.
         for kind in ["Mac", "iPhone", "iPad"] { #expect(!AddDeviceCopy.gateSteps(kind)[1].contains("Scan this code with it")) }

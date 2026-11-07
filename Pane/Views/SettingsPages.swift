@@ -13,7 +13,7 @@ import PhotosUI
 // Settings; iPhone pushes it from its list (SettingsView). Platform branches are only for what
 // one of them lacks or does differently: the Mac's menu bar, shortcut and login item, the photo
 // picker, the File menu's export. Account, AI Connections, General, Appearance, Security and
-// privacy, Storage, Help and feedback; Security and privacy is PrivacySecurity.swift's.
+// privacy, Storage, Help and feedback; Privacy is PrivacySecurity.swift's.
 
 /// One page of Settings: a grouped form, with the line on being offline at its top. On the Mac, on
 /// the card's own ground, its switches in the accent.
@@ -493,7 +493,6 @@ struct GeneralSettingsPage: View {
             #else
             if NoteApps.enabled { APIKeysSection() }
             #endif
-            DiagnosticsSection()
         }
         #if os(macOS)
         .onAppear { login = LoginItem.isOn }

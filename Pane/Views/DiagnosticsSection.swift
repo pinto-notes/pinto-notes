@@ -13,7 +13,7 @@ enum DiagnosticsCopy {
     static let welcome = "Sends error reports, never your notes. Turn off in Settings."
 }
 
-/// Settings › General: one switch for everything the app reports about itself. Off, nothing is
+/// Settings › Privacy: one switch for everything the app reports about itself. Off, nothing is
 /// kept or sent, and what was waiting to be sent is dropped.
 struct DiagnosticsSection: View {
     @AppStorage(Telemetry.consentKey) private var share = true

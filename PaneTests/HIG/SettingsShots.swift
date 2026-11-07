@@ -6,7 +6,7 @@ import Testing
 @testable import Pane
 
 /// Settings on the Mac as built (7 November 2026, iPhone's list: Account, AI Connections, General,
-/// Appearance, Security and privacy, Storage, Help and feedback): every page over the notes window, light and dark, then a contact sheet. Windows far off screen, never
+/// Appearance, Privacy, Storage, Help and feedback): every page over the notes window, light and dark, then a contact sheet. Windows far off screen, never
 /// ordered in.
 /// `TEST_RUNNER_PANE_SETTINGS_SHOTS=/path LIMIT=900 scripts/qa-test.sh PaneTests/SettingsShots`
 @MainActor @Suite(.serialized) struct SettingsShots {

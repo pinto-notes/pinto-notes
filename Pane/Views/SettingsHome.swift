@@ -7,7 +7,7 @@ import UIKit
 
 /// The pages of Settings, one list for the Mac and iPhone (Emil, 7 November 2026: "copy this onto
 /// Mac so it's fully consistent"): you at the top, then General, AI Connections and Appearance;
-/// Security and privacy and Storage; Help and feedback. Keys for apps is one level down on the
+/// Privacy and Storage; Help and feedback. Keys for apps is one level down on the
 /// Mac, parked. iPhone's rows and the Mac's sidebar are both built from `groups`, and each page's
 /// view is the same on both (SettingsPages.swift).
 enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
@@ -44,7 +44,7 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         }
     }
 
-    /// The pages there is something on. Account, General, Appearance, Security and privacy (how it
+    /// The pages there is something on. Account, General, Appearance, Privacy (how it
     /// works, signed out too) and Help and feedback always; AI Connections and Storage with an
     /// account. Keys for apps is parked (Emil, 6 November 2026): nothing leads to it.
     static func available(signedIn: Bool, hasClient: Bool, demoStorage: Bool = false) -> Set<SettingsPage> {
@@ -67,7 +67,7 @@ enum SettingsNames {
     static let ai = "AI Connections"
     static let general = "General"
     static let appearance = "Appearance"
-    static let security = "Security and privacy"
+    static let security = "Privacy"
     static let storage = "Storage"
     static let help = "Help and feedback"
 }
@@ -147,7 +147,7 @@ enum SettingsIndex {
         e("Today\u{2019}s note", .general, "settings.today.folder",
           also: ["Daily note", "Daily notes", "Journal", "Template", "Date format", "Open on launch"]),
         e("Ticked items move to the bottom", .general, "settings.notes.ticked", also: ["Checklist", "Sort checked items", "Ticked"]),
-        e("Share diagnostics and usage", .general, "settings.diagnostics"),
+        e("Share diagnostics and usage", .security, "settings.diagnostics"),
         e("Light or dark mode", .appearance, "settings.mode.system"), e("Theme", .appearance, "settings.theme.default"),
         e("Accent colour", .appearance, "settings.accent.theme", also: ["Accent color"]),
         e("Storage used", .storage, "settings.storage", also: ["Space", "Recently Deleted", "Earlier versions", "Full"]),

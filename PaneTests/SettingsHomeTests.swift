@@ -12,14 +12,14 @@ import Carbon.HIToolbox
 @MainActor @Suite(.serialized) struct SettingsHomeTests {
     /// The same rows as iPhone's Settings, with the same names (Emil, 7 November 2026: "copy this
     /// onto Mac as well so it's fully consistent"): you, then AI Connections, General, Appearance;
-    /// Security and privacy, Storage; Help and feedback.
+    /// Privacy, Storage; Help and feedback.
     @Test func theSidebarIsTheIPhonesList() {
         let all = Set(SettingsPage.allCases)
         let groups = SettingsPage.groups(available: all)
         #expect(groups == [[.account], [.general, .ai, .appearance], [.security, .storage], [.help]])
         #expect(!groups.joined().contains(.appKeys), "Keys for apps is not in the sidebar")
         #expect(SettingsPage.ai.title == "AI Connections")
-        #expect(SettingsPage.security.title == "Security and privacy")
+        #expect(SettingsPage.security.title == "Privacy")
         // Signed out: only what there is.
         #expect(SettingsPage.groups(available: [.account, .general, .appearance, .security, .help])
                 == [[.account], [.general, .appearance], [.security], [.help]])
@@ -27,7 +27,7 @@ import Carbon.HIToolbox
         #expect(SettingsCard.first([.appearance, .security]) == .appearance)
     }
 
-    /// Signed out there are still Account (Sign in), General, Appearance, Security and privacy and
+    /// Signed out there are still Account (Sign in), General, Appearance, Privacy and
     /// Help and feedback; AI Connections and Storage come with an account.
     @Test func signedOutThereAreFivePages() {
         #expect(SettingsView(backend: Backend(), sync: nil).available == [.account, .general, .appearance, .security, .help])
@@ -308,7 +308,7 @@ import Carbon.HIToolbox
         #expect(PrivacyCopy.backInFooterWithCopy.contains("Pinto Notes can open them too"))
         #expect(PrivacyCopy.summary(serverCopy: true).hasPrefix(PrivacyCopy.status) && PrivacyCopy.summary(serverCopy: true).contains("Pinto Notes can open them too"))
         #expect(!PrivacyCopy.summary(serverCopy: false).contains("Pinto Notes can open them") && !PrivacyCopy.summary(serverCopy: false).localizedCaseInsensitiveContains("end-to-end"))
-        #expect(PrivacyCopy.settingsPath == "Settings \u{203A} Security and privacy", "both apps name the page as it is now")
+        #expect(PrivacyCopy.settingsPath == "Settings \u{203A} Privacy", "both apps name the page as it is now")
         // How to lock a note is said in How it works, now that the explainer row is gone.
         let locked = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Locked notes" }?.line ?? ""
         #expect(locked.contains("menu") && locked.contains("title"))

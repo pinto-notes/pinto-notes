@@ -27,7 +27,7 @@ import Testing
         #expect(ais.text.contains("Each AI you connect " + PrivacyCopy.aiMay), "what it may do comes first: \(ais.text)")
         #expect(ConnectCopy.scope == "It " + PrivacyCopy.aiMay)
         #expect(ax.find("privacy.learnMore") != nil, "the website's longer page")
-        #expect(ax.find("settings.diagnostics") == nil, "diagnostics are on General now, as on iPhone: \(ax.ids())")
+        #expect(ax.find("settings.diagnostics") != nil, "diagnostics are on Privacy, signed in or out: \(ax.ids())")
         // As a new account has it: Pinto Notes keeps a copy of the key, said with what it means.
         let titles = PrivacyCopy.signedOutHow.map(\.title)
         #expect(titles.contains("Pinto Notes keeps a copy of your key") && titles.contains("That means Pinto Notes could open them"))
