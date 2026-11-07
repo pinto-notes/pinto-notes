@@ -721,7 +721,7 @@ private struct ProfileSection: View {
         .accessibilityIdentifier("settings.photo")
         #else
         Button { importing = true } label: { face }
-            .buttonStyle(.plain)
+            .buttonStyle(.tile(radius: 42))
             .accessibilityIdentifier("settings.choosePhoto")
         #endif
     }
