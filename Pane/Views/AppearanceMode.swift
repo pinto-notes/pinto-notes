@@ -12,6 +12,15 @@ enum AppearanceMode: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    /// Its symbol, as the theme bubbles' badges: a sun, a moon, half of each for System.
+    static func symbol(_ m: AppearanceMode) -> String {
+        switch m {
+        case .system: "circle.lefthalf.filled"
+        case .light: "sun.max.fill"
+        case .dark: "moon.fill"
+        }
+    }
+
     var title: String {
         switch self {
         case .system: "System"

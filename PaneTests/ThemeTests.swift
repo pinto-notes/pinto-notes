@@ -295,8 +295,8 @@ import Testing
         #expect(!SettingsIndex.all.contains { $0.label.lowercased().contains("accent") }, "no Accent row to search for")
     }
 
-    /// The theme cards' swatches are the theme's own page, sidebar and accent, light and dark; the
-    /// ring follows the mode (both in System), only on the chosen theme.
+    /// The theme cards' bubbles are the theme's own page, sidebar and accent, light and dark (the
+    /// chosen card has the border; the bubbles have no rings).
     @Test func themeCardSwatchesAreTheThemesColours() {
         for theme in Theme.allCases {
             let c = theme.preview
@@ -304,10 +304,6 @@ import Testing
             #expect(light.page == c.page.light && light.sidebar == c.sidebar.light && light.accent == c.accent.light, "\(theme) light")
             #expect(dark.page == c.page.dark && dark.sidebar == c.sidebar.dark && dark.accent == c.accent.dark, "\(theme) dark")
         }
-        #expect(ThemeCard.ringed(dark: false, chosen: true, mode: .system) && ThemeCard.ringed(dark: true, chosen: true, mode: .system))
-        #expect(ThemeCard.ringed(dark: false, chosen: true, mode: .light) && !ThemeCard.ringed(dark: true, chosen: true, mode: .light))
-        #expect(!ThemeCard.ringed(dark: false, chosen: true, mode: .dark) && ThemeCard.ringed(dark: true, chosen: true, mode: .dark))
-        #expect(!ThemeCard.ringed(dark: true, chosen: false, mode: .system))
     }
 
     /// Pick 6: with Increase Contrast on, a theme's muted text is its ink and its hairlines the

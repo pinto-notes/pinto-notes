@@ -974,7 +974,7 @@ struct AppearanceSettingsPage: View {
             Section("Mode") {
                 LazyVGrid(columns: Self.modeColumns, spacing: 12) {
                     ForEach(AppearanceMode.allCases) { m in
-                        WindowChoice(title: m.title, selected: mode.mode == m, height: Self.modeHeight, id: "settings.mode.\(m.rawValue)") {
+                        WindowChoice(title: m.title, symbol: AppearanceMode.symbol(m), selected: mode.mode == m, height: Self.modeHeight, id: "settings.mode.\(m.rawValue)") {
                             ModePicture(mode: m, theme: look.theme)
                         } pick: { mode.mode = m }
                     }
@@ -1063,7 +1063,7 @@ struct TextSizeRow: View {
 
 #endif
 
-/// A little of a note in the face and size chosen, in a box of the note's own page colour, so it
+/// A little of a note in the face and size chosen, in a box set into the page, so it
 /// reads as a sample, not as the page's own text (Emil, 7 November 2026).
 struct TextSample: View {
     @AppStorage(NoteFont.key) private var fontRaw = ""
@@ -1092,7 +1092,13 @@ struct TextSample: View {
         .foregroundStyle(Color.ink)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 14).padding(.vertical, 12)
-        .background(shape.fill(Color(Palette.page)))
+        // Inset in Settings' own ground, not the note's black: a sample of the face and size, set
+        // into the box like a well (Emil, 7 November 2026: the black box didn't fit).
+        #if os(macOS)
+        .background(shape.fill(SettingsInk.ground))
+        #else
+        .background(shape.fill(Color(.systemGroupedBackground)))
+        #endif
         .overlay(shape.strokeBorder(Color(PColor.paneSeparator), lineWidth: 1))
         .padding(.vertical, 6)
         .animation(reduceMotion ? nil : .snappy(duration: 0.15), value: size)
@@ -1112,6 +1118,8 @@ private struct WindowChoice<Art: View>: View {
     #endif
 
     let title: String
+    /// A small symbol before the name (the mode's sun or moon, as the theme bubbles have).
+    var symbol: String? = nil
     let selected: Bool
     let height: CGFloat
     let id: String
@@ -1130,10 +1138,14 @@ private struct WindowChoice<Art: View>: View {
                     .padding(3)
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .strokeBorder(selected ? Color(PColor.paneAccent) : .clear, lineWidth: 2.5))
-                Text(title).font(Self.label.weight(selected ? .semibold : .regular))
-                    .foregroundStyle(selected ? Color.ink : Color.muted)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                HStack(spacing: 4) {
+                    if let symbol { Image(systemName: symbol).imageScale(.small).accessibilityHidden(true) }
+                    Text(title)
+                }
+                .font(Self.label.weight(selected ? .semibold : .regular))
+                .foregroundStyle(selected ? Color.ink : Color.muted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             }
             .contentShape(.rect)
         }
@@ -1175,32 +1187,48 @@ struct ModeNotePicture: View {
         func color(_ h: Theme.Hex) -> Color { let v = dark ? h.dark : h.light; return Color(Palette.pair(v, v)) }
         return GeometryReader { geo in
             let w = geo.size.width, h = geo.size.height
-            let bar = max(h * 0.07, 4)
+            // Fine lines with small corners, as a window looks in miniature, not pills (Emil, 7 November 2026).
+            let line = max(h * 0.042, 3)
+            let r = line * 0.35
+            let bar = { (fill: Color, width: CGFloat, height: CGFloat?) in
+                RoundedRectangle(cornerRadius: r, style: .continuous).fill(fill).frame(width: width, height: height ?? line)
+            }
             HStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: h * 0.07) {
-                    ForEach(0..<2) { i in
-                        HStack(spacing: w * 0.03) {
-                            Circle().fill(i == 0 ? color(c.accent) : color(c.muted)).frame(width: bar * 1.25, height: bar * 1.25)
-                            Capsule().fill(i == 0 ? color(c.ink) : color(c.muted).opacity(0.75)).frame(height: bar)
+                VStack(alignment: .leading, spacing: 0) {
+                    // The window's three buttons.
+                    HStack(spacing: w * 0.016) {
+                        ForEach(0..<3) { _ in Circle().fill(color(c.muted).opacity(0.45)).frame(width: line * 1.15, height: line * 1.15) }
+                    }
+                    .padding(.bottom, h * 0.13)
+                    VStack(alignment: .leading, spacing: h * 0.03) {
+                        ForEach(0..<3) { i in
+                            HStack(spacing: w * 0.022) {
+                                RoundedRectangle(cornerRadius: r, style: .continuous)
+                                    .fill(i == 0 ? color(c.accent) : color(c.muted).opacity(0.7))
+                                    .frame(width: line * 1.3, height: line * 1.05)
+                                bar(i == 0 ? color(c.ink) : color(c.muted).opacity(0.7), w * [0.15, 0.12, 0.17][i], nil)
+                            }
+                            .padding(.horizontal, w * 0.022).padding(.vertical, h * 0.035)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(RoundedRectangle(cornerRadius: h * 0.035, style: .continuous).fill(i == 0 ? color(c.selection) : .clear))
                         }
-                        .padding(.horizontal, w * 0.03).padding(.vertical, h * 0.045)
-                        .background(RoundedRectangle(cornerRadius: h * 0.06, style: .continuous).fill(i == 0 ? color(c.selection) : .clear))
                     }
                 }
-                .padding(.horizontal, w * 0.035).padding(.top, h * 0.14)
-                .frame(width: w * 0.36, alignment: .topLeading)
+                .padding(.horizontal, w * 0.03).padding(.top, h * 0.09)
+                .frame(width: w * 0.34, alignment: .topLeading)
                 .frame(maxHeight: .infinity, alignment: .top)
                 .background(color(c.sidebar))
                 color(c.line).frame(width: 1)
-                VStack(alignment: .leading, spacing: h * 0.09) {
-                    Capsule().fill(color(c.ink)).frame(width: w * 0.32, height: bar * 1.45)
-                    VStack(alignment: .leading, spacing: h * 0.075) {
-                        Capsule().fill(color(c.muted)).frame(width: w * 0.48, height: bar)
-                        Capsule().fill(color(c.muted)).frame(width: w * 0.42, height: bar)
-                        Capsule().fill(color(c.muted)).frame(width: w * 0.28, height: bar)
+                VStack(alignment: .leading, spacing: h * 0.065) {
+                    bar(color(c.ink), w * 0.3, line * 1.6)
+                    VStack(alignment: .leading, spacing: h * 0.055) {
+                        bar(color(c.muted), w * 0.5, nil)
+                        bar(color(c.muted), w * 0.46, nil)
+                        bar(color(c.muted), w * 0.38, nil)
+                        bar(color(c.muted), w * 0.22, nil)
                     }
                 }
-                .padding(.leading, w * 0.07).padding(.top, h * 0.16)
+                .padding(.leading, w * 0.06).padding(.top, h * 0.24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .background(color(c.page))
             }
@@ -1209,69 +1237,62 @@ struct ModeNotePicture: View {
     }
 }
 
-/// A theme as T3 Code shows one: its name and two round swatches, light with a sun and dark with
-/// a moon, each drawn from the theme's own colours (the page, a band of its sidebar, a dot of its
-/// accent). The swatch the app shows now is ringed in the accent; in System, both. A click picks
-/// the theme, never the mode.
+/// A theme as T3 Code shows one: two soft bubbles of its colours, light with a sun and dark with a
+/// moon, and its name. The chosen theme's card has the accent border; the bubbles never have
+/// outlines (Emil, 7 November 2026). A click picks the theme, never the mode.
 struct ThemeCard: View {
     let theme: Theme
     let chosen: Bool
     let mode: AppearanceMode
     let pick: () -> Void
+    @State private var hover = false
 
     #if os(macOS)
-    static let swatch: CGFloat = 46
+    static let swatch: CGFloat = 62
     #else
-    static let swatch: CGFloat = 44
+    static let swatch: CGFloat = 56
     #endif
 
-    /// Whether the light or the dark swatch is ringed.
-    static func ringed(dark: Bool, chosen: Bool, mode: AppearanceMode) -> Bool {
-        guard chosen else { return false }
-        switch mode {
-        case .system: return true
-        case .light: return !dark
-        case .dark: return dark
-        }
-    }
-
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         Button(action: pick) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 14) {
-                    ThemeSwatch(theme: theme, dark: false, ringed: Self.ringed(dark: false, chosen: chosen, mode: mode))
-                    ThemeSwatch(theme: theme, dark: true, ringed: Self.ringed(dark: true, chosen: chosen, mode: mode))
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 16) {
+                    ThemeSwatch(theme: theme, dark: false)
+                    ThemeSwatch(theme: theme, dark: true)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.top, 4)
+                .padding(.top, 6)
                 Text(theme.title)
                     .font(.callout.weight(chosen ? .semibold : .regular))
-                    .foregroundStyle(chosen ? Color.ink : Color.muted)
+                    .foregroundStyle(Color.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }
-            .padding(12)
+            .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(shape.fill(Color.primary.opacity(0.035)))
-            .overlay(shape.strokeBorder(Color(PColor.paneSeparator), lineWidth: 1))
+            .background(shape.fill(Color.primary.opacity(hover ? 0.07 : 0.035)))
+            .overlay(shape.strokeBorder(chosen ? Color(PColor.paneAccent) : Color(PColor.paneSeparator), lineWidth: chosen ? 2 : 1))
             .contentShape(shape)
         }
-        .buttonStyle(.tile(radius: 12))
+        .buttonStyle(.plain)
+        #if os(macOS)
+        .onHover { hover = $0 }
+        #endif
         .accessibilityLabel(theme.spokenName)
         .accessibilityAddTraits(chosen ? .isSelected : [])
         .accessibilityIdentifier("settings.theme.\(theme.rawValue)")
     }
 }
 
-/// One round swatch of a theme, flat: its page, a band of its sidebar on the left, a dot of its
-/// accent; a sun or a moon badge says which half of the day it is.
+/// One bubble of a theme: its page colour, softly lit by its accent from the top right and its
+/// sidebar from the bottom left, with a light sheen, so it reads as the theme's mood rather than a
+/// diagram of it. No outline. A sun or a moon badge says which half of the day it is.
 struct ThemeSwatch: View {
     let theme: Theme
     let dark: Bool
-    let ringed: Bool
 
-    /// The colours the swatch is drawn from, for tests: page, sidebar, accent.
+    /// The colours the bubble is drawn from, for tests: page, sidebar, accent.
     static func colors(_ theme: Theme, dark: Bool) -> (page: UInt32, sidebar: UInt32, accent: UInt32) {
         let c = theme.preview
         return dark ? (c.page.dark, c.sidebar.dark, c.accent.dark) : (c.page.light, c.sidebar.light, c.accent.light)
@@ -1281,23 +1302,24 @@ struct ThemeSwatch: View {
         let d = ThemeCard.swatch
         let c = Self.colors(theme, dark: dark)
         let color = { (v: UInt32) in Color(Palette.pair(v, v)) }
-        return ZStack(alignment: .leading) {
+        // Soft fields of colour, not shapes: the page, the sidebar's tone rising from the bottom
+        // left, the accent's glow from the top right, and a sheen (Emil, 7 November 2026: like T3 Code's).
+        return ZStack {
             color(c.page)
-            color(c.sidebar).frame(width: d * 0.36)
-            Circle().fill(color(c.accent)).frame(width: d * 0.26, height: d * 0.26).offset(x: d * 0.52)
+            RadialGradient(colors: [color(c.sidebar), color(c.sidebar).opacity(0)], center: UnitPoint(x: 0.15, y: 0.9), startRadius: 0, endRadius: d * 0.75)
+            RadialGradient(colors: [color(c.accent), color(c.accent).opacity(0)], center: UnitPoint(x: 0.85, y: 0.12), startRadius: 0, endRadius: d * 0.72)
+                .opacity(dark ? 0.9 : 0.8)
+            RadialGradient(colors: [.white.opacity(dark ? 0.12 : 0.4), .clear], center: UnitPoint(x: 0.3, y: 0.2), startRadius: 0, endRadius: d * 0.45)
         }
         .frame(width: d, height: d)
         .clipShape(Circle())
-        .overlay(Circle().strokeBorder(Color(PColor.paneSeparator), lineWidth: 1))
-        .padding(3)
-        .overlay(Circle().strokeBorder(ringed ? Color(PColor.paneAccent) : .clear, lineWidth: 2.5))
+        .shadow(color: .black.opacity(dark ? 0.35 : 0.14), radius: 3, y: 1.5)
         .overlay(alignment: .bottomTrailing) {
             Image(systemName: dark ? "moon.fill" : "sun.max.fill")
-                .font(.system(size: 8.5, weight: .bold))
+                .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(Color.ink)
-                .frame(width: 18, height: 18)
+                .frame(width: 20, height: 20)
                 .background(Circle().fill(Color(Palette.page)))
-                .overlay(Circle().strokeBorder(Color(PColor.paneSeparator), lineWidth: 1))
                 .offset(x: 2, y: 2)
         }
         .accessibilityHidden(true)

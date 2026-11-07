@@ -22,7 +22,8 @@ enum SettingsInk {
         })
     }
     /// How much lighter than the page Settings' dark ground is: black becomes System Settings' grey.
-    static let darkLift: CGFloat = 0.13
+    /// 0.09: a little darker than it was, nearer the app's black (Emil, 7 November 2026), boxes still clear.
+    static let darkLift: CGFloat = 0.09
     /// A box of rows, a summary: a step off the ground.
     static let group = dynamic(NSColor(white: 0, alpha: 0.04), NSColor(white: 1, alpha: 0.085))
     /// The selected page in the sidebar: the one selection look.
