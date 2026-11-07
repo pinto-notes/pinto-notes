@@ -74,6 +74,7 @@ final class StorageStore {
         if let u: StorageUsage = try? await client.rpc("storage_usage").execute().value {
             usage = u
             fetchedAt = .now
+            StorageLevelWatch.saw(u.level)
         }
     }
 }
