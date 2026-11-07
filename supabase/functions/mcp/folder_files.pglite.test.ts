@@ -244,6 +244,43 @@ Deno.test("write makes and replaces any file from base64, up to 10 MB, in a fold
   } finally { unstub(); }
 });
 
+Deno.test("a replacement that doesn't commit leaves the stored file and its history as they were", async () => {
+  const { objects, unstub } = storageStub();
+  try {
+    const pg = await schemaDB();
+    const a = await account(pg);
+    const toRead = await folder(pg, a, "To read");
+    const f = await file(pg, a, "Notes.txt", "public.plain-text", enc("the original\n"), { folder: toRead });
+    objects.set(f.path, f.sealed);
+    // A full history: the next replacement drops the oldest version.
+    const [row] = await app(pg, a.id, `select meta_ct, size from public.attachments where id = $1`, [f.id]);
+    for (let i = 1; i <= 10; i++) {
+      objects.set(`${f.path}.v${i}`, f.sealed);
+      await app(pg, a.id, `insert into public.attachment_versions (attachment_id, meta_ct, size, storage_path, client, made_at) values ($1, $2, $3, $4, 'Pinto Notes', now())`,
+        [f.id, row.meta_ct, row.size, `${f.path}.v${i}`]);
+    }
+    const before = new Map(objects);
+    // The transaction fails at commit, after every statement in it worked.
+    await pg.exec(`create function public.test_fail_at_commit() returns trigger language plpgsql as $$ begin raise exception 'commit failed'; end $$;
+      create constraint trigger test_fail_at_commit after insert or update on public.attachments deferrable initially deferred for each row execute function public.test_fail_at_commit();`);
+    await tool(pg, a, "fetch", { id: "To read/Notes.txt" });
+    await assertRejects(() => tool(pg, a, "write", { path: "To read/Notes.txt", content: "a replacement\n" }), Error, "commit failed");
+    assertEquals([...objects.keys()].sort(), [...before.keys()].sort(), "no version object lost or left behind");
+    for (const [k, v] of before) assertEquals(objects.get(k), v, `${k} unchanged`);
+    assertEquals((await app(pg, a.id, `select count(*)::int n from public.attachment_versions where attachment_id = $1`, [f.id]))[0].n, 10);
+    // A new file that doesn't commit leaves no object either.
+    await assertRejects(() => tool(pg, a, "write", { path: "To read/Other.txt", content: "new\n" }));
+    assertEquals(objects.size, before.size);
+    await pg.exec(`drop trigger test_fail_at_commit on public.attachments`);
+    // Once it can commit, the same write works, and only then the oldest version's object goes.
+    await tool(pg, a, "fetch", { id: "To read/Notes.txt" });
+    assertEquals((await tool(pg, a, "write", { path: "To read/Notes.txt", content: "a replacement\n" })).written, "To read/Notes.txt");
+    assertStringIncludes((await tool(pg, a, "fetch", { id: "To read/Notes.txt" })).text, "a replacement");
+    assert(!objects.has(`${f.path}.v1`) && objects.has(`${f.path}.v11`));
+    assertEquals((await app(pg, a.id, `select count(*)::int n from public.attachment_versions where attachment_id = $1`, [f.id]))[0].n, 10);
+  } finally { unstub(); }
+});
+
 function b64Chunked(u: Uint8Array) {
   let s = "";
   for (let i = 0; i < u.length; i += 32768) s += String.fromCharCode(...u.subarray(i, i + 32768));

@@ -142,7 +142,12 @@ export async function readFile(tx: Tx, c: Call, id: string, path: string): Promi
 }
 
 /** Writes a file's bytes: a new file in a folder (`folderId`), or a new version of an existing one
- *  (`id`), keeping the version it replaces (at most pane_limit 'file_versions'). */
+ *  (`id`), keeping the version it replaces (at most pane_limit 'file_versions').
+ *
+ *  Storage isn't in the transaction, so it's changed last and undone if the transaction doesn't
+ *  commit: the old bytes are copied to a new version object first, every database change is made,
+ *  and only then are the new bytes stored over the file (put back from that copy on a rollback).
+ *  Versions that fall out of history lose their objects only after the commit. */
 export async function writeFile(tx: Tx, c: Call, o: { id?: string; folderId?: string | null; name: string; type: string; bytes: Uint8Array; path: string }): Promise<{ id: string; version: number; replaced?: boolean }> {
   if (!SUPPORTED.has(ending(o.name))) {
     throw new ToolError(`${o.path}: Pinto Notes can't show .${ending(o.name) || "(no ending)"} files, so they can't be added. It takes PDF; JPEG, PNG, HEIC, GIF, WebP; text, Markdown, CSV, TSV, JSON, XML, YAML, HTML and code; Word, Excel, PowerPoint, Pages, Numbers and Keynote. Audio, video and EPUB come later.`);
@@ -158,24 +163,50 @@ export async function writeFile(tx: Tx, c: Call, o: { id?: string; folderId?: st
     const f = await fileRow(tx, o.id, true);
     const [{ n }] = await tx<{ n: number }[]>`select coalesce(max(substring(storage_path from '\\.v([0-9]+)$')::int), 0) + 1 as n from public.attachment_versions where attachment_id = ${f.id}`;
     const versionPath = `${f.storage_path}.v${n}`;
-    const copied = await storage("copy", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ bucketId: "files", sourceKey: f.storage_path, destinationKey: versionPath }) });
-    await copied.body?.cancel();
-    if (!copied.ok) throw new ToolError(`${o.path} isn't uploaded yet, so it can't be replaced. Open Pinto Notes on the device that added it so it can sync.`);
+    await copyObject(f.storage_path, versionPath, o.path);
+    // Not kept if this doesn't commit: no row names it then.
+    (c.onRollback ??= []).push(() => removeObjects([versionPath]));
     await tx`insert into public.attachment_versions (attachment_id, meta_ct, size, storage_path, client, made_at)
       values (${f.id}, ${f.meta_ct}, ${f.size}, ${versionPath}, ${c.ctx.client}, ${f.updated_at})`;
-    // Only the newest versions stay.
+    // Only the newest versions stay; their objects go once that's committed.
     const gone = await tx<{ storage_path: string }[]>`delete from public.attachment_versions where attachment_id = ${f.id} and id not in (
       select id from public.attachment_versions where attachment_id = ${f.id} order by id desc limit 10) returning storage_path`;
-    await upload(f.storage_path, sealed, o.path);
-    if (gone.length) await removeObjects(gone.map((g) => g.storage_path));
+    if (gone.length) (c.afterCommit ??= []).push(() => removeObjects(gone.map((g) => g.storage_path)));
     await tx`update public.attachments set meta_ct = ${meta_ct}, size = ${sealed.length}, content_version = content_version + 1, updated_at = now() where id = ${f.id}`;
+    // Last: the new bytes over the file, put back from the version copy if the transaction fails
+    // (undone in reverse, so before the copy is removed).
+    c.onRollback!.push(() => copyObject(versionPath, f.storage_path, o.path, true));
+    await upload(f.storage_path, sealed, o.path);
     return { id: f.id, version: f.content_version + 1, replaced: true };
   }
   const [{ uid }] = await tx<{ uid: string }[]>`select auth.uid()::text as uid`;
   const storagePath = `${uid}/${id}`;
-  await upload(storagePath, sealed, o.path);
   await tx`insert into public.attachments (id, meta_ct, size, storage_path, folder_id) values (${id}, ${meta_ct}, ${sealed.length}, ${storagePath}, ${o.folderId ?? null})`;
+  (c.onRollback ??= []).push(() => removeObjects([storagePath]));
+  await upload(storagePath, sealed, o.path);
   return { id, version: 0 };
+}
+
+/** Copies an object to another key (made fresh: an object left there by a write that didn't commit
+ *  is replaced; no row names it). */
+async function copyObject(from: string, to: string, shown: string, over = false) {
+  if (over) {
+    // Putting bytes back: read them and store them over the file.
+    const res = await storage(`files/${objectPath(from)}`);
+    if (!res.ok) { await res.body?.cancel(); throw new Error(`put back ${shown}: ${res.status}`); }
+    await upload(to, new Uint8Array(await res.arrayBuffer()), shown);
+    return;
+  }
+  const copy = () => storage("copy", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ bucketId: "files", sourceKey: from, destinationKey: to }) });
+  let copied = await copy();
+  await copied.body?.cancel();
+  if (!copied.ok) {
+    // Already there (a write that failed before): clear it and try once more.
+    await removeObjects([to]);
+    copied = await copy();
+    await copied.body?.cancel();
+  }
+  if (!copied.ok) throw new ToolError(`${shown} isn't uploaded yet, so it can't be replaced. Open Pinto Notes on the device that added it so it can sync.`);
 }
 
 async function upload(path: string, sealed: Uint8Array, shown: string) {

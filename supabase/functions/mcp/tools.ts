@@ -302,8 +302,11 @@ export function classicTools(set: string | undefined = Deno.env.get("AMBER_MCP_T
 }
 
 
-/** One tool call: the vault, and how much scan time it spent (charged when it ends). */
-export type Call = { v: Vault; ctx: ToolContext; scanMs: number };
+/** One tool call: the vault, how much scan time it spent (charged when it ends), and Storage work
+ *  that has to wait for the transaction: `afterCommit` runs once it committed (removing objects the
+ *  database no longer names), `onRollback` once it didn't (putting back what it changed in Storage,
+ *  which SQL can't roll back). */
+export type Call = { v: Vault; ctx: ToolContext; scanMs: number; afterCommit?: (() => Promise<void>)[]; onRollback?: (() => Promise<void>)[] };
 
 export async function runTool(name: string, args: Args, ctx: ToolContext): Promise<unknown> {
   return await runIn(classicTools(), handlers, name, args, ctx);
@@ -321,16 +324,21 @@ export async function runIn(list: Tool[], impl: Record<string, (tx: Tx, a: Args,
   await ctx.sql`select public.pane_take('mcp') from (select set_config('request.jwt.claims', ${claims}, true)) as claims`
     .catch((e) => { throw new ToolError((e as Error).message); });
   if (ctx.timing) ctx.timing.rate_take = performance.now() - tTake;
-  const call: Call = { v: ctx.vault, ctx, scanMs: 0 };
+  const call: Call = { v: ctx.vault, ctx, scanMs: 0, afterCommit: [], onRollback: [] };
   try {
-    return await ctx.sql.begin(async (tx) => {
+    const out = await ctx.sql.begin(async (tx) => {
       await tx`select set_config('role', 'authenticated', true),
                       set_config('request.jwt.claims', ${claims}, true),
                       set_config('pane.source', 'mcp', true),
                       set_config('pane.agent', 'mcp', true),
                       set_config('pane.client', ${ctx.client}, true)`;
       return await impl[name](tx, args, call);
+    }).catch(async (e) => {
+      for (const undo of call.onRollback!.reverse()) await undo().catch((u) => log("storage_undo_failed", { tool: name, ...errorKind(u) }));
+      throw e;
     });
+    for (const done of call.afterCommit!) await done().catch((u) => log("storage_cleanup_failed", { tool: name, ...errorKind(u) }));
+    return out;
   } catch (e) {
     // The account is full (20261008100100): say how full, and what to delete.
     if ((e as { hint?: string }).hint === "storage") throw await storageFull(ctx, claims);
