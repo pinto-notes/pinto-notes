@@ -612,7 +612,8 @@ enum SecurityLook {
     static let mark: CGFloat = 15
     static let scales = false
     /// The circles of the picture at the top.
-    static let disc = Color.primary.opacity(0.06)
+    /// Solid, so a circle hides the one under it instead of showing two edges through (Emil, 7 November 2026).
+    static let disc = SettingsInk.dynamic(NSColor(white: 0.9, alpha: 1), NSColor(white: 0.26, alpha: 1))
     static let discEdge = SettingsInk.ground
     #else
     static let radius: CGFloat = 18
