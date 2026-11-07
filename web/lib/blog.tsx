@@ -16,7 +16,7 @@ export function readingMinutes(slug: string): number {
   return Math.max(1, Math.round((words.length + dataWords(src)) / 220));
 }
 
-/// Words a page shows from a data file it imports (the AI feature tracker's rows live in lib/tracker/entries.ts),
+/// Words a page shows from a data file it imports (a lib/<name>/entries.ts),
 /// so a page that is mostly a table doesn't say "1 min read".
 function dataWords(src: string): number {
   let n = 0;

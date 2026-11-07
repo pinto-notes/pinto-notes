@@ -71,18 +71,6 @@
   "w": 880,
   "h": 550
  },
- "chatgpt-chat-and-work-merged": {
-  "ground": "#e9ab84",
-  "ink": "dark",
-  "w": 1600,
-  "h": 1000
- },
- "chatgpt-chat-memory-full": {
-  "ground": "#fcda91",
-  "ink": "dark",
-  "w": 1600,
-  "h": 1000
- },
  "chatgpt-icloud": {
   "ground": "#f1e1c6",
   "ink": "dark",
@@ -119,12 +107,6 @@
   "w": 880,
   "h": 550
  },
- "codex-usage-reset": {
-  "ground": "#fed3b4",
-  "ink": "dark",
-  "w": 1600,
-  "h": 1000
- },
  "connect-chatgpt": {
   "ground": "#e3f2ed",
   "ink": "dark",
@@ -155,18 +137,6 @@
   "w": 880,
   "h": 550
  },
- "gemini-4-carbon": {
-  "ground": "#1554a5",
-  "ink": "light",
-  "w": 1600,
-  "h": 1000
- },
- "gemini-notebooks": {
-  "ground": "#eaeceb",
-  "ink": "dark",
-  "w": 1600,
-  "h": 1000
- },
  "habit-tracker": {
   "ground": "#ddeddf",
   "ink": "dark",
@@ -196,12 +166,6 @@
   "ink": "dark",
   "w": 880,
   "h": 495
- },
- "meta-muse-connectors": {
-  "ground": "#e7effc",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
  },
  "move-apple-notes": {
   "ground": "#fbefd9",

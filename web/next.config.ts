@@ -44,7 +44,7 @@ export const BLOG_SOURCES = ["./app/blog/**/page.tsx", "./lib/**/entries.ts"];
 const config: NextConfig = {
   devIndicators: false, // the lab switcher lives in the lower-left
   // The blog reads each post's source for its reading time (lib/blog.tsx), plus the data file a post
-  // shows (the tracker's lib/tracker/entries.ts). A server render (Google's crawler gets one) must find
+  // shows (any lib/<name>/entries.ts, like the AI feature tracker had). A server render (Google's crawler gets one) must find
   // those files in the function bundle, or the page fails with ENOENT: every page with a card for the
   // tracker returned 500 to Google on 25 Oct 2026. The index and its pages show cards too.
   outputFileTracingIncludes: Object.fromEntries(["/blog", "/blog/**"].map((route) => [route, BLOG_SOURCES])),

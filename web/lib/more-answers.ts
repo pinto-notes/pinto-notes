@@ -37,6 +37,7 @@ export const SHELVES: Shelf[] = [
       { slug: "notes-apps-with-mcp", ask: "Which notes apps work with AI?" },
       { slug: "best-notes-app-for-ai-agents", ask: "What's the best notes app for AI agents?" },
       { slug: "obsidian-mcp", ask: "Can Claude use my Obsidian vault?" },
+      { slug: "connect-notes-to-grok", ask: "Connect your notes to Grok" },
       { slug: "mcp-server", ask: "What's an MCP server, in plain words?" },
       { slug: "encrypted-notes-app-for-ai", ask: "Can an AI use encrypted notes?" },
       { slug: "move-from-apple-notes", ask: "How do I bring my Apple Notes along?" },
@@ -51,17 +52,6 @@ export const SHELVES: Shelf[] = [
       { slug: "plan-a-trip-with-chatgpt-or-claude", ask: "A trip plan" },
       { slug: "flashcards-with-chatgpt-or-claude", ask: "Flashcards from your notes" },
       { slug: "journal-with-chatgpt-or-claude", ask: "A daily journal" },
-    ],
-  },
-  {
-    title: "New in AI",
-    line: "What just came out, and whether it's worth your time.",
-    items: [
-      { slug: "new-ai-features", ask: "What's new in ChatGPT, Claude and Gemini?" },
-      { slug: "gpt-6-astra-use-cases", ask: "GPT-6 Astra: what's it good for?" },
-      { slug: "what-are-chatgpt-dots", ask: "What are ChatGPT dots?" },
-      { slug: "meta-muse-connectors", ask: "Which Meta Muse connectors to add?" },
-      { slug: "connect-notes-to-grok", ask: "Connect your notes to Grok" },
     ],
   },
 ];
