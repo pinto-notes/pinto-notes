@@ -1,19 +1,153 @@
+import Supabase
+import SwiftData
+import SwiftUI
 #if os(macOS)
 import AppKit
-import Supabase
-import SwiftUI
 import Carbon.HIToolbox
+#else
+import PhotosUI
+#endif
 
-// The pages of Settings on the Mac, in the System Settings form (SettingsForm). The same pages as
-// iPhone's Settings since 7 November 2026: Account, AI Connections, General, Appearance, Security
-// and privacy, Storage, Help and feedback. The Help menu keeps its links too (MacHelp).
+// The pages of Settings, each written once for the Mac and iPhone (7 November 2026): a grouped
+// form of sections. The Mac draws it in its card beside the sidebar (SettingsCard), like System
+// Settings; iPhone pushes it from its list (SettingsView). Platform branches are only for what
+// one of them lacks or does differently: the Mac's menu bar, shortcut and login item, the photo
+// picker, the File menu's export. Account, AI Connections, General, Appearance, Security and
+// privacy, Storage, Help and feedback; Security and privacy is PrivacySecurity.swift's.
+
+/// One page of Settings: a grouped form, with the line on being offline at its top. On the Mac, on
+/// the card's own ground, its switches in the accent.
+struct SettingsPageForm<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        Form {
+            // Every page has something that needs the server, so each says it at its top.
+            OfflineSection()
+            content
+        }
+        .formStyle(.grouped)
+        #if os(macOS)
+        // On the card's own ground, the sections a step off it, their edges under the title (the
+        // grouped form keeps its own 20 pt, the card's page inset).
+        .scrollContentBackground(.hidden)
+        .contentMargins(.horizontal, 0, for: .scrollContent)
+        .contentMargins(.top, 6, for: .scrollContent)
+        // Menus show their value in the text colour, as in System Settings; switches the accent.
+        .tint(Color.ink)
+        #endif
+    }
+}
+
+#if os(iOS)
+extension View {
+    /// The Mac card's layout probe; iPhone has no card.
+    func settingsProbe(_ name: String) -> some View { self }
+}
+#endif
+
+/// A section without a box: the page's own ground behind it (an account's picture and name, the AI
+/// cards, which are boxes themselves). The Mac's grouped form draws a box behind every row, so
+/// there it's the header of a section without rows.
+struct OpenSection<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        #if os(macOS)
+        // A header sits 10 pt inside the boxes' edges; this one spans them, like a box.
+        Section {} header: {
+            content.textCase(nil).font(.body).foregroundStyle(Color.ink).padding(.horizontal, -10)
+        }
+        #else
+        Section { content }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+        #endif
+    }
+}
+
+/// At the top of a page while the server can't be reached: what still works and what waits.
+struct OfflineSection: View {
+    @Environment(\.networkReach) private var reach
+
+    var body: some View {
+        if reach != .online {
+            Section {
+                Label(OfflineCopy.settings(reach), systemImage: OfflineCopy.symbol(reach))
+                    .foregroundStyle(Color.muted)
+                    .accessibilityIdentifier("settings.offline")
+            }
+        }
+    }
+}
+
+extension View {
+    /// A switch on a Settings row: the system's, small on the Mac (the page's tint is the accent).
+    func settingsSwitch() -> some View {
+        #if os(macOS)
+        toggleStyle(.switch).controlSize(.small).tint(SettingsInk.switchOn)
+        #else
+        toggleStyle(.switch)
+        #endif
+    }
+
+    /// A button at the end of a row (Remove…, Show, Save…): the Mac's row button; on iPhone a
+    /// borderless one, so two in one row each take their own tap.
+    func settingsRowButton() -> some View {
+        #if os(macOS)
+        buttonStyle(.settings)
+        #else
+        buttonStyle(.borderless)
+        #endif
+    }
+}
+
+/// A row that leaves the app or opens something: its symbol and words, an arrow or a chevron at
+/// the end, the whole row to click. On the Mac the row takes a fill under the pointer.
+struct SettingsLinkRow: View {
+    let title: String
+    var detail: String? = nil
+    var symbol: String? = nil
+    var trailing = "arrow.up.right"
+
+    var body: some View {
+        LabeledContent {
+            Image(systemName: trailing).font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+        } label: {
+            if let symbol {
+                Label { words } icon: { Image(systemName: symbol).foregroundStyle(Color.paneAccent) }
+            } else {
+                words
+            }
+        }
+        .foregroundStyle(Color.ink)
+        .contentShape(.rect)
+    }
+
+    @ViewBuilder private var words: some View {
+        Text(title)
+        if let detail { Text(detail) }
+    }
+}
+
+extension View {
+    /// A whole row that is a button or a link: on the Mac plain, with the row's hover; on iPhone
+    /// the list's own row, which highlights as it's tapped.
+    @ViewBuilder func settingsRowLink() -> some View {
+        #if os(macOS)
+        buttonStyle(.plain).hoverRow()
+        #else
+        self
+        #endif
+    }
+}
 
 // MARK: Account
 
-/// Account: one card (Emil, 3 November 2026: "simplify and cut things"). Your photo (click it to
-/// change or remove it), your name (edit it on the card), your email, the sync status (click it to
-/// sync now). The space used is on Storage. Under the card, Sign Out… and a quiet Delete Account…. Export is
-/// File › Export All Notes…; Sign in with Apple is offered only when signing in.
+/// Account: you at the top, centred, as Settings shows your Apple Account (your photo, your name to
+/// edit where it is, how you sign in), then sync, then Sign Out… and Delete Account…. iPhone also
+/// exports from here; the Mac exports from File › Export All Notes…. Signed out: what signing in
+/// adds, and Sign In….
 struct AccountSettingsPage: View {
     let backend: Backend
     let sync: SyncEngine?
@@ -23,14 +157,18 @@ struct AccountSettingsPage: View {
     var close: () -> Void = {}
     @State private var profile = ProfileStore.shared
     @State private var draft = ""
+    @FocusState private var editing: Bool
+    @Environment(\.networkReach) private var reach
+    #if os(macOS)
     @State private var importing = false
     @State private var photoMenu = MenuAnchor()
     @State private var nameHover = false
-    @FocusState private var editing: Bool
-    @Environment(\.networkReach) private var reach
+    #else
+    @State private var picked: PhotosPickerItem?
+    #endif
 
     var body: some View {
-        SettingsStack {
+        SettingsPageForm {
             switch backend.state {
             case .signedIn(let email): signedIn(email: backend.displayEmail ?? email)
             default: signedOut
@@ -42,6 +180,7 @@ struct AccountSettingsPage: View {
         .onChange(of: profile.name) { _, new in if !editing || draft.isEmpty { draft = new ?? "" } }
         .onChange(of: editing) { _, now in if !now { Task { await profile.setName(draft) } } }
         .onChange(of: draft) { _, new in if new.count > ProfileName.maxLength { draft = String(new.prefix(ProfileName.maxLength)) } }
+        #if os(macOS)
         .fileImporter(isPresented: $importing, allowedContentTypes: [.jpeg, .png, .heic, .image]) { result in
             guard case .success(let url) = result else { return }
             let scoped = url.startAccessingSecurityScopedResource()
@@ -49,6 +188,15 @@ struct AccountSettingsPage: View {
             guard let data = try? Data(contentsOf: url) else { return }
             Task { await profile.setPhoto(data) }
         }
+        #else
+        .onChange(of: picked) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self) { await profile.setPhoto(data) }
+                picked = nil
+            }
+        }
+        #endif
     }
 
     /// The address under your name; never an Apple relay address ("Signed in with Apple").
@@ -57,7 +205,7 @@ struct AccountSettingsPage: View {
         return how == email ? email : "Signed in with \(how)"
     }
 
-    /// The status under your email, short: "Synced just now", "Synced 5 minutes ago", "Syncing…".
+    /// The status beside Sync, short: "Synced just now", "Synced 5 minutes ago", "Syncing…".
     /// Offline, or refused, it says why, as SyncStatusLabel does.
     static func syncLine(_ status: SyncEngine.Status, reach: SyncEngine.Reach, now: Date = .now) -> String {
         if let away = SyncStatusLabel.away(status, reach: reach) { return away }
@@ -70,93 +218,143 @@ struct AccountSettingsPage: View {
         }
     }
 
-    /// Signed out, where Export went: the File menu, signed in or not.
+    /// Signed out on the Mac, where Export went: the File menu, signed in or not.
     static let exportHint = "File \u{203A} Export All Notes\u{2026} saves a copy of the notes on this Mac."
 
     /// The space used, short: "1.2 GB of 2 GB".
     static func storageLine(_ u: StorageUsage) -> String { "\(StorageUsage.size(u.used)) of \(StorageUsage.size(u.limit))" }
 
-    private func runSync() { Self.syncNow(sync, override: syncNow) }
-
-    /// What clicking the sync status does: a sync, now.
+    /// What the sync control does: a sync, now.
     static func syncNow(_ sync: SyncEngine?, override: (() async -> Void)? = nil) {
         Task { if let override { await override() } else { await sync?.sync() } }
     }
 
+    private func runSync() { Self.syncNow(sync, override: syncNow) }
+
     @ViewBuilder private func signedIn(email: String) -> some View {
-        // You at the top, centred, as System Settings shows your Apple Account (Emil, 7 November
-        // 2026); then sync as a row; then Sign Out and Delete.
-        VStack(spacing: 20) {
-        VStack(spacing: 8) {
-            photo.padding(.bottom, 4)
-            name
-            Text(Self.shownEmail(email, apple: backend.apple != nil, google: backend.google))
-                .font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
-                .lineLimit(1).truncationMode(.middle)
-                .textSelection(.enabled)
-                .accessibilityIdentifier("settings.signedInWith")
-            if let problem = profile.problem {
-                Text(problem).font(.system(size: 12)).foregroundStyle(.red)
+        OpenSection {
+            VStack(spacing: 8) {
+                photo.padding(.bottom, 4)
+                name
+                Text(Self.shownEmail(email, apple: backend.apple != nil, google: backend.google))
+                    .font(.callout).foregroundStyle(Color.muted)
+                    .lineLimit(1).truncationMode(.middle)
+                    .textSelection(.enabled)
+                    .accessibilityIdentifier("settings.signedInWith")
+                if let problem = profile.problem {
+                    Text(problem).font(.footnote).foregroundStyle(.red)
+                }
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("settings.accountSummary")
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 4)
-        .padding(.bottom, 6)
-        SettingsGroup {
-            HStack {
-                Text("Sync").font(.system(size: 13)).foregroundStyle(SettingsInk.text)
-                Spacer(minLength: 8)
-                syncStatus
-            }
-            .frame(minHeight: 40)
+        Section {
+            LabeledContent("Sync") { syncControl }
         }
+        #if os(iOS)
+        // Next to Delete Account, which says to export first. The Mac's is File › Export All Notes….
+        Section {
+            ExportNotesButton(sync: sync)
+        } footer: {
+            Text(PrivacyCopy.exportFooter)
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("settings.accountSummary")
-        VStack(spacing: 0) {
-            SignOutButton(backend: backend, sync: sync, red: false).buttonStyle(SettingsRowButtonStyle())
-            SettingsInk.hairline.frame(height: 0.5).padding(.leading, 16)
+        #endif
+        Section {
+            SignOutButton(backend: backend, sync: sync)
             // The App Store asks for deleting an account inside the app.
-            DeleteAccountButton(backend: backend, title: "Delete Account\u{2026}")
-                .buttonStyle(SettingsRowButtonStyle())
+            DeleteAccountButton(backend: backend)
                 .settingsProbe("account.delete")
         }
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(SettingsInk.group))
-        .clipShape(.rect(cornerRadius: 14, style: .continuous))
     }
 
-    /// Your photo: click it for Choose Photo… and Remove Photo. A photo can be dropped on it too.
-    private var photo: some View {
-        Button { showPhotoMenu() } label: {
-            ZStack {
-                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 64)
-                if profile.working { ProgressView().controlSize(.small) }
+    /// Sync's status, said the same on both, and how to sync now: on the Mac the status is the
+    /// button (a click), on iPhone a Sync Now button beside it (a tap needs something to tap).
+    private var syncControl: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { context in
+            let line = Self.syncLine(sync?.status ?? .idle, reach: sync?.reach ?? .online, now: context.date)
+            #if os(macOS)
+            Button { runSync() } label: {
+                HStack(spacing: 5) {
+                    if case .syncing = sync?.status { ProgressView().controlSize(.mini) } else {
+                        Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 10.5)).accessibilityHidden(true)
+                    }
+                    Text(line)
+                }
+                .foregroundStyle(Color.muted)
+                .lineLimit(1)
             }
-            // Says it can be changed, without a hover (Emil, 6 November 2026).
-            .overlay(alignment: .bottomTrailing) {
-                Image(systemName: "pencil")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(SettingsInk.text)
-                    .frame(width: 24, height: 24)
-                    .background(Circle().fill(SettingsInk.raised))
-                    .overlay(Circle().strokeBorder(SettingsInk.edge, lineWidth: 0.5))
-                    .offset(x: 3, y: 3)
-                    .accessibilityHidden(true)
+            .buttonStyle(.hoverText)
+            .disabled(reach != .online)
+            .help("Sync now")
+            .accessibilityHint("Syncs now")
+            .accessibilityIdentifier("settings.syncStatus")
+            .settingsProbe("account.syncStatus")
+            #else
+            HStack(spacing: 10) {
+                if case .syncing = sync?.status { ProgressView().controlSize(.mini) }
+                Text(line).foregroundStyle(Color.muted).lineLimit(1)
+                    .accessibilityIdentifier("settings.syncStatus")
+                Button("Sync Now") { runSync() }
+                    .settingsRowButton()
+                    .disabled(reach != .online)
+                    .accessibilityIdentifier("settings.syncNow")
             }
-            .background(MenuAnchorView(anchor: photoMenu))
+            #endif
         }
-        .buttonStyle(.tile(radius: 30))
-        .help(profile.photo == nil ? "Choose a photo" : "Change your photo")
+    }
+
+    /// Your photo, with a pencil that says it can be changed: Choose Photo… and Remove Photo.
+    @ViewBuilder private var photo: some View {
+        let face = ZStack {
+            AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: Self.photoSize)
+            if profile.working { ProgressView().controlSize(.small) }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Image(systemName: "pencil")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color.ink)
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(.background))
+                .overlay(Circle().strokeBorder(.separator, lineWidth: 0.5))
+                .offset(x: 3, y: 3)
+                .accessibilityHidden(true)
+        }
+        #if os(macOS)
+        Button { showPhotoMenu() } label: { face.background(MenuAnchorView(anchor: photoMenu)) }
+            .buttonStyle(.tile(radius: Self.photoSize / 2))
+            .help(profile.photo == nil ? "Choose a photo" : "Change your photo")
+            .accessibilityLabel(profile.photo == nil ? "Choose photo" : "Change photo")
+            .accessibilityIdentifier("settings.photo")
+            .settingsProbe("account.photo")
+            .dropDestination(for: URL.self) { urls, _ in
+                guard let url = urls.first, let data = try? Data(contentsOf: url) else { return false }
+                Task { await profile.setPhoto(data) }
+                return true
+            }
+        #else
+        Menu {
+            PhotosPicker(profile.photo == nil ? "Choose Photo\u{2026}" : "Change Photo\u{2026}", selection: $picked, matching: .images)
+                .accessibilityIdentifier("settings.choosePhoto")
+            if profile.photo != nil {
+                Button("Remove Photo", role: .destructive) { Task { await profile.removePhoto() } }
+                    .accessibilityIdentifier("settings.removePhoto")
+            }
+        } label: { face }
+        .buttonStyle(.plain)
         .accessibilityLabel(profile.photo == nil ? "Choose photo" : "Change photo")
         .accessibilityIdentifier("settings.photo")
-        .settingsProbe("account.photo")
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first, let data = try? Data(contentsOf: url) else { return false }
-            Task { await profile.setPhoto(data) }
-            return true
-        }
+        #endif
     }
 
+    #if os(macOS)
+    static let photoSize: CGFloat = 64
+    #else
+    static let photoSize: CGFloat = 84
+    #endif
+
+    #if os(macOS)
     private func showPhotoMenu() {
         let menu = NSMenu()
         menu.autoenablesItems = false
@@ -167,195 +365,143 @@ struct AccountSettingsPage: View {
         guard let view = photoMenu.view else { importing = true; return }
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: view.isFlipped ? view.bounds.height + 4 : -4), in: view)
     }
+    #endif
 
-    /// Your name, edited where it is: a click puts the caret in it, Return or a click away keeps it.
+    /// Your name, edited where it is: a click or tap puts the caret in it, Return or leaving keeps it.
     private var name: some View {
-        TextField("Name", text: $draft, prompt: Text("Add your name").foregroundStyle(SettingsInk.muted))
+        TextField("Name", text: $draft, prompt: Text("Add your name").foregroundStyle(Color.muted))
             .labelsHidden()
             .textFieldStyle(.plain)
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(SettingsInk.text)
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(Color.ink)
+            .multilineTextAlignment(.center)
             .focused($editing)
             .onSubmit { Task { await profile.setName(draft) } }
+            #if os(macOS)
+            // Always a field on the Mac, so it reads as one you can type in (Emil, 6 November 2026).
             .padding(.horizontal, 8)
-            .frame(height: 32)
-            // Always a field, so it reads as one you can type in (Emil, 6 November 2026).
+            .frame(height: 30)
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(editing ? SettingsInk.ground : nameHover ? SettingsInk.selection : SettingsInk.group))
             .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(editing ? SettingsInk.edge : SettingsInk.hairline, lineWidth: 1))
             .onHover { nameHover = $0 }
-            .multilineTextAlignment(.center)
             .frame(maxWidth: 240)
+            #endif
             .accessibilityLabel("Name")
             .accessibilityIdentifier("settings.profileName")
             .settingsProbe("account.name")
     }
 
-    /// "Synced 2 minutes ago": click it to sync now.
-    private var syncStatus: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-            Button { runSync() } label: {
-                HStack(spacing: 5) {
-                    if case .syncing = sync?.status { ProgressView().controlSize(.mini) } else {
-                        Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 10.5)).accessibilityHidden(true)
-                    }
-                    Text(Self.syncLine(sync?.status ?? .idle, reach: sync?.reach ?? .online, now: context.date))
-                }
-                .font(.system(size: 12))
-                .foregroundStyle(SettingsInk.muted)
-                .lineLimit(1)
-            }
-            .buttonStyle(.hoverText)
-            .disabled(reach != .online)
-            .help("Sync now")
-            .accessibilityHint("Syncs now")
-            .accessibilityIdentifier("settings.syncStatus")
-            .settingsProbe("account.syncStatus")
-        }
-    }
-
     @ViewBuilder private var signedOut: some View {
-        SettingsSummary {
+        Section {
             HStack(spacing: 14) {
                 AvatarView(photo: nil, name: nil, size: 54)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Not signed in").font(.system(size: 17, weight: .semibold)).foregroundStyle(SettingsInk.text)
-                    // One line beside Sign In…, which says what to do (council round 11: the longer
-                    // line left "or Claude." alone on a second line).
-                    Text(backend.state == .disabled ? "Sync is off. This build keeps notes on this device only."
-                         : SignInView.shortLine)
-                        .font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
+                    Text("Not signed in").font(.headline).foregroundStyle(Color.ink)
+                    // One line beside Sign In…, which says what to do (council round 11).
+                    Text(backend.state == .disabled ? "Sync is off. This build keeps notes on this device only." : SignInView.shortLine)
+                        .font(.callout).foregroundStyle(Color.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 12)
                 if backend.state != .disabled {
                     Button("Sign In\u{2026}") {
                         close()
-                        // Once Settings has gone, the card's email field takes the caret.
+                        // Once Settings has gone, the sign-in card's email field takes the caret.
                         DispatchQueue.main.async { NotificationCenter.default.post(name: SignInView.focusEmailNotice, object: nil) }
                     }
-                        .buttonStyle(.settings)
-                        .accessibilityIdentifier("settings.signIn")
+                    .settingsRowButton()
+                    .accessibilityIdentifier("settings.signIn")
                 }
             }
+            .padding(.vertical, 4)
+        } footer: {
+            #if os(macOS)
+            Text(Self.exportHint).accessibilityIdentifier("settings.exportHint")
+            #endif
         }
-        Text(AccountSettingsPage.exportHint)
-            .font(.system(size: 12)).foregroundStyle(SettingsInk.muted)
-            .padding(.horizontal, 4)
-            .accessibilityIdentifier("settings.exportHint")
+        #if os(iOS)
+        // Signed out, the notes on this device are still yours to take.
+        Section {
+            ExportNotesButton(sync: nil)
+        } footer: {
+            Text(PrivacyCopy.exportFooterLocal)
+        }
+        #endif
     }
 }
 
 // MARK: General
 
 /// General: today's note, whether ticked items sink, this Mac's menu bar, shortcut and login
-/// item, the setup guide and the diagnostics switch. Keys for apps is parked on the Mac (Emil,
-/// 6 November 2026). The iPhone has the same less This Mac (GeneralSettings).
+/// item (the Mac only), keys for apps in notes (iPhone only: parked on the Mac, Emil, 6 November
+/// 2026), and the diagnostics switch. The setup guide is on Help and feedback.
 struct GeneralSettingsPage: View {
-    var signedIn: Bool
-    /// Closes Settings, so the setup guide shows.
-    var close: () -> Void = {}
-    @AppStorage(MenuBarSettings.key) private var menuBar = true
-    @AppStorage(Telemetry.consentKey) private var share = true
-    @State private var login = LoginItem.isOn
-
-    static let menuBarDetail = "Write or find a note with the window closed."
-
-    var body: some View {
-        SettingsStack {
-            TodaysNoteRows()
-            ChecklistRows()
-            SettingsGroup(header: GeneralCopy.thisMac) {
-                SettingsLine(title: "Show in menu bar", detail: Self.menuBarDetail) {
-                    Toggle("Show in menu bar", isOn: $menuBar)
-                        .settingsSwitch()
-                        .accessibilityIdentifier("settings.menuBar")
-                }
-                SettingsLine(title: GeneralCopy.shortcut, detail: GeneralCopy.shortcutDetail) {
-                    ShortcutRecorder()
-                }
-                SettingsLine(title: GeneralCopy.login) {
-                    Toggle(GeneralCopy.login, isOn: Binding(get: { login }, set: { on in LoginItem.set(on); login = LoginItem.isOn; SettingsUsage.shared.check(asksSystem: true) }))
-                        .settingsSwitch()
-                        .accessibilityIdentifier("settings.openAtLogin")
-                }
-            }
-            if HelpPage.offersSetupGuide(signedIn: signedIn) {
-                SettingsGroup(footer: HelpCopy.setupGuideFooter) {
-                    Button { HelpPage.playSetupGuide(close: close) } label: {
-                        SettingsLinkLine(title: "Show Setup Guide", trailing: "chevron.right")
-                    }
-                    .buttonStyle(.plain)
-                    .hoverRow()
-                    .accessibilityIdentifier("settings.setupGuide")
-                }
-            }
-            SettingsGroup(footer: DiagnosticsCopy.footer) {
-                SettingsLine(title: DiagnosticsCopy.title) {
-                    Toggle(DiagnosticsCopy.title, isOn: Binding(get: { share }, set: { share = $0; Telemetry.shared.consent = $0 }))
-                        .settingsSwitch()
-                        .accessibilityIdentifier("settings.diagnostics")
-                }
-            }
-        }
-        .onAppear { login = LoginItem.isOn }
-    }
-}
-
-/// Today's note on the Mac's General page: its folder, title, template and whether Pinto opens on it.
-private struct TodaysNoteRows: View {
     @Environment(\.modelContext) private var context
     @AppStorage(TodaysNoteSettings.folderKey, store: TodaysNoteSettings.store) private var folder = DailyNotes.folderName
     @AppStorage(TodaysNoteSettings.titleKey, store: TodaysNoteSettings.store) private var title = TodaysNoteSettings.Title.long
     @AppStorage(TodaysNoteSettings.templateKey, store: TodaysNoteSettings.store) private var template = ""
     @AppStorage(TodaysNoteSettings.launchKey, store: TodaysNoteSettings.store) private var openOnLaunch = false
+    @AppStorage(ChecklistSorting.key, store: ChecklistSorting.store) private var sortsTicked = true
+    #if os(macOS)
+    @AppStorage(MenuBarSettings.key) private var menuBar = true
+    @State private var login = LoginItem.isOn
+    #endif
+
+    static let menuBarDetail = "Write or find a note with the window closed."
 
     var body: some View {
         let choices = GeneralChoices(context: context)
-        SettingsGroup(header: GeneralCopy.today, footer: GeneralCopy.todayFooter) {
-            SettingsLine(title: "Folder") {
+        SettingsPageForm {
+            Section {
                 Picker("Folder", selection: $folder) { ForEach(choices.folders(keeping: folder), id: \.self) { Text($0).tag($0) } }
-                    .settingsMenu().accessibilityIdentifier("settings.today.folder")
-            }
-            SettingsLine(title: "Title") {
+                    .accessibilityIdentifier("settings.today.folder")
                 Picker("Title", selection: $title) { ForEach(TodaysNoteSettings.Title.allCases) { Text(GeneralChoices.example($0)).tag($0) } }
-                    .settingsMenu().accessibilityIdentifier("settings.today.title")
-            }
-            SettingsLine(title: "Template") {
+                    .accessibilityIdentifier("settings.today.title")
                 Picker("Template", selection: $template) {
                     Text("None").tag("")
                     ForEach(choices.templates(keeping: template), id: \.id) { Text($0.title).tag($0.id.uuidString) }
                 }
-                .settingsMenu().accessibilityIdentifier("settings.today.template")
-            }
-            SettingsLine(title: GeneralCopy.openOnLaunch) {
+                .accessibilityIdentifier("settings.today.template")
                 Toggle(GeneralCopy.openOnLaunch, isOn: $openOnLaunch).settingsSwitch().accessibilityIdentifier("settings.today.launch")
+            } header: {
+                Text(GeneralCopy.today)
+            } footer: {
+                Text(GeneralCopy.todayFooter)
             }
-        }
-    }
-}
-
-/// Checklists: whether ticked items sink below the open ones.
-private struct ChecklistRows: View {
-    @AppStorage(ChecklistSorting.key, store: ChecklistSorting.store) private var sortsTicked = true
-
-    var body: some View {
-        SettingsGroup(header: GeneralCopy.checklists) {
-            SettingsLine(title: GeneralCopy.ticked) {
+            Section(GeneralCopy.checklists) {
                 Toggle(GeneralCopy.ticked, isOn: $sortsTicked).settingsSwitch().accessibilityIdentifier("settings.notes.ticked")
             }
+            #if os(macOS)
+            Section(GeneralCopy.thisMac) {
+                Toggle(isOn: $menuBar) {
+                    Text("Show in menu bar")
+                    Text(Self.menuBarDetail)
+                }
+                .settingsSwitch()
+                .accessibilityIdentifier("settings.menuBar")
+                LabeledContent {
+                    ShortcutRecorder()
+                } label: {
+                    Text(GeneralCopy.shortcut)
+                    Text(GeneralCopy.shortcutDetail)
+                }
+                Toggle(GeneralCopy.login, isOn: Binding(get: { login }, set: { on in LoginItem.set(on); login = LoginItem.isOn; SettingsUsage.shared.check(asksSystem: true) }))
+                    .settingsSwitch()
+                    .accessibilityIdentifier("settings.openAtLogin")
+            }
+            #else
+            if NoteApps.enabled { APIKeysSection() }
+            #endif
+            DiagnosticsSection()
         }
+        #if os(macOS)
+        .onAppear { login = LoginItem.isOn }
+        #endif
     }
 }
 
-extension View {
-    /// A menu on the right of a Settings row, in ink, not the accent: a value to read, like the
-    /// switches and the shortcut beside it.
-    func settingsMenu() -> some View {
-        pickerStyle(.menu).labelsHidden().fixedSize().tint(SettingsInk.text)
-    }
-}
-
+#if os(macOS)
 /// The quick note shortcut's chip: click, press the keys; Delete clears it, Escape keeps it.
 private struct ShortcutRecorder: View {
     @State private var shortcut = QuickNoteHotKey.shared.shortcut
@@ -404,151 +550,197 @@ private struct ShortcutRecorder: View {
         monitor = nil
     }
 }
+#endif
 
 // MARK: Storage
 
-/// Storage: the space used against the limit, what takes it, and what counts, as on iPhone.
+/// Storage: the space used against the limit, what takes it, and what counts.
 struct StorageSettingsPage: View {
     let backend: Backend
     @State private var storage = StorageStore.shared
-    @Environment(\.networkReach) private var reach
 
     var body: some View {
-        SettingsStack {
-            SettingsGroup(footer: StorageSectionBody.footer) {
-                if let u = storage.usage {
-                    storageBar(u).padding(.vertical, 12)
-                    ForEach(u.parts, id: \.name) { part in
-                        SettingsLine(title: part.name) {
-                            Text(StorageUsage.size(part.bytes)).font(.system(size: 13)).monospacedDigit().foregroundStyle(SettingsInk.muted)
-                        }
-                    }
-                } else {
-                    SettingsLine(title: reach != .online ? "Counted when you\u{2019}re online." : "Counting\u{2026}") { EmptyView() }
-                }
-            }
-        }
-        .task(id: backend.state) { await storage.refresh(backend.client, force: false) }
+        SettingsPageForm { StorageSectionBody(usage: storage.usage) }
+            .task(id: backend.state) { await storage.refresh(backend.client, force: false) }
     }
-
-    private func storageBar(_ u: StorageUsage) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Storage").font(.system(size: 13)).foregroundStyle(SettingsInk.text)
-                Spacer()
-                Text(AccountSettingsPage.storageLine(u)).font(.system(size: 13)).monospacedDigit().foregroundStyle(SettingsInk.muted)
-                if u.level != .fine {
-                    Text(u.level == .full ? "Full" : "Almost full")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(u.level == .full ? Color.red : Color.orange)
-                }
-            }
-            // A bar of its own: the Mac's progress bar doesn't take a tint.
-            Capsule().fill(SettingsInk.selection)
-                .frame(height: 6)
-                .overlay(alignment: .leading) {
-                    GeometryReader { g in
-                        Capsule().fill(u.level == .full ? Color.red : u.level == .nearlyFull ? Color.orange : SettingsInk.text)
-                            .frame(width: max(6, g.size.width * u.fraction))
-                    }
-                }
-                .accessibilityElement()
-                .accessibilityLabel("Storage used")
-                .accessibilityValue(u.summary)
-            if let warning = u.warning {
-                Text(warning.detail)
-                    .font(.system(size: 12)).foregroundStyle(SettingsInk.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .accessibilityIdentifier("settings.storage")
-    }
-
 }
 
 // MARK: Help and feedback
 
-/// Help and feedback: answers, a message to us, an issue, the project on GitHub and what's new,
-/// as on iPhone. The Help menu has the same items. The version is at the foot of the sidebar.
+/// Help and feedback: answers, a message to us, an issue, the project on GitHub, the setup guide
+/// again, what's new, and the terms. The Help menu has the same on the Mac; the version is at the
+/// foot of the Mac's sidebar, on iPhone a row here.
 struct HelpSettingsPage: View {
+    /// The setup guide plays only for an account (it starts from your name).
+    var signedIn: Bool
+    /// Closes Settings, so the setup guide shows.
+    var close: () -> Void = {}
+    /// Where the address goes when no mail app opens; tests keep the real clipboard out of it.
+    var copy: @MainActor (String) -> Void = { HelpPage.toClipboard($0) }
+    @Environment(\.openURL) private var openURL
+    /// Said under Send feedback when no mail app took the message.
+    @State private var noMail = false
+
     var body: some View {
-        SettingsStack {
-            SettingsGroup(footer: HelpCopy.feedbackFooter) {
-                link(HelpCopy.questions, symbol: "questionmark.circle", id: "settings.support") { MacHelp.questions() }
-                link(HelpCopy.feedback, symbol: "envelope", id: "settings.feedback") { MacHelp.sendFeedback() }
-                link("Report an issue", symbol: "exclamationmark.bubble", id: "settings.reportIssue") { MacHelp.reportIssue() }
+        SettingsPageForm {
+            Section {
+                link(HelpCopy.questions, HelpCopy.supportPage, symbol: "questionmark.circle", id: "settings.support")
+                Button { sendFeedback() } label: { SettingsLinkRow(title: HelpCopy.feedback, symbol: "envelope") }
+                    .settingsRowLink()
+                    .accessibilityIdentifier("settings.feedback")
+                if noMail {
+                    Label(HelpCopy.noMailApp, systemImage: "doc.on.doc")
+                        .font(.footnote)
+                        .foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("settings.feedbackCopied")
+                }
+                link(HelpCopy.report, ShareAsk.newIssue, symbol: "exclamationmark.bubble", id: "settings.reportIssue")
+            } footer: {
+                Text(HelpCopy.feedbackFooter)
             }
-            SettingsGroup(footer: HelpCopy.openSourceFooter) {
-                link(MacHelp.githubTitle, symbol: "chevron.left.forwardslash.chevron.right", id: "settings.github") { MacHelp.github() }
-                link(WhatsNew.title, symbol: "sparkles.rectangle.stack", id: "settings.whatsNew") { NSWorkspace.shared.open(WhatsNew.changelogURL) }
+            Section {
+                ForEach(AboutSection.links, id: \.id) { l in link(l.title, l.url, symbol: l.symbol, id: l.id) }
+            } header: {
+                Text(HelpCopy.openSource)
+            } footer: {
+                Text(HelpCopy.openSourceFooter)
+            }
+            if HelpPage.offersSetupGuide(signedIn: signedIn) {
+                Section {
+                    Button { HelpPage.playSetupGuide(close: close) } label: {
+                        SettingsLinkRow(title: HelpCopy.setupGuide, symbol: "sparkles", trailing: "chevron.right")
+                    }
+                    .settingsRowLink()
+                    .accessibilityIdentifier("settings.setupGuide")
+                } footer: {
+                    Text(HelpCopy.setupGuideFooter)
+                }
+            }
+            Section {
+                // What changed in each version, on the website: the app shows no release notes by itself.
+                link(WhatsNew.title, WhatsNew.changelogURL, symbol: "sparkles.rectangle.stack", id: "settings.whatsNew")
+                #if os(iOS)
+                LabeledContent("Version") {
+                    Text(AboutSection.version).textSelection(.enabled).monospacedDigit()
+                }
+                .accessibilityIdentifier("settings.version")
+                #endif
+            } footer: {
+                VStack(alignment: .leading, spacing: 6) {
+                    LegalLinksRow()
+                    #if os(iOS)
+                    // The import list shows these apps' own icons; on the Mac this is About's credits.
+                    Text(HelpCopy.trademarks)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    #endif
+                }
             }
         }
     }
 
-    private func link(_ title: String, symbol: String, id: String, run: @escaping () -> Void) -> some View {
-        Button(action: run) { SettingsLinkLine(title: title, symbol: symbol) }
-            .buttonStyle(.plain)
-            .hoverRow()
+    private func link(_ title: String, _ url: URL, symbol: String?, id: String) -> some View {
+        Link(destination: url) { SettingsLinkRow(title: title, symbol: symbol) }
+            .settingsRowLink()
             .accessibilityIdentifier(id)
+    }
+
+    private func sendFeedback() {
+        noMail = false
+        openURL(HelpCopy.mail(version: AboutSection.version, system: HelpCopy.system)) { accepted in
+            noMail = HelpPage.mailed(accepted: accepted, copy: copy)
+        }
     }
 }
 
 // MARK: Appearance
 
-/// Appearance: System, Light and Dark as pictures of the window; the theme and its accent; the
-/// size of note text.
+/// Appearance: System, Light and Dark as pictures of the window; the theme and its accent; on the
+/// Mac the size of note text (iPhone follows the system's text size). For this device only.
 struct AppearanceSettingsPage: View {
+    /// How many are on screen, for tests: Appearance shows on its own page only.
+    @MainActor static var onScreen = 0
     @State private var mode = AppearanceModeStore.shared
     @Environment(\.colorScheme) private var scheme
 
+    /// The accent row shows for every theme but High contrast, which draws with its own blue and yellow.
+    static func showsAccent(_ look: ThemeLook) -> Bool { look.theme != .contrast }
+
+    static func footer(_ look: ThemeLook) -> String {
+        look.theme == .contrast ? "High contrast uses its own blue and yellow. Set on each device." : "Set on each device."
+    }
+
+    #if os(macOS)
+    static let modeHeight: CGFloat = 74, themeHeight: CGFloat = 46
+    #else
+    static let modeHeight: CGFloat = 56, themeHeight: CGFloat = 56
+    #endif
+
+    /// Three across for the modes; the themes all in a row on the Mac, three across on iPhone, each
+    /// wide enough to tap.
+    static func columns(_ count: Int) -> [GridItem] {
+        #if os(macOS)
+        Array(repeating: GridItem(.flexible(), spacing: 10), count: count)
+        #else
+        Array(repeating: GridItem(.flexible(), spacing: 10), count: min(count, 3))
+        #endif
+    }
+
     var body: some View {
         let look = ThemeStore.shared.look
-        SettingsStack {
-            SettingsGroup(header: "Mode") {
-                HStack(spacing: 14) {
+        SettingsPageForm {
+            Section("Mode") {
+                LazyVGrid(columns: Self.columns(AppearanceMode.allCases.count), spacing: 12) {
                     ForEach(AppearanceMode.allCases) { m in
-                        WindowChoice(title: m.title, selected: mode.mode == m, orange: false, height: 74, id: "settings.mode.\(m.rawValue)") {
+                        WindowChoice(title: m.title, selected: mode.mode == m, height: Self.modeHeight, id: "settings.mode.\(m.rawValue)") {
                             ModePicture(mode: m, theme: look.theme)
                         } pick: { mode.mode = m }
                     }
                 }
-                .padding(.vertical, 14)
+                .padding(.vertical, 8)
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Mode")
             }
-            SettingsGroup(header: "Theme", footer: AppearanceSection.macFooter(look)) {
-                HStack(spacing: 10) {
+            Section {
+                LazyVGrid(columns: Self.columns(Theme.allCases.count), spacing: 12) {
                     ForEach(Theme.allCases) { t in
-                        WindowChoice(title: t.title, selected: look.theme == t, orange: false, height: 46, id: "settings.theme.\(t.rawValue)") {
+                        WindowChoice(title: t.title, selected: look.theme == t, height: Self.themeHeight, id: "settings.theme.\(t.rawValue)") {
                             // In the mode showing now: dark Settings showed six light windows.
                             ThemeWindowPicture(theme: t, dark: scheme == .dark)
                         } pick: { ThemeStore.shared.theme = t }
                     }
                 }
-                .padding(.vertical, 14)
+                .padding(.vertical, 8)
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Theme")
-                if AppearanceSection.showsAccent(look) {
-                    SettingsLine(title: "Accent", detail: look.accent.spokenName) {
-                        HStack(spacing: 6) {
-                            ForEach(AccentChoice.allCases) { choice in
-                                AccentDot(choice: choice, theme: look.theme, selected: look.accent == choice, style: .row) { ThemeStore.shared.accent = choice }
-                            }
-                        }
-                    }
+                if Self.showsAccent(look) {
+                    AccentPicker(look: look, style: .current)
                 }
+            } header: {
+                Text("Theme")
+            } footer: {
+                Text(Self.footer(look))
             }
+            #if os(macOS)
             // Persona council 11-04: note text from 13 to 24 pt, as Notes' and Books' View menus do it.
-            SettingsGroup(header: "Text size", footer: TextSizeRow.footer) {
+            Section {
                 TextSizeRow()
                 TextSizeSample()
+            } header: {
+                Text("Text size")
+            } footer: {
+                Text(TextSizeRow.footer)
             }
+            #endif
         }
-        .onAppear { AppearancePage.onScreen += 1 }
-        .onDisappear { AppearancePage.onScreen -= 1 }
+        .onAppear { Self.onScreen += 1 }
+        .onDisappear { Self.onScreen -= 1 }
     }
 }
 
+#if os(macOS)
 /// Text size: a slider of five stops between a small and a large A, the size in points beside it.
 /// It changes every open note as it moves, and the sample under it.
 struct TextSizeRow: View {
@@ -559,37 +751,37 @@ struct TextSizeRow: View {
 
     var body: some View {
         let size = TextSize.size(stored: stored)
-        HStack(spacing: 10) {
-            // "Note text" under the Text size header, not the header again (UI council round 7).
-            Text(Self.label).font(.system(size: 13)).foregroundStyle(SettingsInk.text)
-            Spacer(minLength: 12)
-            Text("A").font(.system(size: 11)).foregroundStyle(SettingsInk.muted).accessibilityHidden(true)
-            Slider(value: Binding(get: { Double(TextSize.index(of: size)) },
-                                  set: { TextSize.set(TextSize.steps[min(max(Int($0.rounded()), 0), TextSize.steps.count - 1)]) }),
-                   in: 0...Double(TextSize.steps.count - 1), step: 1)
-                .labelsHidden()
-                .tint(SettingsInk.switchOn)
-                .frame(width: 180)
-                // Its name and size in words: the Mac's slider read its step number, "0" (round 15).
-                .accessibilityLabel(Self.label)
-                .accessibilityValue(TextSize.spoken(size))
-                .accessibilityAdjustableAction { direction in
-                    let i = TextSize.index(of: size)
-                    switch direction {
-                    case .increment: TextSize.set(TextSize.steps[min(i + 1, TextSize.steps.count - 1)])
-                    case .decrement: TextSize.set(TextSize.steps[max(i - 1, 0)])
-                    @unknown default: break
+        LabeledContent {
+            HStack(spacing: 10) {
+                Text("A").font(.system(size: 11)).foregroundStyle(Color.muted).accessibilityHidden(true)
+                Slider(value: Binding(get: { Double(TextSize.index(of: size)) },
+                                      set: { TextSize.set(TextSize.steps[min(max(Int($0.rounded()), 0), TextSize.steps.count - 1)]) }),
+                       in: 0...Double(TextSize.steps.count - 1), step: 1)
+                    .labelsHidden()
+                    .frame(width: 180)
+                    // Its name and size in words: the Mac's slider read its step number, "0" (round 15).
+                    .accessibilityLabel(Self.label)
+                    .accessibilityValue(TextSize.spoken(size))
+                    .accessibilityAdjustableAction { direction in
+                        let i = TextSize.index(of: size)
+                        switch direction {
+                        case .increment: TextSize.set(TextSize.steps[min(i + 1, TextSize.steps.count - 1)])
+                        case .decrement: TextSize.set(TextSize.steps[max(i - 1, 0)])
+                        @unknown default: break
+                        }
                     }
-                }
-                .accessibilityIdentifier("settings.textSize")
-            Text("A").font(.system(size: 19)).foregroundStyle(SettingsInk.muted).accessibilityHidden(true)
-            Text("\(Int(size)) pt")
-                .font(.system(size: 12).monospacedDigit())
-                .foregroundStyle(SettingsInk.muted)
-                .frame(width: 36, alignment: .trailing)
-                .accessibilityHidden(true)
+                    .accessibilityIdentifier("settings.textSize")
+                Text("A").font(.system(size: 19)).foregroundStyle(Color.muted).accessibilityHidden(true)
+                Text("\(Int(size)) pt")
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(Color.muted)
+                    .frame(width: 36, alignment: .trailing)
+                    .accessibilityHidden(true)
+            }
+        } label: {
+            // "Note text" under the Text size header, not the header again (UI council round 7).
+            Text(Self.label)
         }
-        .frame(minHeight: 44)
     }
 }
 
@@ -602,22 +794,29 @@ struct TextSizeSample: View {
     var body: some View {
         Text(Self.text)
             .font(.system(size: TextSize.size(stored: stored)))
-            .foregroundStyle(SettingsInk.text)
+            .foregroundStyle(Color.ink)
             .lineLimit(2)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 12)
+            .padding(.vertical, 6)
             .animation(reduceMotion ? nil : .snappy(duration: 0.15), value: stored)
             .accessibilityLabel("Sample: \(Self.text)")
             .accessibilityIdentifier("settings.textSizeSample")
     }
 }
+#endif
 
-/// A choice drawn as a picture of the window with its name under it; the chosen one ringed, in the
-/// accent for the page's one orange control (Mode), in ink for the rest.
+/// A choice drawn as a picture of the window with its name under it; the chosen one ringed in ink,
+/// the same for Mode and Theme.
 private struct WindowChoice<Art: View>: View {
+    /// The name under the picture: 12 pt on both (the Mac's caption is 10).
+    #if os(macOS)
+    static var label: Font { .system(size: 12) }
+    #else
+    static var label: Font { .caption }
+    #endif
+
     let title: String
     let selected: Bool
-    let orange: Bool
     let height: CGFloat
     let id: String
     @ViewBuilder let art: Art
@@ -631,12 +830,12 @@ private struct WindowChoice<Art: View>: View {
                     .frame(height: height)
                     .frame(maxWidth: .infinity)
                     .clipShape(shape)
-                    .overlay(shape.strokeBorder(SettingsInk.hairline, lineWidth: 1))
+                    .overlay(shape.strokeBorder(Color(PColor.paneSeparator), lineWidth: 1))
                     .padding(3)
                     .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(selected ? (orange ? Color(PColor.paneAccent) : SettingsInk.text) : .clear, lineWidth: 2))
-                Text(title).font(.system(size: 12, weight: selected ? .semibold : .regular))
-                    .foregroundStyle(selected ? SettingsInk.text : SettingsInk.muted)
+                        .strokeBorder(selected ? Color.ink : .clear, lineWidth: 2))
+                Text(title).font(Self.label.weight(selected ? .semibold : .regular))
+                    .foregroundStyle(selected ? Color.ink : Color.muted)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
@@ -727,11 +926,61 @@ struct ThemeWindowPicture: View {
     }
 }
 
+// MARK: AI Connections
+
+/// AI Connections: a card per AI (ChatGPT, Claude, Grok, Other apps), each saying where it stands,
+/// with Connect… or Manage. The line on what an AI may do and which company the notes go to is at
+/// the top, always in view, in every stage (App Review rejected 1.2 for hiding the company). The
+/// Mac runs the setup card's flows from its cards (ConnectAIPage); iPhone connects in the browser
+/// or on the Mac (ConnectChoices).
+struct AIConnectionsPage: View {
+    let client: SupabaseClient
+    /// Captures: shows these instead of asking the server.
+    var preview: [Connection]? = nil
+    #if os(macOS)
+    /// Captures: the page waiting for this AI.
+    var previewWaiting: SetupCards.AI? = nil
+    #endif
+
+    var body: some View {
+        SettingsPageForm {
+            #if os(macOS)
+            OpenSection {
+                VStack(alignment: .leading, spacing: 8) {
+                    sent.font(.callout)
+                    ConnectAIPage(client: client, preview: preview, previewWaiting: previewWaiting)
+                }
+            }
+            #else
+            Section {
+                ConnectChoices(client: client, preview: preview, cards: true)
+            } header: {
+                sent.font(.footnote).textCase(nil).padding(.bottom, 4)
+            }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            #endif
+            if NoteApps.enabled, NoteApps.realPreviews { AppPreviewSection(client: client) }
+        }
+        .connectGuides(client: client)
+    }
+
+    /// Who the notes go to: never behind a disclosure, and there while a connection is made too.
+    private var sent: some View {
+        Text(ConnectCopy.page)
+            .foregroundStyle(Color.muted)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("connect.sent")
+            .settingsProbe("connect.sent")
+    }
+}
+
 // MARK: Help menu
 
-/// What the Help and feedback page held, now in the Help menu (RootView's PaneCommands) and the
-/// account menu: answers on the website, feedback by email, the project on GitHub, and Connect an
-/// AI's "Having trouble?".
+#if os(macOS)
+/// What the Help and feedback page has, in the Help menu (RootView's PaneCommands) and the account
+/// menu: answers on the website, feedback by email, the project on GitHub, and Connect an AI's
+/// "Having trouble?".
 @MainActor
 enum MacHelp {
     /// The Help menu's items after Keyboard Shortcuts, What's New… and Show Setup Guide, in order.

@@ -185,14 +185,14 @@ import Testing
     /// The real environment consumer on a stable Settings page. Searching the sidebar should
     /// not rebuild this page just because its navigation callback was allocated again.
     final class SettingsNavigation {
-        var open: ((SettingsPlace) -> Void)?
+        var open: ((SettingsPage) -> Void)?
     }
 
-    struct SettingsPage: View {
-        let place: SettingsPlace
+    struct ProbePage: View {
+        let place: Pane.SettingsPage
         let navigation: SettingsNavigation
         @Environment(\.modelContext) private var context
-        @Environment(\.openSettingsPlace) private var open
+        @Environment(\.openSettingsPage) private var open
         var body: some View {
             let _ = RenderProbe.count("SettingsPage", context: context)
             let _ = { navigation.open = { open?($0) } }()
@@ -205,7 +205,7 @@ import Testing
         let route = SettingsRoute()
         let navigation = SettingsNavigation()
         let card = SettingsCard(backend: Backend(), available: [.account, .appearance, .security, .appKeys],
-                                page: { AnyView(SettingsPage(place: $0, navigation: navigation)) }, route: route, start: .account, close: {})
+                                page: { AnyView(ProbePage(place: $0, navigation: navigation)) }, route: route, start: .account, close: {})
         let (window, _) = AppPerfTests().window(card.modelContainer(container), width: 1100)
         defer { window.close() }
         await NoteOpenTests.settle(window)
@@ -224,9 +224,17 @@ import Testing
         report("Settings sidebar search, 8 edits", times, context)
         let counts = RenderProbe.values(in: context)
         #expect(counts["SettingsCard", default: 0] >= times.count)
-        // The page beside the results is the first result's (round 24): it changes when that does,
-        // here to the first result's page and back, and doesn't follow each key.
-        #expect(counts["SettingsPage", default: 0] <= 2, "the page doesn't follow the search field")
+        // The page beside the results is the first result's (round 24): it changes when that does
+        // (here Account, Appearance, back to Account when nothing matches "apps", and so on) and
+        // doesn't follow each key: one render per change of page, none per key.
+        let queries = ["a", "ap", "app", "apps", "app", "ap", "a", ""]
+        let pages = queries.map { q in
+            q.isEmpty ? .account : SettingsCard.pageWhileSearching(SettingsIndex.matches(q, available: [.account, .appearance, .security, .appKeys])) ?? .account
+        }
+        let changes = zip([Pane.SettingsPage.account] + pages, pages).filter { $0 != $1 }.count
+        #expect(changes < queries.count)
+        #expect(counts["SettingsPage", default: 0] <= changes,
+                "the page doesn't follow the search field: \(counts["SettingsPage", default: 0]) renders for \(changes) changes of page")
         let earlier = try #require(navigation.open)
         earlier(.appKeys)
         await update(window)

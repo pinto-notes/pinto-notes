@@ -193,10 +193,10 @@ extension AppSnapshotTests {
 
     /// The Settings window at `tab`, drawn the way the Settings scene draws it: toolbar tabs with
     /// a symbol and a title, the window as tall as the page.
-    static func settingsWindow(_ view: SettingsView, tab: SettingsTab, dark: Bool) -> NSWindow {
+    static func settingsWindow(_ view: SettingsView, tab: SettingsPage, dark: Bool) -> NSWindow {
         let tabs = NSTabViewController()
         tabs.tabStyle = .toolbar
-        for t in view.tabs {
+        for t in view.pages {
             let page = NSHostingController(rootView: view.page(t).tint(Color(PColor.paneAccent)))
             page.sizingOptions = .preferredContentSize
             page.title = t.title
@@ -205,7 +205,7 @@ extension AppSnapshotTests {
             item.image = NSImage(systemSymbolName: t.symbol, accessibilityDescription: nil)
             tabs.addTabViewItem(item)
         }
-        tabs.selectedTabViewItemIndex = view.tabs.firstIndex(of: tab) ?? 0
+        tabs.selectedTabViewItemIndex = view.pages.firstIndex(of: tab) ?? 0
         let window = NSWindow(contentViewController: tabs)
         window.styleMask = [.titled, .closable]
         window.toolbarStyle = .preference
@@ -225,8 +225,8 @@ extension AppSnapshotTests {
         // never on a developer's Mac. The pictures are attached to the results (the "snapshots" artifact).
         guard ProcessInfo.processInfo.environment["PANE_SNAPSHOTS"] == "1" else { return }
         let view = try await Self.settingsFixture()
-        #expect(view.tabs == SettingsTab.allCases)
-        for tab in view.tabs {
+        #expect(view.pages == [.account, .general, .ai, .appearance, .security, .storage, .help])
+        for tab in view.pages {
             let window = Self.settingsWindow(view, tab: tab, dark: dark)
             window.orderFrontRegardless()
             try? await Task.sleep(for: .seconds(1.2))

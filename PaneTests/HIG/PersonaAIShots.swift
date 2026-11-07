@@ -65,7 +65,7 @@ import Testing
     @Test func privacySignedOut() async throws {
         guard Self.dir != nil else { return }
         for dark in [false, true] {
-            let page = SettingsView(backend: Backend(), sync: nil).place(.security)
+            let page = SettingsView(backend: Backend(), sync: nil).page(.security)
                 .padding(20).frame(width: SettingsCard.pageWidth).background(SettingsInk.ground)
                 .environment(\.settingsAsPage, true)
             let rep = try await Self.shoot(page, size: CGSize(width: SettingsCard.pageWidth, height: 1000), dark: dark, ground: SettingsInk.ground, wait: 1.2)

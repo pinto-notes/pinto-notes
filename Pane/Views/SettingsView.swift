@@ -1,67 +1,10 @@
-import PhotosUI
 import Supabase
 import SwiftData
 import SwiftUI
-import UniformTypeIdentifiers
 
-/// The pages of Settings: rows that open a page on iPhone; on the Mac, where links land in the
-/// card's sidebar (SettingsPlace).
-enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
-    case general, appearance, account, ai, security, storage, help
-
-    var id: String { rawValue }
-
-    /// The rows under you, in groups: the same on iPhone and in the Mac's sidebar (SettingsPlace.groups).
-    static let phoneGroups: [[SettingsTab]] = [[.general, .ai, .appearance], [.security, .storage], [.help]]
-
-    var title: String {
-        switch self {
-        case .general: SettingsNames.general
-        case .appearance: SettingsNames.appearance
-        case .account: "Account"
-        case .ai: SettingsNames.ai
-        case .security: SettingsNames.security
-        case .storage: SettingsNames.storage
-        case .help: SettingsNames.help
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .general: SettingsIcons.general
-        case .appearance: SettingsIcons.appearance
-        case .account: "person.crop.circle"
-        case .ai: SettingsIcons.ai
-        case .security: SettingsIcons.security
-        case .storage: SettingsIcons.storage
-        case .help: SettingsIcons.help
-        }
-    }
-}
-
-/// Settings' page names, the same on the Mac and iPhone.
-enum SettingsNames {
-    static let ai = "AI Connections"
-    static let general = "General"
-    static let appearance = "Appearance"
-    static let security = "Security and privacy"
-    static let storage = "Storage"
-    static let help = "Help and feedback"
-}
-
-/// Settings' page symbols, the same on the Mac and iPhone: one outline family.
-enum SettingsIcons {
-    /// Picked by Emil from three sets on 7 November 2026 (B): a link for what's connected, the
-    /// gear for General, the text-size glyph for Appearance.
-    static let ai = "link"
-    static let general = "gearshape"
-    static let appearance = "textformat.size"
-    static let security = "lock.shield"
-    static let storage = "externaldrive"
-    static let help = "questionmark.circle"
-}
-
-/// Account, sync status, the AIs connected to your notes, your devices and your storage.
+/// Settings: you, sync, the AIs connected to your notes, your devices and your storage. One view
+/// per page, the same on the Mac and iPhone (`page`); only the shell differs: the Mac's card with
+/// its sidebar and search (SettingsCard), iPhone's list that pushes each page.
 struct SettingsView: View {
     let backend: Backend
     let sync: SyncEngine?
@@ -76,14 +19,14 @@ struct SettingsView: View {
     var route: SettingsRoute = .shared
     #if os(macOS)
     /// Captures: the page to open on, and a search already typed.
-    var start: SettingsPlace? = nil
+    var start: SettingsPage? = nil
     var search = ""
     /// Over the notes window: closes the card (RootView). Nil: Settings is in a sheet of its own.
     var close: (() -> Void)? = nil
     #endif
     @Environment(\.dismiss) private var dismiss
     #if os(iOS)
-    @State private var path: [SettingsTab] = []
+    @State private var path: [SettingsPage] = []
     @State private var addingDevice = false
     @State private var storage = StorageStore.shared
     #endif
@@ -91,7 +34,7 @@ struct SettingsView: View {
     var body: some View {
         #if os(macOS)
         // A big card over the notes, its pages in a sidebar of its own (SettingsCard).
-        SettingsCard(backend: backend, available: places, page: { AnyView(place($0)) },
+        SettingsCard(backend: backend, available: available, page: { AnyView(page($0)) },
                      advancedProtection: AdvancedProtection.shown(crypto.protection),
                      recoveryKey: crypto.offersRecoveryKey, route: route, start: start, close: close, search: search)
         .environment(\.networkReach, reach)
@@ -107,10 +50,10 @@ struct SettingsView: View {
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                 }
-                .navigationDestination(for: SettingsTab.self) { tab in
-                    page(tab)
-                        .onAppear { SettingsUsage.shared.opened(SettingsPageWord(tab)) }
-                        .navigationTitle(tab.title)
+                .navigationDestination(for: SettingsPage.self) { p in
+                    page(p)
+                        .onAppear { SettingsUsage.shared.opened(SettingsPageWord(p)) }
+                        .navigationTitle(p.title)
                         .navigationBarTitleDisplayMode(.inline)
                 }
         }
@@ -120,7 +63,7 @@ struct SettingsView: View {
         // A link, a card or the storage warning opens Settings at its page.
         .onChange(of: route.target, initial: true) { _, target in
             guard let target else { return }
-            if tabs.contains(target) { path = [target] }
+            if available.contains(target) { path = [target] }
             route.target = nil
         }
         .onChange(of: isSignedIn) { was, now in if was && !now { dismiss() } }
@@ -137,107 +80,42 @@ struct SettingsView: View {
 
     private var demoStorage: Bool { ProcessInfo.processInfo.arguments.contains("-demoStorage") }
 
-    /// The pages there is something on: signed out, only General and Account.
-    var tabs: [SettingsTab] {
-        SettingsTab.allCases.filter { tab in
-            switch tab {
-            case .general, .appearance, .account, .help: true
-            case .ai: isSignedIn && backend.client != nil
-            case .security: (isSignedIn && crypto.isReady) || NoteVault.shared.isSetUp
-            case .storage: (isSignedIn && backend.client != nil) || demoStorage
-            }
-        }
+    /// The pages there is something on (SettingsPage.available).
+    var available: Set<SettingsPage> {
+        SettingsPage.available(signedIn: isSignedIn, hasClient: backend.client != nil, demoStorage: demoStorage)
     }
 
-    #if os(macOS)
-    /// The pages there is something on, as on iPhone (`tabs`): Account, General, Appearance, Security
-    /// and privacy (how it works and the terms, signed out too) and Help and feedback always;
-    /// AI Connections and Storage signed in. Keys for apps is parked.
-    var places: Set<SettingsPlace> {
-        var out: Set<SettingsPlace> = [.account, .general, .appearance, .security, .help]
-        if tabs.contains(.ai) { out.insert(.ai) }
-        if tabs.contains(.storage) { out.insert(.storage) }
-        // Keys for apps is parked (Emil, 6 November 2026): nothing leads to it for now.
-        return out
-    }
+    /// The list's pages in order: Account, then the groups (SettingsPage.groups).
+    var pages: [SettingsPage] { SettingsPage.groups(available: available).flatMap { $0 } }
 
+    /// A page of Settings, the same view on the Mac and iPhone.
     @ViewBuilder
-    func place(_ place: SettingsPlace) -> some View {
-        switch place {
+    func page(_ p: SettingsPage) -> some View {
+        switch p {
         case .account: AccountSettingsPage(backend: backend, sync: sync, close: closeSettings)
         case .ai:
             if let client = backend.client {
-                ConnectAIPage(client: client, preview: connections, previewWaiting: connectWaiting)
-                    .background(NoInitialFocus())
-                    .connectGuides(client: client)
+                #if os(macOS)
+                AIConnectionsPage(client: client, preview: connections, previewWaiting: connectWaiting)
+                #else
+                AIConnectionsPage(client: client, preview: connections)
+                #endif
             }
-        case .general: GeneralSettingsPage(signedIn: isSignedIn, close: closeSettings)
+        case .general: GeneralSettingsPage()
         case .appearance: AppearanceSettingsPage()
         case .storage: StorageSettingsPage(backend: backend)
-        case .help: HelpSettingsPage()
+        case .help: HelpSettingsPage(signedIn: isSignedIn, close: closeSettings)
         case .security:
             if isSignedIn, crypto.isReady {
-                securityPage
+                PrivacySecuritySection(crypto: crypto, devices: devices, addDeviceServer: backend.client.map { SupabaseAddDevice(client: $0) },
+                                       client: backend.client, connections: connections, sync: sync)
             } else {
-                // Signed out: how it works, the notes password if there is one, diagnostics and the terms.
+                // Signed out, or still setting up: how it works, the notes password if there is one, the terms.
                 SignedOutPrivacyPage(signedIn: isSignedIn, sync: sync)
             }
-        // A form of its own, one level down; the card scrolls, so it takes a height.
-        case .appKeys: SettingsPage { APIKeysSection() }.frame(height: 460)
+        // Parked: nothing leads to it (Emil, 6 November 2026).
+        case .appKeys: SettingsPageForm { APIKeysSection() }
         }
-    }
-    #endif
-
-    /// The remembered tab, or General when that page isn't there now.
-    private func shown(_ tab: SettingsTab) -> SettingsTab { tabs.contains(tab) ? tab : .general }
-
-    @ViewBuilder
-    func page(_ tab: SettingsTab) -> some View {
-        switch tab {
-        case .general:
-            SettingsPage { GeneralSettings(signedIn: isSignedIn, close: closeSettings) }
-        case .appearance:
-            SettingsPage { AppearancePage() }
-        case .account:
-            SettingsPage { AccountSettings(backend: backend, sync: sync) }
-        case .ai:
-            SettingsPage {
-                if let client = backend.client {
-                    ConnectAISection(client: client, preview: connections, cards: true)
-                    if NoteApps.enabled, NoteApps.realPreviews { AppPreviewSection(client: client) }
-                }
-            }
-            .connectGuides(client: backend.client)
-        case .security:
-            if isSignedIn, crypto.isReady {
-                #if os(macOS)
-                // Tiles on the card's own ground: a page of its own, not a form.
-                securityPage
-                #else
-                SettingsPage { securityPage }
-                #endif
-            } else {
-                // Signed out with a notes password: only locked notes.
-                SettingsPage { LockedNotesSection(sync: sync) }
-            }
-        case .storage:
-            SettingsPage {
-                if isSignedIn, let client = backend.client {
-                    StorageSection(client: client)
-                } else {
-                    // Captures without an account.
-                    StorageSectionBody(usage: StorageStore.shared.usage)
-                }
-            }
-        case .help:
-            SettingsPage { HelpPage(signedIn: isSignedIn, close: closeSettings) }
-        }
-    }
-
-    /// Security: who can open your notes, locked notes, how it works (PrivacySecuritySection).
-    private var securityPage: some View {
-        PrivacySecuritySection(crypto: crypto, devices: devices, addDeviceServer: backend.client.map { SupabaseAddDevice(client: $0) },
-                               client: backend.client, connections: connections, sync: sync)
     }
 
     /// Closes Settings: the card over the notes on the Mac, the sheet on iPhone.
@@ -249,13 +127,14 @@ struct SettingsView: View {
     }
 
     #if os(iOS)
-    /// You first, like the Apple Account at the top of Settings, then a row per page.
+    /// You first, like the Apple Account at the top of Settings, then a row per page: the same
+    /// groups as the Mac's sidebar (SettingsPage.groups).
     private var root: some View {
         Form {
             OfflineSection()
             if case .signedIn(let email) = backend.state {
                 Section {
-                    NavigationLink(value: SettingsTab.account) {
+                    NavigationLink(value: SettingsPage.account) {
                         AccountRow(backend: backend, email: backend.displayEmail ?? email)
                     }
                     .accessibilityIdentifier("settings.account")
@@ -266,14 +145,13 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            // The same rows as the Mac's sidebar (SettingsPlace.groups); Account is you, above.
-            ForEach(Array(SettingsTab.phoneGroups.enumerated()), id: \.offset) { _, group in
-                let shown = group.filter(tabs.contains)
+            ForEach(Array(SettingsPage.groups(available: available).enumerated()), id: \.offset) { _, group in
+                let shown = group.filter { $0 != .account }
                 if !shown.isEmpty {
                     Section {
-                        ForEach(shown) { tab in
-                            row(tab)
-                            if tab == .security { addDeviceRow }
+                        ForEach(shown) { p in
+                            row(p)
+                            if p == .security { addDeviceRow }
                         }
                     }
                 }
@@ -299,57 +177,21 @@ struct SettingsView: View {
         }
     }
 
-    private func row(_ tab: SettingsTab) -> some View {
-        NavigationLink(value: tab) {
-            if tab == .storage, let usage = storage.usage {
+    private func row(_ p: SettingsPage) -> some View {
+        NavigationLink(value: p) {
+            if p == .storage, let usage = storage.usage {
                 LabeledContent {
                     Text(usage.summary).monospacedDigit()
                 } label: {
-                    Label(tab.title, systemImage: tab.symbol)
+                    Label(p.title, systemImage: p.symbol)
                 }
             } else {
-                Label(tab.title, systemImage: tab.symbol)
+                Label(p.title, systemImage: p.symbol)
             }
         }
-        .accessibilityIdentifier("settings.\(tab.rawValue)")
+        .accessibilityIdentifier("settings.\(p.rawValue)")
     }
     #endif
-}
-
-/// One page of Settings: a grouped form. On the Mac the window takes the page's own height, so
-/// no page scrolls at its normal size.
-private struct SettingsPage<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        Form {
-            // Every page has something that needs the server, so each says it at its top: on
-            // iPhone a page covers the first screen, where it was said before.
-            OfflineSection()
-            content
-        }
-            .formStyle(.grouped)
-            #if os(macOS)
-            // On the card's own ground (SettingsCard), as wide as the card lets it be.
-            .scrollContentBackground(.hidden)
-            .background(NoInitialFocus())
-            #endif
-    }
-}
-
-/// At the top of Settings while the server can't be reached: what still works and what waits.
-private struct OfflineSection: View {
-    @Environment(\.networkReach) private var reach
-
-    var body: some View {
-        if reach != .online {
-            Section {
-                Label(OfflineCopy.settings(reach), systemImage: OfflineCopy.symbol(reach))
-                    .foregroundStyle(Color.muted)
-                    .accessibilityIdentifier("settings.offline")
-            }
-        }
-    }
 }
 
 #if os(macOS)
@@ -406,7 +248,6 @@ enum GeneralCopy {
     static let record = "Record Shortcut"
     static let typeShortcut = "Type a shortcut\u{2026}"
     static let login = "Open at login"
-
 }
 
 /// What General's menus offer: your folders, and the notes a day can start from.
@@ -447,116 +288,6 @@ struct GeneralChoices {
     static func example(_ form: TodaysNoteSettings.Title, now: Date = .now) -> String { DailyNotes.title(for: now, as: form) }
 }
 
-/// General, on iPhone: today's note, whether ticked items sink, the setup guide, API keys for
-/// apps in notes, and the diagnostics switch. The Mac has the same on its own page
-/// (GeneralSettingsPage), with This Mac.
-private struct GeneralSettings: View {
-    var signedIn: Bool
-    var close: () -> Void
-    @Environment(\.modelContext) private var context
-    @AppStorage(TodaysNoteSettings.folderKey, store: TodaysNoteSettings.store) private var folder = DailyNotes.folderName
-    @AppStorage(TodaysNoteSettings.titleKey, store: TodaysNoteSettings.store) private var title = TodaysNoteSettings.Title.long
-    @AppStorage(TodaysNoteSettings.templateKey, store: TodaysNoteSettings.store) private var template = ""
-    @AppStorage(TodaysNoteSettings.launchKey, store: TodaysNoteSettings.store) private var openOnLaunch = false
-    @AppStorage(ChecklistSorting.key, store: ChecklistSorting.store) private var sortsTicked = true
-
-    var body: some View {
-        let choices = GeneralChoices(context: context)
-        Section {
-            Picker("Folder", selection: $folder) { ForEach(choices.folders(keeping: folder), id: \.self) { Text($0).tag($0) } }
-                .accessibilityIdentifier("settings.today.folder")
-            Picker("Title", selection: $title) { ForEach(TodaysNoteSettings.Title.allCases) { Text(GeneralChoices.example($0)).tag($0) } }
-                .accessibilityIdentifier("settings.today.title")
-            Picker("Template", selection: $template) {
-                Text("None").tag("")
-                ForEach(choices.templates(keeping: template), id: \.id) { Text($0.title).tag($0.id.uuidString) }
-            }
-            .accessibilityIdentifier("settings.today.template")
-            Toggle(GeneralCopy.openOnLaunch, isOn: $openOnLaunch).accessibilityIdentifier("settings.today.launch")
-        } header: {
-            Text(GeneralCopy.today)
-        } footer: {
-            Text(GeneralCopy.todayFooter)
-        }
-        Section(GeneralCopy.checklists) {
-            Toggle(GeneralCopy.ticked, isOn: $sortsTicked).accessibilityIdentifier("settings.notes.ticked")
-        }
-        if HelpPage.offersSetupGuide(signedIn: signedIn) {
-            Section {
-                Button("Show Setup Guide") { HelpPage.playSetupGuide(close: close) }
-                    .accessibilityIdentifier("settings.setupGuide")
-            } footer: {
-                Text(HelpCopy.setupGuideFooter)
-            }
-        }
-        if NoteApps.enabled { APIKeysSection() }
-        DiagnosticsSection()
-    }
-}
-
-/// Account: you, sync, how you sign in, exporting your notes, and signing out last, apart, as in
-/// System Settings.
-private struct AccountSettings: View {
-    let backend: Backend
-    let sync: SyncEngine?
-
-    var body: some View {
-        if case .signedIn(let email) = backend.state {
-            #if os(iOS)
-            ProfileSection(backend: backend, email: backend.displayEmail ?? email)
-            #else
-            // On the Mac you, your name and Sign Out are on the Profile page.
-            let _ = email
-            #endif
-            Section {
-                // The status and its action on one row, like iCloud in System Settings.
-                LabeledContent("Sync") {
-                    HStack(spacing: 10) {
-                        SyncStatusLabel(status: sync?.status ?? .idle, reach: sync?.reach ?? .online)
-                        Button("Sync Now") { Task { await sync?.sync() } }
-                            .controlSize(.small)
-                            .accessibilityIdentifier("settings.syncNow")
-                    }
-                }
-            }
-            // Next to Delete Account, which says to export first.
-            Section {
-                ExportNotesButton(sync: sync)
-            } footer: {
-                Text(PrivacyCopy.exportFooter)
-            }
-            Section {
-                #if os(iOS)
-                SignOutButton(backend: backend, sync: sync)
-                #endif
-                DeleteAccountButton(backend: backend)
-            }
-        } else if backend.state == .disabled {
-            // Only a build without a backend.
-            Section {
-                Text("Sync is off. This build keeps notes on this device only.")
-                    .foregroundStyle(.secondary)
-            }
-            localExport
-        } else {
-            Section {
-                Text(SignInView.settingsLine)
-                    .foregroundStyle(.secondary)
-            }
-            localExport
-        }
-    }
-
-    /// Signed out, the notes on this device are still yours to take.
-    private var localExport: some View {
-        Section {
-            ExportNotesButton(sync: nil)
-        } footer: {
-            Text(PrivacyCopy.exportFooterLocal)
-        }
-    }
-}
-
 /// Sign Out…: signing out alone, which keeps the notes on this device for next time, or signing
 /// out and removing them from it (`SignOutRemoval`). The second is only offered while something
 /// else can open the notes, and is refused while anything here hasn't synced.
@@ -566,8 +297,6 @@ struct SignOutButton: View {
     var crypto: AccountCrypto = .shared
     var devices: KeyDevices = .shared
     var route: SettingsRoute = .shared
-    /// Red, as at the end of a list; on the Mac's Account summary, ink, beside your name.
-    var red = true
     @Environment(\.modelContext) private var context
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var asking = false
@@ -584,11 +313,15 @@ struct SignOutButton: View {
             asking = true
             #endif
         } label: {
+            // Red at the end of the list on iPhone; ink on the Mac, over the red Delete Account….
             HStack(spacing: 8) {
-                Text(removing ? SignOutCopy.removing() : "Sign Out\u{2026}").foregroundStyle(red ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
+                Text(removing ? SignOutCopy.removing() : "Sign Out\u{2026}").foregroundStyle(Self.ink)
                 if removing { ProgressView().controlSize(.small) }
+                Spacer(minLength: 0)
             }
+            .contentShape(.rect)
         }
+        .settingsRowLink()
         .disabled(removing)
         .accessibilityIdentifier("settings.signOut")
         // Settings closes once you're signed out.
@@ -616,6 +349,12 @@ struct SignOutButton: View {
                 .accessibilityIdentifier("settings.signOutRefused")
         }
     }
+
+    #if os(macOS)
+    static var ink: Color { Color.ink }
+    #else
+    static var ink: Color { .red }
+    #endif
 
     #if os(macOS)
     private func askOnMac(_ offer: SignOutRemoval.Offer) {
@@ -738,108 +477,6 @@ private struct AccountRow: View {
 }
 #endif
 
-/// Your photo, name and email, and the controls to change the first two.
-private struct ProfileSection: View {
-    let backend: Backend
-    let email: String
-    @State private var profile = ProfileStore.shared
-    @State private var draft = ""
-    @FocusState private var editing: Bool
-    @State private var importing = false
-    #if os(iOS)
-    @State private var picked: PhotosPickerItem?
-    #endif
-
-    var body: some View {
-        // You at the top, centred, as Settings shows your Apple Account (Emil, 7 November 2026).
-        // Tap the photo to choose or remove one.
-        Section {
-            VStack(spacing: 6) {
-                photo.padding(.bottom, 6)
-                TextField("Name", text: $draft, prompt: Text("Your Name"))
-                    .labelsHidden()
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.center)
-                    .font(.title2.weight(.semibold))
-                    .focused($editing)
-                    .onSubmit(commit)
-                    .accessibilityLabel("Name")
-                    .accessibilityIdentifier("settings.profileName")
-                Text(email)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .textSelection(.enabled)
-                if let problem = profile.problem {
-                    Text(problem).font(.footnote).foregroundStyle(.secondary)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .listRowBackground(Color.clear)
-        }
-        .onAppear { draft = profile.name ?? "" }
-        .onChange(of: profile.name) { _, new in if !editing { draft = new ?? "" } }
-        .onChange(of: editing) { _, now in if !now { commit() } }
-        .onChange(of: draft) { _, new in if new.count > ProfileName.maxLength { draft = String(new.prefix(ProfileName.maxLength)) } }
-        .task(id: backend.state) { await profile.bind(backend) }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.jpeg, .png, .heic, .image]) { result in
-            guard case .success(let url) = result else { return }
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            guard let data = try? Data(contentsOf: url) else { return }
-            Task { await profile.setPhoto(data) }
-        }
-        #if os(iOS)
-        .onChange(of: picked) { _, item in
-            guard let item else { return }
-            Task {
-                if let data = try? await item.loadTransferable(type: Data.self) { await profile.setPhoto(data) }
-                picked = nil
-            }
-        }
-        #endif
-    }
-
-    private func commit() {
-        Task { await profile.setName(draft) }
-    }
-
-    /// Your photo, with a pencil that says it can be changed: a tap chooses one, or removes it.
-    @ViewBuilder private var photo: some View {
-        let face = ZStack {
-            AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 84)
-            if profile.working { ProgressView() }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            Image(systemName: "pencil")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.ink)
-                .frame(width: 28, height: 28)
-                .background(Circle().fill(.background))
-                .overlay(Circle().strokeBorder(.separator, lineWidth: 0.5))
-                .offset(x: 2, y: 2)
-                .accessibilityHidden(true)
-        }
-        #if os(iOS)
-        Menu {
-            PhotosPicker(profile.photo == nil ? "Choose Photo\u{2026}" : "Change Photo\u{2026}", selection: $picked, matching: .images)
-                .accessibilityIdentifier("settings.choosePhoto")
-            if profile.photo != nil {
-                Button("Remove Photo", role: .destructive) { Task { await profile.removePhoto() } }
-                    .accessibilityIdentifier("settings.removePhoto")
-            }
-        } label: { face }
-        .buttonStyle(.plain)
-        .accessibilityLabel(profile.photo == nil ? "Choose photo" : "Change photo")
-        .accessibilityIdentifier("settings.photo")
-        #else
-        Button { importing = true } label: { face }
-            .buttonStyle(.tile(radius: 42))
-            .accessibilityIdentifier("settings.choosePhoto")
-        #endif
-    }
-}
-
 struct SyncStatusLabel: View {
     /// An iPad is named too: "your iPhone and Mac" read as if this device were left out.
     static var syncing: String { InstallID.kind == "iPad" ? "Syncing to your iPad, iPhone and Mac" : "Syncing to your iPhone and Mac" }
@@ -876,25 +513,6 @@ struct SyncStatusLabel: View {
     }
 }
 
-#if os(macOS)
-/// Amber Notes in the menu bar, on by default.
-private struct MenuBarSection: View {
-    @AppStorage(MenuBarSettings.key) private var show = true
-
-    var body: some View {
-        Section {
-            Toggle("Show in menu bar", isOn: $show)
-                .accessibilityIdentifier("settings.menuBar")
-        } header: {
-            Text("Menu Bar")
-        } footer: {
-            Text("Capture a note or find one from the menu bar, even with the window closed.")
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-#endif
-
 /// What Help and feedback shows about the app: its version, and the project's links on GitHub.
 enum AboutSection {
     /// "1.2 (2610100857)": what to quote when something goes wrong.
@@ -910,10 +528,10 @@ enum AboutSection {
         }
     }
 
-    /// Reporting a problem first: it's what someone on Help most likely came for.
-    static let links: [(title: String, url: URL, id: String)] = [
-        ("Report an issue", ShareAsk.newIssue, "settings.reportIssue"),
-        ("Contribute", ShareAsk.contributing, "settings.contribute"),
-        ("Star on GitHub", ShareAsk.repository, "settings.github"),
+    /// The project on GitHub, then how to help with it. Reporting an issue is with the ways to
+    /// reach us, above them.
+    static let links: [(title: String, url: URL, symbol: String, id: String)] = [
+        ("Pinto Notes on GitHub", ShareAsk.repository, "chevron.left.forwardslash.chevron.right", "settings.github"),
+        ("Contribute", ShareAsk.contributing, "hammer", "settings.contribute"),
     ]
 }

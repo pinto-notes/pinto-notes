@@ -287,21 +287,21 @@ import Testing
         #expect(host.columns == columns, "the columns keep their widths")
         #expect(host.toolbar == toolbar, "the toolbar keeps its items")
         // Links into Settings open their page in the card.
-        for (tab, place) in [(SettingsTab.account, SettingsPlace.account), (.storage, .account), (.general, .appearance), (.appearance, .appearance), (.ai, .ai), (.help, .account), (.security, .security)] {
-            SettingsRoute.shared.open(tab)
+        for page in [SettingsPage.account, .storage, .general, .appearance, .ai, .help, .security] {
+            SettingsRoute.shared.open(page)
             await host.settle()
-            #expect(SettingsRoute.shared.page == place, "\(tab) opens \(place)")
+            #expect(SettingsRoute.shared.page == page, "\(page) opens itself")
         }
         #expect(host.columns == columns && host.toolbar == toolbar, "an inner page of Settings leaves the window as it was too")
         // Appearance is its own page, and not part of General any more.
         SettingsRoute.shared.open(.appearance)
         await host.settle()
         // At least once: a sheet that can't go on a screen here is laid out again by SwiftUI.
-        #expect(AppearancePage.onScreen >= 1, "Appearance's page shows its mode, theme and accent")
+        #expect(AppearanceSettingsPage.onScreen >= 1, "Appearance's page shows its mode, theme and accent")
         SettingsRoute.shared.open(.security)
         await host.settle()
         #expect(SettingsRoute.shared.page == .security)
-        #expect(AppearancePage.onScreen == 0, "Privacy and security has no theme, mode or accent")
+        #expect(AppearanceSettingsPage.onScreen == 0, "Privacy and security has no theme, mode or accent")
     }
 
     /// The foot (the study's rows and the account) at rest and under the pointer in a sidebar-wide

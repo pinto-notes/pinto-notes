@@ -29,8 +29,11 @@ struct DeleteAccountButton: View {
             HStack(spacing: 8) {
                 Text(working ? "Deleting Account\u{2026}" : title).foregroundStyle(Self.ink)
                 if working { ProgressView().controlSize(.small) }
+                Spacer(minLength: 0)
             }
+            .contentShape(.rect)
         }
+        .settingsRowLink()
         .disabled(working || reach != .online)
         .accessibilityIdentifier("settings.deleteAccount")
         .confirmationDialog("Delete your Pinto Notes account?", isPresented: $asking, titleVisibility: .visible) {

@@ -21,6 +21,7 @@ struct DiagnosticsSection: View {
     var body: some View {
         Section {
             Toggle(DiagnosticsCopy.title, isOn: Binding(get: { share }, set: { share = $0; Telemetry.shared.consent = $0 }))
+                .settingsSwitch()
                 .accessibilityIdentifier("settings.diagnostics")
         } header: {
             Text("Diagnostics")

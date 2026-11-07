@@ -271,13 +271,13 @@ import Testing
         for choice in AccentChoice.allCases {
             let look = ThemeLook(theme: .contrast, accent: choice)
             #expect(look.accentShades.light == own.light && look.accentShades.dark == own.dark, "\(choice)")
-            #expect(!AppearanceSection.showsAccent(look))
+            #expect(!AppearanceSettingsPage.showsAccent(look))
             Self.within(look) { #expect(Self.hex(PColor.paneAccent, .darkAqua) == own.dark) }
         }
-        #expect(AppearanceSection.footer(ThemeLook(theme: .contrast, accent: .red)).contains("High contrast uses its own blue and yellow"))
+        #expect(AppearanceSettingsPage.footer(ThemeLook(theme: .contrast, accent: .red)).contains("High contrast uses its own blue and yellow"))
         for theme in Theme.allCases where theme != .contrast {
-            #expect(AppearanceSection.showsAccent(ThemeLook(theme: theme, accent: .red)))
-            #expect(!AppearanceSection.footer(ThemeLook(theme: theme, accent: .red)).contains("blue and yellow"))
+            #expect(AppearanceSettingsPage.showsAccent(ThemeLook(theme: theme, accent: .red)))
+            #expect(!AppearanceSettingsPage.footer(ThemeLook(theme: theme, accent: .red)).contains("blue and yellow"))
         }
         // The stored choice is kept through High contrast.
         let d = try #require(UserDefaults(suiteName: "ThemeTests-\(UUID().uuidString)"))

@@ -341,16 +341,12 @@ enum SettingsPageWord: String, TelemetryWord {
     case account, ai, general, appearance, security, storage, help
     case appKeys = "app_keys"
 
-    #if os(macOS)
-    init(_ place: SettingsPlace) {
-        switch place {
+    init(_ page: SettingsPage) {
+        switch page {
         case .appKeys: self = .appKeys
-        default: self = SettingsPageWord(rawValue: place.rawValue) ?? .general
+        default: self = SettingsPageWord(rawValue: page.rawValue) ?? .general
         }
     }
-    #endif
-
-    init(_ tab: SettingsTab) { self = SettingsPageWord(rawValue: tab.rawValue) ?? .general }
 }
 
 extension AppearanceMode: TelemetryWord {}

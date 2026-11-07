@@ -76,14 +76,14 @@ import Testing
         let crypto = try await AddDeviceSnapshots.ready(backedUp: true, recoverySaved: true)
         defer { crypto.signedOut() }
         let devices = AddDeviceSnapshots.devices([SecurityPageSnapshots.mac, SecurityPageSnapshots.phone])
-        func view(_ place: SettingsPlace, connections: [Connection] = SecurityPageSnapshots.ais, backend: Backend? = nil) -> SettingsView {
+        func view(_ place: SettingsPage, connections: [Connection] = SecurityPageSnapshots.ais, backend: Backend? = nil) -> SettingsView {
             var v = SettingsView(backend: backend ?? fixture.backend, sync: nil, crypto: crypto, devices: devices, connections: connections,
                                  route: SettingsRoute(defaults: UserDefaults(suiteName: "settings-a-\(UUID())")!))
             v.start = place
             v.close = {}
             return v
         }
-        let pages: [(SettingsPlace, String)] = [(.account, "account"), (.ai, "connect"), (.general, "general"), (.appearance, "appearance"),
+        let pages: [(SettingsPage, String)] = [(.account, "account"), (.ai, "connect"), (.general, "general"), (.appearance, "appearance"),
                                                 (.security, "privacy"), (.storage, "storage"), (.help, "help")]
         var rows: [[(String, NSBitmapImageRep)]] = []
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
@@ -125,18 +125,18 @@ import Testing
         // Each page whole, as it scrolls, so nothing under the card's edge goes unseen.
         for (place, name) in pages {
             for dark in [false, true] {
-                let host = NSHostingView(rootView: view(place).place(place)
-                    .padding(20).frame(width: SettingsCard.pageWidth).background(SettingsInk.ground)
+                // A form scrolls, so it is drawn in a window as tall as any page is.
+                let size = CGSize(width: SettingsCard.pageWidth, height: 1300)
+                let host = NSHostingView(rootView: view(place).page(place)
+                    .frame(width: size.width, height: size.height).background(SettingsInk.ground)
                     .environment(\.settingsAsPage, true).tint(Color(PColor.paneAccent)).modelContainer(lib))
                 host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-                let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: SettingsCard.pageWidth, height: 1600), styleMask: [.borderless], backing: .buffered, defer: false)
+                let w = NSWindow(contentRect: CGRect(origin: CGPoint(x: -20000, y: -20000), size: size), styleMask: [.borderless], backing: .buffered, defer: false)
                 w.isReleasedWhenClosed = false
                 w.contentView = host
-                host.frame = CGRect(origin: .zero, size: host.fittingSize)
-                w.setContentSize(host.fittingSize)
+                host.frame = CGRect(origin: .zero, size: size)
                 try? await Task.sleep(for: .seconds(1.2))
                 host.layoutSubtreeIfNeeded()
-                host.frame = CGRect(origin: .zero, size: host.fittingSize)
                 let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
                 host.cacheDisplay(in: host.bounds, to: rep)
                 try save(rep, "\(name)-full-\(dark ? "dark" : "light")", in: dir)

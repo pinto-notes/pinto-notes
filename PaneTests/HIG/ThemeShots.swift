@@ -167,7 +167,7 @@ import Testing
     }
 
     static func settings(dark: Bool) async throws -> NSBitmapImageRep {
-        let view = Form { AppearanceSection() }.formStyle(.grouped).frame(width: 460, height: 290)
+        let view = Form { AppearanceSettingsPage() }.formStyle(.grouped).frame(width: 460, height: 290)
             .tint(Color(PColor.paneAccent))
         let host = NSHostingView(rootView: view.background(Color(nsColor: .windowBackgroundColor)))
         host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)

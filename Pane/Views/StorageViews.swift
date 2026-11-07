@@ -78,17 +78,7 @@ final class StorageStore {
     }
 }
 
-/// Settings: "X of 2 GB used", what takes the room, and what counts.
-struct StorageSection: View {
-    let client: SupabaseClient
-    @State private var store = StorageStore.shared
-
-    var body: some View {
-        StorageSectionBody(usage: store.usage)
-            .task { await store.refresh(client, force: false) }
-    }
-}
-
+/// Settings › Storage: "X of 2 GB used", what takes the room, and what counts.
 struct StorageSectionBody: View {
     /// What counts, on the Mac's Storage page too.
     static let footer = "Notes, files and apps count. So do Recently Deleted and older versions, for 30 days. Files can be up to 100 MB."

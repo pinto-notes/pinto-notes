@@ -1735,23 +1735,7 @@ struct ConnectAISection: View {
     }
 
     var body: some View {
-        if cards {
-            Section {
-                ConnectChoices(client: client, preview: preview, cards: true)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-            } header: {
-                Text(ConnectCopy.page)
-                    .font(.footnote)
-                    .foregroundStyle(Color.muted)
-                    .textCase(nil)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, 4)
-                    .accessibilityIdentifier("connect.sent")
-            }
-        } else {
-            plain
-        }
+        plain
     }
 
     private var plain: some View {
@@ -1774,8 +1758,8 @@ struct ConnectAISection: View {
 }
 
 #if os(macOS)
-/// Settings › Connect an AI on the Mac: one list (Emil, 3 November 2026: "simplify and cut
-/// things"). One row per AI there is (never Mistral): a connected one says when it was last used,
+/// AI Connections' cards on the Mac (AIConnectionsPage has the page and its line on what is sent):
+/// one list (Emil, 3 November 2026: "simplify and cut things"). One row per AI there is (never Mistral): a connected one says when it was last used,
 /// with Disconnect…; the others say who makes them, with Connect…. Under the list, always in view,
 /// one line on what is sent and to which company (App Review 5.1.2 rejected 1.2 for hiding it).
 /// "Having trouble?" is in the Help menu (Help Connecting an AI…); Keys for apps was a small link, parked 6 November 2026,
@@ -1815,7 +1799,6 @@ struct ConnectAIPage: View {
     @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
     @Environment(\.networkReach) private var reach
     @Environment(\.openURL) private var openURL
-    @Environment(\.openSettingsPlace) private var openPlace
 
     private var active: [Connection] { (preview ?? connections).filter { $0.revoked_at == nil } }
 
@@ -1865,27 +1848,14 @@ struct ConnectAIPage: View {
     }
 
     var body: some View {
-        SettingsStack {
+        // The row of AI Connections' form (AIConnectionsPage), under the line on what is sent.
+        VStack(alignment: .leading, spacing: 10) {
             if let ask = center.waiting().first { ConnectWaitingRow(ask: ask) }
             if let error { Text(error).font(.system(size: 12)).foregroundStyle(.red).padding(.horizontal, 4) }
-            VStack(alignment: .leading, spacing: 10) {
-                // Never behind a disclosure, and there while a connection is made too.
-                Text(Self.sent)
-                    .font(.system(size: 12))
-                    .foregroundStyle(SettingsInk.muted)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 4)
-                    .accessibilityIdentifier("connect.sent")
-                    .settingsProbe("connect.sent")
-                switch stage {
-                case .choosing: cards
-                case .waiting: panel { ConnectWaitingPanel(ai: ai, note: note, fix: fix, cancel: cancel) }
-                case .connected: panel { ConnectedPanel(ai: ai) }
-                }
-            }
-            if NoteApps.enabled {
-                if NoteApps.realPreviews { AppPreviewSection(client: client, plain: true) }
+            switch stage {
+            case .choosing: cards
+            case .waiting: panel { ConnectWaitingPanel(ai: ai, note: note, fix: fix, cancel: cancel) }
+            case .connected: panel { ConnectedPanel(ai: ai) }
             }
         }
         .onAppear {

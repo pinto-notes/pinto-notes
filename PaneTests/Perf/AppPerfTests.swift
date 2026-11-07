@@ -95,9 +95,9 @@ import Testing
     /// A first visit can only be timed once per window, so it is timed in three windows built
     /// new, and each page is judged by the median of its three first visits (see PerfTiming): one
     /// stalled sample on a loaded runner failed this test with every other number as usual.
-    @Test func switchingSettingsTabs() async throws {
+    @Test func switchingSettingsPages() async throws {
         let clock = ContinuousClock()
-        var firsts: [SettingsTab: [Double]] = [:]
+        var firsts: [SettingsPage: [Double]] = [:]
         var again: [Double] = []
         for _ in 0..<3 {
             let view = try await AppSnapshotTests.settingsFixture()
@@ -105,21 +105,21 @@ import Testing
             defer { w.close() }
             host.layoutSubtreeIfNeeded(); w.displayIfNeeded()
             await PerfTiming.quietMainQueue()
-            func show(_ tab: SettingsTab) -> Double {
+            func show(_ tab: SettingsPage) -> Double {
                 let start = clock.now
                 view.route.tab = tab
                 host.layoutSubtreeIfNeeded()
                 w.displayIfNeeded()
                 return ms(clock.now - start)
             }
-            for tab in SettingsTab.allCases { firsts[tab, default: []].append(show(tab)) }
-            for _ in 0..<4 { for tab in SettingsTab.allCases { again.append(show(tab)) } }
+            for tab in SettingsPage.groups.flatMap { $0 } { firsts[tab, default: []].append(show(tab)) }
+            for _ in 0..<4 { for tab in SettingsPage.groups.flatMap { $0 } { again.append(show(tab)) } }
         }
         ProfileStore.shared.showForPreview(name: nil, photo: nil)
         again.sort()
         let first = firsts.mapValues { PerfTiming.median($0) }
         let slowestFirst = first.values.max() ?? 0
-        print("PERF settings tabs: first visit " + SettingsTab.allCases.map { "\($0.rawValue) \(String(format: "%.1f", first[$0] ?? 0))" }.joined(separator: ", ")
+        print("PERF settings tabs: first visit " + SettingsPage.groups.flatMap { $0 }.map { "\($0.rawValue) \(String(format: "%.1f", first[$0] ?? 0))" }.joined(separator: ", ")
               + " ms (medians of 3 windows; slowest single first visit \(String(format: "%.1f", firsts.values.joined().max() ?? 0)) ms); switching back, median \(String(format: "%.1f", again[again.count / 2])) ms, slowest \(String(format: "%.1f", again.last ?? 0)) ms")
         // A frame is 16 ms; a first visit builds the page, so it gets a little more.
         #expect(again[again.count / 2] < 16 * PerfBudget.slack, "switching to a page already shown")
