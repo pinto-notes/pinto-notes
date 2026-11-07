@@ -55,7 +55,7 @@ export default function Page() {
       <h2>When a different notes app makes sense</h2>
       <p>
         Claude has the same limits; <a href="/blog/claude-and-apple-notes">can Claude read your Apple Notes?</a> goes through them, and{" "}
-        <a href="/blog/notes-apps-with-mcp">notes apps with an MCP server, compared</a> lists the apps AI can reach. The ways into Apple Notes all <a href="/blog/apple-notes-api">run on your Mac</a>, so ChatGPT
+        <a href="/blog/best-ai-notes-app">the best AI notes apps, compared</a> lists the apps AI can reach. The ways into Apple Notes all <a href="/blog/apple-notes-api">run on your Mac</a>, so ChatGPT
         can&apos;t use them.
       </p>
       <p>

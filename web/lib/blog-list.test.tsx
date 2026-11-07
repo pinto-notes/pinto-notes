@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { isBlogList } from "./blog-list";
 import BlogList from "./BlogList";
-import { BlogIndex } from "./BlogIndex";
+import { AnswersIndex, BlogIndex } from "./BlogIndex";
 import { CATEGORY_COVERS, FEATURED, categories, categoryPath, isFeatured, newestFirst, pagePath, published } from "./posts";
 
 // The lists end in the closing band, whose Mac download reads the route.
@@ -55,12 +55,19 @@ describe("the blog's lists", () => {
     expect(doc.querySelector("h1 mark")).toBeNull();
   });
 
-  it("show the featured posts as cards and every other post once under More answers, on one page", () => {
+  it("show only the front of the blog on /blog: the featured posts as cards, no chips and no answers", () => {
     const doc = new DOMParser().parseFromString(renderToStaticMarkup(<BlogIndex category={null} page={1} />), "text/html");
     const cards = [...doc.querySelectorAll(".filter-grid > li")].map((li) => li.getAttribute("data-key"));
     expect(cards.sort()).toEqual([...FEATURED].sort());
+    expect(doc.querySelector('[aria-labelledby="more-answers"]')).toBeNull();
+    expect(doc.querySelector("[data-blog-chips]")).toBeNull();
+    expect(doc.querySelector('[data-blog-pages]')).toBeNull();
+  });
+
+  it("list every post written for search once on /blog/answers, and none of the front", () => {
+    const doc = new DOMParser().parseFromString(renderToStaticMarkup(<AnswersIndex />), "text/html");
     const asked = [...doc.querySelectorAll('[aria-labelledby="more-answers"] a')].map((a) => a.getAttribute("href")!.replace("/blog/", ""));
     expect(asked.sort()).toEqual(published().map((p) => p.slug).filter((x) => !FEATURED.includes(x)).sort());
-    expect(doc.querySelector('[data-blog-pages]')).toBeNull();
+    expect(doc.querySelector("[data-closing-band]")).not.toBeNull();
   });
 });

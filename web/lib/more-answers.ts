@@ -1,7 +1,7 @@
 import { published, type Post } from "./posts";
 
-/// The blog's "More answers": every post that isn't featured, grouped by what a visitor came for, each
-/// asked the way a person would ask it. Every published post is in a shelf (lib/seo.test.ts checks).
+/// The blog's answers (/blog/answers): every post that isn't on the front of the blog, grouped by
+/// what a visitor came for, each asked the way a person would ask it. Every published post is in a shelf (lib/seo.test.ts checks).
 
 export type Shelf = { title: string; line: string; items: { slug: string; ask: string }[] };
 
@@ -29,24 +29,18 @@ export const SHELVES: Shelf[] = [
     title: "Your AI and your notes",
     line: "So ChatGPT and Claude know what you know, without pasting it in every time.",
     items: [
-      { slug: "connect-chatgpt-to-your-notes", ask: "Can ChatGPT read my notes?" },
       { slug: "chatgpt-and-apple-notes", ask: "Can ChatGPT use Apple Notes?" },
       { slug: "claude-and-apple-notes", ask: "Can Claude use Apple Notes?" },
-      { slug: "notes-in-claude-code-and-codex", ask: "Notes for Claude Code and Codex?" },
-      { slug: "notes-apps-with-mcp", ask: "Which notes apps work with AI?" },
-      { slug: "best-notes-app-for-ai-agents", ask: "What's the best notes app for AI agents?" },
       { slug: "obsidian-mcp", ask: "Can Claude use my Obsidian vault?" },
       { slug: "connect-notes-to-grok", ask: "Connect your notes to Grok" },
-      { slug: "mcp-server", ask: "What's an MCP server, in plain words?" },
-      { slug: "encrypted-notes-app-for-ai", ask: "Can an AI use encrypted notes?" },
-      { slug: "move-from-apple-notes", ask: "How do I bring my Apple Notes along?" },
     ],
   },
   {
-    title: "Make something with your AI",
-    line: "Prompts to copy, and what it looks like when it works.",
+    title: "Notes apps, compared",
+    line: "Read on each maker's own pages, with the prices of the day.",
     items: [
-      { slug: "budget-tracker-with-chatgpt-or-claude", ask: "A budget that adds itself up" },
+      { slug: "best-ai-notes-app", ask: "What's the best AI notes app?" },
+      { slug: "best-notes-app-for-mac", ask: "What's the best notes app for Mac?" },
     ],
   },
 ];

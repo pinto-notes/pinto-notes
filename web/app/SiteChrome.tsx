@@ -148,6 +148,7 @@ export default function SiteChrome({ stars, children }: { version: string | null
             <nav aria-label="More">
               <a href="/templates">Templates</a>
               <a href="/blog">Blog</a>
+              <a href="/blog/answers">Answers</a>
               <a href="/changelog">Changelog</a>
               <a href="/privacy-security">Privacy & Security</a>
               <a href="/privacy">Privacy Policy</a>

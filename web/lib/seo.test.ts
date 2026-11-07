@@ -12,7 +12,7 @@ import { REMOVED_POSTS } from "./removed-posts";
 import { SHELVES } from "./more-answers";
 import { FEATURED, FIRST_PAGE, FOLD, PER_PAGE, categories, categoryAnchor, categoryPath, morePosts, newestFirst, pageCount, pageOf, pagePath, posts, published } from "./posts";
 
-const INDEX_FOLDERS = ["page", "category", "feed.xml"];
+const INDEX_FOLDERS = ["answers", "page", "category", "feed.xml"];
 
 const postSource = (slug: string) => readFileSync(new URL(`../app/blog/${slug}/page.tsx`, import.meta.url), "utf8");
 
@@ -350,7 +350,7 @@ describe("share images", () => {
 });
 
 /// Comparison posts that name other apps' iPad apps (which people search for), checked sentence by sentence instead.
-const COMPARES_IPAD_APPS = ["best-notes-app-for-mac"];
+const COMPARES_IPAD_APPS = ["best-notes-app-for-mac", "best-ai-notes-app"];
 
 describe("site copy", () => {
   // Plain writing rules for the blog: no em dashes, and no device the app doesn't run on.
