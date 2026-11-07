@@ -23,6 +23,7 @@ import { challenge, handleOAuth, isOAuthPath, publicBase, resolveAccessToken, su
 import { SERVER_CARD_PATH, SERVER_INFO, serverCardResponse } from "./card.ts";
 import { APPS_GUIDE_URI, appsGuide, BASE_CSS_URI, GUIDE_URI, PAGE_INSTRUCTIONS, PAGE_PROMPTS, pageGuide } from "./page_guide.ts";
 import { AMBER_BASE_CSS } from "./amber-base.ts";
+import { afterResponse, UseTally } from "./ai_use.ts";
 
 const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 /** Whether this server's tools build apps: the file tools do (an app is a path, "X.app/"), and so
@@ -74,14 +75,14 @@ function tokenFrom(req: Request): Presented | null {
   return m ? { token: m[1], oauth: false } : null;
 }
 
-type Caller = { user_id: string; name: string; vault: Vault; ms?: Record<string, number> };
+type Caller = { user_id: string; token_id?: string; name: string; vault: Vault; ms?: Record<string, number> };
 
 /** The token's owner, with the data key its wrap holds; undefined when either is missing. */
 async function authenticate(sql: Sql, p: Presented, req: Request): Promise<Caller | undefined> {
   const t0 = performance.now();
   const who = p.oauth
     ? await resolveAccessToken(sql, p.token, req)
-    : (await sql<{ user_id: string; name: string; dk_wrap: string | null }[]>`
+    : (await sql<{ user_id: string; token_id: string; name: string; dk_wrap: string | null }[]>`
         select * from public.resolve_mcp_token(${p.token})`)[0];
   if (!who?.dk_wrap) return undefined;
   const t1 = performance.now();
@@ -95,7 +96,7 @@ async function authenticate(sql: Sql, p: Presented, req: Request): Promise<Calle
   // Vault.from wipes the raw key once it's imported.
   const t2 = performance.now();
   const vault = await Vault.from(dataKey, who.user_id);
-  return { user_id: who.user_id, name: who.name, vault, ms: { auth_lookup: t1 - t0, auth_unwrap: t2 - t1, auth_vault: performance.now() - t2 } };
+  return { user_id: who.user_id, token_id: who.token_id, name: who.name, vault, ms: { auth_lookup: t1 - t0, auth_unwrap: t2 - t1, auth_vault: performance.now() - t2 } };
 }
 
 /** Only the MCP endpoint, the OAuth paths and the well-known files exist. Anything else is most
@@ -186,6 +187,9 @@ export async function handleRequest(req: Request, sql: Sql): Promise<Response> {
     const r = await handle(m, ctx);
     if (r !== null) results.push(r);
   }
+  // How much the connection was used today (ai_use.ts): counted for its own account only.
+  const used = tallies.get(ctx);
+  if (used) await afterResponse(used.write(sql, who.token_id));
   const headers: Record<string, string> = {
     ...(issued ? { "mcp-session-id": issued } : {}),
     ...(Object.keys(ctx.timing!).length ? { "server-timing": Object.entries(ctx.timing!).map(([k, v]) => `${k};dur=${Math.round(v)}`).join(", ") } : {}),
@@ -209,6 +213,10 @@ function unauthorized(base: string, error?: string) {
   return json({ jsonrpc: "2.0", id: null, error: { code: -32001, message: "Sign in to Pinto Notes to use your notes. In Pinto Notes: Settings → Connect an AI." } }, 401,
     { "www-authenticate": challenge(base, error) });
 }
+
+/** Each request's tool calls, for its count (ai_use.ts). */
+const tallies = new WeakMap<ToolContext, UseTally>();
+const tally = (ctx: ToolContext) => tallies.get(ctx) ?? tallies.set(ctx, new UseTally()).get(ctx)!;
 
 function isRpc(m: unknown): m is Rpc {
   if (typeof m !== "object" || m === null || Array.isArray(m)) return false;
@@ -268,6 +276,7 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
         const started = performance.now();
         try {
           const result = toolSet() === "files" ? await runFileTool(name, args, ctx) : await runTool(name, args, ctx);
+          tally(ctx).add(name, true);
           if (ctx.timing) ctx.timing.total = performance.now() - started;
           if (result instanceof Content) {
             return ok(id, { content: result.content, ...(result.structured ? { structuredContent: result.structured } : {}) });
@@ -280,6 +289,7 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
           // Tool errors go back to the model as results so it can correct itself, and are logged
           // by their kind. Anything else is logged by its class and code only: a message can
           // quote a note.
+          tally(ctx).add(name, false);
           if (e instanceof ToolError) log("tool_error", { tool: name, kind: toolErrorKind(e.message) });
           else log("tool_failed", { tool: name, ms: performance.now() - started, ...errorKind(e) });
           const message = e instanceof ToolError || e instanceof Error ? e.message : String(e);

@@ -978,7 +978,7 @@ struct NoteDetailView: View {
         shownPage = NoteApps.enabled ? NotePageStore.shared[note.id] : nil
         // A note with an app is the app: what its text held goes into the app's data once.
         if shownPage != nil { NotePageActions.importIfNeeded(note) }
-        if shownPage != nil { NotePageTiming.open(note.id) }
+        if shownPage != nil { NotePageTiming.open(note.id); Usage.count(.noteAppOpened) }
         pageTint = nil
         mode = Self.startMode
         showAIEdit()
@@ -1252,6 +1252,7 @@ struct NoteDetailView: View {
     private func save(_ text: String) {
         // Recently Deleted is read-only: nothing typed or ticked there is kept.
         guard !trashed else { return }
+        Usage.edited(note.id)
         if receipt != nil { editedSinceAIEdit() }
         // A shared note's text lives in its document; the note follows it (CollabStore).
         if let collab {
@@ -1606,7 +1607,10 @@ struct NoteDetailView: View {
     }
 
     /// The selection if there is one, else the whole note (NotePicture.passage).
-    private func sharePicture() { pictureRequest = pictureOfNote() }
+    private func sharePicture() {
+        Usage.count(.sharePicture)
+        pictureRequest = pictureOfNote()
+    }
 
     private func pictureOfNote() -> NotePicture.Request {
         let target = controller.target

@@ -38,6 +38,7 @@ enum QuickCapture {
     static func save(_ text: String, in context: ModelContext) -> Note? {
         let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty else { return nil }
+        Usage.count(.menuBarNote)
         return context.createNote(in: .all, body: body)
     }
 }
@@ -135,6 +136,7 @@ final class QuickNoteHotKey {
 
     /// Pinto Notes in front, on a new note: its window opens if it was closed.
     static func openNewNote() {
+        Usage.count(.shortcutNote)
         NoteOpener.shared.askForNewNote()
         NSApp.activate(ignoringOtherApps: true)
         let shown = NSApp.windows.contains { $0.isVisible && $0.canBecomeMain }

@@ -377,9 +377,11 @@ private final class TelemetryDocToken {}
         telemetry.record(.appOpened(launch: false, signedIn: false))
         let after = try #require(lastID())
         #expect(after != install && after != account.uuidString.lowercased(), "a new id after signing out")
-        #expect(telemetry.waiting.count == 5, "what was waiting still goes out")
+        #expect(telemetry.waiting.count == 6, "what was waiting still goes out, with signed_out")
+        let out = telemetry.waiting.first { $0["event"] as? String == "signed_out" }
+        #expect(out?["distinct_id"] as? String == account.uuidString.lowercased(), "said under the account, before it goes")
         telemetry.record(.firstNoteCreated)
-        #expect(telemetry.waiting.count == 6, "the firsts start over with the new id")
+        #expect(telemetry.waiting.count == 7, "the firsts start over with the new id")
         // Signed out already: nothing more to reset.
         telemetry.signedOut()
         telemetry.record(.signInFailed(.email, .network, status: 1))
@@ -394,13 +396,14 @@ private final class TelemetryDocToken {}
         telemetry.record(.signedIn(.apple))
         telemetry.record(.firstNoteCreated)
         telemetry.accountDeleted()
-        #expect(telemetry.waiting.isEmpty && store.load().isEmpty)
+        // What waited is dropped; only account_deleted is left, under the account's id.
+        #expect(names(telemetry.waiting) == ["account_deleted"] && store.load().count == 1)
         telemetry.record(.appOpened(launch: false, signedIn: false))
         await telemetry.flush()
+        #expect(names(transport.events) == ["account_deleted", "app_opened"])
         let ids = transport.events.compactMap { $0["distinct_id"] as? String }
-        #expect(ids.count == 1 && ids[0] != account.uuidString.lowercased())
-        let sent = try #require(transport.bodies.first)
-        #expect(!String(decoding: sent, as: UTF8.self).contains(account.uuidString.lowercased()))
+        #expect(ids.count == 2 && ids[0] == account.uuidString.lowercased() && ids[1] != account.uuidString.lowercased())
+        #expect(transport.events.filter { $0["distinct_id"] as? String == account.uuidString.lowercased() }.count == 1, "nothing else of the account's goes")
     }
 
     @Test func theLaunchIsTimedOnlyWhenItGoesStraightToTheNotes() {
@@ -434,11 +437,12 @@ private final class TelemetryDocToken {}
         telemetry.becameActive(signedIn: true)
         clock.advance(3600)
         telemetry.becameActive(signedIn: true)
-        #expect(telemetry.waiting.count == 1)
+        #expect(names(telemetry.waiting) == ["app_opened"])
         clock.advance(86400)
         telemetry.becameActive(signedIn: true)
-        #expect(telemetry.waiting.count == 2)
-        let flags = telemetry.waiting.compactMap { ($0["properties"] as? [String: Any])?["launch"] as? Bool }
+        // The next day also says what was used the day before (usage_day).
+        #expect(names(telemetry.waiting) == ["app_opened", "app_opened", "usage_day"])
+        let flags = telemetry.waiting.filter { $0["event"] as? String == "app_opened" }.compactMap { ($0["properties"] as? [String: Any])?["launch"] as? Bool }
         #expect(flags == [true, false])
     }
 

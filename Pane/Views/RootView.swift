@@ -670,6 +670,8 @@ struct RootView: View {
         // The note you were typing in is written before anything looks at it.
         DebouncedSave.flushAll()
         if new == nil { PaneTips.listOpened() }
+        // A note tapped: the clock for note_opened_speed runs until its editor is on screen.
+        if new != nil { NoteOpenSpeed.tapped(at: Self.eventTime()) }
         if old != nil { NotificationCenter.default.post(name: .paneNoteClosed, object: nil) }
         discardIfEmpty(old)
         if let new { lastNote = new.uuidString }
@@ -910,6 +912,7 @@ struct RootView: View {
     /// Today's note, made if it isn't yet, open with the cursor in it. The list shows it where
     /// it is: the folder you're in if it's there, else Daily.
     private func openTodaysNote() {
+        Usage.count(.todaysNote)
         let (note, made) = context.openTodaysNote()
         if made { Telemetry.shared.record(.firstNoteCreated) }
         let shown: Bool
@@ -1265,6 +1268,12 @@ extension FocusedValues {
 
 #if os(macOS)
 struct PaneCommands: Commands {
+    /// A Format menu item (or its shortcut) was used: counted once for each (usage_day).
+    private func format(_ run: () -> Void) {
+        Usage.count(.formatUsed)
+        run()
+    }
+
     @FocusedValue(\.newNoteAction) private var newNote
     @FocusedValue(\.deleteNoteAction) private var deleteNote
     @FocusedValue(\.editorController) private var editor
@@ -1402,47 +1411,47 @@ struct PaneCommands: Commands {
         // Shortcuts follow Apple Notes, so muscle memory carries over.
         CommandMenu("Format") {
             Group {
-                Button("Title") { editor?.heading(1) }.keyboardShortcut("t", modifiers: [.command, .shift])
-                Button("Heading") { editor?.heading(2) }.keyboardShortcut("h", modifiers: [.command, .shift])
-                Button("Subheading") { editor?.heading(3) }.keyboardShortcut("j", modifiers: [.command, .shift])
-                Button("Body") { editor?.heading(0) }.keyboardShortcut("b", modifiers: [.command, .shift])
+                Button("Title") { format { editor?.heading(1) } }.keyboardShortcut("t", modifiers: [.command, .shift])
+                Button("Heading") { format { editor?.heading(2) } }.keyboardShortcut("h", modifiers: [.command, .shift])
+                Button("Subheading") { format { editor?.heading(3) } }.keyboardShortcut("j", modifiers: [.command, .shift])
+                Button("Body") { format { editor?.heading(0) } }.keyboardShortcut("b", modifiers: [.command, .shift])
                 Divider()
-                Button("Bold") { editor?.bold() }.keyboardShortcut("b")
-                Button("Italic") { editor?.italic() }.keyboardShortcut("i")
-                Button("Underline") { editor?.underline() }.keyboardShortcut("u")
-                Button("Strikethrough") { editor?.strikethrough() }.keyboardShortcut("x", modifiers: [.command, .shift])
+                Button("Bold") { format { editor?.bold() } }.keyboardShortcut("b")
+                Button("Italic") { format { editor?.italic() } }.keyboardShortcut("i")
+                Button("Underline") { format { editor?.underline() } }.keyboardShortcut("u")
+                Button("Strikethrough") { format { editor?.strikethrough() } }.keyboardShortcut("x", modifiers: [.command, .shift])
                 // ⇧⌘E, as Notes' Highlight.
-                Button("Highlight") { editor?.highlight() }.keyboardShortcut("e", modifiers: [.command, .shift])
-                Button("Monostyled") { editor?.code() }.keyboardShortcut("m", modifiers: [.command, .shift])
+                Button("Highlight") { format { editor?.highlight() } }.keyboardShortcut("e", modifiers: [.command, .shift])
+                Button("Monostyled") { format { editor?.code() } }.keyboardShortcut("m", modifiers: [.command, .shift])
                 Divider()
-                Button("Checklist") { editor?.checklist() }.keyboardShortcut("l", modifiers: [.command, .shift])
+                Button("Checklist") { format { editor?.checklist() } }.keyboardShortcut("l", modifiers: [.command, .shift])
                 #if os(macOS)
                 // ⇧⌘U, as Notes' Mark as Checked: no pointer needed.
-                Button(EditorController.tickTitle(ticked: editor?.caretItemTicked)) { editor?.tickItem() }
+                Button(EditorController.tickTitle(ticked: editor?.caretItemTicked)) { format { editor?.tickItem() } }
                     .keyboardShortcut("u", modifiers: [.command, .shift])
                     .disabled(editor?.caretItemTicked == nil)
                 #endif
                 // Notes' Uncheck All, in the app's word: on in a checklist with something ticked.
-                Button(EditorController.untickAllTitle) { editor?.untickAll() }
+                Button(EditorController.untickAllTitle) { format { editor?.untickAll() } }
                     .keyboardShortcut("l", modifiers: [.command, .option, .shift])
                     .disabled(editor?.canUntickAll != true)
-                Button("Bulleted List") { editor?.bulletList() }.keyboardShortcut("7", modifiers: [.command, .shift])
-                Button("Dashed List") { editor?.dashedList() }.keyboardShortcut("8", modifiers: [.command, .shift])
-                Button("Numbered List") { editor?.numberedList() }.keyboardShortcut("9", modifiers: [.command, .shift])
-                Button("Block Quote") { editor?.blockQuote() }.keyboardShortcut("'", modifiers: .command)
+                Button("Bulleted List") { format { editor?.bulletList() } }.keyboardShortcut("7", modifiers: [.command, .shift])
+                Button("Dashed List") { format { editor?.dashedList() } }.keyboardShortcut("8", modifiers: [.command, .shift])
+                Button("Numbered List") { format { editor?.numberedList() } }.keyboardShortcut("9", modifiers: [.command, .shift])
+                Button("Block Quote") { format { editor?.blockQuote() } }.keyboardShortcut("'", modifiers: .command)
                 // Notes' Move List Item Up and Down, for any line (council rounds 13 and 14).
-                Button("Move Item Up") { editor?.moveItem(up: true) }.keyboardShortcut(.upArrow, modifiers: [.command, .control])
-                Button("Move Item Down") { editor?.moveItem(up: false) }.keyboardShortcut(.downArrow, modifiers: [.command, .control])
+                Button("Move Item Up") { format { editor?.moveItem(up: true) } }.keyboardShortcut(.upArrow, modifiers: [.command, .control])
+                Button("Move Item Down") { format { editor?.moveItem(up: false) } }.keyboardShortcut(.downArrow, modifiers: [.command, .control])
                 // A line across the note (`---`). No shortcut, as in Pages.
-                Button("Code Block") { editor?.codeBlock() }
-                Button("Divider") { editor?.insertDivider() }
+                Button("Code Block") { format { editor?.codeBlock() } }
+                Button("Divider") { format { editor?.insertDivider() } }
                 // A tinted panel with a title (`> [!note]`, as in Obsidian). No shortcut.
-                Button("Callout") { editor?.insertCallout() }
+                Button("Callout") { format { editor?.insertCallout() } }
                 Divider()
-                Button("Table") { editor?.insertTable() }.keyboardShortcut("t", modifiers: [.command, .option])
+                Button("Table") { format { editor?.insertTable() } }.keyboardShortcut("t", modifiers: [.command, .option])
                 // Today's date, shown as a chip that says Today (NoteDates).
-                Button("Date") { editor?.insertDate() }.keyboardShortcut("d", modifiers: [.command, .shift])
-                Button("Link") { editor?.insertLink() }.keyboardShortcut("k")
+                Button("Date") { format { editor?.insertDate() } }.keyboardShortcut("d", modifiers: [.command, .shift])
+                Button("Link") { format { editor?.insertLink() } }.keyboardShortcut("k")
             }
             .disabled(editor == nil)
         }
@@ -1724,3 +1733,18 @@ struct SidebarFit: Equatable {
     }
 }
 #endif
+
+extension RootView {
+    /// When the click or key that's being handled happened, on the Mac (the clock NoteOpenSpeed
+    /// uses): the time from it to the note on screen is what was felt. Nil elsewhere, or for an
+    /// event from more than a second ago.
+    @MainActor static func eventTime() -> TimeInterval? {
+        #if os(macOS)
+        guard let e = NSApp.currentEvent, [.leftMouseDown, .leftMouseUp, .keyDown].contains(e.type),
+              ProcessInfo.processInfo.systemUptime - e.timestamp < 1 else { return nil }
+        return e.timestamp
+        #else
+        return nil
+        #endif
+    }
+}

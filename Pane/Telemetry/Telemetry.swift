@@ -15,6 +15,9 @@ final class Telemetry: @unchecked Sendable {
     /// Settings › Share diagnostics and usage. On unless it was turned off.
     static let consentKey = "shareDiagnostics"
     static let onceKey = "telemetry.once"
+    /// The features used since the last `usage_day` ([name: count]), and the day (UTC) it went out.
+    static let usageKey = "telemetry.usage"
+    static let usageDayKey = "telemetry.usageDay"
     static let cap = 200
     static let batch = 50
     static let longestLaunch: TimeInterval = 20
@@ -37,6 +40,9 @@ final class Telemetry: @unchecked Sendable {
     private var launchID = UUID().uuidString.lowercased()
     private var saidThisLaunch = Set<String>()
     private var timings = SyncTimings()
+    private var speeds: [SpeedKind: SpeedTimings] = [:]
+    /// The notes edited since the last `usage_day`, so each counts once. In memory only.
+    private var editedNotes = Set<UUID>()
     private var flushing = false
     /// Sends on its own a little after an event is recorded. Tests send by hand.
     private var timed = true
@@ -101,6 +107,9 @@ final class Telemetry: @unchecked Sendable {
     /// Signed out: what follows goes under a new random identifier, not the account's and not the
     /// one from before. What's already waiting still goes out as it was recorded.
     func signedOut() {
+        guard lock.withLock({ account != nil }) else { return }
+        // Said under the account's id, before it goes.
+        record(.signedOut)
         lock.withLock {
             guard account != nil else { return }
             account = nil
@@ -108,12 +117,15 @@ final class Telemetry: @unchecked Sendable {
         }
     }
 
-    /// The account was deleted: its waiting events are dropped unsent, and the identifier is new.
+    /// The account was deleted: its waiting events are dropped unsent, `account_deleted` goes out
+    /// under its id (soon, best effort: if it can't be sent now, at the next launch), and the
+    /// identifier is new.
     func accountDeleted() {
+        lock.withLock { empty() }
+        record(.accountDeleted)
         lock.withLock {
             account = nil
             startOver()
-            empty()
         }
     }
 
@@ -126,6 +138,9 @@ final class Telemetry: @unchecked Sendable {
         queue = []
         epoch += 1
         timings = SyncTimings()
+        speeds = [:]
+        editedNotes = []
+        defaults.removeObject(forKey: Self.usageKey)
         store?.save([])
     }
 
@@ -145,9 +160,84 @@ final class Telemetry: @unchecked Sendable {
             guard queue.count < Self.cap else { return }
             queue.append(TelemetryBody.event(event, id: account?.uuidString.lowercased() ?? launchID, at: now(), context: config.context))
             store?.save(queue)
-            schedule(after: event.isError || queue.count >= Self.batch ? 2 : 60)
+            schedule(after: event.goesSoon || queue.count >= Self.batch ? 2 : 60)
         }
     }
+
+    // MARK: Usage
+
+    /// A feature was used: counted on this device until the next `usage_day`. Nothing is kept
+    /// with the switch off.
+    func used(_ feature: UsedFeature) {
+        lock.withLock {
+            guard config != nil, consents else { return }
+            bump(feature)
+        }
+    }
+
+    /// Lock held.
+    private func bump(_ feature: UsedFeature) {
+        var counts = defaults.dictionary(forKey: Self.usageKey) as? [String: Int] ?? [:]
+        counts[feature.rawValue] = min((counts[feature.rawValue] ?? 0) + 1, 100_000)
+        defaults.set(counts, forKey: Self.usageKey)
+    }
+
+    /// A note was typed in: counted the first time for each note since the last `usage_day`.
+    func edited(_ note: UUID) {
+        lock.withLock {
+            guard config != nil, consents, editedNotes.insert(note).inserted else { return }
+            bump(.notesEdited)
+        }
+    }
+
+    /// Once a day (UTC), when the app comes to the front: what was counted since the last one,
+    /// then counting starts again. The first day only starts the count.
+    private func usageDay(_ day: Int) -> [UsedFeature: Int]? {
+        lock.withLock {
+            guard config != nil, consents else { return nil }
+            let last = defaults.object(forKey: Self.usageDayKey) as? Int
+            guard last != day else { return nil }
+            defaults.set(day, forKey: Self.usageDayKey)
+            guard last != nil else { return nil }
+            let counts = defaults.dictionary(forKey: Self.usageKey) as? [String: Int] ?? [:]
+            defaults.removeObject(forKey: Self.usageKey)
+            editedNotes = []
+            return Dictionary(uniqueKeysWithValues: counts.compactMap { k, v in UsedFeature(rawValue: k).map { ($0, v) } })
+        }
+    }
+
+    // MARK: Felt speed
+
+    /// How long a note took to show, or a search's results. Sent as one event once there are
+    /// `SpeedTimings.enough`, and when the app quits.
+    func speed(_ kind: SpeedKind, seconds: TimeInterval) {
+        let full: SpeedTimings? = lock.withLock {
+            guard config != nil, consents else { return nil }
+            var t = speeds[kind] ?? SpeedTimings()
+            t.add(seconds: seconds)
+            guard t.count >= SpeedTimings.enough else { speeds[kind] = t; return nil }
+            speeds[kind] = nil
+            return t
+        }
+        if let full { record(Self.speedEvent(kind, full)) }
+    }
+
+    private static func speedEvent(_ kind: SpeedKind, _ t: SpeedTimings) -> TelemetryEvent {
+        switch kind {
+        case .noteOpened: .noteOpenedSpeed(t)
+        case .search: .searchSpeed(t)
+        }
+    }
+
+    /// The iPhone app is never told it quits: the system ends it in the background. Leaving the
+    /// screen is the last sure moment there, so the speeds go then.
+    static let leavingIsQuitting: Bool = {
+        #if os(iOS)
+        true
+        #else
+        false
+        #endif
+    }()
 
     /// One sync finished: counted, and sent as one event when the app goes to the background.
     func syncFinished(seconds: TimeInterval, ok: Bool) {
@@ -187,6 +277,7 @@ final class Telemetry: @unchecked Sendable {
             return openedDay == nil ? true : openedDay == day ? nil : false
         }
         if let launch { record(.appOpened(launch: launch, signedIn: signedIn)) }
+        if let used = usageDay(day) { record(.usageDay(used)) }
     }
 
     /// The app left the front (or is quitting): everything waiting goes out. The sync timings are
@@ -198,6 +289,12 @@ final class Telemetry: @unchecked Sendable {
             return timings
         }
         if let t { record(.syncDurations(t)) }
+        let felt: [SpeedKind: SpeedTimings] = lock.withLock {
+            guard quitting || Self.leavingIsQuitting else { return [:] }
+            defer { speeds = [:] }
+            return speeds.filter { !$0.value.isEmpty }
+        }
+        for kind in [SpeedKind.noteOpened, .search] { if let t = felt[kind] { record(Self.speedEvent(kind, t)) } }
         await flush()
     }
 

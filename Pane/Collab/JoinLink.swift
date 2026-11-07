@@ -46,6 +46,7 @@ final class JoinCenter {
     /// A link was opened: join now, or once you're signed in.
     func open(_ url: URL) {
         guard CollabFeature.isOn, Self.isNoteLink(url) else { return }
+        Funnel.record(.shareStep(.inviteOpened))
         pending = url
         waiting?.cancel()
         waiting = Task { await go() }
@@ -86,7 +87,7 @@ final class JoinCenter {
         asked = nil
         // The question goes at once and the "Opening…" line takes its place.
         phase = .joining
-        Task { await joinNow(url) }
+        Task { await joinNow(url, accepting: true) }
     }
 
     /// Not Now: nothing happens, and nobody learns the link was opened.
@@ -96,7 +97,7 @@ final class JoinCenter {
         phase = .idle
     }
 
-    private func joinNow(_ url: URL) async {
+    private func joinNow(_ url: URL, accepting: Bool = false) async {
         phase = .joining
         let result = Outcome()
         do {
@@ -104,6 +105,7 @@ final class JoinCenter {
         } catch {
             result.problem = JoinCopy.slow
         }
+        if accepting, result.problem == nil { Funnel.record(.shareStep(.inviteAccepted)) }
         phase = result.problem.map(Phase.failed) ?? .idle
     }
 }

@@ -459,6 +459,7 @@ final class NoteSourceModel {
             NotePageStore.shared.setHere(note.id, .init(html: project, by: FirstOpen.templateWriter, at: .now))
         }
         FirstOpen.shared.added(note: note.id, draft: d)
+        if link.kind == .template { Usage.count(.fromTemplate) }
         phase = .added(d, note: note.id, folder: note.folder.map(context.folderPath) ?? "Notes")
     }
 }

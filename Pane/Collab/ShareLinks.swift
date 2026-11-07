@@ -163,6 +163,7 @@ extension CollabStore {
         struct Row: Decodable { let maker: String?; let template: SharedTemplate }
         guard let row = try? JSONDecoder().decode(Row.self, from: data) else { return nil }
         let note = context.createNote(in: .all, body: row.template.note)
+        Usage.count(.fromTemplate)
         pages[note.id] = row.template.page
         try? context.save()
         NoteOpener.shared.open(note.id)

@@ -536,6 +536,7 @@ final class NoteVault {
         // The front matter is locked with the text: never left readable beside a sealed note.
         if let props { try sealProps(props, to: note) }
         note.frontMatter = nil
+        Usage.count(.noteLocked)
     }
 
     /// Back to a normal note.
@@ -550,6 +551,7 @@ final class NoteVault {
         note.lockedFrontMatter = nil
         note.frontMatter = props
         note.touch()
+        Usage.count(.noteLocked)
     }
 
     /// A note's front matter, open: as it is for an open note; a locked one's while unlocked.
