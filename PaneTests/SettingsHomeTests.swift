@@ -730,7 +730,16 @@ import Carbon.HIToolbox
         let ax = OffscreenAX(view.page(page).modelContainer(lib), size: CGSize(width: SettingsCard.pageWidth, height: height))
         defer { ax.close() }
         await ax.settle(600)
-        return ax.ids()
+        // Under load the offscreen page can answer nothing at first, or its last sections a beat
+        // later: read until two non-empty reads agree.
+        var ids = ax.ids()
+        for _ in 0..<12 {
+            await ax.settle(250)
+            let again = ax.ids()
+            if !again.isEmpty, Set(again) == Set(ids) { break }
+            ids = again
+        }
+        return ids
     }
 
     @Test func everyRowIsOnItsPageAndSearchFindsIt() async throws {
