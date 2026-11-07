@@ -324,7 +324,7 @@ struct SettingsCard: View {
                 if available.contains(.account) { accountRow.padding(.bottom, 10) }
                 ForEach(Array(SettingsPlace.groups(available: available).map { $0.filter { $0 != .account } }.filter { !$0.isEmpty }.enumerated()), id: \.offset) { i, group in
                     if i > 0 { Color.clear.frame(height: 12) }
-                    VStack(spacing: 0) { ForEach(group) { row($0) } }
+                    VStack(spacing: Self.tabGap) { ForEach(group) { row($0) } }
                 }
             } else {
                 results
@@ -454,7 +454,7 @@ struct SettingsCard: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 29, alignment: .leading)
             .background(highlight(on))
             .contentShape(.rect)
             .hoverRow(reach: EdgeInsets())
