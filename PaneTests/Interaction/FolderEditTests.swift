@@ -168,6 +168,41 @@ import Testing
         #expect(ModelContext(c).allFolders().filter { $0.name == "Work copy" }.count == 1)
     }
 
+    /// A locked note's box is bound to its id: the copy is sealed again for its own, so the same
+    /// password opens it, with its front matter. While the password isn't open it isn't copied.
+    @Test func duplicatingKeepsLockedNotesOpenableAndFrontMatter() async throws {
+        let (c, by) = try Self.library()
+        let ctx = c.mainContext
+        let vault = NoteVault(keyStore: MemoryKeyStore(), defaults: MemoryDefaults(), iterations: 1_000)
+        try await vault.setUp(password: "hunter22", hint: nil)
+        let secret = ctx.createNote(in: .folder(by["Work"]!.id), body: "Bank\n\nPIN 4512")
+        secret.frontMatter = "aliases: [money]"
+        try vault.lock(secret)
+        let plain = ctx.createNote(in: .folder(by["Work"]!.id), body: "Plan\n\nfirst")
+        plain.frontMatter = "source: obsidian"
+        try ctx.save()
+
+        let copy = ctx.duplicate(by["Work"]!, vault: vault)
+        let copiedLocked = try #require(copy.liveNotes.first { $0.lockedBody != nil })
+        #expect(copiedLocked.id != secret.id && copiedLocked.lockedBody != secret.lockedBody && copiedLocked.dirty)
+        #expect(copiedLocked.body == "Bank" && copiedLocked.frontMatter == nil)
+        #expect(copy.liveNotes.first { $0.lockedBody == nil }?.frontMatter == "source: obsidian")
+        // Locked again, then the same password: a fresh read of the store opens the copy.
+        vault.lockNow()
+        try await vault.unlock(password: "hunter22")
+        let fresh = try #require(ModelContext(c).note(copiedLocked.id))
+        #expect(vault.text(of: fresh) == "Bank\n\nPIN 4512")
+        #expect(vault.frontMatter(of: fresh) == "aliases: [money]")
+        // The original still opens.
+        #expect(vault.text(of: secret) == "Bank\n\nPIN 4512")
+
+        // Locked: the copy leaves the locked note out rather than making one that can't open.
+        vault.lockNow()
+        let again = ctx.duplicate(by["Work"]!, vault: vault)
+        #expect(again.liveNotes.map(\.body) == ["Plan\n\nfirst"])
+        #expect(((try? ctx.fetch(FetchDescriptor<Note>())) ?? []).filter { $0.lockedBody != nil }.count == 2, "no unreadable copy was made")
+    }
+
     @Test func moveToListsTheTreeAndNeverTheFolderOrWhatsInIt() throws {
         let (c, by) = try Self.library()
         let ctx = c.mainContext

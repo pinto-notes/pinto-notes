@@ -427,9 +427,11 @@ extension ModelContext {
     /// its notes and the folders inside it, each a new note or folder with a new id, marked for
     /// sync as new ones are. The notes keep their dates, so the copy lists them in the same order.
     /// Files kept in the folder on their own stay with the original (copying them means copying
-    /// their bytes in storage).
+    /// their bytes in storage). A locked note is sealed again for its copy, which needs the notes
+    /// password open: while it isn't, a locked note isn't copied (a copy of its box, bound to the
+    /// original's id, would never open).
     @discardableResult
-    func duplicate(_ folder: Folder) -> Folder {
+    func duplicate(_ folder: Folder, vault: NoteVault = .shared) -> Folder {
         let row = siblings(of: folder)
         let taken = Set(row.map { $0.name.lowercased() })
         var name = "\(folder.name) copy", n = 2
@@ -442,8 +444,14 @@ extension ModelContext {
             let made = Folder(name: name, parent: parent, sortIndex: sortIndex)
             insert(made)
             for note in f.liveNotes {
-                let c = Note(body: note.body, folder: made)
-                c.lockedBody = note.lockedBody
+                // In its folder only once it's a copy that opens.
+                let c = Note(body: note.body)
+                if note.lockedBody != nil {
+                    guard (try? vault.reseal(note, into: c)) != nil else { continue }
+                } else {
+                    c.frontMatter = note.frontMatter
+                }
+                c.folder = made
                 c.isPinned = note.isPinned
                 c.createdAt = note.createdAt
                 c.updatedAt = note.updatedAt

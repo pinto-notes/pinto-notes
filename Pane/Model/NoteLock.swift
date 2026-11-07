@@ -608,6 +608,18 @@ final class NoteVault {
         touch()
     }
 
+    /// Seals a locked note's text and front matter again for `copy` (Duplicate): a box is bound to
+    /// its note's id, so the original's can't be copied as it is. Throws while locked, or when the
+    /// note is sealed with an earlier password this device can't open.
+    func reseal(_ note: Note, into copy: Note) throws {
+        guard note.lockedBody != nil, let text = text(of: note) else { throw NoteLockError.notUnlocked }
+        let props = note.lockedFrontMatter == nil ? nil : openProps(note)
+        if note.lockedFrontMatter != nil, props == nil { throw NoteLockError.notUnlocked }
+        try write(text, to: copy)
+        copy.lockedFrontMatter = nil
+        if let props { try sealProps(props, to: copy) }
+    }
+
     /// A new locked note holding `text`, sealed for its own id: a conflicted copy of a locked note.
     func sealedCopy(of text: String, in folder: Folder?, at date: Date, id: UUID? = nil) throws -> Note {
         let copy = Note(body: "", folder: folder)
