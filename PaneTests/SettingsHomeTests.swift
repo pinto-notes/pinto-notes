@@ -9,46 +9,51 @@ import Testing
 /// words (or sent to the menu item it moved to), links landing on their page, and how you sign in
 /// said plainly.
 @MainActor @Suite(.serialized) struct SettingsHomeTests {
-    /// Four pages (Emil, 3 November 2026: "simplify and cut things"): Account, Connect an AI,
-    /// Appearance, Privacy and security. No General, Storage or Help and feedback page.
-    @Test func theSidebarIsFourPages() {
+    /// The same rows as iPhone's Settings, with the same names (Emil, 7 November 2026: "copy this
+    /// onto Mac as well so it's fully consistent"): you, then AI Connections, General, Appearance;
+    /// Security and privacy, Storage; Help and feedback.
+    @Test func theSidebarIsTheIPhonesList() {
         let all = Set(SettingsPlace.allCases)
         let groups = SettingsPlace.groups(available: all)
-        #expect(groups == [[.account, .ai, .appearance, .security]])
-        #expect(!groups.joined().contains(.appKeys), "Keys for apps sits under Connect an AI")
-        for gone in ["general", "profile", "storage", "help"] {
-            #expect(!SettingsPlace.allCases.map(\.rawValue).contains(gone), "no \(gone) page")
-        }
-        #expect(SettingsPlace.security.title == "Privacy and security")
+        #expect(groups == [[.account], [.general, .ai, .appearance], [.security, .storage], [.help]])
+        #expect(!groups.joined().contains(.appKeys), "Keys for apps is not in the sidebar")
+        #expect(SettingsPlace.ai.title == "AI Connections")
+        #expect(SettingsPlace.security.title == "Security and privacy")
         // Signed out: only what there is.
-        #expect(SettingsPlace.groups(available: [.account, .appearance, .security]) == [[.account, .appearance, .security]])
-        #expect(SettingsCard.first(all) == .account, "Settings opens at Account, never at Connect an AI")
+        #expect(SettingsPlace.groups(available: [.account, .general, .appearance, .security, .help])
+                == [[.account], [.general, .appearance], [.security], [.help]])
+        #expect(SettingsCard.first(all) == .account, "Settings opens at Account, never at AI Connections")
         #expect(SettingsCard.first([.appearance, .security]) == .appearance)
-        for place in SettingsPlace.allCases {
-        }
     }
 
-    /// Signed out there are still Account (Sign in), Appearance and Privacy and security, where
-    /// diagnostics and the terms are now.
-    @Test func signedOutThereAreThreePages() {
-        #expect(SettingsView(backend: Backend(), sync: nil).places == [.account, .appearance, .security])
+    /// Signed out there are still Account (Sign in), General, Appearance, Security and privacy and
+    /// Help and feedback; AI Connections and Storage come with an account.
+    @Test func signedOutThereAreFivePages() {
+        #expect(SettingsView(backend: Backend(), sync: nil).places == [.account, .general, .appearance, .security, .help])
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
         let places = SettingsView(backend: backend, sync: nil).places
-        #expect([.account, .ai, .appearance, .security].allSatisfy(places.contains))
+        #expect([.account, .ai, .general, .appearance, .security, .storage, .help].allSatisfy(places.contains))
     }
 
-    /// iPhone keeps its own list (General, Storage and Help are still pages there); the pages both
-    /// have come in the same order. Account sits under you on iPhone.
-    @Test func iPhoneGroupsFollowTheMacsOrder() throws {
-        let mac = SettingsPlace.groups(available: Set(SettingsPlace.allCases)).joined()
-        let phone = SettingsTab.phoneGroups.joined().filter { ![.storage, .help].contains($0) }.map(SettingsPlace.init)
-        let shared = phone.filter(mac.contains)
-        var seen: [SettingsPlace] = []
-        for p in shared where !seen.contains(p) { seen.append(p) }
-        #expect(seen == mac.filter(seen.contains), "the iPhone's pages come in the Mac's order: \(seen)")
-        #expect(SettingsTab.phoneGroups.last == [.help], "iPhone keeps Help and feedback, alone and last")
+    /// Both apps list the same rows, in the same groups and order, with the same names and symbols.
+    @Test func macAndIPhoneListTheSameRows() throws {
+        let mac = SettingsPlace.groups(available: Set(SettingsPlace.allCases)).dropFirst()
+        let phone = SettingsTab.phoneGroups.map { $0.map(SettingsPlace.init) }
+        #expect(Array(mac) == phone)
+        for tab in SettingsTab.allCases {
+            #expect(SettingsPlace(tab).title == tab.title, "\(tab) has one name")
+            if tab != .account { #expect(SettingsPlace(tab).symbol == tab.symbol, "\(tab) has one symbol") }
+        }
         let source = try Self.source("Pane/Views/SettingsView.swift")
         #expect(source.contains("ForEach(Array(SettingsTab.phoneGroups.enumerated())"), "the iPhone list is built from phoneGroups")
+        #expect(!source.contains("\"Connect an AI\" : tab.title"), "the iPhone row says the page's own name")
+        // The Mac sidebar's groups part clearly: a gap many times the gap between rows.
+        #expect(SettingsCard.groupGap >= 20 && SettingsCard.groupGap >= SettingsCard.tabGap * 6, "a group gap, not a flaw")
+        // Emil's pick (B, 7 November 2026): outlines, each symbol different, and each exists.
+        let picked = [SettingsIcons.ai, SettingsIcons.general, SettingsIcons.appearance]
+        #expect(picked == ["link", "gearshape", "textformat.size"])
+        #expect(Set(picked).count == 3 && !picked.contains { $0.contains(".fill") })
+        for s in picked { #expect(NSImage(systemSymbolName: s, accessibilityDescription: nil) != nil, "\(s) exists") }
     }
 
     static func source(_ path: String) throws -> String {
@@ -56,13 +61,9 @@ import Testing
     }
 
     @Test func linksIntoSettingsLandOnTheirPage() {
-        #expect(SettingsPlace(.account) == .account, "the account menu's Account opens Account")
-        #expect(SettingsPlace(.ai) == .ai)
-        #expect(SettingsPlace(.storage) == .account, "the storage warning opens Account, where the bar is")
-        #expect(SettingsPlace(.security) == .security)
-        #expect(SettingsPlace(.general) == .appearance, "General's switches moved: Show in menu bar is on Appearance")
-        #expect(SettingsPlace(.appearance) == .appearance)
-        #expect(SettingsPlace(.help) == .account, "Help's links are in the Help menu")
+        for tab in SettingsTab.allCases {
+            #expect(SettingsPlace(tab).rawValue == tab.rawValue, "a link to \(tab) opens its own page")
+        }
     }
 
     /// Appearance by any of the words people use for it.
@@ -116,19 +117,21 @@ import Testing
     /// Every setting that existed before is in the index, so search finds it, on its page.
     @Test func searchFindsEverySettingByItsWords() {
         let all = Set(SettingsPlace.allCases)
-        #expect(SettingsIndex.matches("menu bar", available: all).map(\.place) == [.appearance], "Show in menu bar moved to Appearance")
-        #expect(SettingsIndex.matches("diagnostics", available: all).map(\.place) == [.security], "diagnostics moved to Privacy and security")
+        #expect(SettingsIndex.matches("menu bar", available: all).map(\.place) == [.general], "Show in menu bar is on General")
+        #expect(SettingsIndex.matches("diagnostics", available: all).map(\.place) == [.general], "diagnostics is on General, as on iPhone")
+        #expect(SettingsIndex.matches("setup guide", available: all).map(\.place) == [.general])
         #expect(SettingsIndex.matches("recovery", available: all, recoveryKey: true).map(\.place) == [.security])
         #expect(SettingsIndex.matches("export", available: all).map(\.menu) == [.export], "Export is File › Export All Notes…")
         #expect(SettingsIndex.matches("sign out", available: all).map(\.place) == [.account])
         #expect(SettingsIndex.matches("name", available: all).map(\.place).contains(.account))
-        #expect(!SettingsIndex.matches("STORAGE", available: all).isEmpty && SettingsIndex.matches("STORAGE", available: all).allSatisfy { $0.place == .account },
-                "storage is on Account")
+        #expect(!SettingsIndex.matches("STORAGE", available: all).isEmpty && SettingsIndex.matches("STORAGE", available: all).allSatisfy { $0.place == .storage },
+                "storage has its own page")
         #expect(SettingsIndex.matches("sync", available: all).allSatisfy { $0.place == .account })
         #expect(SettingsIndex.matches("apple", available: all).isEmpty, "no Sign in with Apple row any more")
         #expect(SettingsIndex.matches("terms", available: all).map(\.place) == [.security])
         #expect(SettingsIndex.matches("", available: all).isEmpty)
         #expect(SettingsIndex.matches("recovery", available: [.account, .appearance], recoveryKey: true).isEmpty, "not on a page that isn't there")
+        #expect(SettingsIndex.matches("storage", available: [.account, .general]).isEmpty, "signed out there's no Storage page")
     }
 
     /// Advanced protection is retired (AdvancedProtection): search finds it only for an account
@@ -186,10 +189,9 @@ import Testing
         #expect(route.opened == first + 1)
     }
 
-    // MARK: Help, now a menu
+    // MARK: Help and feedback, a page and the Help menu
 
-    /// The Help menu has what the Help and feedback page held, after Keyboard Shortcuts, What's
-    /// New… and Show Setup Guide; the account menu has Send Feedback….
+    /// The Help menu keeps its items; the Help and feedback page has the same, as on iPhone.
     @Test func theHelpMenuHasWhatHelpHeld() throws {
         #expect(MacHelp.menu == ["Questions and Answers", "Send Feedback\u{2026}", "Report an Issue\u{2026}", "Pinto Notes on GitHub", "Help Connecting an AI\u{2026}"])
         let root = try Self.source("Pane/Views/RootView.swift")
@@ -200,18 +202,18 @@ import Testing
             #expect(group.contains(item), "the Help menu has \(item)")
         }
         #expect(root.contains("Button(\"Export All Notes\\u{2026}\")"), "File › Export All Notes… stays")
+        let page = try Self.source("Pane/Views/SettingsPages.swift")
+        for call in ["MacHelp.questions()", "MacHelp.sendFeedback()", "MacHelp.reportIssue()", "MacHelp.github()", "WhatsNew.changelogURL"] {
+            #expect(page.contains(call), "the Help and feedback page runs \(call)")
+        }
     }
 
-    /// Things that moved to a menu are still found by Settings search, and say which menu.
+    /// Export and Help Connecting an AI are only in menus: search finds them and says which menu.
     @Test func searchSendsWhatMovedToItsMenu() {
         let all = Set(SettingsPlace.allCases)
         func first(_ q: String) -> SettingsIndex.Entry? { SettingsIndex.matches(q, available: all).first { $0.menu != nil } }
         #expect(first("export")?.menu == .export && first("export")?.whereItIs == "File menu")
-        for (word, link) in [("feedback", SettingsMenuLink.feedback), ("report", .reportIssue), ("github", .github), ("questions", .questions),
-                             ("setup guide", .setupGuide), ("changelog", .whatsNew), ("having trouble", .connectHelp)] {
-            #expect(first(word)?.menu == link, "\(word) finds \(link)")
-            #expect(first(word)?.whereItIs == "Help menu")
-        }
+        #expect(first("having trouble")?.menu == .connectHelp && first("having trouble")?.whereItIs == "Help menu")
         // Export is there signed out too: its entry goes with Account, which always is.
         #expect(SettingsIndex.matches("export", available: [.account, .appearance, .security]).first?.menu == .export)
         #expect(SettingsMenuLink.allCases.allSatisfy { l in SettingsIndex.all.contains { $0.menu == l } }, "every moved item has words")
@@ -267,11 +269,11 @@ import Testing
         #expect(AboutSection.links.first?.title == "Report an issue", "what someone on Help came for comes first")
     }
 
-    /// Help by the words people use for it: each finds its menu item.
+    /// Help by the words people use for it: each finds the Help and feedback page.
     @Test func searchFindsHelpAndFeedback() {
         let all = Set(SettingsPlace.allCases)
-        for word in ["feedback", "email", "contact", "support", "what's new", "version", "setup guide", "report"] {
-            #expect(SettingsIndex.matches(word, available: all).contains { $0.menu != nil }, "\(word) finds its Help menu item")
+        for word in ["feedback", "contact", "support", "what's new", "report", "github"] {
+            #expect(SettingsIndex.matches(word, available: all).contains { $0.place == .help && $0.menu == nil }, "\(word) finds Help and feedback")
         }
     }
 
@@ -295,9 +297,12 @@ import Testing
         #expect(HelpCopy.noMailApp.contains(HelpCopy.email))
         // The iPhone's page and the Mac's menu use them, rather than their own copies of the same steps.
         let src = try Self.source("Pane/Views/SettingsHome.swift")
-        #expect(src.contains("if Self.offersSetupGuide(signedIn: signedIn)") && src.contains("Self.playSetupGuide(close: close)")
-                && src.contains("noMail = Self.mailed(accepted: accepted, copy: copy)"))
-        let mac = try Self.source("Pane/Views/SettingsPages.swift")
+        #expect(src.contains("noMail = Self.mailed(accepted: accepted, copy: copy)"))
+        // The setup guide is on General, on both apps, with the same steps.
+        let phone = try Self.source("Pane/Views/SettingsView.swift"), mac = try Self.source("Pane/Views/SettingsPages.swift")
+        for general in [phone, mac] {
+            #expect(general.contains("if HelpPage.offersSetupGuide(signedIn: signedIn)") && general.contains("HelpPage.playSetupGuide(close: close)"))
+        }
         #expect(mac.contains("HelpPage.mailed(accepted: mailed, copy: copy)"), "the Mac's Send Feedback… uses the same step")
     }
 
@@ -315,7 +320,7 @@ import Testing
         #expect(PrivacyCopy.backInFooterWithCopy.contains("Pinto Notes can open them too"))
         #expect(PrivacyCopy.summary(serverCopy: true).hasPrefix(PrivacyCopy.status) && PrivacyCopy.summary(serverCopy: true).contains("Pinto Notes can open them too"))
         #expect(!PrivacyCopy.summary(serverCopy: false).contains("Pinto Notes can open them") && !PrivacyCopy.summary(serverCopy: false).localizedCaseInsensitiveContains("end-to-end"))
-        #expect(PrivacyCopy.settingsPath == "Settings \u{203A} Privacy and security", "the Mac names the page as it is now")
+        #expect(PrivacyCopy.settingsPath == "Settings \u{203A} Security and privacy", "both apps name the page as it is now")
         // How to lock a note is said in How it works, now that the explainer row is gone.
         let locked = PrivacyCopy.how(serverCopy: true, advanced: false, keychain: false, recovery: false).first { $0.title == "Locked notes" }?.line ?? ""
         #expect(locked.contains("menu") && locked.contains("title"))
@@ -399,7 +404,7 @@ import Testing
     /// starts where its content does; on a small window too.
     @Test(arguments: [CGSize(width: 1180, height: 760), CGSize(width: 860, height: 600)])
     func thePageIsACentredColumnUnderItsTitle(window: CGSize) async throws {
-        for place in [SettingsPlace.account, .ai, .appearance, .security] {
+        for place in [SettingsPlace.account, .ai, .general, .appearance, .security, .storage, .help] {
             let f = try await Self.layout(place, window: window)
             let page = try #require(f["page"], "\(place): the page reports its frame")
             let area = try #require(f["area"])

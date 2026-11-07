@@ -11,33 +11,54 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
-    /// iPhone's rows, in groups, in the Mac sidebar's order (SettingsPlace.groups) less Account,
-    /// which sits under you on iPhone. Help and feedback is last, alone, as on the Mac.
-    static let phoneGroups: [[SettingsTab]] = [[.ai, .general, .appearance], [.security, .storage], [.help]]
+    /// The rows under you, in groups: the same on iPhone and in the Mac's sidebar (SettingsPlace.groups).
+    static let phoneGroups: [[SettingsTab]] = [[.general, .ai, .appearance], [.security, .storage], [.help]]
 
     var title: String {
         switch self {
-        case .general: "General"
-        case .appearance: "Appearance"
+        case .general: SettingsNames.general
+        case .appearance: SettingsNames.appearance
         case .account: "Account"
-        case .ai: "AI"
-        case .security: PrivacyCopy.title
-        case .storage: "Storage"
-        case .help: "Help and feedback"
+        case .ai: SettingsNames.ai
+        case .security: SettingsNames.security
+        case .storage: SettingsNames.storage
+        case .help: SettingsNames.help
         }
     }
 
     var symbol: String {
         switch self {
-        case .general: "gearshape"
-        case .appearance: "circle.lefthalf.filled"
+        case .general: SettingsIcons.general
+        case .appearance: SettingsIcons.appearance
         case .account: "person.crop.circle"
-        case .ai: "sparkles"
-        case .security: "lock.shield"
-        case .storage: "externaldrive"
-        case .help: "questionmark.circle"
+        case .ai: SettingsIcons.ai
+        case .security: SettingsIcons.security
+        case .storage: SettingsIcons.storage
+        case .help: SettingsIcons.help
         }
     }
+}
+
+/// Settings' page names, the same on the Mac and iPhone.
+enum SettingsNames {
+    static let ai = "AI Connections"
+    static let general = "General"
+    static let appearance = "Appearance"
+    static let security = "Security and privacy"
+    static let storage = "Storage"
+    static let help = "Help and feedback"
+}
+
+/// Settings' page symbols, the same on the Mac and iPhone: one outline family.
+enum SettingsIcons {
+    /// Picked by Emil from three sets on 7 November 2026 (B): a link for what's connected, the
+    /// gear for General, the text-size glyph for Appearance.
+    static let ai = "link"
+    static let general = "gearshape"
+    static let appearance = "textformat.size"
+    static let security = "lock.shield"
+    static let storage = "externaldrive"
+    static let help = "questionmark.circle"
 }
 
 /// Account, sync status, the AIs connected to your notes, your devices and your storage.
@@ -128,12 +149,13 @@ struct SettingsView: View {
     }
 
     #if os(macOS)
-    /// The pages there is something on: Account, Appearance, and Privacy and security (Share
-    /// diagnostics and the terms are there, signed out too); Connect an AI signed in; the keys for
-    /// apps when apps are on.
+    /// The pages there is something on, as on iPhone (`tabs`): Account, General, Appearance, Security
+    /// and privacy (how it works and the terms, signed out too) and Help and feedback always;
+    /// AI Connections and Storage signed in. Keys for apps is parked.
     var places: Set<SettingsPlace> {
-        var out: Set<SettingsPlace> = [.account, .appearance, .security]
+        var out: Set<SettingsPlace> = [.account, .general, .appearance, .security, .help]
         if tabs.contains(.ai) { out.insert(.ai) }
+        if tabs.contains(.storage) { out.insert(.storage) }
         // Keys for apps is parked (Emil, 6 November 2026): nothing leads to it for now.
         return out
     }
@@ -148,7 +170,10 @@ struct SettingsView: View {
                     .background(NoInitialFocus())
                     .connectGuides(client: client)
             }
+        case .general: GeneralSettingsPage(signedIn: isSignedIn, close: closeSettings)
         case .appearance: AppearanceSettingsPage()
+        case .storage: StorageSettingsPage(backend: backend)
+        case .help: HelpSettingsPage()
         case .security:
             if isSignedIn, crypto.isReady {
                 securityPage
@@ -169,7 +194,7 @@ struct SettingsView: View {
     func page(_ tab: SettingsTab) -> some View {
         switch tab {
         case .general:
-            SettingsPage { GeneralSettings() }
+            SettingsPage { GeneralSettings(signedIn: isSignedIn, close: closeSettings) }
         case .appearance:
             SettingsPage { AppearancePage() }
         case .account:
@@ -240,7 +265,7 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            // The Mac's order (SettingsPlace.groups); Account sits under you on iPhone.
+            // The same rows as the Mac's sidebar (SettingsPlace.groups); Account is you, above.
             ForEach(Array(SettingsTab.phoneGroups.enumerated()), id: \.offset) { _, group in
                 let shown = group.filter(tabs.contains)
                 if !shown.isEmpty {
@@ -282,7 +307,7 @@ struct SettingsView: View {
                     Label(tab.title, systemImage: tab.symbol)
                 }
             } else {
-                Label(tab == .ai ? "Connect an AI" : tab.title, systemImage: tab.symbol)
+                Label(tab.title, systemImage: tab.symbol)
             }
         }
         .accessibilityIdentifier("settings.\(tab.rawValue)")
@@ -367,14 +392,21 @@ struct NoInitialFocus: NSViewRepresentable {
 }
 #endif
 
-/// General: the menu bar item on the Mac, API keys for apps in notes, and the diagnostics
-/// switch. The setup guide, the links and the version are on Help and feedback.
+/// General, on iPhone: the setup guide, API keys for apps in notes, and the diagnostics switch.
+/// The Mac has the same on its own page (GeneralSettingsPage), with the menu bar item.
 private struct GeneralSettings: View {
+    var signedIn: Bool
+    var close: () -> Void
+
     var body: some View {
-        // Appearance has a page of its own.
-        #if os(macOS)
-        MenuBarSection()
-        #endif
+        if HelpPage.offersSetupGuide(signedIn: signedIn) {
+            Section {
+                Button("Show Setup Guide") { HelpPage.playSetupGuide(close: close) }
+                    .accessibilityIdentifier("settings.setupGuide")
+            } footer: {
+                Text(HelpCopy.setupGuideFooter)
+            }
+        }
         if NoteApps.enabled { APIKeysSection() }
         DiagnosticsSection()
     }

@@ -113,6 +113,9 @@ struct SettingsCard: View {
     static let gutter: CGFloat = 0
     /// Between two tabs, so their selection fill never touches the hover of the next.
     static let tabGap: CGFloat = 3
+    /// Between the sidebar's groups, as wide as System Settings' (about a row's height less a
+    /// little): 12 pt beside 3 pt row gaps read as a flaw, not a group (Emil, 7 November 2026).
+    static let groupGap: CGFloat = 22
     /// The card's coordinate space, for `settingsProbe`.
     static let space = "settings.card"
 
@@ -321,9 +324,9 @@ struct SettingsCard: View {
         VStack(alignment: .leading, spacing: 0) {
             searchField.padding(.bottom, 10)
             if query.isEmpty {
-                if available.contains(.account) { accountRow.padding(.bottom, 10) }
+                if available.contains(.account) { accountRow.padding(.bottom, Self.groupGap - 6) }
                 ForEach(Array(SettingsPlace.groups(available: available).map { $0.filter { $0 != .account } }.filter { !$0.isEmpty }.enumerated()), id: \.offset) { i, group in
-                    if i > 0 { Color.clear.frame(height: 12) }
+                    if i > 0 { Color.clear.frame(height: Self.groupGap) }
                     VStack(spacing: Self.tabGap) { ForEach(group) { row($0) } }
                 }
             } else {
@@ -405,13 +408,13 @@ struct SettingsCard: View {
         .scrollBounceBehavior(.basedOnSize)
     }
 
-    /// A page's icon: monochrome; Account is your photo.
+    /// A page's icon in the accent, as iPhone's Settings rows have them; Account is your photo.
     @ViewBuilder private func icon(_ p: SettingsPlace, on: Bool) -> some View {
         Group {
             if p == .account, case .signedIn = backend.state {
                 AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 18)
             } else {
-                Image(systemName: p.symbol).font(.system(size: 14)).foregroundStyle(on ? SettingsInk.text : SettingsInk.icon)
+                Image(systemName: p.symbol).font(.system(size: 14)).foregroundStyle(Color.paneAccent)
             }
         }
         .frame(width: 20)

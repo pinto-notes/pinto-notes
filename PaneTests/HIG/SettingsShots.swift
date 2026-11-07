@@ -5,8 +5,8 @@ import SwiftUI
 import Testing
 @testable import Pane
 
-/// Settings on the Mac as built (3 November 2026, four pages: Account, Connect an AI, Appearance,
-/// Privacy and security): every page over the notes window, light and dark, then a contact sheet. Windows far off screen, never
+/// Settings on the Mac as built (7 November 2026, iPhone's list: Account, AI Connections, General,
+/// Appearance, Security and privacy, Storage, Help and feedback): every page over the notes window, light and dark, then a contact sheet. Windows far off screen, never
 /// ordered in.
 /// `TEST_RUNNER_PANE_SETTINGS_SHOTS=/path LIMIT=900 scripts/qa-test.sh PaneTests/SettingsShots`
 @MainActor @Suite(.serialized) struct SettingsShots {
@@ -83,7 +83,8 @@ import Testing
             v.close = {}
             return v
         }
-        let pages: [(SettingsPlace, String)] = [(.account, "account"), (.ai, "connect"), (.appearance, "appearance"), (.security, "privacy")]
+        let pages: [(SettingsPlace, String)] = [(.account, "account"), (.ai, "connect"), (.general, "general"), (.appearance, "appearance"),
+                                                (.security, "privacy"), (.storage, "storage"), (.help, "help")]
         var rows: [[(String, NSBitmapImageRep)]] = []
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
             for (place, name) in pages {

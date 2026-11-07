@@ -7,51 +7,59 @@ import UIKit
 
 #if os(macOS)
 
-/// The pages of Settings on the Mac (SettingsCard), in its sidebar's order: Account, Connect an
-/// AI, Appearance, Privacy and security (Emil, 3 November 2026: "simplify and cut things"). No
-/// Storage page (its bar is on Account) and no Help and feedback page (its links are in the Help
-/// menu). Keys for apps is one level down from Connect an AI.
+/// The pages of Settings on the Mac (SettingsCard), in its sidebar's order, the same rows and
+/// names as iPhone's Settings (Emil, 7 November 2026: "copy this onto Mac so it's fully
+/// consistent"): you at the top, then AI Connections, General and Appearance; Security and
+/// privacy and Storage; Help and feedback. Keys for apps is one level down, parked.
 enum SettingsPlace: String, Hashable, CaseIterable, Identifiable {
-    case account, ai, appearance, security, appKeys
+    case account, ai, general, appearance, security, storage, help, appKeys
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .account: "Account"
-        case .ai: "Connect an AI"
-        case .appearance: "Appearance"
-        case .security: "Privacy and security"
+        case .ai: SettingsNames.ai
+        case .general: SettingsNames.general
+        case .appearance: SettingsNames.appearance
+        case .security: SettingsNames.security
+        case .storage: SettingsNames.storage
+        case .help: SettingsNames.help
         case .appKeys: "Keys for apps"
         }
     }
 
-    /// Monochrome, like System Settings' sidebar in its plain form. Account shows your photo instead.
+    /// The same symbol as the iPhone row (SettingsIcons). Account shows your photo instead.
     var symbol: String {
         switch self {
         case .account: "person.crop.circle"
-        case .ai: "sparkles"
-        case .appearance: "circle.lefthalf.filled"
-        case .security: "lock"
+        case .ai: SettingsIcons.ai
+        case .general: SettingsIcons.general
+        case .appearance: SettingsIcons.appearance
+        case .security: SettingsIcons.security
+        case .storage: SettingsIcons.storage
+        case .help: SettingsIcons.help
         case .appKeys: "key"
         }
     }
 
-    /// Where a link into Settings lands (a card, the storage warning, an alert). Pages that went:
-    /// Storage's bar is on Account; General's switch is on Appearance; Help's links are in the Help
-    /// menu, so a link to it opens Account.
+    /// Where a link into Settings (a card, the storage warning, an alert) lands: the page of the
+    /// same name.
     init(_ tab: SettingsTab) {
         switch tab {
-        case .account, .storage, .help: self = .account
+        case .account: self = .account
         case .ai: self = .ai
+        case .general: self = .general
+        case .appearance: self = .appearance
         case .security: self = .security
-        case .general, .appearance: self = .appearance
+        case .storage: self = .storage
+        case .help: self = .help
         }
     }
 
-    /// The sidebar's pages, in order, from the places there is something on. Keys for apps sits
-    /// under Connect an AI, not in the sidebar.
+    /// The sidebar's pages, in order, from the places there is something on: Account (you, at the
+    /// top), then iPhone's groups (SettingsTab.phoneGroups). Keys for apps isn't in the sidebar.
     static func groups(available: Set<SettingsPlace>) -> [[SettingsPlace]] {
-        [[.account, .ai, .appearance, .security]]
+        ([[.account]] + SettingsTab.phoneGroups.map { $0.map(SettingsPlace.init) })
             .map { $0.filter(available.contains) }
             .filter { !$0.isEmpty }
     }
@@ -60,7 +68,7 @@ enum SettingsPlace: String, Hashable, CaseIterable, Identifiable {
 /// Things that left Settings for a menu, still found by Settings search: a result runs the menu
 /// item, and says which menu it is in.
 enum SettingsMenuLink: String, Hashable, CaseIterable, Sendable {
-    case export, setupGuide, whatsNew, questions, feedback, reportIssue, github, connectHelp
+    case export, connectHelp
 
     var menu: String { self == .export ? "File menu" : "Help menu" }
     var symbol: String { self == .export ? "square.and.arrow.up" : "questionmark.circle" }
@@ -69,12 +77,6 @@ enum SettingsMenuLink: String, Hashable, CaseIterable, Sendable {
     @MainActor func run() {
         switch self {
         case .export: NotificationCenter.default.post(name: .paneExportNotes, object: nil)
-        case .setupGuide: NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil)
-        case .whatsNew: NSWorkspace.shared.open(WhatsNew.changelogURL)
-        case .questions: MacHelp.questions()
-        case .feedback: MacHelp.sendFeedback()
-        case .reportIssue: MacHelp.reportIssue()
-        case .github: MacHelp.github()
         case .connectHelp: MacHelp.helpConnecting()
         }
     }
@@ -101,26 +103,27 @@ enum SettingsIndex {
 
     static let all: [Entry] = ([
         ("Name", .account), ("Photo", .account), ("Sign Out", .account), ("Remove notes from this Mac", .account),
-        ("Storage used", .account), ("Delete account", .account),
+        ("Delete account", .account),
         ("Connect ChatGPT", .ai), ("Connect Claude", .ai), ("Connect Grok", .ai), ("Connect Codex", .ai), ("Connected AIs", .ai),
         ("Disconnect", .ai), ("App previews", .ai),
         (recoveryKey, .security), ("Devices", .security), ("Add a device", .security), (advancedProtection, .security),
         ("Locked notes password", .security), ("Touch ID", .security), ("Lock Now", .security),
-        ("Share diagnostics and usage", .security), ("Terms of Service", .security), ("Privacy Policy", .security), ("How it works", .security),
-        ("Light or dark mode", .appearance), ("Theme", .appearance), ("Show in menu bar", .appearance),
+        ("Terms of Service", .security), ("Privacy Policy", .security), ("How it works", .security),
+        ("Share diagnostics and usage", .general), ("Show in menu bar", .general),
+        ("Light or dark mode", .appearance), ("Theme", .appearance),
     ] as [(String, SettingsPlace)]).map { Entry(label: $0.0, place: $0.1) }
         + [Entry(label: "Accent colour", place: .appearance, also: ["Accent color"]),
            // Named for what the page shows; its status line is what syncs when pressed (round 24).
            Entry(label: "Sync status", place: .account, also: ["Sync now"]),
            Entry(label: "Your account", place: .account, also: ["Profile", "Email", "Signed in with", "Sync"]),
-           Entry(label: "Storage", place: .account, also: ["Space", "Recently Deleted", "Earlier versions", "Full"]),
+           Entry(label: "Storage used", place: .storage, also: ["Space", "Recently Deleted", "Earlier versions", "Full"]),
            Entry(label: "Export All Notes", place: .account, also: ["Export notes", "Markdown", "Backup"], menu: .export),
-           Entry(label: "Show Setup Guide", place: .account, menu: .setupGuide),
-           Entry(label: WhatsNew.title, place: .account, also: ["What's new", "Changelog", "Version"], menu: .whatsNew),
-           Entry(label: "Questions and Answers", place: .account, also: ["Help", "Support"], menu: .questions),
-           Entry(label: "Send Feedback", place: .account, also: ["Email", "Contact", "Support", "Help"], menu: .feedback),
-           Entry(label: "Report an Issue", place: .account, also: ["Bug"], menu: .reportIssue),
-           Entry(label: "Pinto Notes on GitHub", place: .account, also: ["Contribute", "Star", "Open source"], menu: .github),
+           Entry(label: "Show Setup Guide", place: .general, also: ["Onboarding", "Welcome"]),
+           Entry(label: WhatsNew.title, place: .help, also: ["What's new", "Changelog", "Version"]),
+           Entry(label: "Questions and Answers", place: .help, also: ["Help", "Support"]),
+           Entry(label: "Send Feedback", place: .help, also: ["Email", "Contact", "Support"]),
+           Entry(label: "Report an Issue", place: .help, also: ["Bug", "Problem"]),
+           Entry(label: "Pinto Notes on GitHub", place: .help, also: ["Contribute", "Star", "Open source"]),
            Entry(label: "Help Connecting an AI", place: .ai, also: ["Having trouble", "Connector address", "Access token"], menu: .connectHelp)]
         + macOnly
 
@@ -242,8 +245,9 @@ enum HelpCopy {
     }
 }
 
-/// Help and feedback, on the Mac and iPhone: the setup guide, answers and a way to write to us,
-/// the project on GitHub, then what's new, the version and the terms.
+/// Help and feedback, on iPhone: answers and a way to write to us, the project on GitHub, then
+/// what's new, the version and the terms. The setup guide is on General. The Mac's page is
+/// HelpSettingsPage.
 struct HelpPage: View {
     /// The setup guide plays only for an account (it starts from your name).
     var signedIn: Bool
@@ -256,14 +260,6 @@ struct HelpPage: View {
     @State private var noMail = false
 
     var body: some View {
-        if Self.offersSetupGuide(signedIn: signedIn) {
-            Section {
-                Button("Show Setup Guide") { Self.playSetupGuide(close: close) }
-                .accessibilityIdentifier("settings.setupGuide")
-            } footer: {
-                Text(HelpCopy.setupGuideFooter)
-            }
-        }
         Section {
             link(HelpCopy.questions, HelpCopy.supportPage, symbol: "questionmark.circle", id: "settings.support")
             Button { sendFeedback() } label: {

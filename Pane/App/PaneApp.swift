@@ -1656,7 +1656,7 @@ private struct NoticeAlerts: ViewModifier {
 
     private func confirmDisconnect(over notice: AccountNotice?) -> ConfirmDisconnect {
         ConfirmDisconnect(disconnecting: $disconnecting, blocked: notice != nil) { n in
-            do { try await notices?.disconnect(n) } catch { problem = "Couldn't disconnect it. Try again in Settings \u{203A} Connect an AI." }
+            do { try await notices?.disconnect(n) } catch { problem = "Couldn't disconnect it. Try again in Settings \u{203A} \(SettingsNames.ai)." }
         }
     }
 }

@@ -69,7 +69,7 @@ struct AccountNotice: Decodable, Equatable, Identifiable, Sendable {
                     "The number typed didn't match, so it was declined. Pinto Notes takes no new requests to connect an AI for an hour.")
         case .deviceAdded:
             return ("A device was added to your account",
-                    "\(Self.when(created_at)). It can open your notes. If you didn\u{2019}t add it: remove it in Settings \u{203A} Security, change your password, and disconnect and reconnect your AIs. Removing signs a real Pinto Notes app out and erases its copy. A device that took your key keeps what it already has: the key can\u{2019}t be changed yet.")
+                    "\(Self.when(created_at)). It can open your notes. If you didn\u{2019}t add it: remove it in \(PrivacyCopy.settingsPath), change your password, and disconnect and reconnect your AIs. Removing signs a real Pinto Notes app out and erases its copy. A device that took your key keeps what it already has: the key can\u{2019}t be changed yet.")
         case .keyFetched:
             // Two short lines and a plain answer (council round 15: four sentences over an OK).
             return ("A new device opened your notes",
@@ -102,7 +102,7 @@ extension [AccountNotice] {
         let lines = sorted { $0.created_at > $1.created_at }
             .map { "\($0.name ?? "An AI") \u{00B7} \(AccountNotice.when($0.created_at))" }
         return ("\(count) AIs were connected",
-                lines.joined(separator: "\n") + "\n\nThey can use your notes. If you didn't connect one, disconnect it in Settings \u{203A} Connect an AI.")
+                lines.joined(separator: "\n") + "\n\nThey can use your notes. If you didn't connect one, disconnect it in Settings \u{203A} \(SettingsNames.ai).")
     }
 }
 
