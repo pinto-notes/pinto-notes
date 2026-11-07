@@ -404,7 +404,6 @@ private struct AccountSettings: View {
                             .accessibilityIdentifier("settings.syncNow")
                     }
                 }
-                AppleIDRow(backend: backend)
             }
             // Next to Delete Account, which says to export first.
             Section {
@@ -724,100 +723,6 @@ private struct ProfileSection: View {
             .buttonStyle(.tile(radius: 42))
             .accessibilityIdentifier("settings.choosePhoto")
         #endif
-    }
-}
-
-/// Sign in with Apple for this account: connect it once, then Apple is how you sign in.
-struct AppleIDRow: View {
-    let backend: Backend
-    @State private var working = false
-    @State private var error: String?
-
-    var body: some View {
-        #if os(macOS)
-        // A row of Settings › Account: the standard Apple button on the right.
-        if let apple = backend.apple {
-            SettingsLine(title: "Sign in with Apple", detail: apple.email.map { "Connected as \($0)" } ?? "Connected") {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(SettingsInk.muted)
-            }
-            .accessibilityIdentifier("settings.appleConnected")
-        } else {
-            SettingsLine(title: "Sign in with Apple", detail: error ?? "Sign in on every device without a password.", red: false) {
-                AppleAuthButton(label: .continue, height: 26, title: "Continue with Apple", web: webLink) { result in
-                    switch result {
-                    case .success(let credential): link(credential)
-                    case .failure(let failure): error = AppleSignIn.message(for: failure)
-                    }
-                }
-                .frame(width: 180)
-                .disabled(working)
-                .accessibilityIdentifier("settings.connectApple")
-            }
-        }
-        #else
-        phone
-        #endif
-    }
-
-    @ViewBuilder private var phone: some View {
-        if let apple = backend.apple {
-            LabeledContent("Sign in with Apple") {
-                Label(apple.email ?? "Connected", systemImage: "checkmark.circle.fill")
-                    .labelStyle(.titleAndIcon)
-                    .foregroundStyle(.secondary)
-            }
-            .accessibilityIdentifier("settings.appleConnected")
-        } else {
-            // A settings row: what it is on the left, the standard Apple button on the right.
-            LabeledContent {
-                AppleAuthButton(label: .continue, height: 30, title: "Continue with Apple", web: webLink) { result in
-                    switch result {
-                    case .success(let credential): link(credential)
-                    case .failure(let failure): error = AppleSignIn.message(for: failure)
-                    }
-                }
-                .frame(width: 190)
-                .disabled(working)
-                .accessibilityIdentifier("settings.connectApple")
-            } label: {
-                Text("Sign in with Apple")
-                // On iPhone the second line of a row's label is already drawn in the secondary
-                // colour: asking for it again made it fainter than the Sync line above.
-                Text(error ?? "Sign in on every device without a password.")
-                    #if os(iOS)
-                    .foregroundStyle(error == nil ? AnyShapeStyle(.primary) : AnyShapeStyle(.red))
-                    #else
-                    .foregroundStyle(error == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.red))
-                    #endif
-            }
-        }
-    }
-
-    /// The Mac download links your Apple ID on the web (see AppleAuthButton.web).
-    private var webLink: (@MainActor () -> Void)? {
-        #if DIRECT
-        return {
-            working = true
-            error = nil
-            Task {
-                do { try await backend.linkAppleOnTheWeb() } catch where !Backend.isCanceled(error) {
-                    self.error = Backend.appleMessage(for: error, linking: true)
-                } catch {}
-                working = false
-            }
-        }
-        #else
-        return nil
-        #endif
-    }
-
-    private func link(_ credential: AppleSignIn.Credential) {
-        working = true
-        error = nil
-        Task {
-            do { try await backend.linkApple(credential) } catch { self.error = Backend.appleMessage(for: error, linking: true) }
-            working = false
-        }
     }
 }
 

@@ -570,6 +570,9 @@ import Testing
             #expect(!account.contains(gone), "\(gone) is cut from Account")
         }
         #expect(account.contains("DeleteAccountButton(") && account.contains("SignOutButton("))
+        // Sign in with Apple is offered where you sign in, not again in Account (iPhone or Mac).
+        let phone = try Self.source("Pane/Views/SettingsView.swift")
+        #expect(!phone.contains("AppleIDRow") && !phone.contains("settings.connectApple"), "no second Apple sign-in button in Account")
         // A real click on the status needs a key window: where windows may be ordered in (CI).
         guard FileRowClickTests.onCI else { return }
         NSApp.activate(ignoringOtherApps: true)
