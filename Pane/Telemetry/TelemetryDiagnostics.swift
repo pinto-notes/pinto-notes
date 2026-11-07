@@ -155,7 +155,6 @@ final class SettingsUsage {
             .appearance: .word(d.string(forKey: AppearanceModeStore.key).flatMap(AppearanceMode.init) ?? .system),
             .theme: .word(d.string(forKey: ThemeStore.themeKey).flatMap(Theme.init) ?? .standard),
             .accent: .word(d.string(forKey: ThemeStore.accentKey).flatMap(AccentChoice.init) ?? .theme),
-            .textSize: .number(Int(TextSize.size(stored: d.double(forKey: TextSize.key)))),
             .todayFolder: .word(folder.isEmpty || DailyNotes.same(folder, DailyNotes.folderName) ? TodayFolderWord.default : .custom),
             .todayTitle: .word(d.string(forKey: TodaysNoteSettings.titleKey).flatMap(TodaysNoteSettings.Title.init) ?? .long),
             .todayTemplate: .flag(d.string(forKey: TodaysNoteSettings.templateKey).flatMap(UUID.init) != nil),
@@ -163,6 +162,8 @@ final class SettingsUsage {
             .tickedToBottom: .flag(d.object(forKey: ChecklistSorting.key) as? Bool ?? true),
         ]
         #if os(macOS)
+        // iPhone follows the system's text size; the Mac has its own.
+        v[.textSize] = .number(Int(TextSize.size(stored: d.double(forKey: TextSize.key))))
         v[.menuBar] = .flag(d.object(forKey: MenuBarSettings.key) as? Bool ?? true)
         v[.quickNoteShortcut] = .flag(d.data(forKey: QuickNoteHotKey.key) != nil)
         v[.openAtLogin] = .flag(loginOn)

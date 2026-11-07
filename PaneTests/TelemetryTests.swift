@@ -679,11 +679,11 @@ private final class TelemetryDocToken {}
         let v = SettingsUsage.values(TestDefaults(), loginOn: false)
         #expect(v[.appearance] == .word(AppearanceMode.system))
         #expect(v[.theme] == .word(Theme.standard) && v[.accent] == .word(AccentChoice.theme))
-        #expect(v[.textSize] == .number(13))
         #expect(v[.todayFolder] == .word(TodayFolderWord.default) && v[.todayTitle] == .word(TodaysNoteSettings.Title.long))
         #expect(v[.todayTemplate] == .flag(false) && v[.todayOnLaunch] == .flag(false))
         #expect(v[.tickedToBottom] == .flag(true), "ticked items have always sunk")
         #if os(macOS)
+        #expect(v[.textSize] == .number(13))
         #expect(v[.menuBar] == .flag(true) && v[.quickNoteShortcut] == .flag(false) && v[.openAtLogin] == .flag(false))
         #expect(v.count == SettingName.allCases.count)
         #endif
@@ -694,10 +694,11 @@ private final class TelemetryDocToken {}
     @Test func theDailyStateSaysEachSettingInClosedWords() async throws {
         let d = TestDefaults()
         d.set("dark", forKey: AppearanceModeStore.key); d.set("sepia", forKey: ThemeStore.themeKey); d.set("blue", forKey: ThemeStore.accentKey)
-        d.set(17.0, forKey: TextSize.key); d.set("Journal of Lisa", forKey: TodaysNoteSettings.folderKey)
+        d.set("Journal of Lisa", forKey: TodaysNoteSettings.folderKey)
         d.set("weekday", forKey: TodaysNoteSettings.titleKey); d.set(UUID().uuidString, forKey: TodaysNoteSettings.templateKey)
         d.set(true, forKey: TodaysNoteSettings.launchKey); d.set(false, forKey: ChecklistSorting.key)
         #if os(macOS)
+        d.set(17.0, forKey: TextSize.key)
         d.set(false, forKey: MenuBarSettings.key)
         d.set(try JSONEncoder().encode(QuickNoteHotKey.Shortcut(keyCode: 45, modifiers: 2048, display: "\u{2325}N")), forKey: QuickNoteHotKey.key)
         #endif
@@ -711,10 +712,10 @@ private final class TelemetryDocToken {}
         #expect(e["event"] as? String == "settings_state")
         let p = try #require(e["properties"] as? [String: Any])
         #expect(p["appearance"] as? String == "dark" && p["theme"] as? String == "sepia" && p["accent"] as? String == "blue")
-        #expect(p["text_size"] as? Int == 17)
         #expect(p["today_folder"] as? String == "custom" && p["today_title"] as? String == "weekday")
         #expect(p["today_template"] as? Bool == true && p["today_on_launch"] as? Bool == true && p["ticked_to_bottom"] as? Bool == false)
         #if os(macOS)
+        #expect(p["text_size"] as? Int == 17)
         #expect(p["menu_bar"] as? Bool == false && p["quick_note_shortcut"] as? Bool == true && p["open_at_login"] as? Bool == true)
         #endif
         let text = String(decoding: try #require(transport.bodies.first), as: UTF8.self)

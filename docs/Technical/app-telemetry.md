@@ -109,7 +109,7 @@ shortcut.
 | `appearance` | `system`, `light`, `dark` | Mac, iPhone |
 | `theme` | `default`, `paper`, `sepia`, `slate`, `forest`, `contrast` | Mac, iPhone |
 | `accent` | `theme` (the theme's own), `blue`, `green`, `purple`, `red`, `graphite` | Mac, iPhone |
-| `text_size` | The note text's size in points: 13, 15, 17, 20 or 24 | Mac, iPhone |
+| `text_size` | The note text's size in points: 13, 15, 17, 20 or 24 (iPhone follows the system's text size) | Mac |
 | `today_folder` | `default` (Daily), `custom` (another folder; never its name) | Mac, iPhone |
 | `today_title` | `long` (7 November 2026), `iso` (2026-11-07), `weekday` (Saturday 7 November) | Mac, iPhone |
 | `today_template` | Yes or no: today's note starts from a template | Mac, iPhone |
