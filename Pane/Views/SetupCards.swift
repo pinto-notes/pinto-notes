@@ -345,7 +345,7 @@ struct BrandMark: View {
     }
 }
 
-private struct SetupTile<Mark: View>: View {
+struct SetupTile<Mark: View>: View {
     let title: String
     let on: Bool
     /// Settings: this AI is connected already.

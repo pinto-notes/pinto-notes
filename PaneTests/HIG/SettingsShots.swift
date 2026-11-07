@@ -95,6 +95,20 @@ import Testing
                 }
                 rows.append(row)
             }
+            // The Connect an AI ideas (7 November 2026): two ChatGPT accounts, Claude, an app on this Mac.
+            if ProcessInfo.processInfo.environment["PANE_CONNECT_LOOKS"] != nil {
+                let more = SecurityPageSnapshots.ais + [
+                    Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now.addingTimeInterval(-86400 * 9), last_used_at: .now.addingTimeInterval(-86400 * 3), revoked_at: nil, redirect_host: "chatgpt.com"),
+                    Connection(id: UUID(), name: "Cursor", kind: "oauth", created_at: .now.addingTimeInterval(-86400 * 2), last_used_at: nil, revoked_at: nil, redirect_host: "localhost")]
+                for look in ["detail", "chips", "cards"] {
+                    UserDefaults.standard.set(look, forKey: "connectPageLook")
+                    for dark in [true, false] {
+                        try save(try await shoot(window(view(.ai, connections: more), library: lib), dark: dark), "connect-look-\(look)-\(dark ? "dark" : "light")", in: dir)
+                    }
+                }
+                UserDefaults.standard.removeObject(forKey: "connectPageLook")
+                return
+            }
             // Before any AI is connected, signed out, and nearly full.
             let none = try await shoot(window(view(.ai, connections: []), library: lib), dark: false)
             try save(none, "connect-none-light", in: dir)
