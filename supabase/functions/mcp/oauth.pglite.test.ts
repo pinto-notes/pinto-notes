@@ -1874,3 +1874,37 @@ Deno.test("signing in on the page for a notification keeps the code working, and
   assertEquals((await scanAllow(sql, me, requestId, s.scan)).decided.status, 200);
   assertEquals((await statusOf(sql, requestId, p.pickup)).state, "approved");
 });
+
+// Spending a code or a refresh token and making the new tokens are one transaction: a failure in
+// between leaves the old credential usable, and a retry isn't taken for a replay.
+Deno.test("a failed token insert leaves the code and the refresh token usable, and nothing is revoked", async () => {
+  const { sql, pg } = await db();
+  const c = await code(sql, pg);
+  const breakInserts = `create function public.test_no_tokens() returns trigger language plpgsql as $$ begin raise exception 'insert failed'; end $$;
+    create trigger test_no_tokens before insert on public.oauth_tokens for each row execute function public.test_no_tokens();`;
+  const fixInserts = `drop trigger test_no_tokens on public.oauth_tokens; drop function public.test_no_tokens();`;
+  await pg.exec(breakInserts);
+  let failed = false;
+  try { failed = (await exchange(sql, "proxy", c.clientId, c.code, c.verifier)).status !== 200; } catch { failed = true; }
+  assert(failed, "the exchange failed");
+  await pg.exec(fixInserts);
+  const [req] = await sql`select code_used_at, code_wrap from public.oauth_requests where id = ${c.requestId}` as { code_used_at: Date | null; code_wrap: string | null }[];
+  assertEquals(req.code_used_at, null);
+  assert(req.code_wrap !== null, "the code still holds the key");
+  const t = await exchange(sql, "proxy", c.clientId, c.code, c.verifier);
+  assertEquals(t.status, 200, JSON.stringify(t.body));
+  assertEquals((await resolveAccessToken(sql, t.body.access_token, request("proxy", "")))?.user_id, c.me.id, "the connection wasn't revoked");
+
+  // The same for refreshing.
+  await pg.exec(breakInserts);
+  failed = false;
+  try { failed = (await refresh(sql, t.body.refresh_token)).status !== 200; } catch { failed = true; }
+  assert(failed, "the refresh failed");
+  await pg.exec(fixInserts);
+  const row = await tokenRow(sql, t.body.refresh_token);
+  assertEquals(row.used_at, null);
+  assert(row.dk_wrap !== null, "the refresh token still holds the key");
+  const again = await refresh(sql, t.body.refresh_token);
+  assertEquals(again.status, 200, JSON.stringify(again.body));
+  assertEquals((await resolveAccessToken(sql, again.body.access_token, request("proxy", "")))?.user_id, c.me.id);
+});

@@ -1387,24 +1387,29 @@ async function token(req: Request, sql: Sql, base: string): Promise<Response> {
     if (r.client_id !== p.client_id) return oauthError("invalid_grant", "The code was issued to another app.");
     if (p.redirect_uri && p.redirect_uri !== r.redirect_uri) return oauthError("invalid_grant", "redirect_uri doesn't match the authorization request.");
     if ((await s256(p.code_verifier)) !== r.code_challenge) return oauthError("invalid_grant", "PKCE verification failed.");
-    // Exactly one exchange wins, even when two arrive at once, and it takes the wrap with it.
-    const [claimed] = await sql<{ code_wrap: string | null }[]>`
-      with old as (select id, code_wrap from public.oauth_requests where id = ${r.id} and code_used_at is null for update)
-      update public.oauth_requests q set code_used_at = now(), code_wrap = null from old where q.id = old.id
-      returning old.code_wrap`;
-    if (!claimed) {
-      // A code presented twice may have been stolen: cut off everything it produced.
-      await revokeGrant(sql, r.grant_id);
-      return oauthError("invalid_grant", "This code was already used.");
-    }
-    if (r.expired || r.revoked) return oauthError("invalid_grant", "The code has expired. Connect again.");
-    const dataKey = await openWrap(claimed.code_wrap, p.code, "code", r.user_id);
-    if (!dataKey) return oauthError("invalid_grant", "Connect again.");
-    try {
-      return json(await issue(sql, r.grant_id, r.resource, dataKey, r.user_id));
-    } finally {
-      dataKey.fill(0);
-    }
+    // Spending the code and making the tokens commit together: if making them fails, the code
+    // is still there to try again (and a retry isn't taken for a stolen code).
+    return await sql.begin(async (t) => {
+      const tx = t as unknown as Sql;
+      // Exactly one exchange wins, even when two arrive at once, and it takes the wrap with it.
+      const [claimed] = await tx<{ code_wrap: string | null }[]>`
+        with old as (select id, code_wrap from public.oauth_requests where id = ${r.id} and code_used_at is null for update)
+        update public.oauth_requests q set code_used_at = now(), code_wrap = null from old where q.id = old.id
+        returning old.code_wrap`;
+      if (!claimed) {
+        // A code presented twice may have been stolen: cut off everything it produced.
+        await revokeGrant(tx, r.grant_id);
+        return oauthError("invalid_grant", "This code was already used.");
+      }
+      if (r.expired || r.revoked) return oauthError("invalid_grant", "The code has expired. Connect again.");
+      const dataKey = await openWrap(claimed.code_wrap, p.code, "code", r.user_id);
+      if (!dataKey) return oauthError("invalid_grant", "Connect again.");
+      try {
+        return json(await issue(tx, r.grant_id, r.resource, dataKey, r.user_id));
+      } finally {
+        dataKey.fill(0);
+      }
+    }) as Response;
   }
 
   if (p.grant_type === "refresh_token") {
@@ -1437,19 +1442,23 @@ async function token(req: Request, sql: Sql, base: string): Promise<Response> {
         kept.fill(0);
       }
     }
-    // Used once: the old token's wrap goes in the same statement that spends it.
-    const [claimed] = await sql<{ dk_wrap: string | null }[]>`
-      with old as (select token_hash, dk_wrap from public.oauth_tokens where token_hash = ${hash} and used_at is null for update)
-      update public.oauth_tokens t set used_at = now(), dk_wrap = null from old where t.token_hash = old.token_hash
-      returning old.dk_wrap`;
-    if (!claimed) return oauthError("invalid_grant", "This refresh token was already used.");
-    const dataKey = await openWrap(claimed.dk_wrap, p.refresh_token, "refresh", t.user_id);
-    if (!dataKey) return oauthError("invalid_grant", "Connect again.");
-    try {
-      return json(await issue(sql, t.grant_id, t.resource, dataKey, t.user_id));
-    } finally {
-      dataKey.fill(0);
-    }
+    // Spending the old token and making the new ones commit together, as for a code.
+    return await sql.begin(async (q) => {
+      const tx = q as unknown as Sql;
+      // Used once: the old token's wrap goes in the same statement that spends it.
+      const [claimed] = await tx<{ dk_wrap: string | null }[]>`
+        with old as (select token_hash, dk_wrap from public.oauth_tokens where token_hash = ${hash} and used_at is null for update)
+        update public.oauth_tokens t set used_at = now(), dk_wrap = null from old where t.token_hash = old.token_hash
+        returning old.dk_wrap`;
+      if (!claimed) return oauthError("invalid_grant", "This refresh token was already used.");
+      const dataKey = await openWrap(claimed.dk_wrap, p.refresh_token!, "refresh", t.user_id);
+      if (!dataKey) return oauthError("invalid_grant", "Connect again.");
+      try {
+        return json(await issue(tx, t.grant_id, t.resource, dataKey, t.user_id));
+      } finally {
+        dataKey.fill(0);
+      }
+    }) as Response;
   }
 
   return oauthError("unsupported_grant_type", "Use authorization_code or refresh_token.");
