@@ -105,6 +105,10 @@ export default function Page() {
         it cost a year, and lately, can ChatGPT or Claude use it. Handwriting apps like Goodnotes do a different job, so they&apos;re at the
         end.
       </p>
+      <p>
+        The pictures of Pinto Notes, Apple Notes and Obsidian are my own, taken on a Mac running macOS 27 with the same Groceries note in
+        each. The pictures of Bear, Notion and Craft come from the companies that make them.
+      </p>
 
       <h2 id="pinto-notes">1. Pinto Notes: best if you use ChatGPT or Claude</h2>
       <PostFigure src="/blog/amber-notes-chatgpt-edit-undo" width={1260} height={1520} maxWidth={520}
@@ -130,9 +134,9 @@ export default function Page() {
       <p><strong>Best for:</strong> anyone who already asks ChatGPT or Claude to plan things, and is tired of pasting notes back and forth.</p>
 
       <h2>2. Apple Notes: best if you want nothing new to install</h2>
-      <PostFigure src="/blog/news/apple-notes-ipad-app-store" width={1600} height={1200}
-        alt="Apple Notes on iPad: folders and tags in the sidebar, a list of notes, and a Big Sur Camping Trip note with a checklist and a photo."
-        caption="Apple Notes, with folders, tags and a checklist. Image: Apple, from the App Store." />
+      <PostFigure src="/blog/news/apple-notes-mac-groceries" width={1600} height={1000}
+        alt="Apple Notes on a Mac: folders in the sidebar, a list of notes, and a Groceries note with a checklist where three items are ticked."
+        caption="The same Groceries note in Apple Notes on a Mac. Screenshot: Pinto Notes." />
       <p>
         Apple Notes is already on your Mac, iPhone and iPad, and it&apos;s better than its reputation. You get folders, tags, Smart
         Folders, <a href="/blog/apple-notes-tables">tables</a>, checklists, scanned documents, Apple Pencil sketches on iPad, and audio
@@ -171,9 +175,9 @@ export default function Page() {
       <p><strong>Best for:</strong> writers, students and anyone who likes Markdown and tags.</p>
 
       <h2>4. Obsidian: best for plain files and plugins</h2>
-      <PostFigure src="/blog/news/obsidian-ipad-app-store" width={1600} height={1199}
-        alt="Obsidian on iPad in dark mode: tabs of notes along the top and a note called Writing is telepathy with a tag, headings and a quote."
-        caption="Obsidian, with notes open in tabs. Image: Obsidian, from the App Store." />
+      <PostFigure src="/blog/news/obsidian-mac-groceries" width={1600} height={1000}
+        alt="Obsidian on a Mac: a vault's folders in the sidebar and the Groceries note open in a tab, with ticked items struck through."
+        caption="The same Groceries note in Obsidian on a Mac, as a Markdown file in a folder. Screenshot: Pinto Notes." />
       <p>
         Obsidian keeps your notes as plain Markdown files in a folder on your disk, so you own them outright: any text editor can open them. It runs on Mac, Windows, Linux, iPhone, iPad and Android, and it&apos;s free with no sign-up.
       </p>
@@ -192,9 +196,9 @@ export default function Page() {
       <p><strong>Best for:</strong> people who want to own their files and enjoy building their own system.</p>
 
       <h2>5. Notion: best for teams</h2>
-      <PostFigure src="/blog/news/notion-ipad-app-store" width={1040} height={1166} maxWidth={520}
-        alt="Notion on iPad: a Home page with recently visited pages, upcoming events and a table of trips with dates."
-        caption="A Notion home page with a calendar and a database. Image: Notion, from the App Store." />
+      <PostFigure src="/blog/news/notion-mac-team-weekly" width={1600} height={1000}
+        alt="A Notion page on a Mac called Team weekly, with team and participant properties, an agenda with a chart, and action items with checkboxes."
+        caption="A team meeting page in Notion on a Mac. Image: Notion." />
       <p>
         Notion is less a notes app than a workspace: pages, databases, wikis, project boards and docs, shared with your team. It runs on
         Mac, Windows, the web and phones, and works offline on desktop and mobile.
@@ -208,9 +212,9 @@ export default function Page() {
       <p><strong>Best for:</strong> teams, and people who want databases and project tracking next to their notes.</p>
 
       <h2>6. Craft: best-looking documents</h2>
-      <PostFigure src="/blog/news/craft-ipad-app-store" width={1152} height={864}
-        alt="Craft on iPad: a sidebar of folders and a Big Sur Road Trip document with a cover photo, a checklist and day cards with photos."
-        caption="A Craft document with a checklist and cards. Image: Craft, from the App Store." />
+      <PostFigure src="/blog/news/craft-mac-big-sur-trip" width={1200} height={1225} maxWidth={560}
+        alt="Craft on a Mac: a sidebar of folders and a Big Sur Road Trip document with a cover photo, a checklist and day cards with photos."
+        caption="A Craft document with a checklist and cards, on a Mac. Image: Craft, from the Mac App Store." />
       <p>
         Craft makes notes that look like finished documents, with cards, pages inside pages and tasks inside your docs. It&apos;s a native
         app rather than a web page in a window, it was an App Store Mac App of the Year, and it runs on Mac, iPhone, iPad, Windows and the
