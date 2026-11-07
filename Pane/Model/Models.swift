@@ -276,6 +276,8 @@ enum NoteText {
 
     /// A note's second line in the list when it has nothing after its title.
     static let noPreview = "No additional text"
+    /// The title of a note with no words in it.
+    static let noTitle = "New Note"
 
     /// The title and the line under it in the list. A table never previews as its header row:
     /// the first line of text after it does, or, with none, its latest row ("27 Sep · 10 km · Minutes 56").
@@ -310,7 +312,7 @@ enum NoteText {
             if let title { return (title, WikiLinks.plain(capped)) }
             title = capped
         }
-        return (title ?? "New Note", tablePreview(table))
+        return (title ?? noTitle, tablePreview(table))
     }
 
     /// A table row's cells, or nil for the separator row.

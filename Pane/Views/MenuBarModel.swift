@@ -177,7 +177,19 @@ enum LoginItem {
     /// Tests stand in for the system.
     @MainActor static var service: LoginService = PaneApp.isUnitTestHost ? MemoryLoginService() : SystemLoginService()
 
-    static var isOn: Bool { service.isEnabled }
+    /// Asks the system, on this thread: a round trip to it (SMAppService), so not for drawing a page.
+    static var isOn: Bool { let on = service.isEnabled; known = on; return on }
+
+    /// As last read, so General draws its switch at once; nil before the first read.
+    private(set) static var known: Bool?
+
+    /// Asks the system off the main thread, and keeps the answer in `known`.
+    static func refresh() async -> Bool {
+        let service = service
+        let on = await Task.detached(priority: .userInitiated) { service.isEnabled }.value
+        known = on
+        return on
+    }
 
     /// Turns it on or off; false when the system said no (shown by the switch going back).
     @discardableResult
@@ -186,7 +198,7 @@ enum LoginItem {
     }
 }
 
-protocol LoginService: AnyObject {
+protocol LoginService: AnyObject, Sendable {
     var isEnabled: Bool { get }
     func register() throws
     func unregister() throws
@@ -198,7 +210,7 @@ final class SystemLoginService: LoginService {
     func unregister() throws { try SMAppService.mainApp.unregister() }
 }
 
-final class MemoryLoginService: LoginService {
+final class MemoryLoginService: LoginService, @unchecked Sendable {
     var isEnabled = false
     func register() throws { isEnabled = true }
     func unregister() throws { isEnabled = false }

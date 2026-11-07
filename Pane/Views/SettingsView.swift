@@ -269,17 +269,23 @@ struct GeneralChoices {
 
     struct Template: Equatable { let id: UUID; let title: String }
 
-    /// The notes in a folder named Templates, if there is one; else your 12 latest notes. The
-    /// chosen one stays listed wherever it is.
+    /// The notes in a folder named Templates, if there is one; else your 12 latest notes with
+    /// something in them. The chosen one stays listed wherever it is. Drawn with the page, so it
+    /// reads each note's saved title only, never its text: 40 long notes' text took 18 ms a draw.
     func templates(keeping chosen: String) -> [Template] {
         let live = { (n: Note) in n.deletedAt == nil && n.trashedAt == nil && !n.isLocked }
         var notes: [Note]
         if let folder = context.namedFolder("Templates"), !folder.liveNotes.isEmpty {
             notes = folder.liveNotes.filter(live).sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
         } else {
-            var latest = FetchDescriptor<Note>(sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
+            // Only what the menu needs, never the text: an empty note is one titled New Note with
+            // nothing under it (NoteText.head).
+            let unlocked = #Predicate<Note> { (n: Note) -> Bool in n.deletedAt == nil && n.trashedAt == nil && n.lockedBody == nil }
+            var latest = FetchDescriptor<Note>(predicate: unlocked, sortBy: [SortDescriptor(\Note.updatedAt, order: .reverse)])
             latest.fetchLimit = 40
-            notes = Array(((try? context.fetch(latest)) ?? []).filter(live).filter { !$0.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.prefix(12))
+            latest.propertiesToFetch = [\Note.id, \Note.summaryTitle, \Note.summaryPreview, \Note.updatedAt]
+            let empty = { (n: Note) in n.title == NoteText.noTitle && n.preview == NoteText.noPreview }
+            notes = Array(((try? context.fetch(latest)) ?? []).filter { !empty($0) }.prefix(12))
         }
         if let id = UUID(uuidString: chosen), !notes.contains(where: { $0.id == id }), let n = context.note(id), live(n) { notes.insert(n, at: 0) }
         return notes.map { Template(id: $0.id, title: $0.title.isEmpty ? "Untitled" : $0.title) }
