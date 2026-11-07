@@ -32,7 +32,7 @@ import Carbon.HIToolbox
     @Test func signedOutThereAreFivePages() {
         #expect(SettingsView(backend: Backend(), sync: nil).available == [.account, .general, .appearance, .security, .help])
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
-        #expect(SettingsView(backend: backend, sync: nil).available == [.account, .ai, .general, .appearance, .security, .storage, .help, .personal, .signIn])
+        #expect(SettingsView(backend: backend, sync: nil).available == [.account, .ai, .general, .appearance, .security, .storage, .help, .personal, .signIn, .encryption])
         #expect(SettingsPage.available(signedIn: false, hasClient: false, demoStorage: true).contains(.storage), "captures show Storage")
     }
 
@@ -127,7 +127,7 @@ import Carbon.HIToolbox
         #expect(SettingsIndex.matches("menu bar", available: all).map(\.page) == [.general], "Show in menu bar is on General")
         #expect(SettingsIndex.matches("diagnostics", available: all).map(\.page) == [.security], "diagnostics is on Privacy")
         #expect(SettingsIndex.matches("setup guide", available: all).map(\.page) == [.help], "the setup guide is on Help and feedback, not General")
-        #expect(SettingsIndex.matches("recovery", available: all, recoveryKey: true).map(\.page) == [.security])
+        #expect(SettingsIndex.matches("recovery", available: all, recoveryKey: true).map(\.page) == [.encryption])
         #expect(SettingsIndex.matches("export", available: all).map(\.menu) == [.export], "Export is File › Export All Notes…")
         #expect(SettingsIndex.matches("sign out", available: all).map(\.page) == [.account])
         #expect(SettingsIndex.matches("name", available: all).map(\.page).contains(.account))
@@ -740,6 +740,36 @@ import Carbon.HIToolbox
             ids = again
         }
         return ids
+    }
+
+    /// Privacy is two rows, Encryption and Diagnostics (Emil, 7 November 2026); what it had is on
+    /// Encryption, one level down, the devices (with Remove… and Add a device) on Account, and each
+    /// AI's Disconnect on AI Connections.
+    @Test func privacyIsEncryptionAndDiagnostics() async throws {
+        let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
+        let crypto = try await AddDeviceSnapshots.ready(backedUp: true, recoverySaved: true)
+        defer { crypto.signedOut() }
+        let privacy = try await Self.ids(.security, backend: backend, crypto: crypto)
+        for here in ["privacy.encryption", "settings.diagnostics"] { #expect(privacy.contains(here), "\(here) on Privacy: \(privacy)") }
+        for gone in ["privacy.thisDevice", "privacy.device", "privacy.removeDevice", "privacy.addDevice", "privacy.disconnectAI",
+                     "privacy.recoveryStatus", "privacy.recoveryRow", "privacy.howItWorks"] {
+            #expect(!privacy.contains(gone), "\(gone) is not on Privacy any more")
+        }
+        let encryption = try await Self.ids(.encryption, backend: backend, crypto: crypto)
+        #expect(encryption.contains("privacy.recoveryStatus") || encryption.contains("privacy.recoveryRow"), "the recovery key: \(encryption)")
+        #expect(encryption.contains("privacy.howItWorks"))
+        for gone in ["privacy.thisDevice", "privacy.removeDevice", "privacy.disconnectAI", "settings.diagnostics"] {
+            #expect(!encryption.contains(gone), "\(gone) is not on Encryption")
+        }
+        let account = try await Self.ids(.account, backend: backend, crypto: crypto)
+        #expect(account.contains("privacy.addDevice"), "Add a device is on Account's Devices: \(account)")
+        let all = Set(SettingsPage.allCases)
+        #expect(SettingsIndex.matches("advanced protection", available: all, advancedProtection: true).map(\.page) == [.encryption])
+        #expect(SettingsIndex.matches("recovery key", available: all, recoveryKey: true).map(\.page) == [.encryption])
+        #expect(SettingsIndex.matches("diagnostics", available: all).map(\.page) == [.security])
+        #expect(SettingsPage.encryption.parent == .security)
+        #expect(SettingsPageWord(.encryption) == .encryption)
+        #expect(PrivacyPage.encryptionLine(advanced: false) == "Your notes are encrypted", "never end-to-end by default")
     }
 
     @Test func everyRowIsOnItsPageAndSearchFindsIt() async throws {

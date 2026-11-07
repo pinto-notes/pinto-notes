@@ -14,12 +14,16 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
     case account, ai, general, appearance, security, storage, help, appKeys
     /// Account's own pages, one level down, as Apple Account has them (Emil, 7 November 2026).
     case personal, signIn
+    /// Privacy's own page one level down: who holds your key, the recovery key, Advanced protection
+    /// (Emil, 7 November 2026: Privacy itself is just that row and Diagnostics).
+    case encryption
     var id: String { rawValue }
 
     /// The page a page one level down opens from: Account's for your details and how you sign in.
     var parent: SettingsPage? {
         switch self {
         case .personal, .signIn: .account
+        case .encryption: .security
         default: nil
         }
     }
@@ -39,6 +43,7 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         case .appKeys: "Keys for apps"
         case .personal: "Personal information"
         case .signIn: "Sign-in and security"
+        case .encryption: "Encryption"
         }
     }
 
@@ -55,6 +60,7 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         case .appKeys: "key"
         case .personal: "person.text.rectangle"
         case .signIn: "lock"
+        case .encryption: "key.horizontal"
         }
     }
 
@@ -63,7 +69,7 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
     /// account. Keys for apps is parked (Emil, 6 November 2026): nothing leads to it.
     static func available(signedIn: Bool, hasClient: Bool, demoStorage: Bool = false) -> Set<SettingsPage> {
         var out: Set<SettingsPage> = [.account, .general, .appearance, .security, .help]
-        if signedIn { out.formUnion([.personal, .signIn]) }
+        if signedIn { out.formUnion([.personal, .signIn, .encryption]) }
         if signedIn && hasClient { out.formUnion([.ai, .storage]) }
         if demoStorage { out.insert(.storage) }
         return out
@@ -158,10 +164,13 @@ enum SettingsIndex {
         e("Connect ChatGPT", .ai), e("Connect Claude", .ai), e("Connect Grok", .ai), e("Connect Codex", .ai),
         e("Connected AIs", .ai, "connect.sent"), e("Disconnect", .ai), e("App previews", .ai),
         Entry(label: "Help Connecting an AI", page: .ai, also: ["Having trouble", "Connector address", "Access token"], menu: .connectHelp),
-        e(recoveryKey, .security), e("Devices", .security, "privacy.thisDevice"), e("Add a device", .security),
-        e(advancedProtection, .security), e("Locked notes password", .security), e("Touch ID", .security), e("Lock Now", .security),
+        // Privacy is two rows; what was on it is on Encryption, one level down, and the devices on
+        // Account (Emil, 7 November 2026).
+        e("Encryption", .security, "privacy.encryption", also: ["Encrypted", "Who can open my notes", "Key", "Security"]),
+        e(recoveryKey, .encryption), e("Add a device", .account),
+        e(advancedProtection, .encryption), e("Locked notes password", .encryption), e("Touch ID", .encryption), e("Lock Now", .encryption),
         e("Terms of Service", .security, "settings.terms"), e("Privacy Policy", .security, "settings.privacy"),
-        e("How it works", .security, "privacy.howItWorks"),
+        e("How it works", .encryption, "privacy.howItWorks"),
         e("Today\u{2019}s note", .general, "settings.today.folder",
           also: ["Daily note", "Daily notes", "Journal", "Template", "Date format", "Open on launch"]),
         e("Ticked items move to the bottom", .general, "settings.notes.ticked", also: ["Checklist", "Sort checked items", "Ticked"]),

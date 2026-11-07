@@ -118,7 +118,7 @@ import UIKit
             if let tab { route.open(tab) }
             return SettingsView(backend: backend, sync: nil, crypto: crypto, devices: devices, connections: SecurityPageSnapshots.ais, route: route)
         }
-        let tabs: [SettingsPage?] = [nil] + SettingsPage.groups.flatMap { $0 } + [.account, .signIn]
+        let tabs: [SettingsPage?] = [nil] + SettingsPage.groups.flatMap { $0 } + [.account, .signIn, .encryption]
         for tab in tabs {
             let name = "phone-\(tab?.rawValue ?? "home")"
             for dark in [false, true] {

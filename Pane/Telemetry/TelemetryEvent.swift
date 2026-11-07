@@ -347,6 +347,7 @@ enum SettingsPageWord: String, TelemetryWord {
     case appKeys = "app_keys"
     case personal
     case signIn = "sign_in"
+    case encryption
 
     init(_ page: SettingsPage) {
         switch page {

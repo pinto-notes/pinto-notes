@@ -109,8 +109,15 @@ struct SettingsView: View {
         case .help: HelpSettingsPage(signedIn: isSignedIn, close: closeSettings)
         case .security:
             if isSignedIn, crypto.isReady {
-                PrivacySecuritySection(crypto: crypto, devices: devices, addDeviceServer: backend.client.map { SupabaseAddDevice(client: $0) },
-                                       client: backend.client, connections: connections, sync: sync)
+                // Two rows: Encryption, one level down, and Diagnostics (Emil, 7 November 2026).
+                PrivacyPage(crypto: crypto)
+            } else {
+                // Signed out, or still setting up: how it works, the notes password if there is one, the terms.
+                SignedOutPrivacyPage(signedIn: isSignedIn, sync: sync)
+            }
+        case .encryption:
+            if isSignedIn, crypto.isReady {
+                PrivacySecuritySection(crypto: crypto, devices: devices, client: backend.client, connections: connections, sync: sync)
             } else {
                 // Signed out, or still setting up: how it works, the notes password if there is one, the terms.
                 SignedOutPrivacyPage(signedIn: isSignedIn, sync: sync)

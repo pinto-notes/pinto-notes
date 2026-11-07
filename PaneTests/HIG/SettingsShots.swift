@@ -85,7 +85,7 @@ import Testing
         }
         let pages: [(SettingsPage, String)] = [(.account, "account"), (.ai, "connect"), (.general, "general"), (.appearance, "appearance"),
                                                 (.security, "privacy"), (.storage, "storage"), (.help, "help"),
-                                                (.personal, "personal"), (.signIn, "signin")]
+                                                (.personal, "personal"), (.signIn, "signin"), (.encryption, "encryption")]
         var rows: [[(String, NSBitmapImageRep)]] = []
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
             for (place, name) in pages {

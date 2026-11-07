@@ -263,23 +263,42 @@ struct PrivacySecurityView: View {
     var addDeviceServer: AddDeviceServer?
 
     var body: some View {
-        PrivacySecuritySection(crypto: crypto, devices: devices, addDeviceServer: addDeviceServer)
+        PrivacySecuritySection(crypto: crypto, devices: devices)
             .navigationTitle(PrivacyCopy.title)
             .navigationBarTitleDisplayMode(.inline)
     }
 }
 #endif
 
-/// Settings › Privacy, the page on the Mac and iPhone alike: who can open your notes,
-/// a picture of every mark over one line on how they're kept; then your devices (Remove…, Add a
-/// device…), what helps you back in, the AIs while they're connected (Disconnect…), locked notes,
-/// and "How it works" with the terms. The recovery key (shown behind Face ID or Touch ID or the passcode, saved by printing, as a PDF or
+/// Settings › Privacy: two rows (Emil, 7 November 2026: the page was too much). Encryption, one
+/// level down, and Diagnostics; the terms under them. Devices are on Account, and each AI's
+/// Disconnect is on AI Connections.
+struct PrivacyPage: View {
+    let crypto: AccountCrypto
+
+    /// Under Encryption. "Encrypted", never "end-to-end", unless only your devices hold the key.
+    static func encryptionLine(advanced: Bool) -> String {
+        advanced ? "Only your devices can open your notes" : "Your notes are encrypted"
+    }
+
+    var body: some View {
+        SettingsPageForm {
+            Section {
+                SettingsSubPageRow(page: .encryption, id: "privacy.encryption", detail: Self.encryptionLine(advanced: crypto.protection == .strict))
+            }
+            DiagnosticsSection()
+            OpenSection { LegalLinksRow().frame(maxWidth: .infinity) }
+        }
+    }
+}
+
+/// Settings › Privacy › Encryption, on the Mac and iPhone alike: who can open your notes,
+/// a picture of every mark over one line on how they're kept; then what helps you back in,
+/// Advanced protection, locked notes, and "How it works". The recovery key (shown behind Face ID or Touch ID or the passcode, saved by printing, as a PDF or
 /// by copying it) only for accounts whose key only their devices hold (RecoveryKeyOffer).
 struct PrivacySecuritySection: View {
     let crypto: AccountCrypto
     var devices: KeyDevices = .shared
-    /// Adding a device talks to the server; nil in previews.
-    var addDeviceServer: AddDeviceServer?
     /// The connected AIs, from the same list as Settings › AI. Nil: none (captures, tests).
     var client: SupabaseClient?
     /// Captures: shows these instead of asking the server.
@@ -289,11 +308,6 @@ struct PrivacySecuritySection: View {
     @State private var shown: String?
     @State private var saving: String?
     @State private var problem: String?
-    @State private var adding = false
-    @State private var removing: KeyDevice?
-    @State private var disconnecting: UUID?
-    /// The line after a Disconnect: the row just vanished otherwise (round 22).
-    @State private var disconnected: String?
     @State private var loaded: [Connection] = []
     @State private var showsHow = false
     /// Which way the switch is being turned, while its question is up.
@@ -353,19 +367,6 @@ struct PrivacySecuritySection: View {
             if let problem {
                 Text(problem).font(.footnote).foregroundStyle(.red)
             }
-            // Stays while the page is open: the row just vanished before (round 22).
-            if let disconnected {
-                Label(disconnected, systemImage: "checkmark.circle.fill")
-                    .font(.footnote)
-                    .foregroundStyle(Color.ink)
-                    .accessibilityIdentifier("privacy.disconnected")
-            }
-        }
-        Section {
-            ForEach(c.devices) { o in opener(o) }
-            if c.addsDevices { addDeviceRow }
-        } header: {
-            Text(PrivacyCopy.devicesHeader)
         }
         if c.pintoNotes != nil || c.recovery != nil {
             Section {
@@ -377,15 +378,6 @@ struct PrivacySecuritySection: View {
                 Text(c.backInFooter).accessibilityIdentifier("privacy.backInFooter")
             }
         }
-        if !c.ais.isEmpty {
-            Section {
-                ForEach(c.ais) { opener($0) }
-            } header: {
-                Text(PrivacyCopy.aiHeader)
-            } footer: {
-                Text(PrivacyCopy.aiFooter)
-            }
-        }
         if c.showsProtection {
             Section {
                 protectionToggle
@@ -394,31 +386,18 @@ struct PrivacySecuritySection: View {
             }
         }
         LockedNotesSection(sync: sync)
-        // What the app sends about itself sits with who can open your notes (Emil, 7 November 2026).
-        DiagnosticsSection()
         Section {
             Button { showsHow = true } label: {
                 SettingsLinkRow(title: PrivacyCopy.howItWorks, symbol: "info.circle", trailing: "chevron.right")
             }
             .settingsRowLink()
             .accessibilityIdentifier("privacy.howItWorks")
-        } footer: {
-            LegalLinksRow()
         }
     }
 
-    /// One thing that can open your notes: its mark, its name, a short grey line; Remove… for a
-    /// device that can be removed, Disconnect… for an AI (rounds 17 to 20: the page only said so).
+    /// One thing that can open your notes: its mark, its name, a short grey line.
     private func opener(_ o: SecurityContent.Opener) -> some View {
-        SecurityOpenerRow(opener: o) {
-            if case .device(let id) = o.kind, o.canRemove, let d = devices.others.first(where: { $0.id == id }) {
-                removeButton(d).settingsRowButton()
-            }
-            if case .ai(let id) = o.kind, client != nil {
-                disconnectButton(id, name: o.name).settingsRowButton()
-            }
-        }
-        .accessibilityIdentifier(o.kind == .thisDevice ? "privacy.thisDevice" : "privacy.device")
+        SecurityOpenerRow(opener: o) { EmptyView() }
     }
 
     /// The recovery key: saved or not, with Show or Hide and Save… on its row (short words on the
@@ -474,75 +453,6 @@ struct PrivacySecuritySection: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("privacy.onlyThisDevice")
-    }
-
-    /// Add a device…: a new device is added from one that has the notes.
-    private var addDeviceRow: some View {
-        // Laid out like the device rows above it, so its name lines up with theirs.
-        HStack(spacing: 12) {
-            SecurityMark(opener: nil, symbol: "plus", size: SecurityLook.mark, scales: SecurityLook.scales)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Add a device").foregroundStyle(Color.ink)
-                Text("iPhone, iPad or another Mac").font(.subheadline).foregroundStyle(Color.muted)
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 8)
-            Button("Add\u{2026}") { adding = true }
-                .settingsRowButton()
-                .accessibilityLabel(PrivacyCopy.addDevice)
-                .accessibilityIdentifier("privacy.addDevice")
-                .disabled(reach != .online)
-                .modifier(addDeviceSheet)
-        }
-        .padding(.vertical, 2)
-    }
-
-    /// The sheet hangs on its button: on a Section it isn't presented on iPhone.
-    private var addDeviceSheet: SheetOn {
-        SheetOn(isPresented: $adding) {
-            AnyView(AddDeviceSheet(crypto: crypto, server: addDeviceServer)
-                .onDisappear { Task { await devices.refresh(crypto) } })
-        }
-    }
-
-    private func disconnectButton(_ id: UUID, name: String) -> some View {
-        Button("Disconnect\u{2026}", role: .destructive) { disconnecting = id }
-            .accessibilityLabel("Disconnect \(name)")
-            .accessibilityIdentifier("privacy.disconnectAI")
-            .confirmationDialog("Disconnect \(name)?",
-                                isPresented: Binding(get: { disconnecting == id }, set: { if !$0 { disconnecting = nil } }),
-                                titleVisibility: .visible) {
-                Button("Disconnect", role: .destructive) {
-                    Task {
-                        guard let client else { return }
-                        do {
-                            try await ConnectRevoke.revoke(client, id: id)
-                            await loadConnections()
-                            AccessibilityNotification.Announcement("\(name) disconnected").post()
-                            withAnimation(.smooth(duration: 0.2)) { disconnected = "\(name) disconnected" }
-                        } catch {
-                            problem = "Couldn\u{2019}t disconnect \(name). Try again."
-                        }
-                        disconnecting = nil
-                    }
-                }
-            } message: {
-                Text("\(name) loses access to your notes at once. Your notes and its past edits stay here.")
-            }
-    }
-
-    private func removeButton(_ d: KeyDevice) -> some View {
-        // The question hangs on the button that asked it.
-        Button("Remove\u{2026}", role: .destructive) { removing = d }
-            .accessibilityIdentifier("privacy.removeDevice")
-            .confirmationDialog(PrivacyCopy.removeTitle(d.name),
-                                isPresented: Binding(get: { removing?.id == d.id }, set: { if !$0 { removing = nil } }),
-                                titleVisibility: .visible) {
-                Button("Remove", role: .destructive) { Task { await remove(d) } }
-                    .accessibilityIdentifier("privacy.confirmRemove")
-            } message: {
-                Text(PrivacyCopy.removeMessage + (crypto.serverCopy ? PrivacyCopy.removeNote : ""))
-            }
     }
 
     /// The recovery key changed, and the key while it's shown.
@@ -664,12 +574,6 @@ struct PrivacySecuritySection: View {
         } catch {
             problem = (error as? KeyCopyError).map(KeyCopyWords.error) ?? error.localizedDescription
         }
-    }
-
-    private func remove(_ d: KeyDevice) async {
-        problem = nil
-        guard await DeviceOwner.authenticate(reason: "remove \(d.name)") else { return }
-        do { try await devices.remove(d, crypto: crypto) } catch { problem = error.localizedDescription }
     }
 
     private func reveal(reason: String, then show: (String) -> Void) async {

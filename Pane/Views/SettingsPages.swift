@@ -169,6 +169,9 @@ struct AccountSettingsPage: View {
     #endif
     @State private var draft = ""
     @FocusState private var editing: Bool
+    @State private var removingDevice: KeyDevice?
+    @State private var addingDevice = false
+    @State private var deviceProblem: String?
     @Environment(\.networkReach) private var reach
     #if os(macOS)
     @State private var importing = false
@@ -277,8 +280,12 @@ struct AccountSettingsPage: View {
         }
         Section {
             ForEach(deviceRows) { d in deviceRow(d) }
+            // With a copy kept by Pinto Notes a new device just signs in: nothing to add.
+            if crypto.isReady, !crypto.serverCopy { addDeviceRow }
         } header: {
             Text("Devices")
+        } footer: {
+            if let deviceProblem { Text(deviceProblem).foregroundStyle(.red) }
         }
         // Sign Out… on its own at the end, as in System Settings; Delete Account… is on Sign-in and
         // security, never beside it (Emil, 7 November 2026: they aren't equals).
@@ -294,31 +301,8 @@ struct AccountSettingsPage: View {
         #endif
     }
 
-    /// A row to one of Account's pages: its symbol on a grey tile, its name, a chevron.
-    @ViewBuilder private func subPage(_ p: SettingsPage, _ id: String) -> some View {
-        let label = HStack(spacing: 10) {
-            Image(systemName: p.symbol)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(width: 22, height: 22)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(white: 0.56)))
-                .accessibilityHidden(true)
-            Text(p.title).foregroundStyle(Color.ink)
-            Spacer(minLength: 0)
-            #if os(macOS)
-            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
-            #endif
-        }
-        .contentShape(.rect)
-        #if os(macOS)
-        Button { openPage?(p) } label: { label }
-            .settingsRowLink()
-            .accessibilityIdentifier(id)
-        #else
-        NavigationLink(value: p) { label }
-            .accessibilityIdentifier(id)
-        #endif
-    }
+    /// A row to one of Account's pages.
+    private func subPage(_ p: SettingsPage, _ id: String) -> some View { SettingsSubPageRow(page: p, id: id) }
 
     /// A device on the account: this one first, then the others that have your key.
     struct DeviceLine: Identifiable, Equatable {
@@ -340,6 +324,8 @@ struct AccountSettingsPage: View {
 
     private var deviceRows: [DeviceLine] { Self.deviceLines(others: devices.others) }
 
+    /// A device: its kind, its name and when it was seen; Remove… for one that can be removed
+    /// (moved here from Privacy, Emil, 7 November 2026).
     private func deviceRow(_ d: DeviceLine) -> some View {
         HStack(spacing: 12) {
             Image(systemName: d.symbol).font(.system(size: 20, weight: .light)).foregroundStyle(Color.ink)
@@ -348,11 +334,58 @@ struct AccountSettingsPage: View {
                 Text(d.name).foregroundStyle(Color.ink).lineLimit(1)
                 Text(d.detail).font(.callout).foregroundStyle(Color.muted).lineLimit(1)
             }
+            .accessibilityElement(children: .combine)
             Spacer(minLength: 0)
+            if let k = devices.others.first(where: { $0.id.uuidString == d.id }), k.canRemove { removeButton(k) }
         }
         .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(d.id == "this" ? "settings.accountDevices" : "settings.device")
+    }
+
+    private func removeButton(_ d: KeyDevice) -> some View {
+        // The question hangs on the button that asked it.
+        Button("Remove\u{2026}", role: .destructive) { removingDevice = d }
+            .settingsRowButton()
+            .accessibilityLabel("Remove \(d.name)")
+            .accessibilityIdentifier("privacy.removeDevice")
+            .confirmationDialog(PrivacyCopy.removeTitle(d.name),
+                                isPresented: Binding(get: { removingDevice?.id == d.id }, set: { if !$0 { removingDevice = nil } }),
+                                titleVisibility: .visible) {
+                Button("Remove", role: .destructive) {
+                    Task {
+                        deviceProblem = nil
+                        guard await DeviceOwner.authenticate(reason: "remove \(d.name)") else { return }
+                        do { try await devices.remove(d, crypto: crypto) } catch { deviceProblem = error.localizedDescription }
+                    }
+                }
+                .accessibilityIdentifier("privacy.confirmRemove")
+            } message: {
+                Text(PrivacyCopy.removeMessage + (crypto.serverCopy ? PrivacyCopy.removeNote : ""))
+            }
+    }
+
+    /// Add a device…: a new device is added from one that has the notes.
+    private var addDeviceRow: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "plus").font(.system(size: 17, weight: .light)).foregroundStyle(Color.ink)
+                .frame(width: 30).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Add a device").foregroundStyle(Color.ink)
+                Text("iPhone, iPad or another Mac").font(.callout).foregroundStyle(Color.muted)
+            }
+            Spacer(minLength: 0)
+            Button("Add\u{2026}") { addingDevice = true }
+                .settingsRowButton()
+                .accessibilityLabel(PrivacyCopy.addDevice)
+                .accessibilityIdentifier("privacy.addDevice")
+                .disabled(reach != .online)
+                .modifier(SheetOn(isPresented: $addingDevice) {
+                    AnyView(AddDeviceSheet(crypto: crypto, server: backend.client.map { SupabaseAddDevice(client: $0) })
+                        .onDisappear { Task { await devices.refresh(crypto) } })
+                })
+        }
+        .padding(.vertical, 2)
     }
 
     // MARK: Personal information
@@ -1218,3 +1251,42 @@ final class ConnectHelpAsk {
     var pending = false
 }
 #endif
+
+/// A row to a page one level down, as System Settings has them: its symbol on a grey tile, its
+/// name (and a line under it, if any), a chevron. Account's pages, Privacy's Encryption.
+struct SettingsSubPageRow: View {
+    let page: SettingsPage
+    let id: String
+    var detail: String? = nil
+    #if os(macOS)
+    @Environment(\.openSettingsPage) private var openPage
+    #endif
+
+    var body: some View {
+        let label = HStack(spacing: 10) {
+            Image(systemName: page.symbol)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(white: 0.56)))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(page.title).foregroundStyle(Color.ink)
+                if let detail { Text(detail).font(.callout).foregroundStyle(Color.muted) }
+            }
+            Spacer(minLength: 0)
+            #if os(macOS)
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+            #endif
+        }
+        .contentShape(.rect)
+        #if os(macOS)
+        Button { openPage?(page) } label: { label }
+            .settingsRowLink()
+            .accessibilityIdentifier(id)
+        #else
+        NavigationLink(value: page) { label }
+            .accessibilityIdentifier(id)
+        #endif
+    }
+}
