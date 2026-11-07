@@ -423,7 +423,6 @@ import Testing
     @Test func connectIsTheOnboardingPickerWithTheSharingLineInView() async throws {
         let f = try await Self.layout(.ai, window: CGSize(width: 1180, height: 760))
         let card = try #require(f["connect.card"], "the setup card's tiles and button")
-        #expect(f["connect.tiles"] != nil)
         let title = try #require(f["title"]), page = try #require(f["page"]), area = try #require(f["area"])
         #expect(abs(card.minX - title.minX) < 0.5, "card \(card.minX), title \(title.minX)")
         #expect(abs(card.width - (page.width - 2 * SettingsCard.pageInset)) < 0.5)
@@ -432,16 +431,28 @@ import Testing
         #expect(sent.height > 10 && sent.maxY < area.maxY, "in view without scrolling: \(sent) in \(area)")
     }
 
-    /// Tiles for the brands and Other; what's connected and the other ways are lists under them.
-    @Test func connectSplitsItsRows() {
+    /// A card per AI (Emil, 7 November 2026). A connected AI's card says Manage, not Connect, even
+    /// when its sign-in calls itself something else: it's placed by where the sign-in went.
+    @Test func connectIsACardPerAI() {
         typealias P = ConnectAIPage
-        let rows = P.rows(offered: [.chatgpt, .claude, .grok, .codex, .incredible, .other], connections: [])
-        #expect(P.connectedRows(rows).isEmpty)
-        #expect(P.moreRows(rows).map(\.guide) == [.codex, .incredible], "the tiles' AIs aren't repeated")
-        #expect(P.firstToConnect(connected: []) == .chatgpt)
-        #expect(P.firstToConnect(connected: [.chatgpt]) == .claude, "opens on one still to connect")
-        #expect(P.firstToConnect(connected: [.chatgpt, .claude, .grok]) == .other)
-        #expect(ConnectTilePicker<EmptyView>.buttonTitle(.chatgpt, connected: true) == "Connect another ChatGPT account")
+        func c(_ name: String, host: String?, days: Double = 0, used: Date? = nil) -> Connection {
+            Connection(id: UUID(), name: name, kind: host == nil ? "token" : "oauth", created_at: .now.addingTimeInterval(-86400 * days), last_used_at: used, revoked_at: nil, redirect_host: host)
+        }
+        let gpt = c("OpenAI connector", host: "chatgpt.com"), gpt2 = c("ChatGPT", host: "chatgpt.com", days: 9)
+        let claude = c("claude-ai", host: "claude.ai", used: .now), cursor = c("Cursor", host: "localhost"), codex = c("Codex", host: nil)
+        let all = [gpt2, claude, gpt, cursor, codex]
+        #expect(P.tile(of: gpt) == .chatgpt, "a ChatGPT sign-in named otherwise is still ChatGPT's")
+        #expect(P.tile(of: claude) == .claude)
+        #expect(P.tile(of: cursor) == .other && P.tile(of: codex) == .other)
+        #expect(P.accounts(.chatgpt, in: all).map(\.id) == [gpt.id, gpt2.id], "newest first")
+        #expect(P.accounts(.grok, in: all).isEmpty)
+        #expect(P.status(.grok, accounts: []) == "Not connected")
+        #expect(P.status(.chatgpt, accounts: [gpt, gpt2]) == "2 accounts")
+        #expect(P.status(.claude, accounts: [claude]).hasPrefix("Used "))
+        #expect(P.status(.other, accounts: [codex, cursor]) == "2 apps")
+        #expect(P.disconnectTitle(claude, tile: .claude, count: 1) == "Disconnect Claude\u{2026}")
+        #expect(P.disconnectTitle(gpt2, tile: .chatgpt, count: 2).hasPrefix("Disconnect the account connected "))
+        #expect(SetupCards.connectTiles == [.chatgpt, .claude, .grok, .other])
     }
 
     /// Two tabs next to each other in the sidebar never touch, so their fills never merge.
@@ -477,10 +488,10 @@ import Testing
     /// Connect an AI says what is sent and to which company, by name, always in view (App Review
     /// rejected 1.2 for hiding it); one row per AI there is, connected or not, and never Mistral.
     @Test func connectSaysWhatIsSentAndToWhom() throws {
-        #expect(ConnectAIPage.sent(["ChatGPT", "Claude"]) == "The notes ChatGPT opens go to OpenAI and the notes Claude opens go to Anthropic. Disconnect an AI any time to stop sharing with it.")
-        #expect(ConnectAIPage.sent(["Grok"]) == "The notes Grok opens go to xAI. Disconnect an AI any time to stop sharing with it.")
+        #expect(ConnectAIPage.sent(["ChatGPT", "Claude"]) == "Notes an AI opens are sent to its maker: OpenAI for ChatGPT and Anthropic for Claude.")
+        #expect(ConnectAIPage.sent(["Grok"]) == "Notes Grok opens are sent to xAI.")
         #expect(ConnectAIPage.sent([]) == ConnectCopy.shared, "before any is connected, the general line")
-        #expect(ConnectAIPage.sent(["ChatGPT", "An app on this computer"]).contains("Other connected apps get only the notes they open."))
+        #expect(ConnectAIPage.sent(["ChatGPT", "An app on this computer"]).contains("Other apps get only the notes they open."))
         for g in ConnectAISection.Guide.allCases { #expect(!ConnectAIPage.line(g).isEmpty && !ConnectAIPage.line(g).contains("\u{2014}")) }
         let src = try Self.source("Pane/Views/ConnectAI.swift")
         let page = try #require(src.range(of: "struct ConnectAIPage").map { String(src[$0.lowerBound...].prefix(9000)) })

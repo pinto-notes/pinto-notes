@@ -1781,7 +1781,6 @@ struct ConnectAIPage: View {
 
     @State private var ai: SetupCards.AI = .chatgpt
     /// The tile picked, once you've picked one.
-    @State private var chosen: SetupCards.AI?
     @State private var stage: Stage = .choosing
     @State private var run = ConnectRun()
     /// Grok's or Other's guide, open over the wait.
@@ -1826,12 +1825,14 @@ struct ConnectAIPage: View {
     static func sent(_ names: [String]) -> String {
         let known = names.compactMap { n in ConnectTrust.makers[n].map { (n, $0) } }
         guard !known.isEmpty else { return ConnectCopy.shared }
-        let parts = known.map { "the notes \($0.0) opens go to \($0.1)" }
-        let joined = parts.count == 1 ? parts[0] : parts.dropLast().joined(separator: ", ") + " and " + parts.last!
-        let others = known.count < names.count ? " Other connected apps get only the notes they open." : ""
         // Said to someone who has allowed it already: what it means now, not "until you allow it"
-        // (council round 10).
-        return joined.prefix(1).uppercased() + joined.dropFirst() + "." + others + " Disconnect an AI any time to stop sharing with it."
+        // (council round 10). Plain, not spelled out (Emil, 7 November 2026: "like an explanation
+        // for toddlers").
+        let others = known.count < names.count ? " Other apps get only the notes they open." : ""
+        if known.count == 1 { return "Notes \(known[0].0) opens are sent to \(known[0].1).\(others)" }
+        let parts = known.map { "\($0.1) for \($0.0)" }
+        let joined = parts.dropLast().joined(separator: ", ") + " and " + parts.last!
+        return "Notes an AI opens are sent to its maker: \(joined).\(others)"
     }
 
     /// The line under a connected one: when it was last used. One the list names by its AI is that
@@ -1853,7 +1854,7 @@ struct ConnectAIPage: View {
 
     private var names: [String] {
         var seen = Set<String>()
-        return active.map(\.title).filter { seen.insert($0).inserted }
+        return active.map { $0.mark ?? $0.title }.filter { seen.insert($0).inserted }
     }
 
     var body: some View {
@@ -1862,13 +1863,7 @@ struct ConnectAIPage: View {
             if let error { Text(error).font(.system(size: 12)).foregroundStyle(.red).padding(.horizontal, 4) }
             VStack(alignment: .leading, spacing: 9) {
                 switch stage {
-                case .choosing:
-                    switch Self.look {
-                    case .list: picker
-                    case .detail: detailLook
-                    case .chips: chipsLook
-                    case .cards: cardsLook
-                    }
+                case .choosing: cards
                 case .waiting: panel { ConnectWaitingPanel(ai: ai, note: note, fix: fix, cancel: cancel) }
                 case .connected: panel { ConnectedPanel(ai: ai) }
                 }
@@ -1881,7 +1876,6 @@ struct ConnectAIPage: View {
                     .accessibilityIdentifier("connect.sent")
                     .settingsProbe("connect.sent")
             }
-            if stage == .choosing, Self.look == .list { lists }
             if NoteApps.enabled {
                 if NoteApps.realPreviews { AppPreviewSection(client: client, plain: true) }
             }
@@ -1911,193 +1905,58 @@ struct ConnectAIPage: View {
         route.help = HelpTopic(guide: nil)
     }
 
-    /// The onboarding card's own picker, in the page: the same tiles, the same one button, the same
-    /// wait after it (Emil, 7 November 2026: the page was much worse than onboarding, and worked
-    /// differently).
-    private var picker: some View {
-        VStack(spacing: 14) {
+    // A card per AI, two by two, each saying where it stands and doing its own thing: Connect…, or
+    // Manage with each account's Disconnect and Connect another (Emil, 7 November 2026: the lists
+    // under the tiles repeated them; of three ideas he picked this one).
+
+    /// The tile a connection belongs to: by the AI its sign-in went to (`mark`), else by its name.
+    /// Anything no brand tile names is Other's.
+    static func tile(of c: Connection) -> SetupCards.AI {
+        let name = c.mark ?? c.title
+        return SetupCards.brands.first { $0.guide.title == name } ?? .other
+    }
+
+    /// The connections a card stands for, newest first.
+    static func accounts(_ tile: SetupCards.AI, in connections: [Connection]) -> [Connection] {
+        connections.filter { Self.tile(of: $0) == tile }.sorted { $0.created_at > $1.created_at }
+    }
+    private func accounts(_ tile: SetupCards.AI) -> [Connection] { Self.accounts(tile, in: active) }
+
+
+    private var cards: some View {
+        VStack(spacing: 10) {
             Text(SetupCards.connectReads)
                 .font(.system(size: 12))
                 .foregroundStyle(SettingsInk.muted)
-                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 4)
                 .accessibilityIdentifier("connect.reads")
-            ConnectTilePicker(picked: Binding(get: { chosen ?? Self.firstToConnect(connected: connectedAIs) }, set: { chosen = $0 }),
-                              returnConnects: false, idPrefix: "connect", connected: connectedAIs, connect: begin) { EmptyView() }
-                .disabled(reach != .online)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(SettingsInk.group))
-        .settingsProbe("connect.card")
-    }
-
-    // MARK: Three ideas (Emil, 7 November 2026: the lists under the tiles repeat them; "try different ideas")
-
-    /// `defaults write <app id> connectPageLook detail|chips|cards|list`; the one left goes after.
-    enum Look: String { case list, detail, chips, cards }
-    static var look: Look { Look(rawValue: UserDefaults.standard.string(forKey: "connectPageLook") ?? "") ?? .detail }
-
-    /// The connections a tile stands for: its AI's, or for Other everything no tile names.
-    func accounts(_ tile: SetupCards.AI) -> [Connection] {
-        let rows = Self.rows(connections: active).filter { $0.connection != nil }
-        if tile == .other {
-            return rows.filter { r in r.guide.map { ![.chatgpt, .claude, .grok].contains($0) } ?? true }.compactMap(\.connection)
-        }
-        return rows.filter { $0.guide == tile.guide }.compactMap(\.connection)
-    }
-
-    /// When it was connected and last used: what tells two accounts of one AI apart.
-    static func when(_ c: Connection) -> String {
-        let made = "Connected \(c.created_at.formatted(.dateTime.day().month()))"
-        return c.last_used_at.map { "\(made) \u{00B7} used \($0.formatted(.relative(presentation: .named)))" } ?? made
-    }
-
-    private var tiles: [SetupCards.AI] { SetupCards.connectTiles }
-
-    private func card(@ViewBuilder _ inside: () -> some View) -> some View {
-        inside()
-            .padding(16)
-            .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(SettingsInk.group))
-            .settingsProbe("connect.card")
-    }
-
-    private var reads: some View {
-        Text(SetupCards.connectReads)
-            .font(.system(size: 12))
-            .foregroundStyle(SettingsInk.muted)
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityIdentifier("connect.reads")
-    }
-
-    private func tileGrid(picked: SetupCards.AI?, action: @escaping (SetupCards.AI) -> Void) -> some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: tiles.count), spacing: 8) {
-            ForEach(tiles) { t in
-                SetupTile(title: t == .other ? "Other" : t.name, on: picked == t, connected: !accounts(t).isEmpty, id: "connect.ai.\(t.rawValue)", action: { action(t) }) {
-                    BrandMark(ai: t, size: 30)
-                }
-            }
-        }
-        .settingsProbe("connect.tiles")
-        .disabled(reach != .online)
-    }
-
-    private func accountLine(_ c: Connection, name: String) -> some View {
-        HStack(spacing: 10) {
-            ConnectionTile(connection: c, size: 24)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(name).font(.system(size: 13)).foregroundStyle(SettingsInk.text).lineLimit(1)
-                Text(Self.when(c)).font(.system(size: 11.5)).foregroundStyle(SettingsInk.muted).lineLimit(1)
-            }
-            Spacer(minLength: 8)
-            Button("Disconnect\u{2026}") { removing = c }
-                .buttonStyle(.settings)
-                .disabled(reach != .online)
-                .accessibilityLabel("Disconnect \(name)")
-                .accessibilityIdentifier("connect.disconnect")
-        }
-    }
-
-    // A: the tiles pick, and what's under them is the picked tile's: its accounts, Disconnect each,
-    // and Connect (another).
-    private var detailLook: some View {
-        let pick = chosen ?? .chatgpt
-        let mine = accounts(pick)
-        return card {
-            VStack(spacing: 14) {
-                reads
-                tileGrid(picked: pick) { chosen = $0 }
-                if !mine.isEmpty {
-                    VStack(spacing: 10) {
-                        ForEach(Array(mine.enumerated()), id: \.element.id) { i, c in
-                            if i > 0 { SettingsInk.hairline.frame(height: 0.5) }
-                            accountLine(c, name: pick == .other ? c.title : (mine.count > 1 ? "\(pick.name) account \(i + 1)" : pick.name))
-                        }
-                    }
-                    .padding(12)
-                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(SettingsInk.group))
-                }
-                if pick == .other {
-                    HStack(spacing: 14) {
-                        ForEach(Self.more()) { g in
-                            Button("Connect \(g.shown)\u{2026}") { connect(g) }.buttonStyle(.hoverLink).font(.system(size: 12))
-                                .accessibilityIdentifier("connect.more.\(g.rawValue)")
-                        }
-                    }
-                    .foregroundStyle(SettingsInk.muted)
-                }
-                Group {
-                    if mine.isEmpty {
-                        Button(ConnectTilePicker<EmptyView>.buttonTitle(pick, connected: false)) { begin(pick) }
-                            .buttonStyle(.amberProminent(.regular, wide: true))
-                    } else {
-                        Button(ConnectTilePicker<EmptyView>.buttonTitle(pick, connected: true)) { begin(pick) }
-                            .buttonStyle(.secondary(.regular, wide: true))
-                    }
-                }
-                .disabled(reach != .online)
-                .accessibilityIdentifier("connect.connect")
-            }
-        }
-    }
-
-    // B: a tile connects in one click; what's connected sits under them as chips, each with ×.
-    private var chipsLook: some View {
-        let all = active
-        return card {
-            VStack(spacing: 14) {
-                reads
-                tileGrid(picked: nil) { begin($0) }
-                if !all.isEmpty {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 8)], alignment: .leading, spacing: 8) {
-                        ForEach(all) { c in
-                            HStack(spacing: 8) {
-                                ConnectionTile(connection: c, size: 20)
-                                VStack(alignment: .leading, spacing: 0) {
-                                    Text(c.mark ?? c.title).font(.system(size: 12, weight: .medium)).foregroundStyle(SettingsInk.text).lineLimit(1)
-                                    Text(Self.when(c)).font(.system(size: 10.5)).foregroundStyle(SettingsInk.muted).lineLimit(1)
-                                }
-                                Spacer(minLength: 4)
-                                Button { removing = c } label: { Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)) }
-                                    .buttonStyle(.quietIcon(padding: 5))
-                                    .help("Disconnect")
-                                    .accessibilityLabel("Disconnect \(c.title)")
-                                    .accessibilityIdentifier("connect.disconnect")
-                            }
-                            .padding(.leading, 8).padding(.trailing, 4).padding(.vertical, 6)
-                            .background(Capsule().fill(SettingsInk.group))
-                        }
-                    }
-                }
-                HStack(spacing: 14) {
-                    ForEach(Self.more()) { g in
-                        Button("Connect \(g.shown)\u{2026}") { connect(g) }.buttonStyle(.hoverLink).font(.system(size: 12))
-                            .accessibilityIdentifier("connect.more.\(g.rawValue)")
-                    }
-                }
-                .foregroundStyle(SettingsInk.muted)
-            }
-        }
-    }
-
-    // C: a card per AI, two by two, each saying where it stands and doing its own thing.
-    private var cardsLook: some View {
-        VStack(spacing: 10) {
-            reads.frame(maxWidth: .infinity, alignment: .leading).multilineTextAlignment(.leading)
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                ForEach(tiles) { t in aiCard(t) }
+                ForEach(SetupCards.connectTiles) { t in aiCard(t) }
             }
             .settingsProbe("connect.card")
         }
+    }
+
+    /// What a card's status line says.
+    static func status(_ tile: SetupCards.AI, accounts mine: [Connection]) -> String {
+        if mine.isEmpty { return tile == .other ? "Cursor, VS Code, Codex and more" : "Not connected" }
+        if mine.count > 1 { return "\(mine.count) \(tile == .other ? "apps" : "accounts")" }
+        if tile == .other { return mine[0].title }
+        return mine[0].last_used_at.map { "Used \($0.formatted(.relative(presentation: .named)))" } ?? "Connected"
+    }
+
+    /// A Disconnect item in Manage: the AI's name for one account, when it was connected for several.
+    static func disconnectTitle(_ c: Connection, tile: SetupCards.AI, count: Int) -> String {
+        if tile == .other { return "Disconnect \(c.title)\u{2026}" }
+        if count == 1 { return "Disconnect \(tile.name)\u{2026}" }
+        return "Disconnect the account connected \(c.created_at.formatted(.dateTime.day().month()))\u{2026}"
     }
 
     private func aiCard(_ t: SetupCards.AI) -> some View {
         let mine = accounts(t)
-        let status: String = mine.isEmpty ? (t == .other ? "Cursor, VS Code, Codex and more" : "Not connected")
-            : mine.count == 1 ? (mine[0].last_used_at.map { "Used \($0.formatted(.relative(presentation: .named)))" } ?? "Connected")
-            : "\(mine.count) \(t == .other ? "apps" : "accounts")"
+        let status = Self.status(t, accounts: mine)
         return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 BrandMark(ai: t, size: 30)
@@ -2116,11 +1975,12 @@ struct ConnectAIPage: View {
                 } else {
                     Menu {
                         ForEach(mine) { c in
-                            Button("Disconnect \(t == .other ? c.title : "")\(t == .other ? "" : Self.when(c))\u{2026}") { removing = c }
+                            Button(Self.disconnectTitle(c, tile: t, count: mine.count)) { removing = c }
                         }
                         Divider()
                         Button(t == .other ? "Connect another app\u{2026}" : "Connect another account\u{2026}") { begin(t) }
                         if t == .other { ForEach(Self.more()) { g in Button("Connect \(g.shown)\u{2026}") { connect(g) } } }
+
                     } label: { Text("Manage") }
                     .menuStyle(.button)
                     .buttonStyle(.settings)
@@ -2134,64 +1994,6 @@ struct ConnectAIPage: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(SettingsInk.group))
-    }
-
-    /// The tile picked when the page opens: the first brand not connected yet.
-    static func firstToConnect(connected: Set<SetupCards.AI>) -> SetupCards.AI {
-        SetupCards.brands.first { !connected.contains($0) } ?? .other
-    }
-
-    private var connectedAIs: Set<SetupCards.AI> {
-        Set(SetupCards.connectTiles.filter { $0 != .other && names.contains($0.guide.title) })
-    }
-
-    /// What's connected, each with its Disconnect, apps on this computer too.
-    static func connectedRows(_ rows: [Row]) -> [Row] { rows.filter { $0.connection != nil } }
-    /// Ways in the tiles don't have (Codex, Incredible), not connected yet.
-    static func moreRows(_ rows: [Row]) -> [Row] {
-        rows.filter { row in
-            guard row.connection == nil, let g = row.guide else { return false }
-            return ![.chatgpt, .claude, .grok, .other].contains(g)
-        }
-    }
-
-    @ViewBuilder private var lists: some View {
-        let rows = Self.rows(connections: active)
-        let on = Self.connectedRows(rows), more = Self.moreRows(rows)
-        if !on.isEmpty {
-            SettingsGroup(header: "Connected") {
-                ForEach(on) { row in
-                    if let c = row.connection {
-                        SettingsLine(title: row.guide?.shown ?? c.title, detail: Self.detail(row)) {
-                            ConnectionTile(connection: c, size: 26)
-                        } trailing: {
-                            Button("Disconnect\u{2026}") { removing = c }
-                                .buttonStyle(.settings)
-                                .disabled(reach != .online)
-                                .accessibilityLabel("Disconnect \(row.guide?.shown ?? c.title)")
-                                .accessibilityIdentifier("connect.disconnect")
-                        }
-                    }
-                }
-            }
-        }
-        if !more.isEmpty {
-            SettingsGroup(header: "More ways to connect") {
-                ForEach(more) { row in
-                    if let g = row.guide {
-                        SettingsLine(title: g.shown, detail: Self.line(g)) {
-                            mark(g)
-                        } trailing: {
-                            Button("Connect\u{2026}") { connect(g) }
-                                .buttonStyle(.settings)
-                                .disabled(reach != .online)
-                                .accessibilityLabel("Connect \(g.shown)")
-                                .accessibilityIdentifier("connect.more.\(g.rawValue)")
-                        }
-                    }
-                }
-            }
-        }
     }
 
     @ViewBuilder private func mark(_ g: Guide) -> some View {
