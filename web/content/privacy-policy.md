@@ -17,7 +17,7 @@ Last updated: 1 November 2026
 - A note you lock is encrypted a second time with your notes password. Not us and not an AI can read its text.
 - A note you share can be read by anyone with its link, and by us, until you stop sharing.
 - Your data is stored in the European Union (Frankfurt, Germany).
-- **Settings → Privacy & Security** lets you export your notes, and **Settings → Delete Account** deletes your account and everything in it.
+- **Settings → Account → Export Your Notes…** saves all your notes as Markdown, and **Settings → Account → Delete Account…** deletes your account and everything in it.
 - We keep as few logs as we can, for as short a time as we can. The section on logs lists every one.
 
 ## Who we are

@@ -54,7 +54,7 @@ export const FAQ: QA[] = [
     "An app runs inside Pinto Notes and can't reach the internet unless you allow an address. What it saves is encrypted and synced like your notes.",
   ] }] : []),
   { id: "share", q: "How do I share a note as a web page, and stop sharing?", a: [
-    "Open the note and choose Share → Share Link…, then confirm. The link is copied, and anyone with it can read the note. To stop, choose Share → Stop Sharing, and the page is gone.",
+    "On a Mac, open the note, click Share in the toolbar and choose Create Link…, then confirm. On iPhone, tap More (…) → Share → Share Link…. The link is copied, and anyone with it can read the note. To stop, choose Share → Stop Sharing, and the page is gone.",
   ] },
   { id: "delete", q: "How do I delete my account?", a: [
     "Open Settings → Account and choose Delete Account…. Your account and all your notes are deleted, and this can't be undone.",
