@@ -620,8 +620,18 @@ enum ConnectAPI {
 
 /// Disconnecting an AI: its grant is revoked, and it loses access at once.
 enum ConnectRevoke {
-    static func revoke(_ client: SupabaseClient, id: UUID) async throws {
-        try await client.from("mcp_tokens").update(["revoked_at": AnyJSON.string(Date.now.ISO8601Format())]).eq("id", value: id).execute()
+    /// `said`: the person disconnected it (`ai_disconnected`, with the kind of AI the row shows);
+    /// false for the app's own tidying of tokens that were never used.
+    static func revoke(_ client: SupabaseClient, id: UUID, said: Bool = true) async throws {
+        let rows: [Connection] = try await client.from("mcp_tokens").update(["revoked_at": AnyJSON.string(Date.now.ISO8601Format())])
+            .eq("id", value: id).select().execute().value
+        if said, let event = disconnected(rows) { Funnel.record(event) }
+    }
+
+    /// What disconnecting these rows says: the kind of AI by the mark the list shows for it
+    /// (where its approval went, or the guide that made its token), never its name or host.
+    static func disconnected(_ rows: [Connection]) -> TelemetryEvent? {
+        rows.first.map { .aiDisconnected(AIKind(verified: $0.mark)) }
     }
 }
 
@@ -644,7 +654,7 @@ enum ConnectTokens {
         let rows: [Connection] = (try? await client.from("mcp_tokens").select().eq("name", value: name)
             .gte("created_at", value: since.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
             .is("last_used_at", value: nil).is("revoked_at", value: nil).execute().value) ?? []
-        for c in rows where !c.isOAuth { try? await ConnectRevoke.revoke(client, id: c.id) }
+        for c in rows where !c.isOAuth { try? await ConnectRevoke.revoke(client, id: c.id, said: false) }
     }
 }
 
