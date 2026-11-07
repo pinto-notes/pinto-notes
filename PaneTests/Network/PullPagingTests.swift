@@ -15,6 +15,7 @@ extension NetworkFaults {
         NetFault.config = .init()
         NetFault.resetLog()
         UserDefaults.standard.removeObject(forKey: "syncCursor.none")
+        UserDefaults.standard.removeObject(forKey: "syncCursor.none.pages")
         let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         context = ModelContext(c)
         engine = SyncEngine(backend: Backend(testClient: StubSupabase.client(), email: "qa@example.com"), context: context)
@@ -142,6 +143,43 @@ extension NetworkFaults {
         await engine.sync()
         #expect(UserDefaults.standard.object(forKey: "syncCursor.none") != nil)
         #expect(Set(try context.fetch(FetchDescriptor<Note>()).map(\.id)) == Set(ids))
+        await finish()
+    }
+
+    /// `count` app pages (note_pages) on the server from a while ago, and one ordinary note newer
+    /// than all of them.
+    private func serverPages(_ count: Int) -> [UUID] {
+        let start = Date.now.addingTimeInterval(-600)
+        let ids = (0 ..< count).map { i -> UUID in
+            let id = UUID()
+            let at = start.addingTimeInterval(Double(i) * 0.01)
+            StubSupabase.insert("note_pages", [
+                "note_id": id.uuidString.lowercased(), "page_ct": Wire.sealer!.seal("<p>Page \(i)</p>", context: E2EE.page(id))!,
+                "client": "Claude", "updated_at": StubSupabase.stamp(at), "server_updated_at": StubSupabase.stamp(at),
+            ])
+            return id
+        }
+        _ = serverNotes(1).map { id in StubSupabase.update("notes", id: id) { _ in } }
+        return ids
+    }
+
+    @Test func moreAppPagesThanOneAnswerHoldsAllComeDown() async throws {
+        let ids = serverPages(1003)
+        await engine.sync()
+        let missing = ids.filter { NotePageStore.shared[$0] == nil }
+        #expect(missing.isEmpty, "\(missing.count) pages missing")
+        await finish()
+    }
+
+    @Test func appPagesAFailedRequestMissedComeDownNextTime() async throws {
+        let ids = serverPages(2)
+        // Every try of this sync fails (the request is retried a few times).
+        for _ in 0 ..< 20 { StubSupabase.loseAnswer("GET", "/rest/v1/note_pages", applied: false) }
+        await engine.sync()
+        #expect(ids.allSatisfy { NotePageStore.shared[$0] == nil })
+        StubSupabase.clearLostAnswers()
+        await engine.sync()
+        #expect(ids.allSatisfy { NotePageStore.shared[$0] != nil }, "read again, though the notes' cursor moved past them")
         await finish()
     }
 

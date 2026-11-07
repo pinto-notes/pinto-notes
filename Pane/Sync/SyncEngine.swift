@@ -103,6 +103,15 @@ final class SyncEngine {
         get { defaults.object(forKey: cursorKey) as? Date ?? .distantPast }
         set { defaults.set(newValue, forKey: cursorKey) }
     }
+    /// The note pages' own cursor (pull).
+    private var pagesCursor: Date {
+        get { defaults.object(forKey: cursorKey + ".pages") as? Date ?? .distantPast }
+        set { defaults.set(newValue, forKey: cursorKey + ".pages") }
+    }
+    private func forgetCursors() {
+        defaults.removeObject(forKey: cursorKey)
+        defaults.removeObject(forKey: cursorKey + ".pages")
+    }
     /// Where the pull cursor is kept; tests give each simulated device its own.
     private let defaults: UserDefaults
 
@@ -243,7 +252,7 @@ final class SyncEngine {
             if pulling {
                 // An empty library that remembers where sync was (the library was removed and the
                 // settings weren't): everything comes down again, not just what changed since.
-                if cursor != .distantPast, Self.holdsNothing(context) { defaults.removeObject(forKey: cursorKey) }
+                if cursor != .distantPast, Self.holdsNothing(context) { forgetCursors() }
                 let fromTheStart = cursor == .distantPast
                 let first = !hasSynced
                 try await pull(client, sealer: sealer, gen: gen)
@@ -467,7 +476,7 @@ final class SyncEngine {
         guard startedFreshHere || (known != nil && known != keyID) else { return }
         DebouncedSave.flushAll()
         let n = Self.markAllForUpload(context)
-        defaults.removeObject(forKey: cursorKey)
+        forgetCursors()
         synced = [:]
         refused = [:]
         problem = nil
@@ -500,7 +509,7 @@ final class SyncEngine {
         guard let uid = backend.userID, !defaults.bool(forKey: Self.resetKey(uid)) else { return }
         DebouncedSave.flushAll()
         let (removed, kept) = Self.resetOldLibrary(context)
-        defaults.removeObject(forKey: cursorKey)
+        forgetCursors()
         synced = [:]
         refused = [:]
         defaults.set(true, forKey: Self.resetKey(uid))
@@ -686,7 +695,7 @@ final class SyncEngine {
             folders.removeAll { leftovers.contains($0.id) }
             dropForeignFolders(leftovers)
             // They may be this account's own folders: everything comes down again, as on the server.
-            defaults.removeObject(forKey: cursorKey)
+            forgetCursors()
             log.notice("removed \(leftovers.count) folders an account switch had marked deleted; pulling everything again")
         }
         let foreign = try await foreignFolders(client, among: folders)
@@ -1525,8 +1534,14 @@ final class SyncEngine {
         // named after that note (sub-notes are gone; see foldSubNotesIntoFolders).
         if changed { context.foldSubNotesIntoFolders() }
         // Note pages (prototype): a backend without the table leaves this out; it never stops a sync.
-        if let pages: [NotePageDTO] = try? await client.from("note_pages").select("note_id,page_ct,data_ct,client,updated_at,server_updated_at,draft_problems")
-            .gt("server_updated_at", value: stamp).order("server_updated_at").execute().value {
+        // They have a cursor of their own, moved only once every page of them came down: one the
+        // notes' cursor passed while a request for them failed is read again next time.
+        let pagesFrom = pagesCursor == .distantPast ? pagesCursor : pagesCursor.addingTimeInterval(-5)
+        var newestPage = pagesCursor
+        do {
+            try await Self.changedRows(client, "note_pages", since: pagesFrom.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)), size: 1000,
+                                       columns: "note_id,page_ct,data_ct,client,updated_at,server_updated_at,draft_problems", key: "note_id") { (pages: [NotePageDTO]) in
+            try ensure(sealer, gen)
             for r in pages {
                 NotePageStore.shared.take(r)
                 NotePageStore.shared.setDraft(r.note_id, problems: r.draft_problems, by: Self.writer(r.client))
@@ -1535,8 +1550,13 @@ final class SyncEngine {
                 } else if r.data_ct == nil {
                     NotePageDataStore.shared.take(r.note_id, server: nil, by: Self.writer(r.client))
                 }
-                if let s = r.server_updated_at, s > newest { newest = s }
+                if let s = r.server_updated_at, s > newestPage { newestPage = s }
             }
+            }
+            try ensure(sealer, gen)
+            pagesCursor = newestPage
+        } catch where !outlived(sealer, gen) {
+            log.error("note pages pull failed: \(String(describing: error), privacy: .public)")
         }
         try ensure(sealer, gen)
         cursor = newest
@@ -1554,12 +1574,13 @@ final class SyncEngine {
     /// an offset: a row changed between two requests moves to the end, and with offsets every row
     /// after it shifts back one, so one would never be read (and the cursor would pass it).
     static func changedRows<Row: PagedRow>(_ client: SupabaseClient, _ table: String, since stamp: String, size: Int,
+                                           columns: String = "*", key: String = "id",
                                            _ each: ([Row]) async throws -> Void) async throws {
         var last: (stamp: String, id: UUID)?
         while true {
-            var query = client.from(table).select().gt("server_updated_at", value: stamp)
-            if let last { query = query.or(after(last.stamp, last.id)) }
-            let page: [Row] = try await query.order("server_updated_at").order("id").limit(size).execute().value
+            var query = client.from(table).select(columns).gt("server_updated_at", value: stamp)
+            if let last { query = query.or(after(last.stamp, last.id, key: key)) }
+            let page: [Row] = try await query.order("server_updated_at").order(key).limit(size).execute().value
             try await each(page)
             if page.count < size { return }
             guard let end = page.last, let s = end.server_stamp else { throw MissingStamp() }
@@ -1568,9 +1589,9 @@ final class SyncEngine {
     }
 
     /// PostgREST's filter for the rows after (`stamp`, `id`) in (server_updated_at, id) order.
-    nonisolated static func after(_ stamp: String, _ id: UUID) -> String {
+    nonisolated static func after(_ stamp: String, _ id: UUID, key: String = "id") -> String {
         let id = id.uuidString.lowercased()
-        return #"server_updated_at.gt."\#(stamp)",and(server_updated_at.eq."\#(stamp)",id.gt.\#(id))"#
+        return #"server_updated_at.gt."\#(stamp)",and(server_updated_at.eq."\#(stamp)",\#(key).gt.\#(id))"#
     }
 
     /// Takes one server row into the library. Returns true when anything changed.
@@ -1888,6 +1909,26 @@ struct NotePageDTO: Decodable {
     /// What failed in an AI's newer version, kept as a draft (it never runs here). Test and check
     /// names only.
     var draft_problems: String? = nil
+    /// `server_updated_at` as the server wrote it (SyncEngine.changedRows).
+    var server_stamp: String? = nil
+}
+
+extension NotePageDTO: PagedRow {
+    var id: UUID { note_id }
+
+    enum CodingKeys: String, CodingKey { case note_id, page_ct, data_ct, client, updated_at, server_updated_at, draft_problems }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        note_id = try c.decode(UUID.self, forKey: .note_id)
+        page_ct = try c.decodeIfPresent(String.self, forKey: .page_ct)
+        data_ct = try c.decodeIfPresent(String.self, forKey: .data_ct)
+        client = try c.decodeIfPresent(String.self, forKey: .client)
+        updated_at = try c.decode(Date.self, forKey: .updated_at)
+        server_updated_at = try c.decodeIfPresent(Date.self, forKey: .server_updated_at)
+        server_stamp = try? c.decodeIfPresent(String.self, forKey: .server_updated_at)
+        draft_problems = try c.decodeIfPresent(String.self, forKey: .draft_problems)
+    }
 }
 
 struct NoteDTO: Codable, PagedRow {

@@ -93,6 +93,9 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
         set { lock.withLock { _onRequest = newValue } }
     }
 
+    /// Forgets the failures `loseAnswer` set up that haven't happened yet.
+    static func clearLostAnswers() { lock.withLock { _failing = [] } }
+
     static func reset() {
         lock.withLock {
             _onRequest = nil
@@ -269,9 +272,11 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
             switch method {
             case "GET":
                 var out = list.filter(matches)
-                out.sort { (($0["server_updated_at"] as? String) ?? "", ($0["id"] as? String) ?? "") < (($1["server_updated_at"] as? String) ?? "", ($1["id"] as? String) ?? "") }
+                let key = { (r: [String: Any]) in ((r["id"] ?? r["note_id"]) as? String)?.lowercased() ?? "" }
+                out.sort { (($0["server_updated_at"] as? String) ?? "", key($0)) < (($1["server_updated_at"] as? String) ?? "", key($1)) }
                 let offset = query.first { $0.name == "offset" }.flatMap { Int($0.value ?? "") } ?? 0
-                let limit = query.first { $0.name == "limit" }.flatMap { Int($0.value ?? "") } ?? out.count
+                // As the API's row cap (supabase/config.toml max_rows): never more than 1,000 rows.
+                let limit = min(query.first { $0.name == "limit" }.flatMap { Int($0.value ?? "") } ?? out.count, 1000)
                 out = Array(out.dropFirst(offset).prefix(limit))
                 return (200, json(out))
             case "POST":
@@ -426,10 +431,10 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
             let key = item.name
             // Keyset paging (SyncEngine.after): or=(k.gt."s",and(k.eq."s",id.gt.i)), compared as
             // the server's text, which sorts as it orders (one format, fixed width).
-            if key == "or", let m = v.firstMatch(of: #/^\((\w+)\.gt\."([^"]+)",and\(\1\.eq\."\2",id\.gt\.([0-9a-f-]+)\)\)$/#) {
-                let (column, stamp, id) = (String(m.1), String(m.2), String(m.3))
+            if key == "or", let m = v.firstMatch(of: #/^\((\w+)\.gt\."([^"]+)",and\(\1\.eq\."\2",(\w+)\.gt\.([0-9a-f-]+)\)\)$/#) {
+                let (column, stamp, idColumn, id) = (String(m.1), String(m.2), String(m.3), String(m.4))
                 return { r in
-                    guard let s = r[column] as? String, let rid = (r["id"] as? String)?.lowercased() else { return false }
+                    guard let s = r[column] as? String, let rid = (r[idColumn] as? String)?.lowercased() else { return false }
                     return s > stamp || (s == stamp && rid > id)
                 }
             }
