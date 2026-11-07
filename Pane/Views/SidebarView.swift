@@ -1295,6 +1295,14 @@ private struct CountedRow: View {
     /// A note is held over Recently Deleted.
     @State private var noteOver = false
 
+    private static var noteBeingDragged: Bool {
+        #if os(macOS)
+        NoteDragging.shared.active
+        #else
+        false
+        #endif
+    }
+
     var body: some View {
         #if DEBUG
         let _ = RenderProbe.count("CountedRow")
@@ -1304,7 +1312,7 @@ private struct CountedRow: View {
         let count = trash ? counts.trashed : counts.live
         // Recently Deleted has no row while nothing is in it, or a note being dragged has nowhere
         // to be thrown away.
-        if !trash || SidebarView.showsTrash(notes: count, files: files) || NoteDragging.shared.active {
+        if !trash || SidebarView.showsTrash(notes: count, files: files) || Self.noteBeingDragged {
             Label {
                 SidebarRowText(title: title, selected: selected) {
                     Text(count + files, format: .number)

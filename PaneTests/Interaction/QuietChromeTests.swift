@@ -138,7 +138,7 @@ import Testing
         let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
         #expect(sidebar.contains("DropOpenIcon(symbol: \"folder\", kind: .folder, open: lit"))
         #expect(sidebar.contains("DropOpenIcon(symbol: \"trash\", kind: .trash, open: noteOver"))
-        #expect(sidebar.contains("|| NoteDragging.shared.active"))
+        #expect(sidebar.contains("|| Self.noteBeingDragged") && sidebar.contains("NoteDragging.shared.active"))
         let charm = try SettingsHomeTests.source("Pane/Views/Charm.swift")
         #expect(charm.contains("let open = max(moving, p.agape)"), "the folder's front drops for a held note")
         let drag = NoteDragging()
