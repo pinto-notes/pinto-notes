@@ -11,12 +11,6 @@
   "w": 1600,
   "h": 1000
  },
- "anthropic-claude-memory": {
-  "ground": "#eac9b6",
-  "ink": "dark",
-  "w": 880,
-  "h": 462
- },
  "anthropic-mcp": {
   "ground": "#da7959",
   "ink": "light",
@@ -107,12 +101,6 @@
   "w": 880,
   "h": 550
  },
- "claude-memory": {
-  "ground": "#f7e6dc",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "connect-chatgpt": {
   "ground": "#e3f2ed",
   "ink": "dark",
@@ -131,32 +119,14 @@
   "w": 880,
   "h": 550
  },
- "flashcards": {
-  "ground": "#eee1f5",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "forgot-password": {
   "ground": "#f4e7d4",
   "ink": "dark",
   "w": 880,
   "h": 550
  },
- "habit-tracker": {
-  "ground": "#ddeddf",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "ios-27": {
   "ground": "#fff3d0",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "journal": {
-  "ground": "#f4e2ce",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -253,12 +223,6 @@
  },
  "templates": {
   "ground": "#f7e7d0",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "trip": {
-  "ground": "#cde2f6",
   "ink": "dark",
   "w": 880,
   "h": 550

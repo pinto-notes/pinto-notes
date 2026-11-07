@@ -175,9 +175,11 @@ export default async function Page({ params }: Props) {
         <section className={s.section} aria-labelledby="questions">
           <div className={s.sectionHead}>
             <h2 id="questions" className={s.h2}>Questions</h2>
-            <p className={s.sectionLede}>
-              Would you rather build your own with your AI? <a href={`/blog/${seo.post.slug}`}>{seo.post.title}</a> shows both ways, and where each one stops.
-            </p>
+            {seo.post && (
+              <p className={s.sectionLede}>
+                Would you rather build your own with your AI? <a href={`/blog/${seo.post.slug}`}>{seo.post.title}</a> shows both ways, and where each one stops.
+              </p>
+            )}
           </div>
           <dl className={s.faq}>
             {seo.faq.map((f) => <div key={f.q}><dt>{f.q}</dt>{f.a.map((a) => <dd key={a}>{a}</dd>)}</div>)}

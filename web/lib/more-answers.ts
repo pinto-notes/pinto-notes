@@ -32,7 +32,6 @@ export const SHELVES: Shelf[] = [
       { slug: "connect-chatgpt-to-your-notes", ask: "Can ChatGPT read my notes?" },
       { slug: "chatgpt-and-apple-notes", ask: "Can ChatGPT use Apple Notes?" },
       { slug: "claude-and-apple-notes", ask: "Can Claude use Apple Notes?" },
-      { slug: "claude-memory-vs-notes", ask: "Isn't Claude's memory enough?" },
       { slug: "notes-in-claude-code-and-codex", ask: "Notes for Claude Code and Codex?" },
       { slug: "notes-apps-with-mcp", ask: "Which notes apps work with AI?" },
       { slug: "best-notes-app-for-ai-agents", ask: "What's the best notes app for AI agents?" },
@@ -47,11 +46,7 @@ export const SHELVES: Shelf[] = [
     title: "Make something with your AI",
     line: "Prompts to copy, and what it looks like when it works.",
     items: [
-      { slug: "habit-tracker-with-chatgpt-or-claude", ask: "A habit tracker" },
       { slug: "budget-tracker-with-chatgpt-or-claude", ask: "A budget that adds itself up" },
-      { slug: "plan-a-trip-with-chatgpt-or-claude", ask: "A trip plan" },
-      { slug: "flashcards-with-chatgpt-or-claude", ask: "Flashcards from your notes" },
-      { slug: "journal-with-chatgpt-or-claude", ask: "A daily journal" },
     ],
   },
 ];
