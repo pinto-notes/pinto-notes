@@ -130,6 +130,21 @@ extension NetworkFaults {
         await finish()
     }
 
+    /// A pull whose rows couldn't be saved here (a full disk) doesn't move the cursor past them:
+    /// if the app then quits, the next pull brings them again.
+    @Test func aPullThatCouldntBeSavedKeepsTheCursor() async throws {
+        let ids = serverNotes(3)
+        engine.saveLibrary = { _ in false }
+        await engine.sync()
+        #expect(UserDefaults.standard.object(forKey: "syncCursor.none") == nil, "the cursor didn't move")
+        if case .synced = engine.status { Issue.record("not reported as synced") }
+        engine.saveLibrary = { $0.saveOrReport() }
+        await engine.sync()
+        #expect(UserDefaults.standard.object(forKey: "syncCursor.none") != nil)
+        #expect(Set(try context.fetch(FetchDescriptor<Note>()).map(\.id)) == Set(ids))
+        await finish()
+    }
+
     /// Rows written in one go share their server time to the microsecond; the order's tie-break
     /// (the id) still pages through them all, each once.
     @Test func rowsWithTheSameServerTimeArePagedByID() async throws {

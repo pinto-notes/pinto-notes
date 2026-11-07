@@ -205,6 +205,10 @@ final class SyncEngine {
     }
 
     struct Stopped: Error {}
+    struct LibraryNotSaved: Error {}
+
+    /// Saves the library after a pull; tests make it fail.
+    var saveLibrary: (ModelContext) -> Bool = { $0.saveOrReport() }
 
     /// Stops a run whose key is no longer the account's, or whose engine stopped since it began.
     private func ensure(_ sealer: Sealer, _ gen: Int) throws {
@@ -1502,7 +1506,9 @@ final class SyncEngine {
                 if merge(r, folders: &byID, known: &known) { changed = true; pulledNotes.append(r.id) }
             }
         }
-        if changed { context.saveOrReport() }
+        // What came down is on disk before the cursor moves past it: a save that failed (a full
+        // disk) leaves the cursor where it was, so the next pull brings it all again.
+        if changed, !saveLibrary(context) { throw LibraryNotSaved() }
         try ensure(sealer, gen)
         // A note an AI or an older build made under another note is an ordinary note in a folder
         // named after that note (sub-notes are gone; see foldSubNotesIntoFolders).
