@@ -569,15 +569,15 @@ import Carbon.HIToolbox
         AccountSettingsPage.syncNow(nil) { synced.n += 1 }
         for _ in 0..<20 where synced.n == 0 { try await Task.sleep(for: .milliseconds(50)) }
         #expect(synced.n == 1)
-        // The Mac's page has no Sync Now button (the status is the button) and no Export (it's
-        // File › Export All Notes…); Sign Out… and Delete Account… are under you.
+        // Sync Now beside when it last synced (Emil, 7 November 2026), no Export on the Mac (it's
+        // File › Export All Notes…); Sign Out… is under you.
         let ax = OffscreenAX(AccountSettingsPage(backend: backend, sync: nil).modelContainer(try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))),
                              size: CGSize(width: SettingsCard.pageWidth, height: 700))
         await ax.settle(400)
         let ids = ax.ids()
         ax.close()
-        for gone in ["settings.syncNow", "settings.exportNotes", "settings.connectApple"] { #expect(!ids.contains(gone), "\(gone) is not on the Mac's Account") }
-        for here in ["settings.signOut", "settings.syncStatus", "settings.profileName", "settings.openPersonal", "settings.openSignIn", "settings.accountDevices"] { #expect(ids.contains(here), "\(here): \(ids)") }
+        for gone in ["settings.exportNotes", "settings.connectApple"] { #expect(!ids.contains(gone), "\(gone) is not on the Mac's Account") }
+        for here in ["settings.signOut", "settings.syncNow", "settings.syncStatus", "settings.profileName", "settings.openPersonal", "settings.openSignIn", "settings.accountDevices"] { #expect(ids.contains(here), "\(here): \(ids)") }
         #expect(!ids.contains("settings.deleteAccount"), "not on Account's own page")
         // A real click on the status needs a key window: where windows may be ordered in (CI).
         guard FileRowClickTests.onCI else { return }
@@ -591,7 +591,7 @@ import Carbon.HIToolbox
             window.sendEvent(e)
         }
         for _ in 0..<20 where synced.n == 1 { try await Task.sleep(for: .milliseconds(50)) }
-        #expect(synced.n == 2, "clicking the status syncs now")
+        #expect(synced.n == 2, "clicking Sync Now syncs now")
     }
 
     @Test func theSyncLineIsShort() {
@@ -599,6 +599,7 @@ import Carbon.HIToolbox
         #expect(AccountSettingsPage.syncLine(.synced(now.addingTimeInterval(-10)), reach: .online, now: now) == "Synced just now")
         #expect(AccountSettingsPage.syncLine(.synced(now.addingTimeInterval(-300)), reach: .online, now: now).hasPrefix("Synced "))
         #expect(AccountSettingsPage.syncLine(.syncing, reach: .online, now: now) == "Syncing\u{2026}")
+        #expect(AccountSettingsPage.syncLine(.idle, reach: .online, now: now) == "Syncs on its own", "never a bare \"Not synced yet\", which reads as broken")
         let g: Int64 = 1_073_741_824
         let line = AccountSettingsPage.storageLine(StorageUsage(used: g + g / 5, limit: 2 * g, notes: 0, files: 0, apps: 0, deleted: 0, versions: 0))
         #expect(line.hasPrefix("1.2") && line.hasSuffix(" GB of 2 GB") && !line.contains("used"), "\(line)")

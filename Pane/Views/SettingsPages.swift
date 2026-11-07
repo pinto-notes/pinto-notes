@@ -227,7 +227,7 @@ struct AccountSettingsPage: View {
     static func syncLine(_ status: SyncEngine.Status, reach: SyncEngine.Reach, now: Date = .now) -> String {
         if let away = SyncStatusLabel.away(status, reach: reach) { return away }
         switch status {
-        case .idle: return "Not synced yet"
+        case .idle: return "Syncs on its own"
         case .syncing: return "Syncing\u{2026}"
         case .synced(let d):
             return now.timeIntervalSince(d) < 60 ? "Synced just now" : "Synced \(d.formatted(.relative(presentation: .named, unitsStyle: .wide)))"
@@ -273,7 +273,7 @@ struct AccountSettingsPage: View {
             subPage(.signIn, "settings.openSignIn")
         }
         Section {
-            LabeledContent("Sync") { syncControl }
+            syncRow
         }
         Section {
             ForEach(deviceRows) { d in deviceRow(d) }
@@ -449,37 +449,24 @@ struct AccountSettingsPage: View {
 
     /// Sync's status, said the same on both, and how to sync now: on the Mac the status is the
     /// button (a click), on iPhone a Sync Now button beside it (a tap needs something to tap).
-    private var syncControl: some View {
+    /// Sync: when it last synced under the word, and Sync Now beside it, on both apps (Emil,
+    /// 7 November 2026: a bare "Not synced yet" read as something wrong).
+    private var syncRow: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
-            let line = Self.syncLine(sync?.status ?? .idle, reach: sync?.reach ?? .online, now: context.date)
-            #if os(macOS)
-            Button { runSync() } label: {
-                HStack(spacing: 5) {
-                    if case .syncing = sync?.status { ProgressView().controlSize(.mini) } else {
-                        Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 10.5)).accessibilityHidden(true)
-                    }
-                    Text(line)
+            LabeledContent {
+                HStack(spacing: 8) {
+                    if case .syncing = sync?.status { ProgressView().controlSize(.small) }
+                    Button("Sync Now") { runSync() }
+                        .settingsRowButton()
+                        .disabled(reach != .online || { if case .syncing = sync?.status { return true }; return false }())
+                        .accessibilityIdentifier("settings.syncNow")
+                        .settingsProbe("account.syncStatus")
                 }
-                .foregroundStyle(Color.muted)
-                .lineLimit(1)
-            }
-            .buttonStyle(.hoverText)
-            .disabled(reach != .online)
-            .help("Sync now")
-            .accessibilityHint("Syncs now")
-            .accessibilityIdentifier("settings.syncStatus")
-            .settingsProbe("account.syncStatus")
-            #else
-            HStack(spacing: 10) {
-                if case .syncing = sync?.status { ProgressView().controlSize(.mini) }
-                Text(line).foregroundStyle(Color.muted).lineLimit(1)
+            } label: {
+                Text("Sync")
+                Text(Self.syncLine(sync?.status ?? .idle, reach: sync?.reach ?? .online, now: context.date))
                     .accessibilityIdentifier("settings.syncStatus")
-                Button("Sync Now") { runSync() }
-                    .settingsRowButton()
-                    .disabled(reach != .online)
-                    .accessibilityIdentifier("settings.syncNow")
             }
-            #endif
         }
     }
 
@@ -549,22 +536,23 @@ struct AccountSettingsPage: View {
     /// A click or tap on the name or the pencil puts the caret in it; Return or leaving keeps it.
     private var name: some View {
         let font = Font.title3.weight(.semibold)
-        return HStack(spacing: 6) {
+        return HStack(spacing: Self.nameGap) {
             Color.clear.frame(width: Self.namePencil, height: 1)  // keeps the name centred under the photo
-            ZStack {
-                // The field is as wide as what it shows, so the pencil sits right after the name.
-                Text(draft.isEmpty ? "Add your name" : draft).font(font).lineLimit(1).padding(.horizontal, 2).hidden()
-                TextField("Name", text: $draft, prompt: Text("Add your name").foregroundStyle(Color.muted))
-                    .labelsHidden()
-                    .textFieldStyle(.plain)
-                    .font(font)
-                    .foregroundStyle(Color.ink)
-                    .multilineTextAlignment(.center)
-                    .focused($editing)
-                    .onSubmit { Task { await profile.setName(draft) } }
-            }
-            .frame(maxWidth: 260)
-            .fixedSize()
+            // The field takes exactly the width of what it shows (a plain field's own width runs
+            // wider), so the pencil sits right after the name (Emil, 7 November 2026: closer).
+            Text(draft.isEmpty ? "Add your name" : draft).font(font).lineLimit(1).padding(.horizontal, 1).hidden()
+                .frame(maxWidth: 260)
+                .fixedSize()
+                .overlay {
+                    TextField("Name", text: $draft, prompt: Text("Add your name").foregroundStyle(Color.muted))
+                        .labelsHidden()
+                        .textFieldStyle(.plain)
+                        .font(font)
+                        .foregroundStyle(Color.ink)
+                        .multilineTextAlignment(.center)
+                        .focused($editing)
+                        .onSubmit { Task { await profile.setName(draft) } }
+                }
             .accessibilityLabel("Name")
             .accessibilityIdentifier("settings.profileName")
             .settingsProbe("account.name")
@@ -592,6 +580,7 @@ struct AccountSettingsPage: View {
     }
 
     static let namePencil: CGFloat = 20
+    static let nameGap: CGFloat = 4
 
     @ViewBuilder private var signedOut: some View {
         Section {
