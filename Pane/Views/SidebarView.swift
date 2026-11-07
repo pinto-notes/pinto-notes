@@ -1036,7 +1036,6 @@ struct SidebarView: View {
 
     /// A drag is over a folder's row, or has left it.
     private func folderTargeted(_ over: Bool, _ id: UUID) {
-        if !over, id != Self.everyRow, drops.id == id, !Self.mouseIsDown { drops.lifted(id) }
         drops.id = Self.dropTarget(drops.id, over: over, id: id, dropped: id == Self.everyRow, buttonDown: Self.mouseIsDown)
     }
 
@@ -1173,12 +1172,12 @@ struct SidebarView: View {
     private(set) var landings: [UUID: Int] = [:]
 
     static let landedHold: Duration = .milliseconds(320)
-    /// From the lift to the drop reaching us the system takes up to half a second. Long enough to
-    /// carry the row over that wait, so it doesn't go dark and light again.
+    /// Reading what was dropped takes up to half a second after the lift. Long enough to carry the
+    /// row over that wait, so it doesn't go dark and light again.
     static let liftHold: Duration = .milliseconds(800)
     private var holds = 0
 
-    /// The button came up over this row: its drop is on the way.
+    /// Something was dropped on this row and is still being read.
     func lifted(_ folder: UUID) { hold(folder, for: Self.liftHold) }
 
     func land(_ folder: UUID) {
@@ -1593,6 +1592,7 @@ private struct FolderTree: View {
         // Notes, folders and files from inside the app, and files and folders from Finder, Mail or
         // Safari: they land in this folder.
         .onDrop(of: FolderDrop.types, delegate: FolderDrop(over: { targeted($0, folder.id) }) { providers in
+            drops.lifted(folder.id)
             DropLoader.load(providers) { items, urls in
                 var moved = false
                 for item in items {
