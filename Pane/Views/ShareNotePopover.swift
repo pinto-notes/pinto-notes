@@ -395,6 +395,7 @@ struct CollaborateRows: View {
 
     enum Page: Equatable { case people, verify(UUID) }
     @State private var page: Page?
+    @State private var accessHover = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var shown: Page { page ?? startingPage ?? .people }
@@ -471,10 +472,12 @@ struct CollaborateRows: View {
                         .padding(.horizontal, 9)
                         .frame(height: 26)
                         .background(Color.soft, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        .overlay { if accessHover { RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Hover.row) } }
                     }
                     .menuStyle(.button)
                     .buttonStyle(.plain)
                     .menuIndicator(.hidden)
+                    .modifier(HoverTracking(hovering: $accessHover))
                     .fixedSize()
                     .disabled(share.working != nil)
                     .accessibilityLabel("People with the link: \(share.state.access.rawValue)")

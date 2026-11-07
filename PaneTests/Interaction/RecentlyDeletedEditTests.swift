@@ -119,7 +119,7 @@ import Testing
             let liveFrame = try Self.editor(live).enclosingScrollView.map { $0.convert($0.bounds, to: nil) }
             let liveItems = try MacWindowChromeTests.items(live).map(\.label)
             live.close()
-            #expect(liveItems.contains("Format") && liveItems.contains("New Note"))
+            #expect(liveItems.contains("Format") && liveItems.filter { $0 == "More" }.count == 2, "a live note's tools, and the list's More and New Note island")
 
             let w = await Self.deletedNoteWindow(c, note)
             defer { w.close() }
