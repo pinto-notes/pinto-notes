@@ -60,6 +60,22 @@ private func props(_ e: [String: Any]?) -> [String: Any] { e?["properties"] as? 
         #expect(!TelemetryEvent.featureUsed(.slashMenu).goesSoon, "batched, like the other product events")
     }
 
+    /// Offline, one event per use can fill the queue; an error that comes after must still be kept.
+    @Test func featureUsesNeverCrowdOutAnError() {
+        let (t, _) = telemetry()
+        for _ in 0 ..< Telemetry.cap + 10 { t.used(.searchUsed) }
+        #expect(t.waiting.count == Telemetry.cap)
+        t.record(.signInFailed(.email, .other, status: 500))
+        #expect(t.waiting.count == Telemetry.cap)
+        #expect(events(t, "sign_in_failed").count == 1, "the error took a feature use's place")
+        #expect(events(t, "feature_used").count == Telemetry.cap - 1)
+        t.used(.todaysNote)
+        #expect(!features(t).contains("todays_note"), "a feature use never pushes out another event")
+        for i in 0 ..< Telemetry.cap { t.record(.signInFailed(.email, .other, status: i)) }
+        #expect(events(t, "feature_used").isEmpty, "errors take every feature use's place, then the newest is dropped")
+        #expect(props(events(t, "sign_in_failed").first)["status"] as? Int == 500, "what led to a flood stays")
+    }
+
     @Test func aNoteTypedInIsOneEventALaunchNotOneAKeystroke() {
         let d = TestDefaults()
         let (t, _) = telemetry(d)

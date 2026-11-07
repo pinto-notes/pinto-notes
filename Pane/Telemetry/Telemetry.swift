@@ -165,13 +165,22 @@ final class Telemetry: @unchecked Sendable {
                 said.append(event.name.rawValue)
                 defaults.set(said, forKey: Self.onceKey)
             }
-            // Full: the newest is dropped, so a failure that floods never pushes out what led to it.
-            guard queue.count < Self.cap else { return }
+            // Full: the newest is dropped, so a failure that floods never pushes out what led to it. Feature
+            // uses are the one exception: they come often (offline, one per use), so a full queue drops a
+            // feature use first, and an error or a step always finds room.
+            if queue.count >= Self.cap {
+                guard event.name != .featureUsed, let use = queue.firstIndex(where: Self.isFeatureUse) else { return }
+                queue.remove(at: use)
+            }
             queue.append(TelemetryBody.event(event, id: account?.uuidString.lowercased() ?? launchID, at: now(), context: config.context))
             store?.save(queue)
             schedule(after: event.goesSoon || queue.count >= Self.batch ? 2 : 60)
         }
     }
+
+    private static let featureUseMark = Data("\"event\":\"\(TelemetryEvent.Name.featureUsed.rawValue)\"".utf8)
+    /// A queued body is a feature use (bodies are JSON with sorted keys, so the event name reads as written).
+    private static func isFeatureUse(_ body: Data) -> Bool { body.range(of: featureUseMark) != nil }
 
     // MARK: Usage
 
