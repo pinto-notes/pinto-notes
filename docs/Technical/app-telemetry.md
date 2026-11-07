@@ -174,3 +174,46 @@ done by hand: in PostHog, delete the events whose `distinct_id` is the account's
 management, or the persons and events deletion API with a personal API key). With no person
 profiles there is no person to delete, only events. If this should happen on every Delete Account,
 the `account` server function would need to ask PostHog for it with a private key; that isn't built.
+
+## AI use on the server
+
+The apps can't see what a connected AI does, so the MCP server counts it
+(`supabase/functions/mcp/ai_use.ts`, migration `20261107150000_ai_use_daily.sql`). It sends
+nothing to PostHog: the edge functions have no PostHog key, and the counts stay in the database.
+
+`public.ai_use_daily` holds one row per account, UTC day, kind of AI, kind of tool and outcome,
+with a count. Nothing else: no tool arguments, no note or file, no connection name, no host.
+
+| Column | Values |
+|---|---|
+| `user_id` | The account (rows go when it is deleted) |
+| `day` | The UTC day |
+| `ai` | `claude`, `chatgpt`, `other`: for a sign-in, the host its approval went to (only that AI receives it there: `claude.ai`, `claude.com`; `chatgpt.com`, `chat.openai.com`, `platform.openai.com`); for an access token, the guide that made it (`Claude Code` is `claude`, `Codex` is `chatgpt`). Never the name a client gives itself |
+| `category` | `read`, `search`, `edit`, `create`, `delete_move`, `other` (every tool is sorted by hand in `TOOL_CATEGORY`; a tool without one fails `ai_use.pglite.test.ts`) |
+| `outcome` | `ok`, or `failed` (the tool answered with an error) |
+| `count` | How many calls |
+
+- **When:** after each tool call, once per HTTP request (`count_ai_use`, run after the answer
+  where the edge runtime allows it). Only tool calls count: not `initialize`, `tools/list`, or
+  a tool the server doesn't serve. A request without a valid connection counts nothing.
+- **Whose:** the account and kind come from the connection the request was authenticated with
+  (the `mcp_tokens` row), never from the request, so one account can't add to another's counts.
+  A disconnected connection counts nothing.
+- **Who can read it:** the service role only. The table has row-level security and no policy;
+  `anon` and `authenticated` have no grants on it, on `count_ai_use` or on the view.
+- **Kept:** 400 days (`ai_use_forget`, daily from pg_cron as `amber-forget-ai-use`).
+- **Daily active AI accounts:** the view `public.ai_use_active_daily` (`day`, `ai`, `accounts`,
+  `calls`; successful calls only).
+
+AI retention, accounts using an AI on day 7 and day 30 after their first connection:
+
+```sql
+with first as (
+  select user_id, min(created_at at time zone 'utc')::date as connected
+  from public.mcp_tokens group by user_id
+), used as (select distinct user_id, day from public.ai_use_daily where outcome = 'ok')
+select date_trunc('week', f.connected)::date as cohort, count(*) as connected,
+  count(*) filter (where exists (select 1 from used u where u.user_id = f.user_id and u.day = f.connected + 7)) as on_day_7,
+  count(*) filter (where exists (select 1 from used u where u.user_id = f.user_id and u.day between f.connected + 28 and f.connected + 32)) as around_day_30
+from first f group by 1 order by 1;
+```
