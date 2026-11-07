@@ -264,29 +264,50 @@ import Testing
         return UInt32(bytes[i]) << 16 | UInt32(bytes[i + 1]) << 8 | UInt32(bytes[i + 2])
     }
 
-    /// Pick 5: High contrast draws with its own accent whatever is stored, the Appearance page hides
-    /// the accent row for it and says why, and the stored accent comes back with another theme.
+    /// Pick 5: High contrast draws with its own accent.
     @Test func highContrastKeepsItsOwnAccent() throws {
         let own = try #require(Theme.contrast.colors?.accent)
         for choice in AccentChoice.allCases {
             let look = ThemeLook(theme: .contrast, accent: choice)
             #expect(look.accentShades.light == own.light && look.accentShades.dark == own.dark, "\(choice)")
-            #expect(!AppearanceSettingsPage.showsAccent(look))
             Self.within(look) { #expect(Self.hex(PColor.paneAccent, .darkAqua) == own.dark) }
         }
-        #expect(AppearanceSettingsPage.footer(ThemeLook(theme: .contrast, accent: .red)).contains("High contrast uses its own blue and yellow"))
-        for theme in Theme.allCases where theme != .contrast {
-            #expect(AppearanceSettingsPage.showsAccent(ThemeLook(theme: theme, accent: .red)))
-            #expect(!AppearanceSettingsPage.footer(ThemeLook(theme: theme, accent: .red)).contains("blue and yellow"))
-        }
-        // The stored choice is kept through High contrast.
+    }
+
+    /// The Accent row is gone (Emil, 7 November 2026): each theme draws its own accent, Default
+    /// the amber, and an accent chosen before is forgotten at start.
+    @Test func eachThemeCarriesItsOwnAccent() throws {
         let d = try #require(UserDefaults(suiteName: "ThemeTests-\(UUID().uuidString)"))
+        d.set("red", forKey: ThemeStore.accentKey)
+        d.set("sepia", forKey: ThemeStore.themeKey)
         let store = ThemeStore(defaults: d)
-        store.accent = .red
-        store.theme = .contrast
-        #expect(store.current.accent == .red && d.string(forKey: ThemeStore.accentKey) == "red")
-        store.theme = .sepia
-        #expect(store.current.accentShades.light == AccentChoice.red.hex!.light)
+        #expect(store.current.accent == .theme, "the old choice no longer draws")
+        #expect(d.object(forKey: ThemeStore.accentKey) == nil, "and is removed")
+        #expect(store.current.accentShades.light == Theme.sepia.colors!.accent.light)
+        for theme in Theme.allCases {
+            store.theme = theme
+            let want = theme.preview.accent
+            #expect(store.current.accentShades.light == want.light && store.current.accentShades.dark == want.dark, "\(theme)")
+        }
+        store.theme = .standard
+        #expect(store.current.accentShades.light == Palette.buildAccent.light, "Default stays amber")
+        #expect(d.object(forKey: ThemeStore.accentKey) == nil, "never written again")
+        #expect(!SettingsIndex.all.contains { $0.label.lowercased().contains("accent") }, "no Accent row to search for")
+    }
+
+    /// The theme cards' swatches are the theme's own page, sidebar and accent, light and dark; the
+    /// ring follows the mode (both in System), only on the chosen theme.
+    @Test func themeCardSwatchesAreTheThemesColours() {
+        for theme in Theme.allCases {
+            let c = theme.preview
+            let light = ThemeSwatch.colors(theme, dark: false), dark = ThemeSwatch.colors(theme, dark: true)
+            #expect(light.page == c.page.light && light.sidebar == c.sidebar.light && light.accent == c.accent.light, "\(theme) light")
+            #expect(dark.page == c.page.dark && dark.sidebar == c.sidebar.dark && dark.accent == c.accent.dark, "\(theme) dark")
+        }
+        #expect(ThemeCard.ringed(dark: false, chosen: true, mode: .system) && ThemeCard.ringed(dark: true, chosen: true, mode: .system))
+        #expect(ThemeCard.ringed(dark: false, chosen: true, mode: .light) && !ThemeCard.ringed(dark: true, chosen: true, mode: .light))
+        #expect(!ThemeCard.ringed(dark: false, chosen: true, mode: .dark) && ThemeCard.ringed(dark: true, chosen: true, mode: .dark))
+        #expect(!ThemeCard.ringed(dark: true, chosen: false, mode: .system))
     }
 
     /// Pick 6: with Increase Contrast on, a theme's muted text is its ink and its hairlines the
@@ -325,57 +346,6 @@ import Testing
         #expect(!store.current.increaseContrast)
     }
 
-    /// Pick 8: on iPhone each accent is a 30 pt dot in a 44 by 44 pt target (the Mac keeps its row
-    /// of small dots). Measured from the view the picker draws.
-    @Test func iPhoneAccentTargetsAre44() {
-        #expect(AccentPicker.Style.current == .row, "the Mac keeps its row")
-        #expect(AccentPicker.Style.touch.dot == 30)
-        for selected in [false, true] {
-            let host = NSHostingView(rootView: AccentDot(choice: .blue, theme: .sepia, selected: selected, style: .touch) {})
-            #expect(host.fittingSize == CGSize(width: 44, height: 44), "\(host.fittingSize)")
-        }
-    }
-
-    /// Pick 9: the chosen swatch carries a tick, white or near-black, whichever reads on it; the
-    /// others none. Counted in the pixels the dot draws.
-    @Test func theChosenSwatchIsTicked() throws {
-        for theme in Theme.allCases {
-            for choice in AccentChoice.allCases {
-                let hex = choice.swatch(theme)
-                for (ground, tick) in [(hex.light, hex.tickOn.light), (hex.dark, hex.tickOn.dark)] {
-                    #expect(Self.ratio(tick, ground) >= 4.5, "\(theme) \(choice): the tick on its swatch")
-                }
-            }
-        }
-        for style in [AccentPicker.Style.row, .touch] {
-            for (choice, theme) in [(AccentChoice.blue, Theme.standard), (.theme, .sepia), (.graphite, .slate)] {
-                let tick = choice.swatch(theme).tickOn.light
-                let plain = try Self.pixels(near: tick, in: AccentDot(choice: choice, theme: theme, selected: false, style: style) {}, style: style)
-                let ticked = try Self.pixels(near: tick, in: AccentDot(choice: choice, theme: theme, selected: true, style: style) {}, style: style)
-                #expect(plain == 0, "\(style) \(choice): no tick unless chosen")
-                #expect(ticked > (style == .touch ? 20 : 4), "\(style) \(choice): a tick on the chosen swatch (\(ticked) px)")
-            }
-        }
-    }
-
-    /// How many pixels inside the dot are within a few steps of `hex`, drawn light at 2x.
-    static func pixels(near hex: UInt32, in view: some View, style: AccentPicker.Style) throws -> Int {
-        let renderer = ImageRenderer(content: view.environment(\.colorScheme, .light))
-        renderer.scale = 2
-        let image = try #require(renderer.cgImage)
-        let rep = NSBitmapImageRep(cgImage: image)
-        let mid = CGFloat(rep.pixelsWide) / 2, r = style.dot * 2 / 2 - 2
-        var count = 0
-        for y in 0..<rep.pixelsHigh {
-            for x in 0..<rep.pixelsWide where hypot(CGFloat(x) - mid, CGFloat(y) - mid) < r {
-                guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB), c.alphaComponent > 0.9 else { continue }
-                let parts = [c.redComponent, c.greenComponent, c.blueComponent].map { Int(($0 * 255).rounded()) }
-                let want = [Int(hex >> 16 & 0xFF), Int(hex >> 8 & 0xFF), Int(hex & 0xFF)]
-                if zip(parts, want).allSatisfy({ abs($0 - $1) <= 24 }) { count += 1 }
-            }
-        }
-        return count
-    }
 
     /// The choice is kept per device, and Default writes nothing.
     @Test func theChoiceIsKept() throws {
@@ -383,7 +353,7 @@ import Testing
         #expect(ThemeStore(defaults: d).current == .standard)
         d.set("forest", forKey: ThemeStore.themeKey)
         d.set("purple", forKey: ThemeStore.accentKey)
-        #expect(ThemeStore(defaults: d).current == ThemeLook(theme: .forest, accent: .purple))
+        #expect(ThemeStore(defaults: d).current == ThemeLook(theme: .forest, accent: .theme), "an old accent no longer draws")
         d.set("nonsense", forKey: ThemeStore.themeKey)
         #expect(ThemeStore(defaults: d).current.theme == .standard)
     }

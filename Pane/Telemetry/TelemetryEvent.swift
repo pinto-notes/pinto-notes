@@ -60,7 +60,7 @@ enum TelemetryProperty: String, CaseIterable, Sendable {
     // The funnels (onboarding, imports, connecting an AI, signing in, adding a device).
     case step, action, source, page, ai, role
     // Which settings are used (settings_state, setting_changed, settings_page_opened).
-    case appearance, theme, accent
+    case appearance, theme, font
     case textSize = "text_size"
     case todayFolder = "today_folder", todayTitle = "today_title", todayTemplate = "today_template"
     case todayOnLaunch = "today_on_launch", tickedToBottom = "ticked_to_bottom", menuBar = "menu_bar"
@@ -329,7 +329,7 @@ enum LinkStep: String, TelemetryWord {
 
 /// A setting, by the name its value goes under in `settings_state` (the same as its property).
 enum SettingName: String, TelemetryWord {
-    case appearance, theme, accent
+    case appearance, theme, font
     case textSize = "text_size"
     case todayFolder = "today_folder", todayTitle = "today_title", todayTemplate = "today_template"
     case todayOnLaunch = "today_on_launch", tickedToBottom = "ticked_to_bottom", menuBar = "menu_bar"
@@ -363,7 +363,7 @@ enum SettingsPageWord: String, TelemetryWord {
 
 extension AppearanceMode: TelemetryWord {}
 extension Theme: TelemetryWord {}
-extension AccentChoice: TelemetryWord {}
+extension NoteFont: TelemetryWord {}
 extension TodaysNoteSettings.Title: TelemetryWord {}
 
 enum Platform: String, TelemetryWord { case ios, macos }
@@ -386,7 +386,7 @@ enum TelemetryWords {
         add(OnboardingStep.self); add(FunnelAction.self); add(ImportSourceKind.self); add(ImportStep.self); add(CountBucket.self)
         add(ConnectAIKind.self); add(ConnectFunnelStep.self); add(SignInStep.self); add(LinkRole.self); add(LinkStep.self)
         add(SettingName.self); add(TodayFolderWord.self); add(SettingsPageWord.self); add(AppearanceMode.self); add(Theme.self)
-        add(AccentChoice.self); add(TodaysNoteSettings.Title.self)
+        add(NoteFont.self); add(TodaysNoteSettings.Title.self)
         add(UsedFeature.self); add(ShareStep.self); add(StorageLevelWord.self)
         return words
     }()
@@ -637,7 +637,7 @@ enum TelemetryEvent: Equatable, Sendable {
         .gateShown(.addDevice), .firstNoteCreated, .firstSync(milliseconds: 1234), .aiConnected(.claude), .firstAIEditSeen,
         .onboardingStep(.bring, .skipped), .importStep(.appleNotes, .done, count: .upTo99), .connectStep(.chatgpt, .failed, kind: .network),
         .signInStep(.email, .failed, kind: .badCode), .linkDeviceStep(.newDevice, .codeShown),
-        .settingsState([.appearance: .word(AppearanceMode.dark), .theme: .word(Theme.paper), .accent: .word(AccentChoice.blue),
+        .settingsState([.appearance: .word(AppearanceMode.dark), .theme: .word(Theme.paper), .font: .word(NoteFont.serif),
                         .textSize: .number(15), .todayFolder: .word(TodayFolderWord.custom), .todayTitle: .word(TodaysNoteSettings.Title.iso),
                         .todayTemplate: .flag(true), .todayOnLaunch: .flag(false), .tickedToBottom: .flag(true), .menuBar: .flag(true),
                         .quickNoteShortcut: .flag(false), .openAtLogin: .flag(false)]),

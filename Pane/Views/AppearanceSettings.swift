@@ -1,58 +1,5 @@
 import SwiftUI
 
-/// The accents. On the Mac one row of small dots beside the "Accent" label. On iPhone the dots
-/// sit on their own row under the label, each a 30 pt dot in a 44 by 44 pt target, wrapping when
-/// the row is narrow, with the chosen accent's name under them (accessibility audit point 8).
-struct AccentPicker: View {
-    let look: ThemeLook
-    let style: Style
-
-    enum Style {
-        case row, touch
-        #if os(iOS)
-        static let current = Style.touch
-        #else
-        static let current = Style.row
-        #endif
-
-        /// The dot's diameter and the button's tappable size.
-        var dot: CGFloat { self == .touch ? 30 : 16 }
-        var target: CGFloat { self == .touch ? 44 : 22 }
-    }
-
-    var body: some View {
-        switch style {
-        case .row:
-            LabeledContent {
-                HStack(spacing: 6) { dots }
-            } label: {
-                Text("Accent")
-                Text(look.accent.spokenName)
-            }
-        case .touch:
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Accent")
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: style.target, maximum: style.target), spacing: 8)], alignment: .leading, spacing: 4) {
-                    dots
-                }
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel("Accent")
-                Text(look.accent.spokenName)
-                    .font(.footnote)
-                    .foregroundStyle(Color.muted)
-                    .accessibilityHidden(true)
-            }
-            .padding(.vertical, 4)
-        }
-    }
-
-    private var dots: some View {
-        ForEach(AccentChoice.allCases) { choice in
-            AccentDot(choice: choice, theme: look.theme, selected: look.accent == choice, style: style) { ThemeStore.shared.accent = choice }
-        }
-    }
-}
-
 extension Theme {
     /// The colours a tile shows: the theme's own, or Default's.
     var preview: Colors {
@@ -88,42 +35,6 @@ extension Theme.Hex {
             return Theme.contrast(CheckTick.light, ground) >= Theme.contrast(CheckTick.dark, ground) ? CheckTick.light : CheckTick.dark
         }
         return Theme.Hex(pick(light), pick(dark))
-    }
-}
-
-/// One accent: a solid dot, ringed and ticked when chosen, so the choice never rests on the ring's
-/// hue alone (audit point 9). The first is the theme's own.
-struct AccentDot: View {
-    let choice: AccentChoice
-    let theme: Theme
-    let selected: Bool
-    var style: AccentPicker.Style = .current
-    let pick: () -> Void
-
-    var body: some View {
-        let hex = choice.swatch(theme)
-        let gap: CGFloat = style == .touch ? 4 : 3
-        Button(action: pick) {
-            Circle()
-                .fill(hex.color)
-                .frame(width: style.dot, height: style.dot)
-                .overlay {
-                    if selected {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: style.dot * 0.45, weight: .heavy))
-                            .foregroundStyle(hex.tickOn.color)
-                    }
-                }
-                .padding(gap)
-                .overlay(Circle().strokeBorder(selected ? hex.color : .clear, lineWidth: style == .touch ? 2.5 : 2))
-                .frame(width: style.target, height: style.target)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.tile(radius: style.target / 2))
-        .help(choice.spokenName)
-        .accessibilityLabel(choice.spokenName)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityIdentifier("settings.accent.\(choice.rawValue)")
     }
 }
 

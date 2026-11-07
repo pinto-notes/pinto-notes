@@ -88,7 +88,7 @@ import Carbon.HIToolbox
 
     @Test func searchFindsAppearance() {
         let all = Set(SettingsPage.allCases)
-        for word in ["appearance", "theme", "dark", "light", "dark mode", "colour", "color", "accent", "Theme", "DARK MODE"] {
+        for word in ["appearance", "theme", "dark", "light", "dark mode", "font", "serif", "Theme", "DARK MODE"] {
             let found = SettingsIndex.matches(word, available: all).map(\.page)
             #expect(found.contains(.appearance), "\(word) finds Appearance")
             #expect(Set(found) == [.appearance], "\(word) finds only Appearance: \(found)")

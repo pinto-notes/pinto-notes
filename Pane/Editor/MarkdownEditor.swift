@@ -917,6 +917,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         accessibilityIdentifier = "editor"
         NotificationCenter.default.addObserver(self, selector: #selector(textSizeChanged), name: UIContentSizeCategory.didChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(textSizeChanged), name: UIAccessibility.boldTextStatusDidChangeNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(textSizeChanged), name: NoteFont.didChange, object: nil)
     }
 
     func setHeader(_ s: String) {
@@ -2608,6 +2609,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 MainActor.assumeIsolated { self?.textSizeChanged() }
             }
         }
+        if noteFontObserver == nil {
+            // Settings › Appearance › Font: every line restyled in the new face, as for the size.
+            noteFontObserver = NotificationCenter.default.addObserver(forName: NoteFont.didChange, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.textSizeChanged() }
+            }
+        }
 
         headerLabel.font = .systemFont(ofSize: 11, weight: .medium)
         headerLabel.textColor = .tertiaryLabelColor
@@ -2623,6 +2630,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     private var textSizeObserver: NSObjectProtocol?
+    private var noteFontObserver: NSObjectProtocol?
 
     /// View › Bigger or Smaller: every line restyled at the new size, the cards and foot moved to
     /// where the text now is. The caret and scroll stay where they were.

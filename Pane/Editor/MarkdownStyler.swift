@@ -111,9 +111,9 @@ struct MarkdownStyler {
     var bodyFont: PFont {
         #if os(iOS)
         // Settings › Accessibility › Bold Text reaches the note as well as the chrome.
-        if UIAccessibility.isBoldTextEnabled { return .systemFont(ofSize: bodySize, weight: .semibold) }
+        if UIAccessibility.isBoldTextEnabled { return NoteFont.note(ofSize: bodySize, weight: .semibold) }
         #endif
-        return .systemFont(ofSize: bodySize)
+        return NoteFont.note(ofSize: bodySize)
     }
     var monoFont: PFont { .monospacedSystemFont(ofSize: bodySize * 0.88, weight: .regular) }
 
@@ -123,33 +123,33 @@ struct MarkdownStyler {
 
     /// A note's title (its first plain line): bold, as in Notes. Not heavy, and not tightened
     /// (Emil, 31 October 2026: "they are too bold").
-    static var titleFont: PFont { .systemFont(ofSize: EditorMetrics.title, weight: .bold) }
+    static var titleFont: PFont { NoteFont.note(ofSize: EditorMetrics.title, weight: .bold) }
 
     /// A ### heading in the paper and reading looks: a small bold label ("Get started").
-    static var labelFont: PFont { .systemFont(ofSize: EditorMetrics.label, weight: .bold) }
+    static var labelFont: PFont { NoteFont.note(ofSize: EditorMetrics.label, weight: .bold) }
 
     func headingFont(_ level: Int) -> PFont {
         // B (paper): headings in the website's voice, heavy and tight. The shipped looks use
         // Notes' weights: bold title and heading, semibold subheading (Emil, 31 October 2026).
         if DesignLook.current == .paper {
             switch level {
-            case 1: return .systemFont(ofSize: EditorMetrics.title * 0.85, weight: .heavy)
-            case 2: return .systemFont(ofSize: bodySize * 1.3, weight: .heavy)
+            case 1: return NoteFont.note(ofSize: EditorMetrics.title * 0.85, weight: .heavy)
+            case 2: return NoteFont.note(ofSize: bodySize * 1.3, weight: .heavy)
             case 3:
                 #if os(iOS)
                 // The welcome note's small bold label ("Get started").
-                return .systemFont(ofSize: EditorMetrics.label, weight: .bold)
+                return NoteFont.note(ofSize: EditorMetrics.label, weight: .bold)
                 #else
-                return .systemFont(ofSize: bodySize * 1.12, weight: .bold)
+                return NoteFont.note(ofSize: bodySize * 1.12, weight: .bold)
                 #endif
-            default: return .systemFont(ofSize: bodySize, weight: .bold)
+            default: return NoteFont.note(ofSize: bodySize, weight: .bold)
             }
         }
         return switch level {
-        case 1: .systemFont(ofSize: EditorMetrics.title, weight: .bold)
-        case 2: .systemFont(ofSize: bodySize * 1.25, weight: .bold)
-        case 3: .systemFont(ofSize: bodySize * 1.1, weight: .semibold)
-        default: .systemFont(ofSize: bodySize, weight: .semibold)
+        case 1: NoteFont.note(ofSize: EditorMetrics.title, weight: .bold)
+        case 2: NoteFont.note(ofSize: bodySize * 1.25, weight: .bold)
+        case 3: NoteFont.note(ofSize: bodySize * 1.1, weight: .semibold)
+        default: NoteFont.note(ofSize: bodySize, weight: .semibold)
         }
     }
 

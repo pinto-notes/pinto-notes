@@ -206,16 +206,10 @@ enum TextSize {
 
     static var body: CGFloat { size(stored: UserDefaults.standard.double(forKey: key)) }
 
-    /// The sidebar and note list grow too at the bigger sizes, so someone who needs big notes can
-    /// read what's around them (council, rounds 21 to 24). The first two stops stay as they were.
-    static func interfaceScale(stored: Double) -> CGFloat {
-        switch size(stored: stored) {
-        case 24: 1.35
-        case 20: 1.2
-        case 17: 1.08
-        default: 1
-        }
-    }
+    /// Note text only: the sidebar and note list stay at the system's size whatever the slider
+    /// says, as in Apple Notes, where zoom grows the note (Emil, 7 November 2026: the slider said
+    /// "Note text" and grew the sidebar too). The sidebar follows System Settings' own sidebar size.
+    static func interfaceScale(stored: Double) -> CGFloat { 1 }
     static var interfaceScale: CGFloat { interfaceScale(stored: UserDefaults.standard.double(forKey: key)) }
     /// A size in the sidebar or note list, at the size chosen.
     static func interface(_ points: CGFloat) -> CGFloat { (points * interfaceScale).rounded() }
@@ -259,3 +253,60 @@ enum TextSize {
     }
 }
 #endif
+
+/// The face of note text: the system's own, or one of its three other designs (New York, SF
+/// Rounded, SF Mono), which ship on every Mac and iPhone and are tuned for small sizes. Notes only:
+/// code stays mono, the app around them stays the system font. Set per device (Emil, 7 November 2026).
+enum NoteFont: String, CaseIterable, Identifiable, Sendable {
+    case standard = "default", serif, rounded, mono
+
+    static let key = "PintoNoteFont"
+    /// Posted on the main thread after the face changes: open notes restyle.
+    static let didChange = Notification.Name("PintoNoteFontDidChange")
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .standard: "Default"
+        case .serif: "Serif"
+        case .rounded: "Rounded"
+        case .mono: "Mono"
+        }
+    }
+
+    static func stored(_ d: UserDefaults = .standard) -> NoteFont { d.string(forKey: key).flatMap(NoteFont.init) ?? .standard }
+
+    /// The face notes use now. Tests set `override`.
+    static var current: NoteFont { override ?? stored() }
+    @TaskLocal static var override: NoteFont?
+
+    @MainActor static func set(_ f: NoteFont, _ d: UserDefaults = .standard) {
+        guard f != stored(d) else { return }
+        if f == .standard { d.removeObject(forKey: key) } else { d.set(f.rawValue, forKey: key) }
+        NotificationCenter.default.post(name: didChange, object: nil)
+    }
+
+    var design: PFontDescriptor.SystemDesign {
+        switch self {
+        case .standard: .default
+        case .serif: .serif
+        case .rounded: .rounded
+        case .mono: .monospaced
+        }
+    }
+
+    /// A system font at `size` and `weight` in this face (the system's own if the design is missing).
+    func font(ofSize size: CGFloat, weight: PFont.Weight = .regular) -> PFont {
+        let base = PFont.systemFont(ofSize: size, weight: weight)
+        guard self != .standard, let d = base.fontDescriptor.withDesign(design) else { return base }
+        #if os(iOS)
+        return UIFont(descriptor: d, size: size)
+        #else
+        return NSFont(descriptor: d, size: size) ?? base
+        #endif
+    }
+
+    /// The note face as it reads now.
+    static func note(ofSize size: CGFloat, weight: PFont.Weight = .regular) -> PFont { current.font(ofSize: size, weight: weight) }
+}

@@ -34,8 +34,9 @@ struct AccountButton: View {
 
     private var name: String { AccountName.shown(profile.name) }
 
-    /// Settings on the notes window in front, at its first page: the same as ⌘,.
-    static func open(_ route: SettingsRoute = .shared) { route.show() }
+    /// Settings at Account, whatever page was shown last: the button is you (Emil, 7 November 2026:
+    /// it opened AI Connections). ⌘, still reopens the last page.
+    static func open(_ route: SettingsRoute = .shared) { route.open(.account) }
 
     var body: some View {
         Button {
@@ -65,7 +66,7 @@ struct AccountButton: View {
             .sidebarFootPill("sidebar.account")
         }
         .buttonStyle(.plain)
-        .help("Settings (⌘,)")
+        .help("Account settings")
         .accessibilityLabel("\(name), Settings")
         .accessibilityIdentifier("sidebar.account")
         .task(id: backend.state) { await profile.bind(backend) }

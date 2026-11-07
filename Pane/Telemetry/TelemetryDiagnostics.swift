@@ -156,7 +156,7 @@ final class SettingsUsage {
         var v: [SettingName: TelemetryValue] = [
             .appearance: .word(d.string(forKey: AppearanceModeStore.key).flatMap(AppearanceMode.init) ?? .system),
             .theme: .word(d.string(forKey: ThemeStore.themeKey).flatMap(Theme.init) ?? .standard),
-            .accent: .word(d.string(forKey: ThemeStore.accentKey).flatMap(AccentChoice.init) ?? .theme),
+            .font: .word(NoteFont.stored(d)),
             .todayFolder: .word(folder.isEmpty || DailyNotes.same(folder, DailyNotes.folderName) ? TodayFolderWord.default : .custom),
             .todayTitle: .word(d.string(forKey: TodaysNoteSettings.titleKey).flatMap(TodaysNoteSettings.Title.init) ?? .long),
             .todayTemplate: .flag(d.string(forKey: TodaysNoteSettings.templateKey).flatMap(UUID.init) != nil),

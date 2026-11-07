@@ -947,42 +947,32 @@ struct HelpSettingsPage: View {
 
 // MARK: Appearance
 
-/// Appearance: System, Light and Dark as pictures of the window; the theme and its accent; on the
-/// Mac the size of note text (iPhone follows the system's text size). For this device only.
+/// Appearance: System, Light and Dark as pictures of a note; the themes as cards, each with its
+/// light and dark colours; the font and, on the Mac, the size of note text. For this device only.
+/// Each theme carries its own accent: there's no Accent row (Emil, 7 November 2026).
 struct AppearanceSettingsPage: View {
     /// How many are on screen, for tests: Appearance shows on its own page only.
     @MainActor static var onScreen = 0
     @State private var mode = AppearanceModeStore.shared
-    @Environment(\.colorScheme) private var scheme
+    @AppStorage(NoteFont.key) private var fontRaw = ""
 
-    /// The accent row shows for every theme but High contrast, which draws with its own blue and yellow.
-    static func showsAccent(_ look: ThemeLook) -> Bool { look.theme != .contrast }
-
-    static func footer(_ look: ThemeLook) -> String {
-        look.theme == .contrast ? "High contrast uses its own blue and yellow. Set on each device." : "Set on each device."
-    }
+    static let footer = "Set on each device."
 
     #if os(macOS)
-    static let modeHeight: CGFloat = 74, themeHeight: CGFloat = 46
+    static let modeHeight: CGFloat = 104
     #else
-    static let modeHeight: CGFloat = 56, themeHeight: CGFloat = 56
+    static let modeHeight: CGFloat = 92
     #endif
 
-    /// Three across for the modes; the themes all in a row on the Mac, three across on iPhone, each
-    /// wide enough to tap.
-    static func columns(_ count: Int) -> [GridItem] {
-        #if os(macOS)
-        Array(repeating: GridItem(.flexible(), spacing: 10), count: count)
-        #else
-        Array(repeating: GridItem(.flexible(), spacing: 10), count: min(count, 3))
-        #endif
-    }
+    /// Three across for the modes, two for the theme cards, as T3 Code lays its themes out.
+    static let modeColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    static let themeColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 2)
 
     var body: some View {
         let look = ThemeStore.shared.look
         SettingsPageForm {
             Section("Mode") {
-                LazyVGrid(columns: Self.columns(AppearanceMode.allCases.count), spacing: 12) {
+                LazyVGrid(columns: Self.modeColumns, spacing: 12) {
                     ForEach(AppearanceMode.allCases) { m in
                         WindowChoice(title: m.title, selected: mode.mode == m, height: Self.modeHeight, id: "settings.mode.\(m.rawValue)") {
                             ModePicture(mode: m, theme: look.theme)
@@ -994,34 +984,33 @@ struct AppearanceSettingsPage: View {
                 .accessibilityLabel("Mode")
             }
             Section {
-                LazyVGrid(columns: Self.columns(Theme.allCases.count), spacing: 12) {
+                LazyVGrid(columns: Self.themeColumns, spacing: 12) {
                     ForEach(Theme.allCases) { t in
-                        WindowChoice(title: t.title, selected: look.theme == t, height: Self.themeHeight, id: "settings.theme.\(t.rawValue)") {
-                            // In the mode showing now: dark Settings showed six light windows.
-                            ThemeWindowPicture(theme: t, dark: scheme == .dark)
-                        } pick: { ThemeStore.shared.theme = t }
+                        ThemeCard(theme: t, chosen: look.theme == t, mode: mode.mode) { ThemeStore.shared.theme = t }
                     }
                 }
                 .padding(.vertical, 8)
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Theme")
-                if Self.showsAccent(look) {
-                    AccentPicker(look: look, style: .current)
-                }
             } header: {
                 Text("Theme")
             } footer: {
-                Text(Self.footer(look))
+                Text(Self.footer)
             }
-            #if os(macOS)
-            // Persona council 11-04: note text from 13 to 24 pt, as Notes' and Books' View menus do it.
             Section {
+                Picker("Font", selection: Binding(get: { NoteFont(rawValue: fontRaw) ?? .standard }, set: { NoteFont.set($0) })) {
+                    ForEach(NoteFont.allCases) { Text($0.title).tag($0) }
+                }
+                .accessibilityIdentifier("settings.font")
+                #if os(macOS)
+                // Persona council 11-04: note text from 13 to 24 pt, as Notes' and Books' View menus do it.
                 TextSizeRow()
-                TextSizeSample()
+                #endif
+                TextSample()
             } header: {
-                Text("Text size")
+                // "Text", so the size row's "Note text" doesn't repeat it.
+                Text("Text")
             }
-            #endif
         }
         .onAppear { Self.onScreen += 1 }
         .onDisappear { Self.onScreen -= 1 }
@@ -1072,30 +1061,50 @@ struct TextSizeRow: View {
     }
 }
 
-/// A line of a note at the chosen size, as the notes will show it.
-struct TextSizeSample: View {
-    @AppStorage(TextSize.key) private var stored: Double = 0
-    static let text = "Four days of tiles, trams and pastries in May."
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        Text(Self.text)
-            .font(.system(size: TextSize.size(stored: stored)))
-            .foregroundStyle(Color.ink)
-            .lineLimit(2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
-            .animation(reduceMotion ? nil : .snappy(duration: 0.15), value: stored)
-            .accessibilityLabel("Sample: \(Self.text)")
-            .accessibilityIdentifier("settings.textSizeSample")
-    }
-}
 #endif
 
-/// A choice drawn as a picture of the window with its name under it; the chosen one ringed in ink,
-/// the same for Mode and Theme.
+/// A little of a note in the face and size chosen, in a box of the note's own page colour, so it
+/// reads as a sample, not as the page's own text (Emil, 7 November 2026).
+struct TextSample: View {
+    @AppStorage(NoteFont.key) private var fontRaw = ""
+    #if os(macOS)
+    @AppStorage(TextSize.key) private var stored: Double = 0
+    #endif
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    static let title = "Lisbon"
+    static let text = "Four days of tiles, trams and pastries in May."
+
+    private var size: CGFloat {
+        #if os(macOS)
+        TextSize.size(stored: stored)
+        #else
+        EditorMetrics.body
+        #endif
+    }
+
+    var body: some View {
+        let face = NoteFont(rawValue: fontRaw) ?? .standard
+        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        VStack(alignment: .leading, spacing: 4) {
+            Text(Self.title).font(Font(face.font(ofSize: (size * 1.35).rounded(), weight: .bold) as CTFont))
+            Text(Self.text).font(Font(face.font(ofSize: size) as CTFont)).lineLimit(2)
+        }
+        .foregroundStyle(Color.ink)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .background(shape.fill(Color(Palette.page)))
+        .overlay(shape.strokeBorder(Color(PColor.paneSeparator), lineWidth: 1))
+        .padding(.vertical, 6)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.15), value: size)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Sample: \(Self.title). \(Self.text)")
+        .accessibilityIdentifier("settings.textSizeSample")
+    }
+}
+
+/// A choice drawn as a picture with its name under it; the chosen one ringed in the accent, its
+/// name in the text colour (Emil, 7 November 2026: not white).
 private struct WindowChoice<Art: View>: View {
-    /// The name under the picture: 12 pt on both (the Mac's caption is 10).
     #if os(macOS)
     static var label: Font { .system(size: 12) }
     #else
@@ -1110,17 +1119,17 @@ private struct WindowChoice<Art: View>: View {
     let pick: () -> Void
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
         Button(action: pick) {
-            VStack(spacing: 6) {
+            VStack(spacing: 7) {
                 art
                     .frame(height: height)
                     .frame(maxWidth: .infinity)
                     .clipShape(shape)
                     .overlay(shape.strokeBorder(Color(PColor.paneSeparator), lineWidth: 1))
                     .padding(3)
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(selected ? Color.ink : .clear, lineWidth: 2))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(selected ? Color(PColor.paneAccent) : .clear, lineWidth: 2.5))
                 Text(title).font(Self.label.weight(selected ? .semibold : .regular))
                     .foregroundStyle(selected ? Color.ink : Color.muted)
                     .lineLimit(1)
@@ -1128,34 +1137,36 @@ private struct WindowChoice<Art: View>: View {
             }
             .contentShape(.rect)
         }
-        .buttonStyle(.tile(radius: 10))
+        .buttonStyle(.tile(radius: 12))
         .accessibilityLabel(title)
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityIdentifier(id)
     }
 }
 
-/// System is the window light on the left and dark on the right.
+/// System is the note light on the left and dark on the right.
 private struct ModePicture: View {
     let mode: AppearanceMode
     let theme: Theme
 
     var body: some View {
         switch mode {
-        case .light: ThemeWindowPicture(theme: theme, dark: false)
-        case .dark: ThemeWindowPicture(theme: theme, dark: true)
+        case .light: ModeNotePicture(theme: theme, dark: false)
+        case .dark: ModeNotePicture(theme: theme, dark: true)
         case .system:
-            ThemeWindowPicture(theme: theme, dark: false).overlay {
+            ModeNotePicture(theme: theme, dark: false).overlay {
                 GeometryReader { geo in
-                    ThemeWindowPicture(theme: theme, dark: true).mask(alignment: .trailing) { Rectangle().frame(width: geo.size.width / 2) }
+                    ModeNotePicture(theme: theme, dark: true).mask(alignment: .trailing) { Rectangle().frame(width: geo.size.width / 2) }
                 }
             }
         }
     }
 }
 
-/// A picture of the notes window in a theme, light or dark: the sidebar, the list and a note.
-struct ThemeWindowPicture: View {
+/// A close-up of the window in a theme: a strip of sidebar with two folders, the first picked in
+/// the accent, and a note with its bold title and three lines. Few shapes, drawn big, so it reads
+/// at a glance (Emil, 7 November 2026: taller and zoomed in).
+struct ModeNotePicture: View {
     let theme: Theme
     let dark: Bool
 
@@ -1163,51 +1174,131 @@ struct ThemeWindowPicture: View {
         let c = theme.preview
         func color(_ h: Theme.Hex) -> Color { let v = dark ? h.dark : h.light; return Color(Palette.pair(v, v)) }
         return GeometryReader { geo in
-            let w = geo.size.width
+            let w = geo.size.width, h = geo.size.height
+            let bar = max(h * 0.07, 4)
             HStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: w * 0.025) {
-                    ForEach(0..<4) { i in
-                        HStack(spacing: w * 0.012) {
-                            Circle().fill(i == 0 ? color(c.accent) : color(c.muted)).frame(width: w * 0.022)
-                            Capsule().fill(color(c.muted).opacity(0.7)).frame(width: w * 0.09, height: w * 0.014)
+                VStack(alignment: .leading, spacing: h * 0.07) {
+                    ForEach(0..<2) { i in
+                        HStack(spacing: w * 0.03) {
+                            Circle().fill(i == 0 ? color(c.accent) : color(c.muted)).frame(width: bar * 1.25, height: bar * 1.25)
+                            Capsule().fill(i == 0 ? color(c.ink) : color(c.muted).opacity(0.75)).frame(height: bar)
                         }
+                        .padding(.horizontal, w * 0.03).padding(.vertical, h * 0.045)
+                        .background(RoundedRectangle(cornerRadius: h * 0.06, style: .continuous).fill(i == 0 ? color(c.selection) : .clear))
                     }
                 }
-                .padding(w * 0.03)
-                .frame(width: w * 0.22, alignment: .topLeading)
+                .padding(.horizontal, w * 0.035).padding(.top, h * 0.14)
+                .frame(width: w * 0.36, alignment: .topLeading)
                 .frame(maxHeight: .infinity, alignment: .top)
                 .background(color(c.sidebar))
-                VStack(alignment: .leading, spacing: w * 0.03) {
-                    ForEach(0..<3) { i in
-                        RoundedRectangle(cornerRadius: w * 0.01).fill(i == 0 ? color(c.selection) : .clear)
-                            .frame(height: w * 0.07)
-                            .overlay(alignment: .leading) {
-                                VStack(alignment: .leading, spacing: w * 0.01) {
-                                    Capsule().fill(color(c.ink)).frame(width: w * 0.12, height: w * 0.014)
-                                    Capsule().fill(color(c.muted)).frame(width: w * 0.08, height: w * 0.01)
-                                }
-                                .padding(.leading, w * 0.015)
-                            }
+                color(c.line).frame(width: 1)
+                VStack(alignment: .leading, spacing: h * 0.09) {
+                    Capsule().fill(color(c.ink)).frame(width: w * 0.32, height: bar * 1.45)
+                    VStack(alignment: .leading, spacing: h * 0.075) {
+                        Capsule().fill(color(c.muted)).frame(width: w * 0.48, height: bar)
+                        Capsule().fill(color(c.muted)).frame(width: w * 0.42, height: bar)
+                        Capsule().fill(color(c.muted)).frame(width: w * 0.28, height: bar)
                     }
                 }
-                .padding(w * 0.02)
-                .frame(width: w * 0.26)
-                .frame(maxHeight: .infinity, alignment: .top)
-                .background(color(c.list))
-                color(c.line).frame(width: 0.5)
-                VStack(alignment: .leading, spacing: w * 0.02) {
-                    Capsule().fill(color(c.ink)).frame(width: w * 0.2, height: w * 0.024)
-                    ForEach(0..<2) { _ in Capsule().fill(color(c.muted)).frame(width: w * 0.36, height: w * 0.012) }
-                    HStack(spacing: w * 0.012) {
-                        RoundedRectangle(cornerRadius: 2).fill(color(c.accent)).frame(width: w * 0.02, height: w * 0.02)
-                        Capsule().fill(color(c.muted)).frame(width: w * 0.22, height: w * 0.012)
-                    }
-                    RoundedRectangle(cornerRadius: w * 0.01).fill(color(c.code)).frame(width: w * 0.4, height: w * 0.06)
-                }
-                .padding(w * 0.04)
+                .padding(.leading, w * 0.07).padding(.top, h * 0.16)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .background(color(c.page))
             }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// A theme as T3 Code shows one: its name and two round swatches, light with a sun and dark with
+/// a moon, each drawn from the theme's own colours (the page, a band of its sidebar, a dot of its
+/// accent). The swatch the app shows now is ringed in the accent; in System, both. A click picks
+/// the theme, never the mode.
+struct ThemeCard: View {
+    let theme: Theme
+    let chosen: Bool
+    let mode: AppearanceMode
+    let pick: () -> Void
+
+    #if os(macOS)
+    static let swatch: CGFloat = 46
+    #else
+    static let swatch: CGFloat = 44
+    #endif
+
+    /// Whether the light or the dark swatch is ringed.
+    static func ringed(dark: Bool, chosen: Bool, mode: AppearanceMode) -> Bool {
+        guard chosen else { return false }
+        switch mode {
+        case .system: return true
+        case .light: return !dark
+        case .dark: return dark
+        }
+    }
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        Button(action: pick) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 14) {
+                    ThemeSwatch(theme: theme, dark: false, ringed: Self.ringed(dark: false, chosen: chosen, mode: mode))
+                    ThemeSwatch(theme: theme, dark: true, ringed: Self.ringed(dark: true, chosen: chosen, mode: mode))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 4)
+                Text(theme.title)
+                    .font(.callout.weight(chosen ? .semibold : .regular))
+                    .foregroundStyle(chosen ? Color.ink : Color.muted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(shape.fill(Color.primary.opacity(0.035)))
+            .overlay(shape.strokeBorder(Color(PColor.paneSeparator), lineWidth: 1))
+            .contentShape(shape)
+        }
+        .buttonStyle(.tile(radius: 12))
+        .accessibilityLabel(theme.spokenName)
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+        .accessibilityIdentifier("settings.theme.\(theme.rawValue)")
+    }
+}
+
+/// One round swatch of a theme, flat: its page, a band of its sidebar on the left, a dot of its
+/// accent; a sun or a moon badge says which half of the day it is.
+struct ThemeSwatch: View {
+    let theme: Theme
+    let dark: Bool
+    let ringed: Bool
+
+    /// The colours the swatch is drawn from, for tests: page, sidebar, accent.
+    static func colors(_ theme: Theme, dark: Bool) -> (page: UInt32, sidebar: UInt32, accent: UInt32) {
+        let c = theme.preview
+        return dark ? (c.page.dark, c.sidebar.dark, c.accent.dark) : (c.page.light, c.sidebar.light, c.accent.light)
+    }
+
+    var body: some View {
+        let d = ThemeCard.swatch
+        let c = Self.colors(theme, dark: dark)
+        let color = { (v: UInt32) in Color(Palette.pair(v, v)) }
+        return ZStack(alignment: .leading) {
+            color(c.page)
+            color(c.sidebar).frame(width: d * 0.36)
+            Circle().fill(color(c.accent)).frame(width: d * 0.26, height: d * 0.26).offset(x: d * 0.52)
+        }
+        .frame(width: d, height: d)
+        .clipShape(Circle())
+        .overlay(Circle().strokeBorder(Color(PColor.paneSeparator), lineWidth: 1))
+        .padding(3)
+        .overlay(Circle().strokeBorder(ringed ? Color(PColor.paneAccent) : .clear, lineWidth: 2.5))
+        .overlay(alignment: .bottomTrailing) {
+            Image(systemName: dark ? "moon.fill" : "sun.max.fill")
+                .font(.system(size: 8.5, weight: .bold))
+                .foregroundStyle(Color.ink)
+                .frame(width: 18, height: 18)
+                .background(Circle().fill(Color(Palette.page)))
+                .overlay(Circle().strokeBorder(Color(PColor.paneSeparator), lineWidth: 1))
+                .offset(x: 2, y: 2)
         }
         .accessibilityHidden(true)
     }

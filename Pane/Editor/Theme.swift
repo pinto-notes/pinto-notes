@@ -199,6 +199,8 @@ enum CheckTick {
 final class ThemeStore: Observable, @unchecked Sendable {
     static let shared = ThemeStore()
     static let themeKey = "PintoTheme"
+    /// Where an accent chosen apart from the theme was kept, before each theme carried its own:
+    /// removed at start.
     static let accentKey = "PintoAccent"
     /// Posted on the main thread after the look changes.
     static let didChange = Notification.Name("PintoThemeDidChange")
@@ -210,8 +212,10 @@ final class ThemeStore: Observable, @unchecked Sendable {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        _look = ThemeLook(theme: defaults.string(forKey: Self.themeKey).flatMap(Theme.init(rawValue:)) ?? .standard,
-                          accent: defaults.string(forKey: Self.accentKey).flatMap(AccentChoice.init(rawValue:)) ?? .theme)
+        // Each theme carries its own accent: the Accent row is gone (Emil, 7 November 2026), and an
+        // accent chosen before is forgotten, so the theme's own draws.
+        _look = ThemeLook(theme: defaults.string(forKey: Self.themeKey).flatMap(Theme.init(rawValue:)) ?? .standard, accent: .theme)
+        defaults.removeObject(forKey: Self.accentKey)
     }
 
     private var contrastWatch: NSObjectProtocol?
@@ -257,11 +261,6 @@ final class ThemeStore: Observable, @unchecked Sendable {
         set { var l = current; l.theme = newValue; set(l) }
     }
 
-    var accent: AccentChoice {
-        get { look.accent }
-        set { var l = current; l.accent = newValue; set(l) }
-    }
-
     /// Sets the look, saves it, and tells every view. A saved look keeps the system's Increase
     /// Contrast; with `persist` false (captures, and the system's setting itself) it is taken whole.
     func set(_ new: ThemeLook, persist: Bool = true) {
@@ -271,7 +270,6 @@ final class ThemeStore: Observable, @unchecked Sendable {
         registrar.withMutation(of: self, keyPath: \.look) { lock.withLock { _look = new } }
         if persist {
             defaults.set(new.theme == .standard ? nil : new.theme.rawValue, forKey: Self.themeKey)
-            defaults.set(new.accent == .theme ? nil : new.accent.rawValue, forKey: Self.accentKey)
         }
         let post = { NotificationCenter.default.post(name: Self.didChange, object: nil) }
         if Thread.isMainThread { post() } else { DispatchQueue.main.async(execute: post) }

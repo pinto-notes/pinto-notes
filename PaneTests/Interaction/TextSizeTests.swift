@@ -53,10 +53,30 @@ import Testing
         #expect(TextSizeRow.label == "Note text", "the row under the Text size header doesn't repeat it")
         #expect(TextSize.size(stored: 20) == 20)
         #expect(TextSize.spoken(17) == "17 points")
-        // The sidebar and list stay as they are at the first stops and grow at the big ones.
-        #expect(TextSize.interfaceScale(stored: 0) == 1 && TextSize.interfaceScale(stored: 15) == 1)
-        #expect(TextSize.interfaceScale(stored: 17) > 1 && TextSize.interfaceScale(stored: 24) > TextSize.interfaceScale(stored: 20))
+        // Note text only: the sidebar and list never grow with it (Emil, 7 November 2026).
+        for step in TextSize.steps { #expect(TextSize.interfaceScale(stored: Double(step)) == 1, "\(step) pt") }
+        #expect(TextSize.interface(13) == 13)
         #expect(TextSize.biggerTitle == "Make Text Bigger" && TextSize.smallerTitle == "Make Text Smaller" && TextSize.actualTitle == "Actual Size")
+    }
+
+    /// Settings › Appearance › Font: note text and headings take the face; code stays mono, and
+    /// Default is the system's own (Emil, 7 November 2026).
+    @Test func theFontChangesNoteTextButNotCode() {
+        // Read outside the overrides: a styler's fonts are worked out when asked.
+        let plainBody = MarkdownStyler().bodyFont, plainMono = MarkdownStyler().monoFont, plainTitle = MarkdownStyler.titleFont
+        #expect(NoteFont.override == nil)
+        #expect(plainBody.fontName == NSFont.systemFont(ofSize: plainBody.pointSize).fontName, "Default is the system font")
+        for face in NoteFont.allCases where face != .standard {
+            NoteFont.$override.withValue(face) {
+                let s = MarkdownStyler()
+                #expect(s.bodyFont.fontDescriptor != plainBody.fontDescriptor, "\(face): the body takes the face")
+                #expect(s.bodyFont.pointSize == plainBody.pointSize, "\(face): at the same size")
+                #expect(MarkdownStyler.titleFont.fontDescriptor != plainTitle.fontDescriptor, "\(face): the title too")
+                #expect(s.monoFont.fontDescriptor == plainMono.fontDescriptor, "\(face): code stays mono")
+            }
+        }
+        #expect(NoteFont.allCases.map(\.title) == ["Default", "Serif", "Rounded", "Mono"])
+        #expect(SettingsIndex.matches("serif", available: Set(SettingsPage.allCases)).map(\.page) == [.appearance])
     }
 
     @Test func biggerRestylesAnOpenNoteAndActualSizeBringsItBack() async throws {

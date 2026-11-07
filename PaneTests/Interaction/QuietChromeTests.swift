@@ -60,9 +60,10 @@ import Testing
         #expect(!QuickOpen.isOutside(.zero, of: .zero, windowHeight: 800), "not measured yet: stays")
     }
 
-    @Test func settingsIsASheetOnTheNotesWindow() throws {
-        let app = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Pane/App/PaneApp.swift"), encoding: .utf8)
-        #expect(!app.contains("Window(\"Settings\""), "no window of its own")
+    /// Settings was a sheet on the notes window for a while; it is a window of its own again, like
+    /// System Settings (Emil, 7 November 2026). SettingsWindow is what opens it.
+    @Test func settingsIsAWindowOfItsOwn() {
+        #expect(SettingsWindow.size.width > 0 && SettingsWindow.size.height > 0)
     }
 
     @Test func theNameLeavesBeforeTheSlideAndReturnsAfterIt() {
@@ -88,11 +89,14 @@ import Testing
         #expect(!other.isHidden && !thin.isHidden, "the sidebar's own divider stays")
     }
 
-    /// Clicking your name opens Settings; there's no menu.
-    @Test func theAccountRowOpensSettings() {
+    /// Clicking your name opens Settings at Account, even when another page was shown last; there's
+    /// no menu.
+    @Test func theAccountRowOpensSettingsAtAccount() {
         let route = SettingsRoute(defaults: UserDefaults(suiteName: "account-\(UUID())")!)
+        route.tab = .ai
         AccountButton.open(route)
-        #expect(route.presenting && route.target == nil)
+        #expect(route.presenting)
+        #expect(route.tab == .account && route.target == .account, "Account, not the last page (\(route.tab))")
     }
 
     /// The caret keeps its height from an empty line to the first letter typed on it: a new

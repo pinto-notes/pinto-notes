@@ -196,7 +196,7 @@ enum SettingsIndex {
         e("Ticked items move to the bottom", .general, "settings.notes.ticked", also: ["Checklist", "Sort checked items", "Ticked"]),
         e("Share diagnostics and usage", .security, "settings.diagnostics"),
         e("Light or dark mode", .appearance, "settings.mode.system"), e("Theme", .appearance, "settings.theme.default"),
-        e("Accent colour", .appearance, "settings.accent.theme", also: ["Accent color"]),
+        e("Font", .appearance, "settings.font", also: ["Typeface", "Serif", "Rounded", "Mono", "Monospace", "New York"]),
         e("Storage used", .storage, "settings.storage", also: ["Space", "Recently Deleted", "Earlier versions", "Full"]),
         e("Questions and Answers", .help, "settings.support", also: ["Help", "Support"]),
         e("Send Feedback", .help, "settings.feedback", also: ["Email", "Contact", "Support"]),

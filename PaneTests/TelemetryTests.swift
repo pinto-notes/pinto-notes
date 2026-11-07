@@ -682,7 +682,7 @@ private final class TelemetryDocToken {}
     @Test func untouchedSettingsReadAsTheirDefaults() {
         let v = SettingsUsage.values(TestDefaults(), loginOn: false)
         #expect(v[.appearance] == .word(AppearanceMode.system))
-        #expect(v[.theme] == .word(Theme.standard) && v[.accent] == .word(AccentChoice.theme))
+        #expect(v[.theme] == .word(Theme.standard) && v[.font] == .word(NoteFont.standard))
         #expect(v[.todayFolder] == .word(TodayFolderWord.default) && v[.todayTitle] == .word(TodaysNoteSettings.Title.long))
         #expect(v[.todayTemplate] == .flag(false) && v[.todayOnLaunch] == .flag(false))
         #expect(v[.tickedToBottom] == .flag(true), "ticked items have always sunk")
@@ -697,7 +697,7 @@ private final class TelemetryDocToken {}
     /// template's name, never a shortcut's keys.
     @Test func theDailyStateSaysEachSettingInClosedWords() async throws {
         let d = TestDefaults()
-        d.set("dark", forKey: AppearanceModeStore.key); d.set("sepia", forKey: ThemeStore.themeKey); d.set("blue", forKey: ThemeStore.accentKey)
+        d.set("dark", forKey: AppearanceModeStore.key); d.set("sepia", forKey: ThemeStore.themeKey); d.set("serif", forKey: NoteFont.key)
         d.set("Journal of Lisa", forKey: TodaysNoteSettings.folderKey)
         d.set("weekday", forKey: TodaysNoteSettings.titleKey); d.set(UUID().uuidString, forKey: TodaysNoteSettings.templateKey)
         d.set(true, forKey: TodaysNoteSettings.launchKey); d.set(false, forKey: ChecklistSorting.key)
@@ -715,7 +715,7 @@ private final class TelemetryDocToken {}
         let e = try #require(transport.events.first)
         #expect(e["event"] as? String == "settings_state")
         let p = try #require(e["properties"] as? [String: Any])
-        #expect(p["appearance"] as? String == "dark" && p["theme"] as? String == "sepia" && p["accent"] as? String == "blue")
+        #expect(p["appearance"] as? String == "dark" && p["theme"] as? String == "sepia" && p["font"] as? String == "serif" && p["accent"] == nil)
         #expect(p["today_folder"] as? String == "custom" && p["today_title"] as? String == "weekday")
         #expect(p["today_template"] as? Bool == true && p["today_on_launch"] as? Bool == true && p["ticked_to_bottom"] as? Bool == false)
         #if os(macOS)
