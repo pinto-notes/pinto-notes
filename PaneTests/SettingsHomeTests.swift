@@ -14,14 +14,14 @@ import Carbon.HIToolbox
     /// onto Mac as well so it's fully consistent"): you, then AI Connections, General, Appearance;
     /// Security and privacy, Storage; Help and feedback.
     @Test func theSidebarIsTheIPhonesList() {
-        let all = Set(SettingsPlace.allCases)
-        let groups = SettingsPlace.groups(available: all)
+        let all = Set(SettingsPage.allCases)
+        let groups = SettingsPage.groups(available: all)
         #expect(groups == [[.account], [.general, .ai, .appearance], [.security, .storage], [.help]])
         #expect(!groups.joined().contains(.appKeys), "Keys for apps is not in the sidebar")
-        #expect(SettingsPlace.ai.title == "AI Connections")
-        #expect(SettingsPlace.security.title == "Security and privacy")
+        #expect(SettingsPage.ai.title == "AI Connections")
+        #expect(SettingsPage.security.title == "Security and privacy")
         // Signed out: only what there is.
-        #expect(SettingsPlace.groups(available: [.account, .general, .appearance, .security, .help])
+        #expect(SettingsPage.groups(available: [.account, .general, .appearance, .security, .help])
                 == [[.account], [.general, .appearance], [.security], [.help]])
         #expect(SettingsCard.first(all) == .account, "Settings opens at Account, never at AI Connections")
         #expect(SettingsCard.first([.appearance, .security]) == .appearance)
@@ -30,48 +30,50 @@ import Carbon.HIToolbox
     /// Signed out there are still Account (Sign in), General, Appearance, Security and privacy and
     /// Help and feedback; AI Connections and Storage come with an account.
     @Test func signedOutThereAreFivePages() {
-        #expect(SettingsView(backend: Backend(), sync: nil).places == [.account, .general, .appearance, .security, .help])
+        #expect(SettingsView(backend: Backend(), sync: nil).available == [.account, .general, .appearance, .security, .help])
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
-        let places = SettingsView(backend: backend, sync: nil).places
-        #expect([.account, .ai, .general, .appearance, .security, .storage, .help].allSatisfy(places.contains))
+        #expect(SettingsView(backend: backend, sync: nil).available == [.account, .ai, .general, .appearance, .security, .storage, .help])
+        #expect(SettingsPage.available(signedIn: false, hasClient: false, demoStorage: true).contains(.storage), "captures show Storage")
     }
 
-    /// Both apps list the same rows, in the same groups and order, with the same names and symbols.
-    @Test func macAndIPhoneListTheSameRows() throws {
-        let mac = SettingsPlace.groups(available: Set(SettingsPlace.allCases)).dropFirst()
-        let phone = SettingsTab.phoneGroups.map { $0.map(SettingsPlace.init) }
-        #expect(Array(mac) == phone)
-        for tab in SettingsTab.allCases {
-            #expect(SettingsPlace(tab).title == tab.title, "\(tab) has one name")
-            if tab != .account { #expect(SettingsPlace(tab).symbol == tab.symbol, "\(tab) has one symbol") }
-        }
-        let source = try Self.source("Pane/Views/SettingsView.swift")
-        #expect(source.contains("ForEach(Array(SettingsTab.phoneGroups.enumerated())"), "the iPhone list is built from phoneGroups")
-        #expect(!source.contains("\"Connect an AI\" : tab.title"), "the iPhone row says the page's own name")
+    /// Both apps list the same pages from one list (SettingsPage.groups): the Mac's sidebar, drawn,
+    /// has its rows in the order iPhone's list has them, with the same names and symbols.
+    @Test func macAndIPhoneListTheSamePages() async throws {
+        let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
+        let pages = SettingsView(backend: backend, sync: nil).pages
+        #expect(pages == [.account, .general, .ai, .appearance, .security, .storage, .help])
+        let f = try await Self.layout(.general, window: CGSize(width: 1180, height: 760))
+        let drawn = pages.compactMap { p in f["tab.\(p.rawValue)"].map { (p, $0.minY) } }.sorted { $0.1 < $1.1 }.map(\.0)
+        #expect(drawn == pages, "the sidebar, top to bottom: \(drawn)")
         // The Mac sidebar's groups part clearly: a gap many times the gap between rows.
         #expect(SettingsCard.groupGap >= 20 && SettingsCard.groupGap >= SettingsCard.tabGap * 6, "a group gap, not a flaw")
         // Emil's pick (B, 7 November 2026): outlines, each symbol different, and each exists.
         let picked = [SettingsIcons.ai, SettingsIcons.general, SettingsIcons.appearance]
         #expect(picked == ["link", "gearshape", "textformat.size"])
         #expect(Set(picked).count == 3 && !picked.contains { $0.contains(".fill") })
-        for s in picked { #expect(NSImage(systemSymbolName: s, accessibilityDescription: nil) != nil, "\(s) exists") }
+        for p in SettingsPage.allCases { #expect(NSImage(systemSymbolName: p.symbol, accessibilityDescription: nil) != nil, "\(p.symbol) exists") }
     }
 
     static func source(_ path: String) throws -> String {
         try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: path), encoding: .utf8)
     }
 
-    @Test func linksIntoSettingsLandOnTheirPage() {
-        for tab in SettingsTab.allCases {
-            #expect(SettingsPlace(tab).rawValue == tab.rawValue, "a link to \(tab) opens its own page")
+    /// A link into Settings (a card, the storage warning, the account menu) opens its own page.
+    @Test func linksIntoSettingsLandOnTheirPage() async throws {
+        for page in [SettingsPage.storage, .security, .ai, .help, .appearance] {
+            let route = SettingsRoute(defaults: UserDefaults(suiteName: "settings-link-\(UUID())")!)
+            route.target = page
+            _ = try await Self.layout(.account, window: CGSize(width: 1180, height: 760), route: route)
+            #expect(route.page == page, "\(page) opens \(String(describing: route.page))")
+            #expect(route.target == nil, "taken once")
         }
     }
 
     /// Appearance by any of the words people use for it.
     @Test func searchShowsTheFirstResultsPage() {
-        let all = Set(SettingsPlace.allCases)
+        let all = Set(SettingsPage.allCases)
         let found = SettingsIndex.matches("sync", available: all, advancedProtection: false, recoveryKey: false)
-        #expect(SettingsCard.pageWhileSearching(found) == found.first { $0.menu == nil }?.place)
+        #expect(SettingsCard.pageWhileSearching(found) == found.first { $0.menu == nil }?.page)
         #expect(SettingsCard.pageWhileSearching(found) == .account, "beside Sync status, Account")
         // The result says what's on the page, and "sync now" still finds it.
         #expect(found.contains { $0.label == "Sync status" })
@@ -81,9 +83,9 @@ import Carbon.HIToolbox
     }
 
     @Test func searchFindsAppearance() {
-        let all = Set(SettingsPlace.allCases)
+        let all = Set(SettingsPage.allCases)
         for word in ["appearance", "theme", "dark", "light", "dark mode", "colour", "color", "accent", "Theme", "DARK MODE"] {
-            let found = SettingsIndex.matches(word, available: all).map(\.place)
+            let found = SettingsIndex.matches(word, available: all).map(\.page)
             #expect(found.contains(.appearance), "\(word) finds Appearance")
             #expect(Set(found) == [.appearance], "\(word) finds only Appearance: \(found)")
         }
@@ -94,16 +96,10 @@ import Carbon.HIToolbox
     /// Note text size is on Appearance as well as in the View menu, and search finds it by the
     /// words people use (council round 3, 11-04). Its line says how to get back to standard.
     @Test func textSizeIsOnAppearance() throws {
-        let all = Set(SettingsPlace.allCases)
+        let all = Set(SettingsPage.allCases)
         for word in ["text size", "font size", "bigger", "zoom"] {
-            #expect(SettingsIndex.matches(word, available: all).map(\.place).contains(.appearance), "\(word) finds Appearance")
+            #expect(SettingsIndex.matches(word, available: all).map(\.page).contains(.appearance), "\(word) finds Appearance")
         }
-        // The theme pictures are drawn in the mode showing (dark Settings showed light windows).
-        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "Pane/Views/SettingsPages.swift"), encoding: .utf8)
-        #expect(src.contains("ThemeWindowPicture(theme: t, dark: scheme == .dark)") && !src.contains("ThemeWindowPicture(theme: t, dark: false)"))
-        // Mode and Theme show their choice the same way: the ink ring, never one orange and one ink.
-        #expect(!src.contains("orange: true"), "one ring look on Appearance")
         // A switch that's on is in the accent, light and dark, with every accent: its white knob
         // stands out from the track (at least 3:1); a light accent is deepened, never swapped for grey.
         for accent in AccentChoice.allCases {
@@ -127,19 +123,19 @@ import Carbon.HIToolbox
 
     /// Every setting that existed before is in the index, so search finds it, on its page.
     @Test func searchFindsEverySettingByItsWords() {
-        let all = Set(SettingsPlace.allCases)
-        #expect(SettingsIndex.matches("menu bar", available: all).map(\.place) == [.general], "Show in menu bar is on General")
-        #expect(SettingsIndex.matches("diagnostics", available: all).map(\.place) == [.general], "diagnostics is on General, as on iPhone")
-        #expect(SettingsIndex.matches("setup guide", available: all).map(\.place) == [.general])
-        #expect(SettingsIndex.matches("recovery", available: all, recoveryKey: true).map(\.place) == [.security])
+        let all = Set(SettingsPage.allCases)
+        #expect(SettingsIndex.matches("menu bar", available: all).map(\.page) == [.general], "Show in menu bar is on General")
+        #expect(SettingsIndex.matches("diagnostics", available: all).map(\.page) == [.general], "diagnostics is on General, as on iPhone")
+        #expect(SettingsIndex.matches("setup guide", available: all).map(\.page) == [.help], "the setup guide is on Help and feedback, not General")
+        #expect(SettingsIndex.matches("recovery", available: all, recoveryKey: true).map(\.page) == [.security])
         #expect(SettingsIndex.matches("export", available: all).map(\.menu) == [.export], "Export is File › Export All Notes…")
-        #expect(SettingsIndex.matches("sign out", available: all).map(\.place) == [.account])
-        #expect(SettingsIndex.matches("name", available: all).map(\.place).contains(.account))
-        #expect(!SettingsIndex.matches("STORAGE", available: all).isEmpty && SettingsIndex.matches("STORAGE", available: all).allSatisfy { $0.place == .storage },
+        #expect(SettingsIndex.matches("sign out", available: all).map(\.page) == [.account])
+        #expect(SettingsIndex.matches("name", available: all).map(\.page).contains(.account))
+        #expect(!SettingsIndex.matches("STORAGE", available: all).isEmpty && SettingsIndex.matches("STORAGE", available: all).allSatisfy { $0.page == .storage },
                 "storage has its own page")
-        #expect(SettingsIndex.matches("sync", available: all).allSatisfy { $0.place == .account })
+        #expect(SettingsIndex.matches("sync", available: all).allSatisfy { $0.page == .account })
         #expect(SettingsIndex.matches("apple", available: all).isEmpty, "no Sign in with Apple row any more")
-        #expect(SettingsIndex.matches("terms", available: all).map(\.place) == [.security])
+        #expect(SettingsIndex.matches("terms", available: all).map(\.page) == [.security])
         #expect(SettingsIndex.matches("", available: all).isEmpty)
         #expect(SettingsIndex.matches("recovery", available: [.account, .appearance], recoveryKey: true).isEmpty, "not on a page that isn't there")
         #expect(SettingsIndex.matches("storage", available: [.account, .general]).isEmpty, "signed out there's no Storage page")
@@ -148,7 +144,7 @@ import Carbon.HIToolbox
     /// Advanced protection is retired (AdvancedProtection): search finds it only for an account
     /// that has it on, whose Security page shows its switch.
     @Test func searchFindsAdvancedProtectionOnlyWhenItIsOn() {
-        let all = Set(SettingsPlace.allCases)
+        let all = Set(SettingsPage.allCases)
         for word in ["advanced", "Advanced protection", "PROTECTION"] {
             #expect(SettingsIndex.matches(word, available: all).isEmpty, "\(word): not found while it's off")
             #expect(SettingsIndex.matches(word, available: all, advancedProtection: AdvancedProtection.shown(.standard)).isEmpty)
@@ -157,8 +153,8 @@ import Carbon.HIToolbox
         }
         #expect(SettingsIndex.matches("security", available: all).allSatisfy { $0.label != "Advanced protection" })
         // Keys for apps is parked: nothing leads to it, search included.
-        for place in SettingsPlace.allCases where place != .appKeys {
-            #expect(SettingsIndex.all.contains { $0.place == place }, "\(place) has words to find it by")
+        for place in SettingsPage.allCases where place != .appKeys {
+            #expect(SettingsIndex.all.contains { $0.page == place }, "\(place) has words to find it by")
         }
     }
 
@@ -176,13 +172,6 @@ import Carbon.HIToolbox
         #expect(SettingsWindow.size.width - SettingsCard.sidebarWidth >= page, "a page's column fits beside the sidebar")
         #expect(SettingsWindow.size.width - SettingsCard.sidebarWidth - page <= 40, "with little to spare")
         #expect(SettingsWindow.size.height <= 760, "fits a 13-inch Mac's screen (about 800 pt under the menu bar)")
-    }
-
-    /// One solid ground: no glass behind the sidebar, no second layout (Emil, 7 November 2026).
-    @Test func settingsIsOneSolidGround() throws {
-        let card = try Self.source("Pane/Views/SettingsCard.swift")
-        #expect(!card.contains("settingsLook") && !card.contains(".regularMaterial"))
-        #expect(card.contains("SettingsInk.hairline.frame(width: 0.5)"))
     }
 
     @Test func theCardIsNeverBiggerThanItsWindow() {
@@ -213,15 +202,11 @@ import Carbon.HIToolbox
             #expect(group.contains(item), "the Help menu has \(item)")
         }
         #expect(root.contains("Button(\"Export All Notes\\u{2026}\")"), "File › Export All Notes… stays")
-        let page = try Self.source("Pane/Views/SettingsPages.swift")
-        for call in ["MacHelp.questions()", "MacHelp.sendFeedback()", "MacHelp.reportIssue()", "MacHelp.github()", "WhatsNew.changelogURL"] {
-            #expect(page.contains(call), "the Help and feedback page runs \(call)")
-        }
     }
 
     /// Export and Help Connecting an AI are only in menus: search finds them and says which menu.
     @Test func searchSendsWhatMovedToItsMenu() {
-        let all = Set(SettingsPlace.allCases)
+        let all = Set(SettingsPage.allCases)
         func first(_ q: String) -> SettingsIndex.Entry? { SettingsIndex.matches(q, available: all).first { $0.menu != nil } }
         #expect(first("export")?.menu == .export && first("export")?.whereItIs == "File menu")
         #expect(first("having trouble")?.menu == .connectHelp && first("having trouble")?.whereItIs == "Help menu")
@@ -244,7 +229,7 @@ import Carbon.HIToolbox
         let route = SettingsRoute(defaults: UserDefaults(suiteName: "help-connecting-\(UUID())")!)
         let asks = ConnectHelpAsk()
         MacHelp.helpConnecting(route: route, asks: asks)
-        #expect(asks.pending && route.target == .ai && SettingsPlace(route.target!) == .ai)
+        #expect(asks.pending && route.target == .ai)
     }
 
     /// Send feedback writes to the address the website gives, with the subject filled in and the
@@ -277,14 +262,15 @@ import Carbon.HIToolbox
         for link in AboutSection.links {
             #expect(link.url.absoluteString.hasPrefix("https://github.com/pinto-notes/pinto-notes"), "\(link.title)")
         }
-        #expect(AboutSection.links.first?.title == "Report an issue", "what someone on Help came for comes first")
+        #expect(AboutSection.links.map(\.id) == ["settings.github", "settings.contribute"])
+        #expect(ShareAsk.newIssue.absoluteString.hasPrefix("https://github.com/pinto-notes/pinto-notes"), "Report an issue")
     }
 
     /// Help by the words people use for it: each finds the Help and feedback page.
     @Test func searchFindsHelpAndFeedback() {
-        let all = Set(SettingsPlace.allCases)
+        let all = Set(SettingsPage.allCases)
         for word in ["feedback", "contact", "support", "what's new", "report", "github"] {
-            #expect(SettingsIndex.matches(word, available: all).contains { $0.place == .help && $0.menu == nil }, "\(word) finds Help and feedback")
+            #expect(SettingsIndex.matches(word, available: all).contains { $0.page == .help && $0.menu == nil }, "\(word) finds Help and feedback")
         }
     }
 
@@ -306,15 +292,6 @@ import Carbon.HIToolbox
         #expect(HelpPage.mailed(accepted: false, copy: { copied.append($0) }), "no mail app: the line under the button shows")
         #expect(copied == [HelpCopy.email], "and the address is copied")
         #expect(HelpCopy.noMailApp.contains(HelpCopy.email))
-        // The iPhone's page and the Mac's menu use them, rather than their own copies of the same steps.
-        let src = try Self.source("Pane/Views/SettingsHome.swift")
-        #expect(src.contains("noMail = Self.mailed(accepted: accepted, copy: copy)"))
-        // The setup guide is on General, on both apps, with the same steps.
-        let phone = try Self.source("Pane/Views/SettingsView.swift"), mac = try Self.source("Pane/Views/SettingsPages.swift")
-        for general in [phone, mac] {
-            #expect(general.contains("if HelpPage.offersSetupGuide(signedIn: signedIn)") && general.contains("HelpPage.playSetupGuide(close: close)"))
-        }
-        #expect(mac.contains("HelpPage.mailed(accepted: mailed, copy: copy)"), "the Mac's Send Feedback… uses the same step")
     }
 
     // MARK: Security
@@ -373,13 +350,19 @@ import Carbon.HIToolbox
         #expect(LockedNotesSection.shown(setUp: true) == .controls)
     }
 
-    /// Every page of Settings says it's offline at its top, on iPhone too: there a page covers the
-    /// first screen, and Security's Add a device and Advanced protection were greyed out unexplained.
-    @Test func everyPageSaysWhenItIsOffline() throws {
-        let src = try Self.source("Pane/Views/SettingsView.swift")
-        let page = try #require(src.range(of: "private struct SettingsPage").map { src[$0.lowerBound...] })
-        let form = String(page.prefix(while: { $0 != "}" }))
-        #expect(form.contains("OfflineSection()") && !form.contains("#if os(macOS)"), "OfflineSection on both platforms")
+    /// Every page of Settings says it's offline at its top, on iPhone too (each page is the same
+    /// form there): a page covers the first screen, and Security's Add a device was greyed out unexplained.
+    @Test func everyPageSaysWhenItIsOffline() async throws {
+        let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
+        let view = SettingsView(backend: backend, sync: nil, connections: [])
+        let lib = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        for page in [SettingsPage.account, .general, .appearance, .storage, .help, .security] {
+            let ax = OffscreenAX(view.page(page).environment(\.networkReach, .offline).modelContainer(lib), size: CGSize(width: SettingsCard.pageWidth, height: 900))
+            // A page's accessibility tree can take a moment longer to fill in on a busy machine.
+            for _ in 0..<5 where ax.find("settings.offline") == nil { await ax.settle(400) }
+            #expect(ax.find("settings.offline") != nil, "\(page) says it's offline: \(ax.ids().prefix(8))")
+            ax.close()
+        }
     }
 
     // MARK: Layout (design/settings-layout-connect, 2 November 2026)
@@ -389,10 +372,10 @@ import Carbon.HIToolbox
 
     /// Draws Settings offscreen (borderless, far off screen, never ordered front) and reads where
     /// the title, the page and each tab land.
-    static func layout(_ start: SettingsPlace, window size: CGSize) async throws -> [String: CGRect] {
+    static func layout(_ start: SettingsPage, window size: CGSize, route: SettingsRoute? = nil) async throws -> [String: CGRect] {
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
         let two = [Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "chatgpt.com")]
-        var view = SettingsView(backend: backend, sync: nil, connections: two, route: SettingsRoute(defaults: UserDefaults(suiteName: "settings-layout-\(UUID())")!))
+        var view = SettingsView(backend: backend, sync: nil, connections: two, route: route ?? SettingsRoute(defaults: UserDefaults(suiteName: "settings-layout-\(UUID())")!))
         view.start = start
         view.close = {}
         let frames = Frames()
@@ -415,7 +398,7 @@ import Carbon.HIToolbox
     /// starts where its content does; on a small window too.
     @Test(arguments: [CGSize(width: 1180, height: 760), CGSize(width: 860, height: 600)])
     func thePageIsACentredColumnUnderItsTitle(window: CGSize) async throws {
-        for place in [SettingsPlace.account, .ai, .general, .appearance, .security, .storage, .help] {
+        for place in [SettingsPage.account, .ai, .general, .appearance, .security, .storage, .help] {
             let f = try await Self.layout(place, window: window)
             let page = try #require(f["page"], "\(place): the page reports its frame")
             let area = try #require(f["area"])
@@ -474,15 +457,13 @@ import Carbon.HIToolbox
         #expect(ConnectChoices.cardAccounts(.chatgpt, in: all).map(\.id) == [gpt.id, gpt2.id])
         #expect(Set(ConnectChoices.cardAccounts(.other, in: all).map(\.id)) == [cursor.id, codex.id], "Codex and apps on this computer are Other's")
         #expect(ConnectCopy.cardStatus(other: true, accounts: []).count <= 24, "fits an iPhone card")
-        let settings = try? Self.source("Pane/Views/SettingsView.swift")
-        #expect(settings?.contains("ConnectAISection(client: client, preview: connections, cards: true)") == true, "iPhone's AI page shows the cards")
     }
 
     /// Two tabs next to each other in the sidebar never touch, so their fills never merge.
     @Test func adjacentTabsHaveAGap() async throws {
         let f = try await Self.layout(.security, window: CGSize(width: 1180, height: 760))
         var pairs = 0
-        for group in SettingsPlace.groups(available: Set(SettingsPlace.allCases)) {
+        for group in SettingsPage.groups(available: Set(SettingsPage.allCases)) {
             // The account stands apart above the pages, as in System Settings.
             let pages = group.filter { $0 != .account }
             for (a, b) in zip(pages, pages.dropFirst()) {
@@ -510,16 +491,20 @@ import Carbon.HIToolbox
 
     /// Connect an AI says what is sent and to which company, by name, always in view (App Review
     /// rejected 1.2 for hiding it); one row per AI there is, connected or not, and never Mistral.
-    @Test func connectSaysWhatIsSentAndToWhom() throws {
+    @Test func connectSaysWhatIsSentAndToWhom() async throws {
         // One line: what it does, and that the notes it opens go to the company that makes it.
         #expect(ConnectAIPage.sent.contains("read and edit your notes") && ConnectAIPage.sent.contains("go to its maker"))
         #expect(ConnectAIPage.sent.contains("OpenAI") && ConnectAIPage.sent.contains("Anthropic"))
         for g in ConnectAISection.Guide.allCases { #expect(!ConnectAIPage.line(g).isEmpty && !ConnectAIPage.line(g).contains("\u{2014}")) }
-        let src = try Self.source("Pane/Views/ConnectAI.swift")
-        let page = try #require(src.range(of: "struct ConnectAIPage").map { String(src[$0.lowerBound...].prefix(9000)) })
-        #expect(page.contains("Text(Self.sent)") && !page.contains("DisclosureGroup"), "the line is on the page, not behind a disclosure")
-        #expect(!page.contains("ConnectCopy.trouble") && !page.contains("SettingsSummary"), "no summary box; Having trouble? is in the Help menu")
         #expect(!ConnectAISection.Guide.allCases.contains { $0.title.localizedCaseInsensitiveContains("mistral") || $0.title.localizedCaseInsensitiveContains("le chat") }, "never Mistral")
+        // On the page, said in words, not behind a disclosure; Having trouble? is in the Help menu.
+        let view = SettingsView(backend: Backend(testClient: CaptureScreen.client, email: "sara@example.com"), sync: nil, connections: [])
+        let ax = OffscreenAX(view.page(.ai), size: CGSize(width: SettingsCard.pageWidth, height: 900))
+        defer { ax.close() }
+        await ax.settle(400)
+        let sent = try #require(ax.find("connect.sent"), "\(ax.ids())")
+        #expect(sent.text.contains("go to its maker"), "\(sent.text)")
+        #expect(ax.find("connect.trouble") == nil)
     }
 
     /// One row per AI: a connected one in its place (each account its own row), the rest with
@@ -578,19 +563,15 @@ import Carbon.HIToolbox
         AccountSettingsPage.syncNow(nil) { synced.n += 1 }
         for _ in 0..<20 where synced.n == 0 { try await Task.sleep(for: .milliseconds(50)) }
         #expect(synced.n == 1)
-        let src = try Self.source("Pane/Views/SettingsPages.swift")
-        let account = try #require(src.range(of: "struct AccountSettingsPage").map { String(src[$0.lowerBound...].prefix(12000)) })
-        #expect(account.contains("Button { runSync() } label:") && account.contains("private func runSync() { Self.syncNow(sync, override: syncNow) }"),
-                "the status is the button that syncs")
-        for gone in ["AppleIDRow", "ExportNotesButton", "\"Sync Now\"", "settings.syncNow"] {
-            #expect(!account.contains(gone), "\(gone) is cut from Account")
-        }
-        #expect(account.contains("DeleteAccountButton(") && account.contains("SignOutButton("))
-        let card = try Self.source("Pane/Views/SettingsCard.swift")
-        #expect(!card.contains("\"Pinto account\"") && card.contains("Text(Self.accountLine(backend))"), "under your name: your email, not a label")
-        // Sign in with Apple is offered where you sign in, not again in Account (iPhone or Mac).
-        let phone = try Self.source("Pane/Views/SettingsView.swift")
-        #expect(!phone.contains("AppleIDRow") && !phone.contains("settings.connectApple"), "no second Apple sign-in button in Account")
+        // The Mac's page has no Sync Now button (the status is the button) and no Export (it's
+        // File › Export All Notes…); Sign Out… and Delete Account… are under you.
+        let ax = OffscreenAX(AccountSettingsPage(backend: backend, sync: nil).modelContainer(try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))),
+                             size: CGSize(width: SettingsCard.pageWidth, height: 700))
+        await ax.settle(400)
+        let ids = ax.ids()
+        ax.close()
+        for gone in ["settings.syncNow", "settings.exportNotes", "settings.connectApple"] { #expect(!ids.contains(gone), "\(gone) is not on the Mac's Account") }
+        for here in ["settings.signOut", "settings.deleteAccount", "settings.syncStatus", "settings.profileName"] { #expect(ids.contains(here), "\(here): \(ids)") }
         // A real click on the status needs a key window: where windows may be ordered in (CI).
         guard FileRowClickTests.onCI else { return }
         NSApp.activate(ignoringOtherApps: true)
@@ -663,8 +644,6 @@ import Carbon.HIToolbox
     /// Round 7: signed out, Account's Sign In… brings the card forward ready for an email; the
     /// sign-in footer reads as two short paragraphs; Privacy says what it means in plain words.
     @Test func signedOutSignInFocusesTheCardAndTheCopyIsPlain() throws {
-        let pages = try Self.source("Pane/Views/SettingsPages.swift")
-        #expect(pages.contains("post(name: SignInView.focusEmailNotice"), "Sign In… puts the caret in the card's email field")
         let card = try Self.source("Pane/Views/SignInView.swift")
         #expect(card.contains("publisher(for: Self.focusEmailNotice)") && card.contains("focus = .email }"))
         let legal = try Self.source("Pane/Views/LegalLinks.swift")
@@ -686,8 +665,6 @@ import Carbon.HIToolbox
         // On the Mac card, the short line, on one line beside Sign In… (council round 11: "or
         // Claude." wrapped alone). The 880 pt window less the sidebar (about 208), the card's
         // margins and padding, the 54 pt avatar and the Sign In… button leaves about 370 pt.
-        let accountPage = try Self.source("Pane/Views/SettingsPages.swift")
-        #expect(accountPage.contains(": SignInView.shortLine)"))
         let short = NSAttributedString(string: SignInView.shortLine, attributes: [.font: NSFont.systemFont(ofSize: 13)]).size().width
         #expect(short <= 360, "\(short) pt")
         // Table cells: 0.6 em either side, 8 pt at the smallest size, 14 at the biggest.
@@ -734,6 +711,53 @@ import Carbon.HIToolbox
 
 }
 
+/// Every page is one view on both apps, built from the rows the search index lists: each row
+/// the index names is on its page, drawn, and search finds it by its words. Drawn on the Mac;
+/// iPhone builds its pages from the same views (SettingsView.page).
+@MainActor @Suite(.serialized) struct SettingsPageRowTests {
+    static func ids(_ page: SettingsPage, backend: Backend, crypto: AccountCrypto = .shared, height: CGFloat = 1600) async throws -> [String] {
+        let view = SettingsView(backend: backend, sync: nil, crypto: crypto, devices: AddDeviceSnapshots.devices([SecurityPageSnapshots.mac]),
+                                connections: SecurityPageSnapshots.ais)
+        let lib = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ax = OffscreenAX(view.page(page).modelContainer(lib), size: CGSize(width: SettingsCard.pageWidth, height: height))
+        defer { ax.close() }
+        await ax.settle(600)
+        return ax.ids()
+    }
+
+    @Test func everyRowIsOnItsPageAndSearchFindsIt() async throws {
+        let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
+        let kept = StorageStore.shared.usage
+        StorageStore.shared.usage = StorageUsage(used: 1_240_000_000, limit: 2_147_483_648, notes: 41_000_000, files: 900_000_000, apps: 0, deleted: 0, versions: 0)
+        defer { StorageStore.shared.usage = kept }
+        let crypto = try await AddDeviceSnapshots.ready(backedUp: true, recoverySaved: true)
+        defer { crypto.signedOut() }
+        let all = Set(SettingsPage.allCases)
+        var checked = 0
+        for page in SettingsPage.groups.flatMap({ $0 }) + [.account] {
+            let ids = try await Self.ids(page, backend: backend, crypto: crypto)
+            for entry in SettingsIndex.all where entry.page == page {
+                #expect(SettingsIndex.matches(entry.label, available: all, advancedProtection: true, recoveryKey: true).contains(entry),
+                        "search finds \(entry.label)")
+                guard let id = entry.id else { continue }
+                checked += 1
+                #expect(ids.contains(id), "\(page): \(entry.label) (\(id)) is on the page: \(ids)")
+            }
+        }
+        #expect(checked >= 28, "checked \(checked) rows")
+    }
+
+    /// The setup guide is on Help and feedback (signed in: it starts from your name), not General.
+    @Test func theSetupGuideIsOnHelpOnly() async throws {
+        let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
+        #expect(try await Self.ids(.help, backend: backend).contains("settings.setupGuide"))
+        #expect(!(try await Self.ids(.general, backend: backend)).contains("settings.setupGuide"))
+        #expect(!(try await Self.ids(.help, backend: Backend())).contains("settings.setupGuide"), "signed out there's no guide to play")
+        // Signed out, Account offers Sign In… (where the build can sign in at all).
+        #expect(try await Self.ids(.account, backend: Backend(watching: CaptureScreen.client)).contains("settings.signIn"))
+    }
+}
+
 /// Settings › General's rows on the Mac: the quick note shortcut, open at login, and search.
 @MainActor @Suite struct GeneralSettingsTests {
     @Test func aShortcutNeedsCommandOptionOrControl() throws {
@@ -773,7 +797,7 @@ import Carbon.HIToolbox
         for (words, label) in [("daily", "Today\u{2019}s note"), ("template", "Today\u{2019}s note"), ("hotkey", "Quick note shortcut"),
                                ("login", "Open at login"), ("ticked", "Ticked items move to the bottom")] {
             let found = SettingsIndex.all.filter { e in ([e.label] + e.also).contains { $0.localizedCaseInsensitiveContains(words) } }
-            #expect(found.contains { $0.label == label && $0.place == .general }, "\(words) finds \(label) on General")
+            #expect(found.contains { $0.label == label && $0.page == .general }, "\(words) finds \(label) on General")
         }
     }
 

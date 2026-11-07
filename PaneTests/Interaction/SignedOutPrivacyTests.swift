@@ -10,7 +10,7 @@ import Testing
 @MainActor @Suite(.serialized) struct SignedOutPrivacyTests {
     @Test func signedOutThePageSaysHowItWorks() async throws {
         let settings = SettingsView(backend: Backend(), sync: nil)
-        let ax = OffscreenAX(settings.place(.security).frame(width: SettingsCard.pageWidth).environment(\.settingsAsPage, true),
+        let ax = OffscreenAX(settings.page(.security).frame(width: SettingsCard.pageWidth).environment(\.settingsAsPage, true),
                              size: CGSize(width: SettingsCard.pageWidth, height: 1400))
         defer { ax.close() }
         await ax.settle(600)

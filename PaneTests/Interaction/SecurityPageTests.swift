@@ -84,7 +84,7 @@ import Testing
         }
         // Nor in search (the Mac's), nor in the notices.
         #if os(macOS)
-        let all = Set(SettingsPlace.allCases)
+        let all = Set(SettingsPage.allCases)
         #expect(SettingsIndex.matches("recovery", available: all, recoveryKey: crypto.offersRecoveryKey).isEmpty)
         #expect(SettingsIndex.matches("key", available: all, recoveryKey: crypto.offersRecoveryKey).allSatisfy { $0.label != SettingsIndex.recoveryKey })
         #endif
@@ -114,7 +114,7 @@ import Testing
         }
         // Search finds it (the Mac's), and the notices point to it.
         #if os(macOS)
-        let all = Set(SettingsPlace.allCases)
+        let all = Set(SettingsPage.allCases)
         #expect(SettingsIndex.matches("recovery", available: all, recoveryKey: crypto.offersRecoveryKey).map(\.label) == [SettingsIndex.recoveryKey])
         #endif
         #expect(AccountNotice(id: 1, kind: .startedFresh, created_at: .now).text(recoveryKey: true).message.contains("recovery key"))

@@ -100,14 +100,14 @@ import UIKit
         let crypto = try await AddDeviceSnapshots.ready(backedUp: true, recoverySaved: true)
         defer { crypto.signedOut() }
         let devices = AddDeviceSnapshots.devices([AddDeviceSnapshots.added, AddDeviceSnapshots.stale])
-        func settings(at tab: SettingsTab?) -> SettingsView {
+        func settings(at tab: SettingsPage?) -> SettingsView {
             let route = SettingsRoute(defaults: UserDefaults(suiteName: "settings-shots-\(UUID())")!)
             if let tab { route.open(tab) }
             return SettingsView(backend: backend, sync: nil, crypto: crypto, devices: devices, connections: CaptureScreen.connections, route: route)
         }
-        #expect(settings(at: nil).tabs == SettingsTab.allCases)
+        #expect(settings(at: nil).pages == [.account, .general, .ai, .appearance, .security, .storage, .help])
         try await Self.shoot(settings(at: nil), "settings", dark: dark)
-        for tab in SettingsTab.allCases {
+        for tab in settings(at: nil).pages {
             try await Self.shoot(settings(at: tab), "settings-\(tab.rawValue)", dark: dark, wait: 1.5)
         }
     }
@@ -123,7 +123,7 @@ import UIKit
         let withCopy = await AddDeviceSnapshots.readyWithCopy()
         let without = try await AddDeviceSnapshots.ready(backedUp: true, recoverySaved: true)
         defer { without.signedOut(); withCopy.signedOut() }
-        func settings(_ b: Backend, _ crypto: AccountCrypto, _ others: [KeyDevice], at tab: SettingsTab?) -> SettingsView {
+        func settings(_ b: Backend, _ crypto: AccountCrypto, _ others: [KeyDevice], at tab: SettingsPage?) -> SettingsView {
             let route = SettingsRoute(defaults: UserDefaults(suiteName: "settings-help-\(UUID())")!)
             if let tab { route.open(tab) }
             return SettingsView(backend: b, sync: nil, crypto: crypto, devices: AddDeviceSnapshots.devices(others), connections: CaptureScreen.connections, route: route)
@@ -135,7 +135,7 @@ import UIKit
         try await Self.shoot(settings(backend, withCopy, [AddDeviceSnapshots.stale], at: .security), "security-copy-lower", dark: dark, scroll: 700, wait: 1.5)
         try await Self.shoot(settings(backend, without, [AddDeviceSnapshots.added, AddDeviceSnapshots.stale], at: .security), "security-nocopy", dark: dark, wait: 1.5)
         let offline = NavigationStack {
-            copy.page(.security).navigationTitle(SettingsTab.security.title).navigationBarTitleDisplayMode(.inline)
+            copy.page(.security).navigationTitle(SettingsPage.security.title).navigationBarTitleDisplayMode(.inline)
         }.environment(\.networkReach, .offline)
         try await Self.shoot(offline, "security-offline", dark: dark, wait: 1.5)
         try await Self.shoot(settings(backend, withCopy, [], at: .help), "help", dark: dark, wait: 1.5)
@@ -154,8 +154,8 @@ import UIKit
     /// What the iPhone shots show, checked on the Mac too: Settings' first screen ends with Help
     /// and feedback, there signed in and out, and it opens by a link like any other page.
     @Test func iPhoneSettingsEndWithHelp() {
-        #expect(SettingsTab.phoneGroups.last == [.help])
-        #expect(SettingsView(backend: Backend(), sync: nil).tabs.contains(.help))
+        #expect(SettingsPage.groups.last == [.help])
+        #expect(SettingsView(backend: Backend(), sync: nil).pages.contains(.help))
         let route = SettingsRoute(defaults: UserDefaults(suiteName: "settings-help-\(UUID())")!)
         route.open(.help)
         #expect(route.target == .help && route.tab == .help)

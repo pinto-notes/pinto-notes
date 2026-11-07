@@ -144,7 +144,7 @@ import Testing
         // Signed in with everything there: every page in the sidebar.
         let fixture = try await AppSnapshotTests.settingsFixture()
         ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
-        func card(_ start: SettingsPlace, search: String = "") -> SettingsView {
+        func card(_ start: SettingsPage, search: String = "") -> SettingsView {
             var v = fixture
             v.connections = three
             v.start = start
@@ -152,7 +152,7 @@ import Testing
             v.close = {}
             return v
         }
-        let shots: [(String, SettingsPlace, String, Theme, Bool)] = [
+        let shots: [(String, SettingsPage, String, Theme, Bool)] = [
             ("appearance-default-light", .appearance, "", .standard, false),
             ("appearance-default-dark", .appearance, "", .standard, true),
             ("appearance-sepia-dark", .appearance, "", .sepia, true),
@@ -185,7 +185,7 @@ import Testing
                    Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now.addingTimeInterval(-86_400 * 3), last_used_at: .now.addingTimeInterval(-3_600), revoked_at: nil, redirect_host: "claude.ai")]
         let mode = dark ? "dark" : "light"
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
-            for place in SettingsPlace.allCases where fixture.places.contains(place) {
+            for place in SettingsPage.allCases where fixture.available.contains(place) {
                 var v = fixture
                 v.connections = two
                 v.start = place
@@ -226,13 +226,13 @@ import Testing
         copy.close = {}
         var signedOut = SettingsView(backend: Backend(), sync: nil, route: route)
         signedOut.close = {}
-        func card(_ v: SettingsView, _ start: SettingsPlace) -> SettingsView {
+        func card(_ v: SettingsView, _ start: SettingsPage) -> SettingsView {
             var v = v
             v.start = start
             v.close = {}
             return v
         }
-        let cards: [(String, SettingsView, SettingsPlace)] = [
+        let cards: [(String, SettingsView, SettingsPage)] = [
             ("security-copy", copy, .security), ("security-nocopy", fixture, .security),
             ("account", fixture, .account), ("account-signedout", signedOut, .account),
         ]

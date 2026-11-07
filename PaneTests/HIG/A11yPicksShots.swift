@@ -21,7 +21,7 @@ import Testing
     """
 
     static func appearance(dark: Bool) async throws -> NSBitmapImageRep {
-        try await ThemeShots.host(Form { AppearancePage() }.formStyle(.grouped).tint(Color(PColor.paneAccent)),
+        try await ThemeShots.host(Form { AppearanceSettingsPage() }.formStyle(.grouped).tint(Color(PColor.paneAccent)),
                                   size: CGSize(width: 520, height: 500), dark: dark, wait: 0.8)
     }
 
@@ -152,7 +152,7 @@ import UIKit
                 let window = UIWindow(windowScene: scene)
                 window.frame = CGRect(x: 0, y: 0, width: 402, height: 700)
                 window.overrideUserInterfaceStyle = dark ? .dark : .light
-                let page = NavigationStack { Form { AppearancePage() }.navigationTitle("Appearance").navigationBarTitleDisplayMode(.inline) }
+                let page = NavigationStack { Form { AppearanceSettingsPage() }.navigationTitle("Appearance").navigationBarTitleDisplayMode(.inline) }
                 window.rootViewController = UIHostingController(rootView: page.tint(Color(PColor.paneAccent)))
                 window.isHidden = false
                 try? await Task.sleep(for: .seconds(1))

@@ -185,14 +185,14 @@ import Testing
     /// The real environment consumer on a stable Settings page. Searching the sidebar should
     /// not rebuild this page just because its navigation callback was allocated again.
     final class SettingsNavigation {
-        var open: ((SettingsPlace) -> Void)?
+        var open: ((SettingsPage) -> Void)?
     }
 
-    struct SettingsPage: View {
-        let place: SettingsPlace
+    struct ProbePage: View {
+        let place: Pane.SettingsPage
         let navigation: SettingsNavigation
         @Environment(\.modelContext) private var context
-        @Environment(\.openSettingsPlace) private var open
+        @Environment(\.openSettingsPage) private var open
         var body: some View {
             let _ = RenderProbe.count("SettingsPage", context: context)
             let _ = { navigation.open = { open?($0) } }()
@@ -205,7 +205,7 @@ import Testing
         let route = SettingsRoute()
         let navigation = SettingsNavigation()
         let card = SettingsCard(backend: Backend(), available: [.account, .appearance, .security, .appKeys],
-                                page: { AnyView(SettingsPage(place: $0, navigation: navigation)) }, route: route, start: .account, close: {})
+                                page: { AnyView(ProbePage(place: $0, navigation: navigation)) }, route: route, start: .account, close: {})
         let (window, _) = AppPerfTests().window(card.modelContainer(container), width: 1100)
         defer { window.close() }
         await NoteOpenTests.settle(window)

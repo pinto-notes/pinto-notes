@@ -791,9 +791,9 @@ private final class TelemetryDocToken {}
 
     @Test func eachPageHasAWord() {
         #expect(TelemetryEvent.settingsPageOpened(.storage).properties == [.settingsPage: .word(SettingsPageWord.storage)])
-        for tab in SettingsTab.allCases { #expect(SettingsPageWord(rawValue: tab.rawValue) != nil, "\(tab)") }
+        for tab in SettingsPage.allCases where tab != .appKeys { #expect(SettingsPageWord(rawValue: tab.rawValue) != nil, "\(tab)") }
         #if os(macOS)
-        for place in SettingsPlace.allCases { #expect(SettingsPageWord(place).rawValue == (place == .appKeys ? "app_keys" : place.rawValue)) }
+        for place in SettingsPage.allCases { #expect(SettingsPageWord(place).rawValue == (place == .appKeys ? "app_keys" : place.rawValue)) }
         #endif
     }
 }

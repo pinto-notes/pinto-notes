@@ -113,12 +113,12 @@ import UIKit
         let crypto = try await AdvancedProtectionHiddenTests.standard()
         defer { crypto.signedOut() }
         let devices = AddDeviceSnapshots.devices([SecurityPageSnapshots.mac, SecurityPageSnapshots.phone])
-        func view(_ tab: SettingsTab?) -> some View {
+        func view(_ tab: SettingsPage?) -> some View {
             let route = SettingsRoute(defaults: UserDefaults(suiteName: "phone-settings-\(UUID())")!)
             if let tab { route.open(tab) }
             return SettingsView(backend: backend, sync: nil, crypto: crypto, devices: devices, connections: SecurityPageSnapshots.ais, route: route)
         }
-        let tabs: [SettingsTab?] = [nil] + SettingsTab.phoneGroups.flatMap { $0 } + [.account]
+        let tabs: [SettingsPage?] = [nil] + SettingsPage.groups.flatMap { $0 } + [.account]
         for tab in tabs {
             let name = "phone-\(tab?.rawValue ?? "home")"
             for dark in [false, true] {
