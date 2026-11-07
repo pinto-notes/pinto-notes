@@ -437,7 +437,9 @@ import Testing
         let f = try await Self.layout(.security, window: CGSize(width: 1180, height: 760))
         var pairs = 0
         for group in SettingsPlace.groups(available: Set(SettingsPlace.allCases)) {
-            for (a, b) in zip(group, group.dropFirst()) {
+            // The account stands apart above the pages, as in System Settings.
+            let pages = group.filter { $0 != .account }
+            for (a, b) in zip(pages, pages.dropFirst()) {
                 guard let upper = f["tab.\(a.rawValue)"], let lower = f["tab.\(b.rawValue)"] else { continue }
                 pairs += 1
                 let gap = lower.minY - upper.maxY
