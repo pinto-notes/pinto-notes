@@ -20,6 +20,9 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
     /// Features with settings of their own, out of General (Emil, 7 November 2026, as Obsidian's
     /// Daily notes), and the Mac's shortcuts, listed (Emil: "where can I see what shortcuts exist?").
     case todaysNote, shortcuts
+    /// AI Connections' pages one level down: one connected AI (the one `AISelection` holds), and
+    /// Add an AI, the onboarding picker's rows (Emil, 7 November 2026: as Bluetooth has it).
+    case aiConnection, addAI
     var id: String { rawValue }
 
     /// The page a page one level down opens from: Account's for your details and how you sign in.
@@ -27,6 +30,7 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         switch self {
         case .personal, .signIn: .account
         case .encryption: .security
+        case .aiConnection, .addAI: .ai
         default: nil
         }
     }
@@ -52,6 +56,8 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         case .encryption: "Encryption"
         case .todaysNote: SettingsNames.todaysNote
         case .shortcuts: SettingsNames.shortcuts
+        case .aiConnection: AISelection.title
+        case .addAI: "Add an AI"
         }
     }
 
@@ -71,6 +77,8 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         case .encryption: "key.horizontal"
         case .todaysNote: SettingsIcons.todaysNote
         case .shortcuts: SettingsIcons.shortcuts
+        case .aiConnection: SettingsIcons.ai
+        case .addAI: "plus"
         }
     }
 
@@ -83,7 +91,7 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         out.insert(.shortcuts)  // the Mac's menus; iPhone has none to list
         #endif
         if signedIn { out.formUnion([.personal, .signIn, .encryption]) }
-        if signedIn && hasClient { out.formUnion([.ai, .storage]) }
+        if signedIn && hasClient { out.formUnion([.ai, .aiConnection, .addAI, .storage]) }
         if demoStorage { out.insert(.storage) }
         return out
     }
@@ -180,6 +188,9 @@ enum SettingsIndex {
         Entry(label: "Export All Notes", page: .account, also: ["Export notes", "Markdown", "Backup"], menu: .export),
         e("Connect ChatGPT", .ai), e("Connect Claude", .ai), e("Connect Grok", .ai), e("Connect Codex", .ai),
         e("Connected AIs", .ai, "connect.sent"), e("Disconnect", .ai), e("App previews", .ai),
+        e("Add an AI", .addAI, also: ["Connect another AI", "Other apps", "Cursor", "Gemini"]),
+        // One AI's page needs the AI picked first: Disconnect is found on the list of them.
+        e("Disconnect an AI", .ai, also: ["Remove an AI", "Revoke", "Last used"]),
         Entry(label: "Help Connecting an AI", page: .ai, also: ["Having trouble", "Connector address", "Access token"], menu: .connectHelp),
         // Privacy is two rows; what was on it is on Encryption, one level down, and the devices on
         // Account (Emil, 7 November 2026).
