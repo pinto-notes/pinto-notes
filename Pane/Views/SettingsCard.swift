@@ -8,16 +8,23 @@ extension EnvironmentValues {
 }
 
 #if os(macOS)
-/// Settings on the Mac is a sheet on the notes window, like every other popup in the app (Emil,
-/// 7 November 2026; it was a window of its own from the UI council, 11-04).
+/// Settings on the Mac is a window of its own, like System Settings (Emil, 7 November 2026: "lets
+/// make it a separate window again. I like it now"; it was a sheet for a day).
 @MainActor enum SettingsWindow {
     static let id = "settings"
     /// The window's content size: the card's, the sidebar and one page column.
     // 720 tall so Appearance (text size and its sample) and Privacy and security fit without
     // scrolling (council round 6, 11-04: both ran past the bottom at 600). Fits a 13-inch Mac.
     static let size = CGSize(width: 760, height: 640)
-    /// Room above the sidebar for the window's buttons (it runs to the top, like System Settings').
-    static let titleBar: CGFloat = 38
+    /// Where the window's buttons end, from its top: a unified toolbar's height puts them 19 to
+    /// 33 pt down (measured on macOS 27).
+    static let buttonsEnd: CGFloat = 33
+    /// The sidebar's search, a quiet 16 pt under the window's buttons (Emil, 7 November 2026: "some
+    /// tasteful gap").
+    static let sidebarTop: CGFloat = buttonsEnd + 16
+    /// Back, Forward and the page's title on the line of the window's buttons (centred 26 pt down),
+    /// as System Settings has them.
+    static let headerTop: CGFloat = 12
     /// The title bar's safe area on a hidden-title-bar window.
     static let titleBarInset: CGFloat = 32
     /// Tests: how often it was asked to open. The test host makes no windows of its own.
@@ -152,8 +159,13 @@ struct SettingsCard: View {
     }
 
     private var found: [SettingsIndex.Entry] {
-        SettingsIndex.matches(query, available: available, advancedProtection: advancedProtection, recoveryKey: recoveryKey)
+        let settings = SettingsIndex.matches(query, available: available, advancedProtection: advancedProtection, recoveryKey: recoveryKey)
+        guard available.contains(.shortcuts), !query.isEmpty else { return settings }
+        return settings + SettingsIndex.shortcuts(query, in: Shortcuts.groups(in: shortcutMenus()))
     }
+
+    /// The menu bar the shortcuts are read from; tests give their own.
+    var shortcutMenus: () -> NSMenu? = { NSApp.mainMenu }
     private var current: SettingsPage { place.first ?? Self.first(available) }
 
     var body: some View {
@@ -199,7 +211,11 @@ struct SettingsCard: View {
             route.target = nil
         }
         .task(id: backend.state) { await profile.bind(backend) }
-        .onChange(of: shown, initial: true) { _, now in route.page = now }
+        .onChange(of: shown, initial: true) { _, now in
+            route.page = now
+            // The window opens where you left it.
+            if inWindow, query.isEmpty, now.parent == nil { route.tab = now }
+        }
         .onDisappear { route.page = nil }
     }
 
@@ -298,7 +314,7 @@ struct SettingsCard: View {
                     .padding(.trailing, 14)
             }
         }
-        .padding(.top, inWindow ? SettingsWindow.titleBar : 12)
+        .padding(.top, inWindow ? SettingsWindow.headerTop : 12)
     }
 
     /// Back and Forward, as System Settings has them: one capsule, two chevrons, each greyed at its
@@ -328,17 +344,10 @@ struct SettingsCard: View {
             } else {
                 results
             }
+            // The version is at the top of General now, with updates (Emil, 7 November 2026).
             Spacer(minLength: 0)
-            // The version, small, where it's found when something goes wrong (Help's page went).
-            Text("Version \(AboutSection.version)")
-                .font(.system(size: 11))
-                .foregroundStyle(SettingsInk.muted)
-                .monospacedDigit()
-                .textSelection(.enabled)
-                .padding(.horizontal, 8)
-                .accessibilityIdentifier("settings.version")
         }
-        .padding(.top, inWindow ? SettingsWindow.titleBar + 8 : 14)
+        .padding(.top, inWindow ? SettingsWindow.sidebarTop : 14)
         .padding(.horizontal, 10)
         .padding(.bottom, 12)
     }
@@ -493,21 +502,12 @@ struct SettingsCardHost: ViewModifier {
     let route: SettingsRoute
     let opening: () -> Void
     @Environment(\.appearsActive) private var appearsActive
-    @State private var showing = false
+    @Environment(\.openWindow) private var openWindow
 
     func body(content: Content) -> some View {
         content
             .onChange(of: route.presenting, initial: true) { take() }
             .onChange(of: appearsActive) { take() }
-            .sheet(isPresented: $showing) {
-                if let backend {
-                    SettingsView(backend: backend, sync: sync)
-                        .environment(backend)
-                        .followsTheme()
-                        .followsAppearanceMode(pinned: nil)
-                        .presentationBackground(SettingsInk.ground)
-                }
-            }
     }
 
     /// The request, if this is the window in front (or no window is key, as at launch). A request
@@ -518,9 +518,9 @@ struct SettingsCardHost: ViewModifier {
         else { return }
         route.presenting = false
         opening()
-        // Already showing, the card goes to the page asked (route.target).
+        // Its own window (SettingsWindow); one already open comes to the front at the page asked.
         SettingsWindow.opened += 1
-        if !PaneApp.isUnitTestHost { showing = true }
+        if !PaneApp.isUnitTestHost { openWindow(id: SettingsWindow.id) }
     }
 
     /// Whether a notes window takes a Settings request: it's in front, or no window is key (as at
@@ -564,6 +564,23 @@ private struct HistoryArrow: View {
         .help(label)
         .accessibilityLabel(label)
         .accessibilityIdentifier(id)
+    }
+}
+
+/// The Settings window's edge in dark mode: 1 pt of white at 10% inside the window's own corners
+/// (a 2 pt stroke on its edge, half of it clipped by the window).
+struct SettingsWindowEdge: View {
+    @Environment(\.colorScheme) private var scheme
+    static let opacity = 0.1
+
+    var body: some View {
+        if scheme == .dark {
+            ConcentricRectangle()
+                .stroke(Color.white.opacity(Self.opacity), lineWidth: 2)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
     }
 }
 #endif

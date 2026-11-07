@@ -348,11 +348,14 @@ enum SettingsPageWord: String, TelemetryWord {
     case personal
     case signIn = "sign_in"
     case encryption
+    case todaysNote = "todays_note"
+    case shortcuts
 
     init(_ page: SettingsPage) {
         switch page {
         case .appKeys: self = .appKeys
         case .signIn: self = .signIn
+        case .todaysNote: self = .todaysNote
         default: self = SettingsPageWord(rawValue: page.rawValue) ?? .general
         }
     }

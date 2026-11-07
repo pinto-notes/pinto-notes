@@ -26,8 +26,12 @@ final class Updater: ObservableObject {
     static let shared = Updater()
 
     /// Not started in a build of your own (AppIdentity.takesUpdates): no checks, and the menu item is off.
-    let controller = SPUStandardUpdaterController(startingUpdater: AppIdentity.takesUpdates, updaterDelegate: nil, userDriverDelegate: nil)
+    let controller = SPUStandardUpdaterController(startingUpdater: AppIdentity.takesUpdates, updaterDelegate: UpdateWaiting.shared, userDriverDelegate: nil)
     @Published private(set) var canCheck = false
+    /// The version downloaded and waiting for a quit, for General's row: nil while there's none.
+    @Published fileprivate(set) var waiting: String?
+    /// Installs the waiting update and relaunches (Sparkle's own block for it).
+    fileprivate var install: (() -> Void)?
 
     /// Set once automatic updates have been switched on for an install (see above).
     static let automaticUpdatesSetKey = "PaneAutomaticUpdatesSet"
@@ -42,6 +46,26 @@ final class Updater: ObservableObject {
     }
 
     func checkForUpdates() { controller.checkForUpdates(nil) }
+
+    /// Settings › General's Install and Relaunch.
+    func installNow() { install?() }
+}
+
+/// Told by Sparkle when an update has come down and waits for a quit: General shows it with
+/// Install and Relaunch. Returning false leaves Sparkle's own handling as it was (install on quit,
+/// its window after a week).
+final class UpdateWaiting: NSObject, SPUUpdaterDelegate {
+    nonisolated(unsafe) static let shared = UpdateWaiting()
+
+    func updater(_ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem, immediateInstallationBlock: @escaping () -> Void) -> Bool {
+        let version = item.displayVersionString
+        // Sparkle calls its delegate on the main thread.
+        MainActor.assumeIsolated {
+            Updater.shared.waiting = version
+            Updater.shared.install = immediateInstallationBlock
+        }
+        return false
+    }
 }
 
 /// "Check for Updates…" under the app menu, right after About, where Mac apps keep it.

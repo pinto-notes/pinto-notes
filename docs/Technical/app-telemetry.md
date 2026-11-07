@@ -113,7 +113,7 @@ shortcut.
 |---|---|---|
 | `settings_state` | Where things start: when the app first comes to the front on this install, again when it comes to the front after an update (a new app version), and as soon as Share diagnostics is turned back on. With `setting_changed` after it, each device's settings are known at any time | Every setting below, as it is on this device |
 | `setting_changed` | The person changed a setting (in Settings, or with View › Make Text Bigger) | `setting`: one of the setting names below; `value`: its new value |
-| `settings_page_opened` | A page of Settings was opened | `settings_page`: `account`, `ai`, `general`, `appearance`, `security`, `storage`, `help`, `app_keys`, `personal` (Account › Personal information), `sign_in` (Account › Sign-in and security), `encryption` (Privacy › Encryption) |
+| `settings_page_opened` | A page of Settings was opened | `settings_page`: `account`, `ai`, `general`, `appearance`, `security`, `storage`, `help`, `app_keys`, `personal` (Account › Personal information), `sign_in` (Account › Sign-in and security), `encryption` (Privacy › Encryption), `todays_note` (Today’s note), `shortcuts` (Keyboard shortcuts, Mac) |
 
 | Setting | Values | Where |
 |---|---|---|

@@ -104,6 +104,13 @@ struct SettingsView: View {
                 #endif
             }
         case .general: GeneralSettingsPage()
+        case .todaysNote: TodaysNoteSettingsPage()
+        case .shortcuts:
+            #if os(macOS)
+            KeyboardShortcutsSettingsPage()
+            #else
+            EmptyView()
+            #endif
         case .appearance: AppearanceSettingsPage()
         case .storage: StorageSettingsPage(backend: backend)
         case .help: HelpSettingsPage(signedIn: isSignedIn, close: closeSettings)
@@ -249,7 +256,10 @@ struct NoInitialFocus: NSViewRepresentable {
 enum GeneralCopy {
     static let today = "Today\u{2019}s note"
     static let todayFooter = "In the template, {{date}} becomes the date and {{time}} the time."
-    static let openOnLaunch = "Open it when Pinto starts"
+    static let openOnLaunch = "Open today\u{2019}s note when Pinto starts"
+    static let updatesOnTheirOwn = "Updates install on their own when you quit."
+    static let updateReadyDetail = "It installs when you quit, or now."
+    static let updatesFromAppStore = "Updates come from the App Store."
     static let checklists = "Checklists"
     static let ticked = "Ticked items move to the bottom"
     static let thisMac = "This Mac"

@@ -61,6 +61,28 @@ import Testing
         try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "\(name).png"))
     }
 
+    /// Settings in a window of its own as the app makes it (hidden title bar, a unified toolbar),
+    /// drawn with the window's buttons, so the gap under them can be looked at.
+    private func windowShot(_ view: SettingsView, library: ModelContainer, dark: Bool) async throws -> NSBitmapImageRep {
+        let w = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: SettingsWindow.size.width, height: SettingsWindow.size.height - SettingsWindow.titleBarInset),
+                         styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView], backing: .buffered, defer: false)
+        w.titlebarAppearsTransparent = true
+        w.titleVisibility = .hidden
+        w.toolbar = NSToolbar(identifier: "settings-shot")
+        w.toolbarStyle = .unified
+        w.isReleasedWhenClosed = false
+        w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        w.contentViewController = NSHostingController(rootView: view.environment(\.settingsInWindow, true).tint(Color(PColor.paneAccent)).modelContainer(library))
+        w.setFrameOrigin(CGPoint(x: -20000, y: -20000))
+        defer { w.close() }
+        try? await Task.sleep(for: .seconds(1.4))
+        let frame = try #require(w.contentView?.superview)
+        frame.layoutSubtreeIfNeeded()
+        let rep = try #require(frame.bitmapImageRepForCachingDisplay(in: frame.bounds))
+        frame.cacheDisplay(in: frame.bounds, to: rep)
+        return rep
+    }
+
     @Test func pictures() async throws {
         guard let dir = Self.dir else { return }
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -73,11 +95,17 @@ import Testing
         ThemeStore.shared.set(ThemeLook(theme: .standard, accent: .theme), persist: false)
         let fixture = try await AppSnapshotTests.settingsFixture()
         ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
-        let crypto = try await AddDeviceSnapshots.ready(backedUp: true, recoverySaved: true)
+        // A standard account, as most are: Pinto Notes keeps a copy of the key, no recovery key
+        // (Emil, 7 November 2026: the recovery key in every picture read as everyone's). One
+        // Advanced protection picture of Encryption is drawn on its own, below.
+        let crypto = await AddDeviceSnapshots.readyWithCopy()
         defer { crypto.signedOut() }
+        let advanced = try await AddDeviceSnapshots.ready(backedUp: true, recoverySaved: true)
+        defer { advanced.signedOut() }
+        let fixtureCrypto = crypto
         let devices = AddDeviceSnapshots.devices([SecurityPageSnapshots.mac, SecurityPageSnapshots.phone])
-        func view(_ place: SettingsPage, connections: [Connection] = SecurityPageSnapshots.ais, backend: Backend? = nil) -> SettingsView {
-            var v = SettingsView(backend: backend ?? fixture.backend, sync: nil, crypto: crypto, devices: devices, connections: connections,
+        func view(_ place: SettingsPage, connections: [Connection] = SecurityPageSnapshots.ais, backend: Backend? = nil, crypto: AccountCrypto? = nil) -> SettingsView {
+            var v = SettingsView(backend: backend ?? fixture.backend, sync: nil, crypto: crypto ?? fixtureCrypto, devices: devices, connections: connections,
                                  route: SettingsRoute(defaults: UserDefaults(suiteName: "settings-a-\(UUID())")!))
             v.start = place
             v.close = {}
@@ -85,7 +113,8 @@ import Testing
         }
         let pages: [(SettingsPage, String)] = [(.account, "account"), (.ai, "connect"), (.general, "general"), (.appearance, "appearance"),
                                                 (.security, "privacy"), (.storage, "storage"), (.help, "help"),
-                                                (.personal, "personal"), (.signIn, "signin"), (.encryption, "encryption")]
+                                                (.personal, "personal"), (.signIn, "signin"), (.encryption, "encryption"),
+                                                (.todaysNote, "todays-note"), (.shortcuts, "shortcuts")]
         var rows: [[(String, NSBitmapImageRep)]] = []
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
             for (place, name) in pages {
@@ -121,6 +150,10 @@ import Testing
             let full = try await shoot(window(view(.account), library: lib), dark: false)
             StorageStore.shared.usage = kept
             try save(full, "account-almost-full-light", in: dir)
+            for dark in [false, true] {
+                try save(try await shoot(window(view(.encryption, crypto: advanced), library: lib), dark: dark), "encryption-advanced-\(dark ? "dark" : "light")", in: dir)
+                try save(try await windowShot(view(.general), library: lib, dark: dark), "window-\(dark ? "dark" : "light")", in: dir)
+            }
             rows.append([("Privacy and security, signed out", privacyOut), ("Account, almost full", full)])
         }
         // Each page whole, as it scrolls, so nothing under the card's edge goes unseen.

@@ -125,4 +125,67 @@ struct ShortcutsSheet: View {
         .accessibilityIdentifier("shortcuts.sheet")
     }
 }
+
+/// Settings › Keyboard shortcuts (Emil, 7 November 2026: "where can I see what shortcuts
+/// exist?"): the quick note shortcut, which works in any app and is set here, then every menu's
+/// shortcuts, read from the menu bar as the sheet does, with a field to find one.
+struct KeyboardShortcutsSettingsPage: View {
+    /// The menus to read; tests give their own.
+    var bar: () -> NSMenu? = { NSApp.mainMenu }
+    @State private var query = ""
+    @State private var groups: [Shortcuts.Group] = []
+
+    static let footer = "To change a menu\u{2019}s shortcut, use System Settings \u{203A} Keyboard \u{203A} Keyboard Shortcuts \u{203A} App Shortcuts."
+
+    var body: some View {
+        SettingsPageForm {
+            Section {
+                LabeledContent {
+                    ShortcutRecorder()
+                } label: {
+                    Text(GeneralCopy.shortcut)
+                    Text(GeneralCopy.shortcutDetail)
+                }
+            }
+            Section {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(Color.muted).accessibilityHidden(true)
+                    TextField("Find a shortcut", text: $query, prompt: Text("Find a shortcut").foregroundStyle(Color.muted))
+                        .labelsHidden()
+                        .textFieldStyle(.plain)
+                        .accessibilityIdentifier("shortcuts.search")
+                }
+            }
+            let shown = Shortcuts.filter(groups, query)
+            if shown.isEmpty, !query.isEmpty {
+                Section { Text("No shortcuts match \u{201C}\(query)\u{201D}").foregroundStyle(Color.muted) }
+            }
+            ForEach(shown, id: \.self) { group in
+                Section(group.menu) {
+                    ForEach(group.entries, id: \.self) { entry in
+                        LabeledContent(entry.title) {
+                            Text(entry.keys).font(.body.monospaced()).foregroundStyle(Color.muted)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("shortcuts.entry")
+                    }
+                }
+            }
+            Section {} footer: { Text(Self.footer) }
+        }
+        .onAppear { groups = Shortcuts.groups(in: bar()) }
+    }
+}
+
+extension Shortcuts {
+    /// The groups with only the commands whose name or keys have `query` (all of them when empty).
+    static func filter(_ groups: [Group], _ query: String) -> [Group] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return groups }
+        return groups.compactMap { g in
+            let hits = g.entries.filter { $0.title.localizedStandardContains(q) || $0.keys.localizedStandardContains(q) || g.menu.localizedStandardContains(q) }
+            return hits.isEmpty ? nil : Group(menu: g.menu, entries: hits)
+        }
+    }
+}
 #endif

@@ -66,8 +66,9 @@ import Testing
         }
 
         /// What PaneApp's Settings scene puts in its window (the test host makes none of its own).
-        func settingsWindow() async {
-            let view = SettingsView(backend: backend, sync: nil)
+        func settingsWindow(start: SettingsPage? = nil) async {
+            if let old = settings { old.close(); settings = nil; await settle() }
+            let view = SettingsView(backend: backend, sync: nil, start: start)
                 .environment(\.settingsInWindow, true)
                 .environment(\.settingsLayoutProbe, { [weak self] name, rect in self?.settingsFrames[name] = rect })
                 .environment(backend)
@@ -302,6 +303,16 @@ import Testing
         await host.settle()
         #expect(SettingsRoute.shared.page == .security)
         #expect(AppearanceSettingsPage.onScreen == 0, "Privacy and security has no theme, mode or accent")
+        // Closed and opened again, the window is where you left it (Emil, 7 November 2026).
+        SettingsRoute.shared.open(.todaysNote)
+        await host.settle()
+        #expect(SettingsRoute.shared.tab == .todaysNote, "the page you were on is kept")
+        await host.settingsWindow(start: SettingsRoute.shared.tab)
+        #expect(SettingsRoute.shared.page == .todaysNote, "and the window opens on it")
+        // Back and Forward sit on the line of the window's buttons; the search a quiet gap under them.
+        let arrows = try #require(host.settingsFrames["arrows"])
+        #expect(abs(arrows.midY - 26) <= 2, "level with the window's buttons: \(arrows)")
+        #expect(SettingsWindow.sidebarTop - SettingsWindow.buttonsEnd == 16)
     }
 
     /// The foot (the study's rows and the account) at rest and under the pointer in a sidebar-wide

@@ -668,11 +668,6 @@ struct AccountSettingsPage: View {
 /// item (the Mac only), keys for apps in notes (iPhone only: parked on the Mac, Emil, 6 November
 /// 2026), and the diagnostics switch. The setup guide is on Help and feedback.
 struct GeneralSettingsPage: View {
-    @Environment(\.modelContext) private var context
-    @AppStorage(TodaysNoteSettings.folderKey, store: TodaysNoteSettings.store) private var folder = DailyNotes.folderName
-    @AppStorage(TodaysNoteSettings.titleKey, store: TodaysNoteSettings.store) private var title = TodaysNoteSettings.Title.long
-    @AppStorage(TodaysNoteSettings.templateKey, store: TodaysNoteSettings.store) private var template = ""
-    @AppStorage(TodaysNoteSettings.launchKey, store: TodaysNoteSettings.store) private var openOnLaunch = false
     @AppStorage(ChecklistSorting.key, store: ChecklistSorting.store) private var sortsTicked = true
     #if os(macOS)
     @AppStorage(MenuBarSettings.key) private var menuBar = true
@@ -681,6 +676,95 @@ struct GeneralSettingsPage: View {
     #endif
 
     static let menuBarDetail = "Write or find a note with the window closed."
+
+    /// Software update and What's new first, as System Settings' General starts with them; then
+    /// the Mac's own, then checklists. Today's note and the quick note shortcut have pages of their
+    /// own (Emil, 7 November 2026).
+    var body: some View {
+        SettingsPageForm {
+            Section {
+                SoftwareUpdateRow()
+                Link(destination: WhatsNew.changelogURL) { SettingsLinkRow(title: WhatsNew.title, symbol: "sparkles.rectangle.stack") }
+                    .settingsRowLink()
+                    .accessibilityIdentifier("settings.whatsNew")
+            }
+            #if os(macOS)
+            Section(GeneralCopy.thisMac) {
+                Toggle(isOn: $menuBar) {
+                    Text("Show in menu bar")
+                    Text(Self.menuBarDetail)
+                }
+                .settingsSwitch()
+                .accessibilityIdentifier("settings.menuBar")
+                Toggle(GeneralCopy.login, isOn: Binding(get: { login }, set: { on in LoginItem.set(on); login = LoginItem.isOn; SettingsUsage.shared.check(asksSystem: true) }))
+                    .settingsSwitch()
+                    .accessibilityIdentifier("settings.openAtLogin")
+            }
+            #endif
+            Section(GeneralCopy.checklists) {
+                Toggle(GeneralCopy.ticked, isOn: $sortsTicked).settingsSwitch().accessibilityIdentifier("settings.notes.ticked")
+            }
+            #if os(iOS)
+            if NoteApps.enabled { APIKeysSection() }
+            #endif
+        }
+        #if os(macOS)
+        .task { login = await LoginItem.refresh() }
+        #endif
+    }
+}
+
+/// The version, and on the Mac download its updates: Sparkle installs them when you quit, and one
+/// that has come down shows here with Install and Relaunch. The App Store builds get theirs from Apple.
+struct SoftwareUpdateRow: View {
+    #if SPARKLE
+    @ObservedObject private var updater = Updater.shared
+    #endif
+
+    var body: some View {
+        #if SPARKLE
+        if let ready = updater.waiting {
+            LabeledContent {
+                Button("Install and Relaunch") { updater.installNow() }
+                    .settingsRowButton()
+                    .accessibilityIdentifier("settings.installUpdate")
+            } label: {
+                Text("Pinto Notes \(ready) is ready")
+                Text(GeneralCopy.updateReadyDetail)
+            }
+            .accessibilityIdentifier("settings.softwareUpdate")
+        } else {
+            LabeledContent {
+                Button("Check for Updates\u{2026}") { updater.checkForUpdates() }
+                    .settingsRowButton()
+                    .disabled(!updater.canCheck)
+                    .accessibilityIdentifier("settings.checkForUpdates")
+            } label: {
+                Text("Pinto Notes \(AboutSection.version)")
+                Text(GeneralCopy.updatesOnTheirOwn)
+            }
+            .accessibilityIdentifier("settings.softwareUpdate")
+        }
+        #else
+        LabeledContent {
+            Text(AboutSection.version).monospacedDigit().textSelection(.enabled)
+        } label: {
+            Text("Pinto Notes")
+            Text(GeneralCopy.updatesFromAppStore)
+        }
+        .accessibilityIdentifier("settings.softwareUpdate")
+        #endif
+    }
+}
+
+/// Today's note, a page of its own (Emil, 7 November 2026, as Obsidian's Daily notes): its folder,
+/// its title, the note it starts from, and whether it opens when Pinto starts.
+struct TodaysNoteSettingsPage: View {
+    @Environment(\.modelContext) private var context
+    @AppStorage(TodaysNoteSettings.folderKey, store: TodaysNoteSettings.store) private var folder = DailyNotes.folderName
+    @AppStorage(TodaysNoteSettings.titleKey, store: TodaysNoteSettings.store) private var title = TodaysNoteSettings.Title.long
+    @AppStorage(TodaysNoteSettings.templateKey, store: TodaysNoteSettings.store) private var template = ""
+    @AppStorage(TodaysNoteSettings.launchKey, store: TodaysNoteSettings.store) private var openOnLaunch = false
 
     var body: some View {
         let choices = GeneralChoices(context: context)
@@ -695,46 +779,19 @@ struct GeneralSettingsPage: View {
                     ForEach(choices.templates(keeping: template), id: \.id) { Text($0.title).tag($0.id.uuidString) }
                 }
                 .accessibilityIdentifier("settings.today.template")
-                Toggle(GeneralCopy.openOnLaunch, isOn: $openOnLaunch).settingsSwitch().accessibilityIdentifier("settings.today.launch")
-            } header: {
-                Text(GeneralCopy.today)
             } footer: {
                 Text(GeneralCopy.todayFooter)
             }
-            Section(GeneralCopy.checklists) {
-                Toggle(GeneralCopy.ticked, isOn: $sortsTicked).settingsSwitch().accessibilityIdentifier("settings.notes.ticked")
+            Section {
+                Toggle(GeneralCopy.openOnLaunch, isOn: $openOnLaunch).settingsSwitch().accessibilityIdentifier("settings.today.launch")
             }
-            #if os(macOS)
-            Section(GeneralCopy.thisMac) {
-                Toggle(isOn: $menuBar) {
-                    Text("Show in menu bar")
-                    Text(Self.menuBarDetail)
-                }
-                .settingsSwitch()
-                .accessibilityIdentifier("settings.menuBar")
-                LabeledContent {
-                    ShortcutRecorder()
-                } label: {
-                    Text(GeneralCopy.shortcut)
-                    Text(GeneralCopy.shortcutDetail)
-                }
-                Toggle(GeneralCopy.login, isOn: Binding(get: { login }, set: { on in LoginItem.set(on); login = LoginItem.isOn; SettingsUsage.shared.check(asksSystem: true) }))
-                    .settingsSwitch()
-                    .accessibilityIdentifier("settings.openAtLogin")
-            }
-            #else
-            if NoteApps.enabled { APIKeysSection() }
-            #endif
         }
-        #if os(macOS)
-        .task { login = await LoginItem.refresh() }
-        #endif
     }
 }
 
 #if os(macOS)
 /// The quick note shortcut's chip: click, press the keys; Delete clears it, Escape keeps it.
-private struct ShortcutRecorder: View {
+struct ShortcutRecorder: View {
     @State private var shortcut = QuickNoteHotKey.shared.shortcut
     @State private var recording = false
     @State private var monitor: Any?
@@ -849,8 +906,10 @@ struct HelpSettingsPage: View {
                 }
             }
             Section {
-                // What changed in each version, on the website: the app shows no release notes by itself.
-                link(WhatsNew.title, WhatsNew.changelogURL, symbol: "sparkles.rectangle.stack", id: "settings.whatsNew")
+                // What's new is at the top of General now, with updates (Emil, 7 November 2026).
+                #if os(macOS)
+                SettingsSubPageRow(page: .shortcuts, id: "settings.openShortcuts")
+                #endif
                 #if os(iOS)
                 LabeledContent("Version") {
                     Text(AboutSection.version).textSelection(.enabled).monospacedDigit()

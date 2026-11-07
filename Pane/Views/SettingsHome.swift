@@ -17,6 +17,9 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
     /// Privacy's own page one level down: who holds your key, the recovery key, Advanced protection
     /// (Emil, 7 November 2026: Privacy itself is just that row and Diagnostics).
     case encryption
+    /// Features with settings of their own, out of General (Emil, 7 November 2026, as Obsidian's
+    /// Daily notes), and the Mac's shortcuts, listed (Emil: "where can I see what shortcuts exist?").
+    case todaysNote, shortcuts
     var id: String { rawValue }
 
     /// The page a page one level down opens from: Account's for your details and how you sign in.
@@ -29,7 +32,10 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
     }
 
     /// The rows under you (Account), in groups.
-    static let groups: [[SettingsPage]] = [[.general, .ai, .appearance], [.security, .storage], [.help]]
+    /// General, Appearance and Keyboard shortcuts; the features with settings of their own (AI
+    /// Connections first, the reason people use Pinto); Privacy and Storage; Help and feedback. No
+    /// headings: the gaps group them (Emil, 7 November 2026).
+    static let groups: [[SettingsPage]] = [[.general, .appearance, .shortcuts], [.ai, .todaysNote], [.security, .storage], [.help]]
 
     var title: String {
         switch self {
@@ -44,6 +50,8 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         case .personal: "Personal information"
         case .signIn: "Sign-in and security"
         case .encryption: "Encryption"
+        case .todaysNote: SettingsNames.todaysNote
+        case .shortcuts: SettingsNames.shortcuts
         }
     }
 
@@ -61,6 +69,8 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         case .personal: "person.text.rectangle"
         case .signIn: "lock"
         case .encryption: "key.horizontal"
+        case .todaysNote: SettingsIcons.todaysNote
+        case .shortcuts: SettingsIcons.shortcuts
         }
     }
 
@@ -68,7 +78,10 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
     /// works, signed out too) and Help and feedback always; AI Connections and Storage with an
     /// account. Keys for apps is parked (Emil, 6 November 2026): nothing leads to it.
     static func available(signedIn: Bool, hasClient: Bool, demoStorage: Bool = false) -> Set<SettingsPage> {
-        var out: Set<SettingsPage> = [.account, .general, .appearance, .security, .help]
+        var out: Set<SettingsPage> = [.account, .general, .appearance, .todaysNote, .security, .help]
+        #if os(macOS)
+        out.insert(.shortcuts)  // the Mac's menus; iPhone has none to list
+        #endif
         if signedIn { out.formUnion([.personal, .signIn, .encryption]) }
         if signedIn && hasClient { out.formUnion([.ai, .storage]) }
         if demoStorage { out.insert(.storage) }
@@ -91,6 +104,8 @@ enum SettingsNames {
     static let security = "Privacy"
     static let storage = "Storage"
     static let help = "Help and feedback"
+    static let todaysNote = "Today\u{2019}s note"
+    static let shortcuts = "Keyboard shortcuts"
 }
 
 /// Settings' page symbols, the same on the Mac and iPhone: one outline family.
@@ -103,6 +118,8 @@ enum SettingsIcons {
     static let security = "lock.shield"
     static let storage = "externaldrive"
     static let help = "questionmark.circle"
+    static let todaysNote = "calendar"
+    static let shortcuts = "command"
 }
 
 #if os(macOS)
@@ -171,8 +188,11 @@ enum SettingsIndex {
         e(advancedProtection, .encryption), e("Locked notes password", .encryption), e("Touch ID", .encryption), e("Lock Now", .encryption),
         e("Terms of Service", .security, "settings.terms"), e("Privacy Policy", .security, "settings.privacy"),
         e("How it works", .encryption, "privacy.howItWorks"),
-        e("Today\u{2019}s note", .general, "settings.today.folder",
-          also: ["Daily note", "Daily notes", "Journal", "Template", "Date format", "Open on launch"]),
+        e("Today\u{2019}s note folder", .todaysNote, "settings.today.folder",
+          also: ["Today", "Daily note", "Daily notes", "Journal", "Date format"]),
+        e("Today\u{2019}s note title", .todaysNote, "settings.today.title", also: ["Daily note title", "Date format"]),
+        e("Today\u{2019}s note template", .todaysNote, "settings.today.template", also: ["Template", "Daily note template"]),
+        e("Open today\u{2019}s note when Pinto starts", .todaysNote, "settings.today.launch", also: ["Open on launch", "Daily note"]),
         e("Ticked items move to the bottom", .general, "settings.notes.ticked", also: ["Checklist", "Sort checked items", "Ticked"]),
         e("Share diagnostics and usage", .security, "settings.diagnostics"),
         e("Light or dark mode", .appearance, "settings.mode.system"), e("Theme", .appearance, "settings.theme.default"),
@@ -183,13 +203,27 @@ enum SettingsIndex {
         e("Report an Issue", .help, "settings.reportIssue", also: ["Bug", "Problem"]),
         e("Pinto Notes on GitHub", .help, "settings.github", also: ["Contribute", "Star", "Open source"]),
         e("Show Setup Guide", .help, "settings.setupGuide", also: ["Onboarding", "Welcome"]),
-        e(WhatsNew.title, .help, "settings.whatsNew", also: ["What's new", "Changelog", "Version"]),
+        e(WhatsNew.title, .general, "settings.whatsNew", also: ["What's new", "Changelog", "Release notes"]),
+        e("Keyboard shortcuts", .help, "settings.openShortcuts", also: ["Shortcuts", "Hotkeys", "Keys"]),
         // The Mac's own: View › Bigger's size is on Appearance there.
         e("Show in menu bar", .general, "settings.menuBar"),
-        e("Quick note shortcut", .general, "settings.quickNoteShortcut", also: ["Hotkey", "Keyboard shortcut", "Global shortcut"]),
+        e("Quick note shortcut", .shortcuts, "settings.quickNoteShortcut", also: ["Hotkey", "Keyboard shortcut", "Global shortcut"]),
         e("Open at login", .general, "settings.openAtLogin", also: ["Login item", "Start at login", "Launch at login"]),
         e("Text size", .appearance, "settings.textSize", also: ["Font size", "Bigger", "Smaller", "Zoom", "Larger text"]),
     ]
+
+    /// The menus' shortcuts whose names have what's typed ("bold" finds Bold ⌘B), each leading
+    /// to Keyboard shortcuts. At most `limit`, so they never bury the settings found.
+    static func shortcuts(_ query: String, in groups: [Shortcuts.Group], limit: Int = 6) -> [Entry] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard q.count >= 2 else { return [] }
+        var out: [Entry] = []
+        for g in groups { for e in g.entries where e.title.localizedStandardContains(q) {
+            let entry = Entry(label: "\(e.title)  \(e.keys)", page: .shortcuts)
+            if !out.contains(entry) { out.append(entry) }
+        } }
+        return Array(out.prefix(limit))
+    }
 
     static let advancedProtection = "Advanced protection"
     /// Only for an account offered a recovery key (RecoveryKeyOffer): signing in opens a standard account's notes.

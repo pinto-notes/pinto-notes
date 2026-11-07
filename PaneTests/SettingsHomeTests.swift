@@ -16,13 +16,17 @@ import Carbon.HIToolbox
     @Test func theSidebarIsTheIPhonesList() {
         let all = Set(SettingsPage.allCases)
         let groups = SettingsPage.groups(available: all)
-        #expect(groups == [[.account], [.general, .ai, .appearance], [.security, .storage], [.help]])
+        // General, Appearance, Keyboard shortcuts; the features (AI first); Privacy, Storage; Help
+        // (Emil, 7 November 2026). Keyboard shortcuts is the Mac's.
+        #expect(groups == [[.account], [.general, .appearance, .shortcuts], [.ai, .todaysNote], [.security, .storage], [.help]])
+        #expect(SettingsPage.todaysNote.title == "Today\u{2019}s note" && SettingsPage.todaysNote.symbol == "calendar")
+        #expect(SettingsPage.shortcuts.title == "Keyboard shortcuts" && SettingsPage.shortcuts.symbol == "command")
         #expect(!groups.joined().contains(.appKeys), "Keys for apps is not in the sidebar")
         #expect(SettingsPage.ai.title == "AI Connections")
         #expect(SettingsPage.security.title == "Privacy")
         // Signed out: only what there is.
-        #expect(SettingsPage.groups(available: [.account, .general, .appearance, .security, .help])
-                == [[.account], [.general, .appearance], [.security], [.help]])
+        #expect(SettingsPage.groups(available: [.account, .general, .appearance, .shortcuts, .todaysNote, .security, .help])
+                == [[.account], [.general, .appearance, .shortcuts], [.todaysNote], [.security], [.help]])
         #expect(SettingsCard.first(all) == .account, "Settings opens at Account, never at AI Connections")
         #expect(SettingsCard.first([.appearance, .security]) == .appearance)
     }
@@ -30,9 +34,9 @@ import Carbon.HIToolbox
     /// Signed out there are still Account (Sign in), General, Appearance, Privacy and
     /// Help and feedback; AI Connections and Storage come with an account.
     @Test func signedOutThereAreFivePages() {
-        #expect(SettingsView(backend: Backend(), sync: nil).available == [.account, .general, .appearance, .security, .help])
+        #expect(SettingsView(backend: Backend(), sync: nil).available == [.account, .general, .appearance, .shortcuts, .todaysNote, .security, .help])
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
-        #expect(SettingsView(backend: backend, sync: nil).available == [.account, .ai, .general, .appearance, .security, .storage, .help, .personal, .signIn, .encryption])
+        #expect(SettingsView(backend: backend, sync: nil).available == [.account, .ai, .general, .appearance, .shortcuts, .todaysNote, .security, .storage, .help, .personal, .signIn, .encryption])
         #expect(SettingsPage.available(signedIn: false, hasClient: false, demoStorage: true).contains(.storage), "captures show Storage")
     }
 
@@ -41,7 +45,7 @@ import Carbon.HIToolbox
     @Test func macAndIPhoneListTheSamePages() async throws {
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
         let pages = SettingsView(backend: backend, sync: nil).pages
-        #expect(pages == [.account, .general, .ai, .appearance, .security, .storage, .help])
+        #expect(pages == [.account, .general, .appearance, .shortcuts, .ai, .todaysNote, .security, .storage, .help])
         let f = try await Self.layout(.general, window: CGSize(width: 1180, height: 760))
         let drawn = pages.compactMap { p in f["tab.\(p.rawValue)"].map { (p, $0.minY) } }.sorted { $0.1 < $1.1 }.map(\.0)
         #expect(drawn == pages, "the sidebar, top to bottom: \(drawn)")
@@ -271,9 +275,43 @@ import Carbon.HIToolbox
     /// Help by the words people use for it: each finds the Help and feedback page.
     @Test func searchFindsHelpAndFeedback() {
         let all = Set(SettingsPage.allCases)
-        for word in ["feedback", "contact", "support", "what's new", "report", "github"] {
+        for word in ["feedback", "contact", "support", "report", "github"] {
             #expect(SettingsIndex.matches(word, available: all).contains { $0.page == .help && $0.menu == nil }, "\(word) finds Help and feedback")
         }
+    }
+
+    /// What's new and the version are at the top of General, with updates; Today's note and
+    /// Keyboard shortcuts are pages of their own, found by the words people use (Emil, 7 November 2026).
+    @Test func generalStartsWithUpdatesAndFeaturesHaveTheirOwnPages() {
+        let all = Set(SettingsPage.allCases)
+        #expect(SettingsIndex.matches("what's new", available: all).map(\.page) == [.general])
+        for word in ["daily note", "today"] {
+            #expect(SettingsIndex.matches(word, available: all).contains { $0.page == .todaysNote }, "\(word) finds Today's note")
+        }
+        #expect(SettingsIndex.matches("quick note shortcut", available: all).map(\.page) == [.shortcuts])
+        #expect(SettingsIndex.matches("shortcuts", available: all).contains { $0.page == .help && $0.id == "settings.openShortcuts" })
+        #expect(SettingsPageWord(.todaysNote).rawValue == "todays_note" && SettingsPageWord(.shortcuts).rawValue == "shortcuts")
+        #expect(!SettingsIndex.all.contains { $0.page == .general && $0.id?.hasPrefix("settings.today.") == true }, "Today's note left General")
+    }
+
+    /// Settings search finds a menu's shortcut by its name ("bold" finds Bold ⌘B), leading to
+    /// Keyboard shortcuts; its page lists the menus' shortcuts and finds one by name or keys.
+    @Test func shortcutsAreFoundByName() {
+        let bar = NSMenu(title: "Main")
+        let app = NSMenuItem(title: "Pinto Notes", action: nil, keyEquivalent: ""); app.submenu = NSMenu(title: "Pinto Notes")
+        app.submenu?.addItem(NSMenuItem(title: "Settings\u{2026}", action: nil, keyEquivalent: ","))
+        let format = NSMenuItem(title: "Format", action: nil, keyEquivalent: ""); format.submenu = NSMenu(title: "Format")
+        format.submenu?.addItem(NSMenuItem(title: "Bold", action: nil, keyEquivalent: "b"))
+        format.submenu?.addItem(NSMenuItem(title: "Italic", action: nil, keyEquivalent: "i"))
+        bar.addItem(app); bar.addItem(format)
+        let groups = Shortcuts.groups(in: bar)
+        #expect(groups.map(\.menu) == ["Pinto Notes", "Format"])
+        let hits = SettingsIndex.shortcuts("bold", in: groups)
+        #expect(hits.map(\.label) == ["Bold  \u{2318}B"] && hits.allSatisfy { $0.page == .shortcuts })
+        #expect(SettingsIndex.shortcuts("b", in: groups).isEmpty, "one letter finds nothing yet")
+        #expect(Shortcuts.filter(groups, "ital").flatMap(\.entries).map(\.title) == ["Italic"])
+        #expect(Shortcuts.filter(groups, "").count == 2)
+        #expect(KeyboardShortcutsSettingsPage.footer.contains("App Shortcuts"))
     }
 
     /// Signed out there's no setup guide to play (it starts from your name), so the button isn't
