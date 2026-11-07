@@ -36,6 +36,8 @@ final class SyncEngine {
     enum Reach: Equatable { case online, offline, unreachable }
 
     private(set) var status: Status = .idle
+    /// Bumped by every `stop`: work that began before it and resumes after takes nothing in.
+    private(set) var generation = 0
     /// What the last sync found (see `Reach`); `reach` adds what the network path says.
     private var lastReach = Reach.online
     var reach: Reach { path.isUp ? lastReach : .offline }
@@ -196,15 +198,25 @@ final class SyncEngine {
         // And during one (signed out, another account, Start fresh): the run keeps the key it
         // started with, which then stops sealing and opening (Sealer.retire), and the run stops
         // before anything else is written or taken in.
-        await Wire.$runSealer.withValue(sealer) { await run(client, pulling: pulling, sealer: sealer) }
+        // The engine can also be stopped meanwhile (signed out, the library erased or handed to
+        // another account): what the run then gets back is for a library that's gone.
+        let gen = generation
+        await Wire.$runSealer.withValue(sealer) { await run(client, pulling: pulling, sealer: sealer, gen: gen) }
     }
 
-    /// Stops a run whose key is no longer the account's.
-    private static func ensure(_ sealer: Sealer) throws {
+    struct Stopped: Error {}
+
+    /// Stops a run whose key is no longer the account's, or whose engine stopped since it began.
+    private func ensure(_ sealer: Sealer, _ gen: Int) throws {
         if sealer.isRetired { throw Sealer.Retired() }
+        if gen != generation { throw Stopped() }
     }
 
-    private func run(_ client: SupabaseClient, pulling: Bool, sealer: Sealer) async {
+    /// Whether a run (or anything else that awaited) began before the engine last stopped, or
+    /// with a key that's no longer the account's.
+    private func outlived(_ sealer: Sealer?, _ gen: Int) -> Bool { gen != generation || sealer?.isRetired == true }
+
+    private func run(_ client: SupabaseClient, pulling: Bool, sealer: Sealer, gen: Int) async {
         // No network: nothing is tried (each read would be retried for seconds first). What's
         // waiting goes up when it's back (networkChanged).
         guard path.isUp else {
@@ -216,21 +228,21 @@ final class SyncEngine {
         if pulling { status = .syncing }
         let began = Date.now
         do {
-            let slowedDown = try await push(client, sealer: sealer)
-            try Self.ensure(sealer)
+            let slowedDown = try await push(client, sealer: sealer, gen: gen)
+            try ensure(sealer, gen)
             await pushPages(client, sealer: sealer)
-            try Self.ensure(sealer)
+            try ensure(sealer, gen)
             await pushPageData(client, sealer: sealer)
-            try Self.ensure(sealer)
-            await pushAPIKeyNames(client, sealer: sealer)
-            try Self.ensure(sealer)
+            try ensure(sealer, gen)
+            await pushAPIKeyNames(client, sealer: sealer, gen: gen)
+            try ensure(sealer, gen)
             if pulling {
                 // An empty library that remembers where sync was (the library was removed and the
                 // settings weren't): everything comes down again, not just what changed since.
                 if cursor != .distantPast, Self.holdsNothing(context) { defaults.removeObject(forKey: cursorKey) }
                 let fromTheStart = cursor == .distantPast
                 let first = !hasSynced
-                try await pull(client, sealer: sealer)
+                try await pull(client, sealer: sealer, gen: gen)
                 hasSynced = true
                 if !knowsAccount {
                     accountIsNew = fromTheStart && Self.holdsNothing(context)
@@ -254,8 +266,8 @@ final class SyncEngine {
         } catch {
             // The key changed meanwhile: not a failure, and nothing to report. The next run uses
             // the new key, if there is one.
-            if sealer.isRetired {
-                log.notice("the account's key changed during a sync; it stopped")
+            if outlived(sealer, gen) {
+                log.notice("the account's key changed or sync stopped during a run; it stopped")
                 if status == .syncing { status = .idle }
                 return
             }
@@ -376,6 +388,7 @@ final class SyncEngine {
     /// Another device (or an AI) changed a note: apply the row it carries, or fetch it.
     private func received(_ action: AnyAction) async {
         guard let client = backend.client, case .signedIn = backend.state else { return }
+        let gen = generation, sealer = Wire.sealer
         let record: [String: AnyJSON]
         switch action {
         case .insert(let a): record = a.record
@@ -389,6 +402,7 @@ final class SyncEngine {
             // Rows too large for a realtime message arrive without their body.
             rows = (try? await client.from("notes").select().eq("id", value: uuid).execute().value) ?? []
         }
+        guard !outlived(sealer, gen) else { return }
         guard !rows.isEmpty else { schedule(after: 0.25); return }
         take(rows)
     }
@@ -629,6 +643,8 @@ final class SyncEngine {
     }
 
     func stop() async {
+        // Whatever is still on its way (a run, a realtime fetch, a download) takes nothing in.
+        generation += 1
         // Signed out: nothing already scheduled may still go up.
         started = false
         // The next sign-in may be another account: what's known about this one goes.
@@ -654,7 +670,7 @@ final class SyncEngine {
 
     /// Pushes dirty rows. Returns true when the server said "too fast" and the rest should
     /// wait; rows it refuses outright are set aside instead of failing the whole sync.
-    private func push(_ client: SupabaseClient, sealer: Sealer) async throws -> Bool {
+    private func push(_ client: SupabaseClient, sealer: Sealer, gen: Int) async throws -> Bool {
         problem = nil
         // Folders first: a file or note made offline in a new folder points at it, and the server
         // refuses a row whose folder it doesn't have yet.
@@ -678,6 +694,7 @@ final class SyncEngine {
             let row = FolderDTO(f)
             do {
                 let saved: [FolderDTO] = try await client.from("folders").upsert(row).select().execute().value
+                try ensure(sealer, gen)
                 if !saved.isEmpty, f.updatedAt <= row.updated_at {
                     f.serverVersion = 1
                     f.dirty = false
@@ -699,7 +716,7 @@ final class SyncEngine {
                 }
             }
         }
-        if try await pushFiles(client, sealer: sealer) { return true }
+        if try await pushFiles(client, sealer: sealer, gen: gen) { return true }
 
         // A sub-note made offline under a note made offline goes up after it.
         let notes = Self.parentsFirst((try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.dirty }))) ?? [])
@@ -734,6 +751,7 @@ final class SyncEngine {
                 case nil: throw error
                 }
             }
+            try ensure(sealer, gen)
             if let s = saved.first {
                 remember(s)
                 if s.shared_note_id != nil { n.sharedDocument?.pointerOnServer = true }
@@ -969,7 +987,7 @@ final class SyncEngine {
     }
 
     /// Uploads new files sealed, then their sealed metadata. Returns true when the server said "too fast".
-    private func pushFiles(_ client: SupabaseClient, sealer: Sealer) async throws -> Bool {
+    private func pushFiles(_ client: SupabaseClient, sealer: Sealer, gen: Int) async throws -> Bool {
         guard let uid = backend.userID else { return false }
         let files = (try? context.fetch(FetchDescriptor<Attachment>(predicate: #Predicate { $0.dirty || !$0.uploaded }))) ?? []
         for a in files where !isRefused(a.id, a.createdAt) {
@@ -990,10 +1008,12 @@ final class SyncEngine {
                     let data = try Data(contentsOf: FileStore.url(for: a.id, filename: a.filename))
                     try await client.storage.from("files").upload(path, data: try sealer.sealFile(data, id: a.id),
                                                                   options: FileOptions(contentType: "application/octet-stream", upsert: true))
+                    try ensure(sealer, gen)
                     a.size = Int64(data.count)
                     a.uploaded = true
                 }
                 try await client.from("attachments").upsert(AttachmentDTO(a, path: path)).execute()
+                try ensure(sealer, gen)
                 a.dirty = false
                 a.bytesEdited = false
                 // Deleted for good here: the sealed bytes leave Storage too, with its earlier versions
@@ -1095,13 +1115,17 @@ final class SyncEngine {
     /// Fetches a file's bytes from Storage to this device.
     func download(_ a: Attachment) async -> Bool {
         guard let client = backend.client, let uid = backend.userID, let sealer = Wire.sealer else { return false }
+        let gen = generation
         do {
             let data = try await Self.fetchFile(client: client, user: uid, id: a.id, sealer: sealer)
+            // The library may have been erased or handed over meanwhile: the bytes aren't its.
+            guard !outlived(sealer, gen) else { return false }
             let url = FileStore.url(for: a.id, filename: a.filename)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try data.write(to: url, options: .atomic)
             return true
         } catch {
+            if outlived(sealer, gen) { return false }
             log.error("download failed: \(String(describing: error), privacy: .public)")
             Telemetry.shared.record(.fileDownloadFailed(FailureSummary(error)))
             return false
@@ -1319,7 +1343,7 @@ final class SyncEngine {
 
     /// The names of the API keys set up here (never their values), so an AI can say which key an
     /// app needs. Sent when they change; the values stay in the Keychain.
-    private func pushAPIKeyNames(_ client: SupabaseClient, sealer: Sealer) async {
+    private func pushAPIKeyNames(_ client: SupabaseClient, sealer: Sealer, gen: Int) async {
         struct Row: Encodable { var id: UUID; var meta_ct: String }
         let keys = APIKeyStore.shared.keys
         let stamp = keys.map { "\($0.name)|\($0.hosts.joined(separator: ","))" }.joined(separator: ";")
@@ -1333,7 +1357,7 @@ final class SyncEngine {
                 return sealer.seal(meta, context: "api-key:" + id.uuidString.lowercased()).map { Row(id: id, meta_ct: $0) }
             }
             // A key that went meanwhile seals nothing: that isn't "no keys", so nothing is removed.
-            try Self.ensure(sealer)
+            try ensure(sealer, gen)
             if !rows.isEmpty { try await client.from("api_key_names").upsert(rows).execute() }
             let keep = rows.map { $0.id.uuidString.lowercased() }
             if keep.isEmpty {
@@ -1349,7 +1373,7 @@ final class SyncEngine {
 
     // MARK: Pull
 
-    private func pull(_ client: SupabaseClient, sealer: Sealer) async throws {
+    private func pull(_ client: SupabaseClient, sealer: Sealer, gen: Int) async throws {
         // Overlap the cursor a little: rows can commit slightly out of timestamp order.
         let since = cursor == .distantPast ? cursor : cursor.addingTimeInterval(-5)
         var newest = cursor
@@ -1361,7 +1385,7 @@ final class SyncEngine {
         var folderRows: [FolderDTO] = []
         try await Self.changedRows(client, "folders", since: stamp, size: 1000) { (page: [FolderDTO]) in folderRows += page }
         // Nothing read with a key that's no longer the account's is taken in.
-        try Self.ensure(sealer)
+        try ensure(sealer, gen)
         var byID = Dictionary(uniqueKeysWithValues: context.allFoldersIncludingDeleted().map { ($0.id, $0) })
         var appliedFolders: [FolderDTO] = []
         for r in folderRows where !r.unreadable || skipUnreadable(r.id, "A folder") {
@@ -1397,7 +1421,7 @@ final class SyncEngine {
             let again: [AttachmentDTO] = try await client.from("attachments").select().in("id", values: chunk).execute().value
             fileRows += again
         }
-        try Self.ensure(sealer)
+        try ensure(sealer, gen)
         var filesApplied = false
         for r in fileRows where !r.unreadable || skipUnreadable(r.id, "A file") {
             let known = context.attachment(r.id)
@@ -1442,7 +1466,7 @@ final class SyncEngine {
 
         var pulledNotes: [UUID] = []
         try await Self.changedRows(client, "notes", since: stamp, size: 500) { (rows: [NoteDTO]) in
-            try Self.ensure(sealer)
+            try ensure(sealer, gen)
             // Typing that isn't in the model yet goes in first, so the note counts as edited
             // here and what arrives can't replace it (the saver would then drop it).
             if !rows.isEmpty { DebouncedSave.flushAll() }
@@ -1457,7 +1481,7 @@ final class SyncEngine {
             }
         }
         if changed { context.saveOrReport() }
-        try Self.ensure(sealer)
+        try ensure(sealer, gen)
         // A note an AI or an older build made under another note is an ordinary note in a folder
         // named after that note (sub-notes are gone; see foldSubNotesIntoFolders).
         if changed { context.foldSubNotesIntoFolders() }
@@ -1475,7 +1499,7 @@ final class SyncEngine {
                 if let s = r.server_updated_at, s > newest { newest = s }
             }
         }
-        try Self.ensure(sealer)
+        try ensure(sealer, gen)
         cursor = newest
         await refreshShares(client)
         // Only devices publish shared pages (the server can't read them): a note that changed
