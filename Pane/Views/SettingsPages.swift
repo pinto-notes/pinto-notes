@@ -362,7 +362,15 @@ struct AccountSettingsPage: View {
             LabeledContent("Name") {
                 TextField("Name", text: $draft, prompt: Text("Add your name").foregroundStyle(Color.muted))
                     .labelsHidden()
+                    #if os(macOS)
+                    // A field that looks like one, as System Settings' are (Emil, 7 November 2026: it
+                    // wasn't obvious the name could be changed).
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.leading)
+                    .frame(width: 220)
+                    #else
                     .multilineTextAlignment(.trailing)
+                    #endif
                     .focused($editing)
                     .onSubmit { Task { await profile.setName(draft) } }
                     .accessibilityIdentifier("settings.personalName")

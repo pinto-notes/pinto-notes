@@ -305,29 +305,15 @@ struct SettingsCard: View {
     /// end of where you have been. ⌘[ and ⌘].
     private var arrows: some View {
         HStack(spacing: 0) {
-            arrow("chevron.left", "Back", "settings.back", key: "[", enabled: history.canGoBack) { history.back() }
+            HistoryArrow(symbol: "chevron.left", label: "Back", id: "settings.back", key: "[", leading: true, enabled: history.canGoBack) { history.back() }
             SettingsInk.hairline.frame(width: 1, height: 14)
-            arrow("chevron.right", "Forward", "settings.forward", key: "]", enabled: history.canGoForward) { history.forward() }
+            HistoryArrow(symbol: "chevron.right", label: "Forward", id: "settings.forward", key: "]", leading: false, enabled: history.canGoForward) { history.forward() }
         }
-        .padding(.horizontal, 2)
         .frame(height: 28)
         .background(Capsule().fill(SettingsInk.group))
+        .clipShape(Capsule())
         .overlay(Capsule().strokeBorder(SettingsInk.hairline, lineWidth: 0.5))
         .settingsProbe("arrows")
-    }
-
-    private func arrow(_ symbol: String, _ label: String, _ id: String, key: KeyEquivalent, enabled: Bool, _ go: @escaping () -> Void) -> some View {
-        Button(action: go) {
-            Image(systemName: symbol).font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(enabled ? SettingsInk.text : SettingsInk.muted.opacity(0.5))
-                .frame(width: 26, height: 24).contentShape(Capsule())
-        }
-        .buttonStyle(.quietIcon)
-        .disabled(!enabled)
-        .keyboardShortcut(key, modifiers: .command)
-        .help(label)
-        .accessibilityLabel(label)
-        .accessibilityIdentifier(id)
     }
 
     private var sidebar: some View {
@@ -548,5 +534,36 @@ struct SettingsCardHost: ViewModifier {
 
     /// What matters about the key window: whether it's Settings, or a sheet.
     struct KeyWindow { var settings = false, sheet = false }
+}
+
+/// One half of Back and Forward. Its hover fills exactly its half of the capsule, as System
+/// Settings does, not a square inside it (Emil, 7 November 2026).
+private struct HistoryArrow: View {
+    let symbol: String, label: String, id: String
+    let key: KeyEquivalent
+    let leading: Bool
+    let enabled: Bool
+    let go: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        let r: CGFloat = 14
+        let half = UnevenRoundedRectangle(topLeadingRadius: leading ? r : 0, bottomLeadingRadius: leading ? r : 0,
+                                          bottomTrailingRadius: leading ? 0 : r, topTrailingRadius: leading ? 0 : r, style: .continuous)
+        Button(action: go) {
+            Image(systemName: symbol).font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(enabled ? SettingsInk.text : SettingsInk.muted.opacity(0.5))
+                .frame(width: 30, height: 28)
+                .background(half.fill(SettingsInk.selection).opacity(hover && enabled ? 1 : 0))
+                .contentShape(half)
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .disabled(!enabled)
+        .keyboardShortcut(key, modifiers: .command)
+        .help(label)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(id)
+    }
 }
 #endif
