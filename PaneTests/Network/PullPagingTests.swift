@@ -56,7 +56,8 @@ extension NetworkFaults {
         onGet("folders", number: 1) { ctx.move(trips, into: work) }
         await engine.sync()
         #expect(trips.parent?.id == work.id, "the move made here isn't undone by the pull")
-        #expect(trips.dirty, "and still goes up")
+        // And it goes up: in a push run straight after this one (the move asked for it), or the next sync.
+        #expect(trips.dirty || serverParent(trips) == work.id.uuidString.lowercased())
         StubSupabase.onRequest = nil
         await engine.sync()
         #expect(serverParent(trips) == work.id.uuidString.lowercased())
