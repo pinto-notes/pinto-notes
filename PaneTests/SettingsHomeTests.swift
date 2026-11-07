@@ -380,7 +380,7 @@ import Carbon.HIToolbox
         #expect([PrivacyCopy.showRecovery, PrivacyCopy.hideRecovery, PrivacyCopy.saveRecovery] == ["Show Recovery Key", "Hide Recovery Key", "Save Recovery Key\u{2026}"])
         #expect(LockedNotesCopy.header == "Locked notes")
         for text in [PrivacyCopy.status, PrivacyCopy.backInFooterWithCopy, PrivacyCopy.backInFooterDevicesOnly, PrivacyCopy.aiFooter, LockedNotesCopy.howTo, LockedNotesCopy.footer,
-                     HelpCopy.feedbackFooter, HelpCopy.setupGuideFooter, HelpCopy.openSourceFooter, HelpCopy.noMailApp,
+                     HelpCopy.greeting, HelpCopy.greetingLine, HelpCopy.openSourcePlain, HelpCopy.noMailApp,
                      PrivacyCopy.summary(serverCopy: true), AccountSettingsPage.exportHint, ConnectCopy.shared] {
             #expect(!text.contains("\u{2014}") && !text.contains("\u{2013}"), "\(text)")
         }
@@ -875,6 +875,41 @@ import Carbon.HIToolbox
         #expect(!LoginItem.isOn)
         #expect(LoginItem.set(true) && LoginItem.isOn && fake.isEnabled)
         #expect(LoginItem.set(false) && !LoginItem.isOn)
+    }
+
+    /// Help opens with Emil and a way to write to him; one Write to me in place of Send feedback and
+    /// Report an issue; the project on GitHub is one line (Emil, 7 November 2026).
+    @Test func helpOpensWithEmilAndOneWayToWrite() async throws {
+        let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
+        let ids = try await SettingsPageRowTests.ids(.help, backend: backend)
+        for here in ["settings.greeting", "settings.feedback", "settings.support", "settings.github"] { #expect(ids.contains(here), "\(here): \(ids)") }
+        for gone in ["settings.reportIssue", "settings.contribute", "settings.whatsNew"] { #expect(!ids.contains(gone), "\(gone) is not on Help") }
+        #expect(HelpCopy.greeting == "Hi, I\u{2019}m Emil. I make Pinto Notes.")
+        #expect(String(HelpCopy.openSourceLine.characters) == HelpCopy.openSourcePlain)
+        let links = HelpCopy.openSourceLine.runs.compactMap(\.link)
+        #expect(links == [ShareAsk.repository, ShareAsk.contributing])
+        // Write to me: the address, with the version and the system filled in.
+        let mail = HelpCopy.mail(version: "1.3 (1)", system: "macOS 27.2").absoluteString
+        #expect(mail.hasPrefix("mailto:hello@pintonotes.com") && mail.contains("1.3") && mail.contains("macOS"))
+        #expect(NSImage(named: "EmilWagman") != nil, "his photo is in the app")
+        // Search still finds where to write and the project.
+        let all = Set(SettingsPage.allCases)
+        for words in ["feedback", "report", "bug", "github"] {
+            #expect(SettingsIndex.matches(words, available: all).map(\.page).contains(.help), "\(words) finds Help")
+        }
+    }
+
+    /// A Settings row's hover is the whole row: its box's edges and the row's height, the box's
+    /// corners only at its ends (Emil, 7 November 2026: no button inside the row).
+    @Test func aRowsHoverFillsItsBoxEdgeToEdge() {
+        #expect(SettingsRowEdge.of(0, in: 1) == .alone)
+        #expect([0, 1, 2].map { SettingsRowEdge.of($0, in: 3) } == [.top, .middle, .bottom])
+        let r = SettingsRowBox.radius
+        let middle = SettingsRowBox.shape(.middle), top = SettingsRowBox.shape(.top), bottom = SettingsRowBox.shape(.bottom)
+        #expect(middle.cornerRadii.topLeading == 0 && middle.cornerRadii.bottomTrailing == 0)
+        #expect(top.cornerRadii.topLeading == r && top.cornerRadii.bottomLeading == 0)
+        #expect(bottom.cornerRadii.bottomTrailing == r && bottom.cornerRadii.topTrailing == 0)
+        #expect(SettingsRowBox.inset.leading > 0 && SettingsRowBox.inset.top > 0, "it reaches past the row's content to the box")
     }
 
     /// Today's note and the Quick note shortcut moved to pages of their own (Emil, 7 November 2026).

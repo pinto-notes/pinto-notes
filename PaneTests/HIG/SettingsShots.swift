@@ -184,6 +184,23 @@ import Testing
                 host.cacheDisplay(in: host.bounds, to: rep)
                 try save(rep, "\(name)-full-\(dark ? "dark" : "light")", in: dir)
                 w.close()
+                // The rows' hover, drawn on every row at once (a capture has no pointer).
+                if ["help", "signin", "account", "connect", "encryption"].contains(name) {
+                    let hovered = NSHostingView(rootView: view(place).page(place)
+                        .frame(width: size.width, height: size.height).background(SettingsInk.ground)
+                        .environment(\.settingsAsPage, true).environment(\.hoverPreview, ["settingsRow"]).tint(Color(PColor.paneAccent)).modelContainer(lib))
+                    hovered.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                    let hw = NSWindow(contentRect: CGRect(origin: CGPoint(x: -20000, y: -20000), size: size), styleMask: [.borderless], backing: .buffered, defer: false)
+                    hw.isReleasedWhenClosed = false
+                    hw.contentView = hovered
+                    hovered.frame = CGRect(origin: .zero, size: size)
+                    try? await Task.sleep(for: .seconds(1.2))
+                    hovered.layoutSubtreeIfNeeded()
+                    let hrep = try #require(hovered.bitmapImageRepForCachingDisplay(in: hovered.bounds))
+                    hovered.cacheDisplay(in: hovered.bounds, to: hrep)
+                    try save(hrep, "\(name)-hover-\(dark ? "dark" : "light")", in: dir)
+                    hw.close()
+                }
             }
         }
         try ThemeShots.sheet("Settings, four pages", rows: rows, scale: 0.5).write(to: dir.appending(path: "sheet.png"))

@@ -210,9 +210,8 @@ enum SettingsIndex {
         e("Font", .appearance, "settings.font", also: ["Typeface", "Serif", "Rounded", "Mono", "Monospace", "New York"]),
         e("Storage used", .storage, "settings.storage", also: ["Space", "Recently Deleted", "Earlier versions", "Full"]),
         e("Questions and Answers", .help, "settings.support", also: ["Help", "Support"]),
-        e("Send Feedback", .help, "settings.feedback", also: ["Email", "Contact", "Support"]),
-        e("Report an Issue", .help, "settings.reportIssue", also: ["Bug", "Problem"]),
-        e("Pinto Notes on GitHub", .help, "settings.github", also: ["Contribute", "Star", "Open source"]),
+        e("Write to Me", .help, "settings.feedback", also: ["Send feedback", "Feedback", "Email", "Contact", "Support", "Report an issue", "Bug", "Problem"]),
+        e("Pinto Notes on GitHub", .help, "settings.github", also: ["GitHub", "Contribute", "Star", "Open source"]),
         e("Show Setup Guide", .help, "settings.setupGuide", also: ["Onboarding", "Welcome"]),
         e(WhatsNew.title, .general, "settings.whatsNew", also: ["What's new", "Changelog", "Release notes"]),
         e("Keyboard shortcuts", .help, "settings.openShortcuts", also: ["Shortcuts", "Hotkeys", "Keys"]),
@@ -303,13 +302,18 @@ enum HelpCopy {
     /// The website's help page: common questions, and the address (/support shows the same page).
     static let supportPage = URL(string: "https://pintonotes.com/help")!
     static let questions = "Questions and answers"
-    static let feedback = "Send feedback"
-    static let report = "Report an issue"
     static let setupGuide = "Show Setup Guide"
-    static let feedbackFooter = "Write to \(email) about a problem or an idea. You\u{2019}ll normally hear back within a day or two."
-    static let setupGuideFooter = "Your name, bringing your notes and connecting your AI, again."
-    static let openSource = "Open source on GitHub"
-    static let openSourceFooter = "Pinto Notes is built in the open. Reporting an issue there needs a GitHub account."
+    /// The top of Help: Emil, who makes it, in his words (Emil, 7 November 2026: "you can have my
+    /// photo and name there").
+    static let greeting = "Hi, I\u{2019}m Emil. I make Pinto Notes."
+    static let greetingLine = "If something\u{2019}s off or you have an idea, write to me. I read every message."
+    static let writeToMe = "Write to me"
+    /// One quiet line for the project on GitHub, its two links in it.
+    static var openSourceLine: AttributedString {
+        (try? AttributedString(markdown: "Pinto Notes is open source. [See the code](\(ShareAsk.repository.absoluteString)) or [help build it](\(ShareAsk.contributing.absoluteString)) on GitHub."))
+            ?? AttributedString("Pinto Notes is open source on GitHub.")
+    }
+    static let openSourcePlain = "Pinto Notes is open source. See the code or help build it on GitHub."
     static let trademarks = "Evernote is a trademark of Bending Spoons US Inc., used under license. Bear is a trademark of Shiny Frog Ltd. Other names and icons belong to their owners."
     /// Said under Send feedback when no mail app took the message.
     static let noMailApp = "No mail app opened, so the address is copied: \(email)."

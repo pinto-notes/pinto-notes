@@ -102,8 +102,9 @@ extension View {
     }
 }
 
-/// A row that leaves the app or opens something: its symbol and words, an arrow or a chevron at
-/// the end, the whole row to click. On the Mac the row takes a fill under the pointer.
+/// A row that leaves the app or opens something: its symbol on a grey tile, its words, an arrow
+/// or a chevron at the end, the whole row to click (Emil, 7 November 2026: one look for every such
+/// row, the tile Account's rows have, not an orange glyph).
 struct SettingsLinkRow: View {
     let title: String
     var detail: String? = nil
@@ -111,31 +112,94 @@ struct SettingsLinkRow: View {
     var trailing = "arrow.up.right"
 
     var body: some View {
-        LabeledContent {
-            Image(systemName: trailing).font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
-        } label: {
-            if let symbol {
-                Label { words } icon: { Image(systemName: symbol).foregroundStyle(Color.paneAccent) }
-            } else {
-                words
+        HStack(spacing: 10) {
+            if let symbol { SettingsIconTile(symbol: symbol) }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).foregroundStyle(Color.ink)
+                if let detail { Text(detail).font(.callout).foregroundStyle(Color.muted) }
             }
+            Spacer(minLength: 0)
+            Image(systemName: trailing).font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
         }
-        .foregroundStyle(Color.ink)
         .contentShape(.rect)
-    }
-
-    @ViewBuilder private var words: some View {
-        Text(title)
-        if let detail { Text(detail) }
     }
 }
 
+/// A row's symbol on a grey rounded square, white, as System Settings draws its rows' icons.
+struct SettingsIconTile: View {
+    let symbol: String
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.white)
+            .frame(width: 22, height: 22)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(white: 0.56)))
+            .accessibilityHidden(true)
+    }
+}
+
+/// Where a row sits in its box, so its hover takes the box's corners on the ends and none between.
+enum SettingsRowEdge: Sendable {
+    case alone, top, middle, bottom
+
+    static func of(_ index: Int, in count: Int) -> SettingsRowEdge {
+        if count <= 1 { return .alone }
+        if index == 0 { return .top }
+        return index == count - 1 ? .bottom : .middle
+    }
+}
+
+#if os(macOS)
+/// The Mac's grouped form: how far a row's content sits in from its box (measured from the form as
+/// drawn), and the box's corners. A row's hover fills all of that, edge to edge.
+enum SettingsRowBox {
+    static let inset = EdgeInsets(top: 10, leading: 13, bottom: 10, trailing: 13)
+    static let radius: CGFloat = 11
+
+    static func shape(_ edge: SettingsRowEdge) -> UnevenRoundedRectangle {
+        let r = radius
+        switch edge {
+        case .alone: return UnevenRoundedRectangle(topLeadingRadius: r, bottomLeadingRadius: r, bottomTrailingRadius: r, topTrailingRadius: r, style: .continuous)
+        case .top: return UnevenRoundedRectangle(topLeadingRadius: r, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: r, style: .continuous)
+        case .middle: return UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0, style: .continuous)
+        case .bottom: return UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: r, bottomTrailingRadius: r, topTrailingRadius: 0, style: .continuous)
+        }
+    }
+}
+
+/// A whole Settings row under the pointer: one fill from the box's edge to its edge, the row's
+/// full height, in the box's corners at its ends. Never a smaller pill inside the row.
+struct SettingsRowHover: ViewModifier {
+    let edge: SettingsRowEdge
+    @State private var hovering = false
+    @Environment(\.hoverPreview) private var preview
+    @Environment(\.isEnabled) private var enabled
+
+    func body(content: Content) -> some View {
+        let on = enabled && (hovering || preview.contains("*") || preview.contains("settingsRow"))
+        let i = SettingsRowBox.inset
+        content
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(.rect)
+            .modifier(HoverTracking(hovering: $hovering))
+            .background {
+                if on {
+                    SettingsRowBox.shape(edge).fill(Hover.row)
+                        .padding(EdgeInsets(top: -i.top, leading: -i.leading, bottom: -i.bottom, trailing: -i.trailing))
+                }
+            }
+    }
+}
+#endif
+
 extension View {
-    /// A whole row that is a button or a link: on the Mac plain, with the row's hover; on iPhone
-    /// the list's own row, which highlights as it's tapped.
-    @ViewBuilder func settingsRowLink() -> some View {
+    /// A whole row that is a button or a link: on the Mac plain, filled edge to edge under the
+    /// pointer (`edge`: where it sits in its box); on iPhone the list's own row, which highlights
+    /// as it's tapped.
+    @ViewBuilder func settingsRowLink(_ edge: SettingsRowEdge = .alone) -> some View {
         #if os(macOS)
-        buttonStyle(.plain).hoverRow()
+        buttonStyle(.plain).modifier(SettingsRowHover(edge: edge))
         #else
         self
         #endif
@@ -272,8 +336,8 @@ struct AccountSettingsPage: View {
         }
         // Your details and how you sign in, one level down, as Apple Account has them (Emil, 7 November 2026).
         Section {
-            subPage(.personal, "settings.openPersonal")
-            subPage(.signIn, "settings.openSignIn")
+            subPage(.personal, "settings.openPersonal", .top)
+            subPage(.signIn, "settings.openSignIn", .bottom)
         }
         Section {
             syncRow
@@ -302,7 +366,7 @@ struct AccountSettingsPage: View {
     }
 
     /// A row to one of Account's pages.
-    private func subPage(_ p: SettingsPage, _ id: String) -> some View { SettingsSubPageRow(page: p, id: id) }
+    private func subPage(_ p: SettingsPage, _ id: String, _ edge: SettingsRowEdge = .alone) -> some View { SettingsSubPageRow(page: p, id: id, edge: edge) }
 
     /// A device on the account: this one first, then the others that have your key.
     struct DeviceLine: Identifiable, Equatable {
@@ -855,9 +919,9 @@ struct StorageSettingsPage: View {
 
 // MARK: Help and feedback
 
-/// Help and feedback: answers, a message to us, an issue, the project on GitHub, the setup guide
-/// again, what's new, and the terms. The Help menu has the same on the Mac; the version is at the
-/// foot of the Mac's sidebar, on iPhone a row here.
+/// Help and feedback: Emil, who makes Pinto Notes, at the top with a way to write to him and the
+/// answers; then the keyboard shortcuts and the setup guide; then one line on the project being open
+/// source, and the terms (Emil, 7 November 2026: breezier and friendlier).
 struct HelpSettingsPage: View {
     /// The setup guide plays only for an account (it starts from your name).
     var signedIn: Bool
@@ -866,58 +930,37 @@ struct HelpSettingsPage: View {
     /// Where the address goes when no mail app opens; tests keep the real clipboard out of it.
     var copy: @MainActor (String) -> Void = { HelpPage.toClipboard($0) }
     @Environment(\.openURL) private var openURL
-    /// Said under Send feedback when no mail app took the message.
+    /// Said under Write to me when no mail app took the message.
     @State private var noMail = false
 
+    static let photo: CGFloat = 52
+
     var body: some View {
+        let guide = HelpPage.offersSetupGuide(signedIn: signedIn)
         SettingsPageForm {
+            Section { greeting }
+            #if os(macOS)
+            let rows = 1 + (guide ? 1 : 0)
             Section {
-                link(HelpCopy.questions, HelpCopy.supportPage, symbol: "questionmark.circle", id: "settings.support")
-                Button { sendFeedback() } label: { SettingsLinkRow(title: HelpCopy.feedback, symbol: "envelope") }
-                    .settingsRowLink()
-                    .accessibilityIdentifier("settings.feedback")
-                if noMail {
-                    Label(HelpCopy.noMailApp, systemImage: "doc.on.doc")
-                        .font(.footnote)
-                        .foregroundStyle(Color.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("settings.feedbackCopied")
-                }
-                link(HelpCopy.report, ShareAsk.newIssue, symbol: "exclamationmark.bubble", id: "settings.reportIssue")
-            } footer: {
-                Text(HelpCopy.feedbackFooter)
+                SettingsSubPageRow(page: .shortcuts, id: "settings.openShortcuts", edge: .of(0, in: rows))
+                if guide { setupGuideRow(edge: .of(1, in: rows)) }
             }
+            #else
+            if guide { Section { setupGuideRow(edge: .alone) } }
             Section {
-                ForEach(AboutSection.links, id: \.id) { l in link(l.title, l.url, symbol: l.symbol, id: l.id) }
-            } header: {
-                Text(HelpCopy.openSource)
-            } footer: {
-                Text(HelpCopy.openSourceFooter)
-            }
-            if HelpPage.offersSetupGuide(signedIn: signedIn) {
-                Section {
-                    Button { HelpPage.playSetupGuide(close: close) } label: {
-                        SettingsLinkRow(title: HelpCopy.setupGuide, symbol: "sparkles", trailing: "chevron.right")
-                    }
-                    .settingsRowLink()
-                    .accessibilityIdentifier("settings.setupGuide")
-                } footer: {
-                    Text(HelpCopy.setupGuideFooter)
-                }
-            }
-            Section {
-                // What's new is at the top of General now, with updates (Emil, 7 November 2026).
-                #if os(macOS)
-                SettingsSubPageRow(page: .shortcuts, id: "settings.openShortcuts")
-                #endif
-                #if os(iOS)
                 LabeledContent("Version") {
                     Text(AboutSection.version).textSelection(.enabled).monospacedDigit()
                 }
                 .accessibilityIdentifier("settings.version")
-                #endif
-            } footer: {
-                VStack(alignment: .leading, spacing: 6) {
+            }
+            #endif
+            OpenSection {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(HelpCopy.openSourceLine)
+                        .font(.callout)
+                        .foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("settings.github")
                     LegalLinksRow()
                     #if os(iOS)
                     // The import list shows these apps' own icons; on the Mac this is About's credits.
@@ -927,14 +970,53 @@ struct HelpSettingsPage: View {
                         .fixedSize(horizontal: false, vertical: true)
                     #endif
                 }
+                .padding(.top, 4)
             }
         }
     }
 
-    private func link(_ title: String, _ url: URL, symbol: String?, id: String) -> some View {
-        Link(destination: url) { SettingsLinkRow(title: title, symbol: symbol) }
-            .settingsRowLink()
-            .accessibilityIdentifier(id)
+    /// Emil's photo and a hello, with Write to me and the answers.
+    private var greeting: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image("EmilWagman")
+                .resizable()
+                .scaledToFill()
+                .frame(width: Self.photo, height: Self.photo)
+                .clipShape(Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(HelpCopy.greeting).font(.headline).foregroundStyle(Color.ink)
+                Text(HelpCopy.greetingLine).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    Button(HelpCopy.writeToMe) { sendFeedback() }
+                        .settingsRowButton()
+                        .accessibilityIdentifier("settings.feedback")
+                    Button(HelpCopy.questions) { openURL(HelpCopy.supportPage) }
+                        .settingsRowButton()
+                        .accessibilityIdentifier("settings.support")
+                }
+                .padding(.top, 6)
+                if noMail {
+                    Label(HelpCopy.noMailApp, systemImage: "doc.on.doc")
+                        .font(.footnote)
+                        .foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("settings.feedbackCopied")
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 6)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.greeting")
+    }
+
+    private func setupGuideRow(edge: SettingsRowEdge) -> some View {
+        Button { HelpPage.playSetupGuide(close: close) } label: {
+            SettingsLinkRow(title: HelpCopy.setupGuide, symbol: "sparkles", trailing: "chevron.right")
+        }
+        .settingsRowLink(edge)
+        .accessibilityIdentifier("settings.setupGuide")
     }
 
     private func sendFeedback() {
@@ -1363,7 +1445,9 @@ struct AIConnectionsPage: View {
                 AIAddRows(installed: previewInstalled ?? installed)
             } else {
                 Section {
-                    ForEach(mine) { AIConnectedRow(connection: $0) }
+                    ForEach(Array(mine.enumerated()), id: \.element.id) { i, c in
+                        AIConnectedRow(connection: c, edge: .of(i, in: mine.count))
+                    }
                 } header: {
                     Text("Connected")
                 }
@@ -1552,6 +1636,8 @@ struct AIAddRows: View {
 /// first used, one thing to ask it, to copy.
 struct AIConnectedRow: View {
     let connection: Connection
+    /// Where it sits in Connected's box, for the hover's corners.
+    var edge: SettingsRowEdge = .alone
     @State private var copied = false
     #if os(macOS)
     @Environment(\.openSettingsPage) private var openPage
@@ -1600,7 +1686,7 @@ struct AIConnectedRow: View {
             AISelection.shared.select(connection)
             openPage?(.aiConnection)
         } label: { label }
-        .settingsRowLink()
+        .settingsRowLink(edge)
         .accessibilityIdentifier("connect.connected.\(connection.id.uuidString)")
         #else
         NavigationLink(value: SettingsPage.aiConnection) { label }
@@ -1780,18 +1866,15 @@ struct SettingsSubPageRow: View {
     let page: SettingsPage
     let id: String
     var detail: String? = nil
+    /// Where it sits in its box, for the hover's corners.
+    var edge: SettingsRowEdge = .alone
     #if os(macOS)
     @Environment(\.openSettingsPage) private var openPage
     #endif
 
     var body: some View {
         let label = HStack(spacing: 10) {
-            Image(systemName: page.symbol)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(width: 22, height: 22)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(white: 0.56)))
-                .accessibilityHidden(true)
+            SettingsIconTile(symbol: page.symbol)
             VStack(alignment: .leading, spacing: 1) {
                 Text(page.title).foregroundStyle(Color.ink)
                 if let detail { Text(detail).font(.callout).foregroundStyle(Color.muted) }
@@ -1804,7 +1887,7 @@ struct SettingsSubPageRow: View {
         .contentShape(.rect)
         #if os(macOS)
         Button { openPage?(page) } label: { label }
-            .settingsRowLink()
+            .settingsRowLink(edge)
             .accessibilityIdentifier(id)
         #else
         NavigationLink(value: page) { label }

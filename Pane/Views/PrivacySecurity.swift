@@ -738,8 +738,7 @@ struct HowItWorksSheet: View {
                         .foregroundStyle(.primary)
                         .contentShape(.rect)
                     }
-                    .buttonStyle(.plain)
-                    .hoverRow()
+                    .settingsRowLink()
                     .accessibilityIdentifier("privacy.learnMore")
                 }
             }
