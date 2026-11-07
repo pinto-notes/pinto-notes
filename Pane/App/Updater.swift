@@ -54,15 +54,16 @@ final class Updater: ObservableObject {
 /// Told by Sparkle when an update has come down and waits for a quit: General shows it with
 /// Install and Relaunch. Returning false leaves Sparkle's own handling as it was (install on quit,
 /// its window after a week).
-final class UpdateWaiting: NSObject, SPUUpdaterDelegate {
-    nonisolated(unsafe) static let shared = UpdateWaiting()
+nonisolated final class UpdateWaiting: NSObject, SPUUpdaterDelegate, @unchecked Sendable {
+    static let shared = UpdateWaiting()
 
     func updater(_ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem, immediateInstallationBlock: @escaping () -> Void) -> Bool {
         let version = item.displayVersionString
-        // Sparkle calls its delegate on the main thread.
+        // Sparkle calls its delegate on the main thread, and runs the block there.
+        nonisolated(unsafe) let install = immediateInstallationBlock
         MainActor.assumeIsolated {
             Updater.shared.waiting = version
-            Updater.shared.install = immediateInstallationBlock
+            Updater.shared.install = { install() }
         }
         return false
     }
