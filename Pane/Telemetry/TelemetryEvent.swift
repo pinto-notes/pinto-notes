@@ -67,6 +67,16 @@ enum TelemetryProperty: String, CaseIterable, Sendable {
     case quickNoteShortcut = "quick_note_shortcut", openAtLogin = "open_at_login"
     case setting, value
     case settingsPage = "settings_page"
+    // Which features are used (usage_day), one count per feature.
+    case notesCreated = "notes_created", notesEdited = "notes_edited", checklistTicked = "checklist_ticked"
+    case tablesInserted = "tables_inserted", linksInserted = "links_inserted", slashMenu = "slash_menu"
+    case formatUsed = "format_used", searchUsed = "search_used", goToNote = "go_to_note", todaysNote = "todays_note"
+    case fromTemplate = "from_template", noteAppOpened = "note_app_opened", notePinned = "note_pinned"
+    case noteLocked = "note_locked", sharePicture = "share_picture", menuBarNote = "menu_bar_note"
+    case shortcutNote = "shortcut_note", importsStarted = "imports_started"
+    // Felt speed (note_opened_speed, search_speed), and the storage level.
+    case under100ms = "under_100ms", over1s = "over_1s"
+    case level
 
     static let frameSlots: [TelemetryProperty] = [.frame0, .frame1, .frame2, .frame3, .frame4, .frame5, .frame6, .frame7]
 }
@@ -379,6 +389,7 @@ enum TelemetryWords {
         add(ConnectAIKind.self); add(ConnectFunnelStep.self); add(SignInStep.self); add(LinkRole.self); add(LinkStep.self)
         add(SettingName.self); add(TodayFolderWord.self); add(SettingsPageWord.self); add(AppearanceMode.self); add(Theme.self)
         add(AccentChoice.self); add(TodaysNoteSettings.Title.self)
+        add(UsedFeature.self); add(UsageBucket.self); add(ShareStep.self); add(StorageLevelWord.self)
         return words
     }()
 }
@@ -433,6 +444,22 @@ enum TelemetryEvent: Equatable, Sendable {
     case settingChanged(SettingName, TelemetryValue)
     case settingsPageOpened(SettingsPageWord)
 
+    // Usage: which features, once a day per device (Telemetry.used), as ranges.
+    case usageDay([UsedFeature: Int])
+
+    // Leaving.
+    /// An AI connection was disconnected here, by the person.
+    case aiDisconnected(AIKind)
+    /// Signed out here, or the session ended.
+    case signedOut
+    /// Delete Account worked: sent under the account's id, then the id is dropped.
+    case accountDeleted
+
+    // Shared notes and storage.
+    case shareStep(ShareStep)
+    /// The storage level changed (StorageLevelWatch).
+    case storageLevel(StorageLevelWord)
+
     // Errors
     case keychainFailed(item: KeychainItem, operation: KeychainOperation, status: Int)
     case keyStartup(KeyStartupOutcome, hadKey: Bool, store: KeyStoreKind)
@@ -451,6 +478,10 @@ enum TelemetryEvent: Equatable, Sendable {
     case syncDurations(SyncTimings)
     case librarySize(LibrarySize)
     case hangs(count: Int)
+    /// From tapping a note to its text drawn, counted into ranges (NoteOpenSpeed).
+    case noteOpenedSpeed(SpeedTimings)
+    /// From typing in the list's search to its results shown (SearchSpeed).
+    case searchSpeed(SpeedTimings)
 
     enum Name: String, TelemetryWord {
         case appOpened = "app_opened", signedIn = "signed_in", signedUp = "signed_up", keyReady = "key_ready"
@@ -459,6 +490,9 @@ enum TelemetryEvent: Equatable, Sendable {
         case onboardingStep = "onboarding_step", importStep = "import_step", connectStep = "connect_step"
         case signInStep = "sign_in_step", linkDeviceStep = "link_device_step"
         case settingsState = "settings_state", settingChanged = "setting_changed", settingsPageOpened = "settings_page_opened"
+        case usageDay = "usage_day", aiDisconnected = "ai_disconnected", signedOut = "signed_out", accountDeleted = "account_deleted"
+        case shareStep = "share_step", storageLevel = "storage_level"
+        case noteOpenedSpeed = "note_opened_speed", searchSpeed = "search_speed"
         case keychainFailed = "keychain_failed", keyStartup = "key_startup", syncFailed = "sync_failed"
         case uploadRefused = "upload_refused", rowUnreadable = "row_unreadable", fileDownloadFailed = "file_download_failed"
         case signInFailed = "sign_in_failed", storeOpenFailed = "store_open_failed", storeSaveFailed = "store_save_failed"
@@ -485,6 +519,14 @@ enum TelemetryEvent: Equatable, Sendable {
         case .settingsState: .settingsState
         case .settingChanged: .settingChanged
         case .settingsPageOpened: .settingsPageOpened
+        case .usageDay: .usageDay
+        case .aiDisconnected: .aiDisconnected
+        case .signedOut: .signedOut
+        case .accountDeleted: .accountDeleted
+        case .shareStep: .shareStep
+        case .storageLevel: .storageLevel
+        case .noteOpenedSpeed: .noteOpenedSpeed
+        case .searchSpeed: .searchSpeed
         case .keychainFailed: .keychainFailed
         case .keyStartup: .keyStartup
         case .syncFailed: .syncFailed
@@ -523,6 +565,14 @@ enum TelemetryEvent: Equatable, Sendable {
         case .settingsState(let values): Dictionary(uniqueKeysWithValues: values.map { ($0.key.property, $0.value) })
         case .settingChanged(let name, let value): [.setting: .word(name), .value: value]
         case .settingsPageOpened(let page): [.settingsPage: .word(page)]
+        case .usageDay(let counts):
+            Dictionary(uniqueKeysWithValues: UsedFeature.allCases.map { ($0.property, .word(UsageBucket(counts[$0] ?? 0))) })
+        case .aiDisconnected(let kind): [.kind: .word(kind)]
+        case .signedOut, .accountDeleted: [:]
+        case .shareStep(let step): [.step: .word(step)]
+        case .storageLevel(let level): [.level: .word(level)]
+        case .noteOpenedSpeed(let t), .searchSpeed(let t):
+            [.under100ms: .number(t.under100ms), .under250ms: .number(t.under250ms), .under1s: .number(t.under1s), .over1s: .number(t.over1s)]
         case .keychainFailed(let item, let operation, let status):
             [.item: .word(item), .operation: .word(operation), .status: .number(status)]
         case .keyStartup(let outcome, let hadKey, let store):
@@ -557,6 +607,14 @@ enum TelemetryEvent: Equatable, Sendable {
         }
     }
 
+    /// Sent within seconds, as errors are: what's said as someone leaves may be the last chance.
+    var goesSoon: Bool {
+        switch self {
+        case .signedOut, .accountDeleted, .aiDisconnected: true
+        default: isError
+        }
+    }
+
     /// Sent once for each launch of the app, however often it happens: a failure that repeats on
     /// every poll or every sync says the same thing each time.
     var oncePerLaunch: Bool {
@@ -586,6 +644,9 @@ enum TelemetryEvent: Equatable, Sendable {
                         .todayTemplate: .flag(true), .todayOnLaunch: .flag(false), .tickedToBottom: .flag(true), .menuBar: .flag(true),
                         .quickNoteShortcut: .flag(false), .openAtLogin: .flag(false)]),
         .settingChanged(.theme, .word(Theme.sepia)), .settingsPageOpened(.general),
+        .usageDay([.notesCreated: 3, .checklistTicked: 1, .searchUsed: 40]), .aiDisconnected(.chatgpt), .signedOut, .accountDeleted,
+        .shareStep(.inviteAccepted), .storageLevel(.almostFull),
+        .noteOpenedSpeed(SpeedTimings(under100ms: 30, under250ms: 12, under1s: 6, over1s: 2)), .searchSpeed(SpeedTimings(under100ms: 4)),
         .keychainFailed(item: .keySynced, operation: .save, status: -34018),
         .keyStartup(.wait, hadKey: true, store: .keychain),
         .syncFailed(FailureSummary(kind: .database, status: nil, code: .rowSecurity, hint: .wrongKey), runs: 3),

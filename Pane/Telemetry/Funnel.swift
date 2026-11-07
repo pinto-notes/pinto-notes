@@ -10,5 +10,7 @@ enum Funnel {
     static func record(_ event: TelemetryEvent) {
         tap?(event)
         Telemetry.shared.record(event)
+        // An import that starts bringing notes is a feature used, once (usage_day).
+        if case .importStep(_, .importing, _, _, _) = event { Usage.count(.importsStarted) }
     }
 }

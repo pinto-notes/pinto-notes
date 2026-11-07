@@ -231,6 +231,7 @@ final class EditorController {
 
     func showFormatPanel() {
         guard target != nil, !readOnly else { return }
+        Usage.count(.formatUsed)
         formatPanelShown = true
         refreshFormat()
         target?.formatPanelChanged(shown: true)
@@ -443,6 +444,7 @@ final class EditorController {
     func insertTable() {
         // No table in a table's cell.
         guard let t = target, !readOnly, cell == nil else { return }
+        Usage.count(.tablesInserted)
         if let edit = TableText.edit(in: t.currentText, selection: t.currentSelection) {
             t.apply(edit)
         } else {
@@ -602,6 +604,7 @@ final class EditorController {
             return TextEdit(range: q, replacement: title + (closed ? "" : "]]"), caret: q.location + (title as NSString).length + 2)
         }
         clearWikiSuggestions()
+        Usage.count(.linksInserted)
     }
 
     func dismissWikiSuggestions() {
@@ -685,6 +688,7 @@ final class EditorController {
         }
         clearSlash()
         SlashRecents.used(command)
+        Usage.count(.slashMenu)
         switch command {
         case .title: apply(.title)
         case .heading: apply(.heading)

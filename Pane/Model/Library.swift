@@ -120,6 +120,7 @@ extension ModelContext {
         let n = Note(body: body, folder: target)
         insert(n)
         saveOrReport()
+        Usage.count(.notesCreated)
         return n
     }
 
@@ -392,6 +393,7 @@ extension ModelContext {
 
     func togglePin(_ note: Note) {
         note.isPinned.toggle()
+        if note.isPinned { Usage.count(.notePinned) }
         note.touchKeepingDate()
         saveOrReport()
     }

@@ -755,6 +755,8 @@ private struct PlatformEditor: UIViewRepresentable {
         view.inputAccessoryView = FormatBarHost(controller: controller) { [weak view] in view?.resignFirstResponder() }
         view.setFoot(foot)
         if autofocus { DispatchQueue.main.async { view.becomeFirstResponder() } }
+        // A note's editor, made for the note just tapped: on screen once this pass is drawn.
+        DispatchQueue.main.async { NoteOpenSpeed.drawn() }
         return view
     }
 
@@ -2164,6 +2166,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // The circle's place before the edit, while the line's layout is still current.
         let circle = core.checkboxRect(line: line, layout: textLayoutManager)
         asOneStep { apply(edit) }
+        if edit.replacement == "x" { Usage.count(.checklistTicked) }
         selectedRange = keep
         setContentOffset(offset, animated: false)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -2371,6 +2374,8 @@ private struct PlatformEditor: NSViewRepresentable {
             guard let controller, let view, controller.target === view else { return }
             controller.updateUntick(text: view.string, selection: nil)
         }
+        // A note's editor, made for the note just tapped: on screen once this pass is drawn.
+        DispatchQueue.main.async { NoteOpenSpeed.drawn() }
         return scroll
     }
 
@@ -4106,6 +4111,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let others = CheckPop.otherLines(string, lineStart: line).compactMap { core.checkboxRect(line: $0, layout: textLayoutManager) }
         let keep = selectedRange()
         asOneStep { apply(edit) }
+        if edit.replacement == "x" { Usage.count(.checklistTicked) }
         setSelectedRange(keep)
         if edit.replacement == "x", let r = circle, let host = layer {
             let origin = textContainerOrigin

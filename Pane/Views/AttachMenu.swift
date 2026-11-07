@@ -18,6 +18,7 @@ extension WikiLinks {
 extension EditorController {
     /// Puts a link to the note titled `title` at the caret (Attach › Link to a Note…).
     func insertWikiLink(_ title: String) {
+        Usage.count(.linksInserted)
         perform { WikiLinks.insertion(of: title, in: $0, selection: $1) }
     }
 }

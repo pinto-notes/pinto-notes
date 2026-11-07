@@ -45,6 +45,13 @@ struct NoteListView: View {
     /// How many notes and files the search shows; nil when not searching.
     @State private var searchResults: Int?
     @State private var search = ""
+    /// The search field's text: a key typed there starts the clock for `search_speed`.
+    private var typedSearch: Binding<String> {
+        Binding(get: { search }, set: { new in
+            if new != search { SearchSpeed.typed() }
+            search = new
+        })
+    }
     #if os(macOS)
     /// The search field shows at the top of the list while searching: opened by the list's
     /// Search button or ⌘F, closed by the button again, Escape, or by leaving it empty.
@@ -241,6 +248,8 @@ struct NoteListView: View {
         let results: Int? = search.isEmpty ? nil : visible.count + visibleFiles.count
         return list(scopedNotes, visible, files, visibleFiles)
             .onChange(of: results, initial: true) { _, now in searchResults = now }
+            // What was typed is found and laid out by now; on screen after this pass (search_speed).
+            .onChange(of: search) { _, now in if !now.isEmpty { DispatchQueue.main.async { SearchSpeed.shown() } } }
             #if os(iOS)
             .task { await watchListTip() }
             #endif
@@ -407,6 +416,7 @@ struct NoteListView: View {
         }
         .onChange(of: !search.isEmpty, initial: true) { _, now in
             if showsResults.wrappedValue != now { showsResults.wrappedValue = now }
+            if now { Usage.count(.searchUsed) }
         }
         #if os(iOS)
         .sheet(isPresented: $showSettings) {
@@ -452,7 +462,7 @@ struct NoteListView: View {
         // iOS 26 Notes and Mail: a full search field in the bottom bar, beside compose. As a
         // column (iPad, iPhone Duo open) at the column's top instead, as iPad does by itself:
         // in the open Duo's narrow list the bar's field was squeezed to "S…" (WideLayoutTests).
-        .modifier(SystemSearch(text: $search, placement: stacked ? .automatic : .navigationBarDrawer(displayMode: .always),
+        .modifier(SystemSearch(text: typedSearch, placement: stacked ? .automatic : .navigationBarDrawer(displayMode: .always),
                                off: BarSearchField.drawn(besideNote: besideNote)))
         #else
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -481,7 +491,7 @@ struct NoteListView: View {
                 .animation(Self.nameFade(hidden: listSidebarHidden, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion), value: listSidebarHidden)
             }
             if searching {
-                ListSearchField(text: $search, focus: searchFocus) { searching = false }
+                ListSearchField(text: typedSearch, focus: searchFocus) { searching = false }
                     .padding(.horizontal, 12)
                     .padding(.top, 6)
                     .padding(.bottom, 8)

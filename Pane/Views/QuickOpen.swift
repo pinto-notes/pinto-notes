@@ -262,6 +262,7 @@ enum QuickOpen {
     }
 
     static func choose(_ row: Row, with actions: Actions) {
+        Usage.count(.goToNote)
         switch row {
         case .note(let n): actions.open(n.id)
         case .text(let t): actions.open(t.id)
