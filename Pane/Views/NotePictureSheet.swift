@@ -281,7 +281,7 @@ struct NotePictureSheet: View {
     }
 }
 
-private extension NotePicture.Look {
+extension NotePicture.Look {
     var key: String { "\(background.rawValue) \(dark) \(showsMark)" }
 }
 

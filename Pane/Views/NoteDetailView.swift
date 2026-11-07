@@ -1604,11 +1604,13 @@ struct NoteDetailView: View {
     }
 
     /// The selection if there is one, else the whole note (NotePicture.passage).
-    private func sharePicture() {
+    private func sharePicture() { pictureRequest = pictureOfNote() }
+
+    private func pictureOfNote() -> NotePicture.Request {
         let target = controller.target
         let passage = NotePicture.passage(in: target?.currentText ?? note.body, selection: target?.currentSelection)
         // A note showing its app: the app, as you see it.
-        pictureRequest = NotePicture.Request(title: note.title, passage: passage, imageURL: { [controller] id in
+        return NotePicture.Request(title: note.title, passage: passage, imageURL: { [controller] id in
             controller.resolveAttachment(id).map { FileStore.url(for: $0.id, filename: $0.filename) }
         }, app: showingPage ? note.id : nil)
     }
@@ -1616,7 +1618,7 @@ struct NoteDetailView: View {
     #if os(macOS)
     /// The toolbar's Share: a plain button with a popover (ShareNotePopover), in one group with More.
     private var shareMenu: some View {
-        ShareButton(note: note, store: shareLinks, people: CollabFeature.isOn ? CollabStore.shared : nil, showing: $showPeople, picture: { sharePicture() })
+        ShareButton(note: note, store: shareLinks, people: CollabFeature.isOn ? CollabStore.shared : nil, showing: $showPeople, picture: { sharePicture() }, pictureRequest: { pictureOfNote() })
             // A locked note can't be shared, and its text isn't here to send; a deleted one isn't shared.
             .disabled(note.isLocked || trashed)
             .paneTip(ShareLinkTip(), arrowEdge: .top)

@@ -8,6 +8,12 @@ import SwiftUI
 /// last, searches every note for what you typed. The sidebar's Search button opens it too. The arrows move the
 /// highlight, Esc closes. ⌘K stays Add Link, as in Notes; ⌘O is Obsidian's quick switcher.
 enum QuickOpen {
+    /// Three looks to choose between (Emil, 7 November 2026: it didn't feel like the same app). All
+    /// three drop the amber, the shortcut chip and the keys' footer.
+    /// `defaults write <app id> quickOpenLook quiet|list|sidebar` tries one; the one left goes after.
+    enum Look: String { case quiet, list, sidebar }
+    static var look: Look { Look(rawValue: UserDefaults.standard.string(forKey: "quickOpenLook") ?? "") ?? .list }
+
     /// It pops in like the app's sheets (Emil, 7 November 2026: it just appeared) and leaves faster.
     static func motion(opening: Bool, reduceMotion: Bool) -> Animation {
         if reduceMotion { return .easeOut(duration: 0.12) }
@@ -367,13 +373,12 @@ struct QuickOpenPanel: View {
         _textHits = State(initialValue: initialTextHits)
     }
 
-    /// File › Go to Note…'s shortcut, shown in the field.
-    static let shortcut = "⌘O"
-
     enum Metrics {
         static let width: CGFloat = 600
-        static let field: CGFloat = 54
+        static let field: CGFloat = 48
         static let row: CGFloat = 36
+        /// A note in the list look: its title, and when and where under it.
+        static let listRow: CGFloat = 50
         /// A note found by its text: its title, and the line under it.
         static let textRow: CGFloat = 48
         /// Each further line under it: another line that holds the text, or "4 more in this note".
@@ -410,11 +415,11 @@ struct QuickOpenPanel: View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 17, weight: .medium))
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(Color.muted)
                 TextField("Go to a note, or type a command", text: $query)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 20))
+                    .font(.system(size: 17))
                     .foregroundStyle(Color.ink)
                     .focused($focused)
                     .onSubmit { if rows.indices.contains(index) { jumpAndChoose(rows[index]) } }
@@ -423,23 +428,12 @@ struct QuickOpenPanel: View {
                     .onKeyPress(.escape) { close(); return .handled }
                     .accessibilityLabel("Go to Note")
                     .accessibilityIdentifier("quickOpen.field")
-                // Its own shortcut at the far end, as Spotlight's field is (Emil, 11-03).
-                Text(Self.shortcut)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.muted)
-                    .padding(.horizontal, 7)
-                    .frame(minHeight: 22)
-                    .background(Color.soft, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    .accessibilityLabel("Command O")
-                    .accessibilityIdentifier("quickOpen.shortcut")
             }
             .padding(.horizontal, 18)
             .frame(height: Metrics.field)
             if !rows.isEmpty {
                 Rectangle().fill(Color.line).frame(height: 1)
                 list(rows, index: index)
-                Rectangle().fill(Color.line).frame(height: 1)
-                hints
             } else if let nothing = Self.nothingFound(query: query, rows: rows.count, stillReading: stillReading) ?? Self.looking(query: query, rows: rows.count, stillReading: stillReading) {
                 Rectangle().fill(Color.line).frame(height: 1)
                 Text(nothing)
@@ -514,9 +508,9 @@ struct QuickOpenPanel: View {
                     ForEach(Array(rows.enumerated()), id: \.element.id) { i, row in
                         if let title = header(before: i, in: rows) {
                             Text(title)
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Color.muted)
-                                .padding(.horizontal, 12)
+                                .font(.system(size: QuickOpen.look == .list ? 15 : 12, weight: .semibold))
+                                .foregroundStyle(QuickOpen.look == .list ? Color.ink : Color.muted)
+                                .padding(.horizontal, 10)
                                 .frame(height: Metrics.header, alignment: .bottomLeading)
                                 .padding(.bottom, 2)
                         }
@@ -558,6 +552,7 @@ struct QuickOpenPanel: View {
 
     /// A row's height: a note found by its text grows a line for each further line it shows.
     static func height(of row: QuickOpen.Row) -> CGFloat {
+        if case .note = row, QuickOpen.look == .list { return Metrics.listRow }
         guard case .text(let t) = row else { return Metrics.row }
         return Metrics.textRow + CGFloat(t.others.count + (t.more > 0 ? 1 : 0)) * Metrics.textLine
     }
@@ -567,13 +562,28 @@ struct QuickOpenPanel: View {
         HStack(spacing: 10) {
             switch row {
             case .note(let n):
-                icon(n.locked ? "lock" : "doc.text", on: on)
-                highlightedTitle(n.title.isEmpty ? "New Note" : n.title)
-                if let f = n.folder {
-                    Text(f).foregroundStyle(Color.muted).lineLimit(1).layoutPriority(-1)
+                switch QuickOpen.look {
+                case .quiet:
+                    highlightedTitle(n.title.isEmpty ? "New Note" : n.title)
+                    Spacer(minLength: 8)
+                    if let f = n.folder { Text(f).foregroundStyle(Color.muted).lineLimit(1) }
+                case .list:
+                    // As the notes list has it: the title, then when and where.
+                    VStack(alignment: .leading, spacing: 2) {
+                        highlightedTitle(n.title.isEmpty ? "New Note" : n.title, weight: .semibold)
+                        Text([QuickOpen.dateText(n), n.folder].compactMap(\.self).joined(separator: "  ·  "))
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(Color.muted)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                case .sidebar:
+                    // As the sidebar has it: an icon, the name in the accent when chosen, a figure at the end.
+                    icon(n.locked ? "lock" : "doc.text", on: on)
+                    highlightedTitle(n.title.isEmpty ? "New Note" : n.title, ink: on ? Color(PColor.paneAccent) : Color.ink)
+                    Spacer(minLength: 8)
+                    Text(QuickOpen.dateText(n)).foregroundStyle(Color.muted).monospacedDigit()
                 }
-                Spacer(minLength: 8)
-                Text(QuickOpen.dateText(n)).foregroundStyle(Color.muted).monospacedDigit()
             case .text(let t):
                 icon("text.magnifyingglass", on: on)
                 VStack(alignment: .leading, spacing: 2) {
@@ -609,35 +619,31 @@ struct QuickOpenPanel: View {
                     .lineLimit(1)
                 Spacer(minLength: 8)
             }
-            if on {
-                Image(systemName: "return")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.amberInk)
-            }
         }
         .font(.system(size: 14))
         .padding(.horizontal, 10)
         .frame(height: Self.height(of: row))
-        .background(on ? Color.amberSoft : .clear, in: shape)
+        .background(on ? Color.soft : .clear, in: shape)
         .contentShape(shape)
     }
 
     private func icon(_ symbol: String, on: Bool) -> some View {
         Image(systemName: symbol)
             .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(on ? Color.amberInk : Color.muted)
+            .foregroundStyle(on && QuickOpen.look == .sidebar ? Color(PColor.paneAccent) : Color.muted)
             .frame(width: 20)
     }
 
     /// The title with the typed text in semibold, so you see why it matched.
-    private func highlightedTitle(_ title: String) -> some View {
+    private func highlightedTitle(_ title: String, weight: Font.Weight = .regular, ink: Color = .ink) -> some View {
         var text = AttributedString(title)
+        text.font = .system(size: 14, weight: weight)
         let q = query.trimmingCharacters(in: .whitespaces)
         if !q.isEmpty, let r = title.range(of: q, options: [.caseInsensitive, .diacriticInsensitive]),
            let lower = AttributedString.Index(r.lowerBound, within: text), let upper = AttributedString.Index(r.upperBound, within: text) {
             text[lower..<upper].font = .system(size: 14, weight: .semibold)
         }
-        return Text(text).foregroundStyle(Color.ink).lineLimit(1)
+        return Text(text).foregroundStyle(ink).lineLimit(1)
     }
 
     /// The line that holds the text, the text itself in the ink's semibold and the rest muted.
@@ -650,32 +656,6 @@ struct QuickOpenPanel: View {
             .accessibilityLabel(s.text)
     }
 
-    private var hints: some View {
-        HStack(spacing: 14) {
-            hint("↑↓", "choose", spoken: "Up and Down arrows")
-            hint("↩", "open", spoken: "Return")
-            hint("esc", "close", spoken: "Escape")
-            Spacer()
-        }
-        .font(.system(size: 11.5))
-        .foregroundStyle(Color.muted)
-        .padding(.horizontal, 16)
-        .frame(height: 30)
-    }
-
-    private func hint(_ key: String, _ what: String, spoken: String) -> some View {
-        HStack(spacing: 5) {
-            Text(key)
-                .font(.system(size: 10.5, weight: .semibold))
-                .padding(.horizontal, 5)
-                .frame(minWidth: 18, minHeight: 17)
-                .background(Color.soft, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
-            Text(what)
-        }
-        // VoiceOver read the keys' symbols (round 20).
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(spoken): \(what)")
-    }
 }
 /// The panel's window, read once it's in one, so losing the cursor can ask whether it was key.
 @MainActor final class WeakWindow { weak var value: NSWindow? }
