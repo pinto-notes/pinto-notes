@@ -140,7 +140,7 @@ export default function Page() {
         {APP_STORE_LIVE
           ? <> Pinto Notes is free on Mac and iPhone.</>
           : <> Pinto Notes is free on the Mac today; the iPhone app is coming soon, and Claude can still add expenses from your phone.</>}{" "}
-        For daily habits, the same idea is <a href="/blog/habit-tracker-with-chatgpt-or-claude">a habit tracker your AI can update</a>, and{" "}
+        For daily habits, the same idea is <a href="/templates/habit-tracker">a habit tracker your AI can update</a>, and{" "}
         <a href="/blog/apple-notes-tables">Apple Notes tables</a> explains why a plain table can&apos;t add up.
       </p>
     </PostPage>

@@ -1,5 +1,6 @@
 /// Blog posts removed on 14 October and 7 November 2026 (fewer, better posts), and where each address goes now.
-/// 7 November: the AI news posts, which brought almost no one from search and had nothing to do with notes.
+/// 7 November: the AI news posts, which brought almost no one from search and had nothing to do with notes,
+/// and five posts that Google showed fewer than 25 times in three months.
 /// next.config.ts answers each with a permanent redirect; nothing on the site links to them.
 export const REMOVED_POSTS: Record<string, string> = {
   "chatgpt-to-do-list-on-iphone": "/blog/connect-chatgpt-to-your-notes",
@@ -10,7 +11,7 @@ export const REMOVED_POSTS: Record<string, string> = {
   "weekly-review-with-chatgpt-or-claude": "/templates/weekly-review",
   "notes-apps-that-work-with-chatgpt": "/blog/connect-chatgpt-to-your-notes",
   "claude-cowork-apple-notes": "/blog/claude-and-apple-notes",
-  "chatgpt-memory-vs-notes": "/blog/claude-memory-vs-notes",
+  "chatgpt-memory-vs-notes": "/blog/connect-chatgpt-to-your-notes",
   "apple-notes-mcp": "/blog/apple-notes-api",
   "obsidian-mcp-servers-compared": "/blog/obsidian-mcp",
   "apple-notes-vs-notion": "/blog/move-apple-notes-to-obsidian-notion-keep",
@@ -18,7 +19,7 @@ export const REMOVED_POSTS: Record<string, string> = {
   "pinto-notes-vs-apple-notes": "/blog/move-from-apple-notes",
   "chatgpt-chat-and-work-merged": "/blog/connect-chatgpt-to-your-notes",
   "gemini-4-carbon": "/blog/mcp-server",
-  "chatgpt-chat-memory-full": "/blog/claude-memory-vs-notes",
+  "chatgpt-chat-memory-full": "/blog/connect-chatgpt-to-your-notes",
   "codex-usage-reset": "/blog/notes-in-claude-code-and-codex",
   "what-time-ai-companies-launch": "/blog",
   "new-ai-features": "/blog",
@@ -30,4 +31,9 @@ export const REMOVED_POSTS: Record<string, string> = {
   "gemini-notebooks": "/blog/mcp-server",
   "keynote-pages-numbers-ai-assistant": "/blog/notes-apps-with-mcp",
   "connect-icloud-mail-calendar-to-chatgpt": "/blog/connect-chatgpt-to-your-notes",
+  "habit-tracker-with-chatgpt-or-claude": "/templates/habit-tracker",
+  "plan-a-trip-with-chatgpt-or-claude": "/templates/trip-plan",
+  "flashcards-with-chatgpt-or-claude": "/templates/study-flashcards",
+  "journal-with-chatgpt-or-claude": "/blog/connect-chatgpt-to-your-notes",
+  "claude-memory-vs-notes": "/blog/claude-and-apple-notes",
 };
