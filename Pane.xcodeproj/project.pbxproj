@@ -439,6 +439,7 @@
 		59C5AA11AB840FCDADACE68E /* FolderMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8317509C05F91472F0C44EED /* FolderMenuTests.swift */; };
 		5A203875EA656A93CA894F42 /* SlashMenuShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABBD3F207DC3886AC6008A9 /* SlashMenuShots.swift */; };
 		5A6B5361EE0A109041FCF3A9 /* ShareModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE451C95D74DA3569B6F557A /* ShareModel.swift */; };
+		5AE3385B2377244446F89440 /* LibraryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B94DBD8C3DCC81842C476294 /* LibraryStoreTests.swift */; };
 		5AF15A3A0749477F50178E87 /* RestoreVersionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C54E235CF14CAA3C539D3B21 /* RestoreVersionTests.swift */; };
 		5AF7EC6DB93FFA40B9D54CFA /* EmailConfirmUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F7D97727CE36EF026FC374 /* EmailConfirmUITests.swift */; };
 		5B2F0543EE80A6354BCD5A84 /* AIReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F52C10A078FEAEA7ADEA710D /* AIReviewSheet.swift */; };
@@ -629,6 +630,7 @@
 		8711A6B6103B9EAD70D11C6B /* AllowSheetSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F7E4558253D684B6A0050A2 /* AllowSheetSnapshots.swift */; };
 		871FD7ACFD253A182F3DE0AF /* template-cover-weekly-review.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 092CBEFBB500DEB25E0434D1 /* template-cover-weekly-review.jpg */; };
 		87568C98BF19851F89FAE1F1 /* ImportGuideSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40F4D7634D2164D97CEDCA6A /* ImportGuideSnapshots.swift */; };
+		879FBEEFCA5C5EDA6590747B /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E145614A0F38E3F2EBC23D8 /* LibraryStore.swift */; };
 		87E66361B68FFB491AB5B6B5 /* PersonaAIShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36878BCDD9303087FC52E288 /* PersonaAIShots.swift */; };
 		88089B0C85B669E16722247F /* CollabCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED450707209CA52772670C64 /* CollabCrypto.swift */; };
 		885B41B16AFE5449C99B85E6 /* NoteWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90D6E39AD58E2036FAC35DFD /* NoteWindow.swift */; };
@@ -1003,6 +1005,7 @@
 		E09B5EC0F89EBF888E3BF6A2 /* ChecklistShelfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44D9F09C27B3E8D0B1800C10 /* ChecklistShelfTests.swift */; };
 		E0C66389A3A5888FAFDD0160 /* AccountKeysSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 569EB1430761546DBD046F80 /* AccountKeysSync.swift */; };
 		E0E3307F614757F4378C2742 /* Highlights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D78B0A2D3E9ED73435A8B91 /* Highlights.swift */; };
+		E0F36076FD35F1C6896BEC47 /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E145614A0F38E3F2EBC23D8 /* LibraryStore.swift */; };
 		E140651BA8DFAA471F7B4D54 /* FileViewerSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2AACF92D630BFBA10B051 /* FileViewerSnapshots.swift */; };
 		E1532F5AED5412F02988BC10 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 2362C327276BB2E859165EFB /* ZIPFoundation */; };
 		E1A83EADA533E099B72CE9F3 /* DebouncedSave.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301899D6EDE0A22460BBE357 /* DebouncedSave.swift */; };
@@ -1323,6 +1326,7 @@
 		2D7294BFFF6A6FCC7F16EF89 /* CollabGallery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabGallery.swift; sourceTree = "<group>"; };
 		2DB493FBA680D589F52026E0 /* AIChangesCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChangesCopyTests.swift; sourceTree = "<group>"; };
 		2DEDC7354927F391C2ED487C /* AIReviewCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIReviewCard.swift; sourceTree = "<group>"; };
+		2E145614A0F38E3F2EBC23D8 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
 		2E2167FA347940753904964C /* PaneTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PaneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2E585AAB4EEC89DFEE3790F9 /* PasswordResetUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordResetUITests.swift; sourceTree = "<group>"; };
 		2E9CE1B4EE228D52D58729C2 /* MenuBarModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarModel.swift; sourceTree = "<group>"; };
@@ -1741,6 +1745,7 @@
 		B73124348FB5312C93E0184F /* WelcomeNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeNoteView.swift; sourceTree = "<group>"; };
 		B7EF24AE2E626C3818961777 /* CollabTwoPeopleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabTwoPeopleTests.swift; sourceTree = "<group>"; };
 		B820025AD4E790E4B4400339 /* AskAITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskAITests.swift; sourceTree = "<group>"; };
+		B94DBD8C3DCC81842C476294 /* LibraryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStoreTests.swift; sourceTree = "<group>"; };
 		BA556478557561D612E636AF /* TemplateLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateLibrary.swift; sourceTree = "<group>"; };
 		BA7B4DACE2AD7BE6CDBB1E8B /* CharmTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharmTests.swift; sourceTree = "<group>"; };
 		BAA2C1B2A5DBF808068A766D /* PullPagingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullPagingTests.swift; sourceTree = "<group>"; };
@@ -2088,6 +2093,7 @@
 				9E0AC08F58F5BE90DD5AAD44 /* KeyDevices.swift */,
 				52C244999D8DFA81130C0CCD /* KeyFault.swift */,
 				BEFA368EF8F56909D229B913 /* Library.swift */,
+				2E145614A0F38E3F2EBC23D8 /* LibraryStore.swift */,
 				5080D778A1C103413519FD85 /* LinkForms.swift */,
 				C3E45D9F4A1C01EDA2629F7A /* ListOrder.swift */,
 				CF48ED6B1189F45C1C4DCCEA /* LocalUpkeep.swift */,
@@ -2589,6 +2595,7 @@
 				76FDE29F7B48D0B16295EB03 /* LaunchInPlaceTests.swift */,
 				1F653B9FD402A31DD6E0FAE8 /* LegalLinksTests.swift */,
 				9E83727777F1E5326F635569 /* LibraryNotesTests.swift */,
+				B94DBD8C3DCC81842C476294 /* LibraryStoreTests.swift */,
 				DD2215C26D58DF6E72E7C3A9 /* LineStyleTests.swift */,
 				35376C9E24B64FCEDB9BCA2E /* LinkDeviceFunnelTests.swift */,
 				391E1B77188C7A5C680CB730 /* LinkFormsTests.swift */,
@@ -3687,6 +3694,7 @@
 				B3F002E30EABB6099A2A950A /* LayoutHangTests.swift in Sources */,
 				0A86AB7D095A52739A9CD44B /* LegalLinksTests.swift in Sources */,
 				FFCAF6FD05D62F0A79C4EB00 /* LibraryNotesTests.swift in Sources */,
+				5AE3385B2377244446F89440 /* LibraryStoreTests.swift in Sources */,
 				9A61B81732F692C5CBFE89FF /* LibraryUpgradeTests.swift in Sources */,
 				03F5BCF7991B8B61B6D03286 /* LineStyleTests.swift in Sources */,
 				D23D479E79E6929F312AABC2 /* LinkCardShots.swift in Sources */,
@@ -3998,6 +4006,7 @@
 				C3D862DDAD903DBF6377AE75 /* KeyProtectionAsk.swift in Sources */,
 				01F8A032F59404B7F22B1A3F /* LegalLinks.swift in Sources */,
 				2FA68FA597287DDE2B9834A4 /* Library.swift in Sources */,
+				E0F36076FD35F1C6896BEC47 /* LibraryStore.swift in Sources */,
 				BD10F830724B938BAAD33F9D /* LinkForms.swift in Sources */,
 				64823E1DF5CB4EF7EB81A4D4 /* LinkPolicy.swift in Sources */,
 				82CACFFE11C0BB0BD3BB99F3 /* LinkVault.swift in Sources */,
@@ -4346,6 +4355,7 @@
 				82CF51906DF04F9C838CF968 /* KeyProtectionAsk.swift in Sources */,
 				A4E5F8D6483FDF064391E9F8 /* LegalLinks.swift in Sources */,
 				DBC62BFCC2DF7231ECCD9438 /* Library.swift in Sources */,
+				879FBEEFCA5C5EDA6590747B /* LibraryStore.swift in Sources */,
 				F9A213E74F435A4541BD3665 /* LinkForms.swift in Sources */,
 				DDC0348B16FCBC014A41FD3E /* LinkPolicy.swift in Sources */,
 				AD4801E9F58B129936A9AC56 /* LinkVault.swift in Sources */,
