@@ -74,6 +74,18 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "best-notes-app-for-mac",
+    title: "Best notes app for Mac in 2026: 6 apps compared",
+    description: "The best notes apps for Mac in 2026: Pinto Notes, Apple Notes, Bear, Obsidian, Notion and Craft. Prices, iPhone apps, AI and where your notes live.",
+    excerpt: "Pinto Notes, Apple Notes, Bear, Obsidian, Notion and Craft, compared on price, iPhone apps, where your notes live and whether ChatGPT and Claude can use them.",
+    category: "Comparisons",
+    date: "2026-11-07",
+    updated: "2026-11-07",
+    image: SHOTS.aiEdit,
+    thumb: cover("sage", "best-notes-app-for-mac", 1600, 1000, "The icons of Pinto Notes, Apple Notes, Bear, Obsidian, Notion and Craft as paper tiles in a row"),
+    draft: false,
+  },
+  {
     slug: "siri-ai-apple-notes",
     title: "Siri AI and Apple Notes: what it can do, and what it can't",
     description: "Siri AI finds, rewrites and makes notes. What it can do in Apple Notes, what Apple doesn't say, and the one thing it can't: let ChatGPT or Claude in.",
@@ -469,6 +481,7 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
 /// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
 export const FEATURED = [
+  "best-notes-app-for-mac",
   "siri-ai-apple-notes",
   "habit-tracker-with-chatgpt-or-claude",
   "budget-tracker-with-chatgpt-or-claude",

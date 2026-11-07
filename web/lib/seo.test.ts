@@ -349,11 +349,20 @@ describe("share images", () => {
   });
 });
 
+/// Comparison posts that name other apps' iPad apps (which people search for), checked sentence by sentence instead.
+const COMPARES_IPAD_APPS = ["best-notes-app-for-mac"];
+
 describe("site copy", () => {
   // Plain writing rules for the blog: no em dashes, and no device the app doesn't run on.
   const texts = [llmsFullTxt(), ...posts.map((p) => postSource(p.slug)), JSON.stringify(posts)];
   it("uses no em dashes", () => { for (const t of texts) expect(t).not.toContain("—"); });
-  it("names only the devices the app runs on", () => { for (const t of texts) expect(t).not.toMatch(/ipad/i); });
+  it("names only the devices the app runs on", () => {
+    for (const [i, t] of texts.entries()) {
+      // A comparison post may say which other apps run on iPad, but never put Pinto Notes on one.
+      if (COMPARES_IPAD_APPS.includes(posts[i - 1]?.slug)) for (const s of t.split(/(?<=[.!?])\s|\n/)) expect(s).not.toMatch(/Pinto Notes[^.]*ipad|ipad[^.]*Pinto Notes/i);
+      else expect(t).not.toMatch(/ipad/i);
+    }
+  });
 });
 
 describe("the posts removed on 14 October 2026", () => {
