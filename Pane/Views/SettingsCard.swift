@@ -26,15 +26,15 @@ extension EnvironmentValues {
 
 /// Navigation uses this card's State storage, so an earlier callback reads the current path.
 /// Comparing the closure itself rebuilt the unchanged page on every search-field edit.
-struct OpenSettingsPlace: Equatable {
-    var open: (SettingsPlace) -> Void
-    func callAsFunction(_ place: SettingsPlace) { open(place) }
+struct OpenSettingsPage: Equatable {
+    var open: (SettingsPage) -> Void
+    func callAsFunction(_ place: SettingsPage) { open(place) }
     static func == (a: Self, b: Self) -> Bool { true }
 }
 
 extension EnvironmentValues {
     /// Opens a page of Settings one level down (General's Keys for apps).
-    @Entry var openSettingsPlace: OpenSettingsPlace? = nil
+    @Entry var openSettingsPage: OpenSettingsPage? = nil
     /// Tests: told where the card's parts land (the title, the page, each tab), in the card's space.
     @Entry var settingsLayoutProbe: ((String, CGRect) -> Void)? = nil
 }
@@ -63,24 +63,24 @@ private struct SettingsProbe: ViewModifier {
 /// on what it's for. Closes with ×, Esc or a click outside.
 struct SettingsCard: View {
     let backend: Backend
-    let available: Set<SettingsPlace>
-    let page: (SettingsPlace) -> AnyView
+    let available: Set<SettingsPage>
+    let page: (SettingsPage) -> AnyView
     /// Advanced protection is on Security (AdvancedProtection.shown), so search finds it.
     var advancedProtection = false
     /// The recovery key is on Security (RecoveryKeyOffer), so search finds it.
     var recoveryKey = false
     var route: SettingsRoute = .shared
     /// The page to open on; the first in the sidebar when nil.
-    var start: SettingsPlace?
+    var start: SettingsPage?
     /// Over the notes window: closes it. Nil: Settings is in a sheet of its own (over another
     /// sheet, such as Make an app's), and closes that.
     var close: (() -> Void)?
     /// Captures: a search already typed.
     var search = ""
 
-    @State private var selected: SettingsPlace?
+    @State private var selected: SettingsPage?
     /// Pages one level down from the selected one (Connect an AI's Keys for apps).
-    @State private var path: [SettingsPlace] = []
+    @State private var path: [SettingsPage] = []
     @State private var query = ""
     @State private var profile = ProfileStore.shared
     /// In a sheet: the size of the window it hangs on, measured once when it opens and again only
@@ -89,7 +89,6 @@ struct SettingsCard: View {
     /// none was).
     @State private var parent: CGSize?
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.networkReach) private var reach
     @Environment(\.settingsInWindow) private var inWindow
     #if DEBUG
     @Environment(\.modelContext) private var context
@@ -130,17 +129,17 @@ struct SettingsCard: View {
     }
 
     /// Where Settings opens: Account, else the first page there is.
-    static func first(_ available: Set<SettingsPlace>) -> SettingsPlace {
-        SettingsPlace.groups(available: available).first?.first ?? .appearance
+    static func first(_ available: Set<SettingsPage>) -> SettingsPage {
+        SettingsPage.groups(available: available).first?.first ?? .appearance
     }
 
     /// While searching, the page beside the results is the first result's (rounds 20 to 23: "sync"
     /// listed Account's rows beside Appearance). Clearing the search goes back to where you were.
-    static func pageWhileSearching(_ found: [SettingsIndex.Entry]) -> SettingsPlace? { firstPage(of: found)?.place }
+    static func pageWhileSearching(_ found: [SettingsIndex.Entry]) -> SettingsPage? { firstPage(of: found)?.page }
     /// That result, the one row that looks chosen (round 24: every row on its page did).
     static func firstPage(of found: [SettingsIndex.Entry]) -> SettingsIndex.Entry? { found.first { $0.menu == nil } }
 
-    private var shown: SettingsPlace {
+    private var shown: SettingsPage {
         if !query.isEmpty, let hit = Self.pageWhileSearching(found) { return hit }
         return path.last ?? current
     }
@@ -148,7 +147,7 @@ struct SettingsCard: View {
     private var found: [SettingsIndex.Entry] {
         SettingsIndex.matches(query, available: available, advancedProtection: advancedProtection, recoveryKey: recoveryKey)
     }
-    private var current: SettingsPlace { selected ?? start.flatMap { available.contains($0) ? $0 : nil } ?? Self.first(available) }
+    private var current: SettingsPage { selected ?? start.flatMap { available.contains($0) ? $0 : nil } ?? Self.first(available) }
 
     var body: some View {
         #if DEBUG
@@ -189,7 +188,7 @@ struct SettingsCard: View {
         // A link into Settings (the account menu, a card, the storage warning) opens its page.
         .onChange(of: route.target, initial: true) { _, target in
             guard let target else { return }
-            open(SettingsPlace(target))
+            open(target)
             route.target = nil
         }
         .task(id: backend.state) { await profile.bind(backend) }
@@ -197,7 +196,7 @@ struct SettingsCard: View {
         .onDisappear { route.page = nil }
     }
 
-    private func open(_ place: SettingsPlace) {
+    private func open(_ place: SettingsPage) {
         guard available.contains(place) else { return }
         path = []
         selected = place
@@ -205,7 +204,7 @@ struct SettingsCard: View {
 
     /// A result: its page, or the menu item it moved to, run once Settings has closed.
     private func pick(_ entry: SettingsIndex.Entry) {
-        guard let menu = entry.menu else { open(entry.place); return }
+        guard let menu = entry.menu else { open(entry.page); return }
         if menu.closesSettings {
             closeNow()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { menu.run() }
@@ -239,41 +238,26 @@ struct SettingsCard: View {
         .accessibilityAddTraits(inWindow ? [] : .isModal)
     }
 
+    /// The page beside the sidebar: its title, then the page's own form (it scrolls), one column
+    /// no wider than `pageWidth`, centred.
     private var pageArea: some View {
-            VStack(spacing: 0) {
-                header
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        if reach != .online {
-                            Label(OfflineCopy.settings(reach), systemImage: OfflineCopy.symbol(reach))
-                                .font(.system(size: 12.5))
-                                .foregroundStyle(SettingsInk.muted)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .padding(.horizontal, 4)
-                                .accessibilityIdentifier("settings.offline")
-                        }
-                        page(shown)
-                            .onAppear { SettingsUsage.shared.opened(SettingsPageWord(shown)) }
-                            .environment(\.settingsAsPage, true)
-                            .environment(\.openSettingsPlace, OpenSettingsPlace { path.append($0) })
-                    }
-                    .padding(.horizontal, Self.pageInset)
-                    .padding(.top, 14)
-                    .padding(.bottom, 28)
-                    .frame(maxWidth: Self.pageWidth, alignment: .top)
-                    .settingsProbe("page")
-                    .frame(maxWidth: .infinity, alignment: .top)
-                    .padding(.horizontal, Self.gutter)
-                }
-                .scrollIndicators(.automatic)
-                .scrollBounceBehavior(.basedOnSize)
+        VStack(spacing: 0) {
+            header
+            page(shown)
+                .onAppear { SettingsUsage.shared.opened(SettingsPageWord(shown)) }
+                .environment(\.settingsAsPage, true)
+                .environment(\.openSettingsPage, OpenSettingsPage { path.append($0) })
+                .frame(maxWidth: Self.pageWidth, maxHeight: .infinity, alignment: .top)
+                .settingsProbe("page")
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.horizontal, Self.gutter)
                 // Not while searching: the page changes as you type, and this took the keyboard from
                 // the search field, so "sync" stopped at "s" (round 24).
                 .background { if query.isEmpty { NoInitialFocus() } }
                 .id(shown)
-            }
-            .settingsProbe("area")
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+        .settingsProbe("area")
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     /// The page's name over the left edge of its content, the one line on what it's for under it,
@@ -326,7 +310,7 @@ struct SettingsCard: View {
             searchField.padding(.bottom, 10)
             if query.isEmpty {
                 if available.contains(.account) { accountRow.padding(.bottom, Self.groupGap - 6) }
-                ForEach(Array(SettingsPlace.groups(available: available).map { $0.filter { $0 != .account } }.filter { !$0.isEmpty }.enumerated()), id: \.offset) { i, group in
+                ForEach(Array(SettingsPage.groups(available: available).map { $0.filter { $0 != .account } }.filter { !$0.isEmpty }.enumerated()), id: \.offset) { i, group in
                     if i > 0 { Color.clear.frame(height: Self.groupGap) }
                     VStack(spacing: Self.tabGap) { ForEach(group) { row($0) } }
                 }
@@ -386,7 +370,7 @@ struct SettingsCard: View {
                             if let menu = entry.menu {
                                 Image(systemName: menu.symbol).font(.system(size: 13)).foregroundStyle(SettingsInk.icon).frame(width: 20)
                             } else {
-                                icon(entry.place, on: shown == entry.place)
+                                icon(entry.page, on: shown == entry.page)
                             }
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(entry.label).font(.system(size: 13)).foregroundStyle(SettingsInk.text).lineLimit(1)
@@ -402,7 +386,7 @@ struct SettingsCard: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(entry.label), \(entry.whereItIs)")
-                    .accessibilityIdentifier(entry.menu.map { "settings.result.menu.\($0.rawValue)" } ?? "settings.result.\(entry.place.rawValue)")
+                    .accessibilityIdentifier(entry.menu.map { "settings.result.menu.\($0.rawValue)" } ?? "settings.result.\(entry.page.rawValue)")
                 }
             }
         }
@@ -410,7 +394,7 @@ struct SettingsCard: View {
     }
 
     /// A page's icon in the accent, as iPhone's Settings rows have them; Account is your photo.
-    @ViewBuilder private func icon(_ p: SettingsPlace, on: Bool) -> some View {
+    @ViewBuilder private func icon(_ p: SettingsPage, on: Bool) -> some View {
         Group {
             if p == .account, case .signedIn = backend.state {
                 AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 18)
@@ -452,7 +436,7 @@ struct SettingsCard: View {
         return "Sign in to sync"
     }
 
-    private func row(_ p: SettingsPlace) -> some View {
+    private func row(_ p: SettingsPage) -> some View {
         let on = current == p
         return Button { open(p) } label: {
             HStack(spacing: 8) {

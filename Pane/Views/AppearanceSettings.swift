@@ -1,43 +1,5 @@
 import SwiftUI
 
-/// Settings › Appearance: the theme and the accent, for this device only. Each theme follows the
-/// mode above it (System, Light or Dark). High contrast has no accent row: it always draws with
-/// its own blue and yellow, and a stored accent comes back with another theme.
-struct AppearanceSection: View {
-    var body: some View {
-        let look = ThemeStore.shared.look
-        Section {
-            LazyVGrid(columns: AppearanceGrid.columns, alignment: .leading, spacing: 10) {
-                ForEach(Theme.allCases) { theme in
-                    ThemeTile(theme: theme, selected: look.theme == theme) { ThemeStore.shared.theme = theme }
-                }
-            }
-            .padding(.vertical, 4)
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("Theme")
-            if Self.showsAccent(look) {
-                AccentPicker(look: look, style: .current)
-            }
-        } header: {
-            Text("Theme")
-        } footer: {
-            Text(Self.footer(look))
-        }
-    }
-
-    /// The accent row shows for every theme but High contrast.
-    static func showsAccent(_ look: ThemeLook) -> Bool { look.theme != .contrast }
-
-    /// The Mac's page says only what High contrast changes; nothing under the other themes.
-    static func macFooter(_ look: ThemeLook) -> String? {
-        look.theme == .contrast ? "High contrast uses its own blue and yellow." : nil
-    }
-
-    static func footer(_ look: ThemeLook) -> String {
-        look.theme == .contrast ? "High contrast uses its own blue and yellow. Set on each device." : "Set on each device."
-    }
-}
-
 /// The accents. On the Mac one row of small dots beside the "Accent" label. On iPhone the dots
 /// sit on their own row under the label, each a 30 pt dot in a 44 by 44 pt target, wrapping when
 /// the row is narrow, with the chosen accent's name under them (accessibility audit point 8).
@@ -61,8 +23,11 @@ struct AccentPicker: View {
     var body: some View {
         switch style {
         case .row:
-            LabeledContent("Accent") {
-                HStack(spacing: 8) { dots }
+            LabeledContent {
+                HStack(spacing: 6) { dots }
+            } label: {
+                Text("Accent")
+                Text(look.accent.spokenName)
             }
         case .touch:
             VStack(alignment: .leading, spacing: 6) {
@@ -123,54 +88,6 @@ extension Theme.Hex {
             return Theme.contrast(CheckTick.light, ground) >= Theme.contrast(CheckTick.dark, ground) ? CheckTick.light : CheckTick.dark
         }
         return Theme.Hex(pick(light), pick(dark))
-    }
-}
-
-/// A small picture of the window in a theme: the sidebar, the page with two lines of text and
-/// a tick in the accent. Selected: a ring in the accent, as in System Settings.
-private struct ThemeTile: View {
-    let theme: Theme
-    let selected: Bool
-    let pick: () -> Void
-
-    var body: some View {
-        let c = theme.preview
-        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
-        Button(action: pick) {
-            VStack(spacing: 5) {
-                HStack(spacing: 0) {
-                    c.sidebar.color.frame(width: 16)
-                    ZStack(alignment: .topLeading) {
-                        c.page.color
-                        VStack(alignment: .leading, spacing: 4) {
-                            Capsule().fill(c.ink.color).frame(width: 26, height: 4)
-                            HStack(spacing: 3) {
-                                Circle().fill(c.accent.color).frame(width: 6, height: 6)
-                                Capsule().fill(c.muted.color).frame(width: 18, height: 3)
-                            }
-                            Capsule().fill(c.code.color).frame(width: 30, height: 6)
-                        }
-                        .padding(6)
-                    }
-                }
-                .frame(height: 42)
-                .clipShape(shape)
-                .overlay(shape.strokeBorder(Color(PColor.paneSeparator), lineWidth: 1))
-                .padding(2)
-                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .strokeBorder(selected ? Color(PColor.paneAccent) : .clear, lineWidth: 2))
-                Text(theme.title)
-                    .font(.caption)
-                    .foregroundStyle(selected ? Color.ink : Color.muted)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.tile(radius: 9))
-        .accessibilityLabel(theme.spokenName)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityIdentifier("settings.theme.\(theme.rawValue)")
     }
 }
 

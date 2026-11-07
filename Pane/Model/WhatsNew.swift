@@ -20,14 +20,14 @@ final class SettingsRoute {
     @ObservationIgnored private let defaults: UserDefaults
 
     /// The Mac's tab, remembered across launches.
-    var tab: SettingsTab { didSet { if tab != oldValue { defaults.set(tab.rawValue, forKey: Self.key) } } }
+    var tab: SettingsPage { didSet { if tab != oldValue { defaults.set(tab.rawValue, forKey: Self.key) } } }
     /// The page to open once Settings is showing; cleared when it has.
-    var target: SettingsTab?
+    var target: SettingsPage?
     #if os(macOS)
     /// Mac: Settings is waiting to show, as a card over the notes window in front (SettingsCardHost takes it).
     var presenting = false
     /// Mac: the page the card shows now; nil while it's closed.
-    var page: SettingsPlace?
+    var page: SettingsPage?
     @ObservationIgnored private var asks = 0
     #endif
     /// Counts `open` calls, so the Mac's Settings goes to the page even when it is the remembered one.
@@ -35,11 +35,11 @@ final class SettingsRoute {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        tab = defaults.string(forKey: Self.key).flatMap(SettingsTab.init) ?? .general
+        tab = defaults.string(forKey: Self.key).flatMap(SettingsPage.init) ?? .general
     }
 
     /// Settings at `tab`: it shows (on the Mac, as a card over the notes window) and opens the page.
-    func open(_ tab: SettingsTab) {
+    func open(_ tab: SettingsPage) {
         self.tab = tab
         opened += 1
         target = tab
