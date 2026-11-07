@@ -570,6 +570,8 @@ import Testing
             #expect(!account.contains(gone), "\(gone) is cut from Account")
         }
         #expect(account.contains("DeleteAccountButton(") && account.contains("SignOutButton("))
+        let card = try Self.source("Pane/Views/SettingsCard.swift")
+        #expect(!card.contains("\"Pinto account\"") && card.contains("Text(Self.accountLine(backend))"), "under your name: your email, not a label")
         // Sign in with Apple is offered where you sign in, not again in Account (iPhone or Mac).
         let phone = try Self.source("Pane/Views/SettingsView.swift")
         #expect(!phone.contains("AppleIDRow") && !phone.contains("settings.connectApple"), "no second Apple sign-in button in Account")

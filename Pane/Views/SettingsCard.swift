@@ -417,7 +417,7 @@ struct SettingsCard: View {
         .frame(width: 20)
     }
 
-    /// Who you are, at the top, as System Settings has it: a photo, your name, what kind of account.
+    /// Who you are, at the top, as System Settings has it: a photo, your name and the email you sign in with.
     private var accountRow: some View {
         let on = current == .account
         let named = AccountName.isSet(profile.name)
@@ -426,7 +426,7 @@ struct SettingsCard: View {
                 AvatarView(photo: profile.shownPhoto, name: named ? profile.name : nil, size: 36)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(named ? (profile.name ?? "Account") : "Account").font(.system(size: 13, weight: .semibold)).foregroundStyle(SettingsInk.text).lineLimit(1)
-                    Text("Pinto account").font(.system(size: 11.5)).foregroundStyle(SettingsInk.muted).lineLimit(1)
+                    Text(Self.accountLine(backend)).font(.system(size: 11.5)).foregroundStyle(SettingsInk.muted).lineLimit(1).truncationMode(.middle)
                 }
                 Spacer(minLength: 0)
             }
@@ -440,6 +440,12 @@ struct SettingsCard: View {
         .accessibilityAddTraits(on ? .isSelected : [])
         .accessibilityIdentifier("settings.account")
         .settingsProbe("tab.account")
+    }
+
+    /// Under your name: the email you sign in with ("Pinto account" said nothing), or how to sign in.
+    static func accountLine(_ backend: Backend) -> String {
+        if case .signedIn(let email) = backend.state { return backend.displayEmail ?? email }
+        return "Sign in to sync"
     }
 
     private func row(_ p: SettingsPlace) -> some View {
