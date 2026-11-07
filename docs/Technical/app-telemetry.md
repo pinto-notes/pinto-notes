@@ -20,7 +20,7 @@ in the app reported it, and it went unnoticed for more than a week.
   repository variable `POSTHOG_KEY`; while that variable is not set, they send nothing. Debug and QA builds, unit and UI tests, capture runs, `-local`
   launches and the Simulator never send (`TelemetryGate`).
 - **The switch:** Settings › General › Share diagnostics and usage, on by default. Off, nothing is
-  kept or sent, and what was waiting is dropped, with the feature counts and speeds not yet sent.
+  kept or sent, and what was waiting is dropped, with the speeds not yet sent.
 - **Who an event is from:** the account's id once signed in, so "this account is stuck on the key
   screen" can be answered. Before sign-in, a random id made when the app starts and kept in
   memory only: no identifier is stored on the device, so two launches before sign-in can't be
@@ -29,9 +29,10 @@ in the app reported it, and it went unnoticed for more than a week.
 - **No profile:** every event says `$process_person_profile: false`, so PostHog keeps no person
   profile, and `$geoip_disable: true`, so it works out no location from the request.
 - **The queue:** events wait in `Application Support/Pane/telemetry-queue.jsonl`, at most 200;
-  more are dropped. They go out in batches of up to 50: two seconds after an error, within a
-  minute otherwise, when the app leaves the front, and at the next launch for whatever a crash
-  or a missing connection left behind.
+  more are dropped. The file is written as each event is recorded, so a quit, a crash or the
+  system ending the app doesn't lose what was waiting. They go out in batches of up to 50: two
+  seconds after an error, within a minute otherwise, when the app leaves the front, and at the
+  next launch for whatever a crash or a missing connection left behind.
 
 ## What is never sent
 
@@ -110,7 +111,7 @@ shortcut.
 
 | Event | When | Properties |
 |---|---|---|
-| `settings_state` | Once a day (UTC) per device, when the app comes to the front | Every setting below, as it is on this device |
+| `settings_state` | Where things start: when the app first comes to the front on this install, again when it comes to the front after an update (a new app version), and as soon as Share diagnostics is turned back on. With `setting_changed` after it, each device's settings are known at any time | Every setting below, as it is on this device |
 | `setting_changed` | The person changed a setting (in Settings, or with View › Make Text Bigger) | `setting`: one of the setting names below; `value`: its new value |
 | `settings_page_opened` | A page of Settings was opened | `settings_page`: `account`, `ai`, `general`, `appearance`, `security`, `storage`, `help`, `app_keys` |
 
@@ -132,17 +133,17 @@ shortcut.
 ## Feature usage
 
 Which features are used, so the ones nobody uses can go and the ones people rely on get the work.
-Counted on the device and sent once a day as ranges: never the number, never what was typed,
-searched, linked or ticked.
+One event each time a feature is used, through the queue like every other event (so it fits
+PostHog's funnels and retention as it is): never what was typed, searched, linked or ticked.
 
 | Event | When | Properties |
 |---|---|---|
-| `usage_day` | Once a day (UTC) per device, when the app comes to the front, for what was counted since the last one. The first day only starts the count | Every feature below, as `0`, `1`, `2-5`, `6-20` or `21+` |
+| `feature_used` | A feature below was used | `feature`: one of the features below |
 
-| Feature | Counted when |
+| Feature | Sent when |
 |---|---|
 | `notes_created` | A note is made: New Note, a folder's New Note, today's note, a quick note, a duplicate, Keep a Copy, a shared template, the Welcome note |
-| `notes_edited` | A note is typed in (each note once until the next `usage_day`) |
+| `notes_edited` | A note is typed in: once for each note a launch, on its first keystroke, not for every key |
 | `checklist_ticked` | An item is ticked in the editor (not unticked) |
 | `tables_inserted` | A table is put in (Format › Table, the Table button, `/table`) |
 | `links_inserted` | A `[[link]]` is finished from the titles `[[` offers, or put in with Link to a Note |
@@ -159,6 +160,10 @@ searched, linked or ticked.
 | `menu_bar_note` | A note is saved from the menu bar (Mac) |
 | `shortcut_note` | The quick note shortcut is pressed (Mac) |
 | `imports_started` | An import starts bringing notes in |
+
+Nothing about feature use is kept on the device. The first 1.3 builds counted it there and sent
+a daily `usage_day`; the app removes those counts (`telemetry.usage`, `telemetry.usageDay`,
+`telemetry.settingsDay`) at launch.
 
 ## Error reports
 

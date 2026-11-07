@@ -15,9 +15,12 @@ final class Telemetry: @unchecked Sendable {
     /// Settings › Share diagnostics and usage. On unless it was turned off.
     static let consentKey = "shareDiagnostics"
     static let onceKey = "telemetry.once"
-    /// The features used since the last `usage_day` ([name: count]), and the day (UTC) it went out.
-    static let usageKey = "telemetry.usage"
-    static let usageDayKey = "telemetry.usageDay"
+    /// The app version the last `settings_state` was sent for (SettingsUsage). Dropped when Share
+    /// diagnostics is turned off, so turning it back on says the settings again.
+    static let settingsSnapshotKey = "telemetry.settingsVersion"
+    /// What 1.3's first builds kept: the daily feature counts and the days they and the settings
+    /// last went out. Removed at start so old counts don't linger.
+    static let retiredKeys = ["telemetry.usage", "telemetry.usageDay", "telemetry.settingsDay"]
     static let cap = 200
     static let batch = 50
     static let longestLaunch: TimeInterval = 20
@@ -41,7 +44,7 @@ final class Telemetry: @unchecked Sendable {
     private var saidThisLaunch = Set<String>()
     private var timings = SyncTimings()
     private var speeds: [SpeedKind: SpeedTimings] = [:]
-    /// The notes edited since the last `usage_day`, so each counts once. In memory only.
+    /// The notes typed in this launch, so each is one `feature_used`. In memory only.
     private var editedNotes = Set<UUID>()
     private var flushing = false
     /// Sends on its own a little after an event is recorded. Tests send by hand.
@@ -70,6 +73,7 @@ final class Telemetry: @unchecked Sendable {
             self.store = store
             self.defaults = defaults
             self.now = now
+            for key in Self.retiredKeys { defaults.removeObject(forKey: key) }
             queue = consents ? Array(store.load().suffix(Self.cap)) : []
             if !consents { store.save([]) }
         }
@@ -77,16 +81,22 @@ final class Telemetry: @unchecked Sendable {
 
     // MARK: Consent
 
-    private var consents: Bool { defaults.object(forKey: Self.consentKey) == nil || defaults.bool(forKey: Self.consentKey) }
+    private var consents: Bool { Self.consents(defaults) }
+
+    /// Whether `defaults` holds the switch on (on unless it was turned off).
+    static func consents(_ defaults: UserDefaults) -> Bool {
+        defaults.object(forKey: consentKey) == nil || defaults.bool(forKey: consentKey)
+    }
 
     /// The switch in Settings, whatever the build: a build that never sends still keeps the choice.
+    /// Written outside the lock: a write tells SettingsUsage at once, which may record.
     var consent: Bool {
         get { lock.withLock { consents } }
         set {
-            lock.withLock {
-                defaults.set(newValue, forKey: Self.consentKey)
-                if !newValue { empty() }
-            }
+            let defaults = lock.withLock { self.defaults }
+            if !newValue { defaults.removeObject(forKey: Self.settingsSnapshotKey) }
+            defaults.set(newValue, forKey: Self.consentKey)
+            if !newValue { lock.withLock { empty() } }
         }
     }
 
@@ -140,7 +150,6 @@ final class Telemetry: @unchecked Sendable {
         timings = SyncTimings()
         speeds = [:]
         editedNotes = []
-        defaults.removeObject(forKey: Self.usageKey)
         store?.save([])
     }
 
@@ -166,44 +175,16 @@ final class Telemetry: @unchecked Sendable {
 
     // MARK: Usage
 
-    /// A feature was used: counted on this device until the next `usage_day`. Nothing is kept
-    /// with the switch off.
+    /// A feature was used: one `feature_used`, through the queue like every other event.
     func used(_ feature: UsedFeature) {
-        lock.withLock {
-            guard config != nil, consents else { return }
-            bump(feature)
-        }
+        record(.featureUsed(feature))
     }
 
-    /// Lock held.
-    private func bump(_ feature: UsedFeature) {
-        var counts = defaults.dictionary(forKey: Self.usageKey) as? [String: Int] ?? [:]
-        counts[feature.rawValue] = min((counts[feature.rawValue] ?? 0) + 1, 100_000)
-        defaults.set(counts, forKey: Self.usageKey)
-    }
-
-    /// A note was typed in: counted the first time for each note since the last `usage_day`.
+    /// A note was typed in: one `feature_used` the first time for each note this launch, not one
+    /// a keystroke.
     func edited(_ note: UUID) {
-        lock.withLock {
-            guard config != nil, consents, editedNotes.insert(note).inserted else { return }
-            bump(.notesEdited)
-        }
-    }
-
-    /// Once a day (UTC), when the app comes to the front: what was counted since the last one,
-    /// then counting starts again. The first day only starts the count.
-    private func usageDay(_ day: Int) -> [UsedFeature: Int]? {
-        lock.withLock {
-            guard config != nil, consents else { return nil }
-            let last = defaults.object(forKey: Self.usageDayKey) as? Int
-            guard last != day else { return nil }
-            defaults.set(day, forKey: Self.usageDayKey)
-            guard last != nil else { return nil }
-            let counts = defaults.dictionary(forKey: Self.usageKey) as? [String: Int] ?? [:]
-            defaults.removeObject(forKey: Self.usageKey)
-            editedNotes = []
-            return Dictionary(uniqueKeysWithValues: counts.compactMap { k, v in UsedFeature(rawValue: k).map { ($0, v) } })
-        }
+        let first = lock.withLock { config != nil && consents && editedNotes.insert(note).inserted }
+        if first { record(.featureUsed(.notesEdited)) }
     }
 
     // MARK: Felt speed
@@ -277,7 +258,6 @@ final class Telemetry: @unchecked Sendable {
             return openedDay == nil ? true : openedDay == day ? nil : false
         }
         if let launch { record(.appOpened(launch: launch, signedIn: signedIn)) }
-        if let used = usageDay(day) { record(.usageDay(used)) }
     }
 
     /// The app left the front (or is quitting): everything waiting goes out. The sync timings are

@@ -1,11 +1,11 @@
 import Foundation
 
 // Which features are used, how fast notes and searches feel, and who leaves
-// (docs/Technical/app-telemetry.md). Counted on this device and sent as a few rolled-up events:
-// never a note's text, title or folder, never a search's words. Nothing is counted or kept with
-// Share diagnostics and usage off (Telemetry.used).
+// (docs/Technical/app-telemetry.md). A feature's use is one `feature_used` event; speeds are
+// counted on this device and sent rolled up. Never a note's text, title or folder, never a
+// search's words. Nothing is recorded with Share diagnostics and usage off (Telemetry.used).
 
-/// A feature `usage_day` counts, by the name its count goes under (the same as its property).
+/// A feature, by the word `feature_used` says it with.
 enum UsedFeature: String, TelemetryWord {
     case notesCreated = "notes_created", notesEdited = "notes_edited", checklistTicked = "checklist_ticked"
     case tablesInserted = "tables_inserted", linksInserted = "links_inserted", slashMenu = "slash_menu"
@@ -13,23 +13,6 @@ enum UsedFeature: String, TelemetryWord {
     case fromTemplate = "from_template", noteAppOpened = "note_app_opened", notePinned = "note_pinned"
     case noteLocked = "note_locked", sharePicture = "share_picture", menuBarNote = "menu_bar_note"
     case shortcutNote = "shortcut_note", importsStarted = "imports_started"
-
-    var property: TelemetryProperty { TelemetryProperty(rawValue: rawValue)! }
-}
-
-/// How many times, as a range. Never the number.
-enum UsageBucket: String, TelemetryWord {
-    case none = "0", one = "1", few = "2-5", some = "6-20", many = "21+"
-
-    init(_ n: Int) {
-        switch n {
-        case ...0: self = .none
-        case 1: self = .one
-        case 2...5: self = .few
-        case 6...20: self = .some
-        default: self = .many
-        }
-    }
 }
 
 /// How long something took to show, counted into ranges and sent as one event.
@@ -83,7 +66,7 @@ enum Usage {
         Telemetry.shared.used(feature)
     }
 
-    /// Typing in a note: counted once for each note edited since the last `usage_day`.
+    /// Typing in a note: one `feature_used` the first time each note is typed in, each launch.
     static func edited(_ note: UUID) {
         tap?(.notesEdited)
         Telemetry.shared.edited(note)

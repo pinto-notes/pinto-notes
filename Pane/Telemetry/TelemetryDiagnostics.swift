@@ -122,14 +122,13 @@ enum TelemetryLifecycle {
     }
 }
 
-/// Which settings people use (docs/Technical/app-telemetry.md): every setting's value once a day,
-/// a change when the person makes one, and the Settings pages they open. Nothing is recorded with
-/// Share diagnostics off (Telemetry.record).
+/// Which settings people use (docs/Technical/app-telemetry.md): every setting's value as a
+/// starting point (once per install, again after an update and when Share diagnostics is turned
+/// back on), a change when the person makes one, and the Settings pages they open. Nothing is
+/// recorded with Share diagnostics off (Telemetry.record).
 @MainActor
 final class SettingsUsage {
     static let shared = SettingsUsage()
-    /// The day (UTC, days since 1970) the last `settings_state` went out.
-    static let dayKey = "telemetry.settingsDay"
 
     var defaults: UserDefaults = .standard
     var loginOn: () -> Bool = {
@@ -141,10 +140,13 @@ final class SettingsUsage {
     }
     var record: (TelemetryEvent) -> Void = { Telemetry.shared.record($0) }
     var isOn: () -> Bool = { Telemetry.shared.isOn }
-    var now: () -> Date = { .now }
+    /// This build's version: a new one says the settings again.
+    var version: () -> String = { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "" }
     private var last: [SettingName: TelemetryValue]?
-    /// Open at login as last read: the system is asked at start, once a day and when its switch
-    /// is flipped, not on every write to the defaults.
+    /// Share diagnostics as last seen, so turning it back on says the settings at once.
+    private var wasOn = false
+    /// Open at login as last read: the system is asked at start, with each `settings_state` and
+    /// when its switch is flipped, not on every write to the defaults.
     private var login = false
     private var watch: NSObjectProtocol?
 
@@ -175,25 +177,34 @@ final class SettingsUsage {
     func start() {
         login = loginOn()
         last = Self.values(defaults, loginOn: login)
+        wasOn = Telemetry.consents(defaults)
         guard watch == nil else { return }
         watch = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: defaults, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.check() }
         }
     }
 
-    /// Once a day: every setting's value.
+    /// The app came to the front: every setting's value, unless this version has said them.
     func becameActive() {
-        guard isOn() else { return }
-        let day = Int(now().timeIntervalSince1970 / 86400)
-        guard defaults.object(forKey: Self.dayKey) as? Int != day else { return }
-        defaults.set(day, forKey: Self.dayKey)
+        guard isOn(), defaults.string(forKey: Telemetry.settingsSnapshotKey) != version() else { return }
+        snapshot()
+    }
+
+    private func snapshot() {
+        defaults.set(version(), forKey: Telemetry.settingsSnapshotKey)
         login = loginOn()
         record(.settingsState(Self.values(defaults, loginOn: login)))
     }
 
     /// A setting that changed since the last look: one `setting_changed` for each. `asksSystem`:
-    /// read Open at login again (its switch was flipped).
+    /// read Open at login again (its switch was flipped). Share diagnostics turned back on says
+    /// every setting again. Runs for every write to the defaults, some made under Telemetry's
+    /// lock, so the switch is read from the defaults, not asked of Telemetry.
     func check(asksSystem: Bool = false) {
+        let on = Telemetry.consents(defaults)
+        let turnedOn = on && !wasOn
+        wasOn = on
+        if turnedOn, isOn() { snapshot() }
         if asksSystem { login = loginOn() }
         let now = Self.values(defaults, loginOn: login)
         defer { last = now }

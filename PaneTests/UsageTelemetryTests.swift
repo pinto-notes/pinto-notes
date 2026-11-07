@@ -3,7 +3,7 @@ import SwiftData
 import Testing
 @testable import Pane
 
-/// Which features are used (usage_day), how fast notes and searches feel (note_opened_speed,
+/// Which features are used (feature_used), how fast notes and searches feel (note_opened_speed,
 /// search_speed), who leaves (ai_disconnected, signed_out, account_deleted), sharing's steps and
 /// the storage level (docs/Technical/app-telemetry.md).
 
@@ -31,10 +31,11 @@ private final class Clock: @unchecked Sendable {
     var now = Date(timeIntervalSince1970: 86400 * 20_000 + 3600)
 }
 
-private func telemetry(_ defaults: UserDefaults = TestDefaults(), clock: Clock = Clock()) -> (Telemetry, StubTransport) {
+private func telemetry(_ defaults: UserDefaults = TestDefaults(), clock: Clock = Clock(), store: TelemetryQueueStore = MemoryTelemetryQueue())
+    -> (Telemetry, StubTransport) {
     let transport = StubTransport()
     let t = Telemetry(config: TelemetryConfig(key: "phc_test", host: TelemetryGate.defaultHost, context: context), transport: transport,
-                      defaults: defaults, now: { clock.now })
+                      store: store, defaults: defaults, now: { clock.now })
     return (t, transport)
 }
 
@@ -44,62 +45,112 @@ private func events(_ t: Telemetry, _ name: String) -> [[String: Any]] {
 
 private func props(_ e: [String: Any]?) -> [String: Any] { e?["properties"] as? [String: Any] ?? [:] }
 
-@Suite struct UsageDayTests {
-    @Test func theFirstDayStartsTheCountAndEachNextDaySendsWhatWasCountedAsRanges() {
-        let clock = Clock()
-        let (t, _) = telemetry(clock: clock)
-        t.becameActive(signedIn: true)
+@Suite struct FeatureUsedTests {
+    private func features(_ t: Telemetry) -> [String?] { events(t, "feature_used").map { props($0)["feature"] as? String } }
+
+    @Test func eachUseIsOneEventSayingWhichFeature() {
+        let (t, _) = telemetry()
         t.used(.notesCreated)
-        #expect(events(t, "usage_day").isEmpty, "the first day only starts the count")
-        for _ in 0..<2 { t.used(.notesCreated) }
-        for _ in 0..<25 { t.used(.searchUsed) }
-        t.used(.checklistTicked)
-        let a = UUID(), b = UUID()
-        t.edited(a); t.edited(a); t.edited(a); t.edited(b)
-        t.becameActive(signedIn: true)
-        #expect(events(t, "usage_day").isEmpty, "the same day: nothing")
-
-        clock.now.addTimeInterval(86400)
-        t.becameActive(signedIn: true)
-        let sent = events(t, "usage_day")
-        #expect(sent.count == 1)
-        let p = props(sent.first)
-        #expect(p["notes_created"] as? String == "2-5")
-        #expect(p["search_used"] as? String == "21+")
-        #expect(p["checklist_ticked"] as? String == "1")
-        #expect(p["notes_edited"] as? String == "2-5", "two notes, however often each was typed in")
-        for f in UsedFeature.allCases { #expect(p[f.rawValue] is String, "\(f) is always there") }
-        #expect(p["go_to_note"] as? String == "0")
-
-        // Counting starts again after a send.
-        t.edited(a)
-        clock.now.addTimeInterval(86400)
-        t.becameActive(signedIn: true)
-        let next = props(events(t, "usage_day").last)
-        #expect(events(t, "usage_day").count == 2)
-        #expect(next["notes_created"] as? String == "0" && next["notes_edited"] as? String == "1")
+        t.used(.searchUsed)
+        t.used(.searchUsed)
+        t.used(.todaysNote)
+        #expect(features(t) == ["notes_created", "search_used", "search_used", "todays_note"])
+        #expect(props(events(t, "feature_used").first).keys.contains("app_version"), "with what every event says")
+        #expect(TelemetryEvent.featureUsed(.slashMenu).properties == [.feature: .word(UsedFeature.slashMenu)])
+        #expect(!TelemetryEvent.featureUsed(.slashMenu).goesSoon, "batched, like the other product events")
     }
 
-    @Test func rangesNeverTheNumber() {
-        #expect([0, 1, 2, 5, 6, 20, 21, 5000].map { UsageBucket($0).rawValue } == ["0", "1", "2-5", "2-5", "6-20", "6-20", "21+", "21+"])
-        #expect(TelemetryEvent.usageDay([.slashMenu: 7]).properties[.slashMenu] == .word(UsageBucket.some))
-    }
-
-    @Test func nothingIsCountedOrKeptWithDiagnosticsOff() {
+    @Test func aNoteTypedInIsOneEventALaunchNotOneAKeystroke() {
         let d = TestDefaults()
-        let clock = Clock()
-        let (t, _) = telemetry(d, clock: clock)
-        t.used(.notesCreated)
-        #expect(d.object(forKey: Telemetry.usageKey) != nil)
-        t.consent = false
-        #expect(d.object(forKey: Telemetry.usageKey) == nil, "turning it off drops what was counted")
-        t.used(.notesCreated); t.edited(UUID()); t.speed(.noteOpened, seconds: 0.05)
-        #expect(d.object(forKey: Telemetry.usageKey) == nil)
-        t.becameActive(signedIn: true)
-        clock.now.addTimeInterval(86400)
-        t.becameActive(signedIn: true)
-        #expect(t.waiting.isEmpty)
+        let (t, _) = telemetry(d)
+        let a = UUID(), b = UUID()
+        for _ in 0..<40 { t.edited(a) }
+        t.edited(b); t.edited(b)
+        #expect(features(t) == ["notes_edited", "notes_edited"], "a and b, once each")
+        let (next, _) = telemetry(d)
+        next.edited(a)
+        #expect(features(next) == ["notes_edited"], "the next launch: again")
     }
+
+    @Test func nothingIsRecordedOrKeptWithDiagnosticsOff() {
+        let d = TestDefaults()
+        let (t, _) = telemetry(d)
+        t.used(.notesCreated)
+        t.consent = false
+        #expect(t.waiting.isEmpty, "turning it off drops what waited")
+        let a = UUID()
+        t.used(.notesCreated); t.edited(a); t.speed(.noteOpened, seconds: 0.05)
+        #expect(t.waiting.isEmpty)
+        t.consent = true
+        t.edited(a)
+        #expect(features(t) == ["notes_edited"], "a note typed in while it was off still counts once it's on")
+        let before = Set(d.dictionaryRepresentation().keys)
+        t.consent = false
+        t.used(.checklistTicked)
+        #expect(Set(d.dictionaryRepresentation().keys).subtracting(before).subtracting([Telemetry.consentKey]).isEmpty, "nothing kept on the device")
+    }
+
+    @Test func theOldDailyCountsAreRemovedAtStart() {
+        let d = TestDefaults()
+        d.set(["notes_created": 4], forKey: "telemetry.usage")
+        d.set(20_000, forKey: "telemetry.usageDay")
+        d.set(20_000, forKey: "telemetry.settingsDay")
+        _ = telemetry(d)
+        for key in ["telemetry.usage", "telemetry.usageDay", "telemetry.settingsDay"] { #expect(d.object(forKey: key) == nil, "\(key)") }
+        #expect(Telemetry.retiredKeys == ["telemetry.usage", "telemetry.usageDay", "telemetry.settingsDay"])
+    }
+}
+
+/// What waits is in a file, written as each event is recorded: a quit or a kill before the upload
+/// leaves it for the next launch.
+@Suite struct TelemetryQueueFileTests {
+    private func file() -> FileTelemetryQueue {
+        FileTelemetryQueue(url: FileManager.default.temporaryDirectory.appending(path: "telemetry-\(UUID().uuidString)/queue.jsonl"))
+    }
+
+    @Test func whatWaitedSurvivesARelaunchAndGoesOut() async throws {
+        let store = file()
+        defer { try? FileManager.default.removeItem(at: store.url.deletingLastPathComponent()) }
+        let d = TestDefaults()
+        do {
+            let (t, transport) = telemetry(d, store: store)
+            t.used(.checklistTicked)
+            t.used(.goToNote)
+            #expect(transport.events.isEmpty, "killed before any upload")
+        }
+        let (next, transport) = telemetry(d, store: file(at: store.url))
+        #expect(events(next, "feature_used").compactMap { props($0)["feature"] as? String } == ["checklist_ticked", "go_to_note"])
+        await next.flush()
+        #expect(transport.events.count == 2)
+        #expect(store.load().isEmpty, "sent: the file is gone")
+        let (third, _) = telemetry(d, store: store)
+        #expect(third.waiting.isEmpty, "never sent twice")
+    }
+
+    @Test func theFileKeepsAtMostTheCap() throws {
+        let store = file()
+        defer { try? FileManager.default.removeItem(at: store.url.deletingLastPathComponent()) }
+        let d = TestDefaults()
+        let (t, _) = telemetry(d, store: store)
+        for _ in 0..<(Telemetry.cap + 30) { t.used(.searchUsed) }
+        #expect(store.load().count == Telemetry.cap)
+        let (next, _) = telemetry(d, store: store)
+        #expect(next.waiting.count == Telemetry.cap)
+    }
+
+    @Test func turnedOffWhileItWaitedLeavesNothingForTheNextLaunch() {
+        let store = file()
+        defer { try? FileManager.default.removeItem(at: store.url.deletingLastPathComponent()) }
+        let d = TestDefaults()
+        let (t, _) = telemetry(d, store: store)
+        t.used(.notePinned)
+        d.set(false, forKey: Telemetry.consentKey)
+        let (next, _) = telemetry(d, store: store)
+        #expect(next.waiting.isEmpty)
+        #expect(store.load().isEmpty)
+    }
+
+    private func file(at url: URL) -> FileTelemetryQueue { FileTelemetryQueue(url: url) }
 }
 
 @Suite struct FeltSpeedTests {
@@ -167,7 +218,7 @@ private func props(_ e: [String: Any]?) -> [String: Any] { e?["properties"] as? 
 }
 
 @Suite struct DiagnosticsFooterTests {
-    /// The switch says what it sends: the feature counts too (usage_day), and never the notes.
+    /// The switch says what it sends: the features used too (feature_used), and never the notes.
     @Test func theFooterSaysFeaturesAreCounted() {
         #expect(DiagnosticsCopy.footer.contains("which settings and features you use"))
         #expect(DiagnosticsCopy.footer.contains("Never your notes"))

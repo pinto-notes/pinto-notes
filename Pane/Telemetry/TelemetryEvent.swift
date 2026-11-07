@@ -67,13 +67,8 @@ enum TelemetryProperty: String, CaseIterable, Sendable {
     case quickNoteShortcut = "quick_note_shortcut", openAtLogin = "open_at_login"
     case setting, value
     case settingsPage = "settings_page"
-    // Which features are used (usage_day), one count per feature.
-    case notesCreated = "notes_created", notesEdited = "notes_edited", checklistTicked = "checklist_ticked"
-    case tablesInserted = "tables_inserted", linksInserted = "links_inserted", slashMenu = "slash_menu"
-    case formatUsed = "format_used", searchUsed = "search_used", goToNote = "go_to_note", todaysNote = "todays_note"
-    case fromTemplate = "from_template", noteAppOpened = "note_app_opened", notePinned = "note_pinned"
-    case noteLocked = "note_locked", sharePicture = "share_picture", menuBarNote = "menu_bar_note"
-    case shortcutNote = "shortcut_note", importsStarted = "imports_started"
+    // Which feature was used (feature_used).
+    case feature
     // Felt speed (note_opened_speed, search_speed), and the storage level.
     case under100ms = "under_100ms", over1s = "over_1s"
     case level
@@ -385,7 +380,7 @@ enum TelemetryWords {
         add(ConnectAIKind.self); add(ConnectFunnelStep.self); add(SignInStep.self); add(LinkRole.self); add(LinkStep.self)
         add(SettingName.self); add(TodayFolderWord.self); add(SettingsPageWord.self); add(AppearanceMode.self); add(Theme.self)
         add(AccentChoice.self); add(TodaysNoteSettings.Title.self)
-        add(UsedFeature.self); add(UsageBucket.self); add(ShareStep.self); add(StorageLevelWord.self)
+        add(UsedFeature.self); add(ShareStep.self); add(StorageLevelWord.self)
         return words
     }()
 }
@@ -434,14 +429,15 @@ enum TelemetryEvent: Equatable, Sendable {
     case linkDeviceStep(LinkRole, LinkStep, kind: FailureKind? = nil)
 
     // Settings: which are used.
-    /// Every setting's value on this device, once a day (SettingsUsage).
+    /// Every setting's value on this device: once per install, after an update, and when Share
+    /// diagnostics is turned back on (SettingsUsage).
     case settingsState([SettingName: TelemetryValue])
     /// The person changed a setting: which, and its new value.
     case settingChanged(SettingName, TelemetryValue)
     case settingsPageOpened(SettingsPageWord)
 
-    // Usage: which features, once a day per device (Telemetry.used), as ranges.
-    case usageDay([UsedFeature: Int])
+    // Usage: a feature was used (Telemetry.used), one event each time.
+    case featureUsed(UsedFeature)
 
     // Leaving.
     /// An AI connection was disconnected here, by the person.
@@ -486,7 +482,7 @@ enum TelemetryEvent: Equatable, Sendable {
         case onboardingStep = "onboarding_step", importStep = "import_step", connectStep = "connect_step"
         case signInStep = "sign_in_step", linkDeviceStep = "link_device_step"
         case settingsState = "settings_state", settingChanged = "setting_changed", settingsPageOpened = "settings_page_opened"
-        case usageDay = "usage_day", aiDisconnected = "ai_disconnected", signedOut = "signed_out", accountDeleted = "account_deleted"
+        case featureUsed = "feature_used", aiDisconnected = "ai_disconnected", signedOut = "signed_out", accountDeleted = "account_deleted"
         case shareStep = "share_step", storageLevel = "storage_level"
         case noteOpenedSpeed = "note_opened_speed", searchSpeed = "search_speed"
         case keychainFailed = "keychain_failed", keyStartup = "key_startup", syncFailed = "sync_failed"
@@ -515,7 +511,7 @@ enum TelemetryEvent: Equatable, Sendable {
         case .settingsState: .settingsState
         case .settingChanged: .settingChanged
         case .settingsPageOpened: .settingsPageOpened
-        case .usageDay: .usageDay
+        case .featureUsed: .featureUsed
         case .aiDisconnected: .aiDisconnected
         case .signedOut: .signedOut
         case .accountDeleted: .accountDeleted
@@ -561,8 +557,7 @@ enum TelemetryEvent: Equatable, Sendable {
         case .settingsState(let values): Dictionary(uniqueKeysWithValues: values.map { ($0.key.property, $0.value) })
         case .settingChanged(let name, let value): [.setting: .word(name), .value: value]
         case .settingsPageOpened(let page): [.settingsPage: .word(page)]
-        case .usageDay(let counts):
-            Dictionary(uniqueKeysWithValues: UsedFeature.allCases.map { ($0.property, .word(UsageBucket(counts[$0] ?? 0))) })
+        case .featureUsed(let f): [.feature: .word(f)]
         case .aiDisconnected(let kind): [.kind: .word(kind)]
         case .signedOut, .accountDeleted: [:]
         case .shareStep(let step): [.step: .word(step)]
@@ -640,7 +635,7 @@ enum TelemetryEvent: Equatable, Sendable {
                         .todayTemplate: .flag(true), .todayOnLaunch: .flag(false), .tickedToBottom: .flag(true), .menuBar: .flag(true),
                         .quickNoteShortcut: .flag(false), .openAtLogin: .flag(false)]),
         .settingChanged(.theme, .word(Theme.sepia)), .settingsPageOpened(.general),
-        .usageDay([.notesCreated: 3, .checklistTicked: 1, .searchUsed: 40]), .aiDisconnected(.chatgpt), .signedOut, .accountDeleted,
+        .featureUsed(.checklistTicked), .aiDisconnected(.chatgpt), .signedOut, .accountDeleted,
         .shareStep(.inviteAccepted), .storageLevel(.almostFull),
         .noteOpenedSpeed(SpeedTimings(under100ms: 30, under250ms: 12, under1s: 6, over1s: 2)), .searchSpeed(SpeedTimings(under100ms: 4)),
         .keychainFailed(item: .keySynced, operation: .save, status: -34018),

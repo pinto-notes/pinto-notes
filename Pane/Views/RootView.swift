@@ -1268,7 +1268,7 @@ extension FocusedValues {
 
 #if os(macOS)
 struct PaneCommands: Commands {
-    /// A Format menu item (or its shortcut) was used: counted once for each (usage_day).
+    /// A Format menu item (or its shortcut) was used: one feature_used each time.
     private func format(_ run: () -> Void) {
         Usage.count(.formatUsed)
         run()

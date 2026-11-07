@@ -440,8 +440,7 @@ private final class TelemetryDocToken {}
         #expect(names(telemetry.waiting) == ["app_opened"])
         clock.advance(86400)
         telemetry.becameActive(signedIn: true)
-        // The next day also says what was used the day before (usage_day).
-        #expect(names(telemetry.waiting) == ["app_opened", "app_opened", "usage_day"])
+        #expect(names(telemetry.waiting) == ["app_opened", "app_opened"], "nothing else comes with a new day")
         let flags = telemetry.waiting.filter { $0["event"] as? String == "app_opened" }.compactMap { ($0["properties"] as? [String: Any])?["launch"] as? Bool }
         #expect(flags == [true, false])
     }
@@ -663,18 +662,19 @@ private final class TelemetryDocToken {}
 
 // MARK: Which settings are used
 
-/// settings_state once a day, setting_changed when the person changes one, settings_page_opened
+/// settings_state where things start (once per install, after an update, when Share diagnostics is
+/// turned back on), setting_changed when the person changes one, settings_page_opened
 /// for each page: closed words, flags and numbers only, and nothing with Share diagnostics off.
 @MainActor
 @Suite struct SettingsUsageTests {
-    private func usage(_ d: UserDefaults, on: Bool = true, day: @escaping () -> Date = { Date(timeIntervalSince1970: 86400 * 20_000 + 3600) })
+    private func usage(_ d: UserDefaults, on: Bool = true, version: @escaping () -> String = { "1.3" })
         -> (SettingsUsage, () -> [TelemetryEvent]) {
         let u = SettingsUsage()
         var seen: [TelemetryEvent] = []
         u.defaults = d
         u.loginOn = { false }
         u.isOn = { on }
-        u.now = day
+        u.version = version
         u.record = { seen.append($0) }
         return (u, { seen })
     }
@@ -693,7 +693,7 @@ private final class TelemetryDocToken {}
         #endif
     }
 
-    /// The exact properties of a day's settings_state, as they go out: never a folder's or a
+    /// The exact properties of settings_state, as they go out: never a folder's or a
     /// template's name, never a shortcut's keys.
     @Test func theDailyStateSaysEachSettingInClosedWords() async throws {
         let d = TestDefaults()
@@ -726,16 +726,73 @@ private final class TelemetryDocToken {}
         #expect(!text.contains("Lisa") && !text.contains("Journal") && !text.contains("\u{2325}"), "no names, no keys")
     }
 
-    @Test func theStateGoesOutOnceADay() {
-        var when = Date(timeIntervalSince1970: 86400 * 20_000 + 3600)
-        let (u, seen) = usage(TestDefaults(), day: { when })
+    @Test func theStateGoesOutOncePerInstallAndAgainAfterAnUpdate() {
+        let d = TestDefaults()
+        var version = "1.3"
+        let (u, seen) = usage(d, version: { version })
+        u.start()
         u.becameActive(); u.becameActive()
-        when.addTimeInterval(3600 * 5)
+        #expect(seen().count == 1 && seen().allSatisfy { $0.name == .settingsState }, "the first time the app comes to the front")
+        let (relaunched, seenAfter) = usage(d, version: { version })
+        relaunched.start()
+        relaunched.becameActive()
+        #expect(seenAfter().isEmpty, "a relaunch of the same version: nothing, whatever the day")
+        version = "1.3.1"
+        relaunched.becameActive(); relaunched.becameActive()
+        #expect(seenAfter().count == 1 && seenAfter().first?.name == .settingsState, "a new version: once more")
+        #expect(d.string(forKey: Telemetry.settingsSnapshotKey) == "1.3.1")
+    }
+
+    /// Share diagnostics turned back on says every setting at once (the defaults' change), so the
+    /// state is known again; a change made while it was off isn't sent as a change.
+    @Test func turningDiagnosticsBackOnSaysTheStateAgain() async {
+        let d = TestDefaults()
+        let config = TelemetryConfig(key: "phc_test", host: TelemetryGate.defaultHost,
+                                     context: TelemetryContext(appVersion: nil, appBuild: nil, osVersion: nil, platform: .macos, deviceClass: .mac, channel: .release, distribution: .direct))
+        let telemetry = Telemetry(config: config, transport: StubTransport(), defaults: d)
+        let u = SettingsUsage()
+        u.defaults = d; u.loginOn = { false }; u.version = { "1.3" }
+        u.isOn = { telemetry.isOn }
+        u.record = { telemetry.record($0) }
+        u.start()
         u.becameActive()
-        #expect(seen().count == 1, "the same day: once")
-        when.addTimeInterval(86400)
+        #expect(names(telemetry.waiting) == ["settings_state"])
+        telemetry.consent = false
+        #expect(d.string(forKey: Telemetry.settingsSnapshotKey) == nil, "off: the version it was said for is forgotten")
+        u.check()
+        d.set("slate", forKey: ThemeStore.themeKey)
+        u.check()
         u.becameActive()
-        #expect(seen().count == 2 && seen().allSatisfy { $0.name == .settingsState }, "the next day: again")
+        #expect(telemetry.waiting.isEmpty)
+        telemetry.consent = true
+        u.check()
+        #expect(names(telemetry.waiting) == ["settings_state"], "on again: the state at once")
+        let p = telemetry.waiting.first?["properties"] as? [String: Any]
+        #expect(p?["theme"] as? String == "slate")
+        u.check(); u.becameActive()
+        #expect(names(telemetry.waiting) == ["settings_state"], "once")
+    }
+
+    /// Writes to the defaults made under Telemetry's lock (the once-per-install list) reach
+    /// SettingsUsage at once; it mustn't ask Telemetry anything then.
+    @Test func aWriteUnderTelemetrysLockDoesntWaitOnIt() {
+        let d = TestDefaults()
+        let config = TelemetryConfig(key: "phc_test", host: TelemetryGate.defaultHost,
+                                     context: TelemetryContext(appVersion: nil, appBuild: nil, osVersion: nil, platform: .macos, deviceClass: .mac, channel: .release, distribution: .direct))
+        let telemetry = Telemetry(config: config, transport: StubTransport(), defaults: d)
+        let u = SettingsUsage()
+        u.defaults = d; u.loginOn = { false }; u.version = { "1.3" }
+        var asked = 0
+        u.isOn = { asked += 1; return telemetry.isOn }
+        u.record = { telemetry.record($0) }
+        u.start()
+        let watch = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: d, queue: nil) { _ in
+            MainActor.assumeIsolated { u.check() }
+        }
+        defer { NotificationCenter.default.removeObserver(watch) }
+        telemetry.record(.firstNoteCreated)
+        #expect(asked == 0)
+        #expect(names(telemetry.waiting) == ["first_note_created"])
     }
 
     @Test func nothingWithDiagnosticsOff() async {
@@ -756,7 +813,7 @@ private final class TelemetryDocToken {}
         u.opened(.general)
         await telemetry.flush()
         #expect(transport.events.isEmpty)
-        #expect(d.object(forKey: SettingsUsage.dayKey) == nil, "the day isn't used up while off")
+        #expect(d.object(forKey: Telemetry.settingsSnapshotKey) == nil, "not used up while off")
     }
 
     @Test func aChangeSaysWhichSettingAndItsNewValue() {
