@@ -23,6 +23,7 @@ export const SHELVES: Shelf[] = [
       { slug: "move-apple-notes-to-obsidian-notion-keep", ask: "Moving to Obsidian, Notion or Keep?" },
       { slug: "siri-ai-apple-notes", ask: "What can Siri AI do with my notes?" },
       { slug: "apple-notes-api", ask: "Is there an Apple Notes API?" },
+      { slug: "move-from-apple-notes", ask: "How do I move my Apple Notes to Pinto Notes?" },
     ],
   },
   {
@@ -33,6 +34,7 @@ export const SHELVES: Shelf[] = [
       { slug: "claude-and-apple-notes", ask: "Can Claude use Apple Notes?" },
       { slug: "obsidian-mcp", ask: "Can Claude use my Obsidian vault?" },
       { slug: "connect-notes-to-grok", ask: "Connect your notes to Grok" },
+      { slug: "mcp-server", ask: "What can an AI do through the MCP server?" },
     ],
   },
   {

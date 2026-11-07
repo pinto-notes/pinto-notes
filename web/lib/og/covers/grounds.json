@@ -41,6 +41,12 @@
   "w": 1600,
   "h": 1000
  },
+ "app-import-your-notes": {
+  "ground": "#84a5b0",
+  "ink": "dark",
+  "w": 1200,
+  "h": 750
+ },
  "app-mcp-server": {
   "ground": "#c1642e",
   "ink": "light",
@@ -58,6 +64,12 @@
   "ink": "light",
   "w": 1600,
   "h": 1000
+ },
+ "app-pinto-notes-for-iphone": {
+  "ground": "#88abb6",
+  "ink": "dark",
+  "w": 1200,
+  "h": 750
  },
  "apple-creator-studio": {
   "ground": "#020202",
