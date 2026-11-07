@@ -95,13 +95,9 @@ struct SettingsCard: View {
     @Environment(\.modelContext) private var context
     #endif
 
-    /// Three looks to choose between (Emil, 7 November 2026: "it just doesn't look good"). All three
-    /// are smaller and quieter than before. `defaults write <app id> settingsLook glass|solid|tabs`
-    /// tries one; the one left goes after.
-    enum Look: String { case glass, solid, tabs }
-    static var look: Look { Look(rawValue: UserDefaults.standard.string(forKey: "settingsLook") ?? "") ?? .solid }
-
-    static var size: CGSize { look == .tabs ? CGSize(width: 660, height: SettingsWindow.size.height) : SettingsWindow.size }
+    /// One solid ground, a hairline between sidebar and page (Emil chose it over the glass sidebar
+    /// and top tabs, 7 November 2026).
+    static let size = SettingsWindow.size
     static let sidebarWidth: CGFloat = 200
     /// Room around the card on a window smaller than it.
     static let margin: CGFloat = 24
@@ -125,7 +121,7 @@ struct SettingsCard: View {
 
     /// The card's size in `space`: its own, or smaller on a small window, never too small to use.
     static func fitted(_ space: CGSize) -> CGSize {
-        CGSize(width: min(size.width, max(look == .tabs ? 560 : 600, space.width - 2 * margin)),
+        CGSize(width: min(size.width, max(600, space.width - 2 * margin)),
                height: min(size.height, max(420, space.height - 2 * margin)))
     }
 
@@ -220,24 +216,13 @@ struct SettingsCard: View {
 
     @ViewBuilder private func card(framed: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: framed ? 22 : 0, style: .continuous)
-        Group { if Self.look == .tabs {
-            VStack(spacing: 0) {
-                tabBar
-                SettingsInk.hairline.frame(height: 0.5)
-                pageArea
-            }
-        } else {
         HStack(spacing: 0) {
             sidebar
                 .frame(width: Self.sidebarWidth)
                 .frame(maxHeight: .infinity, alignment: .top)
-                // Glass: the notes window's sidebar, its material and the theme's colour over it
-                // (Emil, 6 November 2026). Solid: one ground, a hairline between.
-                .background { if Self.look == .glass { Color(Palette.sidebarWarmth).background(.regularMaterial).ignoresSafeArea() } }
             SettingsInk.hairline.frame(width: 0.5)
             pageArea
         }
-        } }
         .coordinateSpace(.named(Self.space))
         .background {
             if framed { shape.fill(SettingsInk.ground).shadow(color: .black.opacity(0.22), radius: 30, y: 18) } else { SettingsInk.ground }
@@ -283,32 +268,6 @@ struct SettingsCard: View {
             }
             .settingsProbe("area")
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    }
-
-    /// The pages along the top, as a Mac app's settings have them: each an icon over its name.
-    private var tabBar: some View {
-        HStack(spacing: 4) {
-            Spacer(minLength: 0)
-            ForEach(SettingsPlace.groups(available: available).flatMap(\.self)) { p in
-                let on = current == p
-                Button { open(p) } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: p.symbol).font(.system(size: 16)).foregroundStyle(on ? SettingsInk.text : SettingsInk.icon).frame(height: 20)
-                        Text(p.title).font(.system(size: 11, weight: .medium)).foregroundStyle(on ? SettingsInk.text : SettingsInk.muted).lineLimit(1)
-                    }
-                    .padding(.horizontal, 10)
-                    .frame(minWidth: 76, minHeight: 50)
-                    .background(highlight(on))
-                    .contentShape(.rect)
-                    .hoverRow(reach: EdgeInsets())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(on ? .isSelected : [])
-                .accessibilityIdentifier("settings.\(p.rawValue)")
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.vertical, 10)
     }
 
     /// The page's name over the left edge of its content, the one line on what it's for under it,

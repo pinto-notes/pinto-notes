@@ -164,6 +164,13 @@ import Testing
         #expect(SettingsWindow.size.height <= 760, "fits a 13-inch Mac's screen (about 800 pt under the menu bar)")
     }
 
+    /// One solid ground: no glass behind the sidebar, no second layout (Emil, 7 November 2026).
+    @Test func settingsIsOneSolidGround() throws {
+        let card = try Self.source("Pane/Views/SettingsCard.swift")
+        #expect(!card.contains("settingsLook") && !card.contains(".regularMaterial"))
+        #expect(card.contains("SettingsInk.hairline.frame(width: 0.5)"))
+    }
+
     @Test func theCardIsNeverBiggerThanItsWindow() {
         #expect(SettingsCard.size == SettingsWindow.size, "the sheet is the size Settings needs")
         #expect(SettingsCard.fitted(CGSize(width: 1600, height: 1000)) == SettingsCard.size)
