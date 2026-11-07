@@ -63,7 +63,7 @@ struct SettingsView: View {
         // A link, a card or the storage warning opens Settings at its page.
         .onChange(of: route.target, initial: true) { _, target in
             guard let target else { return }
-            if available.contains(target) { path = [target] }
+            if available.contains(target) { path = target.parent.map { [$0, target] } ?? [target] }
             route.target = nil
         }
         .onChange(of: isSignedIn) { was, now in if was && !now { dismiss() } }
@@ -92,7 +92,9 @@ struct SettingsView: View {
     @ViewBuilder
     func page(_ p: SettingsPage) -> some View {
         switch p {
-        case .account: AccountSettingsPage(backend: backend, sync: sync, close: closeSettings)
+        case .account: AccountSettingsPage(backend: backend, sync: sync, close: closeSettings, crypto: crypto, devices: devices)
+        case .personal: AccountSettingsPage(backend: backend, sync: sync, close: closeSettings, part: .personal, crypto: crypto, devices: devices)
+        case .signIn: AccountSettingsPage(backend: backend, sync: sync, close: closeSettings, part: .signIn, crypto: crypto, devices: devices)
         case .ai:
             if let client = backend.client {
                 #if os(macOS)
@@ -298,6 +300,8 @@ struct SignOutButton: View {
     var crypto: AccountCrypto = .shared
     var devices: KeyDevices = .shared
     var route: SettingsRoute = .shared
+    /// A button of its own at the end of Account (the Mac's, as System Settings has it), not a row.
+    var compact = false
     @Environment(\.modelContext) private var context
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var asking = false
@@ -318,11 +322,11 @@ struct SignOutButton: View {
             HStack(spacing: 8) {
                 Text(removing ? SignOutCopy.removing() : "Sign Out\u{2026}").foregroundStyle(Self.ink)
                 if removing { ProgressView().controlSize(.small) }
-                Spacer(minLength: 0)
+                if !compact { Spacer(minLength: 0) }
             }
             .contentShape(.rect)
         }
-        .settingsRowLink()
+        .signOutLook(compact: compact)
         .disabled(removing)
         .accessibilityIdentifier("settings.signOut")
         // Settings closes once you're signed out.
@@ -465,7 +469,7 @@ private struct AccountRow: View {
                 Text(profile.name ?? "Your Name")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(profile.name == nil ? .secondary : .primary)
-                Text(SettingsCard.accountLine(email: email))
+                Text(AccountLine.shown(email: email))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -535,4 +539,11 @@ enum AboutSection {
         ("Pinto Notes on GitHub", ShareAsk.repository, "chevron.left.forwardslash.chevron.right", "settings.github"),
         ("Contribute", ShareAsk.contributing, "hammer", "settings.contribute"),
     ]
+}
+
+private extension View {
+    /// Sign Out…: a row on iPhone and in a list; a button of its own at the end of the Mac's Account.
+    @ViewBuilder func signOutLook(compact: Bool) -> some View {
+        if compact { settingsRowButton() } else { settingsRowLink() }
+    }
 }

@@ -78,9 +78,9 @@ struct SettingsCard: View {
     /// Captures: a search already typed.
     var search = ""
 
-    @State private var selected: SettingsPage?
-    /// Pages one level down from the selected one (Connect an AI's Keys for apps).
-    @State private var path: [SettingsPage] = []
+    /// Where you have been: Back and Forward walk it, and its place is what's shown (the sidebar
+    /// page first, then any pages one level down from it, such as Account's Personal information).
+    @State private var history = SettingsHistory()
     @State private var query = ""
     @State private var profile = ProfileStore.shared
     /// In a sheet: the size of the window it hangs on, measured once when it opens and again only
@@ -141,13 +141,20 @@ struct SettingsCard: View {
 
     private var shown: SettingsPage {
         if !query.isEmpty, let hit = Self.pageWhileSearching(found) { return hit }
-        return path.last ?? current
+        return place.last ?? current
+    }
+
+    /// The place shown: the sidebar page, then the pages one level down from it.
+    private var place: [SettingsPage] {
+        if let p = history.place { return p }
+        let first = start.flatMap { available.contains($0) ? $0 : nil } ?? Self.first(available)
+        return first.parent.map { [$0, first] } ?? [first]
     }
 
     private var found: [SettingsIndex.Entry] {
         SettingsIndex.matches(query, available: available, advancedProtection: advancedProtection, recoveryKey: recoveryKey)
     }
-    private var current: SettingsPage { selected ?? start.flatMap { available.contains($0) ? $0 : nil } ?? Self.first(available) }
+    private var current: SettingsPage { place.first ?? Self.first(available) }
 
     var body: some View {
         #if DEBUG
@@ -198,8 +205,7 @@ struct SettingsCard: View {
 
     private func open(_ place: SettingsPage) {
         guard available.contains(place) else { return }
-        path = []
-        selected = place
+        history.open(place, from: self.place)
     }
 
     /// A result: its page, or the menu item it moved to, run once Settings has closed.
@@ -224,7 +230,9 @@ struct SettingsCard: View {
                 .frame(width: Self.sidebarWidth)
                 .frame(maxHeight: .infinity, alignment: .top)
                 .background(SettingsInk.group)
-            SettingsInk.hairline.frame(width: 0.5)
+            ColumnHairline.line
+                .frame(maxHeight: .infinity)
+                .settingsProbe("divider")
             pageArea
         }
         .coordinateSpace(.named(Self.space))
@@ -246,7 +254,7 @@ struct SettingsCard: View {
             page(shown)
                 .onAppear { SettingsUsage.shared.opened(SettingsPageWord(shown)) }
                 .environment(\.settingsAsPage, true)
-                .environment(\.openSettingsPage, OpenSettingsPage { path.append($0) })
+                .environment(\.openSettingsPage, OpenSettingsPage { open($0) })
                 .frame(maxWidth: Self.pageWidth, maxHeight: .infinity, alignment: .top)
                 .settingsProbe("page")
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -264,8 +272,8 @@ struct SettingsCard: View {
     /// Back (one level down) just left of it, and × (Esc) at the card's corner.
     private var header: some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
-                if !path.isEmpty { back }
+            HStack(spacing: 10) {
+                arrows
                 Text(shown.title)
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(SettingsInk.text)
@@ -293,16 +301,33 @@ struct SettingsCard: View {
         .padding(.top, inWindow ? SettingsWindow.titleBar : 12)
     }
 
-    private var back: some View {
-        Button { path.removeLast() } label: {
-            Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold)).foregroundStyle(SettingsInk.text)
-                .frame(width: 28, height: 28).contentShape(Circle())
+    /// Back and Forward, as System Settings has them: one capsule, two chevrons, each greyed at its
+    /// end of where you have been. ⌘[ and ⌘].
+    private var arrows: some View {
+        HStack(spacing: 0) {
+            arrow("chevron.left", "Back", "settings.back", key: "[", enabled: history.canGoBack) { history.back() }
+            SettingsInk.hairline.frame(width: 1, height: 14)
+            arrow("chevron.right", "Forward", "settings.forward", key: "]", enabled: history.canGoForward) { history.forward() }
+        }
+        .padding(.horizontal, 2)
+        .frame(height: 28)
+        .background(Capsule().fill(SettingsInk.group))
+        .overlay(Capsule().strokeBorder(SettingsInk.hairline, lineWidth: 0.5))
+        .settingsProbe("arrows")
+    }
+
+    private func arrow(_ symbol: String, _ label: String, _ id: String, key: KeyEquivalent, enabled: Bool, _ go: @escaping () -> Void) -> some View {
+        Button(action: go) {
+            Image(systemName: symbol).font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(enabled ? SettingsInk.text : SettingsInk.muted.opacity(0.5))
+                .frame(width: 26, height: 24).contentShape(Capsule())
         }
         .buttonStyle(.quietIcon)
-        .keyboardShortcut("[", modifiers: .command)
-        .help("Back")
-        .accessibilityLabel("Back")
-        .accessibilityIdentifier("settings.back")
+        .disabled(!enabled)
+        .keyboardShortcut(key, modifiers: .command)
+        .help(label)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(id)
     }
 
     private var sidebar: some View {
@@ -438,9 +463,7 @@ struct SettingsCard: View {
 
     /// An email to show under your name. Apple's relay address ("f7k6w27tsh@privaterelay.appleid.com")
     /// is random letters nobody knows, so it says how you sign in instead.
-    static func accountLine(email: String) -> String {
-        email.hasSuffix("privaterelay.appleid.com") ? "Signed in with Apple" : email
-    }
+    static func accountLine(email: String) -> String { AccountLine.shown(email: email) }
 
     private func row(_ p: SettingsPage) -> some View {
         let on = current == p

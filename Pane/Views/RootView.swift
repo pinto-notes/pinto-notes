@@ -1506,6 +1506,12 @@ struct SoftToolbarEdge: NSViewRepresentable {
     func updateNSView(_ v: NSScrollView, context: Context) {}
 }
 
+/// ColumnHairline's line, always drawn: one device pixel in its colour.
+struct SolidHairline: View {
+    @Environment(\.displayScale) private var scale
+    var body: some View { Rectangle().fill(ColumnHairline.colour).frame(width: 1 / max(scale, 1)) }
+}
+
 /// The line between the notes list and the note, top to bottom, toolbar band included. The split
 /// view's own divider takes a colour that disappears on the plain look's black (Emil, 10-30: "no
 /// visible separation between note and notes list"), so the system's separator is drawn here,
@@ -1517,6 +1523,10 @@ struct ColumnHairline: View {
     static let colour = Color(nsColor: NSColor(name: nil) {
         $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 1, alpha: 0.09) : NSColor(white: 0, alpha: 0.08)
     })
+
+    /// The same line where nothing draws one for us, light and dark: Settings' card, between its
+    /// sidebar and the page (Emil, 7 November 2026: the window has one, the card had none).
+    static var line: some View { SolidHairline() }
 
     /// macOS 27 draws its own divider here, so a second line only made it harder.
     static var systemDrawsIt: Bool { if #available(macOS 27, *) { true } else { false } }

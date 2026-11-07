@@ -345,10 +345,13 @@ enum TodayFolderWord: String, TelemetryWord { case `default`, custom }
 enum SettingsPageWord: String, TelemetryWord {
     case account, ai, general, appearance, security, storage, help
     case appKeys = "app_keys"
+    case personal
+    case signIn = "sign_in"
 
     init(_ page: SettingsPage) {
         switch page {
         case .appKeys: self = .appKeys
+        case .signIn: self = .signIn
         default: self = SettingsPageWord(rawValue: page.rawValue) ?? .general
         }
     }

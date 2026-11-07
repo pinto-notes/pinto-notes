@@ -148,6 +148,10 @@ extension View {
 /// edit where it is, how you sign in), then sync, then Sign Out… and Delete Account…. iPhone also
 /// exports from here; the Mac exports from File › Export All Notes…. Signed out: what signing in
 /// adds, and Sign In….
+/// Account's pages: you, your devices and Sign Out…; then one level down, your details, and how you
+/// sign in with Delete Account… (Emil, 7 November 2026, after System Settings' Apple Account).
+enum AccountPart { case main, personal, signIn }
+
 struct AccountSettingsPage: View {
     let backend: Backend
     let sync: SyncEngine?
@@ -155,7 +159,14 @@ struct AccountSettingsPage: View {
     var syncNow: (() async -> Void)? = nil
     /// Signed out: Sign In… closes Settings, which covers the sign-in card, and puts the caret in its email field.
     var close: () -> Void = {}
+    /// Which of Account's pages: you and your devices, or one level down, your details or how you sign in.
+    var part: AccountPart = .main
+    var crypto: AccountCrypto = .shared
+    var devices: KeyDevices = .shared
     @State private var profile = ProfileStore.shared
+    #if os(macOS)
+    @Environment(\.openSettingsPage) private var openPage
+    #endif
     @State private var draft = ""
     @FocusState private var editing: Bool
     @Environment(\.networkReach) private var reach
@@ -170,11 +181,17 @@ struct AccountSettingsPage: View {
     var body: some View {
         SettingsPageForm {
             switch backend.state {
-            case .signedIn(let email): signedIn(email: backend.displayEmail ?? email)
+            case .signedIn(let email):
+                switch part {
+                case .main: signedIn(email: backend.displayEmail ?? email)
+                case .personal: personal
+                case .signIn: signIn(email: email)
+                }
             default: signedOut
             }
         }
         .task(id: backend.state) { await profile.bind(backend) }
+        .task { if part == .main, crypto.isReady { await devices.refresh(crypto) } }
         .onAppear { draft = profile.name ?? "" }
         // The name as it arrives, unless you are typing a different one.
         .onChange(of: profile.name) { _, new in if !editing || draft.isEmpty { draft = new ?? "" } }
@@ -250,8 +267,170 @@ struct AccountSettingsPage: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("settings.accountSummary")
         }
+        // Your details and how you sign in, one level down, as Apple Account has them (Emil, 7 November 2026).
+        Section {
+            subPage(.personal, "settings.openPersonal")
+            subPage(.signIn, "settings.openSignIn")
+        }
         Section {
             LabeledContent("Sync") { syncControl }
+        }
+        Section {
+            ForEach(deviceRows) { d in deviceRow(d) }
+        } header: {
+            Text("Devices")
+        }
+        // Sign Out… on its own at the end, as in System Settings; Delete Account… is on Sign-in and
+        // security, never beside it (Emil, 7 November 2026: they aren't equals).
+        #if os(macOS)
+        OpenSection {
+            SignOutButton(backend: backend, sync: sync, crypto: crypto, devices: devices, compact: true)
+                .padding(.horizontal, 10)
+        }
+        #else
+        Section {
+            SignOutButton(backend: backend, sync: sync, crypto: crypto, devices: devices)
+        }
+        #endif
+    }
+
+    /// A row to one of Account's pages: its symbol on a grey tile, its name, a chevron.
+    @ViewBuilder private func subPage(_ p: SettingsPage, _ id: String) -> some View {
+        let label = HStack(spacing: 10) {
+            Image(systemName: p.symbol)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(white: 0.56)))
+                .accessibilityHidden(true)
+            Text(p.title).foregroundStyle(Color.ink)
+            Spacer(minLength: 0)
+            #if os(macOS)
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+            #endif
+        }
+        .contentShape(.rect)
+        #if os(macOS)
+        Button { openPage?(p) } label: { label }
+            .settingsRowLink()
+            .accessibilityIdentifier(id)
+        #else
+        NavigationLink(value: p) { label }
+            .accessibilityIdentifier(id)
+        #endif
+    }
+
+    /// A device on the account: this one first, then the others that have your key.
+    struct DeviceLine: Identifiable, Equatable {
+        let id: String
+        let name: String
+        let detail: String
+        let symbol: String
+    }
+
+    /// This device, then every other one that has your key and isn't being removed (KeyDevices).
+    static func deviceLines(others: [KeyDevice], now: Date = .now) -> [DeviceLine] {
+        let this = DeviceLine(id: "this", name: AddDeviceNames.thisDevice, detail: PrivacyCopy.thisDevice,
+                              symbol: InstallID.kind == "Mac" ? "laptopcomputer" : "iphone")
+        return [this] + others.filter { !$0.removing }.map { d in
+            DeviceLine(id: d.id.uuidString, name: d.name,
+                       detail: "\(d.platform == "macos" ? "Mac" : "iPhone") \u{00B7} \(SecurityContent.seen(d, now: now))", symbol: d.symbol)
+        }
+    }
+
+    private var deviceRows: [DeviceLine] { Self.deviceLines(others: devices.others) }
+
+    private func deviceRow(_ d: DeviceLine) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: d.symbol).font(.system(size: 20, weight: .light)).foregroundStyle(Color.ink)
+                .frame(width: 30).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(d.name).foregroundStyle(Color.ink).lineLimit(1)
+                Text(d.detail).font(.callout).foregroundStyle(Color.muted).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(d.id == "this" ? "settings.accountDevices" : "settings.device")
+    }
+
+    // MARK: Personal information
+
+    @ViewBuilder private var personal: some View {
+        Section {
+            LabeledContent("Name") {
+                TextField("Name", text: $draft, prompt: Text("Add your name").foregroundStyle(Color.muted))
+                    .labelsHidden()
+                    .multilineTextAlignment(.trailing)
+                    .focused($editing)
+                    .onSubmit { Task { await profile.setName(draft) } }
+                    .accessibilityIdentifier("settings.personalName")
+            }
+            LabeledContent("Photo") {
+                HStack(spacing: 10) {
+                    AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 28)
+                    photoButtons
+                }
+            }
+        } footer: {
+            if let problem = profile.problem { Text(problem).foregroundStyle(.red) }
+        }
+    }
+
+    @ViewBuilder private var photoButtons: some View {
+        #if os(macOS)
+        Button(profile.photo == nil ? "Choose\u{2026}" : "Change\u{2026}") { importing = true }
+            .settingsRowButton()
+            .accessibilityIdentifier("settings.choosePhoto")
+        #else
+        PhotosPicker(profile.photo == nil ? "Choose\u{2026}" : "Change\u{2026}", selection: $picked, matching: .images)
+            .accessibilityIdentifier("settings.choosePhoto")
+        #endif
+        if profile.photo != nil {
+            Button("Remove") { Task { await profile.removePhoto() } }
+                .settingsRowButton()
+                .accessibilityIdentifier("settings.removePhoto")
+        }
+    }
+
+    // MARK: Sign-in and security
+
+    /// How you sign in, said plainly: Apple, Google or your email.
+    static func signInWay(email: String, apple: Bool, google: Bool) -> String {
+        let how = SignInShown.label(email: email, apple: apple, google: google)
+        return how == email ? "Email" : how
+    }
+
+    /// The email on the account; Apple's relay address is nobody's, so it says Apple hides it.
+    static func accountEmail(_ email: String) -> String {
+        email.hasSuffix("privaterelay.appleid.com") ? "Hidden by Apple" : email
+    }
+
+    @ViewBuilder private func signIn(email: String) -> some View {
+        Section {
+            LabeledContent("Signed in with") {
+                Text(Self.signInWay(email: email, apple: backend.apple != nil, google: backend.google))
+            }
+            .accessibilityIdentifier("settings.signInWith")
+            LabeledContent("Email") {
+                Text(Self.accountEmail(backend.displayEmail ?? email)).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+            }
+        }
+        // The recovery key and the devices that can open your notes stay on Privacy.
+        Section {
+            #if os(macOS)
+            Button { openPage?(.security) } label: {
+                SettingsLinkRow(title: "Recovery key and devices", symbol: "key", trailing: "chevron.right")
+            }
+            .settingsRowLink()
+            .accessibilityIdentifier("settings.openPrivacy")
+            #else
+            NavigationLink(value: SettingsPage.security) { SettingsLinkRow(title: "Recovery key and devices", symbol: "key", trailing: "chevron.right") }
+                .accessibilityIdentifier("settings.openPrivacy")
+            #endif
+        } footer: {
+            Text("What can open your notes is on Privacy.")
         }
         #if os(iOS)
         // Next to Delete Account, which says to export first. The Mac's is File › Export All Notes….
@@ -262,7 +441,6 @@ struct AccountSettingsPage: View {
         }
         #endif
         Section {
-            SignOutButton(backend: backend, sync: sync)
             // The App Store asks for deleting an account inside the app.
             DeleteAccountButton(backend: backend)
                 .settingsProbe("account.delete")
@@ -752,8 +930,6 @@ struct AppearanceSettingsPage: View {
                 TextSizeSample()
             } header: {
                 Text("Text size")
-            } footer: {
-                Text(TextSizeRow.footer)
             }
             #endif
         }
@@ -769,7 +945,6 @@ struct TextSizeRow: View {
     @AppStorage(TextSize.key) private var stored: Double = 0
 
     static let label = "Note text"
-    static let footer = "View \u{203A} Make Text Bigger and Make Text Smaller change it too."
 
     var body: some View {
         let size = TextSize.size(stored: stored)

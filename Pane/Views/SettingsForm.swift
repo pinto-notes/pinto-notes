@@ -10,8 +10,19 @@ enum SettingsInk {
         Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light })
     }
 
-    /// The theme's page: Settings follows the theme like the notes do (Emil, 6 November 2026).
-    static var ground: Color { Color(Palette.page) }
+    /// The theme's page: Settings follows the theme like the notes do (Emil, 6 November 2026). In
+    /// the dark a step lighter than the page's black, as System Settings' is, so its boxes show on
+    /// it (Emil, 7 November 2026: "these have no contrast on the black"). The notes stay black.
+    static var ground: Color {
+        let page = Palette.page
+        return Color(nsColor: NSColor(name: nil) { look in
+            var c = NSColor.white
+            look.performAsCurrentDrawingAppearance { c = page.usingColorSpace(.sRGB) ?? .white }
+            return look.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? (c.blended(withFraction: darkLift, of: .white) ?? c) : c
+        })
+    }
+    /// How much lighter than the page Settings' dark ground is: black becomes System Settings' grey.
+    static let darkLift: CGFloat = 0.13
     /// A box of rows, a summary: a step off the ground.
     static let group = dynamic(NSColor(white: 0, alpha: 0.04), NSColor(white: 1, alpha: 0.085))
     /// The selected page in the sidebar: the one selection look.

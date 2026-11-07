@@ -32,7 +32,7 @@ import Carbon.HIToolbox
     @Test func signedOutThereAreFivePages() {
         #expect(SettingsView(backend: Backend(), sync: nil).available == [.account, .general, .appearance, .security, .help])
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
-        #expect(SettingsView(backend: backend, sync: nil).available == [.account, .ai, .general, .appearance, .security, .storage, .help])
+        #expect(SettingsView(backend: backend, sync: nil).available == [.account, .ai, .general, .appearance, .security, .storage, .help, .personal, .signIn])
         #expect(SettingsPage.available(signedIn: false, hasClient: false, demoStorage: true).contains(.storage), "captures show Storage")
     }
 
@@ -94,7 +94,7 @@ import Carbon.HIToolbox
 
     #if os(macOS)
     /// Note text size is on Appearance as well as in the View menu, and search finds it by the
-    /// words people use (council round 3, 11-04). Its line says how to get back to standard.
+    /// words people use (council round 3, 11-04). No footer under it (Emil, 7 November 2026).
     @Test func textSizeIsOnAppearance() throws {
         let all = Set(SettingsPage.allCases)
         for word in ["text size", "font size", "bigger", "zoom"] {
@@ -414,7 +414,10 @@ import Carbon.HIToolbox
             #expect(page.width <= SettingsCard.pageWidth + 0.5, "\(place): the column is capped at \(SettingsCard.pageWidth), was \(page.width)")
             #expect(abs(page.width - min(SettingsCard.pageWidth, room.width - 2 * SettingsCard.gutter)) < 0.5, "\(place): as wide as the cap or the room allows")
             #expect(abs(page.midX - room.midX) < 0.5, "\(place): centred, page \(page) in area \(room)")
-            #expect(abs(title.minX - (page.minX + SettingsCard.pageInset)) <= bar / 2 + 0.5, "\(place): the title starts at the content's edge: \(title.minX) vs \(page.minX + SettingsCard.pageInset)")
+            // Back and Forward start at the content's edge, the title right after them.
+            let arrows = try #require(f["arrows"])
+            #expect(abs(arrows.minX - (page.minX + SettingsCard.pageInset)) <= bar / 2 + 0.5, "\(place): Back and Forward start at the content's edge: \(arrows.minX) vs \(page.minX + SettingsCard.pageInset)")
+            #expect(title.minX > arrows.maxX && title.minX - arrows.maxX < 14, "\(place): the title right after them")
         }
         #expect(SettingsCard.contentWidth >= 480 && SettingsCard.contentWidth <= 620)
     }
@@ -424,8 +427,8 @@ import Carbon.HIToolbox
     @Test func connectCardsHaveTheSharingLineInView() async throws {
         let f = try await Self.layout(.ai, window: CGSize(width: 1180, height: 760))
         let card = try #require(f["connect.card"], "the cards")
-        let title = try #require(f["title"]), page = try #require(f["page"]), area = try #require(f["area"])
-        #expect(abs(card.minX - title.minX) < 0.5, "card \(card.minX), title \(title.minX)")
+        let title = try #require(f["arrows"]), page = try #require(f["page"]), area = try #require(f["area"])
+        #expect(abs(card.minX - title.minX) < 0.5, "card \(card.minX), header's edge \(title.minX)")
         #expect(abs(card.width - (page.width - 2 * SettingsCard.pageInset)) < 0.5)
         let sent = try #require(f["connect.sent"], "the line on what is sent is on the page")
         #expect(card.minY > sent.maxY && card.minY - sent.maxY < 20, "right over the cards: \(sent) over \(card)")
@@ -555,9 +558,10 @@ import Carbon.HIToolbox
             try await Task.sleep(for: .milliseconds(50))
         }
         let status = try #require(frames.all["account.syncStatus"], "the sync status is on the card")
-        for part in ["account.photo", "account.name", "account.delete"] {
+        for part in ["account.photo", "account.name"] {
             #expect(frames.all[part] != nil, "\(part) is there")
         }
+        #expect(frames.all["account.delete"] == nil, "Delete Account… is on Sign-in and security, not beside Sign Out…")
         let photo = try #require(frames.all["account.photo"]), name = try #require(frames.all["account.name"])
         #expect(name.minY > photo.maxY && abs(name.midX - photo.midX) < 1, "the name centred under the photo, as System Settings shows you")
         #expect(status.minY > name.maxY, "sync is a row under you")
@@ -573,7 +577,8 @@ import Carbon.HIToolbox
         let ids = ax.ids()
         ax.close()
         for gone in ["settings.syncNow", "settings.exportNotes", "settings.connectApple"] { #expect(!ids.contains(gone), "\(gone) is not on the Mac's Account") }
-        for here in ["settings.signOut", "settings.deleteAccount", "settings.syncStatus", "settings.profileName"] { #expect(ids.contains(here), "\(here): \(ids)") }
+        for here in ["settings.signOut", "settings.syncStatus", "settings.profileName", "settings.openPersonal", "settings.openSignIn", "settings.accountDevices"] { #expect(ids.contains(here), "\(here): \(ids)") }
+        #expect(!ids.contains("settings.deleteAccount"), "not on Account's own page")
         // A real click on the status needs a key window: where windows may be ordered in (CI).
         guard FileRowClickTests.onCI else { return }
         NSApp.activate(ignoringOtherApps: true)
@@ -736,7 +741,7 @@ import Carbon.HIToolbox
         defer { crypto.signedOut() }
         let all = Set(SettingsPage.allCases)
         var checked = 0
-        for page in SettingsPage.groups.flatMap({ $0 }) + [.account] {
+        for page in SettingsPage.groups.flatMap({ $0 }) + [.account, .personal, .signIn] {
             let ids = try await Self.ids(page, backend: backend, crypto: crypto)
             for entry in SettingsIndex.all where entry.page == page {
                 #expect(SettingsIndex.matches(entry.label, available: all, advancedProtection: true, recoveryKey: true).contains(entry),
@@ -810,4 +815,84 @@ import Carbon.HIToolbox
         #expect(GeneralCopy.checklists == "Checklists" && GeneralCopy.thisMac == "This Mac")
     }
 }
+/// Account like System Settings' Apple Account (Emil, 7 November 2026): Back and Forward on every
+/// page, your details and how you sign in one level down, your devices, Sign Out… at the end and
+/// Delete Account… away from it.
+@MainActor @Suite struct AccountPagesTests {
+    @Test func backAndForwardWalkWhereYouHaveBeen() {
+        var h = SettingsHistory()
+        #expect(!h.canGoBack && !h.canGoForward && h.place == nil)
+        h.open(.general, from: [.account])
+        #expect(h.place == [.general] && h.canGoBack && !h.canGoForward)
+        h.open(.signIn, from: [.general])
+        #expect(h.place == [.account, .signIn], "a page one level down opens over its parent")
+        h.back()
+        #expect(h.place == [.general] && h.canGoForward)
+        h.back()
+        #expect(h.place == [.account] && !h.canGoBack)
+        h.back()
+        #expect(h.place == [.account], "greyed at the start: nothing happens")
+        h.forward(); h.forward()
+        #expect(h.place == [.account, .signIn] && !h.canGoForward)
+        h.back()
+        h.open(.appearance, from: [.general])
+        #expect(h.place == [.appearance] && !h.canGoForward, "a new page drops Forward, as a browser does")
+        h.open(.appearance, from: [.appearance])
+        h.back()
+        #expect(h.place == [.general], "opening the page you're on adds nothing")
+        h.open(.account, from: [.general]); h.open(.personal, from: [.account])
+        #expect(h.place == [.account, .personal])
+        h.open(.signIn, from: [.account, .personal])
+        #expect(h.place == [.account, .signIn], "a sibling replaces, it doesn't stack")
+    }
+
+    @Test func accountsPagesAreThereSignedInOnly() {
+        let on = SettingsPage.available(signedIn: true, hasClient: true)
+        #expect(on.isSuperset(of: [.personal, .signIn]))
+        #expect(SettingsPage.available(signedIn: false, hasClient: true).isDisjoint(with: [.personal, .signIn]))
+        #expect(SettingsPage.groups(available: on).flatMap { $0 }.allSatisfy { $0.parent == nil }, "never in the sidebar")
+        #expect(SettingsPage.personal.title == "Personal information" && SettingsPage.signIn.title == "Sign-in and security")
+        #expect(SettingsPageWord(.signIn) == .signIn && SettingsPageWord(.signIn).rawValue == "sign_in" && SettingsPageWord(.personal).rawValue == "personal")
+        #expect(SettingsIndex.all.first { $0.label == "Delete account" }?.page == .signIn)
+    }
+
+    @Test func howYouSignInIsSaidAndTheRelayNeverShows() {
+        let relay = "f7k6w27tsh@privaterelay.appleid.com"
+        #expect(AccountSettingsPage.signInWay(email: relay, apple: true, google: false) == "Apple")
+        #expect(AccountSettingsPage.signInWay(email: "sara@example.com", apple: false, google: true) == "Google")
+        #expect(AccountSettingsPage.signInWay(email: "sara@example.com", apple: false, google: false) == "Email")
+        #expect(AccountSettingsPage.accountEmail(relay) == "Hidden by Apple")
+        #expect(SettingsCard.accountLine(email: relay) == "Signed in with Apple")
+    }
+
+    @Test func devicesAreThisOneThenTheOthers() {
+        let lines = AccountSettingsPage.deviceLines(others: [SecurityPageSnapshots.mac, SecurityPageSnapshots.phone])
+        #expect(lines.first?.detail == PrivacyCopy.thisDevice)
+        #expect(lines.count == 3)
+        #expect(lines.dropFirst().allSatisfy { $0.detail.contains("\u{00B7}") })
+    }
+
+    @Test func subPagesShowTheirRows() async throws {
+        let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
+        let personal = try await SettingsPageRowTests.ids(.personal, backend: backend)
+        #expect(personal.contains("settings.personalName") && personal.contains("settings.choosePhoto"))
+        let signIn = try await SettingsPageRowTests.ids(.signIn, backend: backend)
+        for id in ["settings.signInWith", "settings.deleteAccount", "settings.openPrivacy"] { #expect(signIn.contains(id), "\(id): \(signIn)") }
+        #expect(!signIn.contains("settings.signOut"))
+    }
+
+    /// The card's sidebar and page have the window's line between them, the card's full height.
+    @Test func theCardHasALineBetweenSidebarAndPage() async throws {
+        let f = try await SettingsHomeTests.layout(.general, window: CGSize(width: 1180, height: 760))
+        let line = try #require(f["divider"], "the line is drawn")
+        let area = try #require(f["area"])
+        #expect(line.width > 0 && line.width <= 1, "one pixel: \(line.width)")
+        #expect(abs(line.maxX - area.minX) < 0.5, "against the page: \(line) \(area)")
+        #expect(abs(line.height - area.height) < 0.5, "the card's full height: \(line.height) vs \(area.height)")
+        let arrows = try #require(f["arrows"], "Back and Forward are on every page")
+        let title = try #require(f["title"])
+        #expect(arrows.maxX < title.minX && abs(arrows.midY - title.midY) < 2)
+    }
+}
+
 #endif

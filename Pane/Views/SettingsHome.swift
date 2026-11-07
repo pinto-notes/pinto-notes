@@ -12,7 +12,17 @@ import UIKit
 /// view is the same on both (SettingsPages.swift).
 enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
     case account, ai, general, appearance, security, storage, help, appKeys
+    /// Account's own pages, one level down, as Apple Account has them (Emil, 7 November 2026).
+    case personal, signIn
     var id: String { rawValue }
+
+    /// The page a page one level down opens from: Account's for your details and how you sign in.
+    var parent: SettingsPage? {
+        switch self {
+        case .personal, .signIn: .account
+        default: nil
+        }
+    }
 
     /// The rows under you (Account), in groups.
     static let groups: [[SettingsPage]] = [[.general, .ai, .appearance], [.security, .storage], [.help]]
@@ -27,6 +37,8 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         case .storage: SettingsNames.storage
         case .help: SettingsNames.help
         case .appKeys: "Keys for apps"
+        case .personal: "Personal information"
+        case .signIn: "Sign-in and security"
         }
     }
 
@@ -41,6 +53,8 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         case .storage: SettingsIcons.storage
         case .help: SettingsIcons.help
         case .appKeys: "key"
+        case .personal: "person.text.rectangle"
+        case .signIn: "lock"
         }
     }
 
@@ -49,6 +63,7 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
     /// account. Keys for apps is parked (Emil, 6 November 2026): nothing leads to it.
     static func available(signedIn: Bool, hasClient: Bool, demoStorage: Bool = false) -> Set<SettingsPage> {
         var out: Set<SettingsPage> = [.account, .general, .appearance, .security, .help]
+        if signedIn { out.formUnion([.personal, .signIn]) }
         if signedIn && hasClient { out.formUnion([.ai, .storage]) }
         if demoStorage { out.insert(.storage) }
         return out
@@ -131,11 +146,14 @@ enum SettingsIndex {
 
     static let all: [Entry] = [
         e("Name", .account, "settings.profileName"), e("Photo", .account, "settings.photo"),
+        e("Personal information", .personal, "settings.personalName", also: ["Change name", "Change photo"]),
+        e("Sign-in and security", .signIn, "settings.signInWith", also: ["Signed in with", "Email address", "How I sign in"]),
+        e("Devices", .account, "settings.accountDevices", also: ["This Mac", "My devices"]),
         e("Sign Out", .account, "settings.signOut"), e("Remove notes from this Mac", .account),
-        e("Delete account", .account, "settings.deleteAccount"),
+        e("Delete account", .signIn, "settings.deleteAccount"),
         // Named for what the page shows; its status line is what syncs when pressed (round 24).
         e("Sync status", .account, "settings.syncStatus", also: ["Sync now"]),
-        e("Your account", .account, "settings.accountSummary", also: ["Profile", "Email", "Signed in with", "Sync"]),
+        e("Your account", .account, "settings.accountSummary", also: ["Profile", "Email", "Sync"]),
         Entry(label: "Export All Notes", page: .account, also: ["Export notes", "Markdown", "Backup"], menu: .export),
         e("Connect ChatGPT", .ai), e("Connect Claude", .ai), e("Connect Grok", .ai), e("Connect Codex", .ai),
         e("Connected AIs", .ai, "connect.sent"), e("Disconnect", .ai), e("App previews", .ai),
@@ -305,5 +323,46 @@ enum SignInShown {
         if google { return "Google" }
         if apple || email.hasSuffix("privaterelay.appleid.com") { return "Apple" }
         return email
+    }
+}
+
+/// Where you have been in Settings, for Back and Forward as System Settings has them (Emil,
+/// 7 November 2026). Each place is a page and the pages one level down open from it, top first.
+struct SettingsHistory: Equatable {
+    private(set) var places: [[SettingsPage]] = []
+    private(set) var at = -1
+
+    /// The place shown: the last opened, or none before anything was.
+    var place: [SettingsPage]? { places.indices.contains(at) ? places[at] : nil }
+    var canGoBack: Bool { at > 0 }
+    var canGoForward: Bool { at < places.count - 1 }
+
+    /// Opens `page` from `from` (where Settings is now, the first time). A page one level down
+    /// opens over its parent; a sidebar page on its own. Forward is dropped, as in a browser.
+    mutating func open(_ page: SettingsPage, from: [SettingsPage]) {
+        if places.isEmpty { places = [from]; at = 0 }
+        let here = place ?? from
+        let next: [SettingsPage]
+        if let parent = page.parent {
+            next = here.contains(parent) ? Array(here.prefix(through: here.firstIndex(of: parent)!)) + [page] : [parent, page]
+        } else if page == .appKeys {
+            next = here + [page]
+        } else {
+            next = [page]
+        }
+        guard next != here else { return }
+        places = Array(places.prefix(at + 1)) + [next]
+        at = places.count - 1
+    }
+
+    mutating func back() { if canGoBack { at -= 1 } }
+    mutating func forward() { if canGoForward { at += 1 } }
+}
+
+/// The line under your name, Mac and iPhone: your email, but never Apple's relay address
+/// ("f7k6w27tsh@privaterelay.appleid.com", random letters nobody knows), which says how you sign in.
+enum AccountLine {
+    static func shown(email: String) -> String {
+        email.hasSuffix("privaterelay.appleid.com") ? "Signed in with Apple" : email
     }
 }
