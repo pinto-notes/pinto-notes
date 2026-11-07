@@ -132,7 +132,7 @@ struct StorageSectionBody: View {
                 Text("Counting\u{2026}").foregroundStyle(.secondary)
             }
         } footer: {
-            Text("Notes, files and apps count as stored, encrypted. Recently Deleted and earlier versions count until they're deleted for good, after 30 days. Files can be up to 100 MB each.")
+            Text("Notes, files and apps count. So do Recently Deleted and older versions, for 30 days. Files can be up to 100 MB.")
         }
     }
 }

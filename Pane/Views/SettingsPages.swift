@@ -85,30 +85,35 @@ struct AccountSettingsPage: View {
     }
 
     @ViewBuilder private func signedIn(email: String) -> some View {
-        SettingsSummary {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top, spacing: 16) {
-                    photo
-                    VStack(alignment: .leading, spacing: 6) {
-                        name
-                        Text(Self.shownEmail(email, apple: backend.apple != nil, google: backend.google))
-                            .font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
-                            .lineLimit(1).truncationMode(.middle)
-                            .textSelection(.enabled)
-                            .padding(.leading, 8)
-                            .accessibilityIdentifier("settings.signedInWith")
-                        if let problem = profile.problem {
-                            Text(problem).font(.system(size: 12)).foregroundStyle(.red).padding(.leading, 8)
-                        }
-                    }
-                    Spacer(minLength: 8)
-                    syncStatus
-                }
-                if let u = storage.usage {
-                    SettingsInk.hairline.frame(height: 0.5)
-                    storageBar(u)
-                }
+        // You at the top, centred, as System Settings shows your Apple Account (Emil, 7 November
+        // 2026); then storage and sync as rows; then Sign Out and Delete.
+        VStack(spacing: 20) {
+        VStack(spacing: 8) {
+            photo.padding(.bottom, 4)
+            name
+            Text(Self.shownEmail(email, apple: backend.apple != nil, google: backend.google))
+                .font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
+                .lineLimit(1).truncationMode(.middle)
+                .textSelection(.enabled)
+                .accessibilityIdentifier("settings.signedInWith")
+            if let problem = profile.problem {
+                Text(problem).font(.system(size: 12)).foregroundStyle(.red)
             }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 4)
+        .padding(.bottom, 6)
+        SettingsGroup {
+            if let u = storage.usage {
+                storageBar(u).padding(.vertical, 12)
+            }
+            HStack {
+                Text("Sync").font(.system(size: 13)).foregroundStyle(SettingsInk.text)
+                Spacer(minLength: 8)
+                syncStatus
+            }
+            .frame(minHeight: 40)
+        }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings.accountSummary")
@@ -120,8 +125,8 @@ struct AccountSettingsPage: View {
                 .buttonStyle(SettingsRowButtonStyle())
                 .settingsProbe("account.delete")
         }
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(SettingsInk.group))
-        .clipShape(.rect(cornerRadius: 12, style: .continuous))
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(SettingsInk.group))
+        .clipShape(.rect(cornerRadius: 14, style: .continuous))
     }
 
     /// Your photo: click it for Choose Photo… and Remove Photo. A photo can be dropped on it too.
@@ -183,7 +188,8 @@ struct AccountSettingsPage: View {
                 .fill(editing ? SettingsInk.ground : nameHover ? SettingsInk.selection : SettingsInk.group))
             .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(editing ? SettingsInk.edge : SettingsInk.hairline, lineWidth: 1))
             .onHover { nameHover = $0 }
-            .frame(maxWidth: 240, alignment: .leading)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 240)
             .accessibilityLabel("Name")
             .accessibilityIdentifier("settings.profileName")
             .settingsProbe("account.name")
@@ -215,8 +221,9 @@ struct AccountSettingsPage: View {
     private func storageBar(_ u: StorageUsage) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .firstTextBaseline) {
-                Text(Self.storageLine(u)).font(.system(size: 13)).monospacedDigit().foregroundStyle(SettingsInk.text)
+                Text("Storage").font(.system(size: 13)).foregroundStyle(SettingsInk.text)
                 Spacer()
+                Text(Self.storageLine(u)).font(.system(size: 13)).monospacedDigit().foregroundStyle(SettingsInk.muted)
                 if u.level != .fine {
                     Text(u.level == .full ? "Full" : "Almost full")
                         .font(.system(size: 12, weight: .semibold))
@@ -328,7 +335,7 @@ struct AppearanceSettingsPage: View {
                 TextSizeSample()
             }
             SettingsGroup {
-                SettingsLine(title: "Show in menu bar", detail: "Capture or find a note from the menu bar, even with the window closed.") {
+                SettingsLine(title: "Show in menu bar", detail: "Write or find a note with the window closed.") {
                     Toggle("Show in menu bar", isOn: $menuBar)
                         .settingsSwitch()
                         .accessibilityIdentifier("settings.menuBar")
@@ -346,7 +353,7 @@ struct TextSizeRow: View {
     @AppStorage(TextSize.key) private var stored: Double = 0
 
     static let label = "Note text"
-    static let footer = "Note text on this Mac. At the bigger sizes, the sidebar and note list grow with it. Make Text Bigger and Make Text Smaller in the View menu change it too."
+    static let footer = "View \u{203A} Make Text Bigger and Make Text Smaller change it too."
 
     var body: some View {
         let size = TextSize.size(stored: stored)

@@ -177,7 +177,7 @@ struct SettingsView: View {
         case .ai:
             SettingsPage {
                 if let client = backend.client {
-                    ConnectAISection(client: client, preview: connections)
+                    ConnectAISection(client: client, preview: connections, cards: true)
                     if NoteApps.enabled, NoteApps.realPreviews { AppPreviewSection(client: client) }
                 }
             }
@@ -638,53 +638,31 @@ private struct ProfileSection: View {
     #endif
 
     var body: some View {
+        // You at the top, centred, as Settings shows your Apple Account (Emil, 7 November 2026).
+        // Tap the photo to choose or remove one.
         Section {
-            HStack(spacing: 16) {
-                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 64)
-                    #if os(macOS)
-                    .dropDestination(for: URL.self) { urls, _ in
-                        guard let url = urls.first, let data = try? Data(contentsOf: url) else { return false }
-                        Task { await profile.setPhoto(data) }
-                        return true
-                    }
-                    #endif
-                VStack(alignment: .leading, spacing: 2) {
-                    TextField("Name", text: $draft, prompt: Text("Your Name"))
-                        .labelsHidden()
-                        .textFieldStyle(.plain)
-                        .multilineTextAlignment(.leading)
-                        .font(.title3.weight(.semibold))
-                        .focused($editing)
-                        .onSubmit(commit)
-                        .accessibilityLabel("Name")
-                        .accessibilityIdentifier("settings.profileName")
-                    Text(email)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .textSelection(.enabled)
+            VStack(spacing: 6) {
+                photo.padding(.bottom, 6)
+                TextField("Name", text: $draft, prompt: Text("Your Name"))
+                    .labelsHidden()
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.center)
+                    .font(.title2.weight(.semibold))
+                    .focused($editing)
+                    .onSubmit(commit)
+                    .accessibilityLabel("Name")
+                    .accessibilityIdentifier("settings.profileName")
+                Text(email)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                if let problem = profile.problem {
+                    Text(problem).font(.footnote).foregroundStyle(.secondary)
                 }
             }
-            .padding(.vertical, 4)
-            HStack(spacing: 10) {
-                #if os(iOS)
-                PhotosPicker(profile.photo == nil ? "Choose Photo…" : "Change Photo…", selection: $picked, matching: .images)
-                    .accessibilityIdentifier("settings.choosePhoto")
-                #else
-                Button(profile.photo == nil ? "Choose Photo…" : "Change Photo…") { importing = true }
-                    .accessibilityIdentifier("settings.choosePhoto")
-                #endif
-                if profile.photo != nil {
-                    Button("Remove Photo", role: .destructive) { Task { await profile.removePhoto() } }
-                        .accessibilityIdentifier("settings.removePhoto")
-                }
-                if profile.working { ProgressView().controlSize(.small) }
-            }
-            if let problem = profile.problem {
-                Text(problem).font(.footnote).foregroundStyle(.secondary)
-            }
-        } footer: {
-            Text("Shown in the app and on notes you share.")
+            .frame(maxWidth: .infinity)
+            .listRowBackground(Color.clear)
         }
         .onAppear { draft = profile.name ?? "" }
         .onChange(of: profile.name) { _, new in if !editing { draft = new ?? "" } }
@@ -711,6 +689,41 @@ private struct ProfileSection: View {
 
     private func commit() {
         Task { await profile.setName(draft) }
+    }
+
+    /// Your photo, with a pencil that says it can be changed: a tap chooses one, or removes it.
+    @ViewBuilder private var photo: some View {
+        let face = ZStack {
+            AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 84)
+            if profile.working { ProgressView() }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Image(systemName: "pencil")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.ink)
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(.background))
+                .overlay(Circle().strokeBorder(.separator, lineWidth: 0.5))
+                .offset(x: 2, y: 2)
+                .accessibilityHidden(true)
+        }
+        #if os(iOS)
+        Menu {
+            PhotosPicker(profile.photo == nil ? "Choose Photo\u{2026}" : "Change Photo\u{2026}", selection: $picked, matching: .images)
+                .accessibilityIdentifier("settings.choosePhoto")
+            if profile.photo != nil {
+                Button("Remove Photo", role: .destructive) { Task { await profile.removePhoto() } }
+                    .accessibilityIdentifier("settings.removePhoto")
+            }
+        } label: { face }
+        .buttonStyle(.plain)
+        .accessibilityLabel(profile.photo == nil ? "Choose photo" : "Change photo")
+        .accessibilityIdentifier("settings.photo")
+        #else
+        Button { importing = true } label: { face }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings.choosePhoto")
+        #endif
     }
 }
 

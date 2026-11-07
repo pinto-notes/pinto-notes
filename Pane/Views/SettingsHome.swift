@@ -210,7 +210,7 @@ enum HelpCopy {
     static let questions = "Questions and answers"
     static let feedback = "Send feedback"
     static let feedbackFooter = "Write to \(email) about a problem or an idea. You\u{2019}ll normally hear back within a day or two."
-    static let setupGuideFooter = "Shows the first steps again: your name, bringing your notes and connecting your AI."
+    static let setupGuideFooter = "Your name, bringing your notes and connecting your AI, again."
     static let openSource = "Open source on GitHub"
     static let openSourceFooter = "Pinto Notes is built in the open. Reporting an issue there needs a GitHub account."
     static let trademarks = "Evernote is a trademark of Bending Spoons US Inc., used under license. Bear is a trademark of Shiny Frog Ltd. Other names and icons belong to their owners."

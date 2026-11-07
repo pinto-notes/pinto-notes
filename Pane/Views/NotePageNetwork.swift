@@ -339,7 +339,7 @@ struct APIKeysSection: View {
         } header: {
             Text("API Keys")
         } footer: {
-            Text("A note that is an app can use these to reach a service, only at the addresses you list. The app never sees the key; Pinto Notes adds it to the request.")
+            Text("Note apps use these to reach a service, only at the addresses you list. The app never sees the key.")
         }
         .sheet(item: $editing) { d in APIKeyForm(draft: d) }
     }

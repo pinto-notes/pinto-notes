@@ -770,6 +770,23 @@ enum ConnectShell {
 // MARK: The words
 
 enum ConnectCopy {
+    /// Connect an AI's one line, on the Mac and iPhone: what it can do, and which company the notes
+    /// it opens go to (App Review 5.1.2). One line, not two: Emil, 7 November 2026.
+    static let page = "Your AI can read and edit your notes when you ask. The notes it opens go to its maker, like OpenAI or Anthropic."
+    /// A card's status line: where that AI stands.
+    static func cardStatus(other: Bool, accounts mine: [Connection]) -> String {
+        if mine.isEmpty { return other ? "Cursor, Codex and more" : "Not connected" }
+        if mine.count > 1 { return "\(mine.count) \(other ? "apps" : "accounts")" }
+        if other { return mine[0].title }
+        // Short units, so it fits a card on iPhone: "Used 5 min. ago".
+        return mine[0].last_used_at.map { "Used \($0.formatted(.relative(presentation: .named, unitsStyle: .abbreviated)))" } ?? "Connected"
+    }
+    /// A Disconnect item in a card's Manage: the AI's name for one account, when it was connected for several.
+    static func cardDisconnect(_ c: Connection, name: String, other: Bool, count: Int) -> String {
+        if other { return "Disconnect \(c.title)\u{2026}" }
+        if count == 1 { return "Disconnect \(name)\u{2026}" }
+        return "Disconnect the account connected \(c.created_at.formatted(.dateTime.day().month()))\u{2026}"
+    }
     typealias Guide = ConnectAISection.Guide
     static let why = "Your AI can then read and write your notes when you ask it to. " + shared
     /// What leaves and who gets it (App Review 5.1.1, 5.1.2): under Settings' Connect button.
@@ -865,6 +882,8 @@ struct ConnectChoices: View {
     var asksToFinish = true
     /// A short sheet (Make an App): no headings and no Having trouble? (Settings has both).
     var compact = false
+    /// Settings on iPhone: a card per AI, as on the Mac (Emil, 7 November 2026).
+    var cards = false
     /// Tells the view around it what is connected, each time it has been asked again.
     var onLoaded: (Set<String>) -> Void = { _ in }
 
@@ -901,7 +920,7 @@ struct ConnectChoices: View {
 
     var body: some View {
         Group {
-            if study, !active.isEmpty { yours } else { standard }
+            if cards { cardGrid } else if study, !active.isEmpty { yours } else { standard }
         }
         .disabled(reach != .online)
         .onAppear {
@@ -967,6 +986,90 @@ struct ConnectChoices: View {
             }
             if listsConnected, !active.isEmpty { connectedList.padding(.top, 8) }
         }
+    }
+
+    /// A card per AI, two by two: ChatGPT, Claude, Grok and Other apps. Each says where it stands,
+    /// with Connect… or Manage (each account's Disconnect, Connect another).
+    static let cardGuides: [Guide] = [.chatgpt, .claude, .grok, .other]
+    /// A card on the grouped page's ground, as a form's rows are.
+    #if os(iOS)
+    private static let cardGround = Color(uiColor: .secondarySystemGroupedBackground)
+    #else
+    private static let cardGround = Color(nsColor: .controlBackgroundColor)
+    #endif
+    static func cardAccounts(_ g: Guide, in connections: [Connection]) -> [Connection] {
+        connections.filter { c in
+            let owner = ConnectRun.owner(of: c)
+            return g == .other ? !cardGuides.dropLast().contains(owner) : owner == g
+        }.sorted { $0.created_at > $1.created_at }
+    }
+
+    private var cardGrid: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let ask = center.waiting().first { ConnectWaitingRow(ask: ask) }
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                ForEach(Self.cardGuides) { g in card(g) }
+            }
+            if let g = run.guide { fixButton; if Self.cardGuides.contains(g) || g == .codex { addedNote } }
+            if reach != .online {
+                Text(OfflineCopy.needsNetwork("connect an AI", reach: reach)).font(.footnote).foregroundStyle(Color.muted)
+            }
+            if let error, reach == .online {
+                Text(error).font(.footnote).foregroundStyle(.red)
+            }
+        }
+    }
+
+    private func card(_ g: Guide) -> some View {
+        let mine = Self.cardAccounts(g, in: active)
+        let other = g == .other
+        let name = other ? "Other apps" : g.shown
+        let working = run.guide == g && run.phase != nil
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                if other {
+                    Image(systemName: "plus").font(.system(size: 13, weight: .medium)).foregroundStyle(Color.muted)
+                        .frame(width: 30, height: 30)
+                        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color.muted.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+                } else {
+                    AITile(ai: g.title, size: 30)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                    HStack(spacing: 4) {
+                        if !mine.isEmpty { Circle().fill(.green).frame(width: 6, height: 6) }
+                        Text(working ? detail(g) : ConnectCopy.cardStatus(other: other, accounts: mine))
+                            .font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .accessibilityElement(children: .combine)
+            if working {
+                Accessory(state: state(g), size: Metrics.smallCheck)
+            } else if mine.isEmpty {
+                Button("Connect\u{2026}") { press(g) }
+                    .buttonStyle(.secondary(.compact))
+                    .accessibilityLabel("Connect \(name)")
+                    .accessibilityIdentifier("connect.add.\(g.rawValue)")
+            } else {
+                Menu {
+                    ForEach(mine) { c in
+                        Button(ConnectCopy.cardDisconnect(c, name: name, other: other, count: mine.count), role: .destructive) { removing = c }
+                    }
+                    Divider()
+                    Button(other ? "Connect another app\u{2026}" : "Connect another account\u{2026}") { press(g) }
+                } label: {
+                    Text("Manage")
+                }
+                .buttonStyle(.secondary(.compact))
+                .accessibilityLabel("Manage \(name)")
+                .accessibilityIdentifier("connect.manage.\(g.rawValue)")
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Self.cardGround))
     }
 
     /// The study (`connectStudy`, 2026-10-30), once an AI is connected: a library. One plain

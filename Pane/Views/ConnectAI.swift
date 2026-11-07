@@ -1659,6 +1659,8 @@ struct ConnectAISection: View {
     @Environment(\.settingsAsPage) private var asPage
     @Environment(\.connectStudy) private var study
     @State private var anyConnected = false
+    /// Settings on iPhone: a card per AI, as on the Mac, under one line (Emil, 7 November 2026).
+    var cards = false
 
     enum Guide: String, Identifiable, CaseIterable {
         case chatgpt, claude, grok, claudeCode, codex, incredible, other
@@ -1733,6 +1735,26 @@ struct ConnectAISection: View {
     }
 
     var body: some View {
+        if cards {
+            Section {
+                ConnectChoices(client: client, preview: preview, cards: true)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+            } header: {
+                Text(ConnectCopy.page)
+                    .font(.footnote)
+                    .foregroundStyle(Color.muted)
+                    .textCase(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 4)
+                    .accessibilityIdentifier("connect.sent")
+            }
+        } else {
+            plain
+        }
+    }
+
+    private var plain: some View {
         Section {
             VStack(alignment: .leading, spacing: 12) {
                 // The study says it under your AIs instead, once one is connected.
@@ -1823,7 +1845,7 @@ struct ConnectAIPage: View {
     /// What it can do and which company the notes go to, in one line at the top, in view in every
     /// stage (App Review rejected 1.2 for hiding the company). One line, not two: Emil, 7 November
     /// 2026, the line under the cards read "like an explanation for toddlers".
-    static let sent = "Your AI can read and edit your notes when you ask. The notes it opens go to its maker, like OpenAI or Anthropic."
+    static let sent = ConnectCopy.page
 
     /// The line under a connected one: when it was last used. One the list names by its AI is that
     /// AI already (its sign-in went to the AI's own address); the others say where access went too.
@@ -1916,19 +1938,14 @@ struct ConnectAIPage: View {
         .settingsProbe("connect.card")
     }
 
-    /// What a card's status line says.
+    /// What a card's status line says (shared with iPhone's cards).
     static func status(_ tile: SetupCards.AI, accounts mine: [Connection]) -> String {
-        if mine.isEmpty { return tile == .other ? "Cursor, VS Code, Codex and more" : "Not connected" }
-        if mine.count > 1 { return "\(mine.count) \(tile == .other ? "apps" : "accounts")" }
-        if tile == .other { return mine[0].title }
-        return mine[0].last_used_at.map { "Used \($0.formatted(.relative(presentation: .named)))" } ?? "Connected"
+        ConnectCopy.cardStatus(other: tile == .other, accounts: mine)
     }
 
-    /// A Disconnect item in Manage: the AI's name for one account, when it was connected for several.
+    /// A Disconnect item in Manage.
     static func disconnectTitle(_ c: Connection, tile: SetupCards.AI, count: Int) -> String {
-        if tile == .other { return "Disconnect \(c.title)\u{2026}" }
-        if count == 1 { return "Disconnect \(tile.name)\u{2026}" }
-        return "Disconnect the account connected \(c.created_at.formatted(.dateTime.day().month()))\u{2026}"
+        ConnectCopy.cardDisconnect(c, name: tile.name, other: tile == .other, count: count)
     }
 
     private func aiCard(_ t: SetupCards.AI) -> some View {

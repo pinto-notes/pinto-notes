@@ -549,7 +549,8 @@ import Testing
             #expect(frames.all[part] != nil, "\(part) is there")
         }
         let photo = try #require(frames.all["account.photo"]), name = try #require(frames.all["account.name"])
-        #expect(name.minX > photo.maxX && status.minX >= name.maxX && status.maxY <= name.maxY + 8, "the name beside the photo, the status top right")
+        #expect(name.minY > photo.maxY && abs(name.midX - photo.midX) < 1, "the name centred under the photo, as System Settings shows you")
+        #expect(status.minY > name.maxY, "sync is a row under you")
         // What the status runs when clicked: a sync.
         AccountSettingsPage.syncNow(nil) { synced.n += 1 }
         for _ in 0..<20 where synced.n == 0 { try await Task.sleep(for: .milliseconds(50)) }

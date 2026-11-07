@@ -42,7 +42,7 @@ enum PrivacyCopy {
     /// Without one (Advanced protection on, or an account that hasn't answered the one-time question).
     static let backInFooterDevicesOnly = "Only your devices and the AIs you connect can open your notes. If you lose your devices, a recovery key opens them."
     static func backInFooter(serverCopy: Bool) -> String { serverCopy ? backInFooterWithCopy : backInFooterDevicesOnly }
-    static let aiFooter = "Each AI holds its own copy of your key. Disconnect one to take it off this list."
+    static let aiFooter = "Each AI holds its own copy of your key."
     static let recoveryKey = "Recovery key"
     static let recoverySaved = "Saved"
     static let recoveryNotSaved = "Not saved"
@@ -131,7 +131,7 @@ enum PrivacyCopy {
     static let recoveryChangedTitle = "Your recovery key changed"
     static let recoveryChanged = "Your account started fresh on another device, so a recovery key you saved before no longer opens your notes. The new one is here."
     static let recoveryChangedAlert = "Your account started fresh on another device, so it has a new recovery key. If you keep one, the new one is in \(settingsPath)."
-    static let exportFooter = "Every note as a Markdown file in its folder, with its files. Your notes are encrypted, so the export is made on this device."
+    static let exportFooter = "Every note as a Markdown file, with its files, made on this device."
     static let exportFooterLocal = "Every note on this device as a Markdown file in its folder, with its files."
 }
 
@@ -489,7 +489,7 @@ struct PrivacySecuritySection: View {
                 if let p = c.pintoNotes { opener(p).accessibilityIdentifier("privacy.serverCopy") }
                 ForEach(c.ais) { opener($0) }
                 if c.addsDevices {
-                    SettingsLine(title: "Add a device", detail: "Your iPhone, iPad or another Mac, approved from this Mac.") {
+                    SettingsLine(title: "Add a device", detail: "iPhone, iPad or another Mac") {
                         Image(systemName: "plus").font(.system(size: 13, weight: .medium)).foregroundStyle(SettingsInk.icon).frame(width: 28)
                     } trailing: {
                         Button("Add\u{2026}") { adding = true }
@@ -517,7 +517,7 @@ struct PrivacySecuritySection: View {
     private func recoveryGroup(_ recovery: SecurityContent.Recovery) -> some View {
         SettingsGroup {
             SettingsLine(title: recovery == .saved ? PrivacyCopy.recoveryKey : PrivacyCopy.saveARecoveryKey,
-                         detail: recovery == .saved ? PrivacyCopy.recoverySaved + ". " + PrivacyCopy.saveARecoveryKeyLine : PrivacyCopy.saveARecoveryKeyLine) {
+                         detail: recovery == .saved ? PrivacyCopy.recoverySaved : PrivacyCopy.saveARecoveryKeyLine) {
                 Image(systemName: "key.horizontal").font(.system(size: 14)).foregroundStyle(SettingsInk.icon).frame(width: 28)
             } trailing: {
                 HStack(spacing: 6) {
@@ -530,7 +530,7 @@ struct PrivacySecuritySection: View {
                                 .accessibilityIdentifier("privacy.hideRecovery")
                         } else {
                             Button("Show") { Task { await reveal(reason: PrivacyCopy.showReason) { shown = $0 } } }
-                                .buttonStyle(.hoverText).foregroundStyle(SettingsInk.muted)
+                                .buttonStyle(.settings)
                                 .accessibilityLabel(PrivacyCopy.showRecovery)
                                 .accessibilityIdentifier("privacy.showRecovery")
                         }

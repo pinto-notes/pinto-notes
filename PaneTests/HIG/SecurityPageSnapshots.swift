@@ -102,5 +102,30 @@ import UIKit
             }
         }
     }
+
+    /// Settings on iPhone, signed in: the list and every page, light and dark, and each page's end
+    /// (7 November 2026). `-only-testing:PaneTests/SecurityPageSnapshots/phoneSettings()`.
+    @Test func phoneSettings() async throws {
+        guard ListLayoutSnapshots.dir != nil else { return }
+        let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        let crypto = try await AdvancedProtectionHiddenTests.standard()
+        defer { crypto.signedOut() }
+        let devices = AddDeviceSnapshots.devices([SecurityPageSnapshots.mac, SecurityPageSnapshots.phone])
+        func view(_ tab: SettingsTab?) -> some View {
+            let route = SettingsRoute(defaults: UserDefaults(suiteName: "phone-settings-\(UUID())")!)
+            if let tab { route.open(tab) }
+            return SettingsView(backend: backend, sync: nil, crypto: crypto, devices: devices, connections: SecurityPageSnapshots.ais, route: route)
+        }
+        let tabs: [SettingsTab?] = [nil] + SettingsTab.phoneGroups.flatMap { $0 } + [.account]
+        for tab in tabs {
+            let name = "phone-\(tab?.rawValue ?? "home")"
+            for dark in [false, true] {
+                try await ListLayoutSnapshots.shoot(view(tab), "\(name)-\(dark ? "dark" : "light")", dark: dark, wait: 1.5)
+            }
+            try await ListLayoutSnapshots.shoot(view(tab), "\(name)-end-light", dark: false, scroll: .infinity, wait: 1.5)
+        }
+    }
     #endif
 }

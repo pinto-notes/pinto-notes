@@ -4,7 +4,7 @@ import SwiftUI
 /// sign-in form. docs/Technical/app-telemetry.md lists everything that's sent.
 enum DiagnosticsCopy {
     static let title = "Share diagnostics and usage"
-    static let footer = "Sends error and crash reports, how fast the app is, and a few counts such as “signed in” and “first sync”, linked to your account. Never your notes, their titles, file names or anything you type."
+    static let footer = "Error reports, speed and a few counts like “first sync”, linked to your account. Never your notes, titles, file names or what you type."
     /// Under the sign-in form, where an account is made.
     /// Two lines on the sign-in card at 11 pt, each measured to fit (council round 9: the first
     /// sentence wrapped after "never your").
