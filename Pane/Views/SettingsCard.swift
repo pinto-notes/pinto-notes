@@ -399,7 +399,7 @@ struct SettingsCard: View {
             if p == .account, case .signedIn = backend.state {
                 AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 18)
             } else {
-                Image(systemName: p.symbol).font(.system(size: 14)).foregroundStyle(Color.paneAccent)
+                Image(systemName: p.symbol).font(.system(size: 14)).foregroundStyle(SettingsInk.text)  // the text's colour, not the accent (Emil, 7 November 2026)
             }
         }
         .frame(width: 20)
@@ -432,8 +432,14 @@ struct SettingsCard: View {
 
     /// Under your name: the email you sign in with (a label saying what kind of account said nothing), or how to sign in.
     static func accountLine(_ backend: Backend) -> String {
-        if case .signedIn(let email) = backend.state { return backend.displayEmail ?? email }
+        if case .signedIn(let email) = backend.state { return accountLine(email: backend.displayEmail ?? email) }
         return "Sign in to sync"
+    }
+
+    /// An email to show under your name. Apple's relay address ("f7k6w27tsh@privaterelay.appleid.com")
+    /// is random letters nobody knows, so it says how you sign in instead.
+    static func accountLine(email: String) -> String {
+        email.hasSuffix("privaterelay.appleid.com") ? "Signed in with Apple" : email
     }
 
     private func row(_ p: SettingsPage) -> some View {

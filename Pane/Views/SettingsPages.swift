@@ -367,30 +367,53 @@ struct AccountSettingsPage: View {
     }
     #endif
 
-    /// Your name, edited where it is: a click or tap puts the caret in it, Return or leaving keeps it.
+    /// Your name as plain text with a pencil beside it, like the photo's (Emil, 7 November 2026: no box).
+    /// A click or tap on the name or the pencil puts the caret in it; Return or leaving keeps it.
     private var name: some View {
-        TextField("Name", text: $draft, prompt: Text("Add your name").foregroundStyle(Color.muted))
-            .labelsHidden()
-            .textFieldStyle(.plain)
-            .font(.title3.weight(.semibold))
-            .foregroundStyle(Color.ink)
-            .multilineTextAlignment(.center)
-            .focused($editing)
-            .onSubmit { Task { await profile.setName(draft) } }
-            #if os(macOS)
-            // Always a field on the Mac, so it reads as one you can type in (Emil, 6 November 2026).
-            .padding(.horizontal, 8)
-            .frame(height: 30)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(editing ? SettingsInk.ground : nameHover ? SettingsInk.selection : SettingsInk.group))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(editing ? SettingsInk.edge : SettingsInk.hairline, lineWidth: 1))
-            .onHover { nameHover = $0 }
-            .frame(maxWidth: 240)
-            #endif
+        let font = Font.title3.weight(.semibold)
+        return HStack(spacing: 6) {
+            Color.clear.frame(width: Self.namePencil, height: 1)  // keeps the name centred under the photo
+            ZStack {
+                // The field is as wide as what it shows, so the pencil sits right after the name.
+                Text(draft.isEmpty ? "Add your name" : draft).font(font).lineLimit(1).padding(.horizontal, 2).hidden()
+                TextField("Name", text: $draft, prompt: Text("Add your name").foregroundStyle(Color.muted))
+                    .labelsHidden()
+                    .textFieldStyle(.plain)
+                    .font(font)
+                    .foregroundStyle(Color.ink)
+                    .multilineTextAlignment(.center)
+                    .focused($editing)
+                    .onSubmit { Task { await profile.setName(draft) } }
+            }
+            .frame(maxWidth: 260)
+            .fixedSize()
             .accessibilityLabel("Name")
             .accessibilityIdentifier("settings.profileName")
             .settingsProbe("account.name")
+            Button { editing = true } label: {
+                Image(systemName: "pencil")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Color.ink)
+                    .frame(width: Self.namePencil, height: Self.namePencil)
+                    .background(Circle().fill(.background))
+                    #if os(macOS)
+                    .overlay(Circle().fill(SettingsInk.selection).opacity(nameHover ? 1 : 0))
+                    #endif
+                    .overlay(Circle().strokeBorder(.separator, lineWidth: 0.5))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            #if os(macOS)
+            .onHover { nameHover = $0 }
+            .help("Change your name")
+            #endif
+            .opacity(editing ? 0 : 1)
+            .accessibilityLabel("Change name")
+            .accessibilityIdentifier("settings.renameProfile")
+        }
     }
+
+    static let namePencil: CGFloat = 20
 
     @ViewBuilder private var signedOut: some View {
         Section {

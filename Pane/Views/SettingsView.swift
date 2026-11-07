@@ -183,10 +183,11 @@ struct SettingsView: View {
                 LabeledContent {
                     Text(usage.summary).monospacedDigit()
                 } label: {
-                    Label(p.title, systemImage: p.symbol)
+                    Label(p.title, systemImage: p.symbol).foregroundStyle(Color.ink)
                 }
             } else {
-                Label(p.title, systemImage: p.symbol)
+                // Icons in the text's colour, not the accent, on both apps (Emil, 7 November 2026).
+                Label(p.title, systemImage: p.symbol).foregroundStyle(Color.ink)
             }
         }
         .accessibilityIdentifier("settings.\(p.rawValue)")
@@ -464,7 +465,7 @@ private struct AccountRow: View {
                 Text(profile.name ?? "Your Name")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(profile.name == nil ? .secondary : .primary)
-                Text(email)
+                Text(SettingsCard.accountLine(email: email))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

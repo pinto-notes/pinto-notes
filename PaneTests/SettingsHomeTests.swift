@@ -160,6 +160,8 @@ import Carbon.HIToolbox
 
     @Test func howYouSignInIsSaidPlainly() {
         #expect(SignInShown.label(email: "f7k6w27tsh@privaterelay.appleid.com", apple: true, google: false) == "Apple")
+        #expect(SettingsCard.accountLine(email: "f7k6w27tsh@privaterelay.appleid.com") == "Signed in with Apple", "never a relay address under your name")
+        #expect(SettingsCard.accountLine(email: "emil@example.com") == "emil@example.com")
         #expect(SignInShown.label(email: "f7k6w27tsh@privaterelay.appleid.com", apple: false, google: false) == "Apple")
         #expect(SignInShown.label(email: "sara@gmail.com", apple: false, google: true) == "Google")
         #expect(SignInShown.label(email: "sara@example.com", apple: false, google: false) == "sara@example.com")
