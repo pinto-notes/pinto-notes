@@ -549,10 +549,16 @@ import Testing
     /// one-pixel separator runs between them, from the window's top edge (the toolbar band) to the
     /// bottom, light and dark: it stands out from the ground on both sides, and is one pixel wide.
     /// Before macOS 27. From 27 the system's own divider is the line, softened by ListEdgeLine.
-    @Test(.enabled(if: !ColumnHairline.systemDrawsIt)) func aHairlineSeparatesTheListFromTheNote() async throws {
+    @Test func lightModeKeepsItsLineOnMacOS27() {
+        #expect(ColumnHairline.draws(dark: false, systemDrawsIt: true), "light: the system's divider leaves nothing, so the line is ours")
+        #expect(!ColumnHairline.draws(dark: true, systemDrawsIt: true), "dark: the system's divider shows, no second line")
+        #expect(ColumnHairline.draws(dark: true, systemDrawsIt: false) && ColumnHairline.draws(dark: false, systemDrawsIt: false))
+    }
+
+    @Test func aHairlineSeparatesTheListFromTheNote() async throws {
         let c = try AppSnapshotTests.container()
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
-            for dark in [false, true] {
+            for dark in [false, true] where ColumnHairline.draws(dark: dark) {
                 // Drawn the way the HIG snapshots draw the window's content (no toolbar here: the
                 // line runs into the toolbar band through ignoresSafeArea).
                 let size = CGSize(width: 1469, height: 920)

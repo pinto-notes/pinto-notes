@@ -1510,8 +1510,15 @@ struct ColumnHairline: View {
     /// macOS 27 draws its own divider here, so a second line only made it harder.
     static var systemDrawsIt: Bool { if #available(macOS 27, *) { true } else { false } }
 
+    /// Whether this line is drawn. In light mode macOS 27's divider, once ListEdgeLine hides its
+    /// bright ground, leaves nothing between the white list and the white note (Emil, 7 November
+    /// 2026), so the line is ours there; in dark mode the system's still shows.
+    static func draws(dark: Bool, systemDrawsIt: Bool = systemDrawsIt) -> Bool { !systemDrawsIt || !dark }
+
+    @Environment(\.colorScheme) private var scheme
+
     var body: some View {
-        if !Self.systemDrawsIt {
+        if Self.draws(dark: scheme == .dark) {
             Rectangle()
                 .fill(Self.colour)
                 .frame(width: 1 / max(scale, 1))
