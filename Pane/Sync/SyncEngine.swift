@@ -36,6 +36,8 @@ final class SyncEngine {
     enum Reach: Equatable { case online, offline, unreachable }
 
     private(set) var status: Status = .idle
+    /// Bumped by every `stop`: work that began before it and resumes after takes nothing in.
+    private(set) var generation = 0
     /// What the last sync found (see `Reach`); `reach` adds what the network path says.
     private var lastReach = Reach.online
     var reach: Reach { path.isUp ? lastReach : .offline }
@@ -100,6 +102,15 @@ final class SyncEngine {
     private var cursor: Date {
         get { defaults.object(forKey: cursorKey) as? Date ?? .distantPast }
         set { defaults.set(newValue, forKey: cursorKey) }
+    }
+    /// The note pages' own cursor (pull).
+    private var pagesCursor: Date {
+        get { defaults.object(forKey: cursorKey + ".pages") as? Date ?? .distantPast }
+        set { defaults.set(newValue, forKey: cursorKey + ".pages") }
+    }
+    private func forgetCursors() {
+        defaults.removeObject(forKey: cursorKey)
+        defaults.removeObject(forKey: cursorKey + ".pages")
     }
     /// Where the pull cursor is kept; tests give each simulated device its own.
     private let defaults: UserDefaults
@@ -193,6 +204,32 @@ final class SyncEngine {
     private func run(_ client: SupabaseClient, pulling: Bool) async {
         // The key can go (signed out, Start fresh) between runs.
         guard let sealer = Wire.sealer else { return }
+        // And during one (signed out, another account, Start fresh): the run keeps the key it
+        // started with, which then stops sealing and opening (Sealer.retire), and the run stops
+        // before anything else is written or taken in.
+        // The engine can also be stopped meanwhile (signed out, the library erased or handed to
+        // another account): what the run then gets back is for a library that's gone.
+        let gen = generation
+        await Wire.$runSealer.withValue(sealer) { await run(client, pulling: pulling, sealer: sealer, gen: gen) }
+    }
+
+    struct Stopped: Error {}
+    struct LibraryNotSaved: Error {}
+
+    /// Saves the library after a pull; tests make it fail.
+    var saveLibrary: (ModelContext) -> Bool = { $0.saveOrReport() }
+
+    /// Stops a run whose key is no longer the account's, or whose engine stopped since it began.
+    private func ensure(_ sealer: Sealer, _ gen: Int) throws {
+        if sealer.isRetired { throw Sealer.Retired() }
+        if gen != generation { throw Stopped() }
+    }
+
+    /// Whether a run (or anything else that awaited) began before the engine last stopped, or
+    /// with a key that's no longer the account's.
+    private func outlived(_ sealer: Sealer?, _ gen: Int) -> Bool { gen != generation || sealer?.isRetired == true }
+
+    private func run(_ client: SupabaseClient, pulling: Bool, sealer: Sealer, gen: Int) async {
         // No network: nothing is tried (each read would be retried for seconds first). What's
         // waiting goes up when it's back (networkChanged).
         guard path.isUp else {
@@ -204,17 +241,21 @@ final class SyncEngine {
         if pulling { status = .syncing }
         let began = Date.now
         do {
-            let slowedDown = try await push(client, sealer: sealer)
+            let slowedDown = try await push(client, sealer: sealer, gen: gen)
+            try ensure(sealer, gen)
             await pushPages(client, sealer: sealer)
+            try ensure(sealer, gen)
             await pushPageData(client, sealer: sealer)
-            await pushAPIKeyNames(client, sealer: sealer)
+            try ensure(sealer, gen)
+            await pushAPIKeyNames(client, sealer: sealer, gen: gen)
+            try ensure(sealer, gen)
             if pulling {
                 // An empty library that remembers where sync was (the library was removed and the
                 // settings weren't): everything comes down again, not just what changed since.
-                if cursor != .distantPast, Self.holdsNothing(context) { defaults.removeObject(forKey: cursorKey) }
+                if cursor != .distantPast, Self.holdsNothing(context) { forgetCursors() }
                 let fromTheStart = cursor == .distantPast
                 let first = !hasSynced
-                try await pull(client)
+                try await pull(client, sealer: sealer, gen: gen)
                 hasSynced = true
                 if !knowsAccount {
                     accountIsNew = fromTheStart && Self.holdsNothing(context)
@@ -236,6 +277,13 @@ final class SyncEngine {
                 status = .synced(.now)
             }
         } catch {
+            // The key changed meanwhile: not a failure, and nothing to report. The next run uses
+            // the new key, if there is one.
+            if outlived(sealer, gen) {
+                log.notice("the account's key changed or sync stopped during a run; it stopped")
+                if status == .syncing { status = .idle }
+                return
+            }
             log.error("sync failed: \(String(describing: error), privacy: .public)")
             status = .offline(Self.describe(error))
             if let r = Self.reach(after: error), r != lastReach { lastReach = r }
@@ -353,6 +401,7 @@ final class SyncEngine {
     /// Another device (or an AI) changed a note: apply the row it carries, or fetch it.
     private func received(_ action: AnyAction) async {
         guard let client = backend.client, case .signedIn = backend.state else { return }
+        let gen = generation, sealer = Wire.sealer
         let record: [String: AnyJSON]
         switch action {
         case .insert(let a): record = a.record
@@ -366,6 +415,7 @@ final class SyncEngine {
             // Rows too large for a realtime message arrive without their body.
             rows = (try? await client.from("notes").select().eq("id", value: uuid).execute().value) ?? []
         }
+        guard !outlived(sealer, gen) else { return }
         guard !rows.isEmpty else { schedule(after: 0.25); return }
         take(rows)
     }
@@ -426,7 +476,7 @@ final class SyncEngine {
         guard startedFreshHere || (known != nil && known != keyID) else { return }
         DebouncedSave.flushAll()
         let n = Self.markAllForUpload(context)
-        defaults.removeObject(forKey: cursorKey)
+        forgetCursors()
         synced = [:]
         refused = [:]
         problem = nil
@@ -459,7 +509,7 @@ final class SyncEngine {
         guard let uid = backend.userID, !defaults.bool(forKey: Self.resetKey(uid)) else { return }
         DebouncedSave.flushAll()
         let (removed, kept) = Self.resetOldLibrary(context)
-        defaults.removeObject(forKey: cursorKey)
+        forgetCursors()
         synced = [:]
         refused = [:]
         defaults.set(true, forKey: Self.resetKey(uid))
@@ -606,6 +656,8 @@ final class SyncEngine {
     }
 
     func stop() async {
+        // Whatever is still on its way (a run, a realtime fetch, a download) takes nothing in.
+        generation += 1
         // Signed out: nothing already scheduled may still go up.
         started = false
         // The next sign-in may be another account: what's known about this one goes.
@@ -631,7 +683,7 @@ final class SyncEngine {
 
     /// Pushes dirty rows. Returns true when the server said "too fast" and the rest should
     /// wait; rows it refuses outright are set aside instead of failing the whole sync.
-    private func push(_ client: SupabaseClient, sealer: Sealer) async throws -> Bool {
+    private func push(_ client: SupabaseClient, sealer: Sealer, gen: Int) async throws -> Bool {
         problem = nil
         // Folders first: a file or note made offline in a new folder points at it, and the server
         // refuses a row whose folder it doesn't have yet.
@@ -643,7 +695,7 @@ final class SyncEngine {
             folders.removeAll { leftovers.contains($0.id) }
             dropForeignFolders(leftovers)
             // They may be this account's own folders: everything comes down again, as on the server.
-            defaults.removeObject(forKey: cursorKey)
+            forgetCursors()
             log.notice("removed \(leftovers.count) folders an account switch had marked deleted; pulling everything again")
         }
         let foreign = try await foreignFolders(client, among: folders)
@@ -655,6 +707,7 @@ final class SyncEngine {
             let row = FolderDTO(f)
             do {
                 let saved: [FolderDTO] = try await client.from("folders").upsert(row).select().execute().value
+                try ensure(sealer, gen)
                 if !saved.isEmpty, f.updatedAt <= row.updated_at {
                     f.serverVersion = 1
                     f.dirty = false
@@ -676,7 +729,7 @@ final class SyncEngine {
                 }
             }
         }
-        if try await pushFiles(client, sealer: sealer) { return true }
+        if try await pushFiles(client, sealer: sealer, gen: gen) { return true }
 
         // A sub-note made offline under a note made offline goes up after it.
         let notes = Self.parentsFirst((try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.dirty }))) ?? [])
@@ -690,6 +743,8 @@ final class SyncEngine {
                     saved = try await client.from("notes").upsert(row, ignoreDuplicates: true).select().execute().value
                     if saved.isEmpty {
                         // Already on the server (e.g. created there first): treat as an update.
+                        // Usually this device's own insert whose answer was lost, so it isn't a
+                        // conflict to keep a copy of.
                         saved = try await client.from("notes").update(row.patch).eq("id", value: n.id).select().execute().value
                     }
                 } else {
@@ -711,6 +766,7 @@ final class SyncEngine {
                 case nil: throw error
                 }
             }
+            try ensure(sealer, gen)
             if let s = saved.first {
                 remember(s)
                 if s.shared_note_id != nil { n.sharedDocument?.pointerOnServer = true }
@@ -946,7 +1002,7 @@ final class SyncEngine {
     }
 
     /// Uploads new files sealed, then their sealed metadata. Returns true when the server said "too fast".
-    private func pushFiles(_ client: SupabaseClient, sealer: Sealer) async throws -> Bool {
+    private func pushFiles(_ client: SupabaseClient, sealer: Sealer, gen: Int) async throws -> Bool {
         guard let uid = backend.userID else { return false }
         let files = (try? context.fetch(FetchDescriptor<Attachment>(predicate: #Predicate { $0.dirty || !$0.uploaded }))) ?? []
         for a in files where !isRefused(a.id, a.createdAt) {
@@ -964,13 +1020,22 @@ final class SyncEngine {
                 }
                 if !a.uploaded, a.deletedAt == nil {
                     guard FileStore.exists(a) else { continue }
+                    let sending = a.contentVersion
                     let data = try Data(contentsOf: FileStore.url(for: a.id, filename: a.filename))
                     try await client.storage.from("files").upload(path, data: try sealer.sealFile(data, id: a.id),
                                                                   options: FileOptions(contentType: "application/octet-stream", upsert: true))
+                    try ensure(sealer, gen)
+                    // Saved again here while those bytes were on their way: the newer ones go up
+                    // next, and until then the row doesn't say the server has them.
+                    guard a.contentVersion == sending else { continue }
                     a.size = Int64(data.count)
                     a.uploaded = true
                 }
+                let sent = (version: a.contentVersion, modified: a.modifiedAt)
                 try await client.from("attachments").upsert(AttachmentDTO(a, path: path)).execute()
+                try ensure(sealer, gen)
+                // Changed here meanwhile (new bytes, renamed, moved): that goes up next.
+                guard a.contentVersion == sent.version, a.modifiedAt == sent.modified else { continue }
                 a.dirty = false
                 a.bytesEdited = false
                 // Deleted for good here: the sealed bytes leave Storage too, with its earlier versions
@@ -1072,17 +1137,30 @@ final class SyncEngine {
     /// Fetches a file's bytes from Storage to this device.
     func download(_ a: Attachment) async -> Bool {
         guard let client = backend.client, let uid = backend.userID, let sealer = Wire.sealer else { return false }
+        let gen = generation
         do {
             let data = try await Self.fetchFile(client: client, user: uid, id: a.id, sealer: sealer)
+            // The library may have been erased or handed over meanwhile: the bytes aren't its.
+            guard !outlived(sealer, gen) else { return false }
             let url = FileStore.url(for: a.id, filename: a.filename)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try data.write(to: url, options: .atomic)
             return true
         } catch {
+            if outlived(sealer, gen) { return false }
             log.error("download failed: \(String(describing: error), privacy: .public)")
             Telemetry.shared.record(.fileDownloadFailed(FailureSummary(error)))
             return false
         }
+    }
+
+    /// Sends this device's note over the server's row `s`, only if that's still the server's
+    /// version: a third write that landed meanwhile isn't overwritten. Empty when it did; the note
+    /// stays to go up, and the next push resolves against the newer row.
+    private func update(_ client: SupabaseClient, _ n: Note, over s: NoteDTO) async throws -> [NoteDTO] {
+        var query = try client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id)
+        if let v = s.version { query = query.eq("version", value: Int(v)) }
+        return try await query.select().execute().value
     }
 
     /// The server changed this note since we last saw it, and so did we.
@@ -1120,12 +1198,27 @@ final class SyncEngine {
                 if s.body != n.body, s.body != SharedNotes.placeholder(title: NoteText.title(of: s.body)) {
                     insertConflictCopy(Self.conflictCopyID(of: n.id, server: s.version), body: Self.conflictCopy(of: s.body), folder: n.folder, at: s.updated_at)
                 }
-                return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
+                return try await update(client, n, over: s)
             }
             if s.updated_at > n.updatedAt { apply(s, to: n); return server }
-            return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
+            return try await update(client, n, over: s)
         }
-        if s.body == n.body && s.locked_body == n.lockedBody && Self.sameProps(s, n) { return server }
+        if s.body == n.body && s.locked_body == n.lockedBody && Self.sameProps(s, n) {
+            // The same text, but not necessarily the same place: a move, trash, restore or pin made
+            // here and one made elsewhere are put together, each side's change kept.
+            let mine = Place(n), theirs = Place(s)
+            guard !mine.same(as: theirs), let sv = s.version else { return server }
+            let base = syncedPlace[n.id].flatMap { $0.version == n.serverVersion ? $0.place : nil }
+            let merged = Place.merge(base: base, mine: mine, theirs: theirs)
+            var patch = NoteDTO(n).patch
+            merged.write(to: &patch)
+            let saved: [NoteDTO] = try await client.from("notes").update(patch)
+                .eq("id", value: n.id).eq("version", value: Int(sv)).select().execute().value
+            // Moved on again meanwhile: the next push tries again.
+            guard saved.first != nil else { return [] }
+            if !merged.same(as: mine) { merged.write(to: n, folder: merged.folder.flatMap { context.folder($0) }) }
+            return saved
+        }
         // A locked note's text is sealed: there's nothing to merge line by line.
         let sealed = s.locked_body != nil || n.lockedBody != nil
         // Both typed since the version we last had: where the edits don't touch the same lines,
@@ -1167,7 +1260,7 @@ final class SyncEngine {
         // Ours is newer: it goes up, and theirs is kept here as a conflicted copy (the server
         // keeps it in note_revisions too), so neither edit is lost.
         insertConflictCopy(copyID, body: Self.conflictCopy(of: s.body), frontMatter: s.hasProps ? s.front_matter : n.frontMatter, folder: n.folder, at: s.updated_at)
-        return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
+        return try await update(client, n, over: s)
     }
 
     /// The conflicted copy made for a note against one server version always has the same id: when
@@ -1214,7 +1307,7 @@ final class SyncEngine {
             apply(s, to: n)
             return [s]
         }
-        return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
+        return try await update(client, n, over: s)
     }
 
     /// Front matter from both sides, put together like the text: one side's change is taken, and
@@ -1296,7 +1389,7 @@ final class SyncEngine {
 
     /// The names of the API keys set up here (never their values), so an AI can say which key an
     /// app needs. Sent when they change; the values stay in the Keychain.
-    private func pushAPIKeyNames(_ client: SupabaseClient, sealer: Sealer) async {
+    private func pushAPIKeyNames(_ client: SupabaseClient, sealer: Sealer, gen: Int) async {
         struct Row: Encodable { var id: UUID; var meta_ct: String }
         let keys = APIKeyStore.shared.keys
         let stamp = keys.map { "\($0.name)|\($0.hosts.joined(separator: ","))" }.joined(separator: ";")
@@ -1309,6 +1402,8 @@ final class SyncEngine {
                 let meta = (try? JSONSerialization.data(withJSONObject: ["name": k.name, "hosts": k.hosts, "set": true])).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
                 return sealer.seal(meta, context: "api-key:" + id.uuidString.lowercased()).map { Row(id: id, meta_ct: $0) }
             }
+            // A key that went meanwhile seals nothing: that isn't "no keys", so nothing is removed.
+            try ensure(sealer, gen)
             if !rows.isEmpty { try await client.from("api_key_names").upsert(rows).execute() }
             let keep = rows.map { $0.id.uuidString.lowercased() }
             if keep.isEmpty {
@@ -1324,7 +1419,7 @@ final class SyncEngine {
 
     // MARK: Pull
 
-    private func pull(_ client: SupabaseClient) async throws {
+    private func pull(_ client: SupabaseClient, sealer: Sealer, gen: Int) async throws {
         // Overlap the cursor a little: rows can commit slightly out of timestamp order.
         let since = cursor == .distantPast ? cursor : cursor.addingTimeInterval(-5)
         var newest = cursor
@@ -1334,16 +1429,15 @@ final class SyncEngine {
         // limit would be skipped for good.
         let stamp = since.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true))
         var folderRows: [FolderDTO] = []
-        while true {
-            let page: [FolderDTO] = try await client.from("folders").select().gt("server_updated_at", value: stamp)
-                .order("server_updated_at").order("id").range(from: folderRows.count, to: folderRows.count + 999).execute().value
-            folderRows += page
-            if page.count < 1000 { break }
-        }
+        try await Self.changedRows(client, "folders", since: stamp, size: 1000) { (page: [FolderDTO]) in folderRows += page }
+        // Nothing read with a key that's no longer the account's is taken in.
+        try ensure(sealer, gen)
         var byID = Dictionary(uniqueKeysWithValues: context.allFoldersIncludingDeleted().map { ($0.id, $0) })
+        var appliedFolders: [FolderDTO] = []
         for r in folderRows where !r.unreadable || skipUnreadable(r.id, "A folder") {
             let f = byID[r.id] ?? { let f = Folder(name: r.name); f.id = r.id; context.insert(f); byID[r.id] = f; return f }()
             if f.dirty && f.serverVersion > 0 { continue }
+            appliedFolders.append(r)
             f.name = r.name
             f.sortIndex = r.sort_index
             f.createdAt = r.created_at
@@ -1354,18 +1448,14 @@ final class SyncEngine {
             if let s = r.server_updated_at, s > newest { newest = s }
             changed = true
         }
-        // Parents after every folder exists.
-        for r in folderRows { byID[r.id]?.parent = r.parent_id.flatMap { byID[$0] } }
+        // Parents after every folder exists. Only for the folders taken above: one moved here and
+        // not sent yet keeps the parent this device gave it.
+        for r in appliedFolders { byID[r.id]?.parent = r.parent_id.flatMap { byID[$0] } }
 
         var fileRows: [AttachmentDTO] = []
         var goneFromStorage: [String] = []
         defer { if !goneFromStorage.isEmpty { Task { [goneFromStorage] in _ = try? await client.storage.from("files").remove(paths: goneFromStorage) } } }
-        while true {
-            let page: [AttachmentDTO] = try await client.from("attachments").select().gt("server_updated_at", value: stamp)
-                .order("server_updated_at").order("id").range(from: fileRows.count, to: fileRows.count + 999).execute().value
-            fileRows += page
-            if page.count < 1000 { break }
-        }
+        try await Self.changedRows(client, "attachments", since: stamp, size: 1000) { (page: [AttachmentDTO]) in fileRows += page }
         // Files an earlier build took from the server and left half applied (see the guard below):
         // marked as new here, yet with no bytes on this device, which a file added here always has.
         // Their rows are read again by id (the cursor is long past them) and applied in full.
@@ -1377,6 +1467,7 @@ final class SyncEngine {
             let again: [AttachmentDTO] = try await client.from("attachments").select().in("id", values: chunk).execute().value
             fileRows += again
         }
+        try ensure(sealer, gen)
         var filesApplied = false
         for r in fileRows where !r.unreadable || skipUnreadable(r.id, "A file") {
             let known = context.attachment(r.id)
@@ -1419,12 +1510,9 @@ final class SyncEngine {
         }
         if filesApplied { filesPulledTick += 1 }
 
-        var offset = 0
         var pulledNotes: [UUID] = []
-        while true {
-            let rows: [NoteDTO] = try await client.from("notes").select()
-                .gt("server_updated_at", value: stamp)
-                .order("server_updated_at").order("id").range(from: offset, to: offset + 499).execute().value
+        try await Self.changedRows(client, "notes", since: stamp, size: 500) { (rows: [NoteDTO]) in
+            try ensure(sealer, gen)
             // Typing that isn't in the model yet goes in first, so the note counts as edited
             // here and what arrives can't replace it (the saver would then drop it).
             if !rows.isEmpty { DebouncedSave.flushAll() }
@@ -1437,16 +1525,23 @@ final class SyncEngine {
                 if let s = r.server_updated_at, s > newest { newest = s }
                 if merge(r, folders: &byID, known: &known) { changed = true; pulledNotes.append(r.id) }
             }
-            if rows.count < 500 { break }
-            offset += 500
         }
-        if changed { context.saveOrReport() }
+        // What came down is on disk before the cursor moves past it: a save that failed (a full
+        // disk) leaves the cursor where it was, so the next pull brings it all again.
+        if changed, !saveLibrary(context) { throw LibraryNotSaved() }
+        try ensure(sealer, gen)
         // A note an AI or an older build made under another note is an ordinary note in a folder
         // named after that note (sub-notes are gone; see foldSubNotesIntoFolders).
         if changed { context.foldSubNotesIntoFolders() }
         // Note pages (prototype): a backend without the table leaves this out; it never stops a sync.
-        if let pages: [NotePageDTO] = try? await client.from("note_pages").select("note_id,page_ct,data_ct,client,updated_at,server_updated_at,draft_problems")
-            .gt("server_updated_at", value: stamp).order("server_updated_at").execute().value {
+        // They have a cursor of their own, moved only once every page of them came down: one the
+        // notes' cursor passed while a request for them failed is read again next time.
+        let pagesFrom = pagesCursor == .distantPast ? pagesCursor : pagesCursor.addingTimeInterval(-5)
+        var newestPage = pagesCursor
+        do {
+            try await Self.changedRows(client, "note_pages", since: pagesFrom.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)), size: 1000,
+                                       columns: "note_id,page_ct,data_ct,client,updated_at,server_updated_at,draft_problems", key: "note_id") { (pages: [NotePageDTO]) in
+            try ensure(sealer, gen)
             for r in pages {
                 NotePageStore.shared.take(r)
                 NotePageStore.shared.setDraft(r.note_id, problems: r.draft_problems, by: Self.writer(r.client))
@@ -1455,15 +1550,48 @@ final class SyncEngine {
                 } else if r.data_ct == nil {
                     NotePageDataStore.shared.take(r.note_id, server: nil, by: Self.writer(r.client))
                 }
-                if let s = r.server_updated_at, s > newest { newest = s }
+                if let s = r.server_updated_at, s > newestPage { newestPage = s }
             }
+            }
+            try ensure(sealer, gen)
+            pagesCursor = newestPage
+        } catch where !outlived(sealer, gen) {
+            log.error("note pages pull failed: \(String(describing: error), privacy: .public)")
         }
+        try ensure(sealer, gen)
         cursor = newest
         await refreshShares(client)
         // Only devices publish shared pages (the server can't read them): a note that changed
         // elsewhere, an AI's edit included, is published to every live page it's on, as a local
         // edit would be. After the refresh, so a share seen for the first time counts.
         republishShares(for: pulledNotes)
+    }
+
+    struct MissingStamp: Error {}
+
+    /// Every row of `table` changed since `stamp`, handed to `each` a page at a time, in
+    /// (server_updated_at, id) order. Each page starts after the last row of the one before, not at
+    /// an offset: a row changed between two requests moves to the end, and with offsets every row
+    /// after it shifts back one, so one would never be read (and the cursor would pass it).
+    static func changedRows<Row: PagedRow>(_ client: SupabaseClient, _ table: String, since stamp: String, size: Int,
+                                           columns: String = "*", key: String = "id",
+                                           _ each: ([Row]) async throws -> Void) async throws {
+        var last: (stamp: String, id: UUID)?
+        while true {
+            var query = client.from(table).select(columns).gt("server_updated_at", value: stamp)
+            if let last { query = query.or(after(last.stamp, last.id, key: key)) }
+            let page: [Row] = try await query.order("server_updated_at").order(key).limit(size).execute().value
+            try await each(page)
+            if page.count < size { return }
+            guard let end = page.last, let s = end.server_stamp else { throw MissingStamp() }
+            last = (s, end.id)
+        }
+    }
+
+    /// PostgREST's filter for the rows after (`stamp`, `id`) in (server_updated_at, id) order.
+    nonisolated static func after(_ stamp: String, _ id: UUID, key: String = "id") -> String {
+        let id = id.uuidString.lowercased()
+        return #"server_updated_at.gt."\#(stamp)",and(server_updated_at.eq."\#(stamp)",\#(key).gt.\#(id))"#
     }
 
     /// Takes one server row into the library. Returns true when anything changed.
@@ -1546,8 +1674,76 @@ final class SyncEngine {
     /// What was last sent of the API key names (pushAPIKeyNames).
     private var lastKeyNames: String?
 
+    /// Where each note was at the server version this device last had: the starting point when a
+    /// move, trash or pin here meets another one there. For this run of the app only.
+    private var syncedPlace: [UUID: (version: Int64, place: Place)] = [:]
+
     private func remember(_ r: NoteDTO) {
-        if let v = r.version { synced[r.id] = (v, r.body, r.hasProps ? r.front_matter : synced[r.id]?.props) }
+        if let v = r.version {
+            synced[r.id] = (v, r.body, r.hasProps ? r.front_matter : synced[r.id]?.props)
+            syncedPlace[r.id] = (v, Place(r))
+        }
+    }
+
+    /// A note's place apart from its text: its folder, parent note, pin, and whether it's in
+    /// Recently Deleted or deleted for good.
+    struct Place {
+        var folder: UUID?
+        var parent: UUID?
+        var pinned: Bool
+        var trashed: Date?
+        var deleted: Date?
+
+        init(folder: UUID?, parent: UUID?, pinned: Bool, trashed: Date?, deleted: Date?) {
+            (self.folder, self.parent, self.pinned, self.trashed, self.deleted) = (folder, parent, pinned, trashed, deleted)
+        }
+        init(_ n: Note) { self.init(folder: n.folder?.id, parent: n.parentID, pinned: n.isPinned, trashed: n.trashedAt, deleted: n.deletedAt) }
+        init(_ r: NoteDTO) { self.init(folder: r.folder_id, parent: r.parent_id, pinned: r.is_pinned, trashed: r.trashed_at, deleted: r.deleted_at) }
+
+        /// The server keeps microseconds; a Date round-trips a hair off.
+        private static func near(_ a: Date?, _ b: Date?) -> Bool {
+            switch (a, b) {
+            case (nil, nil): true
+            case let (x?, y?): abs(x.timeIntervalSince(y)) < 0.001
+            default: false
+            }
+        }
+
+        func same(as o: Place) -> Bool {
+            folder == o.folder && parent == o.parent && pinned == o.pinned && Self.near(trashed, o.trashed) && Self.near(deleted, o.deleted)
+        }
+
+        /// Each part from the side that changed it since `base`; where both did, or there's no
+        /// base, this device's. Deleted for good on either side stays deleted.
+        static func merge(base: Place?, mine: Place, theirs: Place) -> Place {
+            func pick<T>(_ m: T, _ t: T, _ b: T?, _ eq: (T, T) -> Bool) -> T {
+                guard let b else { return m }
+                return eq(m, b) ? t : m
+            }
+            var p = Place(folder: pick(mine.folder, theirs.folder, base.map(\.folder), ==),
+                          parent: pick(mine.parent, theirs.parent, base.map(\.parent), ==),
+                          pinned: pick(mine.pinned, theirs.pinned, base.map(\.pinned), ==),
+                          trashed: pick(mine.trashed, theirs.trashed, base.map(\.trashed), near),
+                          deleted: pick(mine.deleted, theirs.deleted, base.map(\.deleted), near))
+            if p.deleted == nil { p.deleted = mine.deleted ?? theirs.deleted }
+            return p
+        }
+
+        func write(to patch: inout NoteDTO.Patch) {
+            patch.folder_id = folder
+            patch.parent_id = parent
+            patch.is_pinned = pinned
+            patch.trashed_at = trashed
+            patch.deleted_at = deleted
+        }
+
+        @MainActor func write(to n: Note, folder f: Folder?) {
+            n.folder = f
+            n.parentID = parent
+            n.isPinned = pinned
+            n.trashedAt = trashed
+            n.deletedAt = deleted
+        }
     }
 
     private func apply(_ r: NoteDTO, to n: Note) {
@@ -1617,15 +1813,20 @@ enum Wire {
     /// The account's sealer (`E2EE.sealer`), or a test's own. Task-local, so tests running side by
     /// side each have theirs; tasks sync starts inherit it.
     @TaskLocal static var testSealer: Sealer?
-    static var sealer: Sealer? { testSealer ?? E2EE.sealer }
+    /// The key a sync run started with (SyncEngine.run): everything it seals and opens uses that one,
+    /// never a key that took its place meanwhile (another account's, after a switch).
+    @TaskLocal static var runSealer: Sealer?
+    static var sealer: Sealer? { runSealer ?? testSealer ?? E2EE.sealer }
 
     static func seal(_ plain: String, _ context: String) throws -> String {
-        guard let box = Wire.sealer?.seal(plain, context: context) else { throw Unsealable() }
+        guard let s = Wire.sealer else { throw Unsealable() }
+        guard let box = s.seal(plain, context: context) else { throw s.isRetired ? Sealer.Retired() : Unsealable() }
         return box
     }
 
     static func seal(head: NoteHead, _ id: UUID) throws -> String {
-        guard let box = Wire.sealer?.sealHead(head, note: id) else { throw Unsealable() }
+        guard let s = Wire.sealer else { throw Unsealable() }
+        guard let box = s.sealHead(head, note: id) else { throw s.isRetired ? Sealer.Retired() : Unsealable() }
         return box
     }
 
@@ -1635,7 +1836,13 @@ enum Wire {
     }
 }
 
-struct FolderDTO: Codable {
+/// A row pulled a page at a time (SyncEngine.changedRows).
+protocol PagedRow: Decodable {
+    var id: UUID { get }
+    var server_stamp: String? { get }
+}
+
+struct FolderDTO: Codable, PagedRow {
     var id: UUID
     var name: String
     var parent_id: UUID?
@@ -1644,6 +1851,8 @@ struct FolderDTO: Codable {
     var updated_at: Date
     var deleted_at: Date?
     var server_updated_at: Date?
+    /// `server_updated_at` as the server wrote it, to the microsecond: where the next page starts.
+    var server_stamp: String? = nil
     /// Doesn't open with this device's key: never applied.
     var unreadable = false
 
@@ -1668,6 +1877,7 @@ struct FolderDTO: Codable {
         updated_at = try c.decode(Date.self, forKey: .updated_at)
         deleted_at = try c.decodeIfPresent(Date.self, forKey: .deleted_at)
         server_updated_at = try c.decodeIfPresent(Date.self, forKey: .server_updated_at)
+        server_stamp = try? c.decodeIfPresent(String.self, forKey: .server_updated_at)
         if let box = try c.decodeIfPresent(String.self, forKey: .name_ct), let n = Wire.sealer?.open(box, context: E2EE.folder(id)) {
             name = n
         } else {
@@ -1699,9 +1909,29 @@ struct NotePageDTO: Decodable {
     /// What failed in an AI's newer version, kept as a draft (it never runs here). Test and check
     /// names only.
     var draft_problems: String? = nil
+    /// `server_updated_at` as the server wrote it (SyncEngine.changedRows).
+    var server_stamp: String? = nil
 }
 
-struct NoteDTO: Codable {
+extension NotePageDTO: PagedRow {
+    var id: UUID { note_id }
+
+    enum CodingKeys: String, CodingKey { case note_id, page_ct, data_ct, client, updated_at, server_updated_at, draft_problems }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        note_id = try c.decode(UUID.self, forKey: .note_id)
+        page_ct = try c.decodeIfPresent(String.self, forKey: .page_ct)
+        data_ct = try c.decodeIfPresent(String.self, forKey: .data_ct)
+        client = try c.decodeIfPresent(String.self, forKey: .client)
+        updated_at = try c.decode(Date.self, forKey: .updated_at)
+        server_updated_at = try c.decodeIfPresent(Date.self, forKey: .server_updated_at)
+        server_stamp = try? c.decodeIfPresent(String.self, forKey: .server_updated_at)
+        draft_problems = try c.decodeIfPresent(String.self, forKey: .draft_problems)
+    }
+}
+
+struct NoteDTO: Codable, PagedRow {
     var id: UUID
     /// The note's text, opened. For a locked note, its title (from the sealed head).
     var body: String
@@ -1716,6 +1946,8 @@ struct NoteDTO: Codable {
     var deleted_at: Date?
     var version: Int64?
     var server_updated_at: Date?
+    /// `server_updated_at` as the server wrote it, to the microsecond: where the next page starts.
+    var server_stamp: String? = nil
     /// The AI that last changed the note, and when. Set by the server only; never sent.
     var ai_editor: String?
     var ai_edited_at: Date?
@@ -1770,6 +2002,7 @@ struct NoteDTO: Codable {
         deleted_at = try c.decodeIfPresent(Date.self, forKey: .deleted_at)
         version = try c.decodeIfPresent(Int64.self, forKey: .version)
         server_updated_at = try c.decodeIfPresent(Date.self, forKey: .server_updated_at)
+        server_stamp = try? c.decodeIfPresent(String.self, forKey: .server_updated_at)
         ai_editor = try c.decodeIfPresent(String.self, forKey: .ai_editor)
         ai_edited_at = try c.decodeIfPresent(Date.self, forKey: .ai_edited_at)
         shared_note_id = try c.decodeIfPresent(UUID.self, forKey: .shared_note_id)
@@ -1884,7 +2117,7 @@ struct FileMeta: Codable, Equatable {
     var size: Int64?
 }
 
-struct AttachmentDTO: Codable {
+struct AttachmentDTO: Codable, PagedRow {
     var id: UUID
     var filename: String
     var content_type: String
@@ -1895,6 +2128,8 @@ struct AttachmentDTO: Codable {
     var updated_at: Date
     var deleted_at: Date?
     var server_updated_at: Date?
+    /// `server_updated_at` as the server wrote it, to the microsecond: where the next page starts.
+    var server_stamp: String? = nil
     /// The folder a file sits in on its own (nil: only notes embed it), and whether it's in
     /// Recently Deleted. Older builds neither send nor read these; an upsert keeps what it doesn't send.
     var folder_id: UUID?
@@ -1936,6 +2171,7 @@ struct AttachmentDTO: Codable {
         updated_at = try c.decode(Date.self, forKey: .updated_at)
         deleted_at = try c.decodeIfPresent(Date.self, forKey: .deleted_at)
         server_updated_at = try c.decodeIfPresent(Date.self, forKey: .server_updated_at)
+        server_stamp = try? c.decodeIfPresent(String.self, forKey: .server_updated_at)
         folder_id = try c.decodeIfPresent(UUID.self, forKey: .folder_id)
         trashed_at = try c.decodeIfPresent(Date.self, forKey: .trashed_at)
         content_version = try c.decodeIfPresent(Int.self, forKey: .content_version) ?? 0

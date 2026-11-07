@@ -107,10 +107,13 @@ struct FailureStreak: Equatable, Sendable {
 extension ModelContext {
     /// `try? save()`, with a failure reported: the caller goes on either way, as it always has, but
     /// a library that can't be written (a full disk, a store that didn't migrate) is no longer silent.
-    func saveOrReport() {
-        do { try save() } catch {
+    /// Saves, reporting a failure; false when it failed.
+    @discardableResult
+    func saveOrReport() -> Bool {
+        do { try save(); return true } catch {
             let (domain, code) = ErrorDomain.of(error)
             Telemetry.shared.record(.storeSaveFailed(domain, code: code))
+            return false
         }
     }
 }

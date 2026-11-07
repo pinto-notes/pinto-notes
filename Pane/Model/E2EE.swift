@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import Observation
 import Security
+import Synchronization
 
 /// End-to-end encryption of the whole account (docs/Technical/e2ee-design.md).
 ///
@@ -282,8 +283,28 @@ enum E2EE {
     }
 
     /// The sealer sync uses while the account's data key is open. Nil: signed out, local only, or
-    /// this device doesn't have the key yet. Set only by `AccountCrypto`.
-    nonisolated(unsafe) static var sealer: Sealer?
+    /// this device doesn't have the key yet. Set only by `AccountCrypto`; read from any thread.
+    /// A sealer replaced by another account's key, or by none, is retired: whoever still holds it
+    /// (a sync run that started before) can no longer seal or open anything with it.
+    static var sealer: Sealer? {
+        get { currentSealer.withLock { $0 } }
+        set {
+            let old = currentSealer.withLock { s -> Sealer? in
+                let old = s
+                s = newValue
+                return old
+            }
+            if let old, retires(old, for: newValue) { old.retire() }
+        }
+    }
+    private static let currentSealer = Mutex<Sealer?>(nil)
+
+    /// Whether `new` taking `old`'s place retires it: another account or another key (signed out,
+    /// a switch, Start fresh), not the same key set again.
+    static func retires(_ old: Sealer, for new: Sealer?) -> Bool {
+        guard let new else { return true }
+        return old !== new && (old.user != new.user || old.keyID != new.keyID)
+    }
 }
 
 /// What a note shows in lists, sealed next to its body. A locked note's head is its title only.
@@ -324,6 +345,7 @@ final class Sealer: @unchecked Sendable {
     let keyID: String
     let user: UUID
     private var sealed: [String: (hash: SHA256.Digest, box: String)] = [:]
+    private var retired = false
     private let lock = NSLock()
 
     init(key: SymmetricKey, user: UUID) {
@@ -332,7 +354,14 @@ final class Sealer: @unchecked Sendable {
         self.user = user
     }
 
+    /// No longer the account's key on this device (`E2EE.sealer`): nothing seals or opens with it.
+    var isRetired: Bool { lock.withLock { retired } }
+    func retire() { lock.withLock { retired = true } }
+
+    struct Retired: Error {}
+
     func seal(_ plain: String, context: String) -> String? {
+        guard !isRetired else { return nil }
         let hash = SHA256.hash(data: Data(plain.utf8))
         if let s = lock.withLock({ sealed[context] }), s.hash == hash { return s.box }
         guard let box = try? NoteCrypto.seal(plain, key: key, keyID: keyID, context: context) else { return nil }
@@ -341,6 +370,7 @@ final class Sealer: @unchecked Sendable {
     }
 
     func open(_ box: String, context: String) -> String? {
+        guard !isRetired else { return nil }
         guard let plain = try? NoteCrypto.open(box, key: key, context: context) else { return nil }
         lock.withLock { sealed[context] = (SHA256.hash(data: Data(plain.utf8)), box) }
         return plain
@@ -360,8 +390,14 @@ final class Sealer: @unchecked Sendable {
         E2EE.shareTagMatches(key, note: note, slug: slug, includeSubNotes: includeSubNotes, tag: tag)
     }
 
-    func sealFile(_ data: Data, id: UUID) throws -> Data { try E2EE.sealFile(data, key: key, keyID: keyID, id: id) }
-    func openFile(_ data: Data, id: UUID) throws -> Data { try E2EE.openFile(data, key: key, id: id) }
+    func sealFile(_ data: Data, id: UUID) throws -> Data {
+        guard !isRetired else { throw Retired() }
+        return try E2EE.sealFile(data, key: key, keyID: keyID, id: id)
+    }
+    func openFile(_ data: Data, id: UUID) throws -> Data {
+        guard !isRetired else { throw Retired() }
+        return try E2EE.openFile(data, key: key, id: id)
+    }
 }
 
 extension JSONEncoder {

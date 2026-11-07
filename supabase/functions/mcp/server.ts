@@ -139,9 +139,15 @@ export async function handleRequest(req: Request, sql: Sql): Promise<Response> {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: cors });
 
   const tAuth = performance.now();
-  const who = presented
-    ? await authenticate(sql, presented, req).catch((e) => { log("token_lookup_failed", errorKind(e)); return undefined; })
-    : undefined;
+  let who: Caller | undefined;
+  try {
+    who = presented ? await authenticate(sql, presented, req) : undefined;
+  } catch (e) {
+    // The lookup itself failed (the database is down or slow), which says nothing about the
+    // token. A 401 here would make every AI that called during a blip ask to connect again.
+    log("token_lookup_failed", errorKind(e));
+    return unavailable();
+  }
   const authMs = performance.now() - tAuth;
   // No connection, or one without a key that opens (made before encryption, or revoked): the
   // client is told to connect again.
@@ -191,6 +197,12 @@ export async function handleRequest(req: Request, sql: Sql): Promise<Response> {
 /** A token's stand-in as a session: the first 24 hex digits of its SHA-256. */
 async function tokenHash(token: string): Promise<string> {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)))].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Pinto Notes can't check the token right now; the client should try again shortly, still connected. */
+function unavailable() {
+  return json({ jsonrpc: "2.0", id: null, error: { code: -32603, message: "Pinto Notes can't be reached right now. Try again in a moment." } }, 503,
+    { "retry-after": "5" });
 }
 
 function unauthorized(base: string, error?: string) {

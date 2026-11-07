@@ -53,12 +53,16 @@ struct PaneApp: App {
         // Each save keeps its notes' titles and previews (Note.summaryTitle): from the first save on.
         NoteSummaries.install()
         do {
-            container = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: config)
+            // A library that won't open is moved aside, kept, and an empty one opened: sync brings
+            // the notes down again (LibraryStore). The report is written to disk first and goes out
+            // at the next launch.
+            container = try LibraryStore.open(config) { error in
+                let (domain, code) = ErrorDomain.of(error)
+                Telemetry.shared.record(.storeOpenFailed(domain, code: code))
+            }.container
         } catch {
-            // The app can't run without its library and stops here, as it always has. The report
-            // is written to disk first and goes out at the next launch.
-            let (domain, code) = ErrorDomain.of(error)
-            Telemetry.shared.record(.storeOpenFailed(domain, code: code))
+            // Not even an empty library opens (or the old one can't be read at all, as when the
+            // device is still locked): the app can't run without one.
             fatalError("The library couldn't be opened: \(error)")
         }
         Self.sharedContainer = container

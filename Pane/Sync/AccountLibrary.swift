@@ -29,7 +29,7 @@ enum AccountLibrary {
         context.wipeLocalLibrary(files: files)
         memoryKeys.forEach { defaults.removeObject(forKey: $0) }
         // The sync cursor was keyed with either spelling of the old id.
-        for key in ["syncCursor.\(previous)", "syncCursor.\(previous.uppercased())"] { defaults.removeObject(forKey: key) }
+        for key in ["syncCursor.\(previous)", "syncCursor.\(previous.uppercased())"] { defaults.removeObject(forKey: key); defaults.removeObject(forKey: key + ".pages") }
         return true
     }
 
@@ -47,7 +47,7 @@ enum AccountLibrary {
         context.wipeLocalLibrary(files: files)
         memoryKeys.forEach { defaults.removeObject(forKey: $0) }
         if let owner = defaults.string(forKey: ownerKey) {
-            for key in ["syncCursor.\(owner)", "syncCursor.\(owner.uppercased())"] { defaults.removeObject(forKey: key) }
+            for key in ["syncCursor.\(owner)", "syncCursor.\(owner.uppercased())"] { defaults.removeObject(forKey: key); defaults.removeObject(forKey: key + ".pages") }
         }
         defaults.removeObject(forKey: ownerKey)
     }
