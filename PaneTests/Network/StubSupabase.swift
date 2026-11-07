@@ -85,8 +85,17 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
         lock.withLock { _failing.append((method, path, skip, applied)) }
     }
 
+    nonisolated(unsafe) private static var _onRequest: (@Sendable (_ method: String, _ path: String) -> Void)?
+    /// Runs as each request reaches the server, before it's answered (outside the stub's lock): what
+    /// happens elsewhere while a request is on its way. Cleared by `reset`.
+    static var onRequest: (@Sendable (_ method: String, _ path: String) -> Void)? {
+        get { lock.withLock { _onRequest } }
+        set { lock.withLock { _onRequest = newValue } }
+    }
+
     static func reset() {
         lock.withLock {
+            _onRequest = nil
             tables = [:]; _requests = []; _requestTimes = []; _bodies = []; _objects = [:]; _rpcCalls = []; _rpcAnswers = [:]; _tooFast = false
             _sessionLifetime = 3600; _refusesRefresh = false; _endedSessions = 0; _failing = []; _account = nil
         }
@@ -123,6 +132,14 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
             change(&r)
             bump(&r)
             tables[table]![i] = r
+        }
+    }
+
+    /// Sets a row's server time as it is, with no new version (rows a transaction wrote together share one).
+    static func setStamp(_ table: String, id: UUID, _ stamp: String) {
+        lock.withLock {
+            guard let i = tables[table]?.firstIndex(where: { ($0["id"] as? String)?.lowercased() == id.uuidString.lowercased() }) else { return }
+            tables[table]![i]["server_updated_at"] = stamp
         }
     }
 
@@ -219,6 +236,7 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
             if let body { _bodies.append(String(decoding: body, as: UTF8.self)) }
         }
         let path = comps.path
+        onRequest?(method, path)
         if path == "/auth/v1/token" { return token(grant: comps.queryItems?.first { $0.name == "grant_type" }?.value) }
         if path == "/auth/v1/logout" { return logout(request) }
         if path.hasPrefix("/storage/v1/object/") { return storage(method, String(path.dropFirst("/storage/v1/object/".count)), request, body) }
@@ -406,6 +424,15 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
         items.compactMap { item in
             guard let v = item.value, !["select", "order", "offset", "limit", "on_conflict", "columns"].contains(item.name) else { return nil }
             let key = item.name
+            // Keyset paging (SyncEngine.after): or=(k.gt."s",and(k.eq."s",id.gt.i)), compared as
+            // the server's text, which sorts as it orders (one format, fixed width).
+            if key == "or", let m = v.firstMatch(of: #/^\((\w+)\.gt\."([^"]+)",and\(\1\.eq\."\2",id\.gt\.([0-9a-f-]+)\)\)$/#) {
+                let (column, stamp, id) = (String(m.1), String(m.2), String(m.3))
+                return { r in
+                    guard let s = r[column] as? String, let rid = (r["id"] as? String)?.lowercased() else { return false }
+                    return s > stamp || (s == stamp && rid > id)
+                }
+            }
             if v.hasPrefix("eq.") {
                 let want = String(v.dropFirst(3)).lowercased()
                 return { r in

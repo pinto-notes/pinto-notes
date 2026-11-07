@@ -1334,16 +1334,13 @@ final class SyncEngine {
         // limit would be skipped for good.
         let stamp = since.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true))
         var folderRows: [FolderDTO] = []
-        while true {
-            let page: [FolderDTO] = try await client.from("folders").select().gt("server_updated_at", value: stamp)
-                .order("server_updated_at").order("id").range(from: folderRows.count, to: folderRows.count + 999).execute().value
-            folderRows += page
-            if page.count < 1000 { break }
-        }
+        try await Self.changedRows(client, "folders", since: stamp, size: 1000) { (page: [FolderDTO]) in folderRows += page }
         var byID = Dictionary(uniqueKeysWithValues: context.allFoldersIncludingDeleted().map { ($0.id, $0) })
+        var appliedFolders: [FolderDTO] = []
         for r in folderRows where !r.unreadable || skipUnreadable(r.id, "A folder") {
             let f = byID[r.id] ?? { let f = Folder(name: r.name); f.id = r.id; context.insert(f); byID[r.id] = f; return f }()
             if f.dirty && f.serverVersion > 0 { continue }
+            appliedFolders.append(r)
             f.name = r.name
             f.sortIndex = r.sort_index
             f.createdAt = r.created_at
@@ -1354,18 +1351,14 @@ final class SyncEngine {
             if let s = r.server_updated_at, s > newest { newest = s }
             changed = true
         }
-        // Parents after every folder exists.
-        for r in folderRows { byID[r.id]?.parent = r.parent_id.flatMap { byID[$0] } }
+        // Parents after every folder exists. Only for the folders taken above: one moved here and
+        // not sent yet keeps the parent this device gave it.
+        for r in appliedFolders { byID[r.id]?.parent = r.parent_id.flatMap { byID[$0] } }
 
         var fileRows: [AttachmentDTO] = []
         var goneFromStorage: [String] = []
         defer { if !goneFromStorage.isEmpty { Task { [goneFromStorage] in _ = try? await client.storage.from("files").remove(paths: goneFromStorage) } } }
-        while true {
-            let page: [AttachmentDTO] = try await client.from("attachments").select().gt("server_updated_at", value: stamp)
-                .order("server_updated_at").order("id").range(from: fileRows.count, to: fileRows.count + 999).execute().value
-            fileRows += page
-            if page.count < 1000 { break }
-        }
+        try await Self.changedRows(client, "attachments", since: stamp, size: 1000) { (page: [AttachmentDTO]) in fileRows += page }
         // Files an earlier build took from the server and left half applied (see the guard below):
         // marked as new here, yet with no bytes on this device, which a file added here always has.
         // Their rows are read again by id (the cursor is long past them) and applied in full.
@@ -1419,12 +1412,8 @@ final class SyncEngine {
         }
         if filesApplied { filesPulledTick += 1 }
 
-        var offset = 0
         var pulledNotes: [UUID] = []
-        while true {
-            let rows: [NoteDTO] = try await client.from("notes").select()
-                .gt("server_updated_at", value: stamp)
-                .order("server_updated_at").order("id").range(from: offset, to: offset + 499).execute().value
+        try await Self.changedRows(client, "notes", since: stamp, size: 500) { (rows: [NoteDTO]) in
             // Typing that isn't in the model yet goes in first, so the note counts as edited
             // here and what arrives can't replace it (the saver would then drop it).
             if !rows.isEmpty { DebouncedSave.flushAll() }
@@ -1437,8 +1426,6 @@ final class SyncEngine {
                 if let s = r.server_updated_at, s > newest { newest = s }
                 if merge(r, folders: &byID, known: &known) { changed = true; pulledNotes.append(r.id) }
             }
-            if rows.count < 500 { break }
-            offset += 500
         }
         if changed { context.saveOrReport() }
         // A note an AI or an older build made under another note is an ordinary note in a folder
@@ -1464,6 +1451,32 @@ final class SyncEngine {
         // elsewhere, an AI's edit included, is published to every live page it's on, as a local
         // edit would be. After the refresh, so a share seen for the first time counts.
         republishShares(for: pulledNotes)
+    }
+
+    struct MissingStamp: Error {}
+
+    /// Every row of `table` changed since `stamp`, handed to `each` a page at a time, in
+    /// (server_updated_at, id) order. Each page starts after the last row of the one before, not at
+    /// an offset: a row changed between two requests moves to the end, and with offsets every row
+    /// after it shifts back one, so one would never be read (and the cursor would pass it).
+    static func changedRows<Row: PagedRow>(_ client: SupabaseClient, _ table: String, since stamp: String, size: Int,
+                                           _ each: ([Row]) async throws -> Void) async throws {
+        var last: (stamp: String, id: UUID)?
+        while true {
+            var query = client.from(table).select().gt("server_updated_at", value: stamp)
+            if let last { query = query.or(after(last.stamp, last.id)) }
+            let page: [Row] = try await query.order("server_updated_at").order("id").limit(size).execute().value
+            try await each(page)
+            if page.count < size { return }
+            guard let end = page.last, let s = end.server_stamp else { throw MissingStamp() }
+            last = (s, end.id)
+        }
+    }
+
+    /// PostgREST's filter for the rows after (`stamp`, `id`) in (server_updated_at, id) order.
+    nonisolated static func after(_ stamp: String, _ id: UUID) -> String {
+        let id = id.uuidString.lowercased()
+        return #"server_updated_at.gt."\#(stamp)",and(server_updated_at.eq."\#(stamp)",id.gt.\#(id))"#
     }
 
     /// Takes one server row into the library. Returns true when anything changed.
@@ -1635,7 +1648,13 @@ enum Wire {
     }
 }
 
-struct FolderDTO: Codable {
+/// A row pulled a page at a time (SyncEngine.changedRows).
+protocol PagedRow: Decodable {
+    var id: UUID { get }
+    var server_stamp: String? { get }
+}
+
+struct FolderDTO: Codable, PagedRow {
     var id: UUID
     var name: String
     var parent_id: UUID?
@@ -1644,6 +1663,8 @@ struct FolderDTO: Codable {
     var updated_at: Date
     var deleted_at: Date?
     var server_updated_at: Date?
+    /// `server_updated_at` as the server wrote it, to the microsecond: where the next page starts.
+    var server_stamp: String? = nil
     /// Doesn't open with this device's key: never applied.
     var unreadable = false
 
@@ -1668,6 +1689,7 @@ struct FolderDTO: Codable {
         updated_at = try c.decode(Date.self, forKey: .updated_at)
         deleted_at = try c.decodeIfPresent(Date.self, forKey: .deleted_at)
         server_updated_at = try c.decodeIfPresent(Date.self, forKey: .server_updated_at)
+        server_stamp = try? c.decodeIfPresent(String.self, forKey: .server_updated_at)
         if let box = try c.decodeIfPresent(String.self, forKey: .name_ct), let n = Wire.sealer?.open(box, context: E2EE.folder(id)) {
             name = n
         } else {
@@ -1701,7 +1723,7 @@ struct NotePageDTO: Decodable {
     var draft_problems: String? = nil
 }
 
-struct NoteDTO: Codable {
+struct NoteDTO: Codable, PagedRow {
     var id: UUID
     /// The note's text, opened. For a locked note, its title (from the sealed head).
     var body: String
@@ -1716,6 +1738,8 @@ struct NoteDTO: Codable {
     var deleted_at: Date?
     var version: Int64?
     var server_updated_at: Date?
+    /// `server_updated_at` as the server wrote it, to the microsecond: where the next page starts.
+    var server_stamp: String? = nil
     /// The AI that last changed the note, and when. Set by the server only; never sent.
     var ai_editor: String?
     var ai_edited_at: Date?
@@ -1770,6 +1794,7 @@ struct NoteDTO: Codable {
         deleted_at = try c.decodeIfPresent(Date.self, forKey: .deleted_at)
         version = try c.decodeIfPresent(Int64.self, forKey: .version)
         server_updated_at = try c.decodeIfPresent(Date.self, forKey: .server_updated_at)
+        server_stamp = try? c.decodeIfPresent(String.self, forKey: .server_updated_at)
         ai_editor = try c.decodeIfPresent(String.self, forKey: .ai_editor)
         ai_edited_at = try c.decodeIfPresent(Date.self, forKey: .ai_edited_at)
         shared_note_id = try c.decodeIfPresent(UUID.self, forKey: .shared_note_id)
@@ -1884,7 +1909,7 @@ struct FileMeta: Codable, Equatable {
     var size: Int64?
 }
 
-struct AttachmentDTO: Codable {
+struct AttachmentDTO: Codable, PagedRow {
     var id: UUID
     var filename: String
     var content_type: String
@@ -1895,6 +1920,8 @@ struct AttachmentDTO: Codable {
     var updated_at: Date
     var deleted_at: Date?
     var server_updated_at: Date?
+    /// `server_updated_at` as the server wrote it, to the microsecond: where the next page starts.
+    var server_stamp: String? = nil
     /// The folder a file sits in on its own (nil: only notes embed it), and whether it's in
     /// Recently Deleted. Older builds neither send nor read these; an upsert keeps what it doesn't send.
     var folder_id: UUID?
@@ -1936,6 +1963,7 @@ struct AttachmentDTO: Codable {
         updated_at = try c.decode(Date.self, forKey: .updated_at)
         deleted_at = try c.decodeIfPresent(Date.self, forKey: .deleted_at)
         server_updated_at = try c.decodeIfPresent(Date.self, forKey: .server_updated_at)
+        server_stamp = try? c.decodeIfPresent(String.self, forKey: .server_updated_at)
         folder_id = try c.decodeIfPresent(UUID.self, forKey: .folder_id)
         trashed_at = try c.decodeIfPresent(Date.self, forKey: .trashed_at)
         content_version = try c.decodeIfPresent(Int.self, forKey: .content_version) ?? 0
