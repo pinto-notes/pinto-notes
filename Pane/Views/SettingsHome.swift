@@ -75,9 +75,9 @@ enum SettingsNames {
 /// Settings' page symbols, the same on the Mac and iPhone: one outline family.
 enum SettingsIcons {
     /// Picked by Emil from three sets on 7 November 2026 (B): a link for what's connected, the
-    /// gear for General, the text-size glyph for Appearance.
+    /// sliders for General (Emil, later the same day), the text-size glyph for Appearance.
     static let ai = "link"
-    static let general = "gearshape"
+    static let general = "slider.horizontal.3"
     static let appearance = "textformat.size"
     static let security = "lock.shield"
     static let storage = "externaldrive"

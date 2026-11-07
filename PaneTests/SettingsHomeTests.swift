@@ -49,7 +49,7 @@ import Carbon.HIToolbox
         #expect(SettingsCard.groupGap >= 20 && SettingsCard.groupGap >= SettingsCard.tabGap * 6, "a group gap, not a flaw")
         // Emil's pick (B, 7 November 2026): outlines, each symbol different, and each exists.
         let picked = [SettingsIcons.ai, SettingsIcons.general, SettingsIcons.appearance]
-        #expect(picked == ["link", "gearshape", "textformat.size"])
+        #expect(picked == ["link", "slider.horizontal.3", "textformat.size"])
         #expect(Set(picked).count == 3 && !picked.contains { $0.contains(".fill") })
         for p in SettingsPage.allCases { #expect(NSImage(systemSymbolName: p.symbol, accessibilityDescription: nil) != nil, "\(p.symbol) exists") }
     }
