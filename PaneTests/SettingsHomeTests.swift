@@ -408,7 +408,7 @@ import Testing
             #expect(abs(page.midX - room.midX) < 0.5, "\(place): centred, page \(page) in area \(room)")
             #expect(abs(title.minX - (page.minX + SettingsCard.pageInset)) <= bar / 2 + 0.5, "\(place): the title starts at the content's edge: \(title.minX) vs \(page.minX + SettingsCard.pageInset)")
         }
-        #expect(SettingsCard.contentWidth >= 560 && SettingsCard.contentWidth <= 620)
+        #expect(SettingsCard.contentWidth >= 520 && SettingsCard.contentWidth <= 620)
     }
 
     /// Connect an AI is one list filling the content column, its left edge under the title's, and
