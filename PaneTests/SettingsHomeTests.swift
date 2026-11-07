@@ -453,6 +453,13 @@ import Testing
         #expect(P.disconnectTitle(claude, tile: .claude, count: 1) == "Disconnect Claude\u{2026}")
         #expect(P.disconnectTitle(gpt2, tile: .chatgpt, count: 2).hasPrefix("Disconnect the account connected "))
         #expect(SetupCards.connectTiles == [.chatgpt, .claude, .grok, .other])
+        // iPhone's cards (ConnectChoices) place the same connections the same way.
+        #expect(ConnectChoices.cardGuides == [.chatgpt, .claude, .grok, .other])
+        #expect(ConnectChoices.cardAccounts(.chatgpt, in: all).map(\.id) == [gpt.id, gpt2.id])
+        #expect(Set(ConnectChoices.cardAccounts(.other, in: all).map(\.id)) == [cursor.id, codex.id], "Codex and apps on this computer are Other's")
+        #expect(ConnectCopy.cardStatus(other: true, accounts: []).count <= 24, "fits an iPhone card")
+        let settings = try? Self.source("Pane/Views/SettingsView.swift")
+        #expect(settings?.contains("ConnectAISection(client: client, preview: connections, cards: true)") == true, "iPhone's AI page shows the cards")
     }
 
     /// Two tabs next to each other in the sidebar never touch, so their fills never merge.
