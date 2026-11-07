@@ -1820,20 +1820,10 @@ struct ConnectAIPage: View {
     /// Ways in besides the browser's: Codex, and Incredible where its app is.
     static func more(offered: [Guide] = Guide.offered) -> [Guide] { offered.filter { $0 == .codex || $0 == .incredible } }
 
-    /// What is sent and to which company, always in view (App Review, 1.2): each connected AI's
-    /// maker by name, or the general line before any is connected.
-    static func sent(_ names: [String]) -> String {
-        let known = names.compactMap { n in ConnectTrust.makers[n].map { (n, $0) } }
-        guard !known.isEmpty else { return ConnectCopy.shared }
-        // Said to someone who has allowed it already: what it means now, not "until you allow it"
-        // (council round 10). Plain, not spelled out (Emil, 7 November 2026: "like an explanation
-        // for toddlers").
-        let others = known.count < names.count ? " Other apps get only the notes they open." : ""
-        if known.count == 1 { return "Notes \(known[0].0) opens are sent to \(known[0].1).\(others)" }
-        let parts = known.map { "\($0.1) for \($0.0)" }
-        let joined = parts.dropLast().joined(separator: ", ") + " and " + parts.last!
-        return "Notes an AI opens are sent to its maker: \(joined).\(others)"
-    }
+    /// What it can do and which company the notes go to, in one line at the top, in view in every
+    /// stage (App Review rejected 1.2 for hiding the company). One line, not two: Emil, 7 November
+    /// 2026, the line under the cards read "like an explanation for toddlers".
+    static let sent = "Your AI can read and edit your notes when you ask. The notes it opens go to its maker, like OpenAI or Anthropic."
 
     /// The line under a connected one: when it was last used. One the list names by its AI is that
     /// AI already (its sign-in went to the AI's own address); the others say where access went too.
@@ -1852,29 +1842,25 @@ struct ConnectAIPage: View {
         }
     }
 
-    private var names: [String] {
-        var seen = Set<String>()
-        return active.map { $0.mark ?? $0.title }.filter { seen.insert($0).inserted }
-    }
-
     var body: some View {
         SettingsStack {
             if let ask = center.waiting().first { ConnectWaitingRow(ask: ask) }
             if let error { Text(error).font(.system(size: 12)).foregroundStyle(.red).padding(.horizontal, 4) }
-            VStack(alignment: .leading, spacing: 9) {
+            VStack(alignment: .leading, spacing: 10) {
+                // Never behind a disclosure, and there while a connection is made too.
+                Text(Self.sent)
+                    .font(.system(size: 12))
+                    .foregroundStyle(SettingsInk.muted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 4)
+                    .accessibilityIdentifier("connect.sent")
+                    .settingsProbe("connect.sent")
                 switch stage {
                 case .choosing: cards
                 case .waiting: panel { ConnectWaitingPanel(ai: ai, note: note, fix: fix, cancel: cancel) }
                 case .connected: panel { ConnectedPanel(ai: ai) }
                 }
-                // Never behind a disclosure, and there while a connection is made too.
-                Text(Self.sent(names))
-                    .font(.system(size: 12))
-                    .foregroundStyle(SettingsInk.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 4)
-                    .accessibilityIdentifier("connect.sent")
-                    .settingsProbe("connect.sent")
             }
             if NoteApps.enabled {
                 if NoteApps.realPreviews { AppPreviewSection(client: client, plain: true) }
@@ -1924,19 +1910,10 @@ struct ConnectAIPage: View {
 
 
     private var cards: some View {
-        VStack(spacing: 10) {
-            Text(SetupCards.connectReads)
-                .font(.system(size: 12))
-                .foregroundStyle(SettingsInk.muted)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 4)
-                .accessibilityIdentifier("connect.reads")
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                ForEach(SetupCards.connectTiles) { t in aiCard(t) }
-            }
-            .settingsProbe("connect.card")
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            ForEach(SetupCards.connectTiles) { t in aiCard(t) }
         }
+        .settingsProbe("connect.card")
     }
 
     /// What a card's status line says.
