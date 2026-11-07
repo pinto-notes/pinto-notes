@@ -173,8 +173,8 @@ import Testing
     /// The Mac popover: with collaboration, Collaborate comes first, and it opens there for a note
     /// people are in or whose link is on; otherwise as before.
     @Test func thePopoverOpensOnCollaborate() {
-        #expect(ShareWays.ways(collaborating: true) == [.people, .link, .copy])
-        #expect(ShareWays.ways(collaborating: false) == [.link, .copy])
+        #expect(ShareWays.ways(collaborating: true) == [.people, .copy, .link])
+        #expect(ShareWays.ways(collaborating: false) == [.copy, .link])
         #expect(ShareWays.initial(collaborating: true, inNote: 2, linkOn: false, webShared: true, linkAvailable: true) == .people)
         #expect(ShareWays.initial(collaborating: true, inNote: 1, linkOn: true, webShared: false, linkAvailable: true) == .people)
         #expect(ShareWays.initial(collaborating: true, inNote: 1, linkOn: false, webShared: true, linkAvailable: true) == .link)

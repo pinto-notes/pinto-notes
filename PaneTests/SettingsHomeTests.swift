@@ -420,16 +420,28 @@ import Testing
 
     /// Connect an AI is one list filling the content column, its left edge under the title's, and
     /// the line on what is sent right under it, in view without scrolling (App Review 5.1.2).
-    @Test func connectIsOneListWithTheSharingLineInView() async throws {
+    @Test func connectIsTheOnboardingPickerWithTheSharingLineInView() async throws {
         let f = try await Self.layout(.ai, window: CGSize(width: 1180, height: 760))
-        let list = try #require(f["connect.list"], "the AIs are one list")
+        let card = try #require(f["connect.card"], "the setup card's tiles and button")
+        #expect(f["connect.tiles"] != nil)
         let title = try #require(f["title"]), page = try #require(f["page"]), area = try #require(f["area"])
-        #expect(abs(list.minX - title.minX) < 0.5, "list \(list.minX), title \(title.minX)")
-        #expect(abs(list.width - (page.width - 2 * SettingsCard.pageInset)) < 0.5)
+        #expect(abs(card.minX - title.minX) < 0.5, "card \(card.minX), title \(title.minX)")
+        #expect(abs(card.width - (page.width - 2 * SettingsCard.pageInset)) < 0.5)
         let sent = try #require(f["connect.sent"], "the line on what is sent is on the page")
-        #expect(sent.minY > list.maxY && sent.minY - list.maxY < 20, "right under the list: \(sent) under \(list)")
+        #expect(sent.minY > card.maxY && sent.minY - card.maxY < 20, "right under the card: \(sent) under \(card)")
         #expect(sent.height > 10 && sent.maxY < area.maxY, "in view without scrolling: \(sent) in \(area)")
-        #expect(f["connect.connected"] == nil && f["connect.add"] == nil, "no separate Connected and Add boxes")
+    }
+
+    /// Tiles for the brands and Other; what's connected and the other ways are lists under them.
+    @Test func connectSplitsItsRows() {
+        typealias P = ConnectAIPage
+        let rows = P.rows(offered: [.chatgpt, .claude, .grok, .codex, .incredible, .other], connections: [])
+        #expect(P.connectedRows(rows).isEmpty)
+        #expect(P.moreRows(rows).map(\.guide) == [.codex, .incredible], "the tiles' AIs aren't repeated")
+        #expect(P.firstToConnect(connected: []) == .chatgpt)
+        #expect(P.firstToConnect(connected: [.chatgpt]) == .claude, "opens on one still to connect")
+        #expect(P.firstToConnect(connected: [.chatgpt, .claude, .grok]) == .other)
+        #expect(ConnectTilePicker<EmptyView>.buttonTitle(.chatgpt, connected: true) == "Connect another ChatGPT account")
     }
 
     /// Two tabs next to each other in the sidebar never touch, so their fills never merge.

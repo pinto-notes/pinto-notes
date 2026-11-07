@@ -29,13 +29,15 @@ import Testing
 
     /// Picture is one of the ways, last; a link that can't be made isn't offered.
     @Test func pictureIsOneOfTheWays() throws {
-        #expect(ShareWays.ways(collaborating: true, picture: true) == [.people, .link, .copy, .picture])
-        #expect(ShareWays.ways(collaborating: false, picture: true) == [.link, .copy, .picture])
+        #expect(ShareWays.ways(collaborating: true, picture: true) == [.people, .copy, .link, .picture])
+        #expect(ShareWays.ways(collaborating: false, picture: true) == [.copy, .link, .picture])
         #expect(ShareWays.ways(collaborating: false, picture: true, linkAvailable: false) == [.copy, .picture])
         #expect(ShareWays.Way.picture.label(collaborating: true) == "Picture")
         let source = try SettingsHomeTests.source("Pane/Views/ShareNotePopover.swift")
         #expect(source.contains(".presentationBackground(Color.card)"), "solid, not see-through")
         #expect(!source.contains(".pickerStyle(.segmented)"), "no accent-filled segments")
+        #expect(!source.contains("line(ShareCopy.privacy"), "Collaborate doesn't explain encryption")
+        #expect(ShareWays.ways(collaborating: true).firstIndex(of: .copy)! < ShareWays.ways(collaborating: true).firstIndex(of: .link)!, "Send Copy left of Web Page")
         #expect(source.contains(".amberProminent(.compact, wide: true)"), "Share Link isn't oversized")
     }
 

@@ -348,6 +348,8 @@ struct BrandMark: View {
 private struct SetupTile<Mark: View>: View {
     let title: String
     let on: Bool
+    /// Settings: this AI is connected already.
+    var connected = false
     let id: String
     let action: () -> Void
     @ViewBuilder var mark: Mark
@@ -367,10 +369,19 @@ private struct SetupTile<Mark: View>: View {
             .frame(maxWidth: .infinity, minHeight: 76)
             .background(SetupCards.soft, in: shape)
             .overlay(shape.strokeBorder(Color.primary, lineWidth: on ? 2 : 0))
+            .overlay(alignment: .topTrailing) {
+                if connected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.white, .green)
+                        .padding(7)
+                        .accessibilityHidden(true)
+                }
+            }
             .contentShape(shape)
         }
         .buttonStyle(.tile(radius: 12))
-        .accessibilityLabel(title)
+        .accessibilityLabel(connected ? "\(title), connected" : title)
         .accessibilityAddTraits(on ? .isSelected : [])
         .accessibilityIdentifier(id)
     }
@@ -403,19 +414,24 @@ struct ConnectTilePicker<Beside: View>: View {
     /// Return presses Connect: on the setup card, where it is the one thing to do.
     var returnConnects = true
     var idPrefix = "setup"
+    /// Settings: the AIs connected already. Each tile says so, and connecting one again adds an account.
+    var connected: Set<SetupCards.AI> = []
     let connect: (SetupCards.AI) -> Void
     @ViewBuilder var beside: Beside
 
     /// The tile shown picked: a tile's AI, else ChatGPT.
     static func shown(_ ai: SetupCards.AI) -> SetupCards.AI { SetupCards.connectTiles.contains(ai) ? ai : .chatgpt }
-    static func buttonTitle(_ ai: SetupCards.AI) -> String { ai == .other ? "Connect another app" : ai.button }
+    static func buttonTitle(_ ai: SetupCards.AI, connected: Bool = false) -> String {
+        if ai == .other { return "Connect another app" }
+        return connected ? "Connect another \(ai.name) account" : ai.button
+    }
 
     var body: some View {
         let on = Self.shown(picked)
         VStack(spacing: 16) {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: SetupCards.connectTiles.count), spacing: 8) {
                 ForEach(SetupCards.connectTiles) { choice in
-                    SetupTile(title: choice == .other ? "Other" : choice.name, on: on == choice, id: "\(idPrefix).ai.\(choice.rawValue)", action: { picked = choice }) {
+                    SetupTile(title: choice == .other ? "Other" : choice.name, on: on == choice, connected: connected.contains(choice), id: "\(idPrefix).ai.\(choice.rawValue)", action: { picked = choice }) {
                         BrandMark(ai: choice, size: 30)
                     }
                 }
@@ -423,7 +439,7 @@ struct ConnectTilePicker<Beside: View>: View {
             .settingsProbe("connect.tiles")
             HStack(spacing: 8) {
                 beside
-                Button(Self.buttonTitle(on)) { connect(on) }
+                Button(Self.buttonTitle(on, connected: connected.contains(on))) { connect(on) }
                     .buttonStyle(.amberProminent(.regular, wide: wideButton))
                     .keyboardShortcut(returnConnects ? .defaultAction : nil)
                     .accessibilityIdentifier("\(idPrefix).connect")

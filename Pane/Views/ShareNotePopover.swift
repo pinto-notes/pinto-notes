@@ -29,8 +29,8 @@ enum ShareWays {
     /// before it was shared (`webShared`) is still listed, to open or stop.
     static func ways(collaborating: Bool, sharedWithPeople: Bool = false, webShared: Bool = false, picture: Bool = false, linkAvailable: Bool = true) -> [Way] {
         var ways: [Way] = collaborating
-            ? (sharedWithPeople && !webShared ? [.people, .copy] : [.people, .link, .copy])
-            : (linkAvailable ? [.link, .copy] : [.copy])
+            ? (sharedWithPeople && !webShared ? [.people, .copy] : [.people, .copy, .link])
+            : (linkAvailable ? [.copy, .link] : [.copy])
         if picture { ways.append(.picture) }
         return ways
     }
@@ -448,7 +448,6 @@ struct CollaborateRows: View {
                 }
             }
             if case .removed = share.done { DoneLine(text: ShareController.Done.removed(UUID()).text).font(.system(size: 11)) }
-            line(ShareCopy.privacy, problem: false)
             if share.isOwner, let why = share.notYet {
                 // Files or an app: not shared with people yet, and the popover says why up front.
                 line(why, problem: false)

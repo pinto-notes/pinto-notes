@@ -67,7 +67,6 @@ struct ShareForm: View {
             } footer: {
                 VStack(alignment: .leading, spacing: 6) {
                     if case .removed = share.done { DoneLine(text: share.removedLine) }
-                    Text(ShareCopy.privacy)
                 }
             }
 

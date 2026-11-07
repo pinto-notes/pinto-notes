@@ -105,8 +105,8 @@ import Testing
     /// a page made before it was shared is listed, with what it is.
     @Test func aSharedNoteGetsNoWebPage() {
         #expect(ShareWays.ways(collaborating: true, sharedWithPeople: true) == [.people, .copy])
-        #expect(ShareWays.ways(collaborating: true, sharedWithPeople: true, webShared: true) == [.people, .link, .copy])
-        #expect(ShareWays.ways(collaborating: true) == [.people, .link, .copy])
+        #expect(ShareWays.ways(collaborating: true, sharedWithPeople: true, webShared: true) == [.people, .copy, .link])
+        #expect(ShareWays.ways(collaborating: true) == [.people, .copy, .link])
         #expect(ShareWays.line(.link, shared: true, sharedWithPeople: true) == SharedNoteLimits.pageLine)
         // A note that can't be shared with people opens on what it can do.
         #expect(ShareWays.initial(collaborating: true, inNote: 1, linkOn: false, webShared: false, linkAvailable: true, canCollaborate: false) == .link)

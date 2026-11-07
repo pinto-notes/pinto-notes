@@ -1780,6 +1780,8 @@ struct ConnectAIPage: View {
     }
 
     @State private var ai: SetupCards.AI = .chatgpt
+    /// The tile picked, once you've picked one.
+    @State private var chosen: SetupCards.AI?
     @State private var stage: Stage = .choosing
     @State private var run = ConnectRun()
     /// Grok's or Other's guide, open over the wait.
@@ -1860,7 +1862,7 @@ struct ConnectAIPage: View {
             if let error { Text(error).font(.system(size: 12)).foregroundStyle(.red).padding(.horizontal, 4) }
             VStack(alignment: .leading, spacing: 9) {
                 switch stage {
-                case .choosing: list
+                case .choosing: picker
                 case .waiting: panel { ConnectWaitingPanel(ai: ai, note: note, fix: fix, cancel: cancel) }
                 case .connected: panel { ConnectedPanel(ai: ai) }
                 }
@@ -1873,6 +1875,7 @@ struct ConnectAIPage: View {
                     .accessibilityIdentifier("connect.sent")
                     .settingsProbe("connect.sent")
             }
+            if stage == .choosing { lists }
             if NoteApps.enabled {
                 if NoteApps.realPreviews { AppPreviewSection(client: client, plain: true) }
             }
@@ -1902,33 +1905,83 @@ struct ConnectAIPage: View {
         route.help = HelpTopic(guide: nil)
     }
 
-    private var list: some View {
-        SettingsGroup {
-            ForEach(Self.rows(connections: active)) { row in
-                if let c = row.connection {
-                    SettingsLine(title: row.guide?.shown ?? c.title, detail: Self.detail(row)) {
-                        ConnectionTile(connection: c, size: 26)
-                    } trailing: {
-                        Button("Disconnect\u{2026}") { removing = c }
-                            .buttonStyle(.settings)
-                            .disabled(reach != .online)
-                            .accessibilityLabel("Disconnect \(row.guide?.shown ?? c.title)")
-                            .accessibilityIdentifier("connect.disconnect")
-                    }
-                } else if let g = row.guide {
-                    SettingsLine(title: g.shown, detail: Self.line(g)) {
-                        mark(g)
-                    } trailing: {
-                        Button("Connect\u{2026}") { connect(g) }
-                            .buttonStyle(.settings)
-                            .disabled(reach != .online)
-                            .accessibilityLabel("Connect \(g.shown)")
-                            .accessibilityIdentifier(Self.more().contains(g) ? "connect.more.\(g.rawValue)" : "connect.add.\(g.rawValue)")
+    /// The onboarding card's own picker, in the page: the same tiles, the same one button, the same
+    /// wait after it (Emil, 7 November 2026: the page was much worse than onboarding, and worked
+    /// differently).
+    private var picker: some View {
+        VStack(spacing: 14) {
+            Text(SetupCards.connectReads)
+                .font(.system(size: 12))
+                .foregroundStyle(SettingsInk.muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("connect.reads")
+            ConnectTilePicker(picked: Binding(get: { chosen ?? Self.firstToConnect(connected: connectedAIs) }, set: { chosen = $0 }),
+                              returnConnects: false, idPrefix: "connect", connected: connectedAIs, connect: begin) { EmptyView() }
+                .disabled(reach != .online)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(SettingsInk.group))
+        .settingsProbe("connect.card")
+    }
+
+    /// The tile picked when the page opens: the first brand not connected yet.
+    static func firstToConnect(connected: Set<SetupCards.AI>) -> SetupCards.AI {
+        SetupCards.brands.first { !connected.contains($0) } ?? .other
+    }
+
+    private var connectedAIs: Set<SetupCards.AI> {
+        Set(SetupCards.connectTiles.filter { $0 != .other && names.contains($0.guide.title) })
+    }
+
+    /// What's connected, each with its Disconnect, apps on this computer too.
+    static func connectedRows(_ rows: [Row]) -> [Row] { rows.filter { $0.connection != nil } }
+    /// Ways in the tiles don't have (Codex, Incredible), not connected yet.
+    static func moreRows(_ rows: [Row]) -> [Row] {
+        rows.filter { row in
+            guard row.connection == nil, let g = row.guide else { return false }
+            return ![.chatgpt, .claude, .grok, .other].contains(g)
+        }
+    }
+
+    @ViewBuilder private var lists: some View {
+        let rows = Self.rows(connections: active)
+        let on = Self.connectedRows(rows), more = Self.moreRows(rows)
+        if !on.isEmpty {
+            SettingsGroup(header: "Connected") {
+                ForEach(on) { row in
+                    if let c = row.connection {
+                        SettingsLine(title: row.guide?.shown ?? c.title, detail: Self.detail(row)) {
+                            ConnectionTile(connection: c, size: 26)
+                        } trailing: {
+                            Button("Disconnect\u{2026}") { removing = c }
+                                .buttonStyle(.settings)
+                                .disabled(reach != .online)
+                                .accessibilityLabel("Disconnect \(row.guide?.shown ?? c.title)")
+                                .accessibilityIdentifier("connect.disconnect")
+                        }
                     }
                 }
             }
         }
-        .settingsProbe("connect.list")
+        if !more.isEmpty {
+            SettingsGroup(header: "More ways to connect") {
+                ForEach(more) { row in
+                    if let g = row.guide {
+                        SettingsLine(title: g.shown, detail: Self.line(g)) {
+                            mark(g)
+                        } trailing: {
+                            Button("Connect\u{2026}") { connect(g) }
+                                .buttonStyle(.settings)
+                                .disabled(reach != .online)
+                                .accessibilityLabel("Connect \(g.shown)")
+                                .accessibilityIdentifier("connect.more.\(g.rawValue)")
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @ViewBuilder private func mark(_ g: Guide) -> some View {
@@ -1947,7 +2000,7 @@ struct ConnectAIPage: View {
             .frame(maxWidth: SetupCards.width(.waiting) - 52)
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(SettingsInk.group))
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(SettingsInk.group))
             .transition(.opacity)
     }
 
