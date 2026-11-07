@@ -635,7 +635,8 @@ struct GeneralSettingsPage: View {
     @AppStorage(ChecklistSorting.key, store: ChecklistSorting.store) private var sortsTicked = true
     #if os(macOS)
     @AppStorage(MenuBarSettings.key) private var menuBar = true
-    @State private var login = LoginItem.isOn
+    /// As last read; the system is asked off the main thread as the page opens.
+    @State private var login = LoginItem.known ?? false
     #endif
 
     static let menuBarDetail = "Write or find a note with the window closed."
@@ -685,7 +686,7 @@ struct GeneralSettingsPage: View {
             #endif
         }
         #if os(macOS)
-        .onAppear { login = LoginItem.isOn }
+        .task { login = await LoginItem.refresh() }
         #endif
     }
 }
