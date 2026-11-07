@@ -1005,15 +1005,22 @@ final class SyncEngine {
                 }
                 if !a.uploaded, a.deletedAt == nil {
                     guard FileStore.exists(a) else { continue }
+                    let sending = a.contentVersion
                     let data = try Data(contentsOf: FileStore.url(for: a.id, filename: a.filename))
                     try await client.storage.from("files").upload(path, data: try sealer.sealFile(data, id: a.id),
                                                                   options: FileOptions(contentType: "application/octet-stream", upsert: true))
                     try ensure(sealer, gen)
+                    // Saved again here while those bytes were on their way: the newer ones go up
+                    // next, and until then the row doesn't say the server has them.
+                    guard a.contentVersion == sending else { continue }
                     a.size = Int64(data.count)
                     a.uploaded = true
                 }
+                let sent = (version: a.contentVersion, modified: a.modifiedAt)
                 try await client.from("attachments").upsert(AttachmentDTO(a, path: path)).execute()
                 try ensure(sealer, gen)
+                // Changed here meanwhile (new bytes, renamed, moved): that goes up next.
+                guard a.contentVersion == sent.version, a.modifiedAt == sent.modified else { continue }
                 a.dirty = false
                 a.bytesEdited = false
                 // Deleted for good here: the sealed bytes leave Storage too, with its earlier versions
