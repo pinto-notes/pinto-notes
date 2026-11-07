@@ -238,3 +238,50 @@ Deno.test({ name: "the owner's delete is refused when a change committed after t
     await drop();
   }
 });
+
+// 20261107152300_collab_author_survives.sql, on a real Postgres: a collaborator deleting their
+// account (forget.ts) leaves the owner's shared note, its compacted snapshot and later changes.
+Deno.test({ name: "a collaborator's account deletion leaves the shared note readable to its owner", ignore: !local, sanitizeResources: false, sanitizeOps: false }, async () => {
+  const { loadAutomerge, loadDoc } = await import("./shared_notes.ts");
+  const { seal3 } = await import("../_shared/collab.ts");
+  const { newDataKey } = await import("../_shared/e2ee.ts");
+  const { forget } = await import("../account/forget.ts");
+  const A = await loadAutomerge();
+  const { url, drop } = await freshDB();
+  const db = postgres(url, { max: 1, onnotice: () => {} });
+  const [emilID, saraID] = [crypto.randomUUID(), crypto.randomUUID()];
+  await db`insert into auth.users (id, email) values (${emilID}, 'emil@example.com'), (${saraID}, 'sara@example.com')`;
+  const note = crypto.randomUUID(), nk = newDataKey();
+  await db`insert into public.shared_notes (id, owner_id) values (${note}, ${emilID})`;
+  await db`insert into public.note_members (note_id, user_id, role, epoch, key_wrap, wrapped_by) values
+    (${note}, ${emilID}, 'owner', 1, 'amb3k.AA==', ${emilID}), (${note}, ${saraID}, 'editor', 1, 'amb3k.AA==', ${emilID})`;
+  const emil = person(url, emilID), sara = person(url, saraID);
+  const push = (p: typeof emil, change: Uint8Array) => p.sql.begin(async (tx) => {
+    await p.as(tx);
+    const [r] = await tx<{ id: string }[]>`insert into public.note_updates (note_id, epoch, ct) values (${note}, 1, ${await seal3("u", change as Uint8Array<ArrayBuffer>, nk, note, 1, p.id)}) returning id`;
+    return r.id;
+  });
+  try {
+    let doc = A.change(A.init<{ body?: string }>(), (d) => { d.body = "Plan\n\n- Venue\n"; });
+    await push(emil, A.getLastLocalChange(doc)!);
+    doc = A.change(doc, (d) => A.splice(d, ["body"], d.body!.length, 0, "- Lunch (Sara)\n"));
+    const upto = await push(sara, A.getLastLocalChange(doc)!);
+    // Sara's device writes the snapshot, which compacts both changes.
+    await sara.sql.begin(async (tx) => {
+      await sara.as(tx);
+      await tx`insert into public.note_snapshots (note_id, upto, epoch, ct) values (${note}, ${upto}, 1, ${await seal3("s", A.save(doc) as Uint8Array<ArrayBuffer>, nk, note, 1, upto)})`;
+    });
+    doc = A.change(doc, (d) => A.splice(d, ["body"], d.body!.length, 0, "- Dessert (Sara)\n"));
+    await push(sara, A.getLastLocalChange(doc)!);
+    await sara.sql.end();
+
+    await forget(db, saraID);
+    assertEquals((await db`select 1 from auth.users where id = ${saraID}`).length, 0);
+    const shared = { id: note, role: "owner" as const, epoch: 1, title: "Plan", ownerId: emilID, created_at: new Date(), updated_at: new Date(), nk };
+    const text = await emil.sql.begin(async (tx) => { await emil.as(tx); return (await loadDoc(tx as never, shared)).text; });
+    assertEquals(text, "Plan\n\n- Venue\n- Lunch (Sara)\n- Dessert (Sara)\n");
+  } finally {
+    await Promise.all([emil.sql.end(), sara.sql.end().catch(() => {}), db.end()]);
+    await drop();
+  }
+});
