@@ -125,7 +125,7 @@ import Carbon.HIToolbox
     @Test func searchFindsEverySettingByItsWords() {
         let all = Set(SettingsPage.allCases)
         #expect(SettingsIndex.matches("menu bar", available: all).map(\.page) == [.general], "Show in menu bar is on General")
-        #expect(SettingsIndex.matches("diagnostics", available: all).map(\.page) == [.general], "diagnostics is on General, as on iPhone")
+        #expect(SettingsIndex.matches("diagnostics", available: all).map(\.page) == [.security], "diagnostics is on Privacy")
         #expect(SettingsIndex.matches("setup guide", available: all).map(\.page) == [.help], "the setup guide is on Help and feedback, not General")
         #expect(SettingsIndex.matches("recovery", available: all, recoveryKey: true).map(\.page) == [.security])
         #expect(SettingsIndex.matches("export", available: all).map(\.menu) == [.export], "Export is File › Export All Notes…")
