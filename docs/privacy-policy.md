@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 4 November 2026
+Last updated: 7 November 2026
 
 ## The short version
 
@@ -94,6 +94,7 @@ This policy covers the Pinto Notes apps for iPhone and Mac, the service that let
 We count how features are used on our own server to improve the app. We never share or sell it. That means:
 
 - how many notes an AI connection changed on each day;
+- how many requests each AI connection made on each day, by the kind of AI (Claude, ChatGPT or other), the kind of request (read, search, edit, create, move or delete, other) and whether it worked. Never what it read or wrote;
 - which steps of the first-run setup you've completed;
 - if you answer it, how you heard about Pinto Notes: the choice you tap, and any words you add under Something else. We only look at it added up across accounts;
 - a random identifier for each installation of the app and its platform (iPhone or Mac), to count how many devices an account uses. It isn't linked to your device's hardware or advertising identifiers.
@@ -104,14 +105,15 @@ The iPhone and Mac apps report on themselves, so we find out when something is b
 
 - **errors:** that a step failed and its error code, such as a save to the Keychain that was refused, a sync that keeps failing, or a sign-in that didn't work;
 - **crashes and hangs,** from Apple's own diagnostics: the kind of crash and where in our code it happened, as numbers;
-- **a few events:** that the app was opened, that you signed in or signed up and how (Apple, Google or email), which screen you saw while a new device was getting your key, your first note and first sync, that an AI was connected (Claude, ChatGPT or other; never its name or address), and the first time you opened a note an AI had changed;
-- **speed:** how long the app took to open and to sync, and roughly how many notes you have (as a range such as 11 to 100, never the number).
+- **a few events:** that the app was opened, that you signed in or signed up and how (Apple, Google or email), which screen you saw while a new device was getting your key, your first note and first sync, that an AI was connected or disconnected (Claude, ChatGPT or other; never its name or address), the first time you opened a note an AI had changed, that you signed out or deleted your account, the steps of sharing a note (an invite sent, opened or accepted, someone leaving or removed), and when your storage becomes almost full or full;
+- **speed:** how long the app took to open and to sync, how long notes took to open and searches to show results (as ranges such as under 250 ms), and roughly how many notes you have (as a range such as 11 to 100, never the number);
+- **settings and features:** once a day, how each setting is set (such as light or dark, or whether today's note opens when the app starts; never a folder's name or a shortcut's keys), which settings you change and which Settings pages you open, and how often each of a fixed list of features was used, such as checklists, search or today's note (as a range such as 2 to 5, never the number).
 
 With each: the app's version, whether it's the App Store app or the Mac download, the kind of device (such as iPhone or Mac), the system version, and your account's identifier, so we can tell that one account keeps hitting the same problem. Before you sign in, a random identifier is used instead, made new each time the app starts and never stored on your device.
 
 They never send your notes, titles, folder or file names, what you search for, anything an AI wrote, your email address, your recovery key or any other key, or your device's name. An event can only hold numbers, yes or no, and words from a fixed list. The full list of events is in the open at [github.com/pinto-notes/pinto-notes](https://github.com/pinto-notes/pinto-notes/blob/main/docs/Technical/app-telemetry.md).
 
-The reports go to PostHog, hosted in Frankfurt, Germany (EU). PostHog keeps no profile of you, works out no location from them, and records no screens. They are on unless you turn them off: **Settings → General → Share diagnostics and usage** turns all of it off, and nothing is kept or sent while it's off. The app says so under the sign-in form. Like every request, a report reaches PostHog from your IP address; PostHog is set not to keep it.
+The reports go to PostHog, hosted in Frankfurt, Germany (EU). PostHog keeps no profile of you, works out no location from them, and records no screens. They are on unless you turn them off: **Settings → Privacy → Share diagnostics and usage** turns all of it off, and nothing is kept or sent while it's off. The app says so under the sign-in form. Like every request, a report reaches PostHog from your IP address; PostHog is set not to keep it.
 
 **Emails we send you**
 
@@ -277,8 +279,8 @@ In our own database we keep a log of each time our copy of your notes' key was s
 - **Files** you add stay until you delete them or your account.
 - **Your account** is kept until you delete it. **Settings → Delete Account** removes your account, notes, files, profile photo, versions, AI connections, share links, notes password settings, usage counts, the record of emails we sent you, sign-in records and reports about your shared pages straight away.
 - **Notes shared with people:** a note's encrypted changes until a newer snapshot covers them; the note until its owner deletes it or their account; your place in it until you leave, are removed, start fresh or delete your account.
-- **Usage counts** (AI changes per day, days of use, tips, app installations): 12 months.
-- **Diagnostics and usage from the apps:** at PostHog for as long as its plan keeps events (at least a month), or until you ask us to delete them. Deleting your account stops new reports and drops the ones still waiting on your device; it doesn't remove the ones PostHog already holds, so write to us to have those deleted.
+- **Usage counts** (AI changes and AI requests per day, days of use, tips, app installations): 12 months.
+- **Diagnostics and usage from the apps:** at PostHog for as long as its plan keeps events (at least a month), or until you ask us to delete them. Deleting your account stops new reports and drops the ones still waiting on your device, except one report that the account was deleted; it doesn't remove the ones PostHog already holds, so write to us to have those deleted.
 - **The record of emails we sent you,** of links you clicked in them and of unsubscribing: until you delete your account.
 - **Sign-in records:** 30 days. **Rate-limit hashes:** 2 hours. **Unfinished AI sign-ins and expired access tokens:** a day after they expire.
 - **Reports:** the reporter's hash is blanked after 30 days; a report is deleted 12 months after it was made, once it's been reviewed.
