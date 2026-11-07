@@ -74,6 +74,30 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "pinto-notes-for-iphone",
+    title: "Pinto Notes is on iPhone",
+    description: "Pinto Notes is on the App Store: the notes from your Mac on your iPhone, free. What your AI's changes look like on the phone, and how to connect.",
+    excerpt: "The same notes as on your Mac, on your phone, and free. Ask ChatGPT to add something, and it's in the note a second later, with Undo next to it.",
+    category: "Building Pinto Notes",
+    date: "2026-11-07",
+    updated: "2026-11-07",
+    image: { src: "/blog/launch/iphone-chatgpt-changed-groceries.webp", alt: "A Groceries list in Pinto Notes on iPhone with five lines ChatGPT added tinted amber, and ChatGPT changed 5 lines, Undo.", width: 660, height: 1434, window: false, phone: true },
+    thumb: cover("ice", "app-pinto-notes-for-iphone", 1600, 1000, "Pinto Notes on iPhone, a grocery list ChatGPT just added to, on a painted sea"),
+    draft: false,
+  },
+  {
+    slug: "import-your-notes",
+    title: "Bring your notes from anywhere",
+    description: "Pinto Notes on the Mac imports from Apple Notes, Obsidian, Evernote, Google Keep, Bear and Markdown, and shows you what to click in each app.",
+    excerpt: "Apple Notes, Obsidian, Evernote, Google Keep, Bear or a folder of Markdown. The app walks you through each one, and your old app stays as it is.",
+    category: "Building Pinto Notes",
+    date: "2026-11-07",
+    updated: "2026-11-07",
+    image: { src: "/blog/launch/import-google-keep-guide.webp", alt: "Pinto Notes' Google Keep import guide on a Mac: Bring your Google Keep notes, then step 1, Ask Google for your notes.", width: 1600, height: 1000, window: false },
+    thumb: cover("mist", "app-import-your-notes", 1600, 1000, "Pinto Notes' import guide for Google Keep and 27 notes from Obsidian, on a painted sea"),
+    draft: false,
+  },
+  {
     slug: "best-ai-notes-app",
     title: "Best AI notes app in 2026: 7 apps compared",
     description: "Pinto Notes, Notion, Mem, Evernote, Apple Notes, Reflect and Obsidian, compared on what the AI does, what it costs, and whether ChatGPT can use your notes.",
@@ -409,13 +433,13 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// shown as cards on /blog. Every other post answers a search; those live on /blog/answers, in the
 /// sitemap and in the posts that link to them, but not on /blog.
 export const FEATURED = [
+  "pinto-notes-for-iphone",
+  "import-your-notes",
   "best-ai-notes-app",
   "connect-chatgpt-to-your-notes",
   "notes-in-claude-code-and-codex",
   "budget-tracker-with-chatgpt-or-claude",
   "encrypted-notes-app-for-ai",
-  "mcp-server",
-  "move-from-apple-notes",
 ];
 export const isFeatured = (p: Post) => FEATURED.includes(p.slug);
 
