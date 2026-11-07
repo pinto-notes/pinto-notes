@@ -31,6 +31,9 @@ import Testing
 
     /// Only on the note's last line, so arrowing through blank lines doesn't make it jump.
     @Test func theSlashHintStaysOnTheLastLine() async {
+        // The hint stops once the / menu has been used a few times: start from none used, as
+        // SlashMenuEditorTests does (other suites leave uses behind in the test host).
+        SlashRecents.clear()
         let h = await EditorHarness("Plan\n\nMilk\n")
         defer { h.close() }
         func hint() -> Bool { h.view.subviews.contains { ($0 as? NSTextField)?.stringValue == PaneTextView.slashHintText } }
@@ -42,6 +45,9 @@ import Testing
 
     /// With the window behind another, no caret and no hint.
     @Test func theSlashHintLeavesWithTheWindowsFocus() async {
+        // The hint stops once the / menu has been used a few times: start from none used, as
+        // SlashMenuEditorTests does (other suites leave uses behind in the test host).
+        SlashRecents.clear()
         let h = await EditorHarness("Plan\nMilk\n")
         defer { h.close() }
         await h.select((h.view.string as NSString).length)

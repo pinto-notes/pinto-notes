@@ -878,18 +878,21 @@ import Carbon.HIToolbox
         #expect(LoginItem.set(false) && !LoginItem.isOn)
     }
 
+    /// Today's note and the Quick note shortcut moved to pages of their own (Emil, 7 November 2026).
     @Test func searchFindsTheNewRows() {
-        for (words, label) in [("daily", "Today\u{2019}s note"), ("template", "Today\u{2019}s note"), ("hotkey", "Quick note shortcut"),
-                               ("login", "Open at login"), ("ticked", "Ticked items move to the bottom")] {
+        for (words, label, page) in [("daily", "Today\u{2019}s note template", SettingsPage.todaysNote),
+                                     ("template", "Today\u{2019}s note template", .todaysNote),
+                                     ("hotkey", "Quick note shortcut", .shortcuts),
+                                     ("login", "Open at login", .general), ("ticked", "Ticked items move to the bottom", .general)] {
             let found = SettingsIndex.all.filter { e in ([e.label] + e.also).contains { $0.localizedCaseInsensitiveContains(words) } }
-            #expect(found.contains { $0.label == label && $0.page == .general }, "\(words) finds \(label) on General")
+            #expect(found.contains { $0.label == label && $0.page == page }, "\(words) finds \(label) on \(page)")
         }
     }
 
     @Test func generalSaysItInPlainWords() {
         #expect(GeneralCopy.todayFooter == "In the template, {{date}} becomes the date and {{time}} the time.")
         #expect([GeneralCopy.openOnLaunch, GeneralCopy.ticked, GeneralCopy.shortcut, GeneralCopy.shortcutDetail, GeneralCopy.login]
-                == ["Open it when Pinto starts", "Ticked items move to the bottom", "Quick note shortcut", "Works in any app.", "Open at login"])
+                == ["Open today\u{2019}s note when Pinto starts", "Ticked items move to the bottom", "Quick note shortcut", "Works in any app.", "Open at login"])
         #expect(GeneralCopy.checklists == "Checklists" && GeneralCopy.thisMac == "This Mac")
     }
 }

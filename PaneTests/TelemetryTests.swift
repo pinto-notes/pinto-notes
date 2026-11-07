@@ -852,9 +852,8 @@ private final class TelemetryDocToken {}
 
     @Test func eachPageHasAWord() {
         #expect(TelemetryEvent.settingsPageOpened(.storage).properties == [.settingsPage: .word(SettingsPageWord.storage)])
-        for tab in SettingsPage.allCases where tab != .appKeys { #expect(SettingsPageWord(rawValue: tab.rawValue) != nil, "\(tab)") }
-        #if os(macOS)
-        for place in SettingsPage.allCases { #expect(SettingsPageWord(place).rawValue == (place == .appKeys ? "app_keys" : place.rawValue)) }
-        #endif
+        // Words are snake case: appKeys, signIn and todaysNote become app_keys, sign_in and todays_note.
+        let snake = { (s: String) in s.replacingOccurrences(of: "([a-z])([A-Z])", with: "$1_$2", options: .regularExpression).lowercased() }
+        for place in SettingsPage.allCases { #expect(SettingsPageWord(place).rawValue == snake(place.rawValue), "\(place)") }
     }
 }
