@@ -157,8 +157,8 @@ export default function Page() {
         copy each answer out of the chat by hand.
       </p>
       <p>
-        A notes app needs its own MCP server for any of this, and plenty of them don&apos;t have one. <a href="/blog/notes-apps-with-mcp">Notes
-        apps with an MCP server</a> compares the ones that do.
+        A notes app needs its own MCP server for any of this, and plenty of them don&apos;t have one. <a href="/blog/best-ai-notes-app">Best
+        AI notes app in 2026</a> compares the ones that do.
       </p>
       <p>
         Pinto Notes is one. It&apos;s the notes app for iPhone and Mac that I make, with a hosted server at <code>{MCP_URL}</code> that

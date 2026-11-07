@@ -1,6 +1,7 @@
 /// Blog posts removed on 14 October and 7 November 2026 (fewer, better posts), and where each address goes now.
 /// 7 November: the AI news posts, which brought almost no one from search and had nothing to do with notes,
-/// and five posts that Google showed fewer than 25 times in three months.
+/// five posts that Google showed fewer than 25 times in three months, and two AI comparisons merged
+/// into the best AI notes app post.
 /// next.config.ts answers each with a permanent redirect; nothing on the site links to them.
 export const REMOVED_POSTS: Record<string, string> = {
   "chatgpt-to-do-list-on-iphone": "/blog/connect-chatgpt-to-your-notes",
@@ -29,11 +30,13 @@ export const REMOVED_POSTS: Record<string, string> = {
   "gpt-6-astra-use-cases": "/blog/connect-chatgpt-to-your-notes",
   "meta-muse-connectors": "/blog/mcp-server",
   "gemini-notebooks": "/blog/mcp-server",
-  "keynote-pages-numbers-ai-assistant": "/blog/notes-apps-with-mcp",
+  "keynote-pages-numbers-ai-assistant": "/blog/best-ai-notes-app",
   "connect-icloud-mail-calendar-to-chatgpt": "/blog/connect-chatgpt-to-your-notes",
   "habit-tracker-with-chatgpt-or-claude": "/templates/habit-tracker",
   "plan-a-trip-with-chatgpt-or-claude": "/templates/trip-plan",
   "flashcards-with-chatgpt-or-claude": "/templates/study-flashcards",
   "journal-with-chatgpt-or-claude": "/blog/connect-chatgpt-to-your-notes",
   "claude-memory-vs-notes": "/blog/claude-and-apple-notes",
+  "notes-apps-with-mcp": "/blog/best-ai-notes-app",
+  "best-notes-app-for-ai-agents": "/blog/best-ai-notes-app",
 };

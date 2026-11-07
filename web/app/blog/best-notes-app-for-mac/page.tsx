@@ -111,9 +111,9 @@ export default function Page() {
       </p>
 
       <h2 id="pinto-notes">1. Pinto Notes: best if you use ChatGPT or Claude</h2>
-      <PostFigure src="/blog/news/pinto-notes-mac-lisbon" width={1600} height={1000}
-        alt="Pinto Notes on a Mac: folders in the sidebar, a list of notes, and a Lisbon trip note with a checklist, a list of places, a link to another note and a table of places to eat."
-        caption="A trip note in Pinto Notes on a Mac, with a checklist, a link to another note and a table. Screenshot: Pinto Notes." />
+      <PostFigure src="/blog/news/pinto-notes-mac-chatgpt-edit-framed" width={1720} height={1178}
+        alt="Pinto Notes on a Mac: folders in the sidebar, a list of notes, and a Lisbon trip note where the line ChatGPT just added, Late checkout requested, is tinted, with a bar saying ChatGPT changed 1 line and an Undo button."
+        caption="ChatGPT added a line to a trip note. Pinto Notes tints it and offers Undo. Screenshot: Pinto Notes." />
       <p>
         Pinto Notes is a free notes app for Mac and iPhone that works like Apple Notes: folders, pinned notes, checklists, tables, and a
         note list sorted by date. The difference is that ChatGPT, Claude, Claude Code, Codex and Incredible can search, read and edit the

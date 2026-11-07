@@ -151,8 +151,8 @@ export default function Page() {
         <li>Anything else that speaks MCP: add the address and sign in when it asks.</li>
       </ul>
       <p>
-        Choosing a notes app for an agent? <a href="/blog/best-notes-app-for-ai-agents">The best notes app for AI agents</a> sets out the
-        criteria. Coming from Apple Notes? <a href="/blog/apple-notes-api">Apple Notes has no API</a> covers what works
+        Choosing a notes app for an agent? <a href="/blog/best-ai-notes-app">Best AI notes app in 2026</a> compares
+        seven. Coming from Apple Notes? <a href="/blog/apple-notes-api">Apple Notes has no API</a> covers what works
         on a Mac instead, and why none of it reaches your phone. <a href="/blog/obsidian-mcp">Obsidian MCP servers compared</a> does the
         same for Obsidian vaults.
       </p>

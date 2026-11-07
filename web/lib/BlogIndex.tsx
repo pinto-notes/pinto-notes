@@ -10,11 +10,14 @@ import { JsonLd, breadcrumbs, maker, incredible, organization } from "./structur
 import home from "../app/home.module.css";
 import s from "../app/blog/blog.module.css";
 
-/// The blog index and each category's page: the featured posts as cards (the newest wide, the rest
-/// two to a row), then every other post under "More answers", as the question it answers. The
-/// categories are links to their own pages. Every page is static and one page long.
+/// The blog index: the front of the blog, only the featured posts (about Pinto Notes and what people do
+/// with it) as cards, the newest wide. Each category's page: its featured posts as cards, then every
+/// other post under "More answers", as the question it answers. The posts written for search are all
+/// on /blog/answers (AnswersIndex). Every page is static and one page long.
 
-const LEDE = <>What&apos;s new in <b>ChatGPT, Claude</b> and the rest, and how to put them to work in your notes. Plus straight answers about Apple Notes, each one tried on a real Mac first.</>;
+const LEDE_TEXT = "How Pinto Notes works with ChatGPT, Claude, Claude Code and Codex, how it's built, and what people make with it.";
+const LEDE = <>How Pinto Notes works with <b>ChatGPT, Claude</b>, Claude Code and Codex, how it&apos;s built, and what people make with it.</>;
+const ANSWERS_LEDE = "Straight answers about Apple Notes, notes apps and AI, each one tried on a real Mac first.";
 
 /// What each category's page says under its title (and in search results).
 const ABOUT: Record<Category, string> = {
@@ -29,7 +32,7 @@ const ABOUT: Record<Category, string> = {
 /// block is one height and the chips under it don't move when switching between them.
 const fit = (texts: string[]) => [...texts].sort((a, b) => b.length - a.length);
 const FIT_TITLE = () => fit(["The Pinto Notes blog", ...categories()]);
-const FIT_LEDE = () => fit(["What's new in ChatGPT, Claude and the rest, and how to put them to work in your notes. Plus straight answers about Apple Notes, each one tried on a real Mac first.", ...categories().map((c) => ABOUT[c])]);
+const FIT_LEDE = () => fit([LEDE_TEXT, ...categories().map((c) => ABOUT[c])]);
 
 type List = { category: Category | null; base: string; posts: ReturnType<typeof published> };
 
@@ -37,7 +40,7 @@ function list(category: Category | null): List {
   const all = newestFirst();
   return category
     ? { category, base: categoryPath(category), posts: all.filter((p) => p.category === category) }
-    : { category: null, base: "/blog", posts: all };
+    : { category: null, base: "/blog", posts: all.filter(isFeatured) };
 }
 
 export const pagesOf = (category: Category | null) => pageCount(list(category).posts);
@@ -46,7 +49,7 @@ export function blogMetadata(category: Category | null, page: number): Metadata 
   const l = list(category);
   const name = category ?? "Blog";
   const suffix = page > 1 ? `, page ${page}` : "";
-  const description = category ? ABOUT[category] : "What's new in ChatGPT, Claude and the rest, how to put them to work in your notes, and straight answers about Apple Notes.";
+  const description = category ? ABOUT[category] : LEDE_TEXT;
   return pageMetadata({
     title: category ? `${name}${suffix} · Blog · Pinto Notes` : `Blog${suffix} · Pinto Notes`,
     shareTitle: category ? `${name} on the Pinto Notes blog` : "The Pinto Notes blog",
@@ -89,14 +92,16 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
           </div>
         </div>
         <div className={`${s.library} rise`} style={{ "--i": 2 } as React.CSSProperties}>
-          <nav className={s.filters} aria-label="Categories" data-blog-chips="">
-            <a href="/blog" aria-current={category === null ? "page" : undefined}><span className={s.text}>All posts<span className={s.count}>{published().length}</span></span></a>
-            {counts.map(({ c, n }) => (
-              <a key={c} href={categoryPath(c)} aria-current={category === c ? "page" : undefined}>
-                <span className={s.text}>{c}<span className={s.count}>{n}</span></span>
-              </a>
-            ))}
-          </nav>
+          {category && (
+            <nav className={s.filters} aria-label="Categories" data-blog-chips="">
+              <a href="/blog"><span className={s.text}>Blog</span></a>
+              {counts.map(({ c, n }) => (
+                <a key={c} href={categoryPath(c)} aria-current={category === c ? "page" : undefined}>
+                  <span className={s.text}>{c}<span className={s.count}>{n}</span></span>
+                </a>
+              ))}
+            </nav>
+          )}
           <ul className={`${s.grid} ${FILTER_GRID}`}>
             {featured && <li className={s.featuredItem} data-key={featured.slug}><Featured post={featured} /></li>}
             {rest.map((p) => (
@@ -129,11 +134,39 @@ function Featured({ post }: { post: ReturnType<typeof published>[number] }) {
   );
 }
 
+export const answersMetadata = (): Metadata => pageMetadata({
+  title: "Answers · Blog · Pinto Notes",
+  shareTitle: "Answers from the Pinto Notes blog",
+  description: ANSWERS_LEDE,
+  path: "/blog/answers",
+});
+
+/// Every post written for search, as the question it answers, under what it's about. Linked from the
+/// footer, never from the front of the blog.
+export function AnswersIndex() {
+  const crumbs = [{ name: "Blog", path: "/blog" }, { name: "Answers", path: "/blog/answers" }];
+  return (
+    <div className={home.main}>
+      <JsonLd graph={[breadcrumbs(crumbs), organization, maker, incredible]} />
+      <BlogList className={s.index}>
+        <div className={s.hero}>
+          <div className={s.heroText}>
+            <h1 className={`${s.h1} rise`} style={{ "--i": 0 } as React.CSSProperties}>Answers</h1>
+            <p className={`${s.lede} rise`} style={{ "--i": 1 } as React.CSSProperties}>{ANSWERS_LEDE}</p>
+          </div>
+        </div>
+        <MoreAnswers groups={shelves(published().filter((p) => !isFeatured(p)))} title="By topic" />
+      </BlogList>
+      <ClosingBand title="Notes your AI can read and write." text="Pinto Notes works like Apple Notes, and ChatGPT, Claude, Claude Code and Codex can use it, with an Undo on every change." />
+    </div>
+  );
+}
+
 /// Every post that isn't featured, as the question it answers, under what it's about.
-function MoreAnswers({ groups }: { groups: ReturnType<typeof shelves> }) {
+function MoreAnswers({ groups, title = "More answers" }: { groups: ReturnType<typeof shelves>; title?: string }) {
   return (
     <section className={`${s.more} ${FILTER_AFTER}`} aria-labelledby="more-answers">
-      <h2 id="more-answers" className={s.moreTitle}>More answers</h2>
+      <h2 id="more-answers" className={s.moreTitle}>{title}</h2>
       {groups.map((sh) => (
         <div key={sh.title} className={s.moreGroup}>
           <h3>{sh.title}</h3>

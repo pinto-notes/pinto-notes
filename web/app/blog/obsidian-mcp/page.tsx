@@ -287,7 +287,7 @@ export default function Page() {
       </p>
       <p>
         The <a href="/blog/mcp-server">MCP server page</a> lists every Pinto Notes tool. For other notes apps with a server of their own, see{" "}
-        <a href="/blog/notes-apps-with-mcp">notes apps with an MCP server, compared</a>, and for the same question about Apple&apos;s
+        <a href="/blog/best-ai-notes-app">the best AI notes apps, compared</a>, and for the same question about Apple&apos;s
         app, <a href="/blog/apple-notes-api">Apple Notes has no API: what works instead</a>.
       </p>
     </PostPage>

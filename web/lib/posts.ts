@@ -74,6 +74,18 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "best-ai-notes-app",
+    title: "Best AI notes app in 2026: 7 apps compared",
+    description: "Pinto Notes, Notion, Mem, Evernote, Apple Notes, Reflect and Obsidian, compared on what the AI does, what it costs, and whether ChatGPT can use your notes.",
+    excerpt: "Seven notes apps compared on their AI: what it does, what it costs, and whether the ChatGPT or Claude you already use can read and edit your notes.",
+    category: "Comparisons",
+    date: "2026-11-07",
+    updated: "2026-11-07",
+    image: SHOTS.aiEdit,
+    thumb: cover("lilac", "best-ai-notes-app", 1600, 1000, "The icons of Pinto Notes, Notion, Mem, Evernote, Apple Notes, Reflect and Obsidian as paper tiles"),
+    draft: false,
+  },
+  {
     slug: "best-notes-app-for-mac",
     title: "Best notes app for Mac in 2026: 6 apps compared",
     description: "The best notes apps for Mac in 2026: Pinto Notes, Apple Notes, Bear, Obsidian, Notion and Craft. Prices, iPhone apps, AI and where your notes live.",
@@ -290,18 +302,6 @@ export const posts: Post[] = [
     draft: false,
   },
   {
-    slug: "notes-apps-with-mcp",
-    title: "Notes apps with an MCP server, compared",
-    description: "Which notes apps ChatGPT and Claude can read and edit through MCP, whether that works away from your Mac, and what to check before you pick one.",
-    excerpt: "Notion, Evernote, Bear, Obsidian, Apple Notes and more: which ones your AI can reach from your phone, and what happens when it gets an edit wrong.",
-    category: "Comparisons",
-    date: "2026-09-30",
-    updated: "2026-10-14",
-    image: SHOTS.aiEdit,
-    thumb: cover("dunes", "notes-apps-mcp", 1600, 1000, "The MCP mark connected to Notion, Obsidian, Evernote and ChatGPT"),
-    draft: false,
-  },
-  {
     slug: "obsidian-mcp",
     title: "Obsidian MCP servers compared (2026)",
     description: "There's no official Obsidian MCP server. The community plugins and servers compared, how to set one up in Claude, and the limits they share.",
@@ -362,18 +362,6 @@ export const posts: Post[] = [
     draft: false,
   },
   {
-    slug: "best-notes-app-for-ai-agents",
-    title: "The best notes app for AI agents",
-    description: "What an AI agent needs from a notes app: remote MCP, precise writes, undo and history, approval, and apps you read on. How the options compare.",
-    excerpt: "Remote MCP, precise writes, undo, approval and a phone app to read the results: the criteria that matter, and how the options compare.",
-    category: "Comparisons",
-    date: "2026-09-30",
-    updated: "2026-10-14",
-    image: SHOTS.tracker,
-    thumb: cover("cream", "best-for-agents", 1600, 1000, "ChatGPT, Claude, Gemini and Copilot marks all leading into one note"),
-    draft: false,
-  },
-  {
     slug: "chatgpt-and-apple-notes",
     title: "How to use ChatGPT with Apple Notes",
     description: "The three ways ChatGPT can work with Apple Notes today, what each can and can't do, and when a different notes app makes sense.",
@@ -416,15 +404,16 @@ export const categoryPath = (c: Category) => `/blog/category/${categoryAnchor(c)
 
 export const categoryFromAnchor = (anchor: string): Category | undefined => categories().find((c) => categoryAnchor(c) === anchor);
 
-/// The posts the blog presents as cards: what you can do with your AI and your notes. Help with other
-/// apps (an Apple Notes password, a table) is for search and goes under "More answers". The
-/// newest leads as the wide card; the rest go two to a row. Every other post is listed under "More
-/// answers" (lib/more-answers.ts), so it stays one click from the index for readers and crawlers.
+/// The front of the blog (decided 7 November 2026): posts about Pinto Notes and what people do with it,
+/// shown as cards on /blog. Every other post answers a search; those live on /blog/answers, in the
+/// sitemap and in the posts that link to them, but not on /blog.
 export const FEATURED = [
-  "best-notes-app-for-mac",
-  "siri-ai-apple-notes",
+  "connect-chatgpt-to-your-notes",
+  "notes-in-claude-code-and-codex",
   "budget-tracker-with-chatgpt-or-claude",
-  "connect-notes-to-grok",
+  "encrypted-notes-app-for-ai",
+  "mcp-server",
+  "move-from-apple-notes",
 ];
 export const isFeatured = (p: Post) => FEATURED.includes(p.slug);
 
