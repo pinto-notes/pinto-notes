@@ -55,6 +55,9 @@ const config: NextConfig = {
   async redirects() {
     return [
       // The guides became the blog on 30 September 2026.
+      // The changelog page was folded into the blog's announcements on 7 November 2026. The Mac app's
+      // What's New and its update notes still link here.
+      { source: "/changelog", destination: "/blog", permanent: true },
       { source: "/guides", destination: "/blog", permanent: true },
       { source: "/guides/:slug", destination: "/blog/:slug", permanent: true },
       // Page 1 of the blog and of each category lives at the list's own address.
