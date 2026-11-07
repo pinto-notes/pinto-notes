@@ -1,4 +1,5 @@
-/// Blog posts removed on 14 October 2026 (fewer, better posts), and where each address goes now.
+/// Blog posts removed on 14 October and 7 November 2026 (fewer, better posts), and where each address goes now.
+/// 7 November: the AI news posts, which brought almost no one from search and had nothing to do with notes.
 /// next.config.ts answers each with a permanent redirect; nothing on the site links to them.
 export const REMOVED_POSTS: Record<string, string> = {
   "chatgpt-to-do-list-on-iphone": "/blog/connect-chatgpt-to-your-notes",
@@ -15,4 +16,18 @@ export const REMOVED_POSTS: Record<string, string> = {
   "apple-notes-vs-notion": "/blog/move-apple-notes-to-obsidian-notion-keep",
   "apple-notes-vs-obsidian": "/blog/move-apple-notes-to-obsidian-notion-keep",
   "pinto-notes-vs-apple-notes": "/blog/move-from-apple-notes",
+  "chatgpt-chat-and-work-merged": "/blog/connect-chatgpt-to-your-notes",
+  "gemini-4-carbon": "/blog/mcp-server",
+  "chatgpt-chat-memory-full": "/blog/claude-memory-vs-notes",
+  "codex-usage-reset": "/blog/notes-in-claude-code-and-codex",
+  "what-time-ai-companies-launch": "/blog",
+  "new-ai-features": "/blog",
+  "how-to-use-claude-duet": "/blog/claude-and-apple-notes",
+  "lock-chats-in-chatgpt": "/blog/encrypted-notes-app-for-ai",
+  "what-are-chatgpt-dots": "/blog/connect-chatgpt-to-your-notes",
+  "gpt-6-astra-use-cases": "/blog/connect-chatgpt-to-your-notes",
+  "meta-muse-connectors": "/blog/mcp-server",
+  "gemini-notebooks": "/blog/mcp-server",
+  "keynote-pages-numbers-ai-assistant": "/blog/notes-apps-with-mcp",
+  "connect-icloud-mail-calendar-to-chatgpt": "/blog/connect-chatgpt-to-your-notes",
 };
