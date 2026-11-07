@@ -71,6 +71,31 @@ extension NetworkFaults {
         await engine.stop()
     }
 
+    /// A third device writes between this one reading the server's version for a conflict and
+    /// sending its own over it: that write isn't overwritten unseen; it's kept as a copy too.
+    @Test func aThirdWriteDuringAConflictIsKept() async throws {
+        let n = try await syncedNote("Plan\nLine")
+        StubSupabase.edit(n.id, body: "Plan\nLine A", updatedAt: .now.addingTimeInterval(-30))
+        n.body = "Plan\nLine B"
+        n.touch()
+        let sealer = Wire.sealer, id = n.id
+        // The first PATCH misses (version), the conflict reads Line A, and just before its
+        // second PATCH lands, a third device writes Line C.
+        let count = Count()
+        StubSupabase.onRequest = { method, path in
+            guard method == "PATCH", path == "/rest/v1/notes", count.next() == 2 else { return }
+            Wire.$testSealer.withValue(sealer) { StubSupabase.edit(id, body: "Plan\nLine C", updatedAt: .now.addingTimeInterval(-20)) }
+        }
+        await engine.sync()
+        StubSupabase.onRequest = nil
+        await engine.sync()
+        #expect(StubSupabase.body(n.id) == "Plan\nLine B", "this device's edit went up")
+        let bodies = try context.fetch(FetchDescriptor<Note>()).map(\.body)
+        #expect(bodies.contains { $0.contains("Line A") }, "the first other edit is kept as a copy")
+        #expect(bodies.contains { $0.contains("Line C") }, "and so is the one made meanwhile: \(bodies)")
+        await engine.stop()
+    }
+
     @Test func withoutAStartingPointThisDevicesPlaceWins() {
         let f = UUID(), g = UUID()
         let mine = SyncEngine.Place(folder: f, parent: nil, pinned: false, trashed: .now, deleted: nil)
@@ -82,4 +107,10 @@ extension NetworkFaults {
         #expect(SyncEngine.Place.merge(base: base, mine: mine, theirs: gone).deleted != nil)
     }
 }
+}
+
+private final class Count: @unchecked Sendable {
+    private let lock = NSLock()
+    private var n = 0
+    func next() -> Int { lock.withLock { n += 1; return n } }
 }

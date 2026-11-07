@@ -734,6 +734,8 @@ final class SyncEngine {
                     saved = try await client.from("notes").upsert(row, ignoreDuplicates: true).select().execute().value
                     if saved.isEmpty {
                         // Already on the server (e.g. created there first): treat as an update.
+                        // Usually this device's own insert whose answer was lost, so it isn't a
+                        // conflict to keep a copy of.
                         saved = try await client.from("notes").update(row.patch).eq("id", value: n.id).select().execute().value
                     }
                 } else {
@@ -1143,6 +1145,15 @@ final class SyncEngine {
         }
     }
 
+    /// Sends this device's note over the server's row `s`, only if that's still the server's
+    /// version: a third write that landed meanwhile isn't overwritten. Empty when it did; the note
+    /// stays to go up, and the next push resolves against the newer row.
+    private func update(_ client: SupabaseClient, _ n: Note, over s: NoteDTO) async throws -> [NoteDTO] {
+        var query = try client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id)
+        if let v = s.version { query = query.eq("version", value: Int(v)) }
+        return try await query.select().execute().value
+    }
+
     /// The server changed this note since we last saw it, and so did we.
     private func resolveConflict(_ client: SupabaseClient, local n: Note) async throws -> [NoteDTO] {
         let server: [NoteDTO] = try await client.from("notes").select().eq("id", value: n.id).execute().value
@@ -1178,10 +1189,10 @@ final class SyncEngine {
                 if s.body != n.body, s.body != SharedNotes.placeholder(title: NoteText.title(of: s.body)) {
                     insertConflictCopy(Self.conflictCopyID(of: n.id, server: s.version), body: Self.conflictCopy(of: s.body), folder: n.folder, at: s.updated_at)
                 }
-                return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
+                return try await update(client, n, over: s)
             }
             if s.updated_at > n.updatedAt { apply(s, to: n); return server }
-            return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
+            return try await update(client, n, over: s)
         }
         if s.body == n.body && s.locked_body == n.lockedBody && Self.sameProps(s, n) {
             // The same text, but not necessarily the same place: a move, trash, restore or pin made
@@ -1240,7 +1251,7 @@ final class SyncEngine {
         // Ours is newer: it goes up, and theirs is kept here as a conflicted copy (the server
         // keeps it in note_revisions too), so neither edit is lost.
         insertConflictCopy(copyID, body: Self.conflictCopy(of: s.body), frontMatter: s.hasProps ? s.front_matter : n.frontMatter, folder: n.folder, at: s.updated_at)
-        return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
+        return try await update(client, n, over: s)
     }
 
     /// The conflicted copy made for a note against one server version always has the same id: when
@@ -1287,7 +1298,7 @@ final class SyncEngine {
             apply(s, to: n)
             return [s]
         }
-        return try await client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id).select().execute().value
+        return try await update(client, n, over: s)
     }
 
     /// Front matter from both sides, put together like the text: one side's change is taken, and
