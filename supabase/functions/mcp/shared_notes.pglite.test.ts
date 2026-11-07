@@ -4,7 +4,8 @@
 //   cd supabase/functions/mcp && deno test -A shared_notes.pglite.test.ts
 import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import type { PGlite } from "npm:@electric-sql/pglite@0.2.17";
-import { schemaDB } from "./pglite.ts";
+import { schemaDB, sqlFor } from "./pglite.ts";
+import { forget } from "../account/forget.ts";
 import { type Account, account, app, edit, note, opened, toolContext } from "./sealed.ts";
 import { ToolError } from "./tools.ts";
 import { runFileTool } from "./files_tools.ts";
@@ -229,6 +230,31 @@ Deno.test("a busy note gets a snapshot from the AI, and loads from it", async ()
   assertEquals(left.map((r) => r.author_id), [sara.id]);
   const read = await tool(pg, sara, "fetch", { id: "Shared with me/Offsite plan.md" });
   assertStringIncludes(read.text, "- [ ] Venue");
+});
+
+// 20261107152300_collab_author_survives.sql: changes and snapshots belong to the note, not their author.
+Deno.test("a collaborator deleting their account leaves the owner's shared note and its history readable", async () => {
+  const pg = await schemaDB();
+  const { emil, sara, id, mac } = await shared(pg);
+  for (let i = 0; i < SNAPSHOT_EVERY - 2; i++) await mac.type((d) => A.splice(d, ["body"], d.body!.length, 0, "."));
+  await tool(pg, sara, "fetch", { id: "Shared with me/Offsite plan.md" });
+  // Sara's AI edits and writes the snapshot, which compacts every change before it.
+  await tool(pg, sara, "edit", { path: "Shared with me/Offsite plan.md", old_string: "Book the venue", new_string: "Venue booked" });
+  const [snap] = (await pg.query<{ author_id: string }>(`select author_id from public.note_snapshots where note_id = $1`, [id])).rows;
+  assertEquals(snap.author_id, sara.id);
+  await forget(sqlFor(pg), sara.id);
+  assertEquals((await pg.query(`select 1 from auth.users where id = $1`, [sara.id])).rows.length, 0);
+  // Her snapshot and change stay, and still open (her id is in their sealed context).
+  assertEquals((await pg.query(`select 1 from public.note_snapshots where note_id = $1`, [id])).rows.length, 1);
+  assertEquals((await pg.query(`select 1 from public.note_updates where note_id = $1`, [id])).rows.length, 1);
+  const read = await tool(pg, emil, "fetch", { id: "Offsite plan.md" });
+  assertStringIncludes(read.text, "- [ ] Venue booked");
+  assertStringIncludes(read.text, "Pick dates");
+  // Emil can still write to it.
+  assertEquals((await tool(pg, emil, "edit", { path: "Offsite plan.md", old_string: "Pick dates", new_string: "Dates picked" })).checks, "ok");
+  // Deleting the note itself still takes its changes and snapshots.
+  await pg.query(`delete from public.shared_notes where id = $1`, [id]);
+  assertEquals((await pg.query(`select 1 from public.note_updates where note_id = $1 union all select 1 from public.note_snapshots where note_id = $1`, [id])).rows.length, 0);
 });
 
 Deno.test("a note key that doesn't open leaves the note out instead of failing the account", async () => {
