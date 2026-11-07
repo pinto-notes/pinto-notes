@@ -167,7 +167,7 @@ import Testing
     @Test func theCardIsNeverBiggerThanItsWindow() {
         #expect(SettingsCard.size == SettingsWindow.size, "the sheet is the size Settings needs")
         #expect(SettingsCard.fitted(CGSize(width: 1600, height: 1000)) == SettingsCard.size)
-        #expect(SettingsCard.fitted(CGSize(width: 900, height: 600)) == CGSize(width: 852, height: 552))
+        #expect(SettingsCard.fitted(CGSize(width: 800, height: 600)) == CGSize(width: 752, height: 552))
         #expect(SettingsCard.fitted(CGSize(width: 300, height: 200)) == CGSize(width: 600, height: 420), "never so small the page can't be used")
     }
 

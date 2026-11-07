@@ -15,7 +15,7 @@ extension EnvironmentValues {
     /// The window's content size: the card's, the sidebar and one page column.
     // 720 tall so Appearance (text size and its sample) and Privacy and security fit without
     // scrolling (council round 6, 11-04: both ran past the bottom at 600). Fits a 13-inch Mac.
-    static let size = CGSize(width: 900, height: 720)
+    static let size = CGSize(width: 820, height: 660)
     /// Room above the sidebar for the window's buttons (it runs to the top, like System Settings').
     static let titleBar: CGFloat = 38
     /// The title bar's safe area on a hidden-title-bar window.
@@ -95,14 +95,19 @@ struct SettingsCard: View {
     @Environment(\.modelContext) private var context
     #endif
 
-    /// The same card as Templates, so the two read as one kind of place.
-    static let size = SettingsWindow.size
-    static let sidebarWidth: CGFloat = 230
+    /// Three looks to choose between (Emil, 7 November 2026: "it just doesn't look good"). All three
+    /// are smaller and quieter than before. `defaults write <app id> settingsLook glass|solid|tabs`
+    /// tries one; the one left goes after.
+    enum Look: String { case glass, solid, tabs }
+    static var look: Look { Look(rawValue: UserDefaults.standard.string(forKey: "settingsLook") ?? "") ?? .solid }
+
+    static var size: CGSize { look == .tabs ? CGSize(width: 660, height: SettingsWindow.size.height) : SettingsWindow.size }
+    static let sidebarWidth: CGFloat = 200
     /// Room around the card on a window smaller than it.
     static let margin: CGFloat = 24
     /// The content column's widest: the rows read as one column, centred in the page area, not a
     /// stretch across the card (Emil, 2 November 2026).
-    static let contentWidth: CGFloat = 580
+    static let contentWidth: CGFloat = 540
     /// How far a page's own content sits in from its edges.
     static let pageInset: CGFloat = 20
     /// A page's widest: the content column and the page's own inset each side.
@@ -120,7 +125,7 @@ struct SettingsCard: View {
 
     /// The card's size in `space`: its own, or smaller on a small window, never too small to use.
     static func fitted(_ space: CGSize) -> CGSize {
-        CGSize(width: min(size.width, max(600, space.width - 2 * margin)),
+        CGSize(width: min(size.width, max(look == .tabs ? 560 : 600, space.width - 2 * margin)),
                height: min(size.height, max(420, space.height - 2 * margin)))
     }
 
@@ -215,13 +220,36 @@ struct SettingsCard: View {
 
     @ViewBuilder private func card(framed: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: framed ? 22 : 0, style: .continuous)
+        Group { if Self.look == .tabs {
+            VStack(spacing: 0) {
+                tabBar
+                SettingsInk.hairline.frame(height: 0.5)
+                pageArea
+            }
+        } else {
         HStack(spacing: 0) {
-            // The notes window's sidebar: its glass and the theme's colour over it (Emil, 6 November 2026).
             sidebar
                 .frame(width: Self.sidebarWidth)
                 .frame(maxHeight: .infinity, alignment: .top)
-                .background { Color(Palette.sidebarWarmth).background(.regularMaterial).ignoresSafeArea() }
+                // Glass: the notes window's sidebar, its material and the theme's colour over it
+                // (Emil, 6 November 2026). Solid: one ground, a hairline between.
+                .background { if Self.look == .glass { Color(Palette.sidebarWarmth).background(.regularMaterial).ignoresSafeArea() } }
             SettingsInk.hairline.frame(width: 0.5)
+            pageArea
+        }
+        } }
+        .coordinateSpace(.named(Self.space))
+        .background {
+            if framed { shape.fill(SettingsInk.ground).shadow(color: .black.opacity(0.22), radius: 30, y: 18) } else { SettingsInk.ground }
+        }
+        .clipShape(shape)
+        .overlay { if framed { shape.strokeBorder(SettingsInk.edge, lineWidth: 0.5) } }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Settings")
+        .accessibilityAddTraits(inWindow ? [] : .isModal)
+    }
+
+    private var pageArea: some View {
             VStack(spacing: 0) {
                 header
                 ScrollView {
@@ -255,16 +283,32 @@ struct SettingsCard: View {
             }
             .settingsProbe("area")
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    /// The pages along the top, as a Mac app's settings have them: each an icon over its name.
+    private var tabBar: some View {
+        HStack(spacing: 4) {
+            Spacer(minLength: 0)
+            ForEach(SettingsPlace.groups(available: available).flatMap(\.self)) { p in
+                let on = current == p
+                Button { open(p) } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: p.symbol).font(.system(size: 16)).foregroundStyle(on ? SettingsInk.text : SettingsInk.icon).frame(height: 20)
+                        Text(p.title).font(.system(size: 11, weight: .medium)).foregroundStyle(on ? SettingsInk.text : SettingsInk.muted).lineLimit(1)
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(minWidth: 76, minHeight: 50)
+                    .background(highlight(on))
+                    .contentShape(.rect)
+                    .hoverRow(reach: EdgeInsets())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
+                .accessibilityIdentifier("settings.\(p.rawValue)")
+            }
+            Spacer(minLength: 0)
         }
-        .coordinateSpace(.named(Self.space))
-        .background {
-            if framed { shape.fill(SettingsInk.ground).shadow(color: .black.opacity(0.22), radius: 30, y: 18) } else { SettingsInk.ground }
-        }
-        .clipShape(shape)
-        .overlay { if framed { shape.strokeBorder(SettingsInk.edge, lineWidth: 0.5) } }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Settings")
-        .accessibilityAddTraits(inWindow ? [] : .isModal)
+        .padding(.vertical, 10)
     }
 
     /// The page's name over the left edge of its content, the one line on what it's for under it,
@@ -273,7 +317,7 @@ struct SettingsCard: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 0) {
                 Text(shown.title)
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(SettingsInk.text)
                     .lineLimit(1)
                     .accessibilityAddTraits(.isHeader)
@@ -291,13 +335,13 @@ struct SettingsCard: View {
             // The cards' one close × (CardCloseButton), solid like the card (Emil, 2 November 2026).
             // A window closes with its own button and ⌘W.
             if !inWindow {
-                CardCloseButton(size: 28, action: closeNow)
+                CardCloseButton(size: 24, action: closeNow)
                     .accessibilityIdentifier("settings.done")
                     .settingsProbe("close")
-                    .padding(.trailing, 16)
+                    .padding(.trailing, 14)
             }
         }
-        .padding(.top, inWindow ? SettingsWindow.titleBar : 18)
+        .padding(.top, inWindow ? SettingsWindow.titleBar : 14)
     }
 
     private var back: some View {
@@ -314,7 +358,7 @@ struct SettingsCard: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            searchField.padding(.bottom, 14)
+            searchField.padding(.bottom, 10)
             if query.isEmpty {
                 ForEach(Array(SettingsPlace.groups(available: available).enumerated()), id: \.offset) { i, group in
                     if i > 0 { Color.clear.frame(height: 14) }
@@ -333,15 +377,15 @@ struct SettingsCard: View {
                 .padding(.horizontal, 8)
                 .accessibilityIdentifier("settings.version")
         }
-        .padding(.top, inWindow ? SettingsWindow.titleBar + 8 : 18)
-        .padding(.horizontal, 12)
+        .padding(.top, inWindow ? SettingsWindow.titleBar + 8 : 14)
+        .padding(.horizontal, 10)
         .padding(.bottom, 12)
     }
 
-    /// Search on the sidebar's own ground: a hairline, no fill of its own.
+    /// Search: a soft field, as quiet as the rows under it.
     private var searchField: some View {
         HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").font(.system(size: 13)).foregroundStyle(SettingsInk.muted)
+            Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(SettingsInk.muted)
             TextField("Search", text: $query, prompt: Text("Search").foregroundStyle(SettingsInk.muted))
                 .textFieldStyle(.plain)
                 .focusEffectDisabled()
@@ -353,10 +397,10 @@ struct SettingsCard: View {
                     .accessibilityLabel("Clear search")
             }
         }
-        .font(.system(size: 14))
-        .padding(.horizontal, 10)
-        .frame(height: 34)
-        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(SettingsInk.hairline, lineWidth: 1))
+        .font(.system(size: 13))
+        .padding(.horizontal, 8)
+        .frame(height: 28)
+        .background(SettingsInk.group, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 
     /// What search finds: each setting by its words, with the page it's on; a click opens the page.
@@ -402,27 +446,27 @@ struct SettingsCard: View {
     @ViewBuilder private func icon(_ p: SettingsPlace, on: Bool) -> some View {
         Group {
             if p == .account, case .signedIn = backend.state {
-                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 22)
+                AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? profile.name : nil, size: 18)
             } else {
-                Image(systemName: p.symbol).font(.system(size: 16)).foregroundStyle(on ? SettingsInk.text : SettingsInk.icon)
+                Image(systemName: p.symbol).font(.system(size: 14)).foregroundStyle(on ? SettingsInk.text : SettingsInk.icon)
             }
         }
-        .frame(width: 24)
+        .frame(width: 20)
     }
 
     private func row(_ p: SettingsPlace) -> some View {
         let on = current == p
         return Button { open(p) } label: {
-            HStack(spacing: 9) {
+            HStack(spacing: 8) {
                 icon(p, on: on)
                 Text(p.title)
-                    .font(.system(size: 14, weight: on ? .semibold : .regular))
+                    .font(.system(size: 13, weight: on ? .medium : .regular))
                     .foregroundStyle(SettingsInk.text)
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
             .background(highlight(on))
             .contentShape(.rect)
             .hoverRow(reach: EdgeInsets())

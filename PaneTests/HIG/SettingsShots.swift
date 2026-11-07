@@ -65,6 +65,8 @@ import Testing
         guard let dir = Self.dir else { return }
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let lib = try SidebarStudySnapshots.library()
+        if let look = ProcessInfo.processInfo.environment["PANE_SETTINGS_LOOK"] { UserDefaults.standard.set(look, forKey: "settingsLook") }
+        defer { UserDefaults.standard.removeObject(forKey: "settingsLook") }
         let kept = ThemeStore.shared.current
         defer {
             ProfileStore.shared.showForPreview(name: nil, photo: nil)
