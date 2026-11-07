@@ -114,10 +114,13 @@ import Testing
         let pages: [(SettingsPage, String)] = [(.account, "account"), (.ai, "connect"), (.general, "general"), (.appearance, "appearance"),
                                                 (.security, "privacy"), (.storage, "storage"), (.help, "help"),
                                                 (.personal, "personal"), (.signIn, "signin"), (.encryption, "encryption"),
-                                                (.todaysNote, "todays-note"), (.shortcuts, "shortcuts")]
+                                                (.todaysNote, "todays-note"), (.shortcuts, "shortcuts"),
+                                                (.aiConnection, "ai-connection"), (.addAI, "add-ai")]
         var rows: [[(String, NSBitmapImageRep)]] = []
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
             for (place, name) in pages {
+                // The AI's page is named after the AI it shows: the first in the list.
+                if place == .aiConnection, let first = AIList.connected(SecurityPageSnapshots.ais).first { AISelection.shared.select(first) }
                 var row: [(String, NSBitmapImageRep)] = []
                 for dark in [false, true] {
                     let rep = try await shoot(window(view(place), library: lib), dark: dark)
@@ -139,6 +142,12 @@ import Testing
             // Before any AI is connected, signed out, and nearly full.
             let none = try await shoot(window(view(.ai, connections: []), library: lib), dark: false)
             try save(none, "connect-none-light", in: dir)
+            try save(try await shoot(window(view(.ai, connections: []), library: lib), dark: true), "connect-none-dark", in: dir)
+            // Just connected, not used yet: what to ask it, with Copy.
+            let fresh = [Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: "claude.ai")]
+            for dark in [false, true] {
+                try save(try await shoot(window(view(.ai, connections: fresh), library: lib), dark: dark), "connect-new-\(dark ? "dark" : "light")", in: dir)
+            }
             let out = try await shoot(window(view(.account, backend: Backend()), library: lib), dark: false)
             try save(out, "account-signed-out-light", in: dir)
             rows.append([("Connect an AI, nothing connected", none), ("Account, signed out", out)])

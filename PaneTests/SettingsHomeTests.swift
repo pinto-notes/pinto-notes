@@ -36,7 +36,7 @@ import Carbon.HIToolbox
     @Test func signedOutThereAreFivePages() {
         #expect(SettingsView(backend: Backend(), sync: nil).available == [.account, .general, .appearance, .shortcuts, .todaysNote, .security, .help])
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
-        #expect(SettingsView(backend: backend, sync: nil).available == [.account, .ai, .general, .appearance, .shortcuts, .todaysNote, .security, .storage, .help, .personal, .signIn, .encryption])
+        #expect(SettingsView(backend: backend, sync: nil).available == [.account, .ai, .general, .appearance, .shortcuts, .todaysNote, .security, .storage, .help, .personal, .signIn, .encryption, .aiConnection, .addAI])
         #expect(SettingsPage.available(signedIn: false, hasClient: false, demoStorage: true).contains(.storage), "captures show Storage")
     }
 
@@ -156,8 +156,10 @@ import Carbon.HIToolbox
                     "\(word): found while it's on")
         }
         #expect(SettingsIndex.matches("security", available: all).allSatisfy { $0.label != "Advanced protection" })
-        // Keys for apps is parked: nothing leads to it, search included.
-        for place in SettingsPage.allCases where place != .appKeys {
+        // Keys for apps is parked: nothing leads to it, search included. One AI's page needs an AI
+        // picked, so search leads to the list (Disconnect an AI).
+        #expect(SettingsIndex.matches("disconnect", available: SettingsPage.available(signedIn: true, hasClient: true)).contains { $0.page == .ai })
+        for place in SettingsPage.allCases where place != .appKeys && place != .aiConnection {
             #expect(SettingsIndex.all.contains { $0.page == place }, "\(place) has words to find it by")
         }
     }
@@ -460,16 +462,13 @@ import Carbon.HIToolbox
         #expect(SettingsCard.contentWidth >= 480 && SettingsCard.contentWidth <= 620)
     }
 
-    /// Connect an AI's cards fill the content column, their left edge under the title's, with the
-    /// line on what is sent right over them, in view without scrolling (App Review 5.1.2).
+    /// AI Connections' line on what is sent and to whom is on the page, under the rows, in view
+    /// without scrolling (App Review 5.1.2), inside the content column.
     @Test func connectCardsHaveTheSharingLineInView() async throws {
         let f = try await Self.layout(.ai, window: CGSize(width: 1180, height: 760))
-        let card = try #require(f["connect.card"], "the cards")
-        let title = try #require(f["arrows"]), page = try #require(f["page"]), area = try #require(f["area"])
-        #expect(abs(card.minX - title.minX) < 0.5, "card \(card.minX), header's edge \(title.minX)")
-        #expect(abs(card.width - (page.width - 2 * SettingsCard.pageInset)) < 0.5)
+        let page = try #require(f["page"]), area = try #require(f["area"])
         let sent = try #require(f["connect.sent"], "the line on what is sent is on the page")
-        #expect(card.minY > sent.maxY && card.minY - sent.maxY < 20, "right over the cards: \(sent) over \(card)")
+        #expect(sent.minX >= page.minX && sent.maxX <= page.maxX, "in the column: \(sent) in \(page)")
         #expect(sent.height > 10 && sent.maxY < area.maxY, "in view without scrolling: \(sent) in \(area)")
     }
 
@@ -879,17 +878,19 @@ import Carbon.HIToolbox
     }
 
     @Test func searchFindsTheNewRows() {
-        for (words, label) in [("daily", "Today\u{2019}s note"), ("template", "Today\u{2019}s note"), ("hotkey", "Quick note shortcut"),
-                               ("login", "Open at login"), ("ticked", "Ticked items move to the bottom")] {
+        // Today's note and the shortcut have pages of their own (7 November 2026).
+        for (words, label, page) in [("daily", "Open today\u{2019}s note when Pinto starts", SettingsPage.todaysNote),
+                                     ("template", "Today\u{2019}s note template", .todaysNote), ("hotkey", "Quick note shortcut", .shortcuts),
+                                     ("login", "Open at login", .general), ("ticked", "Ticked items move to the bottom", .general)] {
             let found = SettingsIndex.all.filter { e in ([e.label] + e.also).contains { $0.localizedCaseInsensitiveContains(words) } }
-            #expect(found.contains { $0.label == label && $0.page == .general }, "\(words) finds \(label) on General")
+            #expect(found.contains { $0.label == label && $0.page == page }, "\(words) finds \(label) on \(page)")
         }
     }
 
     @Test func generalSaysItInPlainWords() {
         #expect(GeneralCopy.todayFooter == "In the template, {{date}} becomes the date and {{time}} the time.")
         #expect([GeneralCopy.openOnLaunch, GeneralCopy.ticked, GeneralCopy.shortcut, GeneralCopy.shortcutDetail, GeneralCopy.login]
-                == ["Open it when Pinto starts", "Ticked items move to the bottom", "Quick note shortcut", "Works in any app.", "Open at login"])
+                == ["Open today\u{2019}s note when Pinto starts", "Ticked items move to the bottom", "Quick note shortcut", "Works in any app.", "Open at login"])
         #expect(GeneralCopy.checklists == "Checklists" && GeneralCopy.thisMac == "This Mac")
     }
 }

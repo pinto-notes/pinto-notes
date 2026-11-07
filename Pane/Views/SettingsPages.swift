@@ -1215,11 +1215,12 @@ struct ThemeWindowPicture: View {
 
 // MARK: AI Connections
 
-/// AI Connections: a card per AI (ChatGPT, Claude, Grok, Other apps), each saying where it stands,
-/// with Connect… or Manage. The line on what an AI may do and which company the notes go to is at
-/// the top, always in view, in every stage (App Review rejected 1.2 for hiding the company). The
-/// Mac runs the setup card's flows from its cards (ConnectAIPage); iPhone connects in the browser
-/// or on the Mac (ConnectChoices).
+/// AI Connections, as Bluetooth has its devices (Emil, 7 November 2026): what is connected as rows,
+/// each opening its own page (what it can do, when it was last used, Disconnect…), then Add an AI….
+/// With nothing connected, the AIs are right there as rows with Connect…, the one on this Mac first.
+/// The line on what an AI may do and which company the notes go to is always in view (App Review
+/// rejected 1.2 for hiding the company). The Mac runs the setup card's flows (ConnectAIPage); iPhone
+/// connects in the browser or on the Mac (ConnectGuideRoute).
 struct AIConnectionsPage: View {
     let client: SupabaseClient
     /// Captures: shows these instead of asking the server.
@@ -1228,38 +1229,387 @@ struct AIConnectionsPage: View {
     /// Captures: the page waiting for this AI.
     var previewWaiting: SetupCards.AI? = nil
     #endif
+    /// Captures: what counts as on this Mac.
+    var previewInstalled: Set<SetupCards.AI>? = nil
+    @State private var connected = ConnectedAIs.shared
+    @State private var installed: Set<SetupCards.AI> = []
+
+    var body: some View {
+        let mine = AIList.connected(preview ?? connected.connections)
+        SettingsPageForm {
+            #if os(macOS)
+            OpenSection { ConnectAIPage(client: client, preview: preview, previewWaiting: previewWaiting) }
+            #else
+            AIWaitingAsk()
+            #endif
+            if mine.isEmpty {
+                OpenSection {
+                    Text(AIList.intro).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("connect.intro")
+                }
+                AIAddRows(installed: previewInstalled ?? installed)
+            } else {
+                Section {
+                    ForEach(mine) { AIConnectedRow(connection: $0) }
+                } header: {
+                    Text("Connected")
+                }
+                Section {
+                    SettingsSubPageRow(page: .addAI, id: "connect.addAI")
+                } footer: {
+                    AISentLine()
+                }
+            }
+            if NoteApps.enabled, NoteApps.realPreviews { AppPreviewSection(client: client) }
+        }
+        .connectGuides(client: client)
+        .task {
+            if preview == nil { await connected.refresh(client) }
+            if previewInstalled == nil { installed = await AIList.lookForInstalled() }
+        }
+    }
+}
+
+/// Add an AI: the onboarding picker's AIs as rows with Connect…, the one on this Mac first.
+struct AddAIPage: View {
+    let client: SupabaseClient
+    var preview: [Connection]? = nil
+    var previewInstalled: Set<SetupCards.AI>? = nil
+    @State private var installed: Set<SetupCards.AI> = []
+    #if os(macOS)
+    @Environment(\.openSettingsPage) private var openPage
+    #endif
 
     var body: some View {
         SettingsPageForm {
             #if os(macOS)
-            OpenSection {
-                VStack(alignment: .leading, spacing: 8) {
-                    sent.font(.callout)
-                    ConnectAIPage(client: client, preview: preview, previewWaiting: previewWaiting)
-                }
-            }
+            OpenSection { ConnectAIPage(client: client, preview: preview, onConnected: { openPage?(.ai) }) }
             #else
-            Section {
-                ConnectChoices(client: client, preview: preview, cards: true)
-            } header: {
-                sent.font(.footnote).textCase(nil).padding(.bottom, 4)
-            }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
+            AIWaitingAsk()
             #endif
-            if NoteApps.enabled, NoteApps.realPreviews { AppPreviewSection(client: client) }
+            AIAddRows(installed: previewInstalled ?? installed)
         }
         .connectGuides(client: client)
+        .task { if previewInstalled == nil { installed = await AIList.lookForInstalled() } }
+    }
+}
+
+/// One connected AI's page: what it can do, when it was last used, and Disconnect….
+struct AIConnectionPage: View {
+    let client: SupabaseClient
+    var preview: [Connection]? = nil
+    @State private var connected = ConnectedAIs.shared
+    @State private var selection = AISelection.shared
+    @State private var asking = false
+    @State private var working = false
+    @State private var error: String?
+    #if os(macOS)
+    @Environment(\.openSettingsPage) private var openPage
+    #else
+    @Environment(\.dismiss) private var dismiss
+    #endif
+
+    /// The one picked; in captures, the first.
+    private var connection: Connection? {
+        let all = AIList.connected(preview ?? connected.connections)
+        return all.first { $0.id == selection.id } ?? (preview != nil ? all.first : nil)
     }
 
-    /// Who the notes go to: never behind a disclosure, and there while a connection is made too.
-    private var sent: some View {
+    var body: some View {
+        SettingsPageForm {
+            if let c = connection {
+                OpenSection {
+                    VStack(spacing: 8) {
+                        ConnectionTile(connection: c, size: 56)
+                        Text(AIList.name(c)).font(.title3.weight(.semibold)).foregroundStyle(Color.ink)
+                        HStack(spacing: 5) {
+                            Circle().fill(.green).frame(width: 7, height: 7).accessibilityHidden(true)
+                            Text("Connected").foregroundStyle(Color.muted)
+                        }
+                        .font(.callout)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+                }
+                Section {
+                    LabeledContent("Access", value: AIList.access)
+                    LabeledContent("Last used", value: AIList.lastUsed(c))
+                    LabeledContent("Connected on", value: c.created_at.formatted(date: .abbreviated, time: .omitted))
+                } footer: {
+                    AISentLine()
+                }
+                Section {
+                    Button(role: .destructive) { asking = true } label: {
+                        HStack(spacing: 8) {
+                            Text("Disconnect\u{2026}").foregroundStyle(.red)
+                            if working { ProgressView().controlSize(.small) }
+                            Spacer(minLength: 0)
+                        }
+                        .contentShape(.rect)
+                    }
+                    .settingsRowLink()
+                    .disabled(working)
+                    .accessibilityIdentifier("connect.disconnect")
+                } footer: {
+                    if let error { Text(error).foregroundStyle(.red) }
+                }
+            } else {
+                Section { Text("This AI isn\u{2019}t connected any more.").foregroundStyle(Color.muted) }
+            }
+        }
+        // The title is the AI's name: if the page fell back to the first one, that one is selected.
+        .onAppear { if let c = connection, c.id != selection.id { selection.select(c) } }
+        .confirmationDialog("Disconnect \(connection.map(AIList.name) ?? "")?", isPresented: $asking, titleVisibility: .visible) {
+            Button("Disconnect", role: .destructive) { Task { await disconnect() } }
+        } message: {
+            Text("It loses access to your notes right away.")
+        }
+    }
+
+    private func disconnect() async {
+        guard let c = connection, preview == nil else { return }
+        working = true
+        defer { working = false }
+        do {
+            try await ConnectRevoke.revoke(client, id: c.id)
+            await connected.refresh(client)
+            #if os(macOS)
+            openPage?(.ai)
+            #else
+            dismiss()
+            #endif
+        } catch {
+            self.error = "Couldn\u{2019}t disconnect \(AIList.name(c)). Try again."
+        }
+    }
+}
+
+/// The AIs to add, as rows with Connect…. Out of the way while one is being connected.
+struct AIAddRows: View {
+    let installed: Set<SetupCards.AI>
+    @State private var flow = ConnectFlow.shared
+    @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
+    @Environment(\.networkReach) private var reach
+
+    var body: some View {
+        if !flow.busy {
+            Section {
+                ForEach(AIList.choices(installed: installed)) { row($0) }
+            } footer: {
+                VStack(alignment: .leading, spacing: 6) {
+                    if reach != .online { Text(OfflineCopy.needsNetwork("connect an AI", reach: reach)) }
+                    AISentLine()
+                }
+            }
+        }
+    }
+
+    private func row(_ t: SetupCards.AI) -> some View {
+        HStack(spacing: 10) {
+            BrandMark(ai: t, size: 26)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(AIList.title(t)).foregroundStyle(Color.ink)
+                Text(AIList.line(t, installed: installed.contains(t))).font(.callout).foregroundStyle(Color.muted)
+            }
+            Spacer(minLength: 8)
+            Button("Connect\u{2026}") { connect(t) }
+                .settingsRowButton()
+                .disabled(reach != .online)
+                .accessibilityLabel("Connect \(AIList.title(t))")
+                .accessibilityIdentifier("connect.ai.\(t.rawValue)")
+        }
+    }
+
+    /// The Mac's flow on the page (ConnectAIPage); iPhone's browser sheet or Connect on your Mac.
+    private func connect(_ t: SetupCards.AI) {
+        #if os(macOS)
+        flow.asked = t
+        #else
+        let g = t.guide
+        if BrowserConnect.opensSheet(g, onWeb: BrowserConnect.onWeb) { route?.guide = g; return }
+        switch ConnectHere.press(g, connected: false) {
+        case .onMac: route?.onMac = g
+        default: route?.guide = g
+        }
+        #endif
+    }
+}
+
+/// A connected AI: its mark, its name and when it was last used, opening its own page. Until it's
+/// first used, one thing to ask it, to copy.
+struct AIConnectedRow: View {
+    let connection: Connection
+    @State private var copied = false
+    #if os(macOS)
+    @Environment(\.openSettingsPage) private var openPage
+    #endif
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            link
+            if let ask = AIList.tryIt(connection) {
+                HStack(spacing: 8) {
+                    Text(ask).font(.callout).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Button(copied ? "Copied" : "Copy") {
+                        HelpPage.toClipboard(AIList.ask)
+                        copied = true
+                    }
+                    .settingsRowButton()
+                    .accessibilityIdentifier("connect.tryIt.copy")
+                }
+                .padding(.leading, 36)
+            }
+        }
+    }
+
+    private var label: some View {
+        HStack(spacing: 10) {
+            ConnectionTile(connection: connection, size: 26)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(AIList.name(connection)).foregroundStyle(Color.ink)
+                HStack(spacing: 5) {
+                    Circle().fill(.green).frame(width: 6, height: 6).accessibilityHidden(true)
+                    Text(AIList.used(connection)).font(.callout).foregroundStyle(Color.muted)
+                }
+            }
+            Spacer(minLength: 0)
+            #if os(macOS)
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+            #endif
+        }
+        .contentShape(.rect)
+    }
+
+    @ViewBuilder private var link: some View {
+        #if os(macOS)
+        Button {
+            AISelection.shared.select(connection)
+            openPage?(.aiConnection)
+        } label: { label }
+        .settingsRowLink()
+        .accessibilityIdentifier("connect.connected.\(connection.id.uuidString)")
+        #else
+        NavigationLink(value: SettingsPage.aiConnection) { label }
+            .simultaneousGesture(TapGesture().onEnded { AISelection.shared.select(connection) })
+            .accessibilityIdentifier("connect.connected.\(connection.id.uuidString)")
+        #endif
+    }
+}
+
+/// What an AI may do and which company the notes go to, under the list, in view in every stage.
+struct AISentLine: View {
+    var body: some View {
         Text(ConnectCopy.page)
-            .foregroundStyle(Color.muted)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityIdentifier("connect.sent")
             .settingsProbe("connect.sent")
     }
+}
+
+#if os(iOS)
+/// An AI asking to connect, waiting for your Allow (the Mac shows it in ConnectAIPage).
+struct AIWaitingAsk: View {
+    @State private var center = ConnectCenter.shared
+    var body: some View {
+        if let ask = center.waiting().first { Section { ConnectWaitingRow(ask: ask) } }
+    }
+}
+#endif
+
+/// A row's Connect… on the Mac: the page's flow (ConnectAIPage) takes the ask and shows the wait.
+@MainActor @Observable
+final class ConnectFlow {
+    static let shared = ConnectFlow()
+    /// Connect… was pressed for this AI.
+    var asked: SetupCards.AI?
+    /// The wait or the tick is showing: the rows step aside.
+    var busy = false
+}
+
+/// Which connected AI its page shows.
+@MainActor @Observable
+final class AISelection {
+    static let shared = AISelection()
+    private(set) var id: UUID?
+    /// Its name, for the page's title.
+    nonisolated(unsafe) static var title = "AI"
+
+    func select(_ c: Connection) {
+        id = c.id
+        Self.title = AIList.name(c)
+    }
+}
+
+/// The AI pages' words and order (tested).
+enum AIList {
+    static let intro = "Connect your AI so it knows your notes, and you stop explaining things twice."
+    static let access = "Reads and edits your notes when you ask"
+    /// One thing to ask a new one, so you see it work.
+    static let ask = "What\u{2019}s in my Welcome note?"
+
+    /// What is connected, the most recently used first.
+    static func connected(_ rows: [Connection]) -> [Connection] {
+        rows.filter { $0.revoked_at == nil }
+            .sorted { ($0.last_used_at ?? $0.created_at) > ($1.last_used_at ?? $1.created_at) }
+    }
+
+    /// The AIs to add: the onboarding picker's (ChatGPT, Claude, Grok), any on this Mac first, then
+    /// Other apps. Never Mistral (Emil, 2 November 2026).
+    static func choices(installed: Set<SetupCards.AI>) -> [SetupCards.AI] {
+        let brands = SetupCards.brands
+        return brands.filter(installed.contains) + brands.filter { !installed.contains($0) } + [.other]
+    }
+
+    static func title(_ t: SetupCards.AI) -> String { t == .other ? "Other apps" : t.name }
+
+    /// The line under an AI to add: on this Mac, who makes it, or what Other apps means.
+    static func line(_ t: SetupCards.AI, installed: Bool) -> String {
+        if installed { return "On this Mac" }
+        if t == .other { return "Cursor, Codex and more" }
+        return "Made by \(ConnectTrust.makers[t.name] ?? t.name)"
+    }
+
+    /// The brand a connection is, by where its sign-in went or its name; nil for an app the list can't name.
+    static func brand(of c: Connection) -> SetupCards.AI? {
+        let name = c.mark ?? c.title
+        return SetupCards.brands.first { $0.name == name }
+    }
+
+    static func name(_ c: Connection) -> String { brand(of: c)?.name ?? c.title }
+
+    static func used(_ c: Connection, now: Date = .now) -> String {
+        guard let d = c.last_used_at else { return "Not used yet" }
+        return now.timeIntervalSince(d) < 60 ? "Used just now" : "Used \(d.formatted(.relative(presentation: .named, unitsStyle: .wide)))"
+    }
+
+    static func lastUsed(_ c: Connection, now: Date = .now) -> String {
+        guard let d = c.last_used_at else { return "Not yet" }
+        return now.timeIntervalSince(d) < 60 ? "Just now" : d.formatted(.relative(presentation: .named, unitsStyle: .wide))
+    }
+
+    /// Until a brand AI is first used: what to ask it.
+    static func tryIt(_ c: Connection) -> String? {
+        guard c.last_used_at == nil, let b = brand(of: c) else { return nil }
+        return "Ask \(b.name): \u{201C}\(ask)\u{201D}"
+    }
+
+    /// The AIs installed on this Mac, by their app ids, looked up off the main thread. iPhone: none.
+    static func lookForInstalled() async -> Set<SetupCards.AI> {
+        #if os(macOS)
+        return await Task.detached(priority: .utility) { installedNow() }.value
+        #else
+        return []
+        #endif
+    }
+
+    #if os(macOS)
+    nonisolated static let appIDs: [(SetupCards.AI, String)] = [(.chatgpt, "com.openai.chat"), (.claude, "com.anthropic.claudefordesktop")]
+
+    nonisolated static func installedNow() -> Set<SetupCards.AI> {
+        Set(appIDs.filter { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0.1) != nil }.map(\.0))
+    }
+    #endif
 }
 
 // MARK: Help menu

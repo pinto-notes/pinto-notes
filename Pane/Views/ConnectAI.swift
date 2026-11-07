@@ -1783,6 +1783,8 @@ struct ConnectAIPage: View {
     var preview: [Connection]? = nil
     /// Captures: the page waiting for this AI.
     var previewWaiting: SetupCards.AI? = nil
+    /// After the tick: Add an AI goes back to the list, where the new one is under Connected.
+    var onConnected: () -> Void = {}
 
     enum Stage: Equatable { case choosing, waiting, connected }
 
@@ -1802,8 +1804,8 @@ struct ConnectAIPage: View {
     /// Grok's or Other's guide, open over the wait.
     @State private var guidePage: Guide?
     @State private var connections: [Connection] = []
-    @State private var removing: Connection?
     @State private var error: String?
+    @State private var flow = ConnectFlow.shared
     @State private var center = ConnectCenter.shared
     @State private var helpAsk = ConnectHelpAsk.shared
     @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
@@ -1857,33 +1859,45 @@ struct ConnectAIPage: View {
         }
     }
 
+    /// Whether there is anything to show: an ask waiting, an error, the wait or the tick. While
+    /// choosing there's nothing: the rows of the form around it are the list.
+    private var showsSomething: Bool { center.waiting().first != nil || error != nil || stage != .choosing }
+
     var body: some View {
-        // The row of AI Connections' form (AIConnectionsPage), under the line on what is sent.
+        // The flow of AI Connections and Add an AI: their rows' Connect… asks it (ConnectFlow), and it
+        // shows the wait and the tick where the rows were (Emil, 7 November 2026: rows, as Bluetooth).
         VStack(alignment: .leading, spacing: 10) {
             if let ask = center.waiting().first { ConnectWaitingRow(ask: ask) }
             if let error { Text(error).font(.system(size: 12)).foregroundStyle(.red).padding(.horizontal, 4) }
             switch stage {
-            case .choosing: cards
+            case .choosing: EmptyView()
             case .waiting: panel { ConnectWaitingPanel(ai: ai, note: note, fix: fix, cancel: cancel) }
             case .connected: panel { ConnectedPanel(ai: ai) }
             }
         }
+        .frame(height: showsSomething ? nil : 0)
         .onAppear {
             run.asksToFinish = true
             run.connected = { _ in connectedNow() }
             run.added = { _ in Task { await load() } }
             if let previewWaiting { ai = previewWaiting; stage = .waiting }
+            flow.busy = stage != .choosing
+            takeAsk()
             takeHelpAsk()
         }
+        .onChange(of: flow.asked) { takeAsk() }
+        .onChange(of: stage) { _, now in flow.busy = now != .choosing }
         .onChange(of: helpAsk.pending) { takeHelpAsk() }
-        .onDisappear { run.stop() }
+        .onDisappear { run.stop(); flow.busy = false }
         .sheet(item: $guidePage, onDismiss: guideClosed) { ConnectWebGuideSheet(ai: $0, client: client) }
         .task(id: "\(route?.closed ?? 0)\(reach == .online)") { await load() }
-        .confirmationDialog("Disconnect \(removing?.title ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
-            Button("Disconnect", role: .destructive) { if let r = removing { Task { await revoke(r) } } }
-        } message: {
-            Text("It loses access to your notes right away.")
-        }
+    }
+
+    /// A row's Connect… asked for an AI: its flow starts here.
+    private func takeAsk() {
+        guard let asked = flow.asked else { return }
+        flow.asked = nil
+        begin(asked)
     }
 
     /// The Help menu asked for Help Connecting an AI: its sheet, over this page.
@@ -1911,13 +1925,6 @@ struct ConnectAIPage: View {
     private func accounts(_ tile: SetupCards.AI) -> [Connection] { Self.accounts(tile, in: active) }
 
 
-    private var cards: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-            ForEach(SetupCards.connectTiles) { t in aiCard(t) }
-        }
-        .settingsProbe("connect.card")
-    }
-
     /// What a card's status line says (shared with iPhone's cards).
     static func status(_ tile: SetupCards.AI, accounts mine: [Connection]) -> String {
         ConnectCopy.cardStatus(other: tile == .other, accounts: mine)
@@ -1926,58 +1933,6 @@ struct ConnectAIPage: View {
     /// A Disconnect item in Manage.
     static func disconnectTitle(_ c: Connection, tile: SetupCards.AI, count: Int) -> String {
         ConnectCopy.cardDisconnect(c, name: tile.name, other: tile == .other, count: count)
-    }
-
-    private func aiCard(_ t: SetupCards.AI) -> some View {
-        let mine = accounts(t)
-        let status = Self.status(t, accounts: mine)
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                BrandMark(ai: t, size: 30)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(t == .other ? "Other apps" : t.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(SettingsInk.text)
-                    HStack(spacing: 4) {
-                        if !mine.isEmpty { Circle().fill(.green).frame(width: 6, height: 6) }
-                        Text(status).font(.system(size: 11.5)).foregroundStyle(SettingsInk.muted).lineLimit(1)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            HStack(spacing: 6) {
-                if mine.isEmpty {
-                    Button("Connect\u{2026}") { begin(t) }.buttonStyle(.settings).accessibilityIdentifier("connect.ai.\(t.rawValue)")
-                } else {
-                    Menu {
-                        ForEach(mine) { c in
-                            Button(Self.disconnectTitle(c, tile: t, count: mine.count)) { removing = c }
-                        }
-                        Divider()
-                        Button(t == .other ? "Connect another app\u{2026}" : "Connect another account\u{2026}") { begin(t) }
-                        if t == .other { ForEach(Self.more()) { g in Button("Connect \(g.shown)\u{2026}") { connect(g) } } }
-
-                    } label: { Text("Manage") }
-                    .menuStyle(.button)
-                    .buttonStyle(.settings)
-                    .fixedSize()
-                    .accessibilityIdentifier("connect.manage.\(t.rawValue)")
-                }
-                Spacer(minLength: 0)
-            }
-            .disabled(reach != .online)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(SettingsInk.group))
-    }
-
-    @ViewBuilder private func mark(_ g: Guide) -> some View {
-        if g == .other {
-            Image(systemName: "plus").font(.system(size: 12, weight: .medium)).foregroundStyle(SettingsInk.icon)
-                .frame(width: 26, height: 26)
-                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(SettingsInk.hairline, style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
-        } else {
-            AITile(ai: g.title, size: 26)
-        }
     }
 
     /// The wait in a box of its own, where the list of AIs to add was.
@@ -2043,7 +1998,7 @@ struct ConnectAIPage: View {
         Task { await load() }
         Task {
             try? await Task.sleep(for: .seconds(1.4))
-            if stage == .connected { withAnimation { stage = .choosing } }
+            if stage == .connected { withAnimation { stage = .choosing }; onConnected() }
         }
     }
 
@@ -2056,16 +2011,6 @@ struct ConnectAIPage: View {
         } catch {
             // Offline isn't a failure: it is asked again once the server answers.
             self.error = reach == .online ? "Couldn\u{2019}t load what\u{2019}s connected. Check your connection." : nil
-        }
-    }
-
-    private func revoke(_ c: Connection) async {
-        do {
-            try await ConnectRevoke.revoke(client, id: c.id)
-            removing = nil
-            await load()
-        } catch {
-            self.error = "Couldn\u{2019}t disconnect \(c.title). Try again."
         }
     }
 }

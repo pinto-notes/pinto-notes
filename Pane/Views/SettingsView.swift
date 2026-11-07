@@ -103,6 +103,10 @@ struct SettingsView: View {
                 AIConnectionsPage(client: client, preview: connections)
                 #endif
             }
+        case .aiConnection:
+            if let client = backend.client { AIConnectionPage(client: client, preview: connections) }
+        case .addAI:
+            if let client = backend.client { AddAIPage(client: client, preview: connections) }
         case .general: GeneralSettingsPage()
         case .todaysNote: TodaysNoteSettingsPage()
         case .shortcuts:
