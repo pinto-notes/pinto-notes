@@ -69,7 +69,9 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
   // The newest featured post leads, wide, on its category's cover; the other featured posts follow as
   // cards; the rest of the list is "More answers".
   const picked = posts.filter(isFeatured);
-  const featured = page === 1 ? picked[0] : undefined;
+  // The newest leads wide only when the cards under it fill whole rows of three, so no row is left
+  // half empty (seven posts: one wide, then three and three; six: three and three).
+  const featured = page === 1 && picked.length > 1 && (picked.length - 1) % 3 === 0 ? picked[0] : undefined;
   const rest = featured ? picked.slice(1) : picked;
   const more = shelves(posts.filter((p) => !isFeatured(p)));
 

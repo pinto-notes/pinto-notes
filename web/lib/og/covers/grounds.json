@@ -23,6 +23,42 @@
   "w": 880,
   "h": 550
  },
+ "app-budget-tracker-with-chatgpt-or-claude": {
+  "ground": "#c1642e",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
+ },
+ "app-connect-chatgpt-to-your-notes": {
+  "ground": "#89abb7",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
+ },
+ "app-encrypted-notes-app-for-ai": {
+  "ground": "#8b783a",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
+ },
+ "app-mcp-server": {
+  "ground": "#c1642e",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
+ },
+ "app-move-from-apple-notes": {
+  "ground": "#8b783a",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
+ },
+ "app-notes-in-claude-code-and-codex": {
+  "ground": "#63304c",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
+ },
  "apple-creator-studio": {
   "ground": "#020202",
   "ink": "light",

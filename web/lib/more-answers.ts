@@ -39,7 +39,6 @@ export const SHELVES: Shelf[] = [
     title: "Notes apps, compared",
     line: "Read on each maker's own pages, with the prices of the day.",
     items: [
-      { slug: "best-ai-notes-app", ask: "What's the best AI notes app?" },
       { slug: "best-notes-app-for-mac", ask: "What's the best notes app for Mac?" },
     ],
   },
