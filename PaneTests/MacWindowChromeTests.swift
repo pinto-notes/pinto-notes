@@ -60,7 +60,7 @@ import Testing
                 func column(_ label: String) -> [Int] { items.filter { $0.label == label }.map(\.column) }
                 try Self.expectSidebarButtons(w, items)
                 #expect(column("Hide Sidebar") == [0] && column("Show Sidebar").isEmpty, "a sidebar button you can see (Emil, 11-04)")
-                #expect(column("New Note") == [1], "compose sits with the list")
+                #expect(column("New Note").isEmpty && column("More").contains(1), "compose sits with the list, in one island with its More")
                 for label in ["Format", "Checklist", "Table", "Attach", "Share"] {
                     #expect(column(label) == [2], "\(label) stays with the note")
                 }
@@ -129,13 +129,6 @@ import Testing
 
     /// The list's width is what you see of it. On macOS 26 its view runs on under the floating
     /// sidebar: on the Air (council round 5, 11-04) a 260 pt list had a 520 pt frame, and the list
-    /// With no room in the bar for the folder's name, it heads the list (council round 6).
-    @Test func theFolderIsNamedAboveTheListWhenTheBarHasNoRoom() {
-        #expect(NoteListView.nameAboveList(listWidth: 350 - NoteListView.windowButtons))
-        #expect(!NoteListView.nameAboveList(listWidth: 330), "a bar with room names it there, once")
-        #expect(!NoteListView.nameAboveList(listWidth: 0), "not before the list has a width")
-    }
-
     /// came back 100 pt too wide after Show Sidebar.
     @Test func theListsWidthIsWhatShowsBesideTheSidebar() {
         let sidebar = CGRect(x: 0, y: 0, width: 260, height: 800)
@@ -242,8 +235,10 @@ import Testing
         let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
         let heading = try #require(sidebar.range(of: "Text(\"Folders\")").map { String(sidebar[$0.lowerBound...].prefix(900)) })
         #expect(heading.contains("Button(\"New Folder\", systemImage: \"plus\")") && heading.contains(".buttonStyle(.quietIcon"), "a plus with a hover look")
+        #expect(heading.contains("lightens: true"), "muted at rest, full ink under the pointer")
+        #expect(heading.contains(".padding(.trailing, SidebarStyle.plusTrailing)"), "centred over the counts")
         #expect(sidebar.contains("Button(toggleSidebar.title, systemImage: \"sidebar.left\")"))
-        #expect(sidebar.contains("ToolbarItem { SidebarToggleButton() }"), "its own view reads the toggle, not the folders'")
+        #expect(sidebar.contains("ToolbarItem { SidebarToggleButton()"), "its own view reads the toggle, not the folders'")
     }
 
     /// The sidebar's top, left to right: Hide Sidebar, Today, Search, all over the sidebar, in the
@@ -264,13 +259,13 @@ import Testing
         #expect(items.filter { $0.label == "Search" }.count == 1, "one Search button")
     }
 
-    /// The list's header: More, the name, then New Note, in that order and not overlapping; the
-    /// name centred in the column.
+    /// The list's header: More then New Note, together on the right, the same with the sidebar
+    /// shown or hidden.
     static func expectListHeader(_ w: NSWindow, _ items: [(label: String, column: Int, frame: CGRect)]) throws {
+        // One toolbar item: More and New Note in one island.
         let more = try #require(items.first { $0.label == "More" && $0.column == 1 })
-        let compose = try #require(items.first { $0.label == "New Note" })
         #expect(!items.contains { $0.label == "Search" && $0.frame.minX > more.frame.maxX }, "no Search in the list's header")
-        #expect(abs(more.frame.width - compose.frame.width) <= 1, "two circles the same size")
+        #expect(more.frame.width >= 2 * 30, "room for both circles (\(more.frame.width))")
         let split = try #require(w.contentView.flatMap { find(NSSplitView.self, in: $0) })
         // The list as seen: the sidebar floats over the column's leading part.
         var list = split.arrangedSubviews[1].convert(split.arrangedSubviews[1].bounds, to: nil)
@@ -279,24 +274,8 @@ import Testing
             let edge = sidebar.convert(sidebar.bounds, to: nil).maxX
             list = CGRect(x: edge, y: list.minY, width: list.maxX - edge, height: list.height)
         }
-        let header = NoteListView.headerWidth(column: list.width, minX: list.minX)
-        // No name where the buttons leave it under 40 pt (the sidebar hidden beside a narrow list).
-        guard NoteListView.titleRoom(listWidth: header) > 0 else {
-            print("PERF list header \(Int(list.width)) pt, no name: More \(Int(more.frame.minX - list.minX))-\(Int(more.frame.maxX - list.minX)), New Note to \(Int(compose.frame.maxX - list.minX))")
-            #expect(more.frame.maxX < compose.frame.minX, "More, New Note")
-            #expect(compose.frame.maxX <= list.maxX - 4 && more.frame.minX >= list.minX, "the buttons inside the list column")
-            #expect(NoteListView.nameAboveList(listWidth: header), "the folder's name heads the list instead")
-            return
-        }
-        let title = try #require(items.first { $0.label.isEmpty && $0.column == 1 && $0.frame.width > 20 })
-        #expect(more.frame.maxX < title.frame.minX && title.frame.maxX < compose.frame.minX,
-                "More, name, New Note: \(more.frame) \(title.frame) \(compose.frame)")
-        let t = title.frame
-        print("PERF list header \(Int(list.width)) pt: More \(Int(more.frame.minX - list.minX))-\(Int(more.frame.maxX - list.minX)), name \(Int(t.minX - list.minX))-\(Int(t.maxX - list.minX)), New Note to \(Int(compose.frame.maxX - list.minX))")
-        // Centred between More and New Note (the window's buttons may cover the column's start).
-        let mid = (more.frame.maxX + compose.frame.minX) / 2
-        #expect(abs(t.midX - mid) <= 6, "the name centred between the buttons (\(t.midX - mid) off)")
-        #expect(compose.frame.maxX <= list.maxX - 4 && more.frame.minX >= list.minX, "the buttons inside the list column")
+        #expect(more.frame.maxX <= list.maxX - 4 && more.frame.minX >= list.minX, "the buttons inside the list column")
+        #expect(!items.contains { $0.label.isEmpty && $0.column == 1 && $0.frame.width > 20 }, "no name in the bar: it heads the list, sidebar shown or hidden")
     }
 
     /// The header at the list's narrowest: nothing overlaps or drops out of the toolbar.
@@ -313,7 +292,7 @@ import Testing
             let items = try Self.items(w)
             print("toolbar, narrowest list: " + items.map { "\($0.label.isEmpty ? "(blank)" : $0.label)@\($0.column) \(Int($0.frame.minX))-\(Int($0.frame.maxX))" }.joined(separator: ", "))
             let shown = split.arrangedSubviews[1].frame.maxX - split.arrangedSubviews[0].frame.maxX
-            #expect(shown < 270, "the list at its narrowest (\(shown) pt beside the sidebar)")
+            #expect(shown < 340, "the list at its narrowest (\(shown) pt beside the sidebar)")
             try Self.expectListHeader(w, items)
             try Self.expectSidebarButtons(w, items)
         }
@@ -358,7 +337,6 @@ import Testing
             #expect(!items.contains { $0.label == "New Folder" }, "a folder made with the sidebar hidden can't be seen; File › New Folder stays")
             #expect(zip(buttons, buttons.dropFirst()).allSatisfy { $0.frame.maxX <= $1.frame.minX }, "in that order, not overlapping")
             #expect(buttons.allSatisfy { $0.frame.maxX < more.frame.minX }, "before the list's More")
-            if let last = buttons.last { print("PERF sidebar hidden: its buttons end at \(Int(last.frame.maxX)) pt; windowButtons is \(Int(NoteListView.windowButtons))") }
             try Self.expectListHeader(w, items)
         }
     }

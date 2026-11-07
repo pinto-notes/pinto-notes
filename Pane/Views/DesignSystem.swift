@@ -361,13 +361,15 @@ struct QuietButtonStyle: ButtonStyle {
     var padding: CGFloat = 0
     /// Beside toolbar buttons: a fill as light as theirs, and the word keeps its colour.
     var soft = false
+    /// A bare symbol on a heading: as muted as the heading, full ink under the pointer.
+    var lightens = false
 
     /// How far a quiet text button's word sits in from its edge: a Back above a heading moves left
     /// by this much, so the word lines up with the heading.
     static let inset = ButtonSize.compact.padding * 0.75
 
     func makeBody(configuration: Configuration) -> some View {
-        QuietButton(configuration: configuration, size: size, icon: icon, padding: padding, soft: soft)
+        QuietButton(configuration: configuration, size: size, icon: icon, padding: padding, soft: soft, lightens: lightens)
     }
 }
 
@@ -376,7 +378,7 @@ extension ButtonStyle where Self == QuietButtonStyle {
     static func quiet(_ size: ButtonSize) -> QuietButtonStyle { .init(size: size) }
     static var quietSoft: QuietButtonStyle { .init(soft: true) }
     static var quietIcon: QuietButtonStyle { .init(icon: true) }
-    static func quietIcon(padding: CGFloat) -> QuietButtonStyle { .init(icon: true, padding: padding) }
+    static func quietIcon(padding: CGFloat, lightens: Bool = false) -> QuietButtonStyle { .init(icon: true, padding: padding, lightens: lightens) }
 }
 
 private struct QuietButton: View {
@@ -385,6 +387,7 @@ private struct QuietButton: View {
     let icon: Bool
     let padding: CGFloat
     var soft = false
+    var lightens = false
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.isFocused) private var isFocused
     @Environment(\.hoverPreview) private var preview
@@ -396,6 +399,7 @@ private struct QuietButton: View {
             #if os(macOS)
             let shape = AnyShape(RoundedRectangle(cornerRadius: Radius.xs, style: .continuous))
             configuration.label
+                .foregroundStyle(lightens ? AnyShapeStyle(on ? Color.ink : Color.muted) : AnyShapeStyle(.foreground))
                 .padding(padding)
                 .opacity(isEnabled ? 1 : 0.5)
                 .background {
@@ -419,7 +423,7 @@ private struct QuietButton: View {
                 .frame(minHeight: size.height)
                 .background {
                     if soft {
-                        if configuration.isPressed { shape.fill(Hover.fill) } else if on { shape.fill(Hover.row) }
+                        if configuration.isPressed { shape.fill(Hover.pressed) } else if on { shape.fill(Hover.bar) }
                     } else if configuration.isPressed { shape.fill(Color.soft).overlay(shape.fill(Color(Palette.quietPressed))) }
                     else if on { shape.fill(Color.soft) }
                 }
@@ -810,5 +814,43 @@ struct SettingsRowButtonStyle: ButtonStyle {
             .background(configuration.isPressed ? SettingsInk.selection : .clear)
             .hoverRow(reach: EdgeInsets())
     }
+}
+
+/// A plain icon in the window's bar. Its own style, because the system's hover there is barely
+/// visible and a layer over it read as two hovers (Emil, 7 November 2026): one shape, one strength.
+struct BarIconButtonStyle: ButtonStyle {
+    static let diameter: CGFloat = 36
+    static let glyph: CGFloat = 17
+
+    func makeBody(configuration: Configuration) -> some View {
+        BarIcon(configuration: configuration)
+    }
+
+    private struct BarIcon: View {
+        let configuration: ButtonStyleConfiguration
+        @Environment(\.isEnabled) private var isEnabled
+        @State private var hovering = false
+
+        var body: some View {
+            configuration.label
+                .labelStyle(.iconOnly)
+                .font(.system(size: BarIconButtonStyle.glyph))
+                .opacity(isEnabled ? 1 : 0.35)
+                .frame(width: BarIconButtonStyle.diameter, height: BarIconButtonStyle.diameter)
+                .background {
+                    if isEnabled, configuration.isPressed {
+                        Circle().fill(Hover.pressed)
+                    } else if isEnabled, hovering {
+                        Circle().fill(Hover.bar)
+                    }
+                }
+                .contentShape(.circle)
+                .modifier(HoverTracking(hovering: $hovering))
+        }
+    }
+}
+
+extension ButtonStyle where Self == BarIconButtonStyle {
+    static var barIcon: BarIconButtonStyle { .init() }
 }
 #endif

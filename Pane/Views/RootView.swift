@@ -27,10 +27,6 @@ struct RootView: View {
     @State private var sidebarFit = SidebarFit()
     /// Waits for the window's width to hold still before the sidebar acts on it.
     @State private var sidebarFitWait: Task<Void, Never>?
-    /// The list takes its wider least width (350, for the sidebar's buttons over it) once the
-    /// sidebar has folded away, not while it folds: then the three least widths together pushed
-    /// the window 90 pt wider (council round 13: asked for 1,000, it grew to 1,119).
-    @State private var listRoomy = false
     #endif
     #if os(iOS)
     /// The open notes, for the list beside the note to draw (OpenNotes).
@@ -315,11 +311,6 @@ struct RootView: View {
         }
         .onChange(of: visibility) { _, new in
             sidebarFit.changed(to: new)
-            if new == .all { listRoomy = false; return }
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(0.4))
-                if visibility != .all { listRoomy = true }
-            }
         }
         // The list column shows its own title; no window title in the bar.
         .toolbar(removing: .title)
@@ -452,11 +443,10 @@ struct RootView: View {
                 .environment(library)
                 #if os(macOS)
                 .environment(\.listSidebarHidden, visibility != .all)
-                // With the sidebar hidden its New Folder, Today and Search sit over this column
-                // beside the window's buttons: 350 pt keeps More and New Note clear of its edge.
-                // 360 at most beside the sidebar, so a missed restore costs the note little (council
-                // round 5, 11-04: it came back at 440 on the Air).
-                .navigationSplitViewColumnWidth(min: listRoomy ? 350 : 260, ideal: visibility == .all ? 330 : 350, max: visibility == .all ? 360 : 440)
+                // Never narrower than the window's buttons, the sidebar's New Folder, Today and Search,
+                // and More and New Note need with the sidebar hidden: a narrower list had to grow
+                // and shrink back on every toggle (Emil, 6 November 2026). So a toggle only slides.
+                .navigationSplitViewColumnWidth(min: 330, ideal: 330, max: 440)
                 #else
                 // Large text needs the room more here than in the note beside it.
                 // A window wider than tall and under 1,000 pt (iPhone Duo open like a book): the list is
@@ -483,7 +473,12 @@ struct RootView: View {
 
     #if os(macOS)
     /// Go to Note…, over the window's top third like Spotlight. A click outside closes it.
-    @ViewBuilder private var quickOpenPanel: some View {
+    private var quickOpenPanel: some View {
+        ZStack(alignment: .top) { quickOpenContent }
+            .animation(QuickOpen.motion(opening: quickOpen != nil, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion), value: quickOpen == nil)
+    }
+
+    @ViewBuilder private var quickOpenContent: some View {
         if let notes = quickOpen {
             let open = selectedNote.flatMap { context.note($0) }
             ZStack(alignment: .top) {
@@ -499,6 +494,7 @@ struct RootView: View {
                                close: { quickOpen = nil },
                                searchText: { [container = context.container] q in await QuickOpen.textHits(for: q, in: container) })
                     .padding(.top, 72)
+                    .transition(QuickOpen.transition(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion))
             }
             .onAppear { RowPressSlop.covered = true }
             .onDisappear { RowPressSlop.covered = false }
@@ -1665,8 +1661,8 @@ struct ToggleSidebarAction: Equatable {
 
 extension EnvironmentValues {
     @Entry var toggleSidebar: ToggleSidebarAction? = nil
-    /// The notes list: the window's sidebar is hidden, so its buttons sit beside the list's.
     @Entry var listSidebarHidden = false
+    /// The notes list: the window's sidebar is hidden, so its buttons sit beside the list's.
 }
 
 /// The sidebar steps aside when the window is too narrow for three columns and comes back when

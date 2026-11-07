@@ -60,13 +60,21 @@ import Testing
         #expect(!QuickOpen.isOutside(.zero, of: .zero, windowHeight: 800), "not measured yet: stays")
     }
 
-    @Test func dateHeadingsStopFloatingSoTheirLineGoes() {
-        let list = NSTableView(), sidebar = NSTableView()
-        list.style = .plain; list.floatsGroupRows = true
-        sidebar.style = .sourceList; sidebar.floatsGroupRows = true
-        ListEdgeLine.stopFloating(list); ListEdgeLine.stopFloating(sidebar)
-        #expect(!list.floatsGroupRows)
-        #expect(sidebar.floatsGroupRows, "the sidebar keeps its own")
+    @Test func settingsIsASheetOnTheNotesWindow() throws {
+        let app = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Pane/App/PaneApp.swift"), encoding: .utf8)
+        #expect(!app.contains("Window(\"Settings\""), "no window of its own")
+    }
+
+    @Test func theNameLeavesBeforeTheSlideAndReturnsAfterIt() {
+        #expect(NoteListView.nameFade(hidden: true, reduceMotion: true) == nil)
+        #expect(NoteListView.nameFade(hidden: true, reduceMotion: false) != nil)
+    }
+
+    @Test func aHeadingPinsOnlyOnceTheListHasScrolled() {
+        #expect(!ListEdgeLine.pins(offset: -52, topInset: 52), "at the top: a plain row")
+        #expect(!ListEdgeLine.pins(offset: 0, topInset: 0))
+        #expect(ListEdgeLine.pins(offset: -40, topInset: 52), "scrolled: pinned")
+        #expect(ListEdgeLine.pins(offset: 200, topInset: 0))
     }
 
     @Test func theLinesAreHiddenAndOnlyThem() {
@@ -75,7 +83,8 @@ import Testing
         thin.name = "DividerBackground"; thin.bounds.size.width = 0.5
         [line, other, ground, thin].forEach(root.addSublayer)
         ListEdgeLine.hideLines(in: root)
-        #expect(line.isHidden && ground.isHidden)
+        #expect(ground.isHidden)
+        #expect(!line.isHidden, "the bar's hairline stays, as in Notes")
         #expect(!other.isHidden && !thin.isHidden, "the sidebar's own divider stays")
     }
 
@@ -104,6 +113,45 @@ import Testing
         await h.type("E")
         let typed = caret()
         #expect(empty != nil && empty == typed)
+    }
+
+    /// Go to Note pops in like the sheets and leaves faster; Reduce Motion only fades.
+    @Test func goToNoteHasATransition() throws {
+        let root = try SettingsHomeTests.source("Pane/Views/RootView.swift")
+        #expect(root.contains("QuickOpen.transition(reduceMotion:"))
+        #expect(root.contains("value: quickOpen == nil"))
+        #expect(QuickOpen.motion(opening: true, reduceMotion: false) != QuickOpen.motion(opening: false, reduceMotion: false))
+        #expect(QuickOpen.motion(opening: true, reduceMotion: true) == QuickOpen.motion(opening: false, reduceMotion: true))
+    }
+
+    /// A note drags from anywhere on its card, not only its words.
+    @Test func aNoteDragsFromItsWholeCard() throws {
+        let list = try SettingsHomeTests.source("Pane/Views/NoteListView.swift")
+        let row = try #require(list.range(of: "private struct ListRow").map { String(list[$0.lowerBound...].prefix(1600)) })
+        let shape = try #require(row.range(of: ".contentShape(Rectangle().inset(by: -6))"))
+        let drag = try #require(row.range(of: ".draggable(PaneDragItem(kind: .note"))
+        #expect(shape.lowerBound < drag.lowerBound, "the shape comes before the drag")
+    }
+
+    /// A folder stays lit a moment after a drop and bounces once per drop; a later drop restarts it.
+    @Test func aFolderReactsWhenSomethingLands() async throws {
+        let drops = FolderDropState(), a = UUID(), b = UUID()
+        drops.id = a
+        #expect(drops.lit(a) && !drops.lit(b), "lit under the drag")
+        drops.id = nil
+        #expect(!drops.lit(a), "out when the drag leaves")
+        drops.land(a)
+        #expect(drops.lit(a) && drops.landings[a] == 1, "lit as it lands, one bounce")
+        try await Task.sleep(for: FolderDropState.landedHold + .milliseconds(150))
+        #expect(!drops.lit(a), "then it fades")
+        drops.land(a)
+        #expect(drops.landings[a] == 2 && drops.landings[b] == nil, "each drop bounces only its own row")
+        // The wait between the lift and the drop keeps the row lit, and the drop's own time replaces it.
+        drops.lifted(b)
+        #expect(drops.lit(b) && !drops.lit(a), "lit from the lift")
+        drops.land(b)
+        try await Task.sleep(for: FolderDropState.landedHold + .milliseconds(150))
+        #expect(!drops.lit(b), "the drop's shorter hold wins")
     }
 }
 #endif

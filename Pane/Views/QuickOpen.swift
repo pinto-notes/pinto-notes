@@ -8,6 +8,16 @@ import SwiftUI
 /// last, searches every note for what you typed. The sidebar's Search button opens it too. The arrows move the
 /// highlight, Esc closes. ⌘K stays Add Link, as in Notes; ⌘O is Obsidian's quick switcher.
 enum QuickOpen {
+    /// It pops in like the app's sheets (Emil, 7 November 2026: it just appeared) and leaves faster.
+    static func motion(opening: Bool, reduceMotion: Bool) -> Animation {
+        if reduceMotion { return .easeOut(duration: 0.12) }
+        return opening ? .spring(duration: 0.24, bounce: 0.08) : .easeOut(duration: 0.12)
+    }
+
+    static func transition(reduceMotion: Bool) -> AnyTransition {
+        reduceMotion ? .opacity : .scale(scale: 0.95, anchor: .top).combined(with: .opacity)
+    }
+
     /// A note as the panel lists it, read once when the panel opens.
     struct NoteItem: Identifiable, Equatable, Sendable {
         let id: UUID

@@ -8,9 +8,8 @@ extension EnvironmentValues {
 }
 
 #if os(macOS)
-/// Settings on the Mac is a window of its own, opened by ⌘, like Notes', Obsidian's and the
-/// system's (UI council, 11-04): the note stays in view and live beside it, so a theme, accent or
-/// text size is seen as it changes. A sheet hid the note and took the whole window.
+/// Settings on the Mac is a sheet on the notes window, like every other popup in the app (Emil,
+/// 7 November 2026; it was a window of its own from the UI council, 11-04).
 @MainActor enum SettingsWindow {
     static let id = "settings"
     /// The window's content size: the card's, the sidebar and one page column.
@@ -97,7 +96,7 @@ struct SettingsCard: View {
     #endif
 
     /// The same card as Templates, so the two read as one kind of place.
-    static let size = TemplateLibraryView.size
+    static let size = SettingsWindow.size
     static let sidebarWidth: CGFloat = 230
     /// Room around the card on a window smaller than it.
     static let margin: CGFloat = 24
@@ -453,12 +452,21 @@ struct SettingsCardHost: ViewModifier {
     let route: SettingsRoute
     let opening: () -> Void
     @Environment(\.appearsActive) private var appearsActive
-    @Environment(\.openWindow) private var openWindow
+    @State private var showing = false
 
     func body(content: Content) -> some View {
         content
             .onChange(of: route.presenting, initial: true) { take() }
             .onChange(of: appearsActive) { take() }
+            .sheet(isPresented: $showing) {
+                if let backend {
+                    SettingsView(backend: backend, sync: sync)
+                        .environment(backend)
+                        .followsTheme()
+                        .followsAppearanceMode(pinned: nil)
+                        .presentationBackground(SettingsInk.ground)
+                }
+            }
     }
 
     /// The request, if this is the window in front (or no window is key, as at launch). A request
@@ -469,9 +477,9 @@ struct SettingsCardHost: ViewModifier {
         else { return }
         route.presenting = false
         opening()
-        // Its own window (SettingsWindow); one already open comes to the front at the page asked.
+        // Already showing, the card goes to the page asked (route.target).
         SettingsWindow.opened += 1
-        if !PaneApp.isUnitTestHost { openWindow(id: SettingsWindow.id) }
+        if !PaneApp.isUnitTestHost { showing = true }
     }
 
     /// Whether a notes window takes a Settings request: it's in front, or no window is key (as at
@@ -485,22 +493,5 @@ struct SettingsCardHost: ViewModifier {
 
     /// What matters about the key window: whether it's Settings, or a sheet.
     struct KeyWindow { var settings = false, sheet = false }
-}
-
-/// The Settings window's edge in dark mode: 1 pt of white at 10% inside the window's own corners
-/// (a 2 pt stroke on its edge, half of it clipped by the window).
-struct SettingsWindowEdge: View {
-    @Environment(\.colorScheme) private var scheme
-    static let opacity = 0.1
-
-    var body: some View {
-        if scheme == .dark {
-            ConcentricRectangle()
-                .stroke(Color.white.opacity(Self.opacity), lineWidth: 2)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
-    }
 }
 #endif

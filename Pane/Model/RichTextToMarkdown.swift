@@ -90,7 +90,7 @@ enum RichTextToMarkdown {
                                       with: #"<ul$1 style="list-style-type: square">"#, options: [.regularExpression, .caseInsensitive])
     }
 
-    static func markdown(from text: NSAttributedString, keepBlankLines: Bool = false, listItems: [ListItem] = [], bodySize: CGFloat? = nil) -> String {
+    static func markdown(from text: NSAttributedString, keepBlankLines: Bool = false, listItems: [ListItem] = [], bodySize: CGFloat? = nil, paragraphGaps: Bool = false) -> String {
         let ns = text.string as NSString
         // Markdown typed into Apple Notes' Monospaced style is already the source.
         if monospacedShare(text) >= 0.8 {
@@ -119,6 +119,7 @@ enum RichTextToMarkdown {
         var index = 0
         var orderedCounters: [Int: Int] = [:]
         var inList = false
+        var gapAfterLast = false
         // A blank line the converter added itself (after a list, around a table). A written one
         // that follows takes its place instead of doubling it.
         var addedBlank: Int?
@@ -141,7 +142,11 @@ enum RichTextToMarkdown {
         while index < ns.length {
             let para = ns.paragraphRange(for: NSRange(location: index, length: 0))
             index = NSMaxRange(para)
-            let content = trimmedParagraph(para, ns: ns)
+            var content = trimmedParagraph(para, ns: ns)
+            // A line of only spaces is an empty line (Word writes `<o:p>&nbsp;</o:p>`).
+            if ns.substring(with: content).trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(.init(charactersIn: "\u{00A0}"))).isEmpty {
+                content = NSRange(location: content.location, length: 0)
+            }
             let style = content.length > 0 ? text.attribute(.paragraphStyle, at: content.location, effectiveRange: nil) as? NSParagraphStyle : nil
 
             #if os(macOS)
@@ -174,6 +179,10 @@ enum RichTextToMarkdown {
             }
             flushCode(into: &lines)
             let lists = style?.textLists ?? []
+            // Space between paragraphs on the page (`<p>`) is an empty line here. Not between one
+            // list's items, whose `<li><p>` has it too.
+            if paragraphGaps, gapAfterLast || (style?.paragraphSpacingBefore ?? 0) > 0, !(inList && !lists.isEmpty) { separate() }
+            gapAfterLast = (style?.paragraphSpacing ?? 0) > 0
 
             if let list = lists.last {
                 // The item's own text, without the marker, is what a hint is matched on.

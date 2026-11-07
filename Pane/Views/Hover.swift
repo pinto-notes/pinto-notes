@@ -23,6 +23,9 @@ enum Hover {
     static let row = AnyShapeStyle(.fill.quaternary)
     /// A hovered icon button or plain button with its own shape.
     static let fill = AnyShapeStyle(.fill.tertiary)
+    /// A hovered plain button in the window's bar: one strength for all of them, the system's own
+    /// is barely visible (Emil, 7 November 2026).
+    static let bar = AnyShapeStyle(.fill.tertiary)
     /// The same button while pressed.
     static let pressed = AnyShapeStyle(.fill.secondary)
     /// Where a Mac list draws its selection around a row's content (a List can't take a row

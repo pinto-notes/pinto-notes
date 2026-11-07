@@ -2022,10 +2022,12 @@ struct NoteToolbarStage<Pane: View>: View {
                                 .help("Back (⌘[)")
                                 .keyboardShortcut("[", modifiers: .command)
                                 .disabled(!showsItems || !history.canGoBack)
+                                .buttonStyle(.barIcon)
                             Button("Forward", systemImage: "chevron.forward") { history.forward() }
                                 .help("Forward (⌘])")
                                 .keyboardShortcut("]", modifiers: .command)
                                 .disabled(!showsItems || !history.canGoForward)
+                                .buttonStyle(.barIcon)
                         }
                     }
                     .sharedBackgroundVisibility(.hidden)

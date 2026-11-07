@@ -161,12 +161,11 @@ import Testing
         let page = SettingsCard.pageWidth + 2 * SettingsCard.gutter
         #expect(SettingsWindow.size.width - SettingsCard.sidebarWidth >= page, "a page's column fits beside the sidebar")
         #expect(SettingsWindow.size.width - SettingsCard.sidebarWidth - page <= 40, "with little to spare")
-        #expect(SettingsWindow.size.width < SettingsCard.size.width, "narrower than the template card")
         #expect(SettingsWindow.size.height <= 760, "fits a 13-inch Mac's screen (about 800 pt under the menu bar)")
     }
 
     @Test func theCardIsNeverBiggerThanItsWindow() {
-        #expect(SettingsCard.size == TemplateLibraryView.size, "the same card as Templates")
+        #expect(SettingsCard.size == SettingsWindow.size, "the sheet is the size Settings needs")
         #expect(SettingsCard.fitted(CGSize(width: 1600, height: 1000)) == SettingsCard.size)
         #expect(SettingsCard.fitted(CGSize(width: 900, height: 600)) == CGSize(width: 852, height: 552))
         #expect(SettingsCard.fitted(CGSize(width: 300, height: 200)) == CGSize(width: 600, height: 420), "never so small the page can't be used")
@@ -665,10 +664,6 @@ import Testing
         #expect(SettingsCardHost.takes(active: true, key: K()), "the notes window in front")
         // The trademark notes are About's credits, not the foot of Privacy and security.
         #expect(AboutCredits.credits.string == HelpCopy.trademarks)
-        // Settings has an edge against a black window in dark mode (council rounds 7 to 9).
-        #expect(SettingsWindowEdge.opacity == 0.1)
-        let app = (try? Self.source("Pane/App/PaneApp.swift")) ?? ""
-        #expect(app.contains(".overlay { SettingsWindowEdge() }"))
         #expect(AIChangesStatus.offersConnect(ais: []) && !AIChangesStatus.offersConnect(ais: ["Claude"]), "no AI yet: a way to connect one")
         #expect(SettingsCardHost.takes(active: false, key: nil), "no window key, as at launch")
         #expect(SettingsCardHost.takes(active: false, key: K(settings: true)), "Settings in front")

@@ -5,6 +5,9 @@ import UniformTypeIdentifiers
 
 struct NoteListView: View {
     @Environment(\.modelContext) private var context
+    #if os(macOS)
+    @Environment(\.listSidebarHidden) private var listSidebarHidden
+    #endif
     let scope: Scope
     /// Several notes can be selected (⌘-click, ⇧-click, ⌘A on the Mac; on iPhone, Select Notes in the ••• menu, Edit in Recently Deleted, or a two-finger swipe).
     @Binding var selection: Set<UUID>
@@ -24,7 +27,6 @@ struct NoteListView: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.undoManager) private var undoManager
     #if os(macOS)
-    @Environment(\.listSidebarHidden) private var listSidebarHidden
     #endif
 
     /// Every note, fetched again only when a save adds or deletes one (see LibraryNotes).
@@ -49,8 +51,6 @@ struct NoteListView: View {
     @State private var searching = false
     /// Counts the requests to put the keys in the field (each press of Search or ⌘F).
     @State private var searchFocus = 0
-    /// The list header's width beside the window's buttons, for its title (titleRoom).
-    @State private var listWidth: CGFloat = 330
     #endif
     /// "Add Files to …": the picker, and a file being renamed.
     @State private var addingFiles = false
@@ -455,31 +455,30 @@ struct NoteListView: View {
         .modifier(SystemSearch(text: $search, placement: stacked ? .automatic : .navigationBarDrawer(displayMode: .always),
                                off: BarSearchField.drawn(besideNote: besideNote)))
         #else
-        // With the sidebar hidden the window's buttons and the sidebar's Today take the header's
-        // first part. Covered or not, never partly: the list's edge passes through that part on
-        // every frame of a sidebar toggle, and each new width worked the whole list out again.
-        .onGeometryChange(for: CGFloat.self) { g in
-            let f = g.frame(in: .global)
-            return Self.headerWidth(column: f.width, minX: f.minX)
-        } action: { listWidth = $0 }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if !searching, Self.nameAboveList(listWidth: listWidth, compose: scope != .trash) {
-                // The bar has no room for the folder's name (the sidebar hidden beside a narrow
-                // list), so it heads the list instead: without it nothing said which folder this
-                // was (council rounds 5 and 6).
+            if !searching {
+                // Level with More and New Note beside the sidebar. With the sidebar hidden the
+                // window's buttons take that row, and a row of its own made the band too tall, so
+                // it fades with the slide (Emil, 7 November 2026).
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                    Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
                     Text(Self.macCount(notes: scopedNotes.count, files: scopedFiles.count, results: searchResults, trash: scope == .trash))
                         .font(.system(size: 11)).foregroundStyle(Color.muted).monospacedDigit()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 17)
+                .padding(.leading, 20)
+                .padding(.trailing, Self.islandRoom)
                 .padding(.top, 4)
                 .padding(.bottom, 6)
                 .opacity(behindSetupCard ? 0.35 : 1)
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("list.folderName")
+                .offset(y: Self.nameLift)
+                .frame(height: 0, alignment: .top)
+                .opacity(listSidebarHidden ? 0 : 1)
+                .accessibilityHidden(listSidebarHidden)
+                .animation(Self.nameFade(hidden: listSidebarHidden, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion), value: listSidebarHidden)
             }
             if searching {
                 ListSearchField(text: $search, focus: searchFocus) { searching = false }
@@ -642,60 +641,27 @@ struct NoteListView: View {
                 SearchComposeBar(newNote: onNewNote, hidesCompose: scope == .trash, tip: true, search: $search)
             }
             #else
-            // Sidebar hidden: the window's plain buttons on the left, the list's two together on
-            // the right, one group. Round "⋯" beside a plain Search looked like a mistake (Emil,
-            // 6 November 2026).
-            if sidebarHidden {
-                ToolbarSpacer(.flexible)
-                ToolbarItemGroup {
+            // One layout with the sidebar shown or hidden: anything that changed with the sidebar
+            // made the bar rebuild mid-slide, and its buttons faded in from the wrong place. One
+            // item, so one island like the note's own: as a group of two items macOS drew them
+            // sometimes apart and sometimes together (Emil, 6 November 2026).
+            ToolbarSpacer(.flexible)
+            ToolbarItem {
+                HStack(spacing: 0) {
                     listMore
+                    // Compose sits with the list it adds to, as on the iPhone (Emil, 10-29). Not in
+                    // Recently Deleted, which holds no new notes, like Notes.
                     if scope != .trash {
                         ListCompose(selected: selection.count == 1 ? selection.first : nil, newNote: onNewNote)
                     }
                 }
-            } else {
-                // Emil's draft (10-29): the list's round "⋯" on the left, the folder's name and count
-                // centred, compose on the right.
-                            ToolbarItem { listMore }
-            ToolbarSpacer(.flexible)
-            if Self.titleRoom(listWidth: listWidth, compose: scope != .trash) > 0 {
-                // A new slot when the room changes: the bar keeps a slot's first width otherwise.
-                ToolbarItem(id: "list.title.\(Int(Self.titleRoom(listWidth: listWidth, compose: scope != .trash)))") {
-                    VStack(spacing: 0) {
-                        Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
-                        Text(Self.macCount(notes: scopedNotes.count, files: scopedFiles.count, results: searchResults, trash: scope == .trash))
-                            .font(.system(size: 11))
-                            .foregroundStyle(Color.muted)
-                            .monospacedDigit()
-                    }
-                    // Greyed with the buttons around it while the sign-in card is up (Emil,
-                    // 2 November 2026).
-                    .opacity(behindSetupCard ? 0.35 : 1)
-                    // Always the room it may take, whatever the name: the bar measures this slot
-                    // only when its set of buttons changes (New Note coming or going), so a slot as
-                    // wide as "Notes" kept that width for "Recently Deleted", "Rec…" (Emil,
-                    // 3 November 2026). A long name still ends in "…" before the buttons.
-                    .frame(width: Self.titleRoom(listWidth: listWidth, compose: scope != .trash))
-                }
-                .sharedBackgroundVisibility(.hidden)
-                ToolbarSpacer(.flexible)
-            }
-            // Compose sits with the list it adds to, as on the iPhone (Emil, 10-29). Not in Recently
-            // Deleted, which holds no new notes, like Notes.
-            if scope != .trash {
-                ToolbarItem {
-                    ListCompose(selected: selection.count == 1 ? selection.first : nil, newNote: onNewNote)
-                }
-            }
+                .labelStyle(.iconOnly)
             }
             #endif
         }
     }
 
     #if os(macOS)
-    /// True while the window's sidebar is hidden.
-    private var sidebarHidden: Bool { listSidebarHidden }
-
     private var listMore: some View {
         Menu {
             ListOrderMenu(store: orderStore, scope: scope)
@@ -748,18 +714,14 @@ struct NoteListView: View {
                         .textCase(nil)
                 }
                 #else
-                // One weight lighter than before, in a 40 pt row like Notes' (NoteListGeometryTests).
-                // C and D: small, semibold and muted, a label over the rows rather than a title.
+                // As in Notes, a title over its notes: bright and semibold, not a small grey label
+                // (Emil, 7 November 2026). In a 40 pt row like Notes' (NoteListGeometryTests).
                 Text(section.0)
-                    .font(.system(size: TextSize.interface(DesignLook.calmList ? 12 : 15), weight: .semibold))
-                    .foregroundStyle(DesignLook.calmList ? Color.muted : Color.ink)
+                    .font(.system(size: TextSize.interface(15), weight: .semibold))
+                    .foregroundStyle(Color.ink)
                     .textCase(nil)
                     .padding(.top, NoteListView.headingTop)
                     .padding(.bottom, NoteListView.headingBottom)
-                    // A heading stays pinned at the top while its notes scroll under it, as in
-                    // Notes (Emil, 3 November 2026: "they're sticky"), on the same blur as the bar
-                    // above it: the system's scroll edge reaches down over a pinned heading. A
-                    // solid ground there read as a second, different bar.
                 #endif
             }
         }
@@ -776,34 +738,18 @@ struct NoteListView: View {
     static let headingTop: CGFloat = 6.5
     static let headingBottom: CGFloat = 6.5
 
-    /// The folder's name in the list's toolbar: the most room it takes before it ends in "…".
-    static let titleWidth: CGFloat = 170
-
     #if os(macOS)
-    /// The window's close, minimise and zoom buttons and, with the sidebar hidden, its New
-    /// Folder, Today and Search beside them, from the window's left edge (they end at 217 pt).
-    static let windowButtons: CGFloat = 227
-
-    /// The list header's width: the column's, less what the window's buttons cover of it.
-    static func headerWidth(column: CGFloat, minX: CGFloat) -> CGFloat {
-        minX < windowButtons ? column - windowButtons : column
+    /// How far the folder's name rises into the bar beside the sidebar: its middle level with
+    /// More and New Note's.
+    static let nameLift: CGFloat = -46
+    /// Gone before the slide reaches the window's buttons, back once the sidebar has landed: it
+    /// passed under the buttons otherwise.
+    static func nameFade(hidden: Bool, reduceMotion: Bool) -> Animation? {
+        if reduceMotion { return nil }
+        return hidden ? .easeOut(duration: 0.06) : .easeIn(duration: 0.12).delay(0.2)
     }
-
-    /// Room in the list's header between More and New Note for the name: the column less the
-    /// two buttons, their margins and the spacers' least widths. Recently Deleted has no New
-    /// Note, and its name takes that room too (Emil, 11-03: it read "Rec…" over "41 no…").
-    private static func headerRoom(listWidth: CGFloat, compose: Bool) -> CGFloat { max(0, listWidth - (compose ? 122 : 78)) }
-    /// The most room the name takes before it ends in "…".
-    /// None when less than 40 pt is left (the sidebar hidden beside a narrow list): the buttons
-    /// keep their places inside the column.
-    static func titleRoom(listWidth: CGFloat, compose: Bool = true) -> CGFloat {
-        let room = min(titleWidth, headerRoom(listWidth: listWidth, compose: compose))
-        return room < 40 ? 0 : room
-    }
-    /// No room in the bar for the name: it heads the list instead, so the folder is always named.
-    static func nameAboveList(listWidth: CGFloat, compose: Bool = true) -> Bool {
-        listWidth > 0 && titleRoom(listWidth: listWidth, compose: compose) == 0
-    }
+    /// What it leaves for More and New Note in the bar.
+    static let islandRoom: CGFloat = 104
     #endif
 
     /// Whether a row draws the quiet selection (the Mac only; iOS keeps the system's).
@@ -2076,6 +2022,11 @@ private struct ListRow: View, @MainActor Equatable {
             // The row's full width, so the ••• over it sits at the row's right edge, not at the end
             // of a short title (Emil, 2 November 2026). Before the drag, so the whole row drags.
             .frame(maxWidth: .infinity, alignment: .leading)
+            #if os(macOS)
+            // Empty space takes no press without a shape: only the words and the picture dragged
+            // (Emil, 7 November 2026). Out to the card's edges, past the row's own insets.
+            .contentShape(Rectangle().inset(by: -6))
+            #endif
             .draggable(PaneDragItem(kind: .note, id: note.id, others: dragWith)) {
                 NoteDragPreview(title: dragWith != nil ? "\(selectedCount) Notes" : note.title, symbol: dragWith != nil ? "doc.on.doc" : "note.text")
             }
@@ -2542,11 +2493,10 @@ private struct OpensTopNote: ViewModifier {
 #endif
 
 #if os(macOS)
-/// macOS 27 rules lines this app doesn't want: under a pinned date heading, and a bright divider
-/// beside the note. No setting turns them off (Emil, 6 November 2026). The toolbar edge's and the
-/// divider's are hidden by the system's names: if one changes, that line simply comes back. The
-/// heading's belongs to the row the table floats over the list, so date headings scroll with the
-/// notes instead. The divider still drags.
+/// macOS 27 draws a second, bright divider beside the note, and no setting turns it off. It's hidden
+/// by the system's name: if that changes, it simply comes back. The divider still drags. The bar's
+/// edge and the pinned date headings stay the system's, as in Notes (measured 7 November 2026): one
+/// frosted band, a hairline under the bar and under the pinned heading, no change on hover.
 struct ListEdgeQuiet: ViewModifier {
     func body(content: Content) -> some View {
         content.background { ListEdgeLine() }
@@ -2557,6 +2507,8 @@ struct ListEdgeLine: NSViewRepresentable {
     final class Probe: NSView {
         private var last = Date.distantPast
         private var watch: NSObjectProtocol?
+        /// The tables being followed, and their scroll watchers.
+        private var scrolls: [ObjectIdentifier: NSObjectProtocol] = [:]
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -2574,16 +2526,41 @@ struct ListEdgeLine: NSViewRepresentable {
             ListEdgeLine.hideLines(in: root)
             func walk(_ v: NSView) {
                 if String(describing: type(of: v)) == "NSSplitDividerView", v.frame.width >= 1 { v.alphaValue = 0 }
-                if let table = v as? NSTableView { ListEdgeLine.stopFloating(table) }
+                if let table = v as? NSTableView { follow(table) }
                 v.subviews.forEach(walk)
             }
             walk(frame)
         }
+
+        /// Follows a list's scrolling: its heading pins only once there is something under it.
+        private func follow(_ table: NSTableView) {
+            guard table.style != .sourceList, let scroll = table.enclosingScrollView else { return }
+            let key = ObjectIdentifier(table)
+            if scrolls[key] == nil {
+                let clip = scroll.contentView
+                clip.postsBoundsChangedNotifications = true
+                scrolls[key] = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip, queue: .main) { [weak table, weak scroll] _ in
+                    MainActor.assumeIsolated {
+                        guard let table, let scroll else { return }
+                        ListEdgeLine.pin(table, in: scroll)
+                    }
+                }
+            }
+            ListEdgeLine.pin(table, in: scroll)
+        }
+
+        deinit {
+            MainActor.assumeIsolated { scrolls.values.forEach(NotificationCenter.default.removeObserver) }
+        }
     }
 
-    /// The sidebar's source list keeps its own behaviour.
-    static func stopFloating(_ table: NSTableView) {
-        if table.style != .sourceList, table.floatsGroupRows { table.floatsGroupRows = false }
+    /// Whether a list scrolled to `offset` pins its heading. At the top the heading is a plain row:
+    /// no band or line with nothing under them (Emil, 7 November 2026).
+    static func pins(offset: CGFloat, topInset: CGFloat) -> Bool { offset + topInset > 1 }
+
+    private static func pin(_ table: NSTableView, in scroll: NSScrollView) {
+        let on = pins(offset: scroll.contentView.bounds.minY, topInset: scroll.contentInsets.top)
+        if table.floatsGroupRows != on { table.floatsGroupRows = on }
     }
 
     func makeNSView(context: Context) -> Probe { Probe() }
@@ -2592,7 +2569,7 @@ struct ListEdgeLine: NSViewRepresentable {
     /// Hides the toolbar edge's separator and the split view's divider ground under `root`.
     static func hideLines(in root: CALayer) {
         func walk(_ l: CALayer) {
-            if l.name == "Separator" || (l.name == "DividerBackground" && l.bounds.width >= 1) { l.isHidden = true }
+            if l.name == "DividerBackground", l.bounds.width >= 1 { l.isHidden = true }
             l.sublayers?.forEach(walk)
         }
         walk(root)

@@ -218,40 +218,6 @@ import Testing
         }
     }
 
-    /// Emil (11-03): the list's name read "Rec…" over "41 no…" in Recently Deleted, where there
-    /// is no New Note beside it. It shows whole, centred in the column's header.
-    /// The list's name in the bar after switching lists. The bar measures the name's slot only
-    /// when its buttons change (New Note coming or going), so the slot used to keep the width of
-    /// the name it first held: "Notes" left Recently Deleted as "Rec…" (Emil, 3 November 2026).
-    /// The slot is now as wide as the room the name may take, whatever list is showing.
-    /// A window wide enough for the name in the bar: in a narrow one (the sidebar hidden) the name
-    /// heads the list instead (`nameAboveList`).
-    @Test func theListsNameFitsInRecentlyDeleted() async throws {
-        let c = try AppSnapshotTests.container()
-        let note = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Groceries" })
-        try await AppSnapshotTests.withLastNote(c, "Groceries") {
-            let w = MacWindowChromeTests.window(c, size: CGSize(width: 1400, height: 800))
-            defer { w.close() }
-            await MacWindowChromeTests.settle(w, 8)
-            // The list's header holds More, the name (a slot with no label) and New Note.
-            @MainActor func nameSlot() -> CGFloat {
-                ((try? MacWindowChromeTests.items(w)) ?? []).filter { $0.column == 1 && $0.label.isEmpty }.map(\.frame.width).max() ?? 0
-            }
-            let bold = NSFont.systemFont(ofSize: 14, weight: .bold)
-            func needs(_ s: String) -> CGFloat { (s as NSString).size(withAttributes: [.font: bold]).width }
-            let inNotes = nameSlot()
-            #expect(inNotes >= 120, "Notes gets the room, not the width of its short name: \(inNotes)")
-            c.mainContext.trash(note)
-            NoteOpener.shared.request = note.id
-            await MacWindowChromeTests.settle(w, 8)
-            #expect(nameSlot() >= needs("Recently Deleted"), "the whole name after switching: \(nameSlot()) pt for \(needs("Recently Deleted"))")
-            let long = c.mainContext.createFolder(named: "Weekend errands")
-            NoteOpener.shared.request = c.mainContext.createNote(in: .folder(long.id), body: "Bread").id
-            await MacWindowChromeTests.settle(w, 8)
-            #expect(nameSlot() >= needs("Weekend errands"), "a longer folder's name, switched to from Recently Deleted: \(nameSlot())")
-        }
-    }
-
     @Test func recoverGoesToNotesWhenItsFolderIsGone() throws {
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let ctx = c.mainContext

@@ -240,6 +240,10 @@ enum SidebarStyle {
     static let headingInset: CGFloat = 15
     static let trailingColumn: CGFloat = 16
     static let trailingInset: CGFloat = 7
+    /// New Folder's plus on the Folders heading: its target, and the room to its right that puts
+    /// its centre on the middle of a count's last digit.
+    static let plusTarget: CGFloat = 22
+    static let plusTrailing: CGFloat = 19.5
     /// Where the list puts a row's content in the sidebar's glass: 16 pt in from either side, the
     /// icon first; 9 pt further in once any folder has sub-folders (measured 2026-10-29, macOS 26;
     /// `AccountRowTests` measures it again from the list).
@@ -533,13 +537,13 @@ struct SidebarView: View {
                         Text("Folders").foregroundStyle(Color.muted).accessibilityAddTraits(.isHeader)
                         Spacer()
                         // New Folder, where the folders are (it was a fourth toolbar button's place):
-                        // a 22 pt target, its right edge on the counts' (council round 13: 16 pt,
-                        // and 16 pt past them).
+                        // a 22 pt target, centred over the counts' last digit (Emil, 7 November 2026).
                         Button("New Folder", systemImage: "plus") { startNewFolder(nil) }
                             .labelStyle(.iconOnly)
                             .font(.system(size: 12, weight: .medium))
-                            .buttonStyle(.quietIcon(padding: 5))
-                            .padding(.trailing, SidebarStyle.trailingColumn - 5)
+                            .frame(width: SidebarStyle.plusTarget - 10, height: SidebarStyle.plusTarget - 10)
+                            .buttonStyle(.quietIcon(padding: 5, lightens: true))
+                            .padding(.trailing, SidebarStyle.plusTrailing)
                             .help("New Folder (\u{21E7}\u{2318}N)")
                             .accessibilityIdentifier("sidebar.newFolder")
                     }
@@ -692,15 +696,15 @@ struct SidebarView: View {
             // the menu and keys it looked like it couldn't hide). A fourth button here sent Search
             // to the overflow menu, so New Folder is on the Folders heading (and File, ⇧⌘N).
             // Its own view reads the toggle, so a toggle doesn't work the folders out again.
-            ToolbarItem { SidebarToggleButton() }
+            ToolbarItem { SidebarToggleButton().buttonStyle(.barIcon) }
             .sharedBackgroundVisibility(.hidden)
             // Today's note in one press (DailyNotes).
-            ToolbarItem { TodayButton(identifier: "sidebar.today") }
+            ToolbarItem { TodayButton(identifier: "sidebar.today").buttonStyle(.barIcon) }
             .sharedBackgroundVisibility(.hidden)
             ToolbarItem {
                 // The Spotlight-like panel, which finds notes by title and text and runs commands
                 // (Emil, 2 November 2026; it opened the list's search field). ⌘F keeps that field.
-                SidebarSearchButton(opens: Self.searchButtonOpens, help: Self.searchButtonHelp)
+                SidebarSearchButton(opens: Self.searchButtonOpens, help: Self.searchButtonHelp).buttonStyle(.barIcon)
             }
             .sharedBackgroundVisibility(.hidden)
             #endif
@@ -1032,6 +1036,7 @@ struct SidebarView: View {
 
     /// A drag is over a folder's row, or has left it.
     private func folderTargeted(_ over: Bool, _ id: UUID) {
+        if !over, id != Self.everyRow, drops.id == id, !Self.mouseIsDown { drops.lifted(id) }
         drops.id = Self.dropTarget(drops.id, over: over, id: id, dropped: id == Self.everyRow, buttonDown: Self.mouseIsDown)
     }
 
@@ -1160,29 +1165,74 @@ struct SidebarView: View {
 /// reached them during a drag: the first row crossed stayed lit, and no other lit, through rounds
 /// 21 to 24 (the log: the target moved on, no row was worked out again).
 @MainActor @Observable final class FolderDropState {
+    /// The row under a drag.
     var id: UUID?
+    /// The row something has just landed in: lit a moment longer, then it fades.
+    private(set) var landed: UUID?
+    /// How many drops each row has taken: each one plays its icon's bounce.
+    private(set) var landings: [UUID: Int] = [:]
+
+    static let landedHold: Duration = .milliseconds(320)
+    /// From the lift to the drop reaching us the system takes up to half a second. Long enough to
+    /// carry the row over that wait, so it doesn't go dark and light again.
+    static let liftHold: Duration = .milliseconds(800)
+    private var holds = 0
+
+    /// The button came up over this row: its drop is on the way.
+    func lifted(_ folder: UUID) { hold(folder, for: Self.liftHold) }
+
+    func land(_ folder: UUID) {
+        landings[folder, default: 0] += 1
+        hold(folder, for: Self.landedHold)
+    }
+
+    private func hold(_ folder: UUID, for time: Duration) {
+        landed = folder
+        holds += 1
+        let this = holds
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: time)
+            guard let self, self.holds == this else { return }
+            self.landed = nil
+        }
+    }
+
+    func lit(_ folder: UUID) -> Bool { id == folder || landed == folder }
 }
 
+/// The folder under a drag fills in the accent and lifts a little. When something lands it bounces
+/// once (Emil, 7 November 2026: a drop went in with nothing to show for it).
 private struct FolderDropIcon: View {
     let drops: FolderDropState
     let id: UUID
     let selected: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        SidebarIcon(name: drops.id == id ? "folder.fill" : "folder", selected: selected)
+        let lit = drops.lit(id)
+        SidebarIcon(name: lit ? "folder.fill" : "folder", selected: selected || lit)
+            .scaleEffect(!reduceMotion && drops.id == id ? 1.1 : 1)
+            .animation(reduceMotion ? nil : .spring(duration: 0.2, bounce: 0.3), value: drops.id == id)
+            .keyframeAnimator(initialValue: 1.0, trigger: drops.landings[id] ?? 0) { content, scale in
+                content.scaleEffect(reduceMotion ? 1 : scale)
+            } keyframes: { _ in
+                SpringKeyframe(1.28, duration: 0.14, spring: .snappy)
+                SpringKeyframe(1, duration: 0.3, spring: .bouncy)
+            }
     }
 }
 
-/// The row under a drag, tinted: an icon alone is easy to miss.
+/// The row under a drag, tinted, and for a moment after a drop lands in it.
 private struct FolderDropFill: View {
     let drops: FolderDropState
     let id: UUID
     let reach: EdgeInsets
     var body: some View {
-        if drops.id == id {
-            RoundedRectangle(cornerRadius: Hover.pillRadius, style: .continuous)
-                .fill(.tint.opacity(0.18))
-                .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
-        }
+        let lit = drops.lit(id)
+        RoundedRectangle(cornerRadius: Hover.pillRadius, style: .continuous)
+            .fill(.tint.opacity(0.3))
+            .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
+            .opacity(lit ? 1 : 0)
+            .animation(.easeOut(duration: lit ? 0.08 : 0.3), value: lit)
     }
 }
 
@@ -1564,7 +1614,10 @@ private struct FolderTree: View {
                     }
                 }
                 if !urls.isEmpty, !context.importFiles(urls, into: .folder(folder.id)).isEmpty { moved = true }
-                if moved { withAnimation(.snappy) { expanded = true } }
+                if moved {
+                    drops.land(folder.id)
+                    withAnimation(.snappy) { expanded = true }
+                }
             }
             // A drop doesn't always say the drag has left the row (round 21: its icon stayed filled).
             targeted(false, SidebarView.everyRow)
