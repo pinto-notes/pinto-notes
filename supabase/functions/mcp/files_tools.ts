@@ -27,6 +27,7 @@ import { changesOf, forgetShared, loadDoc, refuseViewer, type Shared, sharedNote
 import { needles, WordIndex } from "./words.ts";
 import { followRename as retargetForRename, key, linkLines, WikiIndex } from "./wikilinks.ts";
 import { toBase64, fromBase64 } from "../_shared/e2ee.ts";
+import { NotPublic, publicFetch } from "./public_fetch.ts";
 import { AI_FILE_BYTES, extract, fileOut, type FolderFile, fileVersions, isTextFile, moveFile, readFile, restoreFile, restoreFileVersion, trashFile, utiOf, writeFile } from "./folder_files.ts";
 
 type Args = Record<string, unknown>;
@@ -1408,10 +1409,10 @@ const IMAGE_BLOCKS = new Set(["image/png", "image/jpeg", "image/gif", "image/web
 async function chatFile(f: Record<string, unknown>): Promise<Uint8Array> {
   let url: URL;
   try { url = new URL(String(f.download_url ?? "")); } catch { throw new ToolError("file.download_url isn't a link."); }
-  if (url.protocol !== "https:" || /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|\[|0\.)/i.test(url.hostname) || !url.hostname.includes(".")) {
-    throw new ToolError("file.download_url must be a public https link.");
-  }
-  const res = await fetch(url, { redirect: "follow" });
+  // Every address and every redirect is checked (public_fetch.ts), not only how the name looks.
+  const res = await publicFetch(url).catch((e) => {
+    throw new ToolError(e instanceof NotPublic ? "file.download_url must be a public https link." : "The file couldn't be downloaded from the chat.");
+  });
   if (!res.ok) { await res.body?.cancel(); throw new ToolError(`The file couldn't be downloaded from the chat (${res.status}).`); }
   return await readCapped(res, AI_FILE_BYTES).catch(() => { throw new ToolError("The file is over 10 MB. The AI can write files up to 10 MB; larger ones are added in Pinto Notes."); });
 }

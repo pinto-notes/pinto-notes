@@ -9,6 +9,7 @@ import { aesKey, sealFile } from "../_shared/e2ee.ts";
 import { type Account, account, app, file, folder, note, opened, stubStorage, toolContext } from "./sealed.ts";
 import { runTool, ToolError } from "./tools.ts";
 import { FILE_TOOLS, runFileTool } from "./files_tools.ts";
+import { useResolver } from "./public_fetch.ts";
 const FILE_TOOLS_META = () => FILE_TOOLS.find((t) => t.name === "write")!._meta;
 
 // deno-lint-ignore no-explicit-any
@@ -407,6 +408,8 @@ Deno.test("the AI hears how full the account is and what to delete", async () =>
 
 Deno.test("ChatGPT hands a file over by link (openai/fileParams): fetched once, https only, 10 MB", async () => {
   const { objects, unstub } = storageStub();
+  // DNS without the network: the chat's file host is public, one name points inside.
+  const realDNS = useResolver((host, type) => Promise.resolve(type === "AAAA" ? [] : [host === "files.oaiusercontent.com" ? "20.60.0.1" : "10.0.0.9"]));
   const real = globalThis.fetch;
   const inner = globalThis.fetch;
   globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
@@ -425,5 +428,6 @@ Deno.test("ChatGPT hands a file over by link (openai/fileParams): fetched once, 
     assert(objects.size === 1);
     assertStringIncludes(await fails(tool(pg, a, "write", { path: "To Read/X.pdf", file: { download_url: "http://files.oaiusercontent.com/x", file_id: "x" } })), "public https link");
     assertStringIncludes(await fails(tool(pg, a, "write", { path: "To Read/X.pdf", file: { download_url: "https://169.254.169.254/latest", file_id: "x" } })), "public https link");
-  } finally { globalThis.fetch = real; unstub(); }
+    assertStringIncludes(await fails(tool(pg, a, "write", { path: "To Read/X.pdf", file: { download_url: "https://inside.example.com/x", file_id: "x" } })), "public https link");
+  } finally { globalThis.fetch = real; unstub(); realDNS(); }
 });
