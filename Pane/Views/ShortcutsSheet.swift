@@ -147,14 +147,21 @@ struct KeyboardShortcutsSettingsPage: View {
                     Text(GeneralCopy.shortcutDetail)
                 }
             }
-            Section {
-                HStack(spacing: 8) {
+            // A search field of its own, like the sidebar's, not a row (a form row centred its prompt).
+            OpenSection {
+                HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(Color.muted).accessibilityHidden(true)
-                    TextField("Find a shortcut", text: $query, prompt: Text("Find a shortcut").foregroundStyle(Color.muted))
-                        .labelsHidden()
+                    TextField(text: $query, prompt: Text("Find a shortcut").foregroundStyle(Color.muted)) { EmptyView() }
                         .textFieldStyle(.plain)
+                        .accessibilityLabel("Find a shortcut")
                         .accessibilityIdentifier("shortcuts.search")
                 }
+                .font(.body)
+                .padding(.horizontal, 10)
+                .frame(height: 30)
+                .background(Capsule().fill(SettingsInk.group))
+                .overlay(Capsule().strokeBorder(SettingsInk.hairline, lineWidth: 0.5))
+                .padding(.bottom, 8)
             }
             let shown = Shortcuts.filter(groups, query)
             if shown.isEmpty, !query.isEmpty {
