@@ -81,3 +81,124 @@ enum MenuBarSettings {
         !PaneApp.isUnitTestHost && !ProcessInfo.processInfo.arguments.contains("-uitest")
     }
 }
+
+#if os(macOS)
+import AppKit
+import Carbon.HIToolbox
+import ServiceManagement
+
+/// Settings › General › Quick note shortcut: a key that works in any app and brings Pinto
+/// Notes forward on a new note. None until one is recorded (⌥Space belongs to ChatGPT).
+@MainActor
+final class QuickNoteHotKey {
+    static let shared = QuickNoteHotKey()
+
+    struct Shortcut: Equatable, Codable, Sendable {
+        /// The key, as Carbon numbers it (kVK_…), and Carbon's modifier mask.
+        var keyCode: UInt32
+        var modifiers: UInt32
+        /// What the chip shows: "⌃⌥N".
+        var display: String
+    }
+
+    static let key = "quickNote.shortcut"
+    @MainActor static var store: UserDefaults = PaneApp.isUnitTestHost ? MemoryDefaults() : .standard
+
+    private var ref: EventHotKeyRef?
+    private var handler: EventHandlerRef?
+    /// What the key does; tests count presses instead.
+    var action: @MainActor () -> Void = { QuickNoteHotKey.openNewNote() }
+
+    var shortcut: Shortcut? {
+        get { Self.store.data(forKey: Self.key).flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) } }
+        set {
+            if let newValue, let data = try? JSONEncoder().encode(newValue) { Self.store.set(data, forKey: Self.key) } else { Self.store.removeObject(forKey: Self.key) }
+            register()
+        }
+    }
+
+    /// Takes the key from the system, or gives it back when there is none. Test runs never do.
+    func register() {
+        if let ref { UnregisterEventHotKey(ref); self.ref = nil }
+        guard !PaneApp.isUnitTestHost, let s = shortcut else { return }
+        if handler == nil {
+            var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+            InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
+                DispatchQueue.main.async { MainActor.assumeIsolated { QuickNoteHotKey.shared.action() } }
+                return noErr
+            }, 1, &spec, nil, &handler)
+        }
+        var made: EventHotKeyRef?
+        let status = RegisterEventHotKey(s.keyCode, s.modifiers, EventHotKeyID(signature: OSType(0x504E5154), id: 1), GetApplicationEventTarget(), 0, &made)
+        if status == noErr { ref = made }
+    }
+
+    /// Pinto Notes in front, on a new note: its window opens if it was closed.
+    static func openNewNote() {
+        NoteOpener.shared.askForNewNote()
+        NSApp.activate(ignoringOtherApps: true)
+        let shown = NSApp.windows.contains { $0.isVisible && $0.canBecomeMain }
+        if !shown { NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: .init()) }
+    }
+
+    /// A shortcut from a key pressed while recording: at least one of ⌘, ⌥ or ⌃ (a bare letter
+    /// would take that letter from every app), and never Delete or Escape, which clear and cancel.
+    static func shortcut(keyCode: UInt16, flags: NSEvent.ModifierFlags, characters: String?) -> Shortcut? {
+        let f = flags.intersection([.command, .option, .control, .shift])
+        guard !f.intersection([.command, .option, .control]).isEmpty else { return nil }
+        guard ![UInt16(kVK_Delete), UInt16(kVK_ForwardDelete), UInt16(kVK_Escape)].contains(keyCode) else { return nil }
+        var mods: UInt32 = 0
+        if f.contains(.command) { mods |= UInt32(cmdKey) }
+        if f.contains(.option) { mods |= UInt32(optionKey) }
+        if f.contains(.control) { mods |= UInt32(controlKey) }
+        if f.contains(.shift) { mods |= UInt32(shiftKey) }
+        return Shortcut(keyCode: UInt32(keyCode), modifiers: mods, display: display(flags: f, keyCode: keyCode, characters: characters))
+    }
+
+    /// "⌃⌥⇧⌘N", in the order the Mac's menus write them.
+    static func display(flags: NSEvent.ModifierFlags, keyCode: UInt16, characters: String?) -> String {
+        var out = ""
+        if flags.contains(.control) { out += "\u{2303}" }
+        if flags.contains(.option) { out += "\u{2325}" }
+        if flags.contains(.shift) { out += "\u{21E7}" }
+        if flags.contains(.command) { out += "\u{2318}" }
+        let named: [Int: String] = [kVK_Space: "Space", kVK_Return: "\u{21A9}", kVK_Tab: "\u{21E5}",
+                                    kVK_LeftArrow: "\u{2190}", kVK_RightArrow: "\u{2192}", kVK_UpArrow: "\u{2191}", kVK_DownArrow: "\u{2193}"]
+        if let n = named[Int(keyCode)] { return out + n }
+        return out + (characters ?? "").uppercased()
+    }
+}
+
+/// Settings › General › Open at login: the system's login item for Pinto Notes.
+@MainActor
+enum LoginItem {
+    /// Tests stand in for the system.
+    @MainActor static var service: LoginService = PaneApp.isUnitTestHost ? MemoryLoginService() : SystemLoginService()
+
+    static var isOn: Bool { service.isEnabled }
+
+    /// Turns it on or off; false when the system said no (shown by the switch going back).
+    @discardableResult
+    static func set(_ on: Bool) -> Bool {
+        do { try on ? service.register() : service.unregister(); return true } catch { return false }
+    }
+}
+
+protocol LoginService: AnyObject {
+    var isEnabled: Bool { get }
+    func register() throws
+    func unregister() throws
+}
+
+final class SystemLoginService: LoginService {
+    var isEnabled: Bool { SMAppService.mainApp.status == .enabled }
+    func register() throws { try SMAppService.mainApp.register() }
+    func unregister() throws { try SMAppService.mainApp.unregister() }
+}
+
+final class MemoryLoginService: LoginService {
+    var isEnabled = false
+    func register() throws { isEnabled = true }
+    func unregister() throws { isEnabled = false }
+}
+#endif

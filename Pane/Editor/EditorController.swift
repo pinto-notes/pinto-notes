@@ -64,7 +64,8 @@ final class EditorController {
     /// The move rewrites the list, and two people's rewrites at once merge into doubled lines
     /// (CollabTwoPeopleTests.whyTicksStayPutInASharedNote). There a tick changes one character and
     /// the item stays where it is, as with Notes' Sort Checked Items set to Manually.
-    var sortsTickedItems: Bool { ownUndo == nil }
+    /// Settings › General › Ticked items move to the bottom turns it off on this device.
+    var sortsTickedItems: Bool { ownUndo == nil && ChecklistSorting.on }
     /// The file being shown in Quick Look.
     var previewURL: URL?
     /// Files being fetched from the server.
@@ -1017,4 +1018,13 @@ extension EditorTarget {
     func expandAllSections() {}
     /// Tints, then fades on its own.
     func tintChanges(from previous: String) { tintChanges(from: previous, untilCleared: false) }
+}
+
+
+/// Settings › General › Ticked items move to the bottom, on this device. On unless turned off:
+/// ticked items have always sunk below the open ones in Pinto.
+enum ChecklistSorting {
+    static let key = "checklist.sortsTicked"
+    @MainActor static var store: UserDefaults = PaneApp.isUnitTestHost ? MemoryDefaults() : .standard
+    @MainActor static var on: Bool { store.object(forKey: key) as? Bool ?? true }
 }

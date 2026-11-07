@@ -270,6 +270,8 @@ final class PaneAppDelegate: NSObject, UIApplicationDelegate {
 final class PaneAppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         if !PaneApp.isUnitTestHost { ConnectCenter.shared.installNotifications() }
+        // Settings › General › Quick note shortcut, from the first moment.
+        MainActor.assumeIsolated { QuickNoteHotKey.shared.register() }
     }
 
     func application(_ application: NSApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {

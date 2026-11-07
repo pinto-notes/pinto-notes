@@ -3,6 +3,7 @@ import AppKit
 import SwiftData
 import SwiftUI
 import Testing
+import Carbon.HIToolbox
 @testable import Pane
 
 /// Settings on the Mac, a card with its pages in a sidebar: four pages, every setting found by its
@@ -721,5 +722,56 @@ import Testing
     }
     #endif
 
+}
+
+/// Settings › General's rows on the Mac: the quick note shortcut, open at login, and search.
+@MainActor @Suite struct GeneralSettingsTests {
+    @Test func aShortcutNeedsCommandOptionOrControl() throws {
+        #expect(QuickNoteHotKey.shortcut(keyCode: UInt16(kVK_ANSI_N), flags: [], characters: "n") == nil, "a bare letter would take it from every app")
+        #expect(QuickNoteHotKey.shortcut(keyCode: UInt16(kVK_ANSI_N), flags: .shift, characters: "N") == nil)
+        let s = try #require(QuickNoteHotKey.shortcut(keyCode: UInt16(kVK_ANSI_N), flags: [.control, .option], characters: "n"))
+        #expect(s.display == "\u{2303}\u{2325}N" && s.keyCode == UInt32(kVK_ANSI_N) && s.modifiers == UInt32(controlKey | optionKey))
+        #expect(QuickNoteHotKey.shortcut(keyCode: UInt16(kVK_Space), flags: [.option], characters: " ")?.display == "\u{2325}Space")
+        #expect(QuickNoteHotKey.shortcut(keyCode: UInt16(kVK_ANSI_N), flags: [.command, .shift, .option, .control], characters: "n")?.display == "\u{2303}\u{2325}\u{21E7}\u{2318}N", "in the menus' order")
+        for clear in [kVK_Delete, kVK_ForwardDelete, kVK_Escape] {
+            #expect(QuickNoteHotKey.shortcut(keyCode: UInt16(clear), flags: .command, characters: nil) == nil, "Delete clears and Escape cancels")
+        }
+    }
+
+    @Test func theShortcutIsKeptAndCleared() throws {
+        let keys = QuickNoteHotKey.shared
+        defer { keys.shortcut = nil }
+        #expect(keys.shortcut == nil, "none until one is recorded")
+        let s = try #require(QuickNoteHotKey.shortcut(keyCode: UInt16(kVK_ANSI_J), flags: [.control, .command], characters: "j"))
+        keys.shortcut = s
+        #expect(keys.shortcut == s)
+        keys.shortcut = nil
+        #expect(keys.shortcut == nil && QuickNoteHotKey.store.data(forKey: QuickNoteHotKey.key) == nil)
+    }
+
+    @Test func openAtLoginAsksTheSystem() {
+        let fake = MemoryLoginService()
+        let real = LoginItem.service
+        LoginItem.service = fake
+        defer { LoginItem.service = real }
+        #expect(!LoginItem.isOn)
+        #expect(LoginItem.set(true) && LoginItem.isOn && fake.isEnabled)
+        #expect(LoginItem.set(false) && !LoginItem.isOn)
+    }
+
+    @Test func searchFindsTheNewRows() {
+        for (words, label) in [("daily", "Today\u{2019}s note"), ("template", "Today\u{2019}s note"), ("hotkey", "Quick note shortcut"),
+                               ("login", "Open at login"), ("ticked", "Ticked items move to the bottom")] {
+            let found = SettingsIndex.all.filter { e in ([e.label] + e.also).contains { $0.localizedCaseInsensitiveContains(words) } }
+            #expect(found.contains { $0.label == label && $0.place == .general }, "\(words) finds \(label) on General")
+        }
+    }
+
+    @Test func generalSaysItInPlainWords() {
+        #expect(GeneralCopy.todayFooter == "In the template, {{date}} becomes the date and {{time}} the time.")
+        #expect([GeneralCopy.openOnLaunch, GeneralCopy.ticked, GeneralCopy.shortcut, GeneralCopy.shortcutDetail, GeneralCopy.login]
+                == ["Open it when Pinto starts", "Ticked items move to the bottom", "Quick note shortcut", "Works in any app.", "Open at login"])
+        #expect(GeneralCopy.checklists == "Checklists" && GeneralCopy.thisMac == "This Mac")
+    }
 }
 #endif

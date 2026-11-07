@@ -2,6 +2,7 @@
 import AppKit
 import Supabase
 import SwiftUI
+import Carbon.HIToolbox
 
 // The pages of Settings on the Mac, in the System Settings form (SettingsForm). The same pages as
 // iPhone's Settings since 7 November 2026: Account, AI Connections, General, Appearance, Security
@@ -247,24 +248,36 @@ struct AccountSettingsPage: View {
 
 // MARK: General
 
-/// General: the menu bar item, the setup guide and the diagnostics switch, as on iPhone (less the
-/// menu bar). Keys for apps is parked on the Mac (Emil, 6 November 2026).
+/// General: today's note, whether ticked items sink, this Mac's menu bar, shortcut and login
+/// item, the setup guide and the diagnostics switch. Keys for apps is parked on the Mac (Emil,
+/// 6 November 2026). The iPhone has the same less This Mac (GeneralSettings).
 struct GeneralSettingsPage: View {
     var signedIn: Bool
     /// Closes Settings, so the setup guide shows.
     var close: () -> Void = {}
     @AppStorage(MenuBarSettings.key) private var menuBar = true
     @AppStorage(Telemetry.consentKey) private var share = true
+    @State private var login = LoginItem.isOn
 
     static let menuBarDetail = "Write or find a note with the window closed."
 
     var body: some View {
         SettingsStack {
-            SettingsGroup {
+            TodaysNoteRows()
+            ChecklistRows()
+            SettingsGroup(header: GeneralCopy.thisMac) {
                 SettingsLine(title: "Show in menu bar", detail: Self.menuBarDetail) {
                     Toggle("Show in menu bar", isOn: $menuBar)
                         .settingsSwitch()
                         .accessibilityIdentifier("settings.menuBar")
+                }
+                SettingsLine(title: GeneralCopy.shortcut, detail: GeneralCopy.shortcutDetail) {
+                    ShortcutRecorder()
+                }
+                SettingsLine(title: GeneralCopy.login) {
+                    Toggle(GeneralCopy.login, isOn: Binding(get: { login }, set: { on in LoginItem.set(on); login = LoginItem.isOn }))
+                        .settingsSwitch()
+                        .accessibilityIdentifier("settings.openAtLogin")
                 }
             }
             if HelpPage.offersSetupGuide(signedIn: signedIn) {
@@ -285,6 +298,110 @@ struct GeneralSettingsPage: View {
                 }
             }
         }
+        .onAppear { login = LoginItem.isOn }
+    }
+}
+
+/// Today's note on the Mac's General page: its folder, title, template and whether Pinto opens on it.
+private struct TodaysNoteRows: View {
+    @Environment(\.modelContext) private var context
+    @AppStorage(TodaysNoteSettings.folderKey, store: TodaysNoteSettings.store) private var folder = DailyNotes.folderName
+    @AppStorage(TodaysNoteSettings.titleKey, store: TodaysNoteSettings.store) private var title = TodaysNoteSettings.Title.long
+    @AppStorage(TodaysNoteSettings.templateKey, store: TodaysNoteSettings.store) private var template = ""
+    @AppStorage(TodaysNoteSettings.launchKey, store: TodaysNoteSettings.store) private var openOnLaunch = false
+
+    var body: some View {
+        let choices = GeneralChoices(context: context)
+        SettingsGroup(header: GeneralCopy.today, footer: GeneralCopy.todayFooter) {
+            SettingsLine(title: "Folder") {
+                Picker("Folder", selection: $folder) { ForEach(choices.folders(keeping: folder), id: \.self) { Text($0).tag($0) } }
+                    .settingsMenu().accessibilityIdentifier("settings.today.folder")
+            }
+            SettingsLine(title: "Title") {
+                Picker("Title", selection: $title) { ForEach(TodaysNoteSettings.Title.allCases) { Text(GeneralChoices.example($0)).tag($0) } }
+                    .settingsMenu().accessibilityIdentifier("settings.today.title")
+            }
+            SettingsLine(title: "Template") {
+                Picker("Template", selection: $template) {
+                    Text("None").tag("")
+                    ForEach(choices.templates(keeping: template), id: \.id) { Text($0.title).tag($0.id.uuidString) }
+                }
+                .settingsMenu().accessibilityIdentifier("settings.today.template")
+            }
+            SettingsLine(title: GeneralCopy.openOnLaunch) {
+                Toggle(GeneralCopy.openOnLaunch, isOn: $openOnLaunch).settingsSwitch().accessibilityIdentifier("settings.today.launch")
+            }
+        }
+    }
+}
+
+/// Checklists: whether ticked items sink below the open ones.
+private struct ChecklistRows: View {
+    @AppStorage(ChecklistSorting.key, store: ChecklistSorting.store) private var sortsTicked = true
+
+    var body: some View {
+        SettingsGroup(header: GeneralCopy.checklists) {
+            SettingsLine(title: GeneralCopy.ticked) {
+                Toggle(GeneralCopy.ticked, isOn: $sortsTicked).settingsSwitch().accessibilityIdentifier("settings.notes.ticked")
+            }
+        }
+    }
+}
+
+extension View {
+    /// A menu on the right of a Settings row, in ink, not the accent: a value to read, like the
+    /// switches and the shortcut beside it.
+    func settingsMenu() -> some View {
+        pickerStyle(.menu).labelsHidden().fixedSize().tint(SettingsInk.text)
+    }
+}
+
+/// The quick note shortcut's chip: click, press the keys; Delete clears it, Escape keeps it.
+private struct ShortcutRecorder: View {
+    @State private var shortcut = QuickNoteHotKey.shared.shortcut
+    @State private var recording = false
+    @State private var monitor: Any?
+
+    var body: some View {
+        Button { recording ? stop() : start() } label: {
+            Text(recording ? GeneralCopy.typeShortcut : shortcut?.display ?? GeneralCopy.record)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(shortcut == nil && !recording ? SettingsInk.muted : SettingsInk.text)
+                .padding(.horizontal, 8).frame(height: 22)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(SettingsInk.selection))
+                .overlay { if recording { RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(SettingsInk.text.opacity(0.5), lineWidth: 1) } }
+        }
+        .buttonStyle(.tile(radius: 6))
+        .accessibilityLabel(GeneralCopy.shortcut)
+        .accessibilityValue(shortcut?.display ?? "None")
+        .accessibilityIdentifier("settings.quickNoteShortcut")
+        .onDisappear { stop() }
+    }
+
+    private func start() {
+        recording = true
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            switch Int(event.keyCode) {
+            case kVK_Delete, kVK_ForwardDelete:
+                QuickNoteHotKey.shared.shortcut = nil
+                shortcut = nil
+                stop()
+            case kVK_Escape:
+                stop()
+            default:
+                guard let s = QuickNoteHotKey.shortcut(keyCode: event.keyCode, flags: event.modifierFlags, characters: event.charactersIgnoringModifiers) else { NSSound.beep(); return nil }
+                QuickNoteHotKey.shared.shortcut = s
+                shortcut = s
+                stop()
+            }
+            return nil
+        }
+    }
+
+    private func stop() {
+        recording = false
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
     }
 }
 

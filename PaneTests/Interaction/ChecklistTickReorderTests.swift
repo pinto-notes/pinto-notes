@@ -261,6 +261,25 @@ import Testing
         #expect(h.text == (Self.welcome as NSString).replacingCharacters(in: NSRange(location: first.location + 3, length: 1), with: "x"), "ticked in place, nothing moved")
         #expect(h.view.core.slides.isEmpty)
     }
+
+    /// Settings › General › Ticked items move to the bottom, turned off: a tick stays in place,
+    /// as with Notes' Sort Checked Items set to Manually. On again, ticks sink.
+    @Test func turnedOffInSettingsATickStaysWhereItIs() async {
+        ChecklistSorting.store.set(false, forKey: ChecklistSorting.key)
+        defer { ChecklistSorting.store.removeObject(forKey: ChecklistSorting.key) }
+        let h = await EditorHarness(Self.welcome, focus: false)
+        defer { h.close() }
+        #expect(!h.controller.sortsTickedItems)
+        await h.click(circle(h, items[0]))
+        #expect(ticked(h, items[0]))
+        await h.settle(ListEditing.sortDelay + ReorderSlide.duration + 0.3)
+        let first = (Self.welcome as NSString).range(of: "- [ ] \(items[0])")
+        #expect(h.text == (Self.welcome as NSString).replacingCharacters(in: NSRange(location: first.location + 3, length: 1), with: "x"), "ticked in place, nothing moved")
+        ChecklistSorting.store.set(true, forKey: ChecklistSorting.key)
+        #expect(h.controller.sortsTickedItems, "on again: ticks sink")
+        ChecklistSorting.store.removeObject(forKey: ChecklistSorting.key)
+        #expect(ChecklistSorting.on, "on unless turned off: ticked items have always sunk")
+    }
 }
 #endif
 

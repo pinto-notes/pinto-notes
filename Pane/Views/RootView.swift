@@ -1022,6 +1022,8 @@ struct RootView: View {
     /// Reopen the note you were on; otherwise the one you edited last.
     private func restoreNote() {
         guard selectedNote == nil, !ProcessInfo.processInfo.arguments.contains("-uitest") else { return }
+        // Settings › General › Open it when Pinto starts: the first window opens on today's note.
+        if TodaysNoteLaunch.shared.take(TodaysNoteSettings.load()) { openTodaysNote(); return }
         // A file kept in a folder reopens like a note.
         if let id = UUID(uuidString: lastNote), let f = context.attachment(id), f.folderID != nil, f.deletedAt == nil, f.trashedAt == nil {
             selectedNote = id

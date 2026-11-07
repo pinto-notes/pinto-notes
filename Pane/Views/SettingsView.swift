@@ -392,13 +392,94 @@ struct NoInitialFocus: NSViewRepresentable {
 }
 #endif
 
-/// General, on iPhone: the setup guide, API keys for apps in notes, and the diagnostics switch.
-/// The Mac has the same on its own page (GeneralSettingsPage), with the menu bar item.
+/// General's words, the same on the Mac and iPhone.
+enum GeneralCopy {
+    static let today = "Today\u{2019}s note"
+    static let todayFooter = "In the template, {{date}} becomes the date and {{time}} the time."
+    static let openOnLaunch = "Open it when Pinto starts"
+    static let checklists = "Checklists"
+    static let ticked = "Ticked items move to the bottom"
+    static let thisMac = "This Mac"
+    static let shortcut = "Quick note shortcut"
+    static let shortcutDetail = "Works in any app."
+    static let record = "Record Shortcut"
+    static let typeShortcut = "Type a shortcut\u{2026}"
+    static let login = "Open at login"
+
+}
+
+/// What General's menus offer: your folders, and the notes a day can start from.
+@MainActor
+struct GeneralChoices {
+    let context: ModelContext
+
+    /// Every folder's name, in the sidebar's order, the chosen one kept even before it's made
+    /// (Daily is made the first time today's note is).
+    func folders(keeping chosen: String) -> [String] {
+        var names: [String] = []
+        for f in context.allFolders().filter({ $0.deletedAt == nil && !ModelContext.isSharedWithMe($0) }).sorted(by: { $0.sortIndex < $1.sortIndex }) where !names.contains(where: { DailyNotes.same($0, f.name) }) {
+            names.append(f.name)
+        }
+        if !names.contains(where: { DailyNotes.same($0, chosen) }) { names.insert(chosen, at: 0) }
+        return names
+    }
+
+    struct Template: Equatable { let id: UUID; let title: String }
+
+    /// The notes in a folder named Templates, if there is one; else your 12 latest notes. The
+    /// chosen one stays listed wherever it is.
+    func templates(keeping chosen: String) -> [Template] {
+        let live = { (n: Note) in n.deletedAt == nil && n.trashedAt == nil && !n.isLocked }
+        var notes: [Note]
+        if let folder = context.namedFolder("Templates"), !folder.liveNotes.isEmpty {
+            notes = folder.liveNotes.filter(live).sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        } else {
+            var latest = FetchDescriptor<Note>(sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
+            latest.fetchLimit = 40
+            notes = Array(((try? context.fetch(latest)) ?? []).filter(live).filter { !$0.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.prefix(12))
+        }
+        if let id = UUID(uuidString: chosen), !notes.contains(where: { $0.id == id }), let n = context.note(id), live(n) { notes.insert(n, at: 0) }
+        return notes.map { Template(id: $0.id, title: $0.title.isEmpty ? "Untitled" : $0.title) }
+    }
+
+    /// Each title form as today's note would be named today.
+    static func example(_ form: TodaysNoteSettings.Title, now: Date = .now) -> String { DailyNotes.title(for: now, as: form) }
+}
+
+/// General, on iPhone: today's note, whether ticked items sink, the setup guide, API keys for
+/// apps in notes, and the diagnostics switch. The Mac has the same on its own page
+/// (GeneralSettingsPage), with This Mac.
 private struct GeneralSettings: View {
     var signedIn: Bool
     var close: () -> Void
+    @Environment(\.modelContext) private var context
+    @AppStorage(TodaysNoteSettings.folderKey, store: TodaysNoteSettings.store) private var folder = DailyNotes.folderName
+    @AppStorage(TodaysNoteSettings.titleKey, store: TodaysNoteSettings.store) private var title = TodaysNoteSettings.Title.long
+    @AppStorage(TodaysNoteSettings.templateKey, store: TodaysNoteSettings.store) private var template = ""
+    @AppStorage(TodaysNoteSettings.launchKey, store: TodaysNoteSettings.store) private var openOnLaunch = false
+    @AppStorage(ChecklistSorting.key, store: ChecklistSorting.store) private var sortsTicked = true
 
     var body: some View {
+        let choices = GeneralChoices(context: context)
+        Section {
+            Picker("Folder", selection: $folder) { ForEach(choices.folders(keeping: folder), id: \.self) { Text($0).tag($0) } }
+                .accessibilityIdentifier("settings.today.folder")
+            Picker("Title", selection: $title) { ForEach(TodaysNoteSettings.Title.allCases) { Text(GeneralChoices.example($0)).tag($0) } }
+                .accessibilityIdentifier("settings.today.title")
+            Picker("Template", selection: $template) {
+                Text("None").tag("")
+                ForEach(choices.templates(keeping: template), id: \.id) { Text($0.title).tag($0.id.uuidString) }
+            }
+            .accessibilityIdentifier("settings.today.template")
+            Toggle(GeneralCopy.openOnLaunch, isOn: $openOnLaunch).accessibilityIdentifier("settings.today.launch")
+        } header: {
+            Text(GeneralCopy.today)
+        } footer: {
+            Text(GeneralCopy.todayFooter)
+        }
+        Section(GeneralCopy.checklists) {
+            Toggle(GeneralCopy.ticked, isOn: $sortsTicked).accessibilityIdentifier("settings.notes.ticked")
+        }
         if HelpPage.offersSetupGuide(signedIn: signedIn) {
             Section {
                 Button("Show Setup Guide") { HelpPage.playSetupGuide(close: close) }

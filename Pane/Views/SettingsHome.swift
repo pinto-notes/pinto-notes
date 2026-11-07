@@ -119,6 +119,8 @@ enum SettingsIndex {
            Entry(label: "Storage used", place: .storage, also: ["Space", "Recently Deleted", "Earlier versions", "Full"]),
            Entry(label: "Export All Notes", place: .account, also: ["Export notes", "Markdown", "Backup"], menu: .export),
            Entry(label: "Show Setup Guide", place: .general, also: ["Onboarding", "Welcome"]),
+           Entry(label: "Today\u{2019}s note", place: .general, also: ["Daily note", "Daily notes", "Journal", "Template", "Date format", "Open on launch"]),
+           Entry(label: "Ticked items move to the bottom", place: .general, also: ["Checklist", "Sort checked items", "Ticked"]),
            Entry(label: WhatsNew.title, place: .help, also: ["What's new", "Changelog", "Version"]),
            Entry(label: "Questions and Answers", place: .help, also: ["Help", "Support"]),
            Entry(label: "Send Feedback", place: .help, also: ["Email", "Contact", "Support"]),
@@ -129,7 +131,9 @@ enum SettingsIndex {
 
     /// The Mac's own settings: View › Bigger's size is on Appearance there.
     #if os(macOS)
-    static let macOnly = [Entry(label: "Text size", place: .appearance, also: ["Font size", "Bigger", "Smaller", "Zoom", "Larger text"])]
+    static let macOnly = [Entry(label: "Text size", place: .appearance, also: ["Font size", "Bigger", "Smaller", "Zoom", "Larger text"]),
+                          Entry(label: "Quick note shortcut", place: .general, also: ["Hotkey", "Keyboard shortcut", "Global shortcut"]),
+                          Entry(label: "Open at login", place: .general, also: ["Login item", "Start at login", "Launch at login"])]
     #else
     static let macOnly: [Entry] = []
     #endif
