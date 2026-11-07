@@ -78,7 +78,7 @@
 @media (max-width: 800px) { .featuredArt { border-radius: 0; } }
 .featuredText { display: grid; gap: 12px; padding-right: 24px; }
 @media (max-width: 800px) { .featuredText { padding: 0 20px; } }
-.featuredLabel { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.featuredLabel { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 .featuredTitle { margin: 0; font-size: clamp(24px, 2.6vw, 34px); line-height: 1.1; font-weight: 800; letter-spacing: -0.025em; text-wrap: balance; }
 .featuredExcerpt { color: var(--muted); font-size: 17px; line-height: 1.5; text-wrap: pretty; }
 .featuredBy { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }

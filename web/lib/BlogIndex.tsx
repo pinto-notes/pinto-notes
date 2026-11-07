@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Avatar, PostCard, longDate } from "./blog";
+import { Announcement, Avatar, PostCard, longDate } from "./blog";
 import { ClosingBand } from "./ClosingBand";
 import { CATEGORY_COVERS, AUTHOR, categories, categoryPath, isFeatured, newestFirst, pageCount, pageOf, pagePath, published, type Category } from "./posts";
 import { shelves } from "./more-answers";
@@ -15,8 +15,8 @@ import s from "../app/blog/blog.module.css";
 /// other post under "More answers", as the question it answers. The posts written for search are all
 /// on /blog/answers (AnswersIndex). Every page is static and one page long.
 
-const LEDE_TEXT = "How Pinto Notes works with ChatGPT, Claude, Claude Code and Codex, how it's built, and what people make with it.";
-const LEDE = <>How Pinto Notes works with <b>ChatGPT, Claude</b>, Claude Code and Codex, how it&apos;s built, and what people make with it.</>;
+const LEDE_TEXT = "What's new in Pinto Notes: every launch, as it ships.";
+const LEDE = <>What&apos;s new in Pinto Notes: every launch, as it ships.</>;
 const ANSWERS_LEDE = "Straight answers about Apple Notes, notes apps and AI, each one tried on a real Mac first.";
 
 /// What each category's page says under its title (and in search results).
@@ -71,8 +71,10 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
   const picked = posts.filter(isFeatured);
   // The newest leads wide only when the cards under it fill whole rows of three, so no row is left
   // half empty (seven posts: one wide, then three and three; six: three and three).
-  const featured = page === 1 && picked.length > 1 && (picked.length - 1) % 3 === 0 ? picked[0] : undefined;
-  const rest = featured ? picked.slice(1) : picked;
+  // The front is announcements only, so each one gets the wide card, newest first.
+  const leads = category ? [] : picked;
+  const featured = category && page === 1 && picked.length > 1 && (picked.length - 1) % 3 === 0 ? picked[0] : undefined;
+  const rest = category ? (featured ? picked.slice(1) : picked) : [];
   const more = shelves(posts.filter((p) => !isFeatured(p)));
 
   return (
@@ -105,6 +107,7 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
             </nav>
           )}
           <ul className={`${s.grid} ${FILTER_GRID}`}>
+            {leads.map((p) => <li key={p.slug} className={s.featuredItem} data-key={p.slug}><Featured post={p} /></li>)}
             {featured && <li className={s.featuredItem} data-key={featured.slug}><Featured post={featured} /></li>}
             {rest.map((p) => (
               <li key={p.slug} data-key={p.slug}><PostCard post={p} /></li>
@@ -127,7 +130,9 @@ function Featured({ post }: { post: ReturnType<typeof published>[number] }) {
     <a className={s.featured} href={`/blog/${post.slug}`}>
       <img className={s.featuredArt} src={c.src} alt="" width={c.width} height={c.height} decoding="async" />
       <span className={s.featuredText}>
-        <span className={s.featuredLabel}>{post.category} · Newest</span>
+        {post.announcement
+          ? <span className={s.featuredLabel}><Announcement /></span>
+          : <span className={s.featuredLabel}>{post.category} · Newest</span>}
         <h2 className={s.featuredTitle}>{post.title}</h2>
         <span className={s.featuredExcerpt}>{post.excerpt}</span>
         <span className={s.featuredBy}><Avatar size={22} /><span>{AUTHOR.name}</span><span aria-hidden="true">·</span><time dateTime={post.date}>{longDate(post.date)}</time></span>
