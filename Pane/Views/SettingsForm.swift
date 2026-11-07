@@ -24,10 +24,24 @@ enum SettingsInk {
     static var text: Color { Color.ink }
     static var muted: Color { Color.muted }
     static let icon = dynamic(NSColor(white: 0.32, alpha: 1), NSColor(white: 0.72, alpha: 1))
-    /// A switch that is on: ink, never a second orange on the page. In the dark a grey deep enough
-    /// that the white knob stands out at 4:1 (0.62 put it at 2.7:1 and read as switched off or
-    /// disabled, council round 3, 11-04).
-    static let switchOn = dynamic(NSColor(white: 0.12, alpha: 1), NSColor(white: 0.5, alpha: 1))
+    /// A switch that is on: the accent, as on iPhone (Emil, 7 November 2026), like the sidebar's
+    /// icons. Where the accent is light (amber in the dark), a deeper shade of it, so the white knob
+    /// still stands out at 3:1 (a grey at 2.7:1 read as switched off, council round 3, 11-04).
+    static var switchOn: Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            var c = NSColor.black
+            appearance.performAsCurrentDrawingAppearance { c = PColor.paneAccent.usingColorSpace(.sRGB) ?? .black }
+            for _ in 0..<12 where knobContrast(c) < 3 { c = c.blended(withFraction: 0.12, of: .black) ?? c }
+            return c
+        })
+    }
+
+    /// How far a white knob stands out from `track`.
+    static func knobContrast(_ track: NSColor) -> CGFloat {
+        guard let c = track.usingColorSpace(.sRGB) else { return 21 }
+        func lin(_ v: CGFloat) -> CGFloat { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+        return 1.05 / (0.2126 * lin(c.redComponent) + 0.7152 * lin(c.greenComponent) + 0.0722 * lin(c.blueComponent) + 0.05)
+    }
 }
 
 /// A page's content: its boxes one under another, as wide as the page's column.

@@ -733,8 +733,8 @@ struct PrivacySecuritySection: View {
             .accessibilityIdentifier("privacy.strict")
             #if os(macOS)
             .toggleStyle(.switch)
-            // Settings' switches are in the brand's brown, as on General.
-            .tint(Color(Palette.switchOn))
+            // Settings' switches are in the accent, as on General.
+            .tint(SettingsInk.switchOn)
             #endif
             .confirmationDialog(turning == .strict ? KeyCopyWords.turnOnTitle : KeyCopyWords.turnOffTitle,
                                 isPresented: $asksTurn, titleVisibility: .visible) {

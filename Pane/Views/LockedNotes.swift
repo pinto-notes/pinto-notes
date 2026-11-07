@@ -457,8 +457,8 @@ struct LockedNotesSection: View {
                 if let name = vault.keyStore.biometryName {
                     Toggle("Use \(name)", isOn: Binding(get: { vault.usesBiometrics }, set: { vault.usesBiometrics = $0 }))
                         #if os(macOS)
-                        // Settings' switches are in the brand's brown, as on General.
-                        .tint(Color(Palette.switchOn))
+                        // Settings' switches are in the accent, as on General.
+                        .tint(SettingsInk.switchOn)
                         #endif
                         .accessibilityIdentifier("settings.notesBiometrics")
                 }

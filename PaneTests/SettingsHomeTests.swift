@@ -104,14 +104,24 @@ import Carbon.HIToolbox
         #expect(src.contains("ThemeWindowPicture(theme: t, dark: scheme == .dark)") && !src.contains("ThemeWindowPicture(theme: t, dark: false)"))
         // Mode and Theme show their choice the same way: the ink ring, never one orange and one ink.
         #expect(!src.contains("orange: true"), "one ring look on Appearance")
-        // A switch that's on, in the dark: its white knob stands out from the track (at least 3:1).
-        var lum: CGFloat = 0
-        NSAppearance(named: .darkAqua)!.performAsCurrentDrawingAppearance {
-            let c = NSColor(SettingsInk.switchOn).usingColorSpace(.sRGB)!
-            func lin(_ v: CGFloat) -> CGFloat { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
-            lum = 0.2126 * lin(c.redComponent) + 0.7152 * lin(c.greenComponent) + 0.0722 * lin(c.blueComponent)
+        // A switch that's on is in the accent, light and dark, with every accent: its white knob
+        // stands out from the track (at least 3:1); a light accent is deepened, never swapped for grey.
+        for accent in AccentChoice.allCases {
+            ThemeStore.$override.withValue(ThemeLook(theme: .standard, accent: accent)) {
+                for name in [NSAppearance.Name.aqua, .darkAqua] {
+                    var track = NSColor.black, raw = NSColor.black
+                    NSAppearance(named: name)!.performAsCurrentDrawingAppearance {
+                        track = NSColor(SettingsInk.switchOn).usingColorSpace(.sRGB)!
+                        raw = PColor.paneAccent.usingColorSpace(.sRGB)!
+                    }
+                    let ratio = SettingsInk.knobContrast(track)
+                    #expect(ratio >= 3, "\(accent), \(name.rawValue): white knob at \(ratio):1")
+                    // The accent's own hue: not a grey (its channels still apart as the accent's are).
+                    let spread = { (c: NSColor) in max(c.redComponent, c.greenComponent, c.blueComponent) - min(c.redComponent, c.greenComponent, c.blueComponent) }
+                    if spread(raw) > 0.1 { #expect(spread(track) > 0.05, "\(accent), \(name.rawValue): still the accent") }
+                }
+            }
         }
-        #expect(1.05 / (lum + 0.05) >= 3, "white knob on the dark track: \(1.05 / (lum + 0.05)):1")
     }
     #endif
 
