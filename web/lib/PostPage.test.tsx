@@ -92,4 +92,13 @@ describe("an announcement", () => {
     const index = new DOMParser().parseFromString(html(<BlogIndex category={null} page={1} />), "text/html");
     expect(index.body.textContent).toContain("Announcement");
   });
+
+  it("dates each announcement on the day its feature shipped, never two on one day", () => {
+    const shown = posts.filter((p) => p.announcement && !p.draft);
+    expect(new Set(shown.map((p) => p.date)).size).toBe(shown.length);
+    expect(Object.fromEntries(shown.map((p) => [p.slug, p.date]))).toMatchObject({
+      "pinto-notes-for-iphone": "2026-11-06",
+      "import-your-notes": "2026-10-13",
+    });
+  });
 });
