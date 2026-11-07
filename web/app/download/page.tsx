@@ -87,7 +87,7 @@ export default function Download() {
       </section>
 
       <section className={`${styles.more} rise`} style={r(8)}>
-        <p><a href="/changelog">See what's new in each version</a></p>
+        <p><a href="/blog">See what's new on the blog</a></p>
       </section>
 
       <ClosingBand

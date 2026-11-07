@@ -53,7 +53,6 @@ function summary(): string[] {
     `- [Download for Mac](${SITE_URL}/download): free, macOS 26 or later.`,
     `- [Pinto Notes for iPhone](${APP_STORE_URL}): free on the App Store, iOS 26 or later.`,
     `- [Help and FAQ](${SITE_URL}/help)`,
-    `- [Changelog](${SITE_URL}/changelog)`,
     `- [Privacy & Security](${SITE_URL}/privacy-security): what's stored, what's encrypted, every log and how long it's kept.`,
     `- [Privacy policy](${SITE_URL}/privacy)`,
     `- [Amber Notes is now Pinto Notes](${SITE_URL}/amber-notes): the old name, and what stayed the same.`,

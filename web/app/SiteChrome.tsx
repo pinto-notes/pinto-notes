@@ -130,7 +130,6 @@ export default function SiteChrome({ stars, children }: { version: string | null
         <nav className="site-nav" aria-label="Site">
           <a href="/templates" aria-current={path === "/templates" || path.startsWith("/templates/") ? "page" : undefined}>Templates</a>
           <a href="/blog" aria-current={path === "/blog" || path.startsWith("/blog/") ? "page" : undefined}>Blog</a>
-          <a href="/changelog" aria-current={current("/changelog")}>Changelog</a>
           <a href="/help" aria-current={path === "/help" || path === "/support" ? "page" : undefined}>Help</a>
           <a className="site-gh" href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="Pinto Notes on GitHub"><GitHubGlyph /></a>
           <DownloadLink className="site-cta pi-apple" aria-current={current("/download")}>
@@ -149,7 +148,6 @@ export default function SiteChrome({ stars, children }: { version: string | null
               <a href="/templates">Templates</a>
               <a href="/blog">Blog</a>
               <a href="/blog/answers">Answers</a>
-              <a href="/changelog">Changelog</a>
               <a href="/privacy-security">Privacy & Security</a>
               <a href="/privacy">Privacy Policy</a>
               <a href="/terms">Terms</a>

@@ -33,7 +33,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // The gallery shows every template's cover; the alt text describing each is on the page.
     { ...page("/templates", 0.8, templates().map((t) => t.updated).sort().at(-1)), images: templates().map((t) => `${SITE_URL}${coverPath(t.slug)}`) },
     ...templates().map((t) => page(`/templates/${t.slug}`, 0.7, t.updated)),
-    page("/changelog", 0.5, released),
     page("/privacy-security", 0.5),
     // What the app used to be called, for searches of the old name.
     page("/amber-notes", 0.3, "2026-10-08"),
