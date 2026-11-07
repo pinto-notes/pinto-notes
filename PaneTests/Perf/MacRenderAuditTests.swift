@@ -224,9 +224,17 @@ import Testing
         report("Settings sidebar search, 8 edits", times, context)
         let counts = RenderProbe.values(in: context)
         #expect(counts["SettingsCard", default: 0] >= times.count)
-        // The page beside the results is the first result's (round 24): it changes when that does,
-        // here to the first result's page and back, and doesn't follow each key.
-        #expect(counts["SettingsPage", default: 0] <= 2, "the page doesn't follow the search field")
+        // The page beside the results is the first result's (round 24): it changes when that does
+        // (here Account, Appearance, back to Account when nothing matches "apps", and so on) and
+        // doesn't follow each key: one render per change of page, none per key.
+        let queries = ["a", "ap", "app", "apps", "app", "ap", "a", ""]
+        let pages = queries.map { q in
+            q.isEmpty ? .account : SettingsCard.pageWhileSearching(SettingsIndex.matches(q, available: [.account, .appearance, .security, .appKeys])) ?? .account
+        }
+        let changes = zip([Pane.SettingsPage.account] + pages, pages).filter { $0 != $1 }.count
+        #expect(changes < queries.count)
+        #expect(counts["SettingsPage", default: 0] <= changes,
+                "the page doesn't follow the search field: \(counts["SettingsPage", default: 0]) renders for \(changes) changes of page")
         let earlier = try #require(navigation.open)
         earlier(.appKeys)
         await update(window)
