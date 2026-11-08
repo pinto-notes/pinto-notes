@@ -54,8 +54,8 @@ enum ShareWays {
         case .people: ShareCopy.privacy
         case .link where sharedWithPeople && !trashed: SharedNoteLimits.pageLine
         case .link where trashed: "The page is down while this note is in Recently Deleted."
-        case .link where shared: "Anyone with the link can read this note on the web. Stop sharing to take the page down."
-        case .link: "A page anyone with the link can read. It keeps up with your changes until you stop sharing."
+        case .link where shared: "Anyone with the link can read this page. Your changes appear on it as you make them."
+        case .link: "A page anyone with the link can read. It keeps up with your changes until you stop publishing."
         case .copy: "Sends the note as it is now. Later changes aren't sent."
         case .picture: "A picture of the note, to post or send."
         }
@@ -153,13 +153,13 @@ struct ShareNotePopover: View {
 
     @ViewBuilder private var linkRows: some View {
         if trashed {
-            if shared { row("Stop Sharing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } } }
+            if shared { row("Stop Publishing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } } }
         } else if sharedWithPeople {
             // A page from before the note was shared with people: open it or stop it. Copy Link would
             // publish the note again, and its text is everyone's now.
             if shared {
                 if let url = store.url { row("Open Web Page", "safari", id: "share.open") { NSWorkspace.shared.open(url) } }
-                row("Stop Sharing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } }
+                row("Stop Publishing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } }
             }
         } else if !shared {
             WebPagePreview(title: title, text: text)
@@ -171,15 +171,14 @@ struct ShareNotePopover: View {
                 // The address in a field, as a link is shown to be copied: not grey code (council,
                 // 8 November 2026). Selectable; Copy Link copies all of it.
                 Text(url.absoluteString.replacingOccurrences(of: "https://", with: ""))
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.muted)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.ink)
                     .textSelection(.enabled)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .padding(.horizontal, 8)
-                    .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
-                    // A quiet fill, not a white bordered field that reads as "type here" (council).
-                    .background(Color.soft, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Plain selectable words: neither a field to type in nor a disabled one (council).
                     .padding(.horizontal, 8)
                     .padding(.top, 6)
                     .padding(.bottom, 10)
@@ -190,7 +189,7 @@ struct ShareNotePopover: View {
                 row("Open Web Page", "safari", id: "share.open") { NSWorkspace.shared.open(url) }
             }
             Divider().padding(.horizontal, 8).padding(.vertical, 4)
-            row("Stop Sharing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } }
+            row("Stop Publishing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } }
         }
     }
 
@@ -200,7 +199,7 @@ struct ShareNotePopover: View {
                 close()
                 service.perform(withItems: [text])
             } label: {
-                rowLabel(service.title) { Image(nsImage: service.image).resizable().interpolation(.high).frame(width: 18, height: 18) }
+                rowLabel(service.title == "Notes" ? "Apple Notes" : service.title) { Image(nsImage: service.image).resizable().interpolation(.high).frame(width: 18, height: 18) }
             }
             .buttonStyle(.plain)
         }
@@ -368,7 +367,7 @@ private struct ShareTab: View {
 struct WebPagePreview: View {
     let title: String
     let text: String
-    static let height: CGFloat = 116
+    static let height: CGFloat = 104
 
     /// The lines under the title: the note's first few, its first line left out when it is the title.
     static func lines(title: String, text: String) -> [String] {
@@ -437,7 +436,7 @@ struct WebPagePreview: View {
         }
         .background(Color.soft)
         .clipShape(shape)
-        .overlay(shape.strokeBorder(Color.primary.opacity(0.14), lineWidth: 0.5))
+        .overlay(shape.strokeBorder(Color.primary.opacity(0.16), lineWidth: 1))
     }
 }
 
@@ -457,9 +456,9 @@ struct PictureBackgrounds: View {
                     swatch(b)
                         .frame(width: 20, height: 20)
                         .clipShape(Circle())
-                        .overlay(Circle().strokeBorder(Color.primary.opacity(0.22), lineWidth: 1))
+                        .overlay(Circle().strokeBorder(Color.primary.opacity(0.3), lineWidth: 1))
                         .padding(3)
-                        .overlay { if b == chosen { Circle().strokeBorder(Color.ink, lineWidth: 2) } }
+                        .overlay { if b == chosen { Circle().strokeBorder(Color(PColor.paneAccent), lineWidth: 2) } }
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -487,7 +486,7 @@ struct PictureBackgrounds: View {
 /// The note as a picture, with the look last chosen: what the Picture tab opens on.
 struct NotePictureThumb: View {
     /// Tall enough that the picture fills the popover's width, as the web page preview does.
-    static let height: CGFloat = 213
+    static let height: CGFloat = 186
     let request: NotePicture.Request
     /// The picture once drawn, for Copy Picture.
     var image: Binding<CGImage?>? = nil
@@ -675,11 +674,11 @@ struct CollaborateRows: View {
                 line(why, problem: false)
             } else if share.isOwner {
                 HStack(spacing: 8) {
-                    Text("Anyone with the link").font(.system(size: 13))
+                    Text("Join by Link").font(.system(size: 13))
                     Spacer(minLength: 0)
                     // A neutral menu: the system's took the accent, loud for a setting left at Off.
                     Menu {
-                        Picker("Anyone with the link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
+                        Picker("Join by Link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
                             ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
                         }
                         .pickerStyle(.inline)
@@ -702,7 +701,7 @@ struct CollaborateRows: View {
                     .modifier(HoverTracking(hovering: $accessHover))
                     .fixedSize()
                     .disabled(share.working != nil)
-                    .accessibilityLabel("Anyone with the link: \(share.state.access.rawValue)")
+                    .accessibilityLabel("Join by Link: \(share.state.access.rawValue)")
                     .accessibilityIdentifier("share.access")
                 }
                 if let problem = share.state.problem { line(problem, problem: true) }

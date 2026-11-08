@@ -15,8 +15,8 @@ import Testing
     /// read, until sharing is stopped; a copy is the note as it is now. Nothing about working together.
     @Test func theLineSaysWhatTheChosenWayDoes() {
         let fresh = ShareWays.line(.link, shared: false)
-        #expect(fresh.contains("anyone with the link can read") && fresh.contains("until you stop sharing"))
-        #expect(ShareWays.line(.link, shared: true).contains("Stop sharing"))
+        #expect(fresh.contains("anyone with the link can read") && fresh.contains("until you stop publishing"))
+        #expect(ShareWays.line(.link, shared: true).contains("as you make them"))
         #expect(ShareWays.line(.link, shared: true, trashed: true).contains("Recently Deleted"))
         #expect(ShareWays.line(.copy, shared: false).contains("as it is now"))
         for way in ShareWays.ways(collaborating: false) {

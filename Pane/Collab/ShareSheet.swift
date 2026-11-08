@@ -83,7 +83,7 @@ struct ShareForm: View {
                     Picker(selection: Binding(get: { state.access }, set: { a in Task { await share.setAccess(a) } })) {
                         ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
                     } label: {
-                        Text("Anyone with the link")
+                        Text("Join by Link")
                     }
                     .pickerStyle(.menu)
                     .disabled(share.working != nil)
