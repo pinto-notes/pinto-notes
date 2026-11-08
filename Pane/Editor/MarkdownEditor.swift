@@ -202,8 +202,14 @@ final class EditorCore {
 
     /// The written link on `line` the caret is inside or the selection touches.
     static func linkBeingEdited(_ ns: NSString, line: NSRange, selection s: NSRange) -> NSRange? {
+        // The address part only, the same rule the styler shows it by: moving from the link's words
+        // into its address must restyle the line.
         writtenLink.matches(in: ns as String, range: line).lazy.map(\.range).first { r in
-            s.length > 0 ? NSIntersectionRange(s, r).length > 0 : (s.location > r.location && s.location < NSMaxRange(r))
+            let close = ns.range(of: "](", options: [], range: r)
+            let address = close.location == NSNotFound ? r : NSRange(location: close.location, length: NSMaxRange(r) - close.location)
+            return s.length > 0
+                ? NSIntersectionRange(s, address).length > 0 && s.location >= r.location && NSMaxRange(s) <= NSMaxRange(r)
+                : (s.location > address.location && s.location < NSMaxRange(r))
         }
     }
 
