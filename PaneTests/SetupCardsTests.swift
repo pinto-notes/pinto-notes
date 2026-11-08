@@ -250,9 +250,9 @@ import Testing
         let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().appending(path: "Pane/Views/TemplateLibrary.swift"), encoding: .utf8)
         #expect(!src.contains("if e.app {\n                        Text(e.title)"))
-        #expect(src.contains("Text(e.title).font(.system(size: small ? 17 : 20, weight: .bold))"))
-        // The ask shows as it's sent: no "…" gap (the AI gets none either).
-        #expect(src.contains("Text(TemplateCatalog.Entry.sendable(e.ask))\n                        .font(.system(size: text)).foregroundStyle(Color.ink)\n                        .lineLimit(2, reservesSpace: true)"))
+        #expect(src.contains("Text(e.title).font(.system(size: Self.panelTitle, weight: .semibold))"))
+        // The ask shows as it's sent: no "…" gap (the AI gets none either), in a box that fits it.
+        #expect(src.contains("Text(TemplateCatalog.Entry.sendable(e.ask))\n                        .font(.system(size: text)).foregroundStyle(Color.ink)\n                        .lineLimit(2)\n"))
     }
 
     /// The library offers your AIs, the one used last first, each kind once; any AI without a chat
