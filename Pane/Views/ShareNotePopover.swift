@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import UniformTypeIdentifiers
 import SwiftUI
 
 /// What the share popover offers, and the one line that says what the chosen way does.
@@ -116,15 +117,17 @@ struct ShareNotePopover: View {
                     .padding(.horizontal, 10)
                     .padding(.top, collaborating ? 10 : 0)
             }
-            if chosen != .people {
-                Text(ShareWays.line(chosen, shared: shared, trashed: trashed, sharedWithPeople: sharedWithPeople))
+            // Every tab the same way down: a line on what it does, a hairline, its content, its button
+            // (council, 8 November 2026: Collaborate had no line and started higher).
+            do {
+                Text(chosen == .people ? ShareCopy.collaborate : ShareWays.line(chosen, shared: shared, trashed: trashed, sharedWithPeople: sharedWithPeople))
                     .font(.system(size: 12))
                     .foregroundStyle(Color.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
                     .padding(.bottom, 10)
-                Rectangle().fill(Color.line).frame(height: 1)
+                Rectangle().fill(Color.line).frame(height: 1).padding(.horizontal, 16)
             }
 
             VStack(alignment: .leading, spacing: 0) {
@@ -179,15 +182,21 @@ struct ShareNotePopover: View {
             primary("Publish Web Page…", "globe", id: "share.create", busy: store.state.isWorking) { close(); _ = store.requestShare() }
         } else {
             if let url = store.url {
+                // The address in a field, as a link is shown to be copied: not grey code (council,
+                // 8 November 2026). Selectable; Copy Link copies all of it.
                 Text(url.absoluteString.replacingOccurrences(of: "https://", with: ""))
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(Color.muted)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.ink)
                     .textSelection(.enabled)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .padding(.horizontal, 8)
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
+                    .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
+                    .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color.line, lineWidth: 1))
+                    .padding(.horizontal, 8)
+                    .padding(.top, 6)
+                    .padding(.bottom, 10)
             }
             primary("Copy Link", "link", id: "share.copy") { close(); Task { await store.shareAndCopy() } }
                 .padding(.bottom, 6)
@@ -209,7 +218,7 @@ struct ShareNotePopover: View {
             }
             .buttonStyle(.plain)
         }
-        Divider().padding(.horizontal, 6).padding(.vertical, 4)
+        Divider().padding(.horizontal, 8).padding(.vertical, 4)
         row("Copy as Text", "doc.on.doc", id: "share.copyText") {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
@@ -217,7 +226,7 @@ struct ShareNotePopover: View {
     }
 
     /// What sits under the picture: the backgrounds, then the buttons.
-    static let pictureControls: CGFloat = 96
+    static let pictureControls: CGFloat = 86
 
     @ViewBuilder private var pictureRows: some View {
         if let request = pictureRequest?() {
@@ -228,19 +237,38 @@ struct ShareNotePopover: View {
         }
         HStack(spacing: 8) {
             Button { copyPicture() } label: {
-                Label(pictureCopied ? "Copied" : "Copy Picture", systemImage: pictureCopied ? "checkmark" : "doc.on.doc")
+                // Words only: three buttons share the width, and an icon cut "Copy Picture" short.
+                if pictureCopied { Label("Copied", systemImage: "checkmark") } else { Text("Copy Picture") }
             }
             .buttonStyle(.amberProminent(.compact, wide: true))
             .disabled(pictureImage == nil)
             .accessibilityIdentifier("share.copyPicture")
+            // Save in plain sight, not behind Share (council, 8 November 2026).
+            Button("Save…") { savePicture() }
+                .buttonStyle(.secondary(.compact))
+                .fixedSize()
+                .disabled(pictureImage == nil)
+                .accessibilityIdentifier("share.savePicture")
             if let picture {
-                Button { close(); picture() } label: { Label("Share…", systemImage: "square.and.arrow.up") }
+                Button("Share…") { close(); picture() }
                     .buttonStyle(.secondary(.compact))
                     .fixedSize()
                     .accessibilityIdentifier("share.picture")
             }
         }
         .padding(.horizontal, 8)
+    }
+
+    private func savePicture() {
+        guard let pictureImage else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        panel.nameFieldStringValue = NotePicture.filename(title: title)
+        close()
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { _ = await NotePictureSheet.write(pictureImage, to: url) }
+        }
     }
 
     private func copyPicture() {
@@ -423,16 +451,17 @@ struct PictureBackgrounds: View {
 
     var body: some View {
         let chosen = NotePicture.Background(rawValue: storedBackground) ?? (colorScheme == .dark ? .dusk : .hills)
-        HStack(spacing: 0) {
-            ForEach(Array(NotePicture.Background.allCases.enumerated()), id: \.element) { i, b in
-                if i > 0 { Spacer(minLength: 6) }
+        HStack(spacing: 4) {
+            Text("Background").font(.system(size: 12)).foregroundStyle(Color.muted)
+            Spacer(minLength: 4)
+            ForEach(NotePicture.Background.allCases) { b in
                 Button { storedBackground = b.rawValue } label: {
                     swatch(b)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 20, height: 20)
                         .clipShape(Circle())
                         .overlay(Circle().strokeBorder(Color.primary.opacity(0.22), lineWidth: 1))
                         .padding(3)
-                        .overlay { if b == chosen { Circle().strokeBorder(Color(PColor.paneAccent), lineWidth: 2) } }
+                        .overlay { if b == chosen { Circle().strokeBorder(Color.ink, lineWidth: 2) } }
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -442,7 +471,7 @@ struct PictureBackgrounds: View {
                 .help(b.name)
             }
         }
-        .padding(.horizontal, -3)
+        .padding(.trailing, -3)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("share.pictureBackgrounds")
     }
@@ -460,7 +489,7 @@ struct PictureBackgrounds: View {
 /// The note as a picture, with the look last chosen: what the Picture tab opens on.
 struct NotePictureThumb: View {
     /// Tall enough that the picture fills the popover's width, as the web page preview does.
-    static let height: CGFloat = 212
+    static let height: CGFloat = 176
     let request: NotePicture.Request
     /// The picture once drawn, for Copy Picture.
     var image: Binding<CGImage?>? = nil

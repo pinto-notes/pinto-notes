@@ -262,7 +262,7 @@ struct NotePictureSheet: View {
 
     private static let couldNotWrite = "The picture couldn't be saved. Try another place."
 
-    private static func write(_ image: CGImage, to url: URL) async -> Bool {
+    static func write(_ image: CGImage, to url: URL) async -> Bool {
         await Task.detached(priority: .userInitiated) {
             guard let data = NotePicture.png(image) else { return false }
             return (try? data.write(to: url, options: .atomic)) != nil

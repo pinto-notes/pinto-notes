@@ -267,7 +267,7 @@ enum ShareCopy {
         switch access {
         case .edit: "Anyone with the link can join and edit in Pinto Notes."
         case .view: "Anyone with the link can join and read in Pinto Notes."
-        case .off: "Only the people above can open it. Each time you turn the link on, it's a new link."
+        case .off: "Only people you invite can open this note."
         }
     }
 
@@ -275,6 +275,9 @@ enum ShareCopy {
     static func link(_ state: ShareState) -> String {
         state.access == .off && state.people.count <= 1 ? notSharedYet : link(state.access)
     }
+
+    /// Collaborate's line, under the tabs as every way has one.
+    static let collaborate = "People you invite can edit this note with you."
 
     static let notSharedYet = "Invite People makes a link anyone can join with and edit, in Pinto Notes."
 
