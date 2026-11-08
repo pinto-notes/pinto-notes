@@ -83,6 +83,7 @@ enum TemplateLibraryWords {
     static let copy = "Copy prompt"
     static let copied = "Copied"
     static let tryAsking = "Then ask"
+    static let clear = "Clear Search"
     static func none(_ q: String) -> String { "No templates match \u{201C}\(q)\u{201D}" }
 }
 
@@ -175,17 +176,30 @@ struct TemplateLibraryView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            HStack(spacing: 0) {
-                grid(shown, current: current)
-                Divider()
-                Group {
-                    if let current { detail(current) } else { Color.clear }
+            if shown.isEmpty {
+                // Nothing matches: one message across the sheet, and the way back.
+                VStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass").font(.system(size: 28, weight: .regular)).foregroundStyle(Color.muted)
+                    Text(TemplateLibraryWords.none(query)).font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.ink)
+                    Button(TemplateLibraryWords.clear) { query = ""; filter = "All" }
+                        .buttonStyle(.secondary(.regular))
+                        .padding(.top, 4)
                 }
-                .frame(width: Self.panel)
-                .frame(maxHeight: .infinity, alignment: .top)
-                .clipped()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.bottom, 40)
+            } else {
+                HStack(spacing: 0) {
+                    grid(shown, current: current)
+                    Divider()
+                    Group {
+                        if let current { detail(current) } else { Color.clear }
+                    }
+                    .frame(width: Self.panel)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .clipped()
+                }
+                .frame(maxHeight: .infinity)
             }
-            .frame(maxHeight: .infinity)
         }
         .frame(width: size.width, height: size.height)
         // In a sheet the sheet is the panel and macOS dims the window (popupSheet).
@@ -268,10 +282,6 @@ struct TemplateLibraryView: View {
             let width = Self.cardWidth(row: row > 0 ? row : geo.size.width - 48, gap: Self.gap)
             ScrollViewReader { scroller in
                 ScrollView {
-                    if shown.isEmpty {
-                        Text(TemplateLibraryWords.none(query)).foregroundStyle(Color.muted)
-                            .frame(maxWidth: .infinity).padding(.top, 40)
-                    }
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: Self.gap, alignment: .top)], alignment: .leading, spacing: Self.gap) {
                         ForEach(shown) { e in
                             SetupTemplateCard(pick: e.pick, width: width, selected: current == e) {
