@@ -1,6 +1,6 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { PostFigure } from "@/lib/PostParts";
-import { APP_STORE_URL } from "@/lib/site";
+import { Loop } from "@/lib/Loop";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("pinto-notes-for-iphone", { title: "Pinto Notes is on iPhone" });
@@ -17,6 +17,9 @@ export default function Page() {
         Ask ChatGPT or Claude to add something, and it&apos;s in the note on your phone a second later. &ldquo;Add the paella
         things to my groceries&rdquo; from your laptop, and they&apos;re on the list when you&apos;re in the shop.
       </p>
+      <Loop src="/blog/loops/iphone-chatgpt-adds-groceries.mp4" poster="/blog/loops/iphone-chatgpt-adds-groceries.webp" width={640} height={1202}
+        label="Pinto Notes on iPhone: five grocery items ChatGPT just added land in the list, tinted, with ChatGPT changed 5 lines and Undo."
+        caption="Recorded on an iPhone: the five lines ChatGPT added, a second after it was asked." />
       <p>
         The lines it changed are tinted for a moment, with Undo next to them. Every version is kept, so nothing an AI does is
         final.
@@ -45,12 +48,10 @@ export default function Page() {
         Claude</a> has every step, and <a href="/blog/notes-in-claude-code-and-codex">Claude Code and Codex</a> take one command.
       </p>
 
-      <h2>Get it</h2>
+      <h2>Already on the Mac?</h2>
       <p>
-        Pinto Notes is free on the <a href={APP_STORE_URL} rel="noopener">App Store</a> for iPhone. Already use it on
-        your Mac? Sign in with the same account and your notes are there. New to it? <a href="/blog/import-your-notes">Bring your
-        notes</a> from Apple Notes or another app on the Mac, from the <a href="/download">download page</a>, and they show up on
-        your phone a moment later.
+        Sign in on your iPhone with the same account and your notes are there. New to Pinto Notes? <a href="/blog/import-your-notes">Bring
+        your notes</a> from Apple Notes or another app on the Mac, and they show up on your phone a moment later.
       </p>
     </PostPage>
   );
