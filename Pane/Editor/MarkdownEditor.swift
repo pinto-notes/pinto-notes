@@ -2856,10 +2856,13 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 cardContent[item.key] = item.content
             }
             if host.frame != item.frame {
+                // A new size (a row added or deleted) comes at once: the text under the card has
+                // already moved, and a card gliding to its height overlapped it or left a gap.
+                let glide = animated && host.frame.size == item.frame.size
                 NSAnimationContext.runAnimationGroup { ctx in
                     // Zero duration also ends a glide still under way.
-                    ctx.duration = animated ? 0.22 : 0
-                    ctx.allowsImplicitAnimation = animated
+                    ctx.duration = glide ? 0.22 : 0
+                    ctx.allowsImplicitAnimation = glide
                     host.animator().frame = item.frame
                 }
             }
@@ -2870,7 +2873,31 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let (edit, index) = core.newGridEdit(text: string, selection: selectedRange())
         core.gridFocus = GridFocusRequest(grid: index, cell: GridCell(row: 0, column: 0))
         apply(edit)
-        layoutCards()
+        // In place at once, and the note moves once, now, to show the whole table: the cell
+        // taking the keyboard then has nothing left to scroll (Emil, 8 November 2026: "when I
+        // create the table, the whole scroll view moves twice, looks janky").
+        layoutCards(animated: false)
+        if let host = cardHosts["g\(index)"] { showWhole(host.frame) }
+    }
+
+    /// Scrolls as little as it takes, without animating, for a new table (its frame with the
+    /// handle reach and the add strips) to show whole; nothing when it already does.
+    private func showWhole(_ frame: CGRect) {
+        guard let scroll = enclosingScrollView else { return }
+        let clip = scroll.contentView
+        let table = CGRect(x: frame.minX, y: frame.minY + GridMetrics.reach, width: frame.width,
+                           height: frame.height - GridMetrics.reach - GridMetrics.growBelow)
+        let top = clip.bounds.minY + scroll.contentInsets.top
+        let bottom = clip.bounds.maxY - scroll.contentInsets.bottom
+        let air: CGFloat = 16
+        var y = clip.bounds.origin.y
+        if table.maxY + air > bottom { y += table.maxY + air - bottom }
+        if table.minY - air < top + (y - clip.bounds.origin.y) { y = table.minY - air - scroll.contentInsets.top }
+        let lowest = max(-scroll.contentInsets.top, self.frame.height - clip.bounds.height + scroll.contentInsets.bottom)
+        y = min(max(-scroll.contentInsets.top, y), lowest)
+        guard abs(y - clip.bounds.origin.y) > 0.5 else { return }
+        clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: y))
+        scroll.reflectScrolledClipView(clip)
     }
 
 

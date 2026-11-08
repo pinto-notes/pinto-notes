@@ -60,6 +60,67 @@ extension TableInteractionTests {
         #expect(h.selection.location > NSMaxRange(tableRange), "leaving the table from the bottom lands after it")
     }
 
+    /// Up from the text under a table goes into its last row and, row by row, out above it to
+    /// the text there, as in Notes; the note never shows the table as source on the way.
+    @Test func arrowUpEntersTheLastRowAndOutAbove() async {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        await h.caret(after: "After the")
+        await h.press(EditorHarness.up) // blank line
+        await h.press(EditorHarness.up) // into the table
+        #expect(await h.until { h.gridHasFocus }, "up from below a table goes into it")
+        #expect(await h.until { (h.focusedGridField as? NSTextField)?.stringValue.hasPrefix("⌘⇧L") ?? false
+            || (h.window.firstResponder as? NSTextView)?.string.hasPrefix("⌘⇧L") ?? false },
+                "into its last row, first column: \(String(describing: (h.window.firstResponder as? NSTextView)?.string))")
+        for row in 1...2 {
+            let from = h.focusedGridField
+            await h.press(EditorHarness.up)
+            #expect(await h.until { h.focusedGridField.map { $0 !== from } ?? false }, "up moves the keyboard to row \(row) from the bottom")
+            #expect(h.gridCount == 1)
+        }
+        await h.press(EditorHarness.up) // past the header
+        #expect(await h.until { !h.gridHasFocus }, "up from the header leaves the table")
+        #expect(h.selection.location < tableRange.location, "leaving the table from the top lands above it")
+        #expect(h.gridCount == 1, "the table stays a table")
+    }
+
+    /// One Undo takes a new table away, the note back as it was with the caret where it was, and
+    /// one Redo brings it back (in Notes a new table is one step).
+    @Test func undoingANewTableIsOneStep() async {
+        let before = "To play\n\nHades\n"
+        let h = await EditorHarness(before)
+        defer { h.close() }
+        await h.caret(after: "Hades")
+        h.controller.insertTable()
+        #expect(await h.until { h.gridHasFocus })
+        #expect(h.gridCount == 1)
+        h.window.makeFirstResponder(h.view)
+        h.view.undoManager?.undo()
+        await h.settle()
+        #expect(h.text == before, "one Undo: \(h.text.debugDescription)")
+        #expect(h.gridCount == 0)
+        h.view.undoManager?.redo()
+        await h.settle()
+        #expect(h.gridCount == 1, "Redo brings the table back: \(h.text.debugDescription)")
+    }
+
+    /// What you type in a cell is undone with Undo, the table staying a table.
+    @Test func undoingTypingInACell() async {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        await h.caret(after: "is here.")
+        await h.press(EditorHarness.down)
+        await h.press(EditorHarness.down)
+        #expect(await h.until { h.gridHasFocus })
+        Self.typeIntoFocusedCell(h, "s")
+        #expect(await h.until(5) { h.text.contains("| Shortcuts | Does |") }, "\(h.text.debugDescription)")
+        h.window.makeFirstResponder(h.view)
+        await h.settle()
+        h.view.undoManager?.undo()
+        #expect(await h.until(5) { h.text == Self.note }, "Undo takes the typing back: \(h.text.debugDescription)")
+        #expect(h.gridCount == 1)
+    }
+
     /// ⇧Tab goes back a cell, as in Notes (council round 16: it left the table). AppKit sends
     /// ⇧Tab as a back-tab character, not a Tab with Shift held.
     @Test func shiftTabGoesBackACell() async {

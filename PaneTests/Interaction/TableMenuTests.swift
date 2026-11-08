@@ -182,7 +182,7 @@ import AppKit
 
         h.controller.pickTableLine(.column(0), grid: 0, cell: GridCell(row: 1, column: 0))
         let columnMenu = try #require(h.controller.lastTableMenu)
-        #expect(columnMenu.items.map(\.title) == ["Add Column Before", "Add Column After", "Delete Column"])
+        #expect(columnMenu.items.map(\.title) == ["Add Column Before", "Add Column After", "Delete Column", "Delete Table"])
         try #require(columnMenu.item("Add Column After")).run()
         #expect(await h.until { h.text.contains("| Shortcut |   | Does |") && h.text.contains("| ⌘B |   | Bold |") }, "a blank column after the first: \(h.text.debugDescription)")
         // The toolbar's table menu does the same for the cell with the keyboard.
@@ -274,6 +274,99 @@ import AppKit
         try await h.clickAdd(.column, box: box, host: host)
         #expect(await h.until { GridTable.find(in: h.text).first?.columns == columns + 1 }, "a column at the end: \(h.text.debugDescription)")
         #expect(await h.until { h.controller.table?.cell == GridCell(row: 0, column: columns) }, "the keyboard in its header")
+    }
+
+    /// The handles a table shows (••• above, ⋮ beside) each end with Delete Table: on a one-cell
+    /// table nothing else in them could remove it (Emil, 8 November 2026: "there is no obvious
+    /// way for me to delete this table"). Running it removes the table, and Undo brings it back.
+    @Test func eachHandleMenuEndsWithDeleteTable() async throws {
+        let note = "Title\n\n| only |\n| --- |\n\nAfter"
+        let h = await EditorHarness(note)
+        defer { h.close() }
+        h.controller.presentsTableMenus = false
+        await h.caret(after: "Title")
+        await h.press(EditorHarness.down)
+        await h.press(EditorHarness.down)
+        #expect(await h.until { h.controller.table != nil })
+        let cell = try #require(h.controller.table?.cell)
+        for line in [GridLine.row(cell.row), .column(cell.column)] {
+            h.controller.pickTableLine(line, grid: 0, cell: cell)
+            let menu = try #require(h.controller.lastTableMenu)
+            let delete = try #require(menu.item("Delete Table"), "\(line)'s menu has Delete Table: \(menu.items.map(\.title))")
+            #expect(delete.destructive && delete.enabled)
+            #expect(menu.sections.last?.map(\.title) == ["Delete Table"], "on its own, last")
+        }
+        try #require(h.controller.lastTableMenu?.item("Delete Table")).run()
+        await h.settle(0.2)
+        #expect(h.gridCount == 0 && !h.text.contains("| only |"), "the table is gone: \(h.text.debugDescription)")
+        h.controller.undoNotice()
+        await h.settle(0.2)
+        #expect(h.text == note, "Undo brings it back: \(h.text.debugDescription)")
+    }
+
+    /// A new table where the caret is, with room for it on screen, doesn't move the note at all;
+    /// and the note never moves more than once (Emil, 8 November 2026: "when I create the table,
+    /// the whole scroll view moves twice, looks janky").
+    @Test(arguments: [200, 560] as [CGFloat]) func insertingATableDoesNotMoveTheNoteTwice(fromTop: CGFloat) async throws {
+        let paragraphs = (1...40).map { "Paragraph \($0) with a few words in it so it reads like a note." }
+        let note = "Title\n\n" + paragraphs.joined(separator: "\n\n")
+        let h = await EditorHarness(note, height: 600)
+        defer { h.close() }
+        h.controller.presentsTableMenus = false
+        await h.caret(after: "Paragraph 20 with a few words in it so it reads like a note.")
+        // The caret's line a third of the way down the window.
+        // (TextKit 2 only: asking for the view's layoutManager would switch it to TextKit 1.)
+        let lineY = h.lineRect(at: max(h.view.selectedRange().location - 1, 0)).minY
+        h.scroll.contentView.scroll(to: NSPoint(x: 0, y: max(0, lineY - fromTop)))
+        h.scroll.reflectScrolledClipView(h.scroll.contentView)
+        await h.settle(0.2)
+        let start = h.scroll.contentView.bounds.origin.y
+        var seen: [CGFloat] = [start]
+        h.controller.insertTable()
+        for _ in 0..<60 {
+            await h.settle(0.016)
+            let y = h.scroll.contentView.bounds.origin.y
+            if abs(y - (seen.last ?? y)) > 0.5 { seen.append(y) }
+        }
+        let focused = await h.until(5) { h.gridHasFocus }
+        #expect(focused, "the keyboard is in the new table")
+        #expect(seen.count <= 2, "the note moved \(seen.count - 1) times: \(seen)")
+        if fromTop < 400 { #expect(seen.count == 1, "the table had room on screen, so the note stays where it was: \(seen)") }
+        else { #expect(seen.count == 2, "no room under the caret: the note moves once to show the table: \(seen)") }
+        // Wherever it ended up, the whole new table shows.
+        let table = try #require(h.overlays.first)
+        let visible = h.scroll.contentView.bounds
+        #expect(table.frame.maxY - GridMetrics.growBelow <= visible.maxY + 1, "the new table shows whole: \(table.frame) in \(visible), moves \(seen)")
+    }
+
+    /// A row added or deleted changes the table's height at once, with the text under it: a
+    /// table gliding to its new height while the text below had already moved overlapped that
+    /// text, or left a gap, for a fifth of a second. Sampled every frame, never in between.
+    @Test func aTableChangesHeightInOneStepWithTheTextBelow() async throws {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        await enter(h, row: 1)
+        let cell = try #require(h.controller.table?.cell)
+        let host = try #require(h.overlays.first)
+        let before = host.frame.height
+        // From the first frame after the change: every height the table shows on the way.
+        func heights() async -> [CGFloat] {
+            await h.settle(0.016)
+            var seen: [CGFloat] = [host.frame.height]
+            for _ in 0..<30 {
+                await h.settle(0.016)
+                if abs(host.frame.height - seen.last!) > 0.5 { seen.append(host.frame.height) }
+            }
+            return seen
+        }
+        h.controller.pickTableLine(.row(1), grid: 0, cell: cell)
+        try #require(h.controller.lastTableMenu?.item("Add Row Below")).run()
+        let grew = await heights()
+        #expect(grew.count == 1 && grew[0] > before + 20, "one step to the taller table: \(before) then \(grew)")
+        h.controller.pickTableLine(.row(2), grid: 0, cell: GridCell(row: 2, column: 0))
+        try #require(h.controller.lastTableMenu?.item("Delete Row")).run()
+        let shrank = await heights()
+        #expect(shrank.count == 1 && abs(shrank[0] - before) < 0.5, "one step back: \(shrank)")
     }
 
     /// The last row and column have no Delete: Delete Table removes a table.

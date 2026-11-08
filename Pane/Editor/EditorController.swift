@@ -827,8 +827,10 @@ final class EditorController {
         }
         let delete = TableMenu.Item(title: "Delete Table", systemImage: "trash", destructive: true) { [weak self] in self?.deleteTable(grid: grid) }
         let sections: [[TableMenu.Item]] = switch line {
-        case .row: [[item(.addRowAbove), item(.addRowBelow)], [item(.deleteRow)]]
-        case .column: [[item(.addColumnBefore), item(.addColumnAfter)], [item(.deleteColumn)]]
+        // Each handle ends with Delete Table: on a one-cell table nothing else in them removes it
+        // (Emil, 8 November 2026: "there is no obvious way for me to delete this table").
+        case .row: [[item(.addRowAbove), item(.addRowBelow)], [item(.deleteRow)], [delete]]
+        case .column: [[item(.addColumnBefore), item(.addColumnAfter)], [item(.deleteColumn)], [delete]]
         // The Table button's: what you add most first, nearest the button (Row Below, Column After).
         case nil: [[item(.addRowBelow), item(.addRowAbove), item(.addColumnAfter), item(.addColumnBefore)],
                    [item(.deleteRow), item(.deleteColumn)], [delete]]
