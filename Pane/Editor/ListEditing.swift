@@ -138,12 +138,27 @@ enum ListEditing {
         return returnKey(in: ns as String, selection: after) ?? TextEdit(range: after, replacement: "\n", caret: after.location + 1)
     }
 
-    /// Backspace right after a list marker removes the marker, keeping the text.
+    /// A plain quote line's hidden "> ": its length. Not a list, a callout ("> [!note]") or a line
+    /// of code.
+    static func quotePrefix(_ ns: NSString, line lineRange: NSRange) -> Int? {
+        let line = ns.substring(with: lineRange).trimmingCharacters(in: .newlines)
+        guard ListPrefix(line: line) == nil, line.range(of: #"^[ \t]*>[ \t]?\[!"#, options: .regularExpression) == nil,
+              let q = line.range(of: #"^[ \t]*>[ \t]?"#, options: .regularExpression),
+              codeBlock(in: ns, at: lineRange.location) == nil else { return nil }
+        return (line[q] as Substring).utf16.count
+    }
+
+    /// Backspace right after a list or quote marker removes the marker, keeping the text. A
+    /// quote's marker is hidden, so taking it a character at a time showed nothing happen
+    /// (Emil, 8 November 2026: "the quality in all of these micro interactions").
     static func backspace(in text: String, selection: NSRange) -> TextEdit? {
         guard selection.length == 0 else { return nil }
         let ns = text as NSString
         let lineRange = ns.lineRange(for: NSRange(location: selection.location, length: 0))
         let line = ns.substring(with: lineRange).trimmingCharacters(in: .newlines)
+        if let q = quotePrefix(ns, line: lineRange), selection.location > lineRange.location, selection.location <= lineRange.location + q {
+            return TextEdit(range: NSRange(location: lineRange.location, length: q), replacement: "", caret: lineRange.location)
+        }
         guard let list = ListPrefix(line: line), selection.location == lineRange.location + list.length else { return nil }
         // Nested items outdent first; top-level items lose the marker.
         if list.level > 0 {
@@ -277,15 +292,22 @@ enum ListEditing {
         return (TextEdit(range: whole, replacement: out as String, caret: -1), count)
     }
 
-    /// The caret never sits inside a list line's hidden marker: it steps over it,
-    /// forwards to the text, or back to the previous line when moving left.
+    /// The caret never sits inside a list or quote line's hidden marker: it steps over it,
+    /// forwards to the text, or back to the previous line when moving left (a quote's took two
+    /// presses of Left that moved nothing, Emil, 8 November 2026).
     static func caretOutsideMarker(in text: String, selection: NSRange, previous: NSRange?) -> Int? {
         guard selection.length == 0 else { return nil }
         let ns = text as NSString
         guard selection.location <= ns.length else { return nil }
         let line = ns.lineRange(for: NSRange(location: selection.location, length: 0))
-        guard let p = ListPrefix(line: ns.substring(with: line)), !p.ordered else { return nil }
-        let start = line.location + p.length
+        let marker: Int
+        if let p = ListPrefix(line: ns.substring(with: line)) {
+            guard !p.ordered else { return nil }
+            marker = p.length
+        } else if let q = quotePrefix(ns, line: line) {
+            marker = q
+        } else { return nil }
+        let start = line.location + marker
         guard selection.location < start else { return nil }
         if let previous, previous.length == 0, previous.location == start, line.location > 0 { return line.location - 1 }
         return start

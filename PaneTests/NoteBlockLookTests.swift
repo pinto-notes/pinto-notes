@@ -72,7 +72,7 @@ import UIKit
         let first = try #require(s.attribute(.paneLine, at: open, effectiveRange: nil) as? LineDecoration)
         #expect(first.kind == .code(first: true, last: false, label: nil, open: false), "no row of its own for the label: \(first.kind)")
         let paragraph = s.attribute(.paragraphStyle, at: open, effectiveRange: nil) as? NSParagraphStyle
-        #expect(paragraph?.maximumLineHeight == MarkdownStyler.codePad, "the opening fence is the block's top padding, as tall as its bottom")
+        #expect(paragraph?.maximumLineHeight == MarkdownStyler.fenceHeight, "the opening fence is the block's top padding, as tall as its bottom")
         let code = try #require(s.attribute(.paneLine, at: ns.range(of: "let greeting").location, effectiveRange: nil) as? LineDecoration)
         #expect(code.kind == .code(first: false, last: false, label: "swift"), "the label floats over the first line of code: \(code.kind)")
         let keyword = s.attribute(.foregroundColor, at: ns.range(of: "let").location, effectiveRange: nil) as? PColor
@@ -86,7 +86,11 @@ import UIKit
         let raw = try #require(editing.attribute(.paneLine, at: ns.range(of: "let greeting").location, effectiveRange: nil) as? LineDecoration)
         #expect(raw.kind == .code(first: false, last: false, label: nil), "no label while the fence is written out")
         let fenceLine = try #require(editing.attribute(.paneLine, at: open, effectiveRange: nil) as? LineDecoration)
-        #expect(fenceLine.kind == .code(first: true, last: false, label: nil, open: true), "a written-out fence gets the block's padding past it")
+        // Written out in the height it has at rest: no room added past it, so nothing below moves
+        // as the caret comes in (Emil, 8 November 2026).
+        #expect(fenceLine.kind == .code(first: true, last: false, label: nil, open: false), "a written-out fence stays inside the block's own padding")
+        let rawParagraph = editing.attribute(.paragraphStyle, at: open, effectiveRange: nil) as? NSParagraphStyle
+        #expect(rawParagraph?.maximumLineHeight == MarkdownStyler.fenceHeight && rawParagraph?.paragraphSpacingBefore == 0, "as tall as at rest")
         // The caret on a line of code: the whole block is being edited, both fences written out.
         let inside = Self.styled(text, caret: ns.range(of: "greeting").location)
         #expect(((inside.attribute(.font, at: open, effectiveRange: nil) as? PFont)?.pointSize ?? 0) > 5, "the opening fence shows while the block is edited")
@@ -94,7 +98,7 @@ import UIKit
         let insideCode = try #require(inside.attribute(.paneLine, at: ns.range(of: "let greeting").location, effectiveRange: nil) as? LineDecoration)
         #expect(insideCode.kind == .code(first: false, last: false, label: nil), "no label while the block is edited: \(insideCode.kind)")
         let closeLine = try #require(inside.attribute(.paneLine, at: close, effectiveRange: nil) as? LineDecoration)
-        #expect(closeLine.kind == .code(first: false, last: true, label: nil, open: true), "the closing fence sits inside the block: \(closeLine.kind)")
+        #expect(closeLine.kind == .code(first: false, last: true, label: nil, open: false), "the closing fence sits inside the block: \(closeLine.kind)")
         // The caret outside again: back at rest.
         let after = Self.styled(text, caret: ns.range(of: "After").location)
         #expect(((after.attribute(.font, at: close, effectiveRange: nil) as? PFont)?.pointSize ?? 99) < 1, "at rest when the caret leaves")

@@ -268,7 +268,10 @@ struct MarkdownStyler {
                 // (Emil, 31 October 2026).
                 let label = fence ? nil : codeLabel
                 if !fence { codeLabel = nil }
-                let open = (raw && (!prev || !next)) || (!fence && !next)
+                // Only a block left open at the note's end (no closing fence) gets room past its
+                // edge. Written-out fences keep the height they have at rest, so the block doesn't
+                // grow when the caret comes in and nothing below moves (Emil, 8 November 2026).
+                let open = !fence && !next
                 storage.addAttribute(.paneLine, value: LineDecoration(.code(first: !prev, last: !next, label: label, open: open)), range: enclosing)
                 let p = baseParagraph()
                 p.lineSpacing = 2
@@ -276,15 +279,13 @@ struct MarkdownStyler {
                 p.firstLineHeadIndent = Self.codePad
                 p.headIndent = Self.codePad
                 p.tailIndent = -Self.codePad
-                if fence && !raw {
-                    storage.addAttributes(hidden, range: lineRange)
-                    let h = Self.codePad
+                if fence {
+                    // The block's padding at rest; written out while the block is edited, small and
+                    // grey, in the same height.
+                    storage.addAttributes(raw ? [.foregroundColor: PColor.paneSecondary, .font: Self.fenceFont] : hidden, range: lineRange)
                     p.lineSpacing = 0
-                    p.minimumLineHeight = h
-                    p.maximumLineHeight = h
-                } else if fence {
-                    // Written out while the block is edited, with room from the block's edge.
-                    storage.addAttributes([.foregroundColor: PColor.paneSecondary, .font: monoFont], range: lineRange)
+                    p.minimumLineHeight = Self.fenceHeight
+                    p.maximumLineHeight = Self.fenceHeight
                 }
                 // An open edge's room is the block's own line spacing, so the panel drawn there never
                 // covers the line above or below (council round 16: over a quote's descenders).
@@ -324,7 +325,10 @@ struct MarkdownStyler {
             if trimmed.count >= 3, ["-", "*", "_"].contains(where: { c in trimmed.replacingOccurrences(of: " ", with: "").allSatisfy { String($0) == c } }) {
                 let editing = isActive(lineRange)
                 storage.addAttribute(.paneLine, value: LineDecoration(.rule(editing: editing)), range: enclosing)
-                storage.addAttributes(editing ? [.foregroundColor: PColor.paneTertiary] : hidden, range: lineRange)
+                // Hidden by colour, not by a tiny font: the dashes keep the body's height at rest,
+                // so the line is as tall with the caret on it as off it and nothing below moves
+                // (Emil, 8 November 2026: "the whole note moves when i put my caret on the divider").
+                storage.addAttributes([.foregroundColor: editing ? PColor.paneTertiary : PColor.clear], range: lineRange)
                 return
             }
 
@@ -770,6 +774,10 @@ struct MarkdownStyler {
     /// The room past an open code block's text, at its first and last lines.
     static let openEdge: CGFloat = 8
     static let codePad: CGFloat = 14
+    /// A fence line's height, at rest (the block's padding) and written out (its text in
+    /// `fenceFont`, with room above it): the same, so the caret coming in moves nothing.
+    static let fenceHeight: CGFloat = 20
+    static var fenceFont: PFont { .monospacedSystemFont(ofSize: 11, weight: .regular) }
 
     private func styleList(_ list: ListPrefix, lineRange: NSRange, enclosing: NSRange, storage: NSTextStorage) {
         let level = CGFloat(list.level)
@@ -1015,10 +1023,16 @@ private struct StyleWalker: MarkupWalker {
             if let dest = link.destination, let url = URL(string: dest) {
                 storage.addAttribute(.link, value: url, range: textRange)
             }
-            // Only with the caret inside it, or a selection over it: anywhere else on the line the
-            // address stays out of the way (council round 16: it popped out at the end of the line).
+            // Only with the caret in the address itself, or a selection inside the link that takes
+            // some of it: anywhere else the address stays out of the way (council round 16: it
+            // popped out at the end of the line). Not for the caret in the link's words, where
+            // writing the address out wrapped the paragraph and moved the whole note below
+            // (Emil, 8 November 2026).
+            let address = NSRange(location: textRange.upperBound, length: NSMaxRange(r) - textRange.upperBound)
             let inside = selection.map { s in
-                s.length > 0 ? NSIntersectionRange(s, r).length > 0 : (s.location > r.location && s.location < NSMaxRange(r))
+                s.length > 0
+                    ? NSIntersectionRange(s, address).length > 0 && s.location >= r.location && NSMaxRange(s) <= NSMaxRange(r)
+                    : (s.location > address.location && s.location < NSMaxRange(r))
             } ?? false
             let dim = styler.hiddenOrDim(active: inside)
             storage.addAttributes(dim, range: NSRange(location: r.location, length: 1))
