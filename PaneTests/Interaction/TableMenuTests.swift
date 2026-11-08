@@ -304,6 +304,41 @@ import AppKit
         #expect(h.text == note, "Undo brings it back: \(h.text.debugDescription)")
     }
 
+    /// A new table where the caret is, with room for it on screen, doesn't move the note at all;
+    /// and the note never moves more than once (Emil, 8 November 2026: "when I create the table,
+    /// the whole scroll view moves twice, looks janky").
+    @Test(arguments: [200, 560] as [CGFloat]) func insertingATableDoesNotMoveTheNoteTwice(fromTop: CGFloat) async throws {
+        let paragraphs = (1...40).map { "Paragraph \($0) with a few words in it so it reads like a note." }
+        let note = "Title\n\n" + paragraphs.joined(separator: "\n\n")
+        let h = await EditorHarness(note, height: 600)
+        defer { h.close() }
+        h.controller.presentsTableMenus = false
+        await h.caret(after: "Paragraph 20 with a few words in it so it reads like a note.")
+        // The caret's line a third of the way down the window.
+        // (TextKit 2 only: asking for the view's layoutManager would switch it to TextKit 1.)
+        let lineY = h.lineRect(at: max(h.view.selectedRange().location - 1, 0)).minY
+        h.scroll.contentView.scroll(to: NSPoint(x: 0, y: max(0, lineY - fromTop)))
+        h.scroll.reflectScrolledClipView(h.scroll.contentView)
+        await h.settle(0.2)
+        let start = h.scroll.contentView.bounds.origin.y
+        var seen: [CGFloat] = [start]
+        h.controller.insertTable()
+        for _ in 0..<60 {
+            await h.settle(0.016)
+            let y = h.scroll.contentView.bounds.origin.y
+            if abs(y - (seen.last ?? y)) > 0.5 { seen.append(y) }
+        }
+        let focused = await h.until(5) { h.gridHasFocus }
+        #expect(focused, "the keyboard is in the new table")
+        #expect(seen.count <= 2, "the note moved \(seen.count - 1) times: \(seen)")
+        if fromTop < 400 { #expect(seen.count == 1, "the table had room on screen, so the note stays where it was: \(seen)") }
+        else { #expect(seen.count == 2, "no room under the caret: the note moves once to show the table: \(seen)") }
+        // Wherever it ended up, the whole new table shows.
+        let table = try #require(h.overlays.first)
+        let visible = h.scroll.contentView.bounds
+        #expect(table.frame.maxY - GridMetrics.growBelow <= visible.maxY + 1, "the new table shows whole: \(table.frame) in \(visible), moves \(seen)")
+    }
+
     /// The last row and column have no Delete: Delete Table removes a table.
     @Test func theLastRowAndColumnCantBeDeleted() async throws {
         let h = await EditorHarness("Title\n\n| only |\n| --- |\n\nAfter")
