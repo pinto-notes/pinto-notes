@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { APP_TEMPLATES, pageMetadata } from "@/lib/site";
-import { JsonLd, breadcrumbs, incredible, maker, organization, templateLibrary } from "@/lib/structured-data";
+import { JsonLd, breadcrumbs, maker, organization, templateLibrary } from "@/lib/structured-data";
 import { CATEGORIES, anchor, inCategory, templates } from "@/lib/templates";
 import Card from "./Card";
 import Library, { APPS } from "./Library";
@@ -26,7 +26,7 @@ export default function Page() {
   const all = templates();
   return (
     <div className={s.main}>
-      <JsonLd graph={[breadcrumbs([{ name: "Templates", path: "/templates" }]), templateLibrary(all), organization, maker, incredible]} />
+      <JsonLd graph={[breadcrumbs([{ name: "Templates", path: "/templates" }]), templateLibrary(all), organization, maker]} />
       <div className={s.gallery}>
         <section className={s.hero}>
           {/* Four covers fanned beside the title, a taste of the cards below. */}

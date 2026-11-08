@@ -124,7 +124,6 @@ export default function Page() {
             <tr><th scope="row"><a href="#chatgpt">ChatGPT</a></th><td>Its plugin directory: Pinto Notes</td><td>Plans with plugins</td></tr>
             <tr><th scope="row"><a href="#claude">Claude</a></th><td>Its connector directory, or a custom connector</td><td>Every plan</td></tr>
             <tr><th scope="row"><a href="#claude-code">Claude Code and Codex</a></th><td>A command or a few lines of config, with an access token</td><td>Any</td></tr>
-            <tr><th scope="row"><a href="#incredible">Incredible</a></th><td>Apps, then Connect</td><td>Any</td></tr>
             <tr><th scope="row"><a href="#other">Other MCP apps</a></th><td>The server address, then sign in</td><td>Depends on the app</td></tr>
           </tbody>
         </table>
@@ -222,26 +221,6 @@ export default function Page() {
         These use an access token instead of a sign-in. On a Mac, choose Claude Code in Connect an AI, then Add to Claude Code, or
         copy the command it shows. For Codex, Pinto Notes gives you a few lines to paste into <code>~/.codex/config.toml</code>.{" "}
         <a href="/blog/notes-in-claude-code-and-codex">Using your notes from Claude Code and Codex</a> has the details.
-      </p>
-
-      <h2 id="incredible">Incredible</h2>
-      <p>
-        <a href="https://incredible.one" rel="noopener">Incredible</a>, the AI assistant my company makes, is a desktop app, and Pinto
-        Notes is one of its apps.
-      </p>
-      <Steps>
-        <li><strong>Open Apps in Incredible and search for notes</strong>Choose Connect, and your browser opens Pinto Notes.</li>
-        <li>
-          <strong>Allow it in Pinto Notes</strong>
-          Pinto Notes asks to allow an app on this computer that calls itself &ldquo;incredible&rdquo;. A sign-in that returns to your
-          own computer can&apos;t prove which app is asking, so only allow it if you just chose Connect. Pick Read only if Incredible
-          should only look things up.
-        </li>
-        <li><strong>Back in Incredible, choose Let&apos;s go</strong></li>
-      </Steps>
-      <p>
-        On a Windows PC, you sign in on the page that opens and approve on your Mac, or use your recovery key. On an older version of Incredible, where Pinto Notes isn&apos;t in Apps, choose Add it here at the bottom of Apps (or Add
-        another MCP server), paste <code>{MCP_URL}</code>, choose Continue, then Sign in. After you choose Allow, choose Add server.
       </p>
 
       <h2 id="other">Other MCP apps</h2>

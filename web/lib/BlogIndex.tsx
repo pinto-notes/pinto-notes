@@ -6,7 +6,7 @@ import { shelves } from "./more-answers";
 import { pageMetadata } from "./site";
 import BlogList from "./BlogList";
 import { FILTER_AFTER, FILTER_GRID } from "./filter-transition";
-import { JsonLd, breadcrumbs, maker, incredible, organization } from "./structured-data";
+import { JsonLd, breadcrumbs, maker, organization } from "./structured-data";
 import home from "../app/home.module.css";
 import s from "../app/blog/blog.module.css";
 
@@ -81,7 +81,7 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
     <div className={home.main}>
       {page > 1 && <link rel="prev" href={pagePath(l.base, page - 1)} />}
       {page < pages && <link rel="next" href={pagePath(l.base, page + 1)} />}
-      <JsonLd graph={[breadcrumbs(crumbs), organization, maker, incredible]} />
+      <JsonLd graph={[breadcrumbs(crumbs), organization, maker]} />
       <BlogList className={`${s.index} ${category ? "" : s.front}`}>
         <div className={s.hero}>
           <div className={s.heroText}>
@@ -178,7 +178,7 @@ export function AnswersIndex() {
   const crumbs = [{ name: "Blog", path: "/blog" }, { name: "Answers", path: "/blog/answers" }];
   return (
     <div className={home.main}>
-      <JsonLd graph={[breadcrumbs(crumbs), organization, maker, incredible]} />
+      <JsonLd graph={[breadcrumbs(crumbs), organization, maker]} />
       <BlogList className={s.index}>
         <div className={s.hero}>
           <div className={s.heroText}>

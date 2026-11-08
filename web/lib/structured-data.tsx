@@ -1,5 +1,5 @@
 import { GITHUB_URL } from "./github";
-import { APP_STORE_LIVE, APP_STORE_URL, INCREDIBLE_URL, MAKER_GITHUB, MAKER_URL, LINKEDIN_URL, OLD_NAME, SITE_NAME, SITE_URL, X_URL } from "./site";
+import { APP_STORE_LIVE, APP_STORE_URL, MAKER_GITHUB, MAKER_URL, LINKEDIN_URL, OLD_NAME, SITE_NAME, SITE_URL, X_URL } from "./site";
 import { MAC_DMG } from "./downloads";
 
 /// schema.org JSON-LD for search engines. Only facts the site states elsewhere: the app is free,
@@ -14,14 +14,6 @@ const ORG_ID = `${SITE_URL}/#organization`;
 /// Where else Pinto Notes is, so search engines don't mix it up with other apps of a similar name.
 const SAME_AS = [GITHUB_URL, ...(APP_STORE_LIVE ? [APP_STORE_URL] : [])];
 
-/// The company the maker works at, which also makes the Incredible AI assistant.
-export const incredible: Thing = {
-  "@type": "Organization",
-  "@id": `${INCREDIBLE_URL}/#organization`,
-  name: "Incredible",
-  url: INCREDIBLE_URL,
-};
-
 export const maker: Thing = {
   "@type": "Person",
   "@id": PERSON_ID,
@@ -29,7 +21,6 @@ export const maker: Thing = {
   url: MAKER_URL,
   image: `${SITE_URL}/emil-wagman.jpg`,
   sameAs: [MAKER_URL, X_URL, LINKEDIN_URL, MAKER_GITHUB],
-  worksFor: { "@id": incredible["@id"] },
 };
 
 /// Pinto Notes as the publisher of the site and the app, founded by its maker.
@@ -80,8 +71,8 @@ export function app(version: string | null): Thing {
     url: SITE_URL,
     description:
       APP_STORE_LIVE
-        ? "A simple notes app for iPhone and Mac that ChatGPT, Claude, Claude Code, Codex and Incredible can read and edit, with your approval. Imports your Apple Notes, syncs in about a second, keeps every version an AI changes, and stores notes as markdown."
-        : "A simple notes app for iPhone and Mac that ChatGPT, Claude, Claude Code, Codex and Incredible can read and edit, with your approval. The iPhone app is coming soon. Imports your Apple Notes, keeps every version an AI changes, and stores notes as markdown.",
+        ? "A simple notes app for iPhone and Mac that ChatGPT, Claude, Claude Code and Codex can read and edit, with your approval. Imports your Apple Notes, syncs in about a second, keeps every version an AI changes, and stores notes as markdown."
+        : "A simple notes app for iPhone and Mac that ChatGPT, Claude, Claude Code and Codex can read and edit, with your approval. The iPhone app is coming soon. Imports your Apple Notes, keeps every version an AI changes, and stores notes as markdown.",
     applicationCategory: "ProductivityApplication",
     operatingSystem: APP_STORE_LIVE ? "iOS, macOS" : "macOS",
     softwareRequirements: APP_STORE_LIVE ? "macOS 26 or later; iOS 26 or later" : "macOS 26 or later",
@@ -94,7 +85,7 @@ export function app(version: string | null): Thing {
     image: `${SITE_URL}/mark.png`,
     screenshot: `${SITE_URL}/demo/lisbon/lisbon-1-faded.webp`,
     featureList: [
-      "Connect ChatGPT, Claude, Claude Code, Codex or Incredible over MCP",
+      "Connect ChatGPT, Claude, Claude Code or Codex over MCP",
       "Approve each AI connection before it can open your notes",
       "Version history for every change an AI makes",
       "Import from Apple Notes",

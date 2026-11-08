@@ -12,7 +12,7 @@ import { HELP_EMAIL_EVENT } from "@/lib/help-events";
 export const dynamic = "force-static";
 export const metadata: Metadata = pageMetadata({
   title: "Help and FAQ · Pinto Notes",
-  description: "How to import your Apple Notes, connect ChatGPT, Claude, Claude Code, Codex or Incredible, sync your iPhone and Mac, share a note, and get help.",
+  description: "How to import your Apple Notes, connect ChatGPT, Claude, Claude Code or Codex, sync your iPhone and Mac, share a note, and get help.",
   path: "/help",
   image: { url: "/help/opengraph-image", alt: "Pinto Notes help: importing Apple Notes, connecting your AI, sync and sharing." },
 });

@@ -7,7 +7,7 @@ import { Announcement, Avatar, Figure, PostCard, longDate, readingMinutes } from
 import { ClosingBand } from "./ClosingBand";
 import { AUTHOR, CATEGORY_COVERS, categoryPath, morePosts, post, published, type Category, type Post } from "./posts";
 import { APP_STORE_URL, MAKER_URL, SITE_URL, pageMetadata } from "./site";
-import { JsonLd, article, breadcrumbs, faqPage, incredible, maker, organization } from "./structured-data";
+import { JsonLd, article, breadcrumbs, faqPage, maker, organization } from "./structured-data";
 
 type QA = { q: string; a: string[] };
 
@@ -94,7 +94,7 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
   const graph = [
     article({ title: x.title, description: x.description, path, date: x.date, updated: x.updated, image: x.image.src }),
     breadcrumbs([{ name: "Blog", path: "/blog" }, { name: x.category, path: categoryPath(x.category) }, { name: x.title, path }]),
-    organization, maker, incredible,
+    organization, maker,
   ];
   if (faq?.length) graph.push(faqPage(faq, path));
   const more = morePosts(slug, 3);
