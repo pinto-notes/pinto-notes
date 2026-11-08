@@ -1,7 +1,6 @@
-import { Figure } from "@/lib/blog";
+import { Loop } from "@/lib/Loop";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Steps } from "@/lib/PostParts";
-import { SHOTS } from "@/lib/posts";
+import { PostFigure, Steps } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("pinto-notes-in-chatgpt", { title: "Pinto Notes is now in ChatGPT" });
@@ -13,7 +12,11 @@ export default function Page() {
     <PostPage
       slug="pinto-notes-in-chatgpt"
       intro={<>Pinto Notes is now a plugin in ChatGPT. Connect it once, and ChatGPT can find, write and edit your notes from any chat. The change is in Pinto Notes on your Mac and iPhone a second later.</>}
-      hero={<Figure shot={SHOTS.aiEdit} caption="ChatGPT added five lines to a Groceries note. They're tinted for a moment, with Undo next to them." priority />}
+      hero={
+        <PostFigure src="/blog/launch/chatgpt-ask-iphone-groceries" width={1600} height={1000} priority
+          alt="Illustration: in ChatGPT, Add the paella things to my groceries, Edited Groceries in Pinto Notes; beside it an iPhone showing the Groceries note with the five new items tinted."
+          caption="You ask in ChatGPT. The list on your phone has the new items. (Illustration with a real iPhone screen.)" />
+      }
     >
       <h2>Ask from any chat</h2>
       <p>You don&apos;t need to copy anything out of ChatGPT any more. Ask it to put the plan where you&apos;ll use it:</p>
@@ -23,14 +26,20 @@ export default function Page() {
         <li>&ldquo;What did I write about the kitchen measurements?&rdquo;</li>
         <li>&ldquo;Turn my meeting notes into a checklist.&rdquo;</li>
       </ul>
-      <p>ChatGPT finds the right note and makes the change. You see it in the note on your Mac, and on <a href="/blog/pinto-notes-for-iphone">your iPhone</a> in the shop.</p>
+      <p>ChatGPT finds the right note and makes the change. On <a href="/blog/pinto-notes-for-iphone">your iPhone</a> it looks like this:</p>
+      <Loop src="/blog/loops/iphone-chatgpt-adds-groceries.mp4" poster="/blog/loops/iphone-chatgpt-adds-groceries.webp" width={640} height={1202}
+        label="Pinto Notes on iPhone: five grocery items ChatGPT just added land in the list, tinted, with ChatGPT changed 5 lines and Undo."
+        caption="Recorded on an iPhone: the five lines ChatGPT added." />
 
       <h2>You can undo anything it does</h2>
-      <p>
-        The lines ChatGPT changes are tinted for a moment, with Undo next to them. Every version of a note is kept, so you can go
-        back to the one before any change, whoever made it.
-      </p>
-      <Figure shot={SHOTS.history} caption="A note's history: each version, who made it, and the lines that changed." />
+      <p>The lines ChatGPT changes are tinted for a moment, with Undo next to them. One click and the note is as it was.</p>
+      <PostFigure src="/blog/launch/chatgpt-changed-5-lines-undo" width={1600} height={1000}
+        alt="The five lines ChatGPT added to a Groceries note, tinted: paella rice, saffron, chorizo, chicken thighs and smoked paprika, with ChatGPT changed 5 lines and Undo below."
+        caption="What ChatGPT changed, and the Undo next to it. From Pinto Notes on a Mac." />
+      <p>Every version of a note is kept too, with who made it, so you can go back to the one before any change.</p>
+      <PostFigure src="/blog/launch/chatgpt-version-history-list" width={1600} height={1000}
+        alt="A note's version history in Pinto Notes: the current version by you on iPhone, 4:35 by ChatGPT, 13:35 by you on Mac with 3 edits, and 1:30 by Claude Code."
+        caption="A note's history: you on iPhone, ChatGPT, you on the Mac, Claude Code." />
 
       <h2>Nothing is shared until you allow it</h2>
       <p>
