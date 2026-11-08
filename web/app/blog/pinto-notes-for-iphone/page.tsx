@@ -26,9 +26,9 @@ export default function Page() {
       </p>
 
       <h2>A notes app first</h2>
-      <PostFigure src="/blog/launch/iphone-kitchen-light-dark" width={1080} height={1260} maxWidth={620} kind="plain"
-        alt="The Kitchen redo note on two iPhones: in light mode with a photo of green tiles and oak shelves, and in dark mode with three new checklist lines from ChatGPT, tinted, and ChatGPT changed 3 lines."
-        caption="One note in light and dark. On the right, the three lines ChatGPT just added." />
+      <PostFigure src="/blog/launch/iphone-three-notes" width={1520} height={1220} maxWidth={760} kind="plain"
+        alt="Three notes on iPhone: a Sourdough log app with the best loaf, No. 14, and a chart of the last six loaves; Kitchen redo with a photo of green tiles and a ticked checklist; and Lisbon with Leo, an app that splits trip costs and shows Leo owes you 112 euros."
+        caption="A note with a photo and a checklist, between two apps an AI made inside notes: a bread log and a trip split." />
       <p>It works the way you expect a notes app on iPhone to:</p>
       <ul>
         <li>Checklists that move ticked items to the bottom</li>
@@ -36,6 +36,7 @@ export default function Page() {
         <li>Photos, PDFs and files in your notes and folders</li>
         <li>Keep writing offline. Changes sync when you&apos;re back.</li>
         <li>Lock a note with a password and Face ID</li>
+        <li>Apps your AI made in a note, like a bread log or a trip split, work on your phone too</li>
       </ul>
 
       <h2>Already on the Mac?</h2>

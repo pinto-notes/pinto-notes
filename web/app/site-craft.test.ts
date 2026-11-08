@@ -29,8 +29,11 @@ describe("the site's controls", () => {
     expect(chrome).toMatch(/openAtTop\.current && !location\.hash\) window\.scrollTo\(0, 0\)/);
   });
 
-  it("keeps a phone clip's Play button off the phone's status bar", () => {
-    expect(css("../lib/post-parts.module.css")).toContain(".loopFrame[data-phone] .loopToggle { top: auto; right: 50%; bottom: 16px;");
+  it("keeps a phone clip's Play button off the phone's screen", () => {
+    // Not on the status bar and not on the change pill at the foot of the screen: under the phone
+    // (the frame lets it out; the video rounds its own corners).
+    expect(css("../lib/post-parts.module.css")).toContain(".loopFrame[data-phone] { overflow: visible;");
+    expect(css("../lib/post-parts.module.css")).toContain(".loopFrame[data-phone] .loopToggle { top: calc(100% + 22px);");
   });
 
   it("gives the header's links a hover fill and a press", () => {
