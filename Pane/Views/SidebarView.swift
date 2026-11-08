@@ -876,7 +876,13 @@ struct SidebarView: View {
         Group {
             switch card {
             case .mac: MacCard(onClose: close)
-            case .connect: ConnectCard(onConnect: { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }, onClose: close)
+            case .connect:
+                // The Mac's only (SidebarCard.here): iPhone and iPad connect no AI (8 November 2026).
+                #if os(macOS)
+                ConnectCard(onConnect: { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }, onClose: close)
+                #else
+                EmptyView()
+                #endif
             case .templates: TemplatesCard(onClose: close)
             }
         }

@@ -1562,6 +1562,16 @@ struct CaptureScreen: View {
                    last_used_at: .now.addingTimeInterval(-3 * 3600), revoked_at: nil, redirect_host: nil),
     ]
 
+    /// Settings › AI's picture: three AIs, last used at different times.
+    static let aiPage: [Connection] = [
+        Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now.addingTimeInterval(-86400 * 9),
+                   last_used_at: .now.addingTimeInterval(-720), revoked_at: nil, redirect_host: "chatgpt.com"),
+        Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now.addingTimeInterval(-86400 * 4),
+                   last_used_at: .now.addingTimeInterval(-86400), revoked_at: nil, redirect_host: "claude.ai"),
+        Connection(id: UUID(), name: "Grok", kind: "oauth", created_at: .now.addingTimeInterval(-86400),
+                   last_used_at: nil, revoked_at: nil, redirect_host: "grok.com"),
+    ]
+
     var body: some View {
         switch name {
         case "connect":
@@ -1591,6 +1601,15 @@ struct CaptureScreen: View {
                 Connection(id: UUID(), name: ai, kind: "oauth", created_at: .now, last_used_at: nil, revoked_at: nil,
                            redirect_host: ai == "Claude" ? "claude.ai" : "chatgpt.com"),
             ] : [], previewFound: [])
+        case "ai-page", "ai-page-empty":
+            // Settings › AI as iPhone has it: ChatGPT, Claude and Grok connected, or nothing.
+            NavigationStack {
+                AIConnectionsPage(client: Self.client, preview: name == "ai-page" ? Self.aiPage : [])
+                    .navigationTitle(SettingsPage.ai.title)
+                    #if os(iOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                    #endif
+            }
         case "settings":
             // Settings as a signed-in account sees it (connections can't load here).
             SettingsView(backend: Backend(testClient: Self.client, email: "appreview@norditech.se"), sync: nil)

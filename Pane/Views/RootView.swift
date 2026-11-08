@@ -85,8 +85,6 @@ struct RootView: View {
     @AppStorage("lastScope") private var lastScopeData: Data = Data()
     /// Files that weren't added (a kind the app can't show, or over 100 MB), said once.
     @State private var refusal: FileRefusal?
-    /// Connect an AI, from the File menu, the list's menu or the card at the foot of the sidebar.
-    @State private var connectingAI = false
     #if os(macOS)
     /// Import notes or Connect an AI, as the first run's card over the notes (Mac).
     @State private var popup: SetupCardsFlow.Only?
@@ -144,9 +142,6 @@ struct RootView: View {
             .background(ListWidthKeeper(probe: listWidth))
             .onChange(of: visibility) { old, new in listWidth.changed(from: old, to: new) }
             #endif
-            .sheet(isPresented: $connectingAI, onDismiss: { Task { await setupStore?.refresh(force: true) } }) {
-                if let client = backendForConnect?.client { ConnectAISheet(client: client) }
-            }
             .sharedDeleteConfirmation($pendingSharedDelete) { removeNow($0) }
             .onReceive(NotificationCenter.default.publisher(for: FileRefusal.notification)) { n in refusal = n.object as? FileRefusal }
             .alert(refusal?.title ?? "", isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } })) {
@@ -163,14 +158,12 @@ struct RootView: View {
     /// compiler can check the body in time).
     private func popups(_ content: some View) -> some View {
         content
-            .onReceive(NotificationCenter.default.publisher(for: .paneConnectAI)) { _ in
-                #if os(macOS)
-                openPopup(.connectAI)
-                #else
-                connectingAI = true
-                #endif
-            }
             #if os(macOS)
+            // Connect an AI is the Mac's only: on iPhone and iPad nothing listens, and Settings ›
+            // AI lists what's connected (Emil, 8 November 2026).
+            .onReceive(NotificationCenter.default.publisher(for: .paneConnectAI)) { _ in
+                openPopup(.connectAI)
+            }
             .onReceive(NotificationCenter.default.publisher(for: .paneQuickOpen)) { _ in
                 #if os(macOS)
                 if let closed = QuickOpen.closedByClick, Date.now.timeIntervalSince(closed) < 0.3 { return }
@@ -515,12 +508,7 @@ struct RootView: View {
                 case .importAppleNotes: showImport = true
                 case .importFrom(let kind): importFiles = []; importing = kind
                 case .exportNotes: NotificationCenter.default.post(name: .paneExportNotes, object: nil)
-                case .connectAI:
-                    #if os(macOS)
-                    openPopup(.connectAI)
-                    #else
-                    connectingAI = true
-                    #endif
+                case .connectAI: openPopup(.connectAI)
                 case .settings: SettingsRoute.shared.show()
                 }
             },

@@ -1511,13 +1511,18 @@ struct AIConnectionsPage: View {
     @State private var installed: Set<SetupCards.AI> = []
 
     var body: some View {
+        #if os(macOS)
+        macPage
+        #else
+        AIPhoneList(client: client, preview: preview)
+        #endif
+    }
+
+    #if os(macOS)
+    private var macPage: some View {
         let mine = AIList.connected(preview ?? connected.connections)
-        SettingsPageForm {
-            #if os(macOS)
+        return SettingsPageForm {
             OpenSection { ConnectAIPage(client: client, preview: preview, previewWaiting: previewWaiting) }
-            #else
-            AIWaitingAsk()
-            #endif
             if mine.isEmpty {
                 OpenSection {
                     Text(AIList.intro).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
@@ -1546,6 +1551,156 @@ struct AIConnectionsPage: View {
             if previewInstalled == nil { installed = await AIList.lookForInstalled() }
         }
     }
+    #endif
+}
+
+/// iPhone's AI page: what is connected, and Disconnect. Nothing here connects an AI (Emil, 8
+/// November 2026: the setup on the phone was "horrible UI"); people connect on the Mac, or from
+/// ChatGPT or Claude. An AI that asks while you're on the phone is allowed on the web page in the
+/// phone's browser, or from the Approval waiting row above the list (AIWaitingAsk). It builds on
+/// the Mac too, only so its tests can draw it offscreen; the Mac's page is `macPage`.
+struct AIPhoneList: View {
+    let client: SupabaseClient
+    /// Captures: shows these instead of asking the server.
+    var preview: [Connection]? = nil
+    @State private var connected = ConnectedAIs.shared
+    /// Disconnect was pressed for this one: the confirmation is showing.
+    @State private var asking: Connection?
+    @State private var working: UUID?
+    @State private var error: String?
+    /// The list didn't come back (offline, say): said, instead of a spinner that never ends.
+    @State private var couldNotLoad = false
+
+    private var loaded: Bool { preview != nil || connected.loaded }
+
+    var body: some View {
+        let mine = AIList.connected(preview ?? connected.connections)
+        SettingsPageForm {
+            #if os(iOS)
+            AIWaitingAsk()
+            #endif
+            if mine.isEmpty {
+                Section {
+                    if loaded {
+                        Text(AIList.phoneEmpty)
+                            .foregroundStyle(Color.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("connect.phoneEmpty")
+                    } else if couldNotLoad {
+                        Text(AIList.phoneNotLoaded)
+                            .foregroundStyle(Color.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("connect.phoneNotLoaded")
+                    } else {
+                        // Finding out what's connected: a row's height, so nothing jumps.
+                        ProgressView().frame(maxWidth: .infinity)
+                    }
+                }
+            } else {
+                Section {
+                    ForEach(mine) { c in
+                        AIPhoneRow(connection: c, working: working == c.id) { asking = c }
+                    }
+                } header: {
+                    Text("Connected")
+                } footer: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let error { Text(error).foregroundStyle(.red) }
+                        AISentLine()
+                    }
+                }
+            }
+            if NoteApps.enabled, NoteApps.realPreviews { AppPreviewSection(client: client) }
+        }
+        .confirmationDialog(asking.map { AIList.disconnectTitle($0) } ?? "",
+                            isPresented: Binding(get: { asking != nil }, set: { if !$0 { asking = nil } }),
+                            titleVisibility: .visible, presenting: asking) { c in
+            Button("Disconnect", role: .destructive) { Task { await disconnect(c) } }
+        } message: { _ in
+            Text(AIList.disconnectLine)
+        }
+        .task { await load() }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        guard preview == nil else { return }
+        await connected.refresh(client)
+        couldNotLoad = !connected.loaded
+    }
+
+    private func disconnect(_ c: Connection) async {
+        guard preview == nil else { return }
+        working = c.id
+        error = nil
+        defer { working = nil }
+        do {
+            try await ConnectRevoke.revoke(client, id: c.id)
+            await connected.refresh(client)
+        } catch {
+            self.error = "Couldn\u{2019}t disconnect \(AIList.name(c)). Try again."
+        }
+    }
+}
+
+/// One connected AI on iPhone: its mark (monochrome, in the label colour), its name and when it
+/// was last used. Disconnect is a swipe or a long press away, and asks first.
+struct AIPhoneRow: View {
+    let connection: Connection
+    var working = false
+    let disconnect: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            AIPhoneMark(connection: connection)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(AIList.name(connection)).foregroundStyle(Color.ink)
+                Text(AIList.lastUsedLine(connection)).font(.subheadline).foregroundStyle(Color.muted)
+            }
+            Spacer(minLength: 0)
+            if working { ProgressView() }
+        }
+        .padding(.vertical, 2)
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(named: "Disconnect", disconnect)
+        .accessibilityIdentifier("connect.connected.\(connection.id.uuidString)")
+        // Not role: .destructive: that takes the row out before the confirmation is answered.
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(action: disconnect) { Text("Disconnect") }
+                .tint(.red)
+                .accessibilityIdentifier("connect.swipeDisconnect")
+        }
+        .contextMenu {
+            Button(role: .destructive, action: disconnect) { Label("Disconnect\u{2026}", systemImage: "xmark.circle") }
+                .accessibilityIdentifier("connect.menuDisconnect")
+        }
+        .disabled(working)
+    }
+}
+
+/// The AI's own mark in the label colour, or the plain glyph for an app without one, on one quiet
+/// tile, so every row of the list looks alike.
+struct AIPhoneMark: View {
+    let connection: Connection
+    var size: CGFloat = 30
+
+    /// The AI whose mark the tile shows; nil for the plain glyph (`Connection.symbol`).
+    static func mark(_ c: Connection) -> String? { c.mark.flatMap { AIGlyph.asset($0) == nil ? nil : $0 } }
+
+    var body: some View {
+        Group {
+            if let ai = Self.mark(connection) {
+                AIGlyph(ai: ai, size: size * 0.56, monochrome: true)
+            } else {
+                Image(systemName: connection.symbol).font(.system(size: size * 0.46, weight: .medium))
+            }
+        }
+        .foregroundStyle(Color.ink)
+        .frame(width: size, height: size)
+        .background(.fill.tertiary, in: .rect(cornerRadius: size * 0.27, style: .continuous))
+        .accessibilityHidden(true)
+    }
 }
 
 /// Add an AI: the onboarding picker's AIs as rows with Connect…, the one on this Mac first.
@@ -1559,16 +1714,17 @@ struct AddAIPage: View {
     #endif
 
     var body: some View {
+        #if os(macOS)
         SettingsPageForm {
-            #if os(macOS)
             OpenSection { ConnectAIPage(client: client, preview: preview, onConnected: { openPage?(.ai) }) }
-            #else
-            AIWaitingAsk()
-            #endif
             AIAddRows(installed: previewInstalled ?? installed)
         }
         .connectGuides(client: client)
         .task { if previewInstalled == nil { installed = await AIList.lookForInstalled() } }
+        #else
+        // iPhone adds no AI (8 November 2026): nothing links here, and a stray route gets the list.
+        AIPhoneList(client: client, preview: preview)
+        #endif
     }
 }
 
@@ -1862,6 +2018,18 @@ enum AIList {
         guard let d = c.last_used_at else { return "Not used yet" }
         return now.timeIntervalSince(d) < 60 ? "Used just now" : "Used \(d.formatted(.relative(presentation: .named, unitsStyle: .wide)))"
     }
+
+    /// iPhone's line under a connected AI: "Last used 2 hours ago", or "Not used yet".
+    static func lastUsedLine(_ c: Connection, now: Date = .now) -> String {
+        guard let d = c.last_used_at else { return "Not used yet" }
+        return now.timeIntervalSince(d) < 60 ? "Last used just now" : "Last used \(d.formatted(.relative(presentation: .named, unitsStyle: .wide)))"
+    }
+
+    /// iPhone with nothing connected: the whole section (no connecting on the phone, 8 November 2026).
+    static let phoneEmpty = "Connect an AI from Pinto Notes on your Mac, or from ChatGPT or Claude."
+    static let phoneNotLoaded = "Couldn\u{2019}t check which AIs are connected. Pull down to try again."
+    static func disconnectTitle(_ c: Connection) -> String { "Disconnect \(name(c))?" }
+    static let disconnectLine = "It loses access to your notes right away."
 
     static func lastUsed(_ c: Connection, now: Date = .now) -> String {
         guard let d = c.last_used_at else { return "Not yet" }

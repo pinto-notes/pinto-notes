@@ -175,11 +175,16 @@ struct NoteSourceSheet: View {
         }
     }
 
+    /// Where the AI gets connected first: Settings on the Mac; iPhone connects none (Emil, 8 November 2026).
+    static func connectLine(mac: Bool = ConnectHere.onMac) -> String {
+        mac ? "Connect your AI in Settings, then paste this into it." : "Connect your AI on your Mac, or from ChatGPT or Claude, then paste this into it."
+    }
+
     private func instructions(_ list: [NoteTemplate.Instruction]) -> some View {
         let current = list.first { $0.client == client } ?? list[0]
         return VStack(alignment: .leading, spacing: 10) {
             Text("Ask your AI to fill it in").font(.headline).foregroundStyle(Color.ink)
-            Text("Connect your AI in Settings, then paste this into it.").font(.subheadline).foregroundStyle(Color.muted)
+            Text(Self.connectLine()).font(.subheadline).foregroundStyle(Color.muted)
             if list.count > 1 {
                 Picker("AI", selection: Binding(get: { current.client }, set: { client = $0; copied = false })) {
                     ForEach(list) { Text($0.name).tag($0.client) }

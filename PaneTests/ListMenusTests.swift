@@ -46,8 +46,7 @@ import Testing
     }
 
     @Test func theMoreMenuIsInNotesOrder() {
-        #expect(ListMoreMenu.groups(connectNudge: false) == [[.selectNotes], [.sortBy, .groupByDate], [.addFiles]])
-        #expect(ListMoreMenu.groups(connectNudge: true).last == [.connectAI], "Connect an AI, when it shows, comes last")
+        #expect(ListMoreMenu.groups() == [[.selectNotes], [.sortBy, .groupByDate], [.addFiles]])
     }
 
     @Test func addFilesSaysWhereTheFilesGo() throws {

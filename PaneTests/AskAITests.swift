@@ -151,9 +151,8 @@ import AppKit
         #expect(ListMoreMenu.askSubject(.all, folderName: name) == .all)
         #expect(ListMoreMenu.askSubject(.trash, folderName: name) == nil)
         #expect(ListMoreMenu.askSubject(.tag("work"), folderName: name) == nil)
-        #expect(ListMoreMenu.groups(connectNudge: false, asks: true) == [[.selectNotes], [.sortBy, .groupByDate], [.addFiles], [.askAI]])
-        #expect(ListMoreMenu.groups(connectNudge: true, asks: true).suffix(2) == [[.askAI], [.connectAI]])
-        #expect(!ListMoreMenu.groups(connectNudge: false).joined().contains(.askAI), "not offered when no AI is connected")
+        #expect(ListMoreMenu.groups(asks: true) == [[.selectNotes], [.sortBy, .groupByDate], [.addFiles], [.askAI]])
+        #expect(!ListMoreMenu.groups().joined().contains(.askAI), "not offered when no AI is connected")
     }
 
     @Test func settingsListsKeepWhatIsOfferedCurrent() {
