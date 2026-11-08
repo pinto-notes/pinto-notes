@@ -22,9 +22,10 @@ import Testing
     /// Each AI in the list has its Disconnect beside it on the Mac (rounds 17 to 20: the footer said
     /// to, and there was no button).
     @Test func eachAIHasItsDisconnect() throws {
-        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "PrivacySecurity.swift"), encoding: .utf8)
-        #expect(source.contains("if case .ai(let id) = o.kind, client != nil"))
-        #expect(source.contains("ConnectRevoke.revoke(client, id: id)"))
+        // Disconnect moved to each AI's own page under AI Connections (7 November 2026).
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "SettingsPages.swift"), encoding: .utf8)
+        #expect(source.contains("private func disconnect() async"))
+        #expect(source.contains("ConnectRevoke.revoke(client, id: c.id)"))
     }
 
     @Test func aStandardAccountWithTwoDevicesAndOneAI() async {
