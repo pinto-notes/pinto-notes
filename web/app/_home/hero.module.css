@@ -22,6 +22,10 @@
 :global(:root[data-platform="ios"]) .iphone svg { stroke: currentColor; }
 .iphone svg { width: 17px; height: 17px; fill: none; stroke: #a08467; stroke-width: 1.5; stroke-linecap: round; }
 .fine { margin: -14px 0 0; font-size: 13.5px; font-weight: 600; color: #8a7a68; }
+/* Off Apple (Windows, Android, Linux): the line that says what it runs on, centred under the buttons. */
+.offApple { display: none; }
+:global(:root:is([data-platform="windows"], [data-platform="android"], [data-platform="linux"])) .offApple { display: block; margin: 6px 0 0; text-align: center; font-size: 15px; }
+.offApple a { color: inherit; text-decoration: underline; text-decoration-color: rgba(107, 90, 72, 0.35); text-underline-offset: 3px; }
 /* Off a Mac (lib/platform.ts marks <html>): "Get it for iPhone" centred, the Mac download as a link under it. */
 .offMac { display: none; }
 :global(:root:is([data-platform="ios"], [data-platform="windows"], [data-platform="android"], [data-platform="linux"])) .ctas { width: 100%; flex-direction: column; gap: 14px; }
