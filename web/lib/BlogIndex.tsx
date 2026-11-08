@@ -122,18 +122,25 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
   );
 }
 
-/// One announcement on the front of the blog: its cover across the column, then the title, the
-/// excerpt and the date. The front is one narrow column (Emil, 8 November 2026: "I wanted it to be
-/// less wide"), and every post there is an announcement, so it carries no label.
+/// One announcement on the front of the blog, on a timeline: the date in a rail on the left with a
+/// dot on the line, then the cover across the column, the title and the excerpt. The front is one
+/// narrow column (Emil, 8 November 2026: "less wide", then "maybe we add a timeline on the left"),
+/// and every post there is an announcement, so it carries no label. On a phone the date sits over
+/// the cover and the rail is a thin line.
 function Row({ post }: { post: ReturnType<typeof published>[number] }) {
   const c = post.thumb.art ? post.thumb : CATEGORY_COVERS[post.category];
+  const d = longDate(post.date);
+  const cut = d.lastIndexOf(" ");
   return (
     <a className={s.row} href={`/blog/${post.slug}`} data-row="">
-      <img className={s.rowArt} src={c.src} alt="" width={c.width} height={c.height} decoding="async" />
-      <span className={s.rowText}>
-        <h2 className={s.rowTitle}>{post.title}</h2>
-        <span className={s.rowExcerpt}>{post.excerpt}</span>
-        <span className={s.featuredBy}><Avatar size={20} /><span>{AUTHOR.name}</span><span aria-hidden="true">·</span><time dateTime={post.date}>{longDate(post.date)}</time></span>
+      <time className={s.railDate} dateTime={post.date}><span>{d.slice(0, cut)}</span> <span>{d.slice(cut + 1)}</span></time>
+      <span className={s.railDot} aria-hidden="true" />
+      <span className={s.rowBody}>
+        <img className={s.rowArt} src={c.src} alt="" width={c.width} height={c.height} decoding="async" />
+        <span className={s.rowText}>
+          <h2 className={s.rowTitle}>{post.title}</h2>
+          <span className={s.rowExcerpt}>{post.excerpt}</span>
+        </span>
       </span>
     </a>
   );

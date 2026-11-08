@@ -67,19 +67,34 @@
 .grid > li { display: grid; width: calc((100% - (var(--cols) - 1) * 28px) / var(--cols)); }
 
 
-/* The front of the blog: one narrow column, the title over the posts, each launch with its cover on
-   top, newest first (Emil, 8 November 2026: "less wide"). */
-.front { max-width: 720px; margin-inline: auto; width: 100%; }
+/* The front of the blog: a timeline. The date sits in a rail on the left, a dot on a line marks each
+   launch, and the post runs down one narrow column on the right, newest first (Emil, 8 November 2026:
+   "less wide", then "maybe we add a timeline on the left"). On a phone the rail is a thin line and
+   the date sits over the cover. */
+.front { --rail: 162px; --dotx: 140px; max-width: calc(720px + var(--rail)); margin-inline: auto; width: 100%; }
 .front .heroText, .front .heroFit { max-width: none; }
-.rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 56px; }
-@media (max-width: 640px) { .rows { gap: 40px; } }
-.rows > li { display: grid; }
-.row { display: grid; gap: 18px; color: var(--ink); text-decoration: none; border-radius: 18px; }
+.front .hero { padding-left: var(--rail); }
+.rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 64px; }
+.rows > li { display: grid; position: relative; }
+.rows > li::before { content: ""; position: absolute; left: calc(var(--dotx) - 1px); top: 22px; bottom: -86px; width: 2px; border-radius: 1px; background: var(--line, color-mix(in srgb, var(--ink) 14%, transparent)); }
+.rows > li:last-child::before { bottom: 0; background: linear-gradient(color-mix(in srgb, var(--ink) 14%, transparent), transparent); }
+.row { display: grid; grid-template-columns: calc(var(--dotx) - 22px) 44px minmax(0, 1fr); grid-template-areas: "date dot body"; align-items: start; color: var(--ink); text-decoration: none; border-radius: 18px; }
+.railDate { grid-area: date; display: grid; justify-items: end; text-align: right; padding-top: 6px; font-size: 15px; line-height: 1.35; font-weight: 650; color: var(--ink); font-variant-numeric: tabular-nums; }
+.railDate > span:last-child { color: var(--muted); font-weight: 500; }
+.railDot { grid-area: dot; justify-self: center; margin-top: 10px; width: 14px; height: 14px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 5px var(--bg, #fff3e6); position: relative; z-index: 1; }
+.rowBody { grid-area: body; display: grid; gap: 18px; }
+@media (max-width: 860px) {
+  .front { --rail: 0px; --dotx: 7px; }
+  .rows { gap: 44px; padding-left: 0; }
+  .rows > li::before { top: 18px; bottom: -62px; }
+  .row { grid-template-columns: 14px minmax(0, 1fr); grid-template-areas: "dot date" ". body"; column-gap: 16px; row-gap: 12px; }
+  .railDate { display: block; justify-items: start; text-align: left; padding-top: 0; font-size: 14px; }
+  .railDot { margin-top: 4px; box-shadow: 0 0 0 4px var(--bg, #fff3e6); }
+}
 .rowArt { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 16px; }
 .rowText { display: grid; gap: 10px; justify-items: start; }
 .rowTitle { margin: 0; font-size: clamp(24px, 3vw, 32px); line-height: 1.12; font-weight: 800; letter-spacing: -0.025em; text-wrap: balance; }
 .rowExcerpt { color: var(--muted); font-size: 17px; line-height: 1.5; text-wrap: pretty; }
-.row .featuredBy { white-space: nowrap; }
 @media (hover: hover) { .row:hover .rowTitle { color: var(--amber); } .row:hover .rowArt { filter: brightness(1.03); } }
 .row:focus-visible { outline: 2px solid var(--amber); outline-offset: 6px; }
 @media (prefers-reduced-motion: no-preference) { .rowTitle, .rowArt { transition: color 0.15s ease-out, filter 0.15s ease-out; } }
