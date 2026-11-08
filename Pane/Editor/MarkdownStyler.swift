@@ -1023,10 +1023,16 @@ private struct StyleWalker: MarkupWalker {
             if let dest = link.destination, let url = URL(string: dest) {
                 storage.addAttribute(.link, value: url, range: textRange)
             }
-            // Only with the caret inside it, or a selection over it: anywhere else on the line the
-            // address stays out of the way (council round 16: it popped out at the end of the line).
+            // Only with the caret in the address itself, or a selection inside the link that takes
+            // some of it: anywhere else the address stays out of the way (council round 16: it
+            // popped out at the end of the line). Not for the caret in the link's words, where
+            // writing the address out wrapped the paragraph and moved the whole note below
+            // (Emil, 8 November 2026).
+            let address = NSRange(location: textRange.upperBound, length: NSMaxRange(r) - textRange.upperBound)
             let inside = selection.map { s in
-                s.length > 0 ? NSIntersectionRange(s, r).length > 0 : (s.location > r.location && s.location < NSMaxRange(r))
+                s.length > 0
+                    ? NSIntersectionRange(s, address).length > 0 && s.location >= r.location && NSMaxRange(s) <= NSMaxRange(r)
+                    : (s.location > address.location && s.location < NSMaxRange(r))
             } ?? false
             let dim = styler.hiddenOrDim(active: inside)
             storage.addAttributes(dim, range: NSRange(location: r.location, length: 1))

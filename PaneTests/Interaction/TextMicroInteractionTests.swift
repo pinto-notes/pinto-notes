@@ -34,6 +34,9 @@ import Testing
         Case(name: "strikethrough", element: "Some ~~gone~~ words", caretInElement: 8),
         Case(name: "link", element: "See [the site](https://example.com) now", caretInElement: 8),
         Case(name: "wikilink", element: "See [[Lisbon]] now", caretInElement: 8),
+        Case(name: "a long line of bold", element: Array(repeating: "some **bold** and *more* words", count: 6).joined(separator: " "), caretInElement: 30),
+        Case(name: "a long line of links", element: Array(repeating: "see [[Lisbon]] and [a site](https://example.com/a/long/path)", count: 3).joined(separator: " "), caretInElement: 8),
+        Case(name: "a long heading", element: "## " + Array(repeating: "A heading that runs on", count: 4).joined(separator: " "), caretInElement: 8),
         Case(name: "code block", element: "```swift\nlet a = 1\n```", caretInElement: 12),
         Case(name: "code block fence", element: "```swift\nlet a = 1\n```", caretInElement: 2),
     ]
@@ -63,6 +66,30 @@ import Testing
         await h.select(below)
         await h.settle(0.1)
         #expect(abs(h.lineRect(at: last).minY - restLast.minY) < 0.5, "\(c.name): back off it, the last line is where it was")
+    }
+
+    /// Selecting across the element (from the line above into the line below, then shift-arrowing
+    /// on) moves nothing below either.
+    @Test(arguments: cases)
+    func selectingAcrossMovesNothing(_ c: Case) async throws {
+        let text = Self.note(c)
+        let h = await EditorHarness(text)
+        defer { h.close() }
+        let ns = text as NSString
+        let last = ns.range(of: "The last line.").location
+        let from = ns.range(of: "the element.").location
+        await h.select(from)
+        await h.settle(0.1)
+        let rest = h.lineRect(at: last).minY
+        await h.select(from, ns.range(of: "Below").location + 3 - from)
+        await h.settle(0.1)
+        #expect(abs(h.lineRect(at: last).minY - rest) < 0.5, "\(c.name): selected across, the last line moved from \(rest) to \(h.lineRect(at: last).minY)")
+        await h.press(EditorHarness.left, .shift)
+        await h.settle(0.1)
+        #expect(abs(h.lineRect(at: last).minY - rest) < 0.5, "\(c.name): a shift-arrow on, the last line moved")
+        await h.select(last)
+        await h.settle(0.1)
+        #expect(abs(h.lineRect(at: last).minY - rest) < 0.5, "\(c.name): after the selection, the last line moved")
     }
 
     /// The arrow keys, line by line from the top of the note to the bottom and back: at every
@@ -147,6 +174,69 @@ import Testing
         }
         #expect(h.text == "Title\n\nAbove.\n\n\(e.expected)\n\nBelow.", "\(e.name): \(h.text.debugDescription)")
         #expect(h.selection.location == start + e.caretAfter, "\(e.name): the caret at \(h.selection.location - start)")
+    }
+
+    nonisolated static let typed: [String] = ["# ", "## ", "### ", "- ", "* ", "1. ", "- [ ] ", "[] ", "> ", "**", "`", "[[", "```\n", "```swift\n", "---\n"]
+
+    /// Typing the Markdown that makes an element, then its first letter: the caret stands where
+    /// the letter lands, and the letter moves nothing below (the element took its height as the
+    /// marker was typed).
+    @Test(arguments: typed)
+    func typingAnElementsMarkdown(_ marker: String) async throws {
+        let text = "Title\n\nAbove.\n\n\n\nBelow.\n\nThe last line."
+        let h = await EditorHarness(text)
+        defer { h.close() }
+        let ns = text as NSString
+        await h.select(ns.range(of: "Above.").location + 8)
+        for ch in marker {
+            if ch == "\n" { await h.press(EditorHarness.returnKey) } else { await h.type(String(ch)) }
+        }
+        await h.settle(0.1)
+        let lastAt = (h.text as NSString).range(of: "The last line.").location
+        let caret = h.view.firstRect(forCharacterRange: h.selection, actualRange: nil)
+        let before = h.lineRect(at: lastAt).minY
+        let at = h.selection.location
+        await h.type("W")
+        await h.settle(0.1)
+        let letter = h.view.firstRect(forCharacterRange: NSRange(location: at, length: 1), actualRange: nil)
+        let after = h.lineRect(at: (h.text as NSString).range(of: "The last line.").location).minY
+        #expect((h.text as NSString).substring(with: NSRange(location: at, length: 1)) == "W", "\(marker): the letter went where the caret was: \(h.text.debugDescription)")
+        #expect(abs(caret.minX - letter.minX) < 1, "\(marker): the caret stood at \(caret.minX), the letter landed at \(letter.minX)")
+        #expect(abs(before - after) < 0.5, "\(marker): the first letter moved the last line from \(before) to \(after)")
+    }
+
+    /// Walking the caret along a long wrapped line letter by letter: each mark it passes is
+    /// written out, and none of them may wrap a word onto a new line.
+    @Test(arguments: [
+        Array(repeating: "some **bold** and *more* words", count: 7).joined(separator: " "),
+        Array(repeating: "see [[Lisbon]] and [a site](https://example.com/p) and `code`", count: 4).joined(separator: " "),
+        "## " + Array(repeating: "A heading that runs on", count: 4).joined(separator: " "),
+    ])
+    func walkingALongLineMovesNothing(_ line: String) async throws {
+        let text = "Title\n\nAbove.\n\n\(line)\n\nThe last line."
+        let h = await EditorHarness(text, width: 560)
+        defer { h.close() }
+        let ns = text as NSString
+        let last = ns.range(of: "The last line.").location
+        let start = ns.range(of: line).location
+        await h.select(start - 2)
+        await h.settle(0.1)
+        let rest = h.lineRect(at: last).minY
+        // A link's address is written out while the caret is in it, to edit it: that may wrap.
+        // Everywhere else, the words included, nothing below moves.
+        let addresses = try NSRegularExpression(pattern: #"\]\([^)]*\)"#).matches(in: text, range: NSRange(location: 0, length: ns.length)).map(\.range)
+        var moved: [String] = []
+        await h.select(start)
+        while h.selection.location < start + (line as NSString).length {
+            let y = h.lineRect(at: last).minY
+            let at = h.selection.location
+            let inAddress = addresses.contains { at > $0.location && at < NSMaxRange($0) }
+            if !inAddress, abs(y - rest) >= 0.5 { moved.append("\(at - start): \(y - rest)") }
+            let before = h.selection.location
+            await h.press(EditorHarness.right)
+            if h.selection.location <= before { break }
+        }
+        #expect(moved.isEmpty, "the last line moved with the caret at \(moved.prefix(8)) (of \(line.prefix(30)))")
     }
 
     static func lineIndex(_ s: String, _ at: Int) -> Int {
