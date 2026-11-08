@@ -253,6 +253,7 @@ import Testing
     static let hoverAllowed: [String: String] = [
         "Views/ChecklistWidgetView.swift ChecklistWidgetView.rows": "a Home Screen widget's tick: widgets have no pointer, on the Mac desktop too",
         "Views/AppleNotesImport.swift TreeRow.folderTreeRow": "the checkbox inside a Choose notes folder row: the whole row hovers (.hoverHighlight on the row)",
+        "Editor/EmbedViews.swift EmbedPress.body": "an embed's click: the label passed in hovers (CompactEmbed and CardEmbed .hoverHighlight, a picture .hoverOverlay)",
         "Views/ShareNotePopover.swift ShareNotePopover.copyRows": "the label is rowLabel, which has .hoverHighlight",
         "Views/ShareNotePopover.swift ShareNotePopover.row": "the label is rowLabel, which has .hoverHighlight",
         "Views/SidebarCards.swift SidebarCardShell.body": "the label it wraps has .hoverOverlay, set a few lines up",

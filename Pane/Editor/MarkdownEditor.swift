@@ -109,7 +109,33 @@ final class EditorCore {
     enum CardContent: Equatable {
         case grid(GridTable, request: GridFocusRequest?, selected: Bool)
         /// `resolved`: its file is here (one can arrive by sync after the line that shows it).
-        case embed(LineEmbed, controller: ObjectIdentifier?, resolved: Bool)
+        /// `selected`: the text's selection takes it in, so it shows selected (like Notes).
+        case embed(LineEmbed, controller: ObjectIdentifier?, resolved: Bool, selected: Bool)
+    }
+
+    /// Whether `selection` takes in any of the embed at `range`: a picture or file in a selection
+    /// shows tinted, as Notes tints an attachment you've selected (Emil, 8 November 2026).
+    nonisolated static func selects(_ selection: NSRange?, _ range: NSRange) -> Bool {
+        guard let s = selection, s.length > 0, range.length > 0 else { return false }
+        return NSIntersectionRange(s, range).length > 0
+    }
+
+    /// The embeds the selection showed last, so a selection change lays the live views out again
+    /// only when that changes.
+    private var selectedEmbeds: Set<String> = []
+
+    /// Whether the embeds `selection` takes in are other than last time.
+    func embedSelectionChanged(_ selection: NSRange?) -> Bool {
+        let now = Set(embeds.filter { Self.selects(selection, $0.range) }.map(\.key))
+        guard now != selectedEmbeds else { return false }
+        selectedEmbeds = now
+        return true
+    }
+
+    /// The embed that is the whole selection (a click on a picture or a file selects it), if one is.
+    func selectedEmbed(_ selection: NSRange) -> LineEmbed? {
+        guard selection.length > 0 else { return nil }
+        return embeds.first { $0.range == selection }
     }
 
     /// Every live view to place over the text: cards and embeds, keyed for reuse.
@@ -189,7 +215,16 @@ final class EditorCore {
                 guard NSMaxRange(e.range) <= ns.length, ns.substring(with: e.range) == original else { return }
                 target.apply(TextEdit(range: e.range, replacement: line, caret: -1))
             }
-            out.append((e.key, f, AnyView(EmbedView(embed: e, controller: controller, remove: remove, rewrite: rewrite)), .embed(e, controller: controller.map(ObjectIdentifier.init), resolved: resolved(e))))
+            let isSelected = Self.selects(selection(), e.range)
+            // A click on a picture or a file selects it, as in Notes (a double-click opens it);
+            // on iPhone a tap opens it, as there.
+            var select: (() -> Void)?
+            #if os(macOS)
+            if case .image = e.kind { select = { [weak target] in (target as? PaneTextView)?.selectEmbed(e.key) } }
+            if case .file = e.kind { select = { [weak target] in (target as? PaneTextView)?.selectEmbed(e.key) } }
+            #endif
+            out.append((e.key, f, AnyView(EmbedView(embed: e, controller: controller, selected: isSelected, select: select, remove: remove, rewrite: rewrite)),
+                        .embed(e, controller: controller.map(ObjectIdentifier.init), resolved: resolved(e), selected: isSelected)))
         }
         return out
     }
@@ -578,6 +613,10 @@ final class EditorCore {
             // typed address split at "https://w", a typed table broke after "| -").
             if selection.location == NSMaxRange(b.range), let last = lastSelection, last.length == 0,
                last.location >= b.range.location, last.location < selection.location { return nil }
+            // ← or → from a picture or file you'd selected: before it or after it, as in Notes.
+            if byKeyboard, b.grid == nil, let last = lastSelection, last == b.range {
+                if selection.location == b.range.location { return b.range.location > 0 ? .move(b.range.location - 1) : .newLineBefore(b.range.location) }
+            }
             let fromBelow = (lastSelection?.location ?? -1) > NSMaxRange(b.range)
             let fromAbove = lastSelection.map { $0.location < b.range.location } ?? false
             if byKeyboard, let g = b.grid, fromAbove || fromBelow {
@@ -604,6 +643,9 @@ final class EditorCore {
     func deleteNearBlock(_ text: String, _ sel: NSRange, forward: Bool) -> BlockDelete? {
         let all = blocks(in: text)
         func removal(_ b: EditorBlock) -> TextEdit { Self.removal(of: b.range, in: text) }
+        // A picture or file you clicked (it is the selection) goes with its line, not leaving an
+        // empty one where it was.
+        if sel.length > 0, let b = all.first(where: { $0.grid == nil && $0.range == sel }) { return .delete(removal(b)) }
         guard sel.length == 0 else { return nil }
         let hit = forward ? all.first { $0.range.location > 0 && $0.range.location - 1 == sel.location }
                           : all.first { NSMaxRange($0.range) + 1 == sel.location }
@@ -2507,7 +2549,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         DesignLook.readingPage ? 32 : 20
     }
 
-    private var cardHosts: [String: NSHostingView<AnyView>] = [:]
+    private(set) var cardHosts: [String: NSHostingView<AnyView>] = [:]
     /// Every card gets a host, not only those in view: the whole note is going on paper.
     private var onPaperNow = false
 
@@ -2798,7 +2840,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     /// What each live view last showed, so one whose content is the same isn't given it again.
-    private var cardContent: [String: EditorCore.CardContent] = [:]
+    private(set) var cardContent: [String: EditorCore.CardContent] = [:]
 
     /// Places live views (cards, files, links) over their reserved lines. A view whose content is
     /// unchanged only moves: giving every card its view again, and animating each one, on every
@@ -3535,7 +3577,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     func textViewDidChangeSelection(_ notification: Notification) {
         guard !hasMarkedText(), let storage = textStorage else { return }
         revealFolds()
-        if core.disarm(unless: selectedRange()) { layoutCards() }
+        let disarmed = core.disarm(unless: selectedRange())
+        // A picture or a file the selection takes in shows selected (or no longer does).
+        if core.embedSelectionChanged(editingSelection) || disarmed { layoutCards() }
         // VoiceOver moves the caret as it reads aloud. Moved again from here, it takes that for
         // you and stops, at the first checklist item (trace on the Air, 6 November 2026). What
         // you type still lands in the right place (insertText).
@@ -3747,7 +3791,32 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     private var editingSelection: NSRange? { window?.firstResponder === self ? selectedRange() : nil }
 
     func setWiki(_ wiki: WikiScope?) { if let storage = textStorage { core.setWiki(wiki, storage: storage, selection: editingSelection) } }
-    func setImages(_ tick: Int) { if let storage = textStorage { core.setImages(tick, storage: storage, selection: editingSelection) } }
+    func setImages(_ tick: Int) {
+        guard let storage = textStorage else { return }
+        // A picture that arrives above what you're reading takes its own height then (it had a
+        // placeholder's): the lines on screen stay where they are, as a web page anchors its
+        // scroll, instead of jumping down by the difference.
+        keepingWhatsOnScreen { core.setImages(tick, storage: storage, selection: editingSelection) }
+    }
+
+    /// Runs `change` (lines above the top of the view getting taller or shorter) and scrolls by
+    /// what the first line on screen moved, so it stays put.
+    private func keepingWhatsOnScreen(_ change: () -> Void) {
+        guard let clip = enclosingScrollView?.contentView, let tlm = textLayoutManager, let tcm = tlm.textContentManager,
+              clip.bounds.minY > 0,
+              let frag = tlm.textLayoutFragment(for: CGPoint(x: 0, y: clip.bounds.minY - textContainerOrigin.y)) else { change(); return }
+        let start = tcm.documentRange.location
+        let at = tcm.offset(from: start, to: frag.rangeInElement.location)
+        let was = frag.layoutFragmentFrame.minY
+        change()
+        guard let loc = tcm.location(start, offsetBy: at), let above = NSTextRange(location: start, end: loc) else { return }
+        tlm.ensureLayout(for: above)
+        guard let now = tlm.textLayoutFragment(for: loc)?.layoutFragmentFrame.minY, abs(now - was) > 0.5 else { return }
+        let y = clip.bounds.minY + now - was
+        if frame.height < y + clip.bounds.height { frame.size.height = y + clip.bounds.height }
+        clip.scroll(to: CGPoint(x: clip.bounds.minX, y: y))
+        enclosingScrollView?.reflectScrolledClipView(clip)
+    }
 
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
@@ -3757,6 +3826,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             core.gridFocus = nil
             controller?.leftTable()
             core.restyle(storage, selection: selectedRange(), force: true)
+            if core.embedSelectionChanged(selectedRange()) { layoutCards() }
             // The window counts the text as first responder only once this returns: the hints
             // ("Title" on a new note) are laid out then (council round 15: ⌘N showed none).
             DispatchQueue.main.async { [weak self] in self?.layoutWikiSuggestions() }
@@ -3769,6 +3839,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         if ok, let storage = textStorage {
             controller?.isEditing = false
             core.restyle(storage, selection: nil, force: true)
+            if core.embedSelectionChanged(nil) { layoutCards() }
             controller?.typingChanged(text: string, selection: nil)
             layoutWikiSuggestions()
         }
@@ -3803,9 +3874,30 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             controller?.askToRecover()
             return
         }
+        // Space on a selected picture or file opens it in Quick Look, as in Notes and the Finder.
+        if event.charactersIgnoringModifiers == " ", event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty,
+           !hasMarkedText(), openSelectedEmbed() { return }
         inKeyDown = true
         defer { inKeyDown = false }
         super.keyDown(with: event)
+    }
+
+    /// Selects the picture or file `key` names, the way a click on it does in Notes: the text has
+    /// the keyboard, so Delete removes it, Space opens it and the arrows go on from it.
+    func selectEmbed(_ key: String) {
+        guard let e = core.embeds.first(where: { $0.key == key }) else { return }
+        if window?.firstResponder !== self { window?.makeFirstResponder(self) }
+        setSelectedRange(e.range)
+    }
+
+    /// Opens the picture or file that is the selection; false if the selection is no such thing.
+    @discardableResult
+    func openSelectedEmbed() -> Bool {
+        guard let e = core.selectedEmbed(selectedRange()) else { return false }
+        switch e.kind {
+        case .file(let id, _), .image(let id, _): controller?.openAttachment(id); return true
+        default: return false
+        }
     }
 
     /// Whether a key press would change the text: anything but a ⌘ or ⌃ shortcut, a move or Escape.

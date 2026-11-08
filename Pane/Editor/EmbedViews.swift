@@ -7,24 +7,32 @@ import UniformTypeIdentifiers
 struct EmbedView: View {
     let embed: LineEmbed
     let controller: EditorController?
+    /// The text's selection takes it in: it shows selected (SelectionTint).
+    var selected = false
+    /// A click selects it rather than opening it (pictures and files on the Mac, as in Notes).
+    var select: (() -> Void)?
     let remove: () -> Void
     /// Writes the line again (a link shown another way, LinkForms).
     var rewrite: (String) -> Void = { _ in }
 
     var body: some View {
-        switch embed.kind {
-        case .file(let id, let name):
-            FileEmbed(id: id, name: name, card: embed.card, controller: controller, remove: remove, restyle: restyle)
-        case .image(let id, let name):
-            ImageEmbed(id: id, name: name, controller: controller, remove: remove, resize: resize)
-        case .link(let url):
-            LinkEmbed(url: url, card: embed.card, remove: remove, restyle: restyle)
-        case .note(let id, let name):
-            // Only a note that is an app is an embed (LineEmbed): its live widget.
-            NoteAppWidget(id: id, name: name, controller: controller, remove: remove)
-        case .wiki(let title):
-            NoteCardEmbed(title: title, controller: controller, remove: remove, restyle: restyle)
+        Group {
+            switch embed.kind {
+            case .file(let id, let name):
+                FileEmbed(id: id, name: name, card: embed.card, controller: controller, select: select, remove: remove, restyle: restyle)
+            case .image(let id, let name):
+                ImageEmbed(id: id, name: name, controller: controller, select: select, remove: remove, resize: resize)
+            case .link(let url):
+                LinkEmbed(url: url, card: embed.card, remove: remove, restyle: restyle)
+            case .note(let id, let name):
+                // Only a note that is an app is an embed (LineEmbed): its live widget.
+                NoteAppWidget(id: id, name: name, controller: controller, remove: remove)
+                    .selectionTint(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            case .wiki(let title):
+                NoteCardEmbed(title: title, controller: controller, remove: remove, restyle: restyle)
+            }
         }
+        .environment(\.embedSelected, selected)
     }
 
     /// Shows this picture at another size (ImageSizes), written into its line.
@@ -78,11 +86,12 @@ struct CompactEmbed<Picture: View, Menu: View>: View {
     let title: String
     let source: String
     let open: () -> Void
+    var select: (() -> Void)? = nil
     @ViewBuilder let picture: Picture
     @ViewBuilder let menu: Menu
 
     var body: some View {
-        Button(action: open) {
+        EmbedPress(open: open, select: select) {
             HStack(spacing: 8) {
                 picture
                     .frame(width: 22, height: 22)
@@ -102,8 +111,8 @@ struct CompactEmbed<Picture: View, Menu: View>: View {
             .frame(height: LineEmbed.compactHeight)
             .hoverHighlight(Capsule())
         }
-        .buttonStyle(PressScale())
         .background(Color.paneChip, in: .capsule)
+        .selectionTint(Capsule())
         .contextMenu { menu }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -116,11 +125,12 @@ struct CardEmbed<Picture: View, Menu: View>: View {
     let source: String
     let sourceSymbol: String
     let open: () -> Void
+    var select: (() -> Void)? = nil
     @ViewBuilder let picture: Picture
     @ViewBuilder let menu: Menu
 
     var body: some View {
-        Button(action: open) {
+        EmbedPress(open: open, select: select) {
             HStack(spacing: 12) {
                 picture
                     .frame(width: 52, height: 52)
@@ -149,10 +159,68 @@ struct CardEmbed<Picture: View, Menu: View>: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .hoverHighlight(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .buttonStyle(PressScale())
         // Content, not a control: a solid surface (glass is for the navigation layer).
         .background(Color.paneChip, in: .rect(cornerRadius: 12, style: .continuous))
+        .selectionTint(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .contextMenu { menu }
+    }
+}
+
+/// What a click on an embed does: opens it, or (with `select`) selects it, and a double-click opens
+/// it, as Notes does with an attachment. A picture opening in Quick Look at a stray click was too
+/// much for a click meant to put the caret near it (Emil, 8 November 2026).
+struct EmbedPress<Label: View>: View {
+    let open: () -> Void
+    let select: (() -> Void)?
+    @ViewBuilder let label: Label
+
+    var body: some View {
+        if let select {
+            label
+                .contentShape(.rect)
+                .gesture(TapGesture(count: 2).onEnded { open() })
+                .simultaneousGesture(TapGesture().onEnded { select() })
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { open() }
+        } else {
+            Button(action: open) { label }
+                .buttonStyle(PressScale())
+        }
+    }
+}
+
+extension EnvironmentValues {
+    /// The embed being drawn is in the text's selection (EmbedView).
+    @Entry var embedSelected = false
+}
+
+extension View {
+    /// The selection's tint over an embed in it, in its shape, as Notes tints a selected attachment.
+    func selectionTint<S: InsettableShape>(_ shape: S) -> some View { modifier(SelectionTint(shape: shape)) }
+}
+
+private struct SelectionTint<S: InsettableShape>: ViewModifier {
+    let shape: S
+    @Environment(\.embedSelected) private var selected
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            if selected {
+                shape.fill(Self.fill)
+                    .overlay(shape.strokeBorder(Color(PColor.paneAccent), lineWidth: 2))
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    /// The text selection's own colour, so a picture and the words around it read as one selection.
+    private static var fill: Color {
+        #if os(macOS)
+        Color(nsColor: .selectedTextBackgroundColor).opacity(0.35)
+        #else
+        Color(PColor.paneAccent).opacity(0.25)
+        #endif
     }
 }
 
@@ -178,6 +246,7 @@ private struct FileEmbed: View {
     let name: String
     let card: Bool
     let controller: EditorController?
+    let select: (() -> Void)?
     let remove: () -> Void
     let restyle: Restyle
 
@@ -188,11 +257,11 @@ private struct FileEmbed: View {
         let detail = downloading ? "Downloading\u{2026}" : file.map { "\($0.kindText) · \($0.sizeText)" } ?? "Not on this device yet"
         Group {
             if card {
-                CardEmbed(title: file?.filename ?? name, detail: detail, source: "File", sourceSymbol: "paperclip", open: open) {
+                CardEmbed(title: file?.filename ?? name, detail: detail, source: "File", sourceSymbol: "paperclip", open: open, select: select) {
                     picture(file, page: true)
                 } menu: { menu(open) }
             } else {
-                CompactEmbed(title: file?.filename ?? name, source: downloading ? "Downloading\u{2026}" : file?.sizeText ?? "", open: open) {
+                CompactEmbed(title: file?.filename ?? name, source: downloading ? "Downloading\u{2026}" : file?.sizeText ?? "", open: open, select: select) {
                     picture(file, page: false)
                 } menu: { menu(open) }
             }
@@ -250,6 +319,7 @@ private struct ImageEmbed: View {
     let id: UUID
     let name: String
     let controller: EditorController?
+    let select: (() -> Void)?
     let remove: () -> Void
     let resize: (ImageSize) -> Void
 
@@ -258,7 +328,7 @@ private struct ImageEmbed: View {
         let (shown, size) = ImageSizes.label(name)
         // Read so the image is drawn when its bytes arrive (fetched as the note opened, or by a tap).
         let _ = controller?.imagesArrived
-        Button { controller?.openAttachment(id) } label: {
+        EmbedPress(open: { controller?.openAttachment(id) }, select: select) {
             // The image fills the slot (a cover is cropped to it).
             Color.clear
                 .overlay {
@@ -276,7 +346,7 @@ private struct ImageEmbed: View {
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.primary.opacity(0.08), lineWidth: 1))
             .hoverOverlay(RoundedRectangle(cornerRadius: 14), .hoverDarken)
         }
-        .buttonStyle(PressScale())
+        .selectionTint(RoundedRectangle(cornerRadius: 14))
         .contextMenu {
             Button("Open", systemImage: "eye") { controller?.openAttachment(id) }
             // Three sizes (Emil, 11-01): small, the text's width, or a banner across it.
