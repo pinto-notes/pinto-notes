@@ -322,6 +322,19 @@ enum TableAction: Hashable, CaseIterable {
 }
 
 extension GridTable {
+    /// Empties every cell of a row or a column, keeping the row or column and the table's shape:
+    /// Delete on a picked row or column, as in Numbers. Removing it is Delete Row in its menu.
+    mutating func clear(_ line: GridLine) {
+        switch line {
+        case .row(let r):
+            guard r >= 0, r < rows.count else { return }
+            rows[r] = rows[r].map { _ in "" }
+        case .column(let c):
+            guard c >= 0 else { return }
+            for r in rows.indices where c < rows[r].count { rows[r][c] = "" }
+        }
+    }
+
     /// The last row and the last column stay: Delete Table removes the table.
     func allows(_ a: TableAction) -> Bool {
         switch a {
@@ -886,6 +899,13 @@ struct TableGridView: View {
                     .strokeBorder(Color.paneAccent, lineWidth: 2)
                     .allowsHitTesting(false)
             }
+        }
+        // A row or column picked by its handle: Delete empties its cells, as in Numbers (the row
+        // or column stays; Delete Row in its menu removes it). Otherwise the key is the cell's.
+        .onKeyPress(keys: [.delete, .deleteForward], phases: .down) { _ in
+            guard let line = picked else { return .ignored }
+            controller?.clearTableLine(line, grid: table.index)
+            return .handled
         }
         .onKeyPress(.upArrow) {
             guard let f = current else { return .ignored }

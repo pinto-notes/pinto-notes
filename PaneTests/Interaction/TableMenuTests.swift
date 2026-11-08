@@ -162,6 +162,49 @@ import AppKit
         }
     }
 
+    /// ⌫ handed out by the app, as a key typed in its window is (in-process: nothing is posted to
+    /// the system). `h.press` gives it to the window directly, past the app's key watchers.
+    private func deleteThroughTheApp(_ h: EditorHarness) async {
+        let e = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                 windowNumber: h.window.windowNumber, context: nil, characters: "\u{7F}", charactersIgnoringModifiers: "\u{7F}",
+                                 isARepeat: false, keyCode: 51)!
+        NSApp.sendEvent(e)
+        await h.settle()
+    }
+
+    /// Delete on a row or column picked by its handle empties its cells, as in Numbers: the row or
+    /// column stays, still picked, the table keeps its shape, and one Undo brings the words back.
+    /// (Before, Delete with a row picked did nothing; 8 November 2026.)
+    @Test func deleteOnAPickedRowOrColumnClearsItsCells() async throws {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        await enter(h, row: 1)
+        let cell = try #require(h.controller.table?.cell)
+
+        h.controller.pickTableLine(.row(1), grid: 0, cell: cell)
+        await deleteThroughTheApp(h)
+        #expect(await h.until { h.text.contains("| Shortcut | Does |\n| --- | --- |\n|   |   |\n| ⌘⇧L | Checklist |") },
+                "row 1 is empty, the others as they were: \(h.text.debugDescription)")
+        #expect(h.gridCount == 1 && GridTable.find(in: h.text).first?.rows.count == 3, "the row stays")
+        #expect(h.controller.table?.selected == .row(1), "the row is still picked")
+        h.window.makeFirstResponder(h.view)
+        await h.settle()
+        h.view.undoManager?.undo()
+        #expect(await h.until(5) { h.text == Self.note }, "one Undo brings the row's words back: \(h.text.debugDescription)")
+
+        await enter(h, row: 1)
+        h.controller.pickTableLine(.column(1), grid: 0, cell: GridCell(row: 1, column: 1))
+        await deleteThroughTheApp(h)
+        #expect(await h.until { h.text.contains("| Shortcut |   |") && h.text.contains("| ⌘B |   |") && h.text.contains("| ⌘⇧L |   |") },
+                "the column is empty, header too: \(h.text.debugDescription)")
+        #expect(GridTable.find(in: h.text).first?.columns == 2, "the column stays")
+
+        // Nothing picked: Delete is the cell's own key, not a clear.
+        var g = try #require(GridTable.find(in: Self.note).first)
+        g.clear(.row(7))
+        #expect(g.rows == GridTable.find(in: Self.note).first?.rows, "a row that isn't there changes nothing")
+    }
+
     /// From a handle's menu: a row added below and deleted again, a column added after and
     /// deleted again, the keyboard in the table all along.
     @Test func addAndDeleteARowAndAColumnFromTheMenus() async throws {
