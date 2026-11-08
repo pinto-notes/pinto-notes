@@ -324,8 +324,14 @@ import Testing
         #expect(SidebarAICopy.connected(["ChatGPT", "Claude", "Codex"]) == "3 AIs connected")
         #if os(macOS)
         #expect(SidebarAILine.title(edit, context: c.mainContext) == "Lisbon")
+        // The foot's first row, not a bar of its own over the folders (its edge showed a line on hover).
         let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
-        #expect(sidebar.contains(".safeAreaBar(edge: .bottom, spacing: 0) { SidebarAILine(nested: nested) }"), "a bar at the Mac sidebar's foot")
+        #expect(!sidebar.contains("SidebarAILine("), "no bar of its own")
+        let foot = try SettingsHomeTests.source("Pane/Views/SidebarAIs.swift")
+        #expect(foot.contains("if rows { SidebarAILine(); SidebarStudyRows(imports: imports) }"), "first in the foot")
+        // Only connected, nothing done: no row (Emil, 8 November 2026: "Grok connected" read as a notification).
+        let line = try SettingsHomeTests.source("Pane/Views/SidebarAILine.swift")
+        #expect(!line.contains("SidebarAICopy.connected(ConnectedAIs"), "no \"X connected\" row")
         #endif
     }
 

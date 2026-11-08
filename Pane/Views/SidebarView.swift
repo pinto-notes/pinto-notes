@@ -495,9 +495,6 @@ struct SidebarView: View {
             .scrollContentBackground(ThemeStore.shared.look.colors == nil ? .automatic : .hidden)
             // A little of the icon's brown inside the sidebar's glass, which stays vibrant.
             .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
-            // The AI's last change, at the foot (SidebarAILine).
-            // A bar, as the top one: folders scrolled under a plain inset showed through its words.
-            .safeAreaBar(edge: .bottom, spacing: 0) { SidebarAILine(nested: nested) }
         #endif
     }
 

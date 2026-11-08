@@ -242,9 +242,6 @@ import Testing
         HoverProbe.enabled = true
         FootProbe.frames = [:]
         defer { HoverProbe.enabled = false; HoverProbe.reset(); FootProbe.frames = [:] }
-        // An AI connected, so its line is at the foot too (Grok, named by its site, as it signs in).
-        ConnectedAIs.shared.set([Connection(id: UUID(), name: "grok.com", kind: "oauth", created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: "grok.com")])
-        defer { ConnectedAIs.shared.set([]) }
         let host = try await Host(nested: nested, rows: true)
         defer { host.close() }
         let (sidebar, cell) = try host.sidebarAndNotesRow()
@@ -261,8 +258,7 @@ import Testing
         #expect(abs(left - right) <= 5, "about as far in on the left (\(left)) as on the right (\(right))")
         #expect(abs(account.minX + reach.leading - row.minX) < 0.5, "the photo starts where the folder icon does")
         #expect(abs(account.height - (AccountButton.avatar + reach.top + reach.bottom)) < 0.5, "a folder pill's reach around the photo: \(account.height)")
-        // The AI's line is one of these rows too (Emil, 8 November 2026: it sat further in, bolder).
-        for id in ["sidebar.ai", "sidebar.templates", "sidebar.connectAI", "sidebar.import"] {
+        for id in ["sidebar.templates", "sidebar.connectAI", "sidebar.import"] {
             let r = try #require(FootProbe.frames[id], "\(id) is in the window")
             #expect(abs(r.minX - account.minX) < 0.5 && abs(r.maxX - account.maxX) < 0.5, "\(id)'s pill \(r) spans the account's \(account)")
             #expect(abs(r.minX + reach.leading - row.minX) < 0.5, "\(id)'s icon starts where the folder icon does: \(r.minX + reach.leading) against \(row.minX)")

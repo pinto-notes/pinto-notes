@@ -75,18 +75,17 @@ enum SidebarAICopy {
 }
 
 #if os(macOS)
-/// The sidebar's foot on the Mac: the AI's mark and its last change, opening AI Changes; with
-/// none yet, which AIs are connected; nothing with neither. Until now nothing in the notes window said an AI was
-/// connected or what it last did (council rounds 6 and 7).
+/// The first row of the sidebar's foot on the Mac, for a week after an AI changed something: its
+/// mark, what it did and when, opening AI Changes. Nothing otherwise (council rounds 6 and 7 asked
+/// for the window to say what an AI last did; Emil, 8 November 2026, cut "X connected").
 struct SidebarAILine: View {
-    /// Some folder has sub-folders: the rows below move right for the arrows, and so does this.
-    var nested = false
     @Environment(\.modelContext) private var context
     @Environment(\.appearsActive) private var appearsActive
     @State private var last: AIChange?
 
     var body: some View {
-        Group {
+        // A stack, not a Group: with no row it is still there, so the task below still runs.
+        VStack(spacing: 0) {
             if let last, SidebarAICopy.showsChange(last, connected: ConnectedAIs.shared.knownNames) {
                 let title = Self.title(last, context: context)
                 row(ai: last.ai, line: SidebarAICopy.line(last, title: title), label: SidebarAICopy.accessibility(last, title: title)) {
@@ -94,11 +93,9 @@ struct SidebarAILine: View {
                         Text(SidebarAICopy.when(last.at, now: t.date))
                     }
                 }
-            } else if let line = SidebarAICopy.connected(ConnectedAIs.shared.connections.map(\.name)) {
-                // Connected, nothing changed this week: one line, the AI's name, no "No changes yet"
-                // under it (Emil, 8 November 2026: the foot "doesn't look or feel great").
-                row(ai: ConnectedAIs.shared.connections[0].name, line: line, label: line) { EmptyView() }
             }
+            // Nothing for an AI that's only connected: "Grok connected" read as a notification and
+            // said less than Connect an AI under it (Emil, 8 November 2026). Only what one did.
         }
         // Fresh each time the window comes forward, the moment an AI edit lands (its receipt and
         // this line agree; council round 8: up to 3 minutes apart), and every few minutes.
@@ -116,8 +113,7 @@ struct SidebarAILine: View {
     /// their icons' column, its words on their names' line at their size, the same pill under the
     /// pointer; a second line only for a change.
     private func row<Under: View>(ai: String, line: String, label: String, @ViewBuilder under: () -> Under) -> some View {
-        let pill = SidebarStyle.rowPill(nested: nested)
-        return Button { AIChangesCenter.shared.show() } label: {
+        Button { AIChangesCenter.shared.show() } label: {
             Label {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(line)
@@ -143,9 +139,6 @@ struct SidebarAILine: View {
         .accessibilityLabel(label)
         .accessibilityHint(SidebarAICopy.hint)
         .accessibilityIdentifier("sidebar.aiLine")
-        .padding(.leading, pill.leading)
-        .padding(.trailing, pill.trailing)
-        .padding(.bottom, 4)
     }
 
     private struct Refresh: Equatable { var active: Bool; var latest: Date? }

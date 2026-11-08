@@ -88,7 +88,9 @@ struct SidebarFoot: View {
     var body: some View {
         let pill = SidebarStyle.rowPill(nested: nested)
         VStack(alignment: .leading, spacing: SidebarStyle.pillGap) {
-            if rows { SidebarStudyRows(imports: imports) }
+            // What an AI last did, as the first row: in the foot itself, not a bar of its own over the
+            // folders, whose edge showed a line on hover (Emil, 8 November 2026).
+            if rows { SidebarAILine(); SidebarStudyRows(imports: imports) }
             AccountButton(backend: backend)
         }
         .padding(.leading, pill.leading)
