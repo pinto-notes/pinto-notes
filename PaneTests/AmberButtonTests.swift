@@ -140,6 +140,15 @@ import Testing
         #expect(Self.contrast(Palette.rgb(accent.ink.0), Palette.rgb(accent.soft)) >= 4.5, "\(name): accent text on its soft fill")
     }
 
+    /// Primary and secondary labels share one weight, semibold: the primary in bold read as an
+    /// iPhone button on the Mac (council, 8 November 2026).
+    @Test func buttonLabelsAreSemibold() throws {
+        let source = try SettingsHomeTests.source("Pane/Views/DesignSystem.swift")
+        #expect(source.contains(".font(.system(size: textSize, weight: .semibold))"), "the primary's label")
+        #expect(source.contains(".font(.system(size: size.textSize, weight: .semibold))"), "the secondary's label")
+        #expect(!source.contains("textSize, weight: .bold)"))
+    }
+
     /// The system's controls take the AccentColor asset; it holds the same two colours as `Palette.accent`.
     @Test func theAccentColorAssetMatchesThePalette() throws {
         // AccentColor, or the build's own AccentColorLocal (scripts/set-accent.sh), as the build names it.

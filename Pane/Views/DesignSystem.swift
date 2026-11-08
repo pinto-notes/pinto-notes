@@ -204,7 +204,8 @@ private struct AmberProminentButton: View {
             : ink ? Palette.inkButton : AmberProminentButtonStyle.fill
         let label = ink && !off ? Palette.inkButtonLabel : off ? AmberProminentButtonStyle.disabledLabel : labelColor
         return configuration.label
-            .font(.system(size: textSize, weight: .bold))
+            // Semibold, as the secondary button is: bold read as an iPhone button (council, 8 November 2026).
+            .font(.system(size: textSize, weight: .semibold))
             .foregroundStyle(Color(label))
             .lineLimit(wraps ? 3 : twoLines ? 2 : 1)
             .multilineTextAlignment(.center)
