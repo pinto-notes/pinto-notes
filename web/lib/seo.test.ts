@@ -77,7 +77,7 @@ describe("search and AI crawlers", () => {
     const txt = llmsTxt();
     expect(txt.startsWith(`# Pinto Notes\n\n> ${WHAT_IT_IS}`)).toBe(true);
     expect(txt).toContain(MCP_URL);
-    expect(txt).toContain("Incredible");
+    expect(txt).not.toMatch(/incredible/i);
     expect(txt).toContain("https://emilwagman.com");
     for (const p of posts) expect(txt.includes(`/blog/${p.slug})`)).toBe(!p.draft);
     expect(llmsFullTxt()).toContain("`edit` (destructive)");

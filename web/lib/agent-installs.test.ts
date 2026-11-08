@@ -31,12 +31,6 @@ describe("installs for AI tools", () => {
     expect(AGENT_INSTALLS.find((x) => x.tool === "Claude Code")!.signIn).toContain(`pick ${PLUGIN_SERVER_NAME}`);
   });
 
-  it("Incredible, which has no command, gives steps and the address for older versions", () => {
-    const x = AGENT_INSTALLS.find((x) => x.tool === "Incredible")!;
-    expect(x.steps?.[0]).toBe("Open Apps and search for notes.");
-    expect(x.signIn).toContain(MCP_URL);
-  });
-
   it("VS Code's command carries the server as JSON", () => {
     const code = AGENT_INSTALLS.find((x) => x.tool === "VS Code")!.code!;
     expect(JSON.parse(code.slice(code.indexOf("'") + 1, code.lastIndexOf("'")))).toEqual({ name: "pinto-notes", type: "http", url: MCP_URL });

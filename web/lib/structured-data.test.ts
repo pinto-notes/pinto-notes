@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { FAQ } from "../app/help/questions";
 import { APP_STORE_LIVE } from "./site";
-import { app, article, breadcrumbs, faqPage, homePage, incredible, maker, organization, website } from "./structured-data";
+import { app, article, breadcrumbs, faqPage, homePage, maker, organization, website } from "./structured-data";
 
 // The rules schema.org and Google's rich result docs set for these types, checked on what the pages emit.
 describe("structured data", () => {
@@ -69,9 +69,8 @@ describe("structured data", () => {
     });
   });
 
-  it("says the maker works at Incredible", () => {
-    expect(incredible).toMatchObject({ "@type": "Organization", name: "Incredible", url: "https://incredible.one" });
-    expect(maker.worksFor).toEqual({ "@id": incredible["@id"] });
+  it("names no employer for the maker", () => {
+    expect(maker.worksFor).toBeUndefined();
   });
 
   it("numbers breadcrumbs from 1, with full URLs", () => {

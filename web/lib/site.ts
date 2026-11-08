@@ -20,7 +20,6 @@ export const LINKEDIN_URL = "https://www.linkedin.com/in/emil-wagman-52a907287/"
 export const MAKER_URL = "https://emilwagman.com";
 export const MAKER_GITHUB = "https://github.com/emilwagman";
 /// The maker's company, and its AI assistant, which can use Pinto Notes like any MCP client.
-export const INCREDIBLE_URL = "https://incredible.one";
 
 // The iPhone app. Flipping this shows the App Store button and turns on Safari's Smart App Banner.
 export const APP_STORE_LIVE = true;

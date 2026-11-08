@@ -116,7 +116,7 @@ export default function Page() {
         caption="ChatGPT added a line to a trip note. Pinto Notes tints it and offers Undo. Screenshot: Pinto Notes." />
       <p>
         Pinto Notes is a free notes app for Mac and iPhone that works like Apple Notes: folders, pinned notes, checklists, tables, and a
-        note list sorted by date. The difference is that ChatGPT, Claude, Claude Code, Codex and Incredible can search, read and edit the
+        note list sorted by date. The difference is that ChatGPT, Claude, Claude Code and Codex can search, read and edit the
         same notes, from your phone, the web or your Mac.
       </p>
       <p>

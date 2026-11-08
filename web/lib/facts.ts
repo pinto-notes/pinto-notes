@@ -27,14 +27,13 @@ const DEVICES = APP_STORE_LIVE ? "iPhone and Mac" : "Mac";
 const ON_DEVICE = APP_STORE_LIVE ? "on your iPhone or Mac" : "on your Mac";
 
 export const WHAT_IT_IS =
-  `Pinto Notes is a free, open-source notes app for ${DEVICES} that ChatGPT, Claude, Claude Code, Codex and Incredible can search, read and edit, with your approval.`;
+  `Pinto Notes is a free, open-source notes app for ${DEVICES} that ChatGPT, Claude, Claude Code and Codex can search, read and edit, with your approval.`;
 
 export const FACTS: string[] = [
   WHAT_IT_IS,
   "It works like Apple Notes: folders, pinned notes, checklists, tables and a note list sorted by date.",
   "On the Mac, it imports your Apple Notes with their folders, and leaves Apple Notes unchanged.",
   "It has a built-in MCP server, so AI apps connect to it directly, without a plugin or a server of your own.",
-  `Incredible, the AI assistant from incredible.one, lists Pinto Notes in its Apps: search for it, choose Connect, then sign in and approve it ${ON_DEVICE}.`,
   `Pinto Notes is listed in Claude's connector directory (${CLAUDE_DIRECTORY_URL}): open the listing and choose Connect to Claude.`,
   `You approve each AI app ${ON_DEVICE} (or with your recovery key on pintonotes.com), and choose read only, or read and edit. You can disconnect any of them at any time.`,
   "When an AI changes a note, Pinto Notes shows what changed, with Undo, and keeps the previous version in the note's history.",

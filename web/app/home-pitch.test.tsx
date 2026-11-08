@@ -13,7 +13,7 @@ describe("the home page", () => {
 
   it("leads with the shared notebook, and names every AI that connects", () => {
     expect(page).toContain("The notebook you and your AI share.");
-    for (const ai of ["ChatGPT", "Claude", "Claude Code", "Codex", "Incredible"]) expect(page, ai).toContain(ai);
+    for (const ai of ["ChatGPT", "Claude", "Claude Code", "Codex"]) expect(page, ai).toContain(ai);
   });
 
   it("has one h1, and its structured data", () => {
