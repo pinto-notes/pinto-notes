@@ -9,7 +9,7 @@ export default function Page() {
   return (
     <PostPage
       slug="import-your-notes"
-      intro={<>Pinto Notes on the Mac now imports your notes from Apple Notes, Obsidian, Evernote, Google Keep, Bear and Markdown. Moving notes apps usually means a weekend of exporting, unzipping and fixing. Here it takes a few minutes, and the app walks you through every step for the app you&apos;re leaving.</>}
+      intro={<>Moving notes apps usually means a weekend of exporting, unzipping and fixing. In Pinto Notes on the Mac it takes a few minutes, and the app walks you through every step for the app you&apos;re leaving.</>}
     >
       <h2>Pick where your notes are</h2>
       <p>

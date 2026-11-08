@@ -111,3 +111,11 @@ describe("the site's controls", () => {
     for (const f of ["connect/page.tsx", "open/connect/page.tsx"]) expect(css(f), f).toContain('href="/open/connect-ai"');
   });
 });
+
+describe("launch post header", () => {
+  it("keeps the intro under the title narrow and evenly wrapped, so centred lines don't look ragged", () => {
+    const deck = rule(css("../lib/launch.module.css"), ".deck");
+    expect(deck).toMatch(/text-wrap: balance/);
+    expect(Number(deck.match(/max-width: (\d+)em/)?.[1])).toBeLessThanOrEqual(30);
+  });
+});
