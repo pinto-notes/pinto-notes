@@ -3,13 +3,13 @@ import { PostFigure } from "@/lib/PostParts";
 import { APP_STORE_URL } from "@/lib/site";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("import-your-notes", { title: "Bring your notes from anywhere to Pinto Notes" });
+export const metadata = postMetadata("import-your-notes", { title: "Pinto Notes now imports from Apple Notes, Obsidian and more" });
 
 export default function Page() {
   return (
     <PostPage
       slug="import-your-notes"
-      intro={<>Moving notes apps usually means a weekend of exporting, unzipping and fixing. In Pinto Notes it takes a few minutes, and the app walks you through every step for the app you&apos;re leaving.</>}
+      intro={<>Pinto Notes on the Mac now imports your notes from Apple Notes, Obsidian, Evernote, Google Keep, Bear and Markdown. Moving notes apps usually means a weekend of exporting, unzipping and fixing. Here it takes a few minutes, and the app walks you through every step for the app you&apos;re leaving.</>}
       hero={
         <PostFigure src="/blog/launch/import-google-keep-guide" width={1600} height={1000} priority
           alt="Pinto Notes' Google Keep import on a Mac: Bring your Google Keep notes, then step 1 of 3, Ask Google for your notes, with a picture of the Next step button."

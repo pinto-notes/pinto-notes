@@ -91,7 +91,7 @@ export const posts: Post[] = [
   },
   {
     slug: "import-your-notes",
-    title: "Bring your notes from anywhere",
+    title: "Pinto Notes now imports from Apple Notes, Obsidian and more",
     description: "Pinto Notes on the Mac imports from Apple Notes, Obsidian, Evernote, Google Keep, Bear and Markdown, and shows you what to click in each app.",
     excerpt: "Apple Notes, Obsidian, Evernote, Google Keep, Bear or a folder of Markdown. The app walks you through each one, and your old app stays as it is.",
     category: "Building Pinto Notes",

@@ -67,28 +67,22 @@
 .grid > li { display: grid; width: calc((100% - (var(--cols) - 1) * 28px) / var(--cols)); }
 
 
-/* The front of the blog: the announcements as a compact list, newest first, several to a screen. */
-.rows { list-style: none; margin: 0; padding: 0; display: grid; max-width: 980px; }
-.rows > li { display: grid; border-top: 1px solid var(--line); }
-.rows > li:last-child { border-bottom: 1px solid var(--line); }
-.row {
-  display: grid; grid-template-columns: 220px minmax(0, 1fr); align-items: center; gap: 28px; padding: 20px 12px; margin-inline: -12px;
-  border-radius: 18px; color: var(--ink); text-decoration: none;
-}
-@media (max-width: 640px) { .row { grid-template-columns: 112px minmax(0, 1fr); gap: 16px; padding: 16px 8px; margin-inline: -8px; align-items: start; } }
-.rowArt { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 12px; }
-.rowText { display: grid; gap: 8px; justify-items: start; }
-.rowTitle { margin: 0; font-size: clamp(20px, 2vw, 25px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
-.rowExcerpt { color: var(--muted); font-size: 16px; line-height: 1.45; text-wrap: pretty; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-@media (max-width: 640px) {
-  .rowExcerpt { display: none; }
-  /* On phones the row keeps only the date under the title: the name and photo wrapped onto two lines. */
-  .row .featuredBy > :not(time) { display: none; }
-}
+/* The front of the blog: one narrow column, the title over the posts, each launch with its cover on
+   top, newest first (Emil, 8 November 2026: "less wide"). */
+.front { max-width: 720px; margin-inline: auto; width: 100%; }
+.front .heroText, .front .heroFit { max-width: none; }
+.rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 56px; }
+@media (max-width: 640px) { .rows { gap: 40px; } }
+.rows > li { display: grid; }
+.row { display: grid; gap: 18px; color: var(--ink); text-decoration: none; border-radius: 18px; }
+.rowArt { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 16px; }
+.rowText { display: grid; gap: 10px; justify-items: start; }
+.rowTitle { margin: 0; font-size: clamp(24px, 3vw, 32px); line-height: 1.12; font-weight: 800; letter-spacing: -0.025em; text-wrap: balance; }
+.rowExcerpt { color: var(--muted); font-size: 17px; line-height: 1.5; text-wrap: pretty; }
 .row .featuredBy { white-space: nowrap; }
-@media (hover: hover) { .row:hover { background: var(--soft); } }
-.row:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
-@media (prefers-reduced-motion: no-preference) { .row { transition: background-color 0.15s ease-out; } }
+@media (hover: hover) { .row:hover .rowTitle { color: var(--amber); } .row:hover .rowArt { filter: brightness(1.03); } }
+.row:focus-visible { outline: 2px solid var(--amber); outline-offset: 6px; }
+@media (prefers-reduced-motion: no-preference) { .rowTitle, .rowArt { transition: color 0.15s ease-out, filter 0.15s ease-out; } }
 
 /* The newest post leads the first page: one wide card, its category's paper-cut cover on the left. */
 .grid > .featuredItem { width: 100%; }

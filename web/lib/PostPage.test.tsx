@@ -84,13 +84,13 @@ describe("an announcement", () => {
     expect(doc(<Post />).querySelector("header")!.textContent).not.toContain("Announcement");
   });
 
-  it("carries the label on its card and on the blog's lead card", () => {
+  it("carries the label on its card, but not on the front of the blog, where every post is one", () => {
     for (const x of posts.filter((p) => !p.draft)) {
       expect(html(<PostCard post={x} />).includes(">Announcement<"), x.slug).toBe(Boolean(x.announcement));
     }
     expect(posts.filter((p) => p.announcement).map((p) => p.slug)).toEqual(["pinto-notes-for-iphone", "import-your-notes"]);
     const index = new DOMParser().parseFromString(html(<BlogIndex category={null} page={1} />), "text/html");
-    expect(index.body.textContent).toContain("Announcement");
+    expect(index.body.textContent).not.toContain("Announcement");
   });
 
   it("dates each announcement on the day its feature shipped, never two on one day", () => {
