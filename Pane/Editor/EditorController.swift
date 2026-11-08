@@ -93,6 +93,9 @@ final class EditorController {
     /// Images already asked for while this note is open: each is tried once, like a tap. One
     /// that fails stays a placeholder until it's tapped or the note is opened again.
     @ObservationIgnored private var imagesTried: Set<UUID> = []
+    /// The picture being fetched as the note opened, if one is: its place shows a spinner, not
+    /// an empty frame that might stay empty.
+    private(set) var fetchingImage: UUID?
     @ObservationIgnored private var imagesFor: UUID?
     /// Whether a file's bytes are on this device (tests answer for themselves).
     @ObservationIgnored var isLocal: (Attachment) -> Bool = { FileStore.exists($0) }
@@ -124,7 +127,9 @@ final class EditorController {
             guard !Task.isCancelled else { return }
             imagesTried.insert(a.id)
             // Each shows as it arrives.
+            fetchingImage = a.id
             let ok = await download(a)
+            fetchingImage = nil
             Self.log.notice("note image: \(ok ? "fetched" : Task.isCancelled ? "left before it arrived" : "fetch failed", privacy: .public)")
             if ok {
                 imagesArrived += 1
@@ -139,6 +144,8 @@ final class EditorController {
         guard let a = resolveAttachment(id) else { Self.log.notice("open file: this device has no row for it"); return }
         let url = FileStore.url(for: a.id, filename: a.filename)
         if FileStore.exists(a) { Self.log.notice("open file: here already"); previewURL = url; return }
+        // Already on its way (a double-click, a second click while it comes): one fetch.
+        guard !downloading.contains(id) else { return }
         Self.log.notice("open file: fetching (\(a.isImage ? "image" : "file", privacy: .public))")
         downloading.insert(id)
         Task {
@@ -195,20 +202,40 @@ final class EditorController {
     /// Inserts whole lines (embeds, links) at the caret, each on its own line.
     func insertLines(_ lines: [String]) {
         guard !lines.isEmpty else { return }
-        perform { text, sel in
-            let ns = text as NSString
-            let line = ns.lineRange(for: NSRange(location: min(sel.location, ns.length), length: 0))
-            let lineText = ns.substring(with: line).trimmingCharacters(in: .whitespacesAndNewlines)
-            let block = lines.joined(separator: "\n")
-            if lineText.isEmpty {
-                let body = block + "\n"
-                return TextEdit(range: NSRange(location: line.location, length: line.length), replacement: body + (NSMaxRange(line) < ns.length && !ns.substring(with: line).hasSuffix("\n") ? "\n" : ""), caret: line.location + (body as NSString).length)
-            }
-            let at = NSMaxRange(line)
-            let lead = ns.substring(with: line).hasSuffix("\n") ? "" : "\n"
-            let body = lead + block + "\n"
-            return TextEdit(range: NSRange(location: at, length: 0), replacement: body, caret: at + (body as NSString).length)
+        perform { text, sel in Self.linesEdit(lines, in: text, selection: sel) }
+    }
+
+    /// The edit that puts `lines` in at the selection: what's selected goes, as a paste replaces
+    /// it in Notes, and the lines go on lines of their own after the caret's line (or in place of
+    /// it, when it's empty).
+    nonisolated static func linesEdit(_ lines: [String], in text: String, selection sel: NSRange) -> TextEdit? {
+        let full = text as NSString
+        let sel = NSRange(location: min(sel.location, full.length), length: min(sel.length, full.length - min(sel.location, full.length)))
+        guard sel.length > 0 else { return linesEdit(lines, in: text, caret: sel.location) }
+        // Worked out on the text without the selection, then written as one edit of the original.
+        let cleared = full.replacingCharacters(in: sel, with: "")
+        guard let e = linesEdit(lines, in: cleared, caret: sel.location) else { return nil }
+        let start = min(e.range.location, sel.location)
+        let end = max(NSMaxRange(e.range), sel.location)
+        let c = cleared as NSString
+        let replacement = c.substring(with: NSRange(location: start, length: e.range.location - start)) + e.replacement
+            + c.substring(with: NSRange(location: NSMaxRange(e.range), length: end - NSMaxRange(e.range)))
+        return TextEdit(range: NSRange(location: start, length: end + sel.length - start), replacement: replacement, caret: e.caret)
+    }
+
+    private nonisolated static func linesEdit(_ lines: [String], in text: String, caret: Int) -> TextEdit? {
+        let ns = text as NSString
+        let line = ns.lineRange(for: NSRange(location: min(caret, ns.length), length: 0))
+        let lineText = ns.substring(with: line).trimmingCharacters(in: .whitespacesAndNewlines)
+        let block = lines.joined(separator: "\n")
+        if lineText.isEmpty {
+            let body = block + "\n"
+            return TextEdit(range: NSRange(location: line.location, length: line.length), replacement: body + (NSMaxRange(line) < ns.length && !ns.substring(with: line).hasSuffix("\n") ? "\n" : ""), caret: line.location + (body as NSString).length)
         }
+        let at = NSMaxRange(line)
+        let lead = ns.substring(with: line).hasSuffix("\n") ? "" : "\n"
+        let body = lead + block + "\n"
+        return TextEdit(range: NSRange(location: at, length: 0), replacement: body, caret: at + (body as NSString).length)
     }
 
     /// The table cell being edited, if one is: editing commands act on it instead of the note.

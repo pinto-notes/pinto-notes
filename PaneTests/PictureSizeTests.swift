@@ -40,6 +40,26 @@ import Testing
         }
     }
 
+    /// A picture not on this device yet keeps a place the size it's set to: a cover is the same
+    /// banner before and after, and a small one is small, so nothing jumps sideways or by a
+    /// window's height when it arrives (Emil, 8 November 2026: "the whole note moves").
+    @Test func aPictureOnItsWayKeepsItsPlace() {
+        func unknown(_ label: String) -> LineEmbed {
+            LineEmbed(kind: .image(UUID(), name: label), range: NSRange(location: 0, length: 1), index: 0)
+        }
+        box(800, 1000) {
+            let waiting = ImageSizes.size(for: unknown("Porch.jpg|cover"))
+            let arrived = ImageSizes.size(for: picture("Porch.jpg|cover", aspect: 4 / 3, natural: 4032))
+            #expect(waiting == arrived, "a cover doesn't change: \(waiting) then \(arrived)")
+            let small = ImageSizes.size(for: unknown("Porch.jpg|small"))
+            #expect(small.width == 260 && small.height <= 260, "a small one waits small: \(small)")
+            let fit = ImageSizes.size(for: unknown("Porch.jpg"))
+            let photo = ImageSizes.size(for: picture("Porch.jpg", aspect: 4 / 3, natural: 4032))
+            #expect(fit.width == photo.width, "as wide as a photo will be: \(fit)")
+            #expect(abs(fit.height - photo.height) < photo.height * 0.15, "and about as high: \(fit), a photo \(photo)")
+        }
+    }
+
     @Test func theLabelHoldsTheSize() {
         #expect(ImageSizes.label("Porch.jpg|small").name == "Porch.jpg")
         #expect(ImageSizes.label("Porch.jpg|cover").size == .cover)
