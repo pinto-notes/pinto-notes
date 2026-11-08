@@ -748,7 +748,7 @@ struct GeneralSettingsPage: View {
         SettingsPageForm {
             Section {
                 SoftwareUpdateRow()
-                Link(destination: WhatsNew.changelogURL) { SettingsLinkRow(title: WhatsNew.title, symbol: "sparkles.rectangle.stack") }
+                Link(destination: WhatsNew.changelogURL) { SettingsLinkRow(title: WhatsNew.row, symbol: "sparkles.rectangle.stack") }
                     .settingsRowLink()
                     .accessibilityIdentifier("settings.whatsNew")
             }
@@ -814,7 +814,7 @@ struct SoftwareUpdateRow: View {
             Text(AboutSection.version).monospacedDigit().textSelection(.enabled)
         } label: {
             Text("Pinto Notes")
-            Text(GeneralCopy.updatesFromAppStore)
+            Text(GeneralCopy.updatesLine(TelemetryGate.channel))
         }
         .accessibilityIdentifier("settings.softwareUpdate")
         #endif
@@ -834,13 +834,13 @@ struct TodaysNoteSettingsPage: View {
         let choices = GeneralChoices(context: context)
         SettingsPageForm {
             Section {
-                Picker("Folder", selection: $folder) { ForEach(choices.folders(keeping: folder), id: \.self) { Text($0).tag($0) } }
+                Picker("Folder", selection: $folder) { ForEach(choices.folders(keeping: folder), id: \.self) { Label($0, systemImage: "folder").tag($0) } }
                     .accessibilityIdentifier("settings.today.folder")
                 Picker("Title", selection: $title) { ForEach(TodaysNoteSettings.Title.allCases) { Text(GeneralChoices.example($0)).tag($0) } }
                     .accessibilityIdentifier("settings.today.title")
                 Picker("Template", selection: $template) {
                     Text("None").tag("")
-                    ForEach(choices.templates(keeping: template), id: \.id) { Text($0.title).tag($0.id.uuidString) }
+                    ForEach(choices.templates(keeping: template), id: \.id) { Label($0.title, systemImage: "doc.text").tag($0.id.uuidString) }
                 }
                 .accessibilityIdentifier("settings.today.template")
             } footer: {
@@ -861,18 +861,37 @@ struct ShortcutRecorder: View {
     @State private var monitor: Any?
 
     var body: some View {
-        Button { recording ? stop() : start() } label: {
-            Text(recording ? GeneralCopy.typeShortcut : shortcut?.display ?? GeneralCopy.record)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(shortcut == nil && !recording ? SettingsInk.muted : SettingsInk.text)
-                .padding(.horizontal, 8).frame(height: 22)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(SettingsInk.selection))
-                .overlay { if recording { RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(SettingsInk.text.opacity(0.5), lineWidth: 1) } }
+        HStack(spacing: 6) {
+            if recording {
+                // Listening, it reads as a field waiting for keys, with Cancel beside it (Emil,
+                // 8 November 2026: it looked like another button, with no way out but Escape).
+                Text(GeneralCopy.typeShortcut)
+                    .font(.system(size: 12))
+                    .foregroundStyle(SettingsInk.muted)
+                    .padding(.horizontal, 8).frame(minWidth: 120, minHeight: 22, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(SettingsInk.ground))
+                    .overlay { RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color(PColor.paneAccent), lineWidth: 1.5) }
+                    .accessibilityLabel(GeneralCopy.shortcut)
+                    .accessibilityValue(GeneralCopy.typeShortcut)
+                    .accessibilityIdentifier("settings.quickNoteShortcut")
+                Button(GeneralCopy.cancelRecording) { stop() }
+                    .controlSize(.small)
+                    .accessibilityIdentifier("settings.quickNoteShortcut.cancel")
+            } else {
+                // A button in full ink, never greyed: greyed reads as off (Emil, 8 November 2026).
+                Button { start() } label: {
+                    Text(shortcut?.display ?? GeneralCopy.record)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(SettingsInk.text)
+                        .padding(.horizontal, 8).frame(height: 22)
+                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(SettingsInk.selection))
+                }
+                .buttonStyle(.tile(radius: 6))
+                .accessibilityLabel(GeneralCopy.shortcut)
+                .accessibilityValue(shortcut?.display ?? "None")
+                .accessibilityIdentifier("settings.quickNoteShortcut")
+            }
         }
-        .buttonStyle(.tile(radius: 6))
-        .accessibilityLabel(GeneralCopy.shortcut)
-        .accessibilityValue(shortcut?.display ?? "None")
-        .accessibilityIdentifier("settings.quickNoteShortcut")
         .onDisappear { stop() }
     }
 
@@ -956,12 +975,19 @@ struct HelpSettingsPage: View {
             #endif
             OpenSection {
                 VStack(alignment: .leading, spacing: 10) {
+                    #if os(macOS)
+                    // AppKit's label, so each link shows the hand and underlines under the pointer
+                    // (Emil, 8 November 2026: SwiftUI's links inside a sentence had no hover).
+                    LinkLabel(text: HelpCopy.openSourceLine, style: .settings)
+                        .accessibilityIdentifier("settings.github")
+                    #else
                     Text(HelpCopy.openSourceLine)
                         .font(.callout)
                         .foregroundStyle(Color.muted)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("settings.github")
-                    LegalLinksRow()
+                    #endif
+                    LegalLinksRow(alignment: .leading)
                     #if os(iOS)
                     // The import list shows these apps' own icons; on the Mac this is About's credits.
                     Text(HelpCopy.trademarks)
@@ -1059,9 +1085,15 @@ struct AppearanceSettingsPage: View {
     static let modeHeight: CGFloat = 92
     #endif
 
-    /// Three across for the modes, two for the theme cards, as T3 Code lays its themes out.
+    /// Three across for the modes. On the Mac the six themes go three across too, so a theme card
+    /// is as wide as a mode's (Emil, 8 November 2026: modes smaller than themes "feels a bit
+    /// unbalanced"); the iPhone's narrower page keeps two.
     static let modeColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    #if os(macOS)
+    static let themeColumns = modeColumns
+    #else
     static let themeColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 2)
+    #endif
 
     var body: some View {
         let look = ThemeStore.shared.look
@@ -1343,16 +1375,18 @@ struct ThemeCard: View {
     @State private var hover = false
 
     #if os(macOS)
-    static let swatch: CGFloat = 62
+    static let swatch: CGFloat = 50
+    static let swatchGap: CGFloat = 10
     #else
     static let swatch: CGFloat = 56
+    static let swatchGap: CGFloat = 16
     #endif
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         Button(action: pick) {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 16) {
+                HStack(spacing: ThemeCard.swatchGap) {
                     ThemeSwatch(theme: theme, dark: false)
                     ThemeSwatch(theme: theme, dark: true)
                 }
@@ -1901,6 +1935,7 @@ struct SettingsSubPageRow: View {
         #if os(macOS)
         Button { openPage?(page) } label: { label }
             .settingsRowLink(edge)
+            .opensOnPress { openPage?(page) }
             .accessibilityIdentifier(id)
         #else
         NavigationLink(value: page) { label }

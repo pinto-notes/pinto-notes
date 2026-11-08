@@ -171,10 +171,18 @@ import Testing
         }
         #expect(!underlined(terms), "no underline at rest")
 
+        func drawn() -> Data? {
+            guard let rep = label.bitmapImageRepForCachingDisplay(in: label.bounds) else { return nil }
+            label.cacheDisplay(in: label.bounds, to: rep)
+            return rep.representation(using: .png, properties: [:])
+        }
+        let atRest = drawn()
         let glyphs = layout.glyphRange(forCharacterRange: terms, actualCharacterRange: nil)
         let rect = layout.boundingRect(forGlyphRange: glyphs, in: container)
         label.hover(at: NSPoint(x: rect.midX + label.textContainerOrigin.x, y: rect.midY + label.textContainerOrigin.y))
         #expect(label.hovered == terms)
+        // Drawn, not only set (Emil, 8 November 2026: the underline never showed).
+        #expect(drawn() != atRest, "the hovered link looks different on screen")
         #expect(underlined(terms), "underlined under the pointer")
         let privacy = (storage.string as NSString).range(of: "Privacy Policy")
         #expect(!underlined(privacy), "only the link under the pointer")

@@ -8,6 +8,8 @@ import Observation
 enum WhatsNew {
     static let changelogURL = URL(string: "https://pintonotes.com/changelog")!
     static let title = "What\u{2019}s New"
+    /// In Settings, sentence case like every other row there; the Help menu keeps Title Case.
+    static let row = "What\u{2019}s new"
 }
 
 /// Which page Settings shows. Links, cards and the storage warning open Settings at a page (the

@@ -264,6 +264,9 @@ enum GeneralCopy {
     static let updatesOnTheirOwn = "Updates install on their own when you quit."
     static let updateReadyDetail = "It installs when you quit, or now."
     static let updatesFromAppStore = "Updates come from the App Store."
+    static let updatesWithInstall = "A development build: it updates when a new one is installed."
+    /// Where updates come from, said truthfully: a build installed by hand isn't updated by the App Store.
+    static func updatesLine(_ channel: BuildChannel) -> String { channel == .release ? updatesFromAppStore : updatesWithInstall }
     static let checklists = "Checklists"
     static let ticked = "Ticked items move to the bottom"
     static let thisMac = "This Mac"
@@ -271,6 +274,7 @@ enum GeneralCopy {
     static let shortcutDetail = "Works in any app."
     static let record = "Record Shortcut"
     static let typeShortcut = "Type a shortcut\u{2026}"
+    static let cancelRecording = "Cancel"
     static let login = "Open at login"
 }
 

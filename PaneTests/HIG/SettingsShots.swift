@@ -205,5 +205,72 @@ import Testing
         }
         try ThemeShots.sheet("Settings, four pages", rows: rows, scale: 0.5).write(to: dir.appending(path: "sheet.png"))
     }
+
+    private func scrollViews(in view: NSView) -> [NSScrollView] {
+        view.subviews.flatMap { sub -> [NSScrollView] in (sub as? NSScrollView).map { [$0] } ?? [] + scrollViews(in: sub) }
+    }
+
+    private func draw(_ view: NSView) throws -> NSBitmapImageRep {
+        view.layoutSubtreeIfNeeded()
+        let rep = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        view.cacheDisplay(in: view.bounds, to: rep)
+        return rep
+    }
+
+    @Test func aScrolledPageNeverDrawsOverTheTitle() async throws {
+        let lib = try SidebarStudySnapshots.library()
+        let fixture = try await AppSnapshotTests.settingsFixture()
+        let crypto = await AddDeviceSnapshots.readyWithCopy()
+        defer { crypto.signedOut() }
+        var v = SettingsView(backend: fixture.backend, sync: nil, crypto: crypto, devices: AddDeviceSnapshots.devices([]), connections: [],
+                             route: SettingsRoute(defaults: UserDefaults(suiteName: "settings-scroll-\(UUID())")!))
+        v.start = .appearance
+        v.close = {}
+        let size = CGSize(width: SettingsWindow.size.width, height: 420) // short, so Appearance has to scroll
+        let w = NSWindow(contentRect: NSRect(origin: CGPoint(x: -20000, y: -20000), size: size),
+                         styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+        w.titlebarAppearsTransparent = true
+        w.titleVisibility = .hidden
+        w.isReleasedWhenClosed = false
+        w.appearance = NSAppearance(named: .darkAqua)
+        w.contentViewController = NSHostingController(rootView: v.environment(\.settingsInWindow, true).modelContainer(lib))
+        w.setContentSize(size)
+        w.setFrameOrigin(CGPoint(x: -20000, y: -20000))
+        defer { w.close() }
+        try? await Task.sleep(for: .seconds(1.4))
+        let content = try #require(w.contentView)
+        let before = try draw(content)
+
+        let page = try #require(scrollViews(in: content).max { ($0.documentView?.frame.height ?? 0) < ($1.documentView?.frame.height ?? 0) })
+        let doc = try #require(page.documentView)
+        #expect(doc.frame.height > page.contentView.bounds.height + 100, "Appearance should be taller than the short window")
+        page.contentView.scroll(to: NSPoint(x: 0, y: doc.isFlipped ? 220 : doc.frame.height - page.contentView.bounds.height - 220))
+        page.reflectScrolledClipView(page.contentView)
+        try? await Task.sleep(for: .seconds(0.5))
+        let after = try draw(content)
+
+        // The header band right of the sidebar: the arrows and the page title.
+        let scale = CGFloat(before.pixelsWide) / content.bounds.width
+        var changed = 0, total = 0
+        for y in stride(from: 0, to: Int(44 * scale), by: 2) {
+            for x in stride(from: Int((SettingsCard.sidebarWidth + 8) * scale), to: before.pixelsWide - 4, by: 3) {
+                total += 1
+                guard let a = before.colorAt(x: x, y: y), let b = after.colorAt(x: x, y: y) else { continue }
+                if abs(a.redComponent - b.redComponent) + abs(a.greenComponent - b.greenComponent) + abs(a.blueComponent - b.blueComponent) > 0.06 { changed += 1 }
+            }
+        }
+        #expect(changed == 0, "\(changed) of \(total) header pixels changed when the page scrolled")
+
+        // And it lies under the arrows for clicks too: the page's scroll view used to reach over
+        // them, so Back and Forward took no clicks (Emil, 8 November 2026: "I cant click").
+        let y = content.isFlipped ? SettingsWindow.headerTop + 14 : content.bounds.height - SettingsWindow.headerTop - 14
+        for x in stride(from: SettingsCard.sidebarWidth + 10, to: SettingsCard.sidebarWidth + 160, by: 10) {
+            var hit = content.hitTest(content.convert(NSPoint(x: x, y: y), to: content.superview))
+            var inPage = false
+            while let v = hit { if v is NSScrollView { inPage = true }; hit = v.superview }
+            #expect(!inPage, "a click at x \(x) on the header lands in the page's scroll view")
+        }
+    }
+
 }
 #endif

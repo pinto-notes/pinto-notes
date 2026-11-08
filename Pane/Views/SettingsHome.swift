@@ -213,7 +213,7 @@ enum SettingsIndex {
         e("Write to Me", .help, "settings.feedback", also: ["Send feedback", "Feedback", "Email", "Contact", "Support", "Report an issue", "Bug", "Problem"]),
         e("Pinto Notes on GitHub", .help, "settings.github", also: ["GitHub", "Contribute", "Star", "Open source"]),
         e("Show Setup Guide", .help, "settings.setupGuide", also: ["Onboarding", "Welcome"]),
-        e(WhatsNew.title, .general, "settings.whatsNew", also: ["What's new", "Changelog", "Release notes"]),
+        e(WhatsNew.row, .general, "settings.whatsNew", also: ["What's New", "Changelog", "Release notes"]),
         e("Keyboard shortcuts", .help, "settings.openShortcuts", also: ["Shortcuts", "Hotkeys", "Keys"]),
         // The Mac's own: View › Bigger's size is on Appearance there.
         e("Show in menu bar", .general, "settings.menuBar"),

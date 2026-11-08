@@ -99,6 +99,18 @@ struct ConsentFooter: View {
 /// over a link and a link opens on the first click. Footnote size, muted, links in the accent, underlined under the pointer.
 struct LinkLabel: NSViewRepresentable {
     let text: AttributedString
+    var style: Style = .footer
+
+    /// How the paragraph reads: the sign-in card's centred small print, or a line in Settings
+    /// that starts at the left with its links in the text's own ink (Help's GitHub line).
+    struct Style: Equatable {
+        var alignment: NSTextAlignment
+        var size: CGFloat
+        var link: NSColor
+        var linkWeight: NSFont.Weight
+        @MainActor static let footer = Style(alignment: .center, size: ConsentFooter.size, link: Palette.amberInk, linkWeight: .regular)
+        @MainActor static let settings = Style(alignment: .left, size: 12, link: .labelColor, linkWeight: .semibold)
+    }
 
     /// A read-only text view: it follows a link on the first click, even with the window in the
     /// background (a selectable label took one click to wake up first), and shows the hand.
@@ -216,14 +228,18 @@ struct LinkLabel: NSViewRepresentable {
         func hover(at point: NSPoint?) {
             let now = point.flatMap(link(at:))
             guard now != hovered, let layout = layoutManager else { return }
-            if let old = hovered { layout.removeTemporaryAttribute(.underlineStyle, forCharacterRange: old) }
-            if let now { layout.addTemporaryAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, forCharacterRange: now) }
+            // In the text itself, then redrawn: a temporary attribute was set but never drawn, so
+            // the underline didn't show (Emil, 8 November 2026: "these links dont get hover effects").
+            _ = layout
+            if let old = hovered { textStorage?.removeAttribute(.underlineStyle, range: old) }
+            if let now { textStorage?.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: now) }
             hovered = now
+            needsDisplay = true
         }
     }
 
     func makeNSView(context: Context) -> View {
-        let view = View()
+        let view = View(usingTextLayoutManager: false)
         view.isEditable = false
         view.isSelectable = true
         view.drawsBackground = false
@@ -231,34 +247,35 @@ struct LinkLabel: NSViewRepresentable {
         view.textContainer?.lineFragmentPadding = 0
         view.textContainer?.widthTracksTextView = true
         view.isVerticallyResizable = false
-        view.linkTextAttributes = [.foregroundColor: Palette.amberInk, .cursor: NSCursor.pointingHand]
+        view.linkTextAttributes = [.foregroundColor: style.link, .cursor: NSCursor.pointingHand]
         return view
     }
 
     func updateNSView(_ view: View, context: Context) {
-        let styled = Self.styled(text)
+        let styled = Self.styled(text, style)
         if view.attributedString() != styled { view.textStorage?.setAttributedString(styled) }
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView view: View, context: Context) -> CGSize? {
         let width = proposal.width ?? 360
-        let height = Self.styled(text).boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude),
+        let height = Self.styled(text, style).boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude),
                                                     options: [.usesLineFragmentOrigin, .usesFontLeading]).height
         return CGSize(width: width, height: ceil(height) + 2)
     }
 
-    static func styled(_ text: AttributedString) -> NSAttributedString {
+    static func styled(_ text: AttributedString, _ style: Style = .footer) -> NSAttributedString {
         let out = NSMutableAttributedString(attributedString: NSAttributedString(text))
         let all = NSRange(location: 0, length: out.length)
         let centred = NSMutableParagraphStyle()
-        centred.alignment = .center
-        out.addAttributes([.font: NSFont.systemFont(ofSize: ConsentFooter.size),
+        centred.alignment = style.alignment
+        out.addAttributes([.font: NSFont.systemFont(ofSize: style.size),
                            .foregroundColor: Palette.muted,
                            .paragraphStyle: centred], range: all)
         out.enumerateAttribute(.link, in: all) { value, range, _ in
             guard value != nil else { return }
             // The accent's darker ink: the bright accent read at 3.6:1 on the card (council round 3).
-            out.addAttributes([.foregroundColor: Palette.amberInk, .cursor: NSCursor.pointingHand], range: range)
+            out.addAttributes([.foregroundColor: style.link, .cursor: NSCursor.pointingHand,
+                               .font: NSFont.systemFont(ofSize: style.size, weight: style.linkWeight)], range: range)
             // Underlined only under the pointer (View.hover).
             out.removeAttribute(.underlineStyle, range: range)
         }
@@ -269,6 +286,8 @@ struct LinkLabel: NSViewRepresentable {
 
 /// "Terms of Service · Privacy Policy" for Settings › General, under About.
 struct LegalLinksRow: View {
+    /// Help lines them up with the text above them (Emil, 8 November 2026: centred "looks weird").
+    var alignment: Alignment = .center
     /// How tall each link's target is: a finger's height on iPhone.
     #if os(iOS)
     private static let target: CGFloat = 44
@@ -292,9 +311,9 @@ struct LegalLinksRow: View {
         .tint(Color(PColor.paneAccent))
         .buttonStyle(.hoverLink)
         #if os(iOS)
-        .frame(maxWidth: .infinity, minHeight: 44)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: alignment)
         #else
-        .frame(maxWidth: .infinity, minHeight: 24)
+        .frame(maxWidth: .infinity, minHeight: 24, alignment: alignment)
         #endif
     }
 }

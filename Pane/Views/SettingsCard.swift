@@ -279,6 +279,9 @@ struct SettingsCard: View {
                 // the search field, so "sync" stopped at "s" (round 24).
                 .background { if query.isEmpty { NoInitialFocus() } }
                 .id(shown)
+                // The page scrolls under its own edge, never over the title and arrows above it
+                // (Emil, 8 November 2026: the window's pictures drew over Appearance's title).
+                .clipped()
         }
         .settingsProbe("area")
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -288,8 +291,17 @@ struct SettingsCard: View {
     /// Back (one level down) just left of it, and × (Esc) at the card's corner.
     private var header: some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 arrows
+                // A page one level down names the page it's in, which takes you back to it
+                // (Emil, 8 November 2026: breadcrumbs, so a sub-page reads as one).
+                if let up = shown.parent {
+                    SettingsCrumb(title: up.title) { open(up) }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(SettingsInk.muted)
+                        .accessibilityHidden(true)
+                }
                 Text(shown.title)
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(SettingsInk.text)
@@ -315,6 +327,18 @@ struct SettingsCard: View {
             }
         }
         .padding(.top, inWindow ? SettingsWindow.headerTop : 12)
+        .padding(.bottom, 6)
+        // Solid and above the page, so nothing scrolled shows through it, and a short fade under it,
+        // so what scrolls up slips away rather than meeting a hard edge (Emil, 8 November 2026).
+        .background(SettingsInk.ground)
+        .overlay(alignment: .bottom) {
+            LinearGradient(colors: [SettingsInk.ground, SettingsInk.ground.opacity(0)], startPoint: .top, endPoint: .bottom)
+                .frame(height: 14)
+                .offset(y: 14)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        .zIndex(1)
     }
 
     /// Back and Forward, as System Settings has them: one capsule, two chevrons, each greyed at its
@@ -445,6 +469,7 @@ struct SettingsCard: View {
             .hoverRow(reach: EdgeInsets())
         }
         .buttonStyle(.plain)
+        .opensOnPress { open(.account) }
         .accessibilityAddTraits(on ? .isSelected : [])
         .accessibilityIdentifier("settings.account")
         .settingsProbe("tab.account")
@@ -478,6 +503,7 @@ struct SettingsCard: View {
             .hoverRow(reach: EdgeInsets())
         }
         .buttonStyle(.plain)
+        .opensOnPress { open(p) }
         .accessibilityAddTraits(on ? .isSelected : [])
         .accessibilityIdentifier("settings.\(p.rawValue)")
         .settingsProbe("tab.\(p.rawValue)")
@@ -581,6 +607,53 @@ struct SettingsWindowEdge: View {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
+    }
+}
+#endif
+
+#if os(macOS)
+/// The page a sub-page is in, before its title: muted, full strength under the pointer, and a
+/// click goes back to it.
+struct SettingsCrumb: View {
+    let title: String
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(hover ? SettingsInk.text : SettingsInk.muted)
+                .lineLimit(1)
+                .padding(.horizontal, 6).frame(height: 26)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(SettingsInk.selection).opacity(hover ? 1 : 0))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .opensOnPress(action)
+        .padding(.leading, 2).padding(.trailing, -6)
+        .onHover { hover = $0 }
+        .accessibilityLabel(title)
+        .accessibilityHint("Goes back to \(title)")
+        .accessibilityIdentifier("settings.crumb")
+    }
+}
+
+extension View {
+    /// Goes to its page as the button goes down, not when it comes back up, as System Settings'
+    /// sidebar does (Emil, 8 November 2026: on release "it just makes it feel slower", with a hover
+    /// already saying where you'll land). VoiceOver and the keyboard still press the button itself.
+    func opensOnPress(_ action: @escaping () -> Void) -> some View { modifier(OpensOnPress(action: action)) }
+}
+
+private struct OpensOnPress: ViewModifier {
+    let action: () -> Void
+    @State private var down = false
+
+    func body(content: Content) -> some View {
+        content.highPriorityGesture(DragGesture(minimumDistance: 0)
+            .onChanged { _ in if !down { down = true; action() } }
+            .onEnded { _ in down = false })
     }
 }
 #endif
