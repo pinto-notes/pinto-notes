@@ -9,7 +9,7 @@
 .head { width: 100%; max-width: 760px; display: grid; justify-items: center; gap: 18px; text-align: center; }
 .date { color: var(--muted); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .title { margin: 0; font-size: clamp(36px, 5vw, 58px); line-height: 1.04; font-weight: 800; letter-spacing: -0.035em; text-wrap: balance; }
-.deck { margin: 0; max-width: 34em; font-size: clamp(18px, 2vw, 22px); line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+.deck { margin: 0; max-width: 30em; font-size: clamp(17px, 1.8vw, 20px); line-height: 1.5; color: var(--muted); text-wrap: balance; }
 .by { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
 .by img { border-radius: 50%; }
 .by a { color: var(--ink); font-weight: 600; text-decoration: none; }
