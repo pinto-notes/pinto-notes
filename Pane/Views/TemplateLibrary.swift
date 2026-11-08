@@ -5,8 +5,8 @@ import SwiftUI
 /// The website's templates, in the app (2026-10-30): every one, by kind, opened from Templates in
 /// the sidebar. A copy of the site's list ships with the app (Pane/Resources/Templates, made by
 /// scripts/template-catalog.py; web/lib/template-catalog.test.ts fails while it's behind).
-struct TemplateCatalog {
-    struct Entry: Decodable, Identifiable, Equatable {
+struct TemplateCatalog: Sendable {
+    struct Entry: Decodable, Identifiable, Equatable, Sendable {
         let slug: String
         let title: String
         let tagline: String
@@ -17,8 +17,9 @@ struct TemplateCatalog {
         let ask: String
         /// The note after the AI has filled it in: what it looks like in use.
         let example: String
-        /// An app's note, which its app reads (nil for a plain note).
+        /// The note Make adds (an app's note is also what its app reads), and the folder it goes in.
         var note: String?
+        var folder: String?
         var id: String { slug }
 
         /// An app's compiled project (as a note's page holds it) and its starting data, as the site has them.
@@ -41,7 +42,35 @@ struct TemplateCatalog {
         /// As a pick of the setup gallery, so it draws with the same card.
         var pick: SetupCards.Pick {
             SetupCards.Pick(slug: slug, title: title, line: tagline, cover: "template-cover-\(slug)",
-                            ground: UInt32(ground, radix: 16) ?? 0x5B5651, ask: "use my \(title) note. \(ask)")
+                            ground: UInt32(ground, radix: 16) ?? 0x5B5651, ask: "use my \(title) note. \(Self.sendable(ask))")
+        }
+
+        /// An ask with a gap for your own words ("Here are my notes from the pricing sync: …") is
+        /// sent without the "…": ChatGPT sends what it's given, and a literal "…" read as the notes.
+        static func sendable(_ ask: String) -> String {
+            var s = ask.trimmingCharacters(in: .whitespaces)
+            guard s.hasSuffix("\u{2026}") || s.hasSuffix("...") else { return s }
+            s = String(s.dropLast(s.hasSuffix("...") ? 3 : 1)).trimmingCharacters(in: .whitespaces)
+            while s.hasSuffix(",") { s = String(s.dropLast()).trimmingCharacters(in: .whitespaces) }
+            return s
+        }
+
+        /// What Make adds, from the app's own copy: the note in its folder, and an app's project,
+        /// starting data and pictures, as the site's /templates/<slug>.json gives them. Nil when
+        /// this copy has no note.
+        func draft(apps: Bool = NoteApps.enabled) -> NoteDraft? {
+            guard let note, !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            var d = NoteDraft(link: NoteSourceLink(kind: .template, slug: slug), title: title, body: note, leftOut: 0)
+            d.description = description
+            d.folder = folder
+            d.ask = ask
+            if apps, let project = appProject, NotePageProject.parse(project) != nil {
+                d.appProject = project
+                d.appData = Bundle.main.url(forResource: "template-app-\(slug).data", withExtension: "json").flatMap { try? Data(contentsOf: $0) }
+                d.preview = Bundle.main.url(forResource: "template-app-\(slug)-light", withExtension: "jpg").flatMap { try? Data(contentsOf: $0) }
+                d.previewDark = Bundle.main.url(forResource: "template-app-\(slug)-dark", withExtension: "jpg").flatMap { try? Data(contentsOf: $0) }
+            }
+            return d
         }
     }
 
@@ -102,21 +131,43 @@ enum TemplateMaking {
 
     /// The template's note is added (as the setup gallery and the website add it), the ask goes on
     /// the clipboard, and ChatGPT or Claude opens with it. Returns the new note, to open.
-    @MainActor static func make(_ e: TemplateCatalog.Entry, with ai: SetupCards.AI, context: ModelContext, account: UUID?, open: (URL) -> Void) async -> UUID? {
-        let model = NoteSourceModel(link: NoteSourceLink(kind: .template, slug: e.slug), source: WebNoteSource(), ledger: NoteSourceLedger(account: account))
-        await model.load(context: context)
-        model.add(context: context, again: true)
-        var note: UUID?
-        if case .added(_, let id, _) = model.phase {
-            note = id
-            SyncSignal.changed()
+    /// The note comes from the app's own copy, so Make is instant and works offline (8 November
+    /// 2026: it waited on up to five requests to the site, and offline opened the AI on a note that
+    /// was never added). A template you added and still have is opened, not added again: the ask
+    /// names the note, and two of the same name leave the AI guessing. No note, no ask.
+    @MainActor static func make(_ e: TemplateCatalog.Entry, with ai: SetupCards.AI, context: ModelContext, account: UUID?,
+                                source: any NoteSourceFetching = ShippedTemplates(), ledger: NoteSourceLedger? = nil,
+                                copy: (String) -> Void = ConnectClipboard.set, open: (URL) -> Void) async -> UUID? {
+        let link = NoteSourceLink(kind: .template, slug: e.slug)
+        let ledger = ledger ?? NoteSourceLedger(account: account)
+        var note = ledger.existing(link, in: context)?.id
+        if note == nil {
+            let model = NoteSourceModel(link: link, source: source, ledger: ledger)
+            await model.load(context: context)
+            model.add(context: context, again: true)
+            if case .added(_, let id, _) = model.phase {
+                note = id
+                SyncSignal.changed()
+            }
         }
-        ConnectClipboard.set(SetupCards.prompt(e.pick))
+        guard let note else { return nil }
+        copy(SetupCards.prompt(e.pick))
         if let page = SetupCards.page(ai, e.pick) { open(page) }
         return note
     }
 }
 
+/// Templates as Make adds them: the app's own copy (TemplateCatalog), else the site's.
+struct ShippedTemplates: NoteSourceFetching {
+    var catalog = TemplateCatalog.shipped
+    var apps = NoteApps.enabled
+    var site: any NoteSourceFetching = WebNoteSource()
+
+    func draft(for link: NoteSourceLink) async throws -> NoteDraft {
+        if link.kind == .template, let d = catalog.entries.first(where: { $0.slug == link.slug })?.draft(apps: apps) { return d }
+        return try await site.draft(for: link)
+    }
+}
 
 /// Every template, in a sheet over the notes (a quick visit, like Settings: Esc goes back).
 /// One template is always open on the right, as it looks in use: the note your AI filled in, or

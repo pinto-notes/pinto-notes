@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 import Foundation
+import SwiftData
 import SwiftUI
 import Testing
 @testable import Pane
@@ -287,7 +288,8 @@ import Testing
         let id = UUID()
         _ = TemplateAppPreview(entry: try #require(apps.first), project: "")
         #expect(NotePageDataStore.shared.docs[id] == nil)
-        #expect(TemplateCatalog.shipped.entries.filter { !$0.app }.allSatisfy { $0.appProject == nil && $0.note == nil })
+        // Every template carries its note now (Make adds it from here, 8 November 2026); only apps have a project.
+        #expect(TemplateCatalog.shipped.entries.filter { !$0.app }.allSatisfy { $0.appProject == nil && $0.note != nil })
     }
 
     /// Grok: a two-step guide like ChatGPT's old one, recognised by its own callback only.
@@ -502,6 +504,192 @@ import Testing
                 .tint(Color(PColor.paneAccent))
             try await VersionHistorySnapshots.shoot(view, to: dir.appending(path: "\(name)-\(dark ? "dark" : "light").png"), size: size, dark: dark)
         }
+
+// MARK: Every template, as a person uses it (Emil, 8 November 2026: "I don't trust that they work")
+
+extension TemplateCatalog.Entry: CustomTestStringConvertible {
+    public var testDescription: String { slug }
+}
+
+/// Each template in the shipped catalog, run the way a person uses it: it's listed with its
+/// pictures, Make adds its note (and an app's app and data) offline, the note draws as the editor
+/// draws it, the AI opens with the right ask, and Make again opens the same note.
+@MainActor @Suite struct EveryTemplateTests {
+    nonisolated static let all = TemplateCatalog.shipped.entries
+
+    private func store() throws -> ModelContainer {
+        try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    }
+
+    private func ledger(account: UUID? = UUID()) -> NoteSourceLedger {
+        NoteSourceLedger(defaults: UserDefaults(suiteName: "templates.test.\(UUID().uuidString)")!, account: account)
+    }
+
+    /// The site, out of reach: Make never needs it for a template the app ships.
+    struct Offline: NoteSourceFetching {
+        func draft(for link: NoteSourceLink) async throws -> NoteDraft { throw NoteSourceError.offline }
+    }
+
+    @Test func theCatalogHasEveryTemplate() {
+        #expect(Self.all.count == 23)
+        #expect(Set(Self.all.map(\.slug)).count == Self.all.count, "no slug twice")
+        #expect(Self.all.filter(\.app).map(\.slug).sorted() == ["budget-log", "habit-tracker", "study-flashcards", "trip-plan"])
+        let byKind = TemplateCatalog.filters.dropFirst(2).flatMap { TemplateCatalog.shipped.shown(filter: $0, query: "") }
+        #expect(byKind.count == Self.all.count, "every template is under exactly one kind")
+    }
+
+    /// 1. Listed, with its words, cover and kind; an app with both pictures, its project and data.
+    @Test(arguments: all) func isListedWithItsPictures(_ e: TemplateCatalog.Entry) throws {
+        for (name, s) in [("title", e.title), ("tagline", e.tagline), ("description", e.description), ("ask", e.ask), ("example", e.example)] {
+            #expect(!s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, "\(name)")
+        }
+        #expect(NoteSourceLink(kind: .template, slug: e.slug).isValid)
+        #expect(e.ground.count == 6 && UInt32(e.ground, radix: 16) != nil)
+        #expect(Bundle.main.url(forResource: e.pick.cover, withExtension: "jpg").flatMap(NSImage.init(contentsOf:)) != nil, "cover")
+        #expect(TemplateCatalog.filters.contains(e.category))
+        #expect(TemplateCatalog.shipped.shown(filter: e.category, query: "").contains(e))
+        #expect(TemplateCatalog.shipped.shown(filter: "Apps", query: "").contains(e) == e.app)
+        #expect(TemplateCatalog.shipped.shown(filter: "All", query: e.title).contains(e), "search finds it by name")
+        let note = try #require(e.note, "the note Make adds")
+        #expect(note.components(separatedBy: "\n").first == e.title, "its first line is its title")
+        #expect(e.folder?.isEmpty == false)
+        #expect(e.example.components(separatedBy: "\n").first == e.title)
+        if e.app {
+            for dark in [false, true] { #expect(e.appPicture(dark: dark) != nil, "picture, dark: \(dark)") }
+            let project = try #require(e.appProject)
+            #expect(NotePageProject.parse(project) != nil, "the project reads as an app")
+            let url = try #require(Bundle.main.url(forResource: "template-app-\(e.slug).data", withExtension: "json"))
+            let data = try Data(contentsOf: url)
+            #expect(data.count <= NotePageData.maxBytes)
+            let doc = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+            #expect(!doc.isEmpty && Set(doc.keys).isSubset(of: ["values", "collections"]), "\(doc.keys)")
+            #expect(!e.appData.isEmpty)
+        } else {
+            #expect(e.appProject == nil && e.appPicture(dark: false) == nil)
+        }
+    }
+
+    /// 2 to 4. Make with ChatGPT, offline: the note is added in its folder with the template's
+    /// words, an app gets its project and data, the ask is copied and ChatGPT opens with it.
+    /// Make again (with Claude) opens the same note: never two of the same name.
+    @Test(arguments: all) func makeAddsTheNoteAndOpensTheAI(_ e: TemplateCatalog.Entry) async throws {
+        let container = try store()
+        let ctx = container.mainContext
+        let ledger = ledger()
+        var copied: [String] = []
+        var opened: [URL] = []
+        let made = await TemplateMaking.make(e, with: .chatgpt, context: ctx, account: nil, source: ShippedTemplates(site: Offline()), ledger: ledger,
+                                             copy: { copied.append($0) }, open: { opened.append($0) })
+        let id = try #require(made, "the note is added with no network")
+        let note = try #require(ctx.note(id))
+        #expect(note.title == e.title)
+        #expect(note.body == e.note)
+        #expect(note.folder?.name == e.folder && note.folder?.parent == nil, "in its own folder, made for it")
+        #expect(note.dirty, "it syncs")
+        let prompt = "In Pinto Notes, use my \(e.title) note. \(TemplateCatalog.Entry.sendable(e.ask))"
+        #expect(copied == [prompt])
+        #expect(!prompt.contains("\u{2026}") && !prompt.hasSuffix(","), "no gap left for words")
+        let page = try #require(opened.first)
+        #expect(opened.count == 1 && page.host == "chatgpt.com")
+        #expect(URLComponents(url: page, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "q" }?.value == prompt)
+        if e.app {
+            #expect(NotePageStore.shared[id]?.html == e.appProject, "the note is the app from the start")
+            #expect(NSDictionary(dictionary: NotePageDataStore.shared.doc(id)).isEqual(to: e.appData), "on the template's data")
+            #expect(NotePageDataStore.shared.dirty.contains(id), "the data syncs")
+        } else {
+            #expect(NotePageStore.shared[id] == nil)
+        }
+        let again = await TemplateMaking.make(e, with: .claude, context: ctx, account: nil, source: ShippedTemplates(site: Offline()), ledger: ledger,
+                                              copy: { copied.append($0) }, open: { opened.append($0) })
+        #expect(again == id)
+        #expect(try ctx.fetch(FetchDescriptor<Note>()).filter { $0.deletedAt == nil && $0.title == e.title }.count == 1)
+        #expect(opened.last?.host == "claude.ai" && opened.last?.path == "/new" && copied.last == prompt)
+    }
+
+    /// 2. The note and the filled-in example draw as the editor draws them: every table a grid
+    /// (typed where the template types it), inline marks that read, no link to a missing note.
+    @Test(arguments: all) func theNoteDrawsInTheEditor(_ e: TemplateCatalog.Entry) async throws {
+        let body = try #require(e.note)
+        for (which, md) in [("note", body), ("example", e.example)] {
+            let blocks = NotePreview.blocks(md)
+            let tables = blocks.filter { if case .table = $0 { true } else { false } }.count
+            let structure = NoteStructure(md)
+            #expect(structure.grids.count == tables, "\(which): every table is a grid")
+            let typed = md.components(separatedBy: "\n").filter { $0.hasPrefix("<!-- pane-table:") }.count
+            #expect(structure.grids.filter { $0.types != nil }.count == typed, "\(which): every typed table keeps its types")
+            #expect(TypedTable.find(in: md).count == typed)
+            for g in structure.grids {
+                #expect(!g.rows.isEmpty && g.columns > 1, "\(which): a table with its header")
+                #expect(g.rows.allSatisfy { $0.count == g.columns }, "\(which): rows as wide as the header")
+            }
+            for case .paragraph(let s) in blocks {
+                #expect((try? AttributedString(markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) != nil, "\(which): \(s)")
+            }
+            #expect(!md.contains("[["), "\(which): no wiki link to a note you don't have")
+        }
+        // In the real editor, offscreen: the tables show as grids.
+        let h = await EditorHarness(body, focus: false)
+        defer { h.close() }
+        #expect(h.gridCount == NoteStructure(body).grids.count)
+        if ProcessInfo.processInfo.environment["AMBER_QA_SHOTS"] != nil { await h.snapshot("template-\(e.slug)") }
+    }
+
+    /// 4 and 5. No AI that opens from a link (signed out, or none connected): the button says
+    /// Add the note, and Make adds the note and copies the ask without opening anything.
+    @Test func withNoAIMakeAddsTheNoteAndCopiesTheAsk() async throws {
+        #expect(TemplateMaking.ais([]) == [.other])
+        #expect(TemplateLibraryWords.make(.other) == "Add the note")
+        #expect(TemplateLibraryWords.make(.chatgpt) == "Make with ChatGPT" && TemplateLibraryWords.make(.claude) == "Make with Claude")
+        let container = try store()
+        let e = try #require(Self.all.first { $0.slug == "meeting-notes" })
+        var copied: [String] = []
+        var opened: [URL] = []
+        let id = await TemplateMaking.make(e, with: .other, context: container.mainContext, account: nil, source: ShippedTemplates(site: Offline()),
+                                           ledger: ledger(account: nil), copy: { copied.append($0) }, open: { opened.append($0) })
+        #expect(id != nil && opened.isEmpty)
+        #expect(copied == ["In Pinto Notes, use my Meeting notes note. Here are my notes from the pricing sync:"])
+    }
+
+    /// 5. A folder of that name you already have (any case) takes the note; a note you put in
+    /// Recently Deleted is made again rather than opened.
+    @Test func makeUsesYourFolderAndMakesADeletedNoteAgain() async throws {
+        let container = try store()
+        let ctx = container.mainContext
+        let work = ctx.createFolder(named: "work")
+        let e = try #require(Self.all.first { $0.slug == "decision-log" })
+        let ledger = ledger()
+        let made = await TemplateMaking.make(e, with: .other, context: ctx, account: nil, source: ShippedTemplates(site: Offline()), ledger: ledger, copy: { _ in }, open: { _ in })
+        let first = try #require(made)
+        #expect(ctx.note(first)?.folder?.id == work.id, "no second Work folder")
+        ctx.note(first)?.trashedAt = .now
+        let second = await TemplateMaking.make(e, with: .other, context: ctx, account: nil, source: ShippedTemplates(site: Offline()), ledger: ledger, copy: { _ in }, open: { _ in })
+        #expect(second != nil && second != first, "the one in Recently Deleted isn't opened")
+    }
+
+    /// A template this build doesn't ship (one the site added since) comes from the site; with
+    /// the site out of reach, Make adds nothing and asks the AI about nothing.
+    @Test func aTemplateTheAppDoesNotShipComesFromTheSite() async throws {
+        struct Site: NoteSourceFetching {
+            func draft(for link: NoteSourceLink) async throws -> NoteDraft { NoteDraft(link: link, title: "New one", body: "New one\n\nBody", leftOut: 0) }
+        }
+        let d = try await ShippedTemplates(site: Site()).draft(for: NoteSourceLink(kind: .template, slug: "brand-new"))
+        #expect(d.title == "New one")
+        let e = try JSONDecoder().decode(TemplateCatalog.Entry.self, from: JSONSerialization.data(withJSONObject: [
+            "slug": "brand-new", "title": "New", "tagline": "t", "description": "d", "category": "Work", "app": false, "ground": "123456", "ask": "a", "example": "New",
+        ]))
+        let container = try store()
+        var opened: [URL] = []
+        var copied: [String] = []
+        let id = await TemplateMaking.make(e, with: .chatgpt, context: container.mainContext, account: nil, source: ShippedTemplates(site: Offline()), ledger: ledger(),
+                                           copy: { copied.append($0) }, open: { opened.append($0) })
+        #expect(id == nil && opened.isEmpty && copied.isEmpty, "no note, so no ask about it")
+    }
+
+    /// An ask with a gap for your own words is sent without the gap.
+    @Test func askGapsAreLeftOut() {
+        #expect(TemplateCatalog.Entry.sendable("Here are my notes from the pricing sync: \u{2026}") == "Here are my notes from the pricing sync:")
+        #expect(TemplateCatalog.Entry.sendable("Save this one: Senior designer at Northwind, \u{2026}") == "Save this one: Senior designer at Northwind")
+        #expect(TemplateCatalog.Entry.sendable("Plan dinners for this week.") == "Plan dinners for this week.")
     }
 }
 #endif

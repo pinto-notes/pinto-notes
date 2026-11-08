@@ -86,6 +86,10 @@ same paths and the same text, and `read "<Note>.app/data.json"` the same data. T
   the project becomes the note's app (`NotePageStore.setHere`) and the data its data
   (`NotePageDataStore.set`). Both are sealed with the account key and synced like any app.
   Builds from before this read `app` and `preview` only: they get the app without its data.
+- **Mac Templates and the setup gallery** (`TemplateMaking.make`, `ShippedTemplates`): Make adds
+  the app's own copy (`Pane/Resources/Templates`, which carries every template's note, folder,
+  project and data), so it's instant and works offline; only a template the build doesn't ship
+  comes from the site. A template you added and still have is opened, not added again.
 - **MCP** (`create { type: "app", path: "<Folder>/<Title>.md", template: "<slug>" }`): the
   server fetches the template from the site, makes the note with its markdown, saves the project
   through the same gate as any save (its tests and the smoke check run) and stores the data. The
