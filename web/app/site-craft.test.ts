@@ -20,6 +20,19 @@ describe("the site's controls", () => {
     }
   });
 
+  it("moves between pages quickly: the entrance motion runs on the first page only, and a new page opens at the top", () => {
+    const site = css("site.css");
+    expect(site).toContain("html[data-navigated] .rise, html[data-navigated] .rise-soft { animation: none; }");
+    for (const [, ms] of site.matchAll(/::view-transition-(?:old|new)\(root\) \{ animation: vt-\w+ (\d+)ms/g)) expect(Number(ms)).toBeLessThanOrEqual(150);
+    const chrome = css("SiteChrome.tsx");
+    expect(chrome).toContain('setAttribute("data-navigated", "")');
+    expect(chrome).toMatch(/openAtTop\.current && !location\.hash\) window\.scrollTo\(0, 0\)/);
+  });
+
+  it("keeps a phone clip's Play button off the phone's status bar", () => {
+    expect(css("../lib/post-parts.module.css")).toContain(".loopFrame[data-phone] .loopToggle { top: auto; right: 50%; bottom: 16px;");
+  });
+
   it("gives the header's links a hover fill and a press", () => {
     const site = css("site.css");
     expect(site).toMatch(/\.site-nav a:not\(\.site-cta\):hover \{ background: color-mix/);

@@ -24,6 +24,7 @@ export default function SiteChrome({ stars, children }: { version: string | null
   const router = useRouter();
   const done = useRef<(() => void) | null>(null);
   const toList = useRef<"chips" | "pages" | null>(null);
+  const openAtTop = useRef(false);
   const site = themeFor(path) !== null;
 
   // Keep the theme in step with the page (also for back/forward), and finish a pending transition.
@@ -36,6 +37,10 @@ export default function SiteChrome({ stars, children }: { version: string | null
       const chips = document.querySelector("[data-blog-chips]");
       if (chips && chips.getBoundingClientRect().top < 84) window.scrollTo({ top: Math.max(0, chips.getBoundingClientRect().top + window.scrollY - 100) }); // under the header
     }
+    // A link to another page opens it at the top, like any web page (Next keeps the old scroll when
+    // the push runs inside a view transition). Back and forward keep the browser's own restore.
+    if (openAtTop.current && !location.hash) window.scrollTo(0, 0);
+    openAtTop.current = false;
     toList.current = null;
     done.current?.();
     done.current = null;
@@ -92,6 +97,10 @@ export default function SiteChrome({ stars, children }: { version: string | null
       const animate = !!doc.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (!animate && !list) return;
       e.preventDefault();
+      // After the first page, content arrives without the entrance motion (site.css), so moving
+      // between posts is a quick fade, not a fresh show each time.
+      document.documentElement.setAttribute("data-navigated", "");
+      openAtTop.current = !list;
       const arrive = () => new Promise<void>((resolve) => {
         done.current = resolve;
         router.push(href, list ? { scroll: false } : undefined);

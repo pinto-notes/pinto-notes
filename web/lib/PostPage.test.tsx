@@ -71,6 +71,8 @@ describe("the image-led post format's parts", () => {
 // Launches are labelled, so news reads as news (Emil, 7 November 2026).
 import { renderToStaticMarkup as html } from "react-dom/server";
 import Launch from "../app/blog/pinto-notes-for-iphone/page";
+import ChatGPTLaunch from "../app/blog/pinto-notes-in-chatgpt/page";
+import ImportLaunch from "../app/blog/import-your-notes/page";
 import { PostCard } from "./blog";
 import { BlogIndex } from "./BlogIndex";
 import { posts } from "./posts";
@@ -85,6 +87,13 @@ describe("an announcement", () => {
     expect(head.textContent).not.toContain("Announcement");
     expect(head.querySelector("nav")).toBeNull();
     expect(doc(<Post />).querySelector("header nav")).not.toBeNull();
+  });
+
+  it("starts its body with words, never a second picture straight under the cover", () => {
+    for (const Page of [Launch, ChatGPTLaunch, ImportLaunch]) {
+      const body = doc(<Page />).querySelector("article h2")!.parentElement!;
+      expect(["H2", "P"]).toContain(body.firstElementChild!.tagName);
+    }
   });
 
   it("ends with one place to get the app, inside the post: the App Store and the Mac download", () => {

@@ -11,11 +11,6 @@ export default function Page() {
     <PostPage
       slug="pinto-notes-in-chatgpt"
       intro={<>Pinto Notes is now a plugin in ChatGPT. Connect it once, and ChatGPT can find, write and edit your notes from any chat. The change is in Pinto Notes on your Mac and iPhone a second later.</>}
-      hero={
-        <PostFigure src="/blog/launch/chatgpt-plans-lisbon" width={1600} height={1040} kind="plain" priority
-          alt="Illustration: in ChatGPT, Plan four days in Lisbon for us and save it to my notes, Edited Lisbon in Pinto Notes; beside it the Lisbon note in Pinto Notes with a plan checklist, places, a hotel booking and a table of where to eat."
-          caption="You ask in ChatGPT, and the plan is in your Lisbon note. (Illustration with a real Pinto Notes screen.)" />
-      }
     >
       <h2>Ask from any chat</h2>
       <p>You don&apos;t need to copy anything out of ChatGPT any more. Ask it to put things where you&apos;ll use them:</p>
@@ -29,6 +24,9 @@ export default function Page() {
         ChatGPT finds the right note and makes the change. It&apos;s in the note on your Mac and on{" "}
         <a href="/blog/pinto-notes-for-iphone">your iPhone</a> a second later.
       </p>
+      <PostFigure src="/blog/launch/chatgpt-plans-lisbon" width={1600} height={1040} kind="plain"
+        alt="Illustration: in ChatGPT, Plan four days in Lisbon for us and save it to my notes, Edited Lisbon in Pinto Notes; beside it the Lisbon note in Pinto Notes with a plan checklist, places, a hotel booking and a table of where to eat."
+        caption="You ask in ChatGPT, and the plan is in your Lisbon note. (Illustration with a real Pinto Notes screen.)" />
 
       <h2>You can undo anything it does</h2>
       <p>
