@@ -504,6 +504,8 @@ import Testing
                 .tint(Color(PColor.paneAccent))
             try await VersionHistorySnapshots.shoot(view, to: dir.appending(path: "\(name)-\(dark ? "dark" : "light").png"), size: size, dark: dark)
         }
+    }
+}
 
 // MARK: Every template, as a person uses it (Emil, 8 November 2026: "I don't trust that they work")
 
