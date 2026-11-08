@@ -220,8 +220,13 @@ final class EditorCore {
             // on iPhone a tap opens it, as there.
             var select: (() -> Void)?
             #if os(macOS)
-            if case .image = e.kind { select = { [weak target] in (target as? PaneTextView)?.selectEmbed(e.key) } }
-            if case .file = e.kind { select = { [weak target] in (target as? PaneTextView)?.selectEmbed(e.key) } }
+            switch e.kind {
+            case .image, .file:
+                // The click's own count: a double-click opens it even if the view is given again
+                // between its two clicks (the first one selects it, which redraws it selected).
+                select = { [weak target] in (target as? PaneTextView)?.clickEmbed(e.key, clicks: NSApp.currentEvent?.clickCount ?? 1) }
+            default: break
+            }
             #endif
             out.append((e.key, f, AnyView(EmbedView(embed: e, controller: controller, selected: isSelected, select: select, remove: remove, rewrite: rewrite)),
                         .embed(e, controller: controller.map(ObjectIdentifier.init), resolved: resolved(e), selected: isSelected)))
@@ -3884,6 +3889,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Selects the picture or file `key` names, the way a click on it does in Notes: the text has
     /// the keyboard, so Delete removes it, Space opens it and the arrows go on from it.
+    func clickEmbed(_ key: String, clicks: Int) {
+        selectEmbed(key)
+        if clicks >= 2 { openSelectedEmbed() }
+    }
+
     func selectEmbed(_ key: String) {
         guard let e = core.embeds.first(where: { $0.key == key }) else { return }
         if window?.firstResponder !== self { window?.makeFirstResponder(self) }

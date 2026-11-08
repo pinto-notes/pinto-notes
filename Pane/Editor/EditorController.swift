@@ -93,6 +93,9 @@ final class EditorController {
     /// Images already asked for while this note is open: each is tried once, like a tap. One
     /// that fails stays a placeholder until it's tapped or the note is opened again.
     @ObservationIgnored private var imagesTried: Set<UUID> = []
+    /// The picture being fetched as the note opened, if one is: its place shows a spinner, not
+    /// an empty frame that might stay empty.
+    private(set) var fetchingImage: UUID?
     @ObservationIgnored private var imagesFor: UUID?
     /// Whether a file's bytes are on this device (tests answer for themselves).
     @ObservationIgnored var isLocal: (Attachment) -> Bool = { FileStore.exists($0) }
@@ -124,7 +127,9 @@ final class EditorController {
             guard !Task.isCancelled else { return }
             imagesTried.insert(a.id)
             // Each shows as it arrives.
+            fetchingImage = a.id
             let ok = await download(a)
+            fetchingImage = nil
             Self.log.notice("note image: \(ok ? "fetched" : Task.isCancelled ? "left before it arrived" : "fetch failed", privacy: .public)")
             if ok {
                 imagesArrived += 1
@@ -139,6 +144,8 @@ final class EditorController {
         guard let a = resolveAttachment(id) else { Self.log.notice("open file: this device has no row for it"); return }
         let url = FileStore.url(for: a.id, filename: a.filename)
         if FileStore.exists(a) { Self.log.notice("open file: here already"); previewURL = url; return }
+        // Already on its way (a double-click, a second click while it comes): one fetch.
+        guard !downloading.contains(id) else { return }
         Self.log.notice("open file: fetching (\(a.isImage ? "image" : "file", privacy: .public))")
         downloading.insert(id)
         Task {

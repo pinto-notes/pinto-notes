@@ -337,7 +337,12 @@ private struct ImageEmbed: View {
                     } else {
                         ZStack {
                             Rectangle().fill(.fill.tertiary)
-                            Image(systemName: "photo").foregroundStyle(.tertiary)
+                            // On its way: a spinner, so an empty frame doesn't look like a broken one.
+                            if controller?.downloading.contains(id) == true || controller?.fetchingImage == id {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: "photo").foregroundStyle(.tertiary)
+                            }
                         }
                     }
                 }

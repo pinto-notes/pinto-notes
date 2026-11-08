@@ -119,6 +119,67 @@ import UniformTypeIdentifiers
         #expect(h.controller.previewURL == FileStore.url(for: file.id, filename: file.filename))
     }
 
+    /// A double-click on a file opens it: the second click's count says so, whatever happened to
+    /// the view between the two clicks.
+    @Test func aDoubleClickOpensAFile() async throws {
+        let file = try FileStore.importData(Data("%PDF-1.4".utf8), filename: "Report.pdf", type: .pdf)
+        defer { FileStore.remove(file) }
+        let line = FileStore.markdown(id: file.id, filename: file.filename, image: false)
+        let h = await EditorHarness("Title\n\(line)\nAfter\n")
+        defer { h.close() }
+        h.controller.resolveAttachment = { $0 == file.id ? file : nil }
+        h.view.clickEmbed("f\(file.id)", clicks: 1)
+        await h.settle()
+        #expect(h.controller.previewURL == nil, "one click only selects it")
+        #expect(h.selection == embedRange(h, line))
+        h.view.clickEmbed("f\(file.id)", clicks: 2)
+        await h.settle()
+        #expect(h.controller.previewURL == FileStore.url(for: file.id, filename: file.filename))
+    }
+
+    /// A file not on this device yet, clicked twice while it comes: fetched once.
+    @Test func aFileOnItsWayIsFetchedOnce() async {
+        let c = EditorController()
+        let a = Pane.Attachment(filename: "Far.pdf", contentType: UTType.pdf.identifier, size: 10)
+        c.resolveAttachment = { $0 == a.id ? a : nil }
+        var calls = 0
+        var release: CheckedContinuation<Void, Never>?
+        c.download = { _ in
+            calls += 1
+            await withCheckedContinuation { release = $0 }
+            return false
+        }
+        c.openAttachment(a.id)
+        try? await Task.sleep(for: .milliseconds(50))
+        c.openAttachment(a.id)
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(calls == 1)
+        #expect(c.downloading.contains(a.id), "it shows as on its way")
+        release?.resume()
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(!c.downloading.contains(a.id))
+    }
+
+    /// A picture fetched as its note opens says so while it comes (its place shows a spinner).
+    @Test func aPictureBeingFetchedSaysSo() async {
+        let c = EditorController()
+        let a = Pane.Attachment(filename: "Far.png", contentType: UTType.png.identifier, size: 10)
+        a.uploaded = true
+        c.resolveAttachment = { $0 == a.id ? a : nil }
+        c.isLocal = { _ in false }
+        var release: CheckedContinuation<Void, Never>?
+        c.download = { _ in
+            await withCheckedContinuation { release = $0 }
+            return true
+        }
+        let task = Task { await c.fetchMissingImages(note: UUID(), body: "Title\n" + FileStore.markdown(id: a.id, filename: a.filename, image: true)) }
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(c.fetchingImage == a.id)
+        release?.resume()
+        await task.value
+        #expect(c.fetchingImage == nil)
+    }
+
     // MARK: Delete and Undo
 
     @Test func backspaceRemovesTheFileAndUndoBringsItBack() async throws {
