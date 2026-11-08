@@ -339,6 +339,36 @@ import AppKit
         #expect(table.frame.maxY - GridMetrics.growBelow <= visible.maxY + 1, "the new table shows whole: \(table.frame) in \(visible), moves \(seen)")
     }
 
+    /// A row added or deleted changes the table's height at once, with the text under it: a
+    /// table gliding to its new height while the text below had already moved overlapped that
+    /// text, or left a gap, for a fifth of a second. Sampled every frame, never in between.
+    @Test func aTableChangesHeightInOneStepWithTheTextBelow() async throws {
+        let h = await EditorHarness(Self.note)
+        defer { h.close() }
+        await enter(h, row: 1)
+        let cell = try #require(h.controller.table?.cell)
+        let host = try #require(h.overlays.first)
+        let before = host.frame.height
+        // From the first frame after the change: every height the table shows on the way.
+        func heights() async -> [CGFloat] {
+            await h.settle(0.016)
+            var seen: [CGFloat] = [host.frame.height]
+            for _ in 0..<30 {
+                await h.settle(0.016)
+                if abs(host.frame.height - seen.last!) > 0.5 { seen.append(host.frame.height) }
+            }
+            return seen
+        }
+        h.controller.pickTableLine(.row(1), grid: 0, cell: cell)
+        try #require(h.controller.lastTableMenu?.item("Add Row Below")).run()
+        let grew = await heights()
+        #expect(grew.count == 1 && grew[0] > before + 20, "one step to the taller table: \(before) then \(grew)")
+        h.controller.pickTableLine(.row(2), grid: 0, cell: GridCell(row: 2, column: 0))
+        try #require(h.controller.lastTableMenu?.item("Delete Row")).run()
+        let shrank = await heights()
+        #expect(shrank.count == 1 && abs(shrank[0] - before) < 0.5, "one step back: \(shrank)")
+    }
+
     /// The last row and column have no Delete: Delete Table removes a table.
     @Test func theLastRowAndColumnCantBeDeleted() async throws {
         let h = await EditorHarness("Title\n\n| only |\n| --- |\n\nAfter")

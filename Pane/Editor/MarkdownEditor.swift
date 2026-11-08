@@ -2856,10 +2856,13 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 cardContent[item.key] = item.content
             }
             if host.frame != item.frame {
+                // A new size (a row added or deleted) comes at once: the text under the card has
+                // already moved, and a card gliding to its height overlapped it or left a gap.
+                let glide = animated && host.frame.size == item.frame.size
                 NSAnimationContext.runAnimationGroup { ctx in
                     // Zero duration also ends a glide still under way.
-                    ctx.duration = animated ? 0.22 : 0
-                    ctx.allowsImplicitAnimation = animated
+                    ctx.duration = glide ? 0.22 : 0
+                    ctx.allowsImplicitAnimation = glide
                     host.animator().frame = item.frame
                 }
             }
