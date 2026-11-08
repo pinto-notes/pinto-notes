@@ -19,6 +19,12 @@ import PhotosUI
 /// the card's own ground, its switches in the accent.
 struct SettingsPageForm<Content: View>: View {
     @ViewBuilder let content: Content
+    #if os(macOS)
+    /// Scrolled off its top: the content fades out under the title, as the notes list's soft edge
+    /// does (Emil, 8 November 2026: the hard band "doesnt look good"; steal the notes list's).
+    @State private var scrolled = false
+    static var fade: CGFloat { 24 }
+    #endif
 
     var body: some View {
         Form {
@@ -35,6 +41,16 @@ struct SettingsPageForm<Content: View>: View {
         .contentMargins(.top, 6, for: .scrollContent)
         // Menus show their value in the text colour, as in System Settings; switches the accent.
         .tint(Color.ink)
+        .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top > 0.5 } action: { _, now in scrolled = now }
+        // A mask, not a gradient laid over the rows: the page's own ground shows through, in every theme.
+        .mask {
+            VStack(spacing: 0) {
+                LinearGradient(colors: [.black.opacity(0), .black], startPoint: .top, endPoint: .bottom)
+                    .frame(height: scrolled ? Self.fade : 0)
+                Color.black
+            }
+            .animation(.easeOut(duration: 0.15), value: scrolled)
+        }
         #endif
     }
 }
@@ -122,6 +138,21 @@ struct SettingsLinkRow: View {
             Image(systemName: trailing).font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
         }
         .contentShape(.rect)
+    }
+}
+
+/// Terms of Service and Privacy Policy as two ordinary rows that open the web page, on Privacy and
+/// on Help (Emil, 8 November 2026: centred links under a page looked odd; "maybe even rows").
+struct LegalRowsSection: View {
+    var body: some View {
+        Section {
+            Link(destination: Legal.terms) { SettingsLinkRow(title: "Terms of Service", symbol: "doc.text") }
+                .settingsRowLink(.top)
+                .accessibilityIdentifier("settings.terms")
+            Link(destination: Legal.privacy) { SettingsLinkRow(title: "Privacy Policy", symbol: "hand.raised") }
+                .settingsRowLink(.bottom)
+                .accessibilityIdentifier("settings.privacy")
+        }
     }
 }
 
@@ -839,7 +870,9 @@ struct TodaysNoteSettingsPage: View {
                 Picker("Title", selection: $title) { ForEach(TodaysNoteSettings.Title.allCases) { Text(GeneralChoices.example($0)).tag($0) } }
                     .accessibilityIdentifier("settings.today.title")
                 Picker("Template", selection: $template) {
-                    Text("None").tag("")
+                    // A dash, so "None" lines up with the notes under it (Emil, 8 November 2026).
+                    Label("None", systemImage: "minus").tag("")
+                    Divider()
                     ForEach(choices.templates(keeping: template), id: \.id) { Label($0.title, systemImage: "doc.text").tag($0.id.uuidString) }
                 }
                 .accessibilityIdentifier("settings.today.template")
@@ -955,14 +988,15 @@ struct HelpSettingsPage: View {
     static let photo: CGFloat = 52
 
     var body: some View {
+        #if os(iOS)
         let guide = HelpPage.offersSetupGuide(signedIn: signedIn)
+        #endif
         SettingsPageForm {
             Section { greeting }
             #if os(macOS)
-            let rows = 1 + (guide ? 1 : 0)
+            // The setup guide is in the Help menu only (Emil, 8 November 2026).
             Section {
-                SettingsSubPageRow(page: .shortcuts, id: "settings.openShortcuts", edge: .of(0, in: rows))
-                if guide { setupGuideRow(edge: .of(1, in: rows)) }
+                SettingsSubPageRow(page: .shortcuts, id: "settings.openShortcuts", edge: .alone)
             }
             #else
             if guide { Section { setupGuideRow(edge: .alone) } }
@@ -973,6 +1007,7 @@ struct HelpSettingsPage: View {
                 .accessibilityIdentifier("settings.version")
             }
             #endif
+            LegalRowsSection()
             OpenSection {
                 VStack(alignment: .leading, spacing: 10) {
                     #if os(macOS)
@@ -987,7 +1022,6 @@ struct HelpSettingsPage: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("settings.github")
                     #endif
-                    LegalLinksRow(alignment: .leading)
                     #if os(iOS)
                     // The import list shows these apps' own icons; on the Mac this is About's credits.
                     Text(HelpCopy.trademarks)

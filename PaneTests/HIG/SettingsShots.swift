@@ -261,6 +261,25 @@ import Testing
         }
         #expect(changed == 0, "\(changed) of \(total) header pixels changed when the page scrolled")
 
+        // Right under the title the page has faded out, no hard band (Emil, 8 November 2026: "steal
+        // the same style of band as we have on the notes list").
+        var hard = 0
+        for x in stride(from: Int((SettingsCard.sidebarWidth + 8) * scale), to: after.pixelsWide - 4, by: 3) {
+            guard let ground = after.colorAt(x: x, y: Int(4 * scale)), let edge = after.colorAt(x: x, y: Int(48 * scale)) else { continue }
+            if abs(ground.redComponent - edge.redComponent) + abs(ground.greenComponent - edge.greenComponent) + abs(ground.blueComponent - edge.blueComponent) > 0.06 { hard += 1 }
+        }
+        #expect(hard == 0, "\(hard) pixels of the scrolled page show at full strength right under the title")
+
+        // And the page itself still shows below the fade (a mask that hid it all would pass the above).
+        var shown = 0
+        for y in stride(from: Int(120 * scale), to: after.pixelsHigh - Int(20 * scale), by: Int(6 * scale)) {
+            for x in stride(from: Int((SettingsCard.sidebarWidth + 8) * scale), to: after.pixelsWide - 4, by: 6) {
+                guard let ground = after.colorAt(x: x, y: Int(4 * scale)), let c = after.colorAt(x: x, y: y) else { continue }
+                if abs(ground.redComponent - c.redComponent) + abs(ground.greenComponent - c.greenComponent) + abs(ground.blueComponent - c.blueComponent) > 0.06 { shown += 1 }
+            }
+        }
+        #expect(shown > 200, "the scrolled page is drawn below the fade (\(shown) pixels)")
+
         // And it lies under the arrows for clicks too: the page's scroll view used to reach over
         // them, so Back and Forward took no clicks (Emil, 8 November 2026: "I cant click").
         let y = content.isFlipped ? SettingsWindow.headerTop + 14 : content.bounds.height - SettingsWindow.headerTop - 14

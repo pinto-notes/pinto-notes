@@ -135,16 +135,23 @@ enum SettingsIcons {
 /// Things that left Settings for a menu, still found by Settings search: a result runs the menu
 /// item, and says which menu it is in.
 enum SettingsMenuLink: String, Hashable, CaseIterable, Sendable {
-    case export, connectHelp
+    case export, connectHelp, setupGuide
 
     var menu: String { self == .export ? "File menu" : "Help menu" }
-    var symbol: String { self == .export ? "square.and.arrow.up" : "questionmark.circle" }
+    var symbol: String {
+        switch self {
+        case .export: "square.and.arrow.up"
+        case .connectHelp: "questionmark.circle"
+        case .setupGuide: "sparkles"
+        }
+    }
 
     /// Runs it once Settings has closed, so what it opens isn't under the card.
     @MainActor func run() {
         switch self {
         case .export: NotificationCenter.default.post(name: .paneExportNotes, object: nil)
         case .connectHelp: MacHelp.helpConnecting()
+        case .setupGuide: NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil)
         }
     }
 
@@ -212,7 +219,9 @@ enum SettingsIndex {
         e("Questions and Answers", .help, "settings.support", also: ["Help", "Support"]),
         e("Write to Me", .help, "settings.feedback", also: ["Send feedback", "Feedback", "Email", "Contact", "Support", "Report an issue", "Bug", "Problem"]),
         e("Pinto Notes on GitHub", .help, "settings.github", also: ["GitHub", "Contribute", "Star", "Open source"]),
-        e("Show Setup Guide", .help, "settings.setupGuide", also: ["Onboarding", "Welcome"]),
+        // Only in the Help menu on the Mac: a row in Help read as part of Settings and dropped you
+        // into importing notes (Emil, 8 November 2026: "kinda off").
+        Entry(label: "Show Setup Guide", page: .help, also: ["Onboarding", "Welcome"], menu: .setupGuide),
         e(WhatsNew.row, .general, "settings.whatsNew", also: ["What's New", "Changelog", "Release notes"]),
         e("Keyboard shortcuts", .help, "settings.openShortcuts", also: ["Shortcuts", "Hotkeys", "Keys"]),
         // The Mac's own: View › Bigger's size is on Appearance there.

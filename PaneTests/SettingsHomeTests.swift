@@ -436,6 +436,18 @@ import Carbon.HIToolbox
         return frames.all
     }
 
+    /// A sub-page's breadcrumb starts with its parent's name exactly where that name sat as the
+    /// parent's own title: going deeper adds to the line, it doesn't move it (Emil, 8 November 2026).
+    @Test func theParentsNameStaysPutInTheBreadcrumb() async throws {
+        let size = CGSize(width: 1180, height: 760)
+        for (child, parent) in [(SettingsPage.personal, SettingsPage.account), (.signIn, .account), (.encryption, .security)] {
+            let up = try #require(try await Self.layout(parent, window: size)["title"])
+            let crumb = try #require(try await Self.layout(child, window: size)["crumb"], "\(child) shows its parent")
+            #expect(abs(crumb.minX - up.minX) < 0.5, "\(child): \(parent.title) at \(crumb.minX), as its own title at \(up.minX)")
+            #expect(abs(crumb.midY - up.midY) < 0.5, "\(child): on the same line")
+        }
+    }
+
     /// Every page is one column no wider than the cap, centred in the page area, and its title
     /// starts where its content does; on a small window too.
     @Test(arguments: [CGSize(width: 1180, height: 760), CGSize(width: 860, height: 600)])
@@ -831,12 +843,18 @@ import Carbon.HIToolbox
         #expect(checked >= 28, "checked \(checked) rows")
     }
 
-    /// The setup guide is on Help and feedback (signed in: it starts from your name), not General.
-    @Test func theSetupGuideIsOnHelpOnly() async throws {
+    /// On the Mac the setup guide is in the Help menu only, not a row in Settings (Emil, 8 November
+    /// 2026: the row dropped you into importing notes, "kinda off"); search still finds it, as the menu item.
+    @Test func theSetupGuideIsInTheHelpMenuOnly() async throws {
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
-        #expect(try await Self.ids(.help, backend: backend).contains("settings.setupGuide"))
-        #expect(!(try await Self.ids(.general, backend: backend)).contains("settings.setupGuide"))
-        #expect(!(try await Self.ids(.help, backend: Backend())).contains("settings.setupGuide"), "signed out there's no guide to play")
+        #expect(!(try await Self.ids(.help, backend: backend)).contains("settings.setupGuide"))
+        let found = SettingsIndex.all.first { $0.label == "Show Setup Guide" }
+        #expect(found?.menu == .setupGuide && found?.whereItIs == "Help menu")
+        // Terms and the privacy policy are rows on Help and Privacy, not centred links.
+        for page in [SettingsPage.help, .security] {
+            let ids = try await Self.ids(page, backend: backend)
+            #expect(ids.contains("settings.terms") && ids.contains("settings.privacy"), "\(page)")
+        }
         // Signed out, Account offers Sign In… (where the build can sign in at all).
         #expect(try await Self.ids(.account, backend: Backend(watching: CaptureScreen.client)).contains("settings.signIn"))
     }

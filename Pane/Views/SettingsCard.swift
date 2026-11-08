@@ -291,23 +291,28 @@ struct SettingsCard: View {
     /// Back (one level down) just left of it, and × (Esc) at the card's corner.
     private var header: some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 arrows
-                // A page one level down names the page it's in, which takes you back to it
-                // (Emil, 8 November 2026: breadcrumbs, so a sub-page reads as one).
-                if let up = shown.parent {
-                    SettingsCrumb(title: up.title) { open(up) }
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(SettingsInk.muted)
-                        .accessibilityHidden(true)
+                HStack(spacing: 6) {
+                    // A page one level down names the page it's in, which takes you back to it
+                    // (Emil, 8 November 2026: breadcrumbs, so a sub-page reads as one). The
+                    // parent's name stays exactly where it was as that page's title: going deeper
+                    // adds to the line, it doesn't move it (Emil, the same day).
+                    if let up = shown.parent {
+                        SettingsCrumb(title: up.title) { open(up) }
+                            .settingsProbe("crumb")
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(SettingsInk.muted)
+                            .accessibilityHidden(true)
+                    }
+                    Text(shown.title)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(SettingsInk.text)
+                        .lineLimit(1)
+                        .accessibilityAddTraits(.isHeader)
+                        .settingsProbe("title")
                 }
-                Text(shown.title)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(SettingsInk.text)
-                    .lineLimit(1)
-                    .accessibilityAddTraits(.isHeader)
-                    .settingsProbe("title")
                 Spacer(minLength: 0)
             }
             .frame(minHeight: 28)
@@ -328,16 +333,9 @@ struct SettingsCard: View {
         }
         .padding(.top, inWindow ? SettingsWindow.headerTop : 12)
         .padding(.bottom, 6)
-        // Solid and above the page, so nothing scrolled shows through it, and a short fade under it,
-        // so what scrolls up slips away rather than meeting a hard edge (Emil, 8 November 2026).
+        // Solid and above the page, so nothing scrolled shows through it; the page fades itself out
+        // under it (SettingsPageForm), as the notes list's soft edge.
         .background(SettingsInk.ground)
-        .overlay(alignment: .bottom) {
-            LinearGradient(colors: [SettingsInk.ground, SettingsInk.ground.opacity(0)], startPoint: .top, endPoint: .bottom)
-                .frame(height: 14)
-                .offset(y: 14)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
         .zIndex(1)
     }
 
@@ -625,13 +623,13 @@ struct SettingsCrumb: View {
                 .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(hover ? SettingsInk.text : SettingsInk.muted)
                 .lineLimit(1)
-                .padding(.horizontal, 6).frame(height: 26)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(SettingsInk.selection).opacity(hover ? 1 : 0))
-                .contentShape(Rectangle())
+                .frame(height: 26)
+                // The hover reaches past the word, so the word itself never moves.
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(SettingsInk.selection).opacity(hover ? 1 : 0).padding(.horizontal, -6))
+                .contentShape(Rectangle().inset(by: -6))
         }
         .buttonStyle(.plain)
         .opensOnPress(action)
-        .padding(.leading, 2).padding(.trailing, -6)
         .onHover { hover = $0 }
         .accessibilityLabel(title)
         .accessibilityHint("Goes back to \(title)")

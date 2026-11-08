@@ -287,7 +287,7 @@ struct PrivacyPage: View {
                 SettingsSubPageRow(page: .encryption, id: "privacy.encryption", detail: Self.encryptionLine(advanced: crypto.protection == .strict))
             }
             DiagnosticsSection()
-            OpenSection { LegalLinksRow().frame(maxWidth: .infinity) }
+            LegalRowsSection()
         }
     }
 }
