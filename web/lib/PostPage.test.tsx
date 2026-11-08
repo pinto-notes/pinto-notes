@@ -76,12 +76,24 @@ import { BlogIndex } from "./BlogIndex";
 import { posts } from "./posts";
 
 describe("an announcement", () => {
-  it("says Announcement above its title, and a guide doesn't", () => {
+  it("opens like a launch post: the date, the title and the news, with no label or breadcrumb; a guide keeps its own header", () => {
     const launch = doc(<Launch />);
     const head = launch.querySelector("header")!;
-    expect(head.textContent).toContain("Announcement");
+    expect(head.querySelector("time")?.getAttribute("datetime")).toBe("2026-11-06");
     expect(head.querySelector("h1")?.textContent).toBe("Introducing Pinto Notes for iPhone");
-    expect(doc(<Post />).querySelector("header")!.textContent).not.toContain("Announcement");
+    expect(head.textContent).toContain("out now on the App Store");
+    expect(head.textContent).not.toContain("Announcement");
+    expect(head.querySelector("nav")).toBeNull();
+    expect(doc(<Post />).querySelector("header nav")).not.toBeNull();
+  });
+
+  it("ends with one place to get the app, inside the post: the App Store and the Mac download", () => {
+    const get = doc(<Launch />).querySelector("section[aria-labelledby='get-it']")!;
+    expect(get.querySelector("h2")?.textContent).toBe("Get Pinto Notes");
+    const links = [...get.querySelectorAll("a")].map((a) => a.getAttribute("href"));
+    expect(links.some((h) => h?.startsWith("https://apps.apple.com/"))).toBe(true);
+    expect(links.includes("/download/mac")).toBe(true);
+    expect(doc(<Launch />).querySelector("[data-closing-band]")).toBeNull();
   });
 
   it("carries the label on its card, but not on the front of the blog, where every post is one", () => {
