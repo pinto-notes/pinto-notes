@@ -85,6 +85,8 @@ struct ShareNotePopover: View {
     let close: () -> Void
 
     @State private var way: ShareWays.Way?
+    @State private var pictureImage: CGImage?
+    @State private var pictureCopied = false
     /// Narrower than it was (340, and 360 with Collaborate): Emil, 8 November 2026, "I dont like how
     /// wide this whole thing is". Four ways still fit, each tab as wide as its name.
     static let width: CGFloat = 316
@@ -133,7 +135,10 @@ struct ShareNotePopover: View {
                 case .picture: pictureRows
                 }
             }
-            .padding(6)
+            // The rows' words, previews and buttons all start 16 pt in, as the line above them does
+            // (council, 8 November 2026: margins drifted between 10 and 27 pt).
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
         }
         .frame(width: collaborating ? Self.collaborateWidth : Self.width)
         // Solid, as the app's cards are: the system's glass let the window behind show through its
@@ -168,9 +173,9 @@ struct ShareNotePopover: View {
             }
         } else if !shared {
             WebPagePreview(title: title, text: text)
-                .padding(.horizontal, 6).padding(.top, 4).padding(.bottom, 8)
-            row("Create Link…", "link", id: "share.create") { _ = store.requestShare() }
-                .disabled(store.state.isWorking)
+                .padding(.horizontal, 8).padding(.top, 6).padding(.bottom, 12)
+            // One filled button per tab, the tab's main action, as Collaborate has.
+            primary("Publish Web Page…", "globe", id: "share.create", busy: store.state.isWorking) { close(); _ = store.requestShare() }
         } else {
             if let url = store.url {
                 Text(url.absoluteString.replacingOccurrences(of: "https://", with: ""))
@@ -178,11 +183,12 @@ struct ShareNotePopover: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, 8)
                     .padding(.top, 4)
-                    .padding(.bottom, 2)
+                    .padding(.bottom, 8)
             }
-            row("Copy Link", "link", id: "share.copy") { Task { await store.shareAndCopy() } }
+            primary("Copy Link", "link", id: "share.copy") { close(); Task { await store.shareAndCopy() } }
+                .padding(.bottom, 4)
             if let url = store.url {
                 row("Open Shared Page", "safari", id: "share.open") { NSWorkspace.shared.open(url) }
             }
@@ -202,15 +208,56 @@ struct ShareNotePopover: View {
             .buttonStyle(.plain)
         }
         Divider().padding(.horizontal, 6).padding(.vertical, 4)
-        row("Copy", "doc.on.doc", id: "share.copyText") {
+        row("Copy as Text", "doc.on.doc", id: "share.copyText") {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
         }
     }
 
+    /// What sits under the picture: the backgrounds, then the buttons.
+    static let pictureControls: CGFloat = 92
+
     @ViewBuilder private var pictureRows: some View {
-        if let request = pictureRequest?() { NotePictureThumb(request: request).padding(.horizontal, 6).padding(.top, 4).padding(.bottom, 8) }
-        if let picture { row("Copy, Save or Change Background…", "photo", id: "share.picture", action: picture) }
+        if let request = pictureRequest?() {
+            NotePictureThumb(request: request, image: $pictureImage).padding(.horizontal, 8).padding(.top, 6).padding(.bottom, 10)
+            // The background is chosen here, under the picture, not behind a menu row
+            // (council, 8 November 2026: one row held copy, save and the background).
+            PictureBackgrounds().padding(.horizontal, 8).padding(.bottom, 12)
+        }
+        HStack(spacing: 8) {
+            Button { copyPicture() } label: {
+                Label(pictureCopied ? "Copied" : "Copy Picture", systemImage: pictureCopied ? "checkmark" : "doc.on.doc")
+            }
+            .buttonStyle(.amberProminent(.compact, wide: true))
+            .disabled(pictureImage == nil)
+            .accessibilityIdentifier("share.copyPicture")
+            if let picture {
+                Button { close(); picture() } label: { Text("Save or Share…") }
+                    .buttonStyle(.secondary(.compact))
+                    .fixedSize()
+                    .accessibilityIdentifier("share.picture")
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.bottom, 4)
+    }
+
+    private func copyPicture() {
+        guard let pictureImage else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([NSImage(cgImage: pictureImage, size: .zero)])
+        pictureCopied = true
+        Task { try? await Task.sleep(for: .seconds(1.6)); pictureCopied = false }
+    }
+
+    /// The tab's main action: a full-width filled button, the same on every tab that has one.
+    private func primary(_ title: String, _ symbol: String, id: String, busy: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Label(title, systemImage: symbol) }
+            .buttonStyle(.amberProminent(.compact, wide: true))
+            .amberBusy(busy)
+            .disabled(busy)
+            .padding(.horizontal, 8)
+            .accessibilityIdentifier(id)
     }
 
     private func row(_ title: String, _ symbol: String, id: String, destructive: Bool = false, action: @escaping () -> Void) -> some View {
@@ -261,6 +308,9 @@ private struct ShareTabs: View {
 }
 
 private struct ShareTab: View {
+    /// The chosen tab's pill: the app's soft fill was 1.1:1 on the card, hard to see (council,
+    /// 8 November 2026).
+    static let chosen = Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.23, alpha: 1) : NSColor(white: 0.9, alpha: 1) })
     let title: String
     let on: Bool
     let action: () -> Void
@@ -276,7 +326,7 @@ private struct ShareTab: View {
                 .fixedSize()
                 .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity, minHeight: 28)
-                .background { if on { shape.fill(Color.soft) } else if hovering { shape.fill(Hover.row) } }
+                .background { if on { shape.fill(Self.chosen) } else if hovering { shape.fill(Hover.row) } }
                 .contentShape(shape)
         }
         .buttonStyle(.plain)
@@ -291,7 +341,7 @@ private struct ShareTab: View {
 struct WebPagePreview: View {
     let title: String
     let text: String
-    static let height: CGFloat = 150
+    static let height: CGFloat = 132
 
     /// The lines under the title: the note's first few, its first line left out when it is the title.
     static func lines(title: String, text: String) -> [String] {
@@ -302,80 +352,119 @@ struct WebPagePreview: View {
         lines.removeAll { $0.count >= 3 && $0.allSatisfy(dividers.contains) }
         return Array(lines.filter { !$0.isEmpty }.prefix(4)).map { line in
             // Markdown's list and heading marks read as clutter at this size.
-            var l = Substring(line)
-            for mark in ["- [ ] ", "- [x] ", "- ", "* ", "# ", "## ", "### "] where l.hasPrefix(mark) { l = l.dropFirst(mark.count); break }
-            return String(l)
+            // List items keep a bullet, as the page draws them (council, 8 November 2026).
+            for mark in ["- [ ] ", "- [x] ", "- ", "* "] where line.hasPrefix(mark) { return "\u{2022} " + line.dropFirst(mark.count) }
+            for mark in ["# ", "## ", "### "] where line.hasPrefix(mark) { return String(line.dropFirst(mark.count)) }
+            return line
         }
     }
 
     var body: some View {
-        let stage = RoundedRectangle(cornerRadius: 10, style: .continuous)
-        // A small picture of the page, not more of the popover: a light browser window with a
-        // shadow, on a tinted ground, as the Picture tab sets its card on a background (Emil,
-        // 8 November 2026: the preview "blends in").
-        ZStack(alignment: .top) {
-            stage.fill(LinearGradient(colors: [Color(PColor.paneAccent).opacity(0.28), Color(PColor.paneAccent).opacity(0.08)],
-                                      startPoint: .topLeading, endPoint: .bottomTrailing))
-            browser
-                .padding(.horizontal, 22)
-                .padding(.top, 16)
-                .environment(\.colorScheme, .light)
-        }
-        .frame(height: Self.height)
-        .clipShape(stage)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("A preview of the web page")
-        .accessibilityIdentifier("share.webPreview")
+        // A calm tray with a small browser window in it, drawn in the current appearance: the
+        // tinted stage and a white page in dark mode were louder than the action (council,
+        // 8 November 2026), and Emil found the plain one blended in. The tray sets it apart.
+        browser
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .frame(height: Self.height)
+            .background(Color.soft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("A preview of the web page")
+            .accessibilityIdentifier("share.webPreview")
     }
 
     private var browser: some View {
-        let shape = UnevenRoundedRectangle(topLeadingRadius: 7, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 7, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
         let name = title.trimmingCharacters(in: .whitespaces).isEmpty ? "New note" : title
         return VStack(spacing: 0) {
             HStack(spacing: 4) {
-                ForEach(0..<3, id: \.self) { _ in Circle().fill(Color.black.opacity(0.15)).frame(width: 6, height: 6) }
+                ForEach(0..<3, id: \.self) { _ in Circle().fill(Color.primary.opacity(0.16)).frame(width: 6, height: 6) }
                 Spacer(minLength: 8)
                 Text("pintonotes.com/s/\u{2026}")
                     .font(.system(size: 9.5))
-                    .foregroundStyle(Color.black.opacity(0.5))
+                    .foregroundStyle(Color.muted)
                     .lineLimit(1)
                     .padding(.horizontal, 10).frame(height: 16)
-                    .background(Capsule().fill(Color.black.opacity(0.06)))
+                    .background(Capsule().fill(Color.primary.opacity(0.06)))
                 Spacer(minLength: 8)
                 Color.clear.frame(width: 26, height: 6)
             }
             .padding(.horizontal, 8)
-            .frame(height: 24)
-            .background(Color(white: 0.95))
-            Rectangle().fill(Color.black.opacity(0.08)).frame(height: 1)
-            VStack(alignment: .leading, spacing: 5) {
+            .frame(height: 22)
+            Rectangle().fill(Color.line).frame(height: 1)
+            VStack(alignment: .leading, spacing: 4) {
                 Text(name)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color.black.opacity(0.88))
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Color.ink)
                     .lineLimit(1)
-                ForEach(Array(Self.lines(title: title, text: text).enumerated()), id: \.offset) { _, line in
-                    Text(line).font(.system(size: 10)).foregroundStyle(Color.black.opacity(0.55)).lineLimit(1)
+                ForEach(Array(Self.lines(title: title, text: text).prefix(3).enumerated()), id: \.offset) { _, line in
+                    Text(line).font(.system(size: 9.5)).foregroundStyle(Color.muted).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 14)
-            .padding(.top, 10)
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(Color.white)
+            .clipped()
+            .background(Color.card)
         }
         .clipShape(shape)
-        .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
+        .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
+    }
+}
+
+/// The picture's backgrounds, small and round, under the picture: the chosen one ringed. The same
+/// choice the picture sheet keeps.
+struct PictureBackgrounds: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("notePicture.background") private var storedBackground = ""
+
+    var body: some View {
+        let chosen = NotePicture.Background(rawValue: storedBackground) ?? (colorScheme == .dark ? .dusk : .hills)
+        HStack(spacing: 10) {
+            ForEach(NotePicture.Background.allCases) { b in
+                Button { storedBackground = b.rawValue } label: {
+                    swatch(b)
+                        .frame(width: 24, height: 24)
+                        .clipShape(Circle())
+                        .overlay(Circle().strokeBorder(Color.primary.opacity(0.22), lineWidth: 1))
+                        .padding(3)
+                        .overlay { if b == chosen { Circle().strokeBorder(Color.accentColor, lineWidth: 2) } }
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .hoverHighlight(Circle())
+                .accessibilityLabel(b.name)
+                .accessibilityAddTraits(b == chosen ? .isSelected : [])
+                .help(b.name)
+            }
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("share.pictureBackgrounds")
+    }
+
+    @ViewBuilder private func swatch(_ b: NotePicture.Background) -> some View {
+        if let asset = b.asset {
+            Image(asset).resizable().scaledToFill()
+        } else {
+            let c = b.plain
+            Color(red: Double((c >> 16) & 0xFF) / 255, green: Double((c >> 8) & 0xFF) / 255, blue: Double(c & 0xFF) / 255)
+        }
     }
 }
 
 /// The note as a picture, with the look last chosen: what the Picture tab opens on.
 struct NotePictureThumb: View {
-    static let height: CGFloat = 196
+    /// Tall enough that the picture fills the popover's width, as the web page preview does.
+    static let height: CGFloat = 212
     let request: NotePicture.Request
+    /// The picture once drawn, for Copy Picture.
+    var image: Binding<CGImage?>? = nil
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("notePicture.background") private var storedBackground = ""
     @AppStorage("notePicture.showsMark") private var showsMark = true
-    @State private var image: CGImage?
+    @State private var drawn: CGImage?
 
     var body: some View {
         let dark = colorScheme == .dark
@@ -383,8 +472,8 @@ struct NotePictureThumb: View {
         // One fixed box, the picture or its spinner: a popover is sized once, as it opens, and the
         // picture came after and was squeezed into the spinner's room, a dot (Emil, 8 November 2026).
         ZStack {
-            if let image {
-                Image(decorative: image, scale: 1).resizable().interpolation(.high).scaledToFit()
+            if let drawn {
+                Image(decorative: drawn, scale: 1).resizable().interpolation(.high).scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .accessibilityLabel("A picture of the note")
             } else {
@@ -397,13 +486,14 @@ struct NotePictureThumb: View {
             if let app = request.app {
                 let shot = await NotePageLive.snapshot(app, dark: look.dark)
                 guard !Task.isCancelled else { return }
-                image = shot.flatMap { NotePicture.render(app: $0, look: look) }?.image
+                drawn = shot.flatMap { NotePicture.render(app: $0, look: look) }?.image
             } else {
                 let apps = await NotePageLive.embedded(in: request.passage.text, dark: look.dark)
                 guard !Task.isCancelled else { return }
-                image = NotePicture.render(request, look: look, apps: apps)?.image
+                drawn = NotePicture.render(request, look: look, apps: apps)?.image
             }
         }
+        .onChange(of: drawn) { _, new in image?.wrappedValue = new }
     }
 }
 
@@ -547,11 +637,11 @@ struct CollaborateRows: View {
                 line(why, problem: false)
             } else if share.isOwner {
                 HStack(spacing: 8) {
-                    Text("People with the link").font(.system(size: 13))
+                    Text("Anyone with the link").font(.system(size: 13))
                     Spacer(minLength: 0)
                     // A neutral menu: the system's took the accent, loud for a setting left at Off.
                     Menu {
-                        Picker("People with the link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
+                        Picker("Anyone with the link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
                             ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
                         }
                         .pickerStyle(.inline)
@@ -573,7 +663,7 @@ struct CollaborateRows: View {
                     .modifier(HoverTracking(hovering: $accessHover))
                     .fixedSize()
                     .disabled(share.working != nil)
-                    .accessibilityLabel("People with the link: \(share.state.access.rawValue)")
+                    .accessibilityLabel("Anyone with the link: \(share.state.access.rawValue)")
                     .accessibilityIdentifier("share.access")
                 }
                 if let problem = share.state.problem { line(problem, problem: true) }
@@ -581,7 +671,7 @@ struct CollaborateRows: View {
                 else { line(ShareCopy.link(share.state), problem: false) }
                 Button { Task { await share.shareLink() } } label: {
                     if case .shared = share.done { Label(share.done?.text ?? "", systemImage: "checkmark") }
-                    else { Label("Share Link", systemImage: "square.and.arrow.up") }
+                    else { Label("Invite People…", systemImage: "person.badge.plus") }
                 }
                 .buttonStyle(.amberProminent(.compact, wide: true))
                 .amberBusy(share.working == .link)

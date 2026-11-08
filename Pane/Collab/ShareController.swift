@@ -267,16 +267,16 @@ enum ShareCopy {
         switch access {
         case .edit: "Anyone with the link can join and edit in Pinto Notes."
         case .view: "Anyone with the link can join and read in Pinto Notes."
-        case .off: "The link doesn't work. Turning it on makes a new one."
+        case .off: "Only the people above can open this note. Turning the link on makes a new one."
         }
     }
 
-    /// Under the link: what it does now, or, before the note is shared, what Share Link will do.
+    /// Under the link: what it does now, or, before the note is shared, what Invite People will do.
     static func link(_ state: ShareState) -> String {
         state.access == .off && state.people.count <= 1 ? notSharedYet : link(state.access)
     }
 
-    static let notSharedYet = "Share Link makes a link anyone can join with and edit, in Pinto Notes."
+    static let notSharedYet = "Invite People makes a link anyone can join with and edit, in Pinto Notes."
 
     static func role(_ role: String) -> String {
         role == "owner" ? "Owner" : role == "editor" ? "Can edit" : "Can view"

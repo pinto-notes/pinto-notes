@@ -83,7 +83,7 @@ struct ShareForm: View {
                     Picker(selection: Binding(get: { state.access }, set: { a in Task { await share.setAccess(a) } })) {
                         ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
                     } label: {
-                        Text("People with the link")
+                        Text("Anyone with the link")
                     }
                     .pickerStyle(.menu)
                     .disabled(share.working != nil)
@@ -139,7 +139,7 @@ struct ShareForm: View {
             Task { await share.shareLink() }
         } label: {
             if case .shared = share.done { Label(share.done?.text ?? "", systemImage: "checkmark") }
-            else { Label("Share Link", systemImage: "square.and.arrow.up") }
+            else { Label("Invite People…", systemImage: "person.badge.plus") }
         }
         .buttonStyle(.amberProminent(.big, wide: true))
         .amberBusy(share.working == .link)

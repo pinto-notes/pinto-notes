@@ -75,7 +75,8 @@ import Testing
         // The thumb's box, about the middle of the popover: many colours where a picture is drawn.
         let scale = CGFloat(rep.pixelsWide) / host.bounds.width
         var colours = Set<Int>()
-        let rows = Int((host.bounds.height - NotePictureThumb.height - 40) * scale)..<Int((host.bounds.height - 40) * scale)
+        let below = ShareNotePopover.pictureControls
+        let rows = Int((host.bounds.height - NotePictureThumb.height - below) * scale)..<Int((host.bounds.height - below) * scale)
         for y in stride(from: rows.lowerBound, to: rows.upperBound, by: 4) {
             for x in stride(from: Int(20 * scale), to: rep.pixelsWide - Int(20 * scale), by: 4) {
                 guard let c = rep.colorAt(x: x, y: y) else { continue }
@@ -89,8 +90,8 @@ import Testing
     /// its first lines, without markdown's marks (Emil, 8 November 2026).
     @Test func webPageShowsAPreview() {
         #expect(WebPagePreview.lines(title: "Dinner Guide", text: SharePopoverCapture.text)
-                == ["A plan for Friday: tapas at six, then the walk along the river.", "Olives and bread", "Patatas bravas", "Flan"])
-        #expect(WebPagePreview.lines(title: "Other", text: "Notes\n- [ ] Buy milk") == ["Notes", "Buy milk"])
+                == ["A plan for Friday: tapas at six, then the walk along the river.", "• Olives and bread", "• Patatas bravas", "• Flan"])
+        #expect(WebPagePreview.lines(title: "Other", text: "Notes\n- [ ] Buy milk") == ["Notes", "• Buy milk"])
         // A divider is no line of text (Emil, 8 November 2026: the preview showed "---").
         #expect(WebPagePreview.lines(title: "T", text: "T\nOne\n---\nTwo\n***") == ["One", "Two"])
     }
