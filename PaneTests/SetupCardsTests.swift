@@ -361,4 +361,147 @@ import Testing
     }
 
 }
+
+/// The template library's speed (Emil, 8 November 2026: "janky, laggy"): its first frame, a
+/// pass after a change (a key typed, a card picked), and each slow step on its own. Printed as
+/// PERF lines; the limits are loose, so a slow machine doesn't fail them, and only catch a step
+/// that's back to reading or decoding files on every pass.
+@MainActor @Suite struct TemplateLibraryTimings {
+    /// The library as its window holds it; a new `n` is a change that runs its body again, as a
+    /// key typed or a card picked does.
+    struct Host: View {
+        let n: Int
+        let open: TemplateCatalog.Entry?
+        var body: some View {
+            TemplateLibraryView(catalog: .shipped, ais: [.chatgpt, .claude], open: open, make: { _, _ in _ = n }).environment(\.inSheet, true)
+        }
+    }
+
+    private func ms(_ d: Duration) -> Double { Double(d.components.attoseconds) / 1e15 + Double(d.components.seconds) * 1000 }
+
+    private func measure(_ name: String, open: TemplateCatalog.Entry?) async throws -> (first: Double, again: Double) {
+        let clock = ContinuousClock(), start = clock.now
+        let host = NSHostingView(rootView: Host(n: 0, open: open))
+        host.frame = CGRect(origin: .zero, size: TemplateLibraryView.size)
+        let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: host.frame.width, height: host.frame.height), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        defer { window.close() }
+        host.layoutSubtreeIfNeeded()
+        CATransaction.flush()
+        let first = ms(clock.now - start)
+        try await Task.sleep(for: .milliseconds(300))
+        var passes: [Double] = []
+        for i in 1...15 {
+            let t = clock.now
+            host.rootView = Host(n: i, open: open)
+            host.layoutSubtreeIfNeeded()
+            CATransaction.flush()
+            passes.append(ms(clock.now - t))
+        }
+        let again = passes.sorted()[passes.count / 2]
+        print("PERF templates \(name): first frame \(String(format: "%.1f", first)) ms, a pass after a change \(String(format: "%.1f", again)) ms (median of 15)")
+        return (first, again)
+    }
+
+    @Test func theLibraryIsQuick() async throws {
+        let c = TemplateCatalog.shipped
+        let closed = try await measure("closed", open: nil)
+        let note = try await measure("a note open", open: c.entries.first { $0.slug == "meeting-notes" })
+        let app = try await measure("an app open", open: c.entries.first { $0.slug == "trip-plan" })
+        // The steps on their own, as each pass ran them.
+        let clock = ContinuousClock()
+        var start = clock.now
+        for e in c.entries { _ = e.pick.image }
+        print("PERF templates covers: \(String(format: "%.2f", ms(clock.now - start))) ms for \(c.entries.count) cards")
+        start = clock.now
+        for e in c.entries { _ = NotePreview.blocks(e.example) }
+        print("PERF templates note previews parsed: \(String(format: "%.2f", ms(clock.now - start))) ms for \(c.entries.count)")
+        start = clock.now
+        for e in c.entries where e.app { _ = e.appProject; _ = e.appData }
+        print("PERF templates app projects read: \(String(format: "%.2f", ms(clock.now - start))) ms")
+        start = clock.now
+        for e in c.entries { _ = c.shown(filter: "All", query: e.title) }
+        print("PERF templates searches: \(String(format: "%.2f", ms(clock.now - start))) ms for \(c.entries.count)")
+        for t in [closed, note, app] { #expect(t.again < 250) }
+    }
+}
+
+
+/// How the template library behaves (Emil, 8 November 2026: "it works a bit weird").
+@MainActor @Suite struct TemplateLibraryBehaviour {
+    /// One template is always open, so the grid keeps its width and picking a card never moves
+    /// the others: with none open it was five across, then three after the first click.
+    @Test func aTemplateIsAlwaysOpen() throws {
+        let c = TemplateCatalog.shipped
+        let all = c.shown(filter: "All", query: "")
+        #expect(TemplateLibraryView.showing(all, open: nil) == all.first)
+        let meeting = try #require(all.first { $0.slug == "meeting-notes" })
+        #expect(TemplateLibraryView.showing(all, open: meeting) == meeting)
+        // A kind that doesn't have the open one opens its own first.
+        let apps = c.shown(filter: "Apps", query: "")
+        #expect(TemplateLibraryView.showing(apps, open: meeting) == apps.first)
+        #expect(TemplateLibraryView.showing([], open: meeting) == nil)
+        let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
+        #expect(!src.contains(".move(edge: .trailing)"), "the panel no longer slides in and squeezes the grid")
+    }
+
+    /// The arrow keys move through the cards: one along, or a row of three.
+    @Test func arrowKeysMoveThroughTheCards() {
+        let all = TemplateCatalog.shipped.shown(filter: "All", query: "")
+        #expect(TemplateLibraryView.step(all, from: all[0], by: 1) == all[1])
+        #expect(TemplateLibraryView.step(all, from: all[4], by: -3) == all[1])
+        #expect(TemplateLibraryView.step(all, from: all[0], by: -1) == all[0], "the first stays put")
+        #expect(TemplateLibraryView.step(all, from: all.last, by: 3) == all.last, "the last stays put")
+        #expect(TemplateLibraryView.step([], from: nil, by: 1) == nil)
+    }
+
+    /// The sheet fits the window it's on, and is never smaller than its buttons need.
+    @Test func theSheetFitsItsWindow() {
+        #expect(TemplateLibraryView.size(on: CGSize(width: 1600, height: 1000)) == TemplateLibraryView.size)
+        #expect(TemplateLibraryView.size(on: CGSize(width: 800, height: 560)) == CGSize(width: 720, height: 500))
+        #expect(TemplateLibraryView.size(on: CGSize(width: 1000, height: 700)) == CGSize(width: 920, height: 640))
+        // The kinds fit the smallest sheet: one word each (the full names made the control 750 pt).
+        #expect(TemplateCatalog.filters.map(TemplateCatalog.label) == ["All", "Apps", "Health", "Work", "Learning", "Home"])
+    }
+
+    /// Covers are read once, not again for every card on every key typed.
+    @Test func coversAreReadOnce() throws {
+        let pick = try #require(TemplateCatalog.shipped.entries.first).pick
+        _ = pick.image
+        #expect(SetupCards.Pick.covers.object(forKey: pick.cover as NSString) != nil)
+    }
+}
+
+/// Pictures of the template library for the design council (8 November 2026): the states you
+/// meet, in light and dark, drawn offscreen as its sheet shows them.
+@MainActor @Suite struct TemplateLibraryShots {
+    static let dir = ProcessInfo.processInfo.environment["AMBER_TEMPLATE_SHOTS"].map { URL(fileURLWithPath: $0) }
+
+    @Test(arguments: [false, true]) func shots(dark: Bool) async throws {
+        guard let dir = Self.dir else { return }
+        let kept = ThemeStore.shared.current
+        ThemeStore.shared.set(ThemeLook(theme: .standard, accent: .theme), persist: false)
+        defer { ThemeStore.shared.set(kept, persist: false) }
+        let c = TemplateCatalog.shipped
+        let states: [(String, TemplateCatalog.Entry?, String, String, CGSize)] = [
+            ("1-opened", nil, "All", "", TemplateLibraryView.size),
+            ("2-note-picked", c.entries.first { $0.slug == "meeting-notes" }, "All", "", TemplateLibraryView.size),
+            ("3-app-picked", c.entries.first { $0.slug == "habit-tracker" }, "All", "", TemplateLibraryView.size),
+            ("4-long-note-picked", c.entries.first { $0.slug == "trip-plan" }, "All", "", TemplateLibraryView.size),
+            ("5-apps-filter", nil, "Apps", "", TemplateLibraryView.size),
+            ("6-search-trip", nil, "All", "trip", TemplateLibraryView.size),
+            ("7-search-nothing", nil, "All", "zebra", TemplateLibraryView.size),
+            ("8-small-window", c.entries.first { $0.slug == "weekly-review" }, "All", "", TemplateLibraryView.size(on: CGSize(width: 800, height: 560))),
+        ]
+        for (name, open, filter, query, size) in states {
+            let view = TemplateLibraryView(catalog: c, ais: [.chatgpt, .claude], open: open, filter: filter, query: query, size: size)
+                .environment(\.inSheet, true)
+                .frame(width: size.width, height: size.height, alignment: .topLeading)
+                .background(SetupCards.ground)
+                .tint(Color(PColor.paneAccent))
+            try await VersionHistorySnapshots.shoot(view, to: dir.appending(path: "\(name)-\(dark ? "dark" : "light").png"), size: size, dark: dark)
+        }
+    }
+}
 #endif

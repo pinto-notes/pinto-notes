@@ -151,10 +151,17 @@ enum SetupCards {
         var lightInk: Bool { SetupCards.luminance(ground) <= 0.3 }
 
         /// The cover: an asset, or a small copy of the site's (Pane/Resources/Templates).
+        /// Read once: a new picture on every pass was read and decoded again for every card on
+        /// each key typed in the template library (8 November 2026).
         var image: Image {
-            if let url = Bundle.main.url(forResource: cover, withExtension: "jpg"), let i = NSImage(contentsOf: url) { return Image(nsImage: i) }
+            if let i = Self.covers.object(forKey: cover as NSString) { return Image(nsImage: i) }
+            if let url = Bundle.main.url(forResource: cover, withExtension: "jpg"), let i = NSImage(contentsOf: url) {
+                Self.covers.setObject(i, forKey: cover as NSString)
+                return Image(nsImage: i)
+            }
             return Image(cover)
         }
+        nonisolated(unsafe) static let covers = NSCache<NSString, NSImage>()
     }
 
     static let picks: [Pick] = [

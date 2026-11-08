@@ -587,6 +587,8 @@ struct NotePageView: View {
     /// A preview's own data (the template library), in place of the note's stored data. It keeps
     /// no picture of itself.
     var preview: NotePageData.Doc?
+    /// The page has drawn and takes clicks (the template library hides its picture of it then).
+    var onReady: () -> Void = {}
     @State private var sandbox: NotePageSandbox?
     @State private var failed: String?
     @State private var ready = false
@@ -637,6 +639,7 @@ struct NotePageView: View {
                     s.onReady = {}
                     NotePageTiming.shown(noteID, "interactive")
                     withAnimation(.easeOut(duration: 0.15)) { ready = true }
+                    onReady()
                     NotePageLive.register(s.webView, noteID)
                     // The picture for next time, once the page has settled.
                     snapshotTask?.cancel()
