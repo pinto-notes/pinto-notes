@@ -233,6 +233,31 @@ import Testing
         #expect(host.popup == "connectAI", "Connect an AI takes its place")
     }
 
+    /// Each foot icon's ink sits in the middle of its row, top to bottom (Emil, 8 November 2026:
+    /// Import notes' tray sat low). Drawn offscreen, measured by its pixels.
+    @Test func theFootIconsAreCentredInTheirRows() async throws {
+        var report = ""
+        for symbol in ["square.grid.2x2", "sparkles", "square.and.arrow.down"] {
+            let h = SidebarFoot.pillHeight
+            let view = SidebarFootIcon(name: symbol).frame(width: 40, height: h).background(Color.white).environment(\.colorScheme, .light)
+            let host = NSHostingView(rootView: view)
+            host.frame = CGRect(x: 0, y: 0, width: 40, height: h)
+            host.layoutSubtreeIfNeeded()
+            let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+            host.cacheDisplay(in: host.bounds, to: rep)
+            var top = Int.max, bottom = -1
+            for y in 0..<rep.pixelsHigh { for x in 0..<rep.pixelsWide {
+                if let c = rep.colorAt(x: x, y: y), c.brightnessComponent < 0.7 { top = min(top, y); bottom = max(bottom, y) }
+            } }
+            let scale = CGFloat(rep.pixelsHigh) / h
+            let above = CGFloat(top) / scale, below = h - CGFloat(bottom + 1) / scale
+            report += "\(symbol): above \(above) below \(below)\n"
+            // Within a point: drawn at 2x, the edge of anti-aliased ink is only good to about that.
+            #expect(abs(above - below) <= 1, "\(symbol): \(above) pt of room above its ink in its pill, \(below) below")
+        }
+        try? report.write(toFile: NSTemporaryDirectory() + "/foot-icons.txt", atomically: true, encoding: .utf8)
+    }
+
     /// Measured in the real window, not worked out: the account's highlight as far in on the left as
     /// a folder row's pill and about as far in on the right, and Templates, Connect an AI and Import
     /// with their pills (so their icons and names) where a folder row's are. Came back once

@@ -361,7 +361,9 @@ enum TryIt {
     }
 
     /// The AIs a link can hand the prompt to, in the order they are offered.
-    static let askable = ["ChatGPT", "Claude"]
+    /// The AIs that open with the prompt typed in. Grok too (Emil, 8 November 2026: copying
+    /// it to paste felt like "a scam" next to ChatGPT and Claude opening).
+    static let askable = ["ChatGPT", "Claude", "Grok"]
 
     /// How the prompt reaches the AI, by what is connected: a button for ChatGPT and for Claude
     /// when they are, and the prompt to paste when something else is (or nothing is known yet).
@@ -377,6 +379,7 @@ enum TryIt {
         switch ai {
         case "ChatGPT": return WebConnectPlan.prefilled("https://chatgpt.com/", prompt)
         case "Claude": return WebConnectPlan.prefilled("https://claude.ai/new", prompt)
+        case "Grok": return WebConnectPlan.prefilled("https://grok.com/", prompt)
         default: return nil
         }
     }

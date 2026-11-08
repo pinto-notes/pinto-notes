@@ -2292,6 +2292,7 @@ private struct ReceiptUndoneWatcher: View {
 /// the big title has scrolled out of view (Emil, 3 November 2026: breadcrumbs back, now that the
 /// left side often shows the folders and not the note's own list).
 struct NoteBreadcrumbs: View {
+    static let titleWidth: CGFloat = 240
     let note: Note
     var controller: EditorController? = nil
     let open: (Scope) -> Void
@@ -2325,16 +2326,22 @@ struct NoteBreadcrumbs: View {
                     .help("Show \(step.name)")
                     #endif
             }
-            if titled {
+            // Always laid out, only faded: adding and removing it changed the item's width, and
+            // the toolbar slid "Notes" about and drew the two over each other mid-change (Emil,
+            // 8 November 2026: "transition here is janky").
+            HStack(spacing: 0) {
                 chevron
                 Text(note.title.isEmpty ? "New note" : note.title)
                     .font(.system(size: ButtonSize.compact.textSize, weight: .semibold))
                     .foregroundStyle(Color.ink)
                     .padding(.horizontal, ButtonSize.compact.padding * 0.75)
-                    .transition(.opacity)
+                    // Room kept for it all the time now, so a long title can't crowd out Share and •••.
+                    .frame(maxWidth: Self.titleWidth, alignment: .leading)
             }
+            .opacity(titled ? 1 : 0)
+            .accessibilityHidden(!titled)
+            .animation(.easeOut(duration: 0.15), value: titled)
         }
-        .animation(.snappy(duration: 0.2), value: titled)
         .lineLimit(1)
         // Its own width: a toolbar item is otherwise given too little, and showed only "…".
         .fixedSize()

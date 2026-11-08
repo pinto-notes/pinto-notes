@@ -37,7 +37,7 @@ struct SidebarActionRow: View {
                     .footProbe("\(id).title")
                     #endif
             } icon: {
-                SidebarIcon(name: symbol)
+                SidebarFootIcon(name: symbol)
             }
             .frame(height: SidebarFoot.rowContentHeight)
             .sidebarFootPill(id)
@@ -45,6 +45,20 @@ struct SidebarActionRow: View {
         .buttonStyle(.plain)
         // The pill above is its hover: a second one here drew two fills (Emil, 3 November 2026).
         .accessibilityIdentifier(id)
+    }
+}
+
+/// A foot row's icon, its ink centred top to bottom. A symbol sits as it would beside text, with
+/// room of its own above or below: Import notes' tray sat low in its row (Emil, 8 November 2026).
+/// Nudged by what theFootIconsAreCentredInTheirRows measures.
+struct SidebarFootIcon: View {
+    let name: String
+
+    /// How far up, in points. Laid out (padding under it), not an offset, so it's measured as drawn.
+    static let lift: [String: CGFloat] = ["square.and.arrow.down": 0.5]
+
+    var body: some View {
+        SidebarIcon(name: name).padding(.bottom, 2 * (Self.lift[name] ?? 0))
     }
 }
 
@@ -99,6 +113,8 @@ struct SidebarFoot: View {
     /// the rows "don't really align well" with the account under them).
     static var iconColumn: CGFloat { AccountButton.avatar }
     static let gap: CGFloat = 9
+    /// A row's pill, its content and the hover's reach above and below.
+    static var pillHeight: CGFloat { rowContentHeight + Hover.sidebarReach().top + Hover.sidebarReach().bottom }
     /// Between the rows and your account.
     static let accountGap: CGFloat = 8
 
