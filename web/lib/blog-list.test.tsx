@@ -64,6 +64,16 @@ describe("the blog's lists", () => {
     expect(doc.querySelector('[data-blog-pages]')).toBeNull();
   });
 
+  it("list the announcements on the front as compact rows with a small cover, not wide cards", () => {
+    const doc = new DOMParser().parseFromString(renderToStaticMarkup(<BlogIndex category={null} page={1} />), "text/html");
+    const rows = doc.querySelectorAll(".filter-grid > li > a[data-row]");
+    expect(rows.length).toBe(FEATURED.length);
+    for (const r of rows) {
+      expect(r.querySelector("h2")?.textContent).toBeTruthy();
+      expect(r.querySelector("time")).not.toBeNull();
+    }
+  });
+
   it("list every post written for search once on /blog/answers, and none of the front", () => {
     const doc = new DOMParser().parseFromString(renderToStaticMarkup(<AnswersIndex />), "text/html");
     const asked = [...doc.querySelectorAll('[aria-labelledby="more-answers"] a')].map((a) => a.getAttribute("href")!.replace("/blog/", ""));
