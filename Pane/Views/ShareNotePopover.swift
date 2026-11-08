@@ -85,9 +85,10 @@ struct ShareNotePopover: View {
     let close: () -> Void
 
     @State private var way: ShareWays.Way?
-    static let width: CGFloat = 340
-    /// Wide enough for four ways and a person's name beside their role.
-    static let collaborateWidth: CGFloat = 360
+    /// Narrower than it was (340, and 360 with Collaborate): Emil, 8 November 2026, "I dont like how
+    /// wide this whole thing is". Four ways still fit, each tab as wide as its name.
+    static let width: CGFloat = 316
+    static let collaborateWidth: CGFloat = width
 
     private var canLink: Bool { linkAvailable ?? store.isAvailable }
     private var collaborating: Bool { share != nil }
@@ -166,6 +167,8 @@ struct ShareNotePopover: View {
                 row("Stop Sharing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } }
             }
         } else if !shared {
+            WebPagePreview(title: title, text: text)
+                .padding(.horizontal, 6).padding(.top, 4).padding(.bottom, 8)
             row("Create Link…", "link", id: "share.create") { _ = store.requestShare() }
                 .disabled(store.state.isWorking)
         } else {
@@ -245,7 +248,9 @@ private struct ShareTabs: View {
     let choose: (ShareWays.Way) -> Void
 
     var body: some View {
-        HStack(spacing: 2) {
+        // Each tab as wide as its name, the room left shared out between them: four equal tabs
+        // needed the popover 360 wide for "Collaborate" to fit.
+        HStack(spacing: 0) {
             ForEach(ways) { way in
                 ShareTab(title: way.label(collaborating: collaborating), on: way == chosen) { choose(way) }
             }
@@ -268,6 +273,8 @@ private struct ShareTab: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(on || hovering ? Color.ink : Color.muted)
                 .lineLimit(1)
+                .fixedSize()
+                .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity, minHeight: 28)
                 .background { if on { shape.fill(Color.soft) } else if hovering { shape.fill(Hover.row) } }
                 .contentShape(shape)
@@ -278,8 +285,73 @@ private struct ShareTab: View {
     }
 }
 
+/// What the web page will look like, small: a browser's bar with the page's address, then the note's
+/// title and its first lines on a page (Emil, 8 November 2026: "a small at least fake preview of
+/// the website"). Drawn, not loaded: there is no page until the link is made.
+struct WebPagePreview: View {
+    let title: String
+    let text: String
+    static let height: CGFloat = 132
+
+    /// The lines under the title: the note's first few, its first line left out when it is the title.
+    static func lines(title: String, text: String) -> [String] {
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: true).map { $0.trimmingCharacters(in: .whitespaces) }
+        if let first = lines.first, first == title.trimmingCharacters(in: .whitespaces) { lines.removeFirst() }
+        return Array(lines.filter { !$0.isEmpty }.prefix(4)).map { line in
+            // Markdown's list and heading marks read as clutter at this size.
+            var l = Substring(line)
+            for mark in ["- [ ] ", "- [x] ", "- ", "* ", "# ", "## ", "### "] where l.hasPrefix(mark) { l = l.dropFirst(mark.count); break }
+            return String(l)
+        }
+    }
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        let name = title.trimmingCharacters(in: .whitespaces).isEmpty ? "New note" : title
+        VStack(spacing: 0) {
+            HStack(spacing: 4) {
+                ForEach(0..<3, id: \.self) { _ in Circle().fill(Color.muted.opacity(0.35)).frame(width: 6, height: 6) }
+                Spacer(minLength: 8)
+                Text("pintonotes.com/s/\u{2026}")
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(Color.muted)
+                    .lineLimit(1)
+                    .padding(.horizontal, 10).frame(height: 16)
+                    .background(Capsule().fill(Color.primary.opacity(0.06)))
+                Spacer(minLength: 8)
+                Color.clear.frame(width: 26, height: 6)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 26)
+            Rectangle().fill(Color.line).frame(height: 1)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(name)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                ForEach(Array(Self.lines(title: title, text: text).enumerated()), id: \.offset) { _, line in
+                    Text(line).font(.system(size: 10)).foregroundStyle(Color.muted).lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Color(nsColor: .textBackgroundColor))
+        }
+        .frame(height: Self.height)
+        .background(Color.primary.opacity(0.03))
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("A preview of the web page")
+        .accessibilityIdentifier("share.webPreview")
+    }
+}
+
 /// The note as a picture, with the look last chosen: what the Picture tab opens on.
-private struct NotePictureThumb: View {
+struct NotePictureThumb: View {
+    static let height: CGFloat = 196
     let request: NotePicture.Request
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("notePicture.background") private var storedBackground = ""
@@ -289,16 +361,19 @@ private struct NotePictureThumb: View {
     var body: some View {
         let dark = colorScheme == .dark
         let look = NotePicture.Look(background: NotePicture.Background(rawValue: storedBackground) ?? (dark ? .dusk : .hills), dark: dark, showsMark: showsMark)
-        Group {
+        // One fixed box, the picture or its spinner: a popover is sized once, as it opens, and the
+        // picture came after and was squeezed into the spinner's room, a dot (Emil, 8 November 2026).
+        ZStack {
             if let image {
                 Image(decorative: image, scale: 1).resizable().interpolation(.high).scaledToFit()
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .frame(maxWidth: .infinity, maxHeight: 240)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .accessibilityLabel("A picture of the note")
             } else {
-                ProgressView().controlSize(.small).frame(maxWidth: .infinity, minHeight: 120)
+                ProgressView().controlSize(.small)
             }
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.height)
         .task(id: look.key) {
             if let app = request.app {
                 let shot = await NotePageLive.snapshot(app, dark: look.dark)
