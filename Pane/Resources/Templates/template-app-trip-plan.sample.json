@@ -1,0 +1,139 @@
+{
+ "values": {
+  "trip": {
+   "name": "Lisbon",
+   "place": "Portugal",
+   "start": "2026-11-22",
+   "end": "2026-11-26"
+  },
+  "days": [
+   {
+    "date": "2026-11-22",
+    "title": "Arrive in Alfama",
+    "items": [
+     "14:30 Land and take the metro to Baixa",
+     "16:00 Check in",
+     "Walk up to Miradouro de Santa Luzia",
+     "20:00 Dinner at Taberna da Rua das Flores"
+    ]
+   },
+   {
+    "date": "2026-11-23",
+    "title": "Belém",
+    "items": [
+     "09:30 Tram 15 to Belém",
+     "Pastéis de Belém",
+     "The monastery cloisters",
+     "Sunset on the river"
+    ]
+   },
+   {
+    "date": "2026-11-24",
+    "title": "Sintra",
+    "items": [
+     "09:00 Train from Rossio",
+     "Pena Palace gardens",
+     "Lunch in the old town"
+    ]
+   },
+   {
+    "date": "2026-11-25",
+    "title": "Markets and views",
+    "items": [
+     "Time Out Market for lunch",
+     "LX Factory",
+     "Miradouro da Graça at dusk"
+    ]
+   },
+   {
+    "date": "2026-11-26",
+    "title": "Home",
+    "items": [
+     "Coffee at A Brasileira",
+     "12:00 Check out",
+     "15:40 Fly home"
+    ]
+   }
+  ],
+  "bookings": [
+   {
+    "id": "b1",
+    "what": "Flight to Lisbon",
+    "kind": "flight",
+    "date": "2026-11-22",
+    "time": "11:05",
+    "paid": true
+   },
+   {
+    "id": "b2",
+    "what": "Flat in Alfama, 4 nights",
+    "kind": "stay",
+    "date": "2026-11-22",
+    "time": "16:00",
+    "paid": true
+   },
+   {
+    "id": "b3",
+    "what": "Taberna da Rua das Flores",
+    "kind": "food",
+    "date": "2026-11-22",
+    "time": "20:00",
+    "paid": false
+   },
+   {
+    "id": "b4",
+    "what": "Flight home",
+    "kind": "flight",
+    "date": "2026-11-26",
+    "time": "15:40",
+    "paid": true
+   }
+  ],
+  "packing": [
+   {
+    "id": "p1",
+    "text": "Passport or ID",
+    "group": "Documents",
+    "packed": true
+   },
+   {
+    "id": "p2",
+    "text": "Phone charger",
+    "group": "Tech",
+    "packed": false
+   },
+   {
+    "id": "p3",
+    "text": "Travel adapter",
+    "group": "Tech",
+    "packed": false
+   },
+   {
+    "id": "p4",
+    "text": "Travel insurance details",
+    "group": "Documents",
+    "packed": true
+   },
+   {
+    "id": "p5",
+    "text": "Comfortable shoes",
+    "group": "Clothes",
+    "packed": true
+   },
+   {
+    "id": "p6",
+    "text": "Toiletries",
+    "group": "Toiletries",
+    "packed": false
+   },
+   {
+    "id": "p7",
+    "text": "Headphones",
+    "group": "Tech",
+    "packed": false
+   }
+  ],
+  "past": []
+ },
+ "collections": {}
+}

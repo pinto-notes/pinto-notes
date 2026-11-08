@@ -6,7 +6,7 @@
     "Students"
   ],
   "audience": "For students who take notes in class but never get round to turning them into questions.",
-  "description": "Cornell notes your AI sets up for you: your notes on the right, a question for each on the left, and a short summary. Then it quizzes you.",
+  "description": "Your notes on the right, a question for each on the left, a short summary. Then your AI quizzes you.",
   "tagline": "Your notes, the questions, and a summary.",
   "folder": "Study",
   "note": "Cornell notes\n\nOne section per lecture or chapter. Your notes go on the right, a question that each one answers on the left, and a summary of two or three sentences closes the section. To revise, cover the right column and answer the cues.\n\n## Lectures\n\n## Cues to revisit\n",
@@ -14,7 +14,7 @@
     "default": "Use my Pinto Notes note \"Cornell notes\". Read it with fetch before each change. When I paste or dictate notes from a lecture or a chapter, add a section at the end of \"Lectures\" with edit: a \"###\" heading with the topic and the date, then a table with two columns, Cue and Notes. Put my notes on the right as short rows in my own words, and on the left a question each row answers. End with a line starting \"**Summary:**\", two or three plain sentences. When I say \"quiz me\", ask me the cues one at a time without showing the notes. Add any I miss under \"Cues to revisit\" as a checklist, and tick one when I get it right later."
   },
   "asks": [
-    "Ask me for my notes from today's economics lecture, then make Cornell notes and quiz me.",
+    "Ask me for my lecture or reading notes, then make Cornell notes and quiz me.",
     "Quiz me on supply and demand.",
     "Which cues am I still missing?"
   ],

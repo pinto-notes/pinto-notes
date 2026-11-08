@@ -126,8 +126,9 @@ enum TemplateLibraryWords {
     static let copy = "Copy Prompt"
     static let copied = "Copied"
     /// What Make does, over the ask it sends: said once, where the ask is, ending on the ask
-    /// (council round 2: it ended on "with", in a heading's weight).
-    static func opensWith(_ ai: SetupCards.AI) -> String { ai.asks ? "Adds the note, then asks \(ai.name):" : "Adds the note. Then ask your AI:" }
+    /// (council round 2: it ended on "with", in a heading's weight). Round 4: say that it opens
+    /// the AI with this prompt, not that it asks the AI.
+    static func opensWith(_ ai: SetupCards.AI) -> String { ai.asks ? "Adds the note and opens \(ai.name) with this prompt:" : "Adds the note. Then ask your AI:" }
     static let clear = "Clear Search"
     /// No match, in the words a Mac search uses.
     static func none(_ q: String) -> String { "No Results for \u{201C}\(q)\u{201D}" }
@@ -538,17 +539,19 @@ struct TemplateLibraryView: View {
                     .padding(.top, 4)
                 Spacer(minLength: small ? 8 : 16)
                 // What Make does, and the ask it sends, as you'd say it. The box fits its words
-                // and sits on the buttons: a box kept two lines tall read as a field to type in.
+                // (a box kept two lines tall read as a field to type in), and the label over it
+                // stays put: the pair keeps a two-line ask's room, top first, so a one-line ask
+                // leaves its spare line above the buttons, not above the label (council round 4:
+                // the label sat 15 pt higher over a two-line ask).
                 VStack(alignment: .leading, spacing: 6) {
                     Text(TemplateLibraryWords.opensWith(ai)).font(.system(size: 12)).foregroundStyle(Color.muted)
-                    Text(TemplateCatalog.Entry.sendable(e.ask))
-                        .font(.system(size: text)).foregroundStyle(Color.ink)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 12).padding(.vertical, small ? 6 : 8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.primary.opacity(0.07), in: .rect(cornerRadius: 8, style: .continuous))
-                        .accessibilityIdentifier("templates.ask")
+                        .lineLimit(1)
+                        .accessibilityIdentifier("templates.opensWith")
+                    ZStack(alignment: .topLeading) {
+                        askBox("\n", text: text, small: small).hidden().accessibilityHidden(true)
+                        askBox(TemplateCatalog.Entry.sendable(e.ask), text: text, small: small)
+                            .accessibilityIdentifier("templates.ask")
+                    }
                 }
                 actions(e, kept: kept)
                     .padding(.top, 12)
@@ -558,6 +561,17 @@ struct TemplateLibraryView: View {
             .padding(.bottom, 20)
             .frame(maxHeight: .infinity, alignment: .top)
         }
+    }
+
+    /// The ask in its box: two lines at most, the box as tall as its words.
+    private func askBox(_ ask: String, text: CGFloat, small: Bool) -> some View {
+        Text(ask)
+            .font(.system(size: text)).foregroundStyle(Color.ink)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 12).padding(.vertical, small ? 6 : 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.primary.opacity(0.07), in: .rect(cornerRadius: 8, style: .continuous))
     }
 
     static let panelTitle: CGFloat = 17
@@ -585,7 +599,7 @@ struct TemplateLibraryView: View {
             .overlay(alignment: .top) {
                 inUse(e)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .background(scheme == .dark ? Color.black : Color.white)
+                    .background(windowGround)
                     .clipShape(UnevenRoundedRectangle(topLeadingRadius: 12, topTrailingRadius: 12, style: .continuous))
                     .shadow(color: .black.opacity(0.25), radius: 18, y: 8)
                     .padding(.horizontal, inset)
@@ -594,8 +608,22 @@ struct TemplateLibraryView: View {
             }
             .frame(width: panel, height: stage)
             .clipped()
+            // The window runs off the stage's foot: its last 24 pt fade into its own ground, so no
+            // line or button is cut through there (council round 4). It's the window's colour, not
+            // see-through, so the cover never shows through the words (round 2).
+            .overlay(alignment: .bottom) {
+                LinearGradient(colors: [windowGround.opacity(0), windowGround], startPoint: .top, endPoint: .bottom)
+                    .frame(height: Self.footFade)
+                    .padding(.horizontal, inset)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
             .overlay(alignment: .bottom) { Divider() }
     }
+
+    /// How tall the fade at the stage's foot is.
+    static let footFade: CGFloat = 24
+    private var windowGround: Color { scheme == .dark ? .black : .white }
 
     /// A note on the stage as it looks in use, under the name and description the panel gives it:
     /// without its title and its opening lines, from its first heading, so the stage shows the
@@ -609,6 +637,12 @@ struct TemplateLibraryView: View {
             while let first = blocks.first, opening(first) { blocks.removeFirst() }
         }
         while blocks.first == .gap { blocks.removeFirst() }
+        // A section heading straight over its first entry's heading ("Lectures" over "Supply and
+        // demand, 1 October"): the entry's heading says enough, and its table gets the room
+        // (council round 4: Cornell's first row ran off the small stage).
+        if blocks.count > 1, case .heading(let a, _) = blocks[0], case .heading(let b, _) = blocks[1], b > a {
+            blocks.removeFirst()
+        }
         return blocks
     }
 
@@ -670,7 +704,7 @@ struct TemplateLibraryView: View {
         } else {
             // Whole blocks only: no line cut through at the stage's foot, no heading left without
             // its first line, and tables laid out at the window's width (council round 3).
-            NotePreview(markdown: e.example, given: Self.staged(e.example), whole: true)
+            NotePreview(markdown: e.example, given: Self.staged(e.example), whole: true, compact: Self.small(size))
         }
     }
 
@@ -713,13 +747,46 @@ private struct SearchClearButton: View {
 @MainActor enum TemplateFiles {
     private static var projects: [String: String?] = [:]
     private static var starts: [String: NotePageData.Doc] = [:]
+    private static var samples: [String: NotePageData.Doc] = [:]
     private static var pictures: [String: NSImage?] = [:]
 
+    /// The app as the stage runs it: its project with template-stage.css in its page's head (no
+    /// tab bar, titles under the sheet's own). Make adds the project as it is, never this.
     static func project(_ e: TemplateCatalog.Entry) -> String? {
         if let p = projects[e.slug] { return p }
-        let p = e.appProject
+        let p = e.appProject.map { staged($0) }
         projects[e.slug] = .some(p)
         return p
+    }
+
+    /// template-stage.css, as scripts/template-stage-pictures.ts puts it in the pictures' page.
+    nonisolated static let stageCSS: String = Bundle.main.url(forResource: "template-stage", withExtension: "css")
+        .flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+
+    /// A stored project with the stage's stylesheet in its page's head.
+    nonisolated static func staged(_ project: String, css: String = stageCSS) -> String {
+        guard var p = (try? JSONSerialization.jsonObject(with: Data(project.utf8))) as? [String: Any],
+              var files = p["files"] as? [String: Any], let page = files["/index.html"] as? String, page.contains("</head>"),
+              !css.isEmpty else { return project }
+        files["/index.html"] = page.replacingOccurrences(of: "</head>", with: "<style>\(css)</style></head>")
+        p["files"] = files
+        return (try? JSONSerialization.data(withJSONObject: p)).map { String(decoding: $0, as: UTF8.self) } ?? project
+    }
+
+    /// The app in use, for the stage only: its sample data (scripts/template-samples.py), with
+    /// every date moved from the day it was written for to today, so what it ticked "today" is
+    /// ticked today. Make adds the starting data, never this (council round 4: "0 of 4 done
+    /// today", "No trip yet", "0 kr spent"). An app with no sample shows its starting data.
+    static func sample(_ e: TemplateCatalog.Entry, today: Date = .now) -> NotePageData.Doc {
+        if let d = samples[e.slug] { return d }
+        let d = Bundle.main.url(forResource: "template-app-\(e.slug).sample", withExtension: "json")
+            .flatMap { try? Data(contentsOf: $0) }
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) }
+            .map { TemplateSample.moved($0, days: TemplateSample.days(to: today)) }
+            .flatMap { try? JSONSerialization.data(withJSONObject: $0) }
+            .map { NotePageData.decode($0) } ?? start(e)
+        samples[e.slug] = d
+        return d
     }
 
     static func start(_ e: TemplateCatalog.Entry) -> NotePageData.Doc {
@@ -738,7 +805,51 @@ private struct SearchClearButton: View {
     }
 }
 
-/// A template's app running in the library, on its own copy of the starting data: changes stay
+/// A template app's sample data is written for one day (scripts/template-samples.py, ANCHOR) and
+/// shown as of today: every "yyyy-mm-dd", as a value or a key, moves by the days between. The
+/// pictures move it the same way (scripts/template-stage-pictures.ts).
+nonisolated enum TemplateSample {
+    static let anchor = "2026-11-08"
+
+    private static func day(_ s: String) -> Date? {
+        guard s.count == 10, s.wholeMatch(of: /\d{4}-\d{2}-\d{2}/) != nil else { return nil }
+        var c = DateComponents()
+        let p = s.split(separator: "-").compactMap { Int($0) }
+        guard p.count == 3 else { return nil }
+        (c.year, c.month, c.day, c.hour) = (p[0], p[1], p[2], 12)
+        return Calendar(identifier: .gregorian).date(from: c)
+    }
+
+    private static func text(_ d: Date) -> String {
+        let c = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: d)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    /// The days from the sample's day to `today`, in the device's calendar.
+    static func days(to today: Date) -> Int {
+        guard let a = day(anchor) else { return 0 }
+        let cal = Calendar(identifier: .gregorian)
+        return cal.dateComponents([.day], from: cal.startOfDay(for: a), to: cal.startOfDay(for: today)).day ?? 0
+    }
+
+    static func moved(_ value: Any, days: Int) -> Any {
+        let shift = { (s: String) -> String in
+            guard days != 0, let d = day(s), let to = Calendar(identifier: .gregorian).date(byAdding: .day, value: days, to: d) else { return s }
+            return text(to)
+        }
+        switch value {
+        case let s as String: return shift(s)
+        case let a as [Any]: return a.map { moved($0, days: days) }
+        case let o as [String: Any]:
+            var out: [String: Any] = [:]
+            for (k, v) in o { out[shift(k)] = moved(v, days: days) }
+            return out
+        default: return value
+        }
+    }
+}
+
+/// A template's app running in the library, on its own copy of its sample data: changes stay
 /// in this view and go when it closes. It reads the note and stores data, and nothing else.
 struct TemplateAppPreview: View {
     let entry: TemplateCatalog.Entry
@@ -753,22 +864,24 @@ struct TemplateAppPreview: View {
     @State private var ready = false
     @Environment(\.colorScheme) private var scheme
 
-    /// The width the app is laid out at on the stage, in CSS pixels: its narrow layout, the same
-    /// on both sheets. The picture is drawn at this width too (scripts/template-stage-pictures.ts).
-    static let cssWidth: CGFloat = 400
+    /// The width the app is laid out at on the stage, in CSS pixels: its narrow layout on both
+    /// sheets, drawn at 75% in the big stage's 400 pt window and 70% in the small stage's 328 pt
+    /// one, so its body text is about the Mac's 13 pt and no title is bigger than the sheet's
+    /// (council round 4: at 100% "Today" was 33 pt, over the sheet's 22 pt "Templates"). The
+    /// pictures are drawn at these widths too (scripts/template-stage-pictures.ts).
+    static func cssWidth(small: Bool) -> CGFloat { small ? 469 : 533 }
 
-    /// The live app's zoom in a window: as wide as cssWidth, whatever the window's width, so the
-    /// app keeps one layout and fills the window exactly (1 on the big stage, 0.82 on the small).
-    static func zoom(for window: CGSize) -> CGFloat { window.width / cssWidth }
+    /// The live app's zoom in a window: as wide as its CSS width, whatever the window's width, so
+    /// the app keeps one layout and fills the window exactly (0.75 big, 0.70 small).
+    static func zoom(for window: CGSize, small: Bool) -> CGFloat { window.width / cssWidth(small: small) }
 
     /// The small stage's app is laid out this tall and runs off the stage's foot, like a note's
-    /// window: laid out only as tall as the 156 pt it shows, its tab bar took half of it and cut
-    /// its first card (council round 3 asked for whole rows there).
-    static let smallCSSHeight: CGFloat = 340
+    /// window: laid out only as tall as the 156 pt it shows, its first card was cut.
+    static let smallCSSHeight: CGFloat = 480
 
     /// The live app's size in CSS pixels in a window, and so the picture's: it's drawn for this.
     static func css(for window: CGSize, small: Bool) -> CGSize {
-        CGSize(width: cssWidth, height: small ? smallCSSHeight : (window.height / zoom(for: window)).rounded())
+        CGSize(width: cssWidth(small: small), height: small ? smallCSSHeight : (window.height / zoom(for: window, small: small)).rounded())
     }
 
     /// The live app's frame in a window, and the picture's: from the top left, at the live app's
@@ -777,7 +890,7 @@ struct TemplateAppPreview: View {
     /// stage it runs on below the window's foot.
     static func frame(in window: CGSize, small: Bool) -> CGRect {
         let css = css(for: window, small: small)
-        return CGRect(x: 0, y: 0, width: window.width, height: (css.height * zoom(for: window)).rounded())
+        return CGRect(x: 0, y: 0, width: window.width, height: (css.height * zoom(for: window, small: small)).rounded())
     }
 
     var body: some View {
@@ -793,9 +906,9 @@ struct TemplateAppPreview: View {
                         .transition(.opacity)
                 }
                 NotePageView(noteID: id, html: project, text: entry.note ?? entry.example, onUpdate: { _ in },
-                             onData: { message in try data(message) }, preview: doc ?? TemplateFiles.start(entry),
+                             onData: { message in try data(message) }, preview: doc ?? TemplateFiles.sample(entry),
                              onReady: { withAnimation(.easeOut(duration: 0.15)) { ready = true } },
-                             zoom: Self.zoom(for: geo.size))
+                             zoom: Self.zoom(for: geo.size, small: small))
                     .frame(width: frame.width, height: frame.height)
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
@@ -804,7 +917,7 @@ struct TemplateAppPreview: View {
     }
 
     @MainActor private func data(_ message: Any) throws -> [String: Any] {
-        let (after, made) = try NotePageData.apply(try NotePageData.Op(message), to: doc ?? TemplateFiles.start(entry))
+        let (after, made) = try NotePageData.apply(try NotePageData.Op(message), to: doc ?? TemplateFiles.sample(entry))
         doc = after
         return ["data": after].merging(made.map { ["id": $0] } ?? [:]) { a, _ in a }
     }

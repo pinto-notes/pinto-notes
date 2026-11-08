@@ -292,6 +292,9 @@ struct NotePreview: View {
     /// the window's width (council round 3: a line's tops showed at the foot, a heading ended the
     /// window, a table was cut at the right).
     var whole = false
+    /// The small stage's type: 12 pt lines, closer together, so a short note shows whole there
+    /// (council round 4: Weekly review showed four of its five questions).
+    var compact = false
 
     enum Block: Equatable {
         case title(String)
@@ -358,13 +361,20 @@ struct NotePreview: View {
 
     var body: some View {
         if whole {
-            WholeBlocks(spacing: 4) {
+            WholeBlocks(spacing: compact ? 2 : 4) {
                 ForEach(Array((given ?? Self.blocks(markdown)).enumerated()), id: \.offset) { _, block in
-                    view(block).layoutValue(key: WholeBlocks.Heading.self, value: block.isHeading).layoutValue(key: WholeBlocks.Gap.self, value: block == .gap)
+                    if case .table(let header, let rows) = block {
+                        // A table is a block per row, so as many whole rows show as fit, and its
+                        // header never shows without a row (council round 4: a cell cut mid-word).
+                        tableRows(header: header, rows: rows)
+                    } else {
+                        view(block).layoutValue(key: WholeBlocks.Heading.self, value: block.isHeading).layoutValue(key: WholeBlocks.Gap.self, value: block == .gap)
+                    }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, compact ? 16 : 20)
+            .padding(.vertical, compact ? 12 : 16)
+            .font(compact ? .system(size: 12) : nil)
             .foregroundStyle(Color.ink)
         } else {
             ScrollView {
@@ -382,8 +392,77 @@ struct NotePreview: View {
     }
 
     private func inline(_ s: String) -> Text {
+        let s = whole ? Self.unbroken(s) : s
         if let a = try? AttributedString(markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) { return Text(a) }
         return Text(s)
+    }
+
+    /// A day, a date or a weight in one piece: "Thu 1 Oct", "1 Oct" and "120 kg x 3" never break
+    /// across lines (council round 4: "(Thu / 1 Oct)", "120 kg / x 3"), and "x" between numbers is "×".
+    nonisolated static func unbroken(_ s: String) -> String {
+        let nb = "\u{00A0}"
+        var out = s.replacingOccurrences(of: #"(\S)\s+x\s+(\d)"#, with: "$1\(nb)×\(nb)$2", options: .regularExpression)
+        out = out.replacingOccurrences(of: #"(\d)x(\d)"#, with: "$1×$2", options: .regularExpression)
+        out = out.replacingOccurrences(of: #"(\d)\s+(kg|lb|km|min|kr|h)\b"#, with: "$1\(nb)$2", options: .regularExpression)
+        let months = "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December"
+        out = out.replacingOccurrences(of: #"\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{1,2})\b"#, with: "$1\(nb)$2", options: .regularExpression)
+        out = out.replacingOccurrences(of: #"\b(\d{1,2})\s+("# + months + #")\b"#, with: "$1\(nb)$2", options: .regularExpression)
+        return out
+    }
+
+    /// A table cell as the preview shows it: a date as "26 Sep", as a tracker's date column shows
+    /// it, and any short value in one piece.
+    nonisolated static func shownCell(_ s: String) -> String {
+        let t = s.trimmingCharacters(in: .whitespaces)
+        if t.wholeMatch(of: /\d{4}-\d{2}-\d{2}/) != nil {
+            let p = t.split(separator: "-").compactMap { Int($0) }
+            let names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+            if p.count == 3, (1...12).contains(p[1]) { return "\(p[2])\u{00A0}\(names[p[1] - 1])" }
+        }
+        let u = unbroken(t)
+        return u.count <= 14 ? u.replacingOccurrences(of: " ", with: "\u{00A0}") : u
+    }
+
+    /// Each column's share of a table's width, from how much it holds: its header or its average
+    /// cell, whichever is longer, kept between 4 and 60 characters' worth.
+    nonisolated static func shares(header: [String], rows: [[String]]) -> [CGFloat] {
+        let weights: [CGFloat] = header.indices.map { c in
+            let cells = rows.map { c < $0.count ? shownCell($0[c]).count : 0 }
+            let average = cells.isEmpty ? 0 : CGFloat(cells.reduce(0, +)) / CGFloat(cells.count)
+            return min(60, max(4, CGFloat(header[c].count), average))
+        }
+        let sum = weights.reduce(0, +)
+        return weights.map { sum > 0 ? $0 / sum : 1 / CGFloat(max(1, weights.count)) }
+    }
+
+    /// A table in the stage's window: its header row, then each row as a block of its own, all
+    /// at the same column widths, joined with no space between, cells wrapped at a word.
+    @ViewBuilder private func tableRows(header: [String], rows: [[String]]) -> some View {
+        let shares = Self.shares(header: header, rows: rows)
+        let shown = rows.isEmpty ? [header.map { _ in "" }] : rows
+        TableRowLayout(shares: shares) { ForEach(Array(header.enumerated()), id: \.offset) { wholeCell($0.element, header: true) } }
+            .overlay(alignment: .top) { Rectangle().fill(.separator).frame(height: 0.5) }
+            .overlay(alignment: .leading) { Rectangle().fill(.separator).frame(width: 0.5) }
+            .padding(.top, 4)
+            .layoutValue(key: WholeBlocks.Heading.self, value: true)
+        ForEach(Array(shown.enumerated()), id: \.offset) { _, row in
+            TableRowLayout(shares: shares) { ForEach(Array(row.enumerated()), id: \.offset) { wholeCell($0.element, header: false) } }
+                .overlay(alignment: .leading) { Rectangle().fill(.separator).frame(width: 0.5) }
+                .layoutValue(key: WholeBlocks.Joined.self, value: true)
+        }
+    }
+
+    private func wholeCell(_ s: String, header: Bool) -> some View {
+        inline(Self.shownCell(s).isEmpty ? " " : Self.shownCell(s))
+            .font(header ? .footnote.weight(.semibold) : .footnote)
+            .monospacedDigit()
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(header ? AnyShapeStyle(.quaternary.opacity(0.6)) : AnyShapeStyle(.clear))
+            .overlay(alignment: .trailing) { Rectangle().fill(.separator).frame(width: 0.5) }
+            .overlay(alignment: .bottom) { Rectangle().fill(.separator).frame(height: 0.5) }
     }
 
     @ViewBuilder private func view(_ block: Block) -> some View {
@@ -471,6 +550,8 @@ struct WholeBlocks: Layout {
 
     struct Heading: LayoutValueKey { static let defaultValue = false }
     struct Gap: LayoutValueKey { static let defaultValue = false }
+    /// Sits right under the block before it, with no space between (a table's rows).
+    struct Joined: LayoutValueKey { static let defaultValue = false }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let width = proposal.width ?? 320
@@ -479,12 +560,13 @@ struct WholeBlocks: Layout {
     }
 
     /// How many of the blocks show, given their heights, in a window of `room` points: whole ones
-    /// only, and never a heading or a gap last.
-    static func shown(heights: [CGFloat], headings: [Bool], gaps: [Bool], room: CGFloat, spacing: CGFloat) -> Int {
+    /// only, and never a heading or a gap last. A joined block has no space above it.
+    static func shown(heights: [CGFloat], headings: [Bool], gaps: [Bool], joined: [Bool]? = nil, room: CGFloat, spacing: CGFloat) -> Int {
         var y: CGFloat = 0, count = 0
-        for h in heights {
-            if y + h > room + 0.5 { break }
-            y += h + spacing
+        for (i, h) in heights.enumerated() {
+            let top = y - (i > 0 && joined?[i] == true ? spacing : 0)
+            if top + h > room + 0.5 { break }
+            y = top + h + spacing
             count += 1
         }
         while count > 0, headings[count - 1] || gaps[count - 1] { count -= 1 }
@@ -495,17 +577,47 @@ struct WholeBlocks: Layout {
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let sizes = subviews.map { $0.sizeThatFits(.init(width: bounds.width, height: nil)) }
+        let joined = subviews.map { $0[Joined.self] }
         let shown = Self.shown(heights: sizes.map(\.height), headings: subviews.map { $0[Heading.self] },
-                               gaps: subviews.map { $0[Gap.self] }, room: bounds.height, spacing: spacing)
+                               gaps: subviews.map { $0[Gap.self] }, joined: joined, room: bounds.height, spacing: spacing)
         var y = bounds.minY
         for (i, s) in subviews.enumerated() {
             let size = ProposedViewSize(width: bounds.width, height: sizes[i].height)
             if i < shown {
+                if i > 0, joined[i] { y -= spacing }
                 s.place(at: CGPoint(x: bounds.minX, y: y), proposal: size)
                 y += sizes[i].height + spacing
             } else {
                 s.place(at: CGPoint(x: bounds.minX, y: bounds.maxY + 10_000), proposal: size)
             }
+        }
+    }
+}
+
+/// A table row at set column shares of the width it's given, every cell as tall as the tallest,
+/// so rows laid out apart still line up as one table.
+struct TableRowLayout: Layout {
+    let shares: [CGFloat]
+
+    private func widths(_ total: CGFloat, _ count: Int) -> [CGFloat] {
+        (0..<count).map { i in (total * (i < shares.count ? shares[i] : 0)).rounded(.down) }
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 320
+        let w = widths(width, subviews.count)
+        let height = subviews.indices.map { subviews[$0].sizeThatFits(.init(width: w[$0], height: nil)).height }.max() ?? 0
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let w = widths(bounds.width, subviews.count)
+        var x = bounds.minX
+        for (i, s) in subviews.enumerated() {
+            // The last cell takes what rounding left, so the row ends flush.
+            let width = i == subviews.count - 1 ? bounds.maxX - x : w[i]
+            s.place(at: CGPoint(x: x, y: bounds.minY), proposal: .init(width: width, height: bounds.height))
+            x += width
         }
     }
 }
