@@ -82,7 +82,7 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
       {page > 1 && <link rel="prev" href={pagePath(l.base, page - 1)} />}
       {page < pages && <link rel="next" href={pagePath(l.base, page + 1)} />}
       <JsonLd graph={[breadcrumbs(crumbs), organization, maker, incredible]} />
-      <BlogList className={s.index}>
+      <BlogList className={`${s.index} ${category ? "" : s.front}`}>
         <div className={s.hero}>
           <div className={s.heroText}>
             <h1 className={`${s.h1} rise`} style={{ "--i": 0 } as React.CSSProperties}>
@@ -122,16 +122,15 @@ export function BlogIndex({ category, page }: { category: Category | null; page:
   );
 }
 
-/// One announcement on the front, as a changelog row: a small cover, then its label, title, a short
-/// excerpt and the date, so several launches fit on one screen (Emil, 8 November 2026: the wide
-/// cards were "hella hard to grasp").
+/// One announcement on the front of the blog: its cover across the column, then the title, the
+/// excerpt and the date. The front is one narrow column (Emil, 8 November 2026: "I wanted it to be
+/// less wide"), and every post there is an announcement, so it carries no label.
 function Row({ post }: { post: ReturnType<typeof published>[number] }) {
   const c = post.thumb.art ? post.thumb : CATEGORY_COVERS[post.category];
   return (
     <a className={s.row} href={`/blog/${post.slug}`} data-row="">
       <img className={s.rowArt} src={c.src} alt="" width={c.width} height={c.height} decoding="async" />
       <span className={s.rowText}>
-        {post.announcement && <span className={s.featuredLabel}><Announcement /></span>}
         <h2 className={s.rowTitle}>{post.title}</h2>
         <span className={s.rowExcerpt}>{post.excerpt}</span>
         <span className={s.featuredBy}><Avatar size={20} /><span>{AUTHOR.name}</span><span aria-hidden="true">·</span><time dateTime={post.date}>{longDate(post.date)}</time></span>
