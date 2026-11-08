@@ -55,7 +55,7 @@ enum ShareWays {
         case .link where sharedWithPeople && !trashed: SharedNoteLimits.pageLine
         case .link where trashed: "The page is down while this note is in Recently Deleted."
         case .link where shared: "Anyone with the link can read this note on the web. Stop sharing to take the page down."
-        case .link: "Makes a web page of this note that anyone with the link can read, until you stop sharing."
+        case .link: "A page anyone with the link can read. It keeps up with your changes until you stop sharing."
         case .copy: "Sends the note as it is now. Later changes aren't sent."
         case .picture: "A picture of the note, to post or send."
         }
@@ -172,14 +172,14 @@ struct ShareNotePopover: View {
                 // 8 November 2026). Selectable; Copy Link copies all of it.
                 Text(url.absoluteString.replacingOccurrences(of: "https://", with: ""))
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.ink)
+                    .foregroundStyle(Color.muted)
                     .textSelection(.enabled)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .padding(.horizontal, 8)
                     .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
-                    .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color.line, lineWidth: 1))
+                    // A quiet fill, not a white bordered field that reads as "type here" (council).
+                    .background(Color.soft, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .padding(.horizontal, 8)
                     .padding(.top, 6)
                     .padding(.bottom, 10)
@@ -236,10 +236,15 @@ struct ShareNotePopover: View {
                 .disabled(pictureImage == nil)
                 .accessibilityIdentifier("share.savePicture")
             if let picture {
-                Button("Share…") { close(); picture() }
-                    .buttonStyle(.secondary(.compact))
-                    .fixedSize()
-                    .accessibilityIdentifier("share.picture")
+                // An icon: a "Share…" inside Share went round in a circle (council, 8 November 2026).
+                Button { close(); picture() } label: {
+                    Image(systemName: "square.and.arrow.up").font(.system(size: 13, weight: .medium)).frame(width: 14)
+                }
+                .buttonStyle(.secondary(.compact))
+                .fixedSize()
+                .help("Share Picture")
+                .accessibilityLabel("Share Picture")
+                .accessibilityIdentifier("share.picture")
             }
         }
         .padding(.horizontal, 8)
@@ -482,7 +487,7 @@ struct PictureBackgrounds: View {
 /// The note as a picture, with the look last chosen: what the Picture tab opens on.
 struct NotePictureThumb: View {
     /// Tall enough that the picture fills the popover's width, as the web page preview does.
-    static let height: CGFloat = 200
+    static let height: CGFloat = 213
     let request: NotePicture.Request
     /// The picture once drawn, for Copy Picture.
     var image: Binding<CGImage?>? = nil
@@ -681,10 +686,10 @@ struct CollaborateRows: View {
                         .labelsHidden()
                     } label: {
                         HStack(spacing: 5) {
-                            Text(share.state.access.rawValue).font(.system(size: 12, weight: .medium))
+                            Text(share.state.access.rawValue).font(.system(size: 13))
                             Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color.muted)
                         }
-                        .foregroundStyle(Color.ink)
+                        .foregroundStyle(Color.muted)
                         // Borderless, as the people's pop-ups above it are.
                         .padding(.horizontal, 6)
                         .frame(height: 24)

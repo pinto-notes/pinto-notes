@@ -102,7 +102,9 @@ import Testing
         guard AppSnapshotTests.dir != nil else { return }
         let mode = dark ? "dark" : "light"
         ShareTargets.preview = ["Mail", "Messages", "Notes"].compactMap { name in
-            NSSharingService(title: name, image: NSImage(systemSymbolName: name == "Mail" ? "envelope.fill" : name == "Messages" ? "message.fill" : "note.text", accessibilityDescription: nil) ?? NSImage(), alternateImage: nil, handler: {})
+            // The apps' own icons, as the system's share targets bring: symbols here made the
+            // pictures look cruder than the app is (council, 8 November 2026).
+            NSSharingService(title: name, image: NSWorkspace.shared.icon(forFile: "/System/Applications/\(name).app"), alternateImage: nil, handler: {})
         }
         defer { ShareTargets.preview = nil }
         func popover(_ state: ShareLinkState, _ way: ShareWays.Way) -> some View {
