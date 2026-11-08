@@ -18,6 +18,15 @@ describe("the app's copy of the templates", () => {
     }
   });
 
+  /// Make adds the app's copy, with no network (8 November 2026): it's the note and folder the site's
+  /// /templates/<slug>.json gives, for every template.
+  it("adds every template's note in its folder, as the site gives them", () => {
+    for (const t of templates()) {
+      const c = copy.find((x) => x.slug === t.slug) as unknown as { note: string; folder: string };
+      expect([c.note, c.folder], t.slug).toEqual([t.note, t.folder]);
+    }
+  });
+
   it("has every cover, and a picture of each app", () => {
     for (const t of copy) {
       expect(existsSync(path.join(dir, `template-cover-${t.slug}.jpg`)), t.slug).toBe(true);

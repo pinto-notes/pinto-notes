@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""The app's copy of the website's templates (Pane/Resources/Templates): one line each and the note in use,
-for the template viewer, in the gallery's order, with each cover made small. Run it after a template is
+"""The app's copy of the website's templates (Pane/Resources/Templates): one line each, the note in use
+for the template viewer and the note Make adds, in the gallery's order, with each cover made small. Run it after a template is
 added or changed; web/lib/template-catalog.test.ts fails while the copy is behind."""
 import json, re, shutil, subprocess, sys
 from pathlib import Path
@@ -19,10 +19,10 @@ for slug in order:
         "category": t["category"], "app": bool(t.get("app")), "ground": grounds[slug], "ask": t["asks"][0],
         # In use: the note after the AI has filled it in; an app also shows a picture of it.
         "example": t["example"],
+        # What Make adds, as the site's /templates/<slug>.json has it: the note and its folder (an app
+        # also its compiled project and starting data), so adding one needs no network.
+        "note": t["note"], "folder": t["folder"],
     })
-    if t.get("app"):
-        # An app runs in the viewer: its note, its compiled project and its starting data, as the site has them.
-        catalog[-1]["note"] = t["note"]
     if "--check" not in sys.argv:
         subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "80", "-Z", "360",
                         str(web / f"public/templates/covers/{slug}.webp"), "--out", str(out / f"template-cover-{slug}.jpg")],

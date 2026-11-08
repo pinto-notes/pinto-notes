@@ -1209,7 +1209,7 @@ struct SetupCardsFlow: View {
         guard preview == nil else { return }
         withAnimation { making = pick }
         Task {
-            let model = NoteSourceModel(link: NoteSourceLink(kind: .template, slug: pick.slug), source: WebNoteSource(), ledger: NoteSourceLedger(account: backend.userID))
+            let model = NoteSourceModel(link: NoteSourceLink(kind: .template, slug: pick.slug), source: ShippedTemplates(), ledger: NoteSourceLedger(account: backend.userID))
             await model.load(context: context)
             model.add(context: context, again: true)
             var landing: Onboarding.Landing = .newNote
