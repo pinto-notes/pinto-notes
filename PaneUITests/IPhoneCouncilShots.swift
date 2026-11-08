@@ -192,6 +192,32 @@ final class IPhoneCouncilShots: XCTestCase {
         shot("14-connect-ai", app)
     }
 
+    /// Settings › AI with ChatGPT, Claude and Grok connected (`-captureScreen ai-page`), then the
+    /// Disconnect swipe on the first row and its confirmation. iPhone connects nothing (8 November 2026).
+    func test20AIPage() {
+        let app = launch(["-captureScreen", "ai-page"])
+        pause(3)
+        shot("20-ai-page", app)
+        let row = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'connect.connected.'")).firstMatch
+        guard row.waitForExistence(timeout: 3) else { return }
+        row.swipeLeft()
+        pause(1)
+        shot("20b-ai-page-swipe", app)
+        let swipe = app.buttons["Disconnect"].firstMatch
+        if swipe.waitForExistence(timeout: 2) {
+            swipe.tap()
+            pause(1)
+            shot("20c-ai-page-confirm", app)
+        }
+    }
+
+    /// Settings › AI with nothing connected: one line (`-captureScreen ai-page-empty`).
+    func test21AIPageEmpty() {
+        let app = launch(["-captureScreen", "ai-page-empty"])
+        pause(3)
+        shot("21-ai-page-empty", app)
+    }
+
     // MARK: Note apps
 
     /// The four app templates, each a note that is its app: TEST_RUNNER_PANE_TEMPLATES holds

@@ -607,7 +607,7 @@ struct NoteListView: View {
                 // The list's own menu, in Notes' order (ListMoreMenu).
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        ForEach(ListMoreMenu.groups(connectNudge: ConnectHere.nudges(), asks: askSubject != nil && !ConnectedAIs.shared.targets.isEmpty), id: \.self) { group in
+                        ForEach(ListMoreMenu.groups(asks: askSubject != nil && !ConnectedAIs.shared.targets.isEmpty), id: \.self) { group in
                             Section {
                                 ForEach(group, id: \.self) { moreItem($0, empty: scopedNotes.isEmpty && scopedFiles.isEmpty) }
                             }
@@ -895,10 +895,6 @@ struct NoteListView: View {
                 .accessibilityIdentifier("list.addFile")
         case .askAI:
             if let askSubject { AskAIMenuItems(subject: askSubject, targets: ConnectedAIs.shared.targets) { asking = $0 } }
-        case .connectAI:
-            // Connect an AI was here; on iPhone it is in Settings only (ConnectHere, 28 October 2026).
-            Button("Connect an AI\u{2026}", systemImage: "sparkles") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
-                .accessibilityIdentifier("list.connectAI")
         }
     }
 
@@ -943,7 +939,8 @@ struct NoteListView: View {
     }
     #endif
 
-    /// ambernotes.app/open/connect-ai from an email: Settings, at AI (Connect an AI).
+    /// ambernotes.app/open/connect-ai from an email: Settings, at AI. On iPhone that page lists what
+    /// is connected and says where to connect one; it connects nothing itself.
     private func openConnectAI(_ place: AppPlace?) {
         guard place == .connectAI else { return }
         AppPlaceCenter.shared.pending = nil

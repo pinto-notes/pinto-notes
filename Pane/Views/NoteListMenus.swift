@@ -30,14 +30,14 @@ enum NoteRowMenu {
 /// and Group By Date, then adding files. No View as Gallery and no Show Attachments: Pinto
 /// shows notes in a list only. Recently Deleted has Edit instead of this menu.
 enum ListMoreMenu {
-    enum Item: Hashable { case selectNotes, sortBy, groupByDate, addFiles, askAI, connectAI }
+    enum Item: Hashable { case selectNotes, sortBy, groupByDate, addFiles, askAI }
 
     /// `asks`: an AI is connected and the list is a folder or All Notes, so Ask an AI is offered,
-    /// in a group of its own after Add Files.
-    static func groups(connectNudge: Bool, asks: Bool = false) -> [[Item]] {
+    /// in a group of its own after Add Files. Never Connect an AI: an AI is connected from the Mac,
+    /// or from ChatGPT or Claude (Emil, 8 November 2026).
+    static func groups(asks: Bool = false) -> [[Item]] {
         var out: [[Item]] = [[.selectNotes], [.sortBy, .groupByDate], [.addFiles]]
         if asks { out.append([.askAI]) }
-        if connectNudge { out.append([.connectAI]) }
         return out
     }
 
