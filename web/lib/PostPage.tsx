@@ -117,6 +117,7 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
             <img src={c.src} alt={c.alt} width={c.width} height={c.height} decoding="async" fetchPriority="high" />
           </div>
           <div className={`${legal.article} ${p.body} ${l.body} rise`} style={{ "--i": 2 } as React.CSSProperties}>
+            {hero}
             {children}
           </div>
           <section className={l.get} aria-labelledby="get-it">

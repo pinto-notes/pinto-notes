@@ -100,7 +100,7 @@ describe("an announcement", () => {
     for (const x of posts.filter((p) => !p.draft)) {
       expect(html(<PostCard post={x} />).includes(">Announcement<"), x.slug).toBe(Boolean(x.announcement));
     }
-    expect(posts.filter((p) => p.announcement).map((p) => p.slug)).toEqual(["pinto-notes-for-iphone", "import-your-notes"]);
+    expect(posts.filter((p) => p.announcement).map((p) => p.slug)).toEqual(["pinto-notes-for-iphone", "pinto-notes-in-chatgpt", "import-your-notes"]);
     const index = new DOMParser().parseFromString(html(<BlogIndex category={null} page={1} />), "text/html");
     expect(index.body.textContent).not.toContain("Announcement");
   });
@@ -110,6 +110,7 @@ describe("an announcement", () => {
     expect(new Set(shown.map((p) => p.date)).size).toBe(shown.length);
     expect(Object.fromEntries(shown.map((p) => [p.slug, p.date]))).toMatchObject({
       "pinto-notes-for-iphone": "2026-11-06",
+      "pinto-notes-in-chatgpt": "2026-10-28",
       "import-your-notes": "2026-10-13",
     });
   });
