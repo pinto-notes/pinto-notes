@@ -841,8 +841,35 @@ final class EditorController {
         table = TableContext(grid: grid, cell: cell, selected: line)
         let menu = tableMenu(grid: grid, cell: cell, line: line)
         lastTableMenu = menu
+        #if os(macOS)
+        watchPickedLineDelete()
+        #endif
         if presentsTableMenus { target?.showTableMenu(menu) }
     }
+
+    #if os(macOS)
+    @ObservationIgnored private var pickedDeleteMonitor: Any?
+
+    /// While a row or column is picked, Delete (⌫ or ⌦) empties it. The cell's field editor has
+    /// the keyboard and would take the key for its own text first, so it's caught as the app
+    /// hands it out, for this note's window only. The watch ends with the pick.
+    private func watchPickedLineDelete() {
+        guard pickedDeleteMonitor == nil else { return }
+        pickedDeleteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+            guard let t = self.table, let line = t.selected else {
+                if let m = self.pickedDeleteMonitor { NSEvent.removeMonitor(m) }
+                self.pickedDeleteMonitor = nil
+                return event
+            }
+            let own = (self.target as? NSView)?.window
+            let plain = event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty
+            guard plain, event.keyCode == 51 || event.keyCode == 117, own == nil || event.window === own else { return event }
+            self.clearTableLine(line, grid: t.grid)
+            return nil
+        }
+    }
+    #endif
 
     /// The menu of a row or column handle (`line`), or the toolbar's table menu (nil), like Notes.
     func tableMenu(grid: Int, cell: GridCell, line: GridLine?) -> TableMenu {
@@ -879,6 +906,19 @@ final class EditorController {
         t.apply(TextEdit(range: all[grid].range, replacement: g.markdown, caret: -1))
         table = TableContext(grid: grid, cell: next)
         t.focusGrid(grid, cell: next)
+    }
+
+    /// Delete on a row or column picked by its handle: its cells emptied in one step of Undo, the
+    /// row or column kept and still picked, the keyboard in the table.
+    func clearTableLine(_ line: GridLine, grid: Int) {
+        guard let t = target, !readOnly else { return }
+        let all = GridTable.find(in: t.currentText)
+        guard grid < all.count else { return }
+        var g = all[grid]
+        g.clear(line)
+        guard g.rows != all[grid].rows else { return }
+        t.apply(TextEdit(range: all[grid].range, replacement: g.markdown, caret: -1))
+        if var context = table, context.grid == grid { context.selected = line; table = context }
     }
 
     /// What a cell holds, as you'd read it.
