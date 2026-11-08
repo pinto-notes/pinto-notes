@@ -316,12 +316,16 @@ import Testing
         #expect(SidebarAICopy.underConnected(hasChanges: true) == "See past changes", "changes, just none this week")
         #expect(SidebarAICopy.underConnected(hasChanges: false) == "No changes yet")
         #expect(SidebarAICopy.connected(["ChatGPT"]) == "ChatGPT connected")
+        // Grok signs in as its site; the foot names it, so its mark shows (Emil, 8 November 2026).
+        #expect(SidebarAICopy.connected(["grok.com"]) == "Grok connected")
+        #expect(SidebarAICopy.connected(["grok.com", "Grok"]) == "Grok connected", "one AI, said once")
+        #expect(VersionAuthorMark.asset(SidebarAICopy.shown("grok.com")) == (AIGlyph.storeSafe ? nil : "AIGlyphGrok"), "Grok shows its own mark")
         #expect(SidebarAICopy.connected(["ChatGPT", "Claude", "ChatGPT"]) == "ChatGPT and Claude connected")
         #expect(SidebarAICopy.connected(["ChatGPT", "Claude", "Codex"]) == "3 AIs connected")
         #if os(macOS)
         #expect(SidebarAILine.title(edit, context: c.mainContext) == "Lisbon")
         let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
-        #expect(sidebar.contains(".safeAreaBar(edge: .bottom, spacing: 0) { SidebarAILine() }"), "a bar at the Mac sidebar's foot")
+        #expect(sidebar.contains(".safeAreaBar(edge: .bottom, spacing: 0) { SidebarAILine(nested: nested) }"), "a bar at the Mac sidebar's foot")
         #endif
     }
 

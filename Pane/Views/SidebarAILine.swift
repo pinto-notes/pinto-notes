@@ -6,7 +6,7 @@ import SwiftUI
 enum SidebarAICopy {
     /// "ChatGPT edited Lisbon".
     static func line(_ c: AIChange, title: String) -> String {
-        "\(c.ai) \(verb(c.kind)) \(title)"
+        "\(shown(c.ai)) \(verb(c.kind)) \(title)"
     }
 
     static func verb(_ kind: AIChange.Kind) -> String {
@@ -34,6 +34,9 @@ enum SidebarAICopy {
         "\(line(c, title: title)), \(when(c.at, now: now))"
     }
     static let hint = "Opens AI Changes."
+    /// The AI's own name for one known only by its site: Grok signs in as "grok.com" (Emil,
+    /// 8 November 2026: the foot said "grok.com connected", with no mark).
+    static func shown(_ name: String) -> String { ConnectTrust.knownHosts[name.lowercased()] ?? name }
     static let noChanges = "No changes yet"
     /// Under "ChatGPT connected" once the last change has aged off the foot: there are changes,
     /// just none this week (council round 11: it said "No changes yet").
@@ -56,7 +59,7 @@ enum SidebarAICopy {
     /// "ChatGPT connected", "ChatGPT and Claude connected", "3 AIs connected"; nil for none.
     static func connected(_ names: [String]) -> String? {
         var seen = Set<String>()
-        let unique = names.filter { seen.insert($0).inserted }
+        let unique = names.map(shown).filter { seen.insert($0).inserted }
         switch unique.count {
         case 0: return nil
         case 1: return "\(unique[0]) connected"
@@ -76,6 +79,8 @@ enum SidebarAICopy {
 /// none yet, which AIs are connected; nothing with neither. Until now nothing in the notes window said an AI was
 /// connected or what it last did (council rounds 6 and 7).
 struct SidebarAILine: View {
+    /// Some folder has sub-folders: the rows below move right for the arrows, and so does this.
+    var nested = false
     @Environment(\.modelContext) private var context
     @Environment(\.appearsActive) private var appearsActive
     @State private var last: AIChange?
@@ -90,11 +95,9 @@ struct SidebarAILine: View {
                     }
                 }
             } else if let line = SidebarAICopy.connected(ConnectedAIs.shared.connections.map(\.name)) {
-                // Connected, nothing changed yet: the window still says an AI is there (council round 9).
-                let under = SidebarAICopy.underConnected(hasChanges: last != nil)
-                row(ai: ConnectedAIs.shared.connections[0].name, line: line, label: line + ", " + under) {
-                    Text(under)
-                }
+                // Connected, nothing changed this week: one line, the AI's name, no "No changes yet"
+                // under it (Emil, 8 November 2026: the foot "doesn't look or feel great").
+                row(ai: ConnectedAIs.shared.connections[0].name, line: line, label: line) { EmptyView() }
             }
         }
         // Fresh each time the window comes forward, the moment an AI edit lands (its receipt and
@@ -109,36 +112,40 @@ struct SidebarAILine: View {
         }
     }
 
+    /// Laid out as the rows under it (Templates, Connect an AI, Import notes): the AI's mark in
+    /// their icons' column, its words on their names' line at their size, the same pill under the
+    /// pointer; a second line only for a change.
     private func row<Under: View>(ai: String, line: String, label: String, @ViewBuilder under: () -> Under) -> some View {
-        Button { AIChangesCenter.shared.show() } label: {
-            HStack(alignment: .firstTextBaseline, spacing: SidebarAICopy.gap) {
-                VersionAuthorMark(author: .ai(ai), size: 14)
-                    .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 2 }
+        let pill = SidebarStyle.rowPill(nested: nested)
+        return Button { AIChangesCenter.shared.show() } label: {
+            Label {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(line)
-                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Color.ink)
                         .lineLimit(1)
                         .truncationMode(.tail)
                     under()
                         .font(.system(size: 11))
                         .foregroundStyle(Color.muted)
+                        .lineLimit(1)
                 }
-                Spacer(minLength: 0)
+            } icon: {
+                VersionAuthorMark(author: .ai(SidebarAICopy.shown(ai)), size: 15)
             }
-            .padding(.leading, SidebarAICopy.leading)
-            .padding(.trailing, 10)
-            .padding(.vertical, 7)
+            .sidebarRowLabel()
+            .frame(minHeight: SidebarFoot.rowContentHeight, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(.rect)
+            .sidebarFootPill("sidebar.ai")
         }
         .buttonStyle(.plain)
-        .hoverRow("sidebar.ai", reach: Hover.noteRowReach)
         .help("Open AI Changes")
         .accessibilityLabel(label)
         .accessibilityHint(SidebarAICopy.hint)
         .accessibilityIdentifier("sidebar.aiLine")
-        .padding(.horizontal, 10)
-        .padding(.bottom, 8)
+        .padding(.leading, pill.leading)
+        .padding(.trailing, pill.trailing)
+        .padding(.bottom, 4)
     }
 
     private struct Refresh: Equatable { var active: Bool; var latest: Date? }

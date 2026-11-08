@@ -497,7 +497,7 @@ struct SidebarView: View {
             .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
             // The AI's last change, at the foot (SidebarAILine).
             // A bar, as the top one: folders scrolled under a plain inset showed through its words.
-            .safeAreaBar(edge: .bottom, spacing: 0) { SidebarAILine() }
+            .safeAreaBar(edge: .bottom, spacing: 0) { SidebarAILine(nested: nested) }
         #endif
     }
 

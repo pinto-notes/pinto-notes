@@ -245,7 +245,9 @@ struct VersionAuthorMark: View {
         let n = name.lowercased()
         if n.contains("chatgpt") || n.contains("openai") || n.contains("codex") { return "AIGlyphOpenAI" }
         if n.contains("claude") { return "AIGlyphClaude" }
-        return nil
+        // Every other AI the app has a mark for (Grok showed a sparkle at the sidebar's foot:
+        // Emil, 8 November 2026).
+        return AIGlyph.asset(name)
     }
 
     static func color(_ name: String) -> Color {

@@ -69,6 +69,9 @@ import Testing
         let lib = try Self.library()
         ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
         defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        // Grok connected, named by its site as it signs in: the foot's AI line shows (8 November 2026).
+        ConnectedAIs.shared.set([Connection(id: UUID(), name: "grok.com", kind: "oauth", created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: "grok.com")])
+        defer { ConnectedAIs.shared.set([]) }
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") { try await shots(both, lib: lib, mode: mode, dark: dark) }
     }
 
