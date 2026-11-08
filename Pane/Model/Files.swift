@@ -214,7 +214,11 @@ enum ImageSizes {
         guard case .image(let id, let raw) = e.kind else { return .zero }
         let size = label(raw).size
         let column = max(column, 120)
-        guard let a = aspect[id], a > 0 else { return CGSize(width: min(column, maxWidth), height: 220) }
+        // Not on this device yet: its place is laid out at its size label with a camera photo's
+        // shape (most pictures are), so it barely moves when it arrives. A cover is the same
+        // banner either way. (It was a 220-point strip across the text, whatever its size.)
+        let known = aspect[id].flatMap { $0 > 0 ? $0 : nil }
+        let a = known ?? Self.guessedAspect
         let own = natural[id] ?? .infinity
         switch size {
         case .cover:
@@ -230,6 +234,9 @@ enum ImageSizes {
             return CGSize(width: w, height: max(h, 40))
         }
     }
+
+    /// The shape a picture whose size isn't known yet is given: a camera photo's, 4:3.
+    static let guessedAspect: CGFloat = 4 / 3
 
     static func height(for e: LineEmbed) -> CGFloat { size(for: e).height }
 

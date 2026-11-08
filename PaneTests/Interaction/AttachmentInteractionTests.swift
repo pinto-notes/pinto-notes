@@ -244,7 +244,7 @@ import UniformTypeIdentifiers
     /// A picture above what you're reading that arrives from the server (its size known only
     /// then): what you're reading stays where it is on screen.
     @Test func aPictureArrivingAboveDoesntMoveWhatYoureReading() async throws {
-        let image = try picture(1000, 1000)
+        let image = try picture(2000, 500)
         defer { FileStore.remove(image) }
         let line = FileStore.markdown(id: image.id, filename: image.filename, image: true)
         let lines = (1...80).map { "Line \($0)" }.joined(separator: "\n")
@@ -259,7 +259,7 @@ import UniformTypeIdentifiers
         h.view.core.resolveAttachment = h.controller.resolveAttachment
         h.view.setImages(1)
         await h.settle(0.3)
-        #expect(ImageSizes.aspect[image.id] == 1, "its size is known")
+        #expect(ImageSizes.aspect[image.id] == 4, "its size is known")
         let now = h.lineRect(at: offset(of: "Line 50", h)).minY - clip.bounds.minY
         #expect(abs(now - shown) < 1, "Line 50 was \(shown) from the top, now \(now)")
     }
