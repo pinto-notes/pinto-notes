@@ -67,14 +67,13 @@
 .grid > li { display: grid; width: calc((100% - (var(--cols) - 1) * 28px) / var(--cols)); }
 
 
-/* The front of the blog: a timeline. The date sits in a rail on the left, a dot on a line marks each
-   launch, and the post runs down one narrow column on the right, newest first (Emil, 8 November 2026:
-   "less wide", then "maybe we add a timeline on the left"). On a phone the rail is a thin line and
-   the date sits over the cover. */
-.front { --rail: 162px; --dotx: 140px; max-width: calc(720px + var(--rail)); margin-inline: auto; width: 100%; }
-.front .heroText, .front .heroFit { max-width: none; }
-.front .hero { padding-left: var(--rail); }
-.rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 64px; }
+/* The front of the blog: a timeline. The posts run down one narrow column centred on the page, under
+   a centred title; the dates and the dotted line hang in the margin to its left, newest first (Emil,
+   8 November 2026: "less wide", "maybe we add a timeline on the left", then "not centered on the
+   page"). Below 1100 px the rail is a thin line and the date sits over the cover. */
+.front { --rail: 162px; --dotx: 140px; max-width: 720px; margin-inline: auto; width: 100%; }
+.front .heroText, .front .heroFit { max-width: none; justify-items: center; text-align: center; }
+.rows { list-style: none; margin: 0 0 0 calc(-1 * var(--rail)); padding: 0; display: grid; gap: 64px; }
 .rows > li { display: grid; position: relative; }
 .rows > li::before { content: ""; position: absolute; left: calc(var(--dotx) - 1px); top: 22px; bottom: -86px; width: 2px; border-radius: 1px; background: var(--line, color-mix(in srgb, var(--ink) 14%, transparent)); }
 .rows > li:last-child::before { bottom: 0; background: linear-gradient(color-mix(in srgb, var(--ink) 14%, transparent), transparent); }
@@ -83,9 +82,9 @@
 .railDate > span:last-child { color: var(--muted); font-weight: 500; }
 .railDot { grid-area: dot; justify-self: center; margin-top: 10px; width: 14px; height: 14px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 5px var(--bg, #fff3e6); position: relative; z-index: 1; }
 .rowBody { grid-area: body; display: grid; gap: 18px; }
-@media (max-width: 860px) {
+@media (max-width: 1100px) {
   .front { --rail: 0px; --dotx: 7px; }
-  .rows { gap: 44px; padding-left: 0; }
+  .rows { gap: 44px; margin-left: 0; }
   .rows > li::before { top: 18px; bottom: -62px; }
   .row { grid-template-columns: 14px minmax(0, 1fr); grid-template-areas: "dot date" ". body"; column-gap: 16px; row-gap: 12px; }
   .railDate { display: block; justify-items: start; text-align: left; padding-top: 0; font-size: 14px; }
