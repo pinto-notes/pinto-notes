@@ -16,7 +16,7 @@
     "default": "Use my Pinto Notes note \"Trip plan\". It is an app; its data is \"Travel/Trip plan.app/data.json\". Read it with fetch before each change, and change it with edit. I'll tell you where I'm going, when, and what I like. Set values.trip (name, place, start, end as yyyy-mm-dd) and write values.days: one { date, title, items } per day with three to five realistic items, with travel time between places. Start items with a time (\"09:30 Tram 28\"). When I paste a booking confirmation, add { id, what, kind, date, time, ref, paid } to values.bookings (kind: flight, train, stay, food, activity, other). Add what the trip needs to values.packing as { id, text, group, packed: false }. I can change all of it in the app myself."
   },
   "asks": [
-    "Lisbon, 4 days in May. I like food, views and walking. Not museums.",
+    "Lisbon, five days, 22 to 26 October. I like food, views and walking. Not museums.",
     "Here's the hotel confirmation: …",
     "What do I still need to book?"
   ],

@@ -91,7 +91,7 @@ struct TemplateCatalog: Sendable {
     static func label(_ filter: String) -> String {
         switch filter {
         case "Habits and health": "Health"
-        case "Home and life": "Home"
+        case "Home and life": "Personal"
         default: filter
         }
     }
@@ -106,12 +106,14 @@ struct TemplateCatalog: Sendable {
 
 enum TemplateLibraryWords {
     static let title = "Templates"
-    static let line = "Notes your AI fills in and keeps up to date."
+    static let line = "Notes and small apps your AI fills in and keeps up to date."
     static func make(_ ai: SetupCards.AI) -> String { ai.asks ? "Make with \(ai.name)" : "Add the note" }
     static let another = "Make with another AI"
-    static let copy = "Copy prompt"
+    static let copy = "Copy Prompt"
     static let copied = "Copied"
-    static let tryAsking = "Then ask"
+    /// What Make does, over the ask it sends: said once, where the ask is.
+    static func opensWith(_ ai: SetupCards.AI) -> String { ai.asks ? "Adds the note, then opens \(ai.name) with" : "Adds the note. Then ask your AI" }
+    static let done = "Done"
     static let clear = "Clear Search"
     static func none(_ q: String) -> String { "No templates match \u{201C}\(q)\u{201D}" }
 }
@@ -197,8 +199,17 @@ struct TemplateLibraryView: View {
     @Environment(\.inSheet) private var inSheet
 
     static let size = CGSize(width: 1040, height: 680)
-    static let panel: CGFloat = 440
     static let gap: CGFloat = 16
+
+    /// The open template's panel: narrower on a small sheet, so the grid keeps two columns there
+    /// instead of one card blown up to 231 pt (council, 8 November 2026).
+    static func panel(for size: CGSize) -> CGFloat { size.width < 900 ? 360 : 440 }
+    /// The stage the template shows on, above its name: a set height, so nothing under it moves
+    /// from one template to the next.
+    static func stage(for size: CGSize) -> CGFloat { size.height <= 560 ? 150 : 300 }
+    /// A small sheet: the panel's words at a smaller size, so all of them fit.
+    static func small(_ size: CGSize) -> Bool { size.height <= 560 }
+    private var panel: CGFloat { Self.panel(for: size) }
 
     /// The sheet's size on a window: the full size where it fits, never wider or taller than the
     /// window less a margin, and never so small the open template loses its buttons.
@@ -214,43 +225,48 @@ struct TemplateLibraryView: View {
         return shown.indices.contains(to) ? shown[to] : open
     }
 
-    /// The template shown open: the one picked while it's in the list, otherwise the first.
+    /// The template shown open: the one picked while it's in the list, otherwise the first. When
+    /// nothing matches a search the last one stays open, so the panel never leaves and comes back
+    /// (council, 8 November 2026: no match hid the panel, and clearing the search slid it in again).
     static func showing(_ shown: [TemplateCatalog.Entry], open: TemplateCatalog.Entry?) -> TemplateCatalog.Entry? {
         if let open, shown.contains(open) { return open }
-        return shown.first
+        return shown.first ?? open
     }
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
         let shown = catalog.shown(filter: filter, query: query)
-        let current = Self.showing(shown, open: open)
+        let current = Self.showing(shown, open: open ?? catalog.entries.first)
         VStack(spacing: 0) {
             header
             Divider()
-            if shown.isEmpty {
-                // Nothing matches: one message across the sheet, and the way back.
-                VStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass").font(.system(size: 28, weight: .regular)).foregroundStyle(Color.muted)
-                    Text(TemplateLibraryWords.none(query)).font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.ink)
-                    Button(TemplateLibraryWords.clear) { query = ""; filter = "All" }
-                        .buttonStyle(.secondary(.regular))
-                        .padding(.top, 4)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.bottom, 40)
-            } else {
-                HStack(spacing: 0) {
-                    grid(shown, current: current)
-                    Divider()
-                    Group {
-                        if let current { detail(current) } else { Color.clear }
+            HStack(spacing: 0) {
+                if shown.isEmpty {
+                    // Nothing matches: the message and the way back in the grid's place; the
+                    // open template stays where it is.
+                    VStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass").font(.system(size: 28, weight: .regular)).foregroundStyle(Color.muted)
+                        Text(TemplateLibraryWords.none(query)).font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.ink)
+                            .multilineTextAlignment(.center)
+                        Button(TemplateLibraryWords.clear) { query = ""; filter = "All" }
+                            .buttonStyle(.secondary(.compact))
+                            .padding(.top, 4)
                     }
-                    .frame(width: Self.panel)
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .clipped()
+                    .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .accessibilityIdentifier("templates.none")
+                } else {
+                    grid(shown, current: current)
                 }
-                .frame(maxHeight: .infinity)
+                Divider()
+                Group {
+                    if let current { detail(current) } else { Color.clear }
+                }
+                .frame(width: panel)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .clipped()
             }
+            .frame(maxHeight: .infinity)
         }
         .frame(width: size.width, height: size.height)
         // In a sheet the sheet is the panel and macOS dims the window (popupSheet).
@@ -268,8 +284,9 @@ struct TemplateLibraryView: View {
     }
 
     private var columns: Int {
-        let w = Self.cardWidth(row: row > 0 ? row : size.width - Self.panel - 49, gap: Self.gap)
-        return max(1, Int(((row > 0 ? row : size.width - Self.panel - 49) + Self.gap) / (w + Self.gap)))
+        let r = row > 0 ? row : size.width - panel - 49
+        let w = Self.cardWidth(row: r, gap: Self.gap)
+        return max(1, Int((r + Self.gap) / (w + Self.gap)))
     }
 
     private func move(_ shown: [TemplateCatalog.Entry], _ current: TemplateCatalog.Entry?, by: Int) {
@@ -288,7 +305,11 @@ struct TemplateLibraryView: View {
                 }
                 Spacer(minLength: 16)
                 search
-                CardCloseButton(action: close)
+                // A word, not a second x beside Search's clear button (council, 8 November 2026).
+                Button(TemplateLibraryWords.done, action: close)
+                    .buttonStyle(.secondary(.compact))
+                    .keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("templates.done")
             }
             Picker("Kind", selection: $filter) {
                 ForEach(TemplateCatalog.filters, id: \.self) { Text(TemplateCatalog.label($0)).tag($0) }
@@ -322,7 +343,7 @@ struct TemplateLibraryView: View {
         .font(.system(size: 13))
         .padding(.leading, 10)
         .padding(.trailing, 6)
-        .frame(width: 220, height: 30)
+        .frame(width: 220, height: 28)
         .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 8, style: .continuous))
     }
 
@@ -333,96 +354,129 @@ struct TemplateLibraryView: View {
             let width = Self.cardWidth(row: row > 0 ? row : geo.size.width - 48, gap: Self.gap)
             ScrollViewReader { scroller in
                 ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: Self.gap, alignment: .top)], alignment: .leading, spacing: Self.gap) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: Self.gap, alignment: .top)], alignment: .leading, spacing: Self.gap - 2 * Self.clearance) {
                         ForEach(shown) { e in
                             SetupTemplateCard(pick: e.pick, width: width, selected: current == e) {
                                 open = e
                                 copied = false
                             }
-                            .id(e.slug)
+                            // Scrolled to with room above and below: the cell (what scrollTo
+                            // finds) is the card and 16 pt either side, and the rows overlap by
+                            // that much, so the cards keep their 16 pt gap.
+                            .padding(.vertical, Self.clearance)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { row = $0 }
-                    .padding(24)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 24 - Self.clearance)
+                }
+                // The open card is always in full view: on opening, on every pick, arrow key,
+                // kind and search (council, 8 November 2026: it was a 23 pt sliver, or off screen).
+                .onAppear {
+                    guard let slug = current?.slug else { return }
+                    scroller.scrollTo(slug)
+                    DispatchQueue.main.async { scroller.scrollTo(slug) }
                 }
                 .onChange(of: current?.slug) { _, slug in
                     guard let slug else { return }
+                    if open?.slug != slug { open = current }
                     withAnimation(.snappy(duration: 0.2)) { scroller.scrollTo(slug) }
                 }
-                .onChange(of: filter) { scroller.scrollTo(shown.first?.slug, anchor: .top) }
+                .onChange(of: filter) { if let slug = current?.slug { scroller.scrollTo(slug) } }
+                // Again once the grid has its real width: a scroll before the first layout lands
+                // on the card's estimated place, without its room.
+                .onChange(of: row) { if let slug = current?.slug { scroller.scrollTo(slug) } }
             }
         }
         .frame(maxWidth: .infinity)
     }
 
-    /// As many cards of at least the gallery's width as fit, widened to fill the row exactly.
+    /// Room kept around the open card when it's scrolled to.
+    static let clearance: CGFloat = 16
+
+    /// As many cards of at least the gallery's width as fit, widened to fill the row exactly. A
+    /// narrow row (a small sheet) takes two smaller cards, never one big one.
     static func cardWidth(row: CGFloat, gap: CGFloat) -> CGFloat {
-        let least = SetupTemplateCard.size.width
+        let least: CGFloat = row < 400 ? 140 : SetupTemplateCard.size.width
         let count = max(1, ((row + gap) / (least + gap)).rounded(.down))
         return ((row - gap * (count - 1)) / count).rounded(.down)
     }
 
-    /// The stage's height: 290 in the full sheet, less in a smaller window, so the words and
-    /// Make under it always fit (at 330 an app's longer words pushed the whole sheet up).
-    private var stage: CGFloat { min(290, (size.height * 0.42).rounded()) }
+    private var stage: CGFloat { Self.stage(for: size) }
 
     /// One template as it looks in use, on its cover like the website's template page: the
-    /// filled-in note (or the app) on the cover's picture and ground, then its name, what to ask,
-    /// and Make at the foot.
+    /// filled-in note (or the app) as a window on the cover's picture, then its name, what Make
+    /// sends, and Make at the foot. Every part has a set height, so nothing moves from one
+    /// template to the next (council, 8 November 2026: the gap over the buttons went 43 to 102 pt).
     private func detail(_ e: TemplateCatalog.Entry) -> some View {
-        let ground = Color(rgb: e.pick.ground)
+        let small = Self.small(size)
+        let text: CGFloat = small ? 12 : 12.5
         return VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .top) {
-                ground
-                e.pick.image.resizable().scaledToFill()
-                    .frame(width: Self.panel, height: Self.panel)
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .clipped()
-                    .accessibilityHidden(true)
-                inUse(e)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(scheme == .dark ? Color.black : Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .shadow(color: .black.opacity(0.3), radius: 24, y: 14)
-                    .padding(.horizontal, 28)
-                    .padding(.top, 72)
-                    // It runs off the stage's foot, as a window seen past the cover.
-                    .padding(.bottom, -40)
-                    .accessibilityLabel("\(e.title), in use")
-            }
-            .frame(height: stage)
-            .clipped()
-            // A new template swaps in place, quickly: no slide, nothing else moves.
-            .id(e.slug)
-            .transition(.opacity.animation(.easeOut(duration: 0.12)))
-            VStack(alignment: .leading, spacing: 12) {
+            stageView(e)
+                // A new template swaps in place, quickly: no slide, nothing else moves.
+                .id(e.slug)
+                .transition(.opacity.animation(.easeOut(duration: 0.12)))
+            VStack(alignment: .leading, spacing: 0) {
+                // Its name, for notes too: a note's own title can be off the stage (council).
+                Text(e.title).font(.system(size: small ? 17 : 20, weight: .bold)).foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                    .accessibilityAddTraits(.isHeader)
+                Text(e.description).font(.system(size: text)).foregroundStyle(Color.muted)
+                    .lineLimit(3, reservesSpace: true)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
+                Spacer(minLength: small ? 8 : 12)
+                // What Make does, and the ask it sends, as you'd say it.
                 VStack(alignment: .leading, spacing: 5) {
-                    // A note shows its own title at its top; an app's picture may not.
-                    if e.app {
-                        Text(e.title).font(.system(size: 20, weight: .heavy)).tracking(-0.2).foregroundStyle(Color.ink)
-                    }
-                    Text(e.description).font(.system(size: 12.5)).foregroundStyle(Color.muted)
-                        .lineLimit(3).fixedSize(horizontal: false, vertical: true)
-                }
-                // What you'd say next, as you'd say it: a message on the right.
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(TemplateLibraryWords.tryAsking).font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.muted)
-                    Text(e.ask)
-                        .font(.system(size: 12.5)).foregroundStyle(Color.ink)
-                        .lineLimit(2)
-                        // Two lines, never cut to one by the panel's height.
+                    Text(TemplateLibraryWords.opensWith(ai)).font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.muted)
+                    // As it's sent: without a trailing "…" gap.
+                    Text(TemplateCatalog.Entry.sendable(e.ask))
+                        .font(.system(size: text)).foregroundStyle(Color.ink)
+                        .lineLimit(2, reservesSpace: true)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 12).padding(.vertical, 8)
-                        .background(Color.primary.opacity(0.07), in: .rect(cornerRadius: 14, style: .continuous))
+                        .padding(.horizontal, 12).padding(.vertical, small ? 6 : 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.primary.opacity(0.07), in: .rect(cornerRadius: 12, style: .continuous))
                 }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                Spacer(minLength: 0)
                 actions(e)
+                    .padding(.top, small ? 12 : 16)
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.top, small ? 12 : 18)
+            .padding(.bottom, 20)
             .frame(maxHeight: .infinity, alignment: .top)
         }
+    }
+
+    /// The stage: the cover's picture, with the template in use as a window on it, inset from
+    /// the top and sides, fading out at the stage's foot. The picture is drawn over the stage,
+    /// never sizing it (it was a square, which cut the window's top off in a small sheet).
+    private func stageView(_ e: TemplateCatalog.Entry) -> some View {
+        let inset: CGFloat = Self.small(size) ? 16 : 20
+        let fade = 24 / max(stage - inset, 1)
+        return Color(rgb: e.pick.ground)
+            .overlay(alignment: .top) {
+                e.pick.image.resizable().scaledToFill()
+                    .frame(width: panel, height: panel)
+                    .accessibilityHidden(true)
+            }
+            .overlay(alignment: .top) {
+                inUse(e)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .background(scheme == .dark ? Color.black : Color.white)
+                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: 12, topTrailingRadius: 12, style: .continuous))
+                    .mask {
+                        LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 1 - fade), .init(color: .clear, location: 1)],
+                                       startPoint: .top, endPoint: .bottom)
+                    }
+                    .shadow(color: .black.opacity(0.25), radius: 18, y: 8)
+                    .padding(.horizontal, inset)
+                    .padding(.top, inset)
+                    .accessibilityLabel("\(e.title), in use")
+            }
+            .frame(width: panel, height: stage)
+            .clipped()
     }
 
     private func actions(_ e: TemplateCatalog.Entry) -> some View {
@@ -431,7 +485,7 @@ struct TemplateLibraryView: View {
             // (remembered while the library is open).
             HStack(spacing: 1) {
                 Button { if !ai.asks { copy(e) }; make(e, ai) } label: { makeLabel(ai) }
-                    .buttonStyle(ais.count > 1 ? .amberProminent(.regular, wide: true, joined: .leading) : .amberProminent(.regular, wide: true))
+                    .buttonStyle(ais.count > 1 ? .amberProminent(.compact, wide: true, joined: .leading) : .amberProminent(.compact, wide: true))
                     .keyboardShortcut(.defaultAction)
                     .accessibilityIdentifier("templates.make")
                 if ais.count > 1 {
@@ -446,19 +500,28 @@ struct TemplateLibraryView: View {
                             }
                         }
                     } label: {
-                        Image(systemName: "chevron.down").font(.system(size: 12, weight: .bold))
+                        Image(systemName: "chevron.down").font(.system(size: 11, weight: .bold))
                     }
                     .menuStyle(.button)
                     .menuIndicator(.hidden)
-                    .buttonStyle(.amberProminent(.regular, joined: .trailing))
+                    .buttonStyle(.amberProminent(.compact, joined: .trailing))
                     .fixedSize()
                     .accessibilityLabel(TemplateLibraryWords.another)
                     .accessibilityIdentifier("templates.makeWith")
                 }
             }
-            Button(copied ? TemplateLibraryWords.copied : TemplateLibraryWords.copy) { copy(e) }
-                .buttonStyle(.secondary(.regular))
-                .accessibilityIdentifier("templates.copy")
+            // On a small sheet Copy is its icon, so Make keeps its whole name.
+            if Self.small(size) {
+                Button { copy(e) } label: { Image(systemName: copied ? "checkmark" : "doc.on.doc").frame(width: 16) }
+                    .buttonStyle(.secondary(.compact))
+                    .help(TemplateLibraryWords.copy)
+                    .accessibilityLabel(copied ? TemplateLibraryWords.copied : TemplateLibraryWords.copy)
+                    .accessibilityIdentifier("templates.copy")
+            } else {
+                Button(copied ? TemplateLibraryWords.copied : TemplateLibraryWords.copy) { copy(e) }
+                    .buttonStyle(.secondary(.compact))
+                    .accessibilityIdentifier("templates.copy")
+            }
         }
     }
 
@@ -477,7 +540,7 @@ struct TemplateLibraryView: View {
     /// "Make with ChatGPT" with ChatGPT's mark: an AI named is an AI shown.
     private func makeLabel(_ ai: SetupCards.AI) -> some View {
         HStack(spacing: 7) {
-            if ai != .other { AIGlyph(ai: ai.name, size: 15, monochrome: true) }
+            if ai != .other { AIGlyph(ai: ai.name, size: 13, monochrome: true) }
             Text(TemplateLibraryWords.make(ai))
         }
     }
@@ -554,9 +617,10 @@ struct TemplateAppPreview: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             if !ready, let picture = TemplateFiles.picture(entry, dark: scheme == .dark) {
-                // From its left edge at a size you can read, never widening the panel.
+                // The whole app, its full width in the window: never cut at the right edge
+                // (council, 8 November 2026: "11-", "Princip").
                 Color.clear
-                    .overlay(alignment: .topLeading) { Image(nsImage: picture).resizable().scaledToFit().frame(width: 560) }
+                    .overlay(alignment: .top) { Image(nsImage: picture).resizable().scaledToFit() }
                     .clipped()
                     .accessibilityHidden(true)
                     .transition(.opacity)
