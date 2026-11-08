@@ -267,7 +267,7 @@ enum ShareCopy {
         switch access {
         case .edit: "Anyone with the link can join and edit in Pinto Notes."
         case .view: "Anyone with the link can join and read in Pinto Notes."
-        case .off: "Only the people above can open this note. Turning the link on makes a new one."
+        case .off: "Only the people above can open it. Each time you turn the link on, it's a new link."
         }
     }
 

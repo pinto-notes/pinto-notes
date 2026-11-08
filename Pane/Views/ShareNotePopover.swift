@@ -13,9 +13,9 @@ enum ShareWays {
         case picture = "Picture"
         var id: String { rawValue }
 
-        /// Beside Collaborate the labels are shorter, and the public link is what it makes: a web page.
+        /// The same short names in every popover, with or without Collaborate: what a tab is called
+        /// doesn't change with what the note can do (council, 8 November 2026).
         func label(collaborating: Bool) -> String {
-            guard collaborating else { return rawValue }
             switch self {
             case .people: return "Collaborate"
             case .link: return "Web Page"
@@ -138,7 +138,8 @@ struct ShareNotePopover: View {
             // The rows' words, previews and buttons all start 16 pt in, as the line above them does
             // (council, 8 November 2026: margins drifted between 10 and 27 pt).
             .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.top, 6)
+            .padding(.bottom, chosen == .people ? 8 : 14)
         }
         .frame(width: collaborating ? Self.collaborateWidth : Self.width)
         // Solid, as the app's cards are: the system's glass let the window behind show through its
@@ -168,7 +169,7 @@ struct ShareNotePopover: View {
             // A page from before the note was shared with people: open it or stop it. Copy Link would
             // publish the note again, and its text is everyone's now.
             if shared {
-                if let url = store.url { row("Open Shared Page", "safari", id: "share.open") { NSWorkspace.shared.open(url) } }
+                if let url = store.url { row("Open Web Page", "safari", id: "share.open") { NSWorkspace.shared.open(url) } }
                 row("Stop Sharing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } }
             }
         } else if !shared {
@@ -179,8 +180,9 @@ struct ShareNotePopover: View {
         } else {
             if let url = store.url {
                 Text(url.absoluteString.replacingOccurrences(of: "https://", with: ""))
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(Color.muted)
+                    .textSelection(.enabled)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .padding(.horizontal, 8)
@@ -188,9 +190,9 @@ struct ShareNotePopover: View {
                     .padding(.bottom, 8)
             }
             primary("Copy Link", "link", id: "share.copy") { close(); Task { await store.shareAndCopy() } }
-                .padding(.bottom, 4)
+                .padding(.bottom, 6)
             if let url = store.url {
-                row("Open Shared Page", "safari", id: "share.open") { NSWorkspace.shared.open(url) }
+                row("Open Web Page", "safari", id: "share.open") { NSWorkspace.shared.open(url) }
             }
             Divider().padding(.horizontal, 6).padding(.vertical, 4)
             row("Stop Sharing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } }
@@ -215,7 +217,7 @@ struct ShareNotePopover: View {
     }
 
     /// What sits under the picture: the backgrounds, then the buttons.
-    static let pictureControls: CGFloat = 92
+    static let pictureControls: CGFloat = 96
 
     @ViewBuilder private var pictureRows: some View {
         if let request = pictureRequest?() {
@@ -232,14 +234,13 @@ struct ShareNotePopover: View {
             .disabled(pictureImage == nil)
             .accessibilityIdentifier("share.copyPicture")
             if let picture {
-                Button { close(); picture() } label: { Text("Save or Share…") }
+                Button { close(); picture() } label: { Label("Share…", systemImage: "square.and.arrow.up") }
                     .buttonStyle(.secondary(.compact))
                     .fixedSize()
                     .accessibilityIdentifier("share.picture")
             }
         }
         .padding(.horizontal, 8)
-        .padding(.bottom, 4)
     }
 
     private func copyPicture() {
@@ -341,7 +342,7 @@ private struct ShareTab: View {
 struct WebPagePreview: View {
     let title: String
     let text: String
-    static let height: CGFloat = 132
+    static let height: CGFloat = 128
 
     /// The lines under the title: the note's first few, its first line left out when it is the title.
     static func lines(title: String, text: String) -> [String] {
@@ -353,7 +354,7 @@ struct WebPagePreview: View {
         return Array(lines.filter { !$0.isEmpty }.prefix(4)).map { line in
             // Markdown's list and heading marks read as clutter at this size.
             // List items keep a bullet, as the page draws them (council, 8 November 2026).
-            for mark in ["- [ ] ", "- [x] ", "- ", "* "] where line.hasPrefix(mark) { return "\u{2022} " + line.dropFirst(mark.count) }
+            for mark in ["- [ ] ", "- [x] ", "- ", "* "] where line.hasPrefix(mark) { return "\u{2013} " + line.dropFirst(mark.count) }
             for mark in ["# ", "## ", "### "] where line.hasPrefix(mark) { return String(line.dropFirst(mark.count)) }
             return line
         }
@@ -363,18 +364,18 @@ struct WebPagePreview: View {
         // A calm tray with a small browser window in it, drawn in the current appearance: the
         // tinted stage and a white page in dark mode were louder than the action (council,
         // 8 November 2026), and Emil found the plain one blended in. The tray sets it apart.
+        // One window, full width, with a hairline and a soft shadow so it stands off the card: no
+        // grey well around it (council, 8 November 2026: a box in a box).
         browser
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
             .frame(height: Self.height)
-            .background(Color.soft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("A preview of the web page")
             .accessibilityIdentifier("share.webPreview")
     }
 
     private var browser: some View {
-        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         let name = title.trimmingCharacters(in: .whitespaces).isEmpty ? "New note" : title
         return VStack(spacing: 0) {
             HStack(spacing: 4) {
@@ -397,7 +398,7 @@ struct WebPagePreview: View {
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(Color.ink)
                     .lineLimit(1)
-                ForEach(Array(Self.lines(title: title, text: text).prefix(3).enumerated()), id: \.offset) { _, line in
+                ForEach(Array(Self.lines(title: title, text: text).prefix(4).enumerated()), id: \.offset) { _, line in
                     Text(line).font(.system(size: 9.5)).foregroundStyle(Color.muted).lineLimit(1)
                 }
                 Spacer(minLength: 0)
@@ -408,8 +409,9 @@ struct WebPagePreview: View {
             .clipped()
             .background(Color.card)
         }
+        .background(Color.soft)
         .clipShape(shape)
-        .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
+        .overlay(shape.strokeBorder(Color.primary.opacity(0.14), lineWidth: 0.5))
     }
 }
 
@@ -421,15 +423,16 @@ struct PictureBackgrounds: View {
 
     var body: some View {
         let chosen = NotePicture.Background(rawValue: storedBackground) ?? (colorScheme == .dark ? .dusk : .hills)
-        HStack(spacing: 10) {
-            ForEach(NotePicture.Background.allCases) { b in
+        HStack(spacing: 0) {
+            ForEach(Array(NotePicture.Background.allCases.enumerated()), id: \.element) { i, b in
+                if i > 0 { Spacer(minLength: 6) }
                 Button { storedBackground = b.rawValue } label: {
                     swatch(b)
                         .frame(width: 24, height: 24)
                         .clipShape(Circle())
                         .overlay(Circle().strokeBorder(Color.primary.opacity(0.22), lineWidth: 1))
                         .padding(3)
-                        .overlay { if b == chosen { Circle().strokeBorder(Color.accentColor, lineWidth: 2) } }
+                        .overlay { if b == chosen { Circle().strokeBorder(Color(PColor.paneAccent), lineWidth: 2) } }
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -438,8 +441,8 @@ struct PictureBackgrounds: View {
                 .accessibilityAddTraits(b == chosen ? .isSelected : [])
                 .help(b.name)
             }
-            Spacer(minLength: 0)
         }
+        .padding(.horizontal, -3)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("share.pictureBackgrounds")
     }
@@ -607,12 +610,14 @@ struct CollaborateRows: View {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(share.state.people) { p in
                     let opens = !p.isMe && p.safetyCode != nil
-                    let row = HStack(spacing: 6) {
+                    let row = HStack(spacing: 5) {
                         PersonRow(person: p, removing: share.working == .remove(p.id), size: 24)
-                        // Opens their safety code, as the iPhone's row does.
-                        if opens {
-                            Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
-                        }
+                        // A pop-up, as Anyone with the link is: a chevron read as navigation
+                        // (council, 8 November 2026). Rows without one keep its room, so every
+                        // role lines up.
+                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(Color.muted)
+                            .opacity(opens ? 1 : 0)
                     }
                     .font(.system(size: 13))
                     .padding(.horizontal, 4)
@@ -621,7 +626,13 @@ struct CollaborateRows: View {
                     Group {
                         if opens {
                             // A light wash under the pointer, as every clickable row has.
-                            Button { page = .verify(p.id) } label: { row }.buttonStyle(.tile(radius: 6))
+                            Menu {
+                                Button("Check Safety Code…") { page = .verify(p.id) }
+                                if share.isOwner { Divider(); Button("Remove from Note", role: .destructive) { share.askRemove(p) } }
+                            } label: { row }
+                            .menuStyle(.button)
+                            .menuIndicator(.hidden)
+                            .buttonStyle(.tile(radius: 6))
                         } else {
                             row
                         }

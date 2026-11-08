@@ -585,7 +585,7 @@ struct ShareLinkMenuSection: View {
                     // before is listed, to open or stop; Copy Link would publish it again.
                     if store.state.slug != nil {
                         if let url = store.url {
-                            Link(destination: url) { Label("Open Shared Page", systemImage: "safari") }
+                            Link(destination: url) { Label("Open Web Page", systemImage: "safari") }
                         }
                         DestructiveMenuButton("Stop Sharing", systemImage: "xmark.circle") { Task { await store.stopSharing() } }
                             .accessibilityIdentifier("share.stop")
@@ -598,7 +598,7 @@ struct ShareLinkMenuSection: View {
                     Button("Copy Link", systemImage: "link") { Task { await store.shareAndCopy() } }
                         .accessibilityIdentifier("share.copy")
                     if let url = store.url {
-                        Link(destination: url) { Label("Open Shared Page", systemImage: "safari") }
+                        Link(destination: url) { Label("Open Web Page", systemImage: "safari") }
                     }
                     DestructiveMenuButton("Stop Sharing", systemImage: "xmark.circle") { Task { await store.stopSharing() } }
                         .accessibilityIdentifier("share.stop")

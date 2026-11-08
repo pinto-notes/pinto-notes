@@ -162,7 +162,7 @@ import Testing
             #expect(!l.contains("end-to-end") && !l.contains("end to end") && !l.contains("nobody else") && !l.contains("!"), "\(line)")
         }
         #expect(ShareCopy.link(.edit).contains("edit") && ShareCopy.link(.view).contains("read"))
-        #expect(ShareCopy.link(.off).contains("new one"))
+        #expect(ShareCopy.link(.off).contains("new link"))
         // Before the note is shared, the line says what Share Link will do, not that a link is off.
         #expect(ShareCopy.link(ShareState(people: [.init(id: Self.me, name: "Emil Wagman", isMe: true, role: "owner")])) == ShareCopy.notSharedYet)
         #expect(ShareCopy.link(Self.owner(link: .off)) == ShareCopy.link(.off))

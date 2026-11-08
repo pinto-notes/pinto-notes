@@ -90,8 +90,8 @@ import Testing
     /// its first lines, without markdown's marks (Emil, 8 November 2026).
     @Test func webPageShowsAPreview() {
         #expect(WebPagePreview.lines(title: "Dinner Guide", text: SharePopoverCapture.text)
-                == ["A plan for Friday: tapas at six, then the walk along the river.", "• Olives and bread", "• Patatas bravas", "• Flan"])
-        #expect(WebPagePreview.lines(title: "Other", text: "Notes\n- [ ] Buy milk") == ["Notes", "• Buy milk"])
+                == ["A plan for Friday: tapas at six, then the walk along the river.", "– Olives and bread", "– Patatas bravas", "– Flan"])
+        #expect(WebPagePreview.lines(title: "Other", text: "Notes\n- [ ] Buy milk") == ["Notes", "– Buy milk"])
         // A divider is no line of text (Emil, 8 November 2026: the preview showed "---").
         #expect(WebPagePreview.lines(title: "T", text: "T\nOne\n---\nTwo\n***") == ["One", "Two"])
     }
