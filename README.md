@@ -187,4 +187,4 @@ Want to be next? [CONTRIBUTING.md](CONTRIBUTING.md) has where to start, and idea
 
 ## License
 
-[MIT](LICENSE). Made by Emil Wagman at [Incredible](https://incredible.one).
+[MIT](LICENSE). Made by Emil Wagman.
