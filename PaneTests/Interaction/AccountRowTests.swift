@@ -233,6 +233,25 @@ import Testing
         #expect(host.popup == "connectAI", "Connect an AI takes its place")
     }
 
+    /// The sync spinner beside the account: not for a sync over in a moment (a push while you type),
+    /// shown for one that takes longer, and gone again after (Emil, 8 November 2026).
+    @Test func theSyncSpinnerShowsOnlyForASyncThatTakesAMoment() async throws {
+        let d = SpinnerDelay(wait: .milliseconds(150), hold: .milliseconds(150))
+        d.set(true)
+        try await Task.sleep(for: .milliseconds(50))
+        d.set(false)
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(!d.shown, "a sync over in a moment never shows it")
+        d.set(true)
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(d.shown, "a longer one does")
+        d.set(false)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(d.shown, "and it stays a moment after, so it can be read")
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(!d.shown, "then goes")
+    }
+
     /// Each foot icon's ink sits in the middle of its row, top to bottom (Emil, 8 November 2026:
     /// Import notes' tray sat low). Drawn offscreen, measured by its pixels.
     @Test func theFootIconsAreCentredInTheirRows() async throws {

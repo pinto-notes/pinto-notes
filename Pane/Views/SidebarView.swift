@@ -765,7 +765,7 @@ struct SidebarView: View {
                             .padding(.bottom, 2)
                     }
                     OfflineLine(sync: sync)
-                    SidebarFoot(backend: backend, nested: nested, rows: true, imports: imports)
+                    SidebarFoot(backend: backend, nested: nested, rows: true, imports: imports, sync: sync)
                 }
                 .padding(.top, 4)
                 .padding(.bottom, 8)

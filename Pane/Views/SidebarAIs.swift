@@ -62,6 +62,55 @@ struct SidebarFootIcon: View {
     }
 }
 
+/// A small spinner while a sync runs. Only for one that takes a moment: most syncs (each push while
+/// you type) are over in a fraction of a second, and a spinner blinking on and off with every
+/// keystroke would be noise. Once shown it stays long enough to be read, and fades in and out.
+struct SyncSpinner: View {
+    let syncing: Bool
+    @State private var delay = SpinnerDelay()
+
+    var body: some View {
+        ProgressView()
+            .controlSize(.small)
+            .opacity(delay.shown ? 1 : 0)
+            .animation(.easeOut(duration: 0.2), value: delay.shown)
+            .accessibilityHidden(!delay.shown)
+            .accessibilityLabel("Syncing")
+            .help(delay.shown ? "Syncing" : "")
+            .allowsHitTesting(false)
+            .onChange(of: syncing, initial: true) { _, now in delay.set(now) }
+    }
+}
+
+/// When a spinner for work shows: only once the work has run `wait`, then for at least `hold`
+/// after it ends, so a quick one never blinks it on and off.
+@MainActor @Observable final class SpinnerDelay {
+    private(set) var shown = false
+    private var pending: Task<Void, Never>?
+    let wait: Duration
+    let hold: Duration
+
+    init(wait: Duration = .milliseconds(700), hold: Duration = .milliseconds(600)) {
+        self.wait = wait
+        self.hold = hold
+    }
+
+    func set(_ working: Bool) {
+        pending?.cancel()
+        if working, !shown {
+            pending = Task { [wait] in
+                try? await Task.sleep(for: wait)
+                if !Task.isCancelled { self.shown = true }
+            }
+        } else if !working, shown {
+            pending = Task { [hold] in
+                try? await Task.sleep(for: hold)
+                if !Task.isCancelled { self.shown = false }
+            }
+        }
+    }
+}
+
 /// A foot row's icon, centred in the photo's column, then its words on your name's line.
 struct SidebarFootLabel<Title: View, Icon: View>: View {
     @ViewBuilder let title: Title
@@ -107,6 +156,8 @@ struct SidebarFoot: View {
     var nested = false
     var rows = false
     var imports: ImportActions?
+    /// While it syncs, a small spinner at the account row's right end.
+    var sync: SyncEngine? = nil
 
     /// The photo's column: each row's icon is centred in one as wide as the account's photo, and its
     /// words start where your name does, so the foot reads as one block (Emil, 8 November 2026:
@@ -131,6 +182,11 @@ struct SidebarFoot: View {
             // folders, whose edge showed a line on hover (Emil, 8 November 2026).
             if rows { SidebarAILine(); SidebarStudyRows(imports: imports) }
             AccountButton(backend: backend)
+                // Syncing, said quietly where your account is (Emil, 8 November 2026).
+                .overlay(alignment: .trailing) {
+                    SyncSpinner(syncing: sync?.status == .syncing)
+                        .padding(.trailing, Hover.sidebarReach().trailing + 8)
+                }
                 // A little apart from the rows above: you, not another thing to do (Emil, 8 November 2026).
                 .padding(.top, rows ? SidebarFoot.accountGap : 0)
         }
