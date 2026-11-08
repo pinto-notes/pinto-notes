@@ -14,7 +14,7 @@
     "default": "Use my Pinto Notes note \"Cornell notes\". Read it with fetch before each change. When I paste or dictate notes from a lecture or a chapter, add a section at the end of \"Lectures\" with edit: a \"###\" heading with the topic and the date, then a table with two columns, Cue and Notes. Put my notes on the right as short rows in my own words, and on the left a question each row answers. End with a line starting \"**Summary:**\", two or three plain sentences. When I say \"quiz me\", ask me the cues one at a time without showing the notes. Add any I miss under \"Cues to revisit\" as a checklist, and tick one when I get it right later."
   },
   "asks": [
-    "Here are my notes from today's economics lecture: …",
+    "Ask me for my notes from today's economics lecture, then make Cornell notes and quiz me.",
     "Quiz me on supply and demand.",
     "Which cues am I still missing?"
   ],

@@ -15,7 +15,7 @@
     "claudeCode": "Use my Pinto Notes note \"Bug triage\". Read it with fetch before each change. When I paste a bug report or a GitHub issue (read it with gh issue view), file it: follow the rules under \"Severity\", add one row to the table with edit (a short Bug title, Severity, Area, Status New, Reported as today's date, Link), then look through this codebase for the likely cause and add the steps to reproduce and the files involved under \"Details\" with edit, under a \"###\" heading with the bug title. When we fix one, set its Status to Fixed."
   },
   "asks": [
-    "Here's a report from a customer: …",
+    "Ask me for the customer's report, then triage it.",
     "What's P1 and still open?",
     "We fixed the export crash, mark it."
   ],

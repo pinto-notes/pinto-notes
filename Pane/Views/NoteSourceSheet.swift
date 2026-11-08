@@ -285,6 +285,8 @@ nonisolated enum PromptText {
 /// preview leaves tables to the editor's grid, so it can't be used here). Read-only.
 struct NotePreview: View {
     let markdown: String
+    /// The blocks to show, when not all of the note's (the template library leaves off the title).
+    var given: [Block]? = nil
 
     enum Block: Equatable {
         case title(String)
@@ -352,7 +354,7 @@ struct NotePreview: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 4) {
-                ForEach(Array(Self.blocks(markdown).enumerated()), id: \.offset) { _, block in
+                ForEach(Array((given ?? Self.blocks(markdown)).enumerated()), id: \.offset) { _, block in
                     view(block)
                 }
             }

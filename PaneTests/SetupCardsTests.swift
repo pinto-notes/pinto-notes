@@ -502,7 +502,8 @@ import Testing
     /// never takes its height from the cover (a square that cut the window's top off).
     @Test func thePanelKeepsItsPlaceFromTemplateToTemplate() throws {
         #expect(TemplateLibraryView.stage(for: TemplateLibraryView.size) == 300)
-        #expect(TemplateLibraryView.stage(for: CGSize(width: 720, height: 500)) == 150)
+        // A small sheet hides the subtitle and gives its room to the stage (council round 2).
+        #expect(TemplateLibraryView.stage(for: CGSize(width: 720, height: 500)) == 172)
         let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
         #expect(src.contains(".lineLimit(3, reservesSpace: true)"), "the description keeps three lines' room")
         #expect(src.contains(".frame(width: panel, height: stage)"))
@@ -512,8 +513,12 @@ import Testing
     /// The app's picture shows its full width, never cut at the right edge ("11-", "Princip").
     @Test func anAppPictureFitsItsWidth() throws {
         let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
-        #expect(src.contains("Image(nsImage: picture).resizable().scaledToFit() }"))
-        #expect(!src.contains("scaledToFit().frame(width: 560)"))
+        #expect(src.contains("} else {\n                            Image(nsImage: picture).resizable().scaledToFit()\n"))
+        // On a small sheet it's drawn as a 560 pt view shows it, from the top left, so its words
+        // read (council round 2: 2.5 pt type across a 328 pt window).
+        #expect(src.contains(".frame(width: drawn, height: drawn * picture.size.height / max(picture.size.width, 1))"))
+        #expect(src.contains("drawn: Self.small(size) ? Self.smallPictureWidth : nil"))
+        #expect(TemplateLibraryView.smallPictureWidth == 560)
     }
 
     /// Search's clear x and the cards' close x are apart: the close x by the title, Search on the
@@ -528,7 +533,7 @@ import Testing
         #expect(close.lowerBound < kinds.lowerBound && kinds.lowerBound < search.lowerBound)
         #expect(src.contains(".amberProminent(.compact, wide: true, joined: .leading) : .amberProminent(.compact, wide: true)"))
         #expect(!src.contains(".amberProminent(.regular"))
-        #expect(TemplateLibraryWords.opensWith(.chatgpt) == "Adds the note, then opens ChatGPT with")
+        #expect(TemplateLibraryWords.opensWith(.chatgpt) == "Adds the note, then asks ChatGPT:")
         #expect(TemplateLibraryWords.opensWith(.other).hasPrefix("Adds the note."))
         // Title Case, and on a small sheet Copy is its icon so Make keeps its whole name.
         #expect(TemplateLibraryWords.copy == "Copy Prompt")
@@ -593,6 +598,126 @@ import Testing
     }
 
 
+    /// The sheet drawn offscreen, light, on the default theme, as its sheet shows it.
+    private func drawn(open: TemplateCatalog.Entry?, size: CGSize) async throws -> (rep: NSBitmapImageRep, scale: CGFloat) {
+        let host = NSHostingView(rootView: TemplateLibraryView(catalog: .shipped, ais: [.chatgpt, .claude], open: open, size: size).environment(\.inSheet, true)
+            .frame(width: size.width, height: size.height, alignment: .topLeading).background(SetupCards.ground).environment(\.controlActiveState, .key))
+        host.frame = CGRect(origin: .zero, size: size)
+        let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        host.appearance = NSAppearance(named: .aqua)
+        window.appearance = host.appearance
+        window.contentView = host
+        defer { window.close() }
+        try await Task.sleep(for: .milliseconds(800))
+        host.layoutSubtreeIfNeeded()
+        let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.appearance!.performAsCurrentDrawingAppearance { host.cacheDisplay(in: host.bounds, to: rep) }
+        return (rep, CGFloat(rep.pixelsWide) / size.width)
+    }
+
+    /// Nothing on the stage fades: the window is opaque to the stage's foot, so the cover's art
+    /// never shows through the note (council round 2: grey cart wheels over a grocery list).
+    @Test func theCoverNeverShowsThroughTheNote() async throws {
+        let kept = ThemeStore.shared.current
+        ThemeStore.shared.set(ThemeLook(theme: .standard, accent: .theme), persist: false)
+        defer { ThemeStore.shared.set(kept, persist: false) }
+        let size = TemplateLibraryView.size
+        let meal = try #require(TemplateCatalog.shipped.entries.first { $0.slug == "meal-plan" })
+        let (rep, scale) = try await drawn(open: meal, size: size)
+        let panel = TemplateLibraryView.panel(for: size)
+        // The stage's foot: from the top, the header (to the line under the kinds), then the stage.
+        // The header's line: at the sheet's left edge, outside the header's 24 pt inset, the first
+        // row that isn't the ground.
+        var line = 0
+        let ground = try #require(rep.colorAt(x: Int(8 * scale), y: Int(8 * scale))?.usingColorSpace(.sRGB))
+        for y in Int(40 * scale)..<Int(200 * scale) {
+            guard let p = rep.colorAt(x: Int(8 * scale), y: y)?.usingColorSpace(.sRGB) else { continue }
+            if abs(p.brightnessComponent - ground.brightnessComponent) > 0.04 { line = y; break }
+        }
+        #expect(line > 0, "found the header's line")
+        let foot = CGFloat(line) / scale + TemplateLibraryView.stage(for: size)
+        // Across the window's width, just above the stage's foot: the window's white, no art.
+        var art: [Int] = [], samples = 0
+        for x in stride(from: size.width - panel + 32, to: size.width - 32, by: 4) {
+            guard let p = rep.colorAt(x: Int(x * scale), y: Int((foot - 4) * scale))?.usingColorSpace(.sRGB) else { continue }
+            samples += 1
+            let spread = max(p.redComponent, p.greenComponent, p.blueComponent) - min(p.redComponent, p.greenComponent, p.blueComponent)
+            // Text in the note is grey ink (a tick can be the accent); the cover is coloured.
+            if spread > 0.15 { art.append(Int(x)) }
+        }
+        #expect(samples > 50 && art.count * 10 < samples, "the cover shows through at \(art.count) of \(samples): x \(art.prefix(8))")
+        let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
+        #expect(!src.contains("LinearGradient"), "no fade on the stage")
+    }
+
+    /// The rows are 16 pt apart, as the columns are, and a third row shows under the first two,
+    /// so the grid doesn't look finished at six cards (council round 2: the rows were 32 apart).
+    @Test func rowsAreAsFarApartAsColumns() async throws {
+        let kept = ThemeStore.shared.current
+        ThemeStore.shared.set(ThemeLook(theme: .standard, accent: .theme), persist: false)
+        defer { ThemeStore.shared.set(kept, persist: false) }
+        let size = TemplateLibraryView.size
+        let (rep, scale) = try await drawn(open: nil, size: size)
+        let row = size.width - TemplateLibraryView.panel(for: size) - 49
+        let w = TemplateLibraryView.cardWidth(row: row, gap: 16)
+        // The second column, not the open (first) card with its ring; on its middle.
+        let x = Int((24 + w + 16 + w / 2) * scale)
+        let ground = try #require(rep.colorAt(x: Int(10 * scale), y: rep.pixelsHigh - Int(10 * scale))?.usingColorSpace(.sRGB))
+        func isGround(_ y: Int) -> Bool {
+            guard let p = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { return false }
+            return abs(p.redComponent - ground.redComponent) + abs(p.greenComponent - ground.greenComponent) + abs(p.blueComponent - ground.blueComponent) < 0.03
+        }
+        // Runs of ground and card down the column, under the header.
+        var runs: [(card: Bool, length: Int)] = []
+        for y in Int(140 * scale)..<rep.pixelsHigh {
+            let card = !isGround(y)
+            if let last = runs.last, last.card == card { runs[runs.count - 1].length += 1 } else { runs.append((card, 1)) }
+        }
+        let cards = runs.filter(\.card)
+        #expect(cards.count >= 3, "a third row shows: \(runs.map { "\($0.card ? "card" : "gap") \(CGFloat($0.length) / scale)" })")
+        let gaps = runs.enumerated().filter { !$0.element.card && $0.offset > 0 && $0.offset < runs.count - 1 }.map { CGFloat($0.element.length) / scale }
+        let between = try #require(gaps.first)
+        #expect(abs(between - 16) <= 1.5, "rows \(between) pt apart")
+    }
+
+    /// A note is named once in the panel: its title is left off the stage, and on a small sheet
+    /// its opening lines too, so the stage shows the note filled in.
+    @Test func aNoteIsNamedOnce() throws {
+        let meeting = try #require(TemplateCatalog.shipped.entries.first { $0.slug == "meeting-notes" })
+        let full = TemplateLibraryView.staged(meeting.example, small: false)
+        #expect(!full.contains(.title("Meeting notes")))
+        if case .paragraph = full.first {} else { Issue.record("the full stage starts with the note's words: \(String(describing: full.first))") }
+        let small = TemplateLibraryView.staged(meeting.example, small: true)
+        if case .heading = small.first {} else { Issue.record("the small stage starts at the first heading: \(String(describing: small.first))") }
+        #expect(TemplateLibraryView.panelTitle == 17)
+        let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
+        #expect(src.contains(".font(.system(size: Self.panelTitle, weight: .semibold))"))
+    }
+
+    /// The ask's box fits its words and sits on the buttons, under a label in regular weight
+    /// that ends on the ask (council round 2: an empty second line read as a field to type in,
+    /// and the label ended on "with" in a heading's weight).
+    @Test func theAskBoxFitsItsWords() throws {
+        let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
+        #expect(!src.contains(".lineLimit(2, reservesSpace: true)"))
+        #expect(src.contains("Text(TemplateLibraryWords.opensWith(ai)).font(.system(size: 12)).foregroundStyle(Color.muted)"))
+        for ai in [SetupCards.AI.chatgpt, .claude, .other] { #expect(TemplateLibraryWords.opensWith(ai).hasSuffix(":")) }
+        #expect(TemplateLibraryWords.opensWith(.claude) == "Adds the note, then asks Claude:")
+    }
+
+    /// A small sheet hides the subtitle, Search and the kinds are both 28 pt, and no match says
+    /// it as a Mac search does.
+    @Test func theHeaderIsSmallAndEven() throws {
+        let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
+        let header = try #require(src.components(separatedBy: "private var header: some View {").dropFirst().first?.components(separatedBy: "private var search").first)
+        #expect(header.contains("if !Self.small(size) {\n                        Text(TemplateLibraryWords.line)"))
+        #expect(header.contains(".controlSize(.large)"))
+        #expect(src.contains(".frame(height: 28)"))
+        #expect(TemplateLibraryWords.none("zebra") == "No Results for \u{201C}zebra\u{201D}")
+        #expect(TemplateLibraryWords.noneHint == "Check the spelling or try a new search.")
+    }
+
     /// Covers are read once, not again for every card on every key typed.
     @Test func coversAreReadOnce() throws {
         let pick = try #require(TemplateCatalog.shipped.entries.first).pick
@@ -626,9 +751,17 @@ import Testing
             ("8b-small-window-app", c.entries.first { $0.slug == "habit-tracker" }, "All", "", TemplateLibraryView.size(on: CGSize(width: 800, height: 560))),
             ("9-longest-prompt", c.entries.max { $0.ask.count < $1.ask.count }, "All", "", TemplateLibraryView.size),
             ("10-last-card-open", c.entries.last, "All", "", TemplateLibraryView.size),
+            ("11-small-window-cornell", c.entries.first { $0.slug == "cornell-notes" }, "All", "", TemplateLibraryView.size(on: CGSize(width: 800, height: 560))),
+            ("11b-small-window-longest-prompt", c.entries.max { $0.ask.count < $1.ask.count }, "All", "", TemplateLibraryView.size(on: CGSize(width: 800, height: 560))),
+            ("12-longest-description", c.entries.max { $0.description.count < $1.description.count }, "All", "", TemplateLibraryView.size),
+            ("13-longest-name", c.entries.max { $0.title.count < $1.title.count }, "All", "", TemplateLibraryView.size),
+            ("14-one-line-ask", c.entries.min { $0.ask.count < $1.ask.count }, "All", "", TemplateLibraryView.size),
+            ("15-claude-picked", c.entries.first { $0.slug == "meeting-notes" }, "All", "", TemplateLibraryView.size),
         ]
         for (name, open, filter, query, size) in states {
-            let view = TemplateLibraryView(catalog: c, ais: [.chatgpt, .claude], open: open, filter: filter, query: query, size: size)
+            // 15: the panel with Claude as the AI Make uses, as after picking it from the arrow.
+            let ais: [SetupCards.AI] = name.hasPrefix("15") ? [.claude, .chatgpt] : [.chatgpt, .claude]
+            let view = TemplateLibraryView(catalog: c, ais: ais, open: open, filter: filter, query: query, size: size)
                 .environment(\.inSheet, true)
                 .frame(width: size.width, height: size.height, alignment: .topLeading)
                 .background(SetupCards.ground)
@@ -780,7 +913,7 @@ extension TemplateCatalog.Entry: CustomTestStringConvertible {
         let id = await TemplateMaking.make(e, with: .other, context: container.mainContext, account: nil, source: ShippedTemplates(site: Offline()),
                                            ledger: ledger(account: nil), copy: { copied.append($0) }, open: { opened.append($0) })
         #expect(id != nil && opened.isEmpty)
-        #expect(copied == ["In Pinto Notes, use my Meeting notes note. Here are my notes from the pricing sync:"])
+        #expect(copied == ["In Pinto Notes, use my Meeting notes note. Ask me for my notes from the pricing sync, then add the summary and action items."])
     }
 
     /// 5. A folder of that name you already have (any case) takes the note; a note you put in
@@ -823,6 +956,14 @@ extension TemplateCatalog.Entry: CustomTestStringConvertible {
         #expect(TemplateCatalog.Entry.sendable("Here are my notes from the pricing sync: \u{2026}") == "Here are my notes from the pricing sync:")
         #expect(TemplateCatalog.Entry.sendable("Save this one: Senior designer at Northwind, \u{2026}") == "Save this one: Senior designer at Northwind")
         #expect(TemplateCatalog.Entry.sendable("Plan dinners for this week.") == "Plan dinners for this week.")
+    }
+
+    /// Every ask is a whole request: none ends on a colon or a gap, waiting for words the person
+    /// never gets to add (council round 2: "pricing sync:" sent to ChatGPT with nothing after it).
+    @Test(arguments: all) func everyAskIsAWholeRequest(_ e: TemplateCatalog.Entry) {
+        let ask = TemplateCatalog.Entry.sendable(e.ask)
+        #expect(ask == e.ask, "shown, copied and sent are the same words: \(e.ask)")
+        #expect(!ask.hasSuffix(":") && !ask.hasSuffix(",") && !ask.contains("\u{2026}"), "\(e.slug): \(ask)")
     }
 }
 #endif

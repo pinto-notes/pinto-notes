@@ -20,7 +20,7 @@
   "category": "Work",
   "app": false,
   "ground": "ec7751",
-  "ask": "Here are my notes from the pricing sync: …",
+  "ask": "Ask me for my notes from the pricing sync, then add the summary and action items.",
   "example": "Meeting notes\n\nAfter a meeting, paste your rough notes or the transcript into your AI. The summary and action items land here, newest meeting first.\n\n## Open action items\n- [ ] Sara: send the new pricing table to sales (Fri 2 Oct)\n- [ ] Emma: check the VAT rules for Norway (next week)\n- [x] Jonas: design review of the checkout page (Thu 1 Oct)\n\n## Meetings\n### Pricing sync, 30 September\nWe keep three plans and drop the lifetime deal. The yearly discount goes from 20% to 15%.\n\n- Decided: no lifetime plan.\n- Decided: yearly discount is 15% from 1 November.\n- Open: whether students get the Pro plan free.\n",
   "note": "Meeting notes\n\nAfter a meeting, paste your rough notes or the transcript into your AI. The summary and action items land here, newest meeting first.\n\n## Open action items\n\n## Meetings\n",
   "folder": "Work"
@@ -85,7 +85,7 @@
   "category": "Work",
   "app": false,
   "ground": "69b5e9",
-  "ask": "Save this one: Senior designer at Northwind, …",
+  "ask": "Ask me for the job ad I want to save, then add it to the table.",
   "example": "Job hunt\n\nEvery application, where it stands, and what happens next. Paste a job ad and your AI files it.\n\n<!-- pane-table: Company=text; Role=text; Stage=choice Saved|Applied|Interview|Offer|Rejected|Withdrawn; Next step=text; Link=text -->\n| Company | Role | Stage | Next step | Link |\n| --- | --- | --- | --- | --- |\n| Northwind | Senior product designer | Interview | First interview, Thu 1 Oct | northwind.example/jobs/42 |\n| Fabrikam | Design lead | Applied | Follow up on 7 Oct |   |\n| Contoso | Product designer | Saved | Apply by 9 Oct (Emma referred me) |   |\n\n## This week\n- [ ] Send the portfolio link to Northwind\n- [ ] Follow up with Fabrikam on Wednesday\n\n## Interview prep\n### Northwind\n1. Walk us through a project you're proud of. *The onboarding redesign: 18% more activation.*\n2. How do you work with engineers? *Weekly reviews, shared Figma, ship small.*\n3. Why Northwind? *Their logistics tools are the kind of complex I like.*\n\n## People I've talked to\n",
   "note": "Job hunt\n\nEvery application, where it stands, and what happens next. Paste a job ad and your AI files it.\n\n<!-- pane-table: Company=text; Role=text; Stage=choice Saved|Applied|Interview|Offer|Rejected|Withdrawn; Next step=text; Link=text -->\n| Company | Role | Stage | Next step | Link |\n| --- | --- | --- | --- | --- |\n\n## This week\n\n## Interview prep\n\n## People I've talked to\n",
   "folder": "Personal"
@@ -111,7 +111,7 @@
   "category": "Learning",
   "app": true,
   "ground": "f69261",
-  "ask": "Here are my notes on cell respiration: …",
+  "ask": "Ask me for my notes on cell respiration, then make flashcards from them.",
   "example": "Study notes and flashcards\n\nNotes for each topic, and flashcards your AI quizzes you on. Cards you miss go back to box 1; cards you know move up to box 5.\n\n## Notes\n### Cell respiration\n- Glucose is broken down to make ATP, the cell's energy.\n- Three stages: glycolysis, the Krebs cycle, the electron transport chain.\n- Most ATP comes from the electron transport chain, in the mitochondria.\n\n## Flashcards\n<!-- pane-table: Question=text; Answer=text; Topic=text; Box=scale 1-5 -->\n| Question | Answer | Topic | Box |\n| --- | --- | --- | --- |\n| Where does glycolysis happen? | In the cytoplasm | Cell respiration | 1 |\n| Which stage makes the most ATP? | The electron transport chain | Cell respiration | 2 |\n| What is ATP for? | It carries energy the cell can use | Cell respiration | 1 |\n",
   "note": "Study notes and flashcards\n\nNotes for each topic, and flashcards your AI quizzes you on. Cards you miss go back to box 1; cards you know move up to box 5.\n\n## Notes\n\n## Flashcards\n<!-- pane-table: Question=text; Answer=text; Topic=text; Box=scale 1-5 -->\n| Question | Answer | Topic | Box |\n| --- | --- | --- | --- |\n",
   "folder": "Study"
@@ -189,7 +189,7 @@
   "category": "Work",
   "app": false,
   "ground": "e9a82a",
-  "ask": "Here's a report from a customer: …",
+  "ask": "Ask me for the customer's report, then triage it.",
   "example": "Bug triage\n\nEvery bug report in one table, sorted by how much it hurts. Paste a report and your AI files it.\n\n<!-- pane-table: Bug=text; Severity=choice P0|P1|P2|P3; Area=text; Status=choice New|Confirmed|In progress|Fixed|Won't fix; Reported=text; Link=text -->\n| Bug | Severity | Area | Status | Reported | Link |\n| --- | --- | --- | --- | --- | --- |\n| Export crashes on notes with images | P1 | Export | New | 2026-09-29 | #412 |\n| Dark mode: date picker unreadable | P3 | Settings | Confirmed | 2026-09-30 |   |\n| Sync stalls after waking from sleep | P2 | Sync | In progress | 2026-09-30 | #418 |\n\n## Severity\n- **P0:** data loss, a security hole, or everyone is blocked. Drop everything.\n- **P1:** a main flow is broken for many people. This week.\n- **P2:** broken, but there's a workaround. Schedule it.\n- **P3:** polish. When there's time.\n\n## Details\n### Export crashes on notes with images\n1. Open a note with two or more photos.\n2. Choose Export as PDF.\n3. The app quits.\n\nLikely cause: images are loaded at full size before they're scaled.\n",
   "note": "Bug triage\n\nEvery bug report in one table, sorted by how much it hurts. Paste a report and your AI files it.\n\n<!-- pane-table: Bug=text; Severity=choice P0|P1|P2|P3; Area=text; Status=choice New|Confirmed|In progress|Fixed|Won't fix; Reported=text; Link=text -->\n| Bug | Severity | Area | Status | Reported | Link |\n| --- | --- | --- | --- | --- | --- |\n\n## Severity\n- **P0:** data loss, a security hole, or everyone is blocked. Drop everything.\n- **P1:** a main flow is broken for many people. This week.\n- **P2:** broken, but there's a workaround. Schedule it.\n- **P3:** polish. When there's time.\n\n## Details\n",
   "folder": "Work"
@@ -215,7 +215,7 @@
   "category": "Home and life",
   "app": false,
   "ground": "2b5ba1",
-  "ask": "Save this recipe: …",
+  "ask": "Ask me for the recipe I want to save, then add it.",
   "example": "Recipe box\n\nYour recipes, cleaned up and filed: one sub-note each, with the ingredients as a checklist you can tick off while you cook.\n\n## Weeknight\n[Lemon chicken with rice](pane-note:3f6c2a1e-8b4d-4c2a-9e1f-5a7b8c9d0e1f)\n[Chickpea and spinach curry](pane-note:9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d)\n\n## Weekend\n\n## Baking\n[Cardamom buns](pane-note:c0ffee00-1234-4abc-8def-001122334455)\n\n## Want to try\n- Ramiro-style garlic prawns\n- Miso butter pasta\n",
   "note": "Recipe box\n\nYour recipes, cleaned up and filed: one sub-note each, with the ingredients as a checklist you can tick off while you cook.\n\n## Weeknight\n\n## Weekend\n\n## Baking\n\n## Want to try\n",
   "folder": "Recipes"
@@ -267,7 +267,7 @@
   "category": "Learning",
   "app": false,
   "ground": "1f4956",
-  "ask": "Here are my notes from today's economics lecture: …",
+  "ask": "Ask me for my notes from today's economics lecture, then make Cornell notes and quiz me.",
   "example": "Cornell notes\n\nOne section per lecture or chapter. Your notes go on the right, a question that each one answers on the left, and a summary of two or three sentences closes the section. To revise, cover the right column and answer the cues.\n\n## Lectures\n### Supply and demand, 1 October\n| Cue | Notes |\n| --- | --- |\n| What shifts the demand curve? | Income, tastes, prices of related goods, expectations. A change in the good's own price only moves along the curve. |\n| What is the equilibrium price? | The price where the quantity demanded equals the quantity supplied. |\n| What does a price ceiling below equilibrium cause? | A shortage: at that price, people want more than sellers offer. |\n\n**Summary:** Supply and demand meet at one price and quantity. Anything other than the price itself shifts a curve and moves that point; a price ceiling set too low leaves a shortage.\n\n## Cues to revisit\n- [ ] What shifts the demand curve?\n- [x] What does a price ceiling below equilibrium cause?\n",
   "note": "Cornell notes\n\nOne section per lecture or chapter. Your notes go on the right, a question that each one answers on the left, and a summary of two or three sentences closes the section. To revise, cover the right column and answer the cues.\n\n## Lectures\n\n## Cues to revisit\n",
   "folder": "Study"
