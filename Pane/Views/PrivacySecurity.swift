@@ -841,8 +841,8 @@ struct HowItWorksMac: View {
 
             HStack {
                 Spacer()
-                Button(action: done) { Text("Done").frame(minWidth: 64) }
-                    .buttonStyle(.borderedProminent)
+                Button("Done", action: done)
+                    .buttonStyle(.amberProminent)
                     .keyboardShortcut(.defaultAction)
                     .accessibilityIdentifier("privacy.howSheet.done")
             }
