@@ -85,7 +85,7 @@ export const posts: Post[] = [
     date: "2026-11-06",
     updated: "2026-11-07",
     image: { src: "/blog/launch/iphone-chatgpt-changed-groceries.webp", alt: "A Groceries list in Pinto Notes on iPhone with five lines ChatGPT added tinted amber, and ChatGPT changed 5 lines, Undo.", width: 660, height: 1434, window: false, phone: true },
-    thumb: cover("ice", "app-pinto-notes-for-iphone", 1600, 1000, "Pinto Notes on an iPhone: a Groceries note with the five lines ChatGPT just added tinted amber"),
+    thumb: cover("ice", "app-pinto-notes-for-iphone", 1600, 1000, "Pinto Notes on an iPhone: a Sleep and memory note with a photo of a sketchbook"),
     draft: false,
     announcement: true,
   },

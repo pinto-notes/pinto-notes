@@ -17,9 +17,9 @@ export default function Page() {
         or Markdown and text files. Pinto Notes shows you exactly what to click in that app, one step at a time, with a picture of
         the button. Your old app stays as it is.
       </p>
-      <PostFigure src="/blog/launch/import-window-keep" width={704} height={730} maxWidth={420} kind="cutout"
-        alt="Pinto Notes' Google Keep import on a Mac: step 1 of 3, Ask Google for your notes, with a picture of Google's page and its Next step button, and Open Google Takeout."
-        caption="Each app gets its own guide, with a picture of what to click." />
+      <PostFigure src="/blog/launch/import-file-menu" width={820} height={800} maxWidth={520} kind="plain"
+        alt="The File menu in Pinto Notes on a Mac: Import from Apple Notes, Obsidian, Bear, Evernote and Google Keep, each with its app's icon, and Import Markdown or Text."
+        caption="The File menu on the Mac: pick the app your notes are in." />
 
       <h2>What comes with your notes</h2>
       <PostFigure src="/blog/launch/import-on-iphone" width={1080} height={1260} maxWidth={620} kind="plain"
