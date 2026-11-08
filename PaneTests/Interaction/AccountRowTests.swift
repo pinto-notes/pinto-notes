@@ -258,10 +258,15 @@ import Testing
         #expect(abs(left - right) <= 5, "about as far in on the left (\(left)) as on the right (\(right))")
         #expect(abs(account.minX + reach.leading - row.minX) < 0.5, "the photo starts where the folder icon does")
         #expect(abs(account.height - (AccountButton.avatar + reach.top + reach.bottom)) < 0.5, "a folder pill's reach around the photo: \(account.height)")
+        // Their words start where your name does (Emil, 8 November 2026).
+        let name = try #require(FootProbe.frames["sidebar.account.name"], "your name is in the window")
+        for id in ["sidebar.templates", "sidebar.connectAI", "sidebar.import"] {
+            let words = try #require(FootProbe.frames["\(id).title"], "\(id)'s words are in the window")
+            #expect(abs(words.minX - name.minX) < 0.5, "\(id)'s words start at \(words.minX), your name at \(name.minX)")
+        }
         for id in ["sidebar.templates", "sidebar.connectAI", "sidebar.import"] {
             let r = try #require(FootProbe.frames[id], "\(id) is in the window")
             #expect(abs(r.minX - account.minX) < 0.5 && abs(r.maxX - account.maxX) < 0.5, "\(id)'s pill \(r) spans the account's \(account)")
-            #expect(abs(r.minX + reach.leading - row.minX) < 0.5, "\(id)'s icon starts where the folder icon does: \(r.minX + reach.leading) against \(row.minX)")
             #expect(abs(r.height - (32 - SidebarStyle.pillGap)) < 0.5, "\(id) is a folder pill's height: \(r.height)")
         }
     }

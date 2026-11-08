@@ -31,18 +31,33 @@ struct SidebarActionRow: View {
 
     var body: some View {
         Button(action: action) {
-            Label {
+            SidebarFootLabel {
                 Text(title).foregroundStyle(Color.muted)
+                    #if DEBUG
+                    .footProbe("\(id).title")
+                    #endif
             } icon: {
                 SidebarIcon(name: symbol)
             }
-            .sidebarRowLabel()
             .frame(height: SidebarFoot.rowContentHeight)
             .sidebarFootPill(id)
         }
         .buttonStyle(.plain)
         // The pill above is its hover: a second one here drew two fills (Emil, 3 November 2026).
         .accessibilityIdentifier(id)
+    }
+}
+
+/// A foot row's icon, centred in the photo's column, then its words on your name's line.
+struct SidebarFootLabel<Title: View, Icon: View>: View {
+    @ViewBuilder let title: Title
+    @ViewBuilder let icon: Icon
+
+    var body: some View {
+        HStack(spacing: SidebarFoot.gap) {
+            icon.frame(width: SidebarFoot.iconColumn)
+            title
+        }
     }
 }
 
@@ -78,6 +93,12 @@ struct SidebarFoot: View {
     var nested = false
     var rows = false
     var imports: ImportActions?
+
+    /// The photo's column: each row's icon is centred in one as wide as the account's photo, and its
+    /// words start where your name does, so the foot reads as one block (Emil, 8 November 2026:
+    /// the rows "don't really align well" with the account under them).
+    static var iconColumn: CGFloat { AccountButton.avatar }
+    static let gap: CGFloat = 9
 
     /// A folder row's content inside its 30.5 pt pill.
     static var rowContentHeight: CGFloat {

@@ -327,6 +327,9 @@ import Testing
         // The foot's first row, not a bar of its own over the folders (its edge showed a line on hover).
         let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
         #expect(!sidebar.contains("SidebarAILine("), "no bar of its own")
+        // The whole foot sits under the folder list, not in a bar over it: macOS drew the bar's edge
+        // as a line while the pointer was on the foot (Emil, 8 November 2026).
+        #expect(!sidebar.contains(".safeAreaBar(edge: .bottom"), "no bar at the sidebar's foot")
         let foot = try SettingsHomeTests.source("Pane/Views/SidebarAIs.swift")
         #expect(foot.contains("if rows { SidebarAILine(); SidebarStudyRows(imports: imports) }"), "first in the foot")
         // Only connected, nothing done: no row (Emil, 8 November 2026: "Grok connected" read as a notification).

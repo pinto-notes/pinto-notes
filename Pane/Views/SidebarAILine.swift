@@ -114,7 +114,7 @@ struct SidebarAILine: View {
     /// pointer; a second line only for a change.
     private func row<Under: View>(ai: String, line: String, label: String, @ViewBuilder under: () -> Under) -> some View {
         Button { AIChangesCenter.shared.show() } label: {
-            Label {
+            SidebarFootLabel {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(line)
                         .foregroundStyle(Color.ink)
@@ -128,7 +128,6 @@ struct SidebarAILine: View {
             } icon: {
                 VersionAuthorMark(author: .ai(SidebarAICopy.shown(ai)), size: 15)
             }
-            .sidebarRowLabel()
             .frame(minHeight: SidebarFoot.rowContentHeight, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(.rect)

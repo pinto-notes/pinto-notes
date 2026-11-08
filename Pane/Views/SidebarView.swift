@@ -42,7 +42,7 @@ struct AccountButton: View {
         Button {
             Self.open()
         } label: {
-            HStack(spacing: 9) {
+            HStack(spacing: SidebarFoot.gap) {
                 AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? name : nil, size: Self.avatar)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(name)
@@ -50,6 +50,9 @@ struct AccountButton: View {
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .truncationMode(.tail)
+                        #if DEBUG
+                        .footProbe("sidebar.account.name")
+                        #endif
                     if let email {
                         Text(email)
                             .font(.system(size: 11))
@@ -745,10 +748,13 @@ struct SidebarView: View {
     }
 
     /// The account at the foot, Settings, and the folder dialogs.
-    private func withDialogs(_ content: some View) -> some View {
-        content
+    @ViewBuilder private func footed(_ content: some View) -> some View {
         #if os(macOS)
-        .safeAreaBar(edge: .bottom, spacing: 0) {
+        // Under the folders, not a bar laid over them: macOS drew a bar's edge as a line whenever
+        // the pointer was anywhere on the foot (Emil, 8 November 2026). The list ends above it and
+        // fades out at its own bottom edge.
+        VStack(spacing: 0) {
+            content
             if let backend, case .signedIn = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
                     if let card = sidebarCard {
@@ -761,10 +767,19 @@ struct SidebarView: View {
                     OfflineLine(sync: sync)
                     SidebarFoot(backend: backend, nested: nested, rows: true, imports: imports)
                 }
+                .padding(.top, 4)
                 .padding(.bottom, 8)
                 .animation(.easeOut(duration: 0.25), value: sync?.reach)
             }
         }
+        #else
+        content
+        #endif
+    }
+
+    private func withDialogs(_ content: some View) -> some View {
+        footed(content)
+        #if os(macOS)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sidebarHeight = $0 }
         .onReceive(NotificationCenter.default.publisher(for: .paneNewFolder)) { _ in startNewFolder(nil) }
         .onReceive(NotificationCenter.default.publisher(for: .paneRenameFolder)) { n in
