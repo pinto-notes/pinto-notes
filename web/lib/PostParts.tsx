@@ -101,12 +101,13 @@ export function Capture(props: Img & { alt: string; caption: string; priority?: 
 /// section. `kind`: a "crop" of the screen (a rectangle: soft corners, a hairline and a soft shadow,
 /// breaking out to about 860 px on wide screens when it is big enough to use the room) or a "cutout"
 /// window or dialog with its own transparent edges (no frame, a drop shadow that follows its shape).
-/// A short muted caption sits under it.
+/// A "plain" picture carries its own shadows (a composition of lifted UI on a transparent ground), so it gets
+/// no frame and no added shadow. A short muted caption sits under it.
 export function PostFigure({ src, alt, width, height, caption, priority = false, maxWidth, phone, kind = "crop" }: Img & {
-  alt: string; caption: string; priority?: boolean; maxWidth?: number; phone?: Img; kind?: "crop" | "cutout";
+  alt: string; caption: string; priority?: boolean; maxWidth?: number; phone?: Img; kind?: "crop" | "cutout" | "plain";
 }) {
   const w = maxWidth ?? width / 2;
-  const wide = kind === "crop" && w >= 640;
+  const wide = kind !== "cutout" && w >= 640;
   const style = { "--w": `${wide ? 860 : w}px`, "--pw": phone ? `${phone.width / 2}px` : undefined } as React.CSSProperties;
   return (
     <figure className={`${s.capture} ${wide ? s.wide : ""}`.trim()} data-kind={kind} style={style}>

@@ -14,10 +14,10 @@ export default function Page() {
     >
       <h2>Your notes, a second after your AI writes them</h2>
       <p>
-        Ask ChatGPT or Claude to add something, and it&apos;s in the note on your phone a second later. &ldquo;Add the paella
-        things to my groceries&rdquo; from your laptop, and they&apos;re on the list when you&apos;re in the shop.
+        Ask ChatGPT or Claude to add something, and it&apos;s in the note on your phone a second later. Ask for the shopping list
+        from your laptop, and it&apos;s on your phone when you&apos;re in the shop.
       </p>
-      <Loop src="/blog/loops/iphone-chatgpt-adds-groceries.mp4" poster="/blog/loops/iphone-chatgpt-adds-groceries.webp" width={640} height={1202}
+      <Loop src="/blog/loops/iphone-chatgpt-adds-groceries.mp4" poster="/blog/loops/iphone-chatgpt-adds-groceries.webp" width={640} height={1280} phone
         label="Pinto Notes on iPhone: five grocery items ChatGPT just added land in the list, tinted, with ChatGPT changed 5 lines and Undo."
         caption="Recorded on an iPhone: the five lines ChatGPT added, a second after it was asked." />
       <p>
@@ -26,9 +26,9 @@ export default function Page() {
       </p>
 
       <h2>A notes app first</h2>
-      <PostFigure src="/blog/launch/iphone-lisbon-note" width={1600} height={1000} maxWidth={720}
-        alt="A Lisbon trip note in Pinto Notes on iPhone with a checklist, places, a hotel booking file and a table of food, on painted trees."
-        caption="Headings, checklists, files and tables, on your phone." />
+      <PostFigure src="/blog/launch/iphone-framed-files" width={760} height={1560} maxWidth={340} kind="plain"
+        alt="A Trip documents note in Pinto Notes on iPhone in dark mode: a PDF, a CSV file, a photo and a link to a website."
+        caption="Files, photos and links in a note, on your phone." />
       <p>It works the way you expect a notes app on iPhone to:</p>
       <ul>
         <li>Checklists that move ticked items to the bottom</li>
@@ -39,8 +39,8 @@ export default function Page() {
       </ul>
 
       <h2>Connect your AI from your phone</h2>
-      <PostFigure src="/blog/launch/iphone-connect-framed" width={1600} height={1000} maxWidth={720}
-        alt="Connect an AI in Pinto Notes on iPhone: ChatGPT and Claude connected, Codex and another AI below, on a painted dusk."
+      <PostFigure src="/blog/launch/iphone-framed-connect" width={760} height={1560} maxWidth={340} kind="plain"
+        alt="Connect an AI in Pinto Notes on iPhone: ChatGPT and Claude connected, Codex and another AI below, and what's connected with when it was last used."
         caption="Connect an AI on iPhone, with what's connected and when it was last used." />
       <p>
         Tap your photo at the top right, then Connect an AI. ChatGPT connects right there. For Claude, Claude Code and Codex, the

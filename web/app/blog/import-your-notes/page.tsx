@@ -11,8 +11,8 @@ export default function Page() {
       slug="import-your-notes"
       intro={<>Pinto Notes on the Mac now imports your notes from Apple Notes, Obsidian, Evernote, Google Keep, Bear and Markdown. Moving notes apps usually means a weekend of exporting, unzipping and fixing. Here it takes a few minutes, and the app walks you through every step for the app you&apos;re leaving.</>}
       hero={
-        <PostFigure src="/blog/launch/import-google-keep-guide" width={1600} height={1000} priority
-          alt="Pinto Notes' Google Keep import on a Mac: Bring your Google Keep notes, then step 1 of 3, Ask Google for your notes, with a picture of the Next step button."
+        <PostFigure src="/blog/launch/import-window-keep" width={704} height={730} maxWidth={420} kind="cutout" priority
+          alt="Pinto Notes' Google Keep import on a Mac: step 1 of 3, Ask Google for your notes, with a picture of Google's page and its Next step button, and Open Google Takeout."
           caption="Each app gets its own guide, with a picture of what to click." />
       }
     >
@@ -24,9 +24,9 @@ export default function Page() {
       </p>
 
       <h2>What comes with your notes</h2>
-      <PostFigure src="/blog/launch/import-obsidian-found-done" width={1600} height={1000}
-        alt="Pinto Notes finding an Obsidian vault named Second brain with 27 notes, then saying 27 notes from Obsidian are here and links between notes still work."
-        caption="Pinto Notes finds your Obsidian vault by itself. Links between notes still work." />
+      <PostFigure src="/blog/launch/import-window-obsidian" width={704} height={730} maxWidth={420} kind="cutout"
+        alt="Pinto Notes after an Obsidian import: 27 notes from Obsidian are here. Your vault is a folder named Second brain. Links between notes still work."
+        caption="Pinto Notes finds your Obsidian vault by itself, and links between notes still work." />
       <ul>
         <li><strong>Apple Notes:</strong> your folders and pictures. Checklists and pins too, once you give Pinto Notes Full Disk Access. Pick everything, or only some notes. Import again later and the notes already here are skipped.</li>
         <li><strong>Obsidian:</strong> Pinto Notes finds your vault. Subfolders, pictures and the links between notes come too, and your vault stays where it is.</li>
