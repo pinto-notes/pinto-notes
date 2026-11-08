@@ -259,6 +259,7 @@ import Testing
         "Views/ConnectChoices.swift Accessory.pressable": "ConnectChoices' pressable: both callers' labels have .choiceCard",
         "Views/SidebarView.swift AccountButton.body": "its label has .sidebarFootPill, a .hoverRow with a folder row's reach",
         "Views/SidebarAIs.swift SidebarActionRow.body": "its label has .sidebarFootPill, a .hoverRow with a folder row's reach",
+        "Views/SidebarAILine.swift SidebarAILine.row": "its label has .sidebarFootPill, a .hoverRow with a folder row's reach (a row like Templates since 8 November 2026)",
         // Leave the close × alone (lead, 2 November 2026): one shared solid close style replaces them all.
         "Views/SidebarCards.swift MacCard.body": "iPhone only: the card the Mac no longer shows",
     ]
