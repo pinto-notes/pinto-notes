@@ -516,12 +516,16 @@ import Testing
         #expect(!src.contains("scaledToFit().frame(width: 560)"))
     }
 
-    /// One mark while searching: Search's clear button, and Done for the sheet (two x's sat 36 pt
-    /// apart). The buttons are the Mac's sheet size, 28 pt, with Make's word on what it does.
-    @Test func doneAndSheetSizedButtons() throws {
+    /// Search's clear x and the cards' close x are apart: the close x by the title, Search on the
+    /// kinds' row (they sat 36 pt apart). The buttons are the Mac's sheet size, 28 pt, with
+    /// Make's word on what it does.
+    @Test func searchSitsAwayFromCloseAndButtonsAreSheetSized() throws {
         let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
-        #expect(!src.contains("CardCloseButton(action: close)"))
-        #expect(TemplateLibraryWords.done == "Done")
+        let header = try #require(src.components(separatedBy: "private var header: some View {").dropFirst().first?.components(separatedBy: "private var search").first)
+        let close = try #require(header.range(of: "CardCloseButton(action: close)"))
+        let kinds = try #require(header.range(of: "Picker(\"Kind\""))
+        let search = try #require(header.range(of: "\n                search\n"))
+        #expect(close.lowerBound < kinds.lowerBound && kinds.lowerBound < search.lowerBound)
         #expect(src.contains(".amberProminent(.compact, wide: true, joined: .leading) : .amberProminent(.compact, wide: true)"))
         #expect(!src.contains(".amberProminent(.regular"))
         #expect(TemplateLibraryWords.opensWith(.chatgpt) == "Adds the note, then opens ChatGPT with")

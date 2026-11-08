@@ -113,7 +113,6 @@ enum TemplateLibraryWords {
     static let copied = "Copied"
     /// What Make does, over the ask it sends: said once, where the ask is.
     static func opensWith(_ ai: SetupCards.AI) -> String { ai.asks ? "Adds the note, then opens \(ai.name) with" : "Adds the note. Then ask your AI" }
-    static let done = "Done"
     static let clear = "Clear Search"
     static func none(_ q: String) -> String { "No templates match \u{201C}\(q)\u{201D}" }
 }
@@ -304,19 +303,20 @@ struct TemplateLibraryView: View {
                     Text(TemplateLibraryWords.line).font(.system(size: 13)).foregroundStyle(Color.muted)
                 }
                 Spacer(minLength: 16)
+                CardCloseButton(action: close)
+            }
+            // Search sits on the kinds' row, away from the close x: the two x's were 36 pt apart
+            // while searching (council, 8 November 2026).
+            HStack(spacing: 12) {
+                Picker("Kind", selection: $filter) {
+                    ForEach(TemplateCatalog.filters, id: \.self) { Text(TemplateCatalog.label($0)).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                Spacer(minLength: 0)
                 search
-                // A word, not a second x beside Search's clear button (council, 8 November 2026).
-                Button(TemplateLibraryWords.done, action: close)
-                    .buttonStyle(.secondary(.compact))
-                    .keyboardShortcut(.cancelAction)
-                    .accessibilityIdentifier("templates.done")
             }
-            Picker("Kind", selection: $filter) {
-                ForEach(TemplateCatalog.filters, id: \.self) { Text(TemplateCatalog.label($0)).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
         }
         .padding(.horizontal, 24)
         .padding(.top, 22)
@@ -343,7 +343,8 @@ struct TemplateLibraryView: View {
         .font(.system(size: 13))
         .padding(.leading, 10)
         .padding(.trailing, 6)
-        .frame(width: 220, height: 28)
+        .frame(minWidth: 160, maxWidth: 220)
+        .frame(height: 28)
         .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 8, style: .continuous))
     }
 
