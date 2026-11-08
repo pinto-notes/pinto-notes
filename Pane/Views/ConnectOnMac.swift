@@ -24,7 +24,7 @@ enum ConnectHere {
 
     /// What a press on an AI's row in Connect an AI does.
     enum Press: Equatable {
-        /// Its own guide (ChatGPT, Another AI and Incredible on the Mac).
+        /// Its own guide (ChatGPT, Grok and Another AI).
         case guide
         /// Started from the row (Claude, Codex on the Mac).
         case start
@@ -36,7 +36,7 @@ enum ConnectHere {
 
     static func press(_ g: Guide, connected: Bool, mac: Bool = onMac) -> Press {
         if onMacOnly(g, mac: mac) { return connected ? .nothing : .onMac }
-        return g == .incredible || ConnectWebGuide.opensSheet(g) ? .guide : .start
+        return ConnectWebGuide.opensSheet(g) ? .guide : .start
     }
 
     /// The AIs "Having trouble?" helps with here: on iPhone, only ChatGPT's.

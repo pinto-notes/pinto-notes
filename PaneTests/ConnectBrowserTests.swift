@@ -29,7 +29,7 @@ extension FunnelTests {
                 #expect(BrowserConnect.opensSheet(.chatgpt, onWeb: true, compact: compact))
                 #expect(!BrowserConnect.opensSheet(.chatgpt, onWeb: false, compact: compact), "strict: the ChatGPT guide as before")
                 #expect(!BrowserConnect.opensSheet(.claude, onWeb: false, compact: compact), "strict: Claude's row as before")
-                for g in [Guide.claudeCode, .codex, .incredible, .other] {
+                for g in [Guide.claudeCode, .codex, .other] {
                     #expect(!BrowserConnect.opensSheet(g, onWeb: true, compact: compact), "\(g) keeps its own way")
                 }
             }
@@ -170,7 +170,6 @@ extension FunnelTests {
             #expect(WebConnectPlan.allowStep(onWeb: true) == BrowserConnect.allowStep(onWeb: true))
             #expect(WebConnectPlan.chatgpt(onWeb: true).steps.last == BrowserConnect.allowStep(onWeb: true))
             #expect(WebConnectPlan.claude(onWeb: true).steps.last == BrowserConnect.allowStep(onWeb: true))
-            #expect(IncredibleConnect.steps(onWeb: true).contains(BrowserConnect.allowStep(onWeb: true)))
             #expect(ConnectCopy.allowInBrowser(onWeb: true) == "In your browser: sign in to Pinto Notes, then choose Allow.")
             #expect(ConnectCopy.opensBrowser(.codex, onWeb: true) == "Codex opens your browser to sign in. Then choose Allow there.")
             #expect(BrowserConnect.allowWhere(onWeb: true) == "Choose Allow on the Pinto Notes page.")
@@ -184,7 +183,6 @@ extension FunnelTests {
         @Test func strictAccountsKeepTheAppsApprovalWords() {
             #if os(macOS)
             #expect(WebConnectPlan.allowStep(onWeb: false) == "Choose Open Pinto Notes on this Mac, or scan the code with your iPhone. Then choose Allow.")
-            #expect(IncredibleConnect.allowStep(onWeb: false) == "Scan the code it shows with your iPhone (or open Pinto Notes on this Mac), then choose Allow.")
             #endif
             #expect(WebConnectPlan.chatgpt(onWeb: false).steps.last == WebConnectPlan.allowStep(onWeb: false))
             #expect(ConnectCopy.allowInBrowser(onWeb: false) == "In your browser: choose Open Pinto Notes, then Allow.")

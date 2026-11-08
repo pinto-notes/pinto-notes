@@ -6,7 +6,7 @@ import AppKit
 import UIKit
 #endif
 
-// What connecting ChatGPT, Claude and Incredible takes, and watching for the sign-in. The
+// What connecting ChatGPT and Claude takes, and watching for the sign-in. The
 // choices themselves (one row per AI, its state, the press) are `ConnectChoices`.
 //
 // Pinto Notes is listed in Claude's connector directory (since 2 October 2026), so for Claude the
@@ -127,14 +127,13 @@ extension ConnectAIKind {
         case "Claude": self = .claude
         case "Claude Code": self = .claudeCode
         case "Codex": self = .codex
-        case IncredibleConnect.ai: self = .incredible
         default: self = .other
         }
     }
 }
 
 /// How far connecting each AI got, for the connect funnel (`connect_step`): each step once for
-/// each time its row is pressed (`ConnectRun`) or its guide opened (Incredible), and `gave_up`
+/// each time its row is pressed (`ConnectRun`) or its guide opened, and `gave_up`
 /// when it stops after it was started and before the AI was connected.
 @MainActor
 enum ConnectFunnel {
@@ -146,7 +145,7 @@ enum ConnectFunnel {
         Funnel.record(.connectStep(ai, .opened))
     }
 
-    /// The press that starts it: the AI's row, or Incredible's guide button.
+    /// The press that starts it: the AI's row, or its guide's button.
     static func started(_ ai: ConnectAIKind) { mark(ai, \.started, .started) }
     /// The request to allow it is here.
     static func waiting(_ ai: ConnectAIKind) { mark(ai, \.waiting, .waiting) }
@@ -187,7 +186,7 @@ enum ConnectHandoff {
 @Observable
 final class ConnectWatch {
     /// The name an approval on this device carries for this guide: the AI, or nil for an app
-    /// Amber Notes can't vouch for (Incredible).
+    /// Pinto Notes can't vouch for (one on this computer).
     let approvedAs: String?
     let since = Date.now.addingTimeInterval(-5)
     private(set) var connected: Connection?
@@ -224,7 +223,7 @@ final class ConnectWatch {
     #endif
 }
 
-/// One numbered step of Incredible's guide.
+/// One numbered step of a guide.
 struct ConnectStep: View {
     let number: Int
     let text: String
@@ -250,256 +249,3 @@ enum ConnectClipboard {
 }
 
 
-// MARK: Incredible
-
-// Incredible (incredible.one) is a desktop app for Mac and Windows. From the release that lists
-// Amber Notes as one of its apps, it's in Apps: search, Connect, sign in. Older versions add it
-// as an MCP server of your own: Add an MCP server, paste the address, Sign in. Either way the
-// sign-in comes back to 127.0.0.1 on the person's own computer, which can't prove which app is
-// listening, so the consent sheet shows it as an app on this computer, like any other local app.
-// The guide says so up front, and knows it worked when a new sign-in to this computer appears.
-
-/// What connecting Incredible takes (tested).
-enum IncredibleConnect {
-    static let ai = "Incredible"
-    /// Incredible's Mac app, to open it from the guide. Its incredible:// links are only for its
-    /// own sign-in and billing, so the guide opens the app itself.
-    static let bundleID = "one.incredible.new"
-    static let site = URL(string: "https://incredible.one")!
-
-    /// Amber Notes as one of Incredible's apps (Incredible's built-in, found by search).
-    @MainActor static var steps: [String] { steps(onWeb: BrowserConnect.onWeb) }
-    static func steps(onWeb: Bool) -> [String] { [
-        "Open Apps and search for notes, then choose the notes app with the orange leaf.",
-        "Choose Connect. Your browser opens Pinto Notes.",
-        allowStep(onWeb: onWeb),
-        "Back in Incredible, choose Let's go.",
-    ] }
-
-    /// The guide is read on the Mac next to Incredible, or on the iPhone that scans the code.
-    static func allowStep(onWeb: Bool) -> String {
-        if onWeb { return BrowserConnect.allowStep(onWeb: true) }
-        #if os(macOS)
-        return "Scan the code it shows with your iPhone (or open Pinto Notes on this Mac), then choose Allow."
-        #else
-        return "Scan the code it shows with this \(InstallID.kind), then choose Allow."
-        #endif
-    }
-
-    /// Versions of Incredible from before Amber Notes was one of its apps.
-    static let olderVersion = "If Pinto Notes isn't in Apps, add it as your own MCP server: choose Add it here at the bottom of Apps (or Add another MCP server), paste the address, choose Continue, then Sign in. After you choose Allow, choose Add server."
-
-    /// What Amber Notes shows when Incredible asks, since it can't name Incredible for sure.
-    static let consentNote = "Pinto Notes asks to allow an app on this computer that calls itself \u{201C}incredible\u{201D}. It can't prove which app that is, so only allow it if you just chose Connect. Choose Allow."
-
-    /// The newest sign-in that went back to an app on the person's own computer since the guide
-    /// opened. That's where Incredible's answer goes; the name it registered decides nothing.
-    static func newConnection(_ rows: [Connection], since: Date) -> Connection? {
-        rows.filter { c in
-            c.isOAuth && c.revoked_at == nil && c.created_at >= since
-                && ["localhost", "127.0.0.1", "[::1]", "::1"].contains(c.redirect_host?.lowercased() ?? "")
-        }
-        .max { $0.created_at < $1.created_at }
-    }
-
-    /// The steps as plain text, for sending to yourself.
-    @MainActor static func message(server: String) -> String {
-        var lines = ["Connect Incredible to Pinto Notes (in Incredible on your computer, once):", ""]
-        for (i, s) in steps.enumerated() { lines.append("\(i + 1). \(s)") }
-        lines += ["", "On a Windows PC, scan the code on the Pinto Notes page that opens with your iPhone, then choose Allow.",
-                  "", olderVersion, "", "Address:", server]
-        return lines.joined(separator: "\n")
-    }
-
-    #if os(macOS)
-    /// Where Incredible is installed on this Mac, if it is.
-    static var appURL: URL? { NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) }
-
-    static func open() {
-        guard let url = appURL else { return }
-        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
-    }
-    #endif
-}
-
-/// Connect Incredible: the steps in Incredible, what Amber Notes will ask, the address for older
-/// versions, then "connected".
-struct IncredibleGuide: View {
-    let client: SupabaseClient
-    @State private var watch: ConnectWatch
-    @State private var copied = false
-    @State private var copiedQuestion = false
-    @State private var started: Bool
-    /// Mac: whether Incredible is on this Mac, so the button can open it.
-    private let installed: Bool
-
-    init(client: SupabaseClient, started: Bool = false, connected: Bool = false, installed: Bool? = nil) {
-        self.client = client
-        _started = State(initialValue: started)
-        let w = ConnectWatch(approvedAs: nil) { IncredibleConnect.newConnection($0, since: $1) }
-        #if DEBUG
-        if connected { w.pretendConnected() }
-        #endif
-        _watch = State(initialValue: w)
-        #if os(macOS)
-        self.installed = installed ?? (IncredibleConnect.appURL != nil)
-        #else
-        self.installed = installed ?? false
-        #endif
-    }
-
-    private var server: String { BackendConfig.mcpPublicURL?.absoluteString ?? "" }
-
-    var body: some View {
-        Group {
-            if watch.isConnected {
-                connectedSection
-            } else {
-                #if os(iOS)
-                onAComputer
-                #else
-                start
-                #endif
-                stepsSection
-                olderVersionSection
-            }
-        }
-        .task { await watch.run(client: client) }
-        .onChange(of: watch.isConnected, initial: true) { _, connected in if connected { ConnectFunnel.connected(.incredible) } }
-    }
-
-    #if os(iOS)
-    /// iPhone: Incredible runs on a computer. Say so up front.
-    private var onAComputer: some View {
-        Section {
-            Label {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Takes a minute on your computer, once.").font(.body.weight(.semibold))
-                    Text("Incredible is a desktop app for Mac and Windows. You connect Pinto Notes in Incredible there.").foregroundStyle(.secondary)
-                }
-            } icon: {
-                Image(systemName: "laptopcomputer").foregroundStyle(.tint)
-            }
-            ShareLink(item: IncredibleConnect.message(server: server), subject: Text("Connect Incredible to Pinto Notes"),
-                      preview: SharePreview("Connect Incredible to Pinto Notes", icon: Image("Mark"))) {
-                Label("Send Steps to Yourself", systemImage: "paperplane")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.amberProminent(.regular, wide: true))
-            .simultaneousGesture(TapGesture().onEnded { ConnectFunnel.started(.incredible) })
-            .accessibilityIdentifier("connect.sendSteps")
-        }
-    }
-    #endif
-
-    #if os(macOS)
-    /// The one button: open Incredible when it's on this Mac, or get it.
-    private var start: some View {
-        Section {
-            if installed {
-                Button {
-                    IncredibleConnect.open()
-                    started = true
-                    ConnectFunnel.started(.incredible)
-                } label: {
-                    Label(started ? "Open Incredible Again" : "Open Incredible", systemImage: "arrow.up.forward.app")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.amberProminent(.regular, wide: true))
-                .accessibilityIdentifier("connect.open")
-            } else {
-                Link(destination: IncredibleConnect.site) {
-                    Label("Get Incredible", systemImage: "arrow.up.forward.app")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.amberProminent(.regular, wide: true))
-                .accessibilityIdentifier("connect.get")
-            }
-            if started {
-                Label("Waiting for you to choose Allow…", systemImage: "hourglass")
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("connect.waiting")
-            }
-        } footer: {
-            Text(installed ? "On a Windows PC, follow the same steps in Incredible there." : "Incredible isn't on this Mac. It's a desktop app for Mac and Windows from incredible.one.")
-        }
-    }
-    #endif
-
-    private var stepsSection: some View {
-        Section {
-            ForEach(Array(IncredibleConnect.steps.enumerated()), id: \.offset) { i, line in
-                ConnectStep(number: i + 1, text: line)
-            }
-        } header: {
-            Text("In Incredible")
-        } footer: {
-            Text(IncredibleConnect.consentNote)
-        }
-    }
-
-    /// Before Amber Notes was one of Incredible's apps: the address, pasted as an MCP server.
-    private var olderVersionSection: some View {
-        Section {
-            Text(IncredibleConnect.olderVersion).font(.callout).foregroundStyle(.secondary)
-            Text(server).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
-            Button(copied ? "Copied" : "Copy Address", systemImage: copied ? "checkmark" : "doc.on.doc") { copy() }
-                .accessibilityIdentifier("connect.copyAddress")
-        } header: {
-            Text("On an older version of Incredible")
-        } footer: {
-            Text("The address holds no password. Access is granted only when you choose Allow in Pinto Notes.")
-        }
-    }
-
-    /// Named the way Settings lists it: Amber Notes can't vouch that the app on this computer is Incredible.
-    @ViewBuilder
-    private var connectedSection: some View {
-        Section {
-            HStack(spacing: 12) {
-                Image(systemName: "desktopcomputer")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 40, height: 40)
-                    .background(.fill.tertiary, in: .rect(cornerRadius: 40 * 0.3, style: .continuous))
-                Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(.green)
-                AppMark(size: 40)
-            }
-            .frame(maxWidth: .infinity)
-            .accessibilityHidden(true)
-            Text("Connected")
-                .font(.title3.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .accessibilityIdentifier("connect.connected")
-            Text("Back in Incredible, choose Let's go (Add server on an older version). In Settings, it's listed as An app on this computer.")
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-        }
-        Section {
-            Text("\u{201C}\(WebConnectPlan.testPrompt)\u{201D}").foregroundStyle(.primary)
-            #if os(macOS)
-            if installed {
-                Button("Copy Question and Open Incredible", systemImage: "arrow.up.forward.app") {
-                    ConnectClipboard.set(WebConnectPlan.testPrompt)
-                    IncredibleConnect.open()
-                }
-                .accessibilityIdentifier("connect.tryIt")
-            }
-            #endif
-            Button(copiedQuestion ? "Copied" : "Copy Question", systemImage: copiedQuestion ? "checkmark" : "doc.on.doc") {
-                ConnectClipboard.set(WebConnectPlan.testPrompt)
-                withAnimation(.snappy) { copiedQuestion = true }
-            }
-        } header: {
-            Text("Try it")
-        } footer: {
-            Text("Ask Incredible this. You can disconnect it in Settings any time.")
-        }
-    }
-
-    private func copy() {
-        ConnectClipboard.set(server)
-        withAnimation(.snappy) { copied = true }
-    }
-}

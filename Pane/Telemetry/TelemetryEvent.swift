@@ -288,6 +288,7 @@ enum CountBucket: String, TelemetryWord {
 
 /// Which AI a connect guide is for, never a name the AI gave itself.
 enum ConnectAIKind: String, TelemetryWord {
+    // `incredible` stays so older reports still read; nothing sends it now.
     case chatgpt, claude, codex, other, incredible
     case claudeCode = "claude_code"
 }

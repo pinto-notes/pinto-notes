@@ -1673,7 +1673,7 @@ struct ConnectAISection: View {
     var cards = false
 
     enum Guide: String, Identifiable, CaseIterable {
-        case chatgpt, claude, grok, claudeCode, codex, incredible, other
+        case chatgpt, claude, grok, claudeCode, codex, other
         var id: String { rawValue }
         /// The guide as the connect funnel names its AI.
         var funnel: ConnectAIKind {
@@ -1684,7 +1684,6 @@ struct ConnectAISection: View {
             case .grok: .other
             case .claudeCode: .claudeCode
             case .codex: .codex
-            case .incredible: .incredible
             case .other: .other
             }
         }
@@ -1695,7 +1694,6 @@ struct ConnectAISection: View {
             case .grok: "Grok"
             case .claudeCode: "Claude Code"
             case .codex: "Codex"
-            case .incredible: "Incredible"
             case .other: "Another AI"
             }
         }
@@ -1709,25 +1707,14 @@ struct ConnectAISection: View {
             case .grok: "Added once on grok.com, then works in its apps"
             case .claudeCode: "Adds Pinto Notes to Claude Code on this Mac"
             case .codex: "Adds Pinto Notes to Codex"
-            case .incredible: "Connected once in Incredible on your computer"
             case .other: "Any app that speaks MCP, with the address or an access token"
             }
         }
-        /// The ways offered: Incredible only on a Mac where the Incredible app is (a newcomer has
-        /// never heard of it; newcomer audit #17). Claude Code has no choice of its own: Claude's
-        /// connector reaches it (code.claude.com/docs/en/mcp), and with only the command on the
-        /// Mac, Claude is added to Claude Code directly (`ConnectRun`).
-        static var offered: [Guide] { offered(incredibleInstalled: incredibleInstalled) }
-        static func offered(incredibleInstalled: Bool) -> [Guide] {
-            allCases.filter { $0 != .claudeCode && ($0 != .incredible || incredibleInstalled) }
-        }
-        private static var incredibleInstalled: Bool {
-            #if os(macOS)
-            IncredibleConnect.appURL != nil
-            #else
-            false
-            #endif
-        }
+        /// The ways offered. Claude Code has no choice of its own: Claude's connector reaches it
+        /// (code.claude.com/docs/en/mcp), and with only the command on the Mac, Claude is added to
+        /// Claude Code directly (`ConnectRun`). A desktop app that signs in to this computer is
+        /// Another AI's, listed as An app on this computer.
+        static var offered: [Guide] { allCases.filter { $0 != .claudeCode } }
 
         /// What it is for, in a few plain words, so someone who doesn't code sees at once which is
         /// theirs. Codex says where it runs: it is added on this Mac and doesn't share ChatGPT's connection.
@@ -1738,7 +1725,6 @@ struct ConnectAISection: View {
             case .grok: "Chat with Grok"
             case .claudeCode: "Claude for coding"
             case .codex: "OpenAI\u{2019}s coding agent, on this Mac"
-            case .incredible: "Connects from the Incredible app"
             case .other: "Any other app that can add a connector"
             }
         }
@@ -1774,8 +1760,7 @@ struct ConnectAISection: View {
 /// one line on what is sent and to which company (App Review 5.1.2 rejected 1.2 for hiding it).
 /// "Having trouble?" is in the Help menu (Help Connecting an AI…); Keys for apps was a small link, parked 6 November 2026,
 /// at the foot. Connect runs the setup card's flows: ChatGPT and Claude open the browser's connect
-/// page, Grok's and Another AI's guides open over the wait, Codex is added on this Mac, Incredible
-/// connects from its app.
+/// page, Grok's and Another AI's guides open over the wait, Codex is added on this Mac.
 struct ConnectAIPage: View {
     typealias Guide = ConnectAISection.Guide
     let client: SupabaseClient
@@ -1834,8 +1819,8 @@ struct ConnectAIPage: View {
         return out + rest
     }
 
-    /// Ways in besides the browser's: Codex, and Incredible where its app is.
-    static func more(offered: [Guide] = Guide.offered) -> [Guide] { offered.filter { $0 == .codex || $0 == .incredible } }
+    /// Ways in besides the browser's: Codex.
+    static func more(offered: [Guide] = Guide.offered) -> [Guide] { offered.filter { $0 == .codex } }
 
     /// What it can do and which company the notes go to, in one line at the top, in view in every
     /// stage (App Review rejected 1.2 for hiding the company). One line, not two: Emil, 7 November
@@ -1953,7 +1938,6 @@ struct ConnectAIPage: View {
         case .grok: begin(.grok)
         case .codex: begin(.codex)
         case .other: begin(.other)
-        case .incredible: route?.guide = .incredible
         }
     }
 
@@ -2022,7 +2006,7 @@ struct ConnectAIPage: View {
 @MainActor
 @Observable
 final class ConnectGuideRoute {
-    /// The guide on screen: Incredible's, ChatGPT's, or Another AI's page.
+    /// The guide on screen: ChatGPT's, Grok's or Another AI's page.
     var guide: ConnectAISection.Guide?
     /// Having trouble?
     var help: HelpTopic?
@@ -2066,10 +2050,8 @@ struct ConnectGuides: ViewModifier {
                 if let client {
                     if BrowserConnect.opensSheet(g, onWeb: BrowserConnect.onWeb) {
                         ConnectBrowserSheet(ai: g, client: client) { route.guideSwitched(to: $0) }
-                    } else if ConnectWebGuide.opensSheet(g) {
-                        ConnectWebGuideSheet(ai: g, client: client)
                     } else {
-                        IncredibleSheet(client: client)
+                        ConnectWebGuideSheet(ai: g, client: client)
                     }
                 }
             }
@@ -2085,27 +2067,4 @@ extension View {
     /// Put on the form that contains `ConnectAISection`.
     func connectGuides(client: SupabaseClient?) -> some View { modifier(ConnectGuides(client: client)) }
 }
-
-/// Incredible's guide, as a sheet: it connects from the Incredible app, not from a web page.
-struct IncredibleSheet: View {
-    let client: SupabaseClient
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Form { IncredibleGuide(client: client) }
-                .formStyle(.grouped)
-                .navigationTitle("Connect Incredible")
-                #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-                #endif
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }
-        .consentHost(client: client)
-        #if os(macOS)
-        .frame(width: 560, height: 560)
-        #endif
-    }
-}
-
 

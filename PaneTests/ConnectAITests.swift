@@ -694,56 +694,55 @@ import Testing
     #endif
 }
 
-/// Connect Incredible: a local app, so the guide never vouches for the name.
-@MainActor @Suite struct IncredibleConnectTests {
-    private func row(host: String?, kind: String = "oauth", at: Date, revoked: Bool = false) -> Connection {
-        Connection(id: UUID(), name: "An app on this computer", kind: kind, created_at: at, last_used_at: nil,
-                   revoked_at: revoked ? at : nil, redirect_host: host)
+/// No third-party desktop app of our own choosing in the list (Emil, 8 November 2026: "we
+/// should not mention Incredible anywhere"). A local app that signs in still works: it is any
+/// app on this computer, and the Allow sheet names it only by what it calls itself.
+@MainActor @Suite struct LocalAppConnectTests {
+    @Test func theListNamesOnlyTheAIs() {
+        #expect(ConnectAISection.Guide.allCases.map(\.title) == ["ChatGPT", "Claude", "Grok", "Claude Code", "Codex", "Another AI"])
+        #expect(ConnectAISection.Guide.offered == [.chatgpt, .claude, .grok, .codex, .other], "Claude Code rides on Claude's connection")
+        #expect(AIGlyph.asset("Incredible") == nil, "no mark of its own")
     }
 
-    @Test func isInTheListAfterTheOthers() {
-        #expect(ConnectAISection.Guide.allCases.map(\.title) == ["ChatGPT", "Claude", "Grok", "Claude Code", "Codex", "Incredible", "Another AI"])
-        #expect(AIGlyph.asset("Incredible") == "AIGlyphIncredible")
-        #expect(WebConnectPlan.forAI("Incredible") == nil, "Incredible is added in Incredible, not on a website")
+    @Test func aLocalAppThatCallsItselfIncredibleIsAskedAboutPlainly() {
+        let r = ConnectRequest(id: UUID(), client_name: "An app on this computer", redirect_host: "127.0.0.1",
+                               redirect_uri: "http://127.0.0.1:53682/callback", claimed_name: "incredible", loopback: true)
+        #expect(ConsentSheet.title(r) == "Allow \(r.who) to use your notes?")
+        #expect(!ConsentSheet.title(r).localizedCaseInsensitiveContains("incredible"), "the title never takes the claim")
+        #expect(ConsentSheet.detail(r).contains("It calls itself Incredible."), "the claim, shown as a claim")
+        #expect(ConsentSheet.detail(r).contains("this app"))
     }
 
-    @Test func aNewSignInToThisComputerFinishesTheGuide() {
-        let opened = Date.now
-        let rows = [
-            row(host: "127.0.0.1", at: opened.addingTimeInterval(-3600)),   // an older one
-            row(host: "127.0.0.1", at: opened.addingTimeInterval(20)),
-        ]
-        #expect(IncredibleConnect.newConnection(rows, since: opened)?.created_at == opened.addingTimeInterval(20))
-        #expect(IncredibleConnect.newConnection([row(host: "localhost", at: opened.addingTimeInterval(5))], since: opened) != nil)
+    @Test func itsConnectionIsAnotherAI() {
+        let c = Connection(id: UUID(), name: "incredible", kind: "oauth", created_at: .now, last_used_at: nil, revoked_at: nil, redirect_host: "127.0.0.1")
+        #expect(ConnectRun.owner(of: c) == .other)
     }
 
-    @Test func webAppsTokensAndOldOrRevokedSignInsDontCount() {
-        let opened = Date.now
-        let later = opened.addingTimeInterval(10)
-        let rows = [
-            row(host: "127.0.0.1", at: opened.addingTimeInterval(-60)),     // before the guide opened
-            row(host: "127.0.0.1", at: later, revoked: true),                // disconnected
-            row(host: nil, kind: "token", at: later),                        // an access token
-            row(host: "incredible.one", at: later),                          // a website, whatever it's called
-            row(host: "claude.ai", at: later),
-        ]
-        #expect(IncredibleConnect.newConnection(rows, since: opened) == nil)
-    }
-
-    @Test func stepsSentToYourselfCarryTheAddressAndNoSecret() {
-        let server = "https://mcp.ambernotes.app"
-        let text = IncredibleConnect.message(server: server)
-        #expect(text.hasSuffix("\n\(server)"))
-        #expect(text.contains("search for notes") && text.contains("Let's go"), "the built-in app comes first")
-        #expect(text.contains("Add another MCP server") && text.contains("Add server"), "older versions add the address")
-        #expect(!text.contains("pane_"), "Incredible signs in; it never needs a token")
-    }
-
-    @Test func copyFollowsTheWritingRules() {
-        for line in IncredibleConnect.steps + [IncredibleConnect.olderVersion, IncredibleConnect.consentNote, IncredibleConnect.message(server: "https://mcp.ambernotes.app")] {
-            #expect(!line.contains("\u{2014}"), "no em dashes: \(line)")
-            #expect(!line.localizedCaseInsensitiveContains("ipad"))
+    /// Nothing people read in the app says Incredible: string literals outside comments and
+    /// telemetry, and the bundled text files.
+    @Test func noVisibleStringNamesIncredible() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let pane = root.appending(path: "Pane")
+        let files = FileManager.default.enumerator(at: pane, includingPropertiesForKeys: nil)?.compactMap { $0 as? URL } ?? []
+        var found: [String] = []
+        for url in files where !url.path.contains("/Telemetry/") {
+            let ext = url.pathExtension
+            guard ["swift", "md", "json", "strings", "txt", "html"].contains(ext),
+                  let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            for (i, line) in text.components(separatedBy: "\n").enumerated() {
+                var l = line
+                if ext == "swift" {
+                    let t = l.trimmingCharacters(in: .whitespaces)
+                    if t.hasPrefix("//") { continue }
+                    // Only what's between quotes.
+                    let parts = l.components(separatedBy: "\"")
+                    l = stride(from: 1, to: parts.count, by: 2).map { parts[$0] }.joined(separator: " ")
+                }
+                if l.localizedCaseInsensitiveContains("incredible") { found.append("\(url.lastPathComponent):\(i + 1)") }
+            }
         }
+        #expect(files.count > 100, "it read the app's sources (\(files.count) files)")
+        #expect(found.isEmpty, "\(found)")
     }
 }
 
@@ -780,25 +779,16 @@ extension AIEditSnapshots {
     }
 }
 extension AIEditSnapshots {
-    /// Connect Incredible: the guide with and without the app on this Mac, "connected", and the
-    /// consent sheet it gets (a local app, named by where access goes).
-    @Test func incredibleGuide() async throws {
+    /// The list, and the consent sheet a local app gets (named by where access goes).
+    @Test func localAppConsent() async throws {
         guard AppSnapshotTests.dir != nil else { return }
         let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
-        try await AppSnapshotTests.render(Form { IncredibleGuide(client: client, installed: true) }.formStyle(.grouped).frame(width: 560, height: 760),
-                                          name: "connect-incredible-guide", dark: false)
-        try await AppSnapshotTests.render(Form { IncredibleGuide(client: client, installed: false) }.formStyle(.grouped).frame(width: 560, height: 760),
-                                          name: "connect-incredible-not-installed", dark: false)
-        try await AppSnapshotTests.render(Form { IncredibleGuide(client: client, installed: true) }.formStyle(.grouped).frame(width: 560, height: 760),
-                                          name: "connect-incredible-guide-dark", dark: true)
-        try await AppSnapshotTests.render(Form { IncredibleGuide(client: client, connected: true, installed: true) }.formStyle(.grouped).frame(width: 560, height: 520),
-                                          name: "connect-incredible-connected", dark: false)
         try await AppSnapshotTests.render(Form { ConnectAISection(client: client, preview: []) }.formStyle(.grouped).frame(width: 560, height: 560),
                                           name: "connect-list", dark: false)
         let local = ConnectRequest(id: UUID(), client_name: "An app on this computer", redirect_host: "127.0.0.1",
                                    redirect_uri: "http://127.0.0.1:53682/callback", claimed_name: "incredible", loopback: true)
         try await AppSnapshotTests.render(ConsentSheet(client: client, requestID: local.id, initial: .asking(local), finish: { _ in }),
-                                          name: "consent-incredible", dark: false)
+                                          name: "consent-local-app", dark: false)
     }
 }
 #endif
@@ -910,13 +900,3 @@ extension AIEditSnapshots {
     #endif
 }
 
-/// Incredible is offered only on a Mac where the Incredible app is (newcomer audit #17).
-@Suite struct IncredibleOfferedTests {
-    @Test func incredibleIsOfferedOnlyWhereItIsInstalled() {
-        #expect(!ConnectAISection.Guide.offered(incredibleInstalled: false).contains(.incredible))
-        #expect(ConnectAISection.Guide.offered(incredibleInstalled: true).contains(.incredible))
-        // Everything else stays, in the same order.
-        // Everything else stays, in the same order. Claude Code rides on Claude's connection.
-        #expect(ConnectAISection.Guide.offered(incredibleInstalled: false) == [.chatgpt, .claude, .grok, .codex, .other])
-    }
-}

@@ -44,7 +44,7 @@ enum ShareAsk {
 
     /// What the ask says, and its sharing buttons in order (Not now always follows). Developers
     /// (accounts that ever connected a tool on their computer or with a token: Claude Code,
-    /// Codex, Gemini CLI, Incredible) hear that it's open source; everyone else, as before.
+    /// Codex, Gemini CLI, a desktop app) hear that it's open source; everyone else, as before.
     struct Content: Equatable {
         var title: String
         var line: String

@@ -539,7 +539,7 @@ import Carbon.HIToolbox
         }
         #expect(SetupCards.guidePage(.grok) == .grok && SetupCards.guidePage(.other) == .other)
         #expect(SetupCards.guidePage(.chatgpt) == nil && SetupCards.guidePage(.claude) == nil)
-        #expect(ConnectAIPage.more(offered: [.chatgpt, .claude, .grok, .codex, .incredible, .other]) == [.codex, .incredible], "Codex and Incredible stay reachable")
+        #expect(ConnectAIPage.more(offered: [.chatgpt, .claude, .grok, .codex, .other]) == [.codex], "Codex stays reachable")
         #expect(ConnectCopy.why.hasSuffix(ConnectCopy.shared), "the line on what is shared is the same words everywhere")
     }
 
@@ -564,7 +564,7 @@ import Carbon.HIToolbox
     /// One row per AI: a connected one in its place (each account its own row), the rest with
     /// Connect…; connections no AI in the list made after them; Another AI last, always there.
     @Test func connectIsOneRowPerAI() {
-        let all: [ConnectAISection.Guide] = [.chatgpt, .claude, .grok, .codex, .incredible, .other]
+        let all: [ConnectAISection.Guide] = [.chatgpt, .claude, .grok, .codex, .other]
         func c(_ name: String, host: String? = nil) -> Connection {
             Connection(id: UUID(), name: name, kind: host == nil ? "token" : "oauth", created_at: .now, last_used_at: .now.addingTimeInterval(-120), revoked_at: nil, redirect_host: host)
         }
@@ -572,11 +572,11 @@ import Carbon.HIToolbox
         #expect(none.map(\.guide) == all && none.allSatisfy { $0.connection == nil })
         let gpt = c("ChatGPT", host: "chatgpt.com"), local = c("My tool", host: "localhost")
         let rows = ConnectAIPage.rows(offered: all, connections: [gpt, local])
-        #expect(rows.map(\.guide) == [.chatgpt, .claude, .grok, .codex, .incredible, nil, .other])
+        #expect(rows.map(\.guide) == [.chatgpt, .claude, .grok, .codex, nil, .other])
         #expect(rows[0].connection?.id == gpt.id, "ChatGPT's row is its connection")
-        #expect(rows[5].connection?.id == local.id && rows.last?.connection == nil, "the app on this computer, then Another AI")
+        #expect(rows[4].connection?.id == local.id && rows.last?.connection == nil, "the app on this computer, then Another AI")
         #expect(ConnectAIPage.detail(rows[0]) == "Used 2 minutes ago", "a connected one says when it was last used")
-        #expect(ConnectAIPage.detail(rows[5]).hasPrefix("localhost"), "one the list can't name says where access went")
+        #expect(ConnectAIPage.detail(rows[4]).hasPrefix("localhost"), "one the list can't name says where access went")
         let two = ConnectAIPage.rows(offered: all, connections: [gpt, c("ChatGPT", host: "chatgpt.com")])
         #expect(two.filter { $0.guide == .chatgpt }.count == 2, "two accounts, two rows")
     }

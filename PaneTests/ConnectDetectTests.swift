@@ -202,22 +202,6 @@ extension FunnelTests {
             await notices.stop()
         }
 
-        /// Incredible's guide: a new sign-in to this computer, heard at once with the notice.
-        @Test func incredibleIsHeardAtOnce() async throws {
-            let center = ConnectCenter()
-            let list = ConnectionList()
-            let watch = ConnectWatch(approvedAs: nil) { IncredibleConnect.newConnection($0, since: $1) }
-            watch.center = center
-            let client = list.supabase
-            let running = Task { await watch.run(client: client) }
-            try await Task.sleep(for: .milliseconds(300))
-            list.add(oauth: "127.0.0.1")
-            center.connectionMayHaveAppeared()
-            let took = try await time(within: 2) { watch.isConnected }
-            #expect(took.map { $0 < 0.5 } == true, "\(took.map { "\($0) s" } ?? "never")")
-            running.cancel()
-        }
-
         /// The notice for an approval made on this device isn't shown again, but the guides still
         /// hear it: it's the same connection appearing.
         @Test func aNoticeAboutThisDevicesOwnApprovalStillReachesTheGuides() async {

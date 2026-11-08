@@ -138,7 +138,6 @@ import Testing
         #expect(ConnectHere.press(.claude, connected: false, mac: true) == .start)
         #expect(ConnectHere.press(.codex, connected: false, mac: true) == .start)
         #expect(ConnectHere.press(.other, connected: false, mac: true) == .guide)
-        #expect(ConnectHere.press(.incredible, connected: false, mac: true) == .guide)
     }
 
     @Test func theClaudeRowOffersTheMacLink() {

@@ -1538,7 +1538,7 @@ private struct WindowCloser: NSViewRepresentable {
 
 /// Captures only (`-uitest`): one screen on its own, so the
 /// iPhone simulator can show them without anyone tapping through.
-///   `-captureScreen connect`, `connect-chatgpt`, `connect-claude`, `connected-chatgpt`, `connect-incredible`, `settings`, `template`, `template-added`, `copy`, `signin`, `welcome`, `welcome-signin`, `welcome-signin-focused`, `welcome-signin-new`, `welcome-signin-existing`, `welcome-confirm` (Check your email), `welcome-confirm-wait` (a code just sent: Resend code counts down), `welcome-confirm-typed` (three digits in), `welcome-confirm-wrong` (after a wrong code), `new-device`, `add-device` (the sheet as this device opens it), `add-device-type`, `add-device-confirm`, `add-device-done`, `key-kept`, `key-kept-unconfirmed`, `key-kept-only`, `key-checking` or `device-added-notice`; `-captureSetup 1…4` (4: the moment after your AI's first edit).
+///   `-captureScreen connect`, `connect-chatgpt`, `connect-claude`, `connected-chatgpt`, `settings`, `template`, `template-added`, `copy`, `signin`, `welcome`, `welcome-signin`, `welcome-signin-focused`, `welcome-signin-new`, `welcome-signin-existing`, `welcome-confirm` (Check your email), `welcome-confirm-wait` (a code just sent: Resend code counts down), `welcome-confirm-typed` (three digits in), `welcome-confirm-wrong` (after a wrong code), `new-device`, `add-device` (the sheet as this device opens it), `add-device-type`, `add-device-confirm`, `add-device-done`, `key-kept`, `key-kept-unconfirmed`, `key-kept-only`, `key-checking` or `device-added-notice`; `-captureSetup 1…4` (4: the moment after your AI's first edit).
 struct CaptureScreen: View {
     let name: String
     let backend: Backend
@@ -1584,15 +1584,6 @@ struct CaptureScreen: View {
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
-            }
-        case "connect-incredible", "connected-incredible":
-            NavigationStack {
-                Form { IncredibleGuide(client: Self.client, connected: name.hasPrefix("connected-")) }
-                    .formStyle(.grouped)
-                    .navigationTitle("Connect Incredible")
-                    #if os(iOS)
-                    .navigationBarTitleDisplayMode(.inline)
-                    #endif
             }
         case let guide where guide.hasPrefix("connect-") || guide.hasPrefix("connected-"):
             // Connect an AI, before and just after ChatGPT or Claude is connected.

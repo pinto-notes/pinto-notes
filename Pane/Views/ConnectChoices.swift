@@ -301,7 +301,7 @@ final class ConnectRun {
         case .grok:
             copy(server)
             wait(client, ConnectCopy.waiting(.grok))
-        case .other, .incredible:
+        case .other:
             copy(server)
             wait(client, ConnectCopy.waiting(.other))
         }
@@ -491,7 +491,7 @@ final class ConnectRun {
             return g == .claude && fresh.contains { $0.isOAuth && Connection.isLoopback($0.redirect_host ?? "") }
         case .claudeCode, .codex:
             return fresh.contains { $0.isOAuth && Connection.isLoopback($0.redirect_host ?? "") }
-        case .other, .incredible:
+        case .other:
             return !fresh.isEmpty
         }
     }
@@ -516,7 +516,6 @@ final class ConnectRun {
         let n = c.name.lowercased()
         if n.contains("codex") { return .codex }
         if n.contains("claude") { return .claude }
-        if n.contains("incredible") { return .incredible }
         return .other
     }
 }
@@ -1193,7 +1192,7 @@ struct ConnectChoices: View {
             if let route { route.onMac = g } else { onMac = g }
             return
         case .guide:
-            // Incredible, ChatGPT and Another AI open a guide of their own; the rest start from the row.
+            // ChatGPT, Grok and Another AI open a guide of their own; the rest start from the row.
             if let route {
                 run.stop(givingUp: run.guide != nil)
                 route.guide = g
@@ -1625,8 +1624,6 @@ struct ConnectHelpSheet: View {
                 }
                 if let problem { Text(problem).font(.footnote).foregroundStyle(.red) }
             } header: { Text("An app that asks for a token") }
-        case .incredible:
-            EmptyView()
         }
     }
 

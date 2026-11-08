@@ -25,7 +25,7 @@ import Testing
     @Test func chatgptAndAnotherAIOpenGuides() {
         #expect(ConnectWebGuide.opensSheet(.chatgpt))
         #expect(ConnectWebGuide.opensSheet(.other))
-        for g in [ConnectAISection.Guide.claude, .claudeCode, .codex, .incredible] { #expect(!ConnectWebGuide.opensSheet(g)) }
+        for g in [ConnectAISection.Guide.claude, .claudeCode, .codex] { #expect(!ConnectWebGuide.opensSheet(g)) }
     }
 
     @Test func openChatGPTCopiesOpensAndMovesOn() {

@@ -132,7 +132,7 @@ extension FunnelTests {
             #expect(ConnectAIKind(guideName: "Claude") == .claude)
             #expect(ConnectAIKind(guideName: "Claude Code") == .claudeCode)
             #expect(ConnectAIKind(guideName: "Codex") == .codex)
-            #expect(ConnectAIKind(guideName: IncredibleConnect.ai) == .incredible)
+            #expect(ConnectAIKind(guideName: "Incredible") == .other, "no guide of its own")
             #expect(ConnectAIKind(guideName: "Another AI") == .other)
             for g in ConnectAISection.Guide.allCases where g != .other {
                 #expect(ConnectAIKind(guideName: g.title) == g.funnel, "\(g)")
