@@ -139,8 +139,8 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "history", title: "History",
-    description: "Earlier versions, newest first, with who made each (a device or an AI): of a note's text, an app (code and data), or a file.",
-    inputSchema: { type: "object", properties: { path: str(PATH), limit: int("Default 10.") }, required: ["path"] },
+    description: "Earlier versions, newest first, with who made each (a device or an AI): of a note's text, an app (code and data), or a file. A note's versions say what each change removed and added; with version, history shows that version's whole text, so you can check it before you restore it.",
+    inputSchema: { type: "object", properties: { path: str(PATH), limit: int("Default 10."), version: int("A note's version from history: show its whole text.") }, required: ["path"] },
     annotations: read,
   },
   {
@@ -636,6 +636,28 @@ async function saveData(tx: Tx, c: Call, n: Note, base: string, before: PageData
   return { saved: `${base}/data.json`, note: "One change: the open app shows it at once, and the person can undo it." };
 }
 
+/** What one change did to a note, as lines: those only in the text before it (removed) and those
+ *  only in the text after it (added), a few of each, shortened. Counted, so a repeated line counts. */
+export function lineChange(before: string, after: string, most = 4, width = 120) {
+  const count = (t: string) => { const m = new Map<string, number>(); for (const l of t.split("\n")) if (l.trim()) m.set(l, (m.get(l) ?? 0) + 1); return m; };
+  const b = count(before), a = count(after);
+  const only = (x: Map<string, number>, y: Map<string, number>) => {
+    const out: string[] = [];
+    for (const [l, k] of x) for (let i = 0; i < k - (y.get(l) ?? 0); i++) out.push(l);
+    return out;
+  };
+  const cut = (ls: string[]) => [...ls.slice(0, most).map((l) => l.length > width ? l.slice(0, width - 1) + "…" : l), ...(ls.length > most ? [`(${ls.length - most} more lines)`] : [])];
+  const removed = only(b, a), added = only(a, b);
+  if (!removed.length && !added.length) return before === after ? "no change to the text" : "only blank lines changed";
+  return { ...(removed.length ? { removed: cut(removed) } : {}), ...(added.length ? { added: cut(added) } : {}) };
+}
+
+/** What fetch says about a note with an app. In the real-AI run (8 Nov) Codex put flashcards and a
+ *  trip's days in the note's own tables while the app keeps them in data.json, so the app showed
+ *  nothing new; the app's docs say where each thing goes. */
+export const appFirst = (base: string) =>
+  `This note has an app. Before you add to the note, read what the app says about its data (${base}/docs/README.md, or its README.md): what it keeps in ${base}/data.json and what it reads from this note. Put what the person asks for where the app shows it.`;
+
 /** create { type: "app", template }: the template's note, then its app through the same gate as any
  *  save (compiled here, its tests and the smoke check run) and its data (docs/Technical/templates.md). */
 async function appFromTemplate(tx: Tx, c: Call, path: string, slug: string, a: Args) {
@@ -669,7 +691,7 @@ async function placeFor(tx: Tx, c: Call, P: Paths, dir: string): Promise<{ folde
 }
 
 /** Makes a note at a path; its first line is its name. */
-async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = false): Promise<{ path: string; id: string; checks: string[] }> {
+async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = false): Promise<{ path: string; id: string; checks: string[]; linked_from?: string }> {
   const P = await pathsOf(tx, c);
   const parts = path.replace(/\.md$/i, "").split("/").map((s) => s.trim()).filter(Boolean);
   const name = parts.pop();
@@ -690,17 +712,31 @@ async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = 
   const head = { title: titleOf(body), preview: previewOf(body) };
   await tx`insert into public.notes (id, body_ct, head_ct, folder_id, parent_id, is_pinned)
     values (${id}, ${await c.v.sealBody(id, body)}, ${await c.v.sealHead(id, head)}, ${where.folder}, ${where.parent?.id ?? null}, ${pinned})`;
+  let linked: string | undefined;
   if (where.parent) {
     // A sub-note is linked from its parent, as the app makes them.
     const parent = await full(tx, c, where.parent.id);
     refuseLocked(parent);
     const before = await bodyOf(c.v, parent);
     await save(tx, c, parent, before, appendText(before, `[${head.title.replace(/[\[\]]/g, "")}](pane-note:${id})`));
+    // The AI knows the parent as it was plus this one line, so a parent it had read stays read:
+    // its next edit there (moving the link under a heading) isn't refused as a stale read.
+    const item = await itemKey(c, noteItem(parent.id));
+    const [had] = await tx<{ stamp: string }[]>`select stamp from public.mcp_reads where session = ${sessionOf(c)} and item = ${item} and read_at > now() - interval '1 day'`;
+    if (had?.stamp === String(parent.version)) {
+      const [p] = await tx<{ version: string }[]>`select version from public.notes where id = ${parent.id}`;
+      await markRead(tx, c, noteItem(parent.id), String(p.version));
+    }
+    linked = parent.id;
   }
   const fresh = await pathsOf(tx, c, true);
   const [row] = await tx<{ version: string }[]>`select version from public.notes where id = ${id}`;
   await markRead(tx, c, noteItem(id), String(row.version));
-  return { path: fresh.pathOf(id)!, id, checks: noteChecks("", body, today()) };
+  const at = fresh.pathOf(id)!;
+  return {
+    path: at, id, checks: noteChecks("", body, today()),
+    ...(linked ? { linked_from: `A link to it was added on the last line of ${fresh.pathOf(linked)}: [${head.title.replace(/[\[\]]/g, "")}](<${at}>). Move or remove that line with edit if it belongs elsewhere.` } : {}),
+  };
 }
 
 const entryOut = (e: Entry, extra: Record<string, unknown> = {}) => e.kind === "folder"
@@ -972,7 +1008,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
           ...(wikiLinks(body).length ? { links: wikiLinks(body) } : {}),
           ...lockedLinks(P, n, body),
           ...(n.trashed_at ? {} : await linkedFrom(tx, c, P, n)),
-          ...(P.hasApp(n.id) ? { app: r.path.replace(/\.md$/, ".app/") } : {}),
+          ...(P.hasApp(n.id) ? { app: r.path.replace(/\.md$/, ".app/"), app_first: appFirst(r.path.replace(/\.md$/, ".app")) } : {}),
           ...(shown.truncated ? { truncated: shown.truncated } : {}),
         },
       };
@@ -1043,7 +1079,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     // A folder as the path: the note's name is its first line.
     const target = /\.md$/i.test(path) ? path : `${path.replace(/\/+$/, "")}/${safeName(titleOf(content))}.md`;
     const made = await newNote(tx, c, target, content, a.pinned === true);
-    return { created: made.path, ...(made.checks.length ? { checks: made.checks } : {}) };
+    return { created: made.path, ...(made.linked_from ? { linked_from: made.linked_from } : {}), ...(made.checks.length ? { checks: made.checks } : {}) };
   },
 
   async edit(tx, a, c) {
@@ -1118,7 +1154,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const path = clean(a.path);
       if (/\.md$/i.test(path) && /^Nothing at/.test((e as Error).message)) {
         const made = await newNote(tx, c, path, content);
-        return { created: made.path, checks: made.checks.length ? made.checks : "ok" };
+        return { created: made.path, ...(made.linked_from ? { linked_from: made.linked_from } : {}), checks: made.checks.length ? made.checks : "ok" };
       }
       throw e;
     }
@@ -1286,8 +1322,43 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       return { path: r.path, changes: await changesOf(tx, r.note.shared, limit), shared: "Who changed this shared note lately, newest first. Earlier versions of a shared note can't be restored yet." };
     }
     if (r.kind === "note") {
+      const n = await full(tx, c, r.note.id, true);
+      // A locked note's versions from before it was locked are still its text: none of them shows.
+      refuseLocked(n);
+      if (a.version !== undefined && a.version !== null) {
+        // One version's whole text, to look at before restoring it.
+        const want = wholeNumber(a.version, "version");
+        const [v] = await tx<{ body_ct: string | null; locked_body: string | null; created_at: Date; client: string | null; source: string }[]>`
+          select body_ct, locked_body, created_at, client, source from public.note_revisions where id = ${want} and note_id = ${n.id}`;
+        if (!v) throw new ToolError("No such version of this note. Use history without version to list them.");
+        if (v.locked_body !== null || !v.body_ct) throw new ToolError("That version was saved while the note was locked, so its text is encrypted. The person can see it in Pinto Notes.");
+        const shown = numberedLines(await c.v.openBody(n.id, v.body_ct), a.offset, a.limit);
+        return { path: r.path, version: want, replaced_at: iso(v.created_at), replaced_by: v.client ?? v.source, text: shown.text, ...(shown.truncated ? { truncated: shown.truncated } : {}), restore_with: `restore { path, version: ${want} }` };
+      }
       const h = await classic.note_history(tx, { id: r.note.id, limit }, c) as { revisions: Record<string, unknown>[] };
-      return { path: r.path, versions: h.revisions.map(({ revision_id, version: _n, ...rest }: Record<string, unknown>) => ({ version: revision_id, ...rest })) };
+      // What each change did: a version, against the text that replaced it (the next newer version,
+      // or the note now). Previews alone are the note's first line for every version, so AIs
+      // restored blind (the real-AI run, 8 Nov: Claude restored three versions before finding it).
+      const ids = h.revisions.map((v) => Number(v.revision_id));
+      const bodies = new Map<number, string>();
+      if (ids.length) {
+        const rows = await tx<{ id: string; body_ct: string | null; locked_body: string | null }[]>`
+          select id, body_ct, locked_body from public.note_revisions where note_id = ${n.id} and id = any(${ids})`;
+        for (const row of rows) if (row.body_ct && row.locked_body === null) {
+          const b = await c.v.openBody(n.id, row.body_ct).catch(() => null);
+          if (b !== null) bodies.set(Number(row.id), b);
+        }
+      }
+      const now = n.locked_body ? null : await bodyOf(c.v, n).catch(() => null);
+      return {
+        path: r.path,
+        about: "Newest first. Each version is the text as it was until replaced_at, when replaced_by changed it; change is what that change removed and added. history with version shows a version's whole text.",
+        versions: h.revisions.map(({ revision_id, version: _n, ...rest }: Record<string, unknown>, i) => {
+          const mine = bodies.get(Number(revision_id));
+          const next = i === 0 ? now : bodies.get(Number(h.revisions[i - 1].revision_id));
+          return { version: revision_id, ...rest, ...(mine !== undefined && next != null ? { change: lineChange(mine, next) } : {}) };
+        }),
+      };
     }
     if (r.kind === "app" || r.kind === "appfile" || r.kind === "data") {
       const rows = await tx<{ id: string; client: string | null; made_at: Date; replaced_at: Date; reason: string }[]>`
@@ -1308,7 +1379,18 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       }
       if (r.note.trashed_at) throw new ToolError(`"${r.path}" is in Recently Deleted: restore it first (no version).`);
       await classic.restore_revision(tx, { id: r.note.id, revision_id: a.version }, c);
-      return { restored: (await pathsOf(tx, c, true)).pathOf(r.note.id), version: a.version, note: "The text before this restore is kept in history too." };
+      // An older text can link to a note by a title it has since lost (renamed after this version):
+      // say so, since nothing else will (the real-AI run, 8 Nov).
+      const P = await pathsOf(tx, c, true);
+      const n = await full(tx, c, r.note.id);
+      const body = await bodyOf(c.v, n);
+      const index = wikiIndexOf(P);
+      // Files ("![[photo.jpg]]") aren't notes; only links to notes are checked.
+      const dangling = wikiLinks(body).filter((t) => (!/\.\w{2,5}$/.test(t) || /\.md$/i.test(t)) && !index.resolve(t, foldersOfNote(P, n)));
+      return {
+        restored: P.pathOf(r.note.id), version: a.version, note: "The text before this restore is kept in history too.",
+        ...(dangling.length ? { links_to_nothing: `These [[links]] in the restored text lead to no note now (renamed or deleted since?): ${dangling.map((t) => `[[${t}]]`).join(", ")}. Point them at the note's current title with edit.` } : {}),
+      };
     }
     if (r.kind === "app" || r.kind === "appfile" || r.kind === "data") {
       const want = wholeNumber(a.version, "version");

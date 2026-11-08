@@ -76,6 +76,15 @@ export function testSummary(r: Rendered): { passed: number; failed: number; fail
     failures: [...(r.testErrors ?? []), ...t.filter((x) => !x.ok).map((x) => `${x.file ? x.file + ": " : ""}${x.name}: ${x.error}`)] };
 }
 
+/** The tests that failed in the first run and passed in a second over the same code: they pass only
+ *  sometimes. In the real-AI run (8 Nov) a save that changed only docs/README.md was held back by a
+ *  test that had passed on the save before, and the AI couldn't tell it hadn't broken anything. */
+export function flakyTests(first: Rendered, again: Rendered): string[] {
+  const id = (x: { file?: string; name: string }) => `${x.file ? x.file + ": " : ""}${x.name}`;
+  const passed = new Set((again.tests ?? []).filter((x) => x.ok).map(id));
+  return (first.tests ?? []).filter((x) => !x.ok && passed.has(id(x))).map(id);
+}
+
 const same = (a: string, b: string) => a.toLowerCase().replace(/\s+/g, " ").trim() === b.toLowerCase().replace(/\s+/g, " ").trim();
 
 /**

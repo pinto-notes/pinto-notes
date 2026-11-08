@@ -77,7 +77,12 @@ export function sampleData(data: unknown, today: string, depth = 0, labels = new
     if (typeof o.$file === "string") return { $file: "00000000-0000-4000-8000-000000000000", name: "sample.png", type: "image/png" };
     return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, k === "id" || k === "created" || k === "updated" ? v : sampleData(v, today, depth + 1, labels)]));
   }
-  if (typeof data === "number") return Math.round(hash(String(data)) * Math.max(10, Math.abs(data) * 2) * 100) / 100;
+  if (typeof data === "number") {
+    // Whole numbers stay whole (a count of glasses, a box from 1 to 5) and the sign stays: an app
+    // that shows "3 / 8" isn't previewed as "3.11 / 8" (the real-AI run, 8 Nov).
+    const n = hash(String(data)) * Math.max(10, Math.abs(data) * 2);
+    return (data < 0 ? -1 : 1) * (Number.isInteger(data) ? Math.round(n) : Math.round(n * 100) / 100);
+  }
   if (typeof data === "string") return fake(data, labels, "Sample", today);
   return data;
 }
