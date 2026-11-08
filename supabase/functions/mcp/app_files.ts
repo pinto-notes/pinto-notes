@@ -6,7 +6,7 @@
 
 import { hostDeclared, declaredHosts } from "./page.ts";
 import { sampleData, sampleNote } from "./app_sample.ts";
-import { render, renderedFindings, testSummary } from "./app_check.ts";
+import { flakyTests, render, renderedFindings, testSummary } from "./app_check.ts";
 import {
   brokenImports, cleanPath, compileMany, editText, isReact, isTest, linkProject, needsCompile, numbered, parseStored, type Project, projectProblems, serialize, sourceProblems, styleWarnings,
 } from "./app_project.ts";
@@ -117,6 +117,11 @@ export async function saveProject(tx: Tx, c: Call, n: Note, unlinked: Project, c
   // The app's own tests, and the smoke check, on every save.
   const tested = gateOn && Object.keys(p.files).some(isTest) && typeof r !== "string" ? await render({ ...sample, tests: true }) : null;
   const tests = tested && typeof tested !== "string" ? testSummary(tested) : null;
+  // A failed test is run once more over the same code: one that passes then only passes sometimes.
+  // The version is still held back (a test that sometimes fails is usually an app that sometimes
+  // loses a tap or a save), but the AI is told, so it fixes the timing instead of hunting a break.
+  const again = tests?.failed && tested && typeof tested !== "string" && tested.tests?.some((x) => !x.ok) ? await render({ ...sample, tests: true }) : null;
+  const flaky = again && typeof again !== "string" && tested && typeof tested !== "string" ? flakyTests(tested, again) : [];
   const smoked = gateOn && typeof r !== "string" ? await render({ ...sample, smoke: true }) : null;
   const smoke = smoked && typeof smoked !== "string" ? smoked.smoke : null;
   const scriptErrors = (found?.errors ?? []).filter((e) => /script error|blank|tried to load/.test(e));
@@ -155,6 +160,7 @@ export async function saveProject(tx: Tx, c: Call, n: Note, unlinked: Project, c
     ...(errors.length ? { errors } : found ? { opens: "Opens cleanly at 390 and 1280 px (over a sample of its data)." } : {}),
     ...(found === null ? { browser: r } : {}),
     ...(tests ? { tests: `${tests.passed} passed, ${tests.failed} failed` } : {}),
+    ...(flaky.length ? { flaky: `These failed, then passed when run again over the same code, so they pass only sometimes: ${flaky.join("; ")}. Usually the app loses a quick second tap or reads its data before a save lands (build each change on the latest data, await saves), or the test checks before the screen updates (use findBy or waitFor). Fix that; don't loosen the test.` } : {}),
     ...(smoke ? { smoke: smoke.ok ? `ok (${smoke.taps} taps)` : `failed (${smoke.taps} taps)` } : {}),
     ...(notes.length ? { notes } : {}),
   };

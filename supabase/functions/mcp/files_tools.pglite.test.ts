@@ -3,7 +3,7 @@
 import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import type { PGlite } from "npm:@electric-sql/pglite@0.2.17";
 import { schemaDB } from "./pglite.ts";
-import { type Account, account, app, edit, file, folder, note, opened, stubStorage, toolContext } from "./sealed.ts";
+import { type Account, account, app, edit, file, folder, note, notesPassword, opened, stubStorage, toolContext } from "./sealed.ts";
 import { ToolError } from "./tools.ts";
 import { FILE_TOOLS, runFileTool } from "./files_tools.ts";
 
@@ -193,6 +193,11 @@ Deno.test("an app: create, its files, and data.json edited like a file, one chan
   // docs/ is the app's memory: the README sends the AI there, and data.json's notes come from it.
   assertStringIncludes((await tool(pg, a, "fetch", { id: "Health/Habits.app/README.md" })).text, "Read docs/ first");
   assertStringIncludes((await tool(pg, a, "fetch", { id: "Health/Habits.app/docs/README.md" })).text, "## Known gaps");
+  // Reading the note sends the AI to the app's docs first, so what it adds lands where the app shows
+  // it (the real-AI run, 8 Nov: Codex filled the note's tables; the app keeps its data in data.json).
+  const theNote = await tool(pg, a, "fetch", { id: "Health/Habits.md" });
+  assertEquals(theNote.metadata.app, "Health/Habits.app/");
+  assertStringIncludes(theNote.metadata.app_first, "read what the app says about its data (Health/Habits.app/docs/README.md");
   // The starter counts as read.
   const edited = await tool(pg, a, "edit", { path: "Health/Habits.app/src/screens/home.tsx", old_string: "Nothing here yet", new_string: "No habits yet" });
   assertStringIncludes(JSON.stringify(edited), "saved");
@@ -229,4 +234,62 @@ Deno.test("every call takes one from the MCP bucket, failed ones too (one statem
   assert(after1 !== undefined && after1 <= 599.5, String(after1));
   await fails(tool(pg, a, "fetch", { id: "Nothing here.md" }));
   assert((await left())! < after1!, "a failed call is counted");
+});
+
+Deno.test("history says what each change did and shows a version's text, so an AI restores the right one (real-AI run, 8 Nov)", async () => {
+  // Both AIs restored the wrong version of a note first: every version's preview was the same first line.
+  const pg = await schemaDB();
+  const a = await account(pg);
+  await note(pg, a, "Acme\n\nClient since March.\n\n## Status\n- Renewal due 1 December\n\n## Next steps\n- [ ] Send the quote\n");
+  await tool(pg, a, "fetch", { id: "Acme.md" });
+  await tool(pg, a, "edit", { path: "Acme.md", old_string: "## Status\n- Renewal due 1 December", new_string: "## Status\nasdf pasted by mistake" });
+  await tool(pg, a, "edit", { path: "Acme.md", old_string: "- [ ] Send the quote", new_string: "- [ ] Send the quote\n- [ ] Book a call" });
+  const h = await tool(pg, a, "history", { path: "Acme.md" });
+  assertStringIncludes(h.about, "as it was until replaced_at");
+  // Newest first: the call was added, and before that the status was pasted over.
+  assertEquals(h.versions[0].change, { added: ["- [ ] Book a call"] });
+  assertEquals(h.versions[1].change, { removed: ["- Renewal due 1 December"], added: ["asdf pasted by mistake"] });
+  const before = await tool(pg, a, "history", { path: "Acme.md", version: h.versions[1].version });
+  assertStringIncludes(before.text, "- Renewal due 1 December");
+  assertEquals(before.restore_with, `restore { path, version: ${h.versions[1].version} }`);
+  assertStringIncludes(await fails(tool(pg, a, "history", { path: "Acme.md", version: 999999 })), "No such version");
+  // Restoring an older text whose [[link]] names a note renamed since says so.
+  await note(pg, a, "Pricing plan\n\n## Annual\nTwo months free.\n");
+  await tool(pg, a, "fetch", { id: "Acme.md" });
+  await tool(pg, a, "edit", { path: "Acme.md", old_string: "- [ ] Book a call", new_string: "- [ ] Book a call, see [[Pricing plan#Annual]] and ![[logo.png]]" });
+  await tool(pg, a, "move", { path: "Pricing plan.md", to: "Pricing 2027.md" });
+  // The version that still had the old title: the rename's own change to Acme replaced it.
+  const linked = (await tool(pg, a, "history", { path: "Acme.md" })).versions
+    .find((v: { change?: { removed?: string[] } }) => v.change?.removed?.some((l) => l.includes("[[Pricing plan#Annual]]"))).version;
+  const restored = await tool(pg, a, "restore", { path: "Acme.md", version: linked });
+  assertStringIncludes(restored.links_to_nothing, "[[Pricing plan]]");
+  assert(!restored.links_to_nothing.includes("logo.png"), restored.links_to_nothing);
+  assertEquals((await tool(pg, a, "restore", { path: "Acme.md", version: h.versions[1].version })).links_to_nothing, undefined);
+  // A locked note's earlier versions stay closed, though they were saved before it was locked.
+  const id = (await pg.query<{ note_id: string }>(`select note_id from public.note_revisions where id = $1`, [h.versions[1].version])).rows[0].note_id;
+  const lockKey = await notesPassword(pg, a);
+  await app(pg, a.id, `update public.notes set body_ct = null, head_ct = $2, locked_body = $3 where id = $1`,
+    [id, await a.vault.sealHead(id, { title: "Acme" }), `amb2.${lockKey}.${btoa("x".repeat(48))}`]);
+  assertStringIncludes(await fails(tool(pg, a, "history", { path: "Locked note.md", version: h.versions[1].version })), "locked");
+  assertStringIncludes(await fails(tool(pg, a, "history", { path: "Locked note.md" })), "locked");
+});
+
+Deno.test("a new sub-note says it was linked from its parent, and a parent read before stays read (real-AI run, 8 Nov)", async () => {
+  // Claude saved a recipe as a sub-note, then edited the parent to file the link under a heading:
+  // the edit was refused as a stale read, because the create had added the link line unannounced.
+  const pg = await schemaDB();
+  const a = await account(pg);
+  await note(pg, a, "Recipe box\n\n## Weeknight\n\n## Baking\n");
+  await tool(pg, a, "fetch", { id: "Recipe box.md" });
+  const made = await tool(pg, a, "create", { path: "Recipe box/Weeknight dal.md", content: "Weeknight dal\n\n- [ ] 1 cup red lentils" });
+  assertEquals(made.created, "Recipe box/Weeknight dal.md");
+  assertStringIncludes(made.linked_from, "last line of Recipe box.md: [Weeknight dal](<Recipe box/Weeknight dal.md>)");
+  const moved = await tool(pg, a, "edit", { path: "Recipe box.md", old_string: "## Weeknight\n\n## Baking\n\n[Weeknight dal](<Recipe box/Weeknight dal.md>)", new_string: "## Weeknight\n- [Weeknight dal](<Recipe box/Weeknight dal.md>)\n\n## Baking" });
+  assertEquals(moved.edited, "Recipe box.md");
+  assertStringIncludes((await tool(pg, a, "fetch", { id: "Recipe box.md" })).text, "## Weeknight\n     4\t- [Weeknight dal](<Recipe box/Weeknight dal.md>)");
+  // A parent the AI never read is still read-first.
+  await note(pg, a, "Trips\n");
+  const sub = await tool(pg, a, "write", { path: "Trips/Lisbon.md", content: "Lisbon" });
+  assertStringIncludes(sub.linked_from, "Trips.md");
+  assertStringIncludes(await fails(tool(pg, a, "edit", { path: "Trips.md", old_string: "Trips", new_string: "Trips 2027" })), "Read Trips.md with fetch");
 });

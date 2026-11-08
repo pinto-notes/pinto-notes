@@ -30,6 +30,10 @@ Deno.test("the sample keeps the note's shape and none of its words", () => {
   assert(s.includes("- [x] Item") && s.includes("- [ ] Item"));
   const d = sampleData({ values: { goal: 12000, city: "Lisbon" }, collections: { trips: [{ id: "t1", created: "2026-10-01T00:00:00Z", who: "Ana", photo: { $file: "abc" } }] } }, "2026-10-05") as any;
   assertEquals([d.collections.trips[0].id, typeof d.values.goal], ["t1", "number"]);
+  // Whole numbers stay whole and keep their sign (a Water app showed "3.11 / 8" glasses in see_app).
+  const n = sampleData({ values: { counts: { "2026-11-08": 3 }, box: 1, refund: -40 } }, "2026-11-08") as any;
+  assert(Number.isInteger(n.values.counts["2026-11-08"]) && Number.isInteger(n.values.box), JSON.stringify(n));
+  assert(n.values.refund < 0 && Number.isInteger(n.values.refund), JSON.stringify(n));
   assert(!JSON.stringify(d).includes("Lisbon") && !JSON.stringify(d).includes("Ana") && !JSON.stringify(d).includes("abc"));
 });
 
