@@ -109,13 +109,13 @@ struct ShareNotePopover: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // With people sharing, the note's own title is all the naming it needs: not repeated here.
-            if !collaborating { header }
+            // No header in either popover: the note is open behind it (council, 8 November 2026:
+            // the two-way popover had one and the four-way didn't).
 
             if ways.count > 1 {
                 ShareTabs(ways: ways, chosen: chosen, collaborating: collaborating) { way = $0 }
-                    .padding(.horizontal, 10)
-                    .padding(.top, collaborating ? 10 : 0)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
             }
             // Every tab the same way down: a line on what it does, a hairline, its content, its button
             // (council, 8 November 2026: Collaborate had no line and started higher).
@@ -149,20 +149,6 @@ struct ShareNotePopover: View {
         // words (Emil, 7 November 2026).
         .presentationBackground(Color.card)
         .accessibilityIdentifier("share.popover")
-    }
-
-    private var header: some View {
-            HStack(spacing: 10) {
-                AppMark(size: 34)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.system(size: 13, weight: .semibold)).lineLimit(1).truncationMode(.tail)
-                    Text("Pinto Notes").font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 14)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
     }
 
     @ViewBuilder private var linkRows: some View {
@@ -203,7 +189,7 @@ struct ShareNotePopover: View {
             if let url = store.url {
                 row("Open Web Page", "safari", id: "share.open") { NSWorkspace.shared.open(url) }
             }
-            Divider().padding(.horizontal, 6).padding(.vertical, 4)
+            Divider().padding(.horizontal, 8).padding(.vertical, 4)
             row("Stop Sharing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } }
         }
     }
@@ -326,11 +312,15 @@ private struct ShareTabs: View {
     var body: some View {
         // Each tab as wide as its name, the room left shared out between them: four equal tabs
         // needed the popover 360 wide for "Collaborate" to fit.
+        // On a track, as a segmented control is, so the tabs read as one control and not grey
+        // words; it runs margin to margin like everything under it (council, 8 November 2026).
         HStack(spacing: 0) {
             ForEach(ways) { way in
                 ShareTab(title: way.label(collaborating: collaborating), on: way == chosen) { choose(way) }
             }
         }
+        .padding(2)
+        .background(Color.soft, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("share.way")
     }
@@ -339,23 +329,26 @@ private struct ShareTabs: View {
 private struct ShareTab: View {
     /// The chosen tab's pill: the app's soft fill was 1.1:1 on the card, hard to see (council,
     /// 8 November 2026).
-    static let chosen = Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.23, alpha: 1) : NSColor(white: 0.9, alpha: 1) })
+    static let chosen = Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.36, alpha: 1) : .white })
     let title: String
     let on: Bool
     let action: () -> Void
     @State private var hovering = false
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
         Button(action: action) {
             Text(title)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(on || hovering ? Color.ink : Color.muted)
                 .lineLimit(1)
                 .fixedSize()
-                .padding(.horizontal, 8)
-                .frame(maxWidth: .infinity, minHeight: 28)
-                .background { if on { shape.fill(Self.chosen) } else if hovering { shape.fill(Hover.row) } }
+                .padding(.horizontal, 6)
+                .frame(maxWidth: .infinity, minHeight: 24)
+                .background {
+                    if on { shape.fill(Self.chosen).shadow(color: .black.opacity(0.12), radius: 1, y: 0.5) }
+                    else if hovering { shape.fill(Hover.row) }
+                }
                 .contentShape(shape)
         }
         .buttonStyle(.plain)
@@ -370,7 +363,7 @@ private struct ShareTab: View {
 struct WebPagePreview: View {
     let title: String
     let text: String
-    static let height: CGFloat = 128
+    static let height: CGFloat = 116
 
     /// The lines under the title: the note's first few, its first line left out when it is the title.
     static func lines(title: String, text: String) -> [String] {
@@ -489,7 +482,7 @@ struct PictureBackgrounds: View {
 /// The note as a picture, with the look last chosen: what the Picture tab opens on.
 struct NotePictureThumb: View {
     /// Tall enough that the picture fills the popover's width, as the web page preview does.
-    static let height: CGFloat = 176
+    static let height: CGFloat = 200
     let request: NotePicture.Request
     /// The picture once drawn, for Copy Picture.
     var image: Binding<CGImage?>? = nil
@@ -692,10 +685,11 @@ struct CollaborateRows: View {
                             Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color.muted)
                         }
                         .foregroundStyle(Color.ink)
-                        .padding(.horizontal, 9)
-                        .frame(height: 26)
-                        .background(Color.soft, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                        .overlay { if accessHover { RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Hover.row) } }
+                        // Borderless, as the people's pop-ups above it are.
+                        .padding(.horizontal, 6)
+                        .frame(height: 24)
+                        .background { if accessHover { RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Hover.row) } }
+                        .padding(.trailing, -6)
                     }
                     .menuStyle(.button)
                     .buttonStyle(.plain)

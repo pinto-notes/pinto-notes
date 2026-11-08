@@ -48,8 +48,8 @@ import Testing
         let font = NSFont.systemFont(ofSize: 12, weight: .medium)
         let names = ShareWays.ways(collaborating: true, picture: true).map { $0.label(collaborating: true) }
         #expect(names == ["Collaborate", "Send Copy", "Web Page", "Picture"])
-        let needed = names.map { ($0 as NSString).size(withAttributes: [.font: font]).width + 16 }.reduce(0, +)
-        #expect(needed <= ShareNotePopover.collaborateWidth - 20, "the tabs need \(needed) of \(ShareNotePopover.collaborateWidth - 20)")
+        let needed = names.map { ($0 as NSString).size(withAttributes: [.font: font]).width + 12 }.reduce(0, +)
+        #expect(needed <= ShareNotePopover.collaborateWidth - 36, "the tabs need \(needed) of \(ShareNotePopover.collaborateWidth - 36)")
         let share = await CollabShareSnapshots.controller(CollabShareSnapshots.owner())
         let host = NSHostingView(rootView: ShareNotePopover(title: "Team offsite", text: "Team offsite", store: ShareLinkStore(state: ShareLinkState(phase: .notShared)),
                                                             linkAvailable: true, share: share, startingWay: .people, close: {}))

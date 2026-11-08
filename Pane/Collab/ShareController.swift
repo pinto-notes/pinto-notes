@@ -277,7 +277,7 @@ enum ShareCopy {
     }
 
     /// Collaborate's line, under the tabs as every way has one.
-    static let collaborate = "People you invite can edit this note with you."
+    static let collaborate = "Invite people to view or edit this note with you."
 
     static let notSharedYet = "Invite People makes a link anyone can join with and edit, in Pinto Notes."
 
