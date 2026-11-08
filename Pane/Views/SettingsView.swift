@@ -505,6 +505,7 @@ private struct AccountRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    .privateBlur(AccountLine.shown(email: email))
             }
         }
         .padding(.vertical, 4)

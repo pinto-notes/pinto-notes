@@ -59,6 +59,7 @@ struct AccountButton: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                            .privateBlur(email)
                     }
                 }
                 Spacer(minLength: 0)

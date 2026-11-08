@@ -457,6 +457,7 @@ struct SettingsCard: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(named ? (profile.name ?? "Account") : "Account").font(.system(size: 13, weight: .semibold)).foregroundStyle(SettingsInk.text).lineLimit(1)
                     Text(Self.accountLine(backend)).font(.system(size: 11.5)).foregroundStyle(SettingsInk.muted).lineLimit(1).truncationMode(.middle)
+                        .privateBlur(Self.accountLine(backend))
                 }
                 Spacer(minLength: 0)
             }

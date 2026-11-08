@@ -433,3 +433,46 @@ enum AccountLine {
         email.hasSuffix("privaterelay.appleid.com") ? "Signed in with Apple" : email
     }
 }
+
+/// An email address on screen is blurred until the pointer is over it (or, where it can be,
+/// it's tapped on iPhone), so a screenshot or a screen recording doesn't give it away (Emil,
+/// 8 November 2026). Words without an @ ("Signed in with Apple") are left as they are.
+/// VoiceOver still reads it.
+struct PrivateBlur: ViewModifier {
+    var on: Bool
+    var revealsOnTap = false
+    @State private var revealed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    static let radius: CGFloat = 4
+    static func hides(_ text: String) -> Bool { text.contains("@") }
+
+    func body(content: Content) -> some View {
+        content
+            .blur(radius: on && !revealed ? Self.radius : 0)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: revealed)
+            #if os(macOS)
+            .onHover { revealed = $0 }
+            #else
+            .modifier(TapReveal(enabled: on && revealsOnTap, revealed: $revealed))
+            #endif
+            .help(on ? "Point here to show it" : "")
+    }
+}
+
+#if os(iOS)
+private struct TapReveal: ViewModifier {
+    let enabled: Bool
+    @Binding var revealed: Bool
+    func body(content: Content) -> some View {
+        if enabled { content.contentShape(Rectangle()).onTapGesture { revealed.toggle() } } else { content }
+    }
+}
+#endif
+
+extension View {
+    /// Blurs `text` if it's an email address: see `PrivateBlur`.
+    func privateBlur(_ text: String, revealsOnTap: Bool = false) -> some View {
+        modifier(PrivateBlur(on: PrivateBlur.hides(text), revealsOnTap: revealsOnTap))
+    }
+}

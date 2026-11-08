@@ -551,6 +551,7 @@ struct AccountSettingsPage: View {
             .accessibilityIdentifier("settings.signInWith")
             LabeledContent("Email") {
                 Text(Self.accountEmail(backend.displayEmail ?? email)).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+                    .privateBlur(Self.accountEmail(backend.displayEmail ?? email), revealsOnTap: true)
             }
         }
         // The recovery key and the devices that can open your notes stay on Privacy.

@@ -845,6 +845,23 @@ import Carbon.HIToolbox
 
     /// On the Mac the setup guide is in the Help menu only, not a row in Settings (Emil, 8 November
     /// 2026: the row dropped you into importing notes, "kinda off"); search still finds it, as the menu item.
+    /// Your email is blurred wherever it's shown, so a screenshot or a recording doesn't give it
+    /// away; the pointer (or a tap on iPhone) shows it (Emil, 8 November 2026).
+    @Test func theEmailIsBlurredOnScreen() throws {
+        #expect(PrivateBlur.hides("emil@example.com"))
+        #expect(!PrivateBlur.hides("Signed in with Apple") && !PrivateBlur.hides("Hidden by Apple") && !PrivateBlur.hides("Sign in to sync"))
+        let places: [(String, String)] = [
+            ("Pane/Views/SidebarView.swift", ".privateBlur(email)"),
+            ("Pane/Views/SettingsCard.swift", ".privateBlur(Self.accountLine(backend))"),
+            ("Pane/Views/SettingsView.swift", ".privateBlur(AccountLine.shown(email: email))"),
+            ("Pane/Views/SettingsPages.swift", ".privateBlur(Self.accountEmail("),
+            ("Pane/Views/SignInView.swift", ".privateBlur(flow.email"),
+            ("Pane/Views/WelcomeEmailSignIn.swift", ".privateBlur(model.flow.email"),
+        ]
+        for (file, call) in places { #expect(try SettingsHomeTests.source(file).contains(call), "\(file) shows the email unblurred") }
+        #expect(!(try SettingsHomeTests.source("Pane/Views/Encryption.swift")).contains("Password for \\(email)"), "the password field names the address")
+    }
+
     @Test func theSetupGuideIsInTheHelpMenuOnly() async throws {
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
         #expect(!(try await Self.ids(.help, backend: backend)).contains("settings.setupGuide"))

@@ -465,7 +465,8 @@ struct KeyGateView: View {
             }
         } else {
             field {
-                PasswordField("Password for \(email)", text: $password, id: "e2ee.password")
+                // Not the address: it would show in a screenshot (Emil, 8 November 2026).
+                PasswordField("Account password", text: $password, id: "e2ee.password")
                     .textFieldStyle(.plain)
                     .onSubmit { if !password.isEmpty { signInWithPassword() } }
             }
