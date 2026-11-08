@@ -330,6 +330,10 @@ import Testing
         // The whole foot sits under the folder list, not in a bar over it: macOS drew the bar's edge
         // as a line while the pointer was on the foot (Emil, 8 November 2026).
         #expect(!sidebar.contains(".safeAreaBar(edge: .bottom"), "no bar at the sidebar's foot")
+        // Under a theme the list's ground is solid; the foot has the same one, not the window's tinted glass.
+        let footed = try #require(sidebar.range(of: "private func footed(")).upperBound
+        let footEnd = try #require(sidebar.range(of: "private func withDialogs(")).lowerBound
+        #expect(sidebar[footed..<footEnd].contains(".background(Color(Palette.sidebarWarmth).ignoresSafeArea())"), "the foot shares the list's ground")
         let foot = try SettingsHomeTests.source("Pane/Views/SidebarAIs.swift")
         #expect(foot.contains("if rows { SidebarAILine(); SidebarStudyRows(imports: imports) }"), "first in the foot")
         // Only connected, nothing done: no row (Emil, 8 November 2026: "Grok connected" read as a notification).

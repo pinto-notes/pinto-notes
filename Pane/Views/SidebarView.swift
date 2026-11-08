@@ -771,6 +771,9 @@ struct SidebarView: View {
                 .padding(.top, 4)
                 .padding(.bottom, 8)
                 .animation(.easeOut(duration: 0.25), value: sync?.reach)
+                // The list's own ground under the foot too: outside the list it showed the window's
+                // glass, a tinted band under a theme's solid sidebar (Emil, 8 November 2026).
+                .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
             }
         }
         #else
