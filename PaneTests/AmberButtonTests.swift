@@ -151,6 +151,11 @@ import Testing
 
     /// The system's controls take the AccentColor asset; it holds the same two colours as `Palette.accent`.
     @Test func theAccentColorAssetMatchesThePalette() throws {
+        // The default theme, whatever the installed app's is: the test build shares its settings,
+        // and a theme chosen there changed these colours (8 November 2026).
+        let kept = ThemeStore.shared.current
+        ThemeStore.shared.set(ThemeLook(theme: .standard, accent: .theme), persist: false)
+        defer { ThemeStore.shared.set(kept, persist: false) }
         // AccentColor, or the build's own AccentColorLocal (scripts/set-accent.sh), as the build names it.
         let name = Bundle.main.object(forInfoDictionaryKey: "NSAccentColorName") as? String ?? "AccentColor"
         let asset = try #require(NSColor(named: name))
@@ -401,6 +406,11 @@ import Testing
     /// cards, chips and hairlines are neutral grey. The selected note still reads on the white list.
     @Test(arguments: [NSAppearance.Name.aqua, .darkAqua])
     func theShippedMacLookIsPlainWhiteAndBlack(_ appearance: NSAppearance.Name) {
+        // The default theme, whatever the installed app's is: the test build shares its settings,
+        // and a theme chosen there changed these colours (8 November 2026).
+        let kept = ThemeStore.shared.current
+        ThemeStore.shared.set(ThemeLook(theme: .standard, accent: .theme), persist: false)
+        defer { ThemeStore.shared.set(kept, persist: false) }
         let was = DesignLook.current
         DesignLook.current = DesignLook.shipped
         defer { DesignLook.current = was }

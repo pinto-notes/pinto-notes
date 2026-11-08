@@ -405,7 +405,10 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             // running through them.
             let start = editing ? (textLineFragments.first.map { $0.typographicBounds.width } ?? 0) + 8 : 0
             ctx.setFillColor(PColor.paneSeparator.cgColor)
-            ctx.fill(CGRect(x: o.x + start, y: o.y + firstLineMidY, width: max(0, containerWidth - start), height: 1))
+            // Level with the dashes, halfway up the lowercase letters, in both states: the line
+            // box's middle sat above them, so the line ran higher than the "---" before it
+            // (Emil, 8 November 2026).
+            ctx.fill(CGRect(x: o.x + start, y: o.y + bulletMidY - 0.5, width: max(0, containerWidth - start), height: 1))
 
         case .callout(let look, let first, let last):
             drawCallout(look, first: first, last: last, at: o, in: ctx)

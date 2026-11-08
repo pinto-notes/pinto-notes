@@ -239,6 +239,38 @@ import Testing
         #expect(moved.isEmpty, "the last line moved with the caret at \(moved.prefix(8)) (of \(line.prefix(30)))")
     }
 
+    /// With the caret on a divider its dashes show, and the line after them runs level with
+    /// them, not above (Emil, 8 November 2026: "why is the --- and the divider line not aligned").
+    @Test func theDividerLineIsLevelWithItsDashes() async throws {
+        let text = "Plan\n\n---\n\nAfter"
+        let h = await EditorHarness(text)
+        defer { h.close() }
+        let at = (text as NSString).range(of: "---").location
+        await h.select(at + 1)
+        await h.settle(0.2)
+        let line = h.lineRect(at: at)
+        let view = h.view
+        let rep = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        view.cacheDisplay(in: view.bounds, to: rep)
+        let scale = CGFloat(rep.pixelsWide) / view.bounds.width
+        // The middle row of the ink in a band of columns, within the divider's line.
+        func middle(_ xs: ClosedRange<CGFloat>) -> CGFloat? {
+            var rows: [Int] = []
+            for y in Int(line.minY * scale)..<Int(line.maxY * scale) {
+                for x in stride(from: Int(xs.lowerBound * scale), through: Int(xs.upperBound * scale), by: 1) {
+                    // The text view draws on a clear ground: ink is whatever is drawn at all.
+                    if let c = rep.colorAt(x: x, y: y), c.alphaComponent > 0.04 { rows.append(y); break }
+                }
+            }
+            guard let lo = rows.min(), let hi = rows.max() else { return nil }
+            return CGFloat(lo + hi) / 2 / scale
+        }
+        let x0 = line.minX
+        let dashes = try #require(middle((x0 + 2)...(x0 + 14)), "the dashes are drawn")
+        let rule = try #require(middle((x0 + 60)...(x0 + 120)), "the line is drawn")
+        #expect(abs(dashes - rule) <= 1, "dashes at \(dashes), line at \(rule)")
+    }
+
     static func lineIndex(_ s: String, _ at: Int) -> Int {
         (s as NSString).substring(to: min(at, (s as NSString).length)).filter { $0 == "\n" }.count
     }
