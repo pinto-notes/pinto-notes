@@ -71,6 +71,12 @@
   "w": 1200,
   "h": 750
  },
+ "app-pinto-notes-in-chatgpt": {
+  "ground": "#87a9b5",
+  "ink": "dark",
+  "w": 1200,
+  "h": 750
+ },
  "apple-creator-studio": {
   "ground": "#020202",
   "ink": "light",
