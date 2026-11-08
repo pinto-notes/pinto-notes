@@ -56,7 +56,7 @@ enum PrivacyCopy {
     /// open your notes. `recovery`: the recovery key is offered (RecoveryKeyOffer).
     static func how(serverCopy: Bool, advanced: Bool, keychain: Bool, recovery: Bool) -> [(symbol: String, title: String, line: String)] {
         var out: [(String, String, String)] = [
-            ("lock.fill", "Encrypted before they sync", "Your notes are encrypted on your devices, then synced."),
+            ("lock", "Encrypted before they sync", "Your notes are encrypted on your devices, then synced."),
         ]
         if serverCopy {
             out += [
@@ -710,6 +710,14 @@ struct HowItWorksSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        #if os(macOS)
+        HowItWorksMac(content: content, done: { dismiss() })
+        #else
+        list
+        #endif
+    }
+
+    private var list: some View {
         NavigationStack {
             Form {
                 Section {
@@ -749,11 +757,104 @@ struct HowItWorksSheet: View {
             #endif
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
-        #if os(macOS)
-        .frame(width: 460, height: 600)
-        #endif
     }
 }
+
+#if os(macOS)
+/// The Mac's "How it works", as Apple's own information sheets are: a symbol and the title
+/// centred at the top, then each fact as a symbol, a bold line and its explanation, on the
+/// sheet's own ground with no boxes or bands, and Done at the bottom right (Emil, 8 November
+/// 2026: the grouped list with a title bar and a footer band "looks bad").
+struct HowItWorksMac: View {
+    let content: SecurityContent
+    var done: () -> Void
+    static let width: CGFloat = 460
+    static let height: CGFloat = 630
+    static let inset: CGFloat = 34
+    @State private var linkHover = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    VStack(spacing: 10) {
+                        Image(systemName: "lock.shield")
+                            .font(.system(size: 34, weight: .regular))
+                            .foregroundStyle(SettingsInk.icon)
+                            .accessibilityHidden(true)
+                        Text(PrivacyCopy.howItWorks)
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(SettingsInk.text)
+                            .accessibilityAddTraits(.isHeader)
+                            .accessibilityIdentifier("privacy.howSheet.title")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 24)
+                    .padding(.bottom, 20)
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        ForEach(content.how, id: \.title) { item in
+                            HStack(alignment: .top, spacing: 14) {
+                                Image(systemName: item.symbol)
+                                    .font(.system(size: 16, weight: .regular))
+                                    .foregroundStyle(SettingsInk.icon)
+                                    .frame(width: 24, height: 17)
+                                    .accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(item.title)
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(SettingsInk.text)
+                                    Text(item.line)
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(SettingsInk.muted)
+                                        .lineSpacing(1.5)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityIdentifier("privacy.howSheet.\(item.symbol)")
+                        }
+                    }
+
+                    Link(destination: PrivacyCopy.learnMoreURL) {
+                        HStack(spacing: 4) {
+                            Text(PrivacyCopy.learnMore)
+                            Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold))
+                        }
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(SettingsInk.text)
+                        .underline(linkHover)
+                        .padding(.vertical, 3)
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { linkHover = $0 }
+                    .padding(.leading, 38)
+                    .padding(.top, 18)
+                    .accessibilityIdentifier("privacy.learnMore")
+                }
+                .padding(.horizontal, Self.inset)
+                .padding(.bottom, 8)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+
+            HStack {
+                Spacer()
+                Button(action: done) { Text("Done").frame(minWidth: 64) }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("privacy.howSheet.done")
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 18)
+        }
+        .frame(width: Self.width, height: Self.height)
+        .background(SettingsInk.ground)
+    }
+}
+#endif
 
 private struct RecoveryKeyItem: Identifiable {
     let key: String
