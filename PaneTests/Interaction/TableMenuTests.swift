@@ -182,7 +182,7 @@ import AppKit
 
         h.controller.pickTableLine(.column(0), grid: 0, cell: GridCell(row: 1, column: 0))
         let columnMenu = try #require(h.controller.lastTableMenu)
-        #expect(columnMenu.items.map(\.title) == ["Add Column Before", "Add Column After", "Delete Column"])
+        #expect(columnMenu.items.map(\.title) == ["Add Column Before", "Add Column After", "Delete Column", "Delete Table"])
         try #require(columnMenu.item("Add Column After")).run()
         #expect(await h.until { h.text.contains("| Shortcut |   | Does |") && h.text.contains("| ⌘B |   | Bold |") }, "a blank column after the first: \(h.text.debugDescription)")
         // The toolbar's table menu does the same for the cell with the keyboard.
@@ -274,6 +274,34 @@ import AppKit
         try await h.clickAdd(.column, box: box, host: host)
         #expect(await h.until { GridTable.find(in: h.text).first?.columns == columns + 1 }, "a column at the end: \(h.text.debugDescription)")
         #expect(await h.until { h.controller.table?.cell == GridCell(row: 0, column: columns) }, "the keyboard in its header")
+    }
+
+    /// The handles a table shows (••• above, ⋮ beside) each end with Delete Table: on a one-cell
+    /// table nothing else in them could remove it (Emil, 8 November 2026: "there is no obvious
+    /// way for me to delete this table"). Running it removes the table, and Undo brings it back.
+    @Test func eachHandleMenuEndsWithDeleteTable() async throws {
+        let note = "Title\n\n| only |\n| --- |\n\nAfter"
+        let h = await EditorHarness(note)
+        defer { h.close() }
+        h.controller.presentsTableMenus = false
+        await h.caret(after: "Title")
+        await h.press(EditorHarness.down)
+        await h.press(EditorHarness.down)
+        #expect(await h.until { h.controller.table != nil })
+        let cell = try #require(h.controller.table?.cell)
+        for line in [GridLine.row(cell.row), .column(cell.column)] {
+            h.controller.pickTableLine(line, grid: 0, cell: cell)
+            let menu = try #require(h.controller.lastTableMenu)
+            let delete = try #require(menu.item("Delete Table"), "\(line)'s menu has Delete Table: \(menu.items.map(\.title))")
+            #expect(delete.destructive && delete.enabled)
+            #expect(menu.sections.last?.map(\.title) == ["Delete Table"], "on its own, last")
+        }
+        try #require(h.controller.lastTableMenu?.item("Delete Table")).run()
+        await h.settle(0.2)
+        #expect(h.gridCount == 0 && !h.text.contains("| only |"), "the table is gone: \(h.text.debugDescription)")
+        h.controller.undoNotice()
+        await h.settle(0.2)
+        #expect(h.text == note, "Undo brings it back: \(h.text.debugDescription)")
     }
 
     /// The last row and column have no Delete: Delete Table removes a table.
