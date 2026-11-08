@@ -589,6 +589,9 @@ struct NotePageView: View {
     var preview: NotePageData.Doc?
     /// The page has drawn and takes clicks (the template library hides its picture of it then).
     var onReady: () -> Void = {}
+    /// The page's zoom: under 1 lays it out wider than the view and draws it smaller (the template
+    /// library keeps an app at one width on both of its stages, the width its picture has).
+    var zoom: CGFloat = 1
     @State private var sandbox: NotePageSandbox?
     @State private var failed: String?
     @State private var ready = false
@@ -633,6 +636,7 @@ struct NotePageView: View {
                 #endif
                 s.onUpdate = onUpdate
                 s.isWidget = snapshotVariant == "widget"
+                if zoom != 1 { s.webView.pageZoom = zoom }
                 ready = false
                 s.onReady = { [weak s, noteID, html, scheme, snapshotVariant] in
                     guard let s else { return }
@@ -680,6 +684,7 @@ struct NotePageView: View {
         }
         .onChange(of: text) { _, now in sandbox?.push(body: now, data: preview ?? NotePageDataStore.shared.doc(noteID)) }
         .onChange(of: insetBottom) { _, now in sandbox?.setInsets(bottom: now) }
+        .onChange(of: zoom) { _, now in sandbox?.webView.pageZoom = now }
         .onChange(of: ready) { _, now in if now, insetBottom > 0 { sandbox?.setInsets(bottom: insetBottom) } }
         .onChange(of: NotePageDataStore.shared.docs[noteID]) { _, _ in if preview == nil { sandbox?.push(body: text, data: NotePageDataStore.shared.doc(noteID)) } }
     }

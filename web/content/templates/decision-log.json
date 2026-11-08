@@ -16,7 +16,7 @@
     "claudeCode": "Use my Pinto Notes note \"Decision log\" for this project's technical decisions. When we settle on an approach (a library, a schema, an architecture), read the note with fetch and add an entry at the start of \"Decisions\" with edit: a \"###\" heading with the decision and today's date, then Context, Options we considered, What we chose, Why, and When to revisit. Name the files or modules it affects. Before proposing a change that touches one of these, read the note and check we're not undoing a decision."
   },
   "asks": [
-    "We decided to stay on Postgres instead of moving to a document store.",
+    "Ask what we decided and why, then log the decision.",
     "Why did we pick Stripe over Paddle?",
     "What's still undecided?"
   ],

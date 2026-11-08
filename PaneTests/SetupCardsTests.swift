@@ -478,7 +478,7 @@ import Testing
     @Test func noMatchKeepsTheOpenTemplate() throws {
         let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
         let body = try #require(src.components(separatedBy: "var body: some View {").dropFirst().first?.components(separatedBy: "private var columns").first)
-        let none = try #require(body.range(of: "templates.none")), panel = try #require(body.range(of: "if let current { detail(current) }"))
+        let none = try #require(body.range(of: "templates.none")), panel = try #require(body.range(of: "if let current { detail(current, kept: shown.isEmpty) }"))
         #expect(none.lowerBound < panel.lowerBound, "the message and the panel share one row")
         #expect(body.components(separatedBy: "HStack(spacing: 0)").count == 2, "one row, whether or not anything matches")
         #expect(body.contains("Self.showing(shown, open: open ?? catalog.entries.first)"))
@@ -501,7 +501,9 @@ import Testing
     /// every template (council: the gap above the buttons went from 43 to 102 pt), and the stage
     /// never takes its height from the cover (a square that cut the window's top off).
     @Test func thePanelKeepsItsPlaceFromTemplateToTemplate() throws {
-        #expect(TemplateLibraryView.stage(for: TemplateLibraryView.size) == 300)
+        #expect(TemplateLibraryView.stage(for: TemplateLibraryView.size) == 324, "the big stage takes the panel's spare height")
+        // Between the two sizes the stage gives way, so the buttons are never cut.
+        #expect(TemplateLibraryView.stage(for: CGSize(width: 1040, height: 600)) == 244)
         // A small sheet hides the subtitle and gives its room to the stage (council round 2).
         #expect(TemplateLibraryView.stage(for: CGSize(width: 720, height: 500)) == 172)
         let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
@@ -510,15 +512,40 @@ import Testing
         #expect(!src.contains("ZStack(alignment: .top) {\n                ground"), "the cover no longer sizes the stage")
     }
 
-    /// The app's picture shows its full width, never cut at the right edge ("11-", "Princip").
-    @Test func anAppPictureFitsItsWidth() throws {
+    /// The app's picture is the live app the stage shows once it has drawn, at the same size,
+    /// place, layout and data, so the one fades into the other without moving (council round 3:
+    /// the site's 1280 px picture of other data, drawn at a third, became the app at full size in
+    /// its narrow layout on its empty starting data). Neither is cut at the right edge.
+    @Test func theAppPictureIsTheLiveViewsSize() throws {
+        for size in [TemplateLibraryView.size, TemplateLibraryView.size(on: CGSize(width: 800, height: 560))] {
+            let window = TemplateLibraryView.window(for: size)
+            let zoom = TemplateAppPreview.zoom(for: window)
+            let small = TemplateLibraryView.small(size)
+            let css = TemplateAppPreview.css(for: window, small: small)
+            let live = TemplateAppPreview.frame(in: window, small: small)
+            #expect(abs(css.width * zoom - window.width) < 0.01 && abs(live.width - window.width) < 0.01, "the live app fills the window's width")
+            // As tall as the window on the big stage; on the small one it runs on past the foot,
+            // so its tab bar isn't half of what shows.
+            #expect(small ? live.height >= window.height * 1.6 : abs(live.height - window.height) <= 1, "\(live.height) in \(window.height)")
+            for e in TemplateCatalog.shipped.entries where e.app {
+                for dark in [false, true] {
+                    let picture = try #require(e.appPicture(dark: dark, small: small), "\(e.slug) stage picture")
+                    let rep = try #require(picture.representations.first)
+                    // Drawn by scripts/template-stage-pictures.ts at the live app's size, at 2x.
+                    #expect(rep.pixelsWide == Int(css.width * 2) && rep.pixelsHigh == Int(css.height * 2),
+                            "\(e.slug) \(small ? "small" : "big"): \(rep.pixelsWide) x \(rep.pixelsHigh), the live app is \(css)")
+                    // Drawn at the window's width in its own shape, it covers the live app's frame
+                    // exactly: no blank band at the foot, nothing moves when the app takes over.
+                    let drawn = (live.width * picture.size.height / picture.size.width).rounded()
+                    #expect(abs(drawn - live.height) <= 1, "\(e.slug): the picture \(drawn) pt tall, the live app \(live.height)")
+                }
+            }
+        }
+        #expect(TemplateAppPreview.zoom(for: TemplateLibraryView.window(for: TemplateLibraryView.size)) == 1, "the big stage's app is at full size")
         let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
-        #expect(src.contains("} else {\n                            Image(nsImage: picture).resizable().scaledToFit()\n"))
-        // On a small sheet it's drawn as a 560 pt view shows it, from the top left, so its words
-        // read (council round 2: 2.5 pt type across a 328 pt window).
-        #expect(src.contains(".frame(width: drawn, height: drawn * picture.size.height / max(picture.size.width, 1))"))
-        #expect(src.contains("drawn: Self.small(size) ? Self.smallPictureWidth : nil"))
-        #expect(TemplateLibraryView.smallPictureWidth == 560)
+        #expect(src.contains("zoom: Self.zoom(for: geo.size))"), "the live app gets the zoom its picture was drawn at")
+        let page = try SettingsHomeTests.source("Pane/Views/NotePageView.swift")
+        #expect(page.contains("if zoom != 1 { s.webView.pageZoom = zoom }"))
     }
 
     /// Search's clear x and the cards' close x are apart: the close x by the title, Search on the
@@ -540,11 +567,80 @@ import Testing
         #expect(src.contains(".help(TemplateLibraryWords.copy)"))
     }
 
-    /// The trip's ask matches the trip its picture shows: Lisbon, 22 to 26 October (it asked for
-    /// four days in May beside a picture of five in October).
-    @Test func theTripAskMatchesItsPicture() throws {
-        let trip = try #require(TemplateCatalog.shipped.entries.first { $0.slug == "trip-plan" })
-        #expect(trip.ask.contains("22 to 26 October") && !trip.ask.contains("May"))
+    /// No ask tells the AI made-up facts about you: Make sends it as it is, and "Log today:
+    /// walked, read 30 pages" logged habits nobody did (council round 3). Each asks you first.
+    @Test(arguments: EveryTemplateTests.all) func everyAskAsksYouFirst(_ e: TemplateCatalog.Entry) {
+        #expect(e.ask.hasPrefix("Ask "), "\(e.slug): \(e.ask)")
+        #expect(!e.ask.contains { $0.isNumber }, "no amounts, dates or counts: \(e.ask)")
+        #expect(e.ask.hasSuffix("."), "a whole sentence: \(e.ask)")
+    }
+
+    /// The first-run gallery's asks have the AI ask too, never a trip or a week it made up.
+    @Test func theGalleryAsksYouFirst() {
+        for pick in SetupCards.picks {
+            #expect(!pick.ask.contains { $0.isNumber }, "\(pick.slug): \(pick.ask)")
+            #expect(!pick.ask.contains("Lisbon") && !pick.ask.contains("Friday") && !pick.ask.contains("mushrooms"), "\(pick.slug): \(pick.ask)")
+        }
+    }
+
+    /// Descriptions in the app say what the template does, without the site's "A free … in a
+    /// note:" and "in Pinto Notes" (council round 3: ad copy inside the app).
+    @Test(arguments: EveryTemplateTests.all) func theDescriptionIsPlain(_ e: TemplateCatalog.Entry) throws {
+        let d = e.shownDescription
+        #expect(!d.lowercased().contains("free") && !d.contains("in Pinto Notes") && !d.contains("in a note:"), "\(e.slug): \(d)")
+        let first = try #require(d.first)
+        #expect(first.isUppercase && d.hasSuffix("."), "\(e.slug): \(d)")
+    }
+
+    /// While nothing matches the search, the template kept open says so beside its name, and
+    /// Return makes nothing (council round 3: Return made the kept template).
+    @Test func aKeptTemplateSaysSoAndReturnMakesNothing() throws {
+        #expect(TemplateLibraryWords.kept == "Previously selected")
+        #expect(TemplateLibraryView.returnMakes(kept: false) && !TemplateLibraryView.returnMakes(kept: true))
+        let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
+        #expect(src.contains(".keyboardShortcut(Self.returnMakes(kept: kept) ? .defaultAction : nil)"))
+        #expect(src.contains("detail(current, kept: shown.isEmpty)"))
+        #expect(src.contains("Text(e.shownDescription)"))
+    }
+
+    /// A note on the stage ends on whole blocks: none cut through at the foot, never a heading
+    /// or a gap last, and its tables at the window's width (council round 3).
+    @Test func aNoteEndsOnWholeBlocks() throws {
+        // Four 20 pt blocks, 4 pt apart, in 70 pt: three fit (20 + 4 + 20 + 4 + 20 = 68).
+        #expect(WholeBlocks.shown(heights: [20, 20, 20, 20], headings: [false, false, false, false], gaps: [false, false, false, false], room: 70, spacing: 4) == 3)
+        // The third is a heading: it goes too, with the gap above it.
+        #expect(WholeBlocks.shown(heights: [20, 8, 20, 20], headings: [false, false, true, false], gaps: [false, true, false, false], room: 60, spacing: 4) == 1)
+        // When not one whole block fits, it all shows and runs off the foot: never an empty window.
+        #expect(WholeBlocks.shown(heights: [20, 120, 20], headings: [true, false, false], gaps: [false, false, false], room: 60, spacing: 4) == 3)
+        let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
+        #expect(src.contains("NotePreview(markdown: e.example, given: Self.staged(e.example), whole: true)"))
+        let preview = try SettingsHomeTests.source("Pane/Views/NoteSourceSheet.swift")
+        #expect(preview.contains("if whole { grid } else { ScrollView(.horizontal, showsIndicators: false) { grid } }"), "a table fits the window")
+    }
+
+    /// The open card's row is brought to where the first row rests, never leaving a sliver of the
+    /// row above under the header (council round 3); a card already in view doesn't move.
+    @Test func aRevealedRowRestsAtTheTop() {
+        let visible = CGRect(x: 0, y: 0, width: 500, height: 500)
+        #expect(TemplateLibraryView.revealAnchor(cell: CGRect(x: 0, y: 100, width: 150, height: 240), visible: visible) == nil)
+        #expect(TemplateLibraryView.revealAnchor(cell: CGRect(x: 0, y: 400, width: 150, height: 240), visible: visible) == .top)
+        #expect(TemplateLibraryView.revealAnchor(cell: CGRect(x: 0, y: -100, width: 150, height: 240), visible: visible) == .top)
+        #expect(TemplateLibraryView.revealAnchor(cell: nil, visible: visible) == .top, "a card not laid out yet")
+        #expect(TemplateLibraryView.margin + TemplateLibraryView.gap / 2 == TemplateLibraryView.gap, "a revealed row sits one gap under the header: the row above is out of sight")
+        #expect(TemplateLibraryView.rest == 24)
+        #expect(TemplateLibraryView.foot == 35)
+        // Scrolled to its end the grid stops on a row too: the room under the last row lets the
+        // last rows come to the top (council round 3: the last cards left a sliver above them).
+        let tall: CGFloat = 530, cell: CGFloat = 256, rows = 8
+        let bottom = TemplateLibraryView.bottom(visible: tall, grid: cell * CGFloat(rows), rows: rows)
+        let top = TemplateLibraryView.rest - TemplateLibraryView.gap / 2 - TemplateLibraryView.margin
+        let content = top + cell * CGFloat(rows) + bottom
+        let end = content + TemplateLibraryView.margin - tall
+        let atTop = (end + TemplateLibraryView.margin - top) / cell
+        #expect(abs(atTop - atTop.rounded()) < 0.01, "the end stops with row \(atTop) at the top")
+        #expect(bottom >= TemplateLibraryView.foot - TemplateLibraryView.gap / 2 - TemplateLibraryView.margin)
+        // A grid that fits keeps just the foot.
+        #expect(TemplateLibraryView.bottom(visible: 900, grid: 512, rows: 2) == TemplateLibraryView.foot - 16)
     }
 
     /// The open card is scrolled into full view with 16 pt to spare: on opening, on a pick, a key
@@ -595,6 +691,16 @@ import Testing
         print("PERF templates open card ring \(ring.0)...\(ring.1), seen \(top)...\(bottom)")
         // The ring sits 3 pt outside the card: 16 pt of room is 13 to the ring.
         #expect(ring.0 >= top + 12 && ring.1 <= bottom - 12, "ring \(ring.0)...\(ring.1) in \(top)...\(bottom)")
+        // Its row sits a gap under the header, so none of the row above shows: down the middle of
+        // the open card, the first thing drawn under the header is its ring, 3 pt above the card
+        // (the sheet has no ground here, so a card's foot would be the first) (council round 3).
+        let middle = Int(((x + 1.5 + w / 2) * scale).rounded())
+        var first: CGFloat?
+        for y in Int(((top + 1) * scale).rounded())..<rep.pixelsHigh {
+            if let p = rep.colorAt(x: middle, y: y), p.alphaComponent > 0.5 { first = CGFloat(y) / scale; break }
+        }
+        let firstDrawn = try #require(first)
+        #expect(abs(firstDrawn - (top + 13)) <= 2, "the first thing under the header is at \(firstDrawn), the grid's top \(top)")
     }
 
 
@@ -685,11 +791,13 @@ import Testing
     /// its opening lines too, so the stage shows the note filled in.
     @Test func aNoteIsNamedOnce() throws {
         let meeting = try #require(TemplateCatalog.shipped.entries.first { $0.slug == "meeting-notes" })
-        let full = TemplateLibraryView.staged(meeting.example, small: false)
-        #expect(!full.contains(.title("Meeting notes")))
-        if case .paragraph = full.first {} else { Issue.record("the full stage starts with the note's words: \(String(describing: full.first))") }
-        let small = TemplateLibraryView.staged(meeting.example, small: true)
-        if case .heading = small.first {} else { Issue.record("the small stage starts at the first heading: \(String(describing: small.first))") }
+        let staged = TemplateLibraryView.staged(meeting.example)
+        #expect(!staged.contains(.title("Meeting notes")))
+        // From its first heading on both sheets: its opening lines repeat the description the
+        // panel shows under its name (council round 3).
+        if case .heading = staged.first {} else { Issue.record("the stage starts at the first heading: \(String(describing: staged.first))") }
+        // A note with no heading keeps its lines.
+        #expect(TemplateLibraryView.staged("Plain\n\nOne line.\nTwo.") == [.paragraph("One line."), .paragraph("Two.")])
         #expect(TemplateLibraryView.panelTitle == 17)
         let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
         #expect(src.contains(".font(.system(size: Self.panelTitle, weight: .semibold))"))
@@ -749,6 +857,10 @@ import Testing
             ("7-search-nothing", c.entries.first { $0.slug == "meeting-notes" }, "All", "zebra", TemplateLibraryView.size),
             ("8-small-window", c.entries.first { $0.slug == "weekly-review" }, "All", "", TemplateLibraryView.size(on: CGSize(width: 800, height: 560))),
             ("8b-small-window-app", c.entries.first { $0.slug == "habit-tracker" }, "All", "", TemplateLibraryView.size(on: CGSize(width: 800, height: 560))),
+            ("8c-small-window-trip", c.entries.first { $0.slug == "trip-plan" }, "All", "", TemplateLibraryView.size(on: CGSize(width: 800, height: 560))),
+            ("8d-small-window-flashcards", c.entries.first { $0.slug == "study-flashcards" }, "All", "", TemplateLibraryView.size(on: CGSize(width: 800, height: 560))),
+            ("8e-small-window-meal-plan", c.entries.first { $0.slug == "meal-plan" }, "All", "", TemplateLibraryView.size(on: CGSize(width: 800, height: 560))),
+            ("8f-small-window-budget", c.entries.first { $0.slug == "budget-log" }, "All", "", TemplateLibraryView.size(on: CGSize(width: 800, height: 560))),
             ("9-longest-prompt", c.entries.max { $0.ask.count < $1.ask.count }, "All", "", TemplateLibraryView.size),
             ("10-last-card-open", c.entries.last, "All", "", TemplateLibraryView.size),
             ("11-small-window-cornell", c.entries.first { $0.slug == "cornell-notes" }, "All", "", TemplateLibraryView.size(on: CGSize(width: 800, height: 560))),

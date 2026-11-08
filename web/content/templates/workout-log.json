@@ -14,7 +14,7 @@
     "default": "Use my Pinto Notes note \"Workout log\". Read it with fetch before each change. After a session I'll tell you what I did. Add one row to the table with edit: Workout as one of the options, the Main lift, the Top set like \"100 kg x 5\", Minutes, and Effort from 1 to 10. If I beat a number listed under \"Personal bests\", or there's none for that lift yet, add it there with today's date. When I ask how I'm doing, compare the last four weeks."
   },
   "asks": [
-    "Legs today: squat 100 kg for 5, then lunges. About 55 minutes, felt hard.",
+    "Ask how today's workout went, then log it.",
     "Am I getting stronger on bench?",
     "What did I do last Wednesday?"
   ],

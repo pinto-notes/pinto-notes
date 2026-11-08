@@ -166,9 +166,9 @@ enum SetupCards {
 
     static let picks: [Pick] = [
         Pick(slug: "trip-plan", title: "Trip plan", line: "Days, bookings and the packing list in one place.", cover: "SetupCoverTripPlan", ground: 0x2E5339,
-             ask: "fill in my Trip plan: Lisbon, 4 days in May. I like food, views and walking. Not museums."),
+             ask: "fill in my Trip plan. First ask where and when I\u{2019}m going and what I enjoy."),
         Pick(slug: "meal-plan", title: "Meal plan and groceries", line: "This week\u{2019}s dinners and the shopping list.", cover: "SetupCoverMealPlan", ground: 0xFBB433,
-             ask: "plan this week\u{2019}s dinners in my Meal plan. We\u{2019}re out on Friday, and no mushrooms."),
+             ask: "plan this week\u{2019}s dinners in my Meal plan. First ask what I feel like and what to skip."),
         Pick(slug: "weekly-review", title: "Weekly review", line: "Five questions every Sunday, written up for you.", cover: "SetupCoverWeeklyReview", ground: 0xE5837F,
              ask: "do my Weekly review from what I wrote this week."),
         Pick(slug: "reading-list", title: "Reading list", line: "Every book you want to read, with a line on why.", cover: "SetupCoverReadingList", ground: 0x3F5C86,

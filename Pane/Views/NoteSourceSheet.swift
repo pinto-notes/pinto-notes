@@ -287,6 +287,11 @@ struct NotePreview: View {
     let markdown: String
     /// The blocks to show, when not all of the note's (the template library leaves off the title).
     var given: [Block]? = nil
+    /// Whole blocks only, as many as fit, in a window that doesn't scroll (the template library's
+    /// stage): none cut through at the foot, no heading without the block under it, and tables at
+    /// the window's width (council round 3: a line's tops showed at the foot, a heading ended the
+    /// window, a table was cut at the right).
+    var whole = false
 
     enum Block: Equatable {
         case title(String)
@@ -352,17 +357,28 @@ struct NotePreview: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 4) {
+        if whole {
+            WholeBlocks(spacing: 4) {
                 ForEach(Array((given ?? Self.blocks(markdown)).enumerated()), id: \.offset) { _, block in
-                    view(block)
+                    view(block).layoutValue(key: WholeBlocks.Heading.self, value: block.isHeading).layoutValue(key: WholeBlocks.Gap.self, value: block == .gap)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
+            .foregroundStyle(Color.ink)
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array((given ?? Self.blocks(markdown)).enumerated()), id: \.offset) { _, block in
+                        view(block)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+            }
+            .foregroundStyle(Color.ink)
         }
-        .foregroundStyle(Color.ink)
     }
 
     private func inline(_ s: String) -> Text {
@@ -408,16 +424,19 @@ struct NotePreview: View {
                 .padding(10)
                 .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 8))
         case .table(let header, let rows):
-            ScrollView(.horizontal, showsIndicators: false) {
-                Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
-                    GridRow { ForEach(Array(header.enumerated()), id: \.offset) { cell($0.element, header: true) } }
-                    // A tracker starts empty: one blank row shows it's a table to fill in.
-                    ForEach(Array((rows.isEmpty ? [header.map { _ in "" }] : rows).enumerated()), id: \.offset) { _, row in
-                        GridRow { ForEach(Array(row.enumerated()), id: \.offset) { cell($0.element, header: false) } }
-                    }
+            let grid = Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+                GridRow { ForEach(Array(header.enumerated()), id: \.offset) { cell($0.element, header: true) } }
+                // A tracker starts empty: one blank row shows it's a table to fill in.
+                ForEach(Array((rows.isEmpty ? [header.map { _ in "" }] : rows).enumerated()), id: \.offset) { _, row in
+                    GridRow { ForEach(Array(row.enumerated()), id: \.offset) { cell($0.element, header: false) } }
                 }
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.separator, lineWidth: 0.5))
-                .clipShape(.rect(cornerRadius: 6))
+            }
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.separator, lineWidth: 0.5))
+            .clipShape(.rect(cornerRadius: 6))
+            Group {
+                // In a window that doesn't scroll, the table takes the window's width and its
+                // cells wrap; otherwise it scrolls sideways.
+                if whole { grid } else { ScrollView(.horizontal, showsIndicators: false) { grid } }
             }
             .padding(.vertical, 4)
         case .gap:
@@ -429,13 +448,65 @@ struct NotePreview: View {
         inline(s.isEmpty ? " " : s)
             .font(header ? .footnote.weight(.semibold) : .footnote)
             .monospacedDigit()
-            .lineLimit(2)
-            .frame(minWidth: 44, maxWidth: 160, alignment: .leading)
+            .lineLimit(whole ? 3 : 2)
+            .fixedSize(horizontal: false, vertical: whole)
+            .frame(minWidth: 44, maxWidth: whole ? .infinity : 160, maxHeight: whole ? .infinity : nil, alignment: .topLeading)
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .background(header ? AnyShapeStyle(.quaternary.opacity(0.6)) : AnyShapeStyle(.clear))
             .overlay(alignment: .trailing) { Rectangle().fill(.separator).frame(width: 0.5) }
             .overlay(alignment: .bottom) { Rectangle().fill(.separator).frame(height: 0.5) }
+    }
+}
+
+extension NotePreview.Block {
+    var isHeading: Bool { if case .heading = self { return true }; return false }
+}
+
+/// A note's blocks top to bottom, as many whole ones as fit: a block that would be cut at the foot
+/// goes, with everything after it, and so does a heading (and the space above it) left last
+/// without the block under it. What goes is placed out of sight, below the window it's clipped to.
+struct WholeBlocks: Layout {
+    var spacing: CGFloat = 4
+
+    struct Heading: LayoutValueKey { static let defaultValue = false }
+    struct Gap: LayoutValueKey { static let defaultValue = false }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 320
+        let height = proposal.height ?? subviews.reduce(0) { $0 + $1.sizeThatFits(.init(width: width, height: nil)).height + spacing }
+        return CGSize(width: width, height: height)
+    }
+
+    /// How many of the blocks show, given their heights, in a window of `room` points: whole ones
+    /// only, and never a heading or a gap last.
+    static func shown(heights: [CGFloat], headings: [Bool], gaps: [Bool], room: CGFloat, spacing: CGFloat) -> Int {
+        var y: CGFloat = 0, count = 0
+        for h in heights {
+            if y + h > room + 0.5 { break }
+            y += h + spacing
+            count += 1
+        }
+        while count > 0, headings[count - 1] || gaps[count - 1] { count -= 1 }
+        // Not even one whole block fits (a heading over a tall table on a small stage): it all
+        // shows and runs off the foot, rather than an empty window.
+        return count == 0 ? heights.count : count
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let sizes = subviews.map { $0.sizeThatFits(.init(width: bounds.width, height: nil)) }
+        let shown = Self.shown(heights: sizes.map(\.height), headings: subviews.map { $0[Heading.self] },
+                               gaps: subviews.map { $0[Gap.self] }, room: bounds.height, spacing: spacing)
+        var y = bounds.minY
+        for (i, s) in subviews.enumerated() {
+            let size = ProposedViewSize(width: bounds.width, height: sizes[i].height)
+            if i < shown {
+                s.place(at: CGPoint(x: bounds.minX, y: y), proposal: size)
+                y += sizes[i].height + spacing
+            } else {
+                s.place(at: CGPoint(x: bounds.minX, y: bounds.maxY + 10_000), proposal: size)
+            }
+        }
     }
 }
 

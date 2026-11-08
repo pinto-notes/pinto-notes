@@ -41,8 +41,9 @@ export async function handle(req: Request): Promise<Response> {
   let body: { html?: unknown; markdown?: unknown; data?: unknown; today?: unknown; views?: unknown; capture?: unknown; interact?: unknown; probes?: unknown; widget?: unknown; steps?: unknown; tests?: unknown; smoke?: unknown };
   try { body = JSON.parse(text); } catch { return new Response("Bad JSON", { status: 400 }); }
   if (typeof body.html !== "string" || typeof body.markdown !== "string") return new Response("html and markdown are required", { status: 400 });
-  const views = Array.isArray(body.views) ? (body.views as { width: number; scheme: string }[])
-    .filter((v) => Number.isInteger(v.width) && v.width >= 320 && v.width <= 1800 && (v.scheme === "light" || v.scheme === "dark")).slice(0, 4) as RenderOptions["views"] : undefined;
+  const views = Array.isArray(body.views) ? (body.views as { width: number; scheme: string; height?: number }[])
+    .filter((v) => Number.isInteger(v.width) && v.width >= 320 && v.width <= 1800 && (v.scheme === "light" || v.scheme === "dark") &&
+      (v.height === undefined || (Number.isInteger(v.height) && v.height >= 100 && v.height <= 1700))).slice(0, 4) as RenderOptions["views"] : undefined;
   const t0 = performance.now();
   // run_app_tests: the project's tests instead of the app.
   if (body.tests === true) {

@@ -15,7 +15,7 @@
     "default": "Use my Pinto Notes note \"Grocery list\". When I tell you what we need, even in one long sentence, read the note with fetch, then add each item as a checklist line under the aisle heading it belongs to with edit. Skip anything already on the list and unticked. Keep item names short and add a quantity only when I give one. When I say I'm back from the shop, remove the ticked lines and tell me what's left. If something doesn't fit an aisle, put it under \"Household\"."
   },
   "asks": [
-    "We need oat milk, lemons, two cans of chickpeas, bin bags and something for Friday's tacos.",
+    "Ask what groceries I need, then sort them by aisle.",
     "I'm back from the shop.",
     "What's still on the list?"
   ],

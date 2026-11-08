@@ -15,7 +15,7 @@
     "default": "Use my Pinto Notes note \"Book notes\". Read it with fetch before each change. When I start a book, add a heading for it at the start of \"Books\" with edit, like \"### Title by Author\". As I send you highlights and thoughts, add them under that book's heading with edit: quotes as > quotes with the page number, my own thoughts as bullets. Keep my words; don't polish them. When I say I've finished, add \"**The big idea:**\" in three sentences and two to four things I'll do differently as a checklist."
   },
   "asks": [
-    "Starting Four Thousand Weeks by Oliver Burkeman.",
+    "Ask which book I'm reading, then start its notes.",
     "Page 31: \"The day will never arrive when you finally have everything under control.\"",
     "I finished it. Wrap it up."
   ],

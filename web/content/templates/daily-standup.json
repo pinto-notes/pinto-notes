@@ -17,7 +17,7 @@
     "claudeCode": "Write today's standup into my Pinto Notes note \"Standup notes\". Run git log --since=yesterday --author=\"$(git config user.email)\" --oneline in this repo, turn the commits into two to five plain-language bullets (no hashes), and ask me what's next and what's blocking me. Then read the note with fetch and add a section at the start of \"Days\" with edit: a \"###\" heading with today's date, then Yesterday, Today and Blockers. Anything blocked also goes under \"Blockers\"."
   },
   "asks": [
-    "Write today's standup.",
+    "Ask what I did yesterday and what's next, then write today's standup.",
     "What was I blocked on last week?",
     "Summarize my standups since Monday for the sprint review."
   ],

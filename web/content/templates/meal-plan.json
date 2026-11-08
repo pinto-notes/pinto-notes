@@ -16,7 +16,7 @@
     "default": "Use my Pinto Notes note \"Meal plan and groceries\". On the weekend, ask me which nights we're cooking and anything to avoid, then suggest dinners and fill in the Dinners table with edit (read the note with fetch first). Then add what we need under \"Groceries\" as a checklist, grouped by aisle, leaving out what's under \"Always in the cupboard\". Keep weeknight dinners under 30 minutes. If I add something during the week, add it to the list."
   },
   "asks": [
-    "Plan dinners for this week. We're out on Friday, and no mushrooms.",
+    "Ask what I feel like this week and what to skip, then plan the dinners and the grocery list.",
     "Add oat milk and lemons to the groceries.",
     "What's for dinner tonight?"
   ],

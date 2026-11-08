@@ -14,7 +14,7 @@
     "default": "Use my Pinto Notes note \"Daily journal\". When I say I want to journal, ask me the questions under \"Questions\" one at a time, and skip any I pass on. If I tell you about my day in one go instead, write the entry from that without asking. Read the note with fetch, then add the day at the start of \"Entries\" with edit: a \"###\" heading with the weekday and date, then my answers as short lines in my own words, each starting with a bold label (Today, Energy, Remember, Tomorrow). Don't add advice unless I ask for it. When I ask what's been on my mind lately, answer from my entries."
   },
   "asks": [
-    "I want to journal.",
+    "Ask me today's four questions, then write up the entry.",
     "Today was long: the move is done, the boxes aren't, and I finally slept.",
     "What's been on my mind this week?"
   ],
