@@ -231,9 +231,12 @@ import UniformTypeIdentifiers
         await h.settle(0.2)
         let key = "f\(image.id)"
         let plain = await brightness(h, key)
+        let afterY = h.lineRect(at: offset(of: "After", h)).minY
+        let frame = h.view.cardHosts[key]?.frame
         h.view.selectEmbed(key)
         await h.settle()
         #expect(isSelected(h, key))
+        #expect(h.lineRect(at: offset(of: "After", h)).minY == afterY && h.view.cardHosts[key]?.frame == frame, "selecting it moves nothing")
         let tinted = await brightness(h, key)
         #expect(abs(tinted - plain) > 0.03, "it looks selected: \(plain) then \(tinted)")
         await h.snapshot("attachment-picture-selected")
