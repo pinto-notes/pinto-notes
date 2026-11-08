@@ -253,11 +253,14 @@ import Testing
         let row = cell.offsetBy(dx: foot.minX - sidebar.minX, dy: 0)
         let pill = (leading: cell.minX - reach.leading - sidebar.minX, trailing: sidebar.maxX - (cell.maxX + reach.trailing))
         let left = account.minX - foot.minX, right = foot.maxX - account.maxX
-        #expect(abs(left - pill.leading) < 0.5 && abs(right - pill.trailing) < 0.5,
-                "the account's highlight is \(left) and \(right) pt in; a folder row's pill \(pill)")
-        #expect(abs(left - right) <= 5, "about as far in on the left (\(left)) as on the right (\(right))")
+        #expect(abs(left - pill.leading) < 0.5, "the account's highlight is \(left) pt in on the left, as a folder row's pill \(pill)")
+        // The same on both sides (Emil, 8 November 2026: the right was wider, for a scroll bar the foot hasn't got).
+        #expect(abs(left - right) < 0.5, "as far in on the left (\(left)) as on the right (\(right))")
         #expect(abs(account.minX + reach.leading - row.minX) < 0.5, "the photo starts where the folder icon does")
         #expect(abs(account.height - (AccountButton.avatar + reach.top + reach.bottom)) < 0.5, "a folder pill's reach around the photo: \(account.height)")
+        // A gap between the rows and you (Emil, 8 November 2026).
+        let lastRow = try #require(FootProbe.frames["sidebar.import"])
+        #expect(account.minY - lastRow.maxY >= SidebarFoot.accountGap, "the account sits \(account.minY - lastRow.maxY) pt under Import notes")
         // Their words start where your name does (Emil, 8 November 2026).
         let name = try #require(FootProbe.frames["sidebar.account.name"], "your name is in the window")
         for id in ["sidebar.templates", "sidebar.connectAI", "sidebar.import"] {

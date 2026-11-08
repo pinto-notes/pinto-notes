@@ -99,6 +99,8 @@ struct SidebarFoot: View {
     /// the rows "don't really align well" with the account under them).
     static var iconColumn: CGFloat { AccountButton.avatar }
     static let gap: CGFloat = 9
+    /// Between the rows and your account.
+    static let accountGap: CGFloat = 8
 
     /// A folder row's content inside its 30.5 pt pill.
     static var rowContentHeight: CGFloat {
@@ -113,9 +115,13 @@ struct SidebarFoot: View {
             // folders, whose edge showed a line on hover (Emil, 8 November 2026).
             if rows { SidebarAILine(); SidebarStudyRows(imports: imports) }
             AccountButton(backend: backend)
+                // A little apart from the rows above: you, not another thing to do (Emil, 8 November 2026).
+                .padding(.top, rows ? SidebarFoot.accountGap : 0)
         }
         .padding(.leading, pill.leading)
-        .padding(.trailing, pill.trailing)
+        // As far in on the right as on the left: the folder list keeps room on its right for the
+        // scroll bar, the foot has none (Emil, 8 November 2026).
+        .padding(.trailing, pill.leading)
         #if DEBUG
         .footProbe("sidebar.foot")
         #endif
