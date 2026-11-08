@@ -26,9 +26,9 @@ export default function Page() {
       </p>
 
       <h2>A notes app first</h2>
-      <PostFigure src="/blog/launch/iphone-framed-files" width={760} height={1560} maxWidth={340} kind="plain"
-        alt="A Trip documents note in Pinto Notes on iPhone in dark mode: a PDF, a CSV file, a photo and a link to a website."
-        caption="Files, photos and links in a note, on your phone." />
+      <PostFigure src="/blog/launch/iphone-kitchen-light-dark" width={1080} height={1260} maxWidth={620} kind="plain"
+        alt="The Kitchen redo note on two iPhones: in light mode with a photo of green tiles and oak shelves, and in dark mode with three new checklist lines from ChatGPT, tinted, and ChatGPT changed 3 lines."
+        caption="One note in light and dark. On the right, the three lines ChatGPT just added." />
       <p>It works the way you expect a notes app on iPhone to:</p>
       <ul>
         <li>Checklists that move ticked items to the bottom</li>
@@ -38,20 +38,12 @@ export default function Page() {
         <li>Lock a note with a password and Face ID</li>
       </ul>
 
-      <h2>Connect your AI from your phone</h2>
-      <PostFigure src="/blog/launch/iphone-framed-connect" width={760} height={1560} maxWidth={340} kind="plain"
-        alt="Connect an AI in Pinto Notes on iPhone: ChatGPT and Claude connected, Codex and another AI below, and what's connected with when it was last used."
-        caption="Connect an AI on iPhone, with what's connected and when it was last used." />
-      <p>
-        Tap your photo at the top right, then Connect an AI. ChatGPT connects right there. For Claude, Claude Code and Codex, the
-        phone sends you the steps to finish on your computer. <a href="/blog/connect-chatgpt-to-your-notes">Connecting ChatGPT or
-        Claude</a> has every step, and <a href="/blog/notes-in-claude-code-and-codex">Claude Code and Codex</a> take one command.
-      </p>
-
       <h2>Already on the Mac?</h2>
       <p>
         Sign in on your iPhone with the same account and your notes are there. New to Pinto Notes? <a href="/blog/import-your-notes">Bring
-        your notes</a> from Apple Notes or another app on the Mac, and they show up on your phone a moment later.
+        your notes</a> from Apple Notes or another app on the Mac, and they show up on your phone a moment later. Connect ChatGPT or Claude once, from the Mac app or from the AI itself, and
+        it works with your notes on your phone too. <a href="/blog/connect-chatgpt-to-your-notes">Connecting ChatGPT or Claude</a> has
+        every step.
       </p>
     </PostPage>
   );

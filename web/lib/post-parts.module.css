@@ -63,6 +63,8 @@
   position: absolute; right: 10px; top: 10px; min-width: 44px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 22px; cursor: pointer;
   background: rgba(42, 29, 16, 0.72); color: #fff4e6; font-family: inherit; font-weight: 600; font-size: 13px; line-height: 1;
 }
+/* On a phone the corner is the status bar: the button sits low and centred, over the empty foot of the screen. */
+.loopFrame[data-phone] .loopToggle { top: auto; right: 50%; bottom: 16px; transform: translateX(50%); }
 .loopToggle:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .loopCaption { margin-top: 10px; color: var(--muted); font-size: 14px; line-height: 1.45; text-align: center; text-wrap: balance; }
 
