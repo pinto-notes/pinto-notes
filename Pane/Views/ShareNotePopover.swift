@@ -291,12 +291,15 @@ private struct ShareTab: View {
 struct WebPagePreview: View {
     let title: String
     let text: String
-    static let height: CGFloat = 132
+    static let height: CGFloat = 150
 
     /// The lines under the title: the note's first few, its first line left out when it is the title.
     static func lines(title: String, text: String) -> [String] {
         var lines = text.split(separator: "\n", omittingEmptySubsequences: true).map { $0.trimmingCharacters(in: .whitespaces) }
         if let first = lines.first, first == title.trimmingCharacters(in: .whitespaces) { lines.removeFirst() }
+        // A divider's "---" is no line of text (Emil, 8 November 2026: it showed as "---").
+        let dividers: Set<Character> = ["-", "*", "_", " "]
+        lines.removeAll { $0.count >= 3 && $0.allSatisfy(dividers.contains) }
         return Array(lines.filter { !$0.isEmpty }.prefix(4)).map { line in
             // Markdown's list and heading marks read as clutter at this size.
             var l = Substring(line)
@@ -306,46 +309,62 @@ struct WebPagePreview: View {
     }
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        let stage = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        // A small picture of the page, not more of the popover: a light browser window with a
+        // shadow, on a tinted ground, as the Picture tab sets its card on a background (Emil,
+        // 8 November 2026: the preview "blends in").
+        ZStack(alignment: .top) {
+            stage.fill(LinearGradient(colors: [Color(PColor.paneAccent).opacity(0.28), Color(PColor.paneAccent).opacity(0.08)],
+                                      startPoint: .topLeading, endPoint: .bottomTrailing))
+            browser
+                .padding(.horizontal, 22)
+                .padding(.top, 16)
+                .environment(\.colorScheme, .light)
+        }
+        .frame(height: Self.height)
+        .clipShape(stage)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("A preview of the web page")
+        .accessibilityIdentifier("share.webPreview")
+    }
+
+    private var browser: some View {
+        let shape = UnevenRoundedRectangle(topLeadingRadius: 7, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 7, style: .continuous)
         let name = title.trimmingCharacters(in: .whitespaces).isEmpty ? "New note" : title
-        VStack(spacing: 0) {
+        return VStack(spacing: 0) {
             HStack(spacing: 4) {
-                ForEach(0..<3, id: \.self) { _ in Circle().fill(Color.muted.opacity(0.35)).frame(width: 6, height: 6) }
+                ForEach(0..<3, id: \.self) { _ in Circle().fill(Color.black.opacity(0.15)).frame(width: 6, height: 6) }
                 Spacer(minLength: 8)
                 Text("pintonotes.com/s/\u{2026}")
                     .font(.system(size: 9.5))
-                    .foregroundStyle(Color.muted)
+                    .foregroundStyle(Color.black.opacity(0.5))
                     .lineLimit(1)
                     .padding(.horizontal, 10).frame(height: 16)
-                    .background(Capsule().fill(Color.primary.opacity(0.06)))
+                    .background(Capsule().fill(Color.black.opacity(0.06)))
                 Spacer(minLength: 8)
                 Color.clear.frame(width: 26, height: 6)
             }
             .padding(.horizontal, 8)
-            .frame(height: 26)
-            Rectangle().fill(Color.line).frame(height: 1)
+            .frame(height: 24)
+            .background(Color(white: 0.95))
+            Rectangle().fill(Color.black.opacity(0.08)).frame(height: 1)
             VStack(alignment: .leading, spacing: 5) {
                 Text(name)
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color.ink)
+                    .foregroundStyle(Color.black.opacity(0.88))
                     .lineLimit(1)
                 ForEach(Array(Self.lines(title: title, text: text).enumerated()), id: \.offset) { _, line in
-                    Text(line).font(.system(size: 10)).foregroundStyle(Color.muted).lineLimit(1)
+                    Text(line).font(.system(size: 10)).foregroundStyle(Color.black.opacity(0.55)).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 14)
             .padding(.top, 10)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(Color(nsColor: .textBackgroundColor))
+            .background(Color.white)
         }
-        .frame(height: Self.height)
-        .background(Color.primary.opacity(0.03))
         .clipShape(shape)
-        .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("A preview of the web page")
-        .accessibilityIdentifier("share.webPreview")
+        .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
     }
 }
 
