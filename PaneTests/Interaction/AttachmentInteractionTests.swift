@@ -266,6 +266,29 @@ import UniformTypeIdentifiers
 
     // MARK: Putting one in
 
+    func inserted(_ text: String, selecting part: String, caretAfter: Bool = false) -> (String, Int)? {
+        var r = (text as NSString).range(of: part)
+        if caretAfter { r = NSRange(location: NSMaxRange(r), length: 0) }
+        guard let e = EditorController.linesEdit([Self.fileLine], in: text, selection: r) else { return nil }
+        return ((text as NSString).replacingCharacters(in: e.range, with: e.replacement), e.caret)
+    }
+
+    /// A file pasted or dropped over selected words takes their place, as a paste does in Notes;
+    /// it goes on a line of its own, and the caret goes under it.
+    @Test func aFilePastedOverASelectionReplacesIt() throws {
+        let L = Self.fileLine
+        let (a, ca) = try #require(inserted("Title\nHello world\nEnd", selecting: "world"))
+        #expect(a == "Title\nHello \n\(L)\nEnd")
+        #expect(ca == (a as NSString).range(of: "End").location)
+        let (b, _) = try #require(inserted("Title\nHello world\nEnd", selecting: "Hello world"))
+        #expect(b == "Title\n\(L)\nEnd", "a whole line selected: the file in its place")
+        let (c, cc) = try #require(inserted("Title\nHello\nEnd", selecting: "Hello", caretAfter: true))
+        #expect(c == "Title\nHello\n\(L)\nEnd", "no selection: under the caret's line, as before")
+        #expect(cc == (c as NSString).range(of: "End").location)
+        let (d, _) = try #require(inserted("Title\nOne\nTwo\nEnd", selecting: "ne\nTw"))
+        #expect(d == "Title\nOo\n\(L)\nEnd", "across lines")
+    }
+
     /// A file put in where you're typing, far down a long note: the note doesn't move under you
     /// (once, or twice as a table's did), and the caret is under the file.
     @Test func puttingAFileInDoesntMoveTheNote() async {
