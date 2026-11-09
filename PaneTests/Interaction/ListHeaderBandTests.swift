@@ -30,8 +30,19 @@ import Testing
         return list.floatsGroupRows && edge > 0 ? 0 : list.rect(ofRow: 0).minY - edge
     }
 
+    /// The sidebar: the outline whose rows start with "Folders" (the leftmost one).
+    static func sidebar(_ w: NSWindow) -> NSOutlineView? {
+        var found: [NSOutlineView] = []
+        func walk(_ v: NSView) {
+            if let o = v as? NSOutlineView { found.append(o) }
+            v.subviews.forEach(walk)
+        }
+        walk(w.contentView!)
+        return found.min { $0.convert($0.bounds, to: nil).minX < $1.convert($1.bounds, to: nil).minX }
+    }
+
     static func clickSidebar(_ w: NSWindow, row: Int) {
-        guard let list = try? MacEmptyDetailTests.list(w), let sidebar = MacWindowChromeTests.find(NSOutlineView.self, in: w.contentView!, where: { $0 !== list }) else { return }
+        guard let sidebar = sidebar(w) else { return }
         let r = sidebar.rect(ofRow: row)
         let p = sidebar.convert(NSPoint(x: r.midX, y: r.midY), to: nil)
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
@@ -119,6 +130,52 @@ import Testing
             }
         }
         #expect(odd.isEmpty, "\(odd)")
+    }
+
+    /// Whether the list draws a floating (pinned) heading while its first heading is still under
+    /// the edge, at rest.
+    static func pinnedAtRest(_ w: NSWindow) -> String? {
+        guard let list = MacWindowChromeTests.find(NSTableView.self, in: w.contentView!, where: { $0.numberOfRows > 0 && $0.style != .sourceList && $0.accessibilityLabel() != "Sidebar" }),
+              let scroll = list.enclosingScrollView else { return nil }
+        let edge = scroll.contentView.bounds.minY + scroll.contentInsets.top
+        let floating = (0 ..< list.numberOfRows).contains { list.rowView(atRow: $0, makeIfNecessary: false)?.isFloating == true }
+        return floating && edge < list.rect(ofRow: 0).minY - 0.5 ? "a pinned heading with the list \(edge) pt down" : nil
+    }
+
+    /// SwiftUI turns pinning on again when it updates a table: the next draw is plain anyway,
+    /// with nothing to wait for (9 November 2026: the band showed for a frame or stayed).
+    @Test func aTableToldToPinAtRestDrawsPlain() async throws {
+        let (w, done) = try await Self.window(height: 520)
+        defer { done() }
+        Self.clickSidebar(w, row: 1)
+        await MacWindowChromeTests.settle(w, 8)
+        let list = try MacEmptyDetailTests.list(w)
+        list.floatsGroupRows = true
+        list.needsDisplay = true
+        list.enclosingScrollView?.needsDisplay = true
+        w.displayIfNeeded()
+        #expect(Self.pinnedAtRest(w) == nil, "drawn pinned at rest")
+        #expect(!list.floatsGroupRows)
+    }
+
+    /// Emil's clicks, quickly (Notes, Daily, Test, All Notes, Notes, Test, Daily, All Notes), with
+    /// every frame looked at from the first after each click: none has a pinned heading at rest.
+    @Test func quickFolderSwitchesNeverShowABand() async throws {
+        let (w, done) = try await Self.window(height: 640)
+        defer { done() }
+        var odd: [String] = []
+        // Sidebar rows: Folders 0, All Notes 1, Notes 2, Test 3, Daily 4.
+        for (k, row) in [2, 4, 3, 1, 2, 3, 4, 1].enumerated() {
+            Self.clickSidebar(w, row: row)
+            let clock = ContinuousClock(), start = clock.now
+            while clock.now - start < .milliseconds(k % 2 == 0 ? 900 : 1300) {
+                try? await Task.sleep(for: .milliseconds(16))
+                w.contentView?.layoutSubtreeIfNeeded()
+                w.displayIfNeeded()
+                if let s = Self.pinnedAtRest(w) { odd.append("click \(k + 1) (row \(row)), \(Int((clock.now - start) / .milliseconds(1))) ms: \(s)") }
+            }
+        }
+        #expect(odd.isEmpty, "\(odd.prefix(8))")
     }
 }
 #endif
