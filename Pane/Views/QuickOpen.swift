@@ -589,6 +589,16 @@ struct QuickOpenPanel: View {
         static let detailSize: CGFloat = 12
         /// A folder or note as a tag (`tag`): under the 13 pt first words, its glyph 2 pt under it.
         static let tagSize: CGFloat = 11.5
+        /// Between a tag's glyph and its name; with the symbol's own margins, about 4.5 pt of
+        /// space between the ink (Emil, 9 November 2026: "a bit too close to the name").
+        static let tagGap: CGFloat = 2
+        /// How far above the name's baseline the glyph's middle sits: half the capital height, so
+        /// the glyph centres on the name's letters, not on its baseline (Emil, 9 November 2026:
+        /// "folder icon is not vertically centered"). A quarter point more, as the symbols' ink
+        /// sits a little under their frame's middle.
+        static let tagLift: CGFloat = NSFont.systemFont(ofSize: tagSize).capHeight / 2 + 0.25
+        /// The widest the note rows' folder column gets; a longer name ends in "...".
+        static let maxColumn: CGFloat = 140
         static let maxList: CGFloat = 392
     }
 
@@ -740,7 +750,8 @@ struct QuickOpenPanel: View {
     }
 
     private func list(_ rows: [QuickOpen.Row], index: Int) -> some View {
-        ScrollViewReader { proxy in
+        let column: CGFloat? = Self.folderColumn(rows)
+        return ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(rows.enumerated()), id: \.element.id) { i, row in
@@ -755,17 +766,7 @@ struct QuickOpenPanel: View {
                                 .padding(.bottom, 2)
                                 .accessibilityAddTraits(.isHeader)
                         }
-                        rowView(row, on: focused ? i == index : i == hovered)
-                            .id(row.id)
-                            .onTapGesture { jumpAndChoose(row) }
-                            // One row to VoiceOver, not its loose texts and symbols ("Text With A
-                            // Magnifying Glass", round 18), and pressable.
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(Self.rowLabel(row))
-                            .accessibilityIdentifier("quickOpen.row")
-                            .accessibilityAddTraits(i == index ? [.isButton, .isSelected] : .isButton)
-                            .accessibilityAction { jumpAndChoose(row) }
-                            .onHover { if $0 { highlighted = i; hovered = i } else if hovered == i { hovered = nil } }
+                        listRow(row, at: i, chosen: index, column: column)
                     }
                 }
                 .padding(6)
@@ -798,7 +799,24 @@ struct QuickOpenPanel: View {
         return Metrics.textRow + CGFloat(t.others.count + (t.more > 0 ? 1 : 0)) * Metrics.textLine
     }
 
-    @ViewBuilder private func rowView(_ row: QuickOpen.Row, on: Bool) -> some View {
+    /// A row in the list: drawn, pressable, and one element to VoiceOver.
+    private func listRow(_ row: QuickOpen.Row, at i: Int, chosen index: Int, column: CGFloat?) -> some View {
+        rowView(row, on: focused ? i == index : i == hovered, column: column)
+            .id(row.id)
+            .onTapGesture { jumpAndChoose(row) }
+            // One row to VoiceOver, not its loose texts and symbols ("Text With A
+            // Magnifying Glass", round 18), and pressable.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Self.rowLabel(row))
+            .accessibilityIdentifier("quickOpen.row")
+            .accessibilityAddTraits(i == index ? [.isButton, .isSelected] : .isButton)
+            .accessibilityAction { jumpAndChoose(row) }
+            .onHover { inside in
+                if inside { highlighted = i; hovered = i } else if hovered == i { hovered = nil }
+            }
+    }
+
+    @ViewBuilder private func rowView(_ row: QuickOpen.Row, on: Bool, column: CGFloat?) -> some View {
         let shape = RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
         HStack(spacing: 10) {
             switch row {
@@ -826,10 +844,14 @@ struct QuickOpenPanel: View {
                             .accessibilityIdentifier("quickOpen.preview")
                     }
                     Spacer(minLength: 12)
-                    if let f = n.folder {
-                        Self.tag("folder", f, glyph: folderGlyph)
-                            .fixedSize()
-                            .accessibilityIdentifier("quickOpen.folder")
+                    // The folders in one column, each from its left edge, so the glyphs line up
+                    // (Emil, 9 November 2026: "could you maybe column align them?").
+                    if let column {
+                        Group {
+                            if let f = n.folder { Self.tag("folder", f, glyph: folderGlyph) }
+                        }
+                        .frame(width: column, alignment: .leading)
+                        .accessibilityIdentifier("quickOpen.folder")
                     }
                 case .sidebar:
                     // As the sidebar has it: an icon, the name in the accent when chosen, a figure at the end.
@@ -841,10 +863,16 @@ struct QuickOpenPanel: View {
             case .text(let t):
                 icon("text.magnifyingglass", on: on, acts: false)
                 VStack(alignment: .leading, spacing: 2) {
+                    // The folder in the note rows' column; the column takes the date's place.
                     HStack(spacing: 10) {
                         Text(t.title.isEmpty ? "New Note" : t.title).foregroundStyle(Color.ink).lineLimit(1)
-                        if let f = t.folder {
-                            Text(f).foregroundStyle(Color.muted).lineLimit(1).layoutPriority(-1)
+                        Spacer(minLength: 12)
+                        if let column {
+                            Group {
+                                if let f = t.folder { Self.tag("folder", f, glyph: folderGlyph) }
+                            }
+                            .frame(width: column, alignment: .leading)
+                            .accessibilityIdentifier("quickOpen.folder")
                         }
                     }
                     snippetText(t.snippet)
@@ -856,8 +884,10 @@ struct QuickOpenPanel: View {
                             .accessibilityIdentifier("quickOpen.more")
                     }
                 }
-                Spacer(minLength: 8)
-                Text(DateBucket.rowDate(t.date)).foregroundStyle(Color.muted).monospacedDigit()
+                if column == nil {
+                    Spacer(minLength: 8)
+                    Text(DateBucket.rowDate(t.date)).foregroundStyle(Color.muted).monospacedDigit()
+                }
             case .command(let c):
                 icon(c.symbol, on: on, acts: true)
                 // The name and what it acts on share a baseline: "New Note [folder] Work" (Emil,
@@ -902,15 +932,40 @@ struct QuickOpenPanel: View {
     /// A folder (or note) as a quiet tag: a small, light glyph, then its name, in the faintest
     /// grey, the same on note rows and commands (Emil, 9 November 2026: the outline folder was as
     /// big and heavy as the text, and the note rows' folder had none, so it read as a folder in one
-    /// place and not the other). The glyph is set inside the text, 2 pt under it, so it sits on the
-    /// baseline and centres on the lower-case letters; a thin space keeps it close to the name.
+    /// place and not the other). The glyph's middle sits half a capital above the name's baseline,
+    /// so it centres on the letters, with a small gap before the name.
     static func tag(_ symbol: String, _ name: String, glyph: Color? = nil) -> some View {
-        (Text(Image(systemName: symbol)).font(.system(size: Metrics.tagSize - 2, weight: .light)).foregroundStyle(glyph ?? Color.faint)
-            + Text("\u{2009}")
-            + Text(name).font(.system(size: Metrics.tagSize)))
-            .foregroundStyle(Color.faint)
-            .lineLimit(1)
-            .truncationMode(.tail)
+        HStack(alignment: .firstTextBaseline, spacing: Metrics.tagGap) {
+            Image(systemName: symbol)
+                .font(.system(size: Metrics.tagSize - 2, weight: .light))
+                .foregroundStyle(glyph ?? Color.faint)
+                .alignmentGuide(.firstTextBaseline) { d in d[VerticalAlignment.center] + Metrics.tagLift }
+            Text(name)
+                .font(.system(size: Metrics.tagSize))
+                .foregroundStyle(Color.faint)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+    }
+
+    /// The note rows' folder column: as wide as the widest folder tag among the rows shown, up to
+    /// `Metrics.maxColumn`; nil when no row shows a folder. Worked out once for the whole list, so
+    /// every row's column has the same left edge.
+    static func folderColumn(_ rows: [QuickOpen.Row]) -> CGFloat? {
+        guard QuickOpen.look == .list else { return nil }
+        let names = rows.compactMap { row -> String? in
+            switch row {
+            case .note(let n): n.folder
+            case .text(let t): t.folder
+            default: nil
+            }
+        }
+        guard !names.isEmpty else { return nil }
+        let font = NSFont.systemFont(ofSize: Metrics.tagSize)
+        let widest = names.map { ($0 as NSString).size(withAttributes: [.font: font]).width }.max() ?? 0
+        let glyph = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: Metrics.tagSize - 2, weight: .light))?.size.width ?? Metrics.tagSize
+        return min(Metrics.maxColumn, (glyph + Metrics.tagGap + widest).rounded(.up) + 1)
     }
 
     /// The person's accent for glyphs; its deeper ink shade with Increase Contrast, as small text
