@@ -37,10 +37,19 @@ enum Hover {
     /// The sidebar's pill, as Apple Notes draws it (measured side by side, 2026-10-12): 6 pt to the
     /// left of the icon, 8.5 pt past the count, 30.5 pt tall in a 32 pt row so neighbouring pills keep
     /// a hairline apart.
-    /// A level of sub-folders moves the content right by `sidebarIndent`.
+    /// A level of sub-folders moves the content right by `sidebarIndent`. On the Mac the pill also
+    /// takes in the column the list keeps for folders' arrows, so an arrow sits inside it, as in
+    /// Notes (Emil, 9 November 2026: "on hover the chevron is half-in-half-out"); every row's pill,
+    /// a sub-folder's too, starts at the same place.
     static func sidebarReach(depth: Int = 0) -> EdgeInsets {
-        EdgeInsets(top: 6.5, leading: 6 + CGFloat(depth) * sidebarIndent, bottom: 6.5, trailing: 1.5)
+        EdgeInsets(top: 6.5, leading: 6 + sidebarArrowRoom + CGFloat(depth) * sidebarIndent, bottom: 6.5, trailing: 1.5)
     }
+    /// The column the Mac's list keeps left of the rows for folders' arrows (`SidebarStyle.rowContent`).
+    #if os(macOS)
+    static let sidebarArrowRoom: CGFloat = 9
+    #else
+    static let sidebarArrowRoom: CGFloat = 0
+    #endif
     /// A selected row, like Notes: a quiet neutral fill under an icon and name in the accent. A
     /// hovered row is the same pill, fainter (`row`).
     static var selected: AnyShapeStyle {
