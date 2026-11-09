@@ -2,6 +2,11 @@
 import SwiftData
 import SwiftUI
 
+private extension Color {
+    /// The third tone, a little fainter than muted: a folder or note named as a tag.
+    static var faint: Color { Color.muted.opacity(0.72) }
+}
+
 /// Go to Note… (⌘K or ⌘O): a Spotlight-like panel over the notes window. Type part of a title and
 /// Return opens it; the same field runs the app's commands (New Note, Pin, Move, Import, Connect
 /// an AI, Settings), finds notes by their text (the line that holds it shown under the title), and,
@@ -60,27 +65,21 @@ enum QuickOpen {
         let shortcut: String?
         /// Other words it answers to: "ai" and "chatgpt" find Connect an AI.
         let keywords: [String]
-        /// The section it's listed under with nothing typed.
-        var group: Group = .more
-        /// What it acts on, quiet beside the title: "in Daily", "9 November 2026 · Daily".
+        /// What it acts on, quiet beside the title: "[folder] Daily", "9 November 2026 · [folder] Daily".
         var detail: Detail?
         var id: String { title }
     }
 
-    /// The commands' sections, in the order shown (Emil, 9 November 2026: "its just terribly
-    /// unclear what exactly will each do"). The open note's actions sit under its title.
-    enum Group: Int, Sendable {
-        case create, note, importing, more
-    }
-
-    /// The thing a command acts on, written beside its title: a word leading in ("in"), an icon,
-    /// and the thing's name ("Daily").
+    /// The thing a command acts on, written beside its title (Emil, 9 November 2026: "its just
+    /// terribly unclear what exactly will each do"): words leading in (today's date), then the
+    /// thing as a tag, a small glyph and its name ("[folder] Daily", "[doc] Q4 plan"), or plain
+    /// words with no glyph ("Top level").
     struct Detail: Equatable, Sendable {
         var lead: String?
         var symbol: String?
         var name: String
-        /// As VoiceOver reads it, and as the tests compare it: "in Daily".
-        var text: String { [lead, name].compactMap { $0 }.joined(separator: " ") }
+        /// As VoiceOver reads it, and as the tests compare it: "in Daily" for a folder.
+        var text: String { [lead, symbol == "folder" ? "in \(name)" : name].compactMap { $0 }.joined(separator: " ") }
     }
 
     /// What the commands act on, read from the window: the open note, the folder New Note puts a
@@ -97,10 +96,9 @@ enum QuickOpen {
         var todayFolder: String?
     }
 
-    /// A section's label: its name, and an icon for the open note's.
+    /// A section's label.
     struct Header: Equatable, Sendable {
         var title: String
-        var symbol: String?
     }
 
     /// The line of a note that holds the text: before it, the text as written there, after it.
@@ -212,24 +210,24 @@ enum QuickOpen {
         }
         var out: [CommandItem] = [
             CommandItem(action: .newNote, title: "New Note", symbol: "square.and.pencil", shortcut: "⌘N", keywords: ["create", "add", "write"],
-                        group: .create, detail: t.newNoteFolder.map { Detail(lead: "in", symbol: "folder", name: $0) }),
+                        detail: t.newNoteFolder.map { Detail(symbol: "folder", name: $0) }),
             CommandItem(action: .todaysNote, title: "Today\u{2019}s Note", symbol: "calendar", shortcut: "⌘T", keywords: ["daily", "today", "journal", "date"],
-                        group: .create, detail: today),
+                        detail: today),
             // A top-level folder whatever is selected: the sidebar's New Folder (startNewFolder(nil)).
             CommandItem(action: .newFolder, title: "New Folder", symbol: "folder.badge.plus", shortcut: "⇧⌘N", keywords: ["create", "add"],
-                        group: .create, detail: Detail(lead: "in", name: "Folders")),
+                        detail: Detail(name: "Top level")),
         ]
         if let note = t.note {
             let on = Detail(symbol: "doc.text", name: note)
             out.append(CommandItem(action: .togglePin, title: t.pinned ? "Unpin Note" : "Pin Note", symbol: t.pinned ? "pin.slash" : "pin", shortcut: nil,
-                                   keywords: ["pin", "unpin", "top"], group: .note, detail: on))
-            out.append(CommandItem(action: .move, title: "Move Note…", symbol: "folder", shortcut: nil, keywords: ["folder", "file"], group: .note, detail: on))
+                                   keywords: ["pin", "unpin", "top"], detail: on))
+            out.append(CommandItem(action: .move, title: "Move Note…", symbol: "folder", shortcut: nil, keywords: ["folder", "file"], detail: on))
         }
         out.append(CommandItem(action: .importAppleNotes, title: "Import from Apple Notes…", symbol: "square.and.arrow.down", shortcut: nil,
-                               keywords: ["import", "bring", "apple"], group: .importing))
+                               keywords: ["import", "bring", "apple"]))
         for kind in importKinds {
             out.append(CommandItem(action: .importFrom(kind), title: kind.menuTitle, symbol: "square.and.arrow.down", shortcut: nil,
-                                   keywords: ["import", "bring", kind.sourceName.lowercased()], group: .importing))
+                                   keywords: ["import", "bring", kind.sourceName.lowercased()]))
         }
         out.append(CommandItem(action: .exportNotes, title: "Export All Notes…", symbol: "square.and.arrow.up", shortcut: nil, keywords: ["export", "markdown", "backup", "zip", "download"]))
         out.append(CommandItem(action: .connectAI, title: "Connect an AI…", symbol: "sparkles", shortcut: nil, keywords: ["ai", "chatgpt", "claude", "codex", "connect"]))
@@ -269,39 +267,25 @@ enum QuickOpen {
         return t
     }
 
-    /// The label over row `i`, or nil when it carries on the section above. With nothing typed the
-    /// commands come in their groups, the open note's under its title with a document icon. Typing
-    /// lists them by how well they match under one label, each still saying what it acts on.
+    /// The label over row `i`, or nil when it carries on the section above: Recent notes or Notes,
+    /// Commands (one group, each command saying what it acts on: Emil, 9 November 2026, "it was
+    /// better when all the commands were grouped together"), In note text.
     static func header(before i: Int, in rows: [Row], query: String) -> Header? {
         func kind(_ r: Row) -> Int { switch r { case .note: 0; case .command: 1; case .search: 2; case .text: 3 } }
-        let typed = !query.trimmingCharacters(in: .whitespaces).isEmpty
         let k = kind(rows[i])
-        guard k != 2 else { return nil }
-        if case .command(let c) = rows[i], !typed {
-            if i > 0, case .command(let before) = rows[i - 1], before.group == c.group { return nil }
-            switch c.group {
-            case .create: return Header(title: "New")
-            case .note: return Header(title: c.detail?.name ?? "This note", symbol: "doc.text")
-            case .importing: return Header(title: "Import")
-            case .more: return Header(title: "More")
-            }
-        }
-        guard i == 0 || kind(rows[i - 1]) != k else { return nil }
+        guard k != 2, i == 0 || kind(rows[i - 1]) != k else { return nil }
         if k == 1 { return Header(title: "Commands") }
         if k == 3 { return Header(title: "In note text") }
-        return Header(title: typed ? "Notes" : "Recent notes")
+        return Header(title: query.trimmingCharacters(in: .whitespaces).isEmpty ? "Recent notes" : "Notes")
     }
 
-    /// Whether a command row shows what it acts on: always, except the open note's actions with
-    /// nothing typed, where its title is the label above them.
-    static func showsDetail(_ c: CommandItem, query: String) -> Bool {
-        guard c.detail != nil else { return false }
-        return c.group != .note || !query.trimmingCharacters(in: .whitespaces).isEmpty
-    }
+    /// Whether a command row shows what it acts on: whenever it acts on something outside the panel.
+    static func showsDetail(_ c: CommandItem, query: String) -> Bool { c.detail != nil }
 
     /// Every row, in the order shown: the notes and the commands (the commands first when one of
     /// them answers the query better than any title), then the notes found by their text (none
-    /// already listed by its title or folder), then searching every note for the text.
+    /// already listed by its title or folder), then searching every note for the text when that
+    /// would find more notes than are listed (`listsMore`).
     static func rows(notes all: [NoteItem], commands: [CommandItem], query: String, textHits: [TextHit] = []) -> [Row] {
         let q = query.trimmingCharacters(in: .whitespaces)
         let found = notes(all, matching: q), runs = self.commands(commands, matching: q)
@@ -311,10 +295,23 @@ enum QuickOpen {
         var out = bestCommand < bestNote ? commandRows + noteRows : noteRows + commandRows
         if !q.isEmpty {
             let listed = Set(found.map(\.id))
-            out += textHits.filter { !listed.contains($0.id) && score($0.title, q) == nil }.prefix(textLimit).map(Row.text)
-            out.append(.search(q))
+            let byText = textHits.filter { !listed.contains($0.id) && score($0.title, q) == nil }.prefix(textLimit)
+            out += byText.map(Row.text)
+            if listsMore(all, query: q, shown: listed.union(byText.map(\.id)), textHits: textHits) { out.append(.search(q)) }
         }
         return out
+    }
+
+    /// Whether "Show all notes with" would find notes the panel doesn't list (Emil, 9 November
+    /// 2026: one Welcome note, and the row still offered "all" of them). The list's search matches
+    /// titles and note text; this counts notes, not lines. Titles are counted here, all of them;
+    /// the text was read with a cap (`textLimit`), so a full read means there may be more. A
+    /// query too short for the text to be read can match any note's text, so the row stays.
+    static func listsMore(_ all: [NoteItem], query q: String, shown: Set<UUID>, textHits: [TextHit]) -> Bool {
+        guard q.count >= textMinLength else { return true }
+        if textHits.count >= textLimit { return true }
+        if textHits.contains(where: { !shown.contains($0.id) }) { return true }
+        return all.contains { !shown.contains($0.id) && score($0.title, q) != nil }
     }
 
     // MARK: Text
@@ -586,9 +583,10 @@ struct QuickOpenPanel: View {
         static let header: CGFloat = 22
         /// A section's label, under the 14 pt titles.
         static let headerSize: CGFloat = 11
-        /// A note's second line, and the folder on its right.
+        /// What a command acts on, when it's words (today's date, "Top level").
         static let detailSize: CGFloat = 12
-        static let folderSize: CGFloat = 11.5
+        /// A folder or note as a tag (`tag`): under the 13 pt first words, its glyph 2 pt under it.
+        static let tagSize: CGFloat = 11.5
         static let maxList: CGFloat = 392
     }
 
@@ -736,7 +734,7 @@ struct QuickOpenPanel: View {
                         if let label = header(before: i, in: rows) {
                             // A small label over its rows, like the sidebar's and Spotlight's, well
                             // below the titles (Emil, 9 November 2026: they were the same size).
-                            Self.iconAndName(label.symbol, label.title, size: Metrics.headerSize)
+                            Text(label.title)
                                 .font(.system(size: Metrics.headerSize, weight: .semibold))
                                 .foregroundStyle(Color.muted)
                                 .padding(.horizontal, 10)
@@ -765,7 +763,7 @@ struct QuickOpenPanel: View {
         }
     }
 
-    /// A section's name above its first row: Recent notes, Notes, the commands' groups, In note text.
+    /// A section's name above its first row: Recent notes, Notes, Commands, In note text.
     private func header(before i: Int, in rows: [QuickOpen.Row]) -> QuickOpen.Header? {
         QuickOpen.header(before: i, in: rows, query: query)
     }
@@ -792,9 +790,10 @@ struct QuickOpenPanel: View {
                     Spacer(minLength: 8)
                     if let f = n.folder { Text(f).foregroundStyle(Color.muted).lineLimit(1) }
                 case .list:
-                    // One line, as Raycast has it: an icon, the title in ink, the first words in the
-                    // one grey, the folder on the right in the same grey. Two tones, no date (Emil,
-                    // 9 November 2026: two lines were "a bit too much... its all grey").
+                    // One line, as Raycast has it: an icon, the title in ink, the first words in grey,
+                    // the folder on the right as a fainter, smaller tag. No date (Emil, 9 November
+                    // 2026: two lines were "a bit too much... its all grey"; then the words and the
+                    // folder looked "visually identical except for length and placement").
                     icon(n.locked ? "lock" : "doc.text", on: on)
                     highlightedTitle(n.title.isEmpty ? "New Note" : n.title)
                         .lineLimit(1)
@@ -809,10 +808,7 @@ struct QuickOpenPanel: View {
                     }
                     Spacer(minLength: 12)
                     if let f = n.folder {
-                        Text(f)
-                            .font(.system(size: 13))
-                            .foregroundStyle(Color.muted)
-                            .lineLimit(1)
+                        Self.tag("folder", f)
                             .fixedSize()
                             .accessibilityIdentifier("quickOpen.folder")
                     }
@@ -845,18 +841,24 @@ struct QuickOpenPanel: View {
                 Text(DateBucket.rowDate(t.date)).foregroundStyle(Color.muted).monospacedDigit()
             case .command(let c):
                 icon(c.symbol, on: on)
+                // The name and what it acts on share a baseline: "New Note [folder] Work" (Emil,
+                // 9 November 2026: "I care that its 'create a new note in X folder'").
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
                 highlightedTitle(c.title)
                     .fixedSize()
-                // What it acts on, quiet after the name: "in [folder] Daily" (Emil, 9 November
-                // 2026: "I care that its 'create a new note in X folder'").
                 if let d = c.detail, QuickOpen.showsDetail(c, query: query) {
-                    HStack(spacing: 4) {
-                        if let lead = d.lead { Text(lead).fixedSize() }
-                        Self.iconAndName(d.symbol, d.name, size: Metrics.detailSize)
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        if let lead = d.lead {
+                            Text(lead).font(.system(size: Metrics.detailSize)).foregroundStyle(Color.muted).fixedSize()
+                        }
+                        if let symbol = d.symbol {
+                            Self.tag(symbol, d.name)
+                        } else {
+                            Text(d.name).font(.system(size: Metrics.detailSize)).foregroundStyle(Color.muted).lineLimit(1)
+                        }
                     }
-                    .font(.system(size: Metrics.detailSize))
-                    .foregroundStyle(Color.muted)
                     .accessibilityIdentifier("quickOpen.detail")
+                }
                 }
                 Spacer(minLength: 8)
                 if let s = c.shortcut { Text(s).foregroundStyle(Color.muted).monospacedDigit() }
@@ -878,14 +880,18 @@ struct QuickOpenPanel: View {
         .contentShape(shape)
     }
 
-    /// A folder or note named with its icon just before it, 3 pt apart (Emil, 9 November 2026: "put
-    /// the folder icon and name closer together"). The icon a point under the text.
-    static let iconGap: CGFloat = 3
-    static func iconAndName(_ symbol: String?, _ name: String, size: CGFloat) -> some View {
-        HStack(spacing: iconGap) {
-            if let symbol { Image(systemName: symbol).font(.system(size: size - 1)) }
-            Text(name).lineLimit(1).truncationMode(.tail)
-        }
+    /// A folder (or note) as a quiet tag: a small, light glyph, then its name, in the faintest
+    /// grey, the same on note rows and commands (Emil, 9 November 2026: the outline folder was as
+    /// big and heavy as the text, and the note rows' folder had none, so it read as a folder in one
+    /// place and not the other). The glyph is set inside the text, 2 pt under it, so it sits on the
+    /// baseline and centres on the lower-case letters; a thin space keeps it close to the name.
+    static func tag(_ symbol: String, _ name: String) -> some View {
+        (Text(Image(systemName: symbol)).font(.system(size: Metrics.tagSize - 2, weight: .light))
+            + Text("\u{2009}")
+            + Text(name).font(.system(size: Metrics.tagSize)))
+            .foregroundStyle(Color.faint)
+            .lineLimit(1)
+            .truncationMode(.tail)
     }
 
     private func icon(_ symbol: String, on: Bool) -> some View {
