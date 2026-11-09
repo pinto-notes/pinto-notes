@@ -59,6 +59,12 @@ for look in paper dusk; do
   launch -filmAutoWatch -filmLook $look
   sleep 25; xcrun simctl io "$SIM" screenshot "$OUT/6-share-$look.png" >/dev/null 2>&1
 done
+# Folder names off: the share screen, and the movie the app makes.
+rm -rf "$data"/tmp/NotebookFilm-* 2>/dev/null || true
+launch -filmAutoWatch -filmNoFolderNames
+sleep 25; xcrun simctl io "$SIM" screenshot "$OUT/6-share-no-folder-names.png" >/dev/null 2>&1
+for i in {1..40}; do ls "$data"/tmp/NotebookFilm-*/Pinto*.mp4 >/dev/null 2>&1 && break; sleep 3; done
+cp "$(ls -tr "$data"/tmp/NotebookFilm-*/Pinto*.mp4 | head -1)" "$OUT/shared-night-no-folder-names.mp4" 2>/dev/null || true
 xcrun simctl terminate "$SIM" $APP 2>/dev/null || true
 [[ -f "$OUT/shared-night.mp4" ]] && ffmpeg -y -loglevel error -i "$OUT/shared-night.mp4" -vf "fps=1.5,scale=270:-1,tile=10x2" -frames:v 1 "$OUT/shared-night-sheet.png"
 ls "$OUT"

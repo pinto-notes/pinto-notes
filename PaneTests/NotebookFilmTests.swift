@@ -107,7 +107,8 @@ import Testing
         while !r.isDone {
             let f = r.frame
             r.drawNext(in: ctx)
-            if f == 15 || f == 150 || f == 260 { lit.append(Self.litPixels(ctx, rows: 300..<1230)) }
+            let g = f - FilmScript.preludeFrames
+            if g == 15 || g == 150 || g == 260 { lit.append(Self.litPixels(ctx, rows: 300..<1230)) }
             if f == FilmScript.frameCount - 1 { bottom = Self.litPixels(ctx, rows: 40..<260) }
         }
         #expect(lit[0] > 0, "something shows from the start")
@@ -121,6 +122,7 @@ import Testing
         let ctx = FilmRenderer.context()!
         r.drawNext(in: ctx)
         #expect(Self.litPixels(ctx, rows: 40..<300) > 2000)
+        #expect(Self.litPixels(ctx, rows: 340..<1180) > 500, "and the notebook it grows into")
     }
 
     @Test func theEndKeepsItsLight() {
@@ -131,7 +133,7 @@ import Testing
         while !r.isDone {
             let f = r.frame
             r.drawNext(in: ctx)
-            if f == 260 { grown = Self.litPixels(ctx, rows: 300..<1230) }
+            if f - FilmScript.preludeFrames == 260 { grown = Self.litPixels(ctx, rows: 300..<1230) }
             if f == FilmScript.frameCount - 1 { last = Self.litPixels(ctx, rows: 300..<1230) }
         }
         #expect(last >= grown)
@@ -147,7 +149,7 @@ import Testing
         ], now: t)
         let s = FilmStats(input, calendar: Self.cal)
         #expect(s.aiNotes == 2)
-        #expect(FilmRenderer.Labels().aiDetail("ChatGPT", s) == "ChatGPT helped with 2 of them")
+        #expect(FilmRenderer.Labels().statAI("ChatGPT") == "with ChatGPT")
     }
 
     // MARK: From the notes here

@@ -1,6 +1,8 @@
 import SwiftUI
 #if os(macOS)
 import AppKit
+#else
+import LinkPresentation
 #endif
 
 /// The notebook film (see NotebookFilmStore), shown the way the system shows a memory or a year in
@@ -26,7 +28,6 @@ struct NotebookFilmView: View {
     #if os(iOS)
     @State private var sharing: SharedFile?
     #endif
-    @Namespace private var space
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(macOS)
     @State private var saveFailed = false
@@ -40,8 +41,9 @@ struct NotebookFilmView: View {
             Color.black.ignoresSafeArea()
             switch phase {
             case .intro: intro.transition(.opacity)
-            case .watching: watching.transition(.opacity)
-            case .share: share.transition(.opacity)
+            // The film steps back into its card: the full screen shrinks away as the card settles in.
+            case .watching: watching.transition(.opacity.combined(with: .scale(scale: 0.9)))
+            case .share: share.transition(.opacity.combined(with: .scale(scale: 1.06)))
             }
         }
         .environment(\.colorScheme, .dark)
@@ -50,7 +52,7 @@ struct NotebookFilmView: View {
         .alert("Couldn\u{2019}t save the film", isPresented: $saveFailed) { Button("OK", role: .cancel) {} }
         #else
         .sheet(item: $sharing) { file in
-            ActivitySheet(url: file.url)
+            ActivitySheet(url: file.url, title: "My first month", picture: endFrame)
                 .presentationDetents([.medium, .large])
                 .ignoresSafeArea()
         }
@@ -93,7 +95,7 @@ struct NotebookFilmView: View {
     private func toShare() {
         playback.stop()
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.55)) { phase = .share }
-        withAnimation(reduceMotion ? nil : .smooth(duration: 0.45).delay(reduceMotion ? 0 : 0.35)) { controlsShown = true }
+        withAnimation(reduceMotion ? nil : .smooth(duration: 0.45).delay(reduceMotion ? 0 : 0.4)) { controlsShown = true }
         if store.forced, ProcessInfo.processInfo.arguments.contains("-filmAutoShare") {
             Task { try? await Task.sleep(for: .seconds(2.5)); pressShare() }
         }
@@ -131,8 +133,9 @@ struct NotebookFilmView: View {
                 Image(decorative: poster, scale: 1)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .blur(radius: 14)
-                    .opacity(0.75)
+                    .blur(radius: 3)
+                    .opacity(0.5)
+                    .overlay(LinearGradient(colors: [.black.opacity(0), .black.opacity(0.75), .black.opacity(0)], startPoint: .top, endPoint: .bottom))
                     .padding(.horizontal, -20)
                     .accessibilityHidden(true)
             }
@@ -183,7 +186,6 @@ struct NotebookFilmView: View {
                         .resizable()
                         .interpolation(.high)
                         .aspectRatio(contentMode: .fit)
-                        .matchedGeometryEffect(id: "film", in: space)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .ignoresSafeArea()
                         .accessibilityLabel(Self.description(store.script?.stats))
@@ -233,35 +235,27 @@ struct NotebookFilmView: View {
                 HStack {
                     closeButton
                     Spacer()
+                    roundButton("play.fill", label: "Watch again", action: watch)
+                        .accessibilityIdentifier("notebookFilm.watchAgain")
                 }
             }
             .padding(.top, Metrics.top)
             .opacity(controlsShown ? 1 : 0)
+            Spacer(minLength: 10)
             filmCard
-                .padding(.top, 14)
-            Button(action: watch) {
-                Label("Watch again", systemImage: "play.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(minHeight: 44)
-                    .padding(.horizontal, 12)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.white.opacity(0.85))
-            .accessibilityIdentifier("notebookFilm.watchAgain")
-            .opacity(controlsShown ? 1 : 0)
-            Spacer(minLength: 8)
+            Spacer(minLength: 10)
             controls
                 .opacity(controlsShown ? 1 : 0)
-                .offset(y: controlsShown ? 0 : 24)
+                .offset(y: controlsShown ? 0 : 20)
+                .animation(reduceMotion ? nil : .smooth(duration: 0.45).delay(0.12), value: controlsShown)
         }
         .padding(.horizontal, Metrics.side)
         .padding(.bottom, Metrics.bottom)
     }
 
-    private var closeButton: some View {
-        Button { store.visible = false } label: {
-            Image(systemName: "xmark")
+    private func roundButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
                 .font(.system(size: 15, weight: .semibold))
                 .frame(width: 36, height: 36)
         }
@@ -270,8 +264,12 @@ struct NotebookFilmView: View {
         .background(Circle().fill(.white.opacity(0.14)))
         .frame(minWidth: 44, minHeight: 44)
         .contentShape(Rectangle())
-        .accessibilityLabel("Close")
-        .accessibilityIdentifier("notebookFilm.close")
+        .accessibilityLabel(label)
+    }
+
+    private var closeButton: some View {
+        roundButton("xmark", label: "Close") { store.visible = false }
+            .accessibilityIdentifier("notebookFilm.close")
     }
 
     /// The film as it will be shared, held on its last frame.
@@ -288,7 +286,6 @@ struct NotebookFilmView: View {
         .aspectRatio(CGFloat(FilmScript.width) / CGFloat(FilmScript.height), contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.white.opacity(store.look == .night ? 0.14 : 0), lineWidth: 0.5))
-        .matchedGeometryEffect(id: "film", in: space)
         .contentShape(Rectangle())
         .onTapGesture(perform: watch)
         .accessibilityElement()
@@ -478,12 +475,12 @@ final class FilmPlayback {
         }.value
     }
 
-    /// The notebook as the film leaves it, before its last words come up.
+    /// The notebook as the film leaves it, without its words: behind the intro.
     nonisolated static func poster(script: FilmScript, labels: FilmRenderer.Labels, width: Int) async -> CGImage? {
         await Task.detached(priority: .userInitiated) {
-            let renderer = FilmRenderer(script: script, labels: labels)
+            let renderer = FilmRenderer(script: script, labels: labels, opening: false, words: false)
             guard let ctx = FilmRenderer.context(width: width, height: width * FilmScript.height / FilmScript.width) else { return nil }
-            let last = Int(FilmScript.growth * Double(FilmScript.fps))
+            let last = FilmScript.frameCount - 1
             while renderer.frame < last { renderer.skip() }
             renderer.drawNext(in: ctx)
             return ctx.makeImage()
@@ -509,7 +506,7 @@ private struct NotebookFilmSheet: ViewModifier {
             .fullScreenCover(isPresented: binding) { NotebookFilmView(store: store) }
             .task(id: store.visible) {
                 guard store.visible else { shown = false; return }
-                try? await Task.sleep(for: .seconds(0.9))
+                try? await Task.sleep(for: .seconds(1.5))
                 if store.visible { shown = true }
             }
         #else
@@ -517,7 +514,7 @@ private struct NotebookFilmSheet: ViewModifier {
             .sheet(isPresented: binding) { NotebookFilmView(store: store) }
             .task(id: store.visible) {
                 guard store.visible else { shown = false; return }
-                try? await Task.sleep(for: .seconds(0.9))
+                try? await Task.sleep(for: .seconds(1.5))
                 if store.visible { shown = true }
             }
         #endif
@@ -533,9 +530,27 @@ private struct SharedFile: Identifiable {
 
 private struct ActivitySheet: UIViewControllerRepresentable {
     let url: URL
+    let title: String
+    /// Shown at the top of the sheet instead of the movie's first frame.
+    let picture: CGImage?
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        UIActivityViewController(activityItems: [MovieItem(url: url, title: title, picture: picture)], applicationActivities: nil)
     }
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
+/// The movie for the share sheet, with its title and a picture of the finished notebook.
+private final class MovieItem: NSObject, UIActivityItemSource {
+    let url: URL, title: String, picture: CGImage?
+    init(url: URL, title: String, picture: CGImage?) { self.url = url; self.title = title; self.picture = picture }
+    func activityViewControllerPlaceholderItem(_ controller: UIActivityViewController) -> Any { url }
+    func activityViewController(_ controller: UIActivityViewController, itemForActivityType type: UIActivity.ActivityType?) -> Any? { url }
+    func activityViewControllerLinkMetadata(_ controller: UIActivityViewController) -> LPLinkMetadata? {
+        let m = LPLinkMetadata()
+        m.title = title
+        m.originalURL = url
+        if let picture { m.imageProvider = NSItemProvider(object: UIImage(cgImage: picture)) }
+        return m
+    }
 }
 #endif

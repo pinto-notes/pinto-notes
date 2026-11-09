@@ -106,12 +106,13 @@ final class NotebookFilmStore {
         try? data.write(to: preparedURL, options: .atomic)
     }
 
-    /// Dev: `-forceNotebookFilm`.
+    /// Dev: `-forceNotebookFilm`; captures: `-filmLook paper`, `-filmNoFolderNames`.
     func showIfForced() {
         guard forced, !visible else { return }
         // Captures: `-filmLook paper`.
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-filmLook"), i + 1 < args.count, let l = FilmLook(rawValue: args[i + 1]) { look = l }
+        if args.contains("-filmNoFolderNames") { folderNames = false }
         script = FilmScript(FilmDemo.notebook(now: .now))
         visible = true
     }

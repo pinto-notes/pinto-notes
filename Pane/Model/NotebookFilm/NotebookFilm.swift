@@ -42,6 +42,11 @@ struct FilmStats: Equatable, Sendable {
     var aiShare: Double
     /// Notes an AI wrote in at least once.
     var aiNotes: Int
+    /// The folder written in most (by edits), nil when that's notes in no folder.
+    var topFolder: String?
+    /// The day with the most edits, and how many.
+    var busiestDay: Date?
+    var busiestDayEdits: Int
 
     init(_ input: FilmInput, calendar: Calendar = .current) {
         let notes = input.notes
@@ -60,6 +65,15 @@ struct FilmStats: Equatable, Sendable {
         ai = byAI.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }?.key
         aiShare = edits.isEmpty ? 0 : Double(byAI.values.reduce(0, +)) / Double(edits.count)
         aiNotes = notes.filter { $0.edits.contains { $0.ai != nil } }.count
+        var byFolder: [String: Int] = [:]
+        for n in notes { byFolder[n.folder, default: 0] += max(1, n.edits.count) }
+        let top = byFolder.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }?.key
+        topFolder = top?.isEmpty == false ? top : nil
+        var byDay: [Date: Int] = [:]
+        for e in edits { byDay[calendar.startOfDay(for: e.at), default: 0] += 1 }
+        let busiest = byDay.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }
+        busiestDay = busiest?.key
+        busiestDayEdits = busiest?.value ?? 0
     }
 }
 
@@ -94,7 +108,11 @@ struct FilmScript: Sendable {
     static let width = 1080, height = 1350, fps = 30
     /// The notebook grows for this long, then holds while the end card comes up.
     static let growth = 9.0, outro = 3.6
-    static var duration: Double { growth + outro }
+    /// It opens on a glimpse of where the month ended up, then goes back to the first day: the
+    /// first frame, which is what a feed or a message shows before it plays, is the whole notebook.
+    static let prelude = 0.7
+    static var preludeFrames: Int { Int((prelude * Double(fps)).rounded()) }
+    static var duration: Double { prelude + growth + outro }
     static var frameCount: Int { Int((duration * Double(fps)).rounded()) }
 
     struct Node: Sendable {
