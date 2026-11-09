@@ -50,7 +50,7 @@ export default function Expenses() {
           </Section>
         )
       })}
-      {!days.length && <p className="px-1 py-6 text-center text-muted-foreground">Nothing spent in {monthName(m, false)}. Tap Add to log the first expense.</p>}
+      {!days.length && <p className="px-1 py-6 text-center text-muted-foreground">Nothing spent in {monthName(m, false)}. Use Add for the first one.</p>}
       <ExpenseSheet open={adding || !!editing} expense={editing} onClose={() => { setAdding(false); setEditing(null) }} />
     </div>
   )

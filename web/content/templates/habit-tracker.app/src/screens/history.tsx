@@ -66,7 +66,7 @@ export default function History() {
           )
         })}
       </div>
-      {habits.length > 0 && <p className="px-1 pb-6 text-[0.8125rem] text-muted-foreground">Tap a day to tick it, again to skip it (it keeps your streak), again to clear it.</p>}
+      {habits.length > 0 && <p className="px-1 pb-6 text-[0.8125rem] text-muted-foreground">Choose a day to tick it, again to skip it (it keeps your streak), again to clear it.</p>}
     </>
   )
 }

@@ -1,7 +1,7 @@
 {
   "slug": "daily-journal",
   "title": "Daily journal",
-  "category": "Habits and health",
+  "category": "Home and life",
   "audiences": [
     "Personal"
   ],
@@ -9,7 +9,7 @@
   "description": "Answer four short questions, or just tell your AI about your day. It writes the entry, newest day first.",
   "tagline": "Four questions a day, written up for you.",
   "folder": "Journal",
-  "note": "Daily journal\n\nA few lines a day. Tell your AI about your day, or let it ask the questions below, and the entry lands here, newest day first.\n\n## Questions\n1. What happened today?\n2. What took energy, and what gave it back?\n3. What do I want to remember?\n4. What's one thing for tomorrow?\n\n## Entries\n",
+  "note": "Daily journal\n\nA few lines a day. Tell your AI about your day, or let it ask the questions below, and the entry lands here, newest day first.\n\n## Questions\n1. What happened today?\n2. What took energy, and what gave it back?\n3. What do I want to remember?\n4. What's one thing for tomorrow?\n\n## Entries\nNewest day first.\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Daily journal\". When I say I want to journal, ask me the questions under \"Questions\" one at a time, and skip any I pass on. If I tell you about my day in one go instead, write the entry from that without asking. Read the note with fetch, then add the day at the start of \"Entries\" with edit: a \"###\" heading with the weekday and date, then my answers as short lines in my own words, each starting with a bold label (Today, Energy, Remember, Tomorrow). Don't add advice unless I ask for it. When I ask what's been on my mind lately, answer from my entries."
   },
@@ -23,24 +23,24 @@
       "tool": "edit",
       "args": {
         "path": "Journal/Daily journal.md",
-        "old_string": "## Entries\n",
-        "new_string": "## Entries\n### Saturday 7 November\n- **Today:** helped Maja move; it went faster than we feared.\n- **Energy:** the stairs took it, the pizza after gave it back.\n- **Remember:** Ana said the new flat gets the evening sun.\n- **Tomorrow:** reply to the landlord before noon.\n"
+        "old_string": "Newest day first.\n",
+        "new_string": "Newest day first.\n### Saturday 7 November\n- **Today:** helped Maja move; it went faster than we feared.\n- **Energy:** the stairs took it, the pizza after gave it back.\n- **Remember:** Maja said the new flat gets the evening sun.\n- **Tomorrow:** reply to the landlord before noon.\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Journal/Daily journal.md",
-        "old_string": "## Entries\n",
-        "new_string": "## Entries\n### Sunday 8 November\n- **Today:** quiet day; finished the bookshelf and went for a long walk.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n"
+        "old_string": "Newest day first.\n",
+        "new_string": "Newest day first.\n### Sunday 8 November\n- **Today:** quiet day; finished the bookshelf and went for a long walk.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n\n"
       }
     }
   ],
-  "example": "Daily journal\n\nA few lines a day. Tell your AI about your day, or let it ask the questions below, and the entry lands here, newest day first.\n\n## Questions\n1. What happened today?\n2. What took energy, and what gave it back?\n3. What do I want to remember?\n4. What's one thing for tomorrow?\n\n## Entries\n### Sunday 8 November\n- **Today:** quiet day; finished the bookshelf and went for a long walk.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n### Saturday 7 November\n- **Today:** helped Maja move; it went faster than we feared.\n- **Energy:** the stairs took it, the pizza after gave it back.\n- **Remember:** Ana said the new flat gets the evening sun.\n- **Tomorrow:** reply to the landlord before noon.\n",
+  "example": "Daily journal\n\nA few lines a day. Tell your AI about your day, or let it ask the questions below, and the entry lands here, newest day first.\n\n## Questions\n1. What happened today?\n2. What took energy, and what gave it back?\n3. What do I want to remember?\n4. What's one thing for tomorrow?\n\n## Entries\nNewest day first.\n### Sunday 8 November\n- **Today:** quiet day; finished the bookshelf and went for a long walk.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n\n### Saturday 7 November\n- **Today:** helped Maja move; it went faster than we feared.\n- **Energy:** the stairs took it, the pizza after gave it back.\n- **Remember:** Maja said the new flat gets the evening sun.\n- **Tomorrow:** reply to the landlord before noon.\n",
   "related": [
     "mood-energy-log",
     "weekly-review",
     "habit-tracker"
   ],
-  "updated": "2026-11-09"
+  "updated": "2026-11-10"
 }

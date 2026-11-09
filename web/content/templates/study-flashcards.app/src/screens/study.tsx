@@ -1,13 +1,15 @@
 import { useLayoutEffect, useRef, useState } from "react"
 import { Pills, PrimaryButton, Section, Title, Bar } from "@/components/kit"
-import { dueOn, GRADES, intervalOf, iso, next, plus, short, span, streak, useCards, type Card, type Grade } from "@/lib/cards"
+import { dueOn, GRADES, intervalOf, iso, level, next, plus, short, span, streak, useCards, type Card, type Grade } from "@/lib/cards"
 import { cn } from "@/lib/utils"
 
 type Session = { ids: string[]; at: number; shown: boolean; counts: Record<Grade, number>; again: string[] }
 
 // The app's main job: study what's due today, a card at a time, and grade it like Anki (Again,
-// Hard, Good, Easy, each showing when the card comes back). Around it: the streak, a calendar of
-// the last 12 weeks, what's coming up this week and where the cards are. Two columns from 700 px.
+// Hard, Good, Easy, each showing when the card comes back). Around it: the newest card, question
+// over answer (what a card is, before any chart about cards), the streak, a calendar of the last
+// 12 weeks and what's coming up this week. How well you know the cards is on the Cards screen,
+// under the cards themselves. Two columns from 700 px.
 export default function Study() {
   const { cards, due, topics, grade, studied } = useCards()
   const [topic, setTopic] = useState("All")
@@ -22,10 +24,10 @@ export default function Study() {
 
   // Least known first: the lowest box, then the shortest interval.
   const start = () => setSession({ ids: dueHere.slice().sort((a, b) => (a.box || 1) - (b.box || 1) || intervalOf(a) - intervalOf(b)).map((c) => c.id), at: 0, shown: false, counts: { again: 0, hard: 0, good: 0, easy: 0 }, again: [] })
-  const boxes = [1, 2, 3, 4, 5].map((b) => cards.filter((c) => (c.box || 1) === b && inTopic(c)).length)
-  const most = Math.max(1, ...boxes)
   const week = Array.from({ length: 7 }, (_, i) => plus(today, i + 1)).map((d) => ({ d, n: cards.filter((c) => inTopic(c) && c.seen && dueOn(c) === d).length }))
   const weekMost = Math.max(1, ...week.map((w) => w.n))
+  // The card added last: the one your AI just made, or you did.
+  const newest = cards.filter(inTopic).at(-1)
 
   return (
     <>
@@ -59,24 +61,22 @@ export default function Study() {
           </Section>
         </div>
         <div>
+          {newest && (
+            <Section title="Newest card">
+              <div className="p-5" data-testid="newest">
+                <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">{newest.topic || "No topic"} · {level(newest)}</p>
+                <p className="mt-2 text-[1.1875rem] font-semibold leading-snug">{newest.q}</p>
+                <p className="mt-3 border-t border-border pt-3 text-[1.0625rem] leading-snug text-primary">{newest.a}</p>
+              </div>
+            </Section>
+          )}
           <Section title="Coming up" footer="Cards you know come back later and later. Again brings one back tomorrow.">
             <div className="flex h-28 items-end gap-2 px-4 pb-2 pt-4" role="img" aria-label={`Due in the next seven days: ${week.map((w) => w.n).join(", ")}`}>
               {week.map((w, i) => (
                 <div key={w.d} className="flex min-w-0 flex-1 flex-col items-center gap-1">
                   <span className="text-[0.75rem] font-semibold tabular-nums">{w.n || ""}</span>
                   <div className="w-full rounded-md bg-[var(--amber-accent)]" style={{ height: `${w.n ? Math.max(4, (w.n / weekMost) * 56) : 2}px`, opacity: w.n ? 0.85 : 0.25 }} />
-                  <span className="text-[0.75rem] text-muted-foreground">{i === 0 ? "Tmrw" : new Date(w.d + "T12:00").toLocaleDateString("en-GB", { weekday: "short" })}</span>
-                </div>
-              ))}
-            </div>
-          </Section>
-          <Section title="How well you know them" footer="Box 1 is new or shaky; box 5 comes back in weeks.">
-            <div className="flex h-40 items-end gap-3 px-5 pb-3 pt-5" aria-label={`Cards per box: ${boxes.join(", ")}`} role="img">
-              {boxes.map((n, i) => (
-                <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                  <span className="text-[0.8125rem] font-semibold tabular-nums">{n}</span>
-                  <div className="w-full rounded-md bg-[var(--amber-accent)] transition-[height] duration-500 motion-reduce:transition-none" style={{ height: `${Math.max(4, (n / most) * 80)}px`, opacity: 0.45 + i * 0.14 }} />
-                  <span className="text-[0.75rem] text-muted-foreground">Box {i + 1}</span>
+                  <span className="text-[0.75rem] text-muted-foreground">{new Date(w.d + "T12:00").toLocaleDateString("en-GB", { weekday: "short" })}</span>
                 </div>
               ))}
             </div>
@@ -96,7 +96,7 @@ function Heatmap({ studied, today }: { studied: Record<string, number>; today: s
   const total = days.filter((d) => (studied[d] ?? 0) > 0 && d <= today).length
   return (
     <div role="img" aria-label={`Studied on ${total} of the last 12 weeks' days`}>
-      <div className="grid max-w-[300px] grid-flow-col grid-rows-7 gap-[3px]">
+      <div className="grid max-w-[264px] grid-flow-col grid-rows-7 gap-[3px]">
         {days.map((d) => {
           const n = studied[d] ?? 0
           return <span key={d} className={cn("aspect-square rounded-[3px]", d > today ? "bg-transparent" : n ? "bg-[var(--amber-accent)]" : "bg-muted")} style={n && d <= today ? { opacity: 0.35 + 0.65 * (n / top) } : undefined} />
@@ -151,7 +151,7 @@ function Studying({ session, setSession, cards, grade, streakNow }: { session: S
       </div>
       <Section>
         <div className="flex min-h-[18rem] flex-col p-6">
-          <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">{card.topic || "No topic"} · {card.seen ? `Box ${card.box || 1}` : "New"}</p>
+          <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">{card.topic || "No topic"} · {level(card)}</p>
           <p className="mt-4 text-[1.5rem] font-semibold leading-snug" data-testid="question">{card.q}</p>
           {session.shown && (
             <div className="mt-5 border-t border-border pt-5 animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">

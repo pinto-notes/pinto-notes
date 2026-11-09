@@ -6,13 +6,13 @@
     "Work"
   ],
   "audience": "For anyone who leaves meetings with messy notes and a vague sense of who does what.",
-  "description": "Paste rough meeting notes or a transcript and your AI turns them into decisions and action items in Pinto Notes.",
-  "tagline": "Decisions and action items from every meeting.",
+  "description": "Paste rough notes or a transcript after a meeting. Your AI writes the summary, what was decided and who does what.",
+  "tagline": "What was decided, and who does what.",
   "seoTitle": "Meeting notes to action items template for AI",
   "folder": "Work",
-  "note": "Meeting notes\n\nAfter a meeting, paste your rough notes or the transcript into your AI. The summary and action items land here, newest meeting first.\n\n## Open action items\n\n## Meetings\n",
+  "note": "Meeting notes\n\nAfter a meeting, paste your rough notes or the transcript into your AI. The summary and action items land here, newest meeting first.\n\n## Action items\nWho does what, and by when. Ticked when done.\n\n## Meetings\nOne section per meeting: what was said in two lines, and what was decided.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Meeting notes\". After a meeting I'll paste my rough notes or a transcript. Read the note with fetch, then add a section at the start of \"Meetings\" with edit: a \"###\" heading with the meeting name and date, a two-line summary, and the decisions as bullets. Add each action item under \"Open action items\" as a checklist line like \"- [ ] Owner: task (due date)\". If something is unclear, ask me before writing it. When I say an item is done, tick it (\"- [x]\")."
+    "default": "Use my Pinto Notes note \"Meeting notes\". After a meeting I'll paste my rough notes or a transcript. Read the note with fetch, then add a section at the start of \"Meetings\" with edit: a \"###\" heading with the meeting name and date, a two-line summary, and the decisions as bullets. Add each action item under \"Action items\" as a checklist line like \"- [ ] Owner: task (due date)\". If something is unclear, ask me before writing it. When I say an item is done, tick it (\"- [x]\")."
   },
   "asks": [
     "Ask me for my meeting notes or transcript, then add the summary and action items.",
@@ -24,40 +24,40 @@
       "tool": "edit",
       "args": {
         "path": "Work/Meeting notes.md",
-        "old_string": "## Open action items\n",
-        "new_string": "## Open action items\n- [ ] Sara: send the new pricing to sales (10 Nov)\n- [ ] Jonas: review the checkout design (6 Nov)\n- [ ] Emma: check Norway's VAT rules (next week)\n"
+        "old_string": "Who does what, and by when. Ticked when done.\n",
+        "new_string": "Who does what, and by when. Ticked when done.\n- [ ] Sara: send the new pricing to sales (10 Nov)\n- [ ] Emma: check Norway's VAT rules (next week)\n- [ ] Jonas: review the checkout design (6 Nov)\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Meeting notes.md",
-        "old_string": "## Meetings\n",
-        "new_string": "## Meetings\n### Design review, 3 November\nThe new checkout is approved with two changes before it ships.\n\n- Decided: one page, not three steps.\n- Open: who writes the error messages.\n"
+        "old_string": "One section per meeting: what was said in two lines, and what was decided.\n",
+        "new_string": "One section per meeting: what was said in two lines, and what was decided.\n### Design review, 3 November\nThe new checkout is approved with two changes before it ships.\n\n- Decided: one page, not three steps.\n- Change: show the total before the card details.\n- Change: write the error messages in plain words.\n- Open: who writes the error messages.\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Meeting notes.md",
-        "old_string": "## Meetings\n",
-        "new_string": "## Meetings\n### Pricing sync, 5 November\nWe keep three plans and drop the lifetime deal. The yearly discount goes from 20% to 15%.\n\n- Decided: no lifetime plan.\n- Decided: the yearly discount is 15% from next month.\n- Open: whether students get the Pro plan free.\n\n"
+        "old_string": "One section per meeting: what was said in two lines, and what was decided.\n",
+        "new_string": "One section per meeting: what was said in two lines, and what was decided.\n### Pricing sync, 5 November\nWe keep three plans and drop the lifetime deal. The yearly discount goes from 20% to 15%.\n\n- Decided: no lifetime plan.\n- Decided: the yearly discount is 15% from next month.\n- Open: whether students get the Pro plan free.\n\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Meeting notes.md",
-        "old_string": "- [ ] Jonas: review the checkout design (6 Nov)\n- [ ] Emma: check Norway's VAT rules (next week)",
-        "new_string": "- [ ] Emma: check Norway's VAT rules (next week)\n- [x] Jonas: review the checkout design (6 Nov)"
+        "old_string": "- [ ] Jonas: review the checkout design (6 Nov)",
+        "new_string": "- [x] Jonas: review the checkout design (6 Nov)"
       }
     }
   ],
-  "example": "Meeting notes\n\nAfter a meeting, paste your rough notes or the transcript into your AI. The summary and action items land here, newest meeting first.\n\n## Open action items\n- [ ] Sara: send the new pricing to sales (10 Nov)\n- [ ] Emma: check Norway's VAT rules (next week)\n- [x] Jonas: review the checkout design (6 Nov)\n\n## Meetings\n### Pricing sync, 5 November\nWe keep three plans and drop the lifetime deal. The yearly discount goes from 20% to 15%.\n\n- Decided: no lifetime plan.\n- Decided: the yearly discount is 15% from next month.\n- Open: whether students get the Pro plan free.\n\n### Design review, 3 November\nThe new checkout is approved with two changes before it ships.\n\n- Decided: one page, not three steps.\n- Open: who writes the error messages.\n",
+  "example": "Meeting notes\n\nAfter a meeting, paste your rough notes or the transcript into your AI. The summary and action items land here, newest meeting first.\n\n## Action items\nWho does what, and by when. Ticked when done.\n- [ ] Sara: send the new pricing to sales (10 Nov)\n- [ ] Emma: check Norway's VAT rules (next week)\n- [x] Jonas: review the checkout design (6 Nov)\n\n## Meetings\nOne section per meeting: what was said in two lines, and what was decided.\n### Pricing sync, 5 November\nWe keep three plans and drop the lifetime deal. The yearly discount goes from 20% to 15%.\n\n- Decided: no lifetime plan.\n- Decided: the yearly discount is 15% from next month.\n- Open: whether students get the Pro plan free.\n\n### Design review, 3 November\nThe new checkout is approved with two changes before it ships.\n\n- Decided: one page, not three steps.\n- Change: show the total before the card details.\n- Change: write the error messages in plain words.\n- Open: who writes the error messages.\n",
   "related": [
     "one-on-one-notes",
-    "decision-log",
-    "daily-standup"
+    "daily-standup",
+    "decision-log"
   ],
-  "updated": "2026-11-09"
+  "updated": "2026-11-10"
 }

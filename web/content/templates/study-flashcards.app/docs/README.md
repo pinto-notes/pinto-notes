@@ -22,7 +22,9 @@ data.json, all under "values" (the person's AI reads and edits it directly):
 - Adding is fast: the Cards tab starts with the add form; Return in the answer adds the card and puts the cursor back in the question, keeping the topic. Paste many turns "question - answer" lines (also " | ", tab, ": ", or after a question mark) into cards, says how many it found, and has Undo. Search filters the list.
 - Two columns from 700 px on Study, from 900 px on Cards.
 - The person is in control without the AI: add, edit (tap a card) and delete cards; deleting shows Undo in a bar at the top of the screen.
-- The box chart (How well you know them) shows where the cards are.
+- The first screen shows the newest card, question over answer, before any chart: it says what a card is, and it is the card your AI (or you) just added, so you can check it.
+- The chart (How well you know them) shows where the cards are. It sits on the Cards screen, under the cards. A box has a plain name on screen: 1 New, 2 Shaky, 3 Steady, 4 Strong, 5 Solid (LEVELS in src/lib/cards.ts). The data still says box 1 to 5.
+- Coming up names every day by its weekday ("Tue"), tomorrow too: "Tmrw" read as a typo.
 - The app sets the note's summary line to "12 cards due today".
 - No text under 12 px (0.75rem), Apple's minimum. Tests check text that changes after an action (saving and grading are async) inside waitFor, never on the first find.
 

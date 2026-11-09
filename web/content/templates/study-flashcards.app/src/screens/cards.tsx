@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef, useState } from "react"
 import { ClipboardList, Search, Trash2 } from "lucide-react"
 import { DeleteButton, Field, inputClass, offerUndo, PrimaryButton, Row, Section, Sheet, Title, TintButton } from "@/components/kit"
-import { dueOn, iso, parseLines, span, useCards, type Card } from "@/lib/cards"
+import { Levels } from "@/components/levels"
+import { dueOn, iso, level, parseLines, span, useCards, type Card } from "@/lib/cards"
 import { cn } from "@/lib/utils"
 
 // Every card by topic. Adding is fast: type the question, Tab, the answer, Return, and the next one
@@ -72,7 +73,7 @@ export default function Cards() {
                     <p className="font-medium">{c.q}</p>
                     <p className="text-[0.875rem] text-muted-foreground">{c.a}</p>
                     <div className="mt-1.5 flex items-center gap-2">
-                      <span className="flex items-center gap-1" aria-label={`Box ${c.box || 1} of 5`} role="img">
+                      <span className="flex items-center gap-1" aria-label={`${level(c)}, ${c.box || 1} of 5`} role="img">
                         {[1, 2, 3, 4, 5].map((b) => <span key={b} className={cn("h-1.5 w-4 rounded-full", b <= (c.box || 1) ? "bg-[var(--amber-accent)]" : "bg-muted")} />)}
                       </span>
                       <span className="text-[0.75rem] text-muted-foreground">{!c.seen ? "New" : dueOn(c) <= today ? "Due" : `In ${span(Math.round((new Date(dueOn(c) + "T12:00").getTime() - new Date(today + "T12:00").getTime()) / 864e5))}`}</span>
@@ -83,6 +84,7 @@ export default function Cards() {
               ))}
             </Section>
           ))}
+          {shown.length > 0 && <Levels cards={shown} />}
         </div>
       </div>
       <EditSheet card={editing} topics={topics} onClose={() => setEditing(null)} onSave={async (patch) => { if (editing) await update(editing.id, patch); setEditing(null) }} onDelete={drop} />

@@ -19,6 +19,8 @@ export default function Today() {
   const later = habits.filter((h) => !due.includes(h))
   const doneCount = due.filter((h) => done(days, h, day)).length
   const allDone = due.length > 0 && doneCount === due.length
+  // Monday with nothing but daily habits: the week so far is today.
+  const sameAsWeek = now.getDay() === 1 && w.got === doneCount && w.of === due.length
   const dateLine = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
   const showing = habits.find((h) => h.id === open) ?? null
 
@@ -46,23 +48,27 @@ export default function Today() {
               <Ring value={w.share} size={96} stroke={11} label={`This week ${Math.round(w.share * 100)}%`}>
                 {allDone ? <Check className="size-9 text-primary" strokeWidth={3} /> : <span className="text-xl font-bold tabular-nums">{Math.round(w.share * 100)}%</span>}
               </Ring>
-              {/* The ring is the week, so the line beside it is the week too, and today under it
-                  (a "This week" label over "2 of 4 done today" read as a contradiction). */}
+              {/* The ring is the week, so the lines beside it are the week too: a label, then the
+                  count on one line whatever the numbers ("2 of 4 since Monday" broke in two beside
+                  the ring), and today under it. On a Monday the week so far is today: the label
+                  says Today and today's own line, which would say the count twice, is left out
+                  (council round 2). "This week" is the grid's heading under this card. */}
               <div className="min-w-0">
-                <p className="text-[1.375rem] font-bold leading-snug tabular-nums" data-testid="week-count">{w.got} of {w.of} since Monday</p>
-                <p className="text-[0.9375rem] text-muted-foreground tabular-nums" data-testid="today-count">{allDone ? "All done today" : `Today: ${doneCount} of ${due.length} done`}</p>
+                <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground" data-testid="week-label">{sameAsWeek ? "Today" : "Since Monday"}</p>
+                <p className="whitespace-nowrap text-[1.375rem] font-bold leading-snug tabular-nums" data-testid="week-count">{w.got} of {w.of}</p>
+                {(allDone || !sameAsWeek) && <p className="text-[0.9375rem] text-muted-foreground tabular-nums" data-testid="today-count">{allDone ? "All done today" : `Today: ${doneCount} of ${due.length} done`}</p>}
               </div>
             </div>
           </Section>
           <WeekGrid habits={habits} days={days} skips={skips} className="hidden min-[700px]:block" />
         </div>
         <div>
-          <Section title="Habits" footer={later.length ? undefined : "Tap a habit to see its month, skip a day or change it."}>
+          <Section title="Habits" footer={later.length ? undefined : "Choose a habit to see its month, skip a day or change it."}>
             {due.map(row)}
             {!due.length && <p className="px-4 py-5 text-center text-muted-foreground">Nothing is due today. Enjoy the day off.</p>}
           </Section>
           {later.length > 0 && (
-            <Section title="Not today" footer="Tap a habit to see its month, skip a day or change it.">
+            <Section title="Not today" footer="Choose a habit to see its month, skip a day or change it.">
               {later.map(row)}
             </Section>
           )}

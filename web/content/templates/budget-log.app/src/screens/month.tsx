@@ -63,14 +63,17 @@ export default function Month() {
               <Row key={c.name} className="block py-3">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="font-semibold">{c.name}</span>
-                  <span className={cn("text-[0.9375rem] tabular-nums", c.left < 0 ? "font-semibold text-destructive" : "text-muted-foreground")}>
-                    {c.left < 0 ? `${fmt(-c.left)} over` : `${fmt(c.left)} left`}
+                  {/* Beside the bar, the two numbers the bar draws: spent of the budget (council round 2:
+                      "10 kr left" over a full bar read as a full budget). What's left is the line under. */}
+                  <span className={cn("text-[0.9375rem] tabular-nums", c.left < 0 ? "font-semibold text-destructive" : "text-muted-foreground")} data-testid={`spent-${c.name}`}>
+                    {c.budget >= 0 ? <>{fmt(c.spent)} of {fmt(c.budget)}</> : <>{fmt(c.spent)} spent</>}
                   </span>
                 </div>
                 <Bar className="mt-2" value={c.budget ? c.spent / c.budget : c.spent ? 1 : 0} over={c.left < 0} label={`${c.name} spent of budget`} />
                 <p className="mt-1.5 text-[0.8125rem] text-muted-foreground tabular-nums">
-                  {c.budget >= 0 ? <>{fmt(c.spent)} of {fmt(c.budget)}{c.carried ? ` (${c.carried > 0 ? "+" : "−"}${fmt(Math.abs(c.carried))} from last month)` : ""}</>
-                    : <>{fmt(c.spent)} spent, and {fmt(-c.carried)} over from last month</>}
+                  {c.left < 0 ? `${fmt(-c.left)} over` : `${fmt(c.left)} left`}
+                  {c.budget >= 0 ? (c.carried ? ` (${c.carried > 0 ? "+" : "−"}${fmt(Math.abs(c.carried))} from last month)` : "")
+                    : `, with ${fmt(-c.carried)} from last month`}
                 </p>
               </Row>
             ))}
@@ -139,7 +142,7 @@ export default function Month() {
                 </button>
               </Row>
             ))}
-            {!mo.items.length && <p className="px-4 py-6 text-center text-muted-foreground">Nothing spent in {monthName(m, false)}. Tap Add expense to log the first one.</p>}
+            {!mo.items.length && <p className="px-4 py-6 text-center text-muted-foreground">Nothing spent in {monthName(m, false)}. Use Add expense for the first one.</p>}
           </Section>
         </div>
       </div>

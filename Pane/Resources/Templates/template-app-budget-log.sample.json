@@ -13,76 +13,337 @@
    {
     "name": "Transport",
     "budget": 800
-   },
-   {
-    "name": "Home",
-    "budget": 1000
-   },
-   {
-    "name": "Fun",
-    "budget": 1000
-   },
-   {
-    "name": "Bills",
-    "budget": 3500
    }
   ],
   "expenses": [
    {
     "id": "e1",
-    "date": "2026-11-01",
-    "what": "Rent share",
-    "category": "Bills",
-    "amount": 3200
-   },
-   {
-    "id": "e2",
     "date": "2026-11-02",
     "what": "Weekly shop",
     "category": "Groceries",
     "amount": 912
    },
    {
-    "id": "e3",
+    "id": "e2",
     "date": "2026-11-03",
     "what": "Travel card",
     "category": "Transport",
     "amount": 790
    },
    {
-    "id": "e4",
+    "id": "e3",
     "date": "2026-11-04",
     "what": "Lunch with Sara",
     "category": "Eating out",
     "amount": 185
    },
    {
-    "id": "e5",
-    "date": "2026-11-05",
-    "what": "Cinema",
-    "category": "Fun",
-    "amount": 260
-   },
-   {
-    "id": "e6",
+    "id": "e4",
     "date": "2026-11-06",
     "what": "Weekly shop",
     "category": "Groceries",
     "amount": 874
    },
    {
-    "id": "e7",
-    "date": "2026-11-07",
-    "what": "Light bulbs and a plant",
-    "category": "Home",
-    "amount": 349
-   },
-   {
-    "id": "e8",
+    "id": "e5",
     "date": "2026-11-08",
     "what": "Coffee and a bun",
     "category": "Eating out",
     "amount": 68
+   },
+   {
+    "id": "h1",
+    "date": "2026-06-03",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 880
+   },
+   {
+    "id": "h2",
+    "date": "2026-06-04",
+    "what": "Travel card",
+    "category": "Transport",
+    "amount": 790
+   },
+   {
+    "id": "h3",
+    "date": "2026-06-06",
+    "what": "Dinner out",
+    "category": "Eating out",
+    "amount": 340
+   },
+   {
+    "id": "h4",
+    "date": "2026-06-10",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 905
+   },
+   {
+    "id": "h5",
+    "date": "2026-06-13",
+    "what": "Lunch out",
+    "category": "Eating out",
+    "amount": 285
+   },
+   {
+    "id": "h6",
+    "date": "2026-06-17",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 842
+   },
+   {
+    "id": "h7",
+    "date": "2026-06-20",
+    "what": "Pizza night",
+    "category": "Eating out",
+    "amount": 410
+   },
+   {
+    "id": "h8",
+    "date": "2026-06-24",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 931
+   },
+   {
+    "id": "h9",
+    "date": "2026-07-03",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 920
+   },
+   {
+    "id": "h10",
+    "date": "2026-07-04",
+    "what": "Travel card",
+    "category": "Transport",
+    "amount": 790
+   },
+   {
+    "id": "h11",
+    "date": "2026-07-06",
+    "what": "Dinner out",
+    "category": "Eating out",
+    "amount": 520
+   },
+   {
+    "id": "h12",
+    "date": "2026-07-10",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 1010
+   },
+   {
+    "id": "h13",
+    "date": "2026-07-13",
+    "what": "Lunch out",
+    "category": "Eating out",
+    "amount": 610
+   },
+   {
+    "id": "h14",
+    "date": "2026-07-17",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 965
+   },
+   {
+    "id": "h15",
+    "date": "2026-07-20",
+    "what": "Pizza night",
+    "category": "Eating out",
+    "amount": 480
+   },
+   {
+    "id": "h16",
+    "date": "2026-07-24",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 990
+   },
+   {
+    "id": "h17",
+    "date": "2026-07-27",
+    "what": "Brunch",
+    "category": "Eating out",
+    "amount": 395
+   },
+   {
+    "id": "h18",
+    "date": "2026-08-03",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 860
+   },
+   {
+    "id": "h19",
+    "date": "2026-08-04",
+    "what": "Travel card",
+    "category": "Transport",
+    "amount": 790
+   },
+   {
+    "id": "h20",
+    "date": "2026-08-06",
+    "what": "Dinner out",
+    "category": "Eating out",
+    "amount": 310
+   },
+   {
+    "id": "h21",
+    "date": "2026-08-10",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 895
+   },
+   {
+    "id": "h22",
+    "date": "2026-08-13",
+    "what": "Lunch out",
+    "category": "Eating out",
+    "amount": 260
+   },
+   {
+    "id": "h23",
+    "date": "2026-08-17",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 910
+   },
+   {
+    "id": "h24",
+    "date": "2026-08-20",
+    "what": "Pizza night",
+    "category": "Eating out",
+    "amount": 365
+   },
+   {
+    "id": "h25",
+    "date": "2026-08-24",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 870
+   },
+   {
+    "id": "h26",
+    "date": "2026-09-03",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 905
+   },
+   {
+    "id": "h27",
+    "date": "2026-09-04",
+    "what": "Travel card",
+    "category": "Transport",
+    "amount": 790
+   },
+   {
+    "id": "h28",
+    "date": "2026-09-06",
+    "what": "Dinner out",
+    "category": "Eating out",
+    "amount": 295
+   },
+   {
+    "id": "h29",
+    "date": "2026-09-10",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 880
+   },
+   {
+    "id": "h30",
+    "date": "2026-09-13",
+    "what": "Lunch out",
+    "category": "Eating out",
+    "amount": 450
+   },
+   {
+    "id": "h31",
+    "date": "2026-09-17",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 925
+   },
+   {
+    "id": "h32",
+    "date": "2026-09-20",
+    "what": "Pizza night",
+    "category": "Eating out",
+    "amount": 380
+   },
+   {
+    "id": "h33",
+    "date": "2026-09-24",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 940
+   },
+   {
+    "id": "h34",
+    "date": "2026-10-03",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 900
+   },
+   {
+    "id": "h35",
+    "date": "2026-10-04",
+    "what": "Travel card",
+    "category": "Transport",
+    "amount": 790
+   },
+   {
+    "id": "h36",
+    "date": "2026-10-06",
+    "what": "Dinner out",
+    "category": "Eating out",
+    "amount": 620
+   },
+   {
+    "id": "h37",
+    "date": "2026-10-07",
+    "what": "Big shop before guests",
+    "category": "Groceries",
+    "amount": 640
+   },
+   {
+    "id": "h38",
+    "date": "2026-10-10",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 915
+   },
+   {
+    "id": "h39",
+    "date": "2026-10-13",
+    "what": "Lunch out",
+    "category": "Eating out",
+    "amount": 240
+   },
+   {
+    "id": "h40",
+    "date": "2026-10-17",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 890
+   },
+   {
+    "id": "h41",
+    "date": "2026-10-20",
+    "what": "Pizza night",
+    "category": "Eating out",
+    "amount": 330
+   },
+   {
+    "id": "h42",
+    "date": "2026-10-24",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 600
    }
   ]
  },

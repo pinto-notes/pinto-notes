@@ -11,7 +11,7 @@
   "tagline": "What you spend, against a monthly budget.",
   "seoTitle": "Budget tracker template and app for ChatGPT and Claude",
   "folder": "Home",
-  "note": "Budget and expenses\n\nWhat you spend, against a monthly budget. Add expenses in the app, or tell your AI what you spent. Amounts are in your own currency.\n\n## Month summaries\n",
+  "note": "Budget and expenses\n\nWhat you spend, against a monthly budget. Add expenses in the app, or tell your AI what you spent. Amounts are in your own currency.\n\n## Month summaries\nAsk your AI to sum up a month, and its lines land here.\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Budget and expenses\". It is an app; its data is \"Home/Budget and expenses.app/data.json\". Read it with fetch before each change. When I tell you what I spent, add one item to values.expenses with edit: a new id, date as yyyy-mm-dd, what, a category that is a name in values.categories, and amount as a number. For a monthly bill, add { id, what, category, amount, day } to values.recurring instead; the app adds it each month. I can add, edit and delete expenses and change the budget in the app myself. At the end of the month, when I ask, compare each category with its budget and tell me what was over, what was under, and one suggestion. Don't give financial advice beyond that."
   },
@@ -25,17 +25,17 @@
       "tool": "edit",
       "args": {
         "path": "Home/Budget and expenses.md",
-        "old_string": "## Month summaries\n",
-        "new_string": "## Month summaries\n**Last month:** eating out was 1,840 kr against 1,500 kr, mostly two dinners in the last week. Groceries came in 300 kr under. Suggestion: plan two more dinners at home next month.\n"
+        "old_string": "Ask your AI to sum up a month, and its lines land here.\n",
+        "new_string": "Ask your AI to sum up a month, and its lines land here.\n**Last month:** 5,925 kr of 6,300 kr. Groceries came to 3,945 kr of 4,000 kr and eating out to 1,190 kr of 1,500 kr. One month of the last six went over, by 380 kr. Suggestion: the grocery budget is tight but it holds, so leave it.\n"
       }
     }
   ],
-  "example": "Budget and expenses\n\nWhat you spend, against a monthly budget. Add expenses in the app, or tell your AI what you spent. Amounts are in your own currency.\n\n## Month summaries\n**Last month:** eating out was 1,840 kr against 1,500 kr, mostly two dinners in the last week. Groceries came in 300 kr under. Suggestion: plan two more dinners at home next month.\n",
+  "example": "Budget and expenses\n\nWhat you spend, against a monthly budget. Add expenses in the app, or tell your AI what you spent. Amounts are in your own currency.\n\n## Month summaries\nAsk your AI to sum up a month, and its lines land here.\n**Last month:** 5,925 kr of 6,300 kr. Groceries came to 3,945 kr of 4,000 kr and eating out to 1,190 kr of 1,500 kr. One month of the last six went over, by 380 kr. Suggestion: the grocery budget is tight but it holds, so leave it.\n",
   "related": [
     "meal-plan",
-    "home-maintenance",
-    "gift-ideas"
+    "grocery-list",
+    "home-maintenance"
   ],
-  "updated": "2026-11-09",
+  "updated": "2026-11-10",
   "app": true
 }

@@ -17,7 +17,7 @@ To log an expense, append to expenses with a new id. To add a bill, append to re
 - The first screen answers one question: how much is left this month. The bar and the per-day figure ("about 377 kr a day") come from the same numbers; with bills still to come this month the per-day figure is what's left after them.
 - Monthly bills are posted by the app (App.tsx, Bills), not by the AI, so they come in even when nobody asks. They are listed on Month ("Paid" or "Due 25 Oct") and managed on Budget, or made by turning on Every month when adding an expense.
 - Roll-over is the YNAB habit people love, without its learning curve: one switch. It starts from the month it's turned on, so old months don't suddenly change this month's numbers.
-- Last six months: a bar per month with the budget as a dashed line, and "X kr less than September by the 13th", a fair mid-month comparison (Copilot does this). Tap a bar to open that month.
+- Last six months: a bar per month with the budget as a dashed line, and "X kr less than September by the 13th", a fair mid-month comparison (Copilot does this). Choose a bar to open that month.
 - From 700 px Month and Budget have two columns.
 - Add expense is the one big button; the sheet starts on the amount, with the decimal keypad on iPhone.
 - The person is in control without the AI: add, edit (tap an expense) and delete expenses; add, rename (tap the name) and remove categories; change each budget and the currency. Deleting shows Undo in a bar at the top of the screen.

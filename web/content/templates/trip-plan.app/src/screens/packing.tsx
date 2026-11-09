@@ -59,7 +59,7 @@ export default function Packing() {
           <div className="mt-3"><Pills label="Group" options={GROUPS} value={group as (typeof GROUPS)[number]} onChange={setGroup} /></div>
         </form>
       </Section>
-      {!packing.length && <p className="px-1 pb-6 text-muted-foreground">Nothing on the list yet. Type the first thing to pack above and tap +.</p>}
+      {!packing.length && <p className="px-1 pb-6 text-muted-foreground">Nothing on the list yet. Type the first thing to pack above and press +.</p>}
       <div className="grid gap-x-6 min-[700px]:grid-cols-2 min-[1100px]:grid-cols-3">
         {groups.map((g) => {
           const items = inGroup(g)

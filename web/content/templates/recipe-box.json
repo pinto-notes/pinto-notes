@@ -10,7 +10,7 @@
   "description": "Paste a recipe and your AI files it as a clean sub-note, with the ingredients as a checklist.",
   "tagline": "Your recipes, cleaned up and filed.",
   "folder": "Recipes",
-  "note": "Recipe box\n\nYour recipes, cleaned up and filed: one sub-note each, with the ingredients as a checklist you can tick off while you cook.\n\n## Weeknight\n\n## Weekend\n\n## Baking\n\n## Want to try\n",
+  "note": "Recipe box\n\nYour recipes, cleaned up and filed: one sub-note each, with the ingredients as a checklist you can tick off while you cook. Paste a recipe into your AI to add the first.\n\n## Weeknight\n\n## Weekend\n\n## Baking\n\n## Want to try\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Recipe box\". When I paste a recipe, clean it up: a title, servings and time on one line, the ingredients as a checklist, and short numbered steps, without the life story. Save it as a sub-note with create, in the note's own folder (\"Recipes/Recipe box/<recipe title>.md\"), then read the note with fetch and move its link line under \"Weeknight\", \"Weekend\" or \"Baking\" with edit, whichever fits. Recipes I want to try later go under \"Want to try\" as a bullet. When I ask what to cook, look through the box with search."
   },
@@ -24,7 +24,7 @@
       "tool": "create",
       "args": {
         "path": "Recipes/Recipe box/Lentil soup with lemon.md",
-        "content": "Lentil soup with lemon\n\nServes 4, 35 minutes.\n\n- [ ] 250 g red lentils\n- [ ] 2 lemons\n- [ ] 1 onion\n\n1. Soften the onion.\n2. Add the lentils and a litre of water. Simmer 20 minutes, then add the lemon.",
+        "content": "Lentil soup with lemon\n\nServes 4, 35 minutes.\n\n- [ ] 250 g red lentils\n- [ ] 1 onion\n- [ ] 2 carrots\n- [ ] 2 cloves of garlic\n- [ ] 1 tsp ground cumin\n- [ ] 2 lemons\n\n1. Soften the onion, carrots and garlic in olive oil with the cumin.\n2. Add the lentils and a litre of water. Simmer for 20 minutes.\n3. Blend half of it, then stir in the lemon juice and salt to taste.",
         "id": "3f6c2a1e-8b4d-4c2a-9e1f-5a7b8c9d0e1f"
       }
     },
@@ -125,11 +125,11 @@
       }
     }
   ],
-  "example": "Recipe box\n\nYour recipes, cleaned up and filed: one sub-note each, with the ingredients as a checklist you can tick off while you cook.\n\n## Weeknight\n[Lentil soup with lemon](pane-note:3f6c2a1e-8b4d-4c2a-9e1f-5a7b8c9d0e1f)\n[Sesame noodles](pane-note:9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d)\n[Tomato and white bean stew](pane-note:7d2e9b40-51c3-4f8a-a6d1-2b3c4d5e6f70)\n\n## Weekend\n[Slow-roast lamb](pane-note:1a2b3c4d-5e6f-4a7b-9c8d-7e6f5a4b3c2d)\n[Sunday pancakes](pane-note:b4d6f8a0-2c4e-4a6c-8e0a-1c3e5a7c9e1b)\n\n## Baking\n[Cardamom buns](pane-note:c0ffee00-1234-4abc-8def-001122334455)\n\n## Want to try\n- Garlic prawns\n- Miso butter pasta\n- Emma's lemon tart\n",
+  "example": "Recipe box\n\nYour recipes, cleaned up and filed: one sub-note each, with the ingredients as a checklist you can tick off while you cook. Paste a recipe into your AI to add the first.\n\n## Weeknight\n[Lentil soup with lemon](pane-note:3f6c2a1e-8b4d-4c2a-9e1f-5a7b8c9d0e1f)\n[Sesame noodles](pane-note:9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d)\n[Tomato and white bean stew](pane-note:7d2e9b40-51c3-4f8a-a6d1-2b3c4d5e6f70)\n\n## Weekend\n[Slow-roast lamb](pane-note:1a2b3c4d-5e6f-4a7b-9c8d-7e6f5a4b3c2d)\n[Sunday pancakes](pane-note:b4d6f8a0-2c4e-4a6c-8e0a-1c3e5a7c9e1b)\n\n## Baking\n[Cardamom buns](pane-note:c0ffee00-1234-4abc-8def-001122334455)\n\n## Want to try\n- Garlic prawns\n- Miso butter pasta\n- Emma's lemon tart\n",
   "related": [
     "meal-plan",
-    "gift-ideas",
+    "grocery-list",
     "budget-log"
   ],
-  "updated": "2026-11-09"
+  "updated": "2026-11-10"
 }

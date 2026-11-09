@@ -8,10 +8,10 @@
   ],
   "audience": "For anyone planning a trip who wants the plan, bookings and packing in one place.",
   "description": "A countdown, the days, bookings and a packing list. Edit it yourself, or let your AI fill it in.",
-  "tagline": "Days, bookings and the packing list in one place.",
+  "tagline": "Days, bookings and a packing list.",
   "seoTitle": "Trip planner and itinerary template for ChatGPT and Claude",
   "folder": "Travel",
-  "note": "Trip plan\n\nEverything for one trip: the plan for each day, the bookings, and what to pack. All of it lives in the app. This note is for anything else you want to keep with the trip.\n\n## Ideas\n",
+  "note": "Trip plan\n\nEverything for one trip: the plan for each day, the bookings, and what to pack. All of it lives in the app. This note is for anything else you want to keep with the trip.\n\n## Ideas\nPlaces and things to remember that aren't in the plan yet.\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Trip plan\". It is an app; its data is \"Travel/Trip plan.app/data.json\". Read it with fetch before each change, and change it with edit. I'll tell you where I'm going, when, and what I like. Set values.trip (name, place, start, end as yyyy-mm-dd) and write values.days: one { date, title, items } per day with three to five realistic items, with travel time between places. Start items with a time (\"09:30 Tram 28\"). When I paste a booking confirmation, add { id, what, kind, date, time, ref, paid } to values.bookings (kind: flight, train, stay, food, activity, other). Add what the trip needs to values.packing as { id, text, group, packed: false }. I can change all of it in the app myself."
   },
@@ -25,17 +25,17 @@
       "tool": "edit",
       "args": {
         "path": "Travel/Trip plan.md",
-        "old_string": "## Ideas\n",
-        "new_string": "## Ideas\n- A fado night in Alfama\n- Bring back tinned sardines for Jonas\n"
+        "old_string": "Places and things to remember that aren't in the plan yet.\n",
+        "new_string": "Places and things to remember that aren't in the plan yet.\n- A fado night in Alfama\n- Bring back tinned sardines for Jonas\n- Ask Maja for her list of bakeries\n"
       }
     }
   ],
-  "example": "Trip plan\n\nEverything for one trip: the plan for each day, the bookings, and what to pack. All of it lives in the app. This note is for anything else you want to keep with the trip.\n\n## Ideas\n- A fado night in Alfama\n- Bring back tinned sardines for Jonas\n",
+  "example": "Trip plan\n\nEverything for one trip: the plan for each day, the bookings, and what to pack. All of it lives in the app. This note is for anything else you want to keep with the trip.\n\n## Ideas\nPlaces and things to remember that aren't in the plan yet.\n- A fado night in Alfama\n- Bring back tinned sardines for Jonas\n- Ask Maja for her list of bakeries\n",
   "related": [
     "budget-log",
-    "meal-plan",
-    "gift-ideas"
+    "gift-ideas",
+    "daily-journal"
   ],
-  "updated": "2026-11-09",
+  "updated": "2026-11-10",
   "app": true
 }

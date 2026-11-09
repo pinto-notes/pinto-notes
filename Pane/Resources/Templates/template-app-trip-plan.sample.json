@@ -12,8 +12,7 @@
     "title": "Arrive in Alfama",
     "items": [
      "14:30 Land and take the metro to Baixa",
-     "16:00 Check in",
-     "Walk up to Miradouro de Santa Luzia",
+     "17:30 Walk up to Miradouro de Santa Luzia",
      "20:00 Dinner at Taberna da Rua das Flores"
     ]
    },
@@ -32,8 +31,8 @@
     "title": "Sintra",
     "items": [
      "09:00 Train from Rossio",
-     "Pena Palace gardens",
-     "Lunch in the old town"
+     "13:00 Lunch in the old town",
+     "Quinta da Regaleira if there's time"
     ]
    },
    {
@@ -50,8 +49,7 @@
     "title": "Home",
     "items": [
      "Coffee at A Brasileira",
-     "12:00 Check out",
-     "15:40 Fly home"
+     "12:00 Check out"
     ]
    }
   ],
@@ -66,7 +64,7 @@
    },
    {
     "id": "b2",
-    "what": "Flat in Alfama, 4 nights",
+    "what": "Check in: flat in Alfama, 4 nights",
     "kind": "stay",
     "date": "2026-11-22",
     "time": "16:00",
@@ -74,10 +72,10 @@
    },
    {
     "id": "b3",
-    "what": "Taberna da Rua das Flores",
-    "kind": "food",
-    "date": "2026-11-22",
-    "time": "20:00",
+    "what": "Pena Palace tickets",
+    "kind": "activity",
+    "date": "2026-11-24",
+    "time": "10:30",
     "paid": false
    },
    {

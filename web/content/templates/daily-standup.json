@@ -7,14 +7,14 @@
     "Work"
   ],
   "audience": "For developers who'd rather not reconstruct yesterday from memory at 9:58.",
-  "description": "Standup notes, newest first. Claude Code drafts yours from commits, ChatGPT or Claude from what you say.",
-  "tagline": "Yesterday, today and blockers, newest first.",
+  "description": "One section per working day. Tell your AI what you did and what's next, or let a coding agent draft it from your commits.",
+  "tagline": "Yesterday, today and what's in the way.",
   "seoTitle": "Daily standup template for Claude Code and ChatGPT",
   "folder": "Work",
-  "note": "Standup notes\n\nYesterday, today and blockers, one section a day, newest first. Claude Code can write yesterday from your commits.\n\n## Blockers\n\n## Days\n",
+  "note": "Standup notes\n\nYesterday, today and blockers, one section a day, newest first. Tell your AI what you did, or let a coding agent write yesterday from your commits.\n\n## Blockers\nWhat you're waiting on. It goes from here once it's unblocked.\n\n## Days\nOne section per working day.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Standup notes\". Each morning I'll tell you what I did yesterday and what's next. Read the note with fetch, then add a section at the start of \"Days\" with edit: a \"###\" heading with \"Standup,\" and today's date, then Yesterday and Today as short bullets. Anything blocked goes under \"Blockers\"; when I say it's unblocked, remove it.",
-    "claudeCode": "Write today's standup into my Pinto Notes note \"Standup notes\". Run git log --since=yesterday --author=\"$(git config user.email)\" --oneline in this repo, turn the commits into two to five plain-language bullets (no hashes), and ask me what's next and what's blocking me. Then read the note with fetch and add a section at the start of \"Days\" with edit: a \"###\" heading with today's date, then Yesterday, Today and Blockers. Anything blocked also goes under \"Blockers\"."
+    "default": "Use my Pinto Notes note \"Standup notes\". Each morning I'll tell you what I did yesterday and what's next. Read the note with fetch, then add a section at the start of \"Days\" with edit: a \"###\" heading with the weekday and today's date, then Yesterday and Today as short bullets. Anything blocked goes under \"Blockers\"; when I say it's unblocked, remove it.",
+    "claudeCode": "Write today's standup into my Pinto Notes note \"Standup notes\". Run git log --since=yesterday --author=\"$(git config user.email)\" --oneline in this repo, turn the commits into two to five plain-language bullets (no hashes), and ask me what's next and what's blocking me. Then read the note with fetch and add a section at the start of \"Days\" with edit: a \"###\" heading with the weekday and today's date, then Yesterday and Today. Anything blocked goes under \"Blockers\"."
   },
   "asks": [
     "Ask what I did yesterday and what's next, then write today's standup.",
@@ -26,32 +26,32 @@
       "tool": "edit",
       "args": {
         "path": "Work/Standup notes.md",
-        "old_string": "## Days\n",
-        "new_string": "## Days\n### Standup, 7 November\n**Yesterday**\n- Paired with Emma on the importer\n\n**Today**\n- Fix the sync conflict\n- Write the importer's table tests\n"
+        "old_string": "One section per working day.\n",
+        "new_string": "One section per working day.\n### Thursday 5 November\n**Yesterday**\n- Paired with Emma on the importer\n\n**Today**\n- Fix the sync conflict\n- Write the importer's table tests\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Standup notes.md",
-        "old_string": "## Days\n",
-        "new_string": "## Days\n### Standup, 8 November\n**Yesterday**\n- Fixed the sync conflict when two devices edit the same note\n- Added tests for the importer's table handling\n\n**Today**\n- Review the onboarding pull request\n- Start on the export to PDF\n\n"
+        "old_string": "One section per working day.\n",
+        "new_string": "One section per working day.\n### Friday 6 November\n**Yesterday**\n- Fixed the sync conflict when two devices edit the same note\n- Added tests for the importer's table handling\n\n**Today**\n- Review the onboarding pull request\n- Start on the export to PDF\n\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Standup notes.md",
-        "old_string": "## Blockers\n",
-        "new_string": "## Blockers\n- Waiting on API keys for the staging payment provider\n"
+        "old_string": "What you're waiting on. It goes from here once it's unblocked.\n",
+        "new_string": "What you're waiting on. It goes from here once it's unblocked.\n- Waiting on API keys for the staging payment provider\n"
       }
     }
   ],
-  "example": "Standup notes\n\nYesterday, today and blockers, one section a day, newest first. Claude Code can write yesterday from your commits.\n\n## Blockers\n- Waiting on API keys for the staging payment provider\n\n## Days\n### Standup, 8 November\n**Yesterday**\n- Fixed the sync conflict when two devices edit the same note\n- Added tests for the importer's table handling\n\n**Today**\n- Review the onboarding pull request\n- Start on the export to PDF\n\n### Standup, 7 November\n**Yesterday**\n- Paired with Emma on the importer\n\n**Today**\n- Fix the sync conflict\n- Write the importer's table tests\n",
+  "example": "Standup notes\n\nYesterday, today and blockers, one section a day, newest first. Tell your AI what you did, or let a coding agent write yesterday from your commits.\n\n## Blockers\nWhat you're waiting on. It goes from here once it's unblocked.\n- Waiting on API keys for the staging payment provider\n\n## Days\nOne section per working day.\n### Friday 6 November\n**Yesterday**\n- Fixed the sync conflict when two devices edit the same note\n- Added tests for the importer's table handling\n\n**Today**\n- Review the onboarding pull request\n- Start on the export to PDF\n\n### Thursday 5 November\n**Yesterday**\n- Paired with Emma on the importer\n\n**Today**\n- Fix the sync conflict\n- Write the importer's table tests\n",
   "related": [
-    "bug-triage",
-    "decision-log",
-    "meeting-notes"
+    "meeting-notes",
+    "one-on-one-notes",
+    "weekly-review"
   ],
-  "updated": "2026-11-09"
+  "updated": "2026-11-10"
 }

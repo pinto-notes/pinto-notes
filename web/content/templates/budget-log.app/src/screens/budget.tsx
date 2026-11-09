@@ -31,7 +31,7 @@ export default function Budget() {
       <Title title="Budget" subtitle={`${money(total, b.currency)} a month`} />
       <div className="min-[700px]:grid min-[700px]:grid-cols-2 min-[700px]:items-start min-[700px]:gap-6">
       <div>
-      <Section title="Each month" footer="Tap a name to rename it; its expenses move with it. Expenses keep their category when you remove one here.">
+      <Section title="Each month" footer="Choose a name to rename it; its expenses move with it. Expenses keep their category when you remove one here.">
         {!b.categories.length && <p className="px-4 pt-4 text-center text-muted-foreground">No categories yet. Add the first one below, with what you can spend on it a month.</p>}
         {b.categories.map((c) => (
           <Row key={c.name} className="gap-2 pr-1">

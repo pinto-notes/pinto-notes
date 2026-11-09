@@ -7,11 +7,11 @@
     "Families"
   ],
   "audience": "For households tired of deciding what's for dinner at 6 pm.",
-  "description": "A weekly meal plan with the grocery list that goes with it. Your AI plans the dinners and writes the list in Pinto Notes.",
-  "tagline": "This week's dinners and the shopping list.",
+  "description": "A weekly meal plan with the grocery list that goes with it. Tell your AI what you feel like and it plans the dinners and writes the list.",
+  "tagline": "Dinners for the week and what to buy.",
   "seoTitle": "Meal plan and grocery list template for ChatGPT",
   "folder": "Home",
-  "note": "Meal plan and groceries\n\nThis week's dinners and the shopping list that goes with them. Tick things off in the shop.\n\n## Dinners\n| Day | Dinner | Who cooks |\n| --- | --- | --- |\n| Monday | | |\n| Tuesday | | |\n| Wednesday | | |\n| Thursday | | |\n| Friday | | |\n| Saturday | | |\n| Sunday | | |\n\n## Groceries\n\n## Always in the cupboard\n- Olive oil, salt, pepper\n- Rice, pasta, oats\n- Onions, garlic\n",
+  "note": "Meal plan and groceries\n\nThis week's dinners and the shopping list that goes with them. Fill in the days, or ask your AI to plan the week.\n\n## Dinners\n| Day | Dinner | Who cooks |\n| --- | --- | --- |\n| Monday | | |\n| Tuesday | | |\n| Wednesday | | |\n| Thursday | | |\n| Friday | | |\n| Saturday | | |\n| Sunday | | |\n\n## Groceries\nWhat the week's dinners need, by aisle. Tick things off in the shop.\n\n## Always in the cupboard\n- Olive oil, salt, pepper\n- Rice, pasta, oats\n- Onions, garlic\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Meal plan and groceries\". On the weekend, ask me which nights we're cooking and anything to avoid, then suggest dinners and fill in the Dinners table with edit (read the note with fetch first). Then add what we need under \"Groceries\" as a checklist, grouped by aisle, leaving out what's under \"Always in the cupboard\". Keep weeknight dinners under 30 minutes. If I add something during the week, add it to the list."
   },
@@ -33,16 +33,16 @@
       "tool": "edit",
       "args": {
         "path": "Home/Meal plan and groceries.md",
-        "old_string": "## Groceries\n",
-        "new_string": "## Groceries\n**Fruit and veg**\n- [ ] Lemons\n- [ ] Basil\n- [ ] Cherry tomatoes\n- [ ] Limes\n- [ ] Potatoes\n\n**Meat and fish**\n- [ ] Chicken thighs\n- [ ] White fish\n- [ ] Whole chicken\n\n**Other**\n- [ ] Tortillas\n- [ ] Chickpeas\n- [ ] Pizza dough\n- [x] Parmesan\n"
+        "old_string": "What the week's dinners need, by aisle. Tick things off in the shop.\n",
+        "new_string": "What the week's dinners need, by aisle. Tick things off in the shop.\n**Fruit and veg**\n- [ ] Lemons\n- [ ] Basil\n- [ ] Cherry tomatoes\n- [ ] Limes\n- [ ] Potatoes\n\n**Meat and fish**\n- [ ] Chicken thighs\n- [ ] White fish\n- [ ] Whole chicken\n\n**Other**\n- [ ] Tortillas\n- [ ] Chickpeas\n- [ ] Coconut milk\n- [ ] Pizza dough\n- [ ] Mozzarella\n- [x] Parmesan\n"
       }
     }
   ],
-  "example": "Meal plan and groceries\n\nThis week's dinners and the shopping list that goes with them. Tick things off in the shop.\n\n## Dinners\n| Day | Dinner | Who cooks |\n| --- | --- | --- |\n| Monday | Lemon chicken with rice | Sara |\n| Tuesday | Pasta with tomato and basil | Jonas |\n| Wednesday | Fish tacos | Sara |\n| Thursday | Chickpea curry | Jonas |\n| Friday | Homemade pizza | Sara |\n| Saturday | Out with friends | – |\n| Sunday | Roast chicken and potatoes | Jonas |\n\n## Groceries\n**Fruit and veg**\n- [ ] Lemons\n- [ ] Basil\n- [ ] Cherry tomatoes\n- [ ] Limes\n- [ ] Potatoes\n\n**Meat and fish**\n- [ ] Chicken thighs\n- [ ] White fish\n- [ ] Whole chicken\n\n**Other**\n- [ ] Tortillas\n- [ ] Chickpeas\n- [ ] Pizza dough\n- [x] Parmesan\n\n## Always in the cupboard\n- Olive oil, salt, pepper\n- Rice, pasta, oats\n- Onions, garlic\n",
+  "example": "Meal plan and groceries\n\nThis week's dinners and the shopping list that goes with them. Fill in the days, or ask your AI to plan the week.\n\n## Dinners\n| Day | Dinner | Who cooks |\n| --- | --- | --- |\n| Monday | Lemon chicken with rice | Sara |\n| Tuesday | Pasta with tomato and basil | Jonas |\n| Wednesday | Fish tacos | Sara |\n| Thursday | Chickpea curry | Jonas |\n| Friday | Homemade pizza | Sara |\n| Saturday | Out with friends | – |\n| Sunday | Roast chicken and potatoes | Jonas |\n\n## Groceries\nWhat the week's dinners need, by aisle. Tick things off in the shop.\n**Fruit and veg**\n- [ ] Lemons\n- [ ] Basil\n- [ ] Cherry tomatoes\n- [ ] Limes\n- [ ] Potatoes\n\n**Meat and fish**\n- [ ] Chicken thighs\n- [ ] White fish\n- [ ] Whole chicken\n\n**Other**\n- [ ] Tortillas\n- [ ] Chickpeas\n- [ ] Coconut milk\n- [ ] Pizza dough\n- [ ] Mozzarella\n- [x] Parmesan\n\n## Always in the cupboard\n- Olive oil, salt, pepper\n- Rice, pasta, oats\n- Onions, garlic\n",
   "related": [
+    "grocery-list",
     "recipe-box",
-    "budget-log",
-    "grocery-list"
+    "budget-log"
   ],
-  "updated": "2026-11-09"
+  "updated": "2026-11-10"
 }

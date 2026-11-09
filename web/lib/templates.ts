@@ -231,7 +231,7 @@ export type SliceRow =
 /// useful: a filled table, ticked items, the newest day or decision. The slice runs on from there
 /// across sections, so the card's panel is always full.
 const SLICE_FROM: Record<string, string> = {
-  "habit-tracker": "Weekly check-in", "meeting-notes": "Open action items", "daily-standup": "Standup, 8 November", "meal-plan": "|",
+  "habit-tracker": "Weekly check-in", "meeting-notes": "Action items", "daily-standup": "Friday 6 November", "meal-plan": "|",
   "reading-list": "|", "mood-energy-log": "|", "job-hunt": "|", "trip-plan": "Ideas", "study-flashcards": "Cell respiration",
   "decision-log": "Stay on Postgres, 4 November", "workout-log": "|", "budget-log": "Month summaries", "one-on-one-notes": "Follow-ups",
   "book-notes": "Four Thousand Weeks by Oliver Burkeman", "bug-triage": "|", "weekly-review": "Week of 2 November",
@@ -250,11 +250,14 @@ export function slice(t: Template, lines = 8): SliceRow[] {
   const at = from === "|" ? md.findIndex((l) => l.trim().startsWith("|")) : md.findIndex((l) => heading(l)?.[2].trim() === from);
   if (at < 0) return [];
   const out: SliceRow[] = [];
+  // A section's own line under its heading ("Who does what, and by when.") is the template's, not
+  // something an AI added: the card runs on with what was filled in.
+  const own = new Set(t.note.split("\n").filter((l) => l.trim() && !/^(\s*([-*+]|\d+[.)])\s|#|\||>|<!--)/.test(l)));
   let used = 0, tinted = false;
   const labelled = (rest: string) => { const m = rest.match(/^\*\*(.+?)\*\*\s*(.*)$/); return m ? { label: m[1], text: plain(m[2]) } : { text: plain(rest) }; };
   for (let i = at; i < md.length && used < lines; i++) {
     const l = md[i];
-    if (!l.trim() || l.trim().startsWith("<!--")) continue;
+    if (!l.trim() || l.trim().startsWith("<!--") || own.has(l)) continue;
     const h = heading(l);
     // Past the first block, headings and labels would land alone at the panel's faded foot, so the
     // slice runs on with the lines themselves.

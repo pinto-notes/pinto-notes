@@ -276,8 +276,9 @@ describe("Roll-over", () => {
     render(<App />)
     // Groceries: 1,000 + 800 left over. Eating out: 500 - 200 over.
     await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("2,100 kr"))
-    expect(screen.getByText("0 kr of 1,800 kr (+800 kr from last month)")).toBeInTheDocument()
-    expect(screen.getByText("0 kr of 300 kr (−200 kr from last month)")).toBeInTheDocument()
+    expect(screen.getByTestId("spent-Groceries")).toHaveTextContent("0 kr of 1,800 kr")
+    expect(screen.getByText("1,800 kr left (+800 kr from last month)")).toBeInTheDocument()
+    expect(screen.getByText("300 kr left (−200 kr from last month)")).toBeInTheDocument()
   })
 
   it("carries nothing from before roll-over was turned on", async () => {

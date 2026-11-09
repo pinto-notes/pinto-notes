@@ -7,10 +7,10 @@
     "Developers"
   ],
   "audience": "For teams and founders who keep re-arguing settled questions.",
-  "description": "A decision log your AI keeps: what you chose, what you didn't, and why. Ask it later why you decided something.",
+  "description": "Tell your AI about a decision and it logs the context, the options and the reason. Ask it later why you decided something.",
   "tagline": "What you chose, what you didn't, and why.",
   "folder": "Work",
-  "note": "Decision log\n\nEvery decision worth remembering: what you chose, what you didn't, and why. Future you will ask.\n\n## Open questions\n\n## Decisions\n",
+  "note": "Decision log\n\nEvery decision worth remembering: what you chose, what you didn't, and why. Tell your AI about one to log the first.\n\n## Open questions\nWhat still needs deciding.\n\n## Decisions\nNewest first: the context, what you chose and why.\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Decision log\". Read it with fetch before each change. When I tell you about a decision, add it at the start of \"Decisions\" with edit: a \"###\" heading with the decision in a few words and the date, then Context, Options we considered, What we chose, Why, and When to revisit, one short line each. If I haven't said why, ask. Questions we haven't decided yet go under \"Open questions\"; when one is decided, remove it from there. When I ask why we did something, find it with search and quote the entry.",
     "claudeCode": "Use my Pinto Notes note \"Decision log\" for this project's technical decisions. When we settle on an approach (a library, a schema, an architecture), read the note with fetch and add an entry at the start of \"Decisions\" with edit: a \"###\" heading with the decision and today's date, then Context, Options we considered, What we chose, Why, and When to revisit. Name the files or modules it affects. Before proposing a change that touches one of these, read the note and check we're not undoing a decision."
@@ -25,32 +25,32 @@
       "tool": "edit",
       "args": {
         "path": "Work/Decision log.md",
-        "old_string": "## Open questions\n",
-        "new_string": "## Open questions\n- Do we support offline editing in the first release?\n- Who owns the importer after the launch?\n"
+        "old_string": "What still needs deciding.\n",
+        "new_string": "What still needs deciding.\n- Do we support offline editing in the first release?\n- Who owns the importer after the launch?\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Decision log.md",
-        "old_string": "## Decisions\n",
-        "new_string": "## Decisions\n### Release every Tuesday, 2 November\n- **Context:** releases slipped whenever one fix wasn't ready.\n- **Chose:** ship what's ready every Tuesday.\n- **Why:** small releases are easier to undo.\n"
+        "old_string": "Newest first: the context, what you chose and why.\n",
+        "new_string": "Newest first: the context, what you chose and why.\n### Release every Tuesday, 2 November\n- **Context:** releases slipped whenever one fix wasn't ready.\n- **Chose:** ship what's ready every Tuesday.\n- **Why:** small releases are easier to undo.\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Decision log.md",
-        "old_string": "## Decisions\n",
-        "new_string": "## Decisions\n### Stay on Postgres, 4 November\n- **Context:** notes grew to 2 million rows and search got slow.\n- **Options:** a document store, a search service, or better indexes.\n- **Chose:** Postgres with a trigram index.\n- **Why:** one database to run, and the index made search 40 times faster.\n- **Revisit:** at 20 million rows.\n\n"
+        "old_string": "Newest first: the context, what you chose and why.\n",
+        "new_string": "Newest first: the context, what you chose and why.\n### Stay on Postgres, 4 November\n- **Context:** notes grew to 2 million rows and search got slow.\n- **Options:** a document store, a search service, or better indexes.\n- **Chose:** Postgres with a trigram index.\n- **Why:** one database to run, and the index made search 40 times faster.\n- **Revisit:** at 20 million rows.\n\n"
       }
     }
   ],
-  "example": "Decision log\n\nEvery decision worth remembering: what you chose, what you didn't, and why. Future you will ask.\n\n## Open questions\n- Do we support offline editing in the first release?\n- Who owns the importer after the launch?\n\n## Decisions\n### Stay on Postgres, 4 November\n- **Context:** notes grew to 2 million rows and search got slow.\n- **Options:** a document store, a search service, or better indexes.\n- **Chose:** Postgres with a trigram index.\n- **Why:** one database to run, and the index made search 40 times faster.\n- **Revisit:** at 20 million rows.\n\n### Release every Tuesday, 2 November\n- **Context:** releases slipped whenever one fix wasn't ready.\n- **Chose:** ship what's ready every Tuesday.\n- **Why:** small releases are easier to undo.\n",
+  "example": "Decision log\n\nEvery decision worth remembering: what you chose, what you didn't, and why. Tell your AI about one to log the first.\n\n## Open questions\nWhat still needs deciding.\n- Do we support offline editing in the first release?\n- Who owns the importer after the launch?\n\n## Decisions\nNewest first: the context, what you chose and why.\n### Stay on Postgres, 4 November\n- **Context:** notes grew to 2 million rows and search got slow.\n- **Options:** a document store, a search service, or better indexes.\n- **Chose:** Postgres with a trigram index.\n- **Why:** one database to run, and the index made search 40 times faster.\n- **Revisit:** at 20 million rows.\n\n### Release every Tuesday, 2 November\n- **Context:** releases slipped whenever one fix wasn't ready.\n- **Chose:** ship what's ready every Tuesday.\n- **Why:** small releases are easier to undo.\n",
   "related": [
     "meeting-notes",
-    "bug-triage",
-    "weekly-review"
+    "one-on-one-notes",
+    "bug-triage"
   ],
-  "updated": "2026-11-09"
+  "updated": "2026-11-10"
 }

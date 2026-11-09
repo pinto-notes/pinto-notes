@@ -7,10 +7,10 @@
     "Families"
   ],
   "audience": "For anyone who keeps a grocery list in their notes and is tired of sorting it by aisle by hand.",
-  "description": "One list sorted by aisle. Say what you need and your AI files each item and clears what you've ticked.",
-  "tagline": "Sorted by aisle, before you get to the shop.",
+  "description": "One list sorted by aisle. Tell your AI what you need and it files each item; say you're back and it clears what's ticked.",
+  "tagline": "One list for the shop, sorted by aisle.",
   "folder": "Home",
-  "note": "Grocery list\n\nOne running list for the shop, sorted by aisle. Tell your AI what you need and it files each thing under the right aisle. Tick things off as you shop.\n\n## Fruit and veg\n\n## Bread and dairy\n\n## Meat and fish\n\n## Cupboard\n\n## Frozen\n\n## Household\n",
+  "note": "Grocery list\n\nOne running list for the shop, sorted by aisle. Type what you need under an aisle, or tell your AI and it files each thing. Tick things off as you shop.\n\n## Fruit and veg\n\n## Bread and dairy\n\n## Meat and fish\n\n## Cupboard\n\n## Frozen\n\n## Household\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Grocery list\". When I tell you what we need, even in one long sentence, read the note with fetch, then add each item as a checklist line under the aisle heading it belongs to with edit. Skip anything already on the list and unticked. Keep item names short and add a quantity only when I give one. When I say I'm back from the shop, remove the ticked lines and tell me what's left. If something doesn't fit an aisle, put it under \"Household\"."
   },
@@ -25,7 +25,7 @@
       "args": {
         "path": "Home/Grocery list.md",
         "old_string": "## Fruit and veg\n",
-        "new_string": "## Fruit and veg\n- [ ] Apples\n- [ ] Spinach\n- [x] Bananas\n"
+        "new_string": "## Fruit and veg\n- [ ] Apples\n- [ ] Spinach\n- [ ] Lemons\n- [x] Bananas\n"
       }
     },
     {
@@ -33,7 +33,7 @@
       "args": {
         "path": "Home/Grocery list.md",
         "old_string": "## Bread and dairy\n",
-        "new_string": "## Bread and dairy\n- [ ] Oat milk\n- [ ] Sourdough\n"
+        "new_string": "## Bread and dairy\n- [ ] Oat milk\n- [ ] Sourdough\n- [ ] Eggs\n- [x] Butter\n"
       }
     },
     {
@@ -49,7 +49,7 @@
       "args": {
         "path": "Home/Grocery list.md",
         "old_string": "## Cupboard\n",
-        "new_string": "## Cupboard\n- [ ] Tinned tomatoes, 2 cans\n- [ ] Rice\n- [ ] Olive oil\n"
+        "new_string": "## Cupboard\n- [ ] Tinned tomatoes, 2 cans\n- [ ] Rice\n- [ ] Olive oil\n- [ ] Coffee\n"
       }
     },
     {
@@ -65,15 +65,15 @@
       "args": {
         "path": "Home/Grocery list.md",
         "old_string": "## Household\n",
-        "new_string": "## Household\n- [ ] Bin bags\n"
+        "new_string": "## Household\n- [ ] Bin bags\n- [ ] Washing-up liquid\n"
       }
     }
   ],
-  "example": "Grocery list\n\nOne running list for the shop, sorted by aisle. Tell your AI what you need and it files each thing under the right aisle. Tick things off as you shop.\n\n## Fruit and veg\n- [ ] Apples\n- [ ] Spinach\n- [x] Bananas\n\n## Bread and dairy\n- [ ] Oat milk\n- [ ] Sourdough\n\n## Meat and fish\n- [ ] Salmon fillets\n- [ ] Minced beef\n\n## Cupboard\n- [ ] Tinned tomatoes, 2 cans\n- [ ] Rice\n- [ ] Olive oil\n\n## Frozen\n- [ ] Peas\n\n## Household\n- [ ] Bin bags\n",
+  "example": "Grocery list\n\nOne running list for the shop, sorted by aisle. Type what you need under an aisle, or tell your AI and it files each thing. Tick things off as you shop.\n\n## Fruit and veg\n- [ ] Apples\n- [ ] Spinach\n- [ ] Lemons\n- [x] Bananas\n\n## Bread and dairy\n- [ ] Oat milk\n- [ ] Sourdough\n- [ ] Eggs\n- [x] Butter\n\n## Meat and fish\n- [ ] Salmon fillets\n- [ ] Minced beef\n\n## Cupboard\n- [ ] Tinned tomatoes, 2 cans\n- [ ] Rice\n- [ ] Olive oil\n- [ ] Coffee\n\n## Frozen\n- [ ] Peas\n\n## Household\n- [ ] Bin bags\n- [ ] Washing-up liquid\n",
   "related": [
     "meal-plan",
     "recipe-box",
     "budget-log"
   ],
-  "updated": "2026-11-09"
+  "updated": "2026-11-10"
 }

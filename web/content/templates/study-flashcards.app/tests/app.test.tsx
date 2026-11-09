@@ -20,6 +20,23 @@ beforeEach(async () => {
 })
 
 describe("Study", () => {
+  it("shows the newest card on the first screen, question over answer, and names the boxes plainly", async () => {
+    await amber.store.set("cards", [
+      card("c1", "Where does glycolysis happen?", "In the cytoplasm", "Biology", 3, today),
+      card("c2", "What is ATP for?", "Energy the cell can use", "Biology", 1),
+    ])
+    render(<App />)
+    const newest = await screen.findByTestId("newest")
+    await waitFor(() => expect(newest).toHaveTextContent("What is ATP for?"))
+    expect(newest).toHaveTextContent("Energy the cell can use")
+    expect(newest).toHaveTextContent("Biology · New")
+    expect(screen.queryByText("Tmrw")).toBeNull()
+    // How well you know them is under the cards, in words: never "Box 3".
+    await go("Cards")
+    expect(await screen.findByRole("img", { name: "Cards by how well you know them: New 1, Shaky 0, Steady 1, Strong 0, Solid 0" })).toBeInTheDocument()
+    expect(screen.queryByText(/^Box \d/)).toBeNull()
+  })
+
   it("studies the due cards: shows the answer, then moves each card by how you did", async () => {
     await amber.store.set("cards", [
       card("c1", "Where does glycolysis happen?", "In the cytoplasm", "Biology", 2),

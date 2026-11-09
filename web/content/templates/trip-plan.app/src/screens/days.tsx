@@ -27,7 +27,7 @@ export default function Days() {
   return (
     <>
       <Title title="Days" subtitle={trip ? `${trip.name} · ${range(trip)}` : undefined} action={<TintButton onClick={() => setEditing("new")}><Plus /> Add day</TintButton>} />
-      {!all.length && <p className="py-6 text-center text-muted-foreground">No days planned yet. Tap Add day to plan the first one, or ask your AI for a day-by-day plan.</p>}
+      {!all.length && <p className="py-6 text-center text-muted-foreground">No days planned yet. Use Add day to plan the first one, or ask your AI for a day-by-day plan.</p>}
       {all.length > 0 && (
         <div className="-mt-2 mb-4 flex items-center gap-2 px-1">
           <p className="min-w-0 flex-1 text-[0.875rem] text-muted-foreground">Start a line with a time (09:30) to put it in order. Bookings with a date join their day.</p>

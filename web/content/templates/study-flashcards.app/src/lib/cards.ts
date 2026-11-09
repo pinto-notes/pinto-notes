@@ -23,6 +23,9 @@ export const intervalOf = (c: Card) => (c.interval ?? (c.seen ? GAP[Math.min(5, 
 export const dueOn = (c: Card) => (c.seen ? plus(c.seen, intervalOf(c)) : "")
 export const isDue = (c: Card, today = iso(new Date())) => !c.seen || dueOn(c) <= today
 export const boxFor = (interval: number) => (interval <= 1 ? 1 : interval <= 3 ? 2 : interval <= 7 ? 3 : interval <= 21 ? 4 : 5)
+/** A box as a person says it, for the chart and the card's label (1: New, to 5: Solid). */
+export const LEVELS = ["New", "Shaky", "Steady", "Strong", "Solid"]
+export const level = (c: Card) => (c.seen ? LEVELS[Math.min(5, Math.max(1, c.box || 1)) - 1] : "New")
 export const newId = () => "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 
 /** What a grade does to a card: the next interval (days) and ease. Again and Hard ease off; Easy

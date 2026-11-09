@@ -6,10 +6,10 @@
     "Work"
   ],
   "audience": "For creators, marketers and founders who post every week.",
-  "description": "An idea bank and a calendar. Your AI turns ideas into scheduled posts and keeps the status current.",
-  "tagline": "What goes out when, plus a bank of ideas.",
+  "description": "An idea bank and a calendar. Ask your AI to plan the next two weeks from your ideas, and tell it when a post goes out.",
+  "tagline": "What goes out when, and a bank of ideas.",
   "folder": "Work",
-  "note": "Content calendar\n\nWhat's going out, where and when, plus a bank of ideas so you never start from a blank page.\n\n## Calendar\n<!-- pane-table: Publish on=text; Title=text; Channel=choice Blog|Newsletter|LinkedIn|Instagram|YouTube; Status=choice Idea|Drafting|Scheduled|Published -->\n| Publish on | Title | Channel | Status |\n| --- | --- | --- | --- |\n\n## Ideas\n\n## Voice\n- Short sentences. One idea per post.\n- Show the work: a screenshot or a number beats an adjective.\n- End with a question, not a sales pitch.\n",
+  "note": "Content calendar\n\nWhat's going out, where and when, plus a bank of ideas so you never start from a blank page. Tell your AI an idea to add the first.\n\n## Calendar\n<!-- pane-table: Publish on=text; Title=text; Channel=choice Blog|Newsletter|LinkedIn|Instagram|YouTube; Status=choice Idea|Drafting|Scheduled|Published -->\n| Publish on | Title | Channel | Status |\n| --- | --- | --- | --- |\n\n## Ideas\nAnything worth a post, added the moment you think of it.\n\n## Voice\n- Short sentences. One idea per post.\n- Show the work: a screenshot or a number beats an adjective.\n- End with a question, not a sales pitch.\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Content calendar\". Read it with fetch before each change. When I have an idea, add it under \"Ideas\" as a bullet with edit. When I ask you to plan the next two weeks, pick ideas from \"Ideas\" and add a row per post to the table with edit: Publish on as a date, a working Title, the Channel and Status Drafting. Write drafts in the tone described under \"Voice\". When I say a post went out, set its Status to Published."
   },
@@ -24,55 +24,55 @@
       "args": {
         "path": "Work/Content calendar.md",
         "old_string": "| --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- |\n| 2026-11-10 | What we learned from 100 customer calls | LinkedIn | Drafting |\n"
+        "new_string": "| --- | --- | --- | --- |\n| 2026-11-03 | Five questions we ask every new customer | Blog | Published |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Content calendar.md",
-        "old_string": "| 2026-11-10 | What we learned from 100 customer calls | LinkedIn | Drafting |\n",
-        "new_string": "| 2026-11-10 | What we learned from 100 customer calls | LinkedIn | Drafting |\n| 2026-11-12 | This month's newsletter: three customer stories | Newsletter | Scheduled |\n"
+        "old_string": "| 2026-11-03 | Five questions we ask every new customer | Blog | Published |\n",
+        "new_string": "| 2026-11-03 | Five questions we ask every new customer | Blog | Published |\n| 2026-11-10 | What we learned from 100 customer calls | LinkedIn | Scheduled |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Content calendar.md",
-        "old_string": "| 2026-11-12 | This month's newsletter: three customer stories | Newsletter | Scheduled |\n",
-        "new_string": "| 2026-11-12 | This month's newsletter: three customer stories | Newsletter | Scheduled |\n| 2026-11-16 | Our onboarding, before and after | LinkedIn | Idea |\n"
+        "old_string": "| 2026-11-10 | What we learned from 100 customer calls | LinkedIn | Scheduled |\n",
+        "new_string": "| 2026-11-10 | What we learned from 100 customer calls | LinkedIn | Scheduled |\n| 2026-11-12 | This month's newsletter: three customer stories | Newsletter | Drafting |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Content calendar.md",
-        "old_string": "| 2026-11-16 | Our onboarding, before and after | LinkedIn | Idea |\n",
-        "new_string": "| 2026-11-16 | Our onboarding, before and after | LinkedIn | Idea |\n| 2026-11-18 | Behind the scenes: the support desk | Instagram | Idea |\n"
+        "old_string": "| 2026-11-12 | This month's newsletter: three customer stories | Newsletter | Drafting |\n",
+        "new_string": "| 2026-11-12 | This month's newsletter: three customer stories | Newsletter | Drafting |\n| 2026-11-17 | Our onboarding, before and after | LinkedIn | Drafting |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Content calendar.md",
-        "old_string": "| 2026-11-18 | Behind the scenes: the support desk | Instagram | Idea |\n",
-        "new_string": "| 2026-11-18 | Behind the scenes: the support desk | Instagram | Idea |\n| 2026-11-20 | How we plan a release | Blog | Idea |\n"
+        "old_string": "| 2026-11-17 | Our onboarding, before and after | LinkedIn | Drafting |\n",
+        "new_string": "| 2026-11-17 | Our onboarding, before and after | LinkedIn | Drafting |\n| 2026-11-19 | Behind the scenes: the support desk | Instagram | Idea |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Content calendar.md",
-        "old_string": "## Ideas\n",
-        "new_string": "## Ideas\n- Three tools I use every day\n- A day in support, in numbers\n- What we stopped doing this year\n"
+        "old_string": "Anything worth a post, added the moment you think of it.\n",
+        "new_string": "Anything worth a post, added the moment you think of it.\n- Three tools I use every day\n- A day in support, in numbers\n- What we stopped doing this year\n"
       }
     }
   ],
-  "example": "Content calendar\n\nWhat's going out, where and when, plus a bank of ideas so you never start from a blank page.\n\n## Calendar\n<!-- pane-table: Publish on=text; Title=text; Channel=choice Blog|Newsletter|LinkedIn|Instagram|YouTube; Status=choice Idea|Drafting|Scheduled|Published -->\n| Publish on | Title | Channel | Status |\n| --- | --- | --- | --- |\n| 2026-11-10 | What we learned from 100 customer calls | LinkedIn | Drafting |\n| 2026-11-12 | This month's newsletter: three customer stories | Newsletter | Scheduled |\n| 2026-11-16 | Our onboarding, before and after | LinkedIn | Idea |\n| 2026-11-18 | Behind the scenes: the support desk | Instagram | Idea |\n| 2026-11-20 | How we plan a release | Blog | Idea |\n\n## Ideas\n- Three tools I use every day\n- A day in support, in numbers\n- What we stopped doing this year\n\n## Voice\n- Short sentences. One idea per post.\n- Show the work: a screenshot or a number beats an adjective.\n- End with a question, not a sales pitch.\n",
+  "example": "Content calendar\n\nWhat's going out, where and when, plus a bank of ideas so you never start from a blank page. Tell your AI an idea to add the first.\n\n## Calendar\n<!-- pane-table: Publish on=text; Title=text; Channel=choice Blog|Newsletter|LinkedIn|Instagram|YouTube; Status=choice Idea|Drafting|Scheduled|Published -->\n| Publish on | Title | Channel | Status |\n| --- | --- | --- | --- |\n| 2026-11-03 | Five questions we ask every new customer | Blog | Published |\n| 2026-11-10 | What we learned from 100 customer calls | LinkedIn | Scheduled |\n| 2026-11-12 | This month's newsletter: three customer stories | Newsletter | Drafting |\n| 2026-11-17 | Our onboarding, before and after | LinkedIn | Drafting |\n| 2026-11-19 | Behind the scenes: the support desk | Instagram | Idea |\n\n## Ideas\nAnything worth a post, added the moment you think of it.\n- Three tools I use every day\n- A day in support, in numbers\n- What we stopped doing this year\n\n## Voice\n- Short sentences. One idea per post.\n- Show the work: a screenshot or a number beats an adjective.\n- End with a question, not a sales pitch.\n",
   "related": [
     "meeting-notes",
     "weekly-review",
-    "job-hunt"
+    "daily-standup"
   ],
-  "updated": "2026-11-09"
+  "updated": "2026-11-10"
 }

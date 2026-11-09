@@ -21,6 +21,11 @@ beforeEach(async () => {
 })
 // The sidebar (Mac) and the tab bar (iPhone) both have the screens' links; either one goes there.
 const go = async (name: string) => userEvent.click((await screen.findAllByRole("link", { name }))[0])
+// Today's count: its own line under the week's, except on a Monday when the week so far is today
+// and the week's line says it alone.
+const todayIs = (n: number, of: number) => waitFor(() => today().getDay() === 1
+  ? expect(screen.getByTestId("week-count")).toHaveTextContent(`${n} of ${of}`)
+  : expect(screen.getByTestId("today-count")).toHaveTextContent(`Today: ${n} of ${of} done`))
 
 describe("Today", () => {
   it("ticks a habit for today in one tap, and unticks it", async () => {
@@ -35,18 +40,19 @@ describe("Today", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Done: Walk" }))
     await waitFor(() => expect(values().days?.[day]).toBeUndefined())
-    expect(await screen.findByText("Today: 0 of 1 done")).toBeInTheDocument()
+    await todayIs(0, 1)
   })
 
   it("says the week beside the week's ring, and today under it", async () => {
     await amber.store.set("habits", [walk])
     render(<App />)
-    await waitFor(() => expect(screen.getByTestId("today-count")).toHaveTextContent("Today: 0 of 1 done"))
+    await todayIs(0, 1)
+    expect(screen.getByTestId("week-label")).toHaveTextContent(today().getDay() === 1 ? "Today" : "Since Monday")
     await userEvent.click(screen.getByRole("button", { name: "Done: Walk" }))
     await waitFor(() => expect(screen.getByTestId("today-count")).toHaveTextContent("All done today"))
     // A walk a day since Monday: one done of the days so far, and the ring says the same share.
     const days = (today().getDay() + 6) % 7 + 1
-    expect(screen.getByTestId("week-count")).toHaveTextContent(`1 of ${days} since Monday`)
+    expect(screen.getByTestId("week-count")).toHaveTextContent(`1 of ${days}`)
     expect(screen.getByRole("img", { name: `This week ${Math.round(100 / days)}%` })).toBeInTheDocument()
   })
 
@@ -152,7 +158,7 @@ describe("Habits", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Edit Walk" }))
     await userEvent.click(await screen.findByRole("button", { name: "Remove habit" }))
     await waitFor(() => expect(values().habits).toEqual([]))
-    expect(await screen.findByText("No habits yet. Tap Add to make your first one.")).toBeInTheDocument()
+    expect(await screen.findByText("No habits yet. Use Add to make your first one.")).toBeInTheDocument()
   })
 })
 
@@ -238,7 +244,7 @@ describe("Schedules", () => {
     await amber.store.set("habits", [walk, { id: "spanish", name: "Spanish", target: 1, days: [tomorrow] }])
     render(<App />)
     expect(await screen.findByRole("heading", { name: "Not today" })).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByTestId("today-count")).toHaveTextContent("Today: 0 of 1 done"))
+    await todayIs(0, 1)
     await userEvent.click(screen.getByRole("button", { name: "Done: Walk" }))
     expect(await screen.findByText("All done today")).toBeInTheDocument()
   })
@@ -315,7 +321,7 @@ describe("Older data", () => {
     await amber.store.set("habits", [walk, water])
     await amber.store.set("days", { [iso(addDays(today(), -1))]: { walk: 1, water: 8 } })
     render(<App />)
-    await waitFor(() => expect(screen.getByTestId("today-count")).toHaveTextContent("Today: 0 of 2 done"))
+    await todayIs(0, 2)
     expect(screen.getAllByText("1-day streak").length).toBe(2)
   })
 })
