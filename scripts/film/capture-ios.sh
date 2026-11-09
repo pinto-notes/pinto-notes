@@ -22,6 +22,9 @@ xcrun simctl ui "$SIM" appearance light
 
 launch() { xcrun simctl terminate "$SIM" $APP 2>/dev/null || true; sleep 1; xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm "$@" >/dev/null; }
 
+# Once through unrecorded: a first launch after an install stalls the simulator for seconds.
+xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm -filmAutoWatch >/dev/null; sleep 12
+xcrun simctl terminate "$SIM" $APP 2>/dev/null || true; sleep 1
 # The whole flow, from the notes opening: intro, Watch, the film, the share screen, then Share.
 xcrun simctl terminate "$SIM" $APP 2>/dev/null || true; sleep 1
 data=$(xcrun simctl get_app_container "$SIM" $APP data)

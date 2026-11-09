@@ -609,12 +609,15 @@ final class FilmPlayback {
             await MainActor.run { self?.frame = made.first }
             let total = Double(script.frameCount - first)
             let clock = ContinuousClock()
-            let began = clock.now
+            var began = clock.now
             while !renderer.isDone && !Task.isCancelled {
                 if skip.withLock({ $0 }) { while renderer.frame < script.frameCount - 1 { renderer.skip() } }
-                // It keeps the film's own time: a frame that took too long to draw is followed by
-                // the frame that's due now, not the next one (the film never runs slow).
-                let due = first + Int((clock.now - began) / .seconds(1.0 / Double(FilmScript.fps)))
+                // It keeps the film's own time: a frame that took a little too long to draw is
+                // followed by the frame that's due now. But if the phone stalls (more than a fifth
+                // of a second), the film waits for it: it never jumps ahead.
+                let step = FilmPlayback.advance(frame: renderer.frame, first: first, elapsed: (clock.now - began) / .seconds(1))
+                began += .seconds(step.wait)
+                let due = step.frame
                 while renderer.frame < min(due, script.frameCount - 1) { renderer.skip() }
                 renderer.drawNext(in: ctx)
                 let image = ctx.makeImage()
@@ -641,6 +644,15 @@ final class FilmPlayback {
                 try? await clock.sleep(for: .milliseconds(10))
             }
         }
+    }
+
+    /// Which frame to draw next, `elapsed` seconds after the film began, when `frame` is the next
+    /// one in order: the one that's due when it's a few frames behind; after a stall, the next
+    /// one in order, with the time the film waits (its clock moves on by that much).
+    nonisolated static func advance(frame: Int, first: Int, elapsed: Double) -> (frame: Int, wait: Double) {
+        let due = first + Int(elapsed * Double(FilmScript.fps))
+        guard due - frame > 6 else { return (max(frame, due), 0) }
+        return (frame, Double(due - frame) / Double(FilmScript.fps))
     }
 
     private nonisolated static func pixelHeight(_ width: Int, _ canvas: FilmCanvas) -> Int {

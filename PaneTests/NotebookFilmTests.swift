@@ -573,6 +573,16 @@ import Testing
         #expect(Data(bytes: landed.data!, count: landed.bytesPerRow * landed.height) == Data(bytes: want.data!, count: want.bytesPerRow * want.height), "it lands as the film that's shared")
     }
 
+    @Test func theFilmWaitsThroughAStallAndNeverJumpsAhead() {
+        // On time: the next frame. A few frames late: the one that's due. A stall of seconds:
+        // the next frame in order, and the film's clock moves on by what it waited.
+        #expect(FilmPlayback.advance(frame: 10, first: 0, elapsed: 10.0 / 30).frame == 10)
+        #expect(FilmPlayback.advance(frame: 10, first: 0, elapsed: 13.2 / 30).frame == 13)
+        let stalled = FilmPlayback.advance(frame: 10, first: 0, elapsed: 6)
+        #expect(stalled.frame == 10)
+        #expect(abs(stalled.wait - Double(180 - 10) / 30) < 0.001)
+    }
+
     @Test func playingItSmallDrawsTheSameFilm() {
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
         let small = FilmRenderer(script: script)
