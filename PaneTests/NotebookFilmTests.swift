@@ -420,6 +420,7 @@ import Testing
         #expect(FilmRenderer.Labels().topFolderCaption("Work") == "I wrote most in Work", "said while it grows, with no count that isn't true yet")
         #expect(FilmRenderer.Labels().daysCaption(25) == "I wrote on 25 days", "a month of one or two folders gets a line of its own too")
         #expect(FilmRenderer.Labels().streakCaption(9) == "9 days in a row, my longest run")
+        #expect(FilmRenderer.Labels().firstAICaption("ChatGPT") == "My first note with ChatGPT")
         // The longest run of days written on, counted from the notes.
         let d = Self.now
         func note(_ days: [Int]) -> FilmNote { FilmNote(id: UUID(), folder: "", created: d.addingTimeInterval(Double(-days.max()!) * 86_400), edits: days.map { FilmEdit(at: d.addingTimeInterval(Double(-$0) * 86_400), ai: nil) }, links: []) }
@@ -587,8 +588,8 @@ import Testing
         #expect(script.date(at: 0) == FilmDemo.notebook(days: 35, now: Self.now).notes.map(\.created).min())
         // And in the app the town starts with its first houses there, as the intro shows it.
         let town = TownScene(script: script, folderNames: true)
-        #expect(town.appStart > 0.3 && town.appStart <= 1.2)
-        #expect(script.nodes.filter { $0.birth <= town.appStart }.count >= 3)
+        #expect(town.appStart >= 0.3 && town.appStart <= 0.5)
+        #expect(script.nodes.filter { $0.birth <= town.appStart }.count >= 2)
     }
 
     @Test func theFilmWaitsThroughAStallAndNeverJumpsAhead() {

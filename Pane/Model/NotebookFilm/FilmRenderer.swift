@@ -91,7 +91,7 @@ final class FilmRenderer {
         var topFolder: @Sendable (String, Int) -> String = { "Most written in \($0) \u{00B7} \($1 == 1 ? "1 note" : "\($1) notes")" }
         var busiestDay: @Sendable (String, Int) -> String = { "Busiest day: \($0) \u{00B7} \($1 == 1 ? "1 edit" : "\($1) edits")" }
         /// Said under the date as it grows, so someone who has never seen the app can read it.
-        var captions = ["Each light is a note", "Notes grow each time they\u{2019}re edited"]
+        var captions = ["Each light is a note", "It grows each time it\u{2019}s edited"]
         /// A third, when the notebook has links.
         var linksCaption = "A line is a link between two notes"
         /// As the film passes the day you wrote most (the date is beside it). First person, like
@@ -99,6 +99,8 @@ final class FilmRenderer {
         var busiestCaption: @Sendable (Int) -> String = { "My busiest day \u{00B7} \($0 == 1 ? "1 edit" : "\($0) edits")" }
         /// Near the end, as the folder written in most has its moment (its count is on the end card).
         var topFolderCaption: @Sendable (String) -> String = { "I wrote most in \($0)" }
+        /// As the AI first writes in a note of yours.
+        var firstAICaption: @Sendable (String) -> String = { "My first note with \($0)" }
         /// The same moment in a month of one or two folders: how many days you wrote on.
         var daysCaption: @Sendable (Int) -> String = { $0 == 1 ? "I wrote on 1 day" : "I wrote on \($0) days" }
         /// ...or, better, the most days running (the end card has the count of days).
@@ -722,22 +724,29 @@ final class FilmRenderer {
             func shown(_ from: Double, _ until: Double) -> Double { ramp(from, from + 0.22) * (1 - ramp(until - 0.22, until)) }
             /// 1 while a line of your own holds the baseline, with room either side of it.
             func held(_ from: Double, _ until: Double) -> Double { ramp(from - 0.34, from - 0.1) * (1 - ramp(until + 0.1, until + 0.34)) }
-            var mine: [(from: Double, until: Double, line: String)] = []
+            var mine: [(from: Double, until: Double, line: String, color: RGB)] = []
+            // The first note the AI helped with, said in its colour as that roof turns: it's
+            // your month's own news, and it says what the colour means.
+            if let ai = s.ai, firstAI.isFinite, firstAI >= titleUntil + 1.6 + startOffset, firstAI < script.growth - 2.6 {
+                mine.append((firstAI, firstAI + 1.7, labels.firstAICaption(ai), look.dark ? look.ai : FilmLook.paper.ai))
+            }
             // Only while that day is on screen: a day that passed under the title goes unsaid here.
             if let day = s.busiestDay, let span = script.span(ofDay: day), span.start >= titleUntil + 0.3 + startOffset {
-                mine.append((span.start, span.start + min(2.4, max(0.9, span.length - 0.15)), labels.busiestCaption(s.busiestDayEdits)))
+                mine.append((span.start, span.start + min(2.4, max(0.9, span.length - 0.15)), labels.busiestCaption(s.busiestDayEdits), look.you))
             }
             if labels.folderNames, let f = s.topFolder, script.growth > 5, s.folders >= 3 {
-                mine.append((script.growth - FilmScript.topFolderMoment, script.growth - 0.25, labels.topFolderCaption(f)))
+                mine.append((script.growth - FilmScript.topFolderMoment, script.growth - 0.25, labels.topFolderCaption(f), look.you))
             } else if s.writingDays > 1 {
-                mine.append((script.growth - 1.9, script.growth - 0.25, s.streak >= 3 ? labels.streakCaption(s.streak) : labels.daysCaption(s.writingDays)))
+                mine.append((script.growth - 1.9, script.growth - 0.25, s.streak >= 3 ? labels.streakCaption(s.streak) : labels.daysCaption(s.writingDays), look.you))
             }
+            mine.sort { $0.from < $1.from }
             var cover = 0.0
             for (k, m) in mine.enumerated() {
-                // The later of two that meet waits for the earlier.
-                let a = shown(m.from, m.until) * (k > 0 ? 1 - held(mine[0].from, mine[0].until) : 1)
+                // One that meets an earlier one waits for it.
+                var a = shown(m.from, m.until)
+                for earlier in mine[..<k] { a *= 1 - held(earlier.from, earlier.until) }
                 cover = max(cover, held(m.from, m.until))
-                if a > 0 { text(m.line, size: 48, weight: .semibold, color: look.you.cg(a * running), at: CGPoint(x: side, y: base + 86), in: ctx) }
+                if a > 0 { text(m.line, size: 48, weight: .semibold, color: m.color.cg(a * running), at: CGPoint(x: side, y: base + 86), in: ctx) }
             }
             // As many as fit while it grows: a thin month's shorter film says less.
             let lines = scene?.captions ?? labels.captions

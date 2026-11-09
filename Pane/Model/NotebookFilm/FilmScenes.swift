@@ -154,10 +154,13 @@ final class TownScene: FilmScene {
 
     var replacesNotebook: Bool { true }
     var lift: Double { 0 }
-    var captions: [String]? { ["Each house is a note", "Its chimney smokes when it\u{2019}s written in", "It grows taller the more it\u{2019}s written in"] }
+    /// Little teaching: one line for what a house is, one for what makes it grow. The rest of
+    /// the film's lines are about the month itself.
+    var captions: [String]? { ["Each house is a note", "It grows as it\u{2019}s written in"] }
     var rewinds: Bool { true }
     func subtitle(_ stats: FilmStats) -> String? { stats.notes == 1 ? "1 note, and a house for it" : "\(stats.notes) notes, a house for each" }
-    var appStart: Double { min(1.2, (script.nodes.count > 2 ? script.nodes[2].birth : script.nodes.last?.birth ?? 0) + 0.45) }
+    /// (Soon after the first note: a first house or two, never an empty hill and never a town already.)
+    var appStart: Double { min(0.5, (script.nodes.count > 1 ? script.nodes[1].birth : 0) + 0.3) }
     /// The folder you wrote most in has its moment when there are folders enough for that to say something.
     private var namesTopFolder: Bool { folderNames && topFolder >= 0 && growth > 5 && hills.count >= 3 }
     /// The houses written in on the day you wrote most, and when the film is on that day.
