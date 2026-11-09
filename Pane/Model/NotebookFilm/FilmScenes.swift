@@ -25,6 +25,8 @@ protocol FilmScene: AnyObject {
     /// The film opens on the scene as the month left it, then runs the month backwards to its
     /// first day (the constellation's own opening draws back instead).
     var rewinds: Bool { get }
+    /// The line under the title as the shared film opens, saying what the picture is made of.
+    func subtitle(_ stats: FilmStats) -> String?
     /// Where the app starts it (the intro shows that same picture): its first houses, already there.
     var appStart: Double { get }
     /// The scene at `t` as that opening shows it: the whole of it, with none of the film's own moments.
@@ -152,6 +154,7 @@ final class TownScene: FilmScene {
     var lift: Double { 0 }
     var captions: [String]? { ["Each house is a note", "Its chimney smokes when it\u{2019}s written in", "It grows taller the more it\u{2019}s written in"] }
     var rewinds: Bool { true }
+    func subtitle(_ stats: FilmStats) -> String? { stats.notes == 1 ? "1 note, and a house for it" : "\(stats.notes) notes, a house for each" }
     var appStart: Double { min(1.2, (script.nodes.count > 2 ? script.nodes[2].birth : script.nodes.last?.birth ?? 0) + 0.45) }
     /// The folder you wrote most in has its moment when there are folders enough for that to say something.
     private var namesTopFolder: Bool { folderNames && topFolder >= 0 && growth > 5 && hills.count >= 3 }
@@ -185,7 +188,8 @@ final class TownScene: FilmScene {
     }
 
     /// Ink by day, cream once it's dark.
-    func topInk(_ t: Double) -> FilmRenderer.RGB { C(0x3A2B2E).mix(C(0xFFF4E6), smooth((t - growth) / 1.3)) }
+    /// (Early in the sunset: the sky is deep red long before it's dark.)
+    func topInk(_ t: Double) -> FilmRenderer.RGB { C(0x3A2B2E).mix(C(0xFFF4E6), smooth((t - growth - 0.1) / 0.3)) }
 
     init(script: FilmScript, folderNames: Bool) {
         self.script = script
@@ -237,7 +241,7 @@ final class TownScene: FilmScene {
                 let n = Double(count[f])
                 let s = [0.94, 1.08, 1.24][depth]
                 let w = min(W * 0.9 / max(1, m) * 1.25, (300 + 46 * n.squareRoot()) * (0.94 + 0.12 * hash(f, 5)))
-                let h = (140 + 21 * n.squareRoot()) * (0.92 + 0.16 * hash(f, 7))
+                let h = (150 + 24 * n.squareRoot()) * (0.92 + 0.16 * hash(f, 7))
                 let base = Self.rowBase[depth]
                 let cx = 60 + xs * (W - 120) + (hash(f, 3) - 0.5) * 36
                 hills.append(Hill(folder: f, cx: cx, base: base, w: w, h: h, s: s, depth: depth, birth: max(0, first[f] - 0.3), skew: 0))
@@ -265,7 +269,7 @@ final class TownScene: FilmScene {
                 for k in 0..<n {
                     let u = (Double(k) + 0.5 - Double(n) / 2) / Double(perRow + 3) * 2 * 0.94
                     let x = hill.cx + u * hill.w / 2 + (hash(hi * 100 + r, k) - 0.5) * 9 * s
-                    spots.append((x, (2 + Double(r) * 45) * s + hash(hi * 37 + k, r) * 6 * s, Double(r) * 0.8 + abs(u) * 1.3 + hash(hi * 11 + k, r * 3 + 1) * 0.55))
+                    spots.append((x, (2 + Double(r) * 54) * s + hash(hi * 37 + k, r) * 6 * s, Double(r) * 0.8 + abs(u) * 1.3 + hash(hi * 11 + k, r * 3 + 1) * 0.55))
                 }
             }
             spots.sort { $0.key < $1.key }
@@ -541,7 +545,7 @@ final class TownScene: FilmScene {
     /// How tall a house stands once it has been written in `count` times: walls, roof and chimney.
     private func height(_ i: Int, count: Int) -> Double {
         let hs = houses[i]
-        let floors = 1 + min(2.1, 0.6 * Double(max(0, count - 1)).squareRoot())
+        let floors = 1 + min(1.7, 0.52 * Double(max(0, count - 1)).squareRoot())
         return 22 * hs.s * floors + (15 + 4 * Double(hs.roof)) * hs.s + 6 * hs.s
     }
 
@@ -753,7 +757,7 @@ final class TownScene: FilmScene {
         let pop = backOut(born / 0.5) * (1 + 0.07 * flash * flash)
         let s = hs.s
         // It grows floors as it's written in.
-        let floorsF = 1 + min(2.1, 0.6 * Double(max(0, count - 1)).squareRoot())
+        let floorsF = 1 + min(1.7, 0.52 * Double(max(0, count - 1)).squareRoot())
         let w = hs.w, bh = 22 * s * floorsF * pop, rh = (15 + 4 * Double(hs.roof)) * s * pop * (hs.style == 3 ? 1.3 : 1)
         let x0 = hs.x - w / 2, y0 = groundY - 3 * s
         let walls: [(UInt32, UInt32, UInt32)] = [(0xF0DFC2, 0xD3B596, 0x55424E), (0xE7D0AE, 0xC9A687, 0x4E3C49), (0xEFD3BD, 0xD2A796, 0x57404C), (0xDDCFB6, 0xBFA78F, 0x4A3D4A)]

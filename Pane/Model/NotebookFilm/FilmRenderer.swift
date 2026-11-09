@@ -729,7 +729,7 @@ final class FilmRenderer {
             let slot = min(2.4, max(1.4, (script.growth - from - FilmScript.topFolderMoment - 0.2) / Double(lines.count)))
             for line in lines where from + slot <= script.growth + 0.01 {
                 let a = shown(from, from + slot - 0.15) * (1 - cover) * running
-                if a > 0 { text(line, size: 46, weight: .regular, color: ink.cg(0.72 * a), at: CGPoint(x: side, y: base + 86), in: ctx) }
+                if a > 0 { text(line, size: 48, weight: .regular, color: ink.cg(0.76 * a), at: CGPoint(x: side, y: base + 86), in: ctx) }
                 from += slot
             }
         }
@@ -756,8 +756,8 @@ final class FilmRenderer {
             let y = base + 62 - (1 - a) * 10
             text(number, size: 66, weight: .semibold, color: (color ?? ink).cg(a), at: CGPoint(x: x, y: y + 50), in: ctx)
             // Its label, as large as fits its column: read at the width of a feed.
-            let fit = min(1, (column - 14) / max(1, textWidth(label, size: 36, weight: .regular)))
-            text(label, size: (36 * fit).rounded(.down), weight: .regular, color: ink.cg(0.8 * a), at: CGPoint(x: x, y: y), in: ctx)
+            let fit = min(1, (column - 14) / max(1, textWidth(label, size: 38, weight: .regular)))
+            text(label, size: (38 * fit).rounded(.down), weight: .regular, color: ink.cg(0.82 * a), at: CGPoint(x: x, y: y), in: ctx)
         }
     }
 
@@ -784,7 +784,7 @@ final class FilmRenderer {
 
     private func drawOpeningTitle(_ a: Double, subtitle: Double = 1, in ctx: CGContext) {
         text(labels.title(script.stats), size: 60, weight: .semibold, color: look.ink.cg(a), at: CGPoint(x: 72, y: canvas.bottom + 256), in: ctx)
-        if subtitle > 0 { text(labels.subtitle(script.stats), size: 40, weight: .regular, color: look.ink.cg(0.78 * a * subtitle), at: CGPoint(x: 72, y: canvas.bottom + 196), in: ctx) }
+        if subtitle > 0 { text(scene?.subtitle(script.stats) ?? labels.subtitle(script.stats), size: 40, weight: .regular, color: look.ink.cg(0.78 * a * subtitle), at: CGPoint(x: 72, y: canvas.bottom + 196), in: ctx) }
     }
 
     private func highlight(_ s: FilmStats) -> String? {

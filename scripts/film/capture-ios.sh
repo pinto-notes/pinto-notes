@@ -95,10 +95,10 @@ for i in {1..40}; do ls "$data"/tmp/NotebookFilm-*/Pinto*.mp4 >/dev/null 2>&1 &&
 cp "$(ls -tr "$data"/tmp/NotebookFilm-*/Pinto*.mp4 | head -1)" "$OUT/shared-town-no-folder-names.mp4" 2>/dev/null || true
 xcrun simctl terminate "$SIM" $APP 2>/dev/null || true
 [[ -f "$OUT/shared-town.mp4" ]] && ffmpeg -y -loglevel error -i "$OUT/shared-town.mp4" -vf "fps=1.5,scale=270:-1,tile=10x2" -frames:v 1 "$OUT/shared-town-sheet.png"
-# The shared film at the width a feed shows it (390 points), at 1, 5, 8 and 13 seconds.
+# The shared film at the width a feed shows it (390 points), at 0, 1.5, 5, 8 and 13 seconds.
 if [[ -f "$OUT/shared-town.mp4" ]]; then
-  for t in 1 5 8 13; do ffmpeg -y -loglevel error -ss $t -i "$OUT/shared-town.mp4" -frames:v 1 -update 1 -vf "scale=390:-1" "$OUT/feed-$t.png"; done
-  ffmpeg -y -loglevel error -i "$OUT/feed-1.png" -i "$OUT/feed-5.png" -i "$OUT/feed-8.png" -i "$OUT/feed-13.png" -filter_complex hstack=4 "$OUT/shared-town-at-feed-size.png"
+  for t in 0 1.5 5 8 13; do ffmpeg -y -loglevel error -i "$OUT/shared-town.mp4" -ss $t -frames:v 1 -update 1 -vf "scale=390:-1" "$OUT/feed-$t.png"; done
+  ffmpeg -y -loglevel error -i "$OUT/feed-0.png" -i "$OUT/feed-1.5.png" -i "$OUT/feed-5.png" -i "$OUT/feed-8.png" -i "$OUT/feed-13.png" -filter_complex hstack=5 "$OUT/shared-town-at-feed-size.png"
   rm -f "$OUT"/feed-*.png
 fi
 ls "$OUT"
