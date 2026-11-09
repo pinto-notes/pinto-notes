@@ -61,7 +61,7 @@
       }
     }
   ],
-  "example": "Grocery list\n\nOne running list for the shop, sorted by aisle. Tell your AI what you need and it files each thing under the right aisle. Tick things off as you shop.\n\n## Fruit and veg\n- [ ] Lemons\n- [ ] Avocados\n- [x] Limes\n\n## Bread and dairy\n- [ ] Oat milk\n- [ ] Tortillas\n\n## Meat and fish\n\n## Cupboard\n- [ ] Chickpeas, 2 cans\n\n## Frozen\n\n## Household\n- [ ] Bin bags\n",
+  "example": "Grocery list\n\nOne running list for the shop, sorted by aisle. Tell your AI what you need and it files each thing under the right aisle. Tick things off as you shop.\n\n## Fruit and veg\n- [ ] Lemons\n- [ ] Avocados\n- [x] Limes\n\n## Bread and dairy\n- [ ] Oat milk\n- [ ] Tortillas\n\n## Meat and fish\n- [ ] Salmon fillets\n- [ ] Chicken thighs\n\n## Cupboard\n- [ ] Chickpeas, 2 cans\n- [ ] Rice\n- [ ] Olive oil\n\n## Frozen\n- [ ] Peas\n\n## Household\n- [ ] Bin bags\n",
   "related": [
     "meal-plan",
     "recipe-box",

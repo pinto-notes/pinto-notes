@@ -368,7 +368,7 @@ struct NotePreview: View {
                         // header never shows without a row (council round 4: a cell cut mid-word).
                         tableRows(header: header, rows: rows)
                     } else {
-                        view(block).layoutValue(key: WholeBlocks.Heading.self, value: block.isHeading).layoutValue(key: WholeBlocks.Gap.self, value: block == .gap)
+                        view(block).layoutValue(key: WholeBlocks.Heading.self, value: block.leadsIn).layoutValue(key: WholeBlocks.Gap.self, value: block == .gap)
                     }
                 }
             }
@@ -408,6 +408,13 @@ struct NotePreview: View {
         out = out.replacingOccurrences(of: #"\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{1,2})\b"#, with: "$1\(nb)$2", options: .regularExpression)
         out = out.replacingOccurrences(of: #"\b(\d{1,2})\s+("# + months + #")\b"#, with: "$1\(nb)$2", options: .regularExpression)
         return out
+    }
+
+    /// A paragraph's last two words kept together, so it never ends on one word alone on its last
+    /// line (council round 6: Cornell's summary ended on "shortage.").
+    nonisolated static func lastWordsKept(_ s: String) -> String {
+        guard let last = s.range(of: " ", options: .backwards), s.distance(from: last.upperBound, to: s.endIndex) <= 14 else { return s }
+        return s.replacingCharacters(in: last, with: "\u{00A0}")
     }
 
     /// A table cell as the preview shows it: a date as "26 Sep", as a tracker's date column shows
@@ -463,16 +470,44 @@ struct NotePreview: View {
     @ViewBuilder private func tableRows(header: [String], rows: [[String]]) -> some View {
         let shares = Self.shares(header: header, rows: rows)
         let least = Self.leastWidths(header: header, rows: rows)
+        let need = least.reduce(0, +)
         let shown = rows.isEmpty ? [header.map { _ in "" }] : rows
         TableRowLayout(shares: shares, least: least) { ForEach(Array(header.enumerated()), id: \.offset) { wholeCell($0.element, header: true) } }
             .overlay(alignment: .top) { Rectangle().fill(.separator).frame(height: 0.5) }
             .overlay(alignment: .leading) { Rectangle().fill(.separator).frame(width: 0.5) }
+            .modifier(RunsOffRight(need: need))
             .padding(.top, 4)
             .layoutValue(key: WholeBlocks.Heading.self, value: true)
         ForEach(Array(shown.enumerated()), id: \.offset) { _, row in
             TableRowLayout(shares: shares, least: least) { ForEach(Array(row.enumerated()), id: \.offset) { wholeCell($0.element, header: false) } }
                 .overlay(alignment: .leading) { Rectangle().fill(.separator).frame(width: 0.5) }
+                .modifier(RunsOffRight(need: need))
                 .layoutValue(key: WholeBlocks.Joined.self, value: true)
+        }
+    }
+
+    /// A table row wider than the window: cut at the window's edge, under a 16 pt fade into the
+    /// window's ground, as Notes shows a table that scrolls sideways (council round 6).
+    struct RunsOffRight: ViewModifier {
+        let need: CGFloat
+        static let fade: CGFloat = 16
+        @Environment(\.colorScheme) private var scheme
+
+        func body(content: Content) -> some View {
+            let ground: Color = scheme == .dark ? .black : .white
+            content
+                .clipped()
+                .overlay {
+                    GeometryReader { g in
+                        if need > g.size.width + 0.5 {
+                            LinearGradient(colors: [ground.opacity(0), ground], startPoint: .leading, endPoint: .trailing)
+                                .frame(width: Self.fade)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                        }
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                }
         }
     }
 
@@ -496,7 +531,7 @@ struct NotePreview: View {
         case .heading(let level, let s):
             inline(s).font(level <= 1 ? .title2.bold() : level == 2 ? .title3.bold() : .headline).padding(.top, 6)
         case .paragraph(let s):
-            inline(s).fixedSize(horizontal: false, vertical: true)
+            inline(whole ? Self.lastWordsKept(s) : s).fixedSize(horizontal: false, vertical: true)
         case .check(let done, let s, let n):
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Image(systemName: done ? "checkmark.circle.fill" : "circle")
@@ -564,6 +599,13 @@ struct NotePreview: View {
 
 extension NotePreview.Block {
     var isHeading: Bool { if case .heading = self { return true }; return false }
+    /// A block that leads into the ones under it and never ends the stage alone: a heading, or a
+    /// line that's all bold ("**Fruit and veg**" over its items).
+    var leadsIn: Bool {
+        if isHeading { return true }
+        if case .paragraph(let s) = self { return s.count > 4 && s.hasPrefix("**") && s.hasSuffix("**") && !s.dropFirst(2).dropLast(2).contains("**") }
+        return false
+    }
 }
 
 /// A note's blocks top to bottom, as many whole ones as fit: a block that would be cut at the foot
@@ -632,11 +674,12 @@ struct TableRowLayout: Layout {
 
     /// The columns' widths in `total`: each its share, but never under its least width; what a
     /// narrow column needs comes from the others' room over their own least. When even the least
-    /// widths don't fit, each gets its least scaled down to fit.
+    /// widths don't fit, each keeps its least and the table runs off the right edge, as Notes
+    /// scrolls a wide table (council round 6: scaled down, "Work-out", "Mi-n" and "26 / Sep" broke).
     nonisolated static func widths(total: CGFloat, shares: [CGFloat], least: [CGFloat]) -> [CGFloat] {
         let want = zip(shares, least).map { max(total * $0, $1) }
         let need = least.reduce(0, +)
-        guard need < total else { return least.map { (need > 0 ? $0 * total / need : total / CGFloat(max(1, least.count))).rounded(.down) } }
+        guard need < total else { return least.map { $0.rounded(.up) } }
         let over = want.reduce(0, +) - total
         guard over > 0 else { return want.map { $0.rounded(.down) } }
         let spare = zip(want, least).map { $0 - $1 }
@@ -655,8 +698,9 @@ struct TableRowLayout: Layout {
         let w = widths(bounds.width, subviews.count)
         var x = bounds.minX
         for (i, s) in subviews.enumerated() {
-            // The last cell takes what rounding left, so the row ends flush.
-            let width = i == subviews.count - 1 ? bounds.maxX - x : w[i]
+            // The last cell takes what rounding left, so the row ends flush; a table wider than
+            // the window keeps its least and runs off the right edge.
+            let width = i == subviews.count - 1 ? max(w[i], bounds.maxX - x) : w[i]
             s.place(at: CGPoint(x: x, y: bounds.minY), proposal: .init(width: width, height: bounds.height))
             x += width
         }

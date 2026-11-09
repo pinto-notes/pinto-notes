@@ -6,6 +6,21 @@
 // goes too. Once the person scrolls the live app (a wheel or a key), everything shows again.
 // Nothing here reaches a made note: Make adds the app as it is.
 (() => {
+  // The stage's day is the latest Thursday (today, from Thursday to Sunday's Thursday): the week
+  // shows in use, never a Monday's "50%" with only M filled (council round 6). The sample's dates
+  // move to the same day (TemplateSample.stageDay in the app, stageDay in the pictures' script).
+  const STAGE_WEEKDAY = 4
+  const RealDate = Date
+  const back = (new RealDate().getDay() - STAGE_WEEKDAY + 7) % 7
+  if (back) {
+    const shift = -back * 86_400_000
+    class StageDate extends RealDate {
+      constructor(...a) { if (a.length) super(...a); else super(RealDate.now() + shift) }
+      static now() { return RealDate.now() + shift }
+    }
+    window.Date = StageDate
+  }
+
   // In CSS pixels: what the stage shows of the app, and the fade at its foot. The big stage's
   // window shows all of the view (400 x 320 pt at 75%: 426 px; the 12 pt fade: 16 px); the small
   // stage's app is laid out 480 px tall at 70% and shows 156 pt of it (223 px; the fade: 17 px).

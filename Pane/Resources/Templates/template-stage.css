@@ -7,6 +7,20 @@
 nav[aria-label="Screens"] { display: none !important; }
 main { padding-bottom: 0 !important; }
 h1, h1[class] { font-size: 1.375rem !important; line-height: 1.25 !important; }
+/* Sections a little closer, so the stage's window ends on whole rows, not on a blank band where
+   the next section didn't fit (council round 6: 75 pt of empty card under Budget, 45 under Study).
+   Only in Budget and Study (their category rows, their topic chips): closer, the habit week's and
+   the trip's next cards still didn't fit, and the band under them grew. */
+main:is(:has(.bg-card > div.min-h-11 div.h-2), :has(div.flex-wrap > button.h-11.rounded-full)) section.mb-6 { margin-bottom: 1rem !important; }
+main:is(:has(.bg-card > div.min-h-11 div.h-2), :has(div.flex-wrap > button.h-11.rounded-full)) .rounded-xl.bg-card > .p-5 { padding-top: 0.875rem !important; padding-bottom: 0.875rem !important; }
+main:is(:has(.bg-card > div.min-h-11 div.h-2), :has(div.flex-wrap > button.h-11.rounded-full)) header:first-child, main:is(:has(.bg-card > div.min-h-11 div.h-2), :has(div.flex-wrap > button.h-11.rounded-full)) > * > header { padding-bottom: 0.5rem !important; }
+/* Budget's category rows without their "1,786 kr of 4,000 kr" line (the bar and "2,214 kr left"
+   say it), so its first categories show whole under "By category". */
+main .bg-card > div.min-h-11:has(div.h-2.rounded-full) p.mt-1\.5 { display: none !important; }
+/* Study's topic chips a little shorter and closer, so its streak shows under Study now. */
+main button.h-11.rounded-full { height: 2.25rem !important; }
+main div.mb-5:has(> div.flex-wrap) { margin-bottom: 0.75rem !important; }
+main:has(div.flex-wrap > button.h-11.rounded-full) section .rounded-xl.bg-card > .p-4 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
 .text-\[2rem\], .text-\[2\.5rem\], .text-\[4rem\] { font-size: 1.75rem !important; }
 /* The small stage (laid out 469 px wide) shows 223 px: the title sits tighter, so the app's first
    card shows whole under it (council round 4: a cut row at the foot). */
@@ -26,3 +40,8 @@ main button.bg-primary.w-full {
   font-size: 1.0625rem !important; border-radius: 0.75rem !important;
 }
 main button.bg-primary.w-full svg { width: 1.125rem !important; height: 1.125rem !important; }
+/* A picked chip (Study's "All") as a tint with accent text, never solid accent: louder than the
+   app's own button, it outranked it (council round 6). */
+main button.h-11.rounded-full.bg-primary {
+  background: var(--amber-accent-soft) !important; color: var(--primary) !important; font-weight: 600 !important;
+}
