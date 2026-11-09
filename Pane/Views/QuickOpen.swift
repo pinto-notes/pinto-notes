@@ -42,6 +42,9 @@ enum QuickOpen {
         let folder: String?
         let date: Date
         let locked: Bool
+        /// The line under the title in the notes list: the first words after the title, markdown
+        /// gone, or "No additional text". "Locked" for a locked note: never its text.
+        var preview: String = NoteText.noPreview
     }
 
     /// What a command does. The notes window runs it with its own actions (`Actions`).
@@ -287,7 +290,7 @@ enum QuickOpen {
     /// all the panel shows before you type, read in a few milliseconds so it's on screen at once.
     @MainActor static func noteItems(in context: ModelContext, limit: Int? = nil) -> [NoteItem] {
         var fetch = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil })
-        fetch.propertiesToFetch = [\.summaryTitle, \.updatedAt, \.lockedBody]
+        fetch.propertiesToFetch = [\.summaryTitle, \.summaryPreview, \.updatedAt, \.lockedBody]
         if let limit {
             fetch.sortBy = [SortDescriptor(\Note.updatedAt, order: .reverse)]
             fetch.fetchLimit = limit
@@ -305,7 +308,7 @@ enum QuickOpen {
         await Task.detached(priority: .userInitiated) {
             let context = ModelContext(container)
             var fetch = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil })
-            fetch.propertiesToFetch = [\.summaryTitle, \.updatedAt, \.lockedBody]
+            fetch.propertiesToFetch = [\.summaryTitle, \.summaryPreview, \.updatedAt, \.lockedBody]
             return ((try? context.fetch(fetch)) ?? []).map(item)
         }.value
     }
@@ -318,7 +321,16 @@ enum QuickOpen {
     }
 
     private static func item(_ n: Note) -> NoteItem {
-        NoteItem(id: n.id, title: n.title, folder: n.folder?.name, date: n.updatedAt, locked: n.isLocked)
+        NoteItem(id: n.id, title: n.title, folder: n.folder?.name, date: n.updatedAt, locked: n.isLocked,
+                 preview: previewLine(locked: n.isLocked, preview: n.isLocked ? "" : n.preview))
+    }
+
+    /// What a note's second line says after its date: the list's own preview (kept as the note is
+    /// saved, so nothing is read here), "Locked" for a locked note, as Notes has it.
+    static func previewLine(locked: Bool, preview: String) -> String {
+        if locked { return "Locked" }
+        let p = preview.trimmingCharacters(in: .whitespacesAndNewlines)
+        return p.isEmpty ? NoteText.noPreview : p
     }
 }
 
@@ -378,7 +390,7 @@ struct QuickOpenPanel: View {
     /// A row as VoiceOver reads it when you move onto it: what's on screen beside the name.
     static func rowLabel(_ row: QuickOpen.Row) -> String {
         switch row {
-        case .note(let n): [spoken(row), n.folder, QuickOpen.dateText(n)].compactMap { $0 }.joined(separator: ", ")
+        case .note(let n): [spoken(row), n.folder, QuickOpen.dateText(n), n.preview].compactMap { $0 }.joined(separator: ", ")
         // Everything the row shows: the other lines and how many more were left out of VoiceOver.
         case .text(let t): ([spoken(row)] + t.others.map(\.text) + [t.more > 0 ? SearchLines.moreLine(t.more) : nil, t.folder]).compactMap { $0 }.joined(separator: ", ")
         case .command(let c): [spoken(row), c.shortcut].compactMap { $0 }.joined(separator: ", ")
@@ -442,7 +454,12 @@ struct QuickOpenPanel: View {
         static let textRow: CGFloat = 48
         /// Each further line under it: another line that holds the text, or "4 more in this note".
         static let textLine: CGFloat = 18
-        static let header: CGFloat = 26
+        static let header: CGFloat = 22
+        /// A section's label, under the 14 pt titles.
+        static let headerSize: CGFloat = 11
+        /// A note's second line, and the folder on its right.
+        static let detailSize: CGFloat = 12
+        static let folderSize: CGFloat = 11.5
         static let maxList: CGFloat = 392
     }
 
@@ -581,12 +598,15 @@ struct QuickOpenPanel: View {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(rows.enumerated()), id: \.element.id) { i, row in
                         if let title = header(before: i, in: rows) {
+                            // A small label over its rows, like the sidebar's and Spotlight's, well
+                            // below the titles (Emil, 9 November 2026: they were the same size).
                             Text(title)
-                                .font(.system(size: QuickOpen.look == .list ? 15 : 12, weight: .semibold))
-                                .foregroundStyle(QuickOpen.look == .list ? Color.ink : Color.muted)
+                                .font(.system(size: Metrics.headerSize, weight: .semibold))
+                                .foregroundStyle(Color.muted)
                                 .padding(.horizontal, 10)
                                 .frame(height: Metrics.header, alignment: .bottomLeading)
                                 .padding(.bottom, 2)
+                                .accessibilityAddTraits(.isHeader)
                         }
                         rowView(row, on: i == index)
                             .id(row.id)
@@ -642,15 +662,33 @@ struct QuickOpenPanel: View {
                     Spacer(minLength: 8)
                     if let f = n.folder { Text(f).foregroundStyle(Color.muted).lineLimit(1) }
                 case .list:
-                    // As the notes list has it: the title, then when and where.
+                    // As the notes list has it: the title, then the date and the first words of the
+                    // text; the folder on the right (Emil, 9 November 2026: without the words it was
+                    // hard to tell notes apart).
                     VStack(alignment: .leading, spacing: 2) {
                         highlightedTitle(n.title.isEmpty ? "New Note" : n.title, weight: .semibold)
-                        Text([QuickOpen.dateText(n), n.folder].compactMap(\.self).joined(separator: "  ·  "))
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(Color.muted)
-                            .lineLimit(1)
+                        HStack(spacing: 6) {
+                            Text(QuickOpen.dateText(n))
+                                .foregroundStyle(Color.ink.opacity(0.85))
+                                .monospacedDigit()
+                                .lineLimit(1)
+                                .fixedSize()
+                            Text(n.preview)
+                                .foregroundStyle(Color.muted)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                        .font(.system(size: Metrics.detailSize))
                     }
-                    Spacer(minLength: 8)
+                    Spacer(minLength: 12)
+                    if let f = n.folder {
+                        Text(f)
+                            .font(.system(size: Metrics.folderSize))
+                            .foregroundStyle(Color.muted.opacity(0.75))
+                            .lineLimit(1)
+                            .layoutPriority(-1)
+                            .accessibilityIdentifier("quickOpen.folder")
+                    }
                 case .sidebar:
                     // As the sidebar has it: an icon, the name in the accent when chosen, a figure at the end.
                     icon(n.locked ? "lock" : "doc.text", on: on)
