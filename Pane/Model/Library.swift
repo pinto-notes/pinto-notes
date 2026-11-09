@@ -45,6 +45,9 @@ extension Scope {
 
 extension UTType {
     static let paneItem = UTType(exportedAs: "dev.emilwagman.pane.item")
+    /// Said by a dragged folder as well as `paneItem`: while a drag is over the sidebar, its rows
+    /// can only see the types, and a folder can go between two rows where a note can't.
+    static let paneFolder = UTType(exportedAs: "dev.emilwagman.pane.folder", conformingTo: .data)
 }
 
 /// A note, folder or file being dragged inside the app.
@@ -60,6 +63,7 @@ struct PaneDragItem: Codable, Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         CodableRepresentation(contentType: .paneItem)
+        CodableRepresentation(contentType: .paneFolder).exportingCondition { $0.kind == .folder }
     }
 }
 
@@ -493,6 +497,53 @@ extension ModelContext {
             changed = true
         }
         if changed { saveOrReport() }
+    }
+
+    /// Puts `folder` in `parent` (nil: the top level) at `index` among the folders there, itself
+    /// left out: a folder dropped on the line between two rows in the Mac's sidebar. The level can
+    /// change, as in Notes. Never inside itself, and nothing goes above Notes (the first folder at
+    /// the top level, where new notes go), which itself stays put. The order is the folders'
+    /// `sortIndex`, which syncs; only the folders whose place changes are marked for sync.
+    func place(_ folder: Folder, in parent: Folder?, at index: Int) {
+        var cursor = parent
+        while let c = cursor {
+            if c.id == folder.id { return }
+            cursor = c.parent
+        }
+        let top = allFolders().filter { $0.parent == nil }.sorted { $0.sortIndex < $1.sortIndex }
+        if top.first?.id == folder.id { return }
+        var row = allFolders().filter { $0.parent?.id == parent?.id && $0.id != folder.id }.sorted { $0.sortIndex < $1.sortIndex }
+        let pinned = parent == nil ? min(1, row.count) : 0
+        row.insert(folder, at: min(max(index, pinned), row.count))
+        var changed = false
+        if folder.parent?.id != parent?.id {
+            folder.parent = parent
+            folder.touch()
+            changed = true
+        }
+        for (i, f) in row.enumerated() where f.sortIndex != Double(i + 1) {
+            f.sortIndex = Double(i + 1)
+            f.touch()
+            changed = true
+        }
+        if changed { saveOrReport() }
+    }
+
+    /// Whether Move Up (`step` -1) or Move Down (+1) has somewhere to go: not past either end of
+    /// its folders, and never above Notes, which itself doesn't move.
+    func canNudge(_ folder: Folder, by step: Int) -> Bool {
+        let row = siblings(of: folder)
+        guard let at = row.firstIndex(where: { $0.id == folder.id }) else { return false }
+        let pinned = folder.parent == nil ? 1 : 0
+        guard at >= pinned else { return false }
+        let to = at + step
+        return to >= pinned && to < row.count
+    }
+
+    /// Move Up and Move Down in a folder's menu: one place among the folders beside it.
+    func nudge(_ folder: Folder, by step: Int) {
+        guard canNudge(folder, by: step), let at = siblings(of: folder).firstIndex(where: { $0.id == folder.id }) else { return }
+        reorder(folder, to: at + step)
     }
 
     /// Deleting a folder sends its notes and files (and sub-folders') to Recently Deleted, and the

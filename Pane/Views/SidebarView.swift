@@ -522,9 +522,25 @@ struct SidebarView: View {
                         .tag(Scope.all)
                         .accessibilityIdentifier("sidebar.all")
                 }
+                #if os(macOS)
+                // Notes, first, on its own: nothing goes above it, so the list offers no gap there.
+                if let notes = roots.first {
+                    FolderTree(folder: notes, files: files.byFolder, selection: $scope, naming: $namingFolder, drops: drops, targeted: folderTargeted, actions: folderMenuActions, notesID: notes.id, picked: picked)
+                }
+                ForEach(Array(roots.dropFirst())) { folder in
+                    FolderTree(folder: folder, files: files.byFolder, selection: $scope, naming: $namingFolder, drops: drops, targeted: folderTargeted, actions: folderMenuActions, notesID: roots.first?.id, picked: picked)
+                }
+                // A folder dragged between two rows goes there, with the list's own line in the gap,
+                // as in Notes and Finder (the row's middle still takes it in: its own onDrop). The
+                // list counts from the folder after Notes.
+                .onInsert(of: [.paneFolder]) { index, providers in
+                    Self.insertFolders(providers, in: nil, at: index, among: Array(roots.dropFirst()), after: 1, context: context)
+                }
+                #else
                 ForEach(roots) { folder in
                     FolderTree(folder: folder, files: files.byFolder, selection: $scope, naming: $namingFolder, drops: drops, targeted: folderTargeted, actions: folderMenuActions, notesID: roots.first?.id, picked: picked)
                 }
+                #endif
                 // Last in the same list, like Notes, and like Notes only while something is in it.
                 CountedRow(title: "Recently Deleted", icon: "trash", trash: true, files: files.trashed, selection: $scope)
                     .tag(Scope.trash)
@@ -933,9 +949,12 @@ struct SidebarView: View {
     /// its own at the end. Notes, the first folder, has no Move To: it stays first, where new notes
     /// go. Nor Delete, as in Notes: with every folder gone the sidebar had only Recently Deleted
     /// (Emil, 3 November 2026). Pinto has no folder sharing, so no Share.
-    nonisolated static func folderMenu(isNotes: Bool, newWindow: Bool = FolderAction.opensWindows) -> [[FolderAction]] {
+    nonisolated static func folderMenu(isNotes: Bool, newWindow: Bool = FolderAction.opensWindows, reorders: Bool = FolderAction.opensWindows) -> [[FolderAction]] {
         (newWindow ? [[.openInNewWindow]] : [])
             + [[.newNote, .newFolder], isNotes ? [.rename, .duplicate] : [.rename, .duplicate, .move]]
+            // Mac: the same as dragging a folder between two rows, without the drag (iPhone has
+            // Edit's handles). Notes stays first, so it has neither.
+            + (isNotes || !reorders ? [] : [[.moveUp, .moveDown]])
             + (isNotes ? [] : [[.delete]])
     }
 
@@ -970,10 +989,33 @@ struct SidebarView: View {
             duplicate: { f in withAnimation(.snappy) { _ = context.duplicate(f) } },
             moveSheet: startMove,
             move: { f, target in withAnimation(.snappy) { context.move(f, into: target.flatMap { context.folder($0) }) } },
+            nudge: { f, step in withAnimation(.snappy) { context.nudge(f, by: step) } },
             delete: { f in
                 // A picked folder's Delete Folder takes every picked folder, as in Finder.
                 if !picked.isEmpty, Self.selection(scope: scope, picked: picked).contains(.folder(f.id)) { deletePicked() } else { deleteFolder(f) }
             })
+    }
+
+    /// The place among the folders in `parent` for a folder the list put at `index` between rows.
+    /// The list counts the dragged folder where it still is, and `ModelContext.place` leaves it
+    /// out: below its old place, one less.
+    /// `after`: folders above the list's own rows at that level (Notes, at the top level).
+    nonisolated static func placeIndex(of id: UUID, at index: Int, among siblings: [UUID], after: Int = 0) -> Int {
+        guard let from = siblings.firstIndex(of: id), from < index else { return after + index }
+        return after + index - 1
+    }
+
+    /// Folders dropped between two rows (`onInsert`): each goes into `parent` (nil: the top level)
+    /// at that place. A level can change, as in Notes; Notes stays first and nothing goes inside
+    /// itself (`ModelContext.place`).
+    static func insertFolders(_ providers: [NSItemProvider], in parent: Folder?, at index: Int, among siblings: [Folder], after: Int = 0, context: ModelContext) {
+        let ids = siblings.map(\.id)
+        DropLoader.load(providers) { items, _ in
+            for item in items where item.kind == .folder {
+                guard let f = context.folder(item.id) else { continue }
+                withAnimation(.snappy) { context.place(f, in: parent, at: placeIndex(of: f.id, at: index, among: ids, after: after)) }
+            }
+        }
     }
 
     /// A folder and every folder inside it: the places Move can't put it.
@@ -1617,6 +1659,12 @@ private struct FolderTree: View {
                 ForEach(folder.liveChildren) { child in
                     FolderTree(folder: child, files: files, selection: $selection, naming: $naming, drops: drops, targeted: targeted, actions: actions, notesID: notesID, depth: depth + 1, picked: picked)
                 }
+                #if os(macOS)
+                // Between two of its folders: the dragged folder goes there, inside this one.
+                .onInsert(of: [.paneFolder]) { index, providers in
+                    SidebarView.insertFolders(providers, in: folder, at: index, among: folder.liveChildren, context: context)
+                }
+                #endif
             } label: { label }
     }
 
@@ -1651,6 +1699,11 @@ private struct FolderTree: View {
         .quietSelection()
         .tag(Scope.folder(folder.id))
         .accessibilityIdentifier("folder.\(folder.name)")
+        #if os(macOS)
+        // The folder's Move Up and Move Down, without a drag.
+        .accessibilityAction(named: FolderAction.moveUp.title) { if context.canNudge(folder, by: -1) { withAnimation(.snappy) { context.nudge(folder, by: -1) } } }
+        .accessibilityAction(named: FolderAction.moveDown.title) { if context.canNudge(folder, by: 1) { withAnimation(.snappy) { context.nudge(folder, by: 1) } } }
+        #endif
         .draggable(PaneDragItem(kind: .folder, id: folder.id)) {
             Label(folder.name, systemImage: "folder").padding(8).glassEffect(.regular, in: .capsule)
         }
@@ -1729,7 +1782,7 @@ private struct AskLoad: Equatable {
 
 /// An action on a folder in its menus (`SidebarView.folderMenu`).
 enum FolderAction: String, CaseIterable, Identifiable {
-    case openInNewWindow, newNote, newFolder, rename, duplicate, move, delete
+    case openInNewWindow, newNote, newFolder, rename, duplicate, move, moveUp, moveDown, delete
 
     var id: String { rawValue }
 
@@ -1750,6 +1803,8 @@ enum FolderAction: String, CaseIterable, Identifiable {
         case .rename: "Rename"
         case .duplicate: "Duplicate"
         case .move: "Move To"
+        case .moveUp: "Move Up"
+        case .moveDown: "Move Down"
         #if os(macOS)
         case .delete: "Delete Folder…"
         #else
@@ -1766,6 +1821,8 @@ enum FolderAction: String, CaseIterable, Identifiable {
         case .rename: "pencil"
         case .duplicate: "plus.square.on.square"
         case .move: "folder"
+        case .moveUp: "arrow.up"
+        case .moveDown: "arrow.down"
         case .delete: "trash"
         }
     }
@@ -1793,6 +1850,8 @@ struct FolderMenuActions {
     var moveSheet: (Folder) -> Void = { _ in }
     /// Mac: Move To's submenu moves it straight away (nil: the top level).
     var move: (Folder, UUID?) -> Void = { _, _ in }
+    /// Mac: Move Up (-1) and Move Down (+1), one place among the folders beside it.
+    var nudge: (Folder, Int) -> Void = { _, _ in }
     var delete: (Folder) -> Void = { _ in }
 }
 
@@ -1867,9 +1926,13 @@ private struct FolderActionsMenu: View {
             case .rename: actions.rename(folder)
             case .duplicate: actions.duplicate(folder)
             case .move: actions.moveSheet(folder)
+            case .moveUp: actions.nudge(folder, -1)
+            case .moveDown: actions.nudge(folder, 1)
             case .delete: actions.delete(folder)
             }
         }
+        // At either end of its folders there is nowhere to go.
+        .disabled(action == .moveUp && !context.canNudge(folder, by: -1) || action == .moveDown && !context.canNudge(folder, by: 1))
         .accessibilityIdentifier("folderMenu.\(action.rawValue)")
     }
 }
