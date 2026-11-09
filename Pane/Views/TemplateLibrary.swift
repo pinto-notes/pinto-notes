@@ -488,6 +488,8 @@ struct TemplateLibraryView: View {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: Self.gap, alignment: .top)], alignment: .leading, spacing: 0) {
                         ForEach(shown) { e in
                             SetupTemplateCard(pick: e.pick, width: width, selected: current == e) {
+                                // Picked with the pointer: the grid moves no more than it must.
+                                seen.pointed = e.slug
                                 open = e
                                 copied = false
                             }
@@ -522,6 +524,8 @@ struct TemplateLibraryView: View {
                 .onChange(of: current?.slug) { _, slug in
                     guard let slug else { return }
                     if open?.slug != slug { open = current }
+                    // Copied was said of the template open before (a search or a kind changed it).
+                    copied = false
                     reveal(slug, scroller, animated: true)
                 }
                 .onChange(of: filter) { if let slug = current?.slug { reveal(slug, scroller) } }
@@ -536,24 +540,32 @@ struct TemplateLibraryView: View {
     /// `again`: once more after layout, for a row already brought to the top, whose first scroll
     /// landed on the lazy grid's estimate of where it was.
     private func reveal(_ slug: String, _ scroller: ScrollViewProxy, animated: Bool = false, again: Bool = false) {
-        let anchor = again && seen.topped == slug ? .top : Self.revealAnchor(cell: seen.cards[slug], visible: seen.visible)
+        let pointed = seen.pointed == slug
+        seen.pointed = nil
+        let anchor = again && seen.topped == slug ? .top : Self.revealAnchor(cell: seen.cards[slug], visible: seen.visible, pointed: pointed)
         guard let anchor else { return }
-        seen.topped = slug
+        seen.topped = anchor == .top ? slug : nil
         if animated { withAnimation(.snappy(duration: 0.2)) { scroller.scrollTo(slug, anchor: anchor) } } else { scroller.scrollTo(slug, anchor: anchor) }
     }
 
     /// Where the open card's row goes: nowhere when the card is already in view with 16 pt to
     /// spare, otherwise to the top. `cell` is the card's cell (the card and 8 pt above and below);
     /// a card not laid out yet (a lazy grid's) isn't in view.
-    static func revealAnchor(cell: CGRect?, visible: CGRect) -> UnitPoint? {
+    /// `pointed`: the card was clicked, so it was under the pointer and at least partly in view.
+    /// One cut by the grid's foot then comes up only as far as its own foot, so it stays under
+    /// the pointer (9 November 2026: a click on a card a few points short of the foot sent the
+    /// whole grid up 240 pt in a quarter of a second, and another card ended under the pointer).
+    static func revealAnchor(cell: CGRect?, visible: CGRect, pointed: Bool = false) -> UnitPoint? {
         guard let cell, !visible.isEmpty else { return .top }
         let room = 16 - gap / 2
-        return cell.minY - room >= visible.minY - 0.5 && cell.maxY + room <= visible.maxY + 0.5 ? nil : .top
+        let above = cell.minY - room < visible.minY - 0.5, below = cell.maxY + room > visible.maxY + 0.5
+        guard above || below else { return nil }
+        return pointed && below && !above ? .bottom : .top
     }
 
     /// Where the grid's cards are and what's in view, kept outside the view's state so scrolling
-    /// never draws the library again.
-    final class Seen { var cards: [String: CGRect] = [:]; var visible: CGRect = .zero; var topped: String? }
+    /// never draws the library again. `pointed`: the card just picked with the pointer.
+    final class Seen { var cards: [String: CGRect] = [:]; var visible: CGRect = .zero; var topped: String?; var pointed: String? }
     @State private var seen = Seen()
     static let space = "templates.grid"
 
@@ -610,9 +622,13 @@ struct TemplateLibraryView: View {
         let text: CGFloat = small ? 12 : 12.5
         return VStack(alignment: .leading, spacing: 0) {
             stageView(e)
-                // A new template swaps in place, quickly: no slide, nothing else moves.
+                // A new template swaps in place, at once, in the frame its name changes: nothing
+                // fades. A cross-fade made both stages see-through for a tenth of a second, so the
+                // cover's art and the last template's words showed through the window, a frame
+                // after the name had already changed (Emil, 9 November 2026: "things flicker when
+                // clicked"; a 60 fps recording on the Air).
                 .id(e.slug)
-                .transition(.opacity.animation(.easeOut(duration: 0.12)))
+                .transition(Self.stageSwap)
             VStack(alignment: .leading, spacing: 0) {
                 // Its name, once: a note's own title is left off the stage, so it isn't named
                 // three times with the card (council round 2). 17 pt semibold, under the
@@ -671,6 +687,10 @@ struct TemplateLibraryView: View {
     }
 
     static let panelTitle: CGFloat = 17
+    /// How the stage changes from one template to the next: at once (see `detail`).
+    static let stageSwap: AnyTransition = .identity
+    /// Whether the stage fades between templates. It doesn't: SetupCardsTests' theStageSwapsAtOnce.
+    static let stageFades = false
     /// Whether Return makes the open template: not while it's only kept open beside No Results.
     static func returnMakes(kept: Bool) -> Bool { !kept }
     /// The window on the stage: inset from its top and sides, running off its foot.

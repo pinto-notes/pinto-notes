@@ -649,6 +649,88 @@ import Vision
         #expect(preview.contains("tableRows(header: header, rows: rows)"), "a table fits the window, a block per row")
     }
 
+    // MARK: Nothing flickers on a click (Emil, 9 November 2026; found in a 60 fps recording of real clicks on the Air)
+
+    /// A template swaps on the stage at once, in the frame its name changes: no fade. A cross-fade
+    /// made both stages see-through for a tenth of a second (the cover's art and the last
+    /// template's words through the window), a frame after the words under it had changed.
+    @Test func theStageSwapsAtOnce() throws {
+        #expect(!TemplateLibraryView.stageFades)
+        let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
+        let detail = try #require(src.range(of: "private func detail(_ e: TemplateCatalog.Entry, kept: Bool)"))
+        let body = src[detail.lowerBound...].prefix(1400)
+        #expect(body.contains(".id(e.slug)\n                .transition(Self.stageSwap)"), "the stage swaps with stageSwap")
+        #expect(!body.contains(".transition(.opacity"), "the stage doesn't fade between templates")
+        #expect(src.contains("static let stageSwap: AnyTransition = .identity"))
+    }
+
+    /// The live app on the stage is drawn with the tokens its picture was drawn with, so the app
+    /// that replaces the picture is the same size, layout and colours. The pictures come from the
+    /// render service (a 17 px root, 14 px corners); the Mac's own tokens are a 14 px root and
+    /// 10 px corners, so the live app was a sixth smaller than its picture and the two showed over
+    /// each other during the swap.
+    @Test func theStageHasItsPicturesTokens() throws {
+        let css = TemplateFiles.stageCSS
+        let render = try SettingsHomeTests.source("scripts/page-render/render.ts")
+        let block = try #require(css.range(of: "\n:root {"), "the stage's stylesheet sets the tokens, unlayered")
+        let dark = try #require(css.range(of: "@media (prefers-color-scheme: dark) {\n  :root {", range: block.upperBound..<css.endIndex))
+        let light = String(css[block.upperBound..<dark.lowerBound]), night = String(css[dark.upperBound...])
+        // Every colour the render service sets, in both looks.
+        let pairs = render.matches(of: /\["(--amber-[a-z-]+)", d \? "([^"]+)" : "([^"]+)"\]/)
+        #expect(pairs.count == 13, "render.ts's colour tokens: \(pairs.count)")
+        for m in pairs {
+            #expect(light.contains("\(m.1): \(m.3);"), "\(m.1) in the light look is \(m.3)")
+            #expect(night.contains("\(m.1): \(m.2);"), "\(m.1) in the dark look is \(m.2)")
+        }
+        // Its sizes: the root font (what a rem is) and the corners.
+        for fixed in ["--amber-radius: 14px;", "--amber-radius-small: 10px;", "--amber-root-font: 17px/1.35 -apple-system, system-ui, sans-serif;"] {
+            #expect(render.contains(fixed), "render.ts still says \(fixed)")
+            #expect(light.contains(fixed), "the stage says \(fixed)")
+        }
+        // Unlayered, so it wins over amber-tokens.css, and in every app's page on the stage.
+        #expect(!String(css[..<block.lowerBound]).hasSuffix("@layer amber-tokens {"))
+        for e in TemplateCatalog.shipped.entries where e.app {
+            let staged = try #require(TemplateFiles.project(e))
+            // The project is JSON, so the font's "/" is written "\/": the size is enough to tell.
+            #expect(staged.contains("--amber-root-font: 17px"), "\(e.slug): the tokens are in its page on the stage")
+            #expect(!(e.appProject ?? "").contains("--amber-root-font: 17px"), "\(e.slug): Make adds the app without them")
+        }
+    }
+
+    /// A card picked with the pointer was under it, in view: one cut by the grid's foot comes up
+    /// only as far as its own foot, so the grid moves a few points, never a whole row, and the
+    /// card stays under the pointer. Arrow keys, a kind and a search still bring the row to the top.
+    @Test func aClickedCardStaysUnderThePointer() throws {
+        let visible = CGRect(x: 0, y: 0, width: 500, height: 500)
+        let cut = CGRect(x: 0, y: 270, width: 150, height: 240)
+        #expect(TemplateLibraryView.revealAnchor(cell: cut, visible: visible, pointed: true) == .bottom)
+        #expect(TemplateLibraryView.revealAnchor(cell: cut, visible: visible) == .top, "an arrow key still brings the row to the top")
+        #expect(TemplateLibraryView.revealAnchor(cell: CGRect(x: 0, y: -100, width: 150, height: 240), visible: visible, pointed: true) == .top, "cut by the header: down to the top")
+        #expect(TemplateLibraryView.revealAnchor(cell: CGRect(x: 0, y: 100, width: 150, height: 240), visible: visible, pointed: true) == nil, "in view: nothing moves")
+        #expect(TemplateLibraryView.revealAnchor(cell: nil, visible: visible, pointed: true) == .top)
+        let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
+        #expect(src.contains("seen.pointed = e.slug\n                                open = e"), "a card's click says it was the pointer")
+    }
+
+    /// A press on a card is the design system's card press, eased: the plain style dimmed the
+    /// whole cover hard for the length of the press, a flash on every pick.
+    @Test func aCardPressIsntAFlash() throws {
+        let src = try SettingsHomeTests.source("Pane/Views/SetupCards.swift")
+        let card = try #require(src.range(of: "struct SetupTemplateCard: View"))
+        let end = try #require(src.range(of: "\nextension Color {", range: card.upperBound..<src.endIndex))
+        let body = src[card.lowerBound..<end.lowerBound]
+        #expect(body.components(separatedBy: ".buttonStyle(CardPress())").count == 3, "both of the card's looks")
+        #expect(!body.contains(".buttonStyle(.plain)"))
+    }
+
+    /// "Copied" is said of the template it was copied for: a search or a kind that opens another
+    /// template takes it back, as a click and an arrow key already did.
+    @Test func copiedIsTakenBackWhenTheTemplateChanges() throws {
+        let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
+        let change = try #require(src.range(of: ".onChange(of: current?.slug) { _, slug in"))
+        #expect(src[change.lowerBound...].prefix(420).contains("copied = false"))
+    }
+
     /// The open card's row is brought to where the first row rests, never leaving a sliver of the
     /// row above under the header (council round 3); a card already in view doesn't move.
     @Test func aRevealedRowRestsAtTheTop() {
@@ -1654,6 +1736,30 @@ import Vision
                 .background(SetupCards.ground)
                 .tint(Color(PColor.paneAccent))
             try await VersionHistorySnapshots.shoot(view, to: dir.appending(path: "\(name)-\(dark ? "dark" : "light").png"), size: size, dark: dark)
+        }
+    }
+}
+
+/// Every template open in the library, one picture each, light and dark (9 November 2026: Emil,
+/// "info in templates is weird"): what each one shows on its stage, to read side by side.
+@MainActor @Suite struct EveryTemplateShots {
+    static let dir = ProcessInfo.processInfo.environment["AMBER_TEMPLATE_ALL_SHOTS"].map { URL(fileURLWithPath: $0) }
+
+    @Test(arguments: [false, true]) func shots(dark: Bool) async throws {
+        guard let dir = Self.dir else { return }
+        let kept = ThemeStore.shared.current
+        ThemeStore.shared.set(ThemeLook(theme: .standard, accent: .theme), persist: false)
+        defer { ThemeStore.shared.set(kept, persist: false) }
+        let c = TemplateCatalog.shipped
+        let size = TemplateLibraryView.size
+        for (i, e) in c.entries.enumerated() {
+            let view = TemplateLibraryView(catalog: c, ais: [.chatgpt, .claude], open: e, size: size)
+                .environment(\.inSheet, true)
+                .frame(width: size.width, height: size.height, alignment: .topLeading)
+                .background(SetupCards.ground)
+                .tint(Color(PColor.paneAccent))
+            let name = String(format: "%02d-%@-%@.png", i + 1, e.slug, dark ? "dark" : "light")
+            try await VersionHistorySnapshots.shoot(view, to: dir.appending(path: name), size: size, dark: dark)
         }
     }
 }

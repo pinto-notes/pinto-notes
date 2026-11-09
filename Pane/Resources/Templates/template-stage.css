@@ -69,3 +69,24 @@ main [role="radiogroup"] > button.h-11.rounded-full.bg-primary {
   box-shadow: inset 0 0 0 1.5px var(--foreground) !important;
 }
 main [role="radiogroup"] > button.h-11.rounded-full:not(.bg-primary) { color: var(--muted-foreground) !important; }
+/* The stage's look is its pictures' look, whatever device or theme draws the live app. The pictures
+   are drawn by the render service with the tokens below (scripts/page-render/render.ts, TOKENS: a
+   17 px root, 14 px corners); the Mac's own are a 14 px root, 10 px corners and a lighter card, so
+   the live app that replaced a picture was a sixth smaller, laid out differently, on other greys,
+   and the two showed over each other as one faded into the other (a 60 fps recording on the Air,
+   9 November 2026). The same tokens on both: the swap changes nothing you can see. Unlayered, so
+   they win over amber-tokens.css. SetupCardsTests' theStageHasItsPicturesTokens keeps them equal
+   to render.ts's. */
+:root {
+  --amber-bg: #FFFEFD; --amber-surface: #F4F1EE; --amber-fill: #EBE6E1; --amber-text: #2A1D10; --amber-text-secondary: #74604C;
+  --amber-separator: rgba(138, 74, 28, 0.14); --amber-accent: #D96A06; --amber-accent-text: #A85700; --amber-accent-soft: #FFF1DC;
+  --amber-on-accent: #FFFFFF; --amber-danger: #C62828; --amber-field: #FFFFFF; --amber-field-border: #9A8673;
+  --amber-radius: 14px; --amber-radius-small: 10px; --amber-root-font: 17px/1.35 -apple-system, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --amber-bg: #000000; --amber-surface: #1C1B1A; --amber-fill: #2C2A28; --amber-text: #F6EFE7; --amber-text-secondary: #BCB0A3;
+    --amber-separator: rgba(255, 250, 245, 0.10); --amber-accent: #F4AD33; --amber-accent-text: #F4AD33; --amber-accent-soft: #423014;
+    --amber-on-accent: #1F1300; --amber-danger: #FF6B5E; --amber-field: #1A1918; --amber-field-border: #7A716A;
+  }
+}

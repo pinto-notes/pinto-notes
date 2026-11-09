@@ -551,7 +551,10 @@ struct SetupTemplateCard: View {
             .frame(width: width, alignment: .leading)
             .contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        // The design system's card press, a small dip eased in: the plain style dimmed the whole
+        // cover hard for the length of the press, which read as a flash on every pick (a 60 fps
+        // recording on the Air, 9 November 2026).
+        .buttonStyle(CardPress())
         .onHover { h in withAnimation(.smooth(duration: 0.2)) { hover = h } }
         .accessibilityLabel("\(pick.title). \(pick.line)")
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -602,7 +605,10 @@ struct SetupTemplateCard: View {
             .offset(y: hover && !reduceMotion ? -3 : 0)
             .contentShape(shape)
         }
-        .buttonStyle(.plain)
+        // The design system's card press, a small dip eased in: the plain style dimmed the whole
+        // cover hard for the length of the press, which read as a flash on every pick (a 60 fps
+        // recording on the Air, 9 November 2026).
+        .buttonStyle(CardPress())
         .onHover { h in withAnimation(.smooth(duration: 0.2)) { hover = h } }
         .accessibilityLabel("\(pick.title). \(pick.line)")
         .accessibilityIdentifier("setup.template.\(pick.slug)")

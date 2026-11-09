@@ -958,6 +958,17 @@ struct RootView: View {
     /// Test runs can open a note by title: `-uitest -open "Lisbon"`.
     private func openFromLaunchArguments() {
         let args = ProcessInfo.processInfo.arguments
+        #if os(macOS)
+        // Real-input checks of the template library: `-uitest -demo -templatesSheet` opens it over
+        // the made-up notes, and again each time `pintonotes.test.templates` is posted (the
+        // sidebar's Templates row needs an account, which a demo run doesn't have).
+        if args.contains("-uitest"), args.contains("-demo"), args.contains("-templatesSheet") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { NotificationCenter.default.post(name: .paneTemplates, object: nil) }
+            DistributedNotificationCenter.default().addObserver(forName: Notification.Name("pintonotes.test.templates"), object: nil, queue: .main) { _ in
+                NotificationCenter.default.post(name: .paneTemplates, object: nil)
+            }
+        }
+        #endif
         guard args.contains("-uitest"), let i = args.firstIndex(of: "-open"), i + 1 < args.count else { return }
         let title = args[i + 1]
         #if os(macOS)
