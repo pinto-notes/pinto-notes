@@ -1099,8 +1099,18 @@ enum ImportSheetFit {
 
     #if os(macOS)
     static func height(_ window: NSWindow?) -> CGFloat {
-        guard let window else { return designed }
+        guard let window = window.map(top) else { return designed }
         return height(window: window.frame.height, underBars: window.contentLayoutRect.height)
+    }
+
+    /// The window a sheet finally hangs on. Since the first run's cards, Import and Connect an
+    /// AI became sheets on the notes window (3 November 2026), a guide opened from one of them is
+    /// a sheet on that sheet: measured against the card's short window, every guide shrank to
+    /// the 300 floor, its picture gone and its words pressed together (Emil, 9 November 2026).
+    static func top(_ window: NSWindow) -> NSWindow {
+        var w = window
+        while let parent = w.sheetParent { w = parent }
+        return w
     }
     #endif
 

@@ -247,6 +247,43 @@ import Testing
     }
 
     #if os(macOS)
+    /// A guide opened from a card is a sheet on a sheet: it fits the notes window, not the card's
+    /// short window (which shrank every guide from the first run's cards to the 300 floor, its
+    /// picture gone; Emil, 9 November 2026). Offscreen windows, closed at the end.
+    @Test func aSheetOnACardFitsTheNotesWindow() async throws {
+        func window(_ height: CGFloat) -> NSWindow {
+            let w = NSWindow(contentRect: CGRect(x: -30000, y: -30000, width: 900, height: height),
+                             styleMask: [.titled], backing: .buffered, defer: false)
+            w.isReleasedWhenClosed = false
+            return w
+        }
+        let notes = window(860)
+        let card = window(380)
+        let guide = window(560)
+        notes.orderFrontRegardless()
+        defer { notes.endSheet(card); card.endSheet(guide); guide.close(); card.close(); notes.close() }
+        notes.beginSheet(card, completionHandler: nil)
+        card.beginSheet(guide, completionHandler: nil)
+        for _ in 0..<40 where guide.sheetParent == nil || card.sheetParent == nil { try await Task.sleep(for: .milliseconds(25)) }
+        try #require(guide.sheetParent === card && card.sheetParent === notes, "the sheets didn't attach")
+        #expect(ImportSheetFit.top(guide) === notes)
+        #expect(ImportSheetFit.height(guide) == ImportSheetFit.height(notes))
+        #expect(ImportSheetFit.height(guide) == ImportSheetFit.designed, "a tall notes window gives the guide its designed height")
+        // What it was: measured against the card, the guide fell to the floor.
+        #expect(ImportSheetFit.height(window: card.frame.height, underBars: card.contentLayoutRect.height) == 300)
+    }
+
+    /// Every Connect an AI page fits its sheet at the designed height, and a page with a picture
+    /// shows it: the picture has room (it is the first thing a short sheet gives up).
+    @Test func everyConnectPageFitsItsSheet() throws {
+        for (name, run) in ConnectGuideSnapshots.pages() {
+            for height: CGFloat in [560, 480] {
+                let needs = Self.needs(ConnectWebGuideSheet(run: run, height: height).pages)
+                #expect(needs <= height + 0.5, "\(name) at \(height) needs \(needs)")
+            }
+        }
+    }
+
     /// On the smallest window the picture shrinks; the words keep their size and every page still
     /// fits: the content's own height at the shorter sheet is no more than the sheet.
     @Test func aShortSheetShrinksThePictureNotTheWords() throws {

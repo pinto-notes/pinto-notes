@@ -262,8 +262,8 @@ enum SettingsIndex {
     }
 }
 
-/// Tells `changed` the window a sheet hangs on, when the sheet shows and each time that window
-/// is resized.
+/// Tells `changed` the window a sheet hangs on (the top one, for a sheet on a sheet), when the
+/// sheet shows and each time that window is resized.
 struct SheetParentReader: NSViewRepresentable {
     let changed: (NSWindow?) -> Void
 
@@ -285,7 +285,9 @@ struct SheetParentReader: NSViewRepresentable {
             Task { @MainActor [weak self] in
                 for _ in 0..<40 {
                     guard let self, let sheet = self.window else { return }
-                    if let parent = sheet.sheetParent { self.follow(parent); return }
+                    // A sheet on a sheet (a guide opened from a card) follows the notes window,
+                    // not the card it hangs on.
+                    if let parent = sheet.sheetParent { self.follow(ImportSheetFit.top(parent)); return }
                     try? await Task.sleep(for: .milliseconds(50))
                 }
             }
