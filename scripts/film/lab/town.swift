@@ -169,11 +169,29 @@ final class TownFilm {
         let dusk = smooth((p - 0.3) / 0.7)
         let night = smooth((t - growth) / 1.3)
         func col(_ day: UInt32, _ dk: UInt32, _ nt: UInt32) -> C { C(day).mix(C(dk), dusk).mix(C(nt), night) }
+        // The whole stage drifts a little, near sheets more than far ones: paper at different depths.
+        let total = growth + FilmScript.outro
+        let drift = -16 * cos(min(1, max(0, t / total)) * .pi)
+        func layer(_ depth: Double, _ body: () -> Void) {
+            ctx.saveGState()
+            ctx.translateBy(x: drift * depth, y: 0)
+            body()
+            ctx.restoreGState()
+        }
 
         // Sky.
         let top = col(0xFFF7EA, 0xFCE6CC, 0x1F1019), mid = col(0xFFEFD9, 0xF7BC97, 0x4A1D2A), hor = col(0xFFE4C6, 0xE88F8C, 0xA44E3E)
-        let sky = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [hor.cg(), mid.cg(), top.cg()] as CFArray, locations: [0, 0.38, 1])!
-        ctx.drawLinearGradient(sky, start: CGPoint(x: 0, y: ground + 430), end: CGPoint(x: 0, y: H), options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+        // Painted small and stretched: a full-size gradient costs many times more.
+        if let strip = Kit.context(2, 96) {
+            let sky = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [hor.cg(), mid.cg(), top.cg()] as CFArray, locations: [0, 0.38, 1])!
+            strip.drawLinearGradient(sky, start: .zero, end: CGPoint(x: 0, y: 96), options: [])
+            if let image = strip.makeImage() {
+                ctx.interpolationQuality = .low
+                ctx.draw(image, in: CGRect(x: -2, y: ground + 430, width: W + 4, height: H - ground - 430))
+                ctx.setFillColor(hor.cg())
+                ctx.fill(CGRect(x: 0, y: ground, width: W, height: 432))
+            }
+        }
         // The low sun's warmth on the horizon, going down.
         ctx.setBlendMode(.plusLighter)
         let sunY = ground + 640 - 190 * p
@@ -186,38 +204,50 @@ final class TownFilm {
             var r = Rand(5)
             for _ in 0..<60 {
                 let x = r.next() * W, y = ground + 620 + r.next() * (H - ground - 620), s = 1 + r.next() * 1.6, a = r.next()
-                ctx.setFillColor(C(0xFFF1D6).cg(night * (0.25 + 0.6 * a)))
+                ctx.setFillColor(C(0xFFF1D6).cg(night * (0.25 + 0.6 * a) * (0.75 + 0.25 * sin(t * 2.6 + a * 40))))
                 ctx.fillEllipse(in: CGRect(x: x - s, y: y - s, width: s * 2, height: s * 2))
             }
         }
         // Far hills, three sheets of paper.
         let far: [(Double, Double, C)] = [(ground + 560, 44, col(0xE4D3E2, 0xCFAFC9, 0x402845)), (ground + 505, 52, col(0xD0BDD8, 0xB494BC, 0x33213D)), (ground + 452, 44, col(0xB9B2CC, 0x9482AE, 0x281C35))]
-        for (i, (y, amp, c)) in far.enumerated() {
+        for (i, (y, amp, c)) in far.enumerated() { layer(0.12 + 0.08 * Double(i)) {
             let path = CGMutablePath()
-            path.move(to: CGPoint(x: -20, y: 0))
-            var x = -20.0
-            while x <= W + 20 {
+            path.move(to: CGPoint(x: -60, y: 0))
+            var x = -60.0
+            while x <= W + 60 {
                 let yy = y + amp * sin(x / (210 + Double(i) * 60) + Double(i) * 1.7) + amp * 0.45 * sin(x / 97 + Double(i) * 4.1)
                 path.addLine(to: CGPoint(x: x, y: yy))
                 x += 12
             }
-            path.addLine(to: CGPoint(x: W + 20, y: 0))
+            path.addLine(to: CGPoint(x: W + 60, y: 0))
             sheet(path, c, in: ctx)
-        }
+        } }
 
         // Three sheets of hills, back to front; each folder's hill swells up when its first note
         // comes, and carries its houses.
         var drawn = 0
-        for depth in 0..<3 {
+        for depth in 0..<3 { layer([0.45, 0.7, 1.0][depth]) {
             let rowHills = hills.indices.filter { hills[$0].depth == depth }
-            guard !rowHills.isEmpty else { continue }
+            guard !rowHills.isEmpty else { return }
             let green = [col(0x9DB39A, 0x6C8878, 0x1D3833), col(0x86A380, 0x54755F, 0x17322B), col(0x6F9169, 0x426349, 0x112921)][depth]
             let path = CGMutablePath()
-            path.move(to: CGPoint(x: -20, y: 0))
-            var x = -20.0
-            while x <= W + 20 { path.addLine(to: CGPoint(x: x, y: ridge(depth: depth, x, gt))); x += 8 }
-            path.addLine(to: CGPoint(x: W + 20, y: 0))
+            path.move(to: CGPoint(x: -60, y: 0))
+            var x = -60.0
+            while x <= W + 60 { path.addLine(to: CGPoint(x: x, y: ridge(depth: depth, x, gt))); x += 8 }
+            path.addLine(to: CGPoint(x: W + 60, y: 0))
             sheet(path, green, in: ctx)
+            // At night each hill's village glows a little into the air round it.
+            if night > 0 {
+                ctx.setBlendMode(.plusLighter)
+                for hi in rowHills {
+                    let hill = hills[hi]
+                    let r = hill.w * 0.62
+                    ctx.setAlpha(0.16 * night)
+                    ctx.draw(warmHaze, in: CGRect(x: hill.cx - r, y: hill.base + hill.h * 0.55 - r * 0.7, width: r * 2, height: r * 1.4))
+                }
+                ctx.setAlpha(1)
+                ctx.setBlendMode(.normal)
+            }
             for hi in rowHills {
                 let hill = hills[hi]
                 guard gt >= hill.birth else { continue }
@@ -241,30 +271,46 @@ final class TownFilm {
                     if !name.isEmpty, a > 0 { tag(name, at: CGPoint(x: hill.cx, y: hill.tagY), alpha: a, night: night, in: ctx) }
                 }
             }
-        }
+            // Street lamps along the front, lit as the light goes.
+            if depth == 2 {
+                for k in 0..<4 {
+                    let x = 70 + (Double(k) + 0.2 + 0.6 * hash(k, 51)) / 4 * (W - 140)
+                    let y = ridge(depth: 2, x, gt) - 6
+                    let on = smooth((dusk - 0.35 - 0.1 * hash(k, 52)) / 0.15)
+                    ctx.setFillColor(col(0x4A3A40, 0x33272E, 0x150F14).cg())
+                    ctx.fill(CGRect(x: x - 2, y: y, width: 4, height: 46))
+                    ctx.fill(CGRect(x: x - 7, y: y + 44, width: 14, height: 4))
+                    ctx.setFillColor(col(0xE9DCC6, 0xD9C6A8, 0x6A5560).mix(C(0xFFDF9A), on).cg())
+                    ctx.fill(CGRect(x: x - 5, y: y + 48, width: 10, height: 13))
+                    if on > 0.02 {
+                        ctx.setBlendMode(.plusLighter)
+                        ctx.setAlpha(0.6 * on * (0.5 + 0.5 * night + 0.2 * dusk))
+                        ctx.draw(amberGlow, in: CGRect(x: x - 44, y: y + 54 - 44, width: 88, height: 88))
+                        ctx.setAlpha(1)
+                        ctx.setBlendMode(.normal)
+                    }
+                }
+            }
+        } }
         // Birds on their way home at dusk.
-        birds(t, night: night, in: ctx)
+        layer(0.3) { birds(t, night: night, in: ctx) }
 
         // The dark ground in front, with the canopy's edge: the words sit on it.
         let groundC = col(0x1F2D2A, 0x18231F, 0x0B1211)
         let front = CGMutablePath()
-        front.move(to: CGPoint(x: -10, y: 0))
-        var x = -10.0
+        front.move(to: CGPoint(x: -70, y: 0))
+        var x = -70.0
         var k = 0
-        while x <= W + 60 {
+        while x <= W + 120 {
             let r = 38 + 26 * hash(k, 31)
             front.addArc(center: CGPoint(x: x, y: ground - 24 + 18 * hash(k, 32)), radius: r, startAngle: .pi, endAngle: 0, clockwise: true)
             x += r * 1.25
             k += 1
         }
-        front.addLine(to: CGPoint(x: W + 60, y: 0))
-        sheet(front, groundC, in: ctx)
+        front.addLine(to: CGPoint(x: W + 120, y: 0))
+        layer(1.35) { sheet(front, groundC, in: ctx) }
         // Paper grain over everything.
-        ctx.saveGState()
-        ctx.setBlendMode(.softLight)
-        ctx.setAlpha(0.5)
-        ctx.draw(Kit.grain, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
-        ctx.restoreGState()
+        ctx.draw(Kit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
 
         guard words else { return }
         chrome(dark: night, in: ctx)
@@ -273,24 +319,39 @@ final class TownFilm {
 
     /// A sheet of paper: a filled shape with the soft shadow it casts on the sheet behind.
     private func sheet(_ path: CGPath, _ c: C, in ctx: CGContext) {
+        // Its shadow on the sheet behind: a few soft lines along its edge (the sheet itself
+        // covers their lower half). Many times quicker than a blurred shadow or stepped copies.
         ctx.saveGState()
-        ctx.setShadow(offset: CGSize(width: 0, height: 5), blur: 14, color: CGColor(gray: 0, alpha: 0.28))
+        ctx.translateBy(x: 0, y: 2)
+        ctx.setLineJoin(.round)
+        for (w, a) in [(30.0, 0.03), (20, 0.04), (12, 0.05), (5, 0.07)] {
+            ctx.addPath(path)
+            ctx.setStrokeColor(CGColor(gray: 0, alpha: a))
+            ctx.setLineWidth(w)
+            ctx.strokePath()
+        }
+        ctx.restoreGState()
         ctx.addPath(path)
         ctx.setFillColor(c.cg())
         ctx.fillPath()
-        ctx.restoreGState()
     }
 
     private func tree(at p: CGPoint, r: Double, color: C, in ctx: CGContext) {
         ctx.setFillColor(C(0x5A4038).cg())
         ctx.fill(CGRect(x: p.x - r * 0.09, y: p.y - 2, width: r * 0.18, height: r * 0.9))
-        ctx.saveGState()
-        ctx.setShadow(offset: CGSize(width: 0, height: 2), blur: 5, color: CGColor(gray: 0, alpha: 0.25))
+        let blobs = [(0.0, 1.25, 1.0), (-0.55, 0.9, 0.72), (0.55, 0.95, 0.7), (0.0, 0.75, 0.8)]
+        // Its shade, then the crown.
+        ctx.setFillColor(CGColor(gray: 0, alpha: 0.14))
+        for (dx, dy, k) in blobs {
+            ctx.fillEllipse(in: CGRect(x: p.x + dx * r - r * k + 2, y: p.y + dy * r - r * k * 0.9 + r * 0.3 - 3, width: r * k * 2, height: r * k * 1.8))
+        }
         ctx.setFillColor(color.cg())
-        for (dx, dy, k) in [(0.0, 1.25, 1.0), (-0.55, 0.9, 0.72), (0.55, 0.95, 0.7), (0.0, 0.75, 0.8)] {
+        for (dx, dy, k) in blobs {
             ctx.fillEllipse(in: CGRect(x: p.x + dx * r - r * k, y: p.y + dy * r - r * k * 0.9 + r * 0.3, width: r * k * 2, height: r * k * 1.8))
         }
-        ctx.restoreGState()
+        // A lighter side, as paper catches the light.
+        ctx.setFillColor(CGColor(gray: 1, alpha: 0.07))
+        ctx.fillEllipse(in: CGRect(x: p.x - r * 0.55, y: p.y + r * 1.15, width: r * 1.1, height: r * 0.9))
     }
 
     private func house(_ i: Int, groundY: Double, t: Double, gt: Double, dusk: Double, night: Double, col: (UInt32, UInt32, UInt32) -> C, in ctx: CGContext) {

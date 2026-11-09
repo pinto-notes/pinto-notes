@@ -52,6 +52,22 @@ enum Kit {
         return ctx.makeImage()!
     }()
 
+    /// The same grain as faint light and dark specks, to lay over with plain blending (quicker).
+    static let speckle: CGImage = {
+        let n = 256
+        let ctx = context(n, n)!
+        var r = Rand(77)
+        let p = ctx.data!.assumingMemoryBound(to: UInt8.self)
+        for i in 0..<(n * n) {
+            let v = r.next()
+            // Premultiplied BGRA: light specks or dark ones, at most about 5% strong.
+            let a = UInt8(abs(v - 0.5) * 2 * 9)
+            let c: UInt8 = v > 0.5 ? a : 0
+            p[i * 4] = c; p[i * 4 + 1] = c; p[i * 4 + 2] = c; p[i * 4 + 3] = a
+        }
+        return ctx.makeImage()!
+    }()
+
     static func glow(_ c: C) -> CGImage {
         let n = 96
         let ctx = context(n, n)!

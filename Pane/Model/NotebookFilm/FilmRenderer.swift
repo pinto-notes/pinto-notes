@@ -8,10 +8,12 @@ import Foundation
 /// to last; the same script always gives the same film.
 /// How the film looks: what it's drawn on and in which colours. You pick one before sharing.
 enum FilmLook: String, CaseIterable, Sendable, Codable {
-    case night, paper, dusk
+    /// Town first: it's the one in Pinto's own cut-paper world, and what a new film opens in.
+    case town, night, paper, dusk
 
     var name: String {
         switch self {
+        case .town: "Town"
         case .night: "Night"
         case .paper: "Paper"
         case .dusk: "Dusk"
@@ -22,16 +24,20 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
     /// The background: top and bottom (the same for a flat one).
     var background: (RGB, RGB) {
         switch self {
+        case .town: (RGB(0.04, 0.07, 0.07), RGB(0.04, 0.07, 0.07))
         case .night: (RGB(0, 0, 0), RGB(0, 0, 0))
         case .paper: (RGB(0.985, 0.98, 0.968), RGB(0.985, 0.98, 0.968))
         case .dusk: (RGB(0.04, 0.05, 0.19), RGB(0.36, 0.17, 0.31))
         }
     }
     var dark: Bool { self != .paper }
+    /// Draws a whole paper scene each frame: played in the app a little smaller, to keep its pace.
+    var scenic: Bool { self == .town || self == .dusk }
     /// You: the app's accent, deeper on paper.
     var you: RGB { dark ? RGB(0.957, 0.678, 0.200) : RGB(0.85, 0.42, 0.02) }
     var ai: RGB {
         switch self {
+        case .town: RGB(0.56, 0.78, 1.0)
         case .night: RGB(0.50, 0.68, 1.0)
         case .paper: RGB(0.18, 0.42, 0.85)
         case .dusk: RGB(0.62, 0.80, 1.0)
@@ -44,7 +50,7 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
     /// It keeps its own colour, dimmer: never a grey that means nothing.
     var cool: RGB {
         switch self {
-        case .night: RGB(0, 0, 0)
+        case .town, .night: RGB(0, 0, 0)
         case .paper: RGB(0.985, 0.98, 0.968)
         case .dusk: RGB(0.12, 0.09, 0.26)
         }
@@ -127,6 +133,10 @@ final class FilmRenderer {
     var height: Int { Int(canvas.height.rounded()) }
     private(set) var canvas: FilmCanvas
     private(set) var frame = 0
+    /// What the look draws besides the constellation (or in its place), if anything.
+    private let scene: FilmScene?
+    /// The ink of the mark and key along the top in the frame being drawn.
+    private lazy var topInk: RGB = look.ink
 
     // Layout, in world units; the camera maps them to pixels.
     private var pos: [SIMD2<Double>]
@@ -176,6 +186,11 @@ final class FilmRenderer {
         self.opening = opening
         self.words = words
         self.canvas = canvas
+        switch labels.look {
+        case .town: scene = TownScene(script: script, folderNames: labels.folderNames)
+        case .dusk: scene = VillageScene(script: script)
+        case .night, .paper: scene = nil
+        }
         switch opening {
         case .full: frame = 0
         case .brief: frame = FilmScript.preludeFrames - Int(0.7 * Double(FilmScript.fps))
@@ -228,9 +243,11 @@ final class FilmRenderer {
             let back = smooth((t + 0.4) / 0.4)
             ctx.saveGState()
             ctx.scaleBy(x: k, y: k)
-            drawBackground(in: ctx)
+            drawBackground(0, in: ctx)
             ctx.restoreGState()
-            drawEnding(in: ctx, alpha: 1 - back, zoom: 1 - 0.12 * back)
+            // A scene stays where it is (the same hills, another hour); the constellation draws back.
+            drawEnding(in: ctx, alpha: 1 - back, zoom: scene?.replacesNotebook == true ? 1 : 1 - 0.12 * back)
+            if let scene { topInk = scene.topInk(script.growth + FilmScript.outro).mix(scene.topInk(0), back) }
             ctx.saveGState()
             ctx.scaleBy(x: k, y: k)
             drawMark(in: ctx)
@@ -254,7 +271,8 @@ final class FilmRenderer {
     /// film settling into the shape it's shared in.
     func drawHeld(in ctx: CGContext, canvas: FilmCanvas) {
         self.canvas = canvas
-        let t = script.growth + FilmScript.outro
+        // The last frame's own time, so it settles into exactly the picture that's shared.
+        let t = Double(script.frameCount - 1 - FilmScript.preludeFrames) / Double(FilmScript.fps)
         updateCamera(t, snap: true)
         ctx.saveGState()
         let k = Double(ctx.width) / Double(width)
@@ -331,6 +349,8 @@ final class FilmRenderer {
             alive += 1
         }
         while linksAlive < script.links.count && script.links[linksAlive].birth <= growT { linksAlive += 1 }
+        // A scene in the notebook's place needs only how many notes there are so far.
+        if scene?.replacesNotebook == true { return }
         // Settle a little more each frame while growing, and gently after.
         let iterations = t <= script.growth ? 3 : 1
         for _ in 0..<iterations { relax() }
@@ -407,7 +427,7 @@ final class FilmRenderer {
 
     /// The graph fills the upper part of the frame, leaving room for the words below.
     private var graphBox: CGRect {
-        let bottom = 340 + canvas.bottom, top = 170 + canvas.top
+        let bottom = 340 + canvas.bottom + (scene?.lift ?? 0), top = 170 + canvas.top
         return CGRect(x: 70, y: bottom, width: Double(width) - 140, height: max(200, Double(height) - bottom - top))
     }
 
@@ -436,7 +456,13 @@ final class FilmRenderer {
     // MARK: Drawing
 
     private func draw(_ t: Double, in ctx: CGContext) {
-        drawBackground(in: ctx)
+        drawBackground(t, in: ctx)
+        topInk = scene?.topInk(t) ?? look.ink
+        if scene?.replacesNotebook == true {
+            // The scene is the whole picture: only the words go over it.
+            if words { drawMark(in: ctx); drawWords(t, in: ctx) }
+            return
+        }
 
         let gt = min(t, script.growth)
         let lineScale = min(1.6, max(0.9, camScale / 2.2))
@@ -542,12 +568,15 @@ final class FilmRenderer {
         }
 
         if labels.folderNames { drawFolderNames(t, in: ctx) }
+        ctx.setBlendMode(.normal)
+        scene?.drawInFront(t, canvas: canvas, in: ctx)
         // The glimpse leaves out what the frame it's drawn over already has, so nothing doubles as it fades.
         if words { drawMark(in: ctx); drawWords(t, in: ctx) }
     }
 
-    private func drawBackground(in ctx: CGContext) {
+    private func drawBackground(_ t: Double, in ctx: CGContext) {
         ctx.setBlendMode(.normal)
+        if let scene { scene.drawBehind(t, canvas: canvas, in: ctx); return }
         let (top, bottom) = look.background
         let mid = look == .dusk ? RGB(0.13, 0.09, 0.28) : bottom.mix(top, 0.5)
         if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [bottom.cg(), mid.cg(), top.cg()] as CFArray, locations: [0, 0.42, 1]) {
@@ -605,7 +634,7 @@ final class FilmRenderer {
             ctx.restoreGState()
             x += size + 14
         }
-        text(labels.mark, size: 30, weight: .semibold, color: look.ink.cg(look.dark ? 0.85 : 0.8), at: CGPoint(x: x, y: y), in: ctx)
+        text(labels.mark, size: 30, weight: .semibold, color: topInk.cg(look.dark ? 0.85 : 0.8), at: CGPoint(x: x, y: y), in: ctx)
     }
 
     private func drawWords(_ t: Double, in ctx: CGContext) {
@@ -643,7 +672,7 @@ final class FilmRenderer {
                 }
             }
             // As many as fit while it grows: a thin month's shorter film says less.
-            let lines = labels.captions + (script.links.isEmpty ? [] : [labels.linksCaption])
+            let lines = scene?.captions ?? labels.captions + (script.links.isEmpty ? [] : [labels.linksCaption])
             var from = titleUntil + 0.5
             let slot = min(2.5, max(1.6, (script.growth - from - 0.3) / Double(lines.count)))
             for line in lines where from + slot <= script.growth + 0.01 {
@@ -653,6 +682,8 @@ final class FilmRenderer {
             }
         }
         // The end card: the title, the one line that's only yours, and what the month came to.
+        // A scene's own ending comes first (night falls on the town).
+        let t = t - (scene?.wordsDelay ?? 0)
         let outroIn = smooth((t - script.growth - 0.25) / 0.7)
         guard outroIn > 0 else { return }
         let rise = (1 - outroIn) * 14
@@ -681,11 +712,13 @@ final class FilmRenderer {
         let keyY = Double(height) - 96 - canvas.top
         // With no AI there's one colour and nothing to tell apart.
         guard let name = script.stats.ai else { return }
-        let keys: [(String, RGB, Double)] = [(labels.withAI(name), look.ai, ai), (labels.you, look.you, you)]
+        // Deeper dots while the top is in dark ink on a pale sky.
+        let pale = topInk.r + topInk.g + topInk.b < 1.5
+        let keys: [(String, RGB, Double)] = [(labels.withAI(name), pale ? FilmLook.paper.ai : look.ai, ai), (labels.you, pale ? FilmLook.paper.you : look.you, you)]
         var right = Double(width) - 64
         for (name, color, a) in keys where a > 0 {
             let w = textWidth(name, size: 30, weight: .medium)
-            text(name, size: 30, weight: .medium, color: look.ink.cg(0.82 * a), at: CGPoint(x: right - w, y: keyY), in: ctx)
+            text(name, size: 30, weight: .medium, color: topInk.cg(0.82 * a), at: CGPoint(x: right - w, y: keyY), in: ctx)
             ctx.setFillColor(color.cg(a))
             ctx.fillEllipse(in: CGRect(x: right - w - 30, y: keyY + 3, width: 18, height: 18))
             right -= w + 30 + 28

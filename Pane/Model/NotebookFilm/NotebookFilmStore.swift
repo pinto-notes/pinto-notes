@@ -27,7 +27,7 @@ final class NotebookFilmStore {
     var visible = false
     /// The film being shown.
     private(set) var script: FilmScript?
-    var look: FilmLook = .night
+    var look: FilmLook = .town
     /// Folder names over their clusters (on unless you turn them off); note titles never show.
     var folderNames = true
     /// The film as a movie file for the look and folder names chosen now, once it's made. Movies

@@ -22,6 +22,23 @@ case "garden":
     film.mark = mark
     film.folderNames = !args.contains("nofolders")
     try Kit.write(to: out, width: 1080, height: 1350, frames: film.frameCount) { ctx, i in film.draw(frame: i, in: ctx) }
+case "skytown":
+    var labels = FilmRenderer.Labels()
+    labels.locale = Locale(identifier: "en_US")
+    labels.markImage = mark
+    labels.folderNames = !args.contains("nofolders")
+    let r = FilmRenderer(script: script, labels: labels)
+    SkyTown.attach(to: r, script: script)
+    try FilmVideo.write(r, to: out)
+case "bench":
+    let town = TownFilm(script: script)
+    let frames = Array(stride(from: 40, to: 400, by: 12))
+    Bench.run("town", width: 1080, height: 1350, frames: frames) { ctx, i in town.draw(frame: i, in: ctx) }
+    let tall = TownFilm(script: script, height: 2348)
+    Bench.run("town tall", width: 1080, height: 2348, frames: frames) { ctx, i in tall.draw(frame: i, in: ctx) }
+    let r = FilmRenderer(script: script)
+    Bench.run("stars", width: 1080, height: 1350, frames: Array(0..<300)) { ctx, _ in r.drawNext(in: ctx) }
+    exit(0)
 default:
     print("unknown style \(style)")
 }

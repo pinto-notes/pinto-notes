@@ -138,7 +138,7 @@ struct NotebookFilmView: View {
             chosen = nil
             controlsShown = false
             phase = .watching
-            playback.play(script: script, labels: store.labels, screen: screen, settle: reduceMotion ? 0 : 0.6)
+            playback.play(script: script, labels: store.labels, screen: screen.sized(for: store.look), settle: reduceMotion ? 0 : 0.6)
         }
     }
 
@@ -252,7 +252,7 @@ struct NotebookFilmView: View {
         .onAppear {
             // From the intro: Watch was pressed before this was on screen.
             if playback.frame == nil, let script = store.script, let screen {
-                playback.play(script: script, labels: store.labels, screen: screen, settle: reduceMotion ? 0 : 0.6)
+                playback.play(script: script, labels: store.labels, screen: screen.sized(for: store.look), settle: reduceMotion ? 0 : 0.6)
             }
         }
     }
@@ -516,6 +516,13 @@ final class FilmPlayback {
         /// How wide the film is drawn.
         var pixels: Int
 
+        /// A scenic look is drawn at two thirds of the pixels: paper shapes lose nothing by it.
+        func sized(for look: FilmLook) -> Screen {
+            var s = self
+            if look.scenic { s.pixels = max(540, pixels * 2 / 3) }
+            return s
+        }
+
         /// The film's shape `p` of the way from the screen to a card of `card` points.
         func canvas(_ p: Double, card: CGSize) -> FilmCanvas {
             let w = size.width + (card.width - size.width) * p, h = size.height + (card.height - size.height) * p
@@ -554,15 +561,18 @@ final class FilmPlayback {
             let first = renderer.frame
             let total = Double(script.frameCount - first)
             let clock = ContinuousClock()
-            var next = clock.now
+            let began = clock.now
             while !renderer.isDone && !Task.isCancelled {
                 if skip.withLock({ $0 }) { while renderer.frame < script.frameCount - 1 { renderer.skip() } }
+                // It keeps the film's own time: a frame that took too long to draw is followed by
+                // the frame that's due now, not the next one (the film never runs slow).
+                let due = first + Int((clock.now - began) / .seconds(1.0 / Double(FilmScript.fps)))
+                while renderer.frame < min(due, script.frameCount - 1) { renderer.skip() }
                 renderer.drawNext(in: ctx)
                 let image = ctx.makeImage()
                 let done = Double(renderer.frame - first) / total
                 await MainActor.run { self?.frame = image; self?.progress = done }
-                next += .milliseconds(33)
-                try? await clock.sleep(until: next)
+                try? await clock.sleep(until: began + .seconds(Double(renderer.frame - first) / Double(FilmScript.fps)))
             }
             guard !Task.isCancelled else { return }
             let card = await MainActor.run { () -> CGSize in
@@ -570,9 +580,9 @@ final class FilmPlayback {
                 return self?.card ?? .zero
             }
             guard card.width > 0 else { return }
-            let began = clock.now
+            let landingBegan = clock.now
             while !Task.isCancelled {
-                let x = settle <= 0 ? 1 : min(1, (clock.now - began) / .seconds(settle))
+                let x = settle <= 0 ? 1 : min(1, (clock.now - landingBegan) / .seconds(settle))
                 let p = x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2
                 let canvas = screen.canvas(p, card: card)
                 guard let c = FilmRenderer.context(width: width, height: Self.pixelHeight(width, canvas)) else { break }

@@ -464,6 +464,68 @@ import Testing
         #expect(Self.litPixels(ctx, rows: 400..<1180) > 300)
     }
 
+    // MARK: The town
+
+    @Test func theTownIsBuiltFromTheNotebook() {
+        // A house for every note, on its folder's hill: more notes, more town.
+        let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        var labels = FilmRenderer.Labels()
+        labels.look = .town
+        func picture(at film: Int) -> Data {
+            let r = FilmRenderer(script: script, labels: labels)
+            let ctx = FilmRenderer.context(width: 540, height: 675)!
+            while r.frame < film { r.skip() }
+            r.drawNext(in: ctx)
+            return Data(bytes: ctx.data!, count: ctx.bytesPerRow * ctx.height)
+        }
+        let early = FilmScript.preludeFrames + 30, late = FilmScript.preludeFrames + 240
+        #expect(picture(at: early) != picture(at: late), "it changes as the month goes")
+        #expect(picture(at: late) == picture(at: late), "the same notes always make the same town")
+    }
+
+    @Test func nightFallsOnTheTownAndTheWindowsComeOn() {
+        let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        var labels = FilmRenderer.Labels()
+        labels.look = .town
+        let r = FilmRenderer(script: script, labels: labels)
+        let ctx = FilmRenderer.context(width: 540, height: 675)!
+        func skyAndLights() -> (sky: Int, lit: Int) {
+            let p = ctx.data!.assumingMemoryBound(to: UInt8.self)
+            // Top rows of the bitmap are the sky; BGRA.
+            var sky = 0
+            for x in stride(from: 0, to: ctx.width, by: 8) { let px = p + 6 * ctx.bytesPerRow + x * 4; sky += Int(px[0]) + Int(px[1]) + Int(px[2]) }
+            return (sky / (ctx.width / 8), Self.litPixels(ctx, rows: 180..<470))
+        }
+        while r.frame < FilmScript.preludeFrames + 200 { r.skip() }
+        r.drawNext(in: ctx)
+        let day = skyAndLights()
+        while r.frame < script.frameCount - 1 { r.skip() }
+        r.drawNext(in: ctx)
+        let night = skyAndLights()
+        #expect(day.sky > 500 && night.sky < 200, "a pale sky by day, a dark one at the end")
+        #expect(night.lit > 300, "windows lit where the work was")
+    }
+
+    @Test func theTownStandsTallerOnAPhonesScreen() {
+        // More room above the ground on a tall screen: the hills use some of it, and the frame
+        // it settles to is the shared one.
+        let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        var labels = FilmRenderer.Labels()
+        labels.look = .town
+        let screen = FilmPlayback.Screen(size: CGSize(width: 402, height: 874), top: 114, bottom: 58, pixels: 1206)
+        #expect(screen.sized(for: .town).pixels == 804 && screen.sized(for: .night).pixels == 1206)
+        let tall = screen.canvas(0, card: CGSize(width: 370, height: 462.5))
+        let r = FilmRenderer(script: script, labels: labels, canvas: tall, opening: .brief)
+        while !r.isDone { r.skip() }
+        let landed = FilmRenderer.context(width: 540, height: 675)!
+        r.drawHeld(in: landed, canvas: .shared)
+        let shared = FilmRenderer(script: script, labels: labels)
+        let want = FilmRenderer.context(width: 540, height: 675)!
+        while shared.frame < script.frameCount - 1 { shared.skip() }
+        shared.drawNext(in: want)
+        #expect(Data(bytes: landed.data!, count: landed.bytesPerRow * landed.height) == Data(bytes: want.data!, count: want.bytesPerRow * want.height), "it lands as the film that's shared")
+    }
+
     @Test func playingItSmallDrawsTheSameFilm() {
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
         let small = FilmRenderer(script: script)
@@ -482,7 +544,8 @@ import Testing
             while r.frame <= 200 { r.drawNext(in: ctx) }
             let p = ctx.data!.assumingMemoryBound(to: UInt8.self)
             let corner = Int(p[0]) + Int(p[1]) + Int(p[2])
-            #expect(look.dark ? corner < 200 : corner > 600, "\(look) has its own background")
+            // Paper's page and the town's daytime sky are pale; the others are dark.
+            #expect(look == .paper || look == .town ? corner > 600 : corner < 200, "\(look) has its own background")
         }
     }
 
