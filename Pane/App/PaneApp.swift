@@ -788,6 +788,8 @@ final class AppSession {
         ).run()
         // Without the key the gate asks for it; the library starts when it's open (below).
         guard AccountCrypto.shared.allowsSync else { return }
+        // The notebook film shows as the app opens, if an earlier launch got it ready; never later.
+        notebookFilm.atLaunch(otherPrompt: onboarding.holdsAsks() || AccountCrypto.shared.recoveryKeyChangeNeedsSaying)
         await openLibrary(client)
     }
 
@@ -892,19 +894,17 @@ final class AppSession {
         let noteQuery = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil })
         let hasNote = ((try? context.fetchCount(noteQuery)) ?? 0) > 0
         // Never during the first-run flow, nor in the day after it.
-        if !onboarding.holdsAsks() {
+        if !onboarding.holdsAsks() && !notebookFilm.visible {
             let days = max(shareAsk.server?.days ?? 0, ShareAsk.localDays().count)
             await heardFrom.refresh(daysOfUse: days, hasNote: hasNote,
                                     otherPrompt: (notices?.shownThisLaunch ?? false) || notices?.current != nil
                                         || AccountCrypto.shared.recoveryKeyChangeNeedsSaying || PaneTips.all.contains { $0.shouldDisplay })
         }
         // "Enjoying Pinto Notes?": only here, at launch, and only when nothing else asks or shows.
-        shareAsk.atLaunch(otherPrompt: onboarding.holdsAsks() || heardFrom.visible || (notices?.shownThisLaunch ?? false)
+        shareAsk.atLaunch(otherPrompt: onboarding.holdsAsks() || heardFrom.visible || notebookFilm.visible || (notices?.shownThisLaunch ?? false)
                           || notices?.current != nil || AccountCrypto.shared.recoveryKeyChangeNeedsSaying || PaneTips.all.contains { $0.shouldDisplay })
-        // The notebook film: the same moment, when the share ask didn't take it.
-        await notebookFilm.atLaunch(context: context, otherPrompt: onboarding.holdsAsks() || heardFrom.visible || shareAsk.visible
-                                    || (notices?.shownThisLaunch ?? false) || notices?.current != nil
-                                    || AccountCrypto.shared.recoveryKeyChangeNeedsSaying || PaneTips.all.contains { $0.shouldDisplay })
+        // The notebook film is only got ready here, for the next launch to show as it opens.
+        await notebookFilm.prepare(context: context)
         await InstallID.report(client)
     }
 
@@ -1094,10 +1094,10 @@ struct AppGate: View {
                     .heardFromSheet(heardFrom)
                     .notebookFilmSheet(session.notebookFilm)
                     .task {
+                        session.notebookFilm.showIfForced()
                         try? await Task.sleep(for: .seconds(1.2))
                         shareAsk.showIfForced()
                         heardFrom.showIfForced()
-                        await session.notebookFilm.showIfForced()
                     }
                     .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
                     .transition(.opacity)

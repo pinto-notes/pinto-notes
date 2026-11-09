@@ -176,51 +176,93 @@ import Testing
         return (c, source)
     }
 
-    @Test func offeredAtALaunchAfterAMonthThenNeverAgainHere() async throws {
-        let (c, source) = try Self.library(days: 35)
-        let d = TestDefaults()
-        let account = UUID()
-        ShareAsk.lastKeystroke = .distantPast
-        let s = NotebookFilmStore(defaults: d, arguments: [])
+    static func store(_ d: UserDefaults, account: UUID, source: FakeSource, folder: URL, launched: Date = .now) -> NotebookFilmStore {
+        let s = NotebookFilmStore(defaults: d, launched: launched, arguments: [], folder: folder)
         s.attach(account: account, service: source)
-        await s.atLaunch(context: c.mainContext, otherPrompt: false)
-        #expect(s.visible)
-        let movie = try #require(s.movie)
-        #expect(FileManager.default.fileExists(atPath: movie.path))
-        #expect(s.stats?.ai == "ChatGPT")
-        s.visible = false
-
-        let next = NotebookFilmStore(defaults: d, arguments: [])
-        next.attach(account: account, service: source)
-        await next.atLaunch(context: c.mainContext, otherPrompt: false)
-        #expect(!next.visible, "once per device")
+        return s
     }
 
-    @Test func notBesideAnotherPromptNorBeforeAMonth() async throws {
-        let (c, source) = try Self.library(days: 35)
-        ShareAsk.lastKeystroke = .distantPast
-        let s = NotebookFilmStore(defaults: TestDefaults(), arguments: [])
-        s.attach(account: UUID(), service: source)
-        await s.atLaunch(context: c.mainContext, otherPrompt: true)
-        #expect(!s.visible)
-        #expect(source.reads == 0, "nothing read from the server when it can't show")
-
-        let (young, youngSource) = try Self.library(days: 14)
-        let t = NotebookFilmStore(defaults: TestDefaults(), arguments: [])
-        t.attach(account: UUID(), service: youngSource)
-        await t.atLaunch(context: young.mainContext, otherPrompt: false)
-        #expect(!t.visible)
-        #expect(youngSource.reads == 0, "two weeks of notes is known here, without the server")
+    static func tempFolder() -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("film-\(UUID().uuidString)", isDirectory: true)
     }
 
-    @Test func notOnceThePersonHasStartedTyping() async throws {
+    @Test func oneLaunchGetsItReadyTheNextShowsItAsItOpensThenNeverAgain() async throws {
         let (c, source) = try Self.library(days: 35)
-        let s = NotebookFilmStore(defaults: TestDefaults(), arguments: [])
-        s.attach(account: UUID(), service: source)
-        ShareAsk.lastKeystroke = .now.addingTimeInterval(1)
-        await s.atLaunch(context: c.mainContext, otherPrompt: false)
+        let d = TestDefaults(), account = UUID(), folder = Self.tempFolder()
         ShareAsk.lastKeystroke = .distantPast
-        #expect(!s.visible, "never over a note being typed in")
+
+        let first = Self.store(d, account: account, source: source, folder: folder)
+        first.atLaunch(otherPrompt: false)
+        #expect(!first.visible, "nothing ready yet")
+        await first.prepare(context: c.mainContext)
+        #expect(!first.visible, "getting it ready never shows it")
+        #expect(FileManager.default.fileExists(atPath: first.preparedURL.path))
+
+        let next = Self.store(d, account: account, source: source, folder: folder)
+        next.atLaunch(otherPrompt: false)
+        #expect(next.visible, "shown as the app opens")
+        #expect(next.script?.stats.ai == "ChatGPT")
+        #expect(!FileManager.default.fileExists(atPath: next.preparedURL.path))
+        next.visible = false
+
+        let after = Self.store(d, account: account, source: source, folder: folder)
+        after.atLaunch(otherPrompt: false)
+        await after.prepare(context: c.mainContext)
+        #expect(!after.visible)
+        #expect(!FileManager.default.fileExists(atPath: after.preparedURL.path), "once per device")
+    }
+
+    @Test func neverLaterInALaunchNorBesideAnotherPrompt() async throws {
+        let (c, source) = try Self.library(days: 35)
+        let d = TestDefaults(), account = UUID(), folder = Self.tempFolder()
+        ShareAsk.lastKeystroke = .distantPast
+        await Self.store(d, account: account, source: source, folder: folder).prepare(context: c.mainContext)
+
+        let late = Self.store(d, account: account, source: source, folder: folder, launched: .now.addingTimeInterval(-30))
+        late.atLaunch(otherPrompt: false)
+        #expect(!late.visible, "half a minute in, the app is in use")
+
+        let busy = Self.store(d, account: account, source: source, folder: folder)
+        busy.atLaunch(otherPrompt: true)
+        #expect(!busy.visible)
+
+        let launched = Date.now
+        let typing = Self.store(d, account: account, source: source, folder: folder, launched: launched)
+        ShareAsk.lastKeystroke = launched.addingTimeInterval(0.5)
+        typing.atLaunch(otherPrompt: false)
+        ShareAsk.lastKeystroke = .distantPast
+        #expect(!typing.visible, "never over a note being typed in")
+        #expect(FileManager.default.fileExists(atPath: busy.preparedURL.path), "it waits for a launch that suits")
+    }
+
+    @Test func notGotReadyBeforeAMonth() async throws {
+        let (young, source) = try Self.library(days: 14)
+        let s = Self.store(TestDefaults(), account: UUID(), source: source, folder: Self.tempFolder())
+        await s.prepare(context: young.mainContext)
+        #expect(source.reads == 0, "two weeks of notes is known here, without the server")
+        #expect(!FileManager.default.fileExists(atPath: s.preparedURL.path))
+    }
+
+    @Test func playingItSmallDrawsTheSameFilm() {
+        let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        let small = FilmRenderer(script: script)
+        let ctx = FilmRenderer.context(width: 540, height: 675)!
+        while small.frame <= 260 { small.drawNext(in: ctx) }
+        #expect(Self.litPixels(ctx, rows: 150..<615) > 100, "scaled to the size it's played at")
+    }
+
+    @Test func everyLookDrawsIt() {
+        let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        for look in FilmLook.allCases {
+            var labels = FilmRenderer.Labels()
+            labels.look = look
+            let r = FilmRenderer(script: script, labels: labels)
+            let ctx = FilmRenderer.context()!
+            while r.frame <= 200 { r.drawNext(in: ctx) }
+            let p = ctx.data!.assumingMemoryBound(to: UInt8.self)
+            let corner = Int(p[0]) + Int(p[1]) + Int(p[2])
+            #expect(look.dark ? corner < 200 : corner > 600, "\(look) has its own background")
+        }
     }
 
     // MARK: Helpers

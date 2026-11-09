@@ -1,39 +1,53 @@
 import Foundation
+import CoreTransferable
 import Observation
 import SwiftData
+import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
-/// The notebook film, offered once: at a launch, after about a month of real use (FilmEligibility),
-/// ready to share the moment it shows. Made on this device from the notes here and who wrote
-/// them; titles and words are never in it.
+/// The notebook film, offered once: after about a month of real use (FilmEligibility), as the app
+/// opens. Made on this device from the notes here and who wrote them; titles and words are never
+/// in it.
 ///
-/// The moment follows the share ask's rules (ShareAsk): only at launch, within its first two
-/// minutes, never once a key has been typed, never on a launch that shows another prompt, and
-/// never during the first-run flow. Once shown on a device, it isn't offered there again.
+/// It never comes in the middle of a session. A launch on which the account is due only gets it
+/// ready (`prepare`: reads who wrote what and keeps what the film needs on this device). The next
+/// launch shows it as the app opens (`atLaunch`), before anything has been typed and never beside
+/// another prompt or during the first-run flow. A launch that isn't ready in time leaves it for the
+/// next one. Once shown on a device, it isn't offered there again.
 ///
-/// Dev: `-forceNotebookFilm` shows a film of a made-up month (FilmDemo) a second after launch.
+/// Dev: `-forceNotebookFilm` shows a film of a made-up month (FilmDemo) as the notes open;
+/// `-filmLook paper` starts it on a look.
 @MainActor
 @Observable
 final class NotebookFilmStore {
     var visible = false
-    /// The film, once made.
-    private(set) var movie: URL?
-    private(set) var stats: FilmStats?
+    /// The film being shown.
+    private(set) var script: FilmScript?
+    var look: FilmLook = .night
     /// Folder names over their clusters (on unless you turn them off); note titles never show.
-    private(set) var folderNames = true
-    /// Being made again, with folder names on or off.
-    private(set) var remaking = false
-    @ObservationIgnored private var input: FilmInput?
+    var folderNames = true
 
     @ObservationIgnored private var account: UUID?
     @ObservationIgnored private var service: FilmSource.Service?
     @ObservationIgnored private(set) var launchChecked = false
+    @ObservationIgnored private(set) var prepareChecked = false
     @ObservationIgnored let defaults: UserDefaults
     @ObservationIgnored let launched: Date
     @ObservationIgnored let forced: Bool
+    @ObservationIgnored let folder: URL
 
-    init(defaults: UserDefaults = .standard, launched: Date = .now, arguments: [String] = ProcessInfo.processInfo.arguments) {
+    /// How long after launch it may still show: the app is opening, nothing has happened yet.
+    static let launchWindow: TimeInterval = 6
+
+    init(defaults: UserDefaults = .standard, launched: Date = .now, arguments: [String] = ProcessInfo.processInfo.arguments,
+         folder: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("NotebookFilm", isDirectory: true)) {
         self.defaults = defaults
         self.launched = launched
+        self.folder = folder
         forced = arguments.contains("-forceNotebookFilm")
     }
 
@@ -42,73 +56,87 @@ final class NotebookFilmStore {
     /// It was shown on this device for this account.
     var shown: Bool { defaults.bool(forKey: Self.shownKey(account)) }
 
+    /// What the next launch shows, kept on this device.
+    var preparedURL: URL { folder.appendingPathComponent("ready-\(account?.uuidString.lowercased() ?? "device").json") }
+
     func attach(account: UUID?, service: FilmSource.Service?) {
-        if account != self.account { launchChecked = false }
+        if account != self.account { launchChecked = false; prepareChecked = false }
         self.account = account
         self.service = service
     }
 
-    /// Where the film is kept: the caches, one per account, replaced each time it's made.
-    static func movieURL(_ account: UUID?, names: Bool = true) -> URL {
-        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("NotebookFilm", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("Pinto Notes \u{2013} \(account?.uuidString.prefix(8).lowercased() ?? "notebook")\(names ? "" : " (no names)").mp4")
+    /// As the app opens: shows the film an earlier launch got ready, or nothing.
+    func atLaunch(otherPrompt: Bool, now: Date = .now) {
+        guard !forced, !visible, !launchChecked else { return }
+        launchChecked = true
+        guard !otherPrompt, !shown, now.timeIntervalSince(launched) <= Self.launchWindow,
+              ShareAsk.lastKeystroke < launched,
+              let data = try? Data(contentsOf: preparedURL),
+              let input = try? JSONDecoder().decode(FilmInput.self, from: data) else { return }
+        script = FilmScript(input)
+        visible = true
+        defaults.set(true, forKey: Self.shownKey(account))
+        try? FileManager.default.removeItem(at: preparedURL)
     }
 
-    /// The launch's one chance. Reads who wrote what from the server only when the notes here
-    /// could be enough, makes the film off the main thread, and shows it if the moment still holds.
-    func atLaunch(context: ModelContext, otherPrompt: Bool, now: Date = .now) async {
-        guard !forced, !visible, !launchChecked, let service else { return }
-        launchChecked = true
-        guard !otherPrompt, !shown, FilmSource.mightBeReady(context, now: now) else { return }
+    /// Later in a launch, never showing anything: if the account is due, reads who wrote what and
+    /// keeps the film's notes for the next launch. Reads from the server only when the notes here
+    /// could be enough.
+    func prepare(context: ModelContext, now: Date = .now) async {
+        guard !forced, !prepareChecked, let service else { return }
+        prepareChecked = true
+        guard !shown, !visible, !FileManager.default.fileExists(atPath: preparedURL.path),
+              FilmSource.mightBeReady(context, now: now) else { return }
         let ids = ((try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? []).map(\.id)
         guard let rows = try? await service.rows(notes: ids) else { return }
         let input = FilmSource.notes(context, edits: FilmSource.edits(rows), now: now)
-        guard FilmEligibility.isReady(input) else { return }
-        guard await make(input) else { return }
-        // The person may have started something meanwhile: then it waits for another launch.
-        guard Date.now.timeIntervalSince(launched) <= ShareAsk.launchWindow, ShareAsk.lastKeystroke < launched else { return }
-        show()
+        guard FilmEligibility.isReady(input), let data = try? JSONEncoder().encode(input) else { return }
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try? data.write(to: preparedURL, options: .atomic)
     }
 
     /// Dev: `-forceNotebookFilm`.
-    func showIfForced() async {
+    func showIfForced() {
         guard forced, !visible else { return }
-        if await make(FilmDemo.notebook(now: .now)) { visible = true }
-    }
-
-    /// Folder names on or off: the film is made again (a few seconds).
-    func showFolderNames(_ on: Bool) async {
-        guard on != folderNames, let input, !remaking else { return }
-        folderNames = on
-        remaking = true
-        _ = await make(input)
-        remaking = false
-    }
-
-    private func make(_ input: FilmInput) async -> Bool {
-        self.input = input
-        // A new file each time, so a player showing the last one never reads a half-written one.
-        let url = Self.movieURL(account, names: folderNames)
-        var labels = FilmRenderer.Labels()
-        labels.folderNames = folderNames
-        let made = await Task.detached(priority: .utility) { [labels] () -> FilmStats? in
-            let script = FilmScript(input)
-            do {
-                try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: url)
-                return script.stats
-            } catch {
-                return nil
-            }
-        }.value
-        guard let made else { return false }
-        stats = made
-        movie = url
-        return true
-    }
-
-    private func show() {
+        // Captures: `-filmLook paper`.
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-filmLook"), i + 1 < args.count, let l = FilmLook(rawValue: args[i + 1]) { look = l }
+        script = FilmScript(FilmDemo.notebook(now: .now))
         visible = true
-        defaults.set(true, forKey: Self.shownKey(account))
+    }
+
+    /// The film as you've set it: its look, folder names, and the app's mark in the corner.
+    var labels: FilmRenderer.Labels {
+        var l = FilmRenderer.Labels()
+        l.look = look
+        l.folderNames = folderNames
+        l.markImage = Self.mark
+        return l
+    }
+
+    static let mark: CGImage? = {
+        #if os(macOS)
+        NSImage(named: "MarkTight")?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        #else
+        UIImage(named: "MarkTight")?.cgImage
+        #endif
+    }()
+
+    static func title(_ s: FilmStats?) -> String { "Your first month" }
+}
+
+/// The film as a movie file, made when it's shared (the share sheet waits for it).
+struct FilmMovie: Transferable, Sendable {
+    let script: FilmScript
+    let labels: FilmRenderer.Labels
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(exportedContentType: .mpeg4Movie) { movie in
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let url = dir.appendingPathComponent("Pinto Notes \u{2013} my notebook.mp4")
+            try FilmVideo.write(FilmRenderer(script: movie.script, labels: movie.labels), to: url)
+            return SentTransferredFile(url)
+        }
     }
 }

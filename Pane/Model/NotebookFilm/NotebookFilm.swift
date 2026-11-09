@@ -5,7 +5,7 @@ import Foundation
 /// FilmRenderer draws it and FilmVideo writes it to a movie.
 
 /// One note as the film sees it: when it began, every edit with who made it, and the notes it links to.
-struct FilmNote: Sendable, Hashable {
+struct FilmNote: Sendable, Hashable, Codable {
     var id: UUID
     /// Its top-level folder, "" when it has none. Notes in one folder gather together.
     var folder: String
@@ -15,13 +15,13 @@ struct FilmNote: Sendable, Hashable {
     var links: [UUID]
 }
 
-struct FilmEdit: Sendable, Hashable {
+struct FilmEdit: Sendable, Hashable, Codable {
     var at: Date
     /// The AI's name ("ChatGPT"), nil when you made it.
     var ai: String?
 }
 
-struct FilmInput: Sendable {
+struct FilmInput: Sendable, Codable {
     var notes: [FilmNote]
     var now: Date
 }
