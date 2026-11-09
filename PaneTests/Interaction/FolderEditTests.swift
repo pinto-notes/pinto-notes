@@ -316,6 +316,41 @@ import UniformTypeIdentifiers
         #expect(src.components(separatedBy: "Self.moveToTopLevel(providers, context: context)").count - 1 == 2, "the heading and the empty space")
     }
 
+    /// A folder dropped between two rows lands at the level the list's line shows: after a
+    /// folder's last folder, inside that folder, wherever the pointer is across the row (the
+    /// outline view picked the top level when it was at the left, with its line under the inner
+    /// folder: Emil, 9 November 2026, "I hope this doesn't move it out of the folder"). Under a
+    /// folder with nothing inside, the gap is beside it, never into it.
+    #if os(macOS)
+    @Test func aGapDropLandsAtTheLevelOfTheRowAboveIt() {
+        // The sidebar as the outline view has it: one section; Travel holds Ideas; the rest empty.
+        final class Row { let name: String; var kids: [Row] = []; weak var up: Row?; init(_ n: String) { name = n } }
+        let section = Row("Folders")
+        let names = ["All Notes", "Notes", "Travel", "Work", "Recently Deleted"]
+        section.kids = names.map(Row.init)
+        for r in section.kids { r.up = section }
+        let travel = section.kids[2], ideas = Row("Ideas")
+        travel.kids = [ideas]; ideas.up = travel
+        func resolve(_ item: Row?, _ index: Int, closed: Set<String> = []) -> (String?, Int)? {
+            GapDrop.resolve(item, index, kids: { $0.map(\.kids) ?? [section] }, parent: { $0.up }, open: { !closed.contains($0.name) }, same: { $0 === $1 })
+                .map { ($0.item?.name, $0.index) }
+        }
+        // Pointer at the left in the gap under Ideas: the outline view says the top level, before Work.
+        #expect(resolve(section, 3).map { "\($0.0 ?? "nil") \($0.1)" } == "Travel 1", "inside Travel, after Ideas")
+        // Pointer under Ideas: the outline view says into Ideas (empty, so it opens): beside it.
+        #expect(resolve(ideas, 0).map { "\($0.0 ?? "nil") \($0.1)" } == "Travel 1")
+        // Between two top-level folders with nothing inside: beside the upper one, at the top level.
+        #expect(resolve(section.kids[1], 0).map { "\($0.0 ?? "nil") \($0.1)" } == "Folders 2", "Notes then the dropped folder")
+        // Already at the level of the row above: as proposed.
+        #expect(resolve(section, 2) == nil)
+        #expect(resolve(travel, 0) == nil)
+        // Onto a row (no gap): as proposed.
+        #expect(resolve(travel, -1) == nil)
+        // Travel closed: its folders don't show, so the gap under it is at the top level.
+        #expect(resolve(section, 3, closed: ["Travel"]) == nil)
+    }
+    #endif
+
     /// Closing a folder with a folder inside it selected selects the folder you closed, as Finder
     /// and Notes do: left on the hidden row, the list drew it over the row below ("Dailyst",
     /// Emil's recording of 9 November 2026).

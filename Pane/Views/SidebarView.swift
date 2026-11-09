@@ -1666,12 +1666,16 @@ enum EmptyFolderArrow {
         }
     }
 
+    /// Whether `outline` is the sidebar's list.
+    static func marks(_ outline: NSOutlineView) -> Bool { objc_getAssociatedObject(outline, &mark) as? Bool == true }
+
     @MainActor static func hide(in outline: NSOutlineView) {
         objc_setAssociatedObject(outline, &mark, true, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         outlines.add(outline)
         // The list's own class, not a key-value observing subclass made for one instance.
         var cls: AnyClass = object_getClass(outline)!
         while NSStringFromClass(cls).hasPrefix("NSKVONotifying_"), let up = class_getSuperclass(cls) { cls = up }
+        GapDrop.install(on: outline)
         guard patched.insert(ObjectIdentifier(cls)).inserted else { return }
         let sel = #selector(NSOutlineView.frameOfOutlineCell(atRow:))
         guard let inherited = class_getInstanceMethod(cls, sel) else { return }
@@ -1685,6 +1689,59 @@ enum EmptyFolderArrow {
         let imp = imp_implementationWithBlock(block)
         // Its own method on the list's class, falling back to NSOutlineView's: never changes NSOutlineView itself.
         if !class_addMethod(cls, sel, imp, method_getTypeEncoding(inherited)) { method_setImplementation(inherited, imp) }
+    }
+}
+
+/// Where a folder dropped between two rows goes, so it lands where the list's line shows it.
+/// The outline view picks an outer level when the pointer is left of a folder's last folder
+/// inside, and draws its line for that level at an indent that reads as the inner one (Emil,
+/// 9 November 2026: "I hope this doesn't move it out of the folder"). Every folder row can open
+/// (`FolderTree.body`), so the gap under one with nothing inside meant "into it". Here a gap is
+/// always at the level of the row it follows: after a folder's last folder, inside that folder;
+/// under an empty folder, beside it. The way out to the top level is the "Folders" heading or
+/// Move To > Top Level.
+enum GapDrop {
+    /// The drop to use instead of (`item`, `index`), or nil to keep it. `kids` lists an item's
+    /// rows (nil: the list's own top), `open` says whether its rows show.
+    static func resolve<N>(_ item: N?, _ index: Int, kids: (N?) -> [N], parent: (N) -> N?, open: (N) -> Bool, same: (N, N) -> Bool) -> (item: N?, index: Int)? {
+        guard index >= 0 else { return nil }
+        let rows = kids(item)
+        func after(_ n: N) -> (item: N?, index: Int)? {
+            let up = parent(n)
+            guard let at = kids(up).firstIndex(where: { same($0, n) }) else { return nil }
+            return (up, at + 1)
+        }
+        // Into a folder with nothing inside: beside it.
+        if let item, rows.isEmpty { return after(item) }
+        guard index > 0, index - 1 < rows.count else { return nil }
+        // The row the gap follows, as far in as it's shown.
+        var above = rows[index - 1], deeper = false
+        while open(above), let last = kids(above).last { above = last; deeper = true }
+        return deeper ? after(above) : nil
+    }
+
+    nonisolated(unsafe) private static var patched: Set<ObjectIdentifier> = []
+
+    @MainActor static func install(on outline: NSOutlineView) {
+        guard let source = outline.dataSource, let cls = object_getClass(source), patched.insert(ObjectIdentifier(cls)).inserted else { return }
+        let sel = NSSelectorFromString("outlineView:validateDrop:proposedItem:proposedChildIndex:")
+        guard let method = class_getInstanceMethod(cls, sel) else { return }
+        typealias Validate = @convention(c) (AnyObject, Selector, NSOutlineView, NSDraggingInfo, Any?, Int) -> UInt
+        let original = unsafeBitCast(method_getImplementation(method), to: Validate.self)
+        let block: @convention(block) (AnyObject, NSOutlineView, NSDraggingInfo, Any?, Int) -> UInt = { me, o, info, item, index in
+            MainActor.assumeIsolated {
+                guard EmptyFolderArrow.marks(o),
+                      let moved = resolve(item, index,
+                                          kids: { n in (0..<o.numberOfChildren(ofItem: n)).compactMap { o.child($0, ofItem: n) } },
+                                          parent: { o.parent(forItem: $0) },
+                                          open: { o.isItemExpanded($0) },
+                                          same: { ($0 as AnyObject) === ($1 as AnyObject) })
+                else { return original(me, sel, o, info, item, index) }
+                o.setDropItem(moved.item, dropChildIndex: moved.index)
+                return original(me, sel, o, info, moved.item, moved.index)
+            }
+        }
+        method_setImplementation(method, imp_implementationWithBlock(block))
     }
 }
 #endif
