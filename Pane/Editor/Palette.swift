@@ -128,6 +128,22 @@ enum Palette {
     /// A solid hairline: card edges and dividers that read the same over any surface.
     static var line: PColor { surface("line", \.line) { warm(0xE6DCD2, 0x3A3633, plain: (0xE5E5E5, 0x333333)) } }
 
+    /// A selected row's pill (the sidebar's folders, quiet list rows) and a hovered row's, fainter:
+    /// black in the light, white in the dark, laid over whatever ground is under them. Plain
+    /// colours, not the system's `.fill.tertiary` and `.fill.quaternary`: those are vibrant in the
+    /// sidebar's glass, and macOS stops drawing vibrancy while it moves or scales the window (a
+    /// three-finger swipe, Mission Control), so the pill flipped shade with each move (Emil,
+    /// 9 November 2026: near-black in the dark while moving, lighter than the sidebar in the light).
+    /// Tuned on the Air the same day until the pills at rest matched the vibrant ones within two
+    /// levels (dark selection #413E3C, hover #3A3836; light #DCDBDA and #E0DFDF). Increase
+    /// Contrast makes them stronger, as it did the system's.
+    static var rowPill: PColor {
+        live("rowPill") { $0.increaseContrast ? pair(0x000000, 0.11, 0xFFFFFF, 0.12) : pair(0x000000, 0.059, 0xFFFFFF, 0.064) }
+    }
+    static var rowPillHover: PColor {
+        live("rowPillHover") { $0.increaseContrast ? pair(0x000000, 0.065, 0xFFFFFF, 0.08) : pair(0x000000, 0.035, 0xFFFFFF, 0.045) }
+    }
+
     /// The fill of secondary buttons and chips (the website's `--soft`): a step into the brown
     /// from every ground it sits on, so it reads as a button without a border.
     static var soft: PColor { surface("soft", \.soft) { warm(0xF2EAE1, 0x36322E, plain: (0xF2F2F2, 0x2C2C2C)) } }

@@ -263,7 +263,7 @@ struct SidebarCardShell<Art: View>: View {
             .padding(.top, Metrics.padding)
             .padding(.bottom, Metrics.padding - 4)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.fill.quaternary, in: shape)
+            .background(Color(Palette.rowPillHover), in: shape)
             .hoverOverlay(shape, Color.primary.opacity(0.05))
             .contentShape(shape)
         Button(action: action) { label }
