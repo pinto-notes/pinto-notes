@@ -15,15 +15,16 @@ enum QuickOpen {
     enum Look: String { case quiet, list, sidebar }
     static var look: Look { Look(rawValue: UserDefaults.standard.string(forKey: "quickOpenLook") ?? "") ?? .list }
 
-    /// One quick fade in and out, like Spotlight (Emil, 9 November 2026: the spring and scale were
-    /// "really slow, makes it annoying to use"). Before: a 0.24 s spring with a scale.
-    static let openDuration: Double = 0.08
+    /// It appears and goes at once, with no fade, no spring and no scale (Emil, 9 November 2026: the
+    /// 0.24 s spring and scale were "really slow, makes it annoying to use", and then "I dont like the
+    /// fade effect"). The field has the caret on the first frame.
+    static let openDuration: Double = 0
     static func motion(opening: Bool, reduceMotion: Bool) -> Animation {
         .easeOut(duration: openDuration)
     }
 
-    /// A fade only, with Reduce Motion or not: nothing grows or moves.
-    static func transition(reduceMotion: Bool) -> AnyTransition { .opacity }
+    /// Nothing: no fade, nothing grows or moves, with Reduce Motion or not.
+    static func transition(reduceMotion: Bool) -> AnyTransition { .identity }
 
     /// The shortcut the field shows on its right (Emil, 9 November 2026). ⌘O opens it too.
     static let shortcutHint = "\u{2318}K"

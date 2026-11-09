@@ -125,20 +125,21 @@ import Testing
         #expect(empty != nil && empty == typed)
     }
 
-    /// Go to Note fades in and out in a blink, like Spotlight: no spring, no scale (Emil, 9 November
-    /// 2026: the 0.24 s spring was "really slow").
+    /// Go to Note appears and goes at once: no fade, no spring, no scale (Emil, 9 November 2026: the
+    /// 0.24 s spring was "really slow", then "I dont like the fade effect").
     @Test func goToNoteHasATransition() throws {
         let root = try SettingsHomeTests.source("Pane/Views/RootView.swift")
         #expect(root.contains("QuickOpen.transition(reduceMotion:"))
         #expect(root.contains("value: quickOpen == nil"))
-        #expect(QuickOpen.openDuration <= 0.1)
+        #expect(QuickOpen.openDuration == 0, "it appears at once: no fade (Emil, 9 November 2026)")
         for reduce in [false, true] {
             #expect(QuickOpen.motion(opening: true, reduceMotion: reduce) == .easeOut(duration: QuickOpen.openDuration))
             #expect(QuickOpen.motion(opening: false, reduceMotion: reduce) == .easeOut(duration: QuickOpen.openDuration))
         }
         let source = try SettingsHomeTests.source("Pane/Views/QuickOpen.swift")
         let transition = try #require(source.range(of: "static func transition").map { String(source[$0.lowerBound...].prefix(160)) })
-        #expect(!transition.contains("scale") && !transition.contains("spring"), "only a fade")
+        #expect(!transition.contains("scale") && !transition.contains("spring") && !transition.contains("opacity"), "no fade, nothing grows")
+        #expect(transition.contains(".identity"))
     }
 
     /// A note drags from anywhere on its card, not only its words.
