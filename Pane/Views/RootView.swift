@@ -481,13 +481,13 @@ struct RootView: View {
 
     @ViewBuilder private var quickOpenContent: some View {
         if let notes = quickOpen {
-            let open = selectedNote.flatMap { context.note($0) }
+            let targets = QuickOpen.targets(in: context, scope: scope, selected: selectedNote)
             ZStack(alignment: .top) {
                 Color.clear
                     .contentShape(.rect)
                     .onTapGesture { quickOpen = nil }
                 QuickOpenPanel(notes: notes,
-                               commands: QuickOpen.commands(openNote: open != nil && open?.trashedAt == nil, pinned: open?.isPinned == true, importKinds: ImportKind.listed),
+                               commands: QuickOpen.commands(targets, importKinds: ImportKind.listed),
                                choose: { row in
                                    quickOpen = nil
                                    QuickOpen.choose(row, with: quickOpenActions)
