@@ -116,6 +116,16 @@ final class TownScene: FilmScene {
     /// shape the hills stand (a phone's screen has more room above them).
     private var ground = 300.0
     private var stretch = 1.0
+    private var placed: FilmCanvas?
+    /// The folder written in most, if it has a name.
+    private lazy var topFolder: Int = script.stats.topFolder.flatMap { script.folders.firstIndex(of: $0) } ?? -1
+    /// The part of the frame the town is framed in, and where each hill's signboard sits.
+    private var viewTop = 1100.0
+    private var viewBottom: Double { ground + 20 }
+    private var signs: [Double] = []
+    /// The camera through the month, a tenth of a second apart: how close, and what it's on.
+    private var shots: [(z: Double, x: Double, y: Double)] = []
+    private static let shotStep = 0.1
     private var growth: Double { script.growth }
 
     struct Hill { var folder: Int; var cx, base, w, h, s: Double; var depth: Int; var birth: Double; var skew: Double }
@@ -167,7 +177,11 @@ final class TownScene: FilmScene {
     }
 
     private func place(_ canvas: FilmCanvas) {
+        guard canvas != placed else { return }
+        placed = canvas
+        defer { plan() }
         H = canvas.height
+        viewTop = H - canvas.top - 150
         ground = 340 + canvas.bottom
         // Room between the ground and the top line, against what the shared shape has.
         stretch = min(1.5, max(0.94, (H - canvas.top - ground - 260) / 790))
@@ -273,19 +287,21 @@ final class TownScene: FilmScene {
             let d = C(day).mix(C(dk), dusk)
             return night < 0.5 ? d.mix(C(ember), smooth(night * 2)) : C(ember).mix(C(nt), smooth(night * 2 - 1))
         }
-        // A town of two or three hills is seen from nearer.
-        let folders = hills.count
-        let zoom = folders <= 2 ? 1.3 : folders == 3 ? 1.15 : 1
+        // The camera: close on the first houses, drawing back as the town grows.
+        let cam = camera(at: gt)
+        let centre = CGPoint(x: W / 2, y: (viewBottom + viewTop) / 2)
         // The whole stage drifts a little, near sheets more than far ones: paper at different depths.
         let total = growth + FilmScript.outro
         let drift = -16 * cos(min(1, max(0, t / total)) * .pi)
-        func layer(_ depth: Double, near: Bool = false, _ body: () -> Void) {
+        /// `follow`: how much of the camera's move this sheet takes (far ones less: they're far).
+        func layer(_ depth: Double, follow: Double = 0, _ body: () -> Void) {
             ctx.saveGState()
             ctx.translateBy(x: drift * depth, y: 0)
-            if near, zoom != 1 {
-                ctx.translateBy(x: W / 2, y: ground)
-                ctx.scaleBy(x: zoom, y: zoom)
-                ctx.translateBy(x: -W / 2, y: -ground)
+            if follow > 0 {
+                let z = 1 + (cam.z - 1) * follow
+                ctx.translateBy(x: centre.x, y: centre.y)
+                ctx.scaleBy(x: z, y: z)
+                ctx.translateBy(x: -(centre.x + (cam.x - centre.x) * follow), y: -(centre.y + (cam.y - centre.y) * follow))
             }
             body()
             ctx.restoreGState()
@@ -322,7 +338,7 @@ final class TownScene: FilmScene {
         }
         // Far hills, three sheets of paper.
         let far: [(Double, Double, C)] = [(ground + 560 * stretch, 44, col(0xE4D3E2, 0xCFAFC9, 0x402845)), (ground + 505 * stretch, 52, col(0xD0BDD8, 0xB494BC, 0x33213D)), (ground + 452 * stretch, 44, col(0xB9B2CC, 0x9482AE, 0x281C35))]
-        for (i, (y, amp, c)) in far.enumerated() { layer(0.12 + 0.08 * Double(i)) {
+        for (i, (y, amp, c)) in far.enumerated() { layer(0.12 + 0.08 * Double(i), follow: 0.16 + 0.07 * Double(i)) {
             let path = CGMutablePath()
             path.move(to: CGPoint(x: -60, y: 0))
             var x = -60.0
@@ -338,7 +354,7 @@ final class TownScene: FilmScene {
         // Three sheets of hills, back to front; each folder's hill swells up when its first note
         // comes, and carries its houses.
         var drawn = 0
-        for depth in 0..<3 { layer([0.45, 0.7, 1.0][depth], near: true) {
+        for depth in 0..<3 { layer([0.45, 0.7, 1.0][depth], follow: [0.9, 0.95, 1.0][depth]) {
             let rowHills = hills.indices.filter { hills[$0].depth == depth }
             guard !rowHills.isEmpty else { return }
             let green = [col(0x9DB39A, 0x6C8878, 0x1D3833), col(0x86A380, 0x54755F, 0x17322B), col(0x6F9169, 0x426349, 0x112921)][depth]
@@ -382,7 +398,7 @@ final class TownScene: FilmScene {
                     let a = smooth((gt - hill.birth - 0.45) / 0.4)
                     guard !name.isEmpty, a > 0 else { continue }
                     // Its name on a board above the highest roof the hill will have, on a short stick.
-                    let board = signY(hi, depth: depth)
+                    let board = signs[hi]
                     ctx.setFillColor(col(0x5A4038, 0x45312E, 0x1A1216).cg(a))
                     ctx.fill(CGRect(x: hill.cx - 1.5, y: board - 15, width: 3, height: 17))
                     tag(name, at: CGPoint(x: hill.cx, y: board), alpha: a, night: night, in: ctx)
@@ -410,8 +426,8 @@ final class TownScene: FilmScene {
             }
         } }
         // Birds on their way home at dusk, and paper lanterns on the day you wrote most.
-        layer(0.3) { birds(t, night: night, in: ctx) }
-        layer(0.85, near: true) { lanterns(t, in: ctx) }
+        layer(0.3, follow: 0.2) { birds(t, night: night, in: ctx) }
+        layer(0.85, follow: 0.95) { lanterns(t, in: ctx) }
 
         // The dark ground in front, with the canopy's edge: the words sit on it.
         let groundC = col(0x1F2D2A, 0x18231F, 0x0B1211)
@@ -485,6 +501,59 @@ final class TownScene: FilmScene {
             if abs(o - y) < 48 { y = o + 50 }
         }
         return y
+    }
+
+    /// Works out the camera for the whole month (and the signboards), for the shape it's drawn in.
+    /// It's close on the first houses and draws back just ahead of each new one, smoothly: the
+    /// path is laid out once, so any frame can be drawn from its time alone.
+    private func plan() {
+        signs = hills.indices.map { signY($0, depth: hills[$0].depth) }
+        let n = Int((growth / Self.shotStep).rounded(.up)) + 1
+        var raw: [(z: Double, x: Double, y: Double)] = []
+        let viewW = W - 70, viewH = viewTop - viewBottom
+        let mid = CGPoint(x: W / 2, y: (viewBottom + viewTop) / 2)
+        for k in 0..<n {
+            // A little ahead of the film, so it has drawn back by the time a house arrives.
+            let tau = Double(k) * Self.shotStep + 0.7
+            var lo = CGPoint(x: Double.infinity, y: Double.infinity), hi = CGPoint(x: -Double.infinity, y: -Double.infinity)
+            func take(_ x0: Double, _ x1: Double, _ y0: Double, _ y1: Double) {
+                lo.x = min(lo.x, x0); hi.x = max(hi.x, x1); lo.y = min(lo.y, y0); hi.y = max(hi.y, y1)
+            }
+            for (i, node) in script.nodes.enumerated() where node.birth <= tau || i == 0 {
+                let hs = houses[i]
+                let foot = ridge(depth: hills[hs.hill].depth, hs.x, growth) - hs.y
+                take(hs.x - hs.w / 2, hs.x + hs.w / 2, foot, foot + height(i, count: node.edits.count))
+            }
+            if folderNames {
+                for (h, hill) in hills.enumerated() where hill.birth <= tau { take(hill.cx - 90, hill.cx + 90, signs[h], signs[h] + 44) }
+            }
+            let w = hi.x - lo.x + 200, h = hi.y - lo.y + 70
+            let z = min(2.0, max(1, min(viewW / w, viewH / h)))
+            // At full width nothing moves; closer in, it centres on what's there, within the stage.
+            let pull = smooth((z - 1) / 0.2)
+            var x = mid.x + ((lo.x + hi.x) / 2 - mid.x) * pull
+            x = min(W + 30 - W / (2 * z), max(W / (2 * z) - 30, x))
+            let y = mid.y + ((lo.y + hi.y) / 2 + 10 - mid.y) * pull
+            raw.append((z, x, y))
+        }
+        // Smoothed over about a second, so it glides.
+        shots = raw.indices.map { k in
+            var z = 0.0, x = 0.0, y = 0.0, sum = 0.0
+            for d in -12...12 {
+                let j = min(raw.count - 1, max(0, k + d)), w = exp(-Double(d * d) / 40)
+                z += raw[j].z * w; x += raw[j].x * w; y += raw[j].y * w; sum += w
+            }
+            return (z / sum, x / sum, y / sum)
+        }
+    }
+
+    private func camera(at gt: Double) -> (z: Double, x: Double, y: Double) {
+        guard let last = shots.last else { return (1, W / 2, (viewBottom + viewTop) / 2) }
+        let f = max(0, gt) / Self.shotStep
+        let k = Int(f)
+        guard k + 1 < shots.count else { return last }
+        let a = shots[k], b = shots[k + 1], u = f - Double(k)
+        return (a.z + (b.z - a.z) * u, a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u)
     }
 
     /// On the day you wrote most, paper lanterns go up from the houses you wrote in.
@@ -592,7 +661,10 @@ final class TownScene: FilmScene {
         let ai = smooth((gt - aiFrom[i]) / 0.35)
         let xfrac = hs.x / W
         let evening = smooth((night * 1.5 - xfrac * 0.5))
-        let lit = min(1, max(flash, dusk * 0.55 * exp(-(gt - last) / 2.2), evening * (0.3 + 0.7 * worked[i])))
+        // As the film names the folder you wrote most in, its hill's lights come on first.
+        let first = hills[hs.hill].folder == topFolder && folderNames && growth > 5
+            ? 0.85 * smooth((gt - (growth - FilmScript.topFolderMoment) - 0.9 * hash(i, 61)) / 0.3) : 0
+        let lit = min(1, max(flash, first, dusk * 0.55 * exp(-(gt - last) / 2.2), evening * (0.3 + 0.7 * worked[i])))
         let dark = col(0x6B5B68, 0x4B3B49, 0x1B131C)
         let lightC = C(0xFFCB6B).mix(C(0x9CD2FF), ai)
         let glass = dark.mix(lightC, min(1, lit * 1.15))

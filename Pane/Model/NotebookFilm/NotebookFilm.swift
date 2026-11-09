@@ -120,6 +120,8 @@ struct FilmScript: Sendable {
     /// never stretched over days when little happened.
     static let fullGrowth = 9.0, thinGrowth = 5.6, outro = 3.6
     let growth: Double
+    /// How long before the end of the growth the folder written in most has its moment.
+    static let topFolderMoment = 2.1
     /// It opens on a glimpse of where the month ended up, then goes back to the first day: the
     /// first frame, which is what a feed or a message shows before it plays, is the whole notebook.
     static let prelude = 1.3

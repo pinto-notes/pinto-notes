@@ -101,6 +101,8 @@ final class FilmRenderer {
         /// As the film passes the day you wrote most (the date is beside it). First person, like
         /// the title: it's the person sharing it who speaks.
         var busiestCaption: @Sendable (Int) -> String = { "My busiest day \u{00B7} \($0 == 1 ? "1 edit" : "\($0) edits")" }
+        /// Near the end, as the folder written in most has its moment (its count is on the end card).
+        var topFolderCaption: @Sendable (String) -> String = { "I wrote most in \($0)" }
         /// The end card's third number when no AI wrote: "214 edits".
         var statEdits = "edits"
         /// Under the end card's numbers.
@@ -691,7 +693,8 @@ final class FilmRenderer {
         let opening = 1 - smooth((t - titleUntil) / 0.5)
         if opening > 0 { drawOpeningTitle(opening, in: ctx) }
         // The date and the count while it grows.
-        let running = smooth((t - titleUntil - 0.35) / 0.45) * (1 - smooth((t - script.growth) / 0.4))
+        // (Once the title has gone: the two never share the space.)
+        let running = smooth((t - titleUntil - 0.5) / 0.4) * (1 - smooth((t - script.growth) / 0.4))
         if running > 0 {
             let date = script.date(at: min(t, script.growth))
             text(dateFormatter.string(from: date), size: 40, weight: .medium, color: ink.cg(0.7 * running), at: CGPoint(x: side, y: base + 156), in: ctx)
@@ -710,7 +713,7 @@ final class FilmRenderer {
                 mine.append((span.start, span.start + min(2.4, max(0.9, span.length - 0.15)), labels.busiestCaption(s.busiestDayEdits)))
             }
             if labels.folderNames, let f = s.topFolder, script.growth > 5 {
-                mine.append((script.growth - 2.1, script.growth - 0.25, labels.topFolder(f, s.topFolderNotes)))
+                mine.append((script.growth - FilmScript.topFolderMoment, script.growth - 0.25, labels.topFolderCaption(f)))
             }
             var cover = 0.0
             for (k, m) in mine.enumerated() {
@@ -721,8 +724,8 @@ final class FilmRenderer {
             }
             // As many as fit while it grows: a thin month's shorter film says less.
             let lines = scene?.captions ?? labels.captions
-            var from = titleUntil + 0.3
-            let slot = min(2.4, max(1.5, (script.growth - from - 2.3) / Double(lines.count)))
+            var from = titleUntil + 0.6
+            let slot = min(2.4, max(1.4, (script.growth - from - FilmScript.topFolderMoment - 0.2) / Double(lines.count)))
             for line in lines where from + slot <= script.growth + 0.01 {
                 let a = shown(from, from + slot - 0.15) * (1 - cover) * running
                 if a > 0 { text(line, size: 46, weight: .regular, color: ink.cg(0.72 * a), at: CGPoint(x: side, y: base + 86), in: ctx) }
