@@ -12,4 +12,17 @@ h1, h1[class] { font-size: 1.375rem !important; line-height: 1.25 !important; }
    card shows whole under it (council round 4: a cut row at the foot). */
 @media (max-width: 480px) {
   main > * > header, main header:first-child { padding-top: 0 !important; padding-bottom: 0.625rem !important; }
+  /* Closer to the window's top, and the summary cards a little tighter, so the habit week's
+     card shows whole in the 156 pt the small stage shows (council round 5). */
+  main > div:first-child { padding-top: 0.5rem !important; }
+  main .rounded-xl.bg-card > .p-5 { padding-top: 0.875rem !important; padding-bottom: 0.875rem !important; }
 }
+/* The app's one big button (Add expense, Study now) as a tinted pill, like Trip's Edit: on the
+   stage it never outranks the sheet's own Make with a second, bigger orange (council round 5:
+   373 x 38 pt in #A85700 beside a 26 pt Make in #BB5B05). About 13 pt semibold, 28 pt tall at 75%. */
+main button.bg-primary.w-full {
+  width: auto !important; height: 2.3125rem !important; padding: 0 1rem !important;
+  background: var(--amber-accent-soft) !important; color: var(--primary) !important;
+  font-size: 1.0625rem !important; border-radius: 0.75rem !important;
+}
+main button.bg-primary.w-full svg { width: 1.125rem !important; height: 1.125rem !important; }

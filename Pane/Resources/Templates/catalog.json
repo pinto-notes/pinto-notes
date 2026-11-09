@@ -47,7 +47,7 @@
   "app": false,
   "ground": "fbb433",
   "ask": "Ask what I feel like this week and what to skip, then plan the dinners and the grocery list.",
-  "example": "Meal plan and groceries\n\nThis week's dinners and the shopping list that goes with them. Tick things off in the shop.\n\n## Dinners\n| Day | Dinner | Who cooks |\n| --- | --- | --- |\n| Monday | Lemon chicken with rice | Sara |\n| Tuesday | Pasta with tomato and basil | Jonas |\n| Wednesday | Fish tacos | Sara |\n| Thursday | | |\n| Friday | | |\n| Saturday | | |\n| Sunday | | |\n\n## Groceries\n**Fruit and veg**\n- [ ] Lemons\n- [ ] Basil\n- [ ] Cherry tomatoes\n- [ ] Limes\n\n**Meat and fish**\n- [ ] Chicken thighs\n- [ ] White fish\n\n**Other**\n- [ ] Tortillas\n- [x] Parmesan\n\n## Always in the cupboard\n- Olive oil, salt, pepper\n- Rice, pasta, oats\n- Onions, garlic\n",
+  "example": "Meal plan and groceries\n\nThis week's dinners and the shopping list that goes with them. Tick things off in the shop.\n\n## Dinners\n| Day | Dinner | Who cooks |\n| --- | --- | --- |\n| Monday | Lemon chicken with rice | Sara |\n| Tuesday | Pasta with tomato and basil | Jonas |\n| Wednesday | Fish tacos | Sara |\n| Thursday | Chickpea curry | Jonas |\n| Friday | Homemade pizza | Sara |\n| Saturday | Out with friends | – |\n| Sunday | Roast chicken and potatoes | Jonas |\n\n## Groceries\n**Fruit and veg**\n- [ ] Lemons\n- [ ] Basil\n- [ ] Cherry tomatoes\n- [ ] Limes\n- [ ] Potatoes\n\n**Meat and fish**\n- [ ] Chicken thighs\n- [ ] White fish\n- [ ] Whole chicken\n\n**Other**\n- [ ] Tortillas\n- [ ] Chickpeas\n- [ ] Pizza dough\n- [x] Parmesan\n\n## Always in the cupboard\n- Olive oil, salt, pepper\n- Rice, pasta, oats\n- Onions, garlic\n",
   "note": "Meal plan and groceries\n\nThis week's dinners and the shopping list that goes with them. Tick things off in the shop.\n\n## Dinners\n| Day | Dinner | Who cooks |\n| --- | --- | --- |\n| Monday | | |\n| Tuesday | | |\n| Wednesday | | |\n| Thursday | | |\n| Friday | | |\n| Saturday | | |\n| Sunday | | |\n\n## Groceries\n\n## Always in the cupboard\n- Olive oil, salt, pepper\n- Rice, pasta, oats\n- Onions, garlic\n",
   "folder": "Home"
  },
@@ -107,7 +107,7 @@
   "slug": "study-flashcards",
   "title": "Study notes and flashcards",
   "tagline": "Flashcards that come back when you need them.",
-  "description": "A free flashcard maker and study app in a note: paste your notes and your AI makes the cards, then study what's due, a card at a time, in five boxes.",
+  "description": "A free flashcard maker and study app in a note: paste your notes and your AI makes flashcards. Study the cards that are due, one at a time.",
   "category": "Learning",
   "app": true,
   "ground": "f69261",
@@ -138,8 +138,8 @@
   "app": false,
   "ground": "5b5f27",
   "ask": "Ask how today's workout went, then log it.",
-  "example": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Minutes=number; Effort=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Minutes | Effort |\n| --- | --- | --- | --- | --- | --- |\n| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n| 2026-09-30 | Push | Bench press | 70 kg x 6 | 50 | 7 |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n- Squat: 100 kg x 5 (2026-09-28)\n- Bench press: 70 kg x 6 (2026-09-30)\n",
-  "note": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Minutes=number; Effort=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Minutes | Effort |\n| --- | --- | --- | --- | --- | --- |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n",
+  "example": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Min=number; Effort=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Min | Effort |\n| --- | --- | --- | --- | --- | --- |\n| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n| 2026-09-30 | Push | Bench press | 70 kg x 6 | 50 | 7 |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n- Squat: 100 kg x 5 (2026-09-28)\n- Bench press: 70 kg x 6 (2026-09-30)\n",
+  "note": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Min=number; Effort=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Min | Effort |\n| --- | --- | --- | --- | --- | --- |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n",
   "folder": "Health"
  },
  {

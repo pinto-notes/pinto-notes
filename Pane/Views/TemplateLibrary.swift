@@ -118,6 +118,16 @@ struct TemplateCatalog: Sendable {
     }
 }
 
+/// A line's last two words kept together, so it never ends on one word alone on its last line
+/// (council round 5: "why.", "budget.", "next." alone under a cover's caption, "it in." split).
+nonisolated enum NoWidow {
+    static func kept(_ s: String) -> String {
+        let t = s.trimmingCharacters(in: .whitespaces)
+        guard let last = t.range(of: " ", options: .backwards), t.distance(from: last.upperBound, to: t.endIndex) <= 14 else { return t }
+        return t.replacingCharacters(in: last, with: "\u{00A0}")
+    }
+}
+
 enum TemplateLibraryWords {
     static let title = "Templates"
     static let line = "Notes and small apps your AI fills in and keeps up to date."
@@ -128,7 +138,15 @@ enum TemplateLibraryWords {
     /// What Make does, over the ask it sends: said once, where the ask is, ending on the ask
     /// (council round 2: it ended on "with", in a heading's weight). Round 4: say that it opens
     /// the AI with this prompt, not that it asks the AI.
-    static func opensWith(_ ai: SetupCards.AI) -> String { ai.asks ? "Adds the note and opens \(ai.name) with this prompt:" : "Adds the note. Then ask your AI:" }
+    /// Round 5: an app's stage shows it in use on sample data, so its label says Make adds it
+    /// empty (the sample read as what Make would add).
+    /// The small sheet's narrower panel joins an app's two steps with a comma, so the label
+    /// stays on one line there (round 6: it cut "this prom…").
+    static func opensWith(_ ai: SetupCards.AI, app: Bool = false, small: Bool = false) -> String {
+        let adds = app ? "Adds an empty app" : "Adds the note"
+        let and = app && small ? "," : " and"
+        return ai.asks ? "\(adds)\(and) opens \(ai.name) with this prompt:" : "\(adds). Then ask your AI:"
+    }
     static let clear = "Clear Search"
     /// No match, in the words a Mac search uses.
     static func none(_ q: String) -> String { "No Results for \u{201C}\(q)\u{201D}" }
@@ -230,7 +248,12 @@ struct TemplateLibraryView: View {
     /// 45 to 75 pt of nothing between the description and the ask).
     /// A sheet between the two sizes keeps 356 pt for the header and the words, so the buttons
     /// are never cut.
-    static func stage(for size: CGSize) -> CGFloat { size.height <= 560 ? 172 : min(324, size.height - 356) }
+    /// Round 5: on the big sheet every description fits two lines, so it keeps two lines' room,
+    /// not three, and the stage takes the line (a 34 pt gap sat between the words and the label).
+    static func stage(for size: CGSize) -> CGFloat { size.height <= 560 ? 172 : min(340, size.height - 340) }
+    /// The description's room in lines: two on the big sheet, where every one fits two; three on
+    /// the small sheet's narrower panel.
+    static func descriptionLines(small: Bool) -> Int { small ? 3 : 2 }
     /// A small sheet: the panel's words at a smaller size, so all of them fit.
     static func small(_ size: CGSize) -> Bool { size.height <= 560 }
     private var panel: CGFloat { Self.panel(for: size) }
@@ -469,8 +492,10 @@ struct TemplateLibraryView: View {
     /// The scroll view's margin: a row brought to the top sits a gap (16 pt) under the header, so
     /// no sliver of the row above shows (council round 3: a 24 pt strip of cut captions).
     static let margin: CGFloat = 8
-    /// Where the first row rests, under the header, before anything is scrolled.
-    static let rest: CGFloat = 24
+    /// Where the first row rests, under the header, before anything is scrolled: one gap, where a
+    /// row brought to the top rests too, so a search that leaves one row (which can't scroll) puts
+    /// it where every other first row sits (council round 5: 24 pt for "trip", 16 elsewhere).
+    static let rest: CGFloat = gap
     /// Room under the last row, so the last cards never sit on the sheet's foot.
     static let foot: CGFloat = 35
 
@@ -533,8 +558,8 @@ struct TemplateLibraryView: View {
                             .accessibilityIdentifier("templates.kept")
                     }
                 }
-                Text(e.shownDescription).font(.system(size: text)).foregroundStyle(Color.muted)
-                    .lineLimit(3, reservesSpace: true)
+                Text(NoWidow.kept(e.shownDescription)).font(.system(size: text)).foregroundStyle(Color.muted)
+                    .lineLimit(Self.descriptionLines(small: small), reservesSpace: true)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
                 Spacer(minLength: small ? 8 : 16)
@@ -544,7 +569,7 @@ struct TemplateLibraryView: View {
                 // leaves its spare line above the buttons, not above the label (council round 4:
                 // the label sat 15 pt higher over a two-line ask).
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(TemplateLibraryWords.opensWith(ai)).font(.system(size: 12)).foregroundStyle(Color.muted)
+                    Text(TemplateLibraryWords.opensWith(ai, app: e.app, small: small)).font(.system(size: 12)).foregroundStyle(Color.muted)
                         .lineLimit(1)
                         .accessibilityIdentifier("templates.opensWith")
                     ZStack(alignment: .topLeading) {
@@ -622,7 +647,7 @@ struct TemplateLibraryView: View {
     }
 
     /// How tall the fade at the stage's foot is.
-    static let footFade: CGFloat = 24
+    static let footFade: CGFloat = 12
     private var windowGround: Color { scheme == .dark ? .black : .white }
 
     /// A note on the stage as it looks in use, under the name and description the panel gives it:
@@ -762,13 +787,18 @@ private struct SearchClearButton: View {
     /// template-stage.css, as scripts/template-stage-pictures.ts puts it in the pictures' page.
     nonisolated static let stageCSS: String = Bundle.main.url(forResource: "template-stage", withExtension: "css")
         .flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+    /// template-stage.js: only whole blocks above the stage's foot (council round 5), as the
+    /// pictures' page runs it too.
+    nonisolated static let stageScript: String = Bundle.main.url(forResource: "template-stage", withExtension: "js")
+        .flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
 
-    /// A stored project with the stage's stylesheet in its page's head.
-    nonisolated static func staged(_ project: String, css: String = stageCSS) -> String {
+    /// A stored project with the stage's stylesheet and script in its page's head.
+    nonisolated static func staged(_ project: String, css: String = stageCSS, script: String = stageScript) -> String {
         guard var p = (try? JSONSerialization.jsonObject(with: Data(project.utf8))) as? [String: Any],
               var files = p["files"] as? [String: Any], let page = files["/index.html"] as? String, page.contains("</head>"),
               !css.isEmpty else { return project }
-        files["/index.html"] = page.replacingOccurrences(of: "</head>", with: "<style>\(css)</style></head>")
+        let run = script.isEmpty ? "" : "<script>\(script)</script>"
+        files["/index.html"] = page.replacingOccurrences(of: "</head>", with: "<style>\(css)</style>\(run)</head>")
         p["files"] = files
         return (try? JSONSerialization.data(withJSONObject: p)).map { String(decoding: $0, as: UTF8.self) } ?? project
     }

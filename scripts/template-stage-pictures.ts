@@ -13,9 +13,9 @@ import "../supabase/functions/mcp/tools.ts";
 import { render as renderService } from "../supabase/functions/mcp/app_check.ts";
 
 /** The live view's size in CSS pixels on each stage: TemplateAppPreview.css(for:small:) in the app.
- * The big stage's 400 x 304 pt window at 75%; the small stage's 328 pt wide window at 70%, laid out
+ * The big stage's 400 x 320 pt window at 75%; the small stage's 328 pt wide window at 70%, laid out
  * taller than the 156 pt it shows and running off its foot. */
-const SIZES = [{ name: "stage", width: 533, height: 405 }, { name: "stage-small", width: 469, height: 480 }];
+const SIZES = [{ name: "stage", width: 533, height: 426 }, { name: "stage-small", width: 469, height: 480 }];
 
 /** The sample's dates are written for this day and moved to today: TemplateFiles.sample in the app. */
 const ANCHOR = "2026-11-08";
@@ -52,10 +52,12 @@ Deno.env.set("RENDER_URL", `http://127.0.0.1:${service.addr.port}`);
 
 /** The project as the stage runs it: template-stage.css in its page's head (TemplateAppPreview.staged). */
 const STAGE_CSS = await Deno.readTextFile(new URL("template-stage.css", OUT));
+/** template-stage.js: only whole blocks above the stage's foot, as the stage runs it. */
+const STAGE_JS = await Deno.readTextFile(new URL("template-stage.js", OUT));
 function staged(stored: string): string {
   const p = JSON.parse(stored) as { files: Record<string, string> };
   const page = p.files["/index.html"];
-  if (page?.includes("</head>")) p.files["/index.html"] = page.replace("</head>", `<style>${STAGE_CSS}</style></head>`);
+  if (page?.includes("</head>")) p.files["/index.html"] = page.replace("</head>", () => `<style>${STAGE_CSS}</style><script>${STAGE_JS}</script></head>`);
   return JSON.stringify(p);
 }
 

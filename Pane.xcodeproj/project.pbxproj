@@ -90,6 +90,7 @@
 		0CE0371340DA493B4BBB03B0 /* FindBeforeClickingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790B1A236BE3E9E327A0F4E7 /* FindBeforeClickingTests.swift */; };
 		0CE42E2F8EB8C877954B36E0 /* RowClickLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6B5618336684876E7AA8BDE /* RowClickLog.swift */; };
 		0D31B2E5C2082D78B0FFD6A4 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA6ECF7DA4BD18007EE9AD20 /* RootView.swift */; };
+		0D356C0F0C81693FB142B1F1 /* template-stage.js in Resources */ = {isa = PBXBuildFile; fileRef = 2229A98EC2F04AFD03C9EDAC /* template-stage.js */; };
 		0D3EAD2F503174B76B8D17CD /* template-app-study-flashcards.data.json in Resources */ = {isa = PBXBuildFile; fileRef = 6E7E10B519DA24BDFE5025EF /* template-app-study-flashcards.data.json */; };
 		0D7E7D7BE11907499A410728 /* AIChangesLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D0A42EA3923C51FC7DC0A5 /* AIChangesLogTests.swift */; };
 		0D887D8034E1598746A79E40 /* SharedHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 758740FA2EB633CCAAF752F1 /* SharedHistoryTests.swift */; };
@@ -1107,6 +1108,7 @@
 		ECC26EE8B9227D9F7F6B5E9C /* DemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = D058AF887BE21AC49E51A5C7 /* DemoData.swift */; };
 		ECC62467C1EBC97298008651 /* ShareController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E507A2DD6F9C9E5EFB6281E /* ShareController.swift */; };
 		ED4D6B9A57697446A36BE06A /* MarkdownImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C463F2C3009AF9A4D91619E /* MarkdownImport.swift */; };
+		ED66E6D7D338B863FF16D9EC /* template-stage.js in Resources */ = {isa = PBXBuildFile; fileRef = 2229A98EC2F04AFD03C9EDAC /* template-stage.js */; };
 		ED86469ADF2830E9489A308E /* ConnectGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68B9BEDD3569D333B65785C6 /* ConnectGuide.swift */; };
 		ED88D8FAD594BDD4758DA5EC /* TextMicroInteractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEC2686C627B96F86A7C5808 /* TextMicroInteractionTests.swift */; };
 		ED99F4D5ECECFE19B9357EC8 /* NotePicture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C29C51D2CD1085C670BF1 /* NotePicture.swift */; };
@@ -1345,6 +1347,7 @@
 		21C0F2F96714C56888E2C6A7 /* template-app-budget-log.data.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-budget-log.data.json"; sourceTree = "<group>"; };
 		21D7C4C304805E4BD0BD9C18 /* FolderEditUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderEditUITests.swift; sourceTree = "<group>"; };
 		21F840C976633C76FA3F16DD /* KeyCopyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCopyUITests.swift; sourceTree = "<group>"; };
+		2229A98EC2F04AFD03C9EDAC /* template-stage.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "template-stage.js"; sourceTree = "<group>"; };
 		22BCBAB1EBC8999FBAD18CAC /* SeedOnceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeedOnceTests.swift; sourceTree = "<group>"; };
 		22F6E51FB808A5AE5B56E98E /* SidebarCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarCards.swift; sourceTree = "<group>"; };
 		23048764AEDD0924DCD67868 /* WikiLinksTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiLinksTests.swift; sourceTree = "<group>"; };
@@ -2460,6 +2463,7 @@
 				092CBEFBB500DEB25E0434D1 /* template-cover-weekly-review.jpg */,
 				E1F43E437956C5516C5FDD33 /* template-cover-workout-log.jpg */,
 				36DCBF8253BD0BA2C3407766 /* template-stage.css */,
+				2229A98EC2F04AFD03C9EDAC /* template-stage.js */,
 			);
 			path = Templates;
 			sourceTree = "<group>";
@@ -3511,6 +3515,7 @@
 				871FD7ACFD253A182F3DE0AF /* template-cover-weekly-review.jpg in Resources */,
 				208AC59581BDBA27CDA38AA8 /* template-cover-workout-log.jpg in Resources */,
 				CF28663C369D915821665CA0 /* template-stage.css in Resources */,
+				0D356C0F0C81693FB142B1F1 /* template-stage.js in Resources */,
 				427F7CEE573ED4A1CEE3CADD /* three.js in Resources */,
 				8B8A2E2CBE4BF9A3224735F4 /* tone.js in Resources */,
 				FC8C67F0982505EE55E55C73 /* topojson.js in Resources */,
@@ -3618,6 +3623,7 @@
 				2BD115D44DC5E44594BBDF36 /* template-cover-weekly-review.jpg in Resources */,
 				70B9072A9074709C3DE149FF /* template-cover-workout-log.jpg in Resources */,
 				3C795A3F5B1EDA7C1C0E0330 /* template-stage.css in Resources */,
+				ED66E6D7D338B863FF16D9EC /* template-stage.js in Resources */,
 				5619E67CFC231B9156BA0844 /* three.js in Resources */,
 				2B55D6E03EAB0E2ED1472F4A /* tone.js in Resources */,
 				504F9E95EFAF31EC15B202D2 /* topojson.js in Resources */,

@@ -427,7 +427,9 @@ struct NotePreview: View {
     /// cell, whichever is longer, kept between 4 and 60 characters' worth.
     nonisolated static func shares(header: [String], rows: [[String]]) -> [CGFloat] {
         let weights: [CGFloat] = header.indices.map { c in
-            let cells = rows.map { c < $0.count ? shownCell($0[c]).count : 0 }
+            // Empty cells say nothing about how wide a column's words are (a plan with four days
+            // still to fill gave "Dinner" less room than "Who cooks": council round 5).
+            let cells = rows.compactMap { c < $0.count && !$0[c].trimmingCharacters(in: .whitespaces).isEmpty ? shownCell($0[c]).count : nil }
             let average = cells.isEmpty ? 0 : CGFloat(cells.reduce(0, +)) / CGFloat(cells.count)
             return min(60, max(4, CGFloat(header[c].count), average))
         }
@@ -435,18 +437,40 @@ struct NotePreview: View {
         return weights.map { sum > 0 ? $0 / sum : 1 / CGFloat(max(1, weights.count)) }
     }
 
+    /// How wide each column must be so none of its words breaks: its longest word ("Workout",
+    /// "120 kg × 3", "26 Sep": a value kept in one piece is one word), in the cell's type, and the
+    /// cell's padding (council round 5: "Work-out", "Min-utes" and "26 / Sep" broke mid-word).
+    nonisolated static func leastWidths(header: [String], rows: [[String]]) -> [CGFloat] {
+        #if os(iOS)
+        typealias Font = UIFont
+        #else
+        typealias Font = NSFont
+        #endif
+        let size = Font.preferredFont(forTextStyle: .footnote).pointSize
+        let plain = Font.monospacedDigitSystemFont(ofSize: size, weight: .regular)
+        let bold = Font.monospacedDigitSystemFont(ofSize: size, weight: .semibold)
+        func widest(_ s: String, _ font: Font) -> CGFloat {
+            shownCell(s).split(separator: " ").map { NSString(string: String($0)).size(withAttributes: [.font: font]).width }.max() ?? 0
+        }
+        return header.indices.map { c in
+            let cells = rows.map { c < $0.count ? widest($0[c].replacingOccurrences(of: "**", with: ""), plain) : 0 }
+            return (max(widest(header[c], bold), cells.max() ?? 0) + 16 + 2).rounded(.up)
+        }
+    }
+
     /// A table in the stage's window: its header row, then each row as a block of its own, all
     /// at the same column widths, joined with no space between, cells wrapped at a word.
     @ViewBuilder private func tableRows(header: [String], rows: [[String]]) -> some View {
         let shares = Self.shares(header: header, rows: rows)
+        let least = Self.leastWidths(header: header, rows: rows)
         let shown = rows.isEmpty ? [header.map { _ in "" }] : rows
-        TableRowLayout(shares: shares) { ForEach(Array(header.enumerated()), id: \.offset) { wholeCell($0.element, header: true) } }
+        TableRowLayout(shares: shares, least: least) { ForEach(Array(header.enumerated()), id: \.offset) { wholeCell($0.element, header: true) } }
             .overlay(alignment: .top) { Rectangle().fill(.separator).frame(height: 0.5) }
             .overlay(alignment: .leading) { Rectangle().fill(.separator).frame(width: 0.5) }
             .padding(.top, 4)
             .layoutValue(key: WholeBlocks.Heading.self, value: true)
         ForEach(Array(shown.enumerated()), id: \.offset) { _, row in
-            TableRowLayout(shares: shares) { ForEach(Array(row.enumerated()), id: \.offset) { wholeCell($0.element, header: false) } }
+            TableRowLayout(shares: shares, least: least) { ForEach(Array(row.enumerated()), id: \.offset) { wholeCell($0.element, header: false) } }
                 .overlay(alignment: .leading) { Rectangle().fill(.separator).frame(width: 0.5) }
                 .layoutValue(key: WholeBlocks.Joined.self, value: true)
         }
@@ -598,9 +622,26 @@ struct WholeBlocks: Layout {
 /// so rows laid out apart still line up as one table.
 struct TableRowLayout: Layout {
     let shares: [CGFloat]
+    /// Each column's least width, so no word in it breaks (NotePreview.leastWidths).
+    var least: [CGFloat] = []
 
     private func widths(_ total: CGFloat, _ count: Int) -> [CGFloat] {
-        (0..<count).map { i in (total * (i < shares.count ? shares[i] : 0)).rounded(.down) }
+        Self.widths(total: total, shares: (0..<count).map { $0 < shares.count ? shares[$0] : 0 },
+                    least: (0..<count).map { $0 < least.count ? least[$0] : 0 })
+    }
+
+    /// The columns' widths in `total`: each its share, but never under its least width; what a
+    /// narrow column needs comes from the others' room over their own least. When even the least
+    /// widths don't fit, each gets its least scaled down to fit.
+    nonisolated static func widths(total: CGFloat, shares: [CGFloat], least: [CGFloat]) -> [CGFloat] {
+        let want = zip(shares, least).map { max(total * $0, $1) }
+        let need = least.reduce(0, +)
+        guard need < total else { return least.map { (need > 0 ? $0 * total / need : total / CGFloat(max(1, least.count))).rounded(.down) } }
+        let over = want.reduce(0, +) - total
+        guard over > 0 else { return want.map { $0.rounded(.down) } }
+        let spare = zip(want, least).map { $0 - $1 }
+        let spareSum = spare.reduce(0, +)
+        return zip(want, spare).map { ($0 - (spareSum > 0 ? over * $1 / spareSum : 0)).rounded(.down) }
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {

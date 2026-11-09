@@ -523,7 +523,7 @@ struct SetupTemplateCard: View {
                 .offset(y: hover && !reduceMotion ? -3 : 0)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(pick.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.ink)
-                    Text(pick.line).font(.system(size: 12)).foregroundStyle(Color.muted)
+                    Text(NoWidow.kept(pick.line)).font(.system(size: 12)).foregroundStyle(Color.muted)
                         .lineLimit(2, reservesSpace: true)
                 }
                 .multilineTextAlignment(.leading)
@@ -558,7 +558,7 @@ struct SetupTemplateCard: View {
                         .font(.system(size: 16, weight: .heavy))
                         .tracking(-0.2)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(pick.line)
+                    Text(NoWidow.kept(pick.line))
                         .font(.system(size: 11.5, weight: .medium))
                         .opacity(0.86)
                         .fixedSize(horizontal: false, vertical: true)
