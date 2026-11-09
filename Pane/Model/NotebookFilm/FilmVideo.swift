@@ -40,6 +40,10 @@ enum FilmVideo {
         let total = FilmScript.frameCount
         var i = 0
         while !renderer.isDone {
+            if Task.isCancelled {
+                writer.cancelWriting()
+                throw CancellationError()
+            }
             while !input.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.002) }
             guard let pool = adaptor.pixelBufferPool else { throw Failure.writer("no pool") }
             var buffer: CVPixelBuffer?

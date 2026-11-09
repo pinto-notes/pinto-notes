@@ -69,7 +69,7 @@
 	<key>NSFaceIDUsageDescription</key>
 	<string>Pinto Notes uses Face ID to open your locked notes, show your recovery key, approve AI connections and add a device.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Pinto Notes saves a picture to your photo library when you choose Save Image in the share sheet.</string>
+	<string>Pinto Notes saves pictures and videos to your photo library when you choose Save Image or Save Video in the share sheet.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>dev.emilwagman.pane.connect</string>

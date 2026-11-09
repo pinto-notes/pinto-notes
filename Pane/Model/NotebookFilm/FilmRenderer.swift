@@ -44,6 +44,21 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
     var cool: RGB { dark ? RGB(0.6, 0.6, 0.6) : RGB(0.72, 0.70, 0.68) }
 }
 
+/// The shape the film is drawn in: its height for a width of 1080 (1350 for the shared 4:5
+/// film, a phone's own shape to watch it full screen), and room kept clear at the top and bottom
+/// for what sits over it (the status bar, buttons), in the same units.
+struct FilmCanvas: Sendable, Equatable {
+    var height: Double = Double(FilmScript.height)
+    var top: Double = 0
+    var bottom: Double = 0
+    static let shared = FilmCanvas()
+    /// A view's own shape, `size` in points with its safe area insets.
+    static func fitting(width: Double, height: Double, top: Double, bottom: Double) -> FilmCanvas {
+        let u = Double(FilmScript.width) / max(1, width)
+        return FilmCanvas(height: height * u, top: top * u, bottom: bottom * u)
+    }
+}
+
 final class FilmRenderer {
     struct Labels: @unchecked Sendable {
         var look: FilmLook = .night
@@ -76,7 +91,10 @@ final class FilmRenderer {
 
     let script: FilmScript
     let labels: Labels
-    let width = FilmScript.width, height = FilmScript.height
+    /// In film units: 1080 wide, and the canvas's height.
+    let width = FilmScript.width
+    let height: Int
+    let canvas: FilmCanvas
     private(set) var frame = 0
 
     // Layout, in world units; the camera maps them to pixels.
@@ -101,7 +119,9 @@ final class FilmRenderer {
     private let aiGlow: CGImage
     private let dateFormatter: DateFormatter
 
-    init(script: FilmScript, labels: Labels = Labels()) {
+    init(script: FilmScript, labels: Labels = Labels(), canvas: FilmCanvas = .shared) {
+        self.canvas = canvas
+        height = Int(canvas.height.rounded())
         self.script = script
         self.labels = labels
         pos = Array(repeating: .zero, count: script.nodes.count)
@@ -132,7 +152,9 @@ final class FilmRenderer {
         let t = Double(frame) / Double(FilmScript.fps)
         step(to: t)
         ctx.saveGState()
-        ctx.scaleBy(x: Double(ctx.width) / Double(width), y: Double(ctx.height) / Double(height))
+        // One scale both ways: a context of another shape than the canvas would stretch it.
+        let k = Double(ctx.width) / Double(width)
+        ctx.scaleBy(x: k, y: k)
         draw(t, in: ctx)
         ctx.restoreGState()
         frame += 1
@@ -261,7 +283,10 @@ final class FilmRenderer {
     }
 
     /// The graph fills the upper part of the frame, leaving room for the words below.
-    private var graphBox: CGRect { CGRect(x: 70, y: 300, width: Double(width) - 140, height: Double(height) - 300 - 120) }
+    private var graphBox: CGRect {
+        let bottom = 300 + canvas.bottom, top = 130 + canvas.top
+        return CGRect(x: 70, y: bottom, width: Double(width) - 140, height: max(200, Double(height) - bottom - top))
+    }
 
     private func updateCamera(_ t: Double) {
         guard alive > 0 else { return }
@@ -410,7 +435,7 @@ final class FilmRenderer {
     /// still says where it's from.
     private func drawMark(in ctx: CGContext) {
         var x = 64.0
-        let y = Double(height) - 96
+        let y = Double(height) - 96 - canvas.top
         if let m = labels.markImage {
             let size = 44.0
             let rect = CGRect(x: x, y: y - 12, width: size, height: size)
@@ -428,20 +453,21 @@ final class FilmRenderer {
         let outroIn = smooth((t - FilmScript.growth - 0.25) / 0.7)
         let running = 1 - smooth((t - FilmScript.growth) / 0.4)
         let side = 72.0
+        let base = canvas.bottom
 
         if running > 0 {
             let date = script.date(at: min(t, FilmScript.growth))
-            text(dateFormatter.string(from: date), size: 34, weight: .medium, color: look.ink.cg(0.62 * running), at: CGPoint(x: side, y: 150), in: ctx)
-            text(labels.notesCount(alive), size: 34, weight: .medium, color: look.ink.cg(0.62 * running), at: CGPoint(x: Double(width) - side, y: 150), align: 1, in: ctx)
+            text(dateFormatter.string(from: date), size: 34, weight: .medium, color: look.ink.cg(0.62 * running), at: CGPoint(x: side, y: base + 150), in: ctx)
+            text(labels.notesCount(alive), size: 34, weight: .medium, color: look.ink.cg(0.62 * running), at: CGPoint(x: Double(width) - side, y: base + 150), align: 1, in: ctx)
         }
         guard outroIn > 0 else { return }
         let rise = (1 - outroIn) * 14
         let s = script.stats
-        text(labels.title(s), size: 60, weight: .semibold, color: look.ink.cg(outroIn), at: CGPoint(x: side, y: 196 - rise), in: ctx)
-        text(labels.detail(s), size: 34, weight: .regular, color: look.ink.cg(0.62 * outroIn), at: CGPoint(x: side, y: 140 - rise), in: ctx)
+        text(labels.title(s), size: 60, weight: .semibold, color: look.ink.cg(outroIn), at: CGPoint(x: side, y: base + 196 - rise), in: ctx)
+        text(labels.detail(s), size: 34, weight: .regular, color: look.ink.cg(0.62 * outroIn), at: CGPoint(x: side, y: base + 140 - rise), in: ctx)
         // Who wrote: you, and your AI if one did.
         var x = side
-        let y = 76 - rise
+        let y = base + 76 - rise
         for (name, color) in [(labels.you, look.you)] + (s.ai.map { [($0, look.ai)] } ?? []) {
             ctx.setFillColor(color.cg(outroIn))
             ctx.fillEllipse(in: CGRect(x: x, y: y + 2, width: 18, height: 18))

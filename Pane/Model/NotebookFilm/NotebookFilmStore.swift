@@ -1,8 +1,6 @@
 import Foundation
-import CoreTransferable
 import Observation
 import SwiftData
-import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
 #else
@@ -30,6 +28,12 @@ final class NotebookFilmStore {
     var look: FilmLook = .night
     /// Folder names over their clusters (on unless you turn them off); note titles never show.
     var folderNames = true
+    /// The film as a movie file, ready to share: made in the background while you watch, and again
+    /// when you change its look, so Share never waits.
+    private(set) var movie: URL?
+    /// How far the movie is, 0...1, while it's being made.
+    private(set) var making: Double?
+    @ObservationIgnored private var maker: Task<Void, Never>?
 
     @ObservationIgnored private var account: UUID?
     @ObservationIgnored private var service: FilmSource.Service?
@@ -123,20 +127,32 @@ final class NotebookFilmStore {
     }()
 
     static func title(_ s: FilmStats?) -> String { "Your first month" }
-}
 
-/// The film as a movie file, made when it's shared (the share sheet waits for it).
-struct FilmMovie: Transferable, Sendable {
-    let script: FilmScript
-    let labels: FilmRenderer.Labels
-
-    static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(exportedContentType: .mpeg4Movie) { movie in
-            let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let url = dir.appendingPathComponent("Pinto Notes \u{2013} my notebook.mp4")
-            try FilmVideo.write(FilmRenderer(script: movie.script, labels: movie.labels), to: url)
-            return SentTransferredFile(url)
+    /// Makes the movie of the film as it's set now, replacing one being made.
+    func makeMovie() {
+        guard let script else { return }
+        maker?.cancel()
+        movie = nil
+        making = 0
+        let labels = labels
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("NotebookFilm-\(UUID().uuidString)", isDirectory: true)
+        let url = dir.appendingPathComponent("Pinto Notes \u{2013} my notebook.mp4")
+        maker = Task { [weak self] in
+            let work = Task.detached(priority: .utility) { () -> Bool in
+                do {
+                    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                    try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: url) { p in
+                        Task { @MainActor in if self?.movie == nil, self?.making != nil { self?.making = p } }
+                    }
+                    return true
+                } catch {
+                    return false
+                }
+            }
+            let ok = await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
+            guard !Task.isCancelled, let self else { return }
+            making = nil
+            movie = ok ? url : nil
         }
     }
 }

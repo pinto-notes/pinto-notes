@@ -8,7 +8,8 @@ import AppKit
 /// looks to pick from, and Share. On the Mac it's a dark sheet with Save… beside Share.
 ///
 /// The film plays live (FilmPlayback), so it shows the moment the app opens and a new look shows
-/// at once; the movie file is made only when it's shared or saved.
+/// at once. Watching, it's drawn in the screen's own shape; to share, as a 4:5 film. The movie
+/// file is made in the background while you watch (NotebookFilmStore.makeMovie), so Share is ready.
 struct NotebookFilmView: View {
     @Bindable var store: NotebookFilmStore
     @State private var phase: Phase = .intro
@@ -18,7 +19,6 @@ struct NotebookFilmView: View {
     @Namespace private var space
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(macOS)
-    @State private var saving = false
     @State private var saveFailed = false
     #endif
 
@@ -50,18 +50,22 @@ struct NotebookFilmView: View {
         }
         .onDisappear { playback.stop() }
         .onChange(of: playback.finished) { _, done in if done && phase == .watching { toShare() } }
-        .onChange(of: store.look) { if phase == .share { play(loop: true) } }
-        .onChange(of: store.folderNames) { if phase == .share { play(loop: true) } }
+        .onChange(of: store.look) { if phase == .share { play(loop: true); store.makeMovie() } }
+        .onChange(of: store.folderNames) { if phase == .share { play(loop: true); store.makeMovie() } }
         .accessibilityIdentifier("notebookFilm")
     }
 
-    private func play(loop: Bool, fromEnd: Bool = false) {
+    private func play(loop: Bool, fromEnd: Bool = false, canvas: FilmCanvas = .shared, width: Int = Metrics.pixels) {
         guard let script = store.script else { return }
-        playback.play(script: script, labels: store.labels, width: Metrics.pixels, loop: loop, fromEnd: fromEnd)
+        playback.play(script: script, labels: store.labels, canvas: canvas, width: width, loop: loop, fromEnd: fromEnd)
     }
 
+    /// The screen's shape while watching, set when it's measured.
+    @State private var screen: (canvas: FilmCanvas, pixels: Int)?
+
     private func watch() {
-        play(loop: false)
+        if store.movie == nil && store.making == nil { store.makeMovie() }
+        if let screen { play(loop: false, canvas: screen.canvas, width: screen.pixels) } else { play(loop: false) }
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.5)) { phase = .watching }
     }
 
@@ -123,27 +127,44 @@ struct NotebookFilmView: View {
     // MARK: Watching
 
     private var watching: some View {
-        ZStack(alignment: .top) {
-            filmFrame
-                .matchedGeometryEffect(id: "film", in: space)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            VStack(spacing: 10) {
-                // How far through, like a story.
-                GeometryReader { g in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(.white.opacity(0.25))
-                        Capsule().fill(.white).frame(width: g.size.width * playback.progress)
+        GeometryReader { g in
+            let insets = g.safeAreaInsets
+            ZStack {
+                if let frame = playback.frame {
+                    Image(decorative: frame, scale: 1)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .ignoresSafeArea()
+                        .accessibilityLabel(Self.description(store.script?.stats))
+                }
+                VStack {
+                    HStack {
+                        Spacer()
+                        closeButton
                     }
-                }
-                .frame(height: 3)
-                .accessibilityHidden(true)
-                HStack {
+                    .padding(.top, Metrics.top)
                     Spacer()
-                    closeButton
+                    // How far through, like a story, at the bottom.
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.white.opacity(0.22))
+                        Capsule().fill(.white).frame(width: max(3, (g.size.width - Metrics.side * 2) * playback.progress))
+                    }
+                    .frame(height: 3)
+                    .padding(.bottom, 14)
+                    .accessibilityHidden(true)
                 }
+                .padding(.horizontal, Metrics.side)
             }
-            .padding(.horizontal, Metrics.side)
-            .padding(.top, Metrics.top)
+            .onAppear {
+                // Drawn in the screen's own shape, clear of the close button and the bar.
+                let canvas = FilmCanvas.fitting(width: g.size.width, height: g.size.height + insets.top + insets.bottom,
+                                                top: insets.top + 52, bottom: insets.bottom + 24)
+                let pixels = min(1206, Int(g.size.width * Metrics.displayScale))
+                screen = (canvas, pixels)
+                play(loop: false, canvas: canvas, width: pixels)
+            }
         }
         .contentShape(Rectangle())
         // A tap goes to the end, as a story does.
@@ -229,26 +250,39 @@ struct NotebookFilmView: View {
             }
             HStack(spacing: 10) {
                 if let script = store.script {
-                    ShareLink(item: FilmMovie(script: script, labels: store.labels),
-                              preview: SharePreview(NotebookFilmStore.title(script.stats), image: Image("MarkTight"))) {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                            .font(.body.weight(.semibold))
-                            .frame(maxWidth: .infinity, minHeight: 50)
+                    if let movie = store.movie {
+                        ShareLink(item: movie, preview: SharePreview(NotebookFilmStore.title(script.stats), image: Image("MarkTight"))) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                                .font(.body.weight(.semibold))
+                                .frame(maxWidth: .infinity, minHeight: 50)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.black)
+                        .background(Capsule().fill(.white))
+                        .accessibilityIdentifier("notebookFilm.share")
+                    } else {
+                        // Being made: says so, and how far, rather than a Share that stalls.
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small).tint(.black)
+                            Text("Getting it ready\u{2026} \(Int(((store.making ?? 0) * 100).rounded()))%")
+                                .font(.body.weight(.semibold))
+                                .monospacedDigit()
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .foregroundStyle(.black.opacity(0.7))
+                        .background(Capsule().fill(.white.opacity(0.8)))
+                        .accessibilityIdentifier("notebookFilm.share")
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.black)
-                    .background(Capsule().fill(.white))
-                    .accessibilityIdentifier("notebookFilm.share")
                     #if os(macOS)
-                    Button { save(script) } label: {
-                        Text(saving ? "Saving\u{2026}" : "Save\u{2026}")
+                    Button { save() } label: {
+                        Text("Save\u{2026}")
                             .font(.body.weight(.semibold))
                             .frame(maxWidth: .infinity, minHeight: 50)
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.white)
                     .background(Capsule().fill(.white.opacity(0.14)))
-                    .disabled(saving)
+                    .disabled(store.movie == nil)
                     .accessibilityIdentifier("notebookFilm.save")
                     #endif
                 }
@@ -285,19 +319,17 @@ struct NotebookFilmView: View {
     }
 
     #if os(macOS)
-    private func save(_ script: FilmScript) {
+    private func save() {
+        guard let movie = store.movie else { return }
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "Pinto Notes \u{2013} my notebook.mp4"
         panel.allowedContentTypes = [.mpeg4Movie]
         guard panel.runModal() == .OK, let to = panel.url else { return }
-        saving = true
-        let labels = store.labels
-        Task {
-            let ok = await Task.detached(priority: .userInitiated) {
-                (try? FilmVideo.write(FilmRenderer(script: script, labels: labels), to: to)) != nil
-            }.value
-            saving = false
-            if !ok { saveFailed = true }
+        do {
+            try? FileManager.default.removeItem(at: to)
+            try FileManager.default.copyItem(at: movie, to: to)
+        } catch {
+            saveFailed = true
         }
     }
     #endif
@@ -308,11 +340,13 @@ struct NotebookFilmView: View {
         static let top: CGFloat = 16
         static let bottom: CGFloat = 18
         static let pixels = 800
+        static let displayScale: CGFloat = 2
         #else
         static let side: CGFloat = 16
         static let top: CGFloat = 4
         static let bottom: CGFloat = 8
         static let pixels = 1080
+        static let displayScale: CGFloat = 3
         #endif
     }
 }
@@ -329,17 +363,17 @@ final class FilmPlayback {
     private(set) var finished = false
     @ObservationIgnored private var task: Task<Void, Never>?
 
-    func play(script: FilmScript, labels: FilmRenderer.Labels, width: Int, loop: Bool, fromEnd: Bool = false) {
+    func play(script: FilmScript, labels: FilmRenderer.Labels, canvas: FilmCanvas = .shared, width: Int, loop: Bool, fromEnd: Bool = false) {
         task?.cancel()
         finished = false
         progress = 0
-        let height = width * FilmScript.height / FilmScript.width
+        let height = Int((Double(width) * canvas.height / Double(FilmScript.width)).rounded())
         let total = Double(FilmScript.frameCount)
         task = Task.detached(priority: .userInitiated) { [weak self] in
             guard let ctx = FilmRenderer.context(width: width, height: height) else { return }
             let clock = ContinuousClock()
             if fromEnd {
-                let renderer = FilmRenderer(script: script, labels: labels)
+                let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas)
                 while renderer.frame < FilmScript.frameCount - 1 { renderer.skip() }
                 renderer.drawNext(in: ctx)
                 let image = ctx.makeImage()
@@ -347,7 +381,7 @@ final class FilmPlayback {
                 try? await Task.sleep(for: .seconds(4))
             }
             repeat {
-                let renderer = FilmRenderer(script: script, labels: labels)
+                let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas)
                 var next = clock.now
                 while !renderer.isDone && !Task.isCancelled {
                     renderer.drawNext(in: ctx)
