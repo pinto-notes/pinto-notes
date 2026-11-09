@@ -29,6 +29,14 @@ import Testing
         #expect(RowPressSlop.row(under: press)?.row != nil, "over the row with nothing on top")
         RowPressSlop.covered = true
         #expect(RowPressSlop.row(under: press) == nil)
+        // Go to Note's own area only (Emil, 9 November 2026: the app stays usable beside it).
+        RowPressSlop.covered = false
+        defer { RowPressSlop.cover = nil }
+        RowPressSlop.cover = (w.windowNumber, CGRect(x: 0, y: 0, width: 100, height: 40), 100)
+        #expect(RowPressSlop.row(under: press) == nil, "under the panel: y 10 from the top")
+        let beside = NSEvent.mouseEvent(with: .leftMouseDown, location: NSPoint(x: 150, y: 90), modifierFlags: [], timestamp: 0,
+                                        windowNumber: w.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+        #expect(RowPressSlop.row(under: beside)?.row != nil, "beside the panel the row is pressed")
     }
 
     @Test func aPressThatMovesALittleStaysAClick() {

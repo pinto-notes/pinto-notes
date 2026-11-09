@@ -134,7 +134,7 @@ import Testing
         // The transition sits on the layer that is inserted, after its onDisappear, not on the
         // panel inside it (there it never ran: Emil saw a plain fade).
         let content = try #require(root.range(of: "private var quickOpenContent").map { String(root[$0.lowerBound...].prefix(2400)) })
-        let gone = try #require(content.range(of: ".onDisappear { RowPressSlop.covered = false }"))
+        let gone = try #require(content.range(of: ".onDisappear { RowPressSlop.cover = nil"))
         let placed = try #require(content.range(of: ".transition(QuickOpen.transition"))
         #expect(gone.upperBound < placed.lowerBound)
         #expect(root.contains("value: quickOpen == nil"))

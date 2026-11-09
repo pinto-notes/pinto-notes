@@ -484,13 +484,29 @@ extension Notification.Name {
     // .paneSearchNotes (search every note for the text in `object`) is declared with the list's search.
 }
 
+/// The close button's looks: grey, a soft square under it on hover and press.
+private struct QuickOpenCloseStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { Look(configuration: configuration) }
+    struct Look: View {
+        let configuration: Configuration
+        @State private var hover = false
+        var body: some View {
+            configuration.label
+                .foregroundStyle(hover || configuration.isPressed ? Color.ink : Color.muted)
+                .background((hover || configuration.isPressed) ? Color.soft : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .onHover { hover = $0 }
+        }
+    }
+}
+
 /// The panel itself: a search line, then the rows. Solid card, the shared shadow, no animation
 /// (it's opened all day; frequent things are instant).
 struct QuickOpenPanel: View {
-    #if os(macOS)
-    @State private var panelFrame = CGRect.zero
-    @State private var clickWatch: Any?
-    #endif
+    /// Bumped by ⌘K or ⌘O while the panel is open but the app has the keyboard: the field takes
+    /// the cursor again.
+    var focusRequest = 0
+    /// Told when the field gains or loses the cursor, so ⌘K knows whether to close it or return.
+    var focusChanged: (Bool) -> Void = { _ in }
     let notes: [QuickOpen.NoteItem]
     let commands: [QuickOpen.CommandItem]
     let choose: (QuickOpen.Row) -> Void
@@ -551,6 +567,8 @@ struct QuickOpenPanel: View {
         choose(row)
     }
     @State private var highlighted = 0
+    /// The row under the pointer: shown while the app has the keyboard, as the highlight isn't.
+    @State private var hovered: Int?
     @State private var textHits: [QuickOpen.TextHit]
     @FocusState private var focused: Bool
     @State private var window = WeakWindow()
@@ -558,7 +576,10 @@ struct QuickOpenPanel: View {
     /// `initialQuery`, `initialTextHits`: snapshots start with text typed and found.
     init(notes: [QuickOpen.NoteItem], commands: [QuickOpen.CommandItem], choose: @escaping (QuickOpen.Row) -> Void, close: @escaping () -> Void,
          searchText: (@Sendable (String) async -> [QuickOpen.TextHit])? = nil,
-         initialQuery: String = "", initialTextHits: [QuickOpen.TextHit] = []) {
+         initialQuery: String = "", initialTextHits: [QuickOpen.TextHit] = [],
+         focusRequest: Int = 0, focusChanged: @escaping (Bool) -> Void = { _ in }) {
+        self.focusRequest = focusRequest
+        self.focusChanged = focusChanged
         self.notes = notes
         self.commands = commands
         self.choose = choose
@@ -613,6 +634,21 @@ struct QuickOpenPanel: View {
             .accessibilityIdentifier("quickOpen.shortcut")
     }
 
+    /// Closes the panel, as Esc in the field, a chosen row, and ⌘K or ⌘O while it has the cursor
+    /// do: the one way to close it while you're in the app.
+    private var closeButton: some View {
+        Button(action: close) {
+            Image(systemName: "xmark")
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 22, height: 22)
+                .contentShape(.rect)
+        }
+        .buttonStyle(QuickOpenCloseStyle())
+        .help("Close")
+        .accessibilityLabel("Close Go to Note")
+        .accessibilityIdentifier("quickOpen.close")
+    }
+
     /// The line while the only thing left to come is what the notes' text holds.
     static func looking(query: String, rows: Int, stillReading: Bool) -> String? {
         rows == 0 && stillReading && !query.trimmingCharacters(in: .whitespaces).isEmpty ? "Searching your notes\u{2026}" : nil
@@ -633,7 +669,9 @@ struct QuickOpenPanel: View {
                 TextField("Go to a note, or type a command", text: $query)
                     .textFieldStyle(.plain)
                     .font(.system(size: 17))
-                    .foregroundStyle(Color.ink)
+                    // Quieter while the app has the keyboard (Emil, 9 November 2026: click into a
+                    // note to remember what to look for, and it stays).
+                    .foregroundStyle(focused ? Color.ink : Color.muted)
                     .focused($focused)
                     .onSubmit { if rows.indices.contains(index) { jumpAndChoose(rows[index]) } }
                     .onKeyPress(.downArrow) { highlighted = QuickOpen.step(1, from: index, count: rows.count); return .handled }
@@ -642,6 +680,7 @@ struct QuickOpenPanel: View {
                     .accessibilityLabel("Go to Note")
                     .accessibilityIdentifier("quickOpen.field")
                 Self.shortcutKey
+                closeButton
             }
             .padding(.horizontal, 18)
             .frame(height: Metrics.field)
@@ -666,12 +705,12 @@ struct QuickOpenPanel: View {
         .clipShape(shape)
         .raised(in: shape)
         // The cursor in the field from the moment it shows (a field asked for focus in the update
-        // it appears in doesn't take it), and there's never a panel you aren't typing in: when
-        // anything else takes the cursor, a click outside included, it closes (Emil, 11-03).
+        // it appears in doesn't take it). A click in the app takes the cursor and leaves the panel
+        // open, quieter (Emil, 9 November 2026: "I cant click into the app when it has search open,
+        // without it closing search immediately"); ⌘K or a click in the field brings it back.
         .onAppear { focused = true; Task { @MainActor in focused = true } }
-        // Only a key window's cursor moving counts: a window that can't take the cursor at all
-        // (never shown, or offscreen) doesn't close the panel it never let you type in.
-        .onChange(of: focused) { was, now in if was && !now && window.value?.isKeyWindow == true { close() } }
+        .onChange(of: focused) { _, now in focusChanged(now) }
+        .onChange(of: focusRequest) { focused = true }
         .background(WindowFinder(found: window))
         .onChange(of: query) { _, q in
             highlighted = 0
@@ -695,23 +734,15 @@ struct QuickOpenPanel: View {
         }
         .onExitCommand { close() }
         #if os(macOS)
-        // A click on nothing that takes focus left it open (Emil, 6 November 2026): any click
-        // outside closes it, and still does what it would have.
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { panelFrame = $0 }
-        .onAppear {
-            clickWatch = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
-                guard let w = window.value, event.window === w,
-                      QuickOpen.isOutside(event.locationInWindow, of: panelFrame, windowHeight: w.contentLayoutRect.maxY) else { return event }
-                QuickOpen.closedByClick = .now
-                close()
-                return event
-            }
+        // A press on the panel isn't one on a list row under it; beside it, it is.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+            guard let w = window.value else { return }
+            RowPressSlop.cover = (w.windowNumber, frame, w.contentLayoutRect.maxY)
         }
-        .onDisappear { if let clickWatch { NSEvent.removeMonitor(clickWatch) }; clickWatch = nil }
+        .onDisappear { RowPressSlop.cover = nil }
         #endif
-        // VoiceOver stays in the panel: what's behind it isn't reachable (round 20: AppKit's table
-        // and text view stayed in the tree under the window's hidden split view).
-        .accessibilityAddTraits(.isModal)
+        // One group with its own name; its field, rows and close button keep theirs.
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("quickOpen")
     }
 
@@ -731,7 +762,7 @@ struct QuickOpenPanel: View {
                                 .padding(.bottom, 2)
                                 .accessibilityAddTraits(.isHeader)
                         }
-                        rowView(row, on: i == index)
+                        rowView(row, on: focused ? i == index : i == hovered)
                             .id(row.id)
                             .onTapGesture { jumpAndChoose(row) }
                             // One row to VoiceOver, not its loose texts and symbols ("Text With A
@@ -741,7 +772,7 @@ struct QuickOpenPanel: View {
                             .accessibilityIdentifier("quickOpen.row")
                             .accessibilityAddTraits(i == index ? [.isButton, .isSelected] : .isButton)
                             .accessibilityAction { jumpAndChoose(row) }
-                            .onHover { if $0 { highlighted = i } }
+                            .onHover { if $0 { highlighted = i; hovered = i } else if hovered == i { hovered = nil } }
                     }
                 }
                 .padding(6)
@@ -922,9 +953,6 @@ private struct WindowFinder: NSViewRepresentable {
 
 #if os(macOS)
 extension QuickOpen {
-    /// When a click outside last closed the panel: that click on the Search button shouldn't open it again.
-    nonisolated(unsafe) static var closedByClick: Date?
-
     /// Whether a click (window coordinates, y up) is outside the panel (SwiftUI's global, y down).
     static func isOutside(_ point: CGPoint, of panel: CGRect, windowHeight: CGFloat) -> Bool {
         !panel.isEmpty && !panel.contains(CGPoint(x: point.x, y: windowHeight - point.y))

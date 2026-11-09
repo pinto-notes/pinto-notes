@@ -37,7 +37,11 @@ enum RowPressSlop {
     /// Go to Note is open over the lists: a press on it isn't a press on the row beneath (round 17:
     /// clicking its field opened the note under the pointer). This asks the lists by position, so
     /// it doesn't know what lies on top of them; sheets are windows of their own and don't count.
+    /// `covered` covers everything; `cover` only the panel's own frame (SwiftUI's global, in its
+    /// window of that height), as presses beside it go to the lists (Emil, 9 November 2026: the
+    /// app stays usable with it open).
     static var covered = false
+    static var cover: (window: Int, frame: CGRect, height: CGFloat)?
 
     private static var monitor: Any?
     /// A ⌘ or ⇧ press PressSelect picked with: the list doesn't see it, nor its drag or lift.
@@ -149,6 +153,8 @@ enum RowPressSlop {
     /// the bottom of the note list sits under the window's bottom bar, and is still what's pressed).
     static func row(under event: NSEvent) -> (table: NSTableView, row: Int)? {
         guard !covered, let window = event.window, let content = window.contentView else { return nil }
+        if let cover, cover.window == event.windowNumber,
+           !QuickOpen.isOutside(event.locationInWindow, of: cover.frame, windowHeight: cover.height) { return nil }
         func found(in view: NSView) -> (table: NSTableView, row: Int)? {
             if let table = view as? NSTableView {
                 let p = table.convert(event.locationInWindow, from: nil)

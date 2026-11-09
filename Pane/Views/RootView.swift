@@ -96,6 +96,9 @@ struct RootView: View {
     #if os(macOS)
     /// Go to Note… (⌘O): the notes as they were when it opened, while it shows.
     @State private var quickOpen: [QuickOpen.NoteItem]?
+    /// Whether its field has the cursor: ⌘K then closes it; while you're in the app it returns.
+    @State private var quickOpenFocused = false
+    @State private var quickOpenFocusRequest = 0
     #endif
     @Environment(SetupStore.self) private var setupStore: SetupStore?
     @Environment(Backend.self) private var backendForConnect: Backend?
@@ -165,10 +168,11 @@ struct RootView: View {
                 openPopup(.connectAI)
             }
             .onReceive(NotificationCenter.default.publisher(for: .paneQuickOpen)) { _ in
-                #if os(macOS)
-                if let closed = QuickOpen.closedByClick, Date.now.timeIntervalSince(closed) < 0.3 { return }
-                #endif
-                guard quickOpen == nil else { quickOpen = nil; return }
+                // Open: ⌘K closes it from its field, and from the app takes you back to it.
+                if quickOpen != nil {
+                    if quickOpenFocused { quickOpen = nil } else { quickOpenFocusRequest += 1 }
+                    return
+                }
                 // On screen at once with the recent notes it lists; the rest come a moment later,
                 // read off the main thread, for what you type (2,000 notes held the first frame 164 ms).
                 let first = QuickOpen.noteItems(in: context, limit: QuickOpen.firstRead)
@@ -178,8 +182,7 @@ struct RootView: View {
                     if quickOpen != nil { quickOpen = QuickOpen.merged(first: first, all: all) }
                 }
             }
-            // VoiceOver stays in Go to Note while it's open, as with a sheet (round 19).
-            .accessibilityHidden(quickOpen != nil)
+            // Go to Note floats over the app and leaves it usable, so VoiceOver reaches both.
             .overlay(alignment: .top) { quickOpenPanel }
             .modifier(ExportAllNotes())
             .onReceive(NotificationCenter.default.publisher(for: .paneTemplates)) { _ in openTemplates() }
@@ -482,10 +485,9 @@ struct RootView: View {
     @ViewBuilder private var quickOpenContent: some View {
         if let notes = quickOpen {
             let targets = QuickOpen.targets(in: context, scope: scope, selected: selectedNote)
+            // Nothing behind the panel catches clicks: the app stays usable while it's open, and its
+            // details follow the note you open (Emil, 9 November 2026).
             ZStack(alignment: .top) {
-                Color.clear
-                    .contentShape(.rect)
-                    .onTapGesture { quickOpen = nil }
                 QuickOpenPanel(notes: notes,
                                commands: QuickOpen.commands(targets, importKinds: ImportKind.listed),
                                choose: { row in
@@ -493,11 +495,12 @@ struct RootView: View {
                                    QuickOpen.choose(row, with: quickOpenActions)
                                },
                                close: { quickOpen = nil },
-                               searchText: { [container = context.container] q in await QuickOpen.textHits(for: q, in: container) })
+                               searchText: { [container = context.container] q in await QuickOpen.textHits(for: q, in: container) },
+                               focusRequest: quickOpenFocusRequest,
+                               focusChanged: { quickOpenFocused = $0 })
                     .padding(.top, 72)
             }
-            .onAppear { RowPressSlop.covered = true }
-            .onDisappear { RowPressSlop.covered = false }
+            .onDisappear { RowPressSlop.cover = nil; quickOpenFocused = false }
             // On the layer that comes and goes, not the panel inside it: SwiftUI runs only the
             // outermost inserted view's transition, so the panel's own showed as a plain fade.
             .transition(QuickOpen.transition(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion))
