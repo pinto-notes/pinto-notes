@@ -118,10 +118,6 @@ targets:
             UTTypeDescription: Pane item
             UTTypeConformsTo: [public.data]
             UTTypeTagSpecification: {}
-          - UTTypeIdentifier: dev.emilwagman.pane.folder
-            UTTypeDescription: Pane folder
-            UTTypeConformsTo: [public.data]
-            UTTypeTagSpecification: {}
         # Evernote exports (.enex), which Evernote doesn't declare. Opening one (Files, Finder,
         # the share sheet) starts the Evernote import.
         UTImportedTypeDeclarations:

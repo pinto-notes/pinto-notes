@@ -101,36 +101,6 @@ import Testing
         try await AppSnapshotTests.shoot(window(both, library: lib, over: gallery), name: "study-templates-\(mode)", size: Self.size, dark: dark, wait: 1.0)
     }
 
-    /// Folders in a new order (Emil, 9 November 2026): a folder held over a row's middle lights it
-    /// (it goes in, as before); held at the row's foot the line shows between the rows, where it
-    /// would land. Light and dark. Into a folder with
-    /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh 'PaneTests/SidebarStudySnapshots/folderReorder(dark:)'`.
-    @Test(arguments: [false, true])
-    func folderReorder(dark: Bool) async throws {
-        guard AppSnapshotTests.dir != nil else { return }
-        let mode = dark ? "dark" : "light"
-        let lib = try Self.library()
-        let roots = lib.mainContext.allFolders().filter { $0.parent == nil }.sorted { $0.sortIndex < $1.sortIndex }
-        try #require(roots.count >= 3)
-        defer { FolderDropState.shot = (nil, nil) }
-        let held: [(String, (lit: UUID?, line: FolderDropLine?))] = [
-            ("folder-drop-into", (roots[1].id, nil)),
-            ("folder-drop-line", (nil, FolderDropLine(id: roots[1].id, atFoot: true, indented: false))),
-            ("folder-drop-line-top", (nil, FolderDropLine(id: roots[2].id, atFoot: false, indented: false))),
-            // The foot of an open folder with folders inside: first inside it, a level in.
-            ("folder-drop-line-inside", (nil, roots.first { !$0.liveChildren.isEmpty }.map { FolderDropLine(id: $0.id, atFoot: true, indented: true) })),
-        ]
-        for (name, shot) in held {
-            FolderDropState.shot = shot
-            let sidebar = NavigationStack { SidebarView(scope: .constant(.folder(roots[0].id)), onNewNote: {}) }
-                .frame(width: 260, height: 460)
-                .environment(\.controlActiveState, .key)
-                .tint(Color(PColor.paneAccent))
-                .modelContainer(lib)
-            try await AppSnapshotTests.render(sidebar, name: "\(name)-\(mode)", dark: dark)
-        }
-    }
-
     /// The foot (Templates, Connect an AI, Import, the account) under the folder rows, at rest and
     /// with a folder, a row and the account under the pointer, light and dark: every pill the same
     /// shape, in the same place, the icons and names on one line. Into a folder with
