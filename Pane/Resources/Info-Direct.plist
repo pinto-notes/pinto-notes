@@ -142,6 +142,18 @@
 			<key>UTTypeTagSpecification</key>
 			<dict/>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Pane folder</string>
+			<key>UTTypeIdentifier</key>
+			<string>dev.emilwagman.pane.folder</string>
+			<key>UTTypeTagSpecification</key>
+			<dict/>
+		</dict>
 	</array>
 	<key>UTImportedTypeDeclarations</key>
 	<array>

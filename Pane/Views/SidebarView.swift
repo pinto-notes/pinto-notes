@@ -933,9 +933,12 @@ struct SidebarView: View {
     /// its own at the end. Notes, the first folder, has no Move To: it stays first, where new notes
     /// go. Nor Delete, as in Notes: with every folder gone the sidebar had only Recently Deleted
     /// (Emil, 3 November 2026). Pinto has no folder sharing, so no Share.
-    nonisolated static func folderMenu(isNotes: Bool, newWindow: Bool = FolderAction.opensWindows) -> [[FolderAction]] {
+    nonisolated static func folderMenu(isNotes: Bool, newWindow: Bool = FolderAction.opensWindows, reorders: Bool = FolderAction.opensWindows) -> [[FolderAction]] {
         (newWindow ? [[.openInNewWindow]] : [])
             + [[.newNote, .newFolder], isNotes ? [.rename, .duplicate] : [.rename, .duplicate, .move]]
+            // Mac: the same as dragging a folder to the line between two rows, without the drag
+            // (iPhone has Edit's handles). Notes stays first, so it has neither.
+            + (isNotes || !reorders ? [] : [[.moveUp, .moveDown]])
             + (isNotes ? [] : [[.delete]])
     }
 
@@ -970,10 +973,23 @@ struct SidebarView: View {
             duplicate: { f in withAnimation(.snappy) { _ = context.duplicate(f) } },
             moveSheet: startMove,
             move: { f, target in withAnimation(.snappy) { context.move(f, into: target.flatMap { context.folder($0) }) } },
+            nudge: { f, step in withAnimation(.snappy) { context.nudge(f, by: step) } },
             delete: { f in
                 // A picked folder's Delete Folder takes every picked folder, as in Finder.
                 if !picked.isEmpty, Self.selection(scope: scope, picked: picked).contains(.folder(f.id)) { deletePicked() } else { deleteFolder(f) }
             })
+    }
+
+    /// Where a folder dropped in `zone` of `target`'s row goes: the folder it goes in (nil: the top
+    /// level) and its place among the folders there, itself left out. Nil: in `target` (the row's
+    /// middle), or nowhere (onto itself). At the foot of an open folder with folders inside it goes
+    /// first inside, where the line is drawn; otherwise beside `target`, at `target`'s level.
+    static func placement(dropping f: Folder, zone: FolderDropZone, on target: Folder, open: Bool, context: ModelContext) -> (parent: Folder?, index: Int)? {
+        guard zone != .into, f.id != target.id else { return nil }
+        if zone == .after, open, !target.liveChildren.isEmpty { return (target, 0) }
+        let row = context.siblings(of: target).filter { $0.id != f.id }
+        guard let at = row.firstIndex(where: { $0.id == target.id }) else { return nil }
+        return (target.parent, zone == .before ? at : at + 1)
     }
 
     /// A folder and every folder inside it: the places Move can't put it.
@@ -1062,7 +1078,10 @@ struct SidebarView: View {
 
     /// A drag is over a folder's row, or has left it.
     private func folderTargeted(_ over: Bool, _ id: UUID) {
-        drops.id = Self.dropTarget(drops.id, over: over, id: id, dropped: id == Self.everyRow, buttonDown: Self.mouseIsDown)
+        let next = Self.dropTarget(drops.id, over: over, id: id, dropped: id == Self.everyRow, buttonDown: Self.mouseIsDown)
+        // A drag says where it is on every move of the pointer: only a change is set.
+        if next != drops.id { drops.id = next }
+        if id == Self.everyRow || !Self.mouseIsDown { drops.clearLine() }
     }
 
     /// Rename: on the Mac the name is typed in the folder's row, as in Notes; on iPhone in an alert.
@@ -1226,6 +1245,65 @@ struct SidebarView: View {
     }
 
     func lit(_ folder: UUID) -> Bool { id == folder || landed == folder }
+
+    /// Where a dragged folder would go between two rows: the line drawn at a row's top or foot.
+    var line: FolderDropLine?
+
+    #if DEBUG
+    /// Shots only (SidebarStudySnapshots): a drag held still over a row, lit or with its line.
+    nonisolated(unsafe) static var shot: (lit: UUID?, line: FolderDropLine?) = (nil, nil)
+    init() {
+        id = Self.shot.lit
+        line = Self.shot.line
+    }
+    #else
+    init() {}
+    #endif
+
+    /// A folder drag over `folder`'s row is now in `zone`: its middle lights the row (in), its top
+    /// or foot draws the line instead. `nests`: the foot of an open folder with folders inside, where
+    /// the line goes a level in (first inside it), as in Notes.
+    func folderDrag(over folder: UUID, zone: FolderDropZone, nests: Bool) {
+        let next: FolderDropLine? = switch zone {
+        case .into: line?.id == folder ? nil : line
+        case .before: FolderDropLine(id: folder, atFoot: false, indented: false)
+        case .after: FolderDropLine(id: folder, atFoot: true, indented: nests)
+        }
+        if zone != .into, id == folder { id = nil }
+        // Only a change is set: a drag says where it is on every move of the pointer.
+        if next != line { line = next }
+    }
+
+    /// The drag left `folder`'s row, or something landed: its line goes.
+    func clearLine(_ folder: UUID? = nil) {
+        if folder == nil || line?.id == folder { line = nil }
+    }
+}
+
+/// Where a drag over a folder's row would put a dragged folder: before it, in it, or after it.
+enum FolderDropZone: Equatable, Sendable {
+    case before, into, after
+
+    /// The share of a row's height, at its top and at its foot, that puts a folder between rows.
+    static let edge: CGFloat = 0.25
+
+    /// The zone for a drag `y` points down a row `height` tall. Only a folder goes between rows:
+    /// a note or a file always goes in. `before`: false on Notes' row, as nothing goes above it.
+    static func at(y: CGFloat, height: CGFloat, folder: Bool, before: Bool = true) -> FolderDropZone {
+        guard folder, height > 0 else { return .into }
+        if y < height * edge { return before ? .before : .into }
+        if y > height * (1 - edge) { return .after }
+        return .into
+    }
+}
+
+/// The line between two rows a dragged folder would land on.
+struct FolderDropLine: Equatable, Sendable {
+    let id: UUID
+    /// At the row's foot (after it), else at its top (before it).
+    let atFoot: Bool
+    /// A level in: first inside the open folder above it.
+    let indented: Bool
 }
 
 /// The folder under a drag fills in the accent and lifts a little. When something lands it bounces
@@ -1283,24 +1361,77 @@ private struct FolderDropFill: View {
     }
 }
 
+/// The line between two rows where a dragged folder would land, in the accent, from the row's
+/// icon to its trailing edge, with a small ring at its start, as Notes and Finder draw it. It
+/// sits on the gap between the rows (the row's reach), and fades in and out quickly, with no
+/// movement (motion restraint).
+struct FolderDropLineView: View {
+    let drops: FolderDropState
+    let id: UUID
+    let reach: EdgeInsets
+
+    var body: some View {
+        let line = drops.line?.id == id ? drops.line : nil
+        let atFoot = line?.atFoot ?? true
+        HStack(spacing: 0) {
+            Circle().strokeBorder(.tint, lineWidth: 1.5).frame(width: 6, height: 6)
+            Rectangle().fill(.tint).frame(height: 2)
+        }
+        .frame(height: 6)
+        .padding(.leading, line?.indented == true ? Hover.sidebarIndent - 3 : -3)
+        .padding(.trailing, -reach.trailing)
+        .frame(maxHeight: .infinity, alignment: atFoot ? .bottom : .top)
+        // Inside the row's own reach, touching the gap: the next row draws over anything past it
+        // (the first shots had the ring cut in half and the line half as thick).
+        .offset(y: atFoot ? reach.bottom - 3 : -(reach.top - 3))
+        .opacity(line == nil ? 0 : 1)
+        .animation(.easeOut(duration: 0.1), value: line)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 /// A folder's row as a place to drop. Its own delegate so that a note moves with a move's cursor
 /// (round 24: the green + said copy), and a row lights as the drag enters and goes out as it leaves.
 struct FolderDrop: DropDelegate {
     static let types: [UTType] = [.paneItem, .fileURL]
     let over: (Bool) -> Void
-    let land: ([NSItemProvider]) -> Void
+    /// How tall the row is, and whether a folder can go above it: its zones.
+    var height: CGFloat = 0
+    var before = true
+    /// A folder drag moved to another zone of the row (never called for notes or files).
+    var zone: (FolderDropZone) -> Void = { _ in }
+    /// The drag left the row: its line goes.
+    var left: () -> Void = {}
+    let land: (FolderDropZone, [NSItemProvider]) -> Void
 
     /// Items of ours move; a file from outside is copied in.
     static func operation(ours: Bool) -> DropOperation { ours ? .move : .copy }
 
+    private func zone(_ info: DropInfo) -> FolderDropZone {
+        FolderDropZone.at(y: info.location.y, height: height, folder: info.hasItemsConforming(to: [.paneFolder]), before: before)
+    }
+
     func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: Self.types) }
-    func dropEntered(info: DropInfo) { over(true) }
-    func dropExited(info: DropInfo) { over(false) }
+    func dropEntered(info: DropInfo) {
+        let z = zone(info)
+        if z == .into { over(true) }
+        if info.hasItemsConforming(to: [.paneFolder]) { zone(z) }
+    }
+    func dropExited(info: DropInfo) {
+        over(false)
+        left()
+    }
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: Self.operation(ours: info.hasItemsConforming(to: [.paneItem])))
+        if info.hasItemsConforming(to: [.paneFolder]) {
+            let z = zone(info)
+            over(z == .into)
+            zone(z)
+        }
+        return DropProposal(operation: Self.operation(ours: info.hasItemsConforming(to: [.paneItem])))
     }
     func performDrop(info: DropInfo) -> Bool {
-        land(info.itemProviders(for: Self.types))
+        land(zone(info), info.itemProviders(for: Self.types))
         return true
     }
 }
@@ -1575,6 +1706,8 @@ private struct FolderTree: View {
     /// Folders picked together with ⌘ or ⇧: they show picked too.
     var picked: Set<UUID> = []
     @State private var expanded = true
+    /// The row's height: its top and foot quarters put a dragged folder between rows.
+    @State private var rowHeight: CGFloat = 0
     /// Ask an AI about this folder: the AI picked in its menu, while the popover shows.
     @State private var asking: AskAI.Target?
 
@@ -1647,16 +1780,38 @@ private struct FolderTree: View {
             .sidebarRowLabel()
             .rowAccessibility(folder.name, count: listed ?? 0, files: files[folder.id] ?? 0)
             .background { FolderDropFill(drops: drops, id: folder.id, reach: Hover.sidebarReach(depth: depth)) }
+            .overlay { FolderDropLineView(drops: drops, id: folder.id, reach: Hover.sidebarReach(depth: depth)) }
         }
         .quietSelection()
         .tag(Scope.folder(folder.id))
         .accessibilityIdentifier("folder.\(folder.name)")
+        #if os(macOS)
+        // The folder's Move Up and Move Down, without a drag.
+        .accessibilityAction(named: FolderAction.moveUp.title) { if context.canNudge(folder, by: -1) { withAnimation(.snappy) { context.nudge(folder, by: -1) } } }
+        .accessibilityAction(named: FolderAction.moveDown.title) { if context.canNudge(folder, by: 1) { withAnimation(.snappy) { context.nudge(folder, by: 1) } } }
+        #endif
         .draggable(PaneDragItem(kind: .folder, id: folder.id)) {
             Label(folder.name, systemImage: "folder").padding(8).glassEffect(.regular, in: .capsule)
         }
         // Notes, folders and files from inside the app, and files and folders from Finder, Mail or
         // Safari: they land in this folder.
-        .onDrop(of: FolderDrop.types, delegate: FolderDrop(over: { targeted($0, folder.id) }) { providers in
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { rowHeight = $0 }
+        .onDrop(of: FolderDrop.types, delegate: FolderDrop(over: { targeted($0, folder.id) }, height: rowHeight, before: folder.id != notesID,
+                                                            zone: { drops.folderDrag(over: folder.id, zone: $0, nests: opensInside) },
+                                                            left: { drops.clearLine(folder.id) }) { zone, providers in
+            drops.clearLine()
+            // On the line between two rows: the dragged folder goes there, at that level.
+            if zone != .into {
+                DropLoader.load(providers) { items, _ in
+                    for item in items where item.kind == .folder {
+                        guard let f = context.folder(item.id),
+                              let spot = SidebarView.placement(dropping: f, zone: zone, on: folder, open: opensInside, context: context) else { continue }
+                        withAnimation(.snappy) { context.place(f, in: spot.parent, at: spot.index) }
+                    }
+                }
+                targeted(false, SidebarView.everyRow)
+                return
+            }
             drops.lifted(folder.id)
             DropLoader.load(providers) { items, urls in
                 var moved = false
@@ -1702,6 +1857,9 @@ private struct FolderTree: View {
         .askAIPopover($asking, subject: .folder(folder.name), recent: AskAI.recent(folder), arrowEdge: .trailing)
     }
 
+    /// Open with folders inside: a folder dropped at its foot goes first inside it, as in Notes.
+    private var opensInside: Bool { expanded && !folder.liveChildren.isEmpty }
+
     /// The name, and its count (••• under the pointer).
     private func rowText(selected: Bool, hovering: Bool, listed: Int?) -> some View {
         SidebarRowText(title: folder.name, selected: selected) {
@@ -1729,7 +1887,7 @@ private struct AskLoad: Equatable {
 
 /// An action on a folder in its menus (`SidebarView.folderMenu`).
 enum FolderAction: String, CaseIterable, Identifiable {
-    case openInNewWindow, newNote, newFolder, rename, duplicate, move, delete
+    case openInNewWindow, newNote, newFolder, rename, duplicate, move, moveUp, moveDown, delete
 
     var id: String { rawValue }
 
@@ -1750,6 +1908,8 @@ enum FolderAction: String, CaseIterable, Identifiable {
         case .rename: "Rename"
         case .duplicate: "Duplicate"
         case .move: "Move To"
+        case .moveUp: "Move Up"
+        case .moveDown: "Move Down"
         #if os(macOS)
         case .delete: "Delete Folder…"
         #else
@@ -1766,6 +1926,8 @@ enum FolderAction: String, CaseIterable, Identifiable {
         case .rename: "pencil"
         case .duplicate: "plus.square.on.square"
         case .move: "folder"
+        case .moveUp: "arrow.up"
+        case .moveDown: "arrow.down"
         case .delete: "trash"
         }
     }
@@ -1793,6 +1955,8 @@ struct FolderMenuActions {
     var moveSheet: (Folder) -> Void = { _ in }
     /// Mac: Move To's submenu moves it straight away (nil: the top level).
     var move: (Folder, UUID?) -> Void = { _, _ in }
+    /// Mac: Move Up (-1) and Move Down (+1), one place among the folders beside it.
+    var nudge: (Folder, Int) -> Void = { _, _ in }
     var delete: (Folder) -> Void = { _ in }
 }
 
@@ -1867,9 +2031,13 @@ private struct FolderActionsMenu: View {
             case .rename: actions.rename(folder)
             case .duplicate: actions.duplicate(folder)
             case .move: actions.moveSheet(folder)
+            case .moveUp: actions.nudge(folder, -1)
+            case .moveDown: actions.nudge(folder, 1)
             case .delete: actions.delete(folder)
             }
         }
+        // At either end of its folders there is nowhere to go.
+        .disabled(action == .moveUp && !context.canNudge(folder, by: -1) || action == .moveDown && !context.canNudge(folder, by: 1))
         .accessibilityIdentifier("folderMenu.\(action.rawValue)")
     }
 }
