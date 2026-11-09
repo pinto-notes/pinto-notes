@@ -24,7 +24,7 @@ final class TownFilm {
     private let worked: [Double]
     private let aiFrom: [Double]
     private let ground = 300.0
-    private let amberGlow = Kit.glow(C(0xFFC85A)), blueGlow = Kit.glow(C(0x8FC8FF)), warmHaze = Kit.glow(C(0xFFB36B))
+    private let amberGlow = Kit.glow(LC(0xFFC85A)), blueGlow = Kit.glow(LC(0x8FC8FF)), warmHaze = Kit.glow(LC(0xFFB36B))
     private var ending: CGImage?
 
     init(script: FilmScript, height: Double = 1350) {
@@ -62,10 +62,10 @@ final class TownFilm {
                 if F >= 3, m == 1 { xs = ri == 1 ? 0.62 : 0.4 }
                 let n = Double(count[f])
                 let s = [0.98, 1.14, 1.3][depth]
-                let w = min(W * 0.9 / max(1, m) * 1.25, (300 + 46 * n.squareRoot()) * (0.94 + 0.12 * hash(f, 5)))
-                let h = (126 + 17 * n.squareRoot()) * (0.92 + 0.16 * hash(f, 7))
+                let w = min(W * 0.9 / max(1, m) * 1.25, (300 + 46 * n.squareRoot()) * (0.94 + 0.12 * lhash(f, 5)))
+                let h = (126 + 17 * n.squareRoot()) * (0.92 + 0.16 * lhash(f, 7))
                 let base = ground + [352.0, 196, 34][depth]
-                let cx = 60 + xs * (W - 120) + (hash(f, 3) - 0.5) * 36
+                let cx = 60 + xs * (W - 120) + (lhash(f, 3) - 0.5) * 36
                 hills.append(Hill(folder: f, cx: cx, base: base, w: w, h: h, s: s, depth: depth, birth: max(0, first[f] - 0.3), skew: 0))
             }
         }
@@ -90,21 +90,21 @@ final class TownFilm {
                 let n = perRow + r
                 for k in 0..<n {
                     let u = (Double(k) + 0.5 - Double(n) / 2) / Double(perRow + 3) * 2 * 0.94
-                    let x = hill.cx + u * hill.w / 2 + (hash(hi * 100 + r, k) - 0.5) * 9 * s
-                    spots.append((x, (2 + Double(r) * 36) * s + hash(hi * 37 + k, r) * 6 * s, Double(r) * 0.8 + abs(u) * 1.3 + hash(hi * 11 + k, r * 3 + 1) * 0.55))
+                    let x = hill.cx + u * hill.w / 2 + (lhash(hi * 100 + r, k) - 0.5) * 9 * s
+                    spots.append((x, (2 + Double(r) * 36) * s + lhash(hi * 37 + k, r) * 6 * s, Double(r) * 0.8 + abs(u) * 1.3 + lhash(hi * 11 + k, r * 3 + 1) * 0.55))
                 }
             }
             spots.sort { $0.key < $1.key }
             for (k, i) in notes.enumerated() {
                 let spot = spots[k % spots.count]
-                houses[i] = House(hill: hi, x: spot.x, y: spot.drop, s: s, w: (40 + 9 * hash(i, 1)) * s, wall: Int(hash(i, 2) * 4), roof: Int(hash(i, 3) * 3), chimneyLeft: hash(i, 4) < 0.5)
+                houses[i] = House(hill: hi, x: spot.x, y: spot.drop, s: s, w: (40 + 9 * lhash(i, 1)) * s, wall: Int(lhash(i, 2) * 4), roof: Int(lhash(i, 3) * 3), chimneyLeft: lhash(i, 4) < 0.5)
             }
             // Round trees on the shoulders of the hill and low on its face.
-            let treeCount = 4 + Int(hash(hi, 21) * 3)
+            let treeCount = 4 + Int(lhash(hi, 21) * 3)
             for k in 0..<treeCount {
                 let side = k % 2 == 0 ? -1.0 : 1.0
-                let u = side * (0.5 + 0.42 * hash(hi * 5 + k, 22))
-                trees.append((hi, hill.cx + u * hill.w / 2, (hash(hi + k, 23) * 26) * hill.s, (20 + 15 * hash(hi * 3 + k, 24)) * hill.s, hash(hi * 7 + k, 25)))
+                let u = side * (0.5 + 0.42 * lhash(hi * 5 + k, 22))
+                trees.append((hi, hill.cx + u * hill.w / 2, (lhash(hi + k, 23) * 26) * hill.s, (20 + 15 * lhash(hi * 3 + k, 24)) * hill.s, lhash(hi * 7 + k, 25)))
             }
             hills[hi].tagY = hill.base + hill.h + 78 * s
         }
@@ -117,7 +117,7 @@ final class TownFilm {
     }
 
     /// How far a hill has risen at film time `gt`, 0...1.
-    private func risen(_ h: Hill, _ gt: Double) -> Double { gt < h.birth ? 0 : backOut((gt - h.birth) / 0.8) }
+    private func risen(_ h: Hill, _ gt: Double) -> Double { gt < h.birth ? 0 : lbackOut((gt - h.birth) / 0.8) }
 
     /// The top edge of a row's sheet at `x`: its level ground with each folder's hill on it.
     private func ridge(depth: Int, _ x: Double, _ gt: Double) -> Double {
@@ -145,7 +145,7 @@ final class TownFilm {
                 ending = c.makeImage()
             }
             scene(0, words: false, in: ctx)
-            let a = 1 - smooth((t + 0.42) / 0.42)
+            let a = 1 - lsmooth((t + 0.42) / 0.42)
             if let ending, a > 0 {
                 ctx.saveGState()
                 ctx.scaleBy(x: 1 / k, y: 1 / k)
@@ -166,9 +166,9 @@ final class TownFilm {
     private func scene(_ t: Double, words: Bool, in ctx: CGContext) {
         let gt = min(t, growth)
         let p = gt / growth
-        let dusk = smooth((p - 0.3) / 0.7)
-        let night = smooth((t - growth) / 1.3)
-        func col(_ day: UInt32, _ dk: UInt32, _ nt: UInt32) -> C { C(day).mix(C(dk), dusk).mix(C(nt), night) }
+        let dusk = lsmooth((p - 0.3) / 0.7)
+        let night = lsmooth((t - growth) / 1.3)
+        func col(_ day: UInt32, _ dk: UInt32, _ nt: UInt32) -> LC { LC(day).mix(LC(dk), dusk).mix(LC(nt), night) }
         // The whole stage drifts a little, near sheets more than far ones: paper at different depths.
         let total = growth + FilmScript.outro
         let drift = -16 * cos(min(1, max(0, t / total)) * .pi)
@@ -201,15 +201,15 @@ final class TownFilm {
         ctx.setBlendMode(.normal)
         // Stars.
         if night > 0 {
-            var r = Rand(5)
+            var r = LRand(5)
             for _ in 0..<60 {
                 let x = r.next() * W, y = ground + 620 + r.next() * (H - ground - 620), s = 1 + r.next() * 1.6, a = r.next()
-                ctx.setFillColor(C(0xFFF1D6).cg(night * (0.25 + 0.6 * a) * (0.75 + 0.25 * sin(t * 2.6 + a * 40))))
+                ctx.setFillColor(LC(0xFFF1D6).cg(night * (0.25 + 0.6 * a) * (0.75 + 0.25 * sin(t * 2.6 + a * 40))))
                 ctx.fillEllipse(in: CGRect(x: x - s, y: y - s, width: s * 2, height: s * 2))
             }
         }
         // Far hills, three sheets of paper.
-        let far: [(Double, Double, C)] = [(ground + 560, 44, col(0xE4D3E2, 0xCFAFC9, 0x402845)), (ground + 505, 52, col(0xD0BDD8, 0xB494BC, 0x33213D)), (ground + 452, 44, col(0xB9B2CC, 0x9482AE, 0x281C35))]
+        let far: [(Double, Double, LC)] = [(ground + 560, 44, col(0xE4D3E2, 0xCFAFC9, 0x402845)), (ground + 505, 52, col(0xD0BDD8, 0xB494BC, 0x33213D)), (ground + 452, 44, col(0xB9B2CC, 0x9482AE, 0x281C35))]
         for (i, (y, amp, c)) in far.enumerated() { layer(0.12 + 0.08 * Double(i)) {
             let path = CGMutablePath()
             path.move(to: CGPoint(x: -60, y: 0))
@@ -253,7 +253,7 @@ final class TownFilm {
                 guard gt >= hill.birth else { continue }
                 let up = risen(hill, gt)
                 for tr in trees where tr.hill == hi {
-                    tree(at: CGPoint(x: tr.x, y: ridge(depth: depth, tr.x, gt) - tr.y - 4), r: tr.r * min(1, up), color: col(0x4E7556, 0x355644, 0x10241E).mix(C(0x2A4A3A), tr.tone * 0.4), in: ctx)
+                    tree(at: CGPoint(x: tr.x, y: ridge(depth: depth, tr.x, gt) - tr.y - 4), r: tr.r * min(1, up), color: col(0x4E7556, 0x355644, 0x10241E).mix(LC(0x2A4A3A), tr.tone * 0.4), in: ctx)
                 }
             }
             for hi in rowHills {
@@ -267,20 +267,20 @@ final class TownFilm {
                 for hi in rowHills {
                     let hill = hills[hi]
                     let name = script.folders[hill.folder]
-                    let a = smooth((gt - hill.birth - 0.45) / 0.4)
+                    let a = lsmooth((gt - hill.birth - 0.45) / 0.4)
                     if !name.isEmpty, a > 0 { tag(name, at: CGPoint(x: hill.cx, y: hill.tagY), alpha: a, night: night, in: ctx) }
                 }
             }
             // Street lamps along the front, lit as the light goes.
             if depth == 2 {
                 for k in 0..<4 {
-                    let x = 70 + (Double(k) + 0.2 + 0.6 * hash(k, 51)) / 4 * (W - 140)
+                    let x = 70 + (Double(k) + 0.2 + 0.6 * lhash(k, 51)) / 4 * (W - 140)
                     let y = ridge(depth: 2, x, gt) - 6
-                    let on = smooth((dusk - 0.35 - 0.1 * hash(k, 52)) / 0.15)
+                    let on = lsmooth((dusk - 0.35 - 0.1 * lhash(k, 52)) / 0.15)
                     ctx.setFillColor(col(0x4A3A40, 0x33272E, 0x150F14).cg())
                     ctx.fill(CGRect(x: x - 2, y: y, width: 4, height: 46))
                     ctx.fill(CGRect(x: x - 7, y: y + 44, width: 14, height: 4))
-                    ctx.setFillColor(col(0xE9DCC6, 0xD9C6A8, 0x6A5560).mix(C(0xFFDF9A), on).cg())
+                    ctx.setFillColor(col(0xE9DCC6, 0xD9C6A8, 0x6A5560).mix(LC(0xFFDF9A), on).cg())
                     ctx.fill(CGRect(x: x - 5, y: y + 48, width: 10, height: 13))
                     if on > 0.02 {
                         ctx.setBlendMode(.plusLighter)
@@ -302,8 +302,8 @@ final class TownFilm {
         var x = -70.0
         var k = 0
         while x <= W + 120 {
-            let r = 38 + 26 * hash(k, 31)
-            front.addArc(center: CGPoint(x: x, y: ground - 24 + 18 * hash(k, 32)), radius: r, startAngle: .pi, endAngle: 0, clockwise: true)
+            let r = 38 + 26 * lhash(k, 31)
+            front.addArc(center: CGPoint(x: x, y: ground - 24 + 18 * lhash(k, 32)), radius: r, startAngle: .pi, endAngle: 0, clockwise: true)
             x += r * 1.25
             k += 1
         }
@@ -318,7 +318,7 @@ final class TownFilm {
     }
 
     /// A sheet of paper: a filled shape with the soft shadow it casts on the sheet behind.
-    private func sheet(_ path: CGPath, _ c: C, in ctx: CGContext) {
+    private func sheet(_ path: CGPath, _ c: LC, in ctx: CGContext) {
         // Its shadow on the sheet behind: a few soft lines along its edge (the sheet itself
         // covers their lower half). Many times quicker than a blurred shadow or stepped copies.
         ctx.saveGState()
@@ -336,8 +336,8 @@ final class TownFilm {
         ctx.fillPath()
     }
 
-    private func tree(at p: CGPoint, r: Double, color: C, in ctx: CGContext) {
-        ctx.setFillColor(C(0x5A4038).cg())
+    private func tree(at p: CGPoint, r: Double, color: LC, in ctx: CGContext) {
+        ctx.setFillColor(LC(0x5A4038).cg())
         ctx.fill(CGRect(x: p.x - r * 0.09, y: p.y - 2, width: r * 0.18, height: r * 0.9))
         let blobs = [(0.0, 1.25, 1.0), (-0.55, 0.9, 0.72), (0.55, 0.95, 0.7), (0.0, 0.75, 0.8)]
         // Its shade, then the crown.
@@ -354,7 +354,7 @@ final class TownFilm {
         ctx.fillEllipse(in: CGRect(x: p.x - r * 0.55, y: p.y + r * 1.15, width: r * 1.1, height: r * 0.9))
     }
 
-    private func house(_ i: Int, groundY: Double, t: Double, gt: Double, dusk: Double, night: Double, col: (UInt32, UInt32, UInt32) -> C, in ctx: CGContext) {
+    private func house(_ i: Int, groundY: Double, t: Double, gt: Double, dusk: Double, night: Double, col: (UInt32, UInt32, UInt32) -> LC, in ctx: CGContext) {
         let n = script.nodes[i], hs = houses[i]
         guard gt >= n.birth else { return }
         var count = 0, flash = 0.0, last = n.birth
@@ -369,7 +369,7 @@ final class TownFilm {
         }
         if t > growth { flash = 0 }
         let born = gt - n.birth
-        let pop = backOut(born / 0.5) * (1 + 0.07 * flash * flash)
+        let pop = lbackOut(born / 0.5) * (1 + 0.07 * flash * flash)
         let s = hs.s
         // It grows floors as it's written in.
         let floorsF = 1 + min(2.1, 0.6 * Double(max(0, count - 1)).squareRoot())
@@ -401,12 +401,12 @@ final class TownFilm {
         ctx.setFillColor(roof.cg())
         ctx.fillPath()
         // Windows: lit for a while after it's written in, and at night where the work was.
-        let ai = smooth((gt - aiFrom[i]) / 0.35)
+        let ai = lsmooth((gt - aiFrom[i]) / 0.35)
         let xfrac = hs.x / W
-        let evening = smooth((night * 1.5 - xfrac * 0.5))
+        let evening = lsmooth((night * 1.5 - xfrac * 0.5))
         let lit = min(1, max(flash, dusk * 0.55 * exp(-(gt - last) / 2.2), evening * (0.3 + 0.7 * worked[i])))
         let dark = col(0x6B5B68, 0x4B3B49, 0x1B131C)
-        let lightC = C(0xFFCB6B).mix(C(0x9CD2FF), ai)
+        let lightC = LC(0xFFCB6B).mix(LC(0x9CD2FF), ai)
         let glass = dark.mix(lightC, min(1, lit * 1.15))
         let rows = max(1, Int(floorsF + 0.25))
         let ww = 8 * s, wh = 10.5 * s
@@ -453,17 +453,17 @@ final class TownFilm {
         ctx.setAlpha(alpha)
         ctx.setShadow(offset: CGSize(width: 0, height: 3), blur: 8, color: CGColor(gray: 0, alpha: 0.3))
         ctx.addPath(CGPath(roundedRect: rect, cornerWidth: 9, cornerHeight: 9, transform: nil))
-        ctx.setFillColor(C(0xFFF6E8).mix(C(0xD8C7BE), night * 0.55).cg())
+        ctx.setFillColor(LC(0xFFF6E8).mix(LC(0xD8C7BE), night * 0.55).cg())
         ctx.fillPath()
         ctx.restoreGState()
-        Kit.text(name, 26, 0.3, C(0x3A2B2E).cg(alpha), at: CGPoint(x: p.x, y: rect.minY + 12), align: 0.5, in: ctx)
+        Kit.text(name, 26, 0.3, LC(0x3A2B2E).cg(alpha), at: CGPoint(x: p.x, y: rect.minY + 12), align: 0.5, in: ctx)
     }
 
     private func birds(_ t: Double, night: Double, in ctx: CGContext) {
         let t0 = growth - 3.4
-        let a = smooth((t - t0) / 0.5) * (1 - night)
+        let a = lsmooth((t - t0) / 0.5) * (1 - night)
         guard a > 0 else { return }
-        ctx.setStrokeColor(C(0x4A3540).cg(0.8 * a))
+        ctx.setStrokeColor(LC(0x4A3540).cg(0.8 * a))
         ctx.setLineWidth(2.6)
         ctx.setLineCap(.round)
         for (k, (dx, dy)) in [(0.0, 0.0), (44.0, 22.0), (62.0, -26.0), (104.0, 38.0), (128.0, -8.0)].enumerated() {
@@ -481,7 +481,7 @@ final class TownFilm {
 
     /// The mark and the key along the top, in ink by day and cream by night.
     private func chrome(dark: Double, in ctx: CGContext) {
-        let ink = C(0x3A2B2E).mix(C(0xFFF4E6), dark)
+        let ink = LC(0x3A2B2E).mix(LC(0xFFF4E6), dark)
         var x = 64.0
         let y = H - 96
         if let mark {
@@ -496,7 +496,7 @@ final class TownFilm {
         Kit.text("Pinto Notes", 30, 0.3, ink.cg(0.9), at: CGPoint(x: x, y: y), in: ctx)
         guard let ai = script.stats.ai else { return }
         var right = W - 64
-        for (name, c) in [("With \(ai)", C(0x8FC8FF).mix(C(0x4A8FD8), 1 - dark)), ("Just me", C(0xFFC85A).mix(C(0xE08A1E), 1 - dark))] {
+        for (name, c) in [("With \(ai)", LC(0x8FC8FF).mix(LC(0x4A8FD8), 1 - dark)), ("Just me", LC(0xFFC85A).mix(LC(0xE08A1E), 1 - dark))] {
             let w = Kit.width(name, 30, 0.23)
             Kit.text(name, 30, 0.23, ink.cg(0.85), at: CGPoint(x: right - w, y: y), in: ctx)
             // A little window, lit.
@@ -508,17 +508,17 @@ final class TownFilm {
 
     private func title(_ a: Double, in ctx: CGContext) {
         let s = script.stats
-        Kit.text("My first month", 60, 0.3, C(0xFFF4E6).cg(a), at: CGPoint(x: 72, y: 196), in: ctx)
-        Kit.text("\(s.notes) notes in Pinto Notes", 36, 0, C(0xFFF4E6).cg(0.74 * a), at: CGPoint(x: 72, y: 138), in: ctx)
+        Kit.text("My first month", 60, 0.3, LC(0xFFF4E6).cg(a), at: CGPoint(x: 72, y: 196), in: ctx)
+        Kit.text("\(s.notes) notes in Pinto Notes", 36, 0, LC(0xFFF4E6).cg(0.74 * a), at: CGPoint(x: 72, y: 138), in: ctx)
     }
 
     private func words(_ t: Double, in ctx: CGContext) {
         let s = script.stats
-        let cream = C(0xFFF4E6)
+        let cream = LC(0xFFF4E6)
         let side = 72.0
-        let opening = 1 - smooth((t - 0.25) / 0.5)
+        let opening = 1 - lsmooth((t - 0.25) / 0.5)
         if opening > 0 { title(opening, in: ctx) }
-        let running = smooth((t - 0.6) / 0.45) * (1 - smooth((t - growth) / 0.4))
+        let running = lsmooth((t - 0.6) / 0.45) * (1 - lsmooth((t - growth) / 0.4))
         if running > 0 {
             let f = DateFormatter()
             f.locale = Locale(identifier: "en_US")
@@ -529,29 +529,29 @@ final class TownFilm {
             var busiest = 0.0
             if let day = s.busiestDay, let span = script.span(ofDay: day), span.start >= 0.55 {
                 let length = min(2.4, max(0.9, span.length - 0.15))
-                busiest = smooth((t - span.start) / 0.3) * (1 - smooth((t - span.start - length) / 0.3))
-                if busiest > 0 { Kit.text("My busiest day \u{00B7} \(s.busiestDayEdits) edits", 40, 0.23, C(0xFFC85A).cg(busiest * running), at: CGPoint(x: side, y: 88), in: ctx) }
+                busiest = lsmooth((t - span.start) / 0.3) * (1 - lsmooth((t - span.start - length) / 0.3))
+                if busiest > 0 { Kit.text("My busiest day \u{00B7} \(s.busiestDayEdits) edits", 40, 0.23, LC(0xFFC85A).cg(busiest * running), at: CGPoint(x: side, y: 88), in: ctx) }
             }
             let lines = ["Each house is a note", "A window lights when it\u{2019}s written in", "Houses grow as they\u{2019}re edited"]
             var from = 0.75
             let slot = min(2.5, max(1.6, (growth - from - 0.3) / Double(lines.count)))
             for line in lines where from + slot <= growth + 0.01 {
-                let a = smooth((t - from) / 0.3) * (1 - smooth((t - from - slot + 0.4) / 0.3)) * (1 - busiest) * running
+                let a = lsmooth((t - from) / 0.3) * (1 - lsmooth((t - from - slot + 0.4) / 0.3)) * (1 - busiest) * running
                 if a > 0 { Kit.text(line, 40, 0, cream.cg(0.7 * a), at: CGPoint(x: side, y: 88), in: ctx) }
                 from += slot
             }
         }
-        let outro = smooth((t - growth - 0.9) / 0.7)
+        let outro = lsmooth((t - growth - 0.9) / 0.7)
         guard outro > 0 else { return }
         let rise = (1 - outro) * 14
         Kit.text("My first month", 60, 0.3, cream.cg(outro), at: CGPoint(x: side, y: 228 - rise), in: ctx)
         let line = folderNames && s.topFolder != nil ? "Most written in \(s.topFolder!) \u{00B7} \(s.topFolderNotes) notes" : "Busiest day \u{00B7} \(s.busiestDayEdits) edits"
-        Kit.text(line, 36, 0, cream.cg(0.82 * smooth((t - growth - 1.2) / 0.6)), at: CGPoint(x: side, y: 172 - rise), in: ctx)
-        var stats: [(String, String, C)] = [("\(s.notes)", "notes", cream), ("\(s.writingDays)", "days written on", cream)]
-        if let ai = s.ai, s.aiNotes > 0 { stats.append(("\(s.aiNotes)", "notes with \(ai)", C(0x8FC8FF))) } else { stats.append(("\(s.edits)", "edits", cream)) }
+        Kit.text(line, 36, 0, cream.cg(0.82 * lsmooth((t - growth - 1.2) / 0.6)), at: CGPoint(x: side, y: 172 - rise), in: ctx)
+        var stats: [(String, String, LC)] = [("\(s.notes)", "notes", cream), ("\(s.writingDays)", "days written on", cream)]
+        if let ai = s.ai, s.aiNotes > 0 { stats.append(("\(s.aiNotes)", "notes with \(ai)", LC(0x8FC8FF))) } else { stats.append(("\(s.edits)", "edits", cream)) }
         let column = (W - side * 2) / 3
         for (k, (number, label, c)) in stats.enumerated() {
-            let a = smooth((t - growth - 1.4 - 0.12 * Double(k)) / 0.5)
+            let a = lsmooth((t - growth - 1.4 - 0.12 * Double(k)) / 0.5)
             let x = side + column * Double(k), y = 44 - (1 - a) * 10
             Kit.text(number, 66, 0.3, c.cg(a), at: CGPoint(x: x, y: y + 46), in: ctx)
             Kit.text(label, 30, 0, cream.cg(0.76 * a), at: CGPoint(x: x, y: y), in: ctx)

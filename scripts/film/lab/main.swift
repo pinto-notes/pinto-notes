@@ -22,14 +22,14 @@ case "garden":
     film.mark = mark
     film.folderNames = !args.contains("nofolders")
     try Kit.write(to: out, width: 1080, height: 1350, frames: film.frameCount) { ctx, i in film.draw(frame: i, in: ctx) }
-case "skytown":
+case "dusk", "night", "paper", "apptown":
+    // The app's own looks, for side-by-side sheets with the experiments.
     var labels = FilmRenderer.Labels()
     labels.locale = Locale(identifier: "en_US")
     labels.markImage = mark
+    labels.look = style == "apptown" ? .town : FilmLook(rawValue: style) ?? .night
     labels.folderNames = !args.contains("nofolders")
-    let r = FilmRenderer(script: script, labels: labels)
-    SkyTown.attach(to: r, script: script)
-    try FilmVideo.write(r, to: out)
+    try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
 case "bench":
     let town = TownFilm(script: script)
     let frames = Array(stride(from: 40, to: 400, by: 12))

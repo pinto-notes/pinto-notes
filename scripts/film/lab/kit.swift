@@ -5,20 +5,20 @@ import Foundation
 
 // Lab: shared bits for film-look experiments. Not app code.
 
-struct C {
+struct LC {
     var r, g, b: Double
     init(_ r: Double, _ g: Double, _ b: Double) { self.r = r; self.g = g; self.b = b }
     init(_ hex: UInt32) { r = Double((hex >> 16) & 255) / 255; g = Double((hex >> 8) & 255) / 255; b = Double(hex & 255) / 255 }
-    func mix(_ o: C, _ t: Double) -> C { let t = min(1, max(0, t)); return C(r + (o.r - r) * t, g + (o.g - g) * t, b + (o.b - b) * t) }
+    func mix(_ o: LC, _ t: Double) -> LC { let t = min(1, max(0, t)); return LC(r + (o.r - r) * t, g + (o.g - g) * t, b + (o.b - b) * t) }
     func cg(_ a: Double = 1) -> CGColor { CGColor(srgbRed: r, green: g, blue: b, alpha: a) }
 }
 
-func smooth(_ x: Double) -> Double { let c = min(1, max(0, x)); return c * c * (3 - 2 * c) }
+func lsmooth(_ x: Double) -> Double { let c = min(1, max(0, x)); return c * c * (3 - 2 * c) }
 func lerp(_ a: Double, _ b: Double, _ t: Double) -> Double { a + (b - a) * t }
 /// A little overshoot on arrival.
-func backOut(_ x: Double) -> Double { let c = min(1, max(0, x)) - 1; return 1 + c * c * (2.7 * c + 1.7) }
+func lbackOut(_ x: Double) -> Double { let c = min(1, max(0, x)) - 1; return 1 + c * c * (2.7 * c + 1.7) }
 
-struct Rand {
+struct LRand {
     var s: UInt64
     init(_ seed: UInt64) { s = seed &* 0x9E37_79B9_7F4A_7C15 | 1 }
     mutating func next() -> Double {
@@ -27,8 +27,8 @@ struct Rand {
     }
 }
 
-func hash(_ a: Int, _ b: Int = 0) -> Double {
-    var r = Rand(UInt64(truncatingIfNeeded: a &* 7919 &+ b &* 104_729 &+ 13))
+func lhash(_ a: Int, _ b: Int = 0) -> Double {
+    var r = LRand(UInt64(truncatingIfNeeded: a &* 7919 &+ b &* 104_729 &+ 13))
     _ = r.next(); _ = r.next()
     return r.next()
 }
@@ -43,7 +43,7 @@ enum Kit {
     static let grain: CGImage = {
         let n = 256
         let ctx = context(n, n)!
-        var r = Rand(77)
+        var r = LRand(77)
         let p = ctx.data!.assumingMemoryBound(to: UInt8.self)
         for i in 0..<(n * n) {
             let v = UInt8(118 + r.next() * 20)
@@ -56,7 +56,7 @@ enum Kit {
     static let speckle: CGImage = {
         let n = 256
         let ctx = context(n, n)!
-        var r = Rand(77)
+        var r = LRand(77)
         let p = ctx.data!.assumingMemoryBound(to: UInt8.self)
         for i in 0..<(n * n) {
             let v = r.next()
@@ -68,7 +68,7 @@ enum Kit {
         return ctx.makeImage()!
     }()
 
-    static func glow(_ c: C) -> CGImage {
+    static func glow(_ c: LC) -> CGImage {
         let n = 96
         let ctx = context(n, n)!
         let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [c.cg(1), c.cg(0.5), c.cg(0.16), c.cg(0.04), c.cg(0)] as CFArray, locations: [0, 0.2, 0.45, 0.72, 1])!

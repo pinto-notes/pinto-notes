@@ -5,5 +5,6 @@ set -euo pipefail
 cd "$(dirname "$0")/../../.."
 bin=${TMPDIR:-/tmp}/pinto-film-lab
 N=Pane/Model/NotebookFilm
-xcrun swiftc -O -o $bin $N/NotebookFilm.swift $N/FilmDemo.swift $N/FilmRenderer.swift $N/FilmVideo.swift scripts/film/lab/*.swift 2>&1 | grep -E "error" -A6 || true
+rm -f $bin
+xcrun swiftc -O -o $bin $N/NotebookFilm.swift $N/FilmDemo.swift $N/FilmRenderer.swift $N/FilmScenes.swift $N/FilmVideo.swift scripts/film/lab/*.swift 2>&1 | grep -E "error" -A6 || true
 $bin "$@"
