@@ -202,5 +202,20 @@ print("\n".join(sorted(suites)))' > "$DD/ran.txt"
   fi
 fi
 
+# The templates live in web/content/templates and ship in the app too (catalog.json): their site tests
+# take a second, so they run whenever a template or its code changed (a demo that no longer builds
+# its example went unnoticed for two rounds on 2026-11-09).
+if (( ${#${(M)changed:#web/content/templates/*}} + ${#${(M)changed:#web/lib/template*}} + ${#${(M)changed:#Pane/Resources/Templates/*}} )); then
+  if [[ -d web/node_modules ]]; then
+    if ! (cd web && npx vitest run lib/templates.test.ts lib/template-catalog.test.ts lib/templates-site.test.ts lib/template-apps.test.ts lib/template-seo.test.ts > "$DD/web-templates.log" 2>&1); then
+      tail -40 "$DD/web-templates.log"; print -- "✗ The site's template tests failed. Not ready to push."; exit 1
+    fi
+    python3 scripts/template-catalog.py --check || { print -- "✗ catalog.json is not what the templates make. Not ready to push."; exit 1; }
+    print -- "✓ The site's template tests and the app's catalog"
+  else
+    print -- "→ Template tests not run: no web/node_modules (cd web && npm ci)"
+  fi
+fi
+
 print -r -- "$tree" > "$PASSED"
 print -- "✓ Compiles as CI builds it$([[ ${PREPUSH_RELEASE:-0} == 1 ]] && print -n " and as it ships"): $((SECONDS - start)) s"
