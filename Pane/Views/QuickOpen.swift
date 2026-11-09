@@ -2,11 +2,12 @@
 import SwiftData
 import SwiftUI
 
-/// Go to Note… (⌘O): a Spotlight-like panel over the notes window. Type part of a title and
+/// Go to Note… (⌘K or ⌘O): a Spotlight-like panel over the notes window. Type part of a title and
 /// Return opens it; the same field runs the app's commands (New Note, Pin, Move, Import, Connect
 /// an AI, Settings), finds notes by their text (the line that holds it shown under the title), and,
 /// last, searches every note for what you typed. The sidebar's Search button opens it too. The arrows move the
-/// highlight, Esc closes. ⌘K stays Add Link, as in Notes; ⌘O is Obsidian's quick switcher.
+/// highlight, Esc closes. ⌘K opens it as in Notion and Slack, except with text picked in a note,
+/// where it stays Add Link as in Notes (`CommandK`); ⌘O is Obsidian's quick switcher.
 enum QuickOpen {
     /// Three looks to choose between (Emil, 7 November 2026: it didn't feel like the same app). All
     /// three drop the amber, the shortcut chip and the keys' footer.
@@ -14,15 +15,18 @@ enum QuickOpen {
     enum Look: String { case quiet, list, sidebar }
     static var look: Look { Look(rawValue: UserDefaults.standard.string(forKey: "quickOpenLook") ?? "") ?? .list }
 
-    /// It pops in like the app's sheets (Emil, 7 November 2026: it just appeared) and leaves faster.
+    /// One quick fade in and out, like Spotlight (Emil, 9 November 2026: the spring and scale were
+    /// "really slow, makes it annoying to use"). Before: a 0.24 s spring with a scale.
+    static let openDuration: Double = 0.08
     static func motion(opening: Bool, reduceMotion: Bool) -> Animation {
-        if reduceMotion { return .easeOut(duration: 0.12) }
-        return opening ? .spring(duration: 0.24, bounce: 0.08) : .easeOut(duration: 0.12)
+        .easeOut(duration: openDuration)
     }
 
-    static func transition(reduceMotion: Bool) -> AnyTransition {
-        reduceMotion ? .opacity : .scale(scale: 0.95, anchor: .top).combined(with: .opacity)
-    }
+    /// A fade only, with Reduce Motion or not: nothing grows or moves.
+    static func transition(reduceMotion: Bool) -> AnyTransition { .opacity }
+
+    /// The shortcut the field shows on its right (Emil, 9 November 2026). ⌘O opens it too.
+    static let shortcutHint = "\u{2318}K"
 
     /// A note as the panel lists it, read once when the panel opens.
     struct NoteItem: Identifiable, Equatable, Sendable {
@@ -273,17 +277,65 @@ enum QuickOpen {
 
     // MARK: Reading
 
-    /// The live notes, read when the panel opens.
-    @MainActor static func noteItems(in context: ModelContext) -> [NoteItem] {
+    /// The live notes, read when the panel opens. `limit`: only the most recently changed, which is
+    /// all the panel shows before you type, read in a few milliseconds so it's on screen at once.
+    @MainActor static func noteItems(in context: ModelContext, limit: Int? = nil) -> [NoteItem] {
         var fetch = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil })
         fetch.propertiesToFetch = [\.summaryTitle, \.updatedAt, \.lockedBody]
+        if let limit {
+            fetch.sortBy = [SortDescriptor(\Note.updatedAt, order: .reverse)]
+            fetch.fetchLimit = limit
+        }
         let notes = (try? context.fetch(fetch)) ?? []
-        return notes.map { NoteItem(id: $0.id, title: $0.title, folder: $0.folder?.name, date: $0.updatedAt, locked: $0.isLocked) }
+        return notes.map(item)
+    }
+
+    /// How many notes the panel reads before it shows: the recent ones it lists, with room.
+    static let firstRead = 40
+
+    /// Every live note, read away from the main thread once the panel is up (2,000 notes took
+    /// 164 ms on the main thread, before the panel could draw).
+    static func allNoteItems(in container: ModelContainer) async -> [NoteItem] {
+        await Task.detached(priority: .userInitiated) {
+            let context = ModelContext(container)
+            var fetch = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil })
+            fetch.propertiesToFetch = [\.summaryTitle, \.updatedAt, \.lockedBody]
+            return ((try? context.fetch(fetch)) ?? []).map(item)
+        }.value
+    }
+
+    /// The whole list with the first read on top: the main window's copy of a note wins, since it
+    /// may hold a change not saved yet.
+    static func merged(first: [NoteItem], all: [NoteItem]) -> [NoteItem] {
+        let ids = Set(first.map(\.id))
+        return first + all.filter { !ids.contains($0.id) }
+    }
+
+    private static func item(_ n: Note) -> NoteItem {
+        NoteItem(id: n.id, title: n.title, folder: n.folder?.name, date: n.updatedAt, locked: n.isLocked)
+    }
+}
+
+/// ⌘K: Add Link while text is picked in the note (or a table cell) you're typing in, as in Notes;
+/// anywhere else it opens Go to Note, as in Notion and Slack (Emil, 9 November 2026). The Link menu
+/// item keeps the key; chosen with the pointer it always adds a link.
+enum CommandK {
+    enum Route: Equatable { case link, goToNote }
+
+    static func route(byKey: Bool, typingInNote: Bool, selection: NSRange?, readOnly: Bool) -> Route {
+        guard byKey else { return .link }
+        return typingInNote && !readOnly && (selection?.length ?? 0) > 0 ? .link : .goToNote
+    }
+
+    @MainActor static func route(_ editor: EditorController?, byKey: Bool) -> Route {
+        guard let editor else { return byKey ? .goToNote : .link }
+        return route(byKey: byKey, typingInNote: editor.isEditing || editor.cell != nil,
+                     selection: editor.host?.currentSelection, readOnly: editor.readOnly)
     }
 }
 
 extension Notification.Name {
-    /// File › Go to Note… (⌘O): the notes window shows or hides the panel.
+    /// File › Go to Note… (⌘O, and ⌘K outside picked text): the notes window shows or hides the panel.
     static let paneQuickOpen = Notification.Name("pane.quickOpen")
     /// The open note's Move to… picker, from the panel.
     static let paneMoveNote = Notification.Name("pane.moveNote")
@@ -401,6 +453,20 @@ struct QuickOpenPanel: View {
         return rows
     }
 
+    /// The shortcut, quiet on the field's right like a key on the keyboard: solid, no glass.
+    static var shortcutKey: some View {
+        Text(QuickOpen.shortcutHint)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(Color.muted)
+            .padding(.horizontal, 7)
+            .frame(height: 22)
+            .background(Color.soft, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color.line, lineWidth: 1))
+            .fixedSize()
+            .accessibilityHidden(true)
+            .accessibilityIdentifier("quickOpen.shortcut")
+    }
+
     /// The line while the only thing left to come is what the notes' text holds.
     static func looking(query: String, rows: Int, stillReading: Bool) -> String? {
         rows == 0 && stillReading && !query.trimmingCharacters(in: .whitespaces).isEmpty ? "Searching your notes\u{2026}" : nil
@@ -429,6 +495,7 @@ struct QuickOpenPanel: View {
                     .onKeyPress(.escape) { close(); return .handled }
                     .accessibilityLabel("Go to Note")
                     .accessibilityIdentifier("quickOpen.field")
+                Self.shortcutKey
             }
             .padding(.horizontal, 18)
             .frame(height: Metrics.field)
