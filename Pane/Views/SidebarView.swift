@@ -511,6 +511,10 @@ struct SidebarView: View {
         let behind = behindSetupCard
         return List(selection: Binding(get: { Self.selection(scope: scope, picked: picked) }, set: { new in
             guard !behind else { return }
+            #if os(macOS)
+            // Dragging a folder keeps it shown, as in Notes: the list's own pick as the drag starts is ignored.
+            guard Self.listPickCounts(during: NSApp.currentEvent?.type) else { return }
+            #endif
             let next = Self.picking(new, scope: scope)
             picked = next.picked
             if next.scope != scope { scope = next.scope }
@@ -1184,6 +1188,12 @@ struct SidebarView: View {
         Set(picked.map { Scope.folder($0) }).union(scope.map { [$0] } ?? [])
     }
 
+    #if os(macOS)
+    /// Whether a pick the list makes during this event counts. When a folder drag starts, the list
+    /// (with its drop lines on) picks All Notes; the folder you drag stays shown instead, as in Notes.
+    static func listPickCounts(during event: NSEvent.EventType?) -> Bool { event != .leftMouseDragged }
+    #endif
+
     /// A new pick from the list: one row shows that row; several keep the one shown (if it's still
     /// among them) and pick the folders beside it; none (⌘ on the last) keeps what was shown.
     static func picking(_ new: Set<Scope>, scope: Scope?) -> (scope: Scope?, picked: Set<UUID>) {
@@ -1654,8 +1664,27 @@ private struct FolderTree: View {
         }
     }
 
+    /// Opening and closing a folder. On the Mac it's instant: the list's slide drew the folders
+    /// inside over the row below while it ran.
+    private var opening: Binding<Bool> {
+        #if os(macOS)
+        Binding(get: { expanded }, set: { open in
+            withTransaction(FolderTree.instant) { expanded = open }
+        })
+        #else
+        $expanded
+        #endif
+    }
+
+    /// No animation: what opening and closing a folder runs in on the Mac.
+    static var instant: Transaction {
+        var t = Transaction()
+        t.disablesAnimations = true
+        return t
+    }
+
     private var tree: some View {
-            DisclosureGroup(isExpanded: $expanded) {
+            DisclosureGroup(isExpanded: opening) {
                 ForEach(folder.liveChildren) { child in
                     FolderTree(folder: child, files: files, selection: $selection, naming: $naming, drops: drops, targeted: targeted, actions: actions, notesID: notesID, depth: depth + 1, picked: picked)
                 }

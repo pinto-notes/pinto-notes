@@ -251,6 +251,45 @@ import UniformTypeIdentifiers
         #expect(by["Clients"]!.dirty && by["Plans"]!.dirty)
     }
 
+    /// Dragging the folder you're in keeps it shown, wherever it goes, as in Notes (9 November
+    /// 2026: the list picked All Notes as the drag started). Only a folder really deleted
+    /// falls back to All Notes.
+    @Test func theFolderYouMoveStaysSelected() throws {
+        let (c, by) = try Self.library()
+        let ctx = c.mainContext
+        func live() -> [UUID] { ctx.allFolders().filter { $0.deletedAt == nil }.map(\.id) }
+        #if os(macOS)
+        #expect(!SidebarView.listPickCounts(during: .leftMouseDragged), "the list's pick as a drag starts is ignored")
+        #expect(SidebarView.listPickCounts(during: .leftMouseDown) && SidebarView.listPickCounts(during: .keyDown) && SidebarView.listPickCounts(during: nil), "a click or a key still picks")
+        #endif
+        for name in ["Travel", "Clients"] {
+            let shown = Scope.folder(by[name]!.id)
+            // Between two rows at the top, inside another folder, out to the top level, Move Up.
+            ctx.place(by[name]!, in: nil, at: 1)
+            #expect(Scope.settled(shown, liveFolders: live()) == shown)
+            ctx.move(by[name]!, into: by["Home"])
+            #expect(Scope.settled(shown, liveFolders: live()) == shown)
+            ctx.place(by[name]!, in: nil, at: 2)
+            ctx.nudge(by[name]!, by: -1)
+            #expect(Scope.settled(shown, liveFolders: live()) == shown)
+            #expect(SidebarView.picking([shown], scope: shown).scope == shown)
+        }
+        ctx.trash(by["Travel"]!)
+        #expect(Scope.settled(.folder(by["Travel"]!.id), liveFolders: live()) == .all, "a deleted folder falls back to All Notes")
+    }
+
+    /// Opening and closing a folder is instant on the Mac: the list's slide drew the folders
+    /// inside over the row below (9 November 2026).
+    @Test func aFolderOpensAndClosesWithoutTheSlide() throws {
+        let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Pane/Views/SidebarView.swift")
+        let src = try String(contentsOf: file, encoding: .utf8)
+        let tree = try #require(src.range(of: "private struct FolderTree: View").map { String(src[$0.lowerBound...]) })
+        #expect(tree.contains("DisclosureGroup(isExpanded: opening)"))
+        #expect(tree.contains("withTransaction(FolderTree.instant) { expanded = open }"))
+        #expect(tree.contains("t.disablesAnimations = true"))
+    }
+
     @Test func newNoteFromAFolderLandsInItAndOpens() throws {
         let (c, by) = try Self.library()
         let ctx = c.mainContext
