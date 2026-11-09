@@ -495,10 +495,12 @@ struct RootView: View {
                                close: { quickOpen = nil },
                                searchText: { [container = context.container] q in await QuickOpen.textHits(for: q, in: container) })
                     .padding(.top, 72)
-                    .transition(QuickOpen.transition(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion))
             }
             .onAppear { RowPressSlop.covered = true }
             .onDisappear { RowPressSlop.covered = false }
+            // On the layer that comes and goes, not the panel inside it: SwiftUI runs only the
+            // outermost inserted view's transition, so the panel's own showed as a plain fade.
+            .transition(QuickOpen.transition(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion))
         }
     }
 
