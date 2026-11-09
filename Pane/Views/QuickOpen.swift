@@ -20,6 +20,21 @@ enum QuickOpen {
     enum Look: String { case quiet, list, sidebar }
     static var look: Look { Look(rawValue: UserDefaults.standard.string(forKey: "quickOpenLook") ?? "") ?? .list }
 
+    /// Where the accent goes, three to choose between (Emil, 9 November 2026: "everything just
+    /// looks the same. there is no color"). The person's own accent, as the sidebar's selected
+    /// folder has it; colour says what you can act on, what's a folder and what's chosen.
+    /// - `a`: every command's icon and the folder glyph in the accent.
+    /// - `b`: a, and the chosen row's icon and the typed text in the accent.
+    /// - `c`: b, with each command's icon on a small accent-tinted tile, as Raycast has it.
+    /// `defaults write <app id> quickOpenTint a|b|c` tries one (DEBUG builds); `none` is today's.
+    enum Tint: String, CaseIterable { case none, a, b, c }
+    #if DEBUG
+    nonisolated(unsafe) static var tintOverride: Tint?
+    static var tint: Tint { tintOverride ?? Tint(rawValue: UserDefaults.standard.string(forKey: "quickOpenTint") ?? "") ?? .none }
+    #else
+    static var tint: Tint { .none }
+    #endif
+
     /// It drops in from just above, like the app's sheets but quicker, and goes at once (Emil,
     /// 9 November 2026: the 0.24 s spring and scale were "really slow"; a fade alone wasn't what the
     /// other sheets do; with nothing at all, "some transition would be good"). The field has the
@@ -500,6 +515,8 @@ struct QuickOpenPanel: View {
     @Environment(\.modelContext) private var context
     #endif
     @State private var query: String
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.colorScheme) private var scheme
     /// The query the notes' text has been read for, so "nothing found" waits for the answer.
     @State private var readFor: String?
 
@@ -620,10 +637,15 @@ struct QuickOpenPanel: View {
     /// Closes the panel, as Esc in the field, a chosen row, and ⌘K or ⌘O while it has the cursor
     /// do: the one way to close it while you're in the app.
     private var closeButton: some View {
+        // Room around the glyph, as the sidebar's + has it: with none the hover fill hugged the
+        // 13 pt × and didn't show (Emil, 9 November 2026: "this X has no hover state"). Muted, ink
+        // under the pointer, beside the muted ⌘K.
         Button(action: close) {
             Image(systemName: "xmark")
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 14, height: 14)
         }
-        .buttonStyle(.quietIcon)
+        .buttonStyle(.quietIcon(padding: 5, lightens: true))
         .help("Close")
         .accessibilityLabel("Close Go to Note")
         .accessibilityIdentifier("quickOpen.close")
@@ -794,7 +816,7 @@ struct QuickOpenPanel: View {
                     // the folder on the right as a fainter, smaller tag. No date (Emil, 9 November
                     // 2026: two lines were "a bit too much... its all grey"; then the words and the
                     // folder looked "visually identical except for length and placement").
-                    icon(n.locked ? "lock" : "doc.text", on: on)
+                    icon(n.locked ? "lock" : "doc.text", on: on, acts: false)
                     highlightedTitle(n.title.isEmpty ? "New Note" : n.title)
                         .lineLimit(1)
                         .layoutPriority(1)
@@ -808,19 +830,19 @@ struct QuickOpenPanel: View {
                     }
                     Spacer(minLength: 12)
                     if let f = n.folder {
-                        Self.tag("folder", f)
+                        Self.tag("folder", f, glyph: folderGlyph)
                             .fixedSize()
                             .accessibilityIdentifier("quickOpen.folder")
                     }
                 case .sidebar:
                     // As the sidebar has it: an icon, the name in the accent when chosen, a figure at the end.
-                    icon(n.locked ? "lock" : "doc.text", on: on)
+                    icon(n.locked ? "lock" : "doc.text", on: on, acts: false)
                     highlightedTitle(n.title.isEmpty ? "New Note" : n.title, ink: on ? Color(PColor.paneAccent) : Color.ink)
                     Spacer(minLength: 8)
                     Text(QuickOpen.dateText(n)).foregroundStyle(Color.muted).monospacedDigit()
                 }
             case .text(let t):
-                icon("text.magnifyingglass", on: on)
+                icon("text.magnifyingglass", on: on, acts: false)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 10) {
                         Text(t.title.isEmpty ? "New Note" : t.title).foregroundStyle(Color.ink).lineLimit(1)
@@ -840,7 +862,7 @@ struct QuickOpenPanel: View {
                 Spacer(minLength: 8)
                 Text(DateBucket.rowDate(t.date)).foregroundStyle(Color.muted).monospacedDigit()
             case .command(let c):
-                icon(c.symbol, on: on)
+                icon(c.symbol, on: on, acts: true)
                 // The name and what it acts on share a baseline: "New Note [folder] Work" (Emil,
                 // 9 November 2026: "I care that its 'create a new note in X folder'").
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -852,7 +874,7 @@ struct QuickOpenPanel: View {
                             Text(lead).font(.system(size: Metrics.detailSize)).foregroundStyle(Color.muted).fixedSize()
                         }
                         if let symbol = d.symbol {
-                            Self.tag(symbol, d.name)
+                            Self.tag(symbol, d.name, glyph: symbol == "folder" ? folderGlyph : nil)
                         } else {
                             Text(d.name).font(.system(size: Metrics.detailSize)).foregroundStyle(Color.muted).lineLimit(1)
                         }
@@ -866,7 +888,7 @@ struct QuickOpenPanel: View {
                 // What it does: the list, filtered to every note that holds the text. The panel
                 // shows only the first few (Emil, 11-03: "what is even Search all notes, aren't we
                 // doing that").
-                icon("list.bullet", on: on)
+                icon("list.bullet", on: on, acts: true)
                 (Text(QuickOpen.listAllTitle) + Text("“\(q)”").foregroundStyle(Color.ink).fontWeight(.semibold))
                     .foregroundStyle(Color.ink)
                     .lineLimit(1)
@@ -885,8 +907,8 @@ struct QuickOpenPanel: View {
     /// big and heavy as the text, and the note rows' folder had none, so it read as a folder in one
     /// place and not the other). The glyph is set inside the text, 2 pt under it, so it sits on the
     /// baseline and centres on the lower-case letters; a thin space keeps it close to the name.
-    static func tag(_ symbol: String, _ name: String) -> some View {
-        (Text(Image(systemName: symbol)).font(.system(size: Metrics.tagSize - 2, weight: .light))
+    static func tag(_ symbol: String, _ name: String, glyph: Color? = nil) -> some View {
+        (Text(Image(systemName: symbol)).font(.system(size: Metrics.tagSize - 2, weight: .light)).foregroundStyle(glyph ?? Color.faint)
             + Text("\u{2009}")
             + Text(name).font(.system(size: Metrics.tagSize)))
             .foregroundStyle(Color.faint)
@@ -894,12 +916,36 @@ struct QuickOpenPanel: View {
             .truncationMode(.tail)
     }
 
-    private func icon(_ symbol: String, on: Bool) -> some View {
-        Image(systemName: symbol)
-            .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(on && QuickOpen.look == .sidebar ? Color(PColor.paneAccent) : Color.muted)
-            .frame(width: 20)
+    /// The person's accent for glyphs; its deeper ink shade with Increase Contrast, as small text
+    /// on white needs (the High contrast theme deepens both itself).
+    private var accent: Color { contrast == .increased ? Color.amberInk : Color.paneAccent }
+    /// A folder's glyph in a tag: the accent from A on, else the tag's own grey.
+    private var folderGlyph: Color? { QuickOpen.tint == .none ? nil : accent }
+
+    /// A row's icon. `acts`: a command (or the list's search), which the accent marks from A on;
+    /// a note's icon stays grey until its row is chosen (B, C). C sits a command's icon on a tile.
+    @ViewBuilder private func icon(_ symbol: String, on: Bool, acts: Bool) -> some View {
+        let tint = QuickOpen.tint
+        let lit = (acts && tint != .none) || (on && (tint == .b || tint == .c)) || (on && QuickOpen.look == .sidebar)
+        let glyph = Image(systemName: symbol)
+            .foregroundStyle(lit ? accent : Color.muted)
+        if acts && tint == .c {
+            glyph
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 24, height: 24)
+                .background(accent.opacity(Self.tileFill(dark: scheme == .dark, increased: contrast == .increased)),
+                            in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .frame(width: 24)
+        } else {
+            glyph
+                .font(.system(size: 13, weight: .medium))
+                .frame(width: QuickOpen.tint == .c ? 24 : 20)
+        }
     }
+
+    /// How much accent tints a command's tile (C): faint, a little more in the dark and with
+    /// Increase Contrast, where a faint fill disappears.
+    static func tileFill(dark: Bool, increased: Bool) -> Double { (dark ? 0.22 : 0.13) + (increased ? 0.1 : 0) }
 
     /// The title with the typed text in semibold, so you see why it matched.
     private func highlightedTitle(_ title: String, weight: Font.Weight = .regular, ink: Color = .ink) -> some View {
@@ -909,13 +955,14 @@ struct QuickOpenPanel: View {
         if !q.isEmpty, let r = title.range(of: q, options: [.caseInsensitive, .diacriticInsensitive]),
            let lower = AttributedString.Index(r.lowerBound, within: text), let upper = AttributedString.Index(r.upperBound, within: text) {
             text[lower..<upper].font = .system(size: 14, weight: .semibold)
+            if QuickOpen.tint == .b || QuickOpen.tint == .c { text[lower..<upper].foregroundColor = Color.amberInk }
         }
         return Text(text).foregroundStyle(ink).lineLimit(1)
     }
 
     /// The line that holds the text, the text itself in the ink's semibold and the rest muted.
     private func snippetText(_ s: QuickOpen.Snippet) -> some View {
-        (Text(s.before) + Text(s.match).foregroundStyle(Color.ink).fontWeight(.semibold) + Text(s.after))
+        (Text(s.before) + Text(s.match).foregroundStyle(QuickOpen.tint == .b || QuickOpen.tint == .c ? Color.amberInk : Color.ink).fontWeight(.semibold) + Text(s.after))
             .font(.system(size: 12.5))
             .foregroundStyle(Color.muted)
             .lineLimit(1)
