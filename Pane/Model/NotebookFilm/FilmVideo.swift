@@ -37,7 +37,7 @@ enum FilmVideo {
         guard writer.startWriting() else { throw Failure.writer(writer.error?.localizedDescription ?? "start") }
         writer.startSession(atSourceTime: .zero)
 
-        let total = FilmScript.frameCount
+        let total = renderer.script.frameCount
         var i = 0
         while !renderer.isDone {
             if Task.isCancelled {

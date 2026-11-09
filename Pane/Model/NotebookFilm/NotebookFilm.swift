@@ -31,6 +31,8 @@ struct FilmStats: Equatable, Sendable {
     /// Days from your first note to now, counting both.
     var days: Int
     var notes: Int
+    /// Folders with notes in them (notes in no folder aren't one).
+    var folders: Int
     var links: Int
     /// Days in the last 30 you wrote something yourself.
     var activeDays: Int
@@ -42,6 +44,8 @@ struct FilmStats: Equatable, Sendable {
     var aiShare: Double
     /// Notes an AI wrote in at least once.
     var aiNotes: Int
+    /// Every time you wrote in a note (the first time counts).
+    var edits: Int
     /// The folder written in most (by edits), nil when that's notes in no folder.
     var topFolder: String?
     /// How many notes are in it.
@@ -55,6 +59,7 @@ struct FilmStats: Equatable, Sendable {
         let first = notes.map(\.created).min() ?? input.now
         days = (calendar.dateComponents([.day], from: calendar.startOfDay(for: first), to: calendar.startOfDay(for: input.now)).day ?? 0) + 1
         self.notes = notes.count
+        folders = Set(notes.map(\.folder).filter { !$0.isEmpty }).count
         let ids = Set(notes.map(\.id))
         var pairs = Set<[UUID]>()
         for n in notes { for l in n.links where l != n.id && ids.contains(l) { pairs.insert([n.id, l].sorted { $0.uuidString < $1.uuidString }) } }
@@ -67,6 +72,7 @@ struct FilmStats: Equatable, Sendable {
         ai = byAI.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }?.key
         aiShare = edits.isEmpty ? 0 : Double(byAI.values.reduce(0, +)) / Double(edits.count)
         aiNotes = notes.filter { $0.edits.contains { $0.ai != nil } }.count
+        self.edits = edits.filter { $0.ai == nil }.count
         var byFolder: [String: Int] = [:]
         for n in notes { byFolder[n.folder, default: 0] += max(1, n.edits.count) }
         let top = byFolder.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }?.key
@@ -109,14 +115,17 @@ enum FilmEligibility {
 /// Quiet days pass quickly and busy days slowly, so the film spends its time where you did.
 struct FilmScript: Sendable {
     static let width = 1080, height = 1350, fps = 30
-    /// The notebook grows for this long, then holds while the end card comes up.
-    static let growth = 9.0, outro = 3.6
+    /// The notebook grows for `growth` seconds, then holds while the end card comes up. A full
+    /// month takes `fullGrowth`; a thin one is shorter (down to `thinGrowth`), so the film is
+    /// never stretched over days when little happened.
+    static let fullGrowth = 9.0, thinGrowth = 5.6, outro = 3.6
+    let growth: Double
     /// It opens on a glimpse of where the month ended up, then goes back to the first day: the
     /// first frame, which is what a feed or a message shows before it plays, is the whole notebook.
     static let prelude = 0.9
     static var preludeFrames: Int { Int((prelude * Double(fps)).rounded()) }
-    static var duration: Double { prelude + growth + outro }
-    static var frameCount: Int { Int((duration * Double(fps)).rounded()) }
+    var duration: Double { Self.prelude + growth + Self.outro }
+    var frameCount: Int { Int((duration * Double(Self.fps)).rounded()) }
 
     struct Node: Sendable {
         var id: UUID
@@ -142,6 +151,11 @@ struct FilmScript: Sendable {
     init(_ input: FilmInput, calendar: Calendar = .current) {
         self.calendar = calendar
         stats = FilmStats(input, calendar: calendar)
+        // By how much there is to show: every note and every time one was written in.
+        let events = Double(input.notes.count + input.notes.map(\.edits.count).reduce(0, +))
+        let fullness = min(1, max(0, (events - 100) / 300))
+        let growth = Self.thinGrowth + (Self.fullGrowth - Self.thinGrowth) * fullness * fullness * (3 - 2 * fullness)
+        self.growth = growth
         let sorted = input.notes.sorted { ($0.created, $0.id.uuidString) < ($1.created, $1.id.uuidString) }
         let firstDay = calendar.startOfDay(for: sorted.first?.created ?? input.now)
         start = firstDay
@@ -161,12 +175,12 @@ struct FilmScript: Sendable {
         if let busiest = stats.busiestDay, dayCount > 3 {
             let k = day(busiest)
             let others = weights.reduce(0, +) - weights[k]
-            // At least a ninth of the film (about a second), whatever the rest adds up to.
-            weights[k] = max(weights[k] * 2, others / 8)
+            // At least a good second of it, whatever the rest adds up to.
+            weights[k] = max(weights[k] * 2, others / 5.5)
         }
         let total = weights.reduce(0, +)
         var starts = [0.0]
-        for w in weights { starts.append(starts.last! + w / total * Self.growth) }
+        for w in weights { starts.append(starts.last! + w / total * growth) }
         dayStarts = starts
 
         var folderNames: [String] = []
@@ -178,7 +192,7 @@ struct FilmScript: Sendable {
             let k = day(d)
             let dayStart = calendar.date(byAdding: .day, value: k, to: firstDay)!
             let f = min(1, max(0, d.timeIntervalSince(dayStart) / 86_400))
-            return min(Self.growth, starts[k] + (starts[k + 1] - starts[k]) * f)
+            return min(growth, starts[k] + (starts[k + 1] - starts[k]) * f)
         }
         for n in sorted {
             let f = folderIndex[n.folder] ?? { folderNames.append(n.folder); folderIndex[n.folder] = folderNames.count - 1; return folderNames.count - 1 }()
@@ -213,7 +227,7 @@ struct FilmScript: Sendable {
 
     /// The date shown at a film time.
     func date(at t: Double) -> Date {
-        if t >= Self.growth { return end }
+        if t >= growth { return end }
         var k = 0
         while k + 1 < dayStarts.count - 1 && dayStarts[k + 1] <= t { k += 1 }
         let span = max(0.0001, dayStarts[k + 1] - dayStarts[k])

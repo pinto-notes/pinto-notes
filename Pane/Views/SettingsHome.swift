@@ -310,6 +310,8 @@ enum HelpCopy {
     static let feedback = "Send feedback"
     static let feedbackFooter = "Write to \(email) about a problem or an idea. You\u{2019}ll normally hear back within a day or two."
     static let setupGuideFooter = "Shows the first steps again: your name, bringing your notes and connecting your AI."
+    static let film = "Watch your first month"
+    static let filmFooter = "The short film of how your notes grew, to watch again or share."
     static let openSource = "Open source on GitHub"
     static let openSourceFooter = "Pinto Notes is built in the open. Reporting an issue there needs a GitHub account."
     static let trademarks = "Evernote is a trademark of Bending Spoons US Inc., used under license. Bear is a trademark of Shiny Frog Ltd. Other names and icons belong to their owners."
@@ -346,6 +348,8 @@ enum HelpCopy {
 struct HelpPage: View {
     /// The setup guide plays only for an account (it starts from your name).
     var signedIn: Bool
+    /// The notebook film has been shown on this device and is kept: Help shows it again.
+    var film = false
     /// Closes Settings, so the setup guide shows.
     var close: () -> Void = {}
     /// Where the address goes when no mail app opens; tests keep the real clipboard out of it.
@@ -361,6 +365,14 @@ struct HelpPage: View {
                 .accessibilityIdentifier("settings.setupGuide")
             } footer: {
                 Text(HelpCopy.setupGuideFooter)
+            }
+        }
+        if film {
+            Section {
+                Button(HelpCopy.film) { Self.playFilm(close: close) }
+                    .accessibilityIdentifier("settings.notebookFilm")
+            } footer: {
+                Text(HelpCopy.filmFooter)
             }
         }
         Section {
@@ -439,6 +451,12 @@ struct HelpPage: View {
     /// Plays the setup guide and closes Settings, which would otherwise cover it.
     static func playSetupGuide(close: () -> Void) {
         NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil)
+        close()
+    }
+
+    /// Shows the notebook film and closes Settings, which would otherwise cover it.
+    static func playFilm(close: () -> Void) {
+        NotificationCenter.default.post(name: .paneWatchNotebookFilm, object: nil)
         close()
     }
 

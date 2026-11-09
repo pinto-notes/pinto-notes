@@ -76,6 +76,9 @@ clip() {  # name seconds args...
 }
 clip 8-not-now 9 -filmAutoNotNow
 clip 8-close-part-way 14 -filmAutoWatch -filmAutoClose
+# The thinnest month it's offered for, the whole way through in the app.
+clip 9-light-month-flow 21 -filmAutoWatch -filmLight
+xcrun simctl io "$SIM" screenshot "$OUT/9-light-month-share.png" >/dev/null 2>&1
 
 # The thinnest month it's offered for (another made-up notebook: two folders, no AI), as shared.
 scripts/film/render.sh "$OUT/shared-night-light-month.mp4" 7 35 night light >/dev/null 2>&1
@@ -89,4 +92,10 @@ for i in {1..40}; do ls "$data"/tmp/NotebookFilm-*/Pinto*.mp4 >/dev/null 2>&1 &&
 cp "$(ls -tr "$data"/tmp/NotebookFilm-*/Pinto*.mp4 | head -1)" "$OUT/shared-night-no-folder-names.mp4" 2>/dev/null || true
 xcrun simctl terminate "$SIM" $APP 2>/dev/null || true
 [[ -f "$OUT/shared-night.mp4" ]] && ffmpeg -y -loglevel error -i "$OUT/shared-night.mp4" -vf "fps=1.5,scale=270:-1,tile=10x2" -frames:v 1 "$OUT/shared-night-sheet.png"
+# The shared film at the width a feed shows it (390 points), at 1, 5, 8 and 13 seconds.
+if [[ -f "$OUT/shared-night.mp4" ]]; then
+  for t in 1 5 8 13; do ffmpeg -y -loglevel error -ss $t -i "$OUT/shared-night.mp4" -frames:v 1 -update 1 -vf "scale=390:-1" "$OUT/feed-$t.png"; done
+  ffmpeg -y -loglevel error -i "$OUT/feed-1.png" -i "$OUT/feed-5.png" -i "$OUT/feed-8.png" -i "$OUT/feed-13.png" -filter_complex hstack=4 "$OUT/shared-night-at-feed-size.png"
+  rm -f "$OUT"/feed-*.png
+fi
 ls "$OUT"

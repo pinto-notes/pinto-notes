@@ -13,9 +13,11 @@ import UIKit
 ///
 /// It never comes in the middle of a session. A launch on which the account is due only gets it
 /// ready (`prepare`: reads who wrote what and keeps what the film needs on this device). The next
-/// launch shows it as the app opens (`atLaunch`), before anything has been typed and never beside
-/// another prompt or during the first-run flow. A launch that isn't ready in time leaves it for the
-/// next one. Once shown on a device, it isn't offered there again.
+/// launch shows it as the app opens (`atLaunch`), before anything has been typed or touched and
+/// never beside another prompt or during the first-run flow. A launch that isn't ready in time, or
+/// on which you're already doing something (`postpone`), leaves it for the next one. Once it has
+/// been on screen (`didPresent`) it isn't offered there again; it's kept, and Help shows it again
+/// when you ask (`rewatch`).
 ///
 /// Dev: `-forceNotebookFilm` shows a film of a made-up month (FilmDemo) as the notes open;
 /// `-filmLook paper` starts it on a look.
@@ -44,6 +46,8 @@ final class NotebookFilmStore {
 
     @ObservationIgnored private var account: UUID?
     @ObservationIgnored private var service: FilmSource.Service?
+    /// Asked for from Help, not offered at launch: it comes up at once.
+    private(set) var rewatching = false
     @ObservationIgnored private(set) var launchChecked = false
     @ObservationIgnored private(set) var prepareChecked = false
     @ObservationIgnored let defaults: UserDefaults
@@ -55,11 +59,15 @@ final class NotebookFilmStore {
     static let launchWindow: TimeInterval = 6
 
     init(defaults: UserDefaults = .standard, launched: Date = .now, arguments: [String] = ProcessInfo.processInfo.arguments,
-         folder: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("NotebookFilm", isDirectory: true)) {
+         folder: URL = NotebookFilmStore.defaultFolder) {
         self.defaults = defaults
         self.launched = launched
         self.folder = folder
         forced = arguments.contains("-forceNotebookFilm")
+    }
+
+    static var defaultFolder: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("NotebookFilm", isDirectory: true)
     }
 
     static func shownKey(_ account: UUID?) -> String { "notebookFilm.shown.\(account?.uuidString.lowercased() ?? "device")" }
@@ -69,6 +77,16 @@ final class NotebookFilmStore {
 
     /// What the next launch shows, kept on this device.
     var preparedURL: URL { folder.appendingPathComponent("ready-\(account?.uuidString.lowercased() ?? "device").json") }
+
+    /// The film once it has been shown, kept on this device so it can be watched again.
+    var keptURL: URL { Self.keptURL(account, in: folder) }
+    static func keptURL(_ account: UUID?, in folder: URL = defaultFolder) -> URL {
+        folder.appendingPathComponent("shown-\(account?.uuidString.lowercased() ?? "device").json")
+    }
+    /// Help offers to show it again when it's there.
+    static func canRewatch(_ account: UUID?, in folder: URL = defaultFolder) -> Bool {
+        FileManager.default.fileExists(atPath: keptURL(account, in: folder).path)
+    }
 
     func attach(account: UUID?, service: FilmSource.Service?) {
         if account != self.account { launchChecked = false; prepareChecked = false }
@@ -85,9 +103,33 @@ final class NotebookFilmStore {
               let data = try? Data(contentsOf: preparedURL),
               let input = try? JSONDecoder().decode(FilmInput.self, from: data) else { return }
         script = FilmScript(input)
+        rewatching = false
         visible = true
+    }
+
+    /// It's on screen: it isn't offered on this device again, and it's kept to watch again.
+    func didPresent() {
+        guard !forced, !rewatching, !shown else { return }
         defaults.set(true, forKey: Self.shownKey(account))
-        try? FileManager.default.removeItem(at: preparedURL)
+        try? FileManager.default.removeItem(at: keptURL)
+        try? FileManager.default.moveItem(at: preparedURL, to: keptURL)
+    }
+
+    /// Something was touched or typed before it came up: not on this launch. It stays ready
+    /// for the next one.
+    func postpone() {
+        guard visible, !forced, !rewatching, !shown else { return }
+        visible = false
+        script = nil
+    }
+
+    /// From Help: shows the film this device kept.
+    func rewatch() {
+        guard !visible, let data = try? Data(contentsOf: keptURL),
+              let input = try? JSONDecoder().decode(FilmInput.self, from: data) else { return }
+        script = FilmScript(input)
+        rewatching = true
+        visible = true
     }
 
     /// Later in a launch, never showing anything: if the account is due, reads who wrote what and
@@ -106,14 +148,16 @@ final class NotebookFilmStore {
         try? data.write(to: preparedURL, options: .atomic)
     }
 
-    /// Dev: `-forceNotebookFilm`; captures: `-filmLook paper`, `-filmNoFolderNames`.
+    /// Dev: `-forceNotebookFilm`; captures: `-filmLook paper`, `-filmNoFolderNames`, `-filmLight`
+    /// (the thinnest month it's offered for).
     func showIfForced() {
         guard forced, !visible else { return }
+        rewatching = false
         // Captures: `-filmLook paper`.
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-filmLook"), i + 1 < args.count, let l = FilmLook(rawValue: args[i + 1]) { look = l }
         if args.contains("-filmNoFolderNames") { folderNames = false }
-        script = FilmScript(FilmDemo.notebook(now: .now))
+        script = FilmScript(FilmDemo.notebook(now: .now, light: args.contains("-filmLight")))
         visible = true
     }
 

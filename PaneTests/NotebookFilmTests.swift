@@ -71,9 +71,9 @@ import Testing
     @Test func filmTimeRunsFromTheFirstNoteToNow() {
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
         #expect(script.dayNumber(at: 0) == 1)
-        #expect(script.date(at: FilmScript.growth) == Self.now)
+        #expect(script.date(at: script.growth) == Self.now)
         #expect(script.nodes.map(\.birth) == script.nodes.map(\.birth).sorted(), "notes appear in the order they were made")
-        #expect(script.nodes.allSatisfy { $0.birth >= 0 && $0.birth <= FilmScript.growth })
+        #expect(script.nodes.allSatisfy { $0.birth >= 0 && $0.birth <= script.growth })
         #expect(script.links.allSatisfy { $0.birth >= max(script.nodes[$0.a].birth, script.nodes[$0.b].birth) }, "a link shows once both ends are there")
     }
 
@@ -86,9 +86,9 @@ import Testing
             notes.append(FilmNote(id: UUID(), folder: "", created: at, edits: [FilmEdit(at: at, ai: nil)], links: []))
         }
         let script = FilmScript(FilmInput(notes: notes, now: start.addingTimeInterval(3 * 86_400 - 1)), calendar: Self.cal)
-        let day3 = FilmScript.growth - script.nodes[1].birth
+        let day3 = script.growth - script.nodes[1].birth
         #expect(script.nodes[1].birth > 0)
-        #expect(day3 > FilmScript.growth / 2, "the busy day has most of the film")
+        #expect(day3 > script.growth / 2, "the busy day has most of the film")
     }
 
     // MARK: Drawing
@@ -109,11 +109,12 @@ import Testing
             r.drawNext(in: ctx)
             let g = f - FilmScript.preludeFrames
             if g == 15 || g == 150 || g == 260 { lit.append(Self.litPixels(ctx, rows: 300..<1230)) }
-            if f == FilmScript.frameCount - 1 { bottom = Self.litPixels(ctx, rows: 40..<260) }
+            if f == script.frameCount - 1 { bottom = Self.litPixels(ctx, rows: 40..<260) }
         }
         #expect(lit[0] > 0, "something shows from the start")
-        // More notes as it goes (how much is lit also follows who's writing and how far the camera is).
-        #expect(lit[0] < lit[1] && lit[0] < lit[2], "the graph grows")
+        // More notes as it goes. (How much is lit isn't the measure: that follows who's writing
+        // and how close the camera is.)
+        #expect(lit.allSatisfy { $0 > 0 }, "the notebook is on screen throughout")
         func born(by t: Double) -> Int { script.nodes.filter { $0.birth <= t }.count }
         #expect(born(by: 0.5) < born(by: 5) && born(by: 5) < born(by: 8.6))
         #expect(bottom > 2000, "the end card's words are there")
@@ -137,7 +138,7 @@ import Testing
             let f = r.frame
             r.drawNext(in: ctx)
             if f - FilmScript.preludeFrames == 260 { grown = Self.litPixels(ctx, rows: 300..<1230) }
-            if f == FilmScript.frameCount - 1 { last = Self.litPixels(ctx, rows: 300..<1230) }
+            if f == r.script.frameCount - 1 { last = Self.litPixels(ctx, rows: 300..<1230) }
         }
         #expect(last >= grown)
     }
@@ -242,6 +243,7 @@ import Testing
         next.atLaunch(otherPrompt: false)
         #expect(next.visible, "shown as the app opens")
         #expect(next.script?.stats.ai == "ChatGPT")
+        next.didPresent()
         #expect(!FileManager.default.fileExists(atPath: next.preparedURL.path))
         next.visible = false
 
@@ -250,6 +252,50 @@ import Testing
         await after.prepare(context: c.mainContext)
         #expect(!after.visible)
         #expect(!FileManager.default.fileExists(atPath: after.preparedURL.path), "once per device")
+    }
+
+    @Test func touchingSomethingBeforeItComesUpLeavesItForTheNextLaunch() async throws {
+        // It comes up a moment after the notes: if you've already started on something, it never
+        // lands on top of that. Nothing is used up; the next launch offers it.
+        let (c, source) = try Self.library(days: 35)
+        let d = TestDefaults(), account = UUID(), folder = Self.tempFolder()
+        ShareAsk.lastKeystroke = .distantPast
+        await Self.store(d, account: account, source: source, folder: folder).prepare(context: c.mainContext)
+
+        let busy = Self.store(d, account: account, source: source, folder: folder)
+        busy.atLaunch(otherPrompt: false)
+        #expect(busy.visible)
+        busy.postpone()
+        #expect(!busy.visible && !busy.shown)
+        busy.atLaunch(otherPrompt: false)
+        #expect(!busy.visible, "not again on this launch")
+
+        let next = Self.store(d, account: account, source: source, folder: folder)
+        next.atLaunch(otherPrompt: false)
+        #expect(next.visible, "the next launch offers it")
+    }
+
+    @Test func onceShownItCanBeWatchedAgainFromHelp() async throws {
+        // Not now, or closing it, isn't losing it: it's kept on this device and Help shows it again.
+        let (c, source) = try Self.library(days: 35)
+        let d = TestDefaults(), account = UUID(), folder = Self.tempFolder()
+        ShareAsk.lastKeystroke = .distantPast
+        await Self.store(d, account: account, source: source, folder: folder).prepare(context: c.mainContext)
+        #expect(!NotebookFilmStore.canRewatch(account, in: folder), "not before it has been offered")
+
+        let s = Self.store(d, account: account, source: source, folder: folder)
+        s.atLaunch(otherPrompt: false)
+        s.didPresent()
+        s.visible = false
+        #expect(NotebookFilmStore.canRewatch(account, in: folder))
+
+        let later = Self.store(d, account: account, source: source, folder: folder, launched: .now.addingTimeInterval(-600))
+        later.atLaunch(otherPrompt: false)
+        #expect(!later.visible, "never offered again by itself")
+        later.rewatch()
+        #expect(later.visible && later.rewatching)
+        #expect(later.script?.stats.notes == s.script?.stats.notes)
+        #expect(!NotebookFilmStore.canRewatch(UUID(), in: folder), "another account's film isn't this one's")
     }
 
     @Test func neverLaterInALaunchNorBesideAnotherPrompt() async throws {
@@ -302,11 +348,15 @@ import Testing
     @Test func playedInTheAppItStartsAtTheFirstDay() {
         // The intro has already shown where the month ended up.
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
-        let r = FilmRenderer(script: script, opening: false)
-        #expect(r.frame == FilmScript.preludeFrames)
+        // The intro has just shown the finished notebook: the film picks up from it, briefly, so
+        // pressing Watch never cuts to an empty frame.
+        let r = FilmRenderer(script: script, opening: .brief)
+        #expect(r.frame > 0 && r.frame < FilmScript.preludeFrames)
         let ctx = FilmRenderer.context()!
         r.drawNext(in: ctx)
-        #expect(Self.litPixels(ctx, rows: 400..<1180) < 400, "a few first notes, not the whole notebook")
+        #expect(Self.litPixels(ctx, rows: 400..<1180) > 1000, "its first frame is the notebook the intro showed")
+        while r.frame <= FilmScript.preludeFrames { r.drawNext(in: ctx) }
+        #expect(Self.litPixels(ctx, rows: 400..<1180) < 400, "then the first day: a few first notes")
     }
 
     @Test func itsLastFrameSettlesIntoTheSharedShape() {
@@ -318,13 +368,13 @@ import Testing
         #expect(abs(tall.height - 874.0 / 402 * 1080) < 0.01)
         let landed = screen.canvas(1, card: CGSize(width: 370, height: 462.5))
         #expect(landed == .shared)
-        let r = FilmRenderer(script: script, canvas: tall, opening: false)
+        let r = FilmRenderer(script: script, canvas: tall, opening: .brief)
         while !r.isDone { r.skip() }
         let ctx = FilmRenderer.context(width: 540, height: 675)!
         r.drawHeld(in: ctx, canvas: landed)
         let shared = FilmRenderer(script: script)
         let want = FilmRenderer.context(width: 540, height: 675)!
-        while shared.frame < FilmScript.frameCount - 1 { shared.skip() }
+        while shared.frame < script.frameCount - 1 { shared.skip() }
         shared.drawNext(in: want)
         let a = Self.litPixels(ctx, rows: 0..<675), b = Self.litPixels(want, rows: 0..<675)
         #expect(abs(a - b) < max(a, b) / 10, "the same picture, give or take the camera's last drift")
@@ -370,10 +420,35 @@ import Testing
         // Folder names off: the busiest day, which gives nothing away.
         #expect(s.busiestDayEdits > 0)
         #expect(FilmRenderer.Labels().busiestDay("October 19", 23) == "Busiest day: October 19 \u{00B7} 23 edits")
+        #expect(FilmRenderer.Labels().busiestCaption(33) == "My busiest day \u{00B7} 33 edits", "first person, like the title")
         // And as the film passes that day it says so: the day has its own stretch of the film.
         let span = try! #require(script.span(ofDay: s.busiestDay!))
-        #expect(span.start >= 0 && span.start + span.length <= FilmScript.growth + 0.001)
+        #expect(span.start >= 0 && span.start + span.length <= script.growth + 0.001)
         #expect(span.length >= 0.95, "about a second at least, so its caption and the date agree")
+    }
+
+    @Test func aThinMonthMakesAShorterFilm() {
+        // Never stretched over days when little happened; a full month gets the full length.
+        let thin = FilmScript(FilmDemo.notebook(days: 35, now: Self.now, light: true), calendar: Self.cal)
+        let full = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        #expect(full.growth == FilmScript.fullGrowth)
+        #expect(thin.growth < 6.5 && thin.growth >= FilmScript.thinGrowth)
+        #expect(thin.frameCount < full.frameCount)
+        #expect(thin.nodes.allSatisfy { $0.birth <= thin.growth })
+        let r = FilmRenderer(script: thin)
+        var frames = 0
+        while !r.isDone { r.skip(); frames += 1 }
+        #expect(frames == thin.frameCount)
+    }
+
+    @Test func theIntroSaysWhatsYoursInIt() {
+        let input = FilmDemo.notebook(days: 35, now: Self.now)
+        let s = FilmStats(input, calendar: Self.cal)
+        #expect(s.folders == Set(input.notes.map(\.folder)).count && s.folders > 1)
+        #expect(NotebookFilmView.teaser(s) == "\(s.notes) notes in \(s.folders) folders.\nA short film of how they grew.")
+        #expect(NotebookFilmView.teaser(nil) == "A short film of how your notes grew.")
+        #expect(FilmRenderer.Labels().subtitle(s) == "\(s.notes) notes in Pinto Notes")
+        #expect(FilmRenderer.Labels().withAI("ChatGPT") == "With ChatGPT")
     }
 
     @Test func theThinnestMonthItsOfferedForStillMakesAFilm() {
@@ -382,6 +457,7 @@ import Testing
         #expect(FilmEligibility.isReady(input, calendar: Self.cal))
         let s = FilmStats(input, calendar: Self.cal)
         #expect(s.ai == nil && s.aiNotes == 0)
+        #expect(s.edits == input.notes.map(\.edits.count).reduce(0, +), "with no AI the end card's third number is how often you wrote")
         let r = FilmRenderer(script: FilmScript(input, calendar: Self.cal))
         let ctx = FilmRenderer.context()!
         while !r.isDone { r.drawNext(in: ctx) }

@@ -183,7 +183,7 @@ struct SettingsView: View {
                 }
             }
         case .help:
-            SettingsPage { HelpPage(signedIn: isSignedIn, close: closeSettings) }
+            SettingsPage { HelpPage(signedIn: isSignedIn, film: NotebookFilmStore.canRewatch(backend.userID), close: closeSettings) }
         }
     }
 

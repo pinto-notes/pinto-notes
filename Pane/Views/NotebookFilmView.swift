@@ -40,7 +40,23 @@ struct NotebookFilmView: View {
     var body: some View {
         GeometryReader { g in
             ZStack {
-                Color.black.ignoresSafeArea()
+                // Your notebook as the month left it, soft behind the intro. It's the film's own
+                // first picture, so pressing Watch brings it into focus rather than cutting away.
+                // (An overlay, so the picture's size never changes the layout.)
+                Color.black
+                    .overlay {
+                        if let poster, backdrop {
+                            Image(decorative: poster, scale: 1)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .blur(radius: phase == .intro ? 2 : 0)
+                                .opacity(phase == .intro ? 0.8 : 1)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .clipped()
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
                 if phase == .intro {
                     intro.transition(.opacity)
                 } else {
@@ -65,7 +81,6 @@ struct NotebookFilmView: View {
             guard let script = store.script else { return }
             // From the intro on, so Share is ready by the time the film ends.
             store.makeMovies()
-            poster = await FilmPlayback.poster(script: script, labels: store.labels, width: 540)
             await refreshEnd()
             // Captures: `-filmAutoWatch` presses Watch after a moment on the intro, `-filmAutoShare`
             // presses Share a moment after the film ends.
@@ -82,6 +97,10 @@ struct NotebookFilmView: View {
                 try? await Task.sleep(for: .seconds(3))
                 store.visible = false
             }
+        }
+        .task(id: screen) {
+            guard let script = store.script, let screen else { return }
+            poster = await FilmPlayback.poster(script: script, labels: store.labels, canvas: screen.canvas(0, card: .zero), width: screen.pixels / 2)
         }
         .onDisappear { playback.stop(); store.stopMaking() }
         .onChange(of: playback.settling) { _, settling in if settling && phase == .watching { toShare() } }
@@ -100,6 +119,8 @@ struct NotebookFilmView: View {
     @State private var screen: FilmPlayback.Screen?
     /// Where the film sits on the share screen, measured from its layout.
     @State private var cardRect = CGRect.zero
+    /// The intro's picture of the notebook is still under everything (until the film first ends).
+    @State private var backdrop = true
     /// The last frame in a look chosen on the share screen (the film itself shows until one is).
     @State private var chosen: (key: String, frame: CGImage)?
 
@@ -123,6 +144,8 @@ struct NotebookFilmView: View {
 
     /// The film has begun to settle into its card: the share screen comes in round it.
     private func toShare() {
+        // The film has covered the intro's picture since it began; it's not needed again.
+        backdrop = false
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.3)) { phase = .share }
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.45).delay(0.3)) { controlsShown = true }
         if store.forced, ProcessInfo.processInfo.arguments.contains("-filmAutoShare") {
@@ -162,28 +185,23 @@ struct NotebookFilmView: View {
 
     private var intro: some View {
         ZStack {
-            if let poster {
-                Image(decorative: poster, scale: 1)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .blur(radius: 3)
-                    .opacity(0.5)
-                    .overlay(LinearGradient(colors: [.black.opacity(0), .black.opacity(0.75), .black.opacity(0)], startPoint: .top, endPoint: .bottom))
-                    .padding(.horizontal, -20)
-                    .accessibilityHidden(true)
-            }
+            // A darker band behind the words.
+            LinearGradient(colors: [.black.opacity(0), .black.opacity(0.62), .black.opacity(0)], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
             VStack(spacing: 0) {
                 Spacer()
-                AppMark(size: 64)
+                AppMark(size: 44)
                 Text("Your first month\nwith Pinto Notes")
                     .font(.system(size: 34, weight: .bold))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.white)
-                    .padding(.top, 22)
+                    .padding(.top, 18)
                     .accessibilityAddTraits(.isHeader)
-                Text("A short film of how your notes grew.")
+                Text(Self.teaser(store.script?.stats))
                     .font(.body)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.white.opacity(0.78))
                     .padding(.top, 10)
                 Spacer()
                 Button(action: watch) {
@@ -224,7 +242,6 @@ struct NotebookFilmView: View {
                 .allowsHitTesting(phase == .share)
             film(rect: rect, p: p)
             watchChrome(width: g.size.width)
-                .opacity(phase == .watching ? 1 : 0)
                 .allowsHitTesting(phase == .watching)
         }
         .coordinateSpace(name: "film")
@@ -250,7 +267,7 @@ struct NotebookFilmView: View {
             } else if let frame = playback.frame {
                 Image(decorative: frame, scale: 1).resizable().interpolation(.high)
             } else {
-                Color.black
+                Color.clear
             }
         }
         .frame(width: rect.width, height: rect.height)
@@ -270,9 +287,10 @@ struct NotebookFilmView: View {
 
     private func watchChrome(width: CGFloat) -> some View {
         VStack {
+            // The close button here is the share screen's own, in the same place, so only the bar goes.
             HStack {
                 Spacer()
-                closeButton
+                closeButton.opacity(phase == .watching ? 1 : 0)
             }
             .padding(.top, Metrics.top)
             Spacer()
@@ -283,6 +301,7 @@ struct NotebookFilmView: View {
             }
             .frame(height: 3)
             .padding(.bottom, 14)
+            .opacity(phase == .watching ? 1 : 0)
             .accessibilityHidden(true)
         }
         .padding(.horizontal, Metrics.side)
@@ -294,9 +313,8 @@ struct NotebookFilmView: View {
     /// knows where it will land.
     private var shareChrome: some View {
         VStack(spacing: 0) {
+            // Close is where it was while the film played (it never moves under a thumb).
             HStack {
-                closeButton
-                Spacer()
                 Button(action: watch) {
                     Label("Watch again", systemImage: "play.fill")
                         .font(.subheadline.weight(.semibold))
@@ -309,9 +327,11 @@ struct NotebookFilmView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(.white)
                 .accessibilityIdentifier("notebookFilm.watchAgain")
+                .opacity(controlsShown ? 1 : 0)
+                Spacer()
+                closeButton
             }
             .padding(.top, Metrics.top)
-            .opacity(controlsShown ? 1 : 0)
             Spacer(minLength: 10)
             Color.clear
                 .aspectRatio(CGFloat(FilmScript.width) / CGFloat(FilmScript.height), contentMode: .fit)
@@ -319,9 +339,11 @@ struct NotebookFilmView: View {
                     Color.clear.preference(key: CardRectKey.self, value: c.frame(in: .named("film")))
                 })
             Spacer(minLength: 10)
+            // They rise in already whole: a white button fading up from grey looks switched off.
             controls
                 .opacity(controlsShown ? 1 : 0)
-                .offset(y: controlsShown ? 0 : 20)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.12).delay(0.3), value: controlsShown)
+                .offset(y: controlsShown ? 0 : 28)
         }
         .padding(.horizontal, Metrics.side)
         .padding(.bottom, Metrics.bottom)
@@ -355,11 +377,21 @@ struct NotebookFilmView: View {
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("notebookFilm.look")
-            Toggle("Folder names", isOn: $store.folderNames)
-                .font(.body)
-                .foregroundStyle(.white)
+            Toggle(isOn: $store.folderNames) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Folder names")
+                        .font(.body)
+                        .foregroundStyle(.white)
+                    // What the switch puts in the film, said where you choose it.
+                    Text(store.folderNames ? "Shown in the film. Note titles and text never are." : "Left out, like note titles and text.")
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.68))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
                 .tint(Color(red: 0.957, green: 0.678, blue: 0.2))
                 .padding(.horizontal, 16)
+                .padding(.vertical, 9)
                 .frame(minHeight: 48)
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white.opacity(0.1)))
                 .accessibilityIdentifier("notebookFilm.folders")
@@ -378,10 +410,6 @@ struct NotebookFilmView: View {
                 .accessibilityIdentifier("notebookFilm.save")
                 #endif
             }
-            Text(store.folderNames ? "Folder names are in it. Note titles and text never are." : "Note titles, text and folder names aren\u{2019}t in it.")
-                .font(.footnote)
-                .foregroundStyle(.white.opacity(0.55))
-                .multilineTextAlignment(.center)
         }
     }
 
@@ -424,6 +452,14 @@ struct NotebookFilmView: View {
         .foregroundStyle(.black)
         .background(Capsule().fill(.white))
         .contentShape(Capsule())
+    }
+
+    /// Under the intro's title: what's yours in it. "68 notes in 6 folders. A short film of how they grew."
+    static func teaser(_ s: FilmStats?) -> String {
+        guard let s, s.notes > 0 else { return "A short film of how your notes grew." }
+        let notes = s.notes == 1 ? "1 note" : "\(s.notes) notes"
+        let folders = s.folders > 1 ? " in \(s.folders) folders" : ""
+        return "\(notes)\(folders).\nA short film of how they grew."
     }
 
     /// What the film shows, for VoiceOver.
@@ -512,15 +548,15 @@ final class FilmPlayback {
         let width = screen.pixels
         task = Task.detached(priority: .userInitiated) { [weak self] in
             let canvas = screen.canvas(0, card: .zero)
-            // The intro has just shown where the month ended up, so here it starts at the first day.
-            let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: false)
+            // The intro has just shown where the month ended up: it picks up from that picture.
+            let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .brief)
             guard let ctx = FilmRenderer.context(width: width, height: Self.pixelHeight(width, canvas)) else { return }
             let first = renderer.frame
-            let total = Double(FilmScript.frameCount - first)
+            let total = Double(script.frameCount - first)
             let clock = ContinuousClock()
             var next = clock.now
             while !renderer.isDone && !Task.isCancelled {
-                if skip.withLock({ $0 }) { while renderer.frame < FilmScript.frameCount - 1 { renderer.skip() } }
+                if skip.withLock({ $0 }) { while renderer.frame < script.frameCount - 1 { renderer.skip() } }
                 renderer.drawNext(in: ctx)
                 let image = ctx.makeImage()
                 let done = Double(renderer.frame - first) / total
@@ -563,18 +599,18 @@ final class FilmPlayback {
         await Task.detached(priority: .userInitiated) {
             let renderer = FilmRenderer(script: script, labels: labels)
             guard let ctx = FilmRenderer.context(width: width, height: width * FilmScript.height / FilmScript.width) else { return nil }
-            while renderer.frame < FilmScript.frameCount - 1 { renderer.skip() }
+            while renderer.frame < script.frameCount - 1 { renderer.skip() }
             renderer.drawNext(in: ctx)
             return ctx.makeImage()
         }.value
     }
 
-    /// The notebook as the film leaves it, without its words: behind the intro.
-    nonisolated static func poster(script: FilmScript, labels: FilmRenderer.Labels, width: Int) async -> CGImage? {
+    /// The notebook as the film leaves it, in the screen's shape and without its words: behind the intro.
+    nonisolated static func poster(script: FilmScript, labels: FilmRenderer.Labels, canvas: FilmCanvas, width: Int) async -> CGImage? {
         await Task.detached(priority: .userInitiated) {
-            let renderer = FilmRenderer(script: script, labels: labels, opening: false, words: false)
-            guard let ctx = FilmRenderer.context(width: width, height: width * FilmScript.height / FilmScript.width) else { return nil }
-            let last = FilmScript.frameCount - 1
+            let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .none, words: false)
+            guard let ctx = FilmRenderer.context(width: width, height: pixelHeight(width, canvas)) else { return nil }
+            let last = script.frameCount - 1
             while renderer.frame < last { renderer.skip() }
             renderer.drawNext(in: ctx)
             return ctx.makeImage()
@@ -597,29 +633,37 @@ extension View {
     }
 }
 
-/// Comes up a moment after the notes have drawn, not over a half-drawn window.
+/// At launch it comes up a moment after the notes have drawn, not over a half-drawn window; and
+/// if you touch or type anything in that moment, not at all on this launch (it's never dropped on
+/// what you've started). Asked for from Help, it comes up as Settings closes.
 private struct NotebookFilmSheet: ViewModifier {
     @Bindable var store: NotebookFilmStore
     @State private var shown = false
+
     func body(content: Content) -> some View {
         let binding = Binding(get: { shown }, set: { shown = $0; if !$0 { store.visible = false } })
+        let waiting = store.visible && !shown && !store.rewatching
+        let touch = DragGesture(minimumDistance: 0).onChanged { _ in store.postpone() }
         #if os(iOS)
         content
+            .simultaneousGesture(touch, including: waiting ? .all : .subviews)
             .fullScreenCover(isPresented: binding) { NotebookFilmView(store: store) }
-            .task(id: store.visible) {
-                guard store.visible else { shown = false; return }
-                try? await Task.sleep(for: .seconds(1.5))
-                if store.visible { shown = true }
-            }
+            .task(id: store.visible) { await present() }
         #else
         content
+            .simultaneousGesture(touch, including: waiting ? .all : .subviews)
             .sheet(isPresented: binding) { NotebookFilmView(store: store) }
-            .task(id: store.visible) {
-                guard store.visible else { shown = false; return }
-                try? await Task.sleep(for: .seconds(1.5))
-                if store.visible { shown = true }
-            }
+            .task(id: store.visible) { await present() }
         #endif
+    }
+
+    private func present() async {
+        guard store.visible else { shown = false; return }
+        try? await Task.sleep(for: .seconds(store.rewatching ? 0.5 : 1.5))
+        if ShareAsk.lastKeystroke > store.launched { store.postpone() }
+        guard store.visible else { return }
+        shown = true
+        store.didPresent()
     }
 }
 
@@ -636,7 +680,10 @@ private struct ActivitySheet: UIViewControllerRepresentable {
     /// Shown at the top of the sheet instead of the movie's first frame.
     let picture: CGImage?
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [MovieItem(url: url, title: title, picture: picture)], applicationActivities: nil)
+        let c = UIActivityViewController(activityItems: [MovieItem(url: url, title: title, picture: picture)], applicationActivities: nil)
+        // Dark like the screen under it.
+        c.overrideUserInterfaceStyle = .dark
+        return c
     }
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }

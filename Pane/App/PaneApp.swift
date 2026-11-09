@@ -1120,6 +1120,7 @@ struct AppGate: View {
         .onChange(of: setup.progress?.imported == true, initial: true) { _, imported in
             if imported { Task { await PaneTips.importedOnce() } }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .paneWatchNotebookFilm)) { _ in session.notebookFilm.rewatch() }
         .onReceive(NotificationCenter.default.publisher(for: .paneReplayOnboarding)) { _ in
             guard case .signedIn = backend.state, !keyGateShown else { return }
             onboarding.startReplay()
