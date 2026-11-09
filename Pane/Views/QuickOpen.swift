@@ -15,16 +15,21 @@ enum QuickOpen {
     enum Look: String { case quiet, list, sidebar }
     static var look: Look { Look(rawValue: UserDefaults.standard.string(forKey: "quickOpenLook") ?? "") ?? .list }
 
-    /// It appears and goes at once, with no fade, no spring and no scale (Emil, 9 November 2026: the
-    /// 0.24 s spring and scale were "really slow, makes it annoying to use", and then "I dont like the
-    /// fade effect"). The field has the caret on the first frame.
-    static let openDuration: Double = 0
+    /// It drops in from just above, like the app's sheets but quicker, and goes at once (Emil,
+    /// 9 November 2026: the 0.24 s spring and scale were "really slow"; a fade alone wasn't what the
+    /// other sheets do; with nothing at all, "some transition would be good"). The field has the
+    /// caret on the first frame, so typing straight away is never lost.
+    static let openDuration: Double = 0.15
+    static let dropDistance: CGFloat = 10
     static func motion(opening: Bool, reduceMotion: Bool) -> Animation {
-        .easeOut(duration: openDuration)
+        .easeOut(duration: opening && !reduceMotion ? openDuration : 0)
     }
 
-    /// Nothing: no fade, nothing grows or moves, with Reduce Motion or not.
-    static func transition(reduceMotion: Bool) -> AnyTransition { .identity }
+    /// In: down from 10 pt above, growing solid as it comes. Out: gone at once. Reduce Motion: no
+    /// movement either way.
+    static func transition(reduceMotion: Bool) -> AnyTransition {
+        reduceMotion ? .identity : .asymmetric(insertion: .offset(y: -dropDistance).combined(with: .opacity), removal: .identity)
+    }
 
     /// The shortcut the field shows on its right (Emil, 9 November 2026). ⌘O opens it too.
     static let shortcutHint = "\u{2318}K"

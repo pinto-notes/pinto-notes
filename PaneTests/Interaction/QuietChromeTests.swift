@@ -125,21 +125,22 @@ import Testing
         #expect(empty != nil && empty == typed)
     }
 
-    /// Go to Note appears and goes at once: no fade, no spring, no scale (Emil, 9 November 2026: the
-    /// 0.24 s spring was "really slow", then "I dont like the fade effect").
+    /// Go to Note drops in quickly from just above, like the app's sheets but faster, and goes at
+    /// once: no spring, no scale (Emil, 9 November 2026: the spring was "really slow", a fade alone
+    /// felt unlike the other sheets, and with nothing "some transition would be good").
     @Test func goToNoteHasATransition() throws {
         let root = try SettingsHomeTests.source("Pane/Views/RootView.swift")
         #expect(root.contains("QuickOpen.transition(reduceMotion:"))
         #expect(root.contains("value: quickOpen == nil"))
-        #expect(QuickOpen.openDuration == 0, "it appears at once: no fade (Emil, 9 November 2026)")
-        for reduce in [false, true] {
-            #expect(QuickOpen.motion(opening: true, reduceMotion: reduce) == .easeOut(duration: QuickOpen.openDuration))
-            #expect(QuickOpen.motion(opening: false, reduceMotion: reduce) == .easeOut(duration: QuickOpen.openDuration))
-        }
+        #expect(QuickOpen.openDuration > 0 && QuickOpen.openDuration <= 0.16)
+        #expect(QuickOpen.motion(opening: true, reduceMotion: false) == .easeOut(duration: QuickOpen.openDuration))
+        #expect(QuickOpen.motion(opening: false, reduceMotion: false) == .easeOut(duration: 0), "closing is instant")
+        #expect(QuickOpen.motion(opening: true, reduceMotion: true) == .easeOut(duration: 0), "Reduce Motion: no movement")
+        #expect(QuickOpen.dropDistance <= 12)
         let source = try SettingsHomeTests.source("Pane/Views/QuickOpen.swift")
-        let transition = try #require(source.range(of: "static func transition").map { String(source[$0.lowerBound...].prefix(160)) })
-        #expect(!transition.contains("scale") && !transition.contains("spring") && !transition.contains("opacity"), "no fade, nothing grows")
-        #expect(transition.contains(".identity"))
+        let transition = try #require(source.range(of: "static func transition").map { String(source[$0.lowerBound...].prefix(260)) })
+        #expect(!transition.contains("scale") && !transition.contains("spring"), "nothing grows or bounces")
+        #expect(transition.contains("removal: .identity"), "it goes at once")
     }
 
     /// A note drags from anywhere on its card, not only its words.
