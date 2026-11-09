@@ -3,9 +3,8 @@ import AppKit
 import Testing
 @testable import Pane
 
-/// Pictures of the list's top in a folder and in All Notes, light and dark: as it shows now, and
-/// with the heading left pinned at rest (how a new list showed before 9 November 2026). Written
-/// only with BAND_SHOTS set to a folder.
+/// Pictures of the list's top in All Notes, Notes and Daily, light and dark, each taken on the
+/// first frame after its folder was clicked. Written only with BAND_SHOTS set to a folder.
 @MainActor @Suite(.serialized) struct ListHeaderBandShots {
     @Test func shots() async throws {
         guard let dir = ProcessInfo.processInfo.environment["BAND_SHOTS"] else { return }
@@ -13,19 +12,27 @@ import Testing
             let (w, done) = try await ListHeaderBandTests.window(height: 520)
             defer { done() }
             w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-            for (name, row) in [("notes", 2), ("all", 1)] {
+            // Sidebar rows: Folders 0, All Notes 1, Notes 2, Test 3, Daily 4.
+            for (name, row) in [("all", 1), ("notes", 2), ("daily", 4), ("all-again", 1)] {
                 ListHeaderBandTests.clickSidebar(w, row: row)
-                await MacWindowChromeTests.settle(w, 8)
-                let list = try MacEmptyDetailTests.list(w)
-                let scroll = try #require(list.enclosingScrollView)
-                for (kind, floats) in [("after", list.floatsGroupRows), ("before", true)] {
-                    list.floatsGroupRows = floats
-                    await MacWindowChromeTests.settle(w, 2)
+                // The first frame with the new list.
+                let before = try? MacEmptyDetailTests.list(w)
+                let clock = ContinuousClock(), start = clock.now
+                while clock.now - start < .seconds(2) {
+                    try? await Task.sleep(for: .milliseconds(10))
+                    if let now = MacWindowChromeTests.find(NSTableView.self, in: w.contentView!, where: { $0.numberOfRows > 0 && $0.style != .sourceList && $0.accessibilityLabel() != "Sidebar" }), now !== before { break }
+                }
+                for (k, wait) in [0, 16, 16, 32, 100].enumerated() {
+                    if wait > 0 { try? await Task.sleep(for: .milliseconds(wait)) }
+                    w.contentView?.layoutSubtreeIfNeeded()
+                    w.displayIfNeeded()
+                    let list = try MacEmptyDetailTests.list(w)
+                    let scroll = try #require(list.enclosingScrollView)
                     let rep = try #require(scroll.bitmapImageRepForCachingDisplay(in: scroll.bounds))
                     scroll.cacheDisplay(in: scroll.bounds, to: rep)
-                    try rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(dir)/\(kind)-\(name)-\(dark ? "dark" : "light").png"))
+                    try rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(dir)/frame\(k)-\(name)-\(dark ? "dark" : "light").png"))
                 }
-                list.floatsGroupRows = false
+                await MacWindowChromeTests.settle(w, 6)
             }
         }
     }

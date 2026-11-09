@@ -2513,6 +2513,23 @@ struct ListEdgeQuiet: ViewModifier {
     }
 }
 
+extension NSTableView {
+    /// See `ListEdgeLine.installHooks`. Swapped with the originals, so the calls inside run them.
+    @objc func pane_setFloatsGroupRows(_ on: Bool) {
+        pane_setFloatsGroupRows(on && ListEdgeLine.mayPin(self))
+    }
+
+    @objc func pane_viewDidMoveToWindow() {
+        pane_viewDidMoveToWindow()
+        ListEdgeLine.pin(self)
+    }
+
+    @objc func pane_tile() {
+        pane_tile()
+        ListEdgeLine.pin(self)
+    }
+}
+
 /// A view held without keeping it.
 final class Weak<T: AnyObject> {
     weak var value: T?
@@ -2606,6 +2623,44 @@ struct ListEdgeLine: NSViewRepresentable {
         return edge > 1 && edge >= headingTop - 0.5
     }
 
+    /// Whether a table may pin its headings where its list is now: by the rule above for a list
+    /// (not the sidebar's source list), always for anything else.
+    static func mayPin(_ table: NSTableView) -> Bool {
+        guard table.style != .sourceList, let scroll = table.enclosingScrollView else { return true }
+        let headingTop = table.numberOfRows > 0 ? table.rect(ofRow: 0).minY : 0
+        return pins(offset: scroll.contentView.bounds.minY, topInset: scroll.contentInsets.top, headingTop: headingTop)
+    }
+
+    /// A table's headings pinned or not, by where its list is scrolled.
+    static func pin(_ table: NSTableView) {
+        guard table.style != .sourceList, let scroll = table.enclosingScrollView else { return }
+        pin(table, in: scroll)
+    }
+
+    /// SwiftUI builds a new table for each folder with its headings pinned, and turns pinning on
+    /// again when it updates one. Turned off after the table showed, its first frames had "Today"
+    /// up at the edge with a band and a line, and sometimes it stayed (Emil, 9 November 2026: "the
+    /// header band is still switching"). So the rule is kept where it's decided: pinning asked for
+    /// at rest is refused as it's set, and a table is set right as it joins its window and each
+    /// time it lays out its rows, all before it draws. Done once for the app.
+    static let installHooks: Void = {
+        swap(#selector(setter: NSTableView.floatsGroupRows), #selector(NSTableView.pane_setFloatsGroupRows(_:)))
+        swap(#selector(NSView.viewDidMoveToWindow), #selector(NSTableView.pane_viewDidMoveToWindow))
+        swap(#selector(NSTableView.tile), #selector(NSTableView.pane_tile))
+    }()
+
+    /// Swaps NSTableView's `original` with `hooked`. A method NSTableView only inherits is first
+    /// given to NSTableView itself, so the superclass's stays as it is.
+    private static func swap(_ original: Selector, _ hooked: Selector) {
+        let cls: AnyClass = NSTableView.self
+        guard let mine = class_getInstanceMethod(cls, hooked), let theirs = class_getInstanceMethod(cls, original) else { return }
+        if class_addMethod(cls, original, method_getImplementation(mine), method_getTypeEncoding(mine)) {
+            class_replaceMethod(cls, hooked, method_getImplementation(theirs), method_getTypeEncoding(theirs))
+        } else {
+            method_exchangeImplementations(theirs, mine)
+        }
+    }
+
     private static func pin(_ table: NSTableView, in scroll: NSScrollView) {
         let headingTop = table.numberOfRows > 0 ? table.rect(ofRow: 0).minY : 0
         let on = pins(offset: scroll.contentView.bounds.minY, topInset: scroll.contentInsets.top, headingTop: headingTop)
@@ -2613,6 +2668,7 @@ struct ListEdgeLine: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> Probe {
+        ListEdgeLine.installHooks
         let probe = Probe()
         probe.list = list
         return probe
