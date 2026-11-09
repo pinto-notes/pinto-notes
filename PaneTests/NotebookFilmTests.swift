@@ -115,6 +115,41 @@ import Testing
         #expect(bottom > 2000, "the end card's words are there")
     }
 
+    @Test func theFirstFrameSaysWhatItIs() {
+        // A still of the start (what a feed shows before it plays) has the title, not a black frame.
+        let r = FilmRenderer(script: FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal))
+        let ctx = FilmRenderer.context()!
+        r.drawNext(in: ctx)
+        #expect(Self.litPixels(ctx, rows: 40..<300) > 2000)
+    }
+
+    @Test func theEndKeepsItsLight() {
+        // The last frame is the one people pause on: the notebook is no dimmer than as it grew.
+        let r = FilmRenderer(script: FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal))
+        let ctx = FilmRenderer.context()!
+        var grown = 0, last = 0
+        while !r.isDone {
+            let f = r.frame
+            r.drawNext(in: ctx)
+            if f == 260 { grown = Self.litPixels(ctx, rows: 300..<1230) }
+            if f == FilmScript.frameCount - 1 { last = Self.litPixels(ctx, rows: 300..<1230) }
+        }
+        #expect(last >= grown)
+    }
+
+    @Test func theEndCardCountsTheNotesTheAIHelpedWith() {
+        let a = UUID(), b = UUID(), c = UUID()
+        let t = Self.now
+        let input = FilmInput(notes: [
+            FilmNote(id: a, folder: "", created: t, edits: [FilmEdit(at: t, ai: nil), FilmEdit(at: t, ai: "ChatGPT"), FilmEdit(at: t, ai: "ChatGPT")], links: []),
+            FilmNote(id: b, folder: "", created: t, edits: [FilmEdit(at: t, ai: "ChatGPT")], links: []),
+            FilmNote(id: c, folder: "", created: t, edits: [FilmEdit(at: t, ai: nil)], links: []),
+        ], now: t)
+        let s = FilmStats(input, calendar: Self.cal)
+        #expect(s.aiNotes == 2)
+        #expect(FilmRenderer.Labels().aiDetail("ChatGPT", s) == "ChatGPT helped with 2 of them")
+    }
+
     // MARK: From the notes here
 
     @Test func editsKnowWhoWroteThem() {

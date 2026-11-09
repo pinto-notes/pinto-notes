@@ -4,18 +4,28 @@ import AppKit
 #endif
 
 /// The notebook film (see NotebookFilmStore), shown the way the system shows a memory or a year in
-/// review: full screen and dark whatever the appearance, the film playing, a close button, its
-/// looks to pick from, and Share. On the Mac it's a dark sheet with Save… beside Share.
+/// review: full screen and dark whatever the appearance. An intro, the film once full screen, then
+/// the film's last frame to share, with its looks, folder names on or off, and Share. On the Mac
+/// it's a dark sheet with Save… beside Share.
 ///
-/// The film plays live (FilmPlayback), so it shows the moment the app opens and a new look shows
-/// at once. Watching, it's drawn in the screen's own shape; to share, as a 4:5 film. The movie
-/// file is made in the background while you watch (NotebookFilmStore.makeMovie), so Share is ready.
+/// The film plays live (FilmPlayback), drawn in the screen's own shape. The movie files are made in
+/// the background from the intro on (NotebookFilmStore.makeMovies), so Share is ready by the end;
+/// if it isn't, Share still works and opens the share sheet as soon as the movie is.
 struct NotebookFilmView: View {
     @Bindable var store: NotebookFilmStore
     @State private var phase: Phase = .intro
     @State private var playback = FilmPlayback()
     /// The notebook at the end of the film, blurred behind the intro.
     @State private var poster: CGImage?
+    /// The last frame of the film as it's shared, in the look chosen now.
+    @State private var endFrame: CGImage?
+    /// The share screen's header and controls come in just after the film settles into its card.
+    @State private var controlsShown = false
+    /// Share was pressed before the movie was ready: the share sheet opens when it is.
+    @State private var shareWaiting = false
+    #if os(iOS)
+    @State private var sharing: SharedFile?
+    #endif
     @Namespace private var space
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(macOS)
@@ -38,41 +48,79 @@ struct NotebookFilmView: View {
         #if os(macOS)
         .frame(width: 440, height: 760)
         .alert("Couldn\u{2019}t save the film", isPresented: $saveFailed) { Button("OK", role: .cancel) {} }
+        #else
+        .sheet(item: $sharing) { file in
+            ActivitySheet(url: file.url)
+                .presentationDetents([.medium, .large])
+                .ignoresSafeArea()
+        }
         #endif
         .task {
             guard let script = store.script else { return }
+            // From the intro on, so Share is ready by the time the film ends.
+            store.makeMovies()
             poster = await FilmPlayback.poster(script: script, labels: store.labels, width: 540)
-            // Captures: `-filmAutoWatch` presses Watch after a moment on the intro.
+            await refreshEnd()
+            // Captures: `-filmAutoWatch` presses Watch after a moment on the intro, `-filmAutoShare`
+            // presses Share a moment after the film ends.
             if store.forced, ProcessInfo.processInfo.arguments.contains("-filmAutoWatch") {
                 try? await Task.sleep(for: .seconds(3))
                 if phase == .intro { watch() }
             }
         }
-        .onDisappear { playback.stop() }
+        .onDisappear { playback.stop(); store.stopMaking() }
         .onChange(of: playback.finished) { _, done in if done && phase == .watching { toShare() } }
-        .onChange(of: store.look) { if phase == .share { play(loop: true); store.makeMovie() } }
-        .onChange(of: store.folderNames) { if phase == .share { play(loop: true); store.makeMovie() } }
+        .onChange(of: store.look) { lookChanged() }
+        .onChange(of: store.folderNames) { lookChanged() }
+        .onChange(of: store.movie) { _, movie in
+            guard shareWaiting, let movie else { return }
+            shareWaiting = false
+            openShare(movie)
+        }
         .accessibilityIdentifier("notebookFilm")
-    }
-
-    private func play(loop: Bool, fromEnd: Bool = false, canvas: FilmCanvas = .shared, width: Int = Metrics.pixels) {
-        guard let script = store.script else { return }
-        playback.play(script: script, labels: store.labels, canvas: canvas, width: width, loop: loop, fromEnd: fromEnd)
     }
 
     /// The screen's shape while watching, set when it's measured.
     @State private var screen: (canvas: FilmCanvas, pixels: Int)?
 
     private func watch() {
-        if store.movie == nil && store.making == nil { store.makeMovie() }
-        if let screen { play(loop: false, canvas: screen.canvas, width: screen.pixels) } else { play(loop: false) }
+        store.makeMovies()
+        controlsShown = false
+        if let screen { playback.play(script: store.script!, labels: store.labels, canvas: screen.canvas, width: screen.pixels, loop: false) }
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.5)) { phase = .watching }
     }
 
     private func toShare() {
-        // Just watched: it holds on the finished notebook before it plays again.
-        play(loop: true, fromEnd: true)
-        withAnimation(reduceMotion ? nil : .smooth(duration: 0.6)) { phase = .share }
+        playback.stop()
+        withAnimation(reduceMotion ? nil : .smooth(duration: 0.55)) { phase = .share }
+        withAnimation(reduceMotion ? nil : .smooth(duration: 0.45).delay(reduceMotion ? 0 : 0.35)) { controlsShown = true }
+        if store.forced, ProcessInfo.processInfo.arguments.contains("-filmAutoShare") {
+            Task { try? await Task.sleep(for: .seconds(2.5)); pressShare() }
+        }
+    }
+
+    private func lookChanged() {
+        store.makeMovies()
+        Task { await refreshEnd() }
+    }
+
+    private func refreshEnd() async {
+        guard let script = store.script else { return }
+        let labels = store.labels
+        let image = await FilmPlayback.lastFrame(script: script, labels: labels, width: Metrics.pixels)
+        if labels.look == store.look, labels.folderNames == store.folderNames { endFrame = image }
+    }
+
+    private func pressShare() {
+        if let movie = store.movie { openShare(movie) } else { shareWaiting = true; store.makeMovies() }
+    }
+
+    private func openShare(_ movie: URL) {
+        #if os(iOS)
+        sharing = SharedFile(url: movie)
+        #else
+        save()
+        #endif
     }
 
     // MARK: Intro
@@ -135,6 +183,7 @@ struct NotebookFilmView: View {
                         .resizable()
                         .interpolation(.high)
                         .aspectRatio(contentMode: .fit)
+                        .matchedGeometryEffect(id: "film", in: space)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .ignoresSafeArea()
                         .accessibilityLabel(Self.description(store.script?.stats))
@@ -163,7 +212,7 @@ struct NotebookFilmView: View {
                                                 top: insets.top + 52, bottom: insets.bottom + 24)
                 let pixels = min(1206, Int(g.size.width * Metrics.displayScale))
                 screen = (canvas, pixels)
-                play(loop: false, canvas: canvas, width: pixels)
+                if let script = store.script { playback.play(script: script, labels: store.labels, canvas: canvas, width: pixels, loop: false) }
             }
         }
         .contentShape(Rectangle())
@@ -184,26 +233,27 @@ struct NotebookFilmView: View {
                 HStack {
                     closeButton
                     Spacer()
-                    Button(action: watch) {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.system(size: 15, weight: .semibold))
-                            .frame(width: 36, height: 36)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.white)
-                    .background(Circle().fill(.white.opacity(0.14)))
-                    .accessibilityLabel("Watch again")
-                    .accessibilityIdentifier("notebookFilm.watchAgain")
                 }
             }
             .padding(.top, Metrics.top)
-            Spacer(minLength: 12)
-            filmFrame
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.white.opacity(store.look == .night ? 0.12 : 0), lineWidth: 0.5))
-                .matchedGeometryEffect(id: "film", in: space)
-            Spacer(minLength: 12)
+            .opacity(controlsShown ? 1 : 0)
+            filmCard
+                .padding(.top, 14)
+            Button(action: watch) {
+                Label("Watch again", systemImage: "play.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(minHeight: 44)
+                    .padding(.horizontal, 12)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.white.opacity(0.85))
+            .accessibilityIdentifier("notebookFilm.watchAgain")
+            .opacity(controlsShown ? 1 : 0)
+            Spacer(minLength: 8)
             controls
+                .opacity(controlsShown ? 1 : 0)
+                .offset(y: controlsShown ? 0 : 24)
         }
         .padding(.horizontal, Metrics.side)
         .padding(.bottom, Metrics.bottom)
@@ -218,13 +268,16 @@ struct NotebookFilmView: View {
         .buttonStyle(.plain)
         .foregroundStyle(.white)
         .background(Circle().fill(.white.opacity(0.14)))
+        .frame(minWidth: 44, minHeight: 44)
+        .contentShape(Rectangle())
         .accessibilityLabel("Close")
         .accessibilityIdentifier("notebookFilm.close")
     }
 
-    private var filmFrame: some View {
+    /// The film as it will be shared, held on its last frame.
+    private var filmCard: some View {
         Group {
-            if let frame = playback.frame {
+            if let frame = endFrame ?? playback.frame {
                 Image(decorative: frame, scale: 1)
                     .resizable()
                     .interpolation(.high)
@@ -233,81 +286,93 @@ struct NotebookFilmView: View {
             }
         }
         .aspectRatio(CGFloat(FilmScript.width) / CGFloat(FilmScript.height), contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.white.opacity(store.look == .night ? 0.14 : 0), lineWidth: 0.5))
+        .matchedGeometryEffect(id: "film", in: space)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: watch)
         .accessibilityElement()
         .accessibilityLabel(Self.description(store.script?.stats))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Plays it again")
     }
 
     private var controls: some View {
         VStack(spacing: 14) {
-            HStack(spacing: 8) {
+            Picker("Look", selection: $store.look) {
                 ForEach(FilmLook.allCases, id: \.self) { look in
-                    chip(look.name, on: store.look == look) { store.look = look }
-                        .accessibilityIdentifier("notebookFilm.look.\(look.rawValue)")
+                    Text(look.name).tag(look)
                 }
-                Spacer(minLength: 4)
-                chip("Folders", symbol: store.folderNames ? "checkmark" : nil, on: store.folderNames) { store.folderNames.toggle() }
-                    .accessibilityIdentifier("notebookFilm.folders")
             }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("notebookFilm.look")
+            Toggle("Folder names", isOn: $store.folderNames)
+                .font(.body)
+                .foregroundStyle(.white)
+                .tint(.accentColor)
+                .padding(.horizontal, 4)
+                .accessibilityIdentifier("notebookFilm.folders")
             HStack(spacing: 10) {
-                if let script = store.script {
-                    if let movie = store.movie {
-                        ShareLink(item: movie, preview: SharePreview(NotebookFilmStore.title(script.stats), image: Image("MarkTight"))) {
-                            Label("Share", systemImage: "square.and.arrow.up")
-                                .font(.body.weight(.semibold))
-                                .frame(maxWidth: .infinity, minHeight: 50)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.black)
-                        .background(Capsule().fill(.white))
-                        .accessibilityIdentifier("notebookFilm.share")
-                    } else {
-                        // Being made: says so, and how far, rather than a Share that stalls.
-                        HStack(spacing: 8) {
-                            ProgressView().controlSize(.small).tint(.black)
-                            Text("Getting it ready\u{2026} \(Int(((store.making ?? 0) * 100).rounded()))%")
-                                .font(.body.weight(.semibold))
-                                .monospacedDigit()
-                        }
+                shareButton
+                #if os(macOS)
+                Button { save() } label: {
+                    Text("Save\u{2026}")
+                        .font(.body.weight(.semibold))
                         .frame(maxWidth: .infinity, minHeight: 50)
-                        .foregroundStyle(.black.opacity(0.7))
-                        .background(Capsule().fill(.white.opacity(0.8)))
-                        .accessibilityIdentifier("notebookFilm.share")
-                    }
-                    #if os(macOS)
-                    Button { save() } label: {
-                        Text("Save\u{2026}")
-                            .font(.body.weight(.semibold))
-                            .frame(maxWidth: .infinity, minHeight: 50)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.white)
-                    .background(Capsule().fill(.white.opacity(0.14)))
-                    .disabled(store.movie == nil)
-                    .accessibilityIdentifier("notebookFilm.save")
-                    #endif
                 }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white)
+                .background(Capsule().fill(.white.opacity(0.14)))
+                .disabled(store.movie == nil)
+                .accessibilityIdentifier("notebookFilm.save")
+                #endif
             }
-            Text("Note titles and text are never in it.")
+            Text(store.folderNames ? "Folder names are in it. Note titles and text never are." : "Note titles, text and folder names aren\u{2019}t in it.")
                 .font(.footnote)
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.55))
+                .multilineTextAlignment(.center)
         }
     }
 
-    private func chip(_ title: String, symbol: String? = nil, on: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                if let symbol { Image(systemName: symbol).font(.caption.weight(.bold)) }
-                Text(title)
-            }
-            .font(.subheadline.weight(.medium))
-            .padding(.horizontal, 14)
-            .frame(height: 34)
-            .foregroundStyle(on ? .black : .white)
-            .background(Capsule().fill(on ? Color.white : Color.white.opacity(0.14)))
-            .contentShape(Capsule())
+    /// Always Share, never greyed out: if the movie is still being made, pressing it shows how far
+    /// it is and opens the share sheet the moment it's ready.
+    @ViewBuilder private var shareButton: some View {
+        if let movie = store.movie, !shareWaiting {
+            #if os(iOS)
+            Button { openShare(movie) } label: { shareLabel(waiting: false) }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("notebookFilm.share")
+            #else
+            ShareLink(item: movie, preview: SharePreview("My first month", image: Image("MarkTight"))) { shareLabel(waiting: false) }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("notebookFilm.share")
+            #endif
+        } else {
+            Button(action: pressShare) { shareLabel(waiting: shareWaiting) }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("notebookFilm.share")
         }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    private func shareLabel(waiting: Bool) -> some View {
+        HStack(spacing: 8) {
+            if waiting {
+                ProgressView(value: store.making ?? 0)
+                    .progressViewStyle(.circular)
+                    .controlSize(.small)
+                    .tint(.black)
+                Text("Preparing\u{2026} \(Int(((store.making ?? 0) * 100).rounded()))%")
+                    .monospacedDigit()
+            } else {
+                Image(systemName: "square.and.arrow.up")
+                Text("Share")
+            }
+        }
+        .font(.body.weight(.semibold))
+        .frame(maxWidth: .infinity, minHeight: 50)
+        .foregroundStyle(.black)
+        .background(Capsule().fill(.white))
+        .contentShape(Capsule())
     }
 
     /// What the film shows, for VoiceOver.
@@ -322,7 +387,7 @@ struct NotebookFilmView: View {
     private func save() {
         guard let movie = store.movie else { return }
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = "Pinto Notes \u{2013} my notebook.mp4"
+        panel.nameFieldStringValue = "Pinto Notes \u{2013} my first month.mp4"
         panel.allowedContentTypes = [.mpeg4Movie]
         guard panel.runModal() == .OK, let to = panel.url else { return }
         do {
@@ -402,6 +467,17 @@ final class FilmPlayback {
         task = nil
     }
 
+    /// The film's last frame, as it's shared: what the share screen holds on.
+    nonisolated static func lastFrame(script: FilmScript, labels: FilmRenderer.Labels, width: Int) async -> CGImage? {
+        await Task.detached(priority: .userInitiated) {
+            let renderer = FilmRenderer(script: script, labels: labels)
+            guard let ctx = FilmRenderer.context(width: width, height: width * FilmScript.height / FilmScript.width) else { return nil }
+            while renderer.frame < FilmScript.frameCount - 1 { renderer.skip() }
+            renderer.drawNext(in: ctx)
+            return ctx.makeImage()
+        }.value
+    }
+
     /// The notebook as the film leaves it, before its last words come up.
     nonisolated static func poster(script: FilmScript, labels: FilmRenderer.Labels, width: Int) async -> CGImage? {
         await Task.detached(priority: .userInitiated) {
@@ -422,13 +498,44 @@ extension View {
     }
 }
 
+/// Comes up a moment after the notes have drawn, not over a half-drawn window.
 private struct NotebookFilmSheet: ViewModifier {
     @Bindable var store: NotebookFilmStore
+    @State private var shown = false
     func body(content: Content) -> some View {
+        let binding = Binding(get: { shown }, set: { shown = $0; if !$0 { store.visible = false } })
         #if os(iOS)
-        content.fullScreenCover(isPresented: $store.visible) { NotebookFilmView(store: store) }
+        content
+            .fullScreenCover(isPresented: binding) { NotebookFilmView(store: store) }
+            .task(id: store.visible) {
+                guard store.visible else { shown = false; return }
+                try? await Task.sleep(for: .seconds(0.9))
+                if store.visible { shown = true }
+            }
         #else
-        content.sheet(isPresented: $store.visible) { NotebookFilmView(store: store) }
+        content
+            .sheet(isPresented: binding) { NotebookFilmView(store: store) }
+            .task(id: store.visible) {
+                guard store.visible else { shown = false; return }
+                try? await Task.sleep(for: .seconds(0.9))
+                if store.visible { shown = true }
+            }
         #endif
     }
 }
+
+#if os(iOS)
+/// The share sheet for the movie, opened from code (Share pressed before the movie was ready).
+private struct SharedFile: Identifiable {
+    let url: URL
+    var id: URL { url }
+}
+
+private struct ActivitySheet: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+#endif

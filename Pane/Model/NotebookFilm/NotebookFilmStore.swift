@@ -28,12 +28,19 @@ final class NotebookFilmStore {
     var look: FilmLook = .night
     /// Folder names over their clusters (on unless you turn them off); note titles never show.
     var folderNames = true
-    /// The film as a movie file, ready to share: made in the background while you watch, and again
-    /// when you change its look, so Share never waits.
-    private(set) var movie: URL?
-    /// How far the movie is, 0...1, while it's being made.
-    private(set) var making: Double?
+    /// The film as a movie file for the look and folder names chosen now, once it's made. Movies
+    /// are made in the background from the intro on, the chosen one first, then the other looks, so
+    /// Share almost never waits and trying a look doesn't either.
+    var movie: URL? { movies[movieKey] }
+    /// How far the chosen movie is, 0...1, while it's being made.
+    var making: Double? { movie == nil ? progress[movieKey] ?? 0 : nil }
+    private(set) var movies: [String: URL] = [:]
+    private var progress: [String: Double] = [:]
     @ObservationIgnored private var maker: Task<Void, Never>?
+    @ObservationIgnored private var makingKey: String?
+
+    private var movieKey: String { Self.key(look, folderNames) }
+    private static func key(_ look: FilmLook, _ folderNames: Bool) -> String { "\(look.rawValue)-\(folderNames)" }
 
     @ObservationIgnored private var account: UUID?
     @ObservationIgnored private var service: FilmSource.Service?
@@ -110,13 +117,7 @@ final class NotebookFilmStore {
     }
 
     /// The film as you've set it: its look, folder names, and the app's mark in the corner.
-    var labels: FilmRenderer.Labels {
-        var l = FilmRenderer.Labels()
-        l.look = look
-        l.folderNames = folderNames
-        l.markImage = Self.mark
-        return l
-    }
+    var labels: FilmRenderer.Labels { labels(look: look, folderNames: folderNames) }
 
     static let mark: CGImage? = {
         #if os(macOS)
@@ -128,31 +129,63 @@ final class NotebookFilmStore {
 
     static func title(_ s: FilmStats?) -> String { "Your first month" }
 
-    /// Makes the movie of the film as it's set now, replacing one being made.
-    func makeMovie() {
+    /// Makes the movies still missing: the one chosen now first, then the other looks with the
+    /// same folder names. Choosing another look or folder names while one is being made moves
+    /// that one to the front.
+    func makeMovies() {
         guard let script else { return }
+        if movie != nil, maker != nil { return }
+        if let makingKey, makingKey == movieKey, maker != nil { return }
         maker?.cancel()
-        movie = nil
-        making = 0
-        let labels = labels
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("NotebookFilm-\(UUID().uuidString)", isDirectory: true)
-        let url = dir.appendingPathComponent("Pinto Notes \u{2013} my notebook.mp4")
+        let folderNames = folderNames
+        let order = [look] + FilmLook.allCases.filter { $0 != look }
+        let jobs = order.map { (Self.key($0, folderNames), labels(look: $0, folderNames: folderNames)) }
+            .filter { movies[$0.0] == nil }
+        guard !jobs.isEmpty else { maker = nil; return }
         maker = Task { [weak self] in
-            let work = Task.detached(priority: .utility) { () -> Bool in
-                do {
-                    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                    try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: url) { p in
-                        Task { @MainActor in if self?.movie == nil, self?.making != nil { self?.making = p } }
+            for (k, (key, labels)) in jobs.enumerated() {
+                guard !Task.isCancelled else { return }
+                // The one you're looking at is made at once; the others after it, in the background.
+                let priority: TaskPriority = k == 0 && key == self?.movieKey ? .userInitiated : .utility
+                self?.makingKey = key
+                let dir = FileManager.default.temporaryDirectory.appendingPathComponent("NotebookFilm-\(UUID().uuidString)", isDirectory: true)
+                let url = dir.appendingPathComponent("Pinto Notes \u{2013} my first month.mp4")
+                let work = Task.detached(priority: priority) { () -> Bool in
+                    do {
+                        // Written under another name and renamed when it's whole.
+                        let making = dir.appendingPathComponent("making.mp4")
+                        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                        try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: making) { p in
+                            Task { @MainActor in self?.progress[key] = p }
+                        }
+                        try FileManager.default.moveItem(at: making, to: url)
+                        return true
+                    } catch {
+                        return false
                     }
-                    return true
-                } catch {
-                    return false
                 }
+                let ok = await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
+                guard !Task.isCancelled, let self else { return }
+                progress[key] = nil
+                if ok { movies[key] = url }
             }
-            let ok = await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
-            guard !Task.isCancelled, let self else { return }
-            making = nil
-            movie = ok ? url : nil
+            self?.maker = nil
+            self?.makingKey = nil
         }
+    }
+
+    /// Closed: stops making movies (the ones made stay until the app quits).
+    func stopMaking() {
+        maker?.cancel()
+        maker = nil
+        makingKey = nil
+    }
+
+    func labels(look: FilmLook, folderNames: Bool) -> FilmRenderer.Labels {
+        var l = FilmRenderer.Labels()
+        l.look = look
+        l.folderNames = folderNames
+        l.markImage = Self.mark
+        return l
     }
 }

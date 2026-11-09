@@ -22,31 +22,43 @@ xcrun simctl ui "$SIM" appearance light
 
 launch() { xcrun simctl terminate "$SIM" $APP 2>/dev/null || true; sleep 1; xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm "$@" >/dev/null; }
 
-# The whole flow, from the notes opening.
+# The whole flow, from the notes opening: intro, Watch, the film, the share screen, then Share.
 xcrun simctl terminate "$SIM" $APP 2>/dev/null || true; sleep 1
+data=$(xcrun simctl get_app_container "$SIM" $APP data)
+rm -rf "$data"/tmp/NotebookFilm-* 2>/dev/null || true
 xcrun simctl io "$SIM" recordVideo --codec=h264 --force "$OUT/flow-raw.mov" >/dev/null 2>&1 & rec=$!
-sleep 1.5
-xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm -filmAutoWatch >/dev/null
-sleep 2.2; xcrun simctl io "$SIM" screenshot "$OUT/1-intro.png" >/dev/null 2>&1
-sleep 6; xcrun simctl io "$SIM" screenshot "$OUT/2-watching-mid.png" >/dev/null 2>&1
-sleep 9; xcrun simctl io "$SIM" screenshot "$OUT/3-watching-end.png" >/dev/null 2>&1
-sleep 3; xcrun simctl io "$SIM" screenshot "$OUT/4-share-night.png" >/dev/null 2>&1
-sleep 8; xcrun simctl io "$SIM" screenshot "$OUT/5-share-night-later.png" >/dev/null 2>&1
+# The recorder takes a few seconds to start writing.
+sleep 5
+t0=$(python3 -c "import time; print(time.time())")
+xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm -filmAutoWatch -filmAutoShare >/dev/null
+sleep 3; xcrun simctl io "$SIM" screenshot "$OUT/1-intro.png" >/dev/null 2>&1
+sleep 7; xcrun simctl io "$SIM" screenshot "$OUT/2-watching-mid.png" >/dev/null 2>&1
+sleep 7.5; xcrun simctl io "$SIM" screenshot "$OUT/3-watching-end.png" >/dev/null 2>&1
+sleep 1.2; xcrun simctl io "$SIM" screenshot "$OUT/4-share-night.png" >/dev/null 2>&1
+sleep 2.4; xcrun simctl io "$SIM" screenshot "$OUT/5-share-pressed.png" >/dev/null 2>&1
+for i in {1..30}; do
+  sleep 3
+  ls "$data"/tmp/NotebookFilm-*/Pinto*.mp4 >/dev/null 2>&1 && break
+done
+sleep 3; xcrun simctl io "$SIM" screenshot "$OUT/7-share-sheet.png" >/dev/null 2>&1
+sleep 2
+t1=$(python3 -c "import time; print(time.time())")
 kill -INT $rec; wait $rec || true
-ffmpeg -y -loglevel error -i "$OUT/flow-raw.mov" -ss 2.4 -vf "scale=590:-2,format=yuv420p" -c:v libx264 -crf 20 -movflags +faststart "$OUT/flow.mp4"
+raw=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT/flow-raw.mov")
+start=$(python3 -c "print(max(0, $raw - ($t1 - $t0) - 0.3))")
+ffmpeg -y -loglevel error -i "$OUT/flow-raw.mov" -ss $start -vf "scale=590:-2,format=yuv420p" -c:v libx264 -crf 20 -movflags +faststart "$OUT/flow.mp4"
 rm -f "$OUT/flow-raw.mov"
-ffmpeg -y -loglevel error -i "$OUT/flow.mp4" -vf "fps=2,scale=200:-1,tile=10x6" -frames:v 1 "$OUT/flow-2fps-sheet.png"
+ffmpeg -y -loglevel error -i "$OUT/flow.mp4" -vf "fps=2,scale=200:-1,tile=10x8" -frames:v 1 "$OUT/flow-2fps-sheet.png"
+# The movies the app made in that session (Night first, then Paper, then Dusk), as they're shared.
+for i in {1..60}; do (( $(ls "$data"/tmp/NotebookFilm-*/Pinto*.mp4 2>/dev/null | wc -l) >= 3 )) && break; sleep 3; done
+looks=(night paper dusk); k=1
+ls -tr "$data"/tmp/NotebookFilm-*/Pinto*.mp4 2>/dev/null | head -3 | while IFS= read -r f; do cp "$f" "$OUT/shared-${looks[$k]}.mp4"; k=$((k+1)); done
 
 # The share screen in the other looks.
 for look in paper dusk; do
   launch -filmAutoWatch -filmLook $look
-  sleep 28; xcrun simctl io "$SIM" screenshot "$OUT/6-share-$look.png" >/dev/null 2>&1
+  sleep 25; xcrun simctl io "$SIM" screenshot "$OUT/6-share-$look.png" >/dev/null 2>&1
 done
 xcrun simctl terminate "$SIM" $APP 2>/dev/null || true
-
-# The movie as it's shared (same code, demo notebook), in each look.
-for look in night paper dusk; do
-  scripts/film/render.sh "$OUT/shared-$look.mp4" 7 35 $look >/dev/null
-done
-ffmpeg -y -loglevel error -i "$OUT/shared-night.mp4" -vf "fps=1.5,scale=270:-1,tile=10x2" -frames:v 1 "$OUT/shared-night-sheet.png"
+[[ -f "$OUT/shared-night.mp4" ]] && ffmpeg -y -loglevel error -i "$OUT/shared-night.mp4" -vf "fps=1.5,scale=270:-1,tile=10x2" -frames:v 1 "$OUT/shared-night-sheet.png"
 ls "$OUT"

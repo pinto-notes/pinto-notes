@@ -40,6 +40,8 @@ struct FilmStats: Equatable, Sendable {
     var ai: String?
     /// Of all edits, how many an AI made, 0...1.
     var aiShare: Double
+    /// Notes an AI wrote in at least once.
+    var aiNotes: Int
 
     init(_ input: FilmInput, calendar: Calendar = .current) {
         let notes = input.notes
@@ -57,6 +59,7 @@ struct FilmStats: Equatable, Sendable {
         for e in edits { if let a = e.ai { byAI[a, default: 0] += 1 } }
         ai = byAI.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }?.key
         aiShare = edits.isEmpty ? 0 : Double(byAI.values.reduce(0, +)) / Double(edits.count)
+        aiNotes = notes.filter { $0.edits.contains { $0.ai != nil } }.count
     }
 }
 
