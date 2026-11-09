@@ -676,8 +676,14 @@ struct QuickOpenPanel: View {
                     .foregroundStyle(focused ? Color.ink : Color.muted)
                     .focused($focused)
                     .onSubmit { if rows.indices.contains(index) { jumpAndChoose(rows[index]) } }
-                    .onKeyPress(.downArrow) { highlighted = QuickOpen.step(1, from: index, count: rows.count); return .handled }
-                    .onKeyPress(.upArrow) { highlighted = QuickOpen.step(-1, from: index, count: rows.count); return .handled }
+                    // Held, the arrows repeat at the system's rate, as in any Mac list (Emil, 9 November
+                    // 2026: "If I hold arrow down or up, logically it should move multiple times").
+                    .onKeyPress(.downArrow, phases: [.down, .repeat]) { _ in
+                        highlighted = QuickOpen.step(1, from: min(highlighted, max(rows.count - 1, 0)), count: rows.count); return .handled
+                    }
+                    .onKeyPress(.upArrow, phases: [.down, .repeat]) { _ in
+                        highlighted = QuickOpen.step(-1, from: min(highlighted, max(rows.count - 1, 0)), count: rows.count); return .handled
+                    }
                     .onKeyPress(.escape) { close(); return .handled }
                     .accessibilityLabel("Go to Note")
                     .accessibilityIdentifier("quickOpen.field")
@@ -781,7 +787,13 @@ struct QuickOpenPanel: View {
             }
             .scrollIndicators(.never)
             .frame(height: min(height(rows), Metrics.maxList))
-            .onChange(of: index) { _, i in if rows.indices.contains(i) { proxy.scrollTo(rows[i].id) } }
+            // At once, no easing: a held arrow scrolls with each step instead of piling up animations.
+            .onChange(of: index) { _, i in
+                guard rows.indices.contains(i) else { return }
+                var now = Transaction()
+                now.disablesAnimations = true
+                withTransaction(now) { proxy.scrollTo(rows[i].id) }
+            }
         }
     }
 
