@@ -461,7 +461,7 @@ final class TownScene: FilmScene {
                 let f = [0.9, 0.95, 1.0][hill.depth], zf = 1 + (cam.z - 1) * f
                 let sx = centre.x + (p.x - (centre.x + (cam.x - centre.x) * f)) * zf + drift * [0.45, 0.7, 1.0][hill.depth]
                 let sy = centre.y + (p.y - (centre.y + (cam.y - centre.y) * f)) * zf
-                let half = size.width / 2 * zf, ceiling = viewTop + 22
+                let half = size.width / 2 * zf, ceiling = viewTop - 24
                 a *= min(smooth((sx - half - 8) / 26), smooth((W - 8 - sx - half) / 26), smooth((ceiling - sy - size.height * zf) / 36))
                 guard a > 0.01 else { continue }
                 nightNow = nightAt([0.45, 0.65, 0.85][hill.depth])
@@ -580,7 +580,7 @@ final class TownScene: FilmScene {
             for dy in stride(from: 0.0, through: 160, by: 20) {
                 for dx in stride(from: -90.0, through: 90, by: 30) {
                     let r = CGRect(x: min(W - 40 - size.width, max(40, anchor.x + dx - size.width / 2)), y: anchor.y + dy, width: size.width, height: size.height)
-                    guard r.maxY < viewTop + 20 else { continue }
+                    guard r.maxY < viewTop - 30 else { continue }
                     var cost = abs(dx) * 14 + dy * 16
                     for (i, h) in rects.enumerated() { let o = r.insetBy(dx: -5, dy: -5).intersection(h); if !o.isNull { cost += (houses[i].hill == hi ? 1.2 : 4) * o.width * o.height } }
                     for q in placed { let o = r.insetBy(dx: -8, dy: -8).intersection(q); if !o.isNull { cost += 60 * o.width * o.height } }
