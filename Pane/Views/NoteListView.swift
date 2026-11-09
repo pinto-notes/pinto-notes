@@ -405,7 +405,7 @@ struct NoteListView: View {
         // Soft under the toolbar, as the sidebar and Notes: a list's own edge is hard, the window's
         // grey title bar with a line under it (Emil, 10-30, in Recently Deleted).
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .modifier(ListEdgeQuiet())
+        .modifier(ListEdgeQuiet(list: ListIdentity(scope: scope, library: library.wholesale)))
         .modifier(FollowsTextSize())
         #endif
         .overlay {
@@ -2505,17 +2505,47 @@ private struct OpensTopNote: ViewModifier {
 /// edge and the pinned date headings stay the system's, as in Notes (measured 7 November 2026): one
 /// frosted band, a hairline under the bar and under the pinned heading, no change on hover.
 struct ListEdgeQuiet: ViewModifier {
+    /// Which list is showing: another folder is another list, a new table.
+    var list: ListIdentity?
+
     func body(content: Content) -> some View {
-        content.background { ListEdgeLine() }
+        content.background { ListEdgeLine(list: list) }
     }
 }
 
+/// A view held without keeping it.
+final class Weak<T: AnyObject> {
+    weak var value: T?
+    init(_ value: T) { self.value = value }
+}
+
 struct ListEdgeLine: NSViewRepresentable {
+    /// Which list is showing (see `ListEdgeQuiet`).
+    var list: ListIdentity?
+
     final class Probe: NSView {
         private var last = Date.distantPast
+        /// The list last followed.
+        var list: ListIdentity?
+
+        /// Another list is showing: its table is new, and SwiftUI starts a table with its headings
+        /// pinned, a band and a line under "Today" with nothing scrolled under it. The window's
+        /// updates are looked at once a second at most, so a folder opened within that second kept
+        /// the band until the next one (Emil, 9 November 2026: All Notes banded, the folder plain).
+        /// The new table is followed as soon as it's there, before it's drawn.
+        func listChanged() {
+            for wait in [0.0, 0.05, 0.25] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in
+                    guard let self else { return }
+                    self.last = .distantPast
+                    self.hide()
+                }
+            }
+        }
         private var watch: NSObjectProtocol?
-        /// The tables being followed, and their scroll watchers.
-        private var scrolls: [ObjectIdentifier: NSObjectProtocol] = [:]
+        /// The tables being followed: each one's clip view and scroll watcher. The clip is kept
+        /// (weakly) because a new table can take a gone one's address: it gets a watcher of its own.
+        private var scrolls: [ObjectIdentifier: (clip: Weak<NSClipView>, watch: NSObjectProtocol)] = [:]
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -2543,35 +2573,56 @@ struct ListEdgeLine: NSViewRepresentable {
         private func follow(_ table: NSTableView) {
             guard table.style != .sourceList, let scroll = table.enclosingScrollView else { return }
             let key = ObjectIdentifier(table)
-            if scrolls[key] == nil {
-                let clip = scroll.contentView
+            let clip = scroll.contentView
+            if scrolls[key]?.clip.value !== clip {
+                if let old = scrolls[key] { NotificationCenter.default.removeObserver(old.watch) }
+                // Tables that are gone: their watchers go too.
+                for (k, v) in scrolls where v.clip.value == nil { NotificationCenter.default.removeObserver(v.watch); scrolls[k] = nil }
                 clip.postsBoundsChangedNotifications = true
-                scrolls[key] = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip, queue: .main) { [weak table, weak scroll] _ in
+                let watch = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip, queue: .main) { [weak table, weak scroll] _ in
                     MainActor.assumeIsolated {
                         guard let table, let scroll else { return }
                         ListEdgeLine.pin(table, in: scroll)
                     }
                 }
+                scrolls[key] = (Weak(clip), watch)
             }
             ListEdgeLine.pin(table, in: scroll)
         }
 
         deinit {
-            MainActor.assumeIsolated { scrolls.values.forEach(NotificationCenter.default.removeObserver) }
+            MainActor.assumeIsolated { scrolls.values.forEach { NotificationCenter.default.removeObserver($0.watch) } }
         }
     }
 
     /// Whether a list scrolled to `offset` pins its heading. At the top the heading is a plain row:
-    /// no band or line with nothing under them (Emil, 7 November 2026).
-    static func pins(offset: CGFloat, topInset: CGFloat) -> Bool { offset + topInset > 1 }
+    /// no band or line with nothing under them (Emil, 7 November 2026). `headingTop` is where the
+    /// first heading sits in the list (the list's top padding): AppKit draws a pinned heading at
+    /// the edge, so pinning before the heading got there pulled it up that far in one frame, with
+    /// a band and a line. A list a few points down (All Notes revealing the open note) showed its
+    /// "Today" jumped up and banded while the folder beside it didn't (Emil, 9 November 2026).
+    static func pins(offset: CGFloat, topInset: CGFloat, headingTop: CGFloat = 0) -> Bool {
+        let edge = offset + topInset
+        return edge > 1 && edge >= headingTop - 0.5
+    }
 
     private static func pin(_ table: NSTableView, in scroll: NSScrollView) {
-        let on = pins(offset: scroll.contentView.bounds.minY, topInset: scroll.contentInsets.top)
+        let headingTop = table.numberOfRows > 0 ? table.rect(ofRow: 0).minY : 0
+        let on = pins(offset: scroll.contentView.bounds.minY, topInset: scroll.contentInsets.top, headingTop: headingTop)
         if table.floatsGroupRows != on { table.floatsGroupRows = on }
     }
 
-    func makeNSView(context: Context) -> Probe { Probe() }
-    func updateNSView(_ view: Probe, context: Context) {}
+    func makeNSView(context: Context) -> Probe {
+        let probe = Probe()
+        probe.list = list
+        return probe
+    }
+
+    func updateNSView(_ view: Probe, context: Context) {
+        guard view.list != list else { return }
+        view.list = list
+        view.listChanged()
+    }
 
     /// Hides the toolbar edge's separator and the split view's divider ground under `root`.
     static func hideLines(in root: CALayer) {
