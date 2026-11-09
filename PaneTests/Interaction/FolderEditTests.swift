@@ -286,8 +286,75 @@ import UniformTypeIdentifiers
         let src = try String(contentsOf: file, encoding: .utf8)
         let tree = try #require(src.range(of: "private struct FolderTree: View").map { String(src[$0.lowerBound...]) })
         #expect(tree.contains("DisclosureGroup(isExpanded: opening)"))
-        #expect(tree.contains("withTransaction(FolderTree.instant) { expanded = open }"))
+        #expect(tree.contains("withTransaction(FolderTree.instant) {") && tree.contains("expanded = open"))
         #expect(tree.contains("t.disablesAnimations = true"))
+    }
+
+    /// The way out of a folder (Emil, 9 November 2026: "I literally don't know how to move the
+    /// folder outside the folder it's in"): dropped on the "Folders" heading, as on Notes' account
+    /// heading, a folder goes to the top level, last. A note in the same drag stays where it is.
+    @Test func aFolderDroppedOnTheHeadingGoesToTheTopLevelLast() async throws {
+        let (c, by) = try Self.library()
+        let ctx = c.mainContext
+        let note = ctx.createNote(in: .folder(by["Plans"]!.id), body: "Plan")
+        func provider(_ item: PaneDragItem) -> NSItemProvider { let p = NSItemProvider(); p.register(item); return p }
+        SidebarView.moveToTopLevel([provider(PaneDragItem(kind: .folder, id: by["Clients"]!.id)), provider(PaneDragItem(kind: .note, id: note.id))], context: ctx)
+        for _ in 0..<100 where by["Clients"]!.parent != nil { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(Self.roots(ctx).map(\.name) == ["Notes", "Work", "Home", "Travel", "Clients"])
+        #expect(by["Work"]!.liveChildren.map(\.name) == ["Plans"])
+        #expect(note.folder?.id == by["Plans"]!.id, "a note can't be outside a folder")
+        #expect(by["Clients"]!.dirty, "the move syncs")
+
+        // The heading takes folders only and lights while one is over it. (The sidebar's own drop
+        // under the list calls the same, though on the Mac the list takes a drag there itself.)
+        let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Pane/Views/SidebarView.swift")
+        let src = try String(contentsOf: file, encoding: .utf8)
+        #expect(src.contains(".onDrop(of: [.paneFolder], delegate: TopLevelDrop(over: $headingOver)"))
+        #expect(src.contains("func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [.paneFolder]) }"))
+        #expect(src.contains(".opacity(headingOver ? 1 : 0)"))
+        #expect(src.components(separatedBy: "Self.moveToTopLevel(providers, context: context)").count - 1 == 2, "the heading and the empty space")
+    }
+
+    /// Closing a folder with a folder inside it selected selects the folder you closed, as Finder
+    /// and Notes do: left on the hidden row, the list drew it over the row below ("Dailyst",
+    /// Emil's recording of 9 November 2026).
+    @Test func closingAFolderMovesTheSelectionInsideItUpToIt() throws {
+        let (c, by) = try Self.library()
+        let work = by["Work"]!
+        let deep = c.mainContext.createFolder(named: "Q4", parent: by["Plans"]!)
+        #expect(SidebarView.selection(afterClosing: work, .folder(by["Clients"]!.id)) == .folder(work.id))
+        #expect(SidebarView.selection(afterClosing: work, .folder(deep.id)) == .folder(work.id), "however deep")
+        #expect(SidebarView.selection(afterClosing: work, .folder(work.id)) == .folder(work.id))
+        #expect(SidebarView.selection(afterClosing: work, .folder(by["Home"]!.id)) == .folder(by["Home"]!.id), "a folder elsewhere stays selected")
+        #expect(SidebarView.selection(afterClosing: work, .all) == .all)
+        #expect(SidebarView.selection(afterClosing: work, nil) == nil)
+    }
+
+    /// Moving a folder out of one with no other folders left a stale row: the old parent's row
+    /// turned from one that opens into a plain one, and the list drew "Work" and "Ideas" in one row
+    /// (seen on the Air, 9 November 2026). On the Mac every folder's row is one that can open, its
+    /// arrow hidden while nothing is inside, and folder changes are instant.
+    @Test func aFolderLeavingItsParentLeavesNoStaleRow() throws {
+        let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Pane/Views/SidebarView.swift")
+        let src = try String(contentsOf: file, encoding: .utf8)
+        let tree = try #require(src.range(of: "private struct FolderTree: View").map { String(src[$0.lowerBound...]) })
+        let body = try #require(tree.range(of: "var body: some View {").map { String(tree[$0.lowerBound...].prefix(900)) })
+        #expect(body.contains("#if os(macOS)\n            // Always a row that can open"), "one shape on the Mac")
+        #expect(body.contains("            tree\n            #else"))
+        #if os(macOS)
+        let arrow = NSRect(x: 4, y: 2, width: 14, height: 14)
+        #expect(EmptyFolderArrow.frame(arrow, children: 0) == .zero, "no arrow on a folder with nothing inside")
+        #expect(EmptyFolderArrow.frame(arrow, children: 2) == arrow)
+        #endif
+        #expect(src.contains("if let outline = table as? NSOutlineView { EmptyFolderArrow.hide(in: outline) }"))
+        #expect(src.contains("withTransaction(FolderTree.instant, body)"))
+        for change in ["context.move(f, into:", "context.place(f, in:", "context.nudge(f, by:", "context.nudge(folder, by:", "context.trash(f)", "context.duplicate(f)"] {
+            for line in src.components(separatedBy: "\n") where line.contains(change) {
+                #expect(!line.contains("withAnimation"), "instant on the Mac: \(line.trimmingCharacters(in: .whitespaces))")
+            }
+        }
     }
 
     @Test func newNoteFromAFolderLandsInItAndOpens() throws {
