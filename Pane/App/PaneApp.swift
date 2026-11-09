@@ -646,6 +646,8 @@ final class AppSession {
     let shareAsk = ShareAskStore()
     /// "How did you hear about Pinto Notes?", once, for a new account.
     let heardFrom = HeardFromStore()
+    /// The notebook film, once, after a month of real use.
+    let notebookFilm = NotebookFilmStore()
     /// Asks to approve an AI connection from a browser, while signed in with the key here.
     private(set) var connectAsks: ConnectAsks?
     /// "Connected ChatGPT", "Your notes were deleted…": said once on each device.
@@ -774,6 +776,7 @@ final class AppSession {
         Self.log.notice("onboarding: \(String(describing: self.onboarding.phase), privacy: .public) at sign-in (made \(Int(-(self.backend.accountCreated ?? .distantPast).timeIntervalSinceNow), privacy: .public) s ago, empty \(SyncEngine.holdsNothing(self.context), privacy: .public))")
         shareAsk.attach(account: backend.userID, service: SupabaseShareAsk(client: client), created: backend.accountCreated)
         heardFrom.attach(account: backend.userID, service: SupabaseHeardFrom(client: client))
+        notebookFilm.attach(account: backend.userID, service: SupabaseFilmSource(client: client))
         NoteVault.shared.attach(account: backend.userID, remote: SupabaseLockRemote(client: client))
         KeyDevices.shared.attach(account: backend.userID, server: SupabaseKeyDevices(client: client))
         KeyDevices.shared.removedHere = { [weak self] in await self?.removedFromDevices() }
@@ -898,6 +901,10 @@ final class AppSession {
         // "Enjoying Pinto Notes?": only here, at launch, and only when nothing else asks or shows.
         shareAsk.atLaunch(otherPrompt: onboarding.holdsAsks() || heardFrom.visible || (notices?.shownThisLaunch ?? false)
                           || notices?.current != nil || AccountCrypto.shared.recoveryKeyChangeNeedsSaying || PaneTips.all.contains { $0.shouldDisplay })
+        // The notebook film: the same moment, when the share ask didn't take it.
+        await notebookFilm.atLaunch(context: context, otherPrompt: onboarding.holdsAsks() || heardFrom.visible || shareAsk.visible
+                                    || (notices?.shownThisLaunch ?? false) || notices?.current != nil
+                                    || AccountCrypto.shared.recoveryKeyChangeNeedsSaying || PaneTips.all.contains { $0.shouldDisplay })
         await InstallID.report(client)
     }
 
@@ -1085,10 +1092,12 @@ struct AppGate: View {
                     .environment(onboarding)
                     .shareAskSheet(shareAsk)
                     .heardFromSheet(heardFrom)
+                    .notebookFilmSheet(session.notebookFilm)
                     .task {
                         try? await Task.sleep(for: .seconds(1.2))
                         shareAsk.showIfForced()
                         heardFrom.showIfForced()
+                        await session.notebookFilm.showIfForced()
                     }
                     .modifier(NoticeAlerts(notices: notices, crypto: crypto, problem: $noticeProblem))
                     .transition(.opacity)
