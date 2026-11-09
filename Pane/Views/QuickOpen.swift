@@ -450,6 +450,12 @@ enum QuickOpen {
         let p = preview.trimmingCharacters(in: .whitespacesAndNewlines)
         return p.isEmpty ? NoteText.noPreview : p
     }
+
+    /// The first words a row shows after the title: none for an empty note (no "No additional
+    /// text"), "Locked" for a locked one.
+    static func shownPreview(_ n: NoteItem) -> String? {
+        n.preview == NoteText.noPreview || n.preview.isEmpty ? nil : n.preview
+    }
 }
 
 /// ⌘K: Add Link while text is picked in the note (or a table cell) you're typing in, as in Notes;
@@ -508,7 +514,7 @@ struct QuickOpenPanel: View {
     /// A row as VoiceOver reads it when you move onto it: what's on screen beside the name.
     static func rowLabel(_ row: QuickOpen.Row) -> String {
         switch row {
-        case .note(let n): [spoken(row), n.folder, QuickOpen.dateText(n), n.preview].compactMap { $0 }.joined(separator: ", ")
+        case .note(let n): [spoken(row), QuickOpen.shownPreview(n), n.folder].compactMap { $0 }.joined(separator: ", ")
         // Everything the row shows: the other lines and how many more were left out of VoiceOver.
         case .text(let t): ([spoken(row)] + t.others.map(\.text) + [t.more > 0 ? SearchLines.moreLine(t.more) : nil, t.folder]).compactMap { $0 }.joined(separator: ", ")
         case .command(let c): [spoken(row), c.detail?.text, c.shortcut].compactMap { $0 }.joined(separator: ", ")
@@ -565,9 +571,8 @@ struct QuickOpenPanel: View {
     enum Metrics {
         static let width: CGFloat = 600
         static let field: CGFloat = 48
+        /// Every row but a note found by its text: one line, notes and commands alike.
         static let row: CGFloat = 36
-        /// A note in the list look: its title, and when and where under it.
-        static let listRow: CGFloat = 50
         /// A note found by its text: its title, and the line under it.
         static let textRow: CGFloat = 48
         /// Each further line under it: another line that holds the text, or "4 more in this note".
@@ -759,7 +764,6 @@ struct QuickOpenPanel: View {
 
     /// A row's height: a note found by its text grows a line for each further line it shows.
     static func height(of row: QuickOpen.Row) -> CGFloat {
-        if case .note = row, QuickOpen.look == .list { return Metrics.listRow }
         guard case .text(let t) = row else { return Metrics.row }
         return Metrics.textRow + CGFloat(t.others.count + (t.more > 0 ? 1 : 0)) * Metrics.textLine
     }
@@ -775,35 +779,30 @@ struct QuickOpenPanel: View {
                     Spacer(minLength: 8)
                     if let f = n.folder { Text(f).foregroundStyle(Color.muted).lineLimit(1) }
                 case .list:
-                    // The title, then the folder (with its icon) and the first words, all quiet; the
-                    // date on the right (Emil, 9 November 2026: without the words it was hard to tell
-                    // notes apart; then the bold title and the strong date made the left too busy).
-                    VStack(alignment: .leading, spacing: 2) {
-                        highlightedTitle(n.title.isEmpty ? "New Note" : n.title, weight: .medium)
-                        HStack(spacing: 6) {
-                            if let f = n.folder {
-                                // The icon close to the name (Emil, 9 November 2026: the Label's
-                                // gap was too wide).
-                                Self.iconAndName("folder", f, size: Metrics.detailSize)
-                                    .fixedSize()
-                                .accessibilityIdentifier("quickOpen.folder")
-                                Text("\u{00B7}").accessibilityHidden(true)
-                            }
-                            Text(n.preview)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                        .font(.system(size: Metrics.detailSize))
-                        .foregroundStyle(Color.muted)
+                    // One line, as Raycast has it: an icon, the title in ink, the first words in the
+                    // one grey, the folder on the right in the same grey. Two tones, no date (Emil,
+                    // 9 November 2026: two lines were "a bit too much... its all grey").
+                    icon(n.locked ? "lock" : "doc.text", on: on)
+                    highlightedTitle(n.title.isEmpty ? "New Note" : n.title)
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                    if let words = QuickOpen.shownPreview(n) {
+                        Text(words)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.muted)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .accessibilityIdentifier("quickOpen.preview")
                     }
                     Spacer(minLength: 12)
-                    Text(QuickOpen.dateText(n))
-                        .font(.system(size: Metrics.folderSize))
-                        .foregroundStyle(Color.muted.opacity(0.75))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .fixedSize()
-                        .accessibilityIdentifier("quickOpen.date")
+                    if let f = n.folder {
+                        Text(f)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.muted)
+                            .lineLimit(1)
+                            .fixedSize()
+                            .accessibilityIdentifier("quickOpen.folder")
+                    }
                 case .sidebar:
                     // As the sidebar has it: an icon, the name in the accent when chosen, a figure at the end.
                     icon(n.locked ? "lock" : "doc.text", on: on)
