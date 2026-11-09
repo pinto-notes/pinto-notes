@@ -1,4 +1,5 @@
 import SwiftUI
+import os
 #if os(macOS)
 import AppKit
 #else
@@ -37,14 +38,17 @@ struct NotebookFilmView: View {
     enum Phase { case intro, watching, share }
 
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            switch phase {
-            case .intro: intro.transition(.opacity)
-            // The film steps back into its card: the full screen shrinks away as the card settles in.
-            case .watching: watching.transition(.opacity.combined(with: .scale(scale: 0.9)))
-            case .share: share.transition(.opacity.combined(with: .scale(scale: 1.06)))
+        GeometryReader { g in
+            ZStack {
+                Color.black.ignoresSafeArea()
+                if phase == .intro {
+                    intro.transition(.opacity)
+                } else {
+                    stage(g).transition(.opacity)
+                }
             }
+            .onAppear { measure(g) }
+            .onChange(of: g.size) { measure(g) }
         }
         .environment(\.colorScheme, .dark)
         #if os(macOS)
@@ -65,13 +69,22 @@ struct NotebookFilmView: View {
             await refreshEnd()
             // Captures: `-filmAutoWatch` presses Watch after a moment on the intro, `-filmAutoShare`
             // presses Share a moment after the film ends.
-            if store.forced, ProcessInfo.processInfo.arguments.contains("-filmAutoWatch") {
+            let args = ProcessInfo.processInfo.arguments
+            if store.forced, args.contains("-filmAutoWatch") {
                 try? await Task.sleep(for: .seconds(3))
                 if phase == .intro { watch() }
+                // `-filmAutoClose` presses the close button part way through.
+                if args.contains("-filmAutoClose") {
+                    try? await Task.sleep(for: .seconds(5))
+                    store.visible = false
+                }
+            } else if store.forced, args.contains("-filmAutoNotNow") {
+                try? await Task.sleep(for: .seconds(3))
+                store.visible = false
             }
         }
         .onDisappear { playback.stop(); store.stopMaking() }
-        .onChange(of: playback.finished) { _, done in if done && phase == .watching { toShare() } }
+        .onChange(of: playback.settling) { _, settling in if settling && phase == .watching { toShare() } }
         .onChange(of: store.look) { lookChanged() }
         .onChange(of: store.folderNames) { lookChanged() }
         .onChange(of: store.movie) { _, movie in
@@ -82,20 +95,36 @@ struct NotebookFilmView: View {
         .accessibilityIdentifier("notebookFilm")
     }
 
-    /// The screen's shape while watching, set when it's measured.
-    @State private var screen: (canvas: FilmCanvas, pixels: Int)?
+    /// The screen while watching: its whole size in points (safe areas included), what must stay
+    /// clear at the top and bottom, and how many pixels wide the film is drawn.
+    @State private var screen: FilmPlayback.Screen?
+    /// Where the film sits on the share screen, measured from its layout.
+    @State private var cardRect = CGRect.zero
+    /// The last frame in a look chosen on the share screen (the film itself shows until one is).
+    @State private var chosen: (key: String, frame: CGImage)?
 
-    private func watch() {
-        store.makeMovies()
-        controlsShown = false
-        if let screen { playback.play(script: store.script!, labels: store.labels, canvas: screen.canvas, width: screen.pixels, loop: false) }
-        withAnimation(reduceMotion ? nil : .smooth(duration: 0.5)) { phase = .watching }
+    private func measure(_ g: GeometryProxy) {
+        let insets = g.safeAreaInsets
+        screen = FilmPlayback.Screen(size: CGSize(width: g.size.width, height: g.size.height + insets.top + insets.bottom),
+                                     top: insets.top + 52, bottom: insets.bottom + 24,
+                                     pixels: min(1206, Int(g.size.width * Metrics.displayScale)))
     }
 
+    private func watch() {
+        guard let script = store.script, let screen else { return }
+        store.makeMovies()
+        withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) {
+            chosen = nil
+            controlsShown = false
+            phase = .watching
+            playback.play(script: script, labels: store.labels, screen: screen, settle: reduceMotion ? 0 : 0.6)
+        }
+    }
+
+    /// The film has begun to settle into its card: the share screen comes in round it.
     private func toShare() {
-        playback.stop()
-        withAnimation(reduceMotion ? nil : .smooth(duration: 0.55)) { phase = .share }
-        withAnimation(reduceMotion ? nil : .smooth(duration: 0.45).delay(reduceMotion ? 0 : 0.4)) { controlsShown = true }
+        withAnimation(reduceMotion ? nil : .smooth(duration: 0.3)) { phase = .share }
+        withAnimation(reduceMotion ? nil : .smooth(duration: 0.45).delay(0.3)) { controlsShown = true }
         if store.forced, ProcessInfo.processInfo.arguments.contains("-filmAutoShare") {
             Task { try? await Task.sleep(for: .seconds(2.5)); pressShare() }
         }
@@ -103,14 +132,18 @@ struct NotebookFilmView: View {
 
     private func lookChanged() {
         store.makeMovies()
-        Task { await refreshEnd() }
+        Task { await refreshEnd(show: true) }
     }
 
-    private func refreshEnd() async {
+    private func refreshEnd(show: Bool = false) async {
         guard let script = store.script else { return }
         let labels = store.labels
         let image = await FilmPlayback.lastFrame(script: script, labels: labels, width: Metrics.pixels)
-        if labels.look == store.look, labels.folderNames == store.folderNames { endFrame = image }
+        guard labels.look == store.look, labels.folderNames == store.folderNames, let image else { return }
+        endFrame = image
+        if show, phase == .share {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) { chosen = ("\(labels.look.rawValue)-\(labels.folderNames)", image) }
+        }
     }
 
     private func pressShare() {
@@ -175,79 +208,120 @@ struct NotebookFilmView: View {
         }
     }
 
-    // MARK: Watching
+    // MARK: The film, full screen and then in its card
 
-    private var watching: some View {
-        GeometryReader { g in
-            let insets = g.safeAreaInsets
-            ZStack {
-                if let frame = playback.frame {
-                    Image(decorative: frame, scale: 1)
-                        .resizable()
-                        .interpolation(.high)
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .ignoresSafeArea()
-                        .accessibilityLabel(Self.description(store.script?.stats))
-                }
-                VStack {
-                    HStack {
-                        Spacer()
-                        closeButton
-                    }
-                    .padding(.top, Metrics.top)
-                    Spacer()
-                    // How far through, like a story, at the bottom.
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(.white.opacity(0.22))
-                        Capsule().fill(.white).frame(width: max(3, (g.size.width - Metrics.side * 2) * playback.progress))
-                    }
-                    .frame(height: 3)
-                    .padding(.bottom, 14)
-                    .accessibilityHidden(true)
-                }
-                .padding(.horizontal, Metrics.side)
-            }
-            .onAppear {
-                // Drawn in the screen's own shape, clear of the close button and the bar.
-                let canvas = FilmCanvas.fitting(width: g.size.width, height: g.size.height + insets.top + insets.bottom,
-                                                top: insets.top + 52, bottom: insets.bottom + 24)
-                let pixels = min(1206, Int(g.size.width * Metrics.displayScale))
-                screen = (canvas, pixels)
-                if let script = store.script { playback.play(script: script, labels: store.labels, canvas: canvas, width: pixels, loop: false) }
+    /// One film the whole way: it plays over the whole screen, and at its end the same picture
+    /// settles into the card the share screen is laid out round. Nothing fades or cuts between.
+    private func stage(_ g: GeometryProxy) -> some View {
+        let insets = g.safeAreaInsets
+        let full = CGRect(x: 0, y: -insets.top, width: g.size.width, height: g.size.height + insets.top + insets.bottom)
+        let card = cardRect.isEmpty ? full : cardRect
+        let p = CGFloat(playback.landing)
+        let rect = CGRect(x: full.minX + (card.minX - full.minX) * p, y: full.minY + (card.minY - full.minY) * p,
+                          width: full.width + (card.width - full.width) * p, height: full.height + (card.height - full.height) * p)
+        return ZStack {
+            shareChrome
+                .allowsHitTesting(phase == .share)
+            film(rect: rect, p: p)
+            watchChrome(width: g.size.width)
+                .opacity(phase == .watching ? 1 : 0)
+                .allowsHitTesting(phase == .watching)
+        }
+        .coordinateSpace(name: "film")
+        .onPreferenceChange(CardRectKey.self) { rect in
+            cardRect = rect
+            playback.card = rect.size
+        }
+        .onAppear {
+            // From the intro: Watch was pressed before this was on screen.
+            if playback.frame == nil, let script = store.script, let screen {
+                playback.play(script: script, labels: store.labels, screen: screen, settle: reduceMotion ? 0 : 0.6)
             }
         }
+    }
+
+    private func film(rect: CGRect, p: CGFloat) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 14 * p, style: .continuous)
+        return ZStack {
+            if phase == .share, let chosen {
+                Image(decorative: chosen.frame, scale: 1).resizable().interpolation(.high)
+                    .id(chosen.key)
+                    .transition(.opacity)
+            } else if let frame = playback.frame {
+                Image(decorative: frame, scale: 1).resizable().interpolation(.high)
+            } else {
+                Color.black
+            }
+        }
+        .frame(width: rect.width, height: rect.height)
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(.white.opacity(store.look == .night ? 0.14 * p : 0), lineWidth: 0.5))
         .contentShape(Rectangle())
-        // A tap goes to the end, as a story does.
-        .onTapGesture { toShare() }
-        .accessibilityAction(named: "Skip to the end") { toShare() }
+        // Watching, a tap goes to the end, as a story does; on the share screen it plays again.
+        .onTapGesture { if phase == .watching { playback.skipToEnd() } else { watch() } }
+        .position(x: rect.midX, y: rect.midY)
+        .accessibilityElement()
+        .accessibilityLabel(Self.description(store.script?.stats))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: phase == .watching ? "Skip to the end" : "Watch again") {
+            if phase == .watching { playback.skipToEnd() } else { watch() }
+        }
+    }
+
+    private func watchChrome(width: CGFloat) -> some View {
+        VStack {
+            HStack {
+                Spacer()
+                closeButton
+            }
+            .padding(.top, Metrics.top)
+            Spacer()
+            // How far through, like a story, at the bottom.
+            ZStack(alignment: .leading) {
+                Capsule().fill(.white.opacity(0.22))
+                Capsule().fill(.white).frame(width: max(3, (width - Metrics.side * 2) * playback.progress))
+            }
+            .frame(height: 3)
+            .padding(.bottom, 14)
+            .accessibilityHidden(true)
+        }
+        .padding(.horizontal, Metrics.side)
     }
 
     // MARK: Share
 
-    private var share: some View {
+    /// The share screen round the film's card. It's laid out from the start (unseen) so the film
+    /// knows where it will land.
+    private var shareChrome: some View {
         VStack(spacing: 0) {
-            ZStack {
-                Text(NotebookFilmStore.title(store.script?.stats))
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .accessibilityAddTraits(.isHeader)
-                HStack {
-                    closeButton
-                    Spacer()
-                    roundButton("play.fill", label: "Watch again", action: watch)
-                        .accessibilityIdentifier("notebookFilm.watchAgain")
+            HStack {
+                closeButton
+                Spacer()
+                Button(action: watch) {
+                    Label("Watch again", systemImage: "play.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 14)
+                        .frame(height: 36)
+                        .background(Capsule().fill(.white.opacity(0.14)))
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white)
+                .accessibilityIdentifier("notebookFilm.watchAgain")
             }
             .padding(.top, Metrics.top)
             .opacity(controlsShown ? 1 : 0)
             Spacer(minLength: 10)
-            filmCard
+            Color.clear
+                .aspectRatio(CGFloat(FilmScript.width) / CGFloat(FilmScript.height), contentMode: .fit)
+                .background(GeometryReader { c in
+                    Color.clear.preference(key: CardRectKey.self, value: c.frame(in: .named("film")))
+                })
             Spacer(minLength: 10)
             controls
                 .opacity(controlsShown ? 1 : 0)
                 .offset(y: controlsShown ? 0 : 20)
-                .animation(reduceMotion ? nil : .smooth(duration: 0.45).delay(0.12), value: controlsShown)
         }
         .padding(.horizontal, Metrics.side)
         .padding(.bottom, Metrics.bottom)
@@ -272,28 +346,6 @@ struct NotebookFilmView: View {
             .accessibilityIdentifier("notebookFilm.close")
     }
 
-    /// The film as it will be shared, held on its last frame.
-    private var filmCard: some View {
-        Group {
-            if let frame = endFrame ?? playback.frame {
-                Image(decorative: frame, scale: 1)
-                    .resizable()
-                    .interpolation(.high)
-            } else {
-                Color.black
-            }
-        }
-        .aspectRatio(CGFloat(FilmScript.width) / CGFloat(FilmScript.height), contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.white.opacity(store.look == .night ? 0.14 : 0), lineWidth: 0.5))
-        .contentShape(Rectangle())
-        .onTapGesture(perform: watch)
-        .accessibilityElement()
-        .accessibilityLabel(Self.description(store.script?.stats))
-        .accessibilityAddTraits(.isButton)
-        .accessibilityHint("Plays it again")
-    }
-
     private var controls: some View {
         VStack(spacing: 14) {
             Picker("Look", selection: $store.look) {
@@ -306,8 +358,10 @@ struct NotebookFilmView: View {
             Toggle("Folder names", isOn: $store.folderNames)
                 .font(.body)
                 .foregroundStyle(.white)
-                .tint(.accentColor)
-                .padding(.horizontal, 4)
+                .tint(Color(red: 0.957, green: 0.678, blue: 0.2))
+                .padding(.horizontal, 16)
+                .frame(minHeight: 48)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white.opacity(0.1)))
                 .accessibilityIdentifier("notebookFilm.folders")
             HStack(spacing: 10) {
                 shareButton
@@ -413,50 +467,90 @@ struct NotebookFilmView: View {
     }
 }
 
-/// Plays the film live: frames drawn off the main thread at 30 a second, so it starts at once and
-/// a new look starts over at once. Once through (`finished`), or looping with a pause at the end.
+/// Plays the film live, once: frames drawn off the main thread at 30 a second in the screen's own
+/// shape, so it starts at once. At its end the last frame is drawn again and again as its shape
+/// goes from the screen's to the card's (`landing` 0 to 1), which the view follows with its frame.
 @MainActor
 @Observable
 final class FilmPlayback {
-    private(set) var frame: CGImage?
-    /// How far through, 0...1.
-    private(set) var progress = 0.0
-    /// A play-once run reached its end.
-    private(set) var finished = false
-    @ObservationIgnored private var task: Task<Void, Never>?
+    struct Screen: Sendable, Equatable {
+        /// The whole screen in points, and what must stay clear at its top and bottom.
+        var size: CGSize
+        var top: Double, bottom: Double
+        /// How wide the film is drawn.
+        var pixels: Int
 
-    func play(script: FilmScript, labels: FilmRenderer.Labels, canvas: FilmCanvas = .shared, width: Int, loop: Bool, fromEnd: Bool = false) {
+        /// The film's shape `p` of the way from the screen to a card of `card` points.
+        func canvas(_ p: Double, card: CGSize) -> FilmCanvas {
+            let w = size.width + (card.width - size.width) * p, h = size.height + (card.height - size.height) * p
+            return .fitting(width: w, height: h, top: top * (1 - p), bottom: bottom * (1 - p))
+        }
+    }
+
+    private(set) var frame: CGImage?
+    /// How far through the film, 0...1.
+    private(set) var progress = 0.0
+    /// 0 while it plays over the whole screen; to 1 as it settles into its card.
+    private(set) var landing = 0.0
+    /// The film is over and it has begun to settle.
+    private(set) var settling = false
+    /// The card it settles into, in points; the view keeps this current.
+    var card = CGSize.zero
+    @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var skip = OSAllocatedUnfairLock(initialState: false)
+
+    /// A tap while watching: straight to the end.
+    func skipToEnd() { skip.withLock { $0 = true } }
+
+    func play(script: FilmScript, labels: FilmRenderer.Labels, screen: Screen, settle: Double) {
         task?.cancel()
-        finished = false
+        settling = false
         progress = 0
-        let height = Int((Double(width) * canvas.height / Double(FilmScript.width)).rounded())
-        let total = Double(FilmScript.frameCount)
+        landing = 0
+        let skip = OSAllocatedUnfairLock(initialState: false)
+        self.skip = skip
+        let width = screen.pixels
         task = Task.detached(priority: .userInitiated) { [weak self] in
-            guard let ctx = FilmRenderer.context(width: width, height: height) else { return }
+            let canvas = screen.canvas(0, card: .zero)
+            // The intro has just shown where the month ended up, so here it starts at the first day.
+            let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: false)
+            guard let ctx = FilmRenderer.context(width: width, height: Self.pixelHeight(width, canvas)) else { return }
+            let first = renderer.frame
+            let total = Double(FilmScript.frameCount - first)
             let clock = ContinuousClock()
-            if fromEnd {
-                let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas)
-                while renderer.frame < FilmScript.frameCount - 1 { renderer.skip() }
+            var next = clock.now
+            while !renderer.isDone && !Task.isCancelled {
+                if skip.withLock({ $0 }) { while renderer.frame < FilmScript.frameCount - 1 { renderer.skip() } }
                 renderer.drawNext(in: ctx)
                 let image = ctx.makeImage()
-                await MainActor.run { self?.frame = image; self?.progress = 1 }
-                try? await Task.sleep(for: .seconds(4))
+                let done = Double(renderer.frame - first) / total
+                await MainActor.run { self?.frame = image; self?.progress = done }
+                next += .milliseconds(33)
+                try? await clock.sleep(until: next)
             }
-            repeat {
-                let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas)
-                var next = clock.now
-                while !renderer.isDone && !Task.isCancelled {
-                    renderer.drawNext(in: ctx)
-                    let image = ctx.makeImage()
-                    let done = Double(renderer.frame) / total
-                    await MainActor.run { self?.frame = image; self?.progress = done }
-                    next += .milliseconds(33)
-                    try? await clock.sleep(until: next)
-                }
-                if loop { try? await Task.sleep(for: .seconds(2.5)) }
-            } while loop && !Task.isCancelled
-            if !loop && !Task.isCancelled { await MainActor.run { self?.finished = true } }
+            guard !Task.isCancelled else { return }
+            let card = await MainActor.run { () -> CGSize in
+                self?.settling = true
+                return self?.card ?? .zero
+            }
+            guard card.width > 0 else { return }
+            let began = clock.now
+            while !Task.isCancelled {
+                let x = settle <= 0 ? 1 : min(1, (clock.now - began) / .seconds(settle))
+                let p = x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2
+                let canvas = screen.canvas(p, card: card)
+                guard let c = FilmRenderer.context(width: width, height: Self.pixelHeight(width, canvas)) else { break }
+                renderer.drawHeld(in: c, canvas: canvas)
+                let image = c.makeImage()
+                await MainActor.run { self?.frame = image; self?.landing = p }
+                if x >= 1 { break }
+                try? await clock.sleep(for: .milliseconds(10))
+            }
         }
+    }
+
+    private nonisolated static func pixelHeight(_ width: Int, _ canvas: FilmCanvas) -> Int {
+        Int((Double(width) * canvas.height / Double(FilmScript.width)).rounded())
     }
 
     func stop() {
@@ -485,6 +579,14 @@ final class FilmPlayback {
             renderer.drawNext(in: ctx)
             return ctx.makeImage()
         }.value
+    }
+}
+
+private struct CardRectKey: PreferenceKey {
+    static let defaultValue = CGRect.zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        let next = nextValue()
+        if !next.isEmpty { value = next }
     }
 }
 

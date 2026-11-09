@@ -24,7 +24,7 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
         switch self {
         case .night: (RGB(0, 0, 0), RGB(0, 0, 0))
         case .paper: (RGB(1, 1, 1), RGB(1, 1, 1))
-        case .dusk: (RGB(0.10, 0.09, 0.24), RGB(0.02, 0.03, 0.09))
+        case .dusk: (RGB(0.04, 0.05, 0.19), RGB(0.36, 0.17, 0.31))
         }
     }
     var dark: Bool { self != .paper }
@@ -41,9 +41,16 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
     var ink: RGB { dark ? RGB(1, 1, 1) : RGB(0.11, 0.09, 0.07) }
     var line: RGB { dark ? RGB(0.92, 0.90, 0.86) : RGB(0.25, 0.22, 0.18) }
     /// A note no one has touched in a while fades toward this.
-    var cool: RGB { dark ? RGB(0.6, 0.6, 0.6) : RGB(0.62, 0.60, 0.58) }
+    /// It keeps its own colour, dimmer: never a grey that means nothing.
+    var cool: RGB {
+        switch self {
+        case .night: RGB(0, 0, 0)
+        case .paper: RGB(1, 1, 1)
+        case .dusk: RGB(0.12, 0.09, 0.26)
+        }
+    }
     /// How far a note no one has touched in a while fades toward `cool`.
-    var cooling: Double { dark ? 0.3 : 0.1 }
+    var cooling: Double { 0.28 }
     /// How strong lines are drawn: paper needs more to read.
     var lineAlpha: Double { dark ? 0.34 : 0.42 }
 }
@@ -75,12 +82,16 @@ final class FilmRenderer {
         var subtitle = "with Pinto Notes"
         /// The end card's one line that's only yours: the folder you wrote in most (when folder
         /// names are on), or your busiest day.
-        var topFolder: @Sendable (String) -> String = { "Most written in \($0)" }
-        var busiestDay: @Sendable (String) -> String = { "Busiest day: \($0)" }
+        var topFolder: @Sendable (String, Int) -> String = { "Most written in \($0) \u{00B7} \($1 == 1 ? "1 note" : "\($1) notes")" }
+        var busiestDay: @Sendable (String, Int) -> String = { "Busiest day: \($0) \u{00B7} \($1 == 1 ? "1 edit" : "\($1) edits")" }
+        /// Said under the date as it grows, so someone who has never seen the app can read it.
+        var captions = ["Each light is a note", "It lights up when it\u{2019}s written in"]
+        /// As the film passes your busiest day: "Oct 19, your busiest day".
+        var busiestCaption: @Sendable (String) -> String = { "\($0), your busiest day" }
         /// Under the end card's numbers.
         var statNotes = "notes"
-        var statDays = "days writing"
-        var statAI: @Sendable (String) -> String = { "with \($0)" }
+        var statDays = "days written on"
+        var statAI: @Sendable (String) -> String = { "notes with \($0)" }
         /// Folder names over their clusters. Note titles are never shown.
         var folderNames = true
         /// The name for notes in no folder; nil leaves them unnamed.
@@ -104,8 +115,8 @@ final class FilmRenderer {
     let labels: Labels
     /// In film units: 1080 wide, and the canvas's height.
     let width = FilmScript.width
-    let height: Int
-    let canvas: FilmCanvas
+    var height: Int { Int(canvas.height.rounded()) }
+    private(set) var canvas: FilmCanvas
     private(set) var frame = 0
 
     // Layout, in world units; the camera maps them to pixels.
@@ -139,14 +150,18 @@ final class FilmRenderer {
     private let firstYou: Double, firstAI: Double
     /// The note written in most: it keeps the brightest light at the end.
     private let editCounts: [Int]
-    private let maxEdits: Int
+    /// 0...1 per note: how much it was written in, 1 for the busiest tenth.
+    private let worked: [Double]
+    /// When an AI first wrote in each note (infinity if none did): it turns the AI's colour then.
+    private let aiFrom: [Double]
 
     /// `opening` false leaves out the glimpse of the end it opens on (that glimpse is drawn by one).
     init(script: FilmScript, labels: Labels = Labels(), canvas: FilmCanvas = .shared, opening: Bool = true, words: Bool = true) {
         self.opening = opening
         self.words = words
         self.canvas = canvas
-        height = Int(canvas.height.rounded())
+        // Without the opening it starts at the first day.
+        frame = opening ? 0 : FilmScript.preludeFrames
         self.script = script
         self.labels = labels
         pos = Array(repeating: .zero, count: script.nodes.count)
@@ -168,7 +183,10 @@ final class FilmRenderer {
         firstYou = fy
         firstAI = fa
         editCounts = script.nodes.map(\.edits.count)
-        maxEdits = max(1, editCounts.max() ?? 1)
+        let sorted = editCounts.sorted()
+        let busy = Double(max(1, sorted.isEmpty ? 1 : sorted[Int(0.9 * Double(sorted.count - 1))]))
+        worked = editCounts.map { min(1, (Double($0) / busy).squareRoot()) }
+        aiFrom = script.nodes.map { n in n.bornByAI ? n.birth : zip(n.edits, n.aiEdits).first { $0.1 }?.0 ?? .infinity }
         dateFormatter = DateFormatter()
         dateFormatter.locale = labels.locale
         dateFormatter.setLocalizedDateFormatFromTemplate(labels.dateFormat)
@@ -184,12 +202,19 @@ final class FilmRenderer {
     /// width × height; a smaller context shows it smaller, for playing it in the app).
     func drawNext(in ctx: CGContext) {
         let t = time
+        let k = Double(ctx.width) / Double(width)
         if t < 0 {
-            // The opening: where the month ended up, under its title, before it goes back to the first day.
-            drawEnding(in: ctx, alpha: 1, zoom: 1)
+            // The opening: where the month ended up, under its title; then it draws back and is
+            // gone before the first day begins, so the two never show at once.
+            let back = smooth((t + 0.4) / 0.4)
             ctx.saveGState()
-            let k = Double(ctx.width) / Double(width)
             ctx.scaleBy(x: k, y: k)
+            drawBackground(in: ctx)
+            ctx.restoreGState()
+            drawEnding(in: ctx, alpha: 1 - back, zoom: 1 - 0.12 * back)
+            ctx.saveGState()
+            ctx.scaleBy(x: k, y: k)
+            drawMark(in: ctx)
             drawOpeningTitle(1, in: ctx)
             ctx.restoreGState()
             frame += 1
@@ -198,19 +223,23 @@ final class FilmRenderer {
         step(to: t)
         ctx.saveGState()
         // One scale both ways: a context of another shape than the canvas would stretch it.
+        ctx.scaleBy(x: k, y: k)
+        draw(t, in: ctx)
+        ctx.restoreGState()
+        frame += 1
+    }
+
+    /// Draws the film's last moment again in another shape, without moving on: the full-screen
+    /// film settling into the shape it's shared in.
+    func drawHeld(in ctx: CGContext, canvas: FilmCanvas) {
+        self.canvas = canvas
+        let t = FilmScript.growth + FilmScript.outro
+        updateCamera(t, snap: true)
+        ctx.saveGState()
         let k = Double(ctx.width) / Double(width)
         ctx.scaleBy(x: k, y: k)
         draw(t, in: ctx)
         ctx.restoreGState()
-        // ...and dissolves into it, drawing away as it goes.
-        if opening && t < 0.45 {
-            drawEnding(in: ctx, alpha: 1 - smooth(t / 0.45), zoom: 1 + 0.06 * smooth(t / 0.45))
-            ctx.saveGState()
-            ctx.scaleBy(x: k, y: k)
-            drawOpeningTitle(1, in: ctx)
-            ctx.restoreGState()
-        }
-        frame += 1
     }
 
     /// Moves on a frame without drawing it (the layout still settles), to start part way in.
@@ -276,7 +305,7 @@ final class FilmRenderer {
             }
             pos[i] = fpos[f] + jitter(16)
             fcount[f] += 1
-            if fcount[f] == 3 { fnamed[f] = growT }
+            if fcount[f] == 1 { fnamed[f] = growT + 0.15 }
             vel[i] = .zero
             alive += 1
         }
@@ -361,7 +390,7 @@ final class FilmRenderer {
         return CGRect(x: 70, y: bottom, width: Double(width) - 140, height: max(200, Double(height) - bottom - top))
     }
 
-    private func updateCamera(_ t: Double) {
+    private func updateCamera(_ t: Double, snap: Bool = false) {
         guard alive > 0 else { return }
         var lo = pos[0], hi = pos[0]
         for i in 0..<alive { lo = simd_min(lo, pos[i]); hi = simd_max(hi, pos[i]) }
@@ -372,7 +401,7 @@ final class FilmRenderer {
         let c = (lo + hi) / 2
         // Zooming out keeps up quickly so nothing leaves the frame; zooming in is slow.
         let k = target < camScale ? 0.25 : 0.06
-        if !cameraSet { camScale = target; camCenter = c; cameraSet = true }
+        if !cameraSet || snap { camScale = target; camCenter = c; cameraSet = true }
         camScale += (target - camScale) * k
         camCenter += (c - camCenter) * 0.15
     }
@@ -386,15 +415,7 @@ final class FilmRenderer {
     // MARK: Drawing
 
     private func draw(_ t: Double, in ctx: CGContext) {
-        let full = CGRect(x: 0, y: 0, width: width, height: height)
-        ctx.setBlendMode(.normal)
-        let (top, bottom) = look.background
-        if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [bottom.cg(), top.cg()] as CFArray, locations: [0, 1]) {
-            ctx.drawLinearGradient(g, start: .zero, end: CGPoint(x: 0, y: height), options: [])
-        } else {
-            ctx.setFillColor(top.cg())
-            ctx.fill(full)
-        }
+        drawBackground(in: ctx)
 
         let gt = min(t, FilmScript.growth)
         let lineScale = min(1.6, max(0.9, camScale / 2.2))
@@ -431,21 +452,19 @@ final class FilmRenderer {
         ctx.addPath(spokes)
         ctx.strokePath()
 
-        // Glow: added light on light in the dark looks, a soft wash on paper.
-        var cores: [(CGPoint, Double, RGB, Double)] = []
+        // Glow: added light on light in the dark looks; none on paper.
+        struct Core { var p: CGPoint; var r: Double; var color: RGB; var flash: Double; var ring: Double }
+        var cores: [Core] = []
         ctx.setBlendMode(look.dark ? .plusLighter : .normal)
-        // Paper keeps its glow faint: on white, light reads as a stain.
-        let wash = look.dark ? 1.0 : 0.22
         let breathe = t > FilmScript.growth ? 0.5 + 0.5 * sin((t - FilmScript.growth) * 2.2) : 0
         let outro = smooth((t - FilmScript.growth) / 0.9)
         for i in 0..<alive {
             let n = script.nodes[i]
-            var count = 0, aiCount = 0, you = 0.0, ai = 0.0, last = n.birth
+            var count = 0, you = 0.0, ai = 0.0, last = n.birth
             for (k, et) in n.edits.enumerated() {
                 if et > gt { break }
                 count += 1
                 last = et
-                if n.aiEdits[k] { aiCount += 1 }
                 let age = gt - et
                 if age < 1.4 && t <= FilmScript.growth + 0.6 {
                     let a = exp(-age / 0.32)
@@ -455,45 +474,49 @@ final class FilmRenderer {
             let born = gt - n.birth
             let pop = born < 0.4 ? 1 - pow(1 - born / 0.4, 3) : 1
             if born < 1 { if n.bornByAI { ai += exp(-born / 0.4) * 1.5 } else { you += exp(-born / 0.4) * 1.5 } }
-            // How much of the note the AI wrote; any help at all tints it, so its colour shows.
-            let share = count == 0 ? (n.bornByAI ? 1 : 0) : pow(Double(aiCount) / Double(count), 0.6)
-            // At the end each note settles into what it means: amber yours alone, blue the AI helped.
-            let helped: Double = aiCount > 0 || n.bornByAI ? 1 : 0
-            let tint = share + (helped - share) * outro
+            // Amber while only you have written in it; the AI's colour from the moment it helps.
+            let tint = aiFrom[i] <= FilmScript.growth ? max(smooth((gt - aiFrom[i]) / 0.35), outro) : 0
             let color = look.you.mix(look.ai, tint)
-            // Notes you keep working on grow, and glow while you're on them; the rest cool down.
+            // Notes you keep working on grow, and glow while you're on them; the rest dim.
             let heat = exp(-(gt - last) / 1.3)
-            let r = min(20, max(2.8, (1.5 + 0.95 * Double(count).squareRoot()) * camScale * 0.6)) * pop
-            // At the end a wave of light runs through the notes in the order they were made.
-            if t > FilmScript.growth + 0.1 {
-                let w = (t - FilmScript.growth - 0.1) / 1.2 - Double(i) / Double(max(1, alive)) * 0.6
-                if w > 0 && w < 0.6 { let a = sin(w / 0.6 * .pi) * 0.85; if helped > 0.5 { ai += a } else { you += a } }
+            let r = min(24, max(2.8, (1.1 + 1.45 * Double(count).squareRoot()) * camScale * 0.5)) * pop
+            let worked = worked[i]
+            // At the end every note lights at once, then settles.
+            let bloomT = (t - FilmScript.growth - 0.15) / 1.1
+            if bloomT > 0 && bloomT < 1 {
+                let a = sin(bloomT * .pi) * (0.45 + 0.55 * worked)
+                ai += a * tint
+                you += a * (1 - tint)
             }
             let p = screen(pos[i])
-            // Resting glow in the note's own colour, split between the two sprites.
-            // At the end the notes you wrote in most keep their light, so the last frame glows.
-            let worked = (Double(editCounts[i]) / Double(maxEdits)).squareRoot()
-            let rest = 0.2 + 0.36 * max(heat, outro * (0.45 + 0.55 * worked)) + 0.06 * breathe
-            // ...and a wider light at the end round the notes written in most.
-            let glowR = r * (4 + 3.5 * outro * worked)
-            let glowA = min(1, rest + 0.45 * outro * worked)
-            sprite(youGlow, at: p, radius: glowR, alpha: wash * glowA * (1 - tint), in: ctx)
-            sprite(aiGlow, at: p, radius: glowR, alpha: wash * glowA * tint, in: ctx)
-            // A flash where someone just wrote.
-            if you > 0.01 { sprite(youGlow, at: p, radius: r * (3.4 + 6 * min(1.4, you)), alpha: wash * min(1, 0.75 * you), in: ctx) }
-            if ai > 0.01 { sprite(aiGlow, at: p, radius: r * (3.4 + 6 * min(1.4, ai)), alpha: wash * min(1, 0.75 * ai), in: ctx) }
-            cores.append((p, r, color.mix(look.cool, look.cooling * (1 - heat) * (1 - 0.7 * outro)), min(1, you + ai)))
+            // Its resting light; at the end the notes written in most keep a wide one, so the last
+            // frame has the month's shape: where the work was.
+            let rest = 0.24 + 0.36 * max(heat, outro * (0.4 + 0.6 * worked)) + 0.06 * breathe
+            let glowR = r * (4 + 5 * outro * worked)
+            let glowA = min(1, rest + 0.5 * outro * worked)
+            if look.dark {
+                sprite(youGlow, at: p, radius: glowR, alpha: glowA * (1 - tint), in: ctx)
+                sprite(aiGlow, at: p, radius: glowR, alpha: glowA * tint, in: ctx)
+                // A flash where someone just wrote.
+                if you > 0.01 { sprite(youGlow, at: p, radius: r * (3.4 + 6 * min(1.4, you)), alpha: min(1, 0.75 * you), in: ctx) }
+                if ai > 0.01 { sprite(aiGlow, at: p, radius: r * (3.4 + 6 * min(1.4, ai)), alpha: min(1, 0.75 * ai), in: ctx) }
+            }
+            cores.append(Core(p: p, r: r, color: color.mix(look.cool, look.cooling * (1 - heat) * (1 - outro)), flash: min(1, you + ai), ring: outro * worked))
         }
         ctx.setBlendMode(.normal)
-        for (p, r, color, flash) in cores {
-            let r = r * (1 + 0.15 * outro)
-            ctx.setFillColor((look.dark ? color.mix(RGB(1, 1, 1), 0.35 - 0.15 * outro + 0.45 * flash) : color).cg())
-            ctx.fillEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
-            // On paper a fresh edit shows as a ring.
-            if !look.dark && flash > 0.02 && outro < 0.5 {
-                ctx.setStrokeColor(color.cg(min(1, flash) * 0.8))
-                ctx.setLineWidth(2.5)
-                ctx.strokeEllipse(in: CGRect(x: p.x - r * 2.2, y: p.y - r * 2.2, width: r * 4.4, height: r * 4.4))
+        for c in cores {
+            let r = c.r * (1 + 0.15 * outro)
+            ctx.setFillColor((look.dark ? c.color.mix(RGB(1, 1, 1), 0.12 + 0.25 * c.flash) : c.color).cg())
+            ctx.fillEllipse(in: CGRect(x: c.p.x - r, y: c.p.y - r, width: r * 2, height: r * 2))
+            guard !look.dark else { continue }
+            // On paper light would be a stain: a fresh edit is a ring, and at the end the notes
+            // written in most keep a fine one.
+            let a = max(min(1, c.flash) * 0.8, c.ring > 0.8 ? 0.45 * c.ring : 0)
+            if a > 0.02 {
+                let rr = r * 1.9 + 3
+                ctx.setStrokeColor(c.color.cg(a))
+                ctx.setLineWidth(2.2)
+                ctx.strokeEllipse(in: CGRect(x: c.p.x - rr, y: c.p.y - rr, width: rr * 2, height: rr * 2))
             }
         }
 
@@ -502,9 +525,33 @@ final class FilmRenderer {
         if words { drawMark(in: ctx); drawWords(t, in: ctx) }
     }
 
+    private func drawBackground(in ctx: CGContext) {
+        ctx.setBlendMode(.normal)
+        let (top, bottom) = look.background
+        let mid = look == .dusk ? RGB(0.13, 0.09, 0.28) : bottom.mix(top, 0.5)
+        if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [bottom.cg(), mid.cg(), top.cg()] as CFArray, locations: [0, 0.42, 1]) {
+            ctx.drawLinearGradient(g, start: .zero, end: CGPoint(x: 0, y: height), options: [])
+        } else {
+            ctx.setFillColor(top.cg())
+            ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        guard look == .dusk else { return }
+        // A few faint stars in the upper sky, always in the same places.
+        var seed: UInt64 = 0x51D7_348D_2F1B_9C03
+        func next() -> Double {
+            seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17
+            return Double(seed >> 11) / Double(1 << 53)
+        }
+        for _ in 0..<70 {
+            let x = next() * Double(width), y = (0.3 + 0.7 * next()) * Double(height), r = 0.8 + 1.4 * next()
+            ctx.setFillColor(RGB(1, 1, 1).cg(0.08 + 0.3 * next()))
+            ctx.fillEllipse(in: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2))
+        }
+    }
+
     /// Each folder's name just over its notes, once it has a few.
     private func drawFolderNames(_ t: Double, in ctx: CGContext) {
-        for f in fpos.indices where falive[f] && fcount[f] >= 3 {
+        for f in fpos.indices where falive[f] && fcount[f] >= 1 {
             guard let name = script.folders[f].isEmpty ? labels.noFolder : script.folders[f] else { continue }
             let c = screen(fpos[f])
             var top = c.y
@@ -553,31 +600,51 @@ final class FilmRenderer {
         keys.append((labels.you, look.you, smooth((t - firstYou) / 0.35)))
         var right = Double(width) - 64
         for (name, color, a) in keys where a > 0 {
-            let w = textWidth(name, size: 28, weight: .medium)
-            text(name, size: 28, weight: .medium, color: ink.cg(0.78 * a), at: CGPoint(x: right - w, y: keyY), in: ctx)
+            let w = textWidth(name, size: 30, weight: .medium)
+            text(name, size: 30, weight: .medium, color: ink.cg(0.82 * a), at: CGPoint(x: right - w, y: keyY), in: ctx)
             ctx.setFillColor(color.cg(a))
             ctx.fillEllipse(in: CGRect(x: right - w - 30, y: keyY + 3, width: 18, height: 18))
             right -= w + 30 + 28
         }
 
         // The title over the first seconds, where the end card's title will be.
-        let opening = 1 - smooth((t - 1.1) / 0.6)
+        let titleUntil = self.opening ? 0.25 : 1.1
+        let opening = 1 - smooth((t - titleUntil) / 0.5)
         if opening > 0 { drawOpeningTitle(opening, in: ctx) }
         // The date and the count while it grows.
-        let running = smooth((t - 1.4) / 0.5) * (1 - smooth((t - FilmScript.growth) / 0.4))
+        let running = smooth((t - titleUntil - 0.35) / 0.45) * (1 - smooth((t - FilmScript.growth) / 0.4))
         if running > 0 {
             let date = script.date(at: min(t, FilmScript.growth))
             text(dateFormatter.string(from: date), size: 36, weight: .medium, color: ink.cg(0.66 * running), at: CGPoint(x: side, y: base + 150), in: ctx)
             text(labels.notesCount(alive), size: 36, weight: .medium, color: ink.cg(0.66 * running), at: CGPoint(x: Double(width) - side, y: base + 150), align: 1, in: ctx)
         }
+        // Under them, a line at a time: what a light is, and the day you wrote most as it passes.
+        if running > 0 {
+            var busiest = 0.0
+            // Only while that day is on screen: a day that passed under the title goes unsaid here.
+            if let day = s.busiestDay, let span = script.span(ofDay: day), span.start >= titleUntil + 0.3 {
+                // ...and no longer: the date beside it has moved on.
+                let from = span.start, length = min(2.4, max(0.9, span.length - 0.15))
+                busiest = smooth((t - from) / 0.3) * (1 - smooth((t - from - length) / 0.3))
+                if busiest > 0 {
+                    text(labels.busiestCaption(dateFormatter.string(from: day)), size: 34, weight: .medium, color: look.you.cg(busiest * running), at: CGPoint(x: side, y: base + 92), in: ctx)
+                }
+            }
+            var from = titleUntil + 0.5
+            for line in labels.captions {
+                let a = smooth((t - from) / 0.3) * (1 - smooth((t - from - 2.1) / 0.3)) * (1 - busiest) * running
+                if a > 0 { text(line, size: 34, weight: .regular, color: ink.cg(0.7 * a), at: CGPoint(x: side, y: base + 92), in: ctx) }
+                from += 2.5
+            }
+        }
         // The end card: the title, the one line that's only yours, and what the month came to.
         let outroIn = smooth((t - FilmScript.growth - 0.25) / 0.7)
         guard outroIn > 0 else { return }
         let rise = (1 - outroIn) * 14
-        text(labels.title(s), size: 64, weight: .semibold, color: ink.cg(outroIn), at: CGPoint(x: side, y: base + 250 - rise), in: ctx)
+        text(labels.title(s), size: 60, weight: .semibold, color: ink.cg(outroIn), at: CGPoint(x: side, y: base + 256 - rise), in: ctx)
         if let line = highlight(s) {
             let a = smooth((t - FilmScript.growth - 0.55) / 0.6)
-            text(line, size: 36, weight: .regular, color: ink.cg(0.78 * a), at: CGPoint(x: side, y: base + 190 - rise), in: ctx)
+            text(line, size: 36, weight: .regular, color: ink.cg(0.82 * a), at: CGPoint(x: side, y: base + 198 - rise), in: ctx)
         }
         var stats: [(String, String, RGB?)] = [("\(s.notes)", labels.statNotes, nil), ("\(s.writingDays)", labels.statDays, nil)]
         if let ai = s.ai, s.aiNotes > 0 { stats.append(("\(s.aiNotes)", labels.statAI(ai), look.ai)) }
@@ -586,23 +653,25 @@ final class FilmRenderer {
             let a = smooth((t - FilmScript.growth - 0.75 - 0.12 * Double(k)) / 0.5)
             let x = side + column * Double(k)
             let y = base + 66 - (1 - a) * 10
-            text(number, size: 64, weight: .semibold, color: (color ?? look.you).cg(a), at: CGPoint(x: x, y: y + 44), in: ctx)
-            text(label, size: 28, weight: .regular, color: ink.cg(0.66 * a), at: CGPoint(x: x, y: y), in: ctx)
+            text(number, size: 66, weight: .semibold, color: (color ?? look.you).cg(a), at: CGPoint(x: x, y: y + 48), in: ctx)
+            // Its label, as large as fits its column.
+            let fit = min(1, (column - 18) / max(1, textWidth(label, size: 32, weight: .regular)))
+            text(label, size: (32 * fit).rounded(.down), weight: .regular, color: ink.cg(0.76 * a), at: CGPoint(x: x, y: y), in: ctx)
         }
     }
 
     private func drawOpeningTitle(_ a: Double, in ctx: CGContext) {
-        text(labels.title(script.stats), size: 64, weight: .semibold, color: look.ink.cg(a), at: CGPoint(x: 72, y: canvas.bottom + 250), in: ctx)
-        text(labels.subtitle, size: 36, weight: .regular, color: look.ink.cg(0.7 * a), at: CGPoint(x: 72, y: canvas.bottom + 190), in: ctx)
+        text(labels.title(script.stats), size: 60, weight: .semibold, color: look.ink.cg(a), at: CGPoint(x: 72, y: canvas.bottom + 256), in: ctx)
+        text(labels.subtitle, size: 36, weight: .regular, color: look.ink.cg(0.7 * a), at: CGPoint(x: 72, y: canvas.bottom + 198), in: ctx)
     }
 
     private func highlight(_ s: FilmStats) -> String? {
-        if labels.folderNames, let f = s.topFolder { return labels.topFolder(f) }
+        if labels.folderNames, let f = s.topFolder { return labels.topFolder(f, s.topFolderNotes) }
         guard let d = s.busiestDay else { return nil }
         let f = DateFormatter()
         f.locale = labels.locale
         f.setLocalizedDateFormatFromTemplate("MMMM d")
-        return labels.busiestDay(f.string(from: d))
+        return labels.busiestDay(f.string(from: d), s.busiestDayEdits)
     }
 
     private func textWidth(_ s: String, size: Double, weight: FontWeight) -> Double {

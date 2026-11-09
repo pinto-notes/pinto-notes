@@ -4,7 +4,9 @@ import Foundation
 /// Folders grow at their own pace, hubs gather links, and on some days ChatGPT writes a burst of
 /// linked notes, the way a session with an AI does.
 enum FilmDemo {
-    static func notebook(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), ai: String = "ChatGPT") -> FilmInput {
+    /// `light` is the thinnest month the film is still offered for: two folders, a note most
+    /// days, no AI.
+    static func notebook(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), ai: String = "ChatGPT", light: Bool = false) -> FilmInput {
         var rng = seed &* 0x2545_F491_4F6C_DD1D | 1
         func rand() -> Double {
             rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
@@ -12,7 +14,7 @@ enum FilmDemo {
         }
         func pick<T>(_ a: [T]) -> T { a[Int(rand() * Double(a.count)) % a.count] }
 
-        let folders: [(String, Double, Int)] = [  // name, weight, first day
+        let folders: [(String, Double, Int)] = light ? [("Journal", 0.7, 0), ("Recipes", 0.3, 5)] : [  // name, weight, first day
             ("Work", 0.27, 0), ("Thesis", 0.2, 2), ("Reading", 0.12, 1), ("Running", 0.09, 4),
             ("Recipes", 0.1, 8), ("Home", 0.12, 3), ("Lisbon trip", 0.1, 17),
         ]
@@ -58,14 +60,14 @@ enum FilmDemo {
             let weekday = cal.component(.weekday, from: day)
             let weekend = weekday == 1 || weekday == 7
             // Some days you don't open it at all.
-            if rand() < (weekend ? 0.35 : 0.12) { continue }
+            if rand() < (light ? 0.35 : weekend ? 0.35 : 0.12) { continue }
             let open = folders.filter { $0.2 <= d }
             func folderPick() -> String {
                 var r = rand() * open.map(\.1).reduce(0, +)
                 for f in open { r -= f.1; if r <= 0 { return f.0 } }
                 return open[0].0
             }
-            let newNotes = Int(rand() * (weekend ? 3 : 5)) + (d < 3 ? 3 : 0)
+            let newNotes = light ? Int(rand() * 3.2) + (d < 2 ? 2 : 0) : Int(rand() * (weekend ? 3 : 5)) + (d < 3 ? 3 : 0)
             for _ in 0..<newNotes {
                 let f = folderPick()
                 let at = day.addingTimeInterval(8 * 3600 + rand() * 13 * 3600)
@@ -76,7 +78,7 @@ enum FilmDemo {
                 _ = add(f, at: at, ai: nil, linkTo: to)
             }
             // Coming back to what you wrote, recent notes most.
-            let editCount = Int(rand() * (weekend ? 10 : 26))
+            let editCount = Int(rand() * (light ? 5 : weekend ? 10 : 26)) + (light ? 1 : 0)
             for _ in 0..<editCount where !notes.isEmpty {
                 // Recent notes most, and the few you keep coming back to.
                 var i = notes.count - 1 - Int(pow(rand(), 2.2) * Double(notes.count))
@@ -89,7 +91,7 @@ enum FilmDemo {
                 if at > notes[i].created { notes[i].edits.append(FilmEdit(at: at, ai: nil)) }
             }
             // A session with the AI: a burst of linked notes in one folder, and edits to old ones.
-            if d >= 2 && rand() < 0.5 {
+            if !light && d >= 2 && rand() < 0.5 {
                 let f = folderPick()
                 var at = day.addingTimeInterval(19 * 3600 + rand() * 3 * 3600)
                 let anchor = hub(in: f)

@@ -44,6 +44,8 @@ struct FilmStats: Equatable, Sendable {
     var aiNotes: Int
     /// The folder written in most (by edits), nil when that's notes in no folder.
     var topFolder: String?
+    /// How many notes are in it.
+    var topFolderNotes: Int
     /// The day with the most edits, and how many.
     var busiestDay: Date?
     var busiestDayEdits: Int
@@ -69,6 +71,7 @@ struct FilmStats: Equatable, Sendable {
         for n in notes { byFolder[n.folder, default: 0] += max(1, n.edits.count) }
         let top = byFolder.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }?.key
         topFolder = top?.isEmpty == false ? top : nil
+        topFolderNotes = notes.filter { $0.folder == top }.count
         var byDay: [Date: Int] = [:]
         for e in edits { byDay[calendar.startOfDay(for: e.at), default: 0] += 1 }
         let busiest = byDay.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }
@@ -110,7 +113,7 @@ struct FilmScript: Sendable {
     static let growth = 9.0, outro = 3.6
     /// It opens on a glimpse of where the month ended up, then goes back to the first day: the
     /// first frame, which is what a feed or a message shows before it plays, is the whole notebook.
-    static let prelude = 0.7
+    static let prelude = 0.9
     static var preludeFrames: Int { Int((prelude * Double(fps)).rounded()) }
     static var duration: Double { prelude + growth + outro }
     static var frameCount: Int { Int((duration * Double(fps)).rounded()) }
@@ -153,7 +156,14 @@ struct FilmScript: Sendable {
             for e in n.edits { activity[day(e.at)] += 1 }
         }
         let peak = max(1, activity.max() ?? 1)
-        let weights = activity.map { 0.3 + $0 / peak }
+        var weights = activity.map { 0.3 + $0 / peak }
+        // The day you wrote most gets a real stretch of the film: it's the one the film stops to name.
+        if let busiest = stats.busiestDay, dayCount > 3 {
+            let k = day(busiest)
+            let others = weights.reduce(0, +) - weights[k]
+            // At least a ninth of the film (about a second), whatever the rest adds up to.
+            weights[k] = max(weights[k] * 2, others / 8)
+        }
         let total = weights.reduce(0, +)
         var starts = [0.0]
         for w in weights { starts.append(starts.last! + w / total * Self.growth) }
@@ -193,6 +203,12 @@ struct FilmScript: Sendable {
         self.nodes = nodes
         self.links = links.sorted { $0.birth < $1.birth }
         folders = folderNames
+    }
+
+    /// When a day is on screen: where it begins in film time, and for how long.
+    func span(ofDay day: Date) -> (start: Double, length: Double)? {
+        guard let k = calendar.dateComponents([.day], from: start, to: calendar.startOfDay(for: day)).day, k >= 0, k + 1 < dayStarts.count else { return nil }
+        return (dayStarts[k], dayStarts[k + 1] - dayStarts[k])
     }
 
     /// The date shown at a film time.

@@ -59,6 +59,28 @@ for look in paper dusk; do
   launch -filmAutoWatch -filmLook $look
   sleep 25; xcrun simctl io "$SIM" screenshot "$OUT/6-share-$look.png" >/dev/null 2>&1
 done
+# Not now on the intro, and the close button part way through: both go straight back to the notes.
+clip() {  # name seconds args...
+  local name=$1 secs=$2; shift 2
+  xcrun simctl terminate "$SIM" $APP 2>/dev/null || true; sleep 1
+  xcrun simctl io "$SIM" recordVideo --codec=h264 --force "$OUT/clip-raw.mov" >/dev/null 2>&1 & local r=$!
+  sleep 5
+  local a=$(python3 -c "import time; print(time.time())")
+  xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm "$@" >/dev/null
+  sleep $secs
+  local b=$(python3 -c "import time; print(time.time())")
+  kill -INT $r; wait $r || true
+  local raw=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT/clip-raw.mov")
+  ffmpeg -y -loglevel error -i "$OUT/clip-raw.mov" -ss $(python3 -c "print(max(0, $raw - ($b - $a) - 0.3))") -vf "scale=590:-2,format=yuv420p" -c:v libx264 -crf 20 -movflags +faststart "$OUT/$name.mp4"
+  rm -f "$OUT/clip-raw.mov"
+}
+clip 8-not-now 9 -filmAutoNotNow
+clip 8-close-part-way 14 -filmAutoWatch -filmAutoClose
+
+# The thinnest month it's offered for (another made-up notebook: two folders, no AI), as shared.
+scripts/film/render.sh "$OUT/shared-night-light-month.mp4" 7 35 night light >/dev/null 2>&1
+scripts/film/render.sh "$OUT/shared-paper-light-month.mp4" 7 35 paper light >/dev/null 2>&1
+
 # Folder names off: the share screen, and the movie the app makes.
 rm -rf "$data"/tmp/NotebookFilm-* 2>/dev/null || true
 launch -filmAutoWatch -filmNoFolderNames
