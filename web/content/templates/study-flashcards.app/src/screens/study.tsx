@@ -40,9 +40,17 @@ export default function Study() {
               {fresh > 0 && <p className="text-[0.9375rem] text-muted-foreground">{fresh} new</p>}
             </div>
           </Section>
-          {topics.length > 1 && <div className="mb-5"><Pills label="Topic" options={["All", ...topics]} value={topic} onChange={setTopic} /></div>}
+          {/* Study now under what's due, then the topics it studies under their own heading, so
+              the picked topic never sits beside the button looking like a second one. The streak
+              names itself ("6-day streak"), so its card has no heading over it. */}
           <PrimaryButton className="mb-6" disabled={!dueHere.length} onClick={start}>Study now</PrimaryButton>
-          <Section title="Streak">
+          {topics.length > 1 && (
+            <div className="mb-6">
+              <h2 className="px-1 pb-2 text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">Topics</h2>
+              <Pills label="Topic" options={["All", ...topics]} value={topic} onChange={setTopic} />
+            </div>
+          )}
+          <Section>
             <div className="p-4">
               <p className="text-[1.375rem] font-bold leading-tight tabular-nums" data-testid="streak">{s ? `${s}-day streak` : "No streak yet"}</p>
               <p className="mb-3 text-[0.875rem] text-muted-foreground">{studied[today] ? `${studied[today]} ${studied[today] === 1 ? "card" : "cards"} today.` : s ? "Study a card today to keep it going." : "Study a few cards a day: that's what makes them stick."}</p>

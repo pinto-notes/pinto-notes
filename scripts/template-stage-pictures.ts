@@ -14,7 +14,7 @@ import { render as renderService } from "../supabase/functions/mcp/app_check.ts"
 
 /** The live view's size in CSS pixels on each stage: TemplateAppPreview.css(for:small:) in the app.
  * The big stage's 400 x 320 pt window at 75%; the small stage's 328 pt wide window at 70%, laid out
- * taller than the 156 pt it shows and running off its foot. */
+ * taller than the 169 pt it shows and running off its foot. */
 const SIZES = [{ name: "stage", width: 533, height: 426 }, { name: "stage-small", width: 469, height: 480 }];
 
 /** The sample's dates are written for this day and moved to today: TemplateFiles.sample in the app. */

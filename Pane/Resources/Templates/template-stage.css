@@ -17,19 +17,40 @@ main:is(:has(.bg-card > div.min-h-11 div.h-2), :has(div.flex-wrap > button.h-11.
 /* Budget's category rows without their "1,786 kr of 4,000 kr" line (the bar and "2,214 kr left"
    say it), so its first categories show whole under "By category". */
 main .bg-card > div.min-h-11:has(div.h-2.rounded-full) p.mt-1\.5 { display: none !important; }
-/* Study's topic chips a little shorter and closer, so its streak shows under Study now. */
-main button.h-11.rounded-full { height: 2.25rem !important; }
-main div.mb-5:has(> div.flex-wrap) { margin-bottom: 0.75rem !important; }
+/* Study's topic chips a little shorter and closer, so its streak shows under them. */
+main [role="radiogroup"] > button.h-11.rounded-full { height: 2rem !important; padding: 0 0.875rem !important; font-size: 0.875rem !important; }
+main div.mb-6:has(> [role="radiogroup"]) { margin-bottom: 1rem !important; }
 main:has(div.flex-wrap > button.h-11.rounded-full) section .rounded-xl.bg-card > .p-4 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
 .text-\[2rem\], .text-\[2\.5rem\], .text-\[4rem\] { font-size: 1.75rem !important; }
 /* The small stage (laid out 469 px wide) shows 223 px: the title sits tighter, so the app's first
    card shows whole under it (council round 4: a cut row at the foot). */
 @media (max-width: 480px) {
   main > * > header, main header:first-child { padding-top: 0 !important; padding-bottom: 0.625rem !important; }
-  /* Closer to the window's top, and the summary cards a little tighter, so the habit week's
-     card shows whole in the 156 pt the small stage shows (council round 5). */
-  main > div:first-child { padding-top: 0.5rem !important; }
-  main .rounded-xl.bg-card > .p-5 { padding-top: 0.875rem !important; padding-bottom: 0.875rem !important; }
+  /* 20 pt from the window's edges at 70%, as a note sits on the stage (council round 7: the
+     app sat 9 pt under the window's top, Trip's Edit 7.5 pt from its side). The summary cards a
+     little tighter, so the first card shows whole in what the small stage shows (round 5). */
+  main > div:first-child { padding: 1.5rem 1.5rem 0 !important; }
+  /* Compact (council round 7: the small stage spent its height on a summary and showed no habit,
+     booking or Study now). The summary card at most 56 pt, 8 pt between blocks, no date line over
+     the title and no section headings (the row says what it is), so a whole first row shows. */
+  main .rounded-xl.bg-card > .p-5 { padding: 0.5rem 1rem !important; }
+  main header, main header:first-child, main > * > header { padding-bottom: 0.5rem !important; }
+  main .bg-card > div.min-h-11.py-3 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+  /* Over Budget's and Study's own closer set above, which is more specific. */
+  main:is(:has(.bg-card > div.min-h-11 div.h-2), :has(div.flex-wrap > button.h-11.rounded-full)) .rounded-xl.bg-card > .p-5 { padding: 0.5rem 1rem !important; }
+  main:is(:has(.bg-card > div.min-h-11 div.h-2), :has(div.flex-wrap > button.h-11.rounded-full)) section.mb-6 { margin-bottom: 0.75rem !important; }
+  main section.mb-6, main div.mb-6, main button.mb-6 { margin-bottom: 0.75rem !important; }
+  main header p.uppercase { display: none !important; }
+  main section > div.flex.items-end.justify-between:first-child { display: none !important; }
+  main header button.h-11 { height: 2.25rem !important; }
+  main header button.size-11 { height: 2.25rem !important; width: 2.25rem !important; }
+  main div.relative.shrink-0[role="img"] { width: 3.25rem !important; height: 3.25rem !important; }
+  main div.relative.shrink-0[role="img"] > svg { width: 100% !important; height: 100% !important; }
+  main div.relative.shrink-0[role="img"] .text-xl { font-size: 0.875rem !important; }
+  /* A habit's week dots (the week is the ring), Study's "4 new" and Budget's days-left pace. */
+  main span.mt-2.flex[aria-hidden="true"] { display: none !important; }
+  main p[data-testid="due"] ~ p ~ p { display: none !important; }
+  main [data-testid="month-pace"] { display: none !important; }
 }
 /* The app's one big button (Add expense, Study now) as a tinted pill, like Trip's Edit: on the
    stage it never outranks the sheet's own Make with a second, bigger orange (council round 5:
@@ -40,8 +61,11 @@ main button.bg-primary.w-full {
   font-size: 1.0625rem !important; border-radius: 0.75rem !important;
 }
 main button.bg-primary.w-full svg { width: 1.125rem !important; height: 1.125rem !important; }
-/* A picked chip (Study's "All") as a tint with accent text, never solid accent: louder than the
-   app's own button, it outranked it (council round 6). */
-main button.h-11.rounded-full.bg-primary {
-  background: var(--amber-accent-soft) !important; color: var(--primary) !important; font-weight: 600 !important;
+/* Topic chips quieter than the app's button: the picked one ("All") ringed in the text colour on
+   no fill, the others grey with secondary text. Solid accent outranked Study now (round 6); the
+   accent tint then matched it, 11 pt apart (round 7). Neither uses the accent now. */
+main [role="radiogroup"] > button.h-11.rounded-full.bg-primary {
+  background: transparent !important; color: var(--foreground) !important; font-weight: 600 !important;
+  box-shadow: inset 0 0 0 1.5px var(--foreground) !important;
 }
+main [role="radiogroup"] > button.h-11.rounded-full:not(.bg-primary) { color: var(--muted-foreground) !important; }

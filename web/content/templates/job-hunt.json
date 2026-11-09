@@ -7,7 +7,7 @@
     "Work"
   ],
   "audience": "For anyone applying to more than a handful of jobs at once.",
-  "description": "A job search pipeline your AI keeps current: every application, its stage and the next step, plus interview prep.",
+  "description": "Every application, its stage and the next step, plus interview prep. Your AI keeps it current.",
   "tagline": "Every application, its stage and what's next.",
   "seoTitle": "Job hunt pipeline template for ChatGPT and Claude",
   "folder": "Personal",
@@ -16,7 +16,7 @@
     "default": "Use my Pinto Notes note \"Job hunt\". Read it with fetch before each change. When I paste a job ad or a link, add a row to the table with edit: Company, Role, Stage Saved, and the Link. When I tell you I applied or heard back, update that row's Stage and Next step. Before an interview, add five likely questions and my talking points under \"Interview prep\", under a \"###\" heading with the company name. When I ask what's next, list the follow-ups under \"This week\" as a checklist."
   },
   "asks": [
-    "Ask me for the job ad I want to save, then add it to the table.",
+    "Ask me for the job ad I want to save, then add it to the table with its next step.",
     "I have a first interview with Northwind on Thursday. Help me prep.",
     "What should I follow up on this week?"
   ],

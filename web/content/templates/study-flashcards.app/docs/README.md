@@ -16,7 +16,7 @@ data.json, all under "values" (the person's AI reads and edits it directly):
 - ids are any unique text ("c21").
 
 ## Decisions
-- The first screen says how many cards are due and has one big button, Study now. Topic pills narrow it to one subject.
+- The first screen says how many cards are due and has one big button, Study now, right under it. Topic pills under a "Topics" heading narrow it to one subject; they sit after the button so the picked topic never reads as a second button. The streak card has no heading: "6-day streak" says it.
 - A session asks the lowest box first, one card at a time: the question, Show answer, then Again, Hard, Good or Easy, each showing when the card comes back (1d, 8d, 2w): the thing Anki users say makes it feel right. Again asks the card once more at the end of the session. On a Mac, Space shows the answer and 1 to 4 grade. The answer fades in; there is no 3D flip.
 - The streak is days in a row with a card studied; the calendar shows the last 12 weeks. Coming up shows how many cards fall due on each of the next seven days, so a pile-up is visible early.
 - Adding is fast: the Cards tab starts with the add form; Return in the answer adds the card and puts the cursor back in the question, keeping the topic. Paste many turns "question - answer" lines (also " | ", tab, ": ", or after a question mark) into cards, says how many it found, and has Undo. Search filters the list.

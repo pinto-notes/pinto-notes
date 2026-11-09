@@ -15,7 +15,7 @@
     "default": "Use my Pinto Notes note \"Mood and energy log\". Each evening I'll tell you about my day in my own words. Read the note with fetch, then add one row to the table with edit: Mood and Energy from 1 (low) to 5 (great), Sleep in hours, Caffeine as one of the options, and one short line in What happened. If you're unsure about a score, ask me instead of guessing. When I ask about patterns, add what you notice under \"Patterns\". Don't give medical advice."
   },
   "asks": [
-    "Ask how my day went, then log my mood and energy.",
+    "Ask how my day went and how I slept, then log my mood and energy for today.",
     "What do my best days have in common?",
     "Does caffeine change my energy the next day?"
   ],

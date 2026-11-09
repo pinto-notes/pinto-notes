@@ -6,7 +6,7 @@
     "Work"
   ],
   "audience": "For creators, marketers and founders who post every week.",
-  "description": "A content calendar with an idea bank. Your AI turns ideas into scheduled posts and keeps the status current in Pinto Notes.",
+  "description": "An idea bank and a calendar. Your AI turns ideas into scheduled posts and keeps the status current.",
   "tagline": "What goes out when, plus a bank of ideas.",
   "folder": "Work",
   "note": "Content calendar\n\nWhat's going out, where and when, plus a bank of ideas so you never start from a blank page.\n\n<!-- pane-table: Publish on=text; Title=text; Channel=choice Blog|Newsletter|LinkedIn|Instagram|YouTube; Status=choice Idea|Drafting|Scheduled|Published -->\n| Publish on | Title | Channel | Status |\n| --- | --- | --- | --- |\n\n## Ideas\n\n## Voice\n- Short sentences. One idea per post.\n- Show the work: a screenshot or a number beats an adjective.\n- End with a question, not a sales pitch.\n",
@@ -14,7 +14,7 @@
     "default": "Use my Pinto Notes note \"Content calendar\". Read it with fetch before each change. When I have an idea, add it under \"Ideas\" as a bullet with edit. When I ask you to plan the next two weeks, pick ideas from \"Ideas\" and add a row per post to the table with edit: Publish on as a date, a working Title, the Channel and Status Drafting. Write drafts in the tone described under \"Voice\". When I say a post went out, set its Status to Published."
   },
   "asks": [
-    "Ask for my content idea, then add it to the idea bank.",
+    "Ask for my content idea and where it should go, then add it to the idea bank.",
     "Plan the next two weeks: two LinkedIn posts and one newsletter.",
     "What's scheduled for this week?"
   ],

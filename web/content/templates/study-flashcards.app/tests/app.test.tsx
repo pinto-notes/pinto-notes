@@ -67,6 +67,20 @@ describe("Study", () => {
     await waitFor(() => expect(screen.getByTestId("question")).toHaveTextContent("Q chem"))
   })
 
+  it("puts Study now under what's due, and the topics under their own heading after it", async () => {
+    await amber.store.set("cards", [card("c1", "Q bio", "A", "Biology"), card("c2", "Q chem", "A", "Chemistry")])
+    render(<App />)
+    await waitFor(() => expect(screen.getByTestId("due")).toHaveTextContent("2 cards"))
+    const button = screen.getByRole("button", { name: "Study now" })
+    const heading = screen.getByRole("heading", { name: "Topics" })
+    const topics = screen.getByRole("radiogroup", { name: "Topic" })
+    // In reading order: the button, then the heading, then its topics.
+    expect(button.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(heading.compareDocumentPosition(topics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // The streak names itself; no "Streak" heading repeats it.
+    expect(screen.queryByRole("heading", { name: "Streak" })).toBeNull()
+  })
+
   it("ends a session early", async () => {
     await amber.store.set("cards", [card("c1", "Q one", "A one", "Biology")])
     render(<App />)

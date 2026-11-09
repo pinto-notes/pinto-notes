@@ -14,9 +14,9 @@ data.json, all under "values" (the person's AI reads and edits it directly):
 To log a day, set days[date][habitId]: 1 for a yes/no habit, the count for a counted one. To skip one, add its id to skips[date]. Keep ids as they are: renaming a habit changes name, never id.
 
 ## Decisions
-- Today is the first screen and does one job: tick today. Habits not for today (a weekday habit on Sunday, a weekly goal already met) wait under Not today and aren't in today's count. The ring is this week (Monday to today), habit-days done of habit-days due; it never punishes days that haven't happened, days a habit isn't for, or skipped days.
+- Today is the first screen and does one job: tick today. Habits not for today (a weekday habit on Sunday, a weekly goal already met) wait under Not today and aren't in today's count. The ring is this week (Monday to today), habit-days done of habit-days due; it never punishes days that haven't happened, days a habit isn't for, or skipped days. Beside it the card says the same week ("11 of 16 since Monday"), with today under it ("Today: 2 of 4 done"): a "This week" label over today's count read as a contradiction with the ring.
 - A streak counts days in a row up to today; today doesn't break it until it's over. Days a habit isn't for and skipped days neither count nor break it (streak anxiety is the most common complaint about habit apps; a skip is the honest way out). A weekly goal's streak counts weeks.
-- Ticking a habit gives a small spring and a ring that fades (CSS, once, off with Reduce Motion). When everything due is done, the card says "All done today" with a check in the ring. No confetti: it's a daily app.
+- Ticking a habit gives a small spring and a ring that fades (CSS, once, off with Reduce Motion). When everything due is done, the today line says "All done today" with a check in the ring. No confetti: it's a daily app.
 - Tapping a habit's name opens its page: streak, best run, this month's share, the month as a calendar, Skip today and Edit.
 - Month: a calendar per habit (two or three across on a wide note). A tap ticks a day, a second skips it, a third clears it.
 - From 700 px Today has two columns: the week card and a grid of every habit's week on the left, the list on the right.

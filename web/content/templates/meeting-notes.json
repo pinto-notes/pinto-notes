@@ -25,7 +25,7 @@
       "args": {
         "path": "Work/Meeting notes.md",
         "old_string": "## Open action items\n",
-        "new_string": "## Open action items\n- [ ] Sara: send the new pricing table to sales (Fri 2 Oct)\n- [ ] Jonas: design review of the checkout page (Thu 1 Oct)\n- [ ] Emma: check the VAT rules for Norway (next week)\n"
+        "new_string": "## Open action items\n- [ ] Sara: send new pricing to sales (Fri 2 Oct)\n- [ ] Jonas: review the checkout design (Thu 1 Oct)\n- [ ] Emma: check Norway's VAT rules (next week)\n"
       }
     },
     {
@@ -40,12 +40,12 @@
       "tool": "edit",
       "args": {
         "path": "Work/Meeting notes.md",
-        "old_string": "- [ ] Jonas: design review of the checkout page (Thu 1 Oct)\n- [ ] Emma: check the VAT rules for Norway (next week)",
-        "new_string": "- [ ] Emma: check the VAT rules for Norway (next week)\n- [x] Jonas: design review of the checkout page (Thu 1 Oct)"
+        "old_string": "- [ ] Jonas: review the checkout design (Thu 1 Oct)\n- [ ] Emma: check Norway's VAT rules (next week)",
+        "new_string": "- [ ] Emma: check Norway's VAT rules (next week)\n- [x] Jonas: review the checkout design (Thu 1 Oct)"
       }
     }
   ],
-  "example": "Meeting notes\n\nAfter a meeting, paste your rough notes or the transcript into your AI. The summary and action items land here, newest meeting first.\n\n## Open action items\n- [ ] Sara: send the new pricing table to sales (Fri 2 Oct)\n- [ ] Emma: check the VAT rules for Norway (next week)\n- [x] Jonas: design review of the checkout page (Thu 1 Oct)\n\n## Meetings\n### Pricing sync, 30 September\nWe keep three plans and drop the lifetime deal. The yearly discount goes from 20% to 15%.\n\n- Decided: no lifetime plan.\n- Decided: yearly discount is 15% from 1 November.\n- Open: whether students get the Pro plan free.\n",
+  "example": "Meeting notes\n\nAfter a meeting, paste your rough notes or the transcript into your AI. The summary and action items land here, newest meeting first.\n\n## Open action items\n- [ ] Sara: send new pricing to sales (Fri 2 Oct)\n- [ ] Emma: check Norway's VAT rules (next week)\n- [x] Jonas: review the checkout design (Thu 1 Oct)\n\n## Meetings\n### Pricing sync, 30 September\nWe keep three plans and drop the lifetime deal. The yearly discount goes from 20% to 15%.\n\n- Decided: no lifetime plan.\n- Decided: yearly discount is 15% from 1 November.\n- Open: whether students get the Pro plan free.\n",
   "related": [
     "one-on-one-notes",
     "decision-log",

@@ -152,13 +152,32 @@ extension View {
     }
 }
 
+/// With `phrases`, for the panel's description and ask, phrases stay whole too (council round 7:
+/// "quick / add." and "on the / left" split once balanced): a sentence's last two words stay
+/// together, as the text's last two do, and a short word that leans on the next ("on", "the")
+/// never ends a line. The cards' captions are too narrow for it: they keep the last two only.
 nonisolated enum NoWidow {
-    static func kept(_ s: String) -> String {
+    /// Words a line never ends on: they belong with the word after them.
+    static let leaning: Set<String> = ["a", "an", "the", "of", "on", "in", "to", "at", "by", "for"]
+
+    static func kept(_ s: String, phrases: Bool = false) -> String {
         // A hyphenated word stays whole ("check-in" broke as "check- / in" once balanced).
         let t = s.trimmingCharacters(in: .whitespaces)
             .replacingOccurrences(of: #"(\p{L})-(\p{L})"#, with: "$1\u{2011}$2", options: .regularExpression)
-        guard let last = t.range(of: " ", options: .backwards), t.distance(from: last.upperBound, to: t.endIndex) <= 14 else { return t }
-        return t.replacingCharacters(in: last, with: "\u{00A0}")
+        let words = t.components(separatedBy: " ")
+        guard words.count > 1 else { return t }
+        let ends: Set<Character> = [".", "?", "!"]
+        var out = words[0]
+        for i in 1..<words.count {
+            let before = words[i - 1], word = words[i]
+            // The text's last word, or with `phrases` a sentence's, keeps the word before it if
+            // it's short enough not to leave a gap in the line above; a leaning word keeps the next.
+            let last = i == words.count - 1
+            let closes = (last || (phrases && word.last.map(ends.contains) == true && before.last.map(ends.contains) != true)) && word.count <= 14
+            let leans = phrases && leaning.contains(before.lowercased())
+            out += (closes || leans ? "\u{00A0}" : " ") + word
+        }
+        return out
     }
 }
 
@@ -286,10 +305,26 @@ struct TemplateLibraryView: View {
     /// are never cut.
     /// Round 5: on the big sheet every description fits two lines, so it keeps two lines' room,
     /// not three, and the stage takes the line (a 34 pt gap sat between the words and the label).
-    static func stage(for size: CGSize) -> CGFloat { size.height <= 560 ? 172 : min(340, size.height - 340) }
-    /// The description's room in lines: two on the big sheet, where every one fits two; three on
-    /// the small sheet's narrower panel.
-    static func descriptionLines(small: Bool) -> Int { small ? 3 : 2 }
+    /// Final pass: every description and every ask is two lines on both sheets, and the words
+    /// under the stage are set at fixed gaps (`gapOverLabel`, `gapOverAsk`, `gapOverMake`), so
+    /// the stage takes all the height left: Make sits `makeFoot` over the sheet's foot on both.
+    static func stage(for size: CGSize) -> CGFloat { small(size) ? min(smallStage, size.height - smallWords) : min(340, size.height - bigWords) }
+    /// The small sheet's stage at 800 x 560 (the sheet's own 560 pt) and what the header and the
+    /// words under the stage take on each sheet: SetupCardsTests' makeSitsOnTheFoot checks these.
+    static let smallStage: CGFloat = 185
+    static let smallWords: CGFloat = 315
+    static let bigWords: CGFloat = 340
+    /// The description's room in lines: two on both sheets, where every one fits two
+    /// (SetupCardsTests' everyDescriptionAndAskIsTwoLines).
+    static func descriptionLines(small: Bool) -> Int { 2 }
+    /// The gaps under the stage, the same on both sheets and for every template (council round 7:
+    /// the description to the label was 32 pt on the small sheet and 22 on the big one, and the ask
+    /// to Make 28.5 pt under a one-line ask and 13.5 under a two-line one).
+    static let gapOverLabel: CGFloat = 16
+    static let gapOverAsk: CGFloat = 6
+    static let gapOverMake: CGFloat = 12
+    /// The room under Make, to the sheet's foot.
+    static let makeFoot: CGFloat = 20
     /// A small sheet: the panel's words at a smaller size, so all of them fit.
     static func small(_ size: CGSize) -> Bool { size.height <= 560 }
     private var panel: CGFloat { Self.panel(for: size) }
@@ -594,43 +629,42 @@ struct TemplateLibraryView: View {
                             .accessibilityIdentifier("templates.kept")
                     }
                 }
-                Text(NoWidow.kept(e.shownDescription)).font(.system(size: text)).foregroundStyle(Color.muted)
+                Text(NoWidow.kept(e.shownDescription, phrases: true)).font(.system(size: text)).foregroundStyle(Color.muted)
                     .lineLimit(Self.descriptionLines(small: small), reservesSpace: true)
                     .fixedSize(horizontal: false, vertical: true)
-                    .balanced(NoWidow.kept(e.shownDescription), font: .systemFont(ofSize: text), width: panel - 40)
+                    .balanced(NoWidow.kept(e.shownDescription, phrases: true), font: .systemFont(ofSize: text), width: panel - 40)
                     .padding(.top, 4)
-                Spacer(minLength: small ? 8 : 16)
-                // What Make does, and the ask it sends, as you'd say it. The box fits its words
-                // (a box kept two lines tall read as a field to type in), and the label over it
-                // stays put: the pair keeps a two-line ask's room, top first, so a one-line ask
-                // leaves its spare line above the buttons, not above the label (council round 4:
-                // the label sat 15 pt higher over a two-line ask).
-                VStack(alignment: .leading, spacing: 6) {
+                // What Make does, and the ask it sends, as you'd say it, at fixed gaps on both
+                // sheets: every ask is two lines there, so the box is its words' own height, the
+                // label never moves and the ask always sits 12 pt over Make (council rounds 2, 4
+                // and 7: an empty line read as a field; the label moved 15 pt; the ask to Make
+                // was 28.5 pt under a one-line ask, 13.5 under two).
+                VStack(alignment: .leading, spacing: Self.gapOverAsk) {
                     Text(TemplateLibraryWords.opensWith(ai, app: e.app)).font(.system(size: TemplateLibraryWords.labelSize(small: small))).foregroundStyle(Color.muted)
                         .lineLimit(1)
                         .accessibilityIdentifier("templates.opensWith")
-                    ZStack(alignment: .topLeading) {
-                        askBox("\n", text: text, small: small).hidden().accessibilityHidden(true)
-                        askBox(TemplateCatalog.Entry.sendable(e.ask), text: text, small: small)
-                            .accessibilityIdentifier("templates.ask")
-                    }
+                    askBox(TemplateCatalog.Entry.sendable(e.ask), text: text, small: small)
+                        .accessibilityIdentifier("templates.ask")
                 }
+                .padding(.top, Self.gapOverLabel)
                 actions(e, kept: kept)
-                    .padding(.top, 12)
+                    .padding(.top, Self.gapOverMake)
             }
             .padding(.horizontal, 20)
             .padding(.top, small ? 12 : 18)
-            .padding(.bottom, 20)
+            .padding(.bottom, Self.makeFoot)
             .frame(maxHeight: .infinity, alignment: .top)
         }
     }
 
-    /// The ask in its box: two lines at most, the box as tall as its words.
+    /// The ask in its box: its two lines, balanced, with its phrases kept whole (council round 7:
+    /// "then plan / the trip."). Only what's shown: Make and Copy Prompt send `ask` as it is.
     private func askBox(_ ask: String, text: CGFloat, small: Bool) -> some View {
-        Text(ask)
+        Text(NoWidow.kept(ask, phrases: true))
             .font(.system(size: text)).foregroundStyle(Color.ink)
             .lineLimit(2)
             .fixedSize(horizontal: false, vertical: true)
+            .balanced(NoWidow.kept(ask, phrases: true), font: .systemFont(ofSize: text), width: panel - 64)
             .padding(.horizontal, 12).padding(.vertical, small ? 6 : 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.primary.opacity(0.07), in: .rect(cornerRadius: 8, style: .continuous))
@@ -966,7 +1000,7 @@ struct TemplateAppPreview: View {
     static func zoom(for window: CGSize, small: Bool) -> CGFloat { window.width / cssWidth(small: small) }
 
     /// The small stage's app is laid out this tall and runs off the stage's foot, like a note's
-    /// window: laid out only as tall as the 156 pt it shows, its first card was cut.
+    /// window: laid out only as tall as the 169 pt it shows, its first card was cut.
     static let smallCSSHeight: CGFloat = 480
 
     /// The live app's size in CSS pixels in a window, and so the picture's: it's drawn for this.

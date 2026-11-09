@@ -7,7 +7,7 @@
     "Families"
   ],
   "audience": "For anyone who keeps a grocery list in their notes and is tired of sorting it by aisle by hand.",
-  "description": "A grocery list your AI keeps sorted by aisle. Say what you need in one sentence. It files each item and clears what you've ticked.",
+  "description": "One list sorted by aisle. Say what you need and your AI files each item and clears what you've ticked.",
   "tagline": "Sorted by aisle, before you get to the shop.",
   "folder": "Home",
   "note": "Grocery list\n\nOne running list for the shop, sorted by aisle. Tell your AI what you need and it files each thing under the right aisle. Tick things off as you shop.\n\n## Fruit and veg\n\n## Bread and dairy\n\n## Meat and fish\n\n## Cupboard\n\n## Frozen\n\n## Household\n",
@@ -15,7 +15,7 @@
     "default": "Use my Pinto Notes note \"Grocery list\". When I tell you what we need, even in one long sentence, read the note with fetch, then add each item as a checklist line under the aisle heading it belongs to with edit. Skip anything already on the list and unticked. Keep item names short and add a quantity only when I give one. When I say I'm back from the shop, remove the ticked lines and tell me what's left. If something doesn't fit an aisle, put it under \"Household\"."
   },
   "asks": [
-    "Ask what groceries I need, then sort them by aisle.",
+    "Ask what groceries I need this week, then add them to my list sorted by aisle.",
     "I'm back from the shop.",
     "What's still on the list?"
   ],

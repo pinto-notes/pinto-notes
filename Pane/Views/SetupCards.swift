@@ -147,8 +147,12 @@ enum SetupCards {
         let ask: String
         var id: String { slug }
 
-        /// Light words on a dark ground, like the site's `inkOn`.
-        var lightInk: Bool { SetupCards.luminance(ground) <= 0.3 }
+        /// Cream or ink on the cover's ground, whichever has more contrast, as the site's `inkOn`
+        /// chooses (council round 7: cream on Standup's lavender was 2.7:1; a brightness cut-off
+        /// at 0.3 chose it).
+        var lightInk: Bool { SetupCards.contrast(ground, SetupCards.coverCream) > SetupCards.contrast(ground, SetupCards.coverInk) }
+        /// The words' colour on the cover.
+        var inkRGB: UInt32 { lightInk ? SetupCards.coverCream : SetupCards.coverInk }
 
         /// The cover: an asset, or a small copy of the site's (Pane/Resources/Templates).
         /// Read once: a new picture on every pass was read and decoded again for every card on
@@ -218,6 +222,15 @@ enum SetupCards {
         }
         return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
     }
+
+    /// WCAG contrast between two colours.
+    static func contrast(_ a: UInt32, _ b: UInt32) -> Double {
+        let (x, y) = (luminance(a), luminance(b))
+        return (max(x, y) + 0.05) / (min(x, y) + 0.05)
+    }
+    /// The words on a cover: the site's ink and cream (web/lib/template-covers.ts).
+    static let coverInk: UInt32 = 0x2A1D10
+    static let coverCream: UInt32 = 0xFFF4E6
 
     // MARK: Looks
 
@@ -495,9 +508,14 @@ struct SetupTemplateCard: View {
     var captionBelow = false
     /// The open one, ringed.
     var selected = false
+    /// Which of its words draw on the cover, each kept in its place when it doesn't: the
+    /// caption-contrast test reads the cover behind them (SetupCardsTests).
+    var words: Words = .both
     let action: () -> Void
     @State private var hover = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    enum Words { case both, title, none }
 
     static let size = CGSize(width: 164, height: 228)
 
@@ -542,7 +560,7 @@ struct SetupTemplateCard: View {
 
     private var onCover: some View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-        let ink = pick.lightInk ? Color(red: 1, green: 0.957, blue: 0.902) : Color(red: 0.165, green: 0.114, blue: 0.063)
+        let ink = Color(rgb: pick.inkRGB)
         return Button(action: action) {
             ZStack(alignment: .bottomLeading) {
                 Color(rgb: pick.ground)
@@ -559,11 +577,15 @@ struct SetupTemplateCard: View {
                         .font(.system(size: 16, weight: .heavy))
                         .tracking(-0.2)
                         .fixedSize(horizontal: false, vertical: true)
+                        .opacity(words == .none ? 0 : 1)
+                    // The caption in the words' full colour: at 86% it measured 4.1:1 on Mood and
+                    // energy's teal (council round 7). Every caption is 4.5:1 or more on the
+                    // cover behind it (SetupCardsTests' everyCaptionReadsOnItsCover).
                     Text(NoWidow.kept(pick.line))
                         .font(.system(size: 11.5, weight: .medium))
-                        .opacity(0.86)
                         .fixedSize(horizontal: false, vertical: true)
                         .balanced(NoWidow.kept(pick.line), font: .systemFont(ofSize: 11.5, weight: .medium), width: width - 28)
+                        .opacity(words == .both ? 1 : 0)
                 }
                 .foregroundStyle(ink)
                 .multilineTextAlignment(.leading)

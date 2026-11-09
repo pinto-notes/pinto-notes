@@ -46,10 +46,11 @@ export default function Today() {
               <Ring value={w.share} size={96} stroke={11} label={`This week ${Math.round(w.share * 100)}%`}>
                 {allDone ? <Check className="size-9 text-primary" strokeWidth={3} /> : <span className="text-xl font-bold tabular-nums">{Math.round(w.share * 100)}%</span>}
               </Ring>
+              {/* The ring is the week, so the line beside it is the week too, and today under it
+                  (a "This week" label over "2 of 4 done today" read as a contradiction). */}
               <div className="min-w-0">
-                <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">This week</p>
-                <p className="text-[1.375rem] font-bold leading-snug tabular-nums" data-testid="today-count">{allDone ? "All done today" : `${doneCount} of ${due.length} done today`}</p>
-                <p className="text-[0.9375rem] text-muted-foreground tabular-nums">{w.got} of {w.of} since Monday</p>
+                <p className="text-[1.375rem] font-bold leading-snug tabular-nums" data-testid="week-count">{w.got} of {w.of} since Monday</p>
+                <p className="text-[0.9375rem] text-muted-foreground tabular-nums" data-testid="today-count">{allDone ? "All done today" : `Today: ${doneCount} of ${due.length} done`}</p>
               </div>
             </div>
           </Section>

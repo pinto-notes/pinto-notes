@@ -412,7 +412,12 @@ struct NotePreview: View {
 
     /// A paragraph's last two words kept together, so it never ends on one word alone on its last
     /// line (council round 6: Cornell's summary ended on "shortage.").
+    /// A closing aside ("(Thu 1 Oct)", "(next week)") stays whole and with the word before it, so it
+    /// never wraps alone (council round 7: Meeting notes' "(Thu 1 Oct)" on a line of its own).
     nonisolated static func lastWordsKept(_ s: String) -> String {
+        if s.hasSuffix(")"), let open = s.range(of: " (", options: .backwards), s.distance(from: open.upperBound, to: s.endIndex) <= 16 {
+            return String(s[..<open.lowerBound]) + "\u{00A0}(" + s[open.upperBound...].replacingOccurrences(of: " ", with: "\u{00A0}")
+        }
         guard let last = s.range(of: " ", options: .backwards), s.distance(from: last.upperBound, to: s.endIndex) <= 14 else { return s }
         return s.replacingCharacters(in: last, with: "\u{00A0}")
     }
@@ -537,13 +542,13 @@ struct NotePreview: View {
                 Image(systemName: done ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(done ? AnyShapeStyle(Color(PColor.paneAccent)) : AnyShapeStyle(.tertiary))
                     .imageScale(.large)
-                inline(s).foregroundStyle(done ? Color.muted : Color.ink)
+                inline(whole ? Self.lastWordsKept(s) : s).foregroundStyle(done ? Color.muted : Color.ink)
             }
             .padding(.leading, CGFloat(n) * 20)
         case .bullet(let dash, let s, let n):
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(dash ? "\u{2013}" : "\u{2022}").frame(width: 14)
-                inline(s)
+                inline(whole ? Self.lastWordsKept(s) : s)
             }
             .padding(.leading, CGFloat(n) * 20)
         case .numbered(let marker, let s, let n):

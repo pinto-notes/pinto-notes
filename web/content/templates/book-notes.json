@@ -7,7 +7,7 @@
     "Students"
   ],
   "audience": "For readers who want to remember more than the cover a year later.",
-  "description": "Book notes your AI organizes: send highlights as you read, and it keeps the quotes, the big idea and what you'll do differently.",
+  "description": "Send highlights as you read. Your AI keeps the quotes, the big idea and what you'll do differently.",
   "tagline": "The big idea and the lines worth keeping.",
   "folder": "Reading",
   "note": "Book notes\n\nWhat stuck from each book: the big idea, the lines worth keeping, and what you'll do differently. Newest book first.\n\n## Books\n",
@@ -15,7 +15,7 @@
     "default": "Use my Pinto Notes note \"Book notes\". Read it with fetch before each change. When I start a book, add a heading for it at the start of \"Books\" with edit, like \"### Title by Author\". As I send you highlights and thoughts, add them under that book's heading with edit: quotes as > quotes with the page number, my own thoughts as bullets. Keep my words; don't polish them. When I say I've finished, add \"**The big idea:**\" in three sentences and two to four things I'll do differently as a checklist."
   },
   "asks": [
-    "Ask which book I'm reading, then start its notes.",
+    "Ask which book I'm reading and what stood out so far, then start its notes.",
     "Page 31: \"The day will never arrive when you finally have everything under control.\"",
     "I finished it. Wrap it up."
   ],

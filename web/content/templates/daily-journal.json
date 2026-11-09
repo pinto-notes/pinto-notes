@@ -6,7 +6,7 @@
     "Personal"
   ],
   "audience": "For people who want to keep a journal but stall at the empty page.",
-  "description": "A daily journal your AI keeps with you. Answer four short questions, or just tell it about your day, and it writes the entry, newest day first.",
+  "description": "Answer four short questions, or just tell your AI about your day. It writes the entry, newest day first.",
   "tagline": "Four questions a day, written up for you.",
   "folder": "Journal",
   "note": "Daily journal\n\nA few lines a day. Tell your AI about your day, or let it ask the questions below, and the entry lands here, newest day first.\n\n## Questions\n1. What happened today?\n2. What took energy, and what gave it back?\n3. What do I want to remember?\n4. What's one thing for tomorrow?\n\n## Entries\n",
@@ -14,7 +14,7 @@
     "default": "Use my Pinto Notes note \"Daily journal\". When I say I want to journal, ask me the questions under \"Questions\" one at a time, and skip any I pass on. If I tell you about my day in one go instead, write the entry from that without asking. Read the note with fetch, then add the day at the start of \"Entries\" with edit: a \"###\" heading with the weekday and date, then my answers as short lines in my own words, each starting with a bold label (Today, Energy, Remember, Tomorrow). Don't add advice unless I ask for it. When I ask what's been on my mind lately, answer from my entries."
   },
   "asks": [
-    "Ask me today's four questions, then write up the entry.",
+    "Ask me today's four questions one at a time, then write up the entry.",
     "Today was long: the move is done, the boxes aren't, and I finally slept.",
     "What's been on my mind this week?"
   ],

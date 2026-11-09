@@ -35,7 +35,19 @@ describe("Today", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Done: Walk" }))
     await waitFor(() => expect(values().days?.[day]).toBeUndefined())
-    expect(await screen.findByText("0 of 1 done today")).toBeInTheDocument()
+    expect(await screen.findByText("Today: 0 of 1 done")).toBeInTheDocument()
+  })
+
+  it("says the week beside the week's ring, and today under it", async () => {
+    await amber.store.set("habits", [walk])
+    render(<App />)
+    await waitFor(() => expect(screen.getByTestId("today-count")).toHaveTextContent("Today: 0 of 1 done"))
+    await userEvent.click(screen.getByRole("button", { name: "Done: Walk" }))
+    await waitFor(() => expect(screen.getByTestId("today-count")).toHaveTextContent("All done today"))
+    // A walk a day since Monday: one done of the days so far, and the ring says the same share.
+    const days = (today().getDay() + 6) % 7 + 1
+    expect(screen.getByTestId("week-count")).toHaveTextContent(`1 of ${days} since Monday`)
+    expect(screen.getByRole("img", { name: `This week ${Math.round(100 / days)}%` })).toBeInTheDocument()
   })
 
   it("counts a habit with a goal, like glasses of water", async () => {
@@ -226,7 +238,7 @@ describe("Schedules", () => {
     await amber.store.set("habits", [walk, { id: "spanish", name: "Spanish", target: 1, days: [tomorrow] }])
     render(<App />)
     expect(await screen.findByRole("heading", { name: "Not today" })).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByTestId("today-count")).toHaveTextContent("0 of 1 done today"))
+    await waitFor(() => expect(screen.getByTestId("today-count")).toHaveTextContent("Today: 0 of 1 done"))
     await userEvent.click(screen.getByRole("button", { name: "Done: Walk" }))
     expect(await screen.findByText("All done today")).toBeInTheDocument()
   })
@@ -303,7 +315,7 @@ describe("Older data", () => {
     await amber.store.set("habits", [walk, water])
     await amber.store.set("days", { [iso(addDays(today(), -1))]: { walk: 1, water: 8 } })
     render(<App />)
-    await waitFor(() => expect(screen.getByTestId("today-count")).toHaveTextContent("0 of 2 done today"))
+    await waitFor(() => expect(screen.getByTestId("today-count")).toHaveTextContent("Today: 0 of 2 done"))
     expect(screen.getAllByText("1-day streak").length).toBe(2)
   })
 })

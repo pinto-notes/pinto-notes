@@ -23,9 +23,9 @@
 
   // In CSS pixels: what the stage shows of the app, and the fade at its foot. The big stage's
   // window shows all of the view (400 x 320 pt at 75%: 426 px; the 12 pt fade: 16 px); the small
-  // stage's app is laid out 480 px tall at 70% and shows 156 pt of it (223 px; the fade: 17 px).
+  // stage's app is laid out 480 px tall at 70% and shows 169 pt of it (242 px; the fade: 17 px).
   // TemplateAppPreview.stageScript(...) in the app checks these agree (SetupCardsTests).
-  const SMALL_WIDTH = 480, SMALL_VISIBLE = 223, SMALL_FADE = 17, BIG_FADE = 16
+  const SMALL_WIDTH = 480, SMALL_VISIBLE = 242, SMALL_FADE = 17, BIG_FADE = 16
   const HIDDEN = "data-stage-hidden"
   let open = false
   const clipped = new Set()

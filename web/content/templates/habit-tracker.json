@@ -6,7 +6,7 @@
     "Personal"
   ],
   "audience": "For anyone building a few small daily habits.",
-  "description": "A free habit tracker app in a note: tick today in one tap, see streaks and the week, edit habits yourself. Or tell your AI what you did and it logs the day.",
+  "description": "Tick today in one tap, edit habits and see streaks. Or tell your AI what you did and it logs the day.",
   "tagline": "Tick off a few small habits every day.",
   "seoTitle": "Habit tracker template and app for ChatGPT and Claude",
   "folder": "Habits",
@@ -15,7 +15,7 @@
     "default": "Use my Pinto Notes note \"Habit tracker\". It is an app; its data is \"Habits/Habit tracker.app/data.json\". Read it with fetch before each change. When I tell you what I did, change it with edit: in values.days, under the date (yyyy-mm-dd), set each habit id from values.habits to 1 for a yes/no habit, or to the count for a counted one (Water: glasses). Keep the habit ids as they are. If I skip a day on purpose, add the habit id to values.skips under the date instead. I can add, rename and remove habits in the app myself. When I ask for my week, add three short lines under \"Weekly check-in\" in the note with edit: what went well, what slipped, and one thing to try next week."
   },
   "asks": [
-    "Ask which habits I did today, then tick them in my tracker.",
+    "Ask which habits I did today and which I skipped, then tick them in my tracker.",
     "Which habit did I miss most this month?",
     "How's my week looking?"
   ],

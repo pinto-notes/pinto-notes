@@ -4,6 +4,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 import Testing
+import Vision
 @testable import Pane
 
 /// The first run as cards over the notes (round 7): what each card says and offers, and that the
@@ -253,7 +254,7 @@ import Testing
         #expect(src.contains("Text(e.title).font(.system(size: Self.panelTitle, weight: .semibold))"))
         // The ask shows as it's sent: no "…" gap (the AI gets none either), in a box that fits it.
         #expect(src.contains("askBox(TemplateCatalog.Entry.sendable(e.ask), text: text, small: small)"))
-        #expect(src.contains("Text(ask)\n            .font(.system(size: text)).foregroundStyle(Color.ink)\n            .lineLimit(2)\n"))
+        #expect(src.contains("Text(NoWidow.kept(ask, phrases: true))\n            .font(.system(size: text)).foregroundStyle(Color.ink)\n            .lineLimit(2)\n"))
     }
 
     /// The library offers your AIs, the one used last first, each kind once; any AI without a chat
@@ -505,19 +506,20 @@ import Testing
         #expect(TemplateLibraryView.stage(for: TemplateLibraryView.size) == 340, "the big stage takes the panel's spare height")
         // Between the two sizes the stage gives way, so the buttons are never cut.
         #expect(TemplateLibraryView.stage(for: CGSize(width: 1040, height: 600)) == 260)
-        // A small sheet hides the subtitle and gives its room to the stage (council round 2).
-        #expect(TemplateLibraryView.stage(for: CGSize(width: 720, height: 500)) == 172)
+        // A small sheet hides the subtitle and gives its room to the stage (council round 2), and
+        // the words under it are set at fixed gaps, so it takes what they leave (final pass: 185).
+        #expect(TemplateLibraryView.stage(for: CGSize(width: 720, height: 500)) == 185)
         let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
         #expect(src.contains(".lineLimit(Self.descriptionLines(small: small), reservesSpace: true)"), "the description keeps its lines' room")
-        // Two lines on the big sheet, where every description fits two (council round 5: a 34 pt
-        // gap under the words); three on the small sheet's narrower panel, where some take three.
-        #expect(TemplateLibraryView.descriptionLines(small: false) == 2 && TemplateLibraryView.descriptionLines(small: true) == 3)
+        // Two lines on both sheets, where every description fits two (council round 5: a 34 pt gap
+        // under the words; round 7: the small sheet's third line moved the label).
+        #expect(TemplateLibraryView.descriptionLines(small: false) == 2 && TemplateLibraryView.descriptionLines(small: true) == 2)
         for (small, size) in [(false, TemplateLibraryView.size), (true, CGSize(width: 720, height: 500))] {
             let width = TemplateLibraryView.panel(for: size) - 40
             let font = NSFont.systemFont(ofSize: small ? 12 : 12.5)
             let line = font.ascender - font.descender + font.leading
             for e in TemplateCatalog.shipped.entries {
-                let r = (NoWidow.kept(e.shownDescription) as NSString).boundingRect(with: NSSize(width: width, height: 1000), options: [.usesLineFragmentOrigin], attributes: [.font: font])
+                let r = (NoWidow.kept(e.shownDescription, phrases: true) as NSString).boundingRect(with: NSSize(width: width, height: 1000), options: [.usesLineFragmentOrigin], attributes: [.font: font])
                 let lines = Int((r.height / line).rounded())
                 #expect(lines <= TemplateLibraryView.descriptionLines(small: small), "\(e.slug) takes \(lines) lines at \(width) pt")
             }
@@ -617,7 +619,7 @@ import Testing
         let src = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
         #expect(src.contains(".keyboardShortcut(Self.returnMakes(kept: kept) ? .defaultAction : nil)"))
         #expect(src.contains("detail(current, kept: shown.isEmpty)"))
-        #expect(src.contains("Text(NoWidow.kept(e.shownDescription))"))
+        #expect(src.contains("Text(NoWidow.kept(e.shownDescription, phrases: true))"))
     }
 
     /// A caption or a description never ends on one word alone on its last line: its last two
@@ -759,6 +761,57 @@ import Testing
         let a = try #require(ringTop(all.rep, all.scale)), b = try #require(ringTop(trip.rep, trip.scale))
         print("PERF templates first row ring top: all \(a), search \(b)")
         #expect(abs(a - b) <= 0.5, "first row at \(a) unsearched, \(b) searched")
+    }
+
+    /// The words under the stage sit at set gaps, the same on both sheets and for every template,
+    /// and Make sits 20 pt over the sheet's foot (council round 7: description to label 32 pt on
+    /// the small sheet and 22 on the big; ask to Make 28.5 pt under a one-line ask, 13.5 under two).
+    /// Measured in the drawn sheet: the last four runs of drawn rows in the panel are the
+    /// description's last line, the label, the ask's box and the buttons.
+    @Test func theGapsUnderTheStageNeverChange() async throws {
+        let kept = ThemeStore.shared.current
+        ThemeStore.shared.set(ThemeLook(theme: .standard, accent: .theme), persist: false)
+        defer { ThemeStore.shared.set(kept, persist: false) }
+        let all = TemplateCatalog.shipped.entries
+        let short = try #require(all.min { $0.ask.count < $1.ask.count })
+        let long = try #require(all.max { $0.ask.count < $1.ask.count })
+        var overLabel: [CGFloat] = []
+        for size in [TemplateLibraryView.size, TemplateLibraryView.size(on: CGSize(width: 800, height: 560))] {
+            var labels: [CGFloat] = []
+            for e in [short, long] {
+                let (rep, scale) = try await drawn(open: e, size: size)
+                let rows = Self.panelRows(rep, scale, size)
+                try #require(rows.count >= 4, "\(e.slug) at \(size): \(rows)")
+                let (description, label, box, make) = (rows[rows.count - 4], rows[rows.count - 3], rows[rows.count - 2], rows[rows.count - 1])
+                #expect(abs(make.lowerBound - box.upperBound - TemplateLibraryView.gapOverMake) <= 1, "\(e.slug) at \(size): the ask's box to Make \(make.lowerBound - box.upperBound) pt")
+                #expect(abs(size.height - make.upperBound - TemplateLibraryView.makeFoot) <= 1, "\(e.slug) at \(size): Make \(size.height - make.upperBound) pt over the foot")
+                labels.append(label.lowerBound)
+                overLabel.append(label.lowerBound - description.upperBound)
+            }
+            #expect(abs(labels[0] - labels[1]) <= 0.5, "the label at \(labels) for \(short.slug) and \(long.slug) at \(size)")
+        }
+        // The description's last line to the label: one gap on both sheets (its text 12.5 or 12 pt).
+        #expect((overLabel.max() ?? 0) - (overLabel.min() ?? 0) <= 1, "description to label: \(overLabel)")
+    }
+
+    /// The runs of rows with anything drawn in the panel's words column, in points from the top.
+    static func panelRows(_ rep: NSBitmapImageRep, _ scale: CGFloat, _ size: CGSize) -> [ClosedRange<CGFloat>] {
+        let panel = TemplateLibraryView.panel(for: size)
+        let x0 = Int((size.width - panel + 20) * scale), x1 = Int((size.width - 20) * scale)
+        guard let ground = rep.colorAt(x: x1, y: rep.pixelsHigh - 2)?.usingColorSpace(.sRGB) else { return [] }
+        var out: [ClosedRange<CGFloat>] = []
+        var start: Int?
+        for y in 0..<rep.pixelsHigh {
+            var drawn = false
+            for x in stride(from: x0, to: x1, by: 1) {
+                guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { continue }
+                if abs(c.redComponent - ground.redComponent) + abs(c.greenComponent - ground.greenComponent) + abs(c.blueComponent - ground.blueComponent) > 0.05 { drawn = true; break }
+            }
+            if drawn, start == nil { start = y }
+            if !drawn, let s = start { out.append(CGFloat(s) / scale...CGFloat(y) / scale); start = nil }
+        }
+        if let s = start { out.append(CGFloat(s) / scale...CGFloat(rep.pixelsHigh) / scale) }
+        return out
     }
 
     /// The sheet drawn offscreen, light, on the default theme, as its sheet shows it.
@@ -1172,7 +1225,8 @@ import Testing
     /// No word in a table on the stage breaks: every column is at least as wide as its longest
     /// word (a value kept in one piece is one word), and the rest of the width goes by share
     /// (council round 5: "Work-out", "Min-utes", "26 / Sep"; "Sara" wider than "Pasta with
-    /// tomato and basil"). The workout log's column is "Min", and the meal plan fills its week.
+    /// tomato and basil"). The workout log's column is "Mins" (round 7: "Min" read as minimum), and
+    /// the meal plan fills its week.
     @Test func tableWordsNeverBreak() throws {
         // Widths: shares where they leave every column its least; otherwise the least, taken from
         // the others' spare room; when even the least doesn't fit, the least, running off the
@@ -1187,9 +1241,9 @@ import Testing
             throw CancellationError()
         }
         let workout = try table("workout-log")
-        #expect(workout.header == ["Date", "Workout", "Main lift", "Top set", "Min", "Effort"])
+        #expect(workout.header == ["Date", "Workout", "Main lift", "Top set", "Mins", "Effort (1\u{2013}10)"])
         let workoutEntry = try #require(TemplateCatalog.shipped.entries.first { $0.slug == "workout-log" })
-        #expect(workoutEntry.note?.contains("Min=number") ?? workoutEntry.example.contains("Min=number"))
+        #expect(workoutEntry.note?.contains("Mins=number; Effort (1\u{2013}10)=scale 1-10") == true && workoutEntry.example.contains("| Mins | Effort (1\u{2013}10) |"))
         // The big stage's window less the note's padding, and the small one's.
         for width: CGFloat in [400 - 40, 328 - 32] {
             for t in [workout, try table("meal-plan"), try table("cornell-notes")] {
@@ -1318,11 +1372,178 @@ import Testing
         }
     }
 
-    /// Study's picked chip is a tint with accent text on the stage, never solid accent, so it
-    /// doesn't outrank Study now (council round 6).
-    @Test func thePickedChipIsATint() {
+    /// Study's stage is laid out like Budget's: the Due card, Study now under it, then a "TOPICS"
+    /// label over chips quieter than the button, and the streak with no heading repeating it.
+    /// The picked chip is ringed in the text colour, never the accent: solid accent outranked
+    /// Study now (council round 6), and the accent tint looked like it, 11 pt apart (round 7).
+    @Test func studyNowIsTheOnlyButtonLookingLikeOne() throws {
         let css = TemplateFiles.stageCSS
-        #expect(css.contains("main button.h-11.rounded-full.bg-primary {\n  background: var(--amber-accent-soft) !important; color: var(--primary) !important; font-weight: 600 !important;"))
+        #expect(css.contains("main [role=\"radiogroup\"] > button.h-11.rounded-full.bg-primary {\n  background: transparent !important; color: var(--foreground) !important; font-weight: 600 !important;\n  box-shadow: inset 0 0 0 1.5px var(--foreground) !important;"))
+        #expect(css.contains("main [role=\"radiogroup\"] > button.h-11.rounded-full:not(.bg-primary) { color: var(--muted-foreground) !important; }"))
+        #expect(!css.contains("button.h-11.rounded-full.bg-primary {\n  background: var(--amber-accent-soft)"), "no chip in the button's tint")
+        let study = try SettingsHomeTests.source("web/content/templates/study-flashcards.app/src/screens/study.tsx")
+        let button = try #require(study.range(of: "<PrimaryButton className=\"mb-6\""))
+        let topics = try #require(study.range(of: ">Topics</h2>"))
+        let pills = try #require(study.range(of: "<Pills label=\"Topic\""))
+        #expect(button.lowerBound < topics.lowerBound && topics.lowerBound < pills.lowerBound, "Study now, then TOPICS over the chips")
+        #expect(!study.contains("title=\"Streak\""), "\"6-day streak\" names itself")
+        // In the big stage's picture, in light and dark: Study now, then TOPICS, both shown.
+        let entry = try #require(TemplateCatalog.shipped.entries.first { $0.slug == "study-flashcards" })
+        for dark in [false, true] {
+            let picture = try #require(entry.appPicture(dark: dark, small: false))
+            let words = try Self.read(picture, css: TemplateAppPreview.css(for: TemplateLibraryView.window(for: TemplateLibraryView.size), small: false).height)
+            let at = { (s: String) in words.firstIndex { $0.caseInsensitiveCompare(s) == .orderedSame } }
+            let now = try #require(at("Study now"), "\(words)"), label = try #require(at("Topics"), "\(words)")
+            #expect(now < label, "\(words)")
+            #expect(at("Streak") == nil && at("6-day streak") != nil, "no STREAK heading: \(words)")
+        }
+    }
+
+    /// The lines Vision reads in an app's stage picture, top to bottom, down to what the stage
+    /// shows of it (`visible`, in CSS pixels).
+    static func read(_ picture: NSImage, css height: CGFloat, visible: CGFloat? = nil) throws -> [String] {
+        var rect = CGRect(origin: .zero, size: picture.size)
+        let cg = try #require(picture.cgImage(forProposedRect: &rect, context: nil, hints: nil))
+        let px = CGFloat(cg.height) / height
+        let shown = try #require(cg.cropping(to: CGRect(x: 0, y: 0, width: cg.width, height: min(cg.height, Int(((visible ?? height) * px).rounded())))))
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = false
+        try VNImageRequestHandler(cgImage: shown).perform([request])
+        return (request.results ?? []).sorted { $0.boundingBox.maxY > $1.boundingBox.maxY }.compactMap { $0.topCandidates(1).first?.string }
+    }
+
+    /// The small stage shows each app in use: a whole habit, booking or category's worth of the
+    /// app, and Study now, under a summary of at most 56 pt (council round 7: in 8b to 8f no habit,
+    /// booking or Study now showed). The habit card names one week beside its week's ring, with
+    /// today under it, and Budget's bar says what it measures.
+    @Test func theSmallStageShowsEachAppInUse() throws {
+        let window = TemplateLibraryView.window(for: TemplateLibraryView.size(on: CGSize(width: 800, height: 560)))
+        let css = TemplateAppPreview.css(for: window, small: true).height
+        let visible = window.height / TemplateAppPreview.zoom(for: window, small: true)
+        let wants: [String: [String]] = [
+            "habit-tracker": ["since Monday", "Today: 2 of 4 done", "Walk", "30 minutes outside"],
+            "study-flashcards": ["8 cards", "Study now"],
+            "trip-plan": ["Edit", "days to go", "Bookings", "paid"],
+            "budget-log": ["10,064 kr", "1,736 kr spent of 11,800 kr"],
+        ]
+        for (slug, want) in wants {
+            let e = try #require(TemplateCatalog.shipped.entries.first { $0.slug == slug })
+            for dark in [false, true] {
+                let picture = try #require(e.appPicture(dark: dark, small: true))
+                let words = try Self.read(picture, css: css, visible: visible).joined(separator: "\n")
+                for w in want { #expect(words.contains(w), "\(slug) \(dark ? "dark" : "light") shows \"\(w)\": \(words)") }
+                #expect(!words.localizedCaseInsensitiveContains("this week"), "\(slug): no \"This week\" label over today's count")
+            }
+        }
+        let habits = try SettingsHomeTests.source("web/content/templates/habit-tracker.app/src/screens/today.tsx")
+        #expect(habits.contains("{w.got} of {w.of} since Monday</p>"))
+        #expect(habits.contains("`Today: ${doneCount} of ${due.length} done`"))
+        let stage = TemplateFiles.stageCSS
+        #expect(stage.contains("main .rounded-xl.bg-card > .p-5 { padding: 0.5rem 1rem !important; }"), "the summary at most 56 pt")
+        #expect(stage.contains("main [data-testid=\"month-pace\"] { display: none !important; }"), "Budget's caption on one line")
+    }
+
+    /// On the small stage an app sits about 20 pt inside its window, as a note does, and Trip's
+    /// Edit pill is as far from the window's side as the words are from the other (council round 7:
+    /// 9 pt from the top, the pill 7.5 pt from the side).
+    @Test func theSmallStageAppSitsInsideItsWindow() throws {
+        let window = TemplateLibraryView.window(for: TemplateLibraryView.size(on: CGSize(width: 800, height: 560)))
+        let zoom = TemplateAppPreview.zoom(for: window, small: true)
+        for e in TemplateCatalog.shipped.entries where e.app {
+            let picture = try #require(e.appPicture(dark: false, small: true))
+            var rect = CGRect(origin: .zero, size: picture.size)
+            let cg = try #require(picture.cgImage(forProposedRect: &rect, context: nil, hints: nil))
+            let p = try #require(Pixels(cg))
+            let pt = CGFloat(p.width) / window.width
+            let ground = (p.width * p.height) - 2
+            var (top, left, right) = (Int.max, Int.max, 0)
+            for y in 0..<min(p.height, Int(window.height * pt)) {
+                for x in 0..<p.width where p.difference(p, at: y * p.width + x, other: ground) > 25 {
+                    top = min(top, y); left = min(left, x); right = max(right, x)
+                }
+            }
+            let (t, l, r) = (CGFloat(top) / pt, CGFloat(left) / pt, window.width - CGFloat(right + 1) / pt)
+            #expect(t >= 15 && t <= 26, "\(e.slug): the app's first line \(t) pt under the window's top")
+            #expect(l >= 14 && r >= 14 && abs(l - r) <= 6, "\(e.slug): \(l) pt from the left, \(r) pt from the right")
+        }
+        #expect(TemplateFiles.stageCSS.contains("main > div:first-child { padding: 1.5rem 1.5rem 0 !important; }"))
+        #expect(abs(1.5 * 16 * zoom - 16.8) < 0.2, "24 px at 70%: about 17 pt, and the line's own leading over the letters")
+    }
+
+    /// Every cover's caption reads at 4.5:1 or more against the art behind its letters, and its
+    /// title at 3:1 (large text), on every card the library and the gallery draw (council round 7:
+    /// Standup's caption measured about 2.7:1, Mood and energy's 4.1:1). The card is drawn three
+    /// times, with no words, with its title and with both, so the caption's pixels and the cover
+    /// under them are known exactly.
+    @Test func everyCaptionReadsOnItsCover() throws {
+        func card(_ pick: SetupCards.Pick, _ width: CGFloat, _ words: SetupTemplateCard.Words) throws -> Pixels {
+            let r = ImageRenderer(content: SetupTemplateCard(pick: pick, width: width, words: words) {}.environment(\.colorScheme, .light))
+            r.scale = 2
+            let cg = try #require(r.cgImage)
+            return try #require(Pixels(cg))
+        }
+        // Where `with` differs from `without`: the letters added; the contrast of the ink on the
+        // mean colour of the cover under them.
+        func contrast(_ pick: SetupCards.Pick, with: Pixels, without: Pixels, cover: Pixels) -> (Double, Int) {
+            var lum = 0.0, n = 0
+            for i in 0..<(with.width * with.height) {
+                guard with.difference(without, at: i) > 60 else { continue }
+                lum += SetupCards.luminance(cover.rgb(at: i)); n += 1
+            }
+            guard n > 0 else { return (0, 0) }
+            let ink = SetupCards.luminance(pick.inkRGB), ground = lum / Double(n)
+            return ((max(ink, ground) + 0.05) / (min(ink, ground) + 0.05), n)
+        }
+        let big = TemplateLibraryView.size, small = TemplateLibraryView.size(on: CGSize(width: 800, height: 560))
+        let widths = [big, small].map { TemplateLibraryView.cardWidth(row: $0.width - TemplateLibraryView.panel(for: $0) - 48, gap: 16) }
+        var cards = TemplateCatalog.shipped.entries.flatMap { e in widths.map { (e.pick, $0) } }
+        cards += SetupCards.picks.map { ($0, SetupTemplateCard.size.width) }
+        for (pick, width) in cards {
+            let none = try card(pick, width, .none), title = try card(pick, width, .title), both = try card(pick, width, .both)
+            let (caption, letters) = contrast(pick, with: both, without: title, cover: none)
+            let (heading, _) = contrast(pick, with: title, without: none, cover: none)
+            #expect(letters > 200, "\(pick.slug) at \(width): the caption's letters found (\(letters) pixels)")
+            #expect(caption >= 4.5, "\(pick.slug) at \(width): the caption at \(String(format: "%.2f", caption)):1")
+            #expect(heading >= 3, "\(pick.slug) at \(width): the title at \(String(format: "%.2f", heading)):1")
+        }
+    }
+
+    /// Balancing never splits a phrase: a sentence's last two words stay together inside a
+    /// description or an ask ("quick / add."), and "a", "the", "on" and the like stay with the word
+    /// after them ("on the / left"). Captions keep their own rule. A note's closing aside on the
+    /// stage ("(Thu 1 Oct)") stays with the word before it.
+    @Test func balancingKeepsPhrasesWhole() throws {
+        let s = "Log what you spend with quick add. Your AI files it on the left."
+        let kept = NoWidow.kept(s, phrases: true)
+        #expect(kept.contains("quick\u{00A0}add."), "\(kept)")
+        #expect(kept.contains("on\u{00A0}the\u{00A0}left."), "\(kept)")
+        #expect(!NoWidow.kept(s).contains("quick\u{00A0}add."), "captions as before")
+        #expect(NoWidow.kept("What you chose, what you didn't, and why.", phrases: true).hasSuffix("and\u{00A0}why."))
+        let library = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
+        #expect(library.contains(".balanced(NoWidow.kept(ask, phrases: true), font: .systemFont(ofSize: text), width: panel - 64)"), "the ask is balanced too")
+        #expect(NotePreview.lastWordsKept("Jonas: review the checkout design (Thu 1 Oct)") == "Jonas: review the checkout design\u{00A0}(Thu\u{00A0}1\u{00A0}Oct)")
+        #expect(NotePreview.lastWordsKept("Emma: check Norway's VAT rules (next week)").hasSuffix("rules\u{00A0}(next\u{00A0}week)"))
+        let sheet = try SettingsHomeTests.source("Pane/Views/NoteSourceSheet.swift")
+        #expect(sheet.contains("inline(whole ? Self.lastWordsKept(s) : s).foregroundStyle(done ? Color.muted : Color.ink)"), "a checklist item")
+        let meeting = try #require(TemplateCatalog.shipped.entries.first { $0.slug == "meeting-notes" })
+        #expect(meeting.example.contains("- [x] Jonas: review the checkout design (Thu 1 Oct)"))
+    }
+
+    /// Every description and every ask is two lines, balanced and with its phrases kept, on both
+    /// sheets: so the label, the ask and Make sit in one place for every template (council round 7).
+    @Test func everyDescriptionAndAskIsTwoLines() {
+        for size in [TemplateLibraryView.size, TemplateLibraryView.size(on: CGSize(width: 800, height: 560))] {
+            let small = TemplateLibraryView.small(size)
+            let panel = TemplateLibraryView.panel(for: size)
+            let font = NSFont.systemFont(ofSize: small ? 12 : 12.5)
+            for e in TemplateCatalog.shipped.entries {
+                let description = NoWidow.kept(e.shownDescription, phrases: true)
+                let ask = NoWidow.kept(TemplateCatalog.Entry.sendable(e.ask), phrases: true)
+                #expect(Balanced.lines(description, font: font, width: panel - 40) == 2, "\(e.slug)'s description at \(size)")
+                #expect(Balanced.lines(ask, font: font, width: panel - 64) == 2, "\(e.slug)'s ask at \(size)")
+            }
+        }
     }
 
     /// Captions and descriptions are set balanced: the narrowest width that keeps their line
@@ -1345,7 +1566,7 @@ import Testing
         let cards = try SettingsHomeTests.source("Pane/Views/SetupCards.swift")
         #expect(cards.components(separatedBy: ".balanced(NoWidow.kept(pick.line)").count == 3, "both captions")
         let library = try SettingsHomeTests.source("Pane/Views/TemplateLibrary.swift")
-        #expect(library.contains(".balanced(NoWidow.kept(e.shownDescription), font: .systemFont(ofSize: text), width: panel - 40)"))
+        #expect(library.contains(".balanced(NoWidow.kept(e.shownDescription, phrases: true), font: .systemFont(ofSize: text), width: panel - 40)"))
     }
 
     /// The stage shows an app on the latest Thursday, so the habit week is in use, not a Monday's
@@ -1630,6 +1851,36 @@ extension TemplateCatalog.Entry: CustomTestStringConvertible {
         let ask = TemplateCatalog.Entry.sendable(e.ask)
         #expect(ask == e.ask, "shown, copied and sent are the same words: \(e.ask)")
         #expect(!ask.hasSuffix(":") && !ask.hasSuffix(",") && !ask.contains("\u{2026}"), "\(e.slug): \(ask)")
+    }
+}
+
+/// A picture's pixels as 8-bit sRGB, read fast (colorAt per pixel took minutes over every cover).
+struct Pixels {
+    let width: Int, height: Int
+    private let bytes: [UInt8]
+
+    init?(_ image: CGImage) {
+        let (w, h) = (image.width, image.height)
+        var data = [UInt8](repeating: 0, count: w * h * 4)
+        let drew = data.withUnsafeMutableBytes { raw -> Bool in
+            guard let ctx = CGContext(data: raw.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return false }
+            ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+            ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+            return true
+        }
+        guard drew else { return nil }
+        (width, height, bytes) = (w, h, data)
+    }
+
+    /// Pixel `i` (row by row from the top left) as 0xRRGGBB.
+    func rgb(at i: Int) -> UInt32 { UInt32(bytes[i * 4]) << 16 | UInt32(bytes[i * 4 + 1]) << 8 | UInt32(bytes[i * 4 + 2]) }
+
+    /// The summed channel difference between pixel `i` here and pixel `other` (by default `i`) there.
+    func difference(_ there: Pixels, at i: Int, other: Int? = nil) -> Int {
+        let j = other ?? i
+        return (0..<3).reduce(0) { $0 + abs(Int(bytes[i * 4 + $1]) - Int(there.bytes[j * 4 + $1])) }
     }
 }
 #endif

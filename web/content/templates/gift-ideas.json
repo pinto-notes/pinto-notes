@@ -7,7 +7,7 @@
     "Families"
   ],
   "audience": "For anyone who hears the perfect gift idea in March and forgets it by December.",
-  "description": "A gift idea list your AI fills as you go: ideas by person, sizes and likes, and suggestions before the next birthday.",
+  "description": "Gift ideas by person, with sizes and likes. Your AI adds ideas as you go and suggests more before birthdays.",
   "tagline": "Ideas for everyone, saved when you hear them.",
   "folder": "Personal",
   "note": "Gift ideas\n\nSave ideas the moment you hear them, so the next birthday is easy.\n\n<!-- pane-table: Person=text; Occasion=text; Idea=text; Budget=number; Status=choice Idea|Bought|Given -->\n| Person | Occasion | Idea | Budget | Status |\n| --- | --- | --- | --- | --- |\n\n## Sizes and likes\n",
@@ -15,7 +15,7 @@
     "default": "Use my Pinto Notes note \"Gift ideas\". Read it with fetch before each change. Whenever I mention something someone would like, add a row to the table with edit: Person, Occasion if I said one, Idea, Budget as a number if I gave one, and Status Idea. Keep what I learn about each person (sizes, favourite things, what they already have) under \"Sizes and likes\". Before a birthday, when I ask, suggest three gifts within budget that fit what's there. When I buy one, set its Status to Bought."
   },
   "asks": [
-    "Ask who the gift is for and what they like, then add the idea.",
+    "Ask who the gift is for, the occasion and what they like, then add the idea.",
     "Dad's birthday is in three weeks. Ideas under 500?",
     "Jonas wears a medium and loves anything green."
   ],

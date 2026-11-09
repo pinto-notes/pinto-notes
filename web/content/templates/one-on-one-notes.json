@@ -15,7 +15,7 @@
     "default": "Use my Pinto Notes note \"1:1 notes\". Read it with fetch before each change. During the week, when I mention something to bring up, add it under \"Next time\" as a bullet with edit. After the 1:1, I'll tell you how it went. Add a section at the start of \"Past 1:1s\": a \"###\" heading with the date, what we talked about, and how they seemed. Add anything either of us promised under \"Follow-ups\" as a checklist line, then remove the topics we covered from \"Next time\"."
   },
   "asks": [
-    "Ask what I want to raise at my next one-on-one, then add it.",
+    "Ask what I want to raise at my next one-on-one, then add it under Next time.",
     "We just had our 1:1. She wants to lead the next launch and asked for a mentor.",
     "What did I promise last time?"
   ],
