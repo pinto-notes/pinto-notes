@@ -25,15 +25,7 @@
       "args": {
         "path": "Work/1:1 notes.md",
         "old_string": "## Next time\n",
-        "new_string": "## Next time\n- How the on-call week went\n- Feedback on the design review\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Work/1:1 notes.md",
-        "old_string": "## Past 1:1s\n",
-        "new_string": "## Past 1:1s\n### 30 September\n- On-call was rough: two pages at night. She wants a quieter rotation.\n- Wants to lead the November launch.\n- Seemed tired but positive.\n"
+        "new_string": "## Next time\n- Feedback on the design review\n- The conference budget\n- Her goals for next quarter\n"
       }
     },
     {
@@ -41,23 +33,23 @@
       "args": {
         "path": "Work/1:1 notes.md",
         "old_string": "## Follow-ups\n",
-        "new_string": "## Follow-ups\n- [ ] Me: find her a mentor from the platform team\n- [ ] Her: draft the launch plan by 14 October\n"
+        "new_string": "## Follow-ups\n- [ ] Me: find her a mentor from the platform team\n- [ ] Me: ask about the quieter rotation\n- [ ] Her: draft the launch plan by 20 Nov\n- [x] Her: share the on-call notes\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/1:1 notes.md",
-        "old_string": "- How the on-call week went\n- Feedback on the design review",
-        "new_string": "- Feedback on the design review"
+        "old_string": "## Past 1:1s\n",
+        "new_string": "## Past 1:1s\n### 5 November\n- On-call was rough: two pages at night. She wants a quieter rotation.\n- Wants to lead the spring launch.\n- Would like more feedback, sooner.\n- Seemed tired but positive.\n"
       }
     }
   ],
-  "example": "1:1 notes\n\nOne running note for your 1:1s with one person. Add topics during the week so nothing waits until you've forgotten it.\n\n## Next time\n- Feedback on the design review\n\n## Follow-ups\n- [ ] Me: find her a mentor from the platform team\n- [ ] Her: draft the launch plan by 14 October\n\n## Past 1:1s\n### 30 September\n- On-call was rough: two pages at night. She wants a quieter rotation.\n- Wants to lead the November launch.\n- Seemed tired but positive.\n",
+  "example": "1:1 notes\n\nOne running note for your 1:1s with one person. Add topics during the week so nothing waits until you've forgotten it.\n\n## Next time\n- Feedback on the design review\n- The conference budget\n- Her goals for next quarter\n\n## Follow-ups\n- [ ] Me: find her a mentor from the platform team\n- [ ] Me: ask about the quieter rotation\n- [ ] Her: draft the launch plan by 20 Nov\n- [x] Her: share the on-call notes\n\n## Past 1:1s\n### 5 November\n- On-call was rough: two pages at night. She wants a quieter rotation.\n- Wants to lead the spring launch.\n- Would like more feedback, sooner.\n- Seemed tired but positive.\n",
   "related": [
     "meeting-notes",
     "weekly-review",
     "decision-log"
   ],
-  "updated": "2026-10-13"
+  "updated": "2026-11-09"
 }

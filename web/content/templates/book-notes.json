@@ -35,13 +35,29 @@
         "old_string": "### Four Thousand Weeks by Oliver Burkeman\n",
         "new_string": "### Four Thousand Weeks by Oliver Burkeman\n> \"The day will never arrive when you finally have everything under control.\" (p. 31)\n\n- The to-do list is infinite by design. Finishing it isn't the goal.\n- Pick your three big projects; everything else waits.\n\n**The big idea:** life is short and attention is finite. Trying to do everything guarantees the important things get squeezed. Choose what to neglect, on purpose.\n\n- [ ] Keep a list of three active projects, no more\n- [ ] Do the most important thing first, before email\n"
       }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Reading/Book notes.md",
+        "old_string": "- Pick your three big projects; everything else waits.\n",
+        "new_string": "- Pick your three big projects; everything else waits.\n- Saying no to good things is the hard part.\n- Rest isn't a reward for finishing: nothing is ever finished.\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Reading/Book notes.md",
+        "old_string": "- [ ] Do the most important thing first, before email",
+        "new_string": "- [ ] Do the most important thing first, before email\n- [ ] Keep one evening a week with nothing planned\n\n### Deep Work by Cal Newport\n- Two focused hours beat a scattered day.\n- Shallow work gets a slot of its own, so it can't leak into the rest.\n\n**The big idea:** attention is the thing to protect. Decide when the deep work happens before the day decides for you."
+      }
     }
   ],
-  "example": "Book notes\n\nWhat stuck from each book: the big idea, the lines worth keeping, and what you'll do differently. Newest book first.\n\n## Books\n### Four Thousand Weeks by Oliver Burkeman\n> \"The day will never arrive when you finally have everything under control.\" (p. 31)\n\n- The to-do list is infinite by design. Finishing it isn't the goal.\n- Pick your three big projects; everything else waits.\n\n**The big idea:** life is short and attention is finite. Trying to do everything guarantees the important things get squeezed. Choose what to neglect, on purpose.\n\n- [ ] Keep a list of three active projects, no more\n- [ ] Do the most important thing first, before email\n",
+  "example": "Book notes\n\nWhat stuck from each book: the big idea, the lines worth keeping, and what you'll do differently. Newest book first.\n\n## Books\n### Four Thousand Weeks by Oliver Burkeman\n> \"The day will never arrive when you finally have everything under control.\" (p. 31)\n\n- The to-do list is infinite by design. Finishing it isn't the goal.\n- Pick your three big projects; everything else waits.\n- Saying no to good things is the hard part.\n- Rest isn't a reward for finishing: nothing is ever finished.\n\n**The big idea:** life is short and attention is finite. Trying to do everything guarantees the important things get squeezed. Choose what to neglect, on purpose.\n\n- [ ] Keep a list of three active projects, no more\n- [ ] Do the most important thing first, before email\n- [ ] Keep one evening a week with nothing planned\n\n### Deep Work by Cal Newport\n- Two focused hours beat a scattered day.\n- Shallow work gets a slot of its own, so it can't leak into the rest.\n\n**The big idea:** attention is the thing to protect. Decide when the deep work happens before the day decides for you.\n",
   "related": [
     "reading-list",
     "study-flashcards",
     "weekly-review"
   ],
-  "updated": "2026-10-13"
+  "updated": "2026-11-09"
 }

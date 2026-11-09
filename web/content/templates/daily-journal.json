@@ -24,23 +24,23 @@
       "args": {
         "path": "Journal/Daily journal.md",
         "old_string": "## Entries\n",
-        "new_string": "## Entries\n### Thursday 1 October\n- **Today:** presented the budget; it went better than the rehearsal.\n- **Energy:** the 9 am meeting took it, the walk at lunch gave it back.\n- **Remember:** Ana said the second slide was the clearest.\n- **Tomorrow:** reply to the landlord before noon.\n"
+        "new_string": "## Entries\n### Saturday 7 November\n- **Today:** helped Maja move; it went faster than we feared.\n- **Energy:** the stairs took it, the pizza after gave it back.\n- **Remember:** Ana said the new flat gets the evening sun.\n- **Tomorrow:** reply to the landlord before noon.\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Journal/Daily journal.md",
-        "old_string": "### Thursday 1 October",
-        "new_string": "### Friday 2 October\n- **Today:** quiet day; finished the report and left at five.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n### Thursday 1 October"
+        "old_string": "## Entries\n",
+        "new_string": "## Entries\n### Sunday 8 November\n- **Today:** quiet day; finished the bookshelf and went for a long walk.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n"
       }
     }
   ],
-  "example": "Daily journal\n\nA few lines a day. Tell your AI about your day, or let it ask the questions below, and the entry lands here, newest day first.\n\n## Questions\n1. What happened today?\n2. What took energy, and what gave it back?\n3. What do I want to remember?\n4. What's one thing for tomorrow?\n\n## Entries\n### Friday 2 October\n- **Today:** quiet day; finished the report and left at five.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n### Thursday 1 October\n- **Today:** presented the budget; it went better than the rehearsal.\n- **Energy:** the 9 am meeting took it, the walk at lunch gave it back.\n- **Remember:** Ana said the second slide was the clearest.\n- **Tomorrow:** reply to the landlord before noon.\n",
+  "example": "Daily journal\n\nA few lines a day. Tell your AI about your day, or let it ask the questions below, and the entry lands here, newest day first.\n\n## Questions\n1. What happened today?\n2. What took energy, and what gave it back?\n3. What do I want to remember?\n4. What's one thing for tomorrow?\n\n## Entries\n### Sunday 8 November\n- **Today:** quiet day; finished the bookshelf and went for a long walk.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n### Saturday 7 November\n- **Today:** helped Maja move; it went faster than we feared.\n- **Energy:** the stairs took it, the pizza after gave it back.\n- **Remember:** Ana said the new flat gets the evening sun.\n- **Tomorrow:** reply to the landlord before noon.\n",
   "related": [
     "mood-energy-log",
     "weekly-review",
     "habit-tracker"
   ],
-  "updated": "2026-10-13"
+  "updated": "2026-11-09"
 }

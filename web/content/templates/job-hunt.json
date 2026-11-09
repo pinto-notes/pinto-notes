@@ -11,7 +11,7 @@
   "tagline": "Every application, its stage and what's next.",
   "seoTitle": "Job hunt pipeline template for ChatGPT and Claude",
   "folder": "Personal",
-  "note": "Job hunt\n\nEvery application, where it stands, and what happens next. Paste a job ad and your AI files it.\n\n<!-- pane-table: Company=text; Role=text; Stage=choice Saved|Applied|Interview|Offer|Rejected|Withdrawn; Next step=text; Link=text -->\n| Company | Role | Stage | Next step | Link |\n| --- | --- | --- | --- | --- |\n\n## This week\n\n## Interview prep\n\n## People I've talked to\n",
+  "note": "Job hunt\n\nEvery application, where it stands, and what happens next. Paste a job ad and your AI files it.\n\n## Applications\n<!-- pane-table: Company=text; Role=text; Stage=choice Saved|Applied|Interview|Offer|Rejected|Withdrawn; Next step=text; Link=text -->\n| Company | Role | Stage | Next step | Link |\n| --- | --- | --- | --- | --- |\n\n## This week\n\n## Interview prep\n\n## People I've talked to\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Job hunt\". Read it with fetch before each change. When I paste a job ad or a link, add a row to the table with edit: Company, Role, Stage Saved, and the Link. When I tell you I applied or heard back, update that row's Stage and Next step. Before an interview, add five likely questions and my talking points under \"Interview prep\", under a \"###\" heading with the company name. When I ask what's next, list the follow-ups under \"This week\" as a checklist."
   },
@@ -26,23 +26,23 @@
       "args": {
         "path": "Personal/Job hunt.md",
         "old_string": "| --- | --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- | --- |\n| Northwind | Senior product designer | Interview | First interview, Thu 1 Oct | northwind.example/jobs/42 |\n"
+        "new_string": "| --- | --- | --- | --- | --- |\n| Tideway | Senior product designer | Interview | First interview, 12 Nov | tideway.example/jobs/42 |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Personal/Job hunt.md",
-        "old_string": "| Northwind | Senior product designer | Interview | First interview, Thu 1 Oct | northwind.example/jobs/42 |\n",
-        "new_string": "| Northwind | Senior product designer | Interview | First interview, Thu 1 Oct | northwind.example/jobs/42 |\n| Fabrikam | Design lead | Applied | Follow up on 7 Oct |   |\n"
+        "old_string": "| Tideway | Senior product designer | Interview | First interview, 12 Nov | tideway.example/jobs/42 |\n",
+        "new_string": "| Tideway | Senior product designer | Interview | First interview, 12 Nov | tideway.example/jobs/42 |\n| Marlow Studio | Design lead | Applied | Follow up, 16 Nov |   |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Personal/Job hunt.md",
-        "old_string": "| Fabrikam | Design lead | Applied | Follow up on 7 Oct |   |\n",
-        "new_string": "| Fabrikam | Design lead | Applied | Follow up on 7 Oct |   |\n| Contoso | Product designer | Saved | Apply by 9 Oct (Emma referred me) |   |\n"
+        "old_string": "| Marlow Studio | Design lead | Applied | Follow up, 16 Nov |   |\n",
+        "new_string": "| Marlow Studio | Design lead | Applied | Follow up, 16 Nov |   |\n| Finch Bikes | Product designer | Saved | Apply by 18 Nov |   |\n"
       }
     },
     {
@@ -50,7 +50,7 @@
       "args": {
         "path": "Personal/Job hunt.md",
         "old_string": "## This week\n",
-        "new_string": "## This week\n- [ ] Send the portfolio link to Northwind\n- [ ] Follow up with Fabrikam on Wednesday\n"
+        "new_string": "## This week\n- [ ] Send the portfolio link to Tideway\n- [ ] Follow up with Marlow Studio\n"
       }
     },
     {
@@ -58,15 +58,15 @@
       "args": {
         "path": "Personal/Job hunt.md",
         "old_string": "## Interview prep\n",
-        "new_string": "## Interview prep\n### Northwind\n1. Walk us through a project you're proud of. *The onboarding redesign: 18% more activation.*\n2. How do you work with engineers? *Weekly reviews, shared Figma, ship small.*\n3. Why Northwind? *Their logistics tools are the kind of complex I like.*\n"
+        "new_string": "## Interview prep\n### Tideway\n1. Walk us through a project you're proud of. *The onboarding redesign: 18% more activation.*\n2. How do you work with engineers? *Weekly reviews, shared files, ship small.*\n3. Why Tideway? *Their logistics tools are the kind of complex I like.*\n"
       }
     }
   ],
-  "example": "Job hunt\n\nEvery application, where it stands, and what happens next. Paste a job ad and your AI files it.\n\n<!-- pane-table: Company=text; Role=text; Stage=choice Saved|Applied|Interview|Offer|Rejected|Withdrawn; Next step=text; Link=text -->\n| Company | Role | Stage | Next step | Link |\n| --- | --- | --- | --- | --- |\n| Northwind | Senior product designer | Interview | First interview, Thu 1 Oct | northwind.example/jobs/42 |\n| Fabrikam | Design lead | Applied | Follow up on 7 Oct |   |\n| Contoso | Product designer | Saved | Apply by 9 Oct (Emma referred me) |   |\n\n## This week\n- [ ] Send the portfolio link to Northwind\n- [ ] Follow up with Fabrikam on Wednesday\n\n## Interview prep\n### Northwind\n1. Walk us through a project you're proud of. *The onboarding redesign: 18% more activation.*\n2. How do you work with engineers? *Weekly reviews, shared Figma, ship small.*\n3. Why Northwind? *Their logistics tools are the kind of complex I like.*\n\n## People I've talked to\n",
+  "example": "Job hunt\n\nEvery application, where it stands, and what happens next. Paste a job ad and your AI files it.\n\n## Applications\n<!-- pane-table: Company=text; Role=text; Stage=choice Saved|Applied|Interview|Offer|Rejected|Withdrawn; Next step=text; Link=text -->\n| Company | Role | Stage | Next step | Link |\n| --- | --- | --- | --- | --- |\n| Tideway | Senior product designer | Interview | First interview, 12 Nov | tideway.example/jobs/42 |\n| Marlow Studio | Design lead | Applied | Follow up, 16 Nov |   |\n| Finch Bikes | Product designer | Saved | Apply by 18 Nov |   |\n\n## This week\n- [ ] Send the portfolio link to Tideway\n- [ ] Follow up with Marlow Studio\n\n## Interview prep\n### Tideway\n1. Walk us through a project you're proud of. *The onboarding redesign: 18% more activation.*\n2. How do you work with engineers? *Weekly reviews, shared files, ship small.*\n3. Why Tideway? *Their logistics tools are the kind of complex I like.*\n\n## People I've talked to\n",
   "related": [
     "meeting-notes",
     "weekly-review",
     "content-calendar"
   ],
-  "updated": "2026-10-13"
+  "updated": "2026-11-09"
 }

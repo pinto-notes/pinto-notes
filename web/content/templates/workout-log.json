@@ -24,23 +24,39 @@
       "args": {
         "path": "Health/Workout log.md",
         "old_string": "| --- | --- | --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- | --- | --- |\n| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n"
+        "new_string": "| --- | --- | --- | --- | --- | --- |\n| 2026-11-01 | Run | Easy 5 km | 29 min | 30 | 5 |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Health/Workout log.md",
-        "old_string": "| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n",
-        "new_string": "| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n"
+        "old_string": "| 2026-11-01 | Run | Easy 5 km | 29 min | 30 | 5 |\n",
+        "new_string": "| 2026-11-01 | Run | Easy 5 km | 29 min | 30 | 5 |\n| 2026-11-02 | Push | Overhead press | 45 kg x 5 | 45 | 7 |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Health/Workout log.md",
-        "old_string": "| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n",
-        "new_string": "| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n| 2026-09-30 | Push | Bench press | 70 kg x 6 | 50 | 7 |\n"
+        "old_string": "| 2026-11-02 | Push | Overhead press | 45 kg x 5 | 45 | 7 |\n",
+        "new_string": "| 2026-11-02 | Push | Overhead press | 45 kg x 5 | 45 | 7 |\n| 2026-11-04 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Health/Workout log.md",
+        "old_string": "| 2026-11-04 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n",
+        "new_string": "| 2026-11-04 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n| 2026-11-06 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Health/Workout log.md",
+        "old_string": "| 2026-11-06 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n",
+        "new_string": "| 2026-11-06 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n| 2026-11-08 | Push | Bench press | 70 kg x 6 | 50 | 7 |\n"
       }
     },
     {
@@ -48,15 +64,15 @@
       "args": {
         "path": "Health/Workout log.md",
         "old_string": "## Personal bests\n",
-        "new_string": "## Personal bests\n- Squat: 100 kg x 5 (28 Sep)\n- Bench press: 70 kg x 6 (30 Sep)\n"
+        "new_string": "## Personal bests\n- Deadlift: 120 kg x 3 (4 Nov)\n- Squat: 100 kg x 5 (6 Nov)\n- Bench press: 70 kg x 6 (8 Nov)\n"
       }
     }
   ],
-  "example": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n## Sessions\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Mins=number; Effort (1–10)=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Mins | Effort (1–10) |\n| --- | --- | --- | --- | --- | --- |\n| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n| 2026-09-30 | Push | Bench press | 70 kg x 6 | 50 | 7 |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n- Squat: 100 kg x 5 (28 Sep)\n- Bench press: 70 kg x 6 (30 Sep)\n",
+  "example": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n## Sessions\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Mins=number; Effort (1–10)=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Mins | Effort (1–10) |\n| --- | --- | --- | --- | --- | --- |\n| 2026-11-01 | Run | Easy 5 km | 29 min | 30 | 5 |\n| 2026-11-02 | Push | Overhead press | 45 kg x 5 | 45 | 7 |\n| 2026-11-04 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n| 2026-11-06 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n| 2026-11-08 | Push | Bench press | 70 kg x 6 | 50 | 7 |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n- Deadlift: 120 kg x 3 (4 Nov)\n- Squat: 100 kg x 5 (6 Nov)\n- Bench press: 70 kg x 6 (8 Nov)\n",
   "related": [
     "habit-tracker",
     "mood-energy-log",
     "meal-plan"
   ],
-  "updated": "2026-10-13"
+  "updated": "2026-11-09"
 }

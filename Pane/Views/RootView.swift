@@ -222,7 +222,15 @@ struct RootView: View {
             if let client = backendForConnect?.client {
                 rows = (try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value) ?? []
             }
-            withAnimation(.snappy(duration: 0.2)) { popup = nil; templateAIs = TemplateMaking.ais(rows) }
+            // The sheet that greets a note just made is on this window too: it's put away first,
+            // so the library can open again while it shows (two sheets don't share a window).
+            let greeting = FirstOpen.shared.pending.values.filter(\.full)
+            for m in greeting { FirstOpen.shared.start(m) }
+            if !greeting.isEmpty { try? await Task.sleep(for: .seconds(0.45)) }
+            // Real-input checks (`-uitest -demo -templatesSheet -templatesAIs`): as with ChatGPT
+            // and Claude connected, in a demo run, which has no account to ask.
+            let ais: [SetupCards.AI] = Self.templatesStandIn ? [.chatgpt, .claude] : TemplateMaking.ais(rows)
+            withAnimation(.snappy(duration: 0.2)) { popup = nil; templateAIs = ais }
         }
     }
 
@@ -249,17 +257,21 @@ struct RootView: View {
         }
     }
 
+    private static let templatesStandIn: Bool = {
+        let args = ProcessInfo.processInfo.arguments
+        return args.contains("-uitest") && args.contains("-demo") && args.contains("-templatesAIs")
+    }()
+
     private func templates(_ ais: [SetupCards.AI]) -> some View {
         TemplateLibraryView(ais: ais, make: { e, ai in
             Task {
-                let note = await TemplateMaking.make(e, with: ai, context: context, account: backendForConnect?.userID, open: { openURLForTemplates($0) })
-                // Another AI: Copied shows on the panel a moment before it closes.
-                if !ai.asks { try? await Task.sleep(for: .seconds(0.9)) }
+                // A real-input check never opens the AI's page in a browser.
+                let note = await TemplateMaking.make(e, with: ai, context: context, account: backendForConnect?.userID, open: { if !Self.templatesStandIn { openURLForTemplates($0) } })
                 withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
                 if let note { selection = [note] }
             }
         }, close: { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } })
-        .onExitCommand { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } }
+        // Esc is the library's own: its x on the gallery, Back on a template's page.
     }
     #endif
 
@@ -962,8 +974,11 @@ struct RootView: View {
         // Real-input checks of the template library: `-uitest -demo -templatesSheet` opens it over
         // the made-up notes, and again each time `pintonotes.test.templates` is posted (the
         // sidebar's Templates row needs an account, which a demo run doesn't have).
-        if args.contains("-uitest"), args.contains("-demo"), args.contains("-templatesSheet") {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { NotificationCenter.default.post(name: .paneTemplates, object: nil) }
+        if args.contains("-uitest"), args.contains("-demo"), args.contains("-templatesSheet") || args.contains("-templatesHook") {
+            // `-templatesHook` alone: only the notification, the library closed at launch.
+            if args.contains("-templatesSheet") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { NotificationCenter.default.post(name: .paneTemplates, object: nil) }
+            }
             DistributedNotificationCenter.default().addObserver(forName: Notification.Name("pintonotes.test.templates"), object: nil, queue: .main) { _ in
                 NotificationCenter.default.post(name: .paneTemplates, object: nil)
             }

@@ -231,12 +231,12 @@ export type SliceRow =
 /// useful: a filled table, ticked items, the newest day or decision. The slice runs on from there
 /// across sections, so the card's panel is always full.
 const SLICE_FROM: Record<string, string> = {
-  "habit-tracker": "Weekly check-in", "meeting-notes": "Open action items", "daily-standup": "30 September", "meal-plan": "|",
-  "reading-list": "|", "mood-energy-log": "|", "job-hunt": "|", "trip-plan": "|", "study-flashcards": "Cell respiration",
-  "decision-log": "Stay on Postgres, 29 September", "workout-log": "|", "budget-log": "|", "one-on-one-notes": "Follow-ups",
-  "book-notes": "Four Thousand Weeks by Oliver Burkeman", "bug-triage": "|", "weekly-review": "Week of 28 September",
+  "habit-tracker": "Weekly check-in", "meeting-notes": "Open action items", "daily-standup": "Standup, 8 November", "meal-plan": "|",
+  "reading-list": "|", "mood-energy-log": "|", "job-hunt": "|", "trip-plan": "Ideas", "study-flashcards": "Cell respiration",
+  "decision-log": "Stay on Postgres, 4 November", "workout-log": "|", "budget-log": "Month summaries", "one-on-one-notes": "Follow-ups",
+  "book-notes": "Four Thousand Weeks by Oliver Burkeman", "bug-triage": "|", "weekly-review": "Week of 2 November",
   "recipe-box": "Weeknight", "content-calendar": "|", "home-maintenance": "|", "gift-ideas": "|",
-  "cornell-notes": "Supply and demand, 1 October", "daily-journal": "Friday 2 October", "grocery-list": "Fruit and veg",
+  "cornell-notes": "Supply and demand, 5 November", "daily-journal": "Sunday 8 November", "grocery-list": "Fruit and veg",
 };
 
 /// The card's slice of the filled-in example, about `lines` lines long: from the template's chosen

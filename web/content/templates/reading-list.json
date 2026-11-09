@@ -11,13 +11,13 @@
   "tagline": "Books to read, reading and finished, rated.",
   "seoTitle": "Reading list template with notes for ChatGPT and Claude",
   "folder": "Reading",
-  "note": "Reading list\n\nEvery book you want to read, are reading or have finished, with a line on why it's here.\n\n<!-- pane-table: Title=text; Author=text; Status=choice To read|Reading|Finished|Dropped; Rating=scale 1-5; Why=text -->\n| Title | Author | Status | Rating | Why |\n| --- | --- | --- | --- | --- |\n\n## Notes\n",
+  "note": "Reading list\n\nEvery book you want to read, are reading or have finished, with a line on why it's here.\n\n## Books\n<!-- pane-table: Title=text; Author=text; Status=choice To read|Reading|Finished|Dropped; Rating=scale 1-5; Why=text -->\n| Title | Author | Status | Rating | Why |\n| --- | --- | --- | --- | --- |\n\n## Notes\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Reading list\". Read it with fetch before each change. When I mention a book, add a row to the table with edit: Title, Author, Status To read, and in Why, who recommended it or why I want it. When I start or finish a book, update its Status (and Rating from 1 to 5 when I finish). Put my thoughts on a book under \"Notes\", under a \"###\" heading with the title. When I ask what to read next, suggest from what's marked To read, based on what I rated highly."
   },
   "asks": [
     "Ask which book I want to add, who recommended it and why, then file it.",
-    "Finished Four Thousand Weeks. Four stars.",
+    "Finished Project Hail Mary. Five stars.",
     "What should I read next?"
   ],
   "demo": [
@@ -26,23 +26,47 @@
       "args": {
         "path": "Reading/Reading list.md",
         "old_string": "| --- | --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- | --- |\n| Four Thousand Weeks | Oliver Burkeman | Finished | 4 | Recommended by Jonas |\n"
+        "new_string": "| --- | --- | --- | --- | --- |\n| Project Hail Mary | Andy Weir | Finished | 5 | Maja's pick for book club |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Reading/Reading list.md",
-        "old_string": "| Four Thousand Weeks | Oliver Burkeman | Finished | 4 | Recommended by Jonas |\n",
-        "new_string": "| Four Thousand Weeks | Oliver Burkeman | Finished | 4 | Recommended by Jonas |\n| Piranesi | Susanna Clarke | Reading |   | Maja's favourite this year |\n"
+        "old_string": "| Project Hail Mary | Andy Weir | Finished | 5 | Maja's pick for book club |\n",
+        "new_string": "| Project Hail Mary | Andy Weir | Finished | 5 | Maja's pick for book club |\n| Piranesi | Susanna Clarke | Reading |   | Recommended by Jonas |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Reading/Reading list.md",
-        "old_string": "| Piranesi | Susanna Clarke | Reading |   | Maja's favourite this year |\n",
-        "new_string": "| Piranesi | Susanna Clarke | Reading |   | Maja's favourite this year |\n| The Design of Everyday Things | Don Norman | To read |   | For work |\n"
+        "old_string": "| Piranesi | Susanna Clarke | Reading |   | Recommended by Jonas |\n",
+        "new_string": "| Piranesi | Susanna Clarke | Reading |   | Recommended by Jonas |\n| Atomic Habits | James Clear | To read |   | For the new year |\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Reading/Reading list.md",
+        "old_string": "| Atomic Habits | James Clear | To read |   | For the new year |\n",
+        "new_string": "| Atomic Habits | James Clear | To read |   | For the new year |\n| The Thursday Murder Club | Richard Osman | Finished | 4 | Holiday read |\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Reading/Reading list.md",
+        "old_string": "| The Thursday Murder Club | Richard Osman | Finished | 4 | Holiday read |\n",
+        "new_string": "| The Thursday Murder Club | Richard Osman | Finished | 4 | Holiday read |\n| The Overstory | Richard Powers | To read |   | Sara lent it to me |\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Reading/Reading list.md",
+        "old_string": "| The Overstory | Richard Powers | To read |   | Sara lent it to me |\n",
+        "new_string": "| The Overstory | Richard Powers | To read |   | Sara lent it to me |\n| Thinking, Fast and Slow | Daniel Kahneman | Dropped | 2 | Too dense for evenings |\n"
       }
     },
     {
@@ -50,15 +74,23 @@
       "args": {
         "path": "Reading/Reading list.md",
         "old_string": "## Notes\n",
-        "new_string": "## Notes\n### Four Thousand Weeks\nYou'll never get through everything, so choose what to neglect on purpose. Made me drop two side projects.\n"
+        "new_string": "## Notes\n### The Thursday Murder Club\nCosy and funnier than I expected. Good for a train.\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Reading/Reading list.md",
+        "old_string": "## Notes\n",
+        "new_string": "## Notes\n### Project Hail Mary\nThe friendship carries the whole book. Lending my copy to Maja next.\n\n"
       }
     }
   ],
-  "example": "Reading list\n\nEvery book you want to read, are reading or have finished, with a line on why it's here.\n\n<!-- pane-table: Title=text; Author=text; Status=choice To read|Reading|Finished|Dropped; Rating=scale 1-5; Why=text -->\n| Title | Author | Status | Rating | Why |\n| --- | --- | --- | --- | --- |\n| Four Thousand Weeks | Oliver Burkeman | Finished | 4 | Recommended by Jonas |\n| Piranesi | Susanna Clarke | Reading |   | Maja's favourite this year |\n| The Design of Everyday Things | Don Norman | To read |   | For work |\n\n## Notes\n### Four Thousand Weeks\nYou'll never get through everything, so choose what to neglect on purpose. Made me drop two side projects.\n",
+  "example": "Reading list\n\nEvery book you want to read, are reading or have finished, with a line on why it's here.\n\n## Books\n<!-- pane-table: Title=text; Author=text; Status=choice To read|Reading|Finished|Dropped; Rating=scale 1-5; Why=text -->\n| Title | Author | Status | Rating | Why |\n| --- | --- | --- | --- | --- |\n| Project Hail Mary | Andy Weir | Finished | 5 | Maja's pick for book club |\n| Piranesi | Susanna Clarke | Reading |   | Recommended by Jonas |\n| Atomic Habits | James Clear | To read |   | For the new year |\n| The Thursday Murder Club | Richard Osman | Finished | 4 | Holiday read |\n| The Overstory | Richard Powers | To read |   | Sara lent it to me |\n| Thinking, Fast and Slow | Daniel Kahneman | Dropped | 2 | Too dense for evenings |\n\n## Notes\n### Project Hail Mary\nThe friendship carries the whole book. Lending my copy to Maja next.\n\n### The Thursday Murder Club\nCosy and funnier than I expected. Good for a train.\n",
   "related": [
     "book-notes",
     "study-flashcards",
     "weekly-review"
   ],
-  "updated": "2026-10-13"
+  "updated": "2026-11-09"
 }

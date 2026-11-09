@@ -410,6 +410,11 @@ struct NotePreview: View {
         return out
     }
 
+    /// A line that is one link to a sub-note ("[Cardamom buns](pane-note:…)"): its title.
+    nonisolated static func subnote(_ line: String) -> String? {
+        line.wholeMatch(of: /\[([^\]]+)\]\(pane-note:[^)]+\)/).map { String($0.1) }
+    }
+
     /// A paragraph's last two words kept together, so it never ends on one word alone on its last
     /// line (council round 6: Cornell's summary ended on "shortage.").
     /// A closing aside ("(Thu 1 Oct)", "(next week)") stays whole and with the word before it, so it
@@ -536,7 +541,17 @@ struct NotePreview: View {
         case .heading(let level, let s):
             inline(s).font(level <= 1 ? .title2.bold() : level == 2 ? .title3.bold() : .headline).padding(.top, 6)
         case .paragraph(let s):
-            inline(whole ? Self.lastWordsKept(s) : s).fixedSize(horizontal: false, vertical: true)
+            if whole, let title = Self.subnote(s) {
+                // A sub-note in an example (the recipe box's recipes): a row with a note's glyph
+                // and its name, as the note list shows one. Not a link: there's no such note to
+                // open from a template's stage (9 November 2026: three links to nowhere).
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "doc.text").foregroundStyle(Color.muted)
+                    Text(title)
+                }
+            } else {
+                inline(whole ? Self.lastWordsKept(s) : s).fixedSize(horizontal: false, vertical: true)
+            }
         case .check(let done, let s, let n):
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Image(systemName: done ? "checkmark.circle.fill" : "circle")

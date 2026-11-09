@@ -24,7 +24,7 @@
       "args": {
         "path": "Study/Cornell notes.md",
         "old_string": "## Lectures\n",
-        "new_string": "## Lectures\n### Supply and demand, 1 October\n| Cue | Notes |\n| --- | --- |\n| What shifts the demand curve? | Income, tastes, prices of related goods, expectations. A change in the good's own price only moves along the curve. |\n| What is the equilibrium price? | The price where the quantity demanded equals the quantity supplied. |\n| What does a price ceiling below equilibrium cause? | A shortage: at that price, people want more than sellers offer. |\n\n**Summary:** Supply and demand meet at one price and quantity. Anything other than the price itself shifts a curve and moves that point; a price ceiling set too low leaves a shortage.\n"
+        "new_string": "## Lectures\n### Supply and demand, 5 November\n| Cue | Notes |\n| --- | --- |\n| What shifts the demand curve? | Income, tastes, prices of related goods, expectations. A change in the good's own price only moves along the curve. |\n| What is the equilibrium price? | The price where the quantity demanded equals the quantity supplied. |\n| What does a price ceiling below equilibrium cause? | A shortage: at that price, people want more than sellers offer. |\n\n**Summary:** Supply and demand meet at one price and quantity. Anything other than the price itself shifts a curve and moves that point; a price ceiling set too low leaves a shortage.\n"
       }
     },
     {
@@ -32,23 +32,15 @@
       "args": {
         "path": "Study/Cornell notes.md",
         "old_string": "## Cues to revisit\n",
-        "new_string": "## Cues to revisit\n- [ ] What shifts the demand curve?\n- [ ] What does a price ceiling below equilibrium cause?\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Study/Cornell notes.md",
-        "old_string": "- [ ] What does a price ceiling below equilibrium cause?",
-        "new_string": "- [x] What does a price ceiling below equilibrium cause?"
+        "new_string": "## Cues to revisit\n- [ ] What shifts the demand curve?\n- [x] What does a price ceiling below equilibrium cause?\n"
       }
     }
   ],
-  "example": "Cornell notes\n\nOne section per lecture or chapter. Your notes go on the right, a question that each one answers on the left, and a summary of two or three sentences closes the section. To revise, cover the right column and answer the cues.\n\n## Lectures\n### Supply and demand, 1 October\n| Cue | Notes |\n| --- | --- |\n| What shifts the demand curve? | Income, tastes, prices of related goods, expectations. A change in the good's own price only moves along the curve. |\n| What is the equilibrium price? | The price where the quantity demanded equals the quantity supplied. |\n| What does a price ceiling below equilibrium cause? | A shortage: at that price, people want more than sellers offer. |\n\n**Summary:** Supply and demand meet at one price and quantity. Anything other than the price itself shifts a curve and moves that point; a price ceiling set too low leaves a shortage.\n\n## Cues to revisit\n- [ ] What shifts the demand curve?\n- [x] What does a price ceiling below equilibrium cause?\n",
+  "example": "Cornell notes\n\nOne section per lecture or chapter. Your notes go on the right, a question that each one answers on the left, and a summary of two or three sentences closes the section. To revise, cover the right column and answer the cues.\n\n## Lectures\n### Supply and demand, 5 November\n| Cue | Notes |\n| --- | --- |\n| What shifts the demand curve? | Income, tastes, prices of related goods, expectations. A change in the good's own price only moves along the curve. |\n| What is the equilibrium price? | The price where the quantity demanded equals the quantity supplied. |\n| What does a price ceiling below equilibrium cause? | A shortage: at that price, people want more than sellers offer. |\n\n**Summary:** Supply and demand meet at one price and quantity. Anything other than the price itself shifts a curve and moves that point; a price ceiling set too low leaves a shortage.\n\n## Cues to revisit\n- [ ] What shifts the demand curve?\n- [x] What does a price ceiling below equilibrium cause?\n",
   "related": [
     "study-flashcards",
     "book-notes",
     "reading-list"
   ],
-  "updated": "2026-10-13"
+  "updated": "2026-11-09"
 }

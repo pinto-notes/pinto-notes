@@ -256,26 +256,37 @@ struct FirstOpenSheet: View {
     let start: () -> Void
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                FirstOpenArt(moment: moment, height: moment.isApp ? 120 : 110)
-                FirstOpenContent(moment: moment, start: start)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 12)
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .background(Color.notePage)
         #if os(iOS)
-        // Low enough that the app shows above it.
-        .presentationDetents(moment.isApp ? [.fraction(0.8), .large] : [.fraction(0.6), .large])
-        .presentationDragIndicator(.visible)
-        .presentationBackground(Color.notePage)
+        ScrollView { content.padding(.bottom, 12) }
+            .scrollBounceBehavior(.basedOnSize)
+            .background(Color.notePage)
+            // Low enough that the app shows above it.
+            .presentationDetents(moment.isApp ? [.fraction(0.8), .large] : [.fraction(0.6), .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Color.notePage)
+            .interactiveDismissDisabled()
         #else
-        .frame(width: 460, height: moment.isApp ? 600 : 460)
+        // A Mac sheet takes its content's size: a set height left 100 pt of nothing under Start
+        // (9 November 2026).
+        content
+            .padding(.bottom, Self.macFoot)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(width: 460)
+            .background(Color.notePage)
+            .interactiveDismissDisabled()
         #endif
-        .interactiveDismissDisabled()
+    }
+
+    /// Under Start on the Mac, as the sheet's sides.
+    static let macFoot: CGFloat = 20
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            FirstOpenArt(moment: moment, height: moment.isApp ? 120 : 110)
+            FirstOpenContent(moment: moment, start: start)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
     }
 }
 
@@ -419,9 +430,15 @@ struct FirstOpenRichSheetContent: View {
 extension View {
     /// A gentle entrance: rises a little and fades in, one after another.
     func entrance(_ shown: Bool, _ i: Int, _ reduceMotion: Bool) -> some View {
+        #if os(macOS)
+        // On the Mac it's all there when the sheet opens: built in line by line, it kept the
+        // person waiting on a sheet they hadn't asked for (9 November 2026).
+        self
+        #else
         self
             .opacity(shown ? 1 : 0)
             .offset(y: shown || reduceMotion ? 0 : 8)
             .animation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.5, bounce: 0.15).delay(0.08 * Double(i)), value: shown)
+        #endif
     }
 }

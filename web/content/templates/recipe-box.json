@@ -23,8 +23,8 @@
     {
       "tool": "create",
       "args": {
-        "path": "Recipes/Recipe box/Lemon chicken with rice.md",
-        "content": "Lemon chicken with rice\n\nServes 4, 35 minutes.\n\n- [ ] 8 chicken thighs\n- [ ] 2 lemons\n- [ ] 300 g rice\n\n1. Brown the chicken.\n2. Add the rice, lemon and water. Simmer 20 minutes.",
+        "path": "Recipes/Recipe box/Lentil soup with lemon.md",
+        "content": "Lentil soup with lemon\n\nServes 4, 35 minutes.\n\n- [ ] 250 g red lentils\n- [ ] 2 lemons\n- [ ] 1 onion\n\n1. Soften the onion.\n2. Add the lentils and a litre of water. Simmer 20 minutes, then add the lemon.",
         "id": "3f6c2a1e-8b4d-4c2a-9e1f-5a7b8c9d0e1f"
       }
     },
@@ -32,15 +32,15 @@
       "tool": "edit",
       "args": {
         "path": "Recipes/Recipe box.md",
-        "old_string": "\n## Weekend\n\n## Baking\n\n## Want to try\n\n[Lemon chicken with rice](pane-note:3f6c2a1e-8b4d-4c2a-9e1f-5a7b8c9d0e1f)",
-        "new_string": "[Lemon chicken with rice](pane-note:3f6c2a1e-8b4d-4c2a-9e1f-5a7b8c9d0e1f)\n\n## Weekend\n\n## Baking\n\n## Want to try"
+        "old_string": "\n## Weekend\n\n## Baking\n\n## Want to try\n\n[Lentil soup with lemon](pane-note:3f6c2a1e-8b4d-4c2a-9e1f-5a7b8c9d0e1f)",
+        "new_string": "[Lentil soup with lemon](pane-note:3f6c2a1e-8b4d-4c2a-9e1f-5a7b8c9d0e1f)\n\n## Weekend\n\n## Baking\n\n## Want to try"
       }
     },
     {
       "tool": "create",
       "args": {
-        "path": "Recipes/Recipe box/Chickpea and spinach curry.md",
-        "content": "Chickpea and spinach curry\n\nServes 4, 25 minutes.",
+        "path": "Recipes/Recipe box/Sesame noodles.md",
+        "content": "Sesame noodles\n\nServes 2, 15 minutes.",
         "id": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d"
       }
     },
@@ -48,8 +48,56 @@
       "tool": "edit",
       "args": {
         "path": "Recipes/Recipe box.md",
-        "old_string": "\n## Weekend\n\n## Baking\n\n## Want to try\n\n[Chickpea and spinach curry](pane-note:9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d)",
-        "new_string": "[Chickpea and spinach curry](pane-note:9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d)\n\n## Weekend\n\n## Baking\n\n## Want to try"
+        "old_string": "\n## Weekend\n\n## Baking\n\n## Want to try\n\n[Sesame noodles](pane-note:9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d)",
+        "new_string": "[Sesame noodles](pane-note:9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d)\n\n## Weekend\n\n## Baking\n\n## Want to try"
+      }
+    },
+    {
+      "tool": "create",
+      "args": {
+        "path": "Recipes/Recipe box/Tomato and white bean stew.md",
+        "content": "Tomato and white bean stew\n\nServes 4, 30 minutes.",
+        "id": "7d2e9b40-51c3-4f8a-a6d1-2b3c4d5e6f70"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Recipes/Recipe box.md",
+        "old_string": "\n## Weekend\n\n## Baking\n\n## Want to try\n\n[Tomato and white bean stew](pane-note:7d2e9b40-51c3-4f8a-a6d1-2b3c4d5e6f70)",
+        "new_string": "[Tomato and white bean stew](pane-note:7d2e9b40-51c3-4f8a-a6d1-2b3c4d5e6f70)\n\n## Weekend\n\n## Baking\n\n## Want to try"
+      }
+    },
+    {
+      "tool": "create",
+      "args": {
+        "path": "Recipes/Recipe box/Slow-roast lamb.md",
+        "content": "Slow-roast lamb\n\nServes 6, 4 hours.",
+        "id": "1a2b3c4d-5e6f-4a7b-9c8d-7e6f5a4b3c2d"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Recipes/Recipe box.md",
+        "old_string": "\n## Baking\n\n## Want to try\n\n[Slow-roast lamb](pane-note:1a2b3c4d-5e6f-4a7b-9c8d-7e6f5a4b3c2d)",
+        "new_string": "[Slow-roast lamb](pane-note:1a2b3c4d-5e6f-4a7b-9c8d-7e6f5a4b3c2d)\n\n## Baking\n\n## Want to try"
+      }
+    },
+    {
+      "tool": "create",
+      "args": {
+        "path": "Recipes/Recipe box/Sunday pancakes.md",
+        "content": "Sunday pancakes\n\nMakes 12, 25 minutes.",
+        "id": "b4d6f8a0-2c4e-4a6c-8e0a-1c3e5a7c9e1b"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Recipes/Recipe box.md",
+        "old_string": "\n## Baking\n\n## Want to try\n\n[Sunday pancakes](pane-note:b4d6f8a0-2c4e-4a6c-8e0a-1c3e5a7c9e1b)",
+        "new_string": "[Sunday pancakes](pane-note:b4d6f8a0-2c4e-4a6c-8e0a-1c3e5a7c9e1b)\n\n## Baking\n\n## Want to try"
       }
     },
     {
@@ -73,15 +121,15 @@
       "args": {
         "path": "Recipes/Recipe box.md",
         "old_string": "## Want to try\n",
-        "new_string": "## Want to try\n- Ramiro-style garlic prawns\n- Miso butter pasta\n"
+        "new_string": "## Want to try\n- Garlic prawns\n- Miso butter pasta\n- Emma's lemon tart\n"
       }
     }
   ],
-  "example": "Recipe box\n\nYour recipes, cleaned up and filed: one sub-note each, with the ingredients as a checklist you can tick off while you cook.\n\n## Weeknight\n[Lemon chicken with rice](pane-note:3f6c2a1e-8b4d-4c2a-9e1f-5a7b8c9d0e1f)\n[Chickpea and spinach curry](pane-note:9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d)\n\n## Weekend\n\n## Baking\n[Cardamom buns](pane-note:c0ffee00-1234-4abc-8def-001122334455)\n\n## Want to try\n- Ramiro-style garlic prawns\n- Miso butter pasta\n",
+  "example": "Recipe box\n\nYour recipes, cleaned up and filed: one sub-note each, with the ingredients as a checklist you can tick off while you cook.\n\n## Weeknight\n[Lentil soup with lemon](pane-note:3f6c2a1e-8b4d-4c2a-9e1f-5a7b8c9d0e1f)\n[Sesame noodles](pane-note:9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d)\n[Tomato and white bean stew](pane-note:7d2e9b40-51c3-4f8a-a6d1-2b3c4d5e6f70)\n\n## Weekend\n[Slow-roast lamb](pane-note:1a2b3c4d-5e6f-4a7b-9c8d-7e6f5a4b3c2d)\n[Sunday pancakes](pane-note:b4d6f8a0-2c4e-4a6c-8e0a-1c3e5a7c9e1b)\n\n## Baking\n[Cardamom buns](pane-note:c0ffee00-1234-4abc-8def-001122334455)\n\n## Want to try\n- Garlic prawns\n- Miso butter pasta\n- Emma's lemon tart\n",
   "related": [
     "meal-plan",
     "gift-ideas",
     "budget-log"
   ],
-  "updated": "2026-10-13"
+  "updated": "2026-11-09"
 }

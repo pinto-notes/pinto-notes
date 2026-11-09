@@ -12,10 +12,13 @@
 import "../supabase/functions/mcp/tools.ts";
 import { render as renderService } from "../supabase/functions/mcp/app_check.ts";
 
-/** The live view's size in CSS pixels on each stage: TemplateAppPreview.css(for:small:) in the app.
- * The big stage's 400 x 320 pt window at 75%; the small stage's 328 pt wide window at 70%, laid out
- * taller than the 169 pt it shows and running off its foot. */
-const SIZES = [{ name: "stage", width: 533, height: 426 }, { name: "stage-small", width: 469, height: 480 }];
+/** The live view's size in CSS pixels on the template page's stage: TemplateAppPreview.css in the
+ * app. The stage's 624 x 464 pt at 75%, where the apps lay out in two columns. */
+const SIZES = Deno.env.get("STAGE_SIZES")
+  // STAGE_SIZES="try-a:640:480,try-b:720:540" draws other sizes, to look at one before it ships.
+  ? Deno.env.get("STAGE_SIZES")!.split(",").map((s) => { const [name, w, h] = s.split(":"); return { name, width: Number(w), height: Number(h) }; })
+  // "stage-narrow": a narrow sheet's stage (a small window), the app in its one column.
+  : [{ name: "stage", width: 832, height: 619 }, { name: "stage-narrow", width: 533, height: 640 }];
 
 /** The sample's dates are written for this day and moved to today: TemplateFiles.sample in the app. */
 const ANCHOR = "2026-11-08";
@@ -33,10 +36,9 @@ function moved(value: unknown, days: number): unknown {
   }
   return value;
 }
-// The stage's day: the latest Thursday, as template-stage.js sets the app's clock and
-// TemplateSample.stageDay moves the sample (council round 6: a Monday's week looked empty).
+// The stage's day is today, as the live app shows it (9 November 2026: it used to be the latest
+// Thursday, and the app said "Thursday 5 November, Today" on a Monday).
 const local = new Date();
-local.setDate(local.getDate() - (local.getDay() - 4 + 7) % 7);
 const today = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, "0")}-${String(local.getDate()).padStart(2, "0")}`;
 const since = Math.round((Date.parse(today) - Date.parse(ANCHOR)) / 86_400_000);
 
@@ -71,7 +73,8 @@ for (const t of apps) {
   for (const size of SIZES) {
     for (const scheme of ["light", "dark"] as const) {
       const r = await renderService({ html, markdown: t.note ?? "", data, today, interact: false, probes: false,
-        views: [{ width: size.width, height: size.height, scheme }], capture: true });
+        // At 2x, as the Mac's screen draws the live app.
+        views: [{ width: size.width, height: size.height, scheme, scale: 2 }], capture: true });
       const png = typeof r === "string" ? null : r.views[0]?.png;
       if (!png) { console.error(`✗ ${t.slug} ${size.name} ${scheme}: ${typeof r === "string" ? r : "no picture"}`); failed++; continue; }
       const tmp = await Deno.makeTempFile({ suffix: ".png" });

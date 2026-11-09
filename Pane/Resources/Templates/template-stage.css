@@ -90,3 +90,8 @@ main [role="radiogroup"] > button.h-11.rounded-full:not(.bg-primary) { color: va
     --amber-on-accent: #1F1300; --amber-danger: #FF6B5E; --amber-field: #1A1918; --amber-field-border: #7A716A;
   }
 }
+/* On the template page's wide stage the app starts on the sheet's margin, where the stage's
+   "Example" label, the sheet's name and Back start: 24 pt, 32 px at the stage's 75% (it was 19 pt). */
+@media (min-width: 600px) {
+  main > div:first-child { padding-left: 32px !important; padding-right: 32px !important; }
+}

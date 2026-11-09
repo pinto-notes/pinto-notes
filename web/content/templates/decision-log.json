@@ -26,7 +26,7 @@
       "args": {
         "path": "Work/Decision log.md",
         "old_string": "## Open questions\n",
-        "new_string": "## Open questions\n- Do we offer a free plan for students?\n"
+        "new_string": "## Open questions\n- Do we support offline editing in the first release?\n- Who owns the importer after the launch?\n"
       }
     },
     {
@@ -34,15 +34,23 @@
       "args": {
         "path": "Work/Decision log.md",
         "old_string": "## Decisions\n",
-        "new_string": "## Decisions\n### Stay on Postgres, 29 September\n- **Context:** notes grew to 2 million rows and search got slow.\n- **Options:** a document store, a search service, or better indexes.\n- **Chose:** Postgres with a trigram index.\n- **Why:** one database to run, and the index made search 40 times faster.\n- **Revisit:** at 20 million rows.\n"
+        "new_string": "## Decisions\n### Release every Tuesday, 2 November\n- **Context:** releases slipped whenever one fix wasn't ready.\n- **Chose:** ship what's ready every Tuesday.\n- **Why:** small releases are easier to undo.\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Work/Decision log.md",
+        "old_string": "## Decisions\n",
+        "new_string": "## Decisions\n### Stay on Postgres, 4 November\n- **Context:** notes grew to 2 million rows and search got slow.\n- **Options:** a document store, a search service, or better indexes.\n- **Chose:** Postgres with a trigram index.\n- **Why:** one database to run, and the index made search 40 times faster.\n- **Revisit:** at 20 million rows.\n\n"
       }
     }
   ],
-  "example": "Decision log\n\nEvery decision worth remembering: what you chose, what you didn't, and why. Future you will ask.\n\n## Open questions\n- Do we offer a free plan for students?\n\n## Decisions\n### Stay on Postgres, 29 September\n- **Context:** notes grew to 2 million rows and search got slow.\n- **Options:** a document store, a search service, or better indexes.\n- **Chose:** Postgres with a trigram index.\n- **Why:** one database to run, and the index made search 40 times faster.\n- **Revisit:** at 20 million rows.\n",
+  "example": "Decision log\n\nEvery decision worth remembering: what you chose, what you didn't, and why. Future you will ask.\n\n## Open questions\n- Do we support offline editing in the first release?\n- Who owns the importer after the launch?\n\n## Decisions\n### Stay on Postgres, 4 November\n- **Context:** notes grew to 2 million rows and search got slow.\n- **Options:** a document store, a search service, or better indexes.\n- **Chose:** Postgres with a trigram index.\n- **Why:** one database to run, and the index made search 40 times faster.\n- **Revisit:** at 20 million rows.\n\n### Release every Tuesday, 2 November\n- **Context:** releases slipped whenever one fix wasn't ready.\n- **Chose:** ship what's ready every Tuesday.\n- **Why:** small releases are easier to undo.\n",
   "related": [
     "meeting-notes",
     "bug-triage",
     "weekly-review"
   ],
-  "updated": "2026-10-13"
+  "updated": "2026-11-09"
 }

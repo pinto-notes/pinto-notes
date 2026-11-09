@@ -511,11 +511,31 @@ struct SetupTemplateCard: View {
     /// Which of its words draw on the cover, each kept in its place when it doesn't: the
     /// caption-contrast test reads the cover behind them (SetupCardsTests).
     var words: Words = .both
+    /// A small tag in the cover's top corner ("App"): white on a dark pill, the same in light and
+    /// dark, so it reads on every cover's colour.
+    var tag: String?
     let action: () -> Void
     @State private var hover = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var scheme
 
-    enum Words { case both, title, none }
+    /// `name`: the template library's cover, the art and its name alone, the name at the cover's
+    /// foot where the caption's last line sat (Emil, 9 November 2026: less on each card).
+    enum Words { case both, title, none, name }
+
+    /// Under the pointer in dark mode: a light ring and the cover a touch brighter. A black shadow
+    /// on a near-black sheet showed nothing (9 November 2026). Light mode keeps its shadow.
+    static func hoverRing(dark: Bool, hover: Bool) -> Double { dark && hover ? 0.55 : 0 }
+    /// A cover in the library (`name`) stays where it is under the pointer: no lift and no
+    /// shadow, so its neighbours never seem to move; in light mode a quiet dark ring and the cover
+    /// a touch deeper, as dark mode's light ring and a touch brighter. The first run's gallery
+    /// keeps its lift.
+    static func lifts(_ words: Words) -> Bool { words != .name }
+    static func quietRing(dark: Bool, hover: Bool) -> Double { hover ? (dark ? 0.55 : 0.28) : 0 }
+    static func quietBrightness(dark: Bool, hover: Bool) -> Double { hover ? (dark ? 0.05 : -0.03) : 0 }
+    /// The tag's pill: black at this strength, under white words (7:1 or more on any cover).
+    static let tagGround: Double = 0.62
+    static func hoverBrightness(dark: Bool, hover: Bool) -> Double { dark && hover ? 0.05 : 0 }
 
     static let size = CGSize(width: 164, height: 228)
 
@@ -584,11 +604,13 @@ struct SetupTemplateCard: View {
                     // The caption in the words' full colour: at 86% it measured 4.1:1 on Mood and
                     // energy's teal (council round 7). Every caption is 4.5:1 or more on the
                     // cover behind it (SetupCardsTests' everyCaptionReadsOnItsCover).
-                    Text(NoWidow.kept(pick.line))
-                        .font(.system(size: 11.5, weight: .medium))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .balanced(NoWidow.kept(pick.line), font: .systemFont(ofSize: 11.5, weight: .medium), width: width - 28)
-                        .opacity(words == .both ? 1 : 0)
+                    if words != .name {
+                        Text(NoWidow.kept(pick.line))
+                            .font(.system(size: 11.5, weight: .medium))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .balanced(NoWidow.kept(pick.line), font: .systemFont(ofSize: 11.5, weight: .medium), width: width - 28)
+                            .opacity(words == .both ? 1 : 0)
+                    }
                 }
                 .foregroundStyle(ink)
                 .multilineTextAlignment(.leading)
@@ -596,13 +618,24 @@ struct SetupTemplateCard: View {
                 .padding(.bottom, 14)
             }
             .frame(width: width, height: width * Self.size.height / Self.size.width)
+            .overlay(alignment: .topTrailing) {
+                if let tag {
+                    Text(tag).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.white)
+                        .padding(.horizontal, 8).frame(height: 20)
+                        .background(Color.black.opacity(Self.tagGround), in: .capsule)
+                        .padding(10)
+                        .accessibilityHidden(true)
+                }
+            }
             .clipShape(shape)
             .overlay(shape.strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5))
             .overlay {
                 if selected { RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.paneAccent, lineWidth: 2.5).padding(-3) }
             }
-            .shadow(color: .black.opacity(hover ? 0.28 : 0), radius: 14, y: 12)
-            .offset(y: hover && !reduceMotion ? -3 : 0)
+            .overlay(shape.strokeBorder((scheme == .dark ? Color.white : Color.black).opacity(Self.lifts(words) ? Self.hoverRing(dark: scheme == .dark, hover: hover) : Self.quietRing(dark: scheme == .dark, hover: hover)), lineWidth: 1.5))
+            .brightness(Self.lifts(words) ? Self.hoverBrightness(dark: scheme == .dark, hover: hover) : Self.quietBrightness(dark: scheme == .dark, hover: hover))
+            .shadow(color: .black.opacity(hover && Self.lifts(words) ? 0.28 : 0), radius: 14, y: 12)
+            .offset(y: hover && !reduceMotion && Self.lifts(words) ? -3 : 0)
             .contentShape(shape)
         }
         // The design system's card press, a small dip eased in: the plain style dimmed the whole
@@ -610,7 +643,7 @@ struct SetupTemplateCard: View {
         // recording on the Air, 9 November 2026).
         .buttonStyle(CardPress())
         .onHover { h in withAnimation(.smooth(duration: 0.2)) { hover = h } }
-        .accessibilityLabel("\(pick.title). \(pick.line)")
+        .accessibilityLabel(tag.map { "\(pick.title), \($0). \(pick.line)" } ?? "\(pick.title). \(pick.line)")
         .accessibilityIdentifier("setup.template.\(pick.slug)")
     }
 }

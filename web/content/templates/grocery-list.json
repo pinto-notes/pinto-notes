@@ -25,7 +25,7 @@
       "args": {
         "path": "Home/Grocery list.md",
         "old_string": "## Fruit and veg\n",
-        "new_string": "## Fruit and veg\n- [ ] Lemons\n- [ ] Limes\n- [ ] Avocados\n"
+        "new_string": "## Fruit and veg\n- [ ] Apples\n- [ ] Spinach\n- [x] Bananas\n"
       }
     },
     {
@@ -33,7 +33,7 @@
       "args": {
         "path": "Home/Grocery list.md",
         "old_string": "## Bread and dairy\n",
-        "new_string": "## Bread and dairy\n- [ ] Oat milk\n- [ ] Tortillas\n"
+        "new_string": "## Bread and dairy\n- [ ] Oat milk\n- [ ] Sourdough\n"
       }
     },
     {
@@ -41,7 +41,7 @@
       "args": {
         "path": "Home/Grocery list.md",
         "old_string": "## Meat and fish\n",
-        "new_string": "## Meat and fish\n- [ ] Salmon fillets\n- [ ] Chicken thighs\n"
+        "new_string": "## Meat and fish\n- [ ] Salmon fillets\n- [ ] Minced beef\n"
       }
     },
     {
@@ -49,15 +49,7 @@
       "args": {
         "path": "Home/Grocery list.md",
         "old_string": "## Cupboard\n",
-        "new_string": "## Cupboard\n- [ ] Chickpeas, 2 cans\n- [ ] Rice\n- [ ] Olive oil\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Home/Grocery list.md",
-        "old_string": "## Household\n",
-        "new_string": "## Household\n- [ ] Bin bags\n"
+        "new_string": "## Cupboard\n- [ ] Tinned tomatoes, 2 cans\n- [ ] Rice\n- [ ] Olive oil\n"
       }
     },
     {
@@ -72,16 +64,16 @@
       "tool": "edit",
       "args": {
         "path": "Home/Grocery list.md",
-        "old_string": "- [ ] Limes\n- [ ] Avocados",
-        "new_string": "- [ ] Avocados\n- [x] Limes"
+        "old_string": "## Household\n",
+        "new_string": "## Household\n- [ ] Bin bags\n"
       }
     }
   ],
-  "example": "Grocery list\n\nOne running list for the shop, sorted by aisle. Tell your AI what you need and it files each thing under the right aisle. Tick things off as you shop.\n\n## Fruit and veg\n- [ ] Lemons\n- [ ] Avocados\n- [x] Limes\n\n## Bread and dairy\n- [ ] Oat milk\n- [ ] Tortillas\n\n## Meat and fish\n- [ ] Salmon fillets\n- [ ] Chicken thighs\n\n## Cupboard\n- [ ] Chickpeas, 2 cans\n- [ ] Rice\n- [ ] Olive oil\n\n## Frozen\n- [ ] Peas\n\n## Household\n- [ ] Bin bags\n",
+  "example": "Grocery list\n\nOne running list for the shop, sorted by aisle. Tell your AI what you need and it files each thing under the right aisle. Tick things off as you shop.\n\n## Fruit and veg\n- [ ] Apples\n- [ ] Spinach\n- [x] Bananas\n\n## Bread and dairy\n- [ ] Oat milk\n- [ ] Sourdough\n\n## Meat and fish\n- [ ] Salmon fillets\n- [ ] Minced beef\n\n## Cupboard\n- [ ] Tinned tomatoes, 2 cans\n- [ ] Rice\n- [ ] Olive oil\n\n## Frozen\n- [ ] Peas\n\n## Household\n- [ ] Bin bags\n",
   "related": [
     "meal-plan",
     "recipe-box",
     "budget-log"
   ],
-  "updated": "2026-10-13"
+  "updated": "2026-11-09"
 }

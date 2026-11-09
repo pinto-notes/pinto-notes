@@ -2,36 +2,22 @@
 // scripts/template-stage-pictures.ts draws): only whole blocks show above the stage's foot (council
 // round 5: half a "Groceries" row, "STREAK" and "TO DO" alone in the fade). A card that the foot
 // would cut ends after its last row that fits, with its own padding under it; anything else the
-// foot would cut goes, with all that comes after it; a section heading left last without its card
-// goes too. Once the person scrolls the live app (a wheel or a key), everything shows again.
-// Nothing here reaches a made note: Make adds the app as it is.
+// foot would cut goes, with all that comes after it in its column; a section heading left last
+// without its card goes too. Once the person scrolls the live app (a wheel or a key), everything
+// shows again. Nothing here reaches a made note: Make adds the app as it is.
+// The app shows today, as it would in your notes (9 November 2026: the stage used to set the
+// app's clock to the latest Thursday, and said "Thursday 5 November, Today" on a Monday).
 (() => {
-  // The stage's day is the latest Thursday (today, from Thursday to Sunday's Thursday): the week
-  // shows in use, never a Monday's "50%" with only M filled (council round 6). The sample's dates
-  // move to the same day (TemplateSample.stageDay in the app, stageDay in the pictures' script).
-  const STAGE_WEEKDAY = 4
-  const RealDate = Date
-  const back = (new RealDate().getDay() - STAGE_WEEKDAY + 7) % 7
-  if (back) {
-    const shift = -back * 86_400_000
-    class StageDate extends RealDate {
-      constructor(...a) { if (a.length) super(...a); else super(RealDate.now() + shift) }
-      static now() { return RealDate.now() + shift }
-    }
-    window.Date = StageDate
-  }
-
-  // In CSS pixels: what the stage shows of the app, and the fade at its foot. The big stage's
-  // window shows all of the view (400 x 320 pt at 75%: 426 px; the 12 pt fade: 16 px); the small
-  // stage's app is laid out 480 px tall at 70% and shows 169 pt of it (242 px; the fade: 17 px).
-  // TemplateAppPreview.stageScript(...) in the app checks these agree (SetupCardsTests).
-  const SMALL_WIDTH = 480, SMALL_VISIBLE = 242, SMALL_FADE = 17, BIG_FADE = 16
+  // In CSS pixels: the view is exactly what the stage shows of the app, and the fade at its foot
+  // is 12 pt, 16 px at the stage's 75%. TemplateAppPreview in the app checks these agree
+  // (SetupCardsTests).
+  const FADE = 16
   const HIDDEN = "data-stage-hidden"
   let open = false
   const clipped = new Set()
 
   // A pixel spare, so a block ending on the line is never in the fade once rounded.
-  const limit = () => (innerWidth <= SMALL_WIDTH ? SMALL_VISIBLE - SMALL_FADE : innerHeight - BIG_FADE) - 1
+  const limit = () => innerHeight - FADE - 1
 
   const box = (style) => style.backgroundColor !== "rgba(0, 0, 0, 0)" && style.backgroundColor !== "transparent"
   // A block nothing may cut: a leaf (text, an icon, a control), or anything drawn as a box of its own.
@@ -56,6 +42,11 @@
     clipped.clear()
   }
 
+  // The app can lay its blocks out side by side (two columns on the template page's wide stage),
+  // so the foot is worked out per column. A cut is a span of the page's width and the height at
+  // which that span ends: the first is the stage's own foot, all the way across. A card the foot
+  // runs through ends after its last whole row, and what comes under it in its own column goes
+  // (it would move up into the gap), while the column beside it keeps its blocks down to the foot.
   function cut() {
     if (open) return
     watch.disconnect()
@@ -70,54 +61,60 @@
       // A box as tall as the view is a frame around the rest, not a block; a card that tall (a
       // long list) ends after its last row above the line, once the line is known.
       if (r.height >= innerHeight * 0.9) {
-        if (box(style) && r.top > 0) blocks.push({ el, top: r.top, bottom: r.bottom, heading: false, card: true, tall: true })
+        if (box(style) && r.top > 0) blocks.push({ el, top: r.top, bottom: r.bottom, left: r.left, right: r.right, heading: false, card: true, tall: true })
         continue
       }
-      if (solid(el, style)) blocks.push({ el, top: r.top, bottom: r.bottom, heading: heading(el, style), card: box(style) })
+      if (solid(el, style)) blocks.push({ el, top: r.top, bottom: r.bottom, left: r.left, right: r.right, heading: heading(el, style), card: box(style) })
     }
+    const cuts = [{ left: -Infinity, right: Infinity, y: limit() }]
+    const lineFor = (b) => Math.min(...cuts.filter((c) => b.left < c.right - 0.5 && b.right > c.left + 0.5).map((c) => c.y))
     const clips = new Map()
     // A card's clip: `edge`, the foot of its last row that shows, and `at`, where the card ends,
     // its padding under that row. What's in it below the edge doesn't show.
     const gone = (b) => [...clips].some(([el, c]) => el !== b.el && el.contains(b.el) && b.top >= c.edge - 0.5)
     const bottom = (b) => clips.get(b.el)?.at ?? b.bottom
-    let line = limit()
+    const settled = new Set()
     for (let moved = true; moved;) {
       moved = false
       for (const b of blocks) {
-        if (gone(b) || !(b.top < line && bottom(b) > line)) continue
+        if (settled.has(b) || gone(b)) continue
+        const line = lineFor(b)
+        if (!(b.top < line && bottom(b) > line)) continue
         // A card the line runs through ends after its last whole row that fits.
         const kids = b.card ? rows(b.el) : null
         if (kids) {
           const pad = b.bottom - kids[kids.length - 1].r.bottom
           const fit = kids.filter((x) => x.r.bottom + pad <= line)
-          // Nothing after it shows: once it's shorter, what comes after it moves up.
+          // Nothing after it in its column shows: once it's shorter, what comes after it moves up.
           if (fit.length) {
             const edge = fit[fit.length - 1].r.bottom
             clips.set(b.el, { edge, at: edge + pad })
-            line = edge + pad
+            cuts.push({ left: b.left, right: b.right, y: edge + pad })
             moved = true
             continue
           }
         }
+        settled.add(b)
         // A frame around the whole page never takes the page with it.
         if (b.tall && b.top <= 0) continue
-        line = b.top
+        cuts.push({ left: b.left, right: b.right, y: b.top })
         moved = true
       }
-      // A section heading left last, with nothing under it above the line, goes too, with whatever
-      // shares its row ("FIRST UP" and its Share button).
+      // A section heading left last in its column, with nothing under it above the line, goes
+      // too, with whatever shares its row ("FIRST UP" and its Share button).
       if (!moved) {
-        const shown = blocks.filter((b) => !gone(b) && bottom(b) <= line)
-        const last = shown.filter((b) => b.heading).sort((a, b) => b.top - a.top)[0]
-        if (last && !shown.some((b) => b.top >= last.bottom - 0.5)) {
-          const row = Math.min(...shown.filter((b) => b.bottom > last.top && b.top < last.bottom).map((b) => b.top))
-          if (row > 0 && row < line) { line = row; moved = true }
+        const shown = blocks.filter((b) => !gone(b) && bottom(b) <= lineFor(b))
+        for (const h of shown.filter((b) => b.heading)) {
+          const mates = shown.filter((b) => b.bottom > h.top && b.top < h.bottom && b.left < h.right + 480 && b.right > h.left - 480)
+          const left = Math.min(...mates.map((b) => b.left)), right = Math.max(...mates.map((b) => b.right))
+          if (shown.some((b) => !mates.includes(b) && b.top >= h.bottom - 0.5 && b.left < right - 0.5 && b.right > left + 0.5)) continue
+          const top = Math.min(...mates.map((b) => b.top))
+          if (top > 0) { cuts.push({ left, right, y: top }); moved = true; break }
         }
       }
     }
     for (const [el, c] of clips) {
       const top = el.getBoundingClientRect().top
-      if (top >= line) continue
       for (const k of el.querySelectorAll("*")) {
         const r = k.getBoundingClientRect()
         if (r.height && r.top >= c.edge - 0.5) k.setAttribute(HIDDEN, "")
@@ -126,9 +123,9 @@
       el.style.setProperty("overflow", "hidden", "important")
       clipped.add(el)
     }
-    for (const el of main.querySelectorAll("*")) {
-      const r = el.getBoundingClientRect()
-      if (r.height && r.top >= line - 0.5) el.setAttribute(HIDDEN, "")
+    for (const b of blocks) {
+      if (clips.has(b.el)) continue
+      if (b.top >= lineFor(b) - 0.5) b.el.setAttribute(HIDDEN, "")
     }
     observe()
   }

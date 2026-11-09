@@ -539,7 +539,8 @@ export type RenderOptions = {
   shots?: string; today: string; interact?: boolean;
   /** Which widths and color schemes (default 390 light and dark, 320 light, 1280 light and dark: iPhone and Mac, no tablet). */
   /** height: the viewport's, and with capture the picture's (the Mac template library's stage). */
-  views?: { width: number; scheme: "light" | "dark"; widget?: boolean; height?: number }[];
+  /** `scale`: the pictures' pixels per CSS pixel (default: 2 under 600 wide, else 1). */
+  views?: { width: number; scheme: "light" | "dark"; widget?: boolean; height?: number; scale?: number }[];
   /** Keep a PNG of each view in the result (for preview_app). */
   capture?: boolean;
   /** Skip the robustness probes (for a quick check). */
@@ -583,8 +584,8 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
   let interaction: Render["interaction"] = { tried: "none", ok: null };
   const want = samples(markdown);
 
-  const open = async (width: number, scheme: "light" | "dark", widget = false, height?: number): Promise<{ page: Page; errors: string[] }> => {
-    const ctx = await browser!.newContext({ viewport: { width, height: height ?? (widget ? 260 : width < 600 ? 844 : 900) }, colorScheme: scheme, deviceScaleFactor: width < 600 ? 2 : 1, serviceWorkers: "block" });
+  const open = async (width: number, scheme: "light" | "dark", widget = false, height?: number, scale?: number): Promise<{ page: Page; errors: string[] }> => {
+    const ctx = await browser!.newContext({ viewport: { width, height: height ?? (widget ? 260 : width < 600 ? 844 : 900) }, colorScheme: scheme, deviceScaleFactor: scale === 1 || scale === 2 || scale === 3 ? scale : width < 600 ? 2 : 1, serviceWorkers: "block" });
     const page = await ctx.newPage();
     // A window the page opens is another page in this context: closed at once (the routes below
     // cover the whole context, so even its first request is refused).
@@ -717,11 +718,11 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
     return { views: [], blocked: [...new Set(blocked)], updates, setData, interaction: { tried: "none", ok: null }, probes: {}, markdownAfter: markdown, dataAfter: store, smoke: { ok: problems.length === 0, problems: [...new Set(problems)].slice(0, 8), taps, ...(slow.length ? { slow: slow.slice(0, 5) } : {}) } };
   }
 
-  const wanted: { width: number; scheme: "light" | "dark"; widget?: boolean; height?: number }[] = opts.views ?? ([[390, "light"], [390, "dark"], [320, "light"], [1280, "light"], [1280, "dark"]] as const).map(([width, scheme]) => ({ width, scheme }));
+  const wanted: { width: number; scheme: "light" | "dark"; widget?: boolean; height?: number; scale?: number }[] = opts.views ?? ([[390, "light"], [390, "dark"], [320, "light"], [1280, "light"], [1280, "dark"]] as const).map(([width, scheme]) => ({ width, scheme }));
   if (opts.widget && !wanted.some((v) => v.widget)) wanted.push({ width: 340, scheme: "light", widget: true });
-  for (const { width, scheme, widget, height } of wanted) {
+  for (const { width, scheme, widget, height, scale } of wanted) {
     md = markdown; store = empty(data);
-    const { page, errors } = await open(width, scheme, widget, height);
+    const { page, errors } = await open(width, scheme, widget, height, scale);
     const m = await page.evaluate((want: string[]) => {
       const de = document.documentElement;
       const text = document.body?.innerText ?? "";

@@ -11,55 +11,31 @@
   "tagline": "What you spend, against a monthly budget.",
   "seoTitle": "Budget tracker template and app for ChatGPT and Claude",
   "folder": "Home",
-  "note": "Budget and expenses\n\nWhat you spend, one row each, and a monthly budget to measure it against. Amounts are in your own currency.\n\n<!-- pane-table: Date=text; What=text; Category=choice Groceries|Eating out|Transport|Home|Fun|Bills|Other; Amount=number -->\n| Date | What | Category | Amount |\n| --- | --- | --- | --- |\n\n## Monthly budget\n| Category | Budget |\n| --- | --- |\n| Groceries | 4000 |\n| Eating out | 1500 |\n| Transport | 800 |\n| Home | 1000 |\n| Fun | 1000 |\n| Bills | 3500 |\n\n## Month summaries\n",
+  "note": "Budget and expenses\n\nWhat you spend, against a monthly budget. Add expenses in the app, or tell your AI what you spent. Amounts are in your own currency.\n\n## Month summaries\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Budget and expenses\". It is an app; its data is \"Home/Budget and expenses.app/data.json\". Read it with fetch before each change. When I tell you what I spent, add one item to values.expenses with edit: a new id, date as yyyy-mm-dd, what, a category that is a name in values.categories, and amount as a number. For a monthly bill, add { id, what, category, amount, day } to values.recurring instead; the app adds it each month. I can add, edit and delete expenses and change the budget in the app myself. At the end of the month, when I ask, compare each category with its budget and tell me what was over, what was under, and one suggestion. Don't give financial advice beyond that."
   },
   "asks": [
     "Ask what I spent today and on what, then add each expense to my budget.",
     "How am I doing against the budget this month?",
-    "What did we spend on eating out in September?"
+    "What did we spend on eating out last month?"
   ],
   "demo": [
     {
       "tool": "edit",
       "args": {
         "path": "Home/Budget and expenses.md",
-        "old_string": "| --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- |\n| 2026-09-28 | Weekly shop | Groceries | 412 |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Home/Budget and expenses.md",
-        "old_string": "| 2026-09-28 | Weekly shop | Groceries | 412 |\n",
-        "new_string": "| 2026-09-28 | Weekly shop | Groceries | 412 |\n| 2026-09-28 | Bus card | Transport | 85 |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Home/Budget and expenses.md",
-        "old_string": "| 2026-09-28 | Bus card | Transport | 85 |\n",
-        "new_string": "| 2026-09-28 | Bus card | Transport | 85 |\n| 2026-09-29 | Pizza with friends | Eating out | 260 |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Home/Budget and expenses.md",
         "old_string": "## Month summaries\n",
-        "new_string": "## Month summaries\n**September:** eating out was 1,840 against 1,500, mostly two dinners in the last week. Groceries came in 300 under. Suggestion: plan two more dinners at home next month.\n"
+        "new_string": "## Month summaries\n**Last month:** eating out was 1,840 kr against 1,500 kr, mostly two dinners in the last week. Groceries came in 300 kr under. Suggestion: plan two more dinners at home next month.\n"
       }
     }
   ],
-  "example": "Budget and expenses\n\nWhat you spend, one row each, and a monthly budget to measure it against. Amounts are in your own currency.\n\n<!-- pane-table: Date=text; What=text; Category=choice Groceries|Eating out|Transport|Home|Fun|Bills|Other; Amount=number -->\n| Date | What | Category | Amount |\n| --- | --- | --- | --- |\n| 2026-09-28 | Weekly shop | Groceries | 412 |\n| 2026-09-28 | Bus card | Transport | 85 |\n| 2026-09-29 | Pizza with friends | Eating out | 260 |\n\n## Monthly budget\n| Category | Budget |\n| --- | --- |\n| Groceries | 4000 |\n| Eating out | 1500 |\n| Transport | 800 |\n| Home | 1000 |\n| Fun | 1000 |\n| Bills | 3500 |\n\n## Month summaries\n**September:** eating out was 1,840 against 1,500, mostly two dinners in the last week. Groceries came in 300 under. Suggestion: plan two more dinners at home next month.\n",
+  "example": "Budget and expenses\n\nWhat you spend, against a monthly budget. Add expenses in the app, or tell your AI what you spent. Amounts are in your own currency.\n\n## Month summaries\n**Last month:** eating out was 1,840 kr against 1,500 kr, mostly two dinners in the last week. Groceries came in 300 kr under. Suggestion: plan two more dinners at home next month.\n",
   "related": [
     "meal-plan",
     "home-maintenance",
     "gift-ideas"
   ],
-  "updated": "2026-10-13",
+  "updated": "2026-11-09",
   "app": true
 }

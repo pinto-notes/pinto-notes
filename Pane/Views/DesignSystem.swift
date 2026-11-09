@@ -561,6 +561,8 @@ private struct TileButton: View {
 ///     CardCloseButton { dismiss() }.accessibilityIdentifier("…close")
 struct CardCloseButton: View {
     var size: CGFloat = 26
+    /// Esc presses it. Off where Esc is another button's: Back, on a template's page.
+    var cancels = true
     let action: () -> Void
 
     var body: some View {
@@ -571,7 +573,7 @@ struct CardCloseButton: View {
                 .contentShape(.circle)
         }
         .buttonStyle(CloseCircleStyle())
-        .keyboardShortcut(.cancelAction)
+        .keyboardShortcut(cancels ? .cancelAction : nil)
         .accessibilityLabel("Close")
         #if os(macOS)
         .help("Close")

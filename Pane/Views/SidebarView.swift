@@ -816,12 +816,27 @@ struct SidebarView: View {
                 // The list's own ground under the foot too: outside the list it showed the window's
                 // glass, a tinted band under a theme's solid sidebar (Emil, 8 November 2026).
                 .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
+            } else if Self.demoRows {
+                // Real-input checks (`-uitest -demo -sidebarRows`): the foot's rows in a demo run,
+                // which has no account to show them under.
+                SidebarStudyRows(imports: imports)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
             }
         }
         #else
         content
         #endif
     }
+
+    #if os(macOS)
+    private static let demoRows: Bool = {
+        let args = ProcessInfo.processInfo.arguments
+        return args.contains("-uitest") && args.contains("-demo") && args.contains("-sidebarRows")
+    }()
+    #endif
 
     private func withDialogs(_ content: some View) -> some View {
         footed(content)

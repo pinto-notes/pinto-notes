@@ -11,7 +11,7 @@
   "tagline": "Days, bookings and the packing list in one place.",
   "seoTitle": "Trip planner and itinerary template for ChatGPT and Claude",
   "folder": "Travel",
-  "note": "Trip plan\n\nEverything for one trip: the plan for each day, the bookings, and what to pack.\n\n## Bookings\n<!-- pane-table: What=text; When=text; Confirmation=text; Paid=choice Yes|No -->\n| What | When | Confirmation | Paid |\n| --- | --- | --- | --- |\n\n## Days\n\n## Packing\n- [ ] Passport\n- [ ] Chargers\n- [ ] Travel insurance details\n- [ ] Comfortable shoes\n\n## Ideas\n",
+  "note": "Trip plan\n\nEverything for one trip: the plan for each day, the bookings, and what to pack. All of it lives in the app. This note is for anything else you want to keep with the trip.\n\n## Ideas\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Trip plan\". It is an app; its data is \"Travel/Trip plan.app/data.json\". Read it with fetch before each change, and change it with edit. I'll tell you where I'm going, when, and what I like. Set values.trip (name, place, start, end as yyyy-mm-dd) and write values.days: one { date, title, items } per day with three to five realistic items, with travel time between places. Start items with a time (\"09:30 Tram 28\"). When I paste a booking confirmation, add { id, what, kind, date, time, ref, paid } to values.bookings (kind: flight, train, stay, food, activity, other). Add what the trip needs to values.packing as { id, text, group, packed: false }. I can change all of it in the app myself."
   },
@@ -25,57 +25,17 @@
       "tool": "edit",
       "args": {
         "path": "Travel/Trip plan.md",
-        "old_string": "| --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- |\n| Flights ARN to LIS | 14 May, 07:10 | K7Q2PX | Yes |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Travel/Trip plan.md",
-        "old_string": "| Flights ARN to LIS | 14 May, 07:10 | K7Q2PX | Yes |\n",
-        "new_string": "| Flights ARN to LIS | 14 May, 07:10 | K7Q2PX | Yes |\n| Hotel in Príncipe Real, 4 nights | 14 to 18 May | 48213377 | No |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Travel/Trip plan.md",
-        "old_string": "| Hotel in Príncipe Real, 4 nights | 14 to 18 May | 48213377 | No |\n",
-        "new_string": "| Hotel in Príncipe Real, 4 nights | 14 to 18 May | 48213377 | No |\n| Train Lisbon to Sintra | 16 May, 09:10 | CP-55120 | Yes |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Travel/Trip plan.md",
-        "old_string": "## Days\n",
-        "new_string": "## Days\n### Thursday 14 May\n- Land 10:40, drop bags at the hotel\n- Lunch at Time Out Market\n- Sunset at Miradouro da Senhora do Monte\n\n### Friday 15 May\n- Tram 28 before 9, ahead of the crowds\n- Alfama on foot, lunch at a tasca\n- Dinner at Ramiro (book ahead)\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Travel/Trip plan.md",
-        "old_string": "- [ ] Comfortable shoes\n",
-        "new_string": "- [ ] Comfortable shoes\n- [ ] Sunglasses\n- [ ] A light jacket for the evenings\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Travel/Trip plan.md",
         "old_string": "## Ideas\n",
-        "new_string": "## Ideas\n- Day trip to Sintra\n- LX Factory on Sunday\n"
+        "new_string": "## Ideas\n- A fado night in Alfama\n- Bring back tinned sardines for Jonas\n"
       }
     }
   ],
-  "example": "Trip plan\n\nEverything for one trip: the plan for each day, the bookings, and what to pack.\n\n## Bookings\n<!-- pane-table: What=text; When=text; Confirmation=text; Paid=choice Yes|No -->\n| What | When | Confirmation | Paid |\n| --- | --- | --- | --- |\n| Flights ARN to LIS | 14 May, 07:10 | K7Q2PX | Yes |\n| Hotel in Príncipe Real, 4 nights | 14 to 18 May | 48213377 | No |\n| Train Lisbon to Sintra | 16 May, 09:10 | CP-55120 | Yes |\n\n## Days\n### Thursday 14 May\n- Land 10:40, drop bags at the hotel\n- Lunch at Time Out Market\n- Sunset at Miradouro da Senhora do Monte\n\n### Friday 15 May\n- Tram 28 before 9, ahead of the crowds\n- Alfama on foot, lunch at a tasca\n- Dinner at Ramiro (book ahead)\n\n## Packing\n- [ ] Passport\n- [ ] Chargers\n- [ ] Travel insurance details\n- [ ] Comfortable shoes\n- [ ] Sunglasses\n- [ ] A light jacket for the evenings\n\n## Ideas\n- Day trip to Sintra\n- LX Factory on Sunday\n",
+  "example": "Trip plan\n\nEverything for one trip: the plan for each day, the bookings, and what to pack. All of it lives in the app. This note is for anything else you want to keep with the trip.\n\n## Ideas\n- A fado night in Alfama\n- Bring back tinned sardines for Jonas\n",
   "related": [
     "budget-log",
     "meal-plan",
     "gift-ideas"
   ],
-  "updated": "2026-10-13",
+  "updated": "2026-11-09",
   "app": true
 }
