@@ -361,6 +361,8 @@ struct SidebarView: View {
     @State private var newFolderParent: Folder??
     @State private var nameDraft = ""
     @State private var drops = FolderDropState()
+    /// A folder dragged over the "Folders" heading: dropped there it goes to the top level.
+    @State private var headingOver = false
     @State private var deletingFolder: Folder?
     /// Folders picked together with ⌘ or ⇧ (Mac), beside the one shown: Delete takes them all.
     @State private var picked: Set<UUID> = []
@@ -573,6 +575,20 @@ struct SidebarView: View {
                     // ("Folders, New Folder", round 18): the button is an action on that heading.
                     .accessibilityAction(named: "New Folder") { startNewFolder(nil) }
                     .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarStyle.headingInset)
+                    // The way out of a folder, as in Notes (its account heading): a folder dropped on
+                    // the heading goes to the top level, last. It lights while a folder is over it.
+                    .contentShape(.rect)
+                    .background {
+                        RoundedRectangle(cornerRadius: Hover.pillRadius, style: .continuous)
+                            .fill(.tint.opacity(0.3))
+                            .padding(.horizontal, -4)
+                            .opacity(headingOver ? 1 : 0)
+                            .animation(.easeOut(duration: 0.08), value: headingOver)
+                    }
+                    .onDrop(of: [.paneFolder], delegate: TopLevelDrop(over: $headingOver) { providers in
+                        Self.moveToTopLevel(providers, context: context)
+                    })
+                    .accessibilityIdentifier("sidebar.foldersHeading")
                 }
                 #endif
             }
@@ -636,11 +652,7 @@ struct SidebarView: View {
         }
         .onDrop(of: [.paneItem], delegate: MoveDropDelegate(types: [.paneItem]) { providers in
             // Dropping a folder on empty sidebar space moves it to the top level.
-            DropLoader.load(providers) { items, _ in
-                for item in items where item.kind == .folder {
-                    if let f = context.folder(item.id) { context.move(f, into: nil) }
-                }
-            }
+            Self.moveToTopLevel(providers, context: context)
             return true
         })
         #if os(iOS)
@@ -990,10 +1002,10 @@ struct SidebarView: View {
             newNote: { onNewNoteIn($0.id) },
             newFolder: startNewFolder,
             rename: startRename,
-            duplicate: { f in withAnimation(.snappy) { _ = context.duplicate(f) } },
+            duplicate: { f in SidebarView.folderChange { _ = context.duplicate(f) } },
             moveSheet: startMove,
-            move: { f, target in withAnimation(.snappy) { context.move(f, into: target.flatMap { context.folder($0) }) } },
-            nudge: { f, step in withAnimation(.snappy) { context.nudge(f, by: step) } },
+            move: { f, target in SidebarView.folderChange { context.move(f, into: target.flatMap { context.folder($0) }) } },
+            nudge: { f, step in SidebarView.folderChange { context.nudge(f, by: step) } },
             delete: { f in
                 // A picked folder's Delete Folder takes every picked folder, as in Finder.
                 if !picked.isEmpty, Self.selection(scope: scope, picked: picked).contains(.folder(f.id)) { deletePicked() } else { deleteFolder(f) }
@@ -1017,9 +1029,39 @@ struct SidebarView: View {
         DropLoader.load(providers) { items, _ in
             for item in items where item.kind == .folder {
                 guard let f = context.folder(item.id) else { continue }
-                withAnimation(.snappy) { context.place(f, in: parent, at: placeIndex(of: f.id, at: index, among: ids, after: after)) }
+                SidebarView.folderChange { context.place(f, in: parent, at: placeIndex(of: f.id, at: index, among: ids, after: after)) }
             }
         }
+    }
+
+    /// Folders dropped on the "Folders" heading (or on the sidebar outside its list): each goes to the
+    /// top level, last (`ModelContext.move(_:into:)`). Notes in the drag stay where they are.
+    static func moveToTopLevel(_ providers: [NSItemProvider], context: ModelContext) {
+        DropLoader.load(providers) { items, _ in
+            for item in items where item.kind == .folder {
+                guard let f = context.folder(item.id), f.parent != nil else { continue }
+                SidebarView.folderChange { context.move(f, into: nil) }
+            }
+        }
+    }
+
+    /// A change to the folder tree: a folder moved, placed, copied or deleted, or one opened by a
+    /// drop. On the Mac it's instant, as opening and closing a folder is: the list's animated move
+    /// left the old row drawn over the one that took its place ("Work" and "Ideas" in one row) until
+    /// the window was redrawn. iPhone keeps the list's own animation.
+    static func folderChange(_ body: () -> Void) {
+        #if os(macOS)
+        withTransaction(FolderTree.instant, body)
+        #else
+        withAnimation(.snappy, body)
+        #endif
+    }
+
+    /// What's selected once `folder` closes: the folder itself when the selection was a folder
+    /// inside it (it would be hidden), otherwise the same.
+    static func selection(afterClosing folder: Folder, _ selection: Scope?) -> Scope? {
+        guard case .folder(let id)? = selection, id != folder.id, SidebarView.subtree(of: folder).contains(id) else { return selection }
+        return .folder(folder.id)
     }
 
     /// A folder and every folder inside it: the places Move can't put it.
@@ -1231,7 +1273,7 @@ struct SidebarView: View {
 
     private func performDelete(_ f: Folder) {
         if scope == .folder(f.id) { scope = .all }
-        withAnimation(.snappy) { context.trash(f) }
+        SidebarView.folderChange { context.trash(f) }
     }
 }
 
@@ -1332,6 +1374,23 @@ private struct FolderDropFill: View {
             .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
             .opacity(lit ? 1 : 0)
             .animation(.easeOut(duration: lit ? 0.08 : drops.landedLast == id ? 0.3 : 0.06), value: lit)
+    }
+}
+
+/// The "Folders" heading as a place to drop a folder: the top level. Only folders: a note can't
+/// be outside a folder.
+struct TopLevelDrop: DropDelegate {
+    @Binding var over: Bool
+    let land: ([NSItemProvider]) -> Void
+
+    func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [.paneFolder]) }
+    func dropEntered(info: DropInfo) { over = true }
+    func dropExited(info: DropInfo) { over = false }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+    func performDrop(info: DropInfo) -> Bool {
+        over = false
+        land(info.itemProviders(for: [.paneItem]))
+        return true
     }
 }
 
@@ -1476,7 +1535,7 @@ private struct TrashDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         lid.dropped { over = $0 }
         DropLoader.load(info.itemProviders(for: [.paneItem])) { [context, undo] items, _ in
-            withAnimation(.snappy) { context.trashDropped(items, undo: undo) }
+            SidebarView.folderChange { context.trashDropped(items, undo: undo) }
         }
         return true
     }
@@ -1573,11 +1632,59 @@ private struct QuietSelection: NSViewRepresentable {
             while let x = v {
                 if let table = x as? NSTableView {
                     if table.selectionHighlightStyle != .none { table.selectionHighlightStyle = .none }
+                    if let outline = table as? NSOutlineView { EmptyFolderArrow.hide(in: outline) }
                     return
                 }
                 v = x.superview
             }
         }
+    }
+}
+
+/// Every folder row on the Mac is one that can open (`FolderTree.body`), so one with no folders
+/// inside would show an arrow that opens nothing. This list draws no arrow for a row with nothing
+/// under it, as Notes and Finder: the outline view's own way to hide one is a zero frame for it.
+/// Only the sidebar's list, marked here; other lists keep theirs.
+enum EmptyFolderArrow {
+    nonisolated(unsafe) private static var mark: UInt8 = 0
+    nonisolated(unsafe) private static var patched: Set<ObjectIdentifier> = []
+
+    /// What the arrow's frame becomes: none for a row with nothing under it.
+    static func frame(_ frame: NSRect, children: Int) -> NSRect { children == 0 ? .zero : frame }
+
+    nonisolated(unsafe) private static let outlines = NSHashTable<NSOutlineView>.weakObjects()
+
+    /// A folder got its first folder inside, or lost its last: the list keeps the row (it's the
+    /// same kind of row), so it's asked again whether to draw the arrow.
+    @MainActor static func refresh() {
+        DispatchQueue.main.async {
+            for outline in outlines.allObjects {
+                for row in 0..<outline.numberOfRows {
+                    if let item = outline.item(atRow: row) { outline.reloadItem(item, reloadChildren: false) }
+                }
+            }
+        }
+    }
+
+    @MainActor static func hide(in outline: NSOutlineView) {
+        objc_setAssociatedObject(outline, &mark, true, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        outlines.add(outline)
+        // The list's own class, not a key-value observing subclass made for one instance.
+        var cls: AnyClass = object_getClass(outline)!
+        while NSStringFromClass(cls).hasPrefix("NSKVONotifying_"), let up = class_getSuperclass(cls) { cls = up }
+        guard patched.insert(ObjectIdentifier(cls)).inserted else { return }
+        let sel = #selector(NSOutlineView.frameOfOutlineCell(atRow:))
+        guard let inherited = class_getInstanceMethod(cls, sel) else { return }
+        typealias Frame = @convention(c) (NSOutlineView, Selector, Int) -> NSRect
+        let original = unsafeBitCast(method_getImplementation(inherited), to: Frame.self)
+        let block: @convention(block) (NSOutlineView, Int) -> NSRect = { view, row in
+            let own = original(view, sel, row)
+            guard objc_getAssociatedObject(view, &mark) as? Bool == true, let item = view.item(atRow: row) else { return own }
+            return frame(own, children: view.numberOfChildren(ofItem: item))
+        }
+        let imp = imp_implementationWithBlock(block)
+        // Its own method on the list's class, falling back to NSOutlineView's: never changes NSOutlineView itself.
+        if !class_addMethod(cls, sel, imp, method_getTypeEncoding(inherited)) { method_setImplementation(inherited, imp) }
     }
 }
 #endif
@@ -1652,12 +1759,24 @@ private struct FolderTree: View {
         let _ = RenderProbe.count("FolderTree")
         #endif
         Group {
+            #if os(macOS)
+            // Always a row that can open, even with no folders inside (its arrow hidden then, see
+            // `QuietSelection`): turning a plain row into one that opens, or back, as a folder came
+            // or went left the old row drawn over the one that took its place ("Work" and "Ideas"
+            // in one row, seen on the Air on 9 November 2026).
+            tree
+            #else
             if folder.liveChildren.isEmpty {
                 label
             } else {
                 tree
             }
+            #endif
         }
+        #if os(macOS)
+        // Its arrow shows once a folder is inside, and goes with the last one.
+        .onChange(of: folder.liveChildren.isEmpty) { _, _ in EmptyFolderArrow.refresh() }
+        #endif
         // A folder made inside this one shows its row, open for its name.
         .onChange(of: naming) { _, id in
             if let id, folder.liveChildren.contains(where: { $0.id == id }) { expanded = true }
@@ -1669,7 +1788,12 @@ private struct FolderTree: View {
     private var opening: Binding<Bool> {
         #if os(macOS)
         Binding(get: { expanded }, set: { open in
-            withTransaction(FolderTree.instant) { expanded = open }
+            withTransaction(FolderTree.instant) {
+                // A folder inside it was selected: the selection moves up to this folder, as in Notes
+                // and Finder. Left on a hidden row, the list drew that row over the one below.
+                if !open { selection = SidebarView.selection(afterClosing: folder, selection) }
+                expanded = open
+            }
         })
         #else
         $expanded
@@ -1730,8 +1854,8 @@ private struct FolderTree: View {
         .accessibilityIdentifier("folder.\(folder.name)")
         #if os(macOS)
         // The folder's Move Up and Move Down, without a drag.
-        .accessibilityAction(named: FolderAction.moveUp.title) { if context.canNudge(folder, by: -1) { withAnimation(.snappy) { context.nudge(folder, by: -1) } } }
-        .accessibilityAction(named: FolderAction.moveDown.title) { if context.canNudge(folder, by: 1) { withAnimation(.snappy) { context.nudge(folder, by: 1) } } }
+        .accessibilityAction(named: FolderAction.moveUp.title) { if context.canNudge(folder, by: -1) { SidebarView.folderChange { context.nudge(folder, by: -1) } } }
+        .accessibilityAction(named: FolderAction.moveDown.title) { if context.canNudge(folder, by: 1) { SidebarView.folderChange { context.nudge(folder, by: 1) } } }
         #endif
         .draggable(PaneDragItem(kind: .folder, id: folder.id)) {
             Label(folder.name, systemImage: "folder").padding(8).glassEffect(.regular, in: .capsule)
@@ -1763,7 +1887,7 @@ private struct FolderTree: View {
                 if !urls.isEmpty, !context.importFiles(urls, into: .folder(folder.id)).isEmpty { moved = true }
                 if moved {
                     drops.land(folder.id)
-                    withAnimation(.snappy) { expanded = true }
+                    SidebarView.folderChange { expanded = true }
                 }
             }
             // A drop doesn't always say the drag has left the row (round 21: its icon stayed filled).
