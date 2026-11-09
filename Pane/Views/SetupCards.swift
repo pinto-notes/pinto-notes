@@ -525,6 +525,7 @@ struct SetupTemplateCard: View {
                     Text(pick.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.ink)
                     Text(NoWidow.kept(pick.line)).font(.system(size: 12)).foregroundStyle(Color.muted)
                         .lineLimit(2, reservesSpace: true)
+                        .balanced(NoWidow.kept(pick.line), font: .systemFont(ofSize: 12), width: width - 4)
                 }
                 .multilineTextAlignment(.leading)
                 .padding(.horizontal, 2)
@@ -562,6 +563,7 @@ struct SetupTemplateCard: View {
                         .font(.system(size: 11.5, weight: .medium))
                         .opacity(0.86)
                         .fixedSize(horizontal: false, vertical: true)
+                        .balanced(NoWidow.kept(pick.line), font: .systemFont(ofSize: 11.5, weight: .medium), width: width - 28)
                 }
                 .foregroundStyle(ink)
                 .multilineTextAlignment(.leading)

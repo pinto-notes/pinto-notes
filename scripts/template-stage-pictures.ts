@@ -33,7 +33,10 @@ function moved(value: unknown, days: number): unknown {
   }
   return value;
 }
+// The stage's day: the latest Thursday, as template-stage.js sets the app's clock and
+// TemplateSample.stageDay moves the sample (council round 6: a Monday's week looked empty).
 const local = new Date();
+local.setDate(local.getDate() - (local.getDay() - 4 + 7) % 7);
 const today = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, "0")}-${String(local.getDate()).padStart(2, "0")}`;
 const since = Math.round((Date.parse(today) - Date.parse(ANCHOR)) / 86_400_000);
 

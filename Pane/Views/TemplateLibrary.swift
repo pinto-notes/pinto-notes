@@ -120,9 +120,43 @@ struct TemplateCatalog: Sendable {
 
 /// A line's last two words kept together, so it never ends on one word alone on its last line
 /// (council round 5: "why.", "budget.", "next." alone under a cover's caption, "it in." split).
+/// Lines of even length: a caption or a description is set at the narrowest width that keeps its
+/// line count, so no line is a short scrap between two long ones ("items from", "and the"), as
+/// CSS's text-wrap: balance does (council round 6).
+nonisolated enum Balanced {
+    static func lines(_ s: String, font: NSFont, width: CGFloat) -> Int {
+        let h = (s as NSString).boundingRect(with: NSSize(width: width, height: 10_000), options: [.usesLineFragmentOrigin], attributes: [.font: font]).height
+        let line = font.ascender - font.descender + font.leading
+        return max(1, Int((h / line).rounded()))
+    }
+
+    /// The narrowest width, up to `width`, at which `s` takes as many lines as at `width`.
+    static func width(_ s: String, font: NSFont, width: CGFloat) -> CGFloat {
+        let count = lines(s, font: font, width: width)
+        guard count > 1 else { return width }
+        var lo = width / 2, hi = width
+        while hi - lo > 1 {
+            let mid = (lo + hi) / 2
+            if lines(s, font: font, width: mid) > count { lo = mid } else { hi = mid }
+        }
+        // A point to spare, since the view sets text a hair wider than the string measures.
+        return min(width, hi.rounded(.up) + 1)
+    }
+}
+
+extension View {
+    /// The text in it set balanced (Balanced), within `width`, from the leading edge.
+    func balanced(_ s: String, font: NSFont, width: CGFloat) -> some View {
+        frame(width: Balanced.width(s, font: font, width: width), alignment: .leading)
+            .frame(width: width, alignment: .leading)
+    }
+}
+
 nonisolated enum NoWidow {
     static func kept(_ s: String) -> String {
+        // A hyphenated word stays whole ("check-in" broke as "check- / in" once balanced).
         let t = s.trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: #"(\p{L})-(\p{L})"#, with: "$1\u{2011}$2", options: .regularExpression)
         guard let last = t.range(of: " ", options: .backwards), t.distance(from: last.upperBound, to: t.endIndex) <= 14 else { return t }
         return t.replacingCharacters(in: last, with: "\u{00A0}")
     }
@@ -140,13 +174,15 @@ enum TemplateLibraryWords {
     /// the AI with this prompt, not that it asks the AI.
     /// Round 5: an app's stage shows it in use on sample data, so its label says Make adds it
     /// empty (the sample read as what Make would add).
-    /// The small sheet's narrower panel joins an app's two steps with a comma, so the label
-    /// stays on one line there (round 6: it cut "this prom…").
-    static func opensWith(_ ai: SetupCards.AI, app: Bool = false, small: Bool = false) -> String {
+    /// The same words on both sheets: the small sheet sets the label at 11.5 pt so it fits on one
+    /// line there (round 6 joined an app's steps with a comma there; council: a comma splice and
+    /// a second string).
+    static func opensWith(_ ai: SetupCards.AI, app: Bool = false) -> String {
         let adds = app ? "Adds an empty app" : "Adds the note"
-        let and = app && small ? "," : " and"
-        return ai.asks ? "\(adds)\(and) opens \(ai.name) with this prompt:" : "\(adds). Then ask your AI:"
+        return ai.asks ? "\(adds) and opens \(ai.name) with this prompt:" : "\(adds). Then ask your AI:"
     }
+    /// The label's size: 12 pt, 11.5 on the small sheet's narrower panel.
+    static func labelSize(small: Bool) -> CGFloat { small ? 11.5 : 12 }
     static let clear = "Clear Search"
     /// No match, in the words a Mac search uses.
     static func none(_ q: String) -> String { "No Results for \u{201C}\(q)\u{201D}" }
@@ -561,6 +597,7 @@ struct TemplateLibraryView: View {
                 Text(NoWidow.kept(e.shownDescription)).font(.system(size: text)).foregroundStyle(Color.muted)
                     .lineLimit(Self.descriptionLines(small: small), reservesSpace: true)
                     .fixedSize(horizontal: false, vertical: true)
+                    .balanced(NoWidow.kept(e.shownDescription), font: .systemFont(ofSize: text), width: panel - 40)
                     .padding(.top, 4)
                 Spacer(minLength: small ? 8 : 16)
                 // What Make does, and the ask it sends, as you'd say it. The box fits its words
@@ -569,7 +606,7 @@ struct TemplateLibraryView: View {
                 // leaves its spare line above the buttons, not above the label (council round 4:
                 // the label sat 15 pt higher over a two-line ask).
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(TemplateLibraryWords.opensWith(ai, app: e.app, small: small)).font(.system(size: 12)).foregroundStyle(Color.muted)
+                    Text(TemplateLibraryWords.opensWith(ai, app: e.app)).font(.system(size: TemplateLibraryWords.labelSize(small: small))).foregroundStyle(Color.muted)
                         .lineLimit(1)
                         .accessibilityIdentifier("templates.opensWith")
                     ZStack(alignment: .topLeading) {
@@ -668,6 +705,19 @@ struct TemplateLibraryView: View {
         if blocks.count > 1, case .heading(let a, _) = blocks[0], case .heading(let b, _) = blocks[1], b > a {
             blocks.removeFirst()
         }
+        // A section still empty ("## Meat and fish" straight over "## Cupboard") shows nothing in
+        // use, and its heading can't end the stage, so it left a gap there (council round 6).
+        var i = 0
+        while i < blocks.count {
+            if case .heading(let level, _) = blocks[i] {
+                var j = i + 1
+                while j < blocks.count, blocks[j] == .gap { j += 1 }
+                let empty: Bool = { guard j < blocks.count else { return true }; if case .heading(let next, _) = blocks[j] { return next <= level }; return false }()
+                if empty { blocks.removeSubrange(i..<j); continue }
+            }
+            i += 1
+        }
+        while blocks.last == .gap { blocks.removeLast() }
         return blocks
     }
 
@@ -812,7 +862,7 @@ private struct SearchClearButton: View {
         let d = Bundle.main.url(forResource: "template-app-\(e.slug).sample", withExtension: "json")
             .flatMap { try? Data(contentsOf: $0) }
             .flatMap { try? JSONSerialization.jsonObject(with: $0) }
-            .map { TemplateSample.moved($0, days: TemplateSample.days(to: today)) }
+            .map { TemplateSample.moved($0, days: TemplateSample.days(to: TemplateSample.stageDay(today))) }
             .flatMap { try? JSONSerialization.data(withJSONObject: $0) }
             .map { NotePageData.decode($0) } ?? start(e)
         samples[e.slug] = d
@@ -853,6 +903,16 @@ nonisolated enum TemplateSample {
     private static func text(_ d: Date) -> String {
         let c = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: d)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    /// The day the stage shows an app on: the latest Thursday, `today` itself on a Thursday, so a
+    /// week shows in use (council round 6: on a Monday the habit week was "50%" with only M
+    /// filled). template-stage.js sets the app's clock to it; the pictures use it too.
+    static let stageWeekday = 5 // Thursday, in Calendar's 1 = Sunday
+    static func stageDay(_ today: Date) -> Date {
+        let cal = Calendar(identifier: .gregorian)
+        let back = (cal.component(.weekday, from: today) - stageWeekday + 7) % 7
+        return cal.date(byAdding: .day, value: -back, to: today) ?? today
     }
 
     /// The days from the sample's day to `today`, in the device's calendar.

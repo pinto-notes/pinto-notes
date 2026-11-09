@@ -81,7 +81,8 @@ def flashcards() -> None:
         elif i in (0, 1, 6, 10):  # due today
             c.update({"box": 2, "seen": d(-3), "interval": 3, "ease": 2.5})
         out.append(c)
-    write("study-flashcards", {"cards": out, "studied": {d(-6): 8, d(-5): 5, d(-3): 10, d(-2): 6}})
+    # Studied every day this week up to yesterday: a streak shows on the stage (council round 6).
+    write("study-flashcards", {"cards": out, "studied": {d(-6): 8, d(-5): 5, d(-4): 7, d(-3): 10, d(-2): 6, d(-1): 9}})
 
 
 def trip() -> None:

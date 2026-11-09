@@ -138,7 +138,7 @@
   "app": false,
   "ground": "5b5f27",
   "ask": "Ask how today's workout went, then log it.",
-  "example": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Min=number; Effort=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Min | Effort |\n| --- | --- | --- | --- | --- | --- |\n| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n| 2026-09-30 | Push | Bench press | 70 kg x 6 | 50 | 7 |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n- Squat: 100 kg x 5 (2026-09-28)\n- Bench press: 70 kg x 6 (2026-09-30)\n",
+  "example": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n## Sessions\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Min=number; Effort=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Min | Effort |\n| --- | --- | --- | --- | --- | --- |\n| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n| 2026-09-30 | Push | Bench press | 70 kg x 6 | 50 | 7 |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n- Squat: 100 kg x 5 (28 Sep)\n- Bench press: 70 kg x 6 (30 Sep)\n",
   "note": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Min=number; Effort=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Min | Effort |\n| --- | --- | --- | --- | --- | --- |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n",
   "folder": "Health"
  },
@@ -294,7 +294,7 @@
   "app": false,
   "ground": "c83829",
   "ask": "Ask what groceries I need, then sort them by aisle.",
-  "example": "Grocery list\n\nOne running list for the shop, sorted by aisle. Tell your AI what you need and it files each thing under the right aisle. Tick things off as you shop.\n\n## Fruit and veg\n- [ ] Lemons\n- [ ] Avocados\n- [x] Limes\n\n## Bread and dairy\n- [ ] Oat milk\n- [ ] Tortillas\n\n## Meat and fish\n\n## Cupboard\n- [ ] Chickpeas, 2 cans\n\n## Frozen\n\n## Household\n- [ ] Bin bags\n",
+  "example": "Grocery list\n\nOne running list for the shop, sorted by aisle. Tell your AI what you need and it files each thing under the right aisle. Tick things off as you shop.\n\n## Fruit and veg\n- [ ] Lemons\n- [ ] Avocados\n- [x] Limes\n\n## Bread and dairy\n- [ ] Oat milk\n- [ ] Tortillas\n\n## Meat and fish\n- [ ] Salmon fillets\n- [ ] Chicken thighs\n\n## Cupboard\n- [ ] Chickpeas, 2 cans\n- [ ] Rice\n- [ ] Olive oil\n\n## Frozen\n- [ ] Peas\n\n## Household\n- [ ] Bin bags\n",
   "note": "Grocery list\n\nOne running list for the shop, sorted by aisle. Tell your AI what you need and it files each thing under the right aisle. Tick things off as you shop.\n\n## Fruit and veg\n\n## Bread and dairy\n\n## Meat and fish\n\n## Cupboard\n\n## Frozen\n\n## Household\n",
   "folder": "Home"
  }
