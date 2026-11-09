@@ -20,20 +20,6 @@ enum QuickOpen {
     enum Look: String { case quiet, list, sidebar }
     static var look: Look { Look(rawValue: UserDefaults.standard.string(forKey: "quickOpenLook") ?? "") ?? .list }
 
-    /// Where the accent goes, three to choose between (Emil, 9 November 2026: "everything just
-    /// looks the same. there is no color"). The person's own accent, as the sidebar's selected
-    /// folder has it; colour says what you can act on, what's a folder and what's chosen.
-    /// - `a`: every command's icon and the folder glyph in the accent.
-    /// - `b`: a, and the chosen row's icon and the typed text in the accent.
-    /// - `c`: b, with each command's icon on a small accent-tinted tile, as Raycast has it.
-    /// `defaults write <app id> quickOpenTint a|b|c` tries one (DEBUG builds); `none` is today's.
-    enum Tint: String, CaseIterable { case none, a, b, c }
-    #if DEBUG
-    nonisolated(unsafe) static var tintOverride: Tint?
-    static var tint: Tint { tintOverride ?? Tint(rawValue: UserDefaults.standard.string(forKey: "quickOpenTint") ?? "") ?? .none }
-    #else
-    static var tint: Tint { .none }
-    #endif
 
     /// It drops in from just above, like the app's sheets but quicker, and goes at once (Emil,
     /// 9 November 2026: the 0.24 s spring and scale were "really slow"; a fade alone wasn't what the
@@ -516,7 +502,6 @@ struct QuickOpenPanel: View {
     #endif
     @State private var query: String
     @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.colorScheme) private var scheme
     /// The query the notes' text has been read for, so "nothing found" waits for the answer.
     @State private var readFor: String?
 
@@ -931,33 +916,23 @@ struct QuickOpenPanel: View {
     /// The person's accent for glyphs; its deeper ink shade with Increase Contrast, as small text
     /// on white needs (the High contrast theme deepens both itself).
     private var accent: Color { contrast == .increased ? Color.amberInk : Color.paneAccent }
-    /// A folder's glyph in a tag: the accent from A on, else the tag's own grey.
-    private var folderGlyph: Color? { QuickOpen.tint == .none ? nil : accent }
+    /// A folder's glyph in a tag: the accent, a little under full so the small glyph isn't louder
+    /// than the folder's name beside it.
+    private var folderGlyph: Color { accent.opacity(0.85) }
 
-    /// A row's icon. `acts`: a command (or the list's search), which the accent marks from A on;
-    /// a note's icon stays grey until its row is chosen (B, C). C sits a command's icon on a tile.
-    @ViewBuilder private func icon(_ symbol: String, on: Bool, acts: Bool) -> some View {
-        let tint = QuickOpen.tint
-        let lit = (acts && tint != .none) || (on && (tint == .b || tint == .c)) || (on && QuickOpen.look == .sidebar)
-        let glyph = Image(systemName: symbol)
-            .foregroundStyle(lit ? accent : Color.muted)
-        if acts && tint == .c {
-            glyph
-                .font(.system(size: 12, weight: .medium))
-                .frame(width: 24, height: 24)
-                .background(accent.opacity(Self.tileFill(dark: scheme == .dark, increased: contrast == .increased)),
-                            in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .frame(width: 24)
-        } else {
-            glyph
-                .font(.system(size: 13, weight: .medium))
-                .frame(width: QuickOpen.tint == .c ? 24 : 20)
-        }
+    /// A row's icon, in the person's accent where colour means something (Emil, 9 November 2026:
+    /// "everything just looks the same. there is no color"): a command's (`acts`: what you can
+    /// act on), and the chosen row's, as the sidebar's selected folder. A note's icon is grey
+    /// until its row is chosen.
+    private func icon(_ symbol: String, on: Bool, acts: Bool) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(Self.iconLit(on: on, acts: acts) ? accent : Color.muted)
+            .frame(width: 20)
     }
 
-    /// How much accent tints a command's tile (C): faint, a little more in the dark and with
-    /// Increase Contrast, where a faint fill disappears.
-    static func tileFill(dark: Bool, increased: Bool) -> Double { (dark ? 0.22 : 0.13) + (increased ? 0.1 : 0) }
+    /// Whether a row's icon is in the accent: a command's always, any row's while it's chosen.
+    static func iconLit(on: Bool, acts: Bool) -> Bool { acts || on }
 
     /// The title with the typed text in semibold, so you see why it matched.
     private func highlightedTitle(_ title: String, weight: Font.Weight = .regular, ink: Color = .ink) -> some View {
@@ -967,14 +942,15 @@ struct QuickOpenPanel: View {
         if !q.isEmpty, let r = title.range(of: q, options: [.caseInsensitive, .diacriticInsensitive]),
            let lower = AttributedString.Index(r.lowerBound, within: text), let upper = AttributedString.Index(r.upperBound, within: text) {
             text[lower..<upper].font = .system(size: 14, weight: .semibold)
-            if QuickOpen.tint == .b || QuickOpen.tint == .c { text[lower..<upper].foregroundColor = Color.amberInk }
+            // In the accent's text shade, so you see why it matched (4.5:1 on the card).
+            text[lower..<upper].foregroundColor = Color.amberInk
         }
         return Text(text).foregroundStyle(ink).lineLimit(1)
     }
 
     /// The line that holds the text, the text itself in the ink's semibold and the rest muted.
     private func snippetText(_ s: QuickOpen.Snippet) -> some View {
-        (Text(s.before) + Text(s.match).foregroundStyle(QuickOpen.tint == .b || QuickOpen.tint == .c ? Color.amberInk : Color.ink).fontWeight(.semibold) + Text(s.after))
+        (Text(s.before) + Text(s.match).foregroundStyle(Color.amberInk).fontWeight(.semibold) + Text(s.after))
             .font(.system(size: 12.5))
             .foregroundStyle(Color.muted)
             .lineLimit(1)
