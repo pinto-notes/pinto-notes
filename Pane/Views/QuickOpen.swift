@@ -662,33 +662,38 @@ struct QuickOpenPanel: View {
                     Spacer(minLength: 8)
                     if let f = n.folder { Text(f).foregroundStyle(Color.muted).lineLimit(1) }
                 case .list:
-                    // As the notes list has it: the title, then the date and the first words of the
-                    // text; the folder on the right (Emil, 9 November 2026: without the words it was
-                    // hard to tell notes apart).
+                    // The title, then the folder (with its icon) and the first words, all quiet; the
+                    // date on the right (Emil, 9 November 2026: without the words it was hard to tell
+                    // notes apart; then the bold title and the strong date made the left too busy).
                     VStack(alignment: .leading, spacing: 2) {
-                        highlightedTitle(n.title.isEmpty ? "New Note" : n.title, weight: .semibold)
+                        highlightedTitle(n.title.isEmpty ? "New Note" : n.title, weight: .medium)
                         HStack(spacing: 6) {
-                            Text(QuickOpen.dateText(n))
-                                .foregroundStyle(Color.ink.opacity(0.85))
-                                .monospacedDigit()
-                                .lineLimit(1)
+                            if let f = n.folder {
+                                Label {
+                                    Text(f).lineLimit(1)
+                                } icon: {
+                                    Image(systemName: "folder").font(.system(size: Metrics.detailSize - 1))
+                                }
+                                .labelStyle(.titleAndIcon)
                                 .fixedSize()
+                                .accessibilityIdentifier("quickOpen.folder")
+                                Text("\u{00B7}").accessibilityHidden(true)
+                            }
                             Text(n.preview)
-                                .foregroundStyle(Color.muted)
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                         }
                         .font(.system(size: Metrics.detailSize))
+                        .foregroundStyle(Color.muted)
                     }
                     Spacer(minLength: 12)
-                    if let f = n.folder {
-                        Text(f)
-                            .font(.system(size: Metrics.folderSize))
-                            .foregroundStyle(Color.muted.opacity(0.75))
-                            .lineLimit(1)
-                            .layoutPriority(-1)
-                            .accessibilityIdentifier("quickOpen.folder")
-                    }
+                    Text(QuickOpen.dateText(n))
+                        .font(.system(size: Metrics.folderSize))
+                        .foregroundStyle(Color.muted.opacity(0.75))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize()
+                        .accessibilityIdentifier("quickOpen.date")
                 case .sidebar:
                     // As the sidebar has it: an icon, the name in the accent when chosen, a figure at the end.
                     icon(n.locked ? "lock" : "doc.text", on: on)
