@@ -435,7 +435,7 @@ struct SidebarView: View {
     #if os(macOS)
     /// What the Mac sidebar's Search button opens: Go to Note… (QuickOpen).
     static let searchButtonOpens: Notification.Name = .paneQuickOpen
-    static let searchButtonHelp = "Search notes and commands (\u{2318}O)"
+    static let searchButtonHelp = "Search notes and commands (\u{2318}K)"
     #endif
 
     /// The title of the alert that asks for a folder's name.

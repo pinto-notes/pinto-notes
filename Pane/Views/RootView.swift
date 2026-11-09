@@ -168,7 +168,15 @@ struct RootView: View {
                 #if os(macOS)
                 if let closed = QuickOpen.closedByClick, Date.now.timeIntervalSince(closed) < 0.3 { return }
                 #endif
-                quickOpen = quickOpen == nil ? QuickOpen.noteItems(in: context) : nil
+                guard quickOpen == nil else { quickOpen = nil; return }
+                // On screen at once with the recent notes it lists; the rest come a moment later,
+                // read off the main thread, for what you type (2,000 notes held the first frame 164 ms).
+                let first = QuickOpen.noteItems(in: context, limit: QuickOpen.firstRead)
+                quickOpen = first
+                Task { @MainActor [container = context.container] in
+                    let all = await QuickOpen.allNoteItems(in: container)
+                    if quickOpen != nil { quickOpen = QuickOpen.merged(first: first, all: all) }
+                }
             }
             // VoiceOver stays in Go to Note while it's open, as with a sheet (round 19).
             .accessibilityHidden(quickOpen != nil)
@@ -1299,7 +1307,8 @@ struct PaneCommands: Commands {
                 .keyboardShortcut("t")
                 .disabled(todaysNote == nil)
             Divider()
-            // ⌘K is Add Link, as in Notes. ⌘O is where Open would be, and Obsidian's quick switcher.
+            // ⌘O is where Open would be, and Obsidian's quick switcher. ⌘K opens it too, through the
+            // Link item, unless text is picked in the note (CommandK).
             Button("Go to Note…") { NotificationCenter.default.post(name: .paneQuickOpen, object: nil) }
                 .keyboardShortcut("o")
                 .disabled(newNote == nil)
@@ -1439,7 +1448,14 @@ struct PaneCommands: Commands {
                 Button("Table") { format { editor?.insertTable() } }.keyboardShortcut("t", modifiers: [.command, .option])
                 // Today's date, shown as a chip that says Today (NoteDates).
                 Button("Date") { format { editor?.insertDate() } }.keyboardShortcut("d", modifiers: [.command, .shift])
-                Button("Link") { format { editor?.insertLink() } }.keyboardShortcut("k")
+                // ⌘K adds a link only with text picked in the note; anywhere else it opens Go to
+                // Note (CommandK). Chosen from the menu it always adds a link.
+                Button("Link") {
+                    switch CommandK.route(editor, byKey: NSApp.currentEvent?.type == .keyDown) {
+                    case .link: format { editor?.insertLink() }
+                    case .goToNote: NotificationCenter.default.post(name: .paneQuickOpen, object: nil)
+                    }
+                }.keyboardShortcut("k")
             }
             .disabled(editor == nil)
         }
