@@ -239,9 +239,11 @@ enum SidebarStyle {
     /// The rows' icons' left edge from the sidebar's own: where the title's mark, the Folders
     /// heading and the account's photo start too, so they all share one line (owner, 2026-10-12:
     /// three edges a few points apart). Measured from the list as AppKit lays it out: the icon of
-    /// a row sits 21 pt in, 7.5 pt further once any folder has sub-folders (the outline keeps a
-    /// column for the arrows), and the section heading's text sits 15 pt in.
-    static func edge(nested: Bool) -> CGFloat { nested ? 28.5 : 21 }
+    /// a row sits 28.5 pt in, past the column the outline keeps for the arrows, and the section
+    /// heading's text sits 15 pt in. The column is always there: every folder's row can open
+    /// (`FolderTree.body`), so `nested` no longer moves anything (it was 21 pt without sub-folders,
+    /// and everything shifted when the first came).
+    static func edge(nested: Bool) -> CGFloat { 28.5 }
     static let headingInset: CGFloat = 15
     static let trailingColumn: CGFloat = 16
     static let trailingInset: CGFloat = 7
@@ -250,9 +252,9 @@ enum SidebarStyle {
     static let plusTarget: CGFloat = 22
     static let plusTrailing: CGFloat = 19.5
     /// Where the list puts a row's content in the sidebar's glass: 16 pt in from either side, the
-    /// icon first; 9 pt further in once any folder has sub-folders (measured 2026-10-29, macOS 26;
-    /// `AccountRowTests` measures it again from the list).
-    static func rowContent(nested: Bool) -> (leading: CGFloat, trailing: CGFloat) { (nested ? 25 : 16, 16) }
+    /// icon first, 9 pt further in for the arrows' column (measured 2026-10-29, macOS 26;
+    /// `AccountRowTests` measures it again from the list), which the list always keeps (see `edge`).
+    static func rowContent(nested: Bool) -> (leading: CGFloat, trailing: CGFloat) { (16 + Hover.sidebarArrowRoom, 16) }
     /// A top-level row's pill, from the sidebar's edges: its content, widened by `Hover.sidebarReach`.
     static func rowPill(nested: Bool) -> (leading: CGFloat, trailing: CGFloat) {
         let content = rowContent(nested: nested), reach = Hover.sidebarReach()
@@ -453,10 +455,18 @@ struct SidebarView: View {
         scope == .trash && !showsTrash ? .all : nil
     }
 
-    /// Whether any folder has sub-folders: the list then keeps a column for their arrows.
-    /// The folders' parents are read, not every folder's children (800 folders: 800 lists read
-    /// for each update of the sidebar).
-    private var nested: Bool { folders.contains { $0.parent.map { $0.deletedAt == nil } ?? false } }
+    /// Whether the list keeps a column for folders' arrows. On the Mac always: every folder's row
+    /// can open (`FolderTree.body`), so the column is there from the first folder, and nothing
+    /// moves when the first sub-folder comes (Emil, 9 November 2026: "the whole folder section
+    /// shifts"). On iPhone, once any folder has sub-folders; the folders' parents are read, not every
+    /// folder's children (800 folders: 800 lists read for each update of the sidebar).
+    private var nested: Bool {
+        #if os(macOS)
+        true
+        #else
+        folders.contains { $0.parent.map { $0.deletedAt == nil } ?? false }
+        #endif
+    }
 
     private var roots: [Folder] { folders.filter { $0.parent == nil || $0.parent?.deletedAt != nil } }
 
@@ -1657,10 +1667,14 @@ enum EmptyFolderArrow {
     /// A folder got its first folder inside, or lost its last: the list keeps the row (it's the
     /// same kind of row), so it's asked again whether to draw the arrow.
     @MainActor static func refresh() {
-        DispatchQueue.main.async {
-            for outline in outlines.allObjects {
-                for row in 0..<outline.numberOfRows {
-                    if let item = outline.item(atRow: row) { outline.reloadItem(item, reloadChildren: false) }
+        // Again a moment later: a move from a menu reaches the list only once the menu has closed
+        // (Move To left Work with no arrow over its new folder, seen on the Air).
+        for delay in [0.0, 0.25] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                for outline in outlines.allObjects {
+                    for row in 0..<outline.numberOfRows {
+                        if let item = outline.item(atRow: row) { outline.reloadItem(item, reloadChildren: false) }
+                    }
                 }
             }
         }

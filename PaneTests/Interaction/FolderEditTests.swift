@@ -351,6 +351,38 @@ import UniformTypeIdentifiers
     }
     #endif
 
+    #if os(macOS)
+    /// Nothing moves when the first sub-folder comes or the last goes (Emil, 9 November 2026: "the
+    /// whole folder section shifts"): the list keeps the arrows' column all the time, and the
+    /// heading, the rows' content and the pills are placed for it whatever the tree holds.
+    @Test func theSidebarDoesntShiftWithTheFirstSubFolder() throws {
+        #expect(SidebarStyle.edge(nested: false) == SidebarStyle.edge(nested: true))
+        #expect(SidebarStyle.rowContent(nested: false) == SidebarStyle.rowContent(nested: true))
+        #expect(SidebarStyle.rowPill(nested: false) == SidebarStyle.rowPill(nested: true))
+        let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Pane/Views/SidebarView.swift")
+        let src = try String(contentsOf: file, encoding: .utf8)
+        let nested = try #require(src.range(of: "private var nested: Bool {").map { String(src[$0.lowerBound...].prefix(160)) })
+        #expect(nested.contains("#if os(macOS)\n        true\n"), "the arrows' column is always there on the Mac")
+    }
+
+    /// A row's pill takes in the arrows' column, so a folder's arrow is inside it, not cut by its
+    /// edge (Emil, 9 November 2026: "on hover the chevron is half-in-half-out"), and every row's pill
+    /// starts at the same place: All Notes, a folder with or without folders inside, a sub-folder.
+    @Test func thePillHoldsTheArrowAndAllPillsLineUp() {
+        let content = SidebarStyle.rowContent(nested: true).leading
+        // The arrow sits in the column between where a row's content would start without it and
+        // where it starts: the pill starts left of that column.
+        let arrowColumn = content - Hover.sidebarArrowRoom
+        #expect(Hover.sidebarArrowRoom > 0)
+        #expect(content - Hover.sidebarReach().leading <= arrowColumn - 4, "the arrow is inside the pill, with room")
+        // A sub-folder's content is a level in for each folder above it; its pill isn't.
+        let pills = (0...3).map { depth in content + CGFloat(depth) * Hover.sidebarIndent - Hover.sidebarReach(depth: depth).leading }
+        #expect(Set(pills).count == 1, "one left edge for every row's pill: \(pills)")
+        #expect(SidebarStyle.rowPill(nested: true).leading == pills[0], "the account row and the foot's rows too")
+    }
+    #endif
+
     /// Closing a folder with a folder inside it selected selects the folder you closed, as Finder
     /// and Notes do: left on the hidden row, the list drew it over the row below ("Dailyst",
     /// Emil's recording of 9 November 2026).
