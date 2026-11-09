@@ -10,9 +10,14 @@ import UIKit
 /// is, and Share first. iPhone's share sheet has Save Video; the Mac has Save… beside Share.
 struct NotebookFilmView: View {
     let store: NotebookFilmStore
+    @Environment(\.colorScheme) private var colorScheme
     #if os(macOS)
     @State private var saveFailed = false
     #endif
+
+    /// Which card while both are tried (2026-11-09): `-filmCardDark` draws it all black, the film
+    /// running edge to edge; otherwise the film sits in a white card.
+    static let dark = ProcessInfo.processInfo.arguments.contains("-filmCardDark")
 
     var body: some View {
         VStack(spacing: 16) {
@@ -21,10 +26,13 @@ struct NotebookFilmView: View {
                     .id(movie)
                     .opacity(store.remaking ? 0.5 : 1)
                     .aspectRatio(CGFloat(FilmScript.width) / CGFloat(FilmScript.height), contentMode: .fit)
-                    .frame(maxWidth: Metrics.film)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .frame(maxWidth: Self.dark ? .infinity : Metrics.film)
+                    .clipShape(RoundedRectangle(cornerRadius: Self.dark ? 0 : 14, style: .continuous))
+                    .padding(.horizontal, Self.dark ? 0 : 24)
+                    .padding(.top, Self.dark ? 0 : 24)
                     .accessibilityLabel(Self.description(store.stats))
             }
+            VStack(spacing: 16) {
             VStack(spacing: 6) {
                 Text(Self.title(store.stats))
                     .font(Metrics.title)
@@ -58,8 +66,12 @@ struct NotebookFilmView: View {
                     .buttonStyle(.quiet)
                     .accessibilityIdentifier("notebookFilm.close")
             }
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
         }
-        .padding(24)
+        .background(Self.dark ? Color.black : Color.clear)
+        .environment(\.colorScheme, Self.dark ? .dark : colorScheme)
         #if os(macOS)
         .frame(width: 380)
         .alert("Couldn\u{2019}t save the film", isPresented: $saveFailed) { Button("OK", role: .cancel) {} }
@@ -172,11 +184,15 @@ extension View {
 
 private struct NotebookFilmSheet: ViewModifier {
     @Bindable var store: NotebookFilmStore
+    @State private var height: CGFloat = 700
     func body(content: Content) -> some View {
         content.sheet(isPresented: $store.visible) {
             NotebookFilmView(store: store)
                 #if os(iOS)
-                .presentationDetents([.large])
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self, of: \.size.height) { height = $0 }
+                .presentationDetents([.height(height)])
+                .presentationBackground(NotebookFilmView.dark ? Color.black : Color(uiColor: .systemBackground))
                 #endif
                 .tint(Color(PColor.paneAccent))
         }
