@@ -38,6 +38,8 @@ struct FilmStats: Equatable, Sendable {
     var activeDays: Int
     /// Days you wrote something yourself, since the first note.
     var writingDays: Int
+    /// The most days running you wrote on.
+    var streak: Int
     /// The AI that made most of the AI edits, if any did.
     var ai: String?
     /// Of all edits, how many an AI made, 0...1.
@@ -65,7 +67,15 @@ struct FilmStats: Equatable, Sendable {
         for n in notes { for l in n.links where l != n.id && ids.contains(l) { pairs.insert([n.id, l].sorted { $0.uuidString < $1.uuidString }) } }
         links = pairs.count
         activeDays = FilmEligibility.activeDays(input, calendar: calendar)
-        writingDays = Set(notes.flatMap { $0.edits.filter { $0.ai == nil }.map { calendar.startOfDay(for: $0.at) } }).count
+        let written = Set(notes.flatMap { $0.edits.filter { $0.ai == nil }.map { calendar.startOfDay(for: $0.at) } })
+        writingDays = written.count
+        var best = 0
+        for day in written where !written.contains(calendar.date(byAdding: .day, value: -1, to: day) ?? .distantPast) {
+            var run = 1, next = calendar.date(byAdding: .day, value: 1, to: day)
+            while let n = next, written.contains(n) { run += 1; next = calendar.date(byAdding: .day, value: 1, to: n) }
+            best = max(best, run)
+        }
+        streak = best
         let edits = notes.flatMap(\.edits)
         var byAI: [String: Int] = [:]
         for e in edits { if let a = e.ai { byAI[a, default: 0] += 1 } }

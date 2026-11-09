@@ -137,6 +137,8 @@ final class TownScene: FilmScene {
     private var wideShots: [(z: Double, x: Double, y: Double)] = []
     private var rewinding = false
     private static let shotStep = 0.1
+    /// How far the tallest bushes of the hedge in front stand above the ground line: houses keep above them.
+    private static let hedge = 96.0
     private var growth: Double { script.growth }
 
     struct Hill { var folder: Int; var cx, base, w, h, s: Double; var depth: Int; var birth: Double; var skew: Double }
@@ -189,7 +191,8 @@ final class TownScene: FilmScene {
 
     /// Ink by day, cream once it's dark.
     /// (Early in the sunset: the sky is deep red long before it's dark.)
-    func topInk(_ t: Double) -> FilmRenderer.RGB { C(0x3A2B2E).mix(C(0xFFF4E6), smooth((t - growth - 0.1) / 0.3)) }
+    /// (At once: a slow change would leave them grey on a red sky.)
+    func topInk(_ t: Double) -> FilmRenderer.RGB { C(0x3A2B2E).mix(C(0xFFF4E6), smooth((t - growth - 0.25) / 0.07)) }
 
     init(script: FilmScript, folderNames: Bool) {
         self.script = script
@@ -311,8 +314,8 @@ final class TownScene: FilmScene {
         let p = gt / growth
         let dusk = smooth((p - 0.3) / 0.7)
         // Night comes down sheet by sheet, the sky and the far hills first: light leaving, not a veil.
-        let fall = (t - growth) / 1.9
-        func nightAt(_ depth: Double) -> Double { smooth((fall - depth * 0.42) / 0.58) }
+        let fall = (t - growth + 0.5) / 2.5
+        func nightAt(_ depth: Double) -> Double { smooth((fall - depth * 0.3) / 0.7) }
         let night = nightAt(0)
         var nightNow = night
         func col(_ day: UInt32, _ dk: UInt32, _ nt: UInt32) -> C { C(day).mix(C(dk), dusk).mix(C(nt), nightNow) }
@@ -426,7 +429,7 @@ final class TownScene: FilmScene {
                 while drawn < order.count, houses[order[drawn]].hill == hi {
                     let i = order[drawn]
                     // (Never down in the hedge the words sit on.)
-                    house(i, groundY: max(ground + 30, ridge(depth: depth, houses[i].x, gt) - houses[i].y), t: t, gt: gt, dusk: dusk, night: night, col: col, in: ctx)
+                    house(i, groundY: max(ground + Self.hedge, ridge(depth: depth, houses[i].x, gt) - houses[i].y), t: t, gt: gt, dusk: dusk, night: night, col: col, in: ctx)
                     drawn += 1
                 }
             }
@@ -467,20 +470,19 @@ final class TownScene: FilmScene {
                 let f = [0.9, 0.95, 1.0][hill.depth], zf = 1 + (cam.z - 1) * f
                 let sx = centre.x + (p.x - (centre.x + (cam.x - centre.x) * f)) * zf + drift * [0.45, 0.7, 1.0][hill.depth]
                 let sy = centre.y + (p.y - (centre.y + (cam.y - centre.y) * f)) * zf
-                let half = size.width / 2 * zf, ceiling = viewTop - 24
+                let half = size.width / 2 * zf, ceiling = viewTop + 22
                 // (Quickly: a half-faded board over houses reads as a ghost.)
-                a *= min(smooth((sx - half - 8) / 12), smooth((W - 8 - sx - half) / 12), smooth((ceiling - sy - size.height * zf) / 14))
+                // (At once: shown or not, never left half there, at the sides or under the sky's sheet.)
+                a *= min(smooth((sx - half - 8) / 5), smooth((W - 8 - sx - half) / 5), cam.z > 1.02 ? smooth((ceiling - sy - size.height * zf) / 5) : 1)
                 guard a > 0.01 else { continue }
                 nightNow = nightAt([0.45, 0.65, 0.85][hill.depth])
                 layer([0.45, 0.7, 1.0][hill.depth], follow: f) {
                     ctx.setStrokeColor(col(0x5A4038, 0x45312E, 0x2A1D22).cg(a))
-                    ctx.setLineWidth(3)
+                    ctx.setLineWidth(2.5)
                     ctx.setLineCap(.round)
-                    // A short tail towards its hill (a long one would cross other roofs).
-                    let dx = anchor.x - p.x, dy = anchor.y - 20 - p.y - 4
-                    let length = max(1, hypot(dx, dy)), reach = min(length, 24)
+                    // Its pole, down to the top roof of its own hill (never far: it stays by it).
                     ctx.move(to: CGPoint(x: p.x, y: p.y + 4))
-                    ctx.addLine(to: CGPoint(x: p.x + dx / length * reach, y: p.y + 4 + dy / length * reach))
+                    ctx.addLine(to: CGPoint(x: anchor.x, y: anchor.y - 16))
                     ctx.strokePath()
                     tag(name, at: p, alpha: a, night: nightNow, in: ctx)
                 }
@@ -490,11 +492,17 @@ final class TownScene: FilmScene {
         // Close in, the town reaches the top of the frame: the sky comes back over it there, so
         // the mark and the key stay readable.
         if cam.z > 1.02 {
-            let a = min(1, (cam.z - 1) / 0.25)
-            // A long soft rise of haze, not a band.
-            if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [top.cg(0), top.cg(0.18 * a), top.cg(0.6 * a), top.cg(0.94 * a)] as CFArray, locations: [0, 0.4, 0.75, 1]) {
-                ctx.drawLinearGradient(g, start: CGPoint(x: 0, y: viewTop - 330), end: CGPoint(x: 0, y: viewTop + 60), options: [.drawsAfterEndLocation])
-            }
+            // A sheet of the sky's own paper comes down over the top, with a cut edge: the mark
+            // and the key sit on it, and whatever the camera pushes up there goes behind it.
+            let a = smooth((cam.z - 1.02) / 0.2)
+            let edge = viewTop + 34, lift = (1 - a) * (H - edge + 40)
+            let band = CGMutablePath()
+            band.move(to: CGPoint(x: -20, y: H + 60 + lift))
+            var x = -20.0
+            while x <= W + 20 { band.addLine(to: CGPoint(x: x, y: edge + lift + 7 * sin(x / 150 + 1) + 4 * sin(x / 53))); x += 12 }
+            band.addLine(to: CGPoint(x: W + 20, y: H + 60 + lift))
+            band.closeSubpath()
+            sheet(band, top.mix(mid, 0.25), rim: false, in: ctx)
         }
         nightNow = nightAt(1)
 
@@ -557,7 +565,7 @@ final class TownScene: FilmScene {
     /// Where a house stands once the month is done: its footprint and full height.
     private func finalRect(_ i: Int) -> CGRect {
         let hs = houses[i]
-        let foot = max(ground + 30, ridge(depth: hills[hs.hill].depth, hs.x, growth) - hs.y)
+        let foot = max(ground + Self.hedge, ridge(depth: hills[hs.hill].depth, hs.x, growth) - hs.y)
         return CGRect(x: hs.x - hs.w / 2, y: foot, width: hs.w, height: height(i, count: script.nodes[i].edits.count))
     }
 
@@ -576,18 +584,20 @@ final class TownScene: FilmScene {
         for hi in order {
             let hill = hills[hi]
             let size = Self.pillSize(script.folders[hill.folder])
-            var top = ridge(depth: hill.depth, hill.cx, growth) + 30 * hill.s
-            for i in rects.indices where houses[i].hill == hi && abs(houses[i].x - hill.cx) < 95 * hill.s { top = max(top, rects[i].maxY) }
-            let anchor = CGPoint(x: hill.cx, y: top + 16)
+            // Over the highest roof near the hill's top, so its pole comes straight down onto its own houses.
+            var top = ridge(depth: hill.depth, hill.cx, growth) + 30 * hill.s, x = hill.cx
+            for i in rects.indices where houses[i].hill == hi && abs(houses[i].x - hill.cx) < 95 * hill.s && rects[i].maxY > top { top = rects[i].maxY; x = rects[i].midX }
+            let anchor = CGPoint(x: x, y: top + 16)
             pillAnchors[hi] = anchor
             var best = anchor, bestCost = Double.infinity
             // Never far from its own hill: it has to read as that hill's name.
-            for dy in stride(from: 0.0, through: 160, by: 20) {
+            for dy in stride(from: 0.0, through: 80, by: 20) {
                 for dx in stride(from: -90.0, through: 90, by: 30) {
                     let r = CGRect(x: min(W - 40 - size.width, max(40, anchor.x + dx - size.width / 2)), y: anchor.y + dy, width: size.width, height: size.height)
                     guard r.maxY < viewTop - 30 else { continue }
-                    var cost = abs(dx) * 14 + dy * 16
-                    for (i, h) in rects.enumerated() { let o = r.insetBy(dx: -5, dy: -5).intersection(h); if !o.isNull { cost += (houses[i].hill == hi ? 1.2 : 4) * o.width * o.height } }
+                    // Up before sideways: a straight pole says whose it is.
+                    var cost = abs(dx) * 22 + dy * 16
+                    for (i, h) in rects.enumerated() { let o = r.insetBy(dx: -5, dy: -5).intersection(h); if !o.isNull { cost += (houses[i].hill == hi ? 1.2 : 2.5) * o.width * o.height } }
                     for q in placed { let o = r.insetBy(dx: -8, dy: -8).intersection(q); if !o.isNull { cost += 60 * o.width * o.height } }
                     if cost < bestCost { bestCost = cost; best = CGPoint(x: r.midX, y: r.minY) }
                 }
@@ -665,13 +675,18 @@ final class TownScene: FilmScene {
     }
 
     private func camera(at t: Double) -> (z: Double, x: Double, y: Double) {
-        let shots = rewinding ? wideShots : shots
-        guard let last = shots.last else { return (1, W / 2, (viewBottom + viewTop) / 2) }
-        let f = max(0, t) / Self.shotStep
-        let k = Int(f)
-        guard k + 1 < shots.count else { return last }
-        let a = shots[k], b = shots[k + 1], u = f - Double(k)
-        return (a.z + (b.z - a.z) * u, a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u)
+        func at(_ shots: [(z: Double, x: Double, y: Double)]) -> (z: Double, x: Double, y: Double) {
+            guard let last = shots.last else { return (1, W / 2, (viewBottom + viewTop) / 2) }
+            let f = max(0, t) / Self.shotStep
+            let k = Int(f)
+            guard k + 1 < shots.count else { return last }
+            let a = shots[k], b = shots[k + 1], u = f - Double(k)
+            return (a.z + (b.z - a.z) * u, a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u)
+        }
+        guard rewinding else { return at(shots) }
+        // The rewind is wide, and comes in to where the film itself begins: no jump at the seam.
+        let wide = at(wideShots), film = at(shots), w = 1 - smooth((t - appStart) / 1.6)
+        return (wide.z + (film.z - wide.z) * w, wide.x + (film.x - wide.x) * w, wide.y + (film.y - wide.y) * w)
     }
 
     /// How close the camera is at film time `t` in a shape: 1 is the whole stage.

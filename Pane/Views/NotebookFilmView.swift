@@ -233,7 +233,7 @@ struct NotebookFilmView: View {
                 if !store.rewatching {
                     Text("It stays in Settings, under Help.")
                         .font(.footnote)
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.74))
                         .padding(.top, 2)
                 }
             }

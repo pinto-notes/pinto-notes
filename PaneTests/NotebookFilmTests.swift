@@ -419,6 +419,11 @@ import Testing
         #expect(FilmRenderer.Labels().topFolder("Work", 27) == "Most written in Work \u{00B7} 27 notes")
         #expect(FilmRenderer.Labels().topFolderCaption("Work") == "I wrote most in Work", "said while it grows, with no count that isn't true yet")
         #expect(FilmRenderer.Labels().daysCaption(25) == "I wrote on 25 days", "a month of one or two folders gets a line of its own too")
+        #expect(FilmRenderer.Labels().streakCaption(9) == "9 days in a row, my longest run")
+        // The longest run of days written on, counted from the notes.
+        let d = Self.now
+        func note(_ days: [Int]) -> FilmNote { FilmNote(id: UUID(), folder: "", created: d.addingTimeInterval(Double(-days.max()!) * 86_400), edits: days.map { FilmEdit(at: d.addingTimeInterval(Double(-$0) * 86_400), ai: nil) }, links: []) }
+        #expect(FilmStats(FilmInput(notes: [note([9, 8, 7]), note([5]), note([3, 2, 1, 0])], now: d), calendar: Self.cal).streak == 4)
         // Folder names off: the busiest day, which gives nothing away.
         #expect(s.busiestDayEdits > 0)
         #expect(FilmRenderer.Labels().busiestDay("October 19", 23) == "Busiest day: October 19 \u{00B7} 23 edits")
