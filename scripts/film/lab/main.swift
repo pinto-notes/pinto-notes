@@ -22,7 +22,7 @@ case "garden":
     film.mark = mark
     film.folderNames = !args.contains("nofolders")
     try Kit.write(to: out, width: 1080, height: 1350, frames: film.frameCount) { ctx, i in film.draw(frame: i, in: ctx) }
-case "dusk", "night", "paper", "apptown":
+case "night", "paper", "apptown":
     // The app's own looks, for side-by-side sheets with the experiments.
     var labels = FilmRenderer.Labels()
     labels.locale = Locale(identifier: "en_US")

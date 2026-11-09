@@ -21,7 +21,7 @@ enum FilmVideo {
                 AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2,
             ],
             AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: 10_000_000,
+                AVVideoAverageBitRateKey: 7_000_000,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
                 AVVideoMaxKeyFrameIntervalKey: FilmScript.fps * 2,
             ],

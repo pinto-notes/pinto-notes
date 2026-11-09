@@ -25,6 +25,8 @@ protocol FilmScene: AnyObject {
     /// The film opens on the scene as the month left it, then runs the month backwards to its
     /// first day (the constellation's own opening draws back instead).
     var rewinds: Bool { get }
+    /// Where the app starts it (the intro shows that same picture): its first houses, already there.
+    var appStart: Double { get }
     /// The scene at `t` as that opening shows it: the whole of it, with none of the film's own moments.
     func drawRewinding(_ t: Double, canvas: FilmCanvas, in ctx: CGContext)
 }
@@ -150,6 +152,12 @@ final class TownScene: FilmScene {
     var lift: Double { 0 }
     var captions: [String]? { ["Each house is a note", "Its chimney smokes when it\u{2019}s written in", "It grows taller the more it\u{2019}s written in"] }
     var rewinds: Bool { true }
+    var appStart: Double { min(1.2, (script.nodes.count > 2 ? script.nodes[2].birth : script.nodes.last?.birth ?? 0) + 0.45) }
+    /// The folder you wrote most in has its moment when there are folders enough for that to say something.
+    private var namesTopFolder: Bool { folderNames && topFolder >= 0 && growth > 5 && hills.count >= 3 }
+    /// The houses written in on the day you wrote most, and when the film is on that day.
+    private var busy: Set<Int> = []
+    private var busyFrom = Double.infinity, busyUntil = Double.infinity
     var wordsDelay: Double { 0.65 }
     func drawInFront(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {}
 
@@ -187,6 +195,11 @@ final class TownScene: FilmScene {
         worked = script.nodes.map { min(1, (Double($0.edits.count) / busy).squareRoot()) }
         aiFrom = script.nodes.map { n in n.bornByAI ? n.birth : zip(n.edits, n.aiEdits).first { $0.1 }?.0 ?? .infinity }
         layout()
+        if let day = script.stats.busiestDay, let span = script.span(ofDay: day), span.start >= 0.55 {
+            busyFrom = span.start
+            busyUntil = span.start + min(2.4, max(1.2, span.length))
+            self.busy = Set(script.nodes.indices.filter { i in script.nodes[i].edits.contains { $0 >= span.start && $0 < span.start + span.length } })
+        }
     }
 
     private func place(_ canvas: FilmCanvas) {
@@ -433,23 +446,31 @@ final class TownScene: FilmScene {
                 }
             }
         } }
-        // Each hill's name on a board, in front of every roof (placed where it covers none).
+        // Each hill's name on a board on a stem, in front of every roof. Close in, a board that
+        // would run off the frame or under the top line is left out, never cut.
         if folderNames {
             for (hi, hill) in hills.enumerated() {
                 let name = script.folders[hill.folder]
-                let a = smooth((gt - hill.birth - 0.45) / 0.4)
+                var a = smooth((gt - hill.birth - 0.45) / 0.4)
                 guard !name.isEmpty, a > 0, hi < pills.count else { continue }
+                let p = pills[hi], anchor = pillAnchors[hi], size = Self.pillSize(name)
+                let f = [0.9, 0.95, 1.0][hill.depth], zf = 1 + (cam.z - 1) * f
+                let sx = centre.x + (p.x - (centre.x + (cam.x - centre.x) * f)) * zf + drift * [0.45, 0.7, 1.0][hill.depth]
+                let sy = centre.y + (p.y - (centre.y + (cam.y - centre.y) * f)) * zf
+                let half = size.width / 2 * zf, ceiling = viewTop + 22
+                a *= min(smooth((sx - half - 8) / 26), smooth((W - 8 - sx - half) / 26), smooth((ceiling - sy - size.height * zf) / 36))
+                guard a > 0.01 else { continue }
                 nightNow = nightAt([0.45, 0.65, 0.85][hill.depth])
-                layer([0.45, 0.7, 1.0][hill.depth], follow: [0.9, 0.95, 1.0][hill.depth]) {
-                    let p = pills[hi], anchor = pillAnchors[hi]
-                    // On a short stick when it stands over its own hilltop.
-                    if abs(p.x - anchor.x) < 24 {
-                        ctx.setStrokeColor(col(0x5A4038, 0x45312E, 0x2A1D22).cg(a))
-                        ctx.setLineWidth(3)
-                        ctx.move(to: CGPoint(x: p.x, y: p.y + 4))
-                        ctx.addLine(to: CGPoint(x: p.x, y: p.y - 14))
-                        ctx.strokePath()
-                    }
+                layer([0.45, 0.7, 1.0][hill.depth], follow: f) {
+                    ctx.setStrokeColor(col(0x5A4038, 0x45312E, 0x2A1D22).cg(a))
+                    ctx.setLineWidth(3)
+                    ctx.setLineCap(.round)
+                    // A short tail towards its hill (a long one would cross other roofs).
+                    let dx = anchor.x - p.x, dy = anchor.y - 20 - p.y - 4
+                    let length = max(1, hypot(dx, dy)), reach = min(length, 24)
+                    ctx.move(to: CGPoint(x: p.x, y: p.y + 4))
+                    ctx.addLine(to: CGPoint(x: p.x + dx / length * reach, y: p.y + 4 + dy / length * reach))
+                    ctx.strokePath()
                     tag(name, at: p, alpha: a, night: nightNow, in: ctx)
                 }
             }
@@ -462,8 +483,8 @@ final class TownScene: FilmScene {
         // the mark and the key stay readable.
         if cam.z > 1.02 {
             let a = min(1, (cam.z - 1) / 0.25)
-            if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [top.cg(0), top.cg(0.96 * a)] as CFArray, locations: [0, 1]) {
-                ctx.drawLinearGradient(g, start: CGPoint(x: 0, y: H - 300 - (H - viewTop - 150)), end: CGPoint(x: 0, y: H - 110 - (H - viewTop - 150)), options: [.drawsAfterEndLocation])
+            if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [top.cg(0), top.cg(a)] as CFArray, locations: [0, 1]) {
+                ctx.drawLinearGradient(g, start: CGPoint(x: 0, y: viewTop - 150), end: CGPoint(x: 0, y: viewTop + 26), options: [.drawsAfterEndLocation])
             }
         }
         nightNow = nightAt(1)
@@ -551,12 +572,13 @@ final class TownScene: FilmScene {
             let anchor = CGPoint(x: hill.cx, y: top + 16)
             pillAnchors[hi] = anchor
             var best = anchor, bestCost = Double.infinity
-            for dy in stride(from: 0.0, through: 200, by: 20) {
-                for dx in stride(from: -210.0, through: 210, by: 30) {
-                    let r = CGRect(x: anchor.x + dx - size.width / 2, y: anchor.y + dy, width: size.width, height: size.height)
-                    guard r.minX > 24, r.maxX < W - 24, r.maxY < viewTop + 70 else { continue }
+            // Never far from its own hill: it has to read as that hill's name.
+            for dy in stride(from: 0.0, through: 160, by: 20) {
+                for dx in stride(from: -90.0, through: 90, by: 30) {
+                    let r = CGRect(x: min(W - 40 - size.width, max(40, anchor.x + dx - size.width / 2)), y: anchor.y + dy, width: size.width, height: size.height)
+                    guard r.maxY < viewTop + 20 else { continue }
                     var cost = abs(dx) * 14 + dy * 16
-                    for h in rects { let o = r.insetBy(dx: -5, dy: -5).intersection(h); if !o.isNull { cost += 3 * o.width * o.height } }
+                    for (i, h) in rects.enumerated() { let o = r.insetBy(dx: -5, dy: -5).intersection(h); if !o.isNull { cost += (houses[i].hill == hi ? 1.2 : 4) * o.width * o.height } }
                     for q in placed { let o = r.insetBy(dx: -8, dy: -8).intersection(q); if !o.isNull { cost += 60 * o.width * o.height } }
                     if cost < bestCost { bestCost = cost; best = CGPoint(x: r.midX, y: r.minY) }
                 }
@@ -588,6 +610,7 @@ final class TownScene: FilmScene {
         }
         // The two moments it goes in for.
         var moments: [(from: Double, until: Double, shot: (z: Double, x: Double, y: Double))] = []
+        var busiestHill = -1
         if let day = script.stats.busiestDay, let span = script.span(ofDay: day), span.start >= 0.55 {
             // The hill most written in that day.
             var edits = [Int](repeating: 0, count: hills.count)
@@ -596,9 +619,11 @@ final class TownScene: FilmScene {
                 let until = span.start + min(2.4, max(1.2, span.length))
                 let there = script.nodes.indices.filter { houses[$0].hill == h && script.nodes[$0].birth <= until }
                 moments.append((span.start - 0.15, until, shot(box(there, hills: [h]), closest: 1.7)))
+                busiestHill = h
             }
         }
-        if folderNames, topFolder >= 0, growth > 5, let h = hills.firstIndex(where: { $0.folder == topFolder }) {
+        // (Not twice running on the same hill: there the busiest day has already been in on it.)
+        if namesTopFolder, let h = hills.firstIndex(where: { $0.folder == topFolder }), h != busiestHill {
             let there = script.nodes.indices.filter { houses[$0].hill == h }
             moments.append((growth - FilmScript.topFolderMoment + 0.1, growth - 0.35, shot(box(there, hills: [h]), closest: 1.6)))
         }
@@ -789,9 +814,11 @@ final class TownScene: FilmScene {
         let xfrac = hs.x / W
         let evening = smooth((night * 1.5 - xfrac * 0.5))
         // As the film names the folder you wrote most in, its hill's lights come on first.
-        let first = hills[hs.hill].folder == topFolder && folderNames && growth > 5
+        let first = namesTopFolder && hills[hs.hill].folder == topFolder
             ? 0.85 * smooth((gt - (growth - FilmScript.topFolderMoment) - 0.9 * hash(i, 61)) / 0.3) : 0
-        let lit = min(1, max(flash, first, dusk * 0.55 * exp(-(gt - last) / 2.2), evening * (0.3 + 0.7 * worked[i])))
+        // On the day you wrote most, the houses you wrote in are lit while the film is on it.
+        let today = busy.contains(i) ? 0.9 * smooth((gt - busyFrom) / 0.25) * (1 - smooth((gt - busyUntil) / 0.4)) : 0
+        let lit = min(1, max(flash, first, today, dusk * 0.55 * exp(-(gt - last) / 2.2), evening * (0.3 + 0.7 * worked[i])))
         let dark = col(0x6B5B68, 0x4B3B49, 0x1B131C)
         let lightC = C(0xFFCB6B).mix(C(0x8DBBF0), ai)
         let glass = dark.mix(lightC, min(1, lit * 1.15))

@@ -124,7 +124,7 @@ struct FilmScript: Sendable {
     static let topFolderMoment = 2.1
     /// It opens on a glimpse of where the month ended up, then goes back to the first day: the
     /// first frame, which is what a feed or a message shows before it plays, is the whole notebook.
-    static let prelude = 1.3
+    static let prelude = 1.6
     static var preludeFrames: Int { Int((prelude * Double(fps)).rounded()) }
     var duration: Double { Self.prelude + growth + Self.outro }
     var frameCount: Int { Int((duration * Double(Self.fps)).rounded()) }
@@ -183,6 +183,13 @@ struct FilmScript: Sendable {
         let total = weights.reduce(0, +)
         var starts = [0.0]
         for w in weights { starts.append(starts.last! + w / total * growth) }
+        // The film begins at the first note, not at the midnight before it.
+        if let firstNote = input.notes.map(\.created).min() {
+            let k = day(firstNote)
+            let dayStart = calendar.date(byAdding: .day, value: k, to: firstDay)!
+            let base = starts[k] + (starts[k + 1] - starts[k]) * min(1, max(0, firstNote.timeIntervalSince(dayStart) / 86_400))
+            if base > 0, base < growth * 0.5 { starts = starts.map { ($0 - base) * growth / (growth - base) } }
+        }
         dayStarts = starts
 
         var folderNames: [String] = []
@@ -194,7 +201,7 @@ struct FilmScript: Sendable {
             let k = day(d)
             let dayStart = calendar.date(byAdding: .day, value: k, to: firstDay)!
             let f = min(1, max(0, d.timeIntervalSince(dayStart) / 86_400))
-            return min(growth, starts[k] + (starts[k + 1] - starts[k]) * f)
+            return min(growth, max(0, starts[k] + (starts[k + 1] - starts[k]) * f))
         }
         for n in sorted {
             let f = folderIndex[n.folder] ?? { folderNames.append(n.folder); folderIndex[n.folder] = folderNames.count - 1; return folderNames.count - 1 }()

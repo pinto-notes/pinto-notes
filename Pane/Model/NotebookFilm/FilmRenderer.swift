@@ -9,14 +9,13 @@ import Foundation
 /// How the film looks: what it's drawn on and in which colours. You pick one before sharing.
 enum FilmLook: String, CaseIterable, Sendable, Codable {
     /// Town first: it's the one in Pinto's own cut-paper world, and what a new film opens in.
-    case town, night, paper, dusk
+    case town, night, paper
 
     var name: String {
         switch self {
         case .town: "Town"
         case .night: "Night"
         case .paper: "Paper"
-        case .dusk: "Dusk"
         }
     }
 
@@ -27,7 +26,6 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
         case .town: (RGB(0.04, 0.07, 0.07), RGB(0.04, 0.07, 0.07))
         case .night: (RGB(0, 0, 0), RGB(0, 0, 0))
         case .paper: (RGB(0.985, 0.98, 0.968), RGB(0.985, 0.98, 0.968))
-        case .dusk: (RGB(0.04, 0.05, 0.19), RGB(0.36, 0.17, 0.31))
         }
     }
     var dark: Bool { self != .paper }
@@ -40,7 +38,6 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
         case .town: RGB(0.56, 0.78, 1.0)
         case .night: RGB(0.50, 0.68, 1.0)
         case .paper: RGB(0.18, 0.42, 0.85)
-        case .dusk: RGB(0.62, 0.80, 1.0)
         }
     }
     /// Words and lines.
@@ -52,7 +49,6 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
         switch self {
         case .town, .night: RGB(0, 0, 0)
         case .paper: RGB(0.985, 0.98, 0.968)
-        case .dusk: RGB(0.12, 0.09, 0.26)
         }
     }
     /// How far a note no one has touched in a while fades toward `cool`.
@@ -192,11 +188,17 @@ final class FilmRenderer {
         self.canvas = canvas
         switch labels.look {
         case .town: scene = TownScene(script: script, folderNames: labels.folderNames)
-        case .night, .paper, .dusk: scene = nil
+        case .night, .paper: scene = nil
         }
         switch opening {
         case .full: frame = 0
-        case .brief: frame = FilmScript.preludeFrames - (scene?.rewinds == true ? 0 : Int(0.7 * Double(FilmScript.fps)))
+        // In the app a scene starts where the intro's picture is: its first houses.
+        case .brief:
+            if let scene, scene.rewinds {
+                frame = FilmScript.preludeFrames + Int(scene.appStart * Double(FilmScript.fps))
+            } else {
+                frame = FilmScript.preludeFrames - Int(0.7 * Double(FilmScript.fps))
+            }
         case .none: frame = FilmScript.preludeFrames
         }
         self.script = script
@@ -246,7 +248,7 @@ final class FilmRenderer {
             if let scene, scene.rewinds {
                 // The scene as the month left it (before its own ending, which is kept for the
                 // end), held; then the month runs backwards to its first morning.
-                let x = min(1, max(0, (t + 0.62) / 0.62))
+                let x = min(1, max(0, (t + 1.1) / 1.1))
                 let back = x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2
                 let at = (script.growth - 0.05) * (1 - back)
                 ctx.saveGState()
@@ -317,8 +319,8 @@ final class FilmRenderer {
         if let scene, scene.rewinds {
             ctx.saveGState()
             ctx.scaleBy(x: k, y: k)
-            // A scene that the app starts at its first morning: that morning.
-            scene.drawBehind(0, canvas: canvas, in: ctx)
+            // Where the app starts a scene: its first houses, on the first morning.
+            scene.drawBehind(scene.appStart, canvas: canvas, in: ctx)
             ctx.restoreGState()
         } else {
             let r = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .none, words: false)
@@ -627,24 +629,11 @@ final class FilmRenderer {
         ctx.setBlendMode(.normal)
         if let scene { scene.drawBehind(t, canvas: canvas, in: ctx); return }
         let (top, bottom) = look.background
-        let mid = look == .dusk ? RGB(0.13, 0.09, 0.28) : bottom.mix(top, 0.5)
-        if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [bottom.cg(), mid.cg(), top.cg()] as CFArray, locations: [0, 0.42, 1]) {
+        if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [bottom.cg(), top.cg()] as CFArray, locations: [0, 1]) {
             ctx.drawLinearGradient(g, start: .zero, end: CGPoint(x: 0, y: height), options: [])
         } else {
             ctx.setFillColor(top.cg())
             ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
-        }
-        guard look == .dusk else { return }
-        // A few faint stars in the upper sky, always in the same places.
-        var seed: UInt64 = 0x51D7_348D_2F1B_9C03
-        func next() -> Double {
-            seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17
-            return Double(seed >> 11) / Double(1 << 53)
-        }
-        for _ in 0..<70 {
-            let x = next() * Double(width), y = (0.3 + 0.7 * next()) * Double(height), r = 0.8 + 1.4 * next()
-            ctx.setFillColor(RGB(1, 1, 1).cg(0.08 + 0.3 * next()))
-            ctx.fillEllipse(in: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2))
         }
     }
 
@@ -701,8 +690,9 @@ final class FilmRenderer {
         let titleUntil = self.opening == .none ? 1.1 : 0.25
         let opening = 1 - smooth((t - titleUntil) / 0.5)
         // After a rewind the date and the count are already there, where the title's second line was.
-        let rewound = self.opening == .full && scene?.rewinds == true
-        if opening > 0 { drawOpeningTitle(opening, subtitle: rewound ? 0 : 1, in: ctx) }
+        let rewound = self.opening != .none && scene?.rewinds == true
+        // (In the app a scene has no title of its own: the intro has just said it.)
+        if opening > 0, !(rewound && self.opening == .brief) { drawOpeningTitle(opening, subtitle: rewound ? 0 : 1, in: ctx) }
         // The date and the count while it grows.
         // (Once the title has gone: the two never share the space.)
         let running = (rewound ? 1 : smooth((t - titleUntil - 0.5) / 0.4)) * (1 - smooth((t - script.growth) / 0.4))
@@ -723,7 +713,7 @@ final class FilmRenderer {
             if let day = s.busiestDay, let span = script.span(ofDay: day), span.start >= titleUntil + 0.3 {
                 mine.append((span.start, span.start + min(2.4, max(0.9, span.length - 0.15)), labels.busiestCaption(s.busiestDayEdits)))
             }
-            if labels.folderNames, let f = s.topFolder, script.growth > 5 {
+            if labels.folderNames, let f = s.topFolder, script.growth > 5, s.folders >= 3 {
                 mine.append((script.growth - FilmScript.topFolderMoment, script.growth - 0.25, labels.topFolderCaption(f)))
             }
             var cover = 0.0

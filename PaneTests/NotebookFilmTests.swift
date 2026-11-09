@@ -546,7 +546,8 @@ import Testing
         let town = TownScene(script: full, folderNames: true)
         let end = town.closeness(at: full.growth + FilmScript.outro, canvas: .shared)
         #expect(abs(end - 1) < 0.02, "a full town fills the stage: nothing is cropped at the end")
-        #expect(town.closeness(at: full.growth - 1.2, canvas: .shared) > end + 0.2, "in on the folder most written in")
+        let busiest = try! #require(full.span(ofDay: full.stats.busiestDay!))
+        #expect(town.closeness(at: busiest.start + 0.6, canvas: .shared) > end + 0.2, "in on the day most was written")
         // Any frame from its time alone: asking twice, or out of order, gives the same answer.
         let once = town.closeness(at: 4, canvas: .shared)
         _ = town.closeness(at: 8, canvas: .shared)
@@ -571,6 +572,17 @@ import Testing
         while shared.frame < script.frameCount - 1 { shared.skip() }
         shared.drawNext(in: want)
         #expect(Data(bytes: landed.data!, count: landed.bytesPerRow * landed.height) == Data(bytes: want.data!, count: want.bytesPerRow * want.height), "it lands as the film that's shared")
+    }
+
+    @Test func theFilmBeginsAtTheFirstNote() {
+        // Not at the midnight before it: there's never a frame of an empty month with "0 notes".
+        let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        #expect(script.nodes.first?.birth == 0)
+        #expect(script.date(at: 0) == FilmDemo.notebook(days: 35, now: Self.now).notes.map(\.created).min())
+        // And in the app the town starts with its first houses there, as the intro shows it.
+        let town = TownScene(script: script, folderNames: true)
+        #expect(town.appStart > 0.3 && town.appStart <= 1.2)
+        #expect(script.nodes.filter { $0.birth <= town.appStart }.count >= 3)
     }
 
     @Test func theFilmWaitsThroughAStallAndNeverJumpsAhead() {

@@ -53,12 +53,12 @@ ffmpeg -y -loglevel error -i "$OUT/flow-raw.mov" -ss $start -vf "scale=590:-2,fo
 rm -f "$OUT/flow-raw.mov"
 ffmpeg -y -loglevel error -i "$OUT/flow.mp4" -vf "fps=2,scale=200:-1,tile=10x8" -frames:v 1 "$OUT/flow-2fps-sheet.png"
 # The movies the app made in that session (Town first, then Night, Paper, Dusk), as they're shared.
-for i in {1..60}; do (( $(ls "$data"/tmp/NotebookFilm-*/Pinto*.mp4 2>/dev/null | wc -l) >= 4 )) && break; sleep 3; done
-looks=(town night paper dusk); k=1
-ls -tr "$data"/tmp/NotebookFilm-*/Pinto*.mp4 2>/dev/null | head -4 | while IFS= read -r f; do cp "$f" "$OUT/shared-${looks[$k]}.mp4"; k=$((k+1)); done
+for i in {1..60}; do (( $(ls "$data"/tmp/NotebookFilm-*/Pinto*.mp4 2>/dev/null | wc -l) >= 3 )) && break; sleep 3; done
+looks=(town night paper); k=1
+ls -tr "$data"/tmp/NotebookFilm-*/Pinto*.mp4 2>/dev/null | head -3 | while IFS= read -r f; do cp "$f" "$OUT/shared-${looks[$k]}.mp4"; k=$((k+1)); done
 
 # The share screen in the other looks.
-for look in night paper dusk; do
+for look in night paper; do
   launch -filmAutoWatch -filmLook $look
   sleep 25; xcrun simctl io "$SIM" screenshot "$OUT/6-share-$look.png" >/dev/null 2>&1
 done
@@ -80,13 +80,12 @@ clip() {  # name seconds args...
 clip 8-not-now 9 -filmAutoNotNow
 clip 8-close-part-way 14 -filmAutoWatch -filmAutoClose
 # The thinnest month it's offered for, the whole way through in the app.
+rm -rf "$data"/tmp/NotebookFilm-* 2>/dev/null || true
 clip 9-light-month-flow 21 -filmAutoWatch -filmLight
 xcrun simctl io "$SIM" screenshot "$OUT/9-light-month-share.png" >/dev/null 2>&1
-
-# The thinnest month it's offered for (another made-up notebook: two folders, no AI), as shared.
-scripts/film/render.sh "$OUT/shared-town-light-month.mp4" 7 35 town light >/dev/null 2>&1
-scripts/film/render.sh "$OUT/shared-night-light-month.mp4" 7 35 night light >/dev/null 2>&1
-scripts/film/render.sh "$OUT/shared-paper-light-month.mp4" 7 35 paper light >/dev/null 2>&1
+# ...and the movie the app made of it in that same run.
+for i in {1..40}; do ls "$data"/tmp/NotebookFilm-*/Pinto*.mp4 >/dev/null 2>&1 && break; sleep 3; done
+cp "$(ls -tr "$data"/tmp/NotebookFilm-*/Pinto*.mp4 | head -1)" "$OUT/shared-town-light-month.mp4" 2>/dev/null || true
 
 # Folder names off: the share screen, and the movie the app makes.
 rm -rf "$data"/tmp/NotebookFilm-* 2>/dev/null || true
