@@ -47,8 +47,10 @@ enum Hover {
         #if DEBUG
         if tintedSelection { return AnyShapeStyle(.tint.opacity(0.16)) }
         #endif
-        return AnyShapeStyle(.fill.tertiary)
+        return AnyShapeStyle(Color(Palette.rowPill))
     }
+    /// A hovered row's pill: the selection's, fainter. Plain, never vibrant (see `Palette.rowPill`).
+    static var rowHover: AnyShapeStyle { AnyShapeStyle(Color(Palette.rowPillHover)) }
     #if DEBUG
     /// Captures only: the alternative look, a fill in the accent.
     nonisolated(unsafe) static var tintedSelection = false
@@ -155,7 +157,7 @@ struct HoverRowReader<Content: View>: View {
                     // fill (a note row's card, a folder's neutral pill), never on the selected row.
                     RoundedRectangle(cornerRadius: DesignLook.calmList ? Radius.sm : Hover.pillRadius, style: .continuous)
                         .fill(selected ? (card ? AnyShapeStyle(Color(Palette.rowSelection)) : Hover.selected)
-                              : DesignLook.calmList ? (card ? AnyShapeStyle(Color(Palette.rowSelection).opacity(0.4)) : AnyShapeStyle(.fill.quaternary)) : Hover.row)
+                              : DesignLook.calmList ? (card ? AnyShapeStyle(Color(Palette.rowSelection).opacity(0.4)) : Hover.rowHover) : Hover.row)
                         .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
                 }
             }
