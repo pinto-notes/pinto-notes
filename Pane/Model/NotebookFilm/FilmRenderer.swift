@@ -257,7 +257,8 @@ final class FilmRenderer {
                 let x = min(1, max(0, (t + 1.0) / 1.0))
                 let back = x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2
                 // ...back to its first houses, where the film (and the app's intro) takes it up.
-                let at = scene.appStart + (script.growth - 0.05 - scene.appStart) * (1 - back)
+                // (The town a moment before its sunset starts: the picture a feed shows is its brightest dusk.)
+                let at = scene.appStart + (script.growth - 0.6 - scene.appStart) * (1 - back)
                 ctx.saveGState()
                 ctx.scaleBy(x: k, y: k)
                 scene.drawRewinding(at, canvas: canvas, in: ctx)
