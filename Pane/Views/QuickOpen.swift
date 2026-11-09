@@ -484,21 +484,6 @@ extension Notification.Name {
     // .paneSearchNotes (search every note for the text in `object`) is declared with the list's search.
 }
 
-/// The close button's looks: grey, a soft square under it on hover and press.
-private struct QuickOpenCloseStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View { Look(configuration: configuration) }
-    struct Look: View {
-        let configuration: Configuration
-        @State private var hover = false
-        var body: some View {
-            configuration.label
-                .foregroundStyle(hover || configuration.isPressed ? Color.ink : Color.muted)
-                .background((hover || configuration.isPressed) ? Color.soft : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .onHover { hover = $0 }
-        }
-    }
-}
-
 /// The panel itself: a search line, then the rows. Solid card, the shared shadow, no animation
 /// (it's opened all day; frequent things are instant).
 struct QuickOpenPanel: View {
@@ -639,11 +624,8 @@ struct QuickOpenPanel: View {
     private var closeButton: some View {
         Button(action: close) {
             Image(systemName: "xmark")
-                .font(.system(size: 11, weight: .semibold))
-                .frame(width: 22, height: 22)
-                .contentShape(.rect)
         }
-        .buttonStyle(QuickOpenCloseStyle())
+        .buttonStyle(.quietIcon)
         .help("Close")
         .accessibilityLabel("Close Go to Note")
         .accessibilityIdentifier("quickOpen.close")
