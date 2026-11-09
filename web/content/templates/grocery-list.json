@@ -40,8 +40,16 @@
       "tool": "edit",
       "args": {
         "path": "Home/Grocery list.md",
+        "old_string": "## Meat and fish\n",
+        "new_string": "## Meat and fish\n- [ ] Salmon fillets\n- [ ] Chicken thighs\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Home/Grocery list.md",
         "old_string": "## Cupboard\n",
-        "new_string": "## Cupboard\n- [ ] Chickpeas, 2 cans\n"
+        "new_string": "## Cupboard\n- [ ] Chickpeas, 2 cans\n- [ ] Rice\n- [ ] Olive oil\n"
       }
     },
     {
@@ -50,6 +58,14 @@
         "path": "Home/Grocery list.md",
         "old_string": "## Household\n",
         "new_string": "## Household\n- [ ] Bin bags\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Home/Grocery list.md",
+        "old_string": "## Frozen\n",
+        "new_string": "## Frozen\n- [ ] Peas\n"
       }
     },
     {

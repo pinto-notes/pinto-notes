@@ -25,8 +25,8 @@
       "tool": "edit",
       "args": {
         "path": "Home/Meal plan and groceries.md",
-        "old_string": "| Monday | | |\n| Tuesday | | |\n| Wednesday | | |",
-        "new_string": "| Monday | Lemon chicken with rice | Sara |\n| Tuesday | Pasta with tomato and basil | Jonas |\n| Wednesday | Fish tacos | Sara |"
+        "old_string": "| Monday | | |\n| Tuesday | | |\n| Wednesday | | |\n| Thursday | | |\n| Friday | | |\n| Saturday | | |\n| Sunday | | |",
+        "new_string": "| Monday | Lemon chicken with rice | Sara |\n| Tuesday | Pasta with tomato and basil | Jonas |\n| Wednesday | Fish tacos | Sara |\n| Thursday | Chickpea curry | Jonas |\n| Friday | Homemade pizza | Sara |\n| Saturday | Out with friends | – |\n| Sunday | Roast chicken and potatoes | Jonas |"
       }
     },
     {
@@ -34,7 +34,7 @@
       "args": {
         "path": "Home/Meal plan and groceries.md",
         "old_string": "## Groceries\n",
-        "new_string": "## Groceries\n**Fruit and veg**\n- [ ] Lemons\n- [ ] Basil\n- [ ] Cherry tomatoes\n- [ ] Limes\n\n**Meat and fish**\n- [ ] Chicken thighs\n- [ ] White fish\n\n**Other**\n- [ ] Tortillas\n- [x] Parmesan\n"
+        "new_string": "## Groceries\n**Fruit and veg**\n- [ ] Lemons\n- [ ] Basil\n- [ ] Cherry tomatoes\n- [ ] Limes\n- [ ] Potatoes\n\n**Meat and fish**\n- [ ] Chicken thighs\n- [ ] White fish\n- [ ] Whole chicken\n\n**Other**\n- [ ] Tortillas\n- [ ] Chickpeas\n- [ ] Pizza dough\n- [x] Parmesan\n"
       }
     }
   ],
