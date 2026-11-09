@@ -18,6 +18,11 @@ final class NotebookFilmStore {
     /// The film, once made.
     private(set) var movie: URL?
     private(set) var stats: FilmStats?
+    /// Folder names over their clusters (on unless you turn them off); note titles never show.
+    private(set) var folderNames = true
+    /// Being made again, with folder names on or off.
+    private(set) var remaking = false
+    @ObservationIgnored private var input: FilmInput?
 
     @ObservationIgnored private var account: UUID?
     @ObservationIgnored private var service: FilmSource.Service?
@@ -44,10 +49,10 @@ final class NotebookFilmStore {
     }
 
     /// Where the film is kept: the caches, one per account, replaced each time it's made.
-    static func movieURL(_ account: UUID?) -> URL {
+    static func movieURL(_ account: UUID?, names: Bool = true) -> URL {
         let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("NotebookFilm", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("Pinto Notes \u{2013} \(account?.uuidString.prefix(8).lowercased() ?? "notebook").mp4")
+        return dir.appendingPathComponent("Pinto Notes \u{2013} \(account?.uuidString.prefix(8).lowercased() ?? "notebook")\(names ? "" : " (no names)").mp4")
     }
 
     /// The launch's one chance. Reads who wrote what from the server only when the notes here
@@ -72,12 +77,25 @@ final class NotebookFilmStore {
         if await make(FilmDemo.notebook(now: .now)) { visible = true }
     }
 
+    /// Folder names on or off: the film is made again (a few seconds).
+    func showFolderNames(_ on: Bool) async {
+        guard on != folderNames, let input, !remaking else { return }
+        folderNames = on
+        remaking = true
+        _ = await make(input)
+        remaking = false
+    }
+
     private func make(_ input: FilmInput) async -> Bool {
-        let url = Self.movieURL(account)
-        let made = await Task.detached(priority: .utility) { () -> FilmStats? in
+        self.input = input
+        // A new file each time, so a player showing the last one never reads a half-written one.
+        let url = Self.movieURL(account, names: folderNames)
+        var labels = FilmRenderer.Labels()
+        labels.folderNames = folderNames
+        let made = await Task.detached(priority: .utility) { [labels] () -> FilmStats? in
             let script = FilmScript(input)
             do {
-                try FilmVideo.write(FilmRenderer(script: script), to: url)
+                try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: url)
                 return script.stats
             } catch {
                 return nil

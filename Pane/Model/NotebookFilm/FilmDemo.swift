@@ -70,32 +70,37 @@ enum FilmDemo {
                 let f = folderPick()
                 let at = day.addingTimeInterval(8 * 3600 + rand() * 13 * 3600)
                 var to: [Int] = []
-                if let h = hub(in: f), rand() < 0.8 { to.append(h) }
-                if let h = hub(in: f), rand() < 0.35 { to.append(h) }
-                if rand() < 0.18, let h = hub(in: pick(open).0) { to.append(h) }
+                // Most notes link to nothing.
+                if let h = hub(in: f), rand() < 0.12 { to.append(h) }
+                if rand() < 0.03, let h = hub(in: pick(open).0) { to.append(h) }
                 _ = add(f, at: at, ai: nil, linkTo: to)
             }
             // Coming back to what you wrote, recent notes most.
-            let editCount = Int(rand() * (weekend ? 6 : 14))
+            let editCount = Int(rand() * (weekend ? 10 : 26))
             for _ in 0..<editCount where !notes.isEmpty {
-                let back = Int(pow(rand(), 2.2) * Double(notes.count))
-                let i = notes.count - 1 - back
+                // Recent notes most, and the few you keep coming back to.
+                var i = notes.count - 1 - Int(pow(rand(), 2.2) * Double(notes.count))
+                if rand() < 0.45 {
+                    let w = notes.map { Double($0.edits.count * $0.edits.count) }
+                    var r = rand() * w.reduce(0, +)
+                    for (k, x) in w.enumerated() { r -= x; if r <= 0 { i = k; break } }
+                }
                 let at = day.addingTimeInterval(8 * 3600 + rand() * 14 * 3600)
                 if at > notes[i].created { notes[i].edits.append(FilmEdit(at: at, ai: nil)) }
             }
             // A session with the AI: a burst of linked notes in one folder, and edits to old ones.
-            if d >= 2 && rand() < 0.3 {
+            if d >= 2 && rand() < 0.5 {
                 let f = folderPick()
                 var at = day.addingTimeInterval(19 * 3600 + rand() * 3 * 3600)
                 let anchor = hub(in: f)
                 var made: [Int] = []
-                for _ in 0..<(2 + Int(rand() * 5)) {
+                for _ in 0..<Int(rand() * 3) {
                     at += 60 + rand() * 240
-                    var to = made.suffix(1).map { $0 }
-                    if let anchor { to.append(anchor) }
+                    var to: [Int] = []
+                    if let anchor, rand() < 0.3 { to.append(anchor) }
                     made.append(add(f, at: at, ai: ai, linkTo: to))
                 }
-                for _ in 0..<(2 + Int(rand() * 6)) {
+                for _ in 0..<(3 + Int(rand() * 9)) {
                     if let i = hub(in: pick(open).0) {
                         at += 30 + rand() * 120
                         notes[i].edits.append(FilmEdit(at: at, ai: ai))

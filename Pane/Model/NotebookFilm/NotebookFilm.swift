@@ -34,6 +34,8 @@ struct FilmStats: Equatable, Sendable {
     var links: Int
     /// Days in the last 30 you wrote something yourself.
     var activeDays: Int
+    /// Days you wrote something yourself, since the first note.
+    var writingDays: Int
     /// The AI that made most of the AI edits, if any did.
     var ai: String?
     /// Of all edits, how many an AI made, 0...1.
@@ -49,6 +51,7 @@ struct FilmStats: Equatable, Sendable {
         for n in notes { for l in n.links where l != n.id && ids.contains(l) { pairs.insert([n.id, l].sorted { $0.uuidString < $1.uuidString }) } }
         links = pairs.count
         activeDays = FilmEligibility.activeDays(input, calendar: calendar)
+        writingDays = Set(notes.flatMap { $0.edits.filter { $0.ai == nil }.map { calendar.startOfDay(for: $0.at) } }).count
         let edits = notes.flatMap(\.edits)
         var byAI: [String: Int] = [:]
         for e in edits { if let a = e.ai { byAI[a, default: 0] += 1 } }
@@ -64,8 +67,8 @@ enum FilmEligibility {
     static let minDays = 28
     /// Days in the last 30 on which you wrote or edited something yourself (AI edits don't count).
     static let minActiveDays = 12
+    /// Links don't count: most notes link to nothing, and the film's shape comes from folders.
     static let minNotes = 20
-    static let minLinks = 8
 
     static func activeDays(_ input: FilmInput, calendar: Calendar = .current) -> Int {
         let since = calendar.date(byAdding: .day, value: -30, to: input.now) ?? input.now
@@ -78,7 +81,7 @@ enum FilmEligibility {
 
     static func isReady(_ input: FilmInput, calendar: Calendar = .current) -> Bool {
         let s = FilmStats(input, calendar: calendar)
-        return s.days >= minDays && s.activeDays >= minActiveDays && s.notes >= minNotes && s.links >= minLinks
+        return s.days >= minDays && s.activeDays >= minActiveDays && s.notes >= minNotes
     }
 }
 

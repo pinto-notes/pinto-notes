@@ -24,6 +24,30 @@ import Testing
         #expect(FilmEligibility.isReady(input, calendar: Self.cal))
     }
 
+    @Test func aNotebookWithNoLinksIsReady() {
+        // Most notes link to nothing: the film takes its shape from folders.
+        var input = FilmDemo.notebook(days: 35, now: Self.now)
+        for i in input.notes.indices { input.notes[i].links = [] }
+        #expect(FilmEligibility.isReady(input, calendar: Self.cal))
+        let r = FilmRenderer(script: FilmScript(input, calendar: Self.cal))
+        let ctx = FilmRenderer.context()!
+        while r.frame <= 260 { r.drawNext(in: ctx) }
+        #expect(Self.litPixels(ctx, rows: 300..<1230) > 500, "it still draws a notebook")
+    }
+
+    @Test func folderNamesCanBeLeftOut() {
+        let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        var off = FilmRenderer.Labels()
+        off.folderNames = false
+        func lit(_ labels: FilmRenderer.Labels) -> Int {
+            let r = FilmRenderer(script: script, labels: labels)
+            let ctx = FilmRenderer.context()!
+            while r.frame <= 260 { r.drawNext(in: ctx) }
+            return Self.litPixels(ctx, rows: 300..<1230)
+        }
+        #expect(lit(FilmRenderer.Labels()) > lit(off), "the names are drawn only when on")
+    }
+
     @Test func notBeforeAMonth() {
         let input = FilmDemo.notebook(days: 20, now: Self.now)
         #expect(!FilmEligibility.isReady(input, calendar: Self.cal), "20 days isn't a month, however busy")

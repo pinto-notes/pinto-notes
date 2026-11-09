@@ -18,6 +18,8 @@ struct NotebookFilmView: View {
         VStack(spacing: 16) {
             if let movie = store.movie {
                 LoopingVideo(url: movie)
+                    .id(movie)
+                    .opacity(store.remaking ? 0.5 : 1)
                     .aspectRatio(CGFloat(FilmScript.width) / CGFloat(FilmScript.height), contentMode: .fit)
                     .frame(maxWidth: Metrics.film)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -34,12 +36,17 @@ struct NotebookFilmView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .multilineTextAlignment(.center)
+            Toggle("Folder names", isOn: Binding(get: { store.folderNames }, set: { on in Task { await store.showFolderNames(on) } }))
+                .disabled(store.remaking)
+                .frame(maxWidth: Metrics.film)
+                .accessibilityIdentifier("notebookFilm.folderNames")
             VStack(spacing: Metrics.buttonGap) {
                 if let movie = store.movie {
                     ShareLink(item: movie, preview: SharePreview(Self.title(store.stats))) {
                         Label("Share", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(.amberProminent(.form, wide: true))
+                    .disabled(store.remaking)
                     .accessibilityIdentifier("notebookFilm.share")
                     #if os(macOS)
                     Button("Save\u{2026}") { save(movie) }
@@ -73,7 +80,7 @@ struct NotebookFilmView: View {
     /// What the film shows, for VoiceOver.
     static func description(_ s: FilmStats?) -> String {
         guard let s else { return "A film of your notes growing." }
-        var line = "A film of your notes growing over \(s.days) days, to \(s.notes) notes and \(s.links) links"
+        var line = "A film of your notes growing over \(s.days) days, to \(s.notes) notes in their folders"
         if let ai = s.ai { line += ", lit up where you and \(ai) wrote" }
         return line + "."
     }

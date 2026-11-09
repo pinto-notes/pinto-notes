@@ -12,8 +12,12 @@ final class FilmRenderer {
         var you = "Me"
         /// "35 days of notes"
         var title: @Sendable (FilmStats) -> String = { "\($0.days) days of notes" }
-        /// "212 notes · 486 links"
-        var detail: @Sendable (FilmStats) -> String = { "\($0.notes) notes · \($0.links) links" }
+        /// "212 notes · written on 28 days"
+        var detail: @Sendable (FilmStats) -> String = { "\($0.notes) notes · written on \($0.writingDays) days" }
+        /// Folder names over their clusters. Note titles are never shown.
+        var folderNames = true
+        /// The name for notes in no folder; nil leaves them unnamed.
+        var noFolder: String? = nil
         var mark = "Pinto Notes"
         var dateFormat = "MMM d"
         var locale = Locale.current
@@ -40,6 +44,13 @@ final class FilmRenderer {
     private var pos: [SIMD2<Double>]
     private var vel: [SIMD2<Double>]
     private var alive = 0
+    /// Each folder's middle: notes gather round it, and folders keep apart.
+    private var fpos: [SIMD2<Double>]
+    private var fvel: [SIMD2<Double>]
+    private var fcount: [Int]
+    private var falive: [Bool]
+    /// When each folder got its third note: its name fades in from then.
+    private var fnamed: [Double]
     private var linksAlive = 0
     private var adjacency: [[Int]]
     private var camScale = 3.0
@@ -57,6 +68,11 @@ final class FilmRenderer {
         pos = Array(repeating: .zero, count: script.nodes.count)
         vel = Array(repeating: .zero, count: script.nodes.count)
         adjacency = Array(repeating: [], count: script.nodes.count)
+        fpos = Array(repeating: .zero, count: script.folders.count)
+        fvel = Array(repeating: .zero, count: script.folders.count)
+        fcount = Array(repeating: 0, count: script.folders.count)
+        falive = Array(repeating: false, count: script.folders.count)
+        fnamed = Array(repeating: .infinity, count: script.folders.count)
         for l in script.links { adjacency[l.a].append(l.b); adjacency[l.b].append(l.a) }
         youGlow = Self.glowSprite(Self.youColor)
         aiGlow = Self.glowSprite(Self.aiColor)
@@ -101,19 +117,22 @@ final class FilmRenderer {
         let growT = min(t, FilmScript.growth)
         while alive < nodes.count && nodes[alive].birth <= growT {
             let i = alive
-            if let j = adjacency[i].filter({ $0 < i }).min() {
-                pos[i] = pos[j] + jitter(14)
-            } else if let j = (0..<i).last(where: { nodes[$0].folder == nodes[i].folder }) {
-                pos[i] = pos[j] + jitter(22)
-            } else if i > 0 {
+            let f = nodes[i].folder
+            if !falive[f] {
                 // A new folder starts a little outside what's there.
-                var c = SIMD2<Double>(0, 0), r = 0.0
-                for k in 0..<i { c += pos[k] }
-                c /= Double(i)
-                for k in 0..<i { r = max(r, simd_length(pos[k] - c)) }
-                let a = Double(nodes[i].folder) * 2.399963 + random() * 0.5
-                pos[i] = c + SIMD2(cos(a), sin(a)) * (r + 26)
+                var c = SIMD2<Double>(0, 0), r = 0.0, k = 0.0
+                for g in fpos.indices where falive[g] { c += fpos[g]; k += 1 }
+                if k > 0 {
+                    c /= k
+                    for j in 0..<i { r = max(r, simd_length(pos[j] - c)) }
+                    let a = Double(f) * 2.399963 + random() * 0.5
+                    fpos[f] = c + SIMD2(cos(a), sin(a)) * (r + 40)
+                }
+                falive[f] = true
             }
+            pos[i] = fpos[f] + jitter(16)
+            fcount[f] += 1
+            if fcount[f] == 3 { fnamed[f] = growT }
             vel[i] = .zero
             alive += 1
         }
@@ -149,18 +168,39 @@ final class FilmRenderer {
             guard l.a < n, l.b < n else { continue }
             let d = pos[l.b] - pos[l.a]
             let len = max(0.01, simd_length(d))
-            let f = d / len * ((len - 22) * 0.06)
+            let f = d / len * ((len - 30) * 0.02)
             force[l.a] += f
             force[l.b] -= f
         }
-        // Notes in one folder gather; everything drifts to the middle.
-        var sums = [SIMD2<Double>](repeating: .zero, count: script.folders.count)
-        var counts = [Double](repeating: 0, count: script.folders.count)
-        for i in 0..<n { sums[script.nodes[i].folder] += pos[i]; counts[script.nodes[i].folder] += 1 }
+        // Notes gather round their folder's middle, which they pull along with them.
+        var fforce = [SIMD2<Double>](repeating: .zero, count: fpos.count)
         for i in 0..<n {
             let f = script.nodes[i].folder
-            force[i] += (sums[f] / counts[f] - pos[i]) * 0.03
-            force[i] -= pos[i] * 0.004
+            let d = (fpos[f] - pos[i]) * 0.035
+            force[i] += d
+            fforce[f] -= d * 0.5
+        }
+        // Folders keep apart by their size, and drift to the middle.
+        for a in fpos.indices where falive[a] {
+            for b in fpos.indices where b > a && falive[b] {
+                var d = fpos[a] - fpos[b]
+                let len = max(0.5, simd_length(d))
+                if len < 0.6 { d = SIMD2(1, 0) }
+                let want = 11 * (Double(fcount[a]).squareRoot() + Double(fcount[b]).squareRoot()) + 34
+                if len < want {
+                    let push = d / len * ((want - len) * 0.06)
+                    fforce[a] += push
+                    fforce[b] -= push
+                }
+            }
+            fforce[a] -= fpos[a] * 0.006
+        }
+        for f in fpos.indices where falive[f] {
+            var v = (fvel[f] + fforce[f]) * 0.6
+            let s = simd_length(v)
+            if s > 4 { v *= 4 / s }
+            fvel[f] = v
+            fpos[f] += v
         }
         for i in 0..<n {
             var v = (vel[i] + force[i]) * 0.55
@@ -223,9 +263,21 @@ final class FilmRenderer {
             ctx.addLine(to: CGPoint(x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e))
             ctx.strokePath()
         }
-        ctx.setStrokeColor(Self.lineColor.cg(0.24))
+        ctx.setStrokeColor(Self.lineColor.cg(0.34))
         ctx.setLineWidth(1.3 * lineScale)
         ctx.addPath(settled)
+        ctx.strokePath()
+        // Each note to its folder's middle, faintly: the shape a folder makes even when nothing links.
+        let spokes = CGMutablePath()
+        for i in 0..<alive {
+            let f = script.nodes[i].folder
+            guard script.folders[f] != "" || labels.noFolder != nil else { continue }
+            spokes.move(to: screen(fpos[f]))
+            spokes.addLine(to: screen(pos[i]))
+        }
+        ctx.setStrokeColor(Self.lineColor.cg(0.09))
+        ctx.setLineWidth(1.0 * lineScale)
+        ctx.addPath(spokes)
         ctx.strokePath()
 
         // Glow, added light on light.
@@ -234,10 +286,11 @@ final class FilmRenderer {
         let breathe = t > FilmScript.growth ? 0.5 + 0.5 * sin((t - FilmScript.growth) * 2.2) : 0
         for i in 0..<alive {
             let n = script.nodes[i]
-            var count = 0, aiCount = 0, you = 0.0, ai = 0.0
+            var count = 0, aiCount = 0, you = 0.0, ai = 0.0, last = n.birth
             for (k, et) in n.edits.enumerated() {
                 if et > gt { break }
                 count += 1
+                last = et
                 if n.aiEdits[k] { aiCount += 1 }
                 let age = gt - et
                 if age < 1.4 && t <= FilmScript.growth + 0.6 {
@@ -250,8 +303,9 @@ final class FilmRenderer {
             if born < 1 { if n.bornByAI { ai += exp(-born / 0.4) * 1.5 } else { you += exp(-born / 0.4) * 1.5 } }
             let share = count == 0 ? (n.bornByAI ? 1 : 0) : Double(aiCount) / Double(count)
             let color = Self.youColor.mix(Self.aiColor, share)
-            let degree = Double(adjacency[i].filter { $0 < alive }.count)
-            let r = min(18, max(3.2, (1.8 + 0.8 * Double(count).squareRoot() + 0.9 * degree.squareRoot()) * camScale * 0.6)) * pop
+            // Notes you keep working on grow, and glow while you're on them; the rest cool down.
+            let heat = exp(-(gt - last) / 1.3)
+            let r = min(20, max(2.8, (1.5 + 0.95 * Double(count).squareRoot()) * camScale * 0.6)) * pop
             // At the end a wave of light runs through the notes in the order they were made.
             if t > FilmScript.growth + 0.1 {
                 let w = (t - FilmScript.growth - 0.1) / 1.6 - Double(i) / Double(max(1, alive))
@@ -259,13 +313,13 @@ final class FilmRenderer {
             }
             let p = screen(pos[i])
             // Resting glow in the note's own colour, split between the two sprites.
-            let rest = 0.34 + 0.08 * breathe
+            let rest = 0.2 + 0.36 * heat + 0.06 * breathe
             sprite(youGlow, at: p, radius: r * 4, alpha: rest * (1 - share), in: ctx)
             sprite(aiGlow, at: p, radius: r * 4, alpha: rest * share, in: ctx)
             // A flash where someone just wrote.
             if you > 0.01 { sprite(youGlow, at: p, radius: r * (3.4 + 6 * min(1.4, you)), alpha: min(1, 0.75 * you), in: ctx) }
             if ai > 0.01 { sprite(aiGlow, at: p, radius: r * (3.4 + 6 * min(1.4, ai)), alpha: min(1, 0.75 * ai), in: ctx) }
-            cores.append((p, r, color, min(1, you + ai)))
+            cores.append((p, r, color.mix(RGB(0.6, 0.6, 0.6), 0.3 * (1 - heat)), min(1, you + ai)))
         }
         ctx.setBlendMode(.normal)
         for (p, r, color, flash) in cores {
@@ -273,7 +327,20 @@ final class FilmRenderer {
             ctx.fillEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
         }
 
+        if labels.folderNames { drawFolderNames(t, in: ctx) }
         drawWords(t, in: ctx)
+    }
+
+    /// Each folder's name just over its notes, once it has a few.
+    private func drawFolderNames(_ t: Double, in ctx: CGContext) {
+        for f in fpos.indices where falive[f] && fcount[f] >= 3 {
+            guard let name = script.folders[f].isEmpty ? labels.noFolder : script.folders[f] else { continue }
+            let c = screen(fpos[f])
+            var top = c.y
+            for i in 0..<alive where script.nodes[i].folder == f { top = max(top, screen(pos[i]).y) }
+            let appear = smooth((min(t, FilmScript.growth) - fnamed[f]) / 0.5)
+            text(name, size: 25, weight: .medium, color: RGB(1, 1, 1).cg(0.66 * appear), at: CGPoint(x: c.x, y: top + 16), align: 0.5, in: ctx)
+        }
     }
 
     private func sprite(_ image: CGImage, at p: CGPoint, radius: Double, alpha: Double, in ctx: CGContext) {
