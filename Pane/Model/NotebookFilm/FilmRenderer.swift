@@ -195,7 +195,7 @@ final class FilmRenderer {
         // In the app a scene starts where the intro's picture is: its first houses.
         case .brief:
             if let scene, scene.rewinds {
-                frame = FilmScript.preludeFrames + Int(scene.appStart * Double(FilmScript.fps))
+                frame = FilmScript.preludeFrames
             } else {
                 frame = FilmScript.preludeFrames - Int(0.7 * Double(FilmScript.fps))
             }
@@ -248,9 +248,10 @@ final class FilmRenderer {
             if let scene, scene.rewinds {
                 // The scene as the month left it (before its own ending, which is kept for the
                 // end), held; then the month runs backwards to its first morning.
-                let x = min(1, max(0, (t + 1.1) / 1.1))
+                let x = min(1, max(0, (t + 1.0) / 1.0))
                 let back = x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2
-                let at = (script.growth - 0.05) * (1 - back)
+                // ...back to its first houses, where the film (and the app's intro) takes it up.
+                let at = scene.appStart + (script.growth - 0.05 - scene.appStart) * (1 - back)
                 ctx.saveGState()
                 ctx.scaleBy(x: k, y: k)
                 scene.drawRewinding(at, canvas: canvas, in: ctx)
@@ -260,8 +261,9 @@ final class FilmRenderer {
                     drawMark(in: ctx)
                     drawKey(you: 1, ai: 1, in: ctx)
                     // As it runs back, the date and the count run back with it: it's time rewinding.
-                    let rolling = smooth(x / 0.25)
-                    drawOpeningTitle(1, subtitle: 1 - rolling, in: ctx)
+                    // (The line under the title goes before the date comes: never both.)
+                    let rolling = smooth((x - 0.12) / 0.14)
+                    drawOpeningTitle(1, subtitle: 1 - smooth(x / 0.1), in: ctx)
                     if rolling > 0 {
                         let born = script.nodes.filter { $0.birth <= at }.count
                         text(dateFormatter.string(from: script.date(at: at)), size: 40, weight: .medium, color: look.ink.cg(0.7 * rolling), at: CGPoint(x: 72, y: canvas.bottom + 156), in: ctx)
@@ -304,7 +306,7 @@ final class FilmRenderer {
     func drawHeld(in ctx: CGContext, canvas: FilmCanvas) {
         self.canvas = canvas
         // The last frame's own time, so it settles into exactly the picture that's shared.
-        let t = Double(script.frameCount - 1 - FilmScript.preludeFrames) / Double(FilmScript.fps)
+        let t = Double(script.frameCount - 1 - FilmScript.preludeFrames) / Double(FilmScript.fps) + startOffset
         updateCamera(t, snap: true)
         ctx.saveGState()
         let k = Double(ctx.width) / Double(width)
@@ -336,7 +338,13 @@ final class FilmRenderer {
     }
 
     /// Seconds into the notebook's growth for the next frame; below zero during the opening.
-    private var time: Double { Double(frame - FilmScript.preludeFrames) / Double(FilmScript.fps) }
+    private var time: Double {
+        let raw = Double(frame - FilmScript.preludeFrames) / Double(FilmScript.fps)
+        return raw < 0 ? raw : raw + startOffset
+    }
+
+    /// A scene's month is taken up at its first houses, in the shared film and in the app alike.
+    private var startOffset: Double { opening != .none && scene?.rewinds == true ? scene?.appStart ?? 0 : 0 }
 
     private func drawEnding(in ctx: CGContext, alpha: Double, zoom: Double) {
         guard opening != .none, alpha > 0.004 else { return }
@@ -688,14 +696,16 @@ final class FilmRenderer {
 
         // The title over the first seconds, where the end card's title will be.
         let titleUntil = self.opening == .none ? 1.1 : 0.25
-        let opening = 1 - smooth((t - titleUntil) / 0.5)
+        // (Counted from where the film takes the month up.)
+        let since = t - startOffset
+        let opening = 1 - smooth((since - titleUntil) / 0.5)
         // After a rewind the date and the count are already there, where the title's second line was.
         let rewound = self.opening != .none && scene?.rewinds == true
         // (In the app a scene has no title of its own: the intro has just said it.)
         if opening > 0, !(rewound && self.opening == .brief) { drawOpeningTitle(opening, subtitle: rewound ? 0 : 1, in: ctx) }
         // The date and the count while it grows.
         // (Once the title has gone: the two never share the space.)
-        let running = (rewound ? 1 : smooth((t - titleUntil - 0.5) / 0.4)) * (1 - smooth((t - script.growth) / 0.4))
+        let running = (rewound ? 1 : smooth((since - titleUntil - 0.5) / 0.4)) * (1 - smooth((t - script.growth - (scene == nil ? 0 : 0.15)) / 0.4))
         if running > 0 {
             let date = script.date(at: min(t, script.growth))
             text(dateFormatter.string(from: date), size: 40, weight: .medium, color: ink.cg(0.7 * running), at: CGPoint(x: side, y: base + 156), in: ctx)
@@ -710,7 +720,7 @@ final class FilmRenderer {
             func held(_ from: Double, _ until: Double) -> Double { ramp(from - 0.34, from - 0.1) * (1 - ramp(until + 0.1, until + 0.34)) }
             var mine: [(from: Double, until: Double, line: String)] = []
             // Only while that day is on screen: a day that passed under the title goes unsaid here.
-            if let day = s.busiestDay, let span = script.span(ofDay: day), span.start >= titleUntil + 0.3 {
+            if let day = s.busiestDay, let span = script.span(ofDay: day), span.start >= titleUntil + 0.3 + startOffset {
                 mine.append((span.start, span.start + min(2.4, max(0.9, span.length - 0.15)), labels.busiestCaption(s.busiestDayEdits)))
             }
             if labels.folderNames, let f = s.topFolder, script.growth > 5, s.folders >= 3 {
@@ -725,7 +735,7 @@ final class FilmRenderer {
             }
             // As many as fit while it grows: a thin month's shorter film says less.
             let lines = scene?.captions ?? labels.captions
-            var from = titleUntil + 0.6
+            var from = titleUntil + 0.6 + startOffset
             let slot = min(2.4, max(1.4, (script.growth - from - FilmScript.topFolderMoment - 0.2) / Double(lines.count)))
             for line in lines where from + slot <= script.growth + 0.01 {
                 let a = shown(from, from + slot - 0.15) * (1 - cover) * running

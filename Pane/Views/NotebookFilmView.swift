@@ -229,6 +229,13 @@ struct NotebookFilmView: View {
                     .frame(minHeight: 44)
                     .padding(.top, 8)
                     .accessibilityIdentifier("notebookFilm.notNow")
+                // It's offered once: say where it stays.
+                if !store.rewatching {
+                    Text("It stays in Settings, under Help.")
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .padding(.top, 2)
+                }
             }
             .padding(.horizontal, Metrics.side + 8)
             .padding(.bottom, Metrics.bottom)

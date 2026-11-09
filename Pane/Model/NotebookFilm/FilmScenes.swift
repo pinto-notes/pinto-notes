@@ -161,7 +161,7 @@ final class TownScene: FilmScene {
     /// The houses written in on the day you wrote most, and when the film is on that day.
     private var busy: Set<Int> = []
     private var busyFrom = Double.infinity, busyUntil = Double.infinity
-    var wordsDelay: Double { 0.65 }
+    var wordsDelay: Double { 0.3 }
     func drawInFront(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {}
 
     func drawRewinding(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {
@@ -311,7 +311,7 @@ final class TownScene: FilmScene {
         let p = gt / growth
         let dusk = smooth((p - 0.3) / 0.7)
         // Night comes down sheet by sheet, the sky and the far hills first: light leaving, not a veil.
-        let fall = (t - growth) / 1.3
+        let fall = (t - growth) / 1.9
         func nightAt(_ depth: Double) -> Double { smooth((fall - depth * 0.42) / 0.58) }
         let night = nightAt(0)
         var nightNow = night
@@ -425,7 +425,8 @@ final class TownScene: FilmScene {
             for hi in rowHills {
                 while drawn < order.count, houses[order[drawn]].hill == hi {
                     let i = order[drawn]
-                    house(i, groundY: ridge(depth: depth, houses[i].x, gt) - houses[i].y, t: t, gt: gt, dusk: dusk, night: night, col: col, in: ctx)
+                    // (Never down in the hedge the words sit on.)
+                    house(i, groundY: max(ground + 30, ridge(depth: depth, houses[i].x, gt) - houses[i].y), t: t, gt: gt, dusk: dusk, night: night, col: col, in: ctx)
                     drawn += 1
                 }
             }
@@ -462,7 +463,8 @@ final class TownScene: FilmScene {
                 let sx = centre.x + (p.x - (centre.x + (cam.x - centre.x) * f)) * zf + drift * [0.45, 0.7, 1.0][hill.depth]
                 let sy = centre.y + (p.y - (centre.y + (cam.y - centre.y) * f)) * zf
                 let half = size.width / 2 * zf, ceiling = viewTop - 24
-                a *= min(smooth((sx - half - 8) / 26), smooth((W - 8 - sx - half) / 26), smooth((ceiling - sy - size.height * zf) / 36))
+                // (Quickly: a half-faded board over houses reads as a ghost.)
+                a *= min(smooth((sx - half - 8) / 12), smooth((W - 8 - sx - half) / 12), smooth((ceiling - sy - size.height * zf) / 14))
                 guard a > 0.01 else { continue }
                 nightNow = nightAt([0.45, 0.65, 0.85][hill.depth])
                 layer([0.45, 0.7, 1.0][hill.depth], follow: f) {
@@ -487,8 +489,9 @@ final class TownScene: FilmScene {
         // the mark and the key stay readable.
         if cam.z > 1.02 {
             let a = min(1, (cam.z - 1) / 0.25)
-            if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [top.cg(0), top.cg(a)] as CFArray, locations: [0, 1]) {
-                ctx.drawLinearGradient(g, start: CGPoint(x: 0, y: viewTop - 150), end: CGPoint(x: 0, y: viewTop + 26), options: [.drawsAfterEndLocation])
+            // A long soft rise of haze, not a band.
+            if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [top.cg(0), top.cg(0.18 * a), top.cg(0.6 * a), top.cg(0.94 * a)] as CFArray, locations: [0, 0.4, 0.75, 1]) {
+                ctx.drawLinearGradient(g, start: CGPoint(x: 0, y: viewTop - 330), end: CGPoint(x: 0, y: viewTop + 60), options: [.drawsAfterEndLocation])
             }
         }
         nightNow = nightAt(1)
@@ -552,7 +555,7 @@ final class TownScene: FilmScene {
     /// Where a house stands once the month is done: its footprint and full height.
     private func finalRect(_ i: Int) -> CGRect {
         let hs = houses[i]
-        let foot = ridge(depth: hills[hs.hill].depth, hs.x, growth) - hs.y
+        let foot = max(ground + 30, ridge(depth: hills[hs.hill].depth, hs.x, growth) - hs.y)
         return CGRect(x: hs.x - hs.w / 2, y: foot, width: hs.w, height: height(i, count: script.nodes[i].edits.count))
     }
 
