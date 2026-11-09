@@ -534,32 +534,23 @@ import Testing
         #expect(sky() < 200, "night at the end")
     }
 
-    @Test func theTownIsSeenFromNearerWhileItsSmall() {
-        // The camera is close on the first houses and has drawn back by the end; any frame can
-        // be drawn from its time alone (the same frame twice is the same picture).
-        let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now, light: true), calendar: Self.cal)
-        var labels = FilmRenderer.Labels()
-        labels.look = .town
-        func roofs(at film: Int) -> Int {
-            let r = FilmRenderer(script: script, labels: labels)
-            let ctx = FilmRenderer.context(width: 540, height: 675)!
-            while r.frame < film { r.skip() }
-            r.drawNext(in: ctx)
-            // Ochre roofs: red well over blue. BGRA.
-            let p = ctx.data!.assumingMemoryBound(to: UInt8.self)
-            var n = 0
-            for y in stride(from: 100, to: 480, by: 2) { for x in stride(from: 0, to: ctx.width, by: 2) {
-                let px = p + y * ctx.bytesPerRow + x * 4
-                if Int(px[2]) > 180, Int(px[1]) > 100, Int(px[1]) < 170, Int(px[0]) < 90 { n += 1 }
-            } }
-            return n
-        }
-        let early = FilmScript.preludeFrames + 40
-        let perHouseEarly = Double(roofs(at: early)) / Double(max(1, script.nodes.filter { $0.birth <= 40.0 / 30 }.count))
-        let late = FilmScript.preludeFrames + Int(script.growth * 30) - 5
-        let perHouseLate = Double(roofs(at: late)) / Double(script.nodes.count)
-        #expect(perHouseEarly > perHouseLate * 1.3, "each house is drawn larger early on")
-        #expect(roofs(at: early) == roofs(at: early))
+    @Test func theTownsCameraStartsCloseGoesInForYourMomentsAndIsBackForTheNight() {
+        // Close on the first houses of a small town; in on the folder you wrote most in near the
+        // end; the whole town for the night, which is the frame that's kept.
+        let thin = FilmScript(FilmDemo.notebook(days: 35, now: Self.now, light: true), calendar: Self.cal)
+        let small = TownScene(script: thin, folderNames: true)
+        #expect(small.closeness(at: 0.3, canvas: .shared) > 1.4)
+        #expect(small.closeness(at: 0.3, canvas: .shared) > small.closeness(at: thin.growth + 3, canvas: .shared))
+
+        let full = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        let town = TownScene(script: full, folderNames: true)
+        let end = town.closeness(at: full.growth + FilmScript.outro, canvas: .shared)
+        #expect(abs(end - 1) < 0.02, "a full town fills the stage: nothing is cropped at the end")
+        #expect(town.closeness(at: full.growth - 1.2, canvas: .shared) > end + 0.2, "in on the folder most written in")
+        // Any frame from its time alone: asking twice, or out of order, gives the same answer.
+        let once = town.closeness(at: 4, canvas: .shared)
+        _ = town.closeness(at: 8, canvas: .shared)
+        #expect(town.closeness(at: 4, canvas: .shared) == once)
     }
 
     @Test func theTownStandsTallerOnAPhonesScreen() {

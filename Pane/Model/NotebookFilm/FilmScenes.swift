@@ -25,6 +25,8 @@ protocol FilmScene: AnyObject {
     /// The film opens on the scene as the month left it, then runs the month backwards to its
     /// first day (the constellation's own opening draws back instead).
     var rewinds: Bool { get }
+    /// The scene at `t` as that opening shows it: the whole of it, with none of the film's own moments.
+    func drawRewinding(_ t: Double, canvas: FilmCanvas, in ctx: CGContext)
 }
 
 private typealias C = FilmRenderer.RGB
@@ -122,29 +124,40 @@ final class TownScene: FilmScene {
     /// The part of the frame the town is framed in, and where each hill's signboard sits.
     private var viewTop = 1100.0
     private var viewBottom: Double { ground + 20 }
-    private var signs: [Double] = []
+    /// Each hill's name board: its bottom centre, placed clear of the houses and of each other.
+    private var pills: [CGPoint] = []
+    private var pillAnchors: [CGPoint] = []
     /// The camera through the month, a tenth of a second apart: how close, and what it's on.
     private var shots: [(z: Double, x: Double, y: Double)] = []
+    /// The same path without the moments it goes in for: what the opening's rewind follows.
+    private var wideShots: [(z: Double, x: Double, y: Double)] = []
+    private var rewinding = false
     private static let shotStep = 0.1
     private var growth: Double { script.growth }
 
     struct Hill { var folder: Int; var cx, base, w, h, s: Double; var depth: Int; var birth: Double; var skew: Double }
-    struct House { var hill: Int; var x, y, s, w: Double; var wall, roof: Int; var chimneyLeft: Bool }
+    struct House { var hill: Int; var x, y, s, w: Double; var wall, roof: Int; var chimneyLeft: Bool; var style = 0 }
     private var hills: [Hill] = []
     private var houses: [House] = []
     private var order: [Int] = []
     private var trees: [(hill: Int, x: Double, y: Double, r: Double, tone: Double)] = []
     private let worked: [Double]
     private let aiFrom: [Double]
-    private let amberGlow = FilmKit.glow(C(0xFFC85A)), blueGlow = FilmKit.glow(C(0x8FC8FF)), warmHaze = FilmKit.glow(C(0xFFB36B))
+    private let amberGlow = FilmKit.glow(C(0xFFC85A)), blueGlow = FilmKit.glow(C(0x7FAEE8)), warmHaze = FilmKit.glow(C(0xFFB36B))
     private static let rowBase = [352.0, 196, 34]
 
     var replacesNotebook: Bool { true }
     var lift: Double { 0 }
-    var captions: [String]? { ["Each house is a note", "It grows a floor as it\u{2019}s written in"] }
+    var captions: [String]? { ["Each house is a note", "Its chimney smokes when it\u{2019}s written in", "It grows taller the more it\u{2019}s written in"] }
     var rewinds: Bool { true }
     var wordsDelay: Double { 0.65 }
     func drawInFront(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {}
+
+    func drawRewinding(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {
+        rewinding = true
+        drawBehind(t, canvas: canvas, in: ctx)
+        rewinding = false
+    }
 
     /// The key: a little house with its roof in the colour.
     func drawKey(ai: Bool, at p: CGPoint, alpha: Double, t: Double, in ctx: CGContext) -> Bool {
@@ -182,9 +195,9 @@ final class TownScene: FilmScene {
         defer { plan() }
         H = canvas.height
         viewTop = H - canvas.top - 150
-        ground = 340 + canvas.bottom
+        ground = 312 + canvas.bottom
         // Room between the ground and the top line, against what the shared shape has.
-        stretch = min(1.5, max(0.94, (H - canvas.top - ground - 260) / 790))
+        stretch = min(1.6, max(0.96, (H - canvas.top - ground - 260) / 790))
     }
 
     private func layout() {
@@ -245,7 +258,7 @@ final class TownScene: FilmScene {
             spots.sort { $0.key < $1.key }
             for (k, i) in notes.enumerated() {
                 let spot = spots[k % spots.count]
-                houses[i] = House(hill: hi, x: spot.x, y: spot.drop, s: s, w: (40 + 9 * hash(i, 1)) * s, wall: Int(hash(i, 2) * 4), roof: Int(hash(i, 3) * 3), chimneyLeft: hash(i, 4) < 0.5)
+                houses[i] = House(hill: hi, x: spot.x, y: spot.drop, s: s, w: (38 + 13 * hash(i, 1)) * s, wall: Int(hash(i, 2) * 4), roof: Int(hash(i, 3) * 3), chimneyLeft: hash(i, 4) < 0.5, style: Int(hash(i, 6) * 4))
             }
             // Round trees on the shoulders of the hill and low on its face.
             let treeCount = 4 + Int(hash(hi, 21) * 3)
@@ -280,15 +293,19 @@ final class TownScene: FilmScene {
         let gt = min(t, growth)
         let p = gt / growth
         let dusk = smooth((p - 0.3) / 0.7)
-        let night = smooth((t - growth) / 1.3)
-        func col(_ day: UInt32, _ dk: UInt32, _ nt: UInt32) -> C { C(day).mix(C(dk), dusk).mix(C(nt), night) }
+        // Night comes down sheet by sheet, the sky and the far hills first: light leaving, not a veil.
+        let fall = (t - growth) / 1.3
+        func nightAt(_ depth: Double) -> Double { smooth((fall - depth * 0.42) / 0.58) }
+        let night = nightAt(0)
+        var nightNow = night
+        func col(_ day: UInt32, _ dk: UInt32, _ nt: UInt32) -> C { C(day).mix(C(dk), dusk).mix(C(nt), nightNow) }
         // The sky goes down through a deep orange, not a grey halfway between dusk and night.
         func sky(_ day: UInt32, _ dk: UInt32, _ ember: UInt32, _ nt: UInt32) -> C {
             let d = C(day).mix(C(dk), dusk)
             return night < 0.5 ? d.mix(C(ember), smooth(night * 2)) : C(ember).mix(C(nt), smooth(night * 2 - 1))
         }
         // The camera: close on the first houses, drawing back as the town grows.
-        let cam = camera(at: gt)
+        let cam = camera(at: max(0, t))
         let centre = CGPoint(x: W / 2, y: (viewBottom + viewTop) / 2)
         // The whole stage drifts a little, near sheets more than far ones: paper at different depths.
         let total = growth + FilmScript.outro
@@ -336,6 +353,8 @@ final class TownScene: FilmScene {
                 ctx.fillEllipse(in: CGRect(x: x - s, y: y - s, width: s * 2, height: s * 2))
             }
         }
+        clouds(t, night: night, in: ctx)
+        nightNow = nightAt(0.22)
         // Far hills, three sheets of paper.
         let far: [(Double, Double, C)] = [(ground + 560 * stretch, 44, col(0xE4D3E2, 0xCFAFC9, 0x402845)), (ground + 505 * stretch, 52, col(0xD0BDD8, 0xB494BC, 0x33213D)), (ground + 452 * stretch, 44, col(0xB9B2CC, 0x9482AE, 0x281C35))]
         for (i, (y, amp, c)) in far.enumerated() { layer(0.12 + 0.08 * Double(i), follow: 0.16 + 0.07 * Double(i)) {
@@ -355,6 +374,8 @@ final class TownScene: FilmScene {
         // comes, and carries its houses.
         var drawn = 0
         for depth in 0..<3 { layer([0.45, 0.7, 1.0][depth], follow: [0.9, 0.95, 1.0][depth]) {
+            nightNow = nightAt([0.45, 0.65, 0.85][depth])
+            let night = nightNow
             let rowHills = hills.indices.filter { hills[$0].depth == depth }
             guard !rowHills.isEmpty else { return }
             let green = [col(0x9DB39A, 0x6C8878, 0x1D3833), col(0x86A380, 0x54755F, 0x17322B), col(0x6F9169, 0x426349, 0x112921)][depth]
@@ -381,7 +402,7 @@ final class TownScene: FilmScene {
                 guard gt >= hill.birth else { continue }
                 let up = risen(hill, gt)
                 for tr in trees where tr.hill == hi {
-                    tree(at: CGPoint(x: tr.x, y: ridge(depth: depth, tr.x, gt) - tr.y - 4), r: tr.r * min(1, up), color: col(0x4E7556, 0x355644, 0x10241E).mix(C(0x2A4A3A), tr.tone * 0.4), in: ctx)
+                    tree(at: CGPoint(x: tr.x, y: ridge(depth: depth, tr.x, gt) - tr.y - 4), r: tr.r * min(1, up), cypress: tr.tone > 0.7, color: col(0x4E7556, 0x355644, 0x10241E).mix(C(0x2A4A3A), tr.tone * 0.4), in: ctx)
                 }
             }
             for hi in rowHills {
@@ -389,19 +410,6 @@ final class TownScene: FilmScene {
                     let i = order[drawn]
                     house(i, groundY: ridge(depth: depth, houses[i].x, gt) - houses[i].y, t: t, gt: gt, dusk: dusk, night: night, col: col, in: ctx)
                     drawn += 1
-                }
-            }
-            if folderNames {
-                for hi in rowHills {
-                    let hill = hills[hi]
-                    let name = script.folders[hill.folder]
-                    let a = smooth((gt - hill.birth - 0.45) / 0.4)
-                    guard !name.isEmpty, a > 0 else { continue }
-                    // Its name on a board above the highest roof the hill will have, on a short stick.
-                    let board = signs[hi]
-                    ctx.setFillColor(col(0x5A4038, 0x45312E, 0x1A1216).cg(a))
-                    ctx.fill(CGRect(x: hill.cx - 1.5, y: board - 15, width: 3, height: 17))
-                    tag(name, at: CGPoint(x: hill.cx, y: board), alpha: a, night: night, in: ctx)
                 }
             }
             // Street lamps along the front, lit as the light goes.
@@ -425,9 +433,40 @@ final class TownScene: FilmScene {
                 }
             }
         } }
+        // Each hill's name on a board, in front of every roof (placed where it covers none).
+        if folderNames {
+            for (hi, hill) in hills.enumerated() {
+                let name = script.folders[hill.folder]
+                let a = smooth((gt - hill.birth - 0.45) / 0.4)
+                guard !name.isEmpty, a > 0, hi < pills.count else { continue }
+                nightNow = nightAt([0.45, 0.65, 0.85][hill.depth])
+                layer([0.45, 0.7, 1.0][hill.depth], follow: [0.9, 0.95, 1.0][hill.depth]) {
+                    let p = pills[hi], anchor = pillAnchors[hi]
+                    // On a short stick when it stands over its own hilltop.
+                    if abs(p.x - anchor.x) < 24 {
+                        ctx.setStrokeColor(col(0x5A4038, 0x45312E, 0x2A1D22).cg(a))
+                        ctx.setLineWidth(3)
+                        ctx.move(to: CGPoint(x: p.x, y: p.y + 4))
+                        ctx.addLine(to: CGPoint(x: p.x, y: p.y - 14))
+                        ctx.strokePath()
+                    }
+                    tag(name, at: p, alpha: a, night: nightNow, in: ctx)
+                }
+            }
+        }
         // Birds on their way home at dusk, and paper lanterns on the day you wrote most.
-        layer(0.3, follow: 0.2) { birds(t, night: night, in: ctx) }
-        layer(0.85, follow: 0.95) { lanterns(t, in: ctx) }
+        nightNow = nightAt(0.3)
+        layer(0.3, follow: 0.2) { birds(t, night: nightNow, in: ctx) }
+        if !rewinding { layer(0.85, follow: 0.95) { lanterns(t, in: ctx) } }
+        // Close in, the town reaches the top of the frame: the sky comes back over it there, so
+        // the mark and the key stay readable.
+        if cam.z > 1.02 {
+            let a = min(1, (cam.z - 1) / 0.25)
+            if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [top.cg(0), top.cg(0.96 * a)] as CFArray, locations: [0, 1]) {
+                ctx.drawLinearGradient(g, start: CGPoint(x: 0, y: H - 300 - (H - viewTop - 150)), end: CGPoint(x: 0, y: H - 110 - (H - viewTop - 150)), options: [.drawsAfterEndLocation])
+            }
+        }
+        nightNow = nightAt(1)
 
         // The dark ground in front, with the canopy's edge: the words sit on it.
         let groundC = col(0x1F2D2A, 0x18231F, 0x0B1211)
@@ -436,9 +475,11 @@ final class TownScene: FilmScene {
         var x = -70.0
         var k = 0
         while x <= W + 120 {
-            let r = 38 + 26 * hash(k, 31)
-            front.addArc(center: CGPoint(x: x, y: ground - 24 + 18 * hash(k, 32)), radius: r, startAngle: .pi, endAngle: 0, clockwise: true)
-            x += r * 1.25
+            // Bushes of every size, a few tall ones: a hedge, not a scalloped edge.
+            let big = hash(k, 33) > 0.8
+            let r = (big ? 62 : 26) + 30 * hash(k, 31)
+            front.addArc(center: CGPoint(x: x, y: ground - (big ? 30 : 22) + 16 * hash(k, 32)), radius: r, startAngle: .pi, endAngle: 0, clockwise: true)
+            x += r * (0.95 + 0.5 * hash(k, 34))
             k += 1
         }
         front.addLine(to: CGPoint(x: W + 120, y: 0))
@@ -483,77 +524,126 @@ final class TownScene: FilmScene {
         return 22 * hs.s * floors + (15 + 4 * Double(hs.roof)) * hs.s + 6 * hs.s
     }
 
-    /// Where a hill's signboard sits: above the highest roof near its top once the month is
-    /// done, and above any board it would otherwise cover.
-    private func signY(_ hi: Int, depth: Int) -> Double {
-        func top(_ h: Int) -> Double {
-            let hill = hills[h]
-            var y = ridge(depth: hill.depth, hill.cx, growth) + 30 * hill.s
-            for i in script.nodes.indices where houses[i].hill == h && abs(houses[i].x - hill.cx) < 95 * hill.s {
-                y = max(y, ridge(depth: hill.depth, houses[i].x, growth) - houses[i].y + height(i, count: script.nodes[i].edits.count))
-            }
-            return y + 14
-        }
-        var y = top(hi)
-        // Boards drawn before this one keep their place; this one goes above them.
-        for other in hills.indices where other < hi && abs(hills[other].cx - hills[hi].cx) < 190 {
-            let o = signY(other, depth: hills[other].depth)
-            if abs(o - y) < 48 { y = o + 50 }
-        }
-        return y
+    /// Where a house stands once the month is done: its footprint and full height.
+    private func finalRect(_ i: Int) -> CGRect {
+        let hs = houses[i]
+        let foot = ridge(depth: hills[hs.hill].depth, hs.x, growth) - hs.y
+        return CGRect(x: hs.x - hs.w / 2, y: foot, width: hs.w, height: height(i, count: script.nodes[i].edits.count))
     }
 
-    /// Works out the camera for the whole month (and the signboards), for the shape it's drawn in.
-    /// It's close on the first houses and draws back just ahead of each new one, smoothly: the
-    /// path is laid out once, so any frame can be drawn from its time alone.
+    /// Works out, for the shape it's drawn in, where each hill's name goes and the camera's path
+    /// through the month. The camera is close on the first houses and draws back just ahead of
+    /// each new one; it goes in again on the day you wrote most and on the folder you wrote most
+    /// in, and is back for the night. Laid out once, so any frame can be drawn from its time alone.
     private func plan() {
-        signs = hills.indices.map { signY($0, depth: hills[$0].depth) }
-        let n = Int((growth / Self.shotStep).rounded(.up)) + 1
-        var raw: [(z: Double, x: Double, y: Double)] = []
+        let rects = script.nodes.indices.map(finalRect)
+        // Names: above each hill's top roofs, moved aside or up until they cover no house and
+        // no other name. The biggest hills choose first.
+        pills = Array(repeating: .zero, count: hills.count)
+        pillAnchors = pills
+        var placed: [CGRect] = []
+        let order = hills.indices.sorted { a, b in rects.indices.filter { houses[$0].hill == a }.count > rects.indices.filter { houses[$0].hill == b }.count }
+        for hi in order {
+            let hill = hills[hi]
+            let size = Self.pillSize(script.folders[hill.folder])
+            var top = ridge(depth: hill.depth, hill.cx, growth) + 30 * hill.s
+            for i in rects.indices where houses[i].hill == hi && abs(houses[i].x - hill.cx) < 95 * hill.s { top = max(top, rects[i].maxY) }
+            let anchor = CGPoint(x: hill.cx, y: top + 16)
+            pillAnchors[hi] = anchor
+            var best = anchor, bestCost = Double.infinity
+            for dy in stride(from: 0.0, through: 200, by: 20) {
+                for dx in stride(from: -210.0, through: 210, by: 30) {
+                    let r = CGRect(x: anchor.x + dx - size.width / 2, y: anchor.y + dy, width: size.width, height: size.height)
+                    guard r.minX > 24, r.maxX < W - 24, r.maxY < viewTop + 70 else { continue }
+                    var cost = abs(dx) * 14 + dy * 16
+                    for h in rects { let o = r.insetBy(dx: -5, dy: -5).intersection(h); if !o.isNull { cost += 3 * o.width * o.height } }
+                    for q in placed { let o = r.insetBy(dx: -8, dy: -8).intersection(q); if !o.isNull { cost += 60 * o.width * o.height } }
+                    if cost < bestCost { bestCost = cost; best = CGPoint(x: r.midX, y: r.minY) }
+                }
+            }
+            pills[hi] = best
+            placed.append(CGRect(x: best.x - size.width / 2, y: best.y, width: size.width, height: size.height))
+        }
+
         let viewW = W - 70, viewH = viewTop - viewBottom
         let mid = CGPoint(x: W / 2, y: (viewBottom + viewTop) / 2)
-        for k in 0..<n {
-            // A little ahead of the film, so it has drawn back by the time a house arrives.
-            let tau = Double(k) * Self.shotStep + 0.7
-            var lo = CGPoint(x: Double.infinity, y: Double.infinity), hi = CGPoint(x: -Double.infinity, y: -Double.infinity)
-            func take(_ x0: Double, _ x1: Double, _ y0: Double, _ y1: Double) {
-                lo.x = min(lo.x, x0); hi.x = max(hi.x, x1); lo.y = min(lo.y, y0); hi.y = max(hi.y, y1)
-            }
-            for (i, node) in script.nodes.enumerated() where node.birth <= tau || i == 0 {
-                let hs = houses[i]
-                let foot = ridge(depth: hills[hs.hill].depth, hs.x, growth) - hs.y
-                take(hs.x - hs.w / 2, hs.x + hs.w / 2, foot, foot + height(i, count: node.edits.count))
-            }
-            if folderNames {
-                for (h, hill) in hills.enumerated() where hill.birth <= tau { take(hill.cx - 90, hill.cx + 90, signs[h], signs[h] + 44) }
-            }
-            let w = hi.x - lo.x + 200, h = hi.y - lo.y + 70
-            let z = min(2.0, max(1, min(viewW / w, viewH / h)))
+        func shot(_ box: CGRect, closest: Double) -> (z: Double, x: Double, y: Double) {
+            let z = min(closest, max(1, min(viewW / (box.width + 200), viewH / (box.height + 70))))
             // At full width nothing moves; closer in, it centres on what's there, within the stage.
             let pull = smooth((z - 1) / 0.2)
-            var x = mid.x + ((lo.x + hi.x) / 2 - mid.x) * pull
+            var x = mid.x + (box.midX - mid.x) * pull
             x = min(W + 30 - W / (2 * z), max(W / (2 * z) - 30, x))
-            let y = mid.y + ((lo.y + hi.y) / 2 + 10 - mid.y) * pull
-            raw.append((z, x, y))
+            return (z, x, mid.y + (box.midY + 10 - mid.y) * pull)
+        }
+        func box(_ picked: [Int], hills shown: [Int]) -> CGRect {
+            var r = CGRect.null
+            for i in picked { r = r.union(rects[i]) }
+            if folderNames {
+                for h in shown where !script.folders[hills[h].folder].isEmpty {
+                    let size = Self.pillSize(script.folders[hills[h].folder])
+                    r = r.union(CGRect(x: pills[h].x - size.width / 2, y: pills[h].y, width: size.width, height: size.height))
+                }
+            }
+            return r
+        }
+        // The two moments it goes in for.
+        var moments: [(from: Double, until: Double, shot: (z: Double, x: Double, y: Double))] = []
+        if let day = script.stats.busiestDay, let span = script.span(ofDay: day), span.start >= 0.55 {
+            // The hill most written in that day.
+            var edits = [Int](repeating: 0, count: hills.count)
+            for (i, n) in script.nodes.enumerated() { edits[houses[i].hill] += n.edits.filter { $0 >= span.start && $0 < span.start + span.length }.count }
+            if let h = edits.indices.max(by: { edits[$0] < edits[$1] }), edits[h] > 0 {
+                let until = span.start + min(2.4, max(1.2, span.length))
+                let there = script.nodes.indices.filter { houses[$0].hill == h && script.nodes[$0].birth <= until }
+                moments.append((span.start - 0.15, until, shot(box(there, hills: [h]), closest: 1.7)))
+            }
+        }
+        if folderNames, topFolder >= 0, growth > 5, let h = hills.firstIndex(where: { $0.folder == topFolder }) {
+            let there = script.nodes.indices.filter { houses[$0].hill == h }
+            moments.append((growth - FilmScript.topFolderMoment + 0.1, growth - 0.35, shot(box(there, hills: [h]), closest: 1.6)))
+        }
+        // A tenth of a second apart, on past the end so it's back, wide, for the night.
+        let n = Int(((growth + 1.8) / Self.shotStep).rounded(.up)) + 1
+        var raw: [(z: Double, x: Double, y: Double)] = [], plain = raw
+        for k in 0..<n {
+            let at = Double(k) * Self.shotStep
+            // A little ahead of the film, so it has drawn back by the time a house arrives.
+            let tau = at + 0.7
+            let born = script.nodes.indices.filter { script.nodes[$0].birth <= tau || $0 == 0 }
+            var s = shot(box(born, hills: hills.indices.filter { hills[$0].birth <= tau }), closest: 2.0)
+            plain.append(s)
+            for m in moments where at >= m.from && at <= m.until && m.shot.z > s.z + 0.08 { s = m.shot }
+            raw.append(s)
         }
         // Smoothed over about a second, so it glides.
-        shots = raw.indices.map { k in
-            var z = 0.0, x = 0.0, y = 0.0, sum = 0.0
-            for d in -12...12 {
-                let j = min(raw.count - 1, max(0, k + d)), w = exp(-Double(d * d) / 40)
-                z += raw[j].z * w; x += raw[j].x * w; y += raw[j].y * w; sum += w
+        func glide(_ raw: [(z: Double, x: Double, y: Double)]) -> [(z: Double, x: Double, y: Double)] {
+            raw.indices.map { k in
+                var z = 0.0, x = 0.0, y = 0.0, sum = 0.0
+                for d in -12...12 {
+                    let j = min(raw.count - 1, max(0, k + d)), w = exp(-Double(d * d) / 40)
+                    z += raw[j].z * w; x += raw[j].x * w; y += raw[j].y * w; sum += w
+                }
+                return (z / sum, x / sum, y / sum)
             }
-            return (z / sum, x / sum, y / sum)
         }
+        shots = glide(raw)
+        wideShots = glide(plain)
     }
 
-    private func camera(at gt: Double) -> (z: Double, x: Double, y: Double) {
+    private func camera(at t: Double) -> (z: Double, x: Double, y: Double) {
+        let shots = rewinding ? wideShots : shots
         guard let last = shots.last else { return (1, W / 2, (viewBottom + viewTop) / 2) }
-        let f = max(0, gt) / Self.shotStep
+        let f = max(0, t) / Self.shotStep
         let k = Int(f)
         guard k + 1 < shots.count else { return last }
         let a = shots[k], b = shots[k + 1], u = f - Double(k)
         return (a.z + (b.z - a.z) * u, a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u)
+    }
+
+    /// How close the camera is at film time `t` in a shape: 1 is the whole stage.
+    func closeness(at t: Double, canvas: FilmCanvas) -> Double {
+        place(canvas)
+        return camera(at: t).z
     }
 
     /// On the day you wrote most, paper lanterns go up from the houses you wrote in.
@@ -588,7 +678,21 @@ final class TownScene: FilmScene {
         }
     }
 
-    private func tree(at p: CGPoint, r: Double, color: C, in ctx: CGContext) {
+    private func tree(at p: CGPoint, r: Double, cypress: Bool = false, color: C, in ctx: CGContext) {
+        if cypress {
+            // A tall dark cypress, as on the hills of the site's town.
+            let h = r * 3.1, w = r * 0.62
+            for (dx, dy, c) in [(2.0, -3.0, CGColor(gray: 0, alpha: 0.14)), (0, 0, color.mix(C(0x1B3A30), 0.45).cg())] {
+                let path = CGMutablePath()
+                path.move(to: CGPoint(x: p.x + dx, y: p.y + dy + h))
+                path.addQuadCurve(to: CGPoint(x: p.x + dx, y: p.y + dy), control: CGPoint(x: p.x + dx + w * 1.5, y: p.y + dy + h * 0.3))
+                path.addQuadCurve(to: CGPoint(x: p.x + dx, y: p.y + dy + h), control: CGPoint(x: p.x + dx - w * 1.5, y: p.y + dy + h * 0.3))
+                ctx.addPath(path)
+                ctx.setFillColor(c)
+                ctx.fillPath()
+            }
+            return
+        }
         ctx.setFillColor(C(0x5A4038).cg())
         ctx.fill(CGRect(x: p.x - r * 0.09, y: p.y - 2, width: r * 0.18, height: r * 0.9))
         let blobs = [(0.0, 1.25, 1.0), (-0.55, 0.9, 0.72), (0.55, 0.95, 0.7), (0.0, 0.75, 0.8)]
@@ -625,13 +729,14 @@ final class TownScene: FilmScene {
         let s = hs.s
         // It grows floors as it's written in.
         let floorsF = 1 + min(2.1, 0.6 * Double(max(0, count - 1)).squareRoot())
-        let w = hs.w, bh = 22 * s * floorsF * pop, rh = (15 + 4 * Double(hs.roof)) * s * pop
+        let w = hs.w, bh = 22 * s * floorsF * pop, rh = (15 + 4 * Double(hs.roof)) * s * pop * (hs.style == 3 ? 1.3 : 1)
         let x0 = hs.x - w / 2, y0 = groundY - 3 * s
         let walls: [(UInt32, UInt32, UInt32)] = [(0xF0DFC2, 0xD3B596, 0x55424E), (0xE7D0AE, 0xC9A687, 0x4E3C49), (0xEFD3BD, 0xD2A796, 0x57404C), (0xDDCFB6, 0xBFA78F, 0x4A3D4A)]
         // The roof says who wrote in it, in any light: warm ochre for yours alone, slate blue once
         // your AI has helped.
-        let mine: [(UInt32, UInt32, UInt32)] = [(0xD9883A, 0xC06F33, 0x4A2F26), (0xC97A2E, 0xB0622B, 0x432A23), (0xE09A4A, 0xC77D3D, 0x51352A)]
-        let helped: [(UInt32, UInt32, UInt32)] = [(0x5F84B5, 0x4D6C9C, 0x232F4A), (0x4F74A6, 0x41608E, 0x1F2A43), (0x6E93C2, 0x5878A6, 0x283552)]
+        // (Still told apart at night: the last frame is the one that's kept.)
+        let mine: [(UInt32, UInt32, UInt32)] = [(0xD9883A, 0xC06F33, 0x9A6230), (0xC97A2E, 0xB0622B, 0x8D582B), (0xE09A4A, 0xC77D3D, 0xA66D38)]
+        let helped: [(UInt32, UInt32, UInt32)] = [(0x5F84B5, 0x4D6C9C, 0x3F5F97), (0x4F74A6, 0x41608E, 0x38568C), (0x6E93C2, 0x5878A6, 0x4A6BA3)]
         let aiRoof = smooth((gt - aiFrom[i]) / 0.35)
         let wall = col(walls[hs.wall].0, walls[hs.wall].1, walls[hs.wall].2)
         let roof = col(mine[hs.roof].0, mine[hs.roof].1, mine[hs.roof].2).mix(col(helped[hs.roof].0, helped[hs.roof].1, helped[hs.roof].2), aiRoof)
@@ -640,6 +745,22 @@ final class TownScene: FilmScene {
         let chimTop = y0 + bh + rh * 0.55 + 9 * s
         ctx.setFillColor(col(0xB96549, 0x96503F, 0x3A2226).cg())
         ctx.fill(CGRect(x: cx - 3.2 * s, y: y0 + bh, width: 6.4 * s, height: rh * 0.55 + 9 * s))
+        // Some have a low wing at one side, with its own lean-to roof.
+        if hs.style == 2 {
+            let side: Double = hs.chimneyLeft ? 1 : -1
+            let ww = w * 0.5, wh = 15 * s * pop
+            let wx = side > 0 ? x0 + w - 1 : x0 - ww + 1
+            ctx.setFillColor(wall.mix(C(0x000000), 0.07).cg())
+            ctx.fill(CGRect(x: wx, y: y0, width: ww, height: wh))
+            let lean = CGMutablePath()
+            lean.move(to: CGPoint(x: wx - 2 * s, y: y0 + wh - 1))
+            lean.addLine(to: CGPoint(x: side > 0 ? wx : wx + ww, y: y0 + wh + 9 * s * pop))
+            lean.addLine(to: CGPoint(x: wx + ww + 2 * s, y: y0 + wh - 1))
+            lean.closeSubpath()
+            ctx.addPath(lean)
+            ctx.setFillColor(roof.mix(C(0x000000), 0.1).cg())
+            ctx.fillPath()
+        }
         // Body, with the shade it casts.
         ctx.setFillColor(CGColor(gray: 0, alpha: 0.2))
         ctx.fill(CGRect(x: x0 + 3 * s, y: y0 - 2.5 * s, width: w, height: bh))
@@ -648,7 +769,13 @@ final class TownScene: FilmScene {
         // Roof.
         let rp = CGMutablePath()
         rp.move(to: CGPoint(x: x0 - 3.5 * s, y: y0 + bh - 1))
-        rp.addLine(to: CGPoint(x: hs.x, y: y0 + bh + rh))
+        if hs.style == 1 {
+            // Side on: a long ridge.
+            rp.addLine(to: CGPoint(x: x0 + w * 0.2, y: y0 + bh + rh * 0.8))
+            rp.addLine(to: CGPoint(x: x0 + w * 0.8, y: y0 + bh + rh * 0.8))
+        } else {
+            rp.addLine(to: CGPoint(x: hs.x, y: y0 + bh + rh))
+        }
         rp.addLine(to: CGPoint(x: x0 + w + 3.5 * s, y: y0 + bh - 1))
         rp.closeSubpath()
         // The roof's shade on the wall, then the roof.
@@ -666,7 +793,7 @@ final class TownScene: FilmScene {
             ? 0.85 * smooth((gt - (growth - FilmScript.topFolderMoment) - 0.9 * hash(i, 61)) / 0.3) : 0
         let lit = min(1, max(flash, first, dusk * 0.55 * exp(-(gt - last) / 2.2), evening * (0.3 + 0.7 * worked[i])))
         let dark = col(0x6B5B68, 0x4B3B49, 0x1B131C)
-        let lightC = C(0xFFCB6B).mix(C(0x9CD2FF), ai)
+        let lightC = C(0xFFCB6B).mix(C(0x8DBBF0), ai)
         let glass = dark.mix(lightC, min(1, lit * 1.15))
         let rows = max(1, Int(floorsF + 0.25))
         let ww = 8 * s, wh = 10.5 * s
@@ -678,6 +805,11 @@ final class TownScene: FilmScene {
                 ctx.fill(CGRect(x: wx, y: wy, width: ww, height: wh))
             }
         }
+        // A door on the smaller ones.
+        if hs.style < 2, floorsF < 1.7 {
+            ctx.setFillColor(roof.mix(C(0x2A1D22), 0.45).cg())
+            ctx.fill(CGRect(x: hs.x - 3 * s, y: y0, width: 6 * s, height: 9.5 * s * pop))
+        }
         if lit > 0.05 {
             // Its light spills a little, more as it gets dark.
             let darkness = 0.12 + 0.3 * dusk + 0.5 * night
@@ -685,7 +817,7 @@ final class TownScene: FilmScene {
             ctx.setBlendMode(.plusLighter)
             ctx.setAlpha(min(0.8, lit * darkness * (1 - ai)))
             ctx.draw(amberGlow, in: CGRect(x: hs.x - gr, y: y0 + bh * 0.45 - gr, width: gr * 2, height: gr * 2))
-            ctx.setAlpha(min(0.8, lit * darkness * ai))
+            ctx.setAlpha(min(0.5, lit * darkness * ai))
             ctx.draw(blueGlow, in: CGRect(x: hs.x - gr, y: y0 + bh * 0.45 - gr, width: gr * 2, height: gr * 2))
             ctx.setAlpha(1)
             ctx.setBlendMode(.normal)
@@ -704,19 +836,39 @@ final class TownScene: FilmScene {
         }
     }
 
+    private static func pillSize(_ name: String) -> CGSize { CGSize(width: FilmKit.width(shortened(name), 32, 0.3) + 34, height: 48) }
+    private static func shortened(_ name: String) -> String { name.count > 18 ? name.prefix(17) + "\u{2026}" : name }
+
+    /// A folder's name on a paper board, its bottom centre at `p`.
     private func tag(_ name: String, at p: CGPoint, alpha: Double, night: Double, in ctx: CGContext) {
-        var name = name
-        if name.count > 20 { name = name.prefix(19) + "\u{2026}" }
-        let w = FilmKit.width(name, 26, 0.3) + 28, h = 40.0
-        let rect = CGRect(x: p.x - w / 2, y: p.y - (1 - alpha) * 10, width: w, height: h)
+        let name = Self.shortened(name)
+        let size = Self.pillSize(name)
+        let rect = CGRect(x: p.x - size.width / 2, y: p.y - (1 - alpha) * 10, width: size.width, height: size.height)
         ctx.saveGState()
         ctx.setAlpha(alpha)
         ctx.setShadow(offset: CGSize(width: 0, height: 3), blur: 8, color: CGColor(gray: 0, alpha: 0.3))
-        ctx.addPath(CGPath(roundedRect: rect, cornerWidth: 9, cornerHeight: 9, transform: nil))
+        ctx.addPath(CGPath(roundedRect: rect, cornerWidth: 11, cornerHeight: 11, transform: nil))
         ctx.setFillColor(C(0xFFF6E8).mix(C(0xD8C7BE), night * 0.55).cg())
         ctx.fillPath()
         ctx.restoreGState()
-        FilmKit.text(name, 26, 0.3, C(0x3A2B2E).cg(alpha), at: CGPoint(x: p.x, y: rect.minY + 12), align: 0.5, in: ctx)
+        FilmKit.text(name, 32, 0.3, C(0x3A2B2E).cg(alpha), at: CGPoint(x: p.x, y: rect.minY + 14), align: 0.5, in: ctx)
+    }
+
+    /// A few paper clouds, where the sky has room for them.
+    private func clouds(_ t: Double, night: Double, in ctx: CGContext) {
+        let low = ground + 650 * stretch, high = H - (H - viewTop - 150) - 190
+        guard high - low > 150 else { return }
+        let c = C(0xFFFDF8).mix(C(0xFFE3CC), smooth(min(t, growth) / growth)).mix(C(0x3C2A44), night)
+        for k in 0..<3 {
+            let y = low + (high - low) * (0.2 + 0.3 * Double(k) + 0.1 * hash(k, 81))
+            let x = (W * (0.15 + 0.36 * Double(k)) + hash(k, 82) * 90 + t * (5 + 2 * Double(k))).truncatingRemainder(dividingBy: W + 300) - 150
+            let s = 0.8 + 0.5 * hash(k, 83)
+            ctx.setFillColor(c.cg(0.85 - 0.35 * night))
+            for (dx, dy, r) in [(0.0, 0.0, 34.0), (38, 6, 44), (82, -2, 32), (-34, -6, 24)] {
+                ctx.fillEllipse(in: CGRect(x: x + dx * s - r * s, y: y + dy * s - r * s * 0.62, width: r * s * 2, height: r * s * 1.24))
+            }
+            ctx.fill(CGRect(x: x - 52 * s, y: y - 22 * s, width: 160 * s, height: 16 * s))
+        }
     }
 
     private func birds(_ t: Double, night: Double, in ctx: CGContext) {
@@ -737,159 +889,4 @@ final class TownScene: FilmScene {
         }
     }
 
-}
-
-// MARK: - Dusk: the stars over the village
-
-/// The notebook's own constellation, in Pinto's world: the sky goes from dusk to night behind it,
-/// and in front a cut-paper village's windows come on as the notebook fills.
-final class VillageScene: FilmScene {
-    let script: FilmScript
-    private let W = Double(FilmScript.width)
-    private var growth: Double { script.growth }
-    private let amber = FilmKit.glow(C(0xFFC85A)), haze = FilmKit.glow(C(0xFF9E6B))
-    private struct Home { var x, y, s: Double; var roof: Int; var at: Double }
-    private var homes: [Home] = []
-    private let rows: [(Double, Double, Int)] = [(436, 1.0, 6), (376, 1.25, 5), (318, 1.5, 4)]
-
-    var replacesNotebook: Bool { false }
-    var lift: Double { 150 }
-    var captions: [String]? { nil }
-    var wordsDelay: Double { 0 }
-    var rewinds: Bool { false }
-    func drawKey(ai: Bool, at p: CGPoint, alpha: Double, t: Double, in ctx: CGContext) -> Bool { false }
-    func topInk(_ t: Double) -> FilmRenderer.RGB { C(0xFFFFFF) }
-
-    init(script: FilmScript) {
-        self.script = script
-        var rnd = FilmKit.Rand(21)
-        for (ri, (_, _, n)) in rows.enumerated() {
-            for k in 0..<n {
-                let x = 70 + (Double(k) + 0.25 + rnd.next() * 0.5) / Double(n) * (W - 140)
-                homes.append(Home(x: x, y: ridge(ri, x) - 4, s: rows[ri].1, roof: Int(rnd.next() * 3), at: rnd.next()))
-            }
-        }
-        homes.sort { $0.y > $1.y }
-    }
-
-    private func ridge(_ row: Int, _ x: Double) -> Double {
-        rows[row].0 + 26 * sin(x / (170 + Double(row) * 40) + Double(row) * 2.2) + 12 * sin(x / 61 + Double(row))
-    }
-
-    func drawBehind(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {
-        let H = canvas.height, base = canvas.bottom
-            let p = min(1, t / growth)
-            let night = smooth((p - 0.15) / 0.85)
-            func col(_ a: UInt32, _ b: UInt32) -> C { C(a).mix(C(b), night) }
-            let sky = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
-                                 colors: [col(0xF2A27C, 0x8E4335).cg(), col(0xA2506A, 0x3E1826).cg(), col(0x4A2A52, 0x1B0F1A).cg(), col(0x2A1838, 0x120A12).cg()] as CFArray, locations: [0, 0.3, 0.7, 1])!
-            ctx.drawLinearGradient(sky, start: CGPoint(x: 0, y: 380 + base), end: CGPoint(x: 0, y: H), options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
-            ctx.setBlendMode(.plusLighter)
-            ctx.setAlpha(0.55 * (1 - night * 0.8))
-            ctx.draw(haze, in: CGRect(x: W * 0.6 - 520, y: 380 + base - 420, width: 1040, height: 840))
-            ctx.setAlpha(1)
-            ctx.setBlendMode(.normal)
-            // Faint far stars, more as it darkens.
-            var rnd = FilmKit.Rand(5)
-            for _ in 0..<70 {
-                let x = rnd.next() * W, y = 620 + base + rnd.next() * (H - 620 - base), s = 0.8 + rnd.next() * 1.3, a = rnd.next()
-                ctx.setFillColor(C(0xFFF1D6).cg((0.1 + 0.5 * night) * (0.2 + 0.6 * a)))
-                ctx.fillEllipse(in: CGRect(x: x - s, y: y - s, width: s * 2, height: s * 2))
-            }
-    }
-
-    func drawInFront(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {
-        ctx.saveGState()
-        ctx.translateBy(x: 0, y: canvas.bottom)
-        defer { ctx.restoreGState() }
-            let p = min(1, t / growth)
-            let night = smooth((p - 0.15) / 0.85)
-            func col(_ a: UInt32, _ b: UInt32) -> C { C(a).mix(C(b), night) }
-            func sheet(_ path: CGPath, _ c: C) {
-                // Its shadow as soft lines along its edge, as in the town.
-                ctx.saveGState()
-                ctx.translateBy(x: 0, y: 2)
-                ctx.setLineJoin(.round)
-                for (w, a) in [(30.0, 0.04), (20, 0.05), (12, 0.06), (5, 0.08)] {
-                    ctx.addPath(path)
-                    ctx.setStrokeColor(CGColor(gray: 0, alpha: a))
-                    ctx.setLineWidth(w)
-                    ctx.strokePath()
-                }
-                ctx.restoreGState()
-                ctx.addPath(path)
-                ctx.setFillColor(c.cg())
-                ctx.fillPath()
-            }
-            // Far hills.
-            for (i, (y, c)) in [(520.0, col(0x7B5A86, 0x3B2540)), (486, col(0x674B78, 0x2F1F3A))].enumerated() {
-                let path = CGMutablePath()
-                path.move(to: CGPoint(x: -20, y: 0))
-                var x = -20.0
-                while x <= W + 20 { path.addLine(to: CGPoint(x: x, y: y + 40 * sin(x / (230 + Double(i) * 70) + Double(i) * 1.9) + 16 * sin(x / 93 + Double(i) * 4))); x += 12 }
-                path.addLine(to: CGPoint(x: W + 20, y: 0))
-                sheet(path, c)
-            }
-            // The village's three sheets, each with its houses.
-            let greens = [col(0x3E5A58, 0x1D3833), col(0x33504A, 0x17322B), col(0x29453C, 0x112921)]
-            for ri in 0..<3 {
-                let path = CGMutablePath()
-                path.move(to: CGPoint(x: -20, y: 0))
-                var x = -20.0
-                while x <= W + 20 { path.addLine(to: CGPoint(x: x, y: ridge(ri, x))); x += 8 }
-                path.addLine(to: CGPoint(x: W + 20, y: 0))
-                sheet(path, greens[ri])
-                for h in homes where abs(h.s - rows[ri].1) < 0.01 {
-                    let s = h.s, w = 40 * s, bh = (26 + 14 * h.at) * s, rh = 16 * s
-                    let x0 = h.x - w / 2, y0 = h.y
-                    ctx.setFillColor(col(0x8A6F72, 0x4E3C49).cg())
-                    ctx.fill(CGRect(x: x0, y: y0, width: w, height: bh))
-                    let roof = CGMutablePath()
-                    roof.move(to: CGPoint(x: x0 - 4 * s, y: y0 + bh - 1))
-                    roof.addLine(to: CGPoint(x: h.x, y: y0 + bh + rh))
-                    roof.addLine(to: CGPoint(x: x0 + w + 4 * s, y: y0 + bh - 1))
-                    ctx.addPath(roof)
-                    ctx.setFillColor([col(0x5A3F58, 0x2B1E2E), col(0x643D44, 0x301F27), col(0x4D4263, 0x261F33)][h.roof].cg())
-                    ctx.fillPath()
-                    // Its windows come on as the notebook fills.
-                    let lit = smooth((p - h.at * 0.85) / 0.08)
-                    let glass = col(0x4B3B49, 0x1B131C).mix(C(0xFFCB6B), lit)
-                    for wx in [x0 + w * 0.27, x0 + w * 0.73] {
-                        ctx.setFillColor(glass.cg())
-                        ctx.fill(CGRect(x: wx - 4.5 * s, y: y0 + 9 * s, width: 9 * s, height: 12 * s))
-                    }
-                    if lit > 0.05 {
-                        ctx.setBlendMode(.plusLighter)
-                        ctx.setAlpha(0.45 * lit * (0.4 + 0.6 * night))
-                        ctx.draw(amber, in: CGRect(x: h.x - 34 * s, y: y0 + 15 * s - 34 * s, width: 68 * s, height: 68 * s))
-                        ctx.setAlpha(1)
-                        ctx.setBlendMode(.normal)
-                    }
-                }
-                // Round trees along the sheet.
-                var tr = FilmKit.Rand(UInt64(40 + ri))
-                for _ in 0..<(4 + ri) {
-                    let x = tr.next() * W, rr = (18 + tr.next() * 14) * rows[ri].1
-                    let y = ridge(ri, x) - 6
-                    ctx.setFillColor(col(0x24413A, 0x10241E).cg())
-                    for (dx, dy, k) in [(0.0, 1.2, 1.0), (-0.55, 0.9, 0.72), (0.55, 0.95, 0.7)] {
-                        ctx.fillEllipse(in: CGRect(x: x + dx * rr - rr * k, y: y + dy * rr - rr * k * 0.9, width: rr * k * 2, height: rr * k * 1.8))
-                    }
-                }
-            }
-            // The ground in front, for the words.
-            let front = CGMutablePath()
-            front.move(to: CGPoint(x: -10, y: 0))
-            var x = -10.0
-            var k = 0
-            while x <= W + 60 {
-                let rr = 38 + 26 * hash(k, 31)
-                front.addArc(center: CGPoint(x: x, y: 268 + 18 * hash(k, 32)), radius: rr, startAngle: .pi, endAngle: 0, clockwise: true)
-                x += rr * 1.25
-                k += 1
-            }
-            front.addLine(to: CGPoint(x: W + 60, y: 0))
-            sheet(front, col(0x18231F, 0x0B1211))
-            ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: -canvas.bottom, width: 256, height: 256), byTiling: true)
-    }
 }

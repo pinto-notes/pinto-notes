@@ -32,7 +32,7 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
     }
     var dark: Bool { self != .paper }
     /// Draws a whole paper scene each frame: played in the app a little smaller, to keep its pace.
-    var scenic: Bool { self == .town || self == .dusk }
+    var scenic: Bool { self == .town }
     /// You: the app's accent, deeper on paper.
     var you: RGB { dark ? RGB(0.957, 0.678, 0.200) : RGB(0.85, 0.42, 0.02) }
     var ai: RGB {
@@ -107,7 +107,7 @@ final class FilmRenderer {
         var statEdits = "edits"
         /// Under the end card's numbers.
         var statNotes = "notes"
-        var statDays = "days written on"
+        var statDays = "writing days"
         var statAI: @Sendable (String) -> String = { "notes with \($0)" }
         /// Folder names over their clusters. Note titles are never shown.
         var folderNames = true
@@ -192,12 +192,11 @@ final class FilmRenderer {
         self.canvas = canvas
         switch labels.look {
         case .town: scene = TownScene(script: script, folderNames: labels.folderNames)
-        case .dusk: scene = VillageScene(script: script)
-        case .night, .paper: scene = nil
+        case .night, .paper, .dusk: scene = nil
         }
         switch opening {
         case .full: frame = 0
-        case .brief: frame = FilmScript.preludeFrames - Int((scene?.rewinds == true ? 1.0 : 0.7) * Double(FilmScript.fps))
+        case .brief: frame = FilmScript.preludeFrames - (scene?.rewinds == true ? 0 : Int(0.7 * Double(FilmScript.fps)))
         case .none: frame = FilmScript.preludeFrames
         }
         self.script = script
@@ -252,13 +251,20 @@ final class FilmRenderer {
                 let at = (script.growth - 0.05) * (1 - back)
                 ctx.saveGState()
                 ctx.scaleBy(x: k, y: k)
-                scene.drawBehind(at, canvas: canvas, in: ctx)
+                scene.drawRewinding(at, canvas: canvas, in: ctx)
                 topInk = scene.topInk(at)
                 keyTime = at
                 if words {
                     drawMark(in: ctx)
                     drawKey(you: 1, ai: 1, in: ctx)
-                    drawOpeningTitle(1, in: ctx)
+                    // As it runs back, the date and the count run back with it: it's time rewinding.
+                    let rolling = smooth(x / 0.25)
+                    drawOpeningTitle(1, subtitle: 1 - rolling, in: ctx)
+                    if rolling > 0 {
+                        let born = script.nodes.filter { $0.birth <= at }.count
+                        text(dateFormatter.string(from: script.date(at: at)), size: 40, weight: .medium, color: look.ink.cg(0.7 * rolling), at: CGPoint(x: 72, y: canvas.bottom + 156), in: ctx)
+                        text(labels.notesCount(born), size: 40, weight: .medium, color: look.ink.cg(0.7 * rolling), at: CGPoint(x: Double(width) - 72, y: canvas.bottom + 156), align: 1, in: ctx)
+                    }
                 }
                 ctx.restoreGState()
                 frame += 1
@@ -311,7 +317,8 @@ final class FilmRenderer {
         if let scene, scene.rewinds {
             ctx.saveGState()
             ctx.scaleBy(x: k, y: k)
-            scene.drawBehind(script.growth - 0.05, canvas: canvas, in: ctx)
+            // A scene that the app starts at its first morning: that morning.
+            scene.drawBehind(0, canvas: canvas, in: ctx)
             ctx.restoreGState()
         } else {
             let r = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .none, words: false)
@@ -466,7 +473,7 @@ final class FilmRenderer {
 
     /// The graph fills the upper part of the frame, leaving room for the words below.
     private var graphBox: CGRect {
-        let bottom = 340 + canvas.bottom + (scene?.lift ?? 0), top = 170 + canvas.top
+        let bottom = 340 + canvas.bottom + (scene?.lift ?? 0), top = 215 + canvas.top
         return CGRect(x: 70, y: bottom, width: Double(width) - 140, height: max(200, Double(height) - bottom - top))
     }
 
@@ -578,7 +585,9 @@ final class FilmRenderer {
             }
             let p = screen(pos[i])
             // Its dot and the close part of its light stay under its folder's name.
-            ftop[n.folder] = max(ftop[n.folder], p.y + r * (look.dark ? 1.6 : 2.4))
+            let centre = screen(fpos[n.folder])
+            let reach = (10 * Double(fcount[n.folder]).squareRoot() + 26) * camScale
+            if hypot(p.x - centre.x, p.y - centre.y) <= reach { ftop[n.folder] = max(ftop[n.folder], p.y + r * (look.dark ? 1.6 : 2.4)) }
             // Its resting light; at the end the notes written in most keep a wide one, so the last
             // frame has the month's shape: where the work was.
             let rest = 0.24 + 0.36 * max(heat, outro * (0.4 + 0.6 * worked)) + 0.06 * breathe
@@ -691,10 +700,12 @@ final class FilmRenderer {
         // The title over the first seconds, where the end card's title will be.
         let titleUntil = self.opening == .none ? 1.1 : 0.25
         let opening = 1 - smooth((t - titleUntil) / 0.5)
-        if opening > 0 { drawOpeningTitle(opening, in: ctx) }
+        // After a rewind the date and the count are already there, where the title's second line was.
+        let rewound = self.opening == .full && scene?.rewinds == true
+        if opening > 0 { drawOpeningTitle(opening, subtitle: rewound ? 0 : 1, in: ctx) }
         // The date and the count while it grows.
         // (Once the title has gone: the two never share the space.)
-        let running = smooth((t - titleUntil - 0.5) / 0.4) * (1 - smooth((t - script.growth) / 0.4))
+        let running = (rewound ? 1 : smooth((t - titleUntil - 0.5) / 0.4)) * (1 - smooth((t - script.growth) / 0.4))
         if running > 0 {
             let date = script.date(at: min(t, script.growth))
             text(dateFormatter.string(from: date), size: 40, weight: .medium, color: ink.cg(0.7 * running), at: CGPoint(x: side, y: base + 156), in: ctx)
@@ -781,9 +792,9 @@ final class FilmRenderer {
         }
     }
 
-    private func drawOpeningTitle(_ a: Double, in ctx: CGContext) {
+    private func drawOpeningTitle(_ a: Double, subtitle: Double = 1, in ctx: CGContext) {
         text(labels.title(script.stats), size: 60, weight: .semibold, color: look.ink.cg(a), at: CGPoint(x: 72, y: canvas.bottom + 256), in: ctx)
-        text(labels.subtitle(script.stats), size: 40, weight: .regular, color: look.ink.cg(0.78 * a), at: CGPoint(x: 72, y: canvas.bottom + 196), in: ctx)
+        if subtitle > 0 { text(labels.subtitle(script.stats), size: 40, weight: .regular, color: look.ink.cg(0.78 * a * subtitle), at: CGPoint(x: 72, y: canvas.bottom + 196), in: ctx) }
     }
 
     private func highlight(_ s: FilmStats) -> String? {

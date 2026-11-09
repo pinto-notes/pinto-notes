@@ -110,6 +110,10 @@ enum FilmDemo {
                 }
             }
         }
+        // Nothing after now: the month ends at this moment.
+        notes.removeAll { $0.created > now }
+        let kept = Set(notes.map(\.id))
+        for i in notes.indices { notes[i].edits.removeAll { $0.at > now }; notes[i].links.removeAll { !kept.contains($0) } }
         for i in notes.indices { notes[i].edits.sort { $0.at < $1.at } }
         return FilmInput(notes: notes.map { FilmNote(id: $0.id, folder: $0.folder, created: $0.created, edits: $0.edits, links: $0.links) }, now: now)
     }

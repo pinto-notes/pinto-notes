@@ -49,8 +49,9 @@ struct NotebookFilmView: View {
                             Image(decorative: poster, scale: 1)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .blur(radius: phase == .intro ? 2 : 0)
-                                .opacity(phase == .intro ? 0.8 : 1)
+                                // The town's first morning is shown as it is; the others soft and dimmed.
+                                .blur(radius: phase == .intro && !dawn ? 2 : 0)
+                                .opacity(phase == .intro && !dawn ? 0.8 : 1)
                                 .accessibilityHidden(true)
                         }
                     }
@@ -121,6 +122,9 @@ struct NotebookFilmView: View {
     @State private var screen: FilmPlayback.Screen?
     /// Where the film sits on the share screen, measured from its layout.
     @State private var cardRect = CGRect.zero
+    /// The Town opens on its first morning, a pale sky: the intro's words are in ink over it, as
+    /// on Pinto's own pages; the other looks keep the dark intro.
+    private var dawn: Bool { store.look == .town }
     /// The intro's picture of the notebook is still under everything (until the film first ends).
     @State private var backdrop = true
     /// The last frame in a look chosen on the share screen (the film itself shows until one is).
@@ -187,23 +191,26 @@ struct NotebookFilmView: View {
 
     private var intro: some View {
         ZStack {
-            // A darker band behind the words.
-            LinearGradient(colors: [.black.opacity(0), .black.opacity(0.62), .black.opacity(0)], startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea()
-                .accessibilityHidden(true)
+            // A darker band behind the words (not over the town's morning sky).
+            if !dawn {
+                LinearGradient(colors: [.black.opacity(0), .black.opacity(0.62), .black.opacity(0)], startPoint: .top, endPoint: .bottom)
+                    .ignoresSafeArea()
+                    .accessibilityHidden(true)
+            }
             VStack(spacing: 0) {
-                Spacer()
+                // Over the town the words sit in the sky, above the hills.
+                Spacer().frame(maxHeight: dawn ? 56 : .infinity)
                 AppMark(size: 44)
                 Text("Your first month\nwith Pinto Notes")
                     .font(.system(size: 34, weight: .bold))
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(dawn ? Self.ink : .white)
                     .padding(.top, 18)
                     .accessibilityAddTraits(.isHeader)
                 Text(Self.teaser(store.script?.stats))
                     .font(.body)
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(dawn ? Self.ink.opacity(0.75) : .white.opacity(0.78))
                     .padding(.top, 10)
                 Spacer()
                 Button(action: watch) {
@@ -359,7 +366,8 @@ struct NotebookFilmView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.white)
-        .background(Circle().fill(.white.opacity(0.14)))
+        // Dark enough to show on a pale sky, with an edge that shows on a dark one.
+        .background(Circle().fill(.black.opacity(0.42)).overlay(Circle().strokeBorder(.white.opacity(0.16), lineWidth: 1)))
         .frame(minWidth: 44, minHeight: 44)
         .contentShape(Rectangle())
         .accessibilityLabel(label)
@@ -456,6 +464,9 @@ struct NotebookFilmView: View {
         .background(Capsule().fill(.white))
         .contentShape(Capsule())
     }
+
+    /// Pinto's ink, for words on a pale sky.
+    static let ink = Color(red: 0.17, green: 0.12, blue: 0.11)
 
     /// Under the intro's title: what's yours in it. "68 notes in 6 folders. A short film of how they grew."
     static func teaser(_ s: FilmStats?) -> String {
