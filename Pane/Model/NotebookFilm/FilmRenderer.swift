@@ -137,6 +137,8 @@ final class FilmRenderer {
     private let scene: FilmScene?
     /// The ink of the mark and key along the top in the frame being drawn.
     private lazy var topInk: RGB = look.ink
+    /// The film time of the frame being drawn, for a scene's own key.
+    private var keyTime = 0.0
 
     // Layout, in world units; the camera maps them to pixels.
     private var pos: [SIMD2<Double>]
@@ -193,7 +195,7 @@ final class FilmRenderer {
         }
         switch opening {
         case .full: frame = 0
-        case .brief: frame = FilmScript.preludeFrames - Int(0.7 * Double(FilmScript.fps))
+        case .brief: frame = FilmScript.preludeFrames - Int((scene?.rewinds == true ? 1.0 : 0.7) * Double(FilmScript.fps))
         case .none: frame = FilmScript.preludeFrames
         }
         self.script = script
@@ -240,6 +242,26 @@ final class FilmRenderer {
         if t < 0 {
             // The opening: where the month ended up, under its title; then it draws back and is
             // gone before the first day begins, so the two never show at once.
+            if let scene, scene.rewinds {
+                // The scene as the month left it (before its own ending, which is kept for the
+                // end), held; then the month runs backwards to its first morning.
+                let x = min(1, max(0, (t + 0.62) / 0.62))
+                let back = x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2
+                let at = (script.growth - 0.05) * (1 - back)
+                ctx.saveGState()
+                ctx.scaleBy(x: k, y: k)
+                scene.drawBehind(at, canvas: canvas, in: ctx)
+                topInk = scene.topInk(at)
+                keyTime = at
+                if words {
+                    drawMark(in: ctx)
+                    drawKey(you: 1, ai: 1, in: ctx)
+                    drawOpeningTitle(1, in: ctx)
+                }
+                ctx.restoreGState()
+                frame += 1
+                return
+            }
             let back = smooth((t + 0.4) / 0.4)
             ctx.saveGState()
             ctx.scaleBy(x: k, y: k)
@@ -279,6 +301,21 @@ final class FilmRenderer {
         ctx.scaleBy(x: k, y: k)
         draw(t, in: ctx)
         ctx.restoreGState()
+    }
+
+    /// The picture the film opens on, without its words (behind the intro, and Watch picks up from it).
+    func drawOpeningPicture(in ctx: CGContext) {
+        let k = Double(ctx.width) / Double(width)
+        if let scene, scene.rewinds {
+            ctx.saveGState()
+            ctx.scaleBy(x: k, y: k)
+            scene.drawBehind(script.growth - 0.05, canvas: canvas, in: ctx)
+            ctx.restoreGState()
+        } else {
+            let r = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .none, words: false)
+            while r.frame < script.frameCount - 1 { r.skip() }
+            r.drawNext(in: ctx)
+        }
     }
 
     /// Moves on a frame without drawing it (the layout still settles), to start part way in.
@@ -438,7 +475,7 @@ final class FilmRenderer {
         let pad = 18.0
         let w = hi.x - lo.x + pad * 2, h = hi.y - lo.y + pad * 2
         let box = graphBox
-        let target = min(box.width / w, box.height / h, 6.0)
+        let target = min(box.width / w, box.height / h, script.folders.count <= 3 ? 9.0 : 6.0)
         let c = (lo + hi) / 2
         // Zooming out keeps up quickly so nothing leaves the frame; zooming in is slow.
         let k = target < camScale ? 0.25 : 0.06
@@ -458,6 +495,7 @@ final class FilmRenderer {
     private func draw(_ t: Double, in ctx: CGContext) {
         drawBackground(t, in: ctx)
         topInk = scene?.topInk(t) ?? look.ink
+        keyTime = t
         if scene?.replacesNotebook == true {
             // The scene is the whole picture: only the words go over it.
             if words { drawMark(in: ctx); drawWords(t, in: ctx) }
@@ -608,7 +646,7 @@ final class FilmRenderer {
             let c = screen(fpos[f])
             let top = max(c.y, f < ftop.count ? ftop[f] : c.y)
             let appear = smooth((min(t, script.growth) - fnamed[f]) / 0.5)
-            text(name, size: 34, weight: .semibold, color: look.ink.cg((look.dark ? 0.82 : 0.78) * appear), at: CGPoint(x: c.x, y: top + 14), align: 0.5, in: ctx)
+            text(name, size: 38, weight: .semibold, color: look.ink.cg((look.dark ? 0.86 : 0.8) * appear), at: CGPoint(x: c.x, y: top + 14), align: 0.5, in: ctx)
         }
     }
 
@@ -625,7 +663,7 @@ final class FilmRenderer {
         var x = 64.0
         let y = Double(height) - 96 - canvas.top
         if let m = labels.markImage {
-            let size = 44.0
+            let size = 48.0
             let rect = CGRect(x: x, y: y - 12, width: size, height: size)
             ctx.saveGState()
             ctx.addPath(CGPath(roundedRect: rect, cornerWidth: size * 0.2237, cornerHeight: size * 0.2237, transform: nil))
@@ -634,7 +672,7 @@ final class FilmRenderer {
             ctx.restoreGState()
             x += size + 14
         }
-        text(labels.mark, size: 30, weight: .semibold, color: topInk.cg(look.dark ? 0.85 : 0.8), at: CGPoint(x: x, y: y), in: ctx)
+        text(labels.mark, size: 34, weight: .semibold, color: topInk.cg(look.dark ? 0.88 : 0.84), at: CGPoint(x: x, y: y), in: ctx)
     }
 
     private func drawWords(_ t: Double, in ctx: CGContext) {
@@ -656,28 +694,38 @@ final class FilmRenderer {
         let running = smooth((t - titleUntil - 0.35) / 0.45) * (1 - smooth((t - script.growth) / 0.4))
         if running > 0 {
             let date = script.date(at: min(t, script.growth))
-            text(dateFormatter.string(from: date), size: 36, weight: .medium, color: ink.cg(0.66 * running), at: CGPoint(x: side, y: base + 150), in: ctx)
-            text(labels.notesCount(alive), size: 36, weight: .medium, color: ink.cg(0.66 * running), at: CGPoint(x: Double(width) - side, y: base + 150), align: 1, in: ctx)
+            text(dateFormatter.string(from: date), size: 40, weight: .medium, color: ink.cg(0.7 * running), at: CGPoint(x: side, y: base + 156), in: ctx)
+            text(labels.notesCount(alive), size: 40, weight: .medium, color: ink.cg(0.7 * running), at: CGPoint(x: Double(width) - side, y: base + 156), align: 1, in: ctx)
         }
-        // Under them, a line at a time: what a light is, and the day you wrote most as it passes.
+        // Under them, one line at a time (a line is gone before the next comes): what a light is,
+        // then what's yours: the day you wrote most as it passes, and the folder you wrote in most.
         if running > 0 {
-            var busiest = 0.0
+            func ramp(_ a: Double, _ b: Double) -> Double { smooth((t - a) / (b - a)) }
+            func shown(_ from: Double, _ until: Double) -> Double { ramp(from, from + 0.22) * (1 - ramp(until - 0.22, until)) }
+            /// 1 while a line of your own holds the baseline, with room either side of it.
+            func held(_ from: Double, _ until: Double) -> Double { ramp(from - 0.34, from - 0.1) * (1 - ramp(until + 0.1, until + 0.34)) }
+            var mine: [(from: Double, until: Double, line: String)] = []
             // Only while that day is on screen: a day that passed under the title goes unsaid here.
             if let day = s.busiestDay, let span = script.span(ofDay: day), span.start >= titleUntil + 0.3 {
-                // ...and no longer: the date beside it has moved on.
-                let from = span.start, length = min(2.4, max(0.9, span.length - 0.15))
-                busiest = smooth((t - from) / 0.3) * (1 - smooth((t - from - length) / 0.3))
-                if busiest > 0 {
-                    text(labels.busiestCaption(s.busiestDayEdits), size: 40, weight: .medium, color: look.you.cg(busiest * running), at: CGPoint(x: side, y: base + 88), in: ctx)
-                }
+                mine.append((span.start, span.start + min(2.4, max(0.9, span.length - 0.15)), labels.busiestCaption(s.busiestDayEdits)))
+            }
+            if labels.folderNames, let f = s.topFolder, script.growth > 5 {
+                mine.append((script.growth - 2.1, script.growth - 0.25, labels.topFolder(f, s.topFolderNotes)))
+            }
+            var cover = 0.0
+            for (k, m) in mine.enumerated() {
+                // The later of two that meet waits for the earlier.
+                let a = shown(m.from, m.until) * (k > 0 ? 1 - held(mine[0].from, mine[0].until) : 1)
+                cover = max(cover, held(m.from, m.until))
+                if a > 0 { text(m.line, size: 48, weight: .semibold, color: look.you.cg(a * running), at: CGPoint(x: side, y: base + 86), in: ctx) }
             }
             // As many as fit while it grows: a thin month's shorter film says less.
-            let lines = scene?.captions ?? labels.captions + (script.links.isEmpty ? [] : [labels.linksCaption])
-            var from = titleUntil + 0.5
-            let slot = min(2.5, max(1.6, (script.growth - from - 0.3) / Double(lines.count)))
+            let lines = scene?.captions ?? labels.captions
+            var from = titleUntil + 0.3
+            let slot = min(2.4, max(1.5, (script.growth - from - 2.3) / Double(lines.count)))
             for line in lines where from + slot <= script.growth + 0.01 {
-                let a = smooth((t - from) / 0.3) * (1 - smooth((t - from - slot + 0.4) / 0.3)) * (1 - busiest) * running
-                if a > 0 { text(line, size: 40, weight: .regular, color: ink.cg(0.66 * a), at: CGPoint(x: side, y: base + 88), in: ctx) }
+                let a = shown(from, from + slot - 0.15) * (1 - cover) * running
+                if a > 0 { text(line, size: 46, weight: .regular, color: ink.cg(0.72 * a), at: CGPoint(x: side, y: base + 86), in: ctx) }
                 from += slot
             }
         }
@@ -690,20 +738,22 @@ final class FilmRenderer {
         text(labels.title(s), size: 60, weight: .semibold, color: ink.cg(outroIn), at: CGPoint(x: side, y: base + 256 - rise), in: ctx)
         if let line = highlight(s) {
             let a = smooth((t - script.growth - 0.55) / 0.6)
-            text(line, size: 36, weight: .regular, color: ink.cg(0.82 * a), at: CGPoint(x: side, y: base + 198 - rise), in: ctx)
+            text(line, size: 40, weight: .regular, color: ink.cg(0.84 * a), at: CGPoint(x: side, y: base + 200 - rise), in: ctx)
         }
         var stats: [(String, String, RGB?)] = [("\(s.notes)", labels.statNotes, nil), ("\(s.writingDays)", labels.statDays, nil)]
         // The AI's number in its colour; the totals in ink, so nobody adds them up as yours plus its.
         if let ai = s.ai, s.aiNotes > 0 { stats.append(("\(s.aiNotes)", labels.statAI(ai), look.ai)) } else { stats.append(("\(s.edits)", labels.statEdits, nil)) }
-        let column = (Double(width) - side * 2) / 3
+        // The third column is the widest: its label names the AI.
+        let across = Double(width) - side * 2
+        let starts = [0, 0.3, 0.6, 1.0]
         for (k, (number, label, color)) in stats.enumerated() {
             let a = smooth((t - script.growth - 0.75 - 0.12 * Double(k)) / 0.5)
-            let x = side + column * Double(k)
-            let y = base + 66 - (1 - a) * 10
-            text(number, size: 66, weight: .semibold, color: (color ?? ink).cg(a), at: CGPoint(x: x, y: y + 48), in: ctx)
-            // Its label, as large as fits its column.
-            let fit = min(1, (column - 18) / max(1, textWidth(label, size: 32, weight: .regular)))
-            text(label, size: (32 * fit).rounded(.down), weight: .regular, color: ink.cg(0.76 * a), at: CGPoint(x: x, y: y), in: ctx)
+            let x = side + across * starts[k], column = across * (starts[k + 1] - starts[k])
+            let y = base + 62 - (1 - a) * 10
+            text(number, size: 66, weight: .semibold, color: (color ?? ink).cg(a), at: CGPoint(x: x, y: y + 50), in: ctx)
+            // Its label, as large as fits its column: read at the width of a feed.
+            let fit = min(1, (column - 14) / max(1, textWidth(label, size: 36, weight: .regular)))
+            text(label, size: (36 * fit).rounded(.down), weight: .regular, color: ink.cg(0.8 * a), at: CGPoint(x: x, y: y), in: ctx)
         }
     }
 
@@ -714,20 +764,23 @@ final class FilmRenderer {
         guard let name = script.stats.ai else { return }
         // Deeper dots while the top is in dark ink on a pale sky.
         let pale = topInk.r + topInk.g + topInk.b < 1.5
-        let keys: [(String, RGB, Double)] = [(labels.withAI(name), pale ? FilmLook.paper.ai : look.ai, ai), (labels.you, pale ? FilmLook.paper.you : look.you, you)]
+        let keys: [(String, RGB, Double, Bool)] = [(labels.withAI(name), pale ? FilmLook.paper.ai : look.ai, ai, true), (labels.you, pale ? FilmLook.paper.you : look.you, you, false)]
         var right = Double(width) - 64
-        for (name, color, a) in keys where a > 0 {
-            let w = textWidth(name, size: 30, weight: .medium)
-            text(name, size: 30, weight: .medium, color: topInk.cg(0.82 * a), at: CGPoint(x: right - w, y: keyY), in: ctx)
-            ctx.setFillColor(color.cg(a))
-            ctx.fillEllipse(in: CGRect(x: right - w - 30, y: keyY + 3, width: 18, height: 18))
-            right -= w + 30 + 28
+        for (name, color, a, isAI) in keys where a > 0 {
+            let w = textWidth(name, size: 34, weight: .medium)
+            text(name, size: 34, weight: .medium, color: topInk.cg(0.86 * a), at: CGPoint(x: right - w, y: keyY), in: ctx)
+            // The scene's own sign for it (a little house), or a dot.
+            if scene?.drawKey(ai: isAI, at: CGPoint(x: right - w - 34, y: keyY + 1), alpha: a, t: keyTime, in: ctx) != true {
+                ctx.setFillColor(color.cg(a))
+                ctx.fillEllipse(in: CGRect(x: right - w - 32, y: keyY + 3, width: 20, height: 20))
+            }
+            right -= w + 34 + 26
         }
     }
 
     private func drawOpeningTitle(_ a: Double, in ctx: CGContext) {
         text(labels.title(script.stats), size: 60, weight: .semibold, color: look.ink.cg(a), at: CGPoint(x: 72, y: canvas.bottom + 256), in: ctx)
-        text(labels.subtitle(script.stats), size: 36, weight: .regular, color: look.ink.cg(0.74 * a), at: CGPoint(x: 72, y: canvas.bottom + 198), in: ctx)
+        text(labels.subtitle(script.stats), size: 40, weight: .regular, color: look.ink.cg(0.78 * a), at: CGPoint(x: 72, y: canvas.bottom + 196), in: ctx)
     }
 
     private func highlight(_ s: FilmStats) -> String? {

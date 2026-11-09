@@ -122,7 +122,7 @@ struct FilmScript: Sendable {
     let growth: Double
     /// It opens on a glimpse of where the month ended up, then goes back to the first day: the
     /// first frame, which is what a feed or a message shows before it plays, is the whole notebook.
-    static let prelude = 0.9
+    static let prelude = 1.3
     static var preludeFrames: Int { Int((prelude * Double(fps)).rounded()) }
     var duration: Double { Self.prelude + growth + Self.outro }
     var frameCount: Int { Int((duration * Double(Self.fps)).rounded()) }

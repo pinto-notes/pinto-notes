@@ -506,6 +506,33 @@ import Testing
         #expect(night.lit > 300, "windows lit where the work was")
     }
 
+    @Test func theTownOpensByDayAndKeepsNightForTheEnd() {
+        // Its first frame (what a feed shows before it plays) is the whole town at dusk; the lit
+        // night town is the ending, not something already seen. Then the month runs backwards
+        // to an empty hillside before it begins.
+        let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        var labels = FilmRenderer.Labels()
+        labels.look = .town
+        let r = FilmRenderer(script: script, labels: labels)
+        let ctx = FilmRenderer.context(width: 540, height: 675)!
+        func sky() -> Int {
+            let p = ctx.data!.assumingMemoryBound(to: UInt8.self)
+            var sum = 0
+            for x in stride(from: 0, to: ctx.width, by: 8) { let px = p + 6 * ctx.bytesPerRow + x * 4; sum += Int(px[0]) + Int(px[1]) + Int(px[2]) }
+            return sum / (ctx.width / 8)
+        }
+        r.drawNext(in: ctx)
+        let first = Data(bytes: ctx.data!, count: ctx.bytesPerRow * ctx.height)
+        #expect(sky() > 450, "a dusk sky, not night")
+        while r.frame < FilmScript.preludeFrames { r.skip() }
+        r.drawNext(in: ctx)
+        #expect(sky() > 600, "then the first morning")
+        #expect(Data(bytes: ctx.data!, count: ctx.bytesPerRow * ctx.height) != first)
+        while r.frame < script.frameCount - 1 { r.skip() }
+        r.drawNext(in: ctx)
+        #expect(sky() < 200, "night at the end")
+    }
+
     @Test func theTownStandsTallerOnAPhonesScreen() {
         // More room above the ground on a tall screen: the hills use some of it, and the frame
         // it settles to is the shared one.

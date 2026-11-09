@@ -101,6 +101,8 @@ struct NotebookFilmView: View {
         .task(id: screen) {
             guard let script = store.script, let screen else { return }
             poster = await FilmPlayback.poster(script: script, labels: store.labels, canvas: screen.canvas(0, card: .zero), width: screen.pixels / 2)
+            // The film itself is got ready under the intro, so Watch starts it at once.
+            if phase == .intro { playback.prepare(script: script, labels: store.labels, screen: screen.sized(for: store.look)) }
         }
         .onDisappear { playback.stop(); store.stopMaking() }
         .onChange(of: playback.settling) { _, settling in if settling && phase == .watching { toShare() } }
@@ -386,7 +388,8 @@ struct NotebookFilmView: View {
                     Text(store.folderNames ? "Shown in the film. Note titles and text never are." : "Left out, like note titles and text.")
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.68))
-                        .fixedSize(horizontal: false, vertical: true)
+                        // Room for two lines either way, so the screen doesn't shift when it's switched.
+                        .lineLimit(2, reservesSpace: true)
                 }
             }
                 .tint(Color(red: 0.957, green: 0.678, blue: 0.2))
@@ -545,6 +548,36 @@ final class FilmPlayback {
     /// A tap while watching: straight to the end.
     func skipToEnd() { skip.withLock { $0 = true } }
 
+    /// What `prepare` got ready: the film and its first frame, so Watch shows it at once.
+    private final class Ready: @unchecked Sendable {
+        let renderer: FilmRenderer, ctx: CGContext, first: CGImage?, key: String
+        init(renderer: FilmRenderer, ctx: CGContext, first: CGImage?, key: String) { self.renderer = renderer; self.ctx = ctx; self.first = first; self.key = key }
+    }
+    @ObservationIgnored private var ready: Task<Ready?, Never>?
+    @ObservationIgnored private var readyKey = ""
+
+    private static func key(_ labels: FilmRenderer.Labels, _ screen: Screen) -> String {
+        "\(labels.look.rawValue)-\(labels.folderNames)-\(screen.pixels)-\(screen.size.width)x\(screen.size.height)"
+    }
+
+    private nonisolated static func make(script: FilmScript, labels: FilmRenderer.Labels, screen: Screen, key: String) -> Ready? {
+        let canvas = screen.canvas(0, card: .zero)
+        // The intro has just shown where the month ended up: it picks up from that picture.
+        let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .brief)
+        guard let ctx = FilmRenderer.context(width: screen.pixels, height: pixelHeight(screen.pixels, canvas)) else { return nil }
+        renderer.drawNext(in: ctx)
+        return Ready(renderer: renderer, ctx: ctx, first: ctx.makeImage(), key: key)
+    }
+
+    /// While the intro is up: gets the film and its first frame ready, so pressing Watch never
+    /// waits and the film never starts a beat late.
+    func prepare(script: FilmScript, labels: FilmRenderer.Labels, screen: Screen) {
+        let key = Self.key(labels, screen)
+        guard key != readyKey else { return }
+        readyKey = key
+        ready = Task.detached(priority: .userInitiated) { Self.make(script: script, labels: labels, screen: screen, key: key) }
+    }
+
     func play(script: FilmScript, labels: FilmRenderer.Labels, screen: Screen, settle: Double) {
         task?.cancel()
         settling = false
@@ -553,12 +586,16 @@ final class FilmPlayback {
         let skip = OSAllocatedUnfairLock(initialState: false)
         self.skip = skip
         let width = screen.pixels
+        let key = Self.key(labels, screen)
+        let prepared = key == readyKey ? ready : nil
+        ready = nil
+        readyKey = ""
         task = Task.detached(priority: .userInitiated) { [weak self] in
-            let canvas = screen.canvas(0, card: .zero)
-            // The intro has just shown where the month ended up: it picks up from that picture.
-            let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .brief)
-            guard let ctx = FilmRenderer.context(width: width, height: Self.pixelHeight(width, canvas)) else { return }
-            let first = renderer.frame
+            guard let made = await prepared?.value ?? Self.make(script: script, labels: labels, screen: screen, key: key) else { return }
+            let renderer = made.renderer, ctx = made.ctx
+            // Its first frame was drawn before the clock: the film starts when it's seen.
+            let first = renderer.frame - 1
+            await MainActor.run { self?.frame = made.first }
             let total = Double(script.frameCount - first)
             let clock = ContinuousClock()
             let began = clock.now
@@ -620,9 +657,7 @@ final class FilmPlayback {
         await Task.detached(priority: .userInitiated) {
             let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .none, words: false)
             guard let ctx = FilmRenderer.context(width: width, height: pixelHeight(width, canvas)) else { return nil }
-            let last = script.frameCount - 1
-            while renderer.frame < last { renderer.skip() }
-            renderer.drawNext(in: ctx)
+            renderer.drawOpeningPicture(in: ctx)
             return ctx.makeImage()
         }.value
     }
@@ -693,6 +728,8 @@ private struct ActivitySheet: UIViewControllerRepresentable {
         let c = UIActivityViewController(activityItems: [MovieItem(url: url, title: title, picture: picture)], applicationActivities: nil)
         // Dark like the screen under it.
         c.overrideUserInterfaceStyle = .dark
+        // Not back into Pinto Notes itself (its own share extension would be offered first).
+        if let id = Bundle.main.bundleIdentifier { c.excludedActivityTypes = [UIActivity.ActivityType("\(id).share")] }
         return c
     }
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}

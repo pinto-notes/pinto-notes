@@ -19,6 +19,12 @@ protocol FilmScene: AnyObject {
     func drawInFront(_ t: Double, canvas: FilmCanvas, in ctx: CGContext)
     /// The ink of the mark and key along the top at `t`.
     func topInk(_ t: Double) -> FilmRenderer.RGB
+    /// Draws the key's sign for "just me" or "with the AI" in the scene's own terms, its bottom
+    /// left at `p`; false leaves the usual dot.
+    func drawKey(ai: Bool, at p: CGPoint, alpha: Double, t: Double, in ctx: CGContext) -> Bool
+    /// The film opens on the scene as the month left it, then runs the month backwards to its
+    /// first day (the constellation's own opening draws back instead).
+    var rewinds: Bool { get }
 }
 
 private typealias C = FilmRenderer.RGB
@@ -112,13 +118,12 @@ final class TownScene: FilmScene {
     private var stretch = 1.0
     private var growth: Double { script.growth }
 
-    struct Hill { var folder: Int; var cx, base, w, h, s: Double; var depth: Int; var birth: Double; var skew: Double; var tagY = 0.0 }
+    struct Hill { var folder: Int; var cx, base, w, h, s: Double; var depth: Int; var birth: Double; var skew: Double }
     struct House { var hill: Int; var x, y, s, w: Double; var wall, roof: Int; var chimneyLeft: Bool }
     private var hills: [Hill] = []
     private var houses: [House] = []
     private var order: [Int] = []
     private var trees: [(hill: Int, x: Double, y: Double, r: Double, tone: Double)] = []
-    private var tagLift: [Double] = []
     private let worked: [Double]
     private let aiFrom: [Double]
     private let amberGlow = FilmKit.glow(C(0xFFC85A)), blueGlow = FilmKit.glow(C(0x8FC8FF)), warmHaze = FilmKit.glow(C(0xFFB36B))
@@ -126,9 +131,28 @@ final class TownScene: FilmScene {
 
     var replacesNotebook: Bool { true }
     var lift: Double { 0 }
-    var captions: [String]? { ["Each house is a note", "A window lights when it\u{2019}s written in", "Houses grow as they\u{2019}re edited"] }
+    var captions: [String]? { ["Each house is a note", "It grows a floor as it\u{2019}s written in"] }
+    var rewinds: Bool { true }
     var wordsDelay: Double { 0.65 }
     func drawInFront(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {}
+
+    /// The key: a little house with its roof in the colour.
+    func drawKey(ai: Bool, at p: CGPoint, alpha: Double, t: Double, in ctx: CGContext) -> Bool {
+        let night = smooth((t - growth) / 1.3)
+        let roof = (ai ? C(0x5F84B5) : C(0xD9883A)).mix(ai ? C(0x9CD2FF) : C(0xFFCB6B), night)
+        ctx.setFillColor(C(0xF0DFC2).mix(C(0x6A5560), night).cg(alpha))
+        ctx.fill(CGRect(x: p.x + 2, y: p.y, width: 18, height: 12))
+        let r = CGMutablePath()
+        r.move(to: CGPoint(x: p.x - 1, y: p.y + 11))
+        r.addLine(to: CGPoint(x: p.x + 11, y: p.y + 23))
+        r.addLine(to: CGPoint(x: p.x + 23, y: p.y + 11))
+        r.closeSubpath()
+        ctx.addPath(r)
+        ctx.setFillColor(roof.cg(alpha))
+        ctx.fillPath()
+        return true
+    }
+
     /// Ink by day, cream once it's dark.
     func topInk(_ t: Double) -> FilmRenderer.RGB { C(0x3A2B2E).mix(C(0xFFF4E6), smooth((t - growth) / 1.3)) }
 
@@ -171,9 +195,9 @@ final class TownScene: FilmScene {
                 if F == 2 { xs = ri == 0 ? 0.36 : 0.7 }
                 if F >= 3, m == 1 { xs = ri == 1 ? 0.62 : 0.4 }
                 let n = Double(count[f])
-                let s = [0.98, 1.14, 1.3][depth]
+                let s = [0.94, 1.08, 1.24][depth]
                 let w = min(W * 0.9 / max(1, m) * 1.25, (300 + 46 * n.squareRoot()) * (0.94 + 0.12 * hash(f, 5)))
-                let h = (126 + 17 * n.squareRoot()) * (0.92 + 0.16 * hash(f, 7))
+                let h = (140 + 21 * n.squareRoot()) * (0.92 + 0.16 * hash(f, 7))
                 let base = Self.rowBase[depth]
                 let cx = 60 + xs * (W - 120) + (hash(f, 3) - 0.5) * 36
                 hills.append(Hill(folder: f, cx: cx, base: base, w: w, h: h, s: s, depth: depth, birth: max(0, first[f] - 0.3), skew: 0))
@@ -201,7 +225,7 @@ final class TownScene: FilmScene {
                 for k in 0..<n {
                     let u = (Double(k) + 0.5 - Double(n) / 2) / Double(perRow + 3) * 2 * 0.94
                     let x = hill.cx + u * hill.w / 2 + (hash(hi * 100 + r, k) - 0.5) * 9 * s
-                    spots.append((x, (2 + Double(r) * 36) * s + hash(hi * 37 + k, r) * 6 * s, Double(r) * 0.8 + abs(u) * 1.3 + hash(hi * 11 + k, r * 3 + 1) * 0.55))
+                    spots.append((x, (2 + Double(r) * 45) * s + hash(hi * 37 + k, r) * 6 * s, Double(r) * 0.8 + abs(u) * 1.3 + hash(hi * 11 + k, r * 3 + 1) * 0.55))
                 }
             }
             spots.sort { $0.key < $1.key }
@@ -216,11 +240,7 @@ final class TownScene: FilmScene {
                 let u = side * (0.5 + 0.42 * hash(hi * 5 + k, 22))
                 trees.append((hi, hill.cx + u * hill.w / 2, (hash(hi + k, 23) * 26) * hill.s, (20 + 15 * hash(hi * 3 + k, 24)) * hill.s, hash(hi * 7 + k, 25)))
             }
-            hills[hi].tagY = hill.base + hill.h
         }
-        // Tags keep clear of each other.
-        tagLift = Array(repeating: 0, count: hills.count)
-        for a in hills.indices { for b in hills.indices where b < a && abs(hills[a].cx - hills[b].cx) < 180 && abs(hills[a].tagY + tagLift[a] - hills[b].tagY - tagLift[b]) < 46 { tagLift[a] = hills[b].tagY + tagLift[b] + 52 - hills[a].tagY } }
         order = script.nodes.indices.sorted { a, b in
             let ha = houses[a], hb = houses[b]
             return ha.hill == hb.hill ? ha.y < hb.y : ha.hill < hb.hill
@@ -248,18 +268,31 @@ final class TownScene: FilmScene {
         let dusk = smooth((p - 0.3) / 0.7)
         let night = smooth((t - growth) / 1.3)
         func col(_ day: UInt32, _ dk: UInt32, _ nt: UInt32) -> C { C(day).mix(C(dk), dusk).mix(C(nt), night) }
+        // The sky goes down through a deep orange, not a grey halfway between dusk and night.
+        func sky(_ day: UInt32, _ dk: UInt32, _ ember: UInt32, _ nt: UInt32) -> C {
+            let d = C(day).mix(C(dk), dusk)
+            return night < 0.5 ? d.mix(C(ember), smooth(night * 2)) : C(ember).mix(C(nt), smooth(night * 2 - 1))
+        }
+        // A town of two or three hills is seen from nearer.
+        let folders = hills.count
+        let zoom = folders <= 2 ? 1.3 : folders == 3 ? 1.15 : 1
         // The whole stage drifts a little, near sheets more than far ones: paper at different depths.
         let total = growth + FilmScript.outro
         let drift = -16 * cos(min(1, max(0, t / total)) * .pi)
-        func layer(_ depth: Double, _ body: () -> Void) {
+        func layer(_ depth: Double, near: Bool = false, _ body: () -> Void) {
             ctx.saveGState()
             ctx.translateBy(x: drift * depth, y: 0)
+            if near, zoom != 1 {
+                ctx.translateBy(x: W / 2, y: ground)
+                ctx.scaleBy(x: zoom, y: zoom)
+                ctx.translateBy(x: -W / 2, y: -ground)
+            }
             body()
             ctx.restoreGState()
         }
 
         // Sky.
-        let top = col(0xFFF7EA, 0xFCE6CC, 0x1F1019), mid = col(0xFFEFD9, 0xF7BC97, 0x4A1D2A), hor = col(0xFFE4C6, 0xE88F8C, 0xA44E3E)
+        let top = sky(0xFFF7EA, 0xFCE6CC, 0x5B2A47, 0x1F1019), mid = sky(0xFFEFD9, 0xF7BC97, 0xB54A4A, 0x4A1D2A), hor = sky(0xFFE4C6, 0xE88F8C, 0xF27D4F, 0xA44E3E)
         // Painted small and stretched: a full-size gradient costs many times more.
         if let strip = FilmRenderer.context(width: 2, height: 96) {
             let sky = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [hor.cg(), mid.cg(), top.cg()] as CFArray, locations: [0, 0.38, 1])!
@@ -305,7 +338,7 @@ final class TownScene: FilmScene {
         // Three sheets of hills, back to front; each folder's hill swells up when its first note
         // comes, and carries its houses.
         var drawn = 0
-        for depth in 0..<3 { layer([0.45, 0.7, 1.0][depth]) {
+        for depth in 0..<3 { layer([0.45, 0.7, 1.0][depth], near: true) {
             let rowHills = hills.indices.filter { hills[$0].depth == depth }
             guard !rowHills.isEmpty else { return }
             let green = [col(0x9DB39A, 0x6C8878, 0x1D3833), col(0x86A380, 0x54755F, 0x17322B), col(0x6F9169, 0x426349, 0x112921)][depth]
@@ -347,7 +380,12 @@ final class TownScene: FilmScene {
                     let hill = hills[hi]
                     let name = script.folders[hill.folder]
                     let a = smooth((gt - hill.birth - 0.45) / 0.4)
-                    if !name.isEmpty, a > 0 { tag(name, at: CGPoint(x: hill.cx, y: ground + hill.tagY * stretch + 78 * hill.s + tagLift[hi]), alpha: a, night: night, in: ctx) }
+                    guard !name.isEmpty, a > 0 else { continue }
+                    // Its name on a board above the highest roof the hill will have, on a short stick.
+                    let board = signY(hi, depth: depth)
+                    ctx.setFillColor(col(0x5A4038, 0x45312E, 0x1A1216).cg(a))
+                    ctx.fill(CGRect(x: hill.cx - 1.5, y: board - 15, width: 3, height: 17))
+                    tag(name, at: CGPoint(x: hill.cx, y: board), alpha: a, night: night, in: ctx)
                 }
             }
             // Street lamps along the front, lit as the light goes.
@@ -371,8 +409,9 @@ final class TownScene: FilmScene {
                 }
             }
         } }
-        // Birds on their way home at dusk.
+        // Birds on their way home at dusk, and paper lanterns on the day you wrote most.
         layer(0.3) { birds(t, night: night, in: ctx) }
+        layer(0.85, near: true) { lanterns(t, in: ctx) }
 
         // The dark ground in front, with the canopy's edge: the words sit on it.
         let groundC = col(0x1F2D2A, 0x18231F, 0x0B1211)
@@ -387,14 +426,14 @@ final class TownScene: FilmScene {
             k += 1
         }
         front.addLine(to: CGPoint(x: W + 120, y: 0))
-        layer(1.35) { sheet(front, groundC, in: ctx) }
+        layer(1.35) { sheet(front, groundC, rim: false, in: ctx) }
         // Paper grain over everything.
         ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
 
     }
 
     /// A sheet of paper: a filled shape with the soft shadow it casts on the sheet behind.
-    private func sheet(_ path: CGPath, _ c: C, in ctx: CGContext) {
+    private func sheet(_ path: CGPath, _ c: C, rim: Bool = true, in ctx: CGContext) {
         // Its shadow on the sheet behind: a few soft lines along its edge (the sheet itself
         // covers their lower half). Many times quicker than a blurred shadow or stepped copies.
         ctx.saveGState()
@@ -410,6 +449,74 @@ final class TownScene: FilmScene {
         ctx.addPath(path)
         ctx.setFillColor(c.cg())
         ctx.fillPath()
+        // The cut edge catches a little light: it's a sheet of paper, with a thickness.
+        guard rim else { return }
+        ctx.saveGState()
+        ctx.translateBy(x: 0, y: -1.5)
+        ctx.addPath(path)
+        ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.13))
+        ctx.setLineWidth(2.5)
+        ctx.strokePath()
+        ctx.restoreGState()
+    }
+
+    /// How tall a house stands once it has been written in `count` times: walls, roof and chimney.
+    private func height(_ i: Int, count: Int) -> Double {
+        let hs = houses[i]
+        let floors = 1 + min(2.1, 0.6 * Double(max(0, count - 1)).squareRoot())
+        return 22 * hs.s * floors + (15 + 4 * Double(hs.roof)) * hs.s + 6 * hs.s
+    }
+
+    /// Where a hill's signboard sits: above the highest roof near its top once the month is
+    /// done, and above any board it would otherwise cover.
+    private func signY(_ hi: Int, depth: Int) -> Double {
+        func top(_ h: Int) -> Double {
+            let hill = hills[h]
+            var y = ridge(depth: hill.depth, hill.cx, growth) + 30 * hill.s
+            for i in script.nodes.indices where houses[i].hill == h && abs(houses[i].x - hill.cx) < 95 * hill.s {
+                y = max(y, ridge(depth: hill.depth, houses[i].x, growth) - houses[i].y + height(i, count: script.nodes[i].edits.count))
+            }
+            return y + 14
+        }
+        var y = top(hi)
+        // Boards drawn before this one keep their place; this one goes above them.
+        for other in hills.indices where other < hi && abs(hills[other].cx - hills[hi].cx) < 190 {
+            let o = signY(other, depth: hills[other].depth)
+            if abs(o - y) < 48 { y = o + 50 }
+        }
+        return y
+    }
+
+    /// On the day you wrote most, paper lanterns go up from the houses you wrote in.
+    private func lanterns(_ t: Double, in ctx: CGContext) {
+        guard let day = script.stats.busiestDay, let span = script.span(ofDay: day), t <= growth + 0.2 else { return }
+        let lit = script.nodes.indices.filter { i in script.nodes[i].edits.contains { $0 >= span.start && $0 < span.start + span.length } }
+        guard !lit.isEmpty else { return }
+        let count = min(14, max(5, script.stats.busiestDayEdits / 3))
+        ctx.setBlendMode(.normal)
+        for k in 0..<count {
+            let from = span.start + Double(k) / Double(count) * span.length * 0.8
+            let age = t - from
+            guard age > 0, age < 2.6 else { continue }
+            let i = lit[Int(hash(k, 71) * Double(lit.count)) % lit.count]
+            let hs = houses[i], depth = hills[hs.hill].depth
+            let u = age / 2.6
+            let x = hs.x + sin(age * 1.7 + Double(k)) * 9 + (hash(k, 72) - 0.5) * 50 * u
+            let y = ridge(depth: depth, hs.x, growth) - hs.y + height(i, count: 3) + 150 * u * (0.8 + 0.4 * hash(k, 73))
+            let a = smooth(age / 0.3) * (1 - smooth((u - 0.7) / 0.3))
+            let s = hs.s
+            ctx.setBlendMode(.plusLighter)
+            ctx.setAlpha(0.5 * a)
+            ctx.draw(amberGlow, in: CGRect(x: x - 26 * s, y: y - 26 * s, width: 52 * s, height: 52 * s))
+            ctx.setBlendMode(.normal)
+            ctx.setAlpha(a)
+            ctx.addPath(CGPath(roundedRect: CGRect(x: x - 5 * s, y: y - 7 * s, width: 10 * s, height: 14 * s), cornerWidth: 3 * s, cornerHeight: 3 * s, transform: nil))
+            ctx.setFillColor(C(0xFFCB6B).cg())
+            ctx.fillPath()
+            ctx.setFillColor(C(0xE8791A).cg())
+            ctx.fill(CGRect(x: x - 3.5 * s, y: y - 8.5 * s, width: 7 * s, height: 2.2 * s))
+            ctx.setAlpha(1)
+        }
     }
 
     private func tree(at p: CGPoint, r: Double, color: C, in ctx: CGContext) {
@@ -452,8 +559,13 @@ final class TownScene: FilmScene {
         let w = hs.w, bh = 22 * s * floorsF * pop, rh = (15 + 4 * Double(hs.roof)) * s * pop
         let x0 = hs.x - w / 2, y0 = groundY - 3 * s
         let walls: [(UInt32, UInt32, UInt32)] = [(0xF0DFC2, 0xD3B596, 0x55424E), (0xE7D0AE, 0xC9A687, 0x4E3C49), (0xEFD3BD, 0xD2A796, 0x57404C), (0xDDCFB6, 0xBFA78F, 0x4A3D4A)]
-        let roofs: [(UInt32, UInt32, UInt32)] = [(0x7F5A70, 0x654559, 0x2B1E2E), (0x8E5B56, 0x714544, 0x301F27), (0x6C5A7C, 0x554563, 0x261F33)]
-        let wall = col(walls[hs.wall].0, walls[hs.wall].1, walls[hs.wall].2), roof = col(roofs[hs.roof].0, roofs[hs.roof].1, roofs[hs.roof].2)
+        // The roof says who wrote in it, in any light: warm ochre for yours alone, slate blue once
+        // your AI has helped.
+        let mine: [(UInt32, UInt32, UInt32)] = [(0xD9883A, 0xC06F33, 0x4A2F26), (0xC97A2E, 0xB0622B, 0x432A23), (0xE09A4A, 0xC77D3D, 0x51352A)]
+        let helped: [(UInt32, UInt32, UInt32)] = [(0x5F84B5, 0x4D6C9C, 0x232F4A), (0x4F74A6, 0x41608E, 0x1F2A43), (0x6E93C2, 0x5878A6, 0x283552)]
+        let aiRoof = smooth((gt - aiFrom[i]) / 0.35)
+        let wall = col(walls[hs.wall].0, walls[hs.wall].1, walls[hs.wall].2)
+        let roof = col(mine[hs.roof].0, mine[hs.roof].1, mine[hs.roof].2).mix(col(helped[hs.roof].0, helped[hs.roof].1, helped[hs.roof].2), aiRoof)
         // Chimney behind the roof.
         let cx = hs.chimneyLeft ? x0 + w * 0.22 : x0 + w * 0.78
         let chimTop = y0 + bh + rh * 0.55 + 9 * s
@@ -572,6 +684,8 @@ final class VillageScene: FilmScene {
     var lift: Double { 150 }
     var captions: [String]? { nil }
     var wordsDelay: Double { 0 }
+    var rewinds: Bool { false }
+    func drawKey(ai: Bool, at p: CGPoint, alpha: Double, t: Double, in ctx: CGContext) -> Bool { false }
     func topInk(_ t: Double) -> FilmRenderer.RGB { C(0xFFFFFF) }
 
     init(script: FilmScript) {
