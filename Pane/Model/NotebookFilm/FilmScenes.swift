@@ -451,6 +451,11 @@ final class TownScene: FilmScene {
                 }
             }
         } }
+        // Birds on their way home at dusk, and paper lanterns on the day you wrote most (both
+        // behind the names: nothing crosses lettering).
+        nightNow = nightAt(0.3)
+        layer(0.3, follow: 0.2) { birds(t, night: nightNow, in: ctx) }
+        if !rewinding { layer(0.85, follow: 0.95) { lanterns(t, in: ctx) } }
         // Each hill's name on a board on a stem, in front of every roof. Close in, a board that
         // would run off the frame or under the top line is left out, never cut.
         if folderNames {
@@ -481,10 +486,7 @@ final class TownScene: FilmScene {
                 }
             }
         }
-        // Birds on their way home at dusk, and paper lanterns on the day you wrote most.
-        nightNow = nightAt(0.3)
-        layer(0.3, follow: 0.2) { birds(t, night: nightNow, in: ctx) }
-        if !rewinding { layer(0.85, follow: 0.95) { lanterns(t, in: ctx) } }
+        nightNow = nightAt(1)
         // Close in, the town reaches the top of the frame: the sky comes back over it there, so
         // the mark and the key stay readable.
         if cam.z > 1.02 {

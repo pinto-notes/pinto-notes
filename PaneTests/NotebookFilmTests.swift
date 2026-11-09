@@ -418,6 +418,7 @@ import Testing
         #expect(s.topFolderNotes == input.notes.filter { $0.folder == "Work" }.count)
         #expect(FilmRenderer.Labels().topFolder("Work", 27) == "Most written in Work \u{00B7} 27 notes")
         #expect(FilmRenderer.Labels().topFolderCaption("Work") == "I wrote most in Work", "said while it grows, with no count that isn't true yet")
+        #expect(FilmRenderer.Labels().daysCaption(25) == "I wrote on 25 days", "a month of one or two folders gets a line of its own too")
         // Folder names off: the busiest day, which gives nothing away.
         #expect(s.busiestDayEdits > 0)
         #expect(FilmRenderer.Labels().busiestDay("October 19", 23) == "Busiest day: October 19 \u{00B7} 23 edits")

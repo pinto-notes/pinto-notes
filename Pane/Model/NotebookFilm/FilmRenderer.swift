@@ -99,6 +99,8 @@ final class FilmRenderer {
         var busiestCaption: @Sendable (Int) -> String = { "My busiest day \u{00B7} \($0 == 1 ? "1 edit" : "\($0) edits")" }
         /// Near the end, as the folder written in most has its moment (its count is on the end card).
         var topFolderCaption: @Sendable (String) -> String = { "I wrote most in \($0)" }
+        /// The same moment in a month of one or two folders: how many days you wrote on.
+        var daysCaption: @Sendable (Int) -> String = { $0 == 1 ? "I wrote on 1 day" : "I wrote on \($0) days" }
         /// The end card's third number when no AI wrote: "214 edits".
         var statEdits = "edits"
         /// Under the end card's numbers.
@@ -725,6 +727,8 @@ final class FilmRenderer {
             }
             if labels.folderNames, let f = s.topFolder, script.growth > 5, s.folders >= 3 {
                 mine.append((script.growth - FilmScript.topFolderMoment, script.growth - 0.25, labels.topFolderCaption(f)))
+            } else if s.writingDays > 1 {
+                mine.append((script.growth - 1.9, script.growth - 0.25, labels.daysCaption(s.writingDays)))
             }
             var cover = 0.0
             for (k, m) in mine.enumerated() {
