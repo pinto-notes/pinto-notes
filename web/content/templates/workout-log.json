@@ -6,15 +6,15 @@
     "Personal"
   ],
   "audience": "For anyone training a few times a week who wants to see progress.",
-  "description": "A workout log your AI keeps for you. Describe the session after the gym and ChatGPT or Claude logs it in Pinto Notes.",
+  "description": "A workout log your AI keeps for you. Describe the session after the gym and your AI logs it.",
   "tagline": "One row per session, and your personal bests.",
   "folder": "Health",
-  "note": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Minutes=number; Effort=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Minutes | Effort |\n| --- | --- | --- | --- | --- | --- |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n",
+  "note": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Min=number; Effort=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Min | Effort |\n| --- | --- | --- | --- | --- | --- |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Workout log\". Read it with fetch before each change. After a session I'll tell you what I did. Add one row to the table with edit: Workout as one of the options, the Main lift, the Top set like \"100 kg x 5\", Minutes, and Effort from 1 to 10. If I beat a number listed under \"Personal bests\", or there's none for that lift yet, add it there with today's date. When I ask how I'm doing, compare the last four weeks."
   },
   "asks": [
-    "Legs today: squat 100 kg for 5, then lunges. About 55 minutes, felt hard.",
+    "Ask how today's workout went, then log it.",
     "Am I getting stronger on bench?",
     "What did I do last Wednesday?"
   ],
@@ -52,7 +52,7 @@
       }
     }
   ],
-  "example": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Minutes=number; Effort=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Minutes | Effort |\n| --- | --- | --- | --- | --- | --- |\n| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n| 2026-09-30 | Push | Bench press | 70 kg x 6 | 50 | 7 |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n- Squat: 100 kg x 5 (2026-09-28)\n- Bench press: 70 kg x 6 (2026-09-30)\n",
+  "example": "Workout log\n\nOne row per session. After training, tell your AI what you did in one message.\n\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Main lift=text; Top set=text; Min=number; Effort=scale 1-10 -->\n| Date | Workout | Main lift | Top set | Min | Effort |\n| --- | --- | --- | --- | --- | --- |\n| 2026-09-26 | Pull | Deadlift | 120 kg x 3 | 60 | 9 |\n| 2026-09-28 | Legs | Squat | 100 kg x 5 | 55 | 8 |\n| 2026-09-30 | Push | Bench press | 70 kg x 6 | 50 | 7 |\n\n## Program\n- Monday: legs (squat, lunges, calves)\n- Wednesday: push (bench, overhead press, dips)\n- Friday: pull (deadlift, rows, pull-ups)\n- Weekend: an easy run\n\n## Personal bests\n- Squat: 100 kg x 5 (2026-09-28)\n- Bench press: 70 kg x 6 (2026-09-30)\n",
   "related": [
     "habit-tracker",
     "mood-energy-log",

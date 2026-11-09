@@ -151,17 +151,24 @@ enum SetupCards {
         var lightInk: Bool { SetupCards.luminance(ground) <= 0.3 }
 
         /// The cover: an asset, or a small copy of the site's (Pane/Resources/Templates).
+        /// Read once: a new picture on every pass was read and decoded again for every card on
+        /// each key typed in the template library (8 November 2026).
         var image: Image {
-            if let url = Bundle.main.url(forResource: cover, withExtension: "jpg"), let i = NSImage(contentsOf: url) { return Image(nsImage: i) }
+            if let i = Self.covers.object(forKey: cover as NSString) { return Image(nsImage: i) }
+            if let url = Bundle.main.url(forResource: cover, withExtension: "jpg"), let i = NSImage(contentsOf: url) {
+                Self.covers.setObject(i, forKey: cover as NSString)
+                return Image(nsImage: i)
+            }
             return Image(cover)
         }
+        nonisolated(unsafe) static let covers = NSCache<NSString, NSImage>()
     }
 
     static let picks: [Pick] = [
         Pick(slug: "trip-plan", title: "Trip plan", line: "Days, bookings and the packing list in one place.", cover: "SetupCoverTripPlan", ground: 0x2E5339,
-             ask: "fill in my Trip plan: Lisbon, 4 days in May. I like food, views and walking. Not museums."),
+             ask: "fill in my Trip plan. First ask where and when I\u{2019}m going and what I enjoy."),
         Pick(slug: "meal-plan", title: "Meal plan and groceries", line: "This week\u{2019}s dinners and the shopping list.", cover: "SetupCoverMealPlan", ground: 0xFBB433,
-             ask: "plan this week\u{2019}s dinners in my Meal plan. We\u{2019}re out on Friday, and no mushrooms."),
+             ask: "plan this week\u{2019}s dinners in my Meal plan. First ask what I feel like and what to skip."),
         Pick(slug: "weekly-review", title: "Weekly review", line: "Five questions every Sunday, written up for you.", cover: "SetupCoverWeeklyReview", ground: 0xE5837F,
              ask: "do my Weekly review from what I wrote this week."),
         Pick(slug: "reading-list", title: "Reading list", line: "Every book you want to read, with a line on why.", cover: "SetupCoverReadingList", ground: 0x3F5C86,
@@ -516,7 +523,7 @@ struct SetupTemplateCard: View {
                 .offset(y: hover && !reduceMotion ? -3 : 0)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(pick.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.ink)
-                    Text(pick.line).font(.system(size: 12)).foregroundStyle(Color.muted)
+                    Text(NoWidow.kept(pick.line)).font(.system(size: 12)).foregroundStyle(Color.muted)
                         .lineLimit(2, reservesSpace: true)
                 }
                 .multilineTextAlignment(.leading)
@@ -551,7 +558,7 @@ struct SetupTemplateCard: View {
                         .font(.system(size: 16, weight: .heavy))
                         .tracking(-0.2)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(pick.line)
+                    Text(NoWidow.kept(pick.line))
                         .font(.system(size: 11.5, weight: .medium))
                         .opacity(0.86)
                         .fixedSize(horizontal: false, vertical: true)

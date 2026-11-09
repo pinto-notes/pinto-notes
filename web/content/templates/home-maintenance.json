@@ -16,7 +16,7 @@
     "default": "Use my Pinto Notes note \"Home maintenance\". Read it with fetch before each change. When I tell you about a recurring job, add a row to the table with edit: Task, Every, Last done and Next due as yyyy-mm-dd. At the start of a month, when I ask, add what's due this month under \"This month\" as a checklist. When I say I've done one, update its Last done and Next due and tick it. Keep model numbers and warranty dates I mention under \"Appliances\"."
   },
   "asks": [
-    "Add: clean the dishwasher filter every month, last done 1 September.",
+    "Ask which job I want to keep track of and when I last did it, then add it.",
     "What's due in October?",
     "The boiler was serviced today."
   ],

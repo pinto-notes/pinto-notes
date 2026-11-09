@@ -1,0 +1,121 @@
+{
+ "values": {
+  "cards": [
+   {
+    "id": "c1",
+    "q": "Where does glycolysis happen?",
+    "a": "In the cytoplasm",
+    "topic": "Cell respiration",
+    "box": 2,
+    "seen": "2026-11-05",
+    "interval": 3,
+    "ease": 2.5
+   },
+   {
+    "id": "c2",
+    "q": "Which stage makes the most ATP?",
+    "a": "The electron transport chain",
+    "topic": "Cell respiration",
+    "box": 2,
+    "seen": "2026-11-05",
+    "interval": 3,
+    "ease": 2.5
+   },
+   {
+    "id": "c3",
+    "q": "What is ATP for?",
+    "a": "It carries energy the cell can use",
+    "topic": "Cell respiration",
+    "box": 3,
+    "seen": "2026-11-06",
+    "interval": 6,
+    "ease": 2.5
+   },
+   {
+    "id": "c4",
+    "q": "What does the Krebs cycle release?",
+    "a": "Carbon dioxide",
+    "topic": "Cell respiration",
+    "box": 1
+   },
+   {
+    "id": "c5",
+    "q": "Where is the electron transport chain?",
+    "a": "The inner membrane of the mitochondria",
+    "topic": "Cell respiration",
+    "box": 3,
+    "seen": "2026-11-06",
+    "interval": 6,
+    "ease": 2.5
+   },
+   {
+    "id": "c6",
+    "q": "What does fermentation make in muscles?",
+    "a": "Lactic acid",
+    "topic": "Cell respiration",
+    "box": 1
+   },
+   {
+    "id": "c7",
+    "q": "Where does photosynthesis happen?",
+    "a": "In the chloroplasts",
+    "topic": "Photosynthesis",
+    "box": 2,
+    "seen": "2026-11-05",
+    "interval": 3,
+    "ease": 2.5
+   },
+   {
+    "id": "c8",
+    "q": "What do the light reactions make?",
+    "a": "ATP, NADPH and oxygen",
+    "topic": "Photosynthesis",
+    "box": 3,
+    "seen": "2026-11-06",
+    "interval": 6,
+    "ease": 2.5
+   },
+   {
+    "id": "c9",
+    "q": "What does the Calvin cycle fix?",
+    "a": "Carbon dioxide, into sugar",
+    "topic": "Photosynthesis",
+    "box": 1
+   },
+   {
+    "id": "c10",
+    "q": "Which pigment absorbs the light?",
+    "a": "Chlorophyll",
+    "topic": "Photosynthesis",
+    "box": 3,
+    "seen": "2026-11-06",
+    "interval": 6,
+    "ease": 2.5
+   },
+   {
+    "id": "c11",
+    "q": "What gas do plants give off?",
+    "a": "Oxygen",
+    "topic": "Photosynthesis",
+    "box": 2,
+    "seen": "2026-11-05",
+    "interval": 3,
+    "ease": 2.5
+   },
+   {
+    "id": "c12",
+    "q": "Which sugar does the cell burn?",
+    "a": "Glucose",
+    "topic": "Cell respiration",
+    "box": 1
+   }
+  ],
+  "studied": {
+   "2026-11-02": 8,
+   "2026-11-03": 5,
+   "2026-11-05": 10,
+   "2026-11-06": 6
+  }
+ },
+ "collections": {}
+}

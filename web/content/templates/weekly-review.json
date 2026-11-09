@@ -15,7 +15,7 @@
     "default": "Use my Pinto Notes note \"Weekly review\". When I say it's time for my weekly review, ask me the questions under \"Questions\" one at a time. Then read the note with fetch and add the week at the start of \"Reviews\" with edit: a \"### Week of\" heading with Monday's date, my answers as short bullets in my own words, and my top three as a checklist. When I tell you one is done, tick it (\"- [x]\")."
   },
   "asks": [
-    "It's time for my weekly review.",
+    "Ask me this week's five questions, then write up the review.",
     "What did I say I'd focus on last week?",
     "What keeps coming up in my reviews?"
   ],

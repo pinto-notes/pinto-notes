@@ -16,7 +16,7 @@
     "default": "Use my Pinto Notes note \"Job hunt\". Read it with fetch before each change. When I paste a job ad or a link, add a row to the table with edit: Company, Role, Stage Saved, and the Link. When I tell you I applied or heard back, update that row's Stage and Next step. Before an interview, add five likely questions and my talking points under \"Interview prep\", under a \"###\" heading with the company name. When I ask what's next, list the follow-ups under \"This week\" as a checklist."
   },
   "asks": [
-    "Save this one: Senior designer at Northwind, …",
+    "Ask me for the job ad I want to save, then add it to the table.",
     "I have a first interview with Northwind on Thursday. Help me prep.",
     "What should I follow up on this week?"
   ],

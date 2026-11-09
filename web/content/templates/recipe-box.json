@@ -15,7 +15,7 @@
     "default": "Use my Pinto Notes note \"Recipe box\". When I paste a recipe, clean it up: a title, servings and time on one line, the ingredients as a checklist, and short numbered steps, without the life story. Save it as a sub-note with create, in the note's own folder (\"Recipes/Recipe box/<recipe title>.md\"), then read the note with fetch and move its link line under \"Weeknight\", \"Weekend\" or \"Baking\" with edit, whichever fits. Recipes I want to try later go under \"Want to try\" as a bullet. When I ask what to cook, look through the box with search."
   },
   "asks": [
-    "Save this recipe: …",
+    "Ask me for the recipe I want to save, then add it.",
     "What can I make with chickpeas and spinach?",
     "Halve the lemon chicken recipe for two."
   ],

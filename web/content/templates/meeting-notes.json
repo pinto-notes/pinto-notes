@@ -15,7 +15,7 @@
     "default": "Use my Pinto Notes note \"Meeting notes\". After a meeting I'll paste my rough notes or a transcript. Read the note with fetch, then add a section at the start of \"Meetings\" with edit: a \"###\" heading with the meeting name and date, a two-line summary, and the decisions as bullets. Add each action item under \"Open action items\" as a checklist line like \"- [ ] Owner: task (due date)\". If something is unclear, ask me before writing it. When I say an item is done, tick it (\"- [x]\")."
   },
   "asks": [
-    "Here are my notes from the pricing sync: …",
+    "Ask me for my meeting notes or transcript, then add the summary and action items.",
     "What's still open for me?",
     "Mark Jonas's design review as done."
   ],

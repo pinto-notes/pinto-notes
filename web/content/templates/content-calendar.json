@@ -14,7 +14,7 @@
     "default": "Use my Pinto Notes note \"Content calendar\". Read it with fetch before each change. When I have an idea, add it under \"Ideas\" as a bullet with edit. When I ask you to plan the next two weeks, pick ideas from \"Ideas\" and add a row per post to the table with edit: Publish on as a date, a working Title, the Channel and Status Drafting. Write drafts in the tone described under \"Voice\". When I say a post went out, set its Status to Published."
   },
   "asks": [
-    "Idea: what we learned from 100 customer calls.",
+    "Ask for my content idea, then add it to the idea bank.",
     "Plan the next two weeks: two LinkedIn posts and one newsletter.",
     "What's scheduled for this week?"
   ],

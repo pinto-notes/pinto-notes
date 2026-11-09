@@ -1,0 +1,140 @@
+{
+ "values": {
+  "habits": [
+   {
+    "id": "walk",
+    "name": "Walk",
+    "detail": "30 minutes outside",
+    "target": 1
+   },
+   {
+    "id": "read",
+    "name": "Read",
+    "detail": "20 pages",
+    "target": 1
+   },
+   {
+    "id": "no-phone-in-bed",
+    "name": "No phone in bed",
+    "detail": "It charges in the kitchen",
+    "target": 1
+   },
+   {
+    "id": "water",
+    "name": "Water",
+    "target": 8,
+    "unit": "glasses"
+   }
+  ],
+  "days": {
+   "2026-10-19": {
+    "walk": 1,
+    "read": 1,
+    "water": 8
+   },
+   "2026-10-20": {
+    "walk": 1,
+    "read": 1,
+    "water": 8
+   },
+   "2026-10-21": {
+    "walk": 1,
+    "no-phone-in-bed": 1,
+    "water": 6
+   },
+   "2026-10-22": {
+    "walk": 1,
+    "read": 1,
+    "water": 8
+   },
+   "2026-10-23": {
+    "walk": 1,
+    "read": 1,
+    "water": 8
+   },
+   "2026-10-24": {
+    "walk": 1,
+    "no-phone-in-bed": 1,
+    "water": 6
+   },
+   "2026-10-25": {
+    "walk": 1,
+    "read": 1,
+    "water": 8
+   },
+   "2026-10-26": {
+    "walk": 1,
+    "read": 1,
+    "water": 8
+   },
+   "2026-10-27": {
+    "walk": 1,
+    "no-phone-in-bed": 1,
+    "water": 6
+   },
+   "2026-10-28": {
+    "walk": 1,
+    "read": 1,
+    "water": 8
+   },
+   "2026-10-29": {
+    "walk": 1,
+    "read": 1,
+    "water": 8
+   },
+   "2026-10-30": {
+    "walk": 1,
+    "no-phone-in-bed": 1,
+    "water": 6
+   },
+   "2026-10-31": {
+    "walk": 1,
+    "read": 1,
+    "water": 8
+   },
+   "2026-11-01": {
+    "walk": 1,
+    "read": 1,
+    "water": 8
+   },
+   "2026-11-02": {
+    "walk": 1,
+    "read": 1,
+    "no-phone-in-bed": 1,
+    "water": 8
+   },
+   "2026-11-03": {
+    "walk": 1,
+    "water": 6
+   },
+   "2026-11-04": {
+    "walk": 1,
+    "read": 1,
+    "no-phone-in-bed": 1,
+    "water": 8
+   },
+   "2026-11-05": {
+    "read": 1,
+    "no-phone-in-bed": 1,
+    "water": 7
+   },
+   "2026-11-06": {
+    "walk": 1,
+    "read": 1,
+    "water": 8
+   },
+   "2026-11-07": {
+    "walk": 1,
+    "read": 1,
+    "no-phone-in-bed": 1,
+    "water": 8
+   },
+   "2026-11-08": {
+    "walk": 1,
+    "read": 1,
+    "water": 5
+   }
+  }
+ },
+ "collections": {}
+}

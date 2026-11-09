@@ -15,7 +15,7 @@
     "default": "Use my Pinto Notes note \"Gift ideas\". Read it with fetch before each change. Whenever I mention something someone would like, add a row to the table with edit: Person, Occasion if I said one, Idea, Budget as a number if I gave one, and Status Idea. Keep what I learn about each person (sizes, favourite things, what they already have) under \"Sizes and likes\". Before a birthday, when I ask, suggest three gifts within budget that fit what's there. When I buy one, set its Status to Bought."
   },
   "asks": [
-    "Maja mentioned she wants a good chef's knife.",
+    "Ask who the gift is for and what they like, then add the idea.",
     "Dad's birthday is in three weeks. Ideas under 500?",
     "Jonas wears a medium and loves anything green."
   ],

@@ -1,0 +1,28 @@
+/* A template app on the Mac template library's stage (TemplateAppPreview.staged, and the pictures
+   scripts/template-stage-pictures.ts draws): the app in use, trimmed for a window at 70 to 75%.
+   The tab bar goes, so the window shows the app's content, and the large titles and hero figures
+   come down to under the sheet's own 22 pt title once zoomed (council round 4: "Today" drew at
+   33 pt, "11,800 kr" at 44 pt, and the tab bar cut the first habit). Nothing here reaches a made
+   note: Make adds the app as it is. */
+nav[aria-label="Screens"] { display: none !important; }
+main { padding-bottom: 0 !important; }
+h1, h1[class] { font-size: 1.375rem !important; line-height: 1.25 !important; }
+.text-\[2rem\], .text-\[2\.5rem\], .text-\[4rem\] { font-size: 1.75rem !important; }
+/* The small stage (laid out 469 px wide) shows 223 px: the title sits tighter, so the app's first
+   card shows whole under it (council round 4: a cut row at the foot). */
+@media (max-width: 480px) {
+  main > * > header, main header:first-child { padding-top: 0 !important; padding-bottom: 0.625rem !important; }
+  /* Closer to the window's top, and the summary cards a little tighter, so the habit week's
+     card shows whole in the 156 pt the small stage shows (council round 5). */
+  main > div:first-child { padding-top: 0.5rem !important; }
+  main .rounded-xl.bg-card > .p-5 { padding-top: 0.875rem !important; padding-bottom: 0.875rem !important; }
+}
+/* The app's one big button (Add expense, Study now) as a tinted pill, like Trip's Edit: on the
+   stage it never outranks the sheet's own Make with a second, bigger orange (council round 5:
+   373 x 38 pt in #A85700 beside a 26 pt Make in #BB5B05). About 13 pt semibold, 28 pt tall at 75%. */
+main button.bg-primary.w-full {
+  width: auto !important; height: 2.3125rem !important; padding: 0 1rem !important;
+  background: var(--amber-accent-soft) !important; color: var(--primary) !important;
+  font-size: 1.0625rem !important; border-radius: 0.75rem !important;
+}
+main button.bg-primary.w-full svg { width: 1.125rem !important; height: 1.125rem !important; }

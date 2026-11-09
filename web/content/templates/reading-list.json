@@ -16,7 +16,7 @@
     "default": "Use my Pinto Notes note \"Reading list\". Read it with fetch before each change. When I mention a book, add a row to the table with edit: Title, Author, Status To read, and in Why, who recommended it or why I want it. When I start or finish a book, update its Status (and Rating from 1 to 5 when I finish). Put my thoughts on a book under \"Notes\", under a \"###\" heading with the title. When I ask what to read next, suggest from what's marked To read, based on what I rated highly."
   },
   "asks": [
-    "Add Piranesi, Maja says it's the best thing she read this year.",
+    "Ask which book I want to add and why, then file it.",
     "Finished Four Thousand Weeks. Four stars.",
     "What should I read next?"
   ],
