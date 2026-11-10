@@ -48,6 +48,21 @@ case "pages", "rings", "leaf":
         }
     }
     try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
+case "flock", "lanterns", "bloom":
+    // Spectacles in Pinto's world: the footer's dusk sky and hills, or its cream page.
+    var labels = FilmRenderer.Labels()
+    labels.locale = Locale(identifier: "en_US")
+    labels.markImage = mark
+    labels.look = style == "bloom" ? .cream : .town
+    labels.folderNames = !args.contains("nofolders")
+    labels.scene = { script, names in
+        switch style {
+        case "flock": FlockScene(script: script, names: names)
+        case "lanterns": LanternScene(script: script, names: names)
+        default: BloomScene(script: script, names: names)
+        }
+    }
+    try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
 case "bench":
     let town = TownFilm(script: script)
     let frames = Array(stride(from: 40, to: 400, by: 12))
