@@ -420,7 +420,8 @@ import Testing
         #expect(FilmRenderer.Labels().topFolderCaption("Work") == "I wrote most in Work", "said while it grows, with no count that isn't true yet")
         #expect(FilmRenderer.Labels().daysCaption(25) == "I wrote on 25 days", "a month of one or two folders gets a line of its own too")
         #expect(FilmRenderer.Labels().streakCaption(9) == "9 days in a row, my longest run")
-        #expect(FilmRenderer.Labels().firstAICaption("ChatGPT") == "My first note with ChatGPT")
+        #expect(FilmRenderer.Labels().aiCaption("ChatGPT", 36) == "ChatGPT helped with 36 of them", "the AI always has a line of its own")
+        #expect(FilmRenderer.Labels().streakCard(9) == "My longest run: 9 days in a row", "the end card says something the film hasn't")
         // The longest run of days written on, counted from the notes.
         let d = Self.now
         func note(_ days: [Int]) -> FilmNote { FilmNote(id: UUID(), folder: "", created: d.addingTimeInterval(Double(-days.max()!) * 86_400), edits: days.map { FilmEdit(at: d.addingTimeInterval(Double(-$0) * 86_400), ai: nil) }, links: []) }

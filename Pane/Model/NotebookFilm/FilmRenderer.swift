@@ -99,8 +99,10 @@ final class FilmRenderer {
         var busiestCaption: @Sendable (Int) -> String = { "My busiest day \u{00B7} \($0 == 1 ? "1 edit" : "\($0) edits")" }
         /// Near the end, as the folder written in most has its moment (its count is on the end card).
         var topFolderCaption: @Sendable (String) -> String = { "I wrote most in \($0)" }
-        /// As the AI first writes in a note of yours.
-        var firstAICaption: @Sendable (String) -> String = { "My first note with \($0)" }
+        /// The AI's line, after the one that says what a house (or a light) is: "ChatGPT helped with 36 of them".
+        var aiCaption: @Sendable (String, Int) -> String = { "\($0) helped with \($1) of them" }
+        /// On the end card, when the film has already named the folder written in most.
+        var streakCard: @Sendable (Int) -> String = { "My longest run: \($0) days in a row" }
         /// The same moment in a month of one or two folders: how many days you wrote on.
         var daysCaption: @Sendable (Int) -> String = { $0 == 1 ? "I wrote on 1 day" : "I wrote on \($0) days" }
         /// ...or, better, the most days running (the end card has the count of days).
@@ -269,8 +271,8 @@ final class FilmRenderer {
                     drawKey(you: 1, ai: 1, in: ctx)
                     // As it runs back, the date and the count run back with it: it's time rewinding.
                     // (The line under the title goes before the date comes: never both.)
-                    let rolling = smooth((x - 0.12) / 0.14)
-                    drawOpeningTitle(1, subtitle: 1 - smooth(x / 0.1), in: ctx)
+                    let rolling = smooth((x - 0.08) / 0.08)
+                    drawOpeningTitle(1, subtitle: 1 - smooth(x / 0.08), in: ctx)
                     if rolling > 0 {
                         let born = script.nodes.filter { $0.birth <= at }.count
                         text(dateFormatter.string(from: script.date(at: at)), size: 40, weight: .medium, color: look.ink.cg(0.7 * rolling), at: CGPoint(x: 72, y: canvas.bottom + 156), in: ctx)
@@ -726,11 +728,6 @@ final class FilmRenderer {
             /// 1 while a line of your own holds the baseline, with room either side of it.
             func held(_ from: Double, _ until: Double) -> Double { ramp(from - 0.34, from - 0.1) * (1 - ramp(until + 0.1, until + 0.34)) }
             var mine: [(from: Double, until: Double, line: String, color: RGB)] = []
-            // The first note the AI helped with, said in its colour as that roof turns: it's
-            // your month's own news, and it says what the colour means.
-            if let ai = s.ai, firstAI.isFinite, firstAI >= titleUntil + 1.6 + startOffset, firstAI < script.growth - 2.6 {
-                mine.append((firstAI, firstAI + 1.7, labels.firstAICaption(ai), look.dark ? look.ai : FilmLook.paper.ai))
-            }
             // Only while that day is on screen: a day that passed under the title goes unsaid here.
             if let day = s.busiestDay, let span = script.span(ofDay: day), span.start >= titleUntil + 0.3 + startOffset {
                 mine.append((span.start, span.start + min(2.4, max(0.9, span.length - 0.15)), labels.busiestCaption(s.busiestDayEdits), look.you))
@@ -750,12 +747,14 @@ final class FilmRenderer {
                 if a > 0 { text(m.line, size: 48, weight: .semibold, color: m.color.cg(a * running), at: CGPoint(x: side, y: base + 86), in: ctx) }
             }
             // As many as fit while it grows: a thin month's shorter film says less.
-            let lines = scene?.captions ?? labels.captions
+            var lines: [(String, RGB?)] = (scene?.captions ?? labels.captions).map { ($0, nil) }
+            // The AI has a line of its own, in its colour, right after what a house is.
+            if let ai = s.ai, s.aiNotes > 0 { lines.insert((labels.aiCaption(ai, s.aiNotes), look.dark ? look.ai : FilmLook.paper.ai), at: min(1, lines.count)) }
             var from = titleUntil + 0.6 + startOffset
             let slot = min(2.4, max(1.4, (script.growth - from - FilmScript.topFolderMoment - 0.2) / Double(lines.count)))
-            for line in lines where from + slot <= script.growth + 0.01 {
-                let a = shown(from, from + slot - 0.15) * (1 - cover) * running
-                if a > 0 { text(line, size: 48, weight: .regular, color: ink.cg(0.76 * a), at: CGPoint(x: side, y: base + 86), in: ctx) }
+            for (line, color) in lines where from + slot <= script.growth + 0.01 {
+                let a = shown(from, from + slot - 0.1) * (1 - cover) * running
+                if a > 0 { text(line, size: 48, weight: color == nil ? .regular : .medium, color: (color ?? ink).cg((color == nil ? 0.76 : 1) * a), at: CGPoint(x: side, y: base + 86), in: ctx) }
                 from += slot
             }
         }
@@ -814,6 +813,10 @@ final class FilmRenderer {
     }
 
     private func highlight(_ s: FilmStats) -> String? {
+        // Something the film hasn't just said: where it named the folder written in most, the
+        // card has the longest run of days instead.
+        let namedTopFolder = labels.folderNames && s.topFolder != nil && script.growth > 5 && s.folders >= 3
+        if namedTopFolder, s.streak >= 3 { return labels.streakCard(s.streak) }
         if labels.folderNames, let f = s.topFolder { return labels.topFolder(f, s.topFolderNotes) }
         guard let d = s.busiestDay else { return nil }
         let f = DateFormatter()

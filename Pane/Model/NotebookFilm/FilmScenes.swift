@@ -135,6 +135,9 @@ final class TownScene: FilmScene {
     private var shots: [(z: Double, x: Double, y: Double)] = []
     /// The same path without the moments it goes in for: what the opening's rewind follows.
     private var wideShots: [(z: Double, x: Double, y: Double)] = []
+    /// Per shot, 0...1: whether the camera has pushed houses up to the top line (the sky's sheet
+    /// comes down then, and only then).
+    private var cover: [Double] = []
     private var rewinding = false
     private static let shotStep = 0.1
     /// How far the tallest bushes of the hedge in front stand above the ground line: houses keep above them.
@@ -166,7 +169,7 @@ final class TownScene: FilmScene {
     /// The houses written in on the day you wrote most, and when the film is on that day.
     private var busy: Set<Int> = []
     private var busyFrom = Double.infinity, busyUntil = Double.infinity
-    var wordsDelay: Double { 0.3 }
+    var wordsDelay: Double { 0.1 }
     func drawInFront(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {}
 
     func drawRewinding(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {
@@ -195,7 +198,7 @@ final class TownScene: FilmScene {
     /// Ink by day, cream once it's dark.
     /// (Early in the sunset: the sky is deep red long before it's dark.)
     /// (At once: a slow change would leave them grey on a red sky.)
-    func topInk(_ t: Double) -> FilmRenderer.RGB { C(0x3A2B2E).mix(C(0xFFF4E6), smooth((t - growth - 0.25) / 0.07)) }
+    func topInk(_ t: Double) -> FilmRenderer.RGB { C(0x3A2B2E).mix(C(0xFFF4E6), smooth((t - growth - 0.02) / 0.07)) }
 
     init(script: FilmScript, folderNames: Bool) {
         self.script = script
@@ -483,10 +486,11 @@ final class TownScene: FilmScene {
                     ctx.setStrokeColor(col(0x5A4038, 0x45312E, 0x2A1D22).cg(a))
                     ctx.setLineWidth(2.5)
                     ctx.setLineCap(.round)
-                    // Its pole, down to the top roof of its own hill (never far: it stays by it).
+                    // On a short pole, straight down: a signpost, not a callout line.
                     ctx.move(to: CGPoint(x: p.x, y: p.y + 4))
-                    ctx.addLine(to: CGPoint(x: anchor.x, y: anchor.y - 16))
+                    ctx.addLine(to: CGPoint(x: p.x, y: p.y - 18))
                     ctx.strokePath()
+                    _ = anchor
                     tag(name, at: p, alpha: a, night: nightNow, in: ctx)
                 }
             }
@@ -494,10 +498,10 @@ final class TownScene: FilmScene {
         nightNow = nightAt(1)
         // Close in, the town reaches the top of the frame: the sky comes back over it there, so
         // the mark and the key stay readable.
-        if cam.z > 1.02 {
+        if cam.z > 1.02, !rewinding, coverNeeded(at: max(0, t)) > 0.01 {
             // A sheet of the sky's own paper comes down over the top, with a cut edge: the mark
             // and the key sit on it, and whatever the camera pushes up there goes behind it.
-            let a = smooth((cam.z - 1.02) / 0.2)
+            let a = smooth((cam.z - 1.02) / 0.2) * coverNeeded(at: max(0, t))
             let edge = viewTop + 34, lift = (1 - a) * (H - edge + 40)
             let band = CGMutablePath()
             band.move(to: CGPoint(x: -20, y: H + 60 + lift))
@@ -674,6 +678,17 @@ final class TownScene: FilmScene {
             }
         }
         shots = glide(raw)
+        let reaches: [Double] = shots.indices.map { k in
+            let at = Double(k) * Self.shotStep, s = shots[k]
+            var top = -Double.infinity
+            for i in script.nodes.indices where script.nodes[i].birth <= at { top = max(top, mid.y + (rects[i].maxY - s.y) * s.z) }
+            return top > viewTop - 40 ? 1 : 0
+        }
+        cover = reaches.indices.map { k in
+            var sum = 0.0, n = 0.0
+            for d in -4...4 { sum += reaches[min(reaches.count - 1, max(0, k + d))]; n += 1 }
+            return sum / n
+        }
         wideShots = glide(plain)
     }
 
@@ -690,6 +705,13 @@ final class TownScene: FilmScene {
         // The rewind is wide, and comes in to where the film itself begins: no jump at the seam.
         let wide = at(wideShots), film = at(shots), w = 1 - smooth((t - appStart) / 1.6)
         return (wide.z + (film.z - wide.z) * w, wide.x + (film.x - wide.x) * w, wide.y + (film.y - wide.y) * w)
+    }
+
+    private func coverNeeded(at t: Double) -> Double {
+        guard !cover.isEmpty else { return 0 }
+        let f = t / Self.shotStep, k = min(cover.count - 1, Int(f))
+        let next = min(cover.count - 1, k + 1)
+        return cover[k] + (cover[next] - cover[k]) * (f - Double(k))
     }
 
     /// How close the camera is at film time `t` in a shape: 1 is the whole stage.
@@ -781,7 +803,9 @@ final class TownScene: FilmScene {
         let s = hs.s
         // It grows floors as it's written in.
         let floorsF = 1 + min(1.7, 0.52 * Double(max(0, count - 1)).squareRoot())
-        let w = hs.w, bh = 22 * s * floorsF * pop, rh = (15 + 4 * Double(hs.roof)) * s * pop * (hs.style == 3 ? 1.3 : 1)
+        // It comes up as a small whole house (never a wide flat roof on the grass).
+        let k = min(1, pop)
+        let w = hs.w * k, bh = 22 * s * floorsF * pop, rh = (15 + 4 * Double(hs.roof)) * s * pop * (hs.style == 3 ? 1.3 : 1)
         let x0 = hs.x - w / 2, y0 = groundY - 3 * s
         let walls: [(UInt32, UInt32, UInt32)] = [(0xF0DFC2, 0xD3B596, 0x55424E), (0xE7D0AE, 0xC9A687, 0x4E3C49), (0xEFD3BD, 0xD2A796, 0x57404C), (0xDDCFB6, 0xBFA78F, 0x4A3D4A)]
         // The roof says who wrote in it, in any light: warm ochre for yours alone, slate blue once
@@ -796,7 +820,7 @@ final class TownScene: FilmScene {
         let cx = hs.chimneyLeft ? x0 + w * 0.22 : x0 + w * 0.78
         let chimTop = y0 + bh + rh * 0.55 + 9 * s
         ctx.setFillColor(col(0xB96549, 0x96503F, 0x3A2226).cg())
-        ctx.fill(CGRect(x: cx - 3.2 * s, y: y0 + bh, width: 6.4 * s, height: rh * 0.55 + 9 * s))
+        ctx.fill(CGRect(x: cx - 3.2 * s * k, y: y0 + bh, width: 6.4 * s * k, height: rh * 0.55 + 9 * s * k))
         // Some have a low wing at one side, with its own lean-to roof.
         if hs.style == 2 {
             let side: Double = hs.chimneyLeft ? 1 : -1
@@ -820,7 +844,7 @@ final class TownScene: FilmScene {
         ctx.fill(CGRect(x: x0, y: y0, width: w, height: bh))
         // Roof.
         let rp = CGMutablePath()
-        rp.move(to: CGPoint(x: x0 - 3.5 * s, y: y0 + bh - 1))
+        rp.move(to: CGPoint(x: x0 - 3.5 * s * k, y: y0 + bh - 1))
         if hs.style == 1 {
             // Side on: a long ridge.
             rp.addLine(to: CGPoint(x: x0 + w * 0.2, y: y0 + bh + rh * 0.8))
@@ -828,7 +852,7 @@ final class TownScene: FilmScene {
         } else {
             rp.addLine(to: CGPoint(x: hs.x, y: y0 + bh + rh))
         }
-        rp.addLine(to: CGPoint(x: x0 + w + 3.5 * s, y: y0 + bh - 1))
+        rp.addLine(to: CGPoint(x: x0 + w + 3.5 * s * k, y: y0 + bh - 1))
         rp.closeSubpath()
         // The roof's shade on the wall, then the roof.
         ctx.setFillColor(CGColor(gray: 0, alpha: 0.13))
@@ -850,7 +874,7 @@ final class TownScene: FilmScene {
         let lightC = C(0xFFCB6B).mix(C(0x8DBBF0), ai)
         let glass = dark.mix(lightC, min(1, lit * 1.15))
         let rows = max(1, Int(floorsF + 0.25))
-        let ww = 8 * s, wh = 10.5 * s
+        let ww = 8 * s * k, wh = 10.5 * s * k
         for r in 0..<rows {
             let wy = y0 + (6 + Double(r) * 22) * s * pop
             guard wy + wh < y0 + bh + 2 else { continue }
@@ -862,7 +886,7 @@ final class TownScene: FilmScene {
         // A door on the smaller ones.
         if hs.style < 2, floorsF < 1.7 {
             ctx.setFillColor(roof.mix(C(0x2A1D22), 0.45).cg())
-            ctx.fill(CGRect(x: hs.x - 3 * s, y: y0, width: 6 * s, height: 9.5 * s * pop))
+            ctx.fill(CGRect(x: hs.x - 3 * s * k, y: y0, width: 6 * s * k, height: 9.5 * s * pop))
         }
         if lit > 0.05 {
             // Its light spills a little, more as it gets dark.
