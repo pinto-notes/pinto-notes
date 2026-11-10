@@ -384,6 +384,51 @@ describe("First use", () => {
     await waitFor(() => expect(values().habits).toEqual([walk]))
   })
 
+  it("says your AI can set it up too, and shows an unticked suggestion as clearly as a ticked one", async () => {
+    await fresh([walk, { id: "no-phone-in-bed", name: "No phone in bed", detail: "Charges in the kitchen", target: 1, pick: false }])
+    render(<App />)
+    expect(await screen.findByTestId("ai-hint")).toHaveTextContent("Pick here, or tell your AI and it sets this up.")
+    // The tick alone shows the pick: nothing about the unticked row is faded.
+    const row = screen.getByLabelText("Name of No phone in bed").closest("div")!
+    expect(row.className).not.toMatch(/opacity/)
+    expect(screen.getByLabelText("Name of No phone in bed").className).toContain("text-foreground")
+  })
+
+  it("leaves Pick your habits by itself when your AI sets it up, and keeps what you had picked within reach", async () => {
+    await fresh([walk, water])
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText("Add your own"), "Stretch")
+    // The person's AI writes their habits and the day counting starts, as its prompt says.
+    await amber.store.set("habits", [{ id: "run", name: "Run", target: 1 }])
+    await amber.store.set("started", day)
+    expect(await screen.findByRole("button", { name: "Done: Run" })).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "Pick your habits" })).toBeNull()
+    expect(await screen.findByText("Your AI set up your habits. What you picked here wasn't used.")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Use mine" }))
+    await waitFor(() => expect(values().habits).toEqual([walk, water, { id: "stretch", name: "Stretch", target: 1 }]))
+    expect(await screen.findByRole("button", { name: "Done: Stretch" })).toBeInTheDocument()
+  })
+
+  it("says nothing more when your AI sets it up and you hadn't touched the screen", async () => {
+    await fresh([walk])
+    render(<App />)
+    await screen.findByRole("heading", { name: "Pick your habits" })
+    await amber.store.set("habits", [{ id: "run", name: "Run", target: 1 }])
+    await amber.store.set("started", day)
+    expect(await screen.findByRole("button", { name: "Done: Run" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Use mine" })).toBeNull()
+  })
+
+  it("goes from the first screen to a first tick: pick, Start, tick", async () => {
+    await fresh([walk, water, { id: "no-phone-in-bed", name: "No phone in bed", target: 1, pick: false }])
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Start with 2 habits" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Done: Walk" }))
+    await waitFor(() => expect(values().days?.[day]).toEqual({ walk: 1 }))
+    await waitFor(() => expect(screen.getByTestId("week-count")).toHaveTextContent("1 of 2"))
+    expect(screen.getByText("1-day streak")).toBeInTheDocument()
+  })
+
   it("can't start with nothing picked", async () => {
     await fresh([walk])
     render(<App />)

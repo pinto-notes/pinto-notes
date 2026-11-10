@@ -1,6 +1,4 @@
 import { useLayoutEffect, useRef, useState } from "react"
-import { Plus } from "lucide-react"
-import { route } from "amber-router"
 import { Pills, PrimaryButton, Section, Title, Bar } from "@/components/kit"
 import { dueOn, GRADES, intervalOf, iso, level, next, plus, short, span, streak, useCards, type Card, type Grade } from "@/lib/cards"
 import { cn } from "@/lib/utils"
@@ -24,22 +22,6 @@ export default function Study() {
 
   if (session) return <Studying session={session} setSession={setSession} cards={cards} grade={grade} streakNow={streak(studied)} />
 
-  // No cards yet: one clear first step, and no numbers about cards that don't exist ("Nothing
-  // due", "No streak yet" and an empty week said nothing). The app starts empty: sample cards
-  // would be someone else's biology in the person's deck (council round 3).
-  if (!cards.length) return (
-    <>
-      <Title title="Study" />
-      <Section className="max-w-xl">
-        <div className="px-6 py-10 text-center">
-          <p className="text-[1.0625rem] font-semibold">Make your first cards</p>
-          <p className="mt-1 text-muted-foreground">A question on one side, the answer on the other. Add them yourself, paste a list, or give your AI your notes and it makes them.</p>
-          <PrimaryButton className="mx-auto mt-5 max-w-xs" onClick={() => route("/cards")}><Plus /> Add a card</PrimaryButton>
-        </div>
-      </Section>
-    </>
-  )
-
   // Least known first: the lowest box, then the shortest interval.
   const start = () => setSession({ ids: dueHere.slice().sort((a, b) => (a.box || 1) - (b.box || 1) || intervalOf(a) - intervalOf(b)).map((c) => c.id), at: 0, shown: false, counts: { again: 0, hard: 0, good: 0, easy: 0 }, again: [] })
   const week = Array.from({ length: 7 }, (_, i) => plus(today, i + 1)).map((d) => ({ d, n: cards.filter((c) => inTopic(c) && c.seen && dueOn(c) === d).length }))
@@ -56,7 +38,7 @@ export default function Study() {
             <div className="p-5">
               <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">Due today</p>
               <p className="text-[2.5rem] font-bold leading-tight tracking-tight tabular-nums" data-testid="due">{dueHere.length ? `${dueHere.length} ${dueHere.length === 1 ? "card" : "cards"}` : "Nothing due"}</p>
-              <p className="text-[0.9375rem] text-muted-foreground">{cards.length ? <>{cards.filter(inTopic).length} cards{topic === "All" ? ` in ${topics.length} ${topics.length === 1 ? "topic" : "topics"}` : ` in ${topic}`}</> : "No cards yet. Add the first one in the Cards tab."}</p>
+              <p className="text-[0.9375rem] text-muted-foreground">{cards.filter(inTopic).length} cards{topic === "All" ? ` in ${topics.length} ${topics.length === 1 ? "topic" : "topics"}` : ` in ${topic}`}</p>
               {fresh > 0 && <p className="text-[0.9375rem] text-muted-foreground">{fresh} new</p>}
             </div>
           </Section>

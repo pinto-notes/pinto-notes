@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { ChevronRight, Pencil } from "lucide-react"
 import { TripSheet } from "@/components/trip-sheet"
+import First from "@/screens/first"
 import { route } from "amber-router"
 import { Bar, PrimaryButton, Ring, Section, TintButton } from "@/components/kit"
 import { ShareButton, Timeline } from "@/components/timeline"
@@ -10,15 +11,9 @@ import { dayText, iso, longDate, range, useTrip } from "@/lib/trip"
 export default function Overview() {
   const { trip, days, bookings, packing, phase, packed, past } = useTrip()
   const [editing, setEditing] = useState(false)
-  if (!trip) return (
-    <div className="mx-auto max-w-md py-10 text-center">
-      <p className="text-[1.0625rem] font-semibold">Where are you going?</p>
-      <p className="mt-1 text-muted-foreground">Add the place and the dates. The days, bookings and packing list come after. Or ask your AI to plan it.</p>
-      {past.length > 0 && packing.length > 0 && <p className="mt-3 text-[0.9375rem] text-muted-foreground">Your packing list from {past[past.length - 1].name} is ready: {packing.length} things.</p>}
-      <PrimaryButton className="mt-6" onClick={() => setEditing(true)}>Plan a trip</PrimaryButton>
-      <TripSheet open={editing} onClose={() => setEditing(false)} />
-    </div>
-  )
+  // After a trip that's been put away: the same first screen, inside the app, so the packing list
+  // it kept is a tab away. (A brand-new app shows it alone: App.tsx.)
+  if (!trip) return <First />
   const paid = bookings.filter((b) => b.paid).length
   const today = iso(new Date())
   const dated = [...new Set([...days.map((d) => d.date), ...bookings.map((b) => b.date).filter((d): d is string => !!d)])].sort()

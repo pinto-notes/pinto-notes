@@ -2,11 +2,11 @@ import { useEffect, useRef } from "react"
 import { Router, Route } from "amber-router"
 import { ChartPie, ReceiptText, SlidersHorizontal } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
-import { UndoBar } from "@/components/kit"
+import { firstScreenPage, offerUndo, UndoBar } from "@/components/kit"
 import Month from "@/screens/month"
 import Expenses from "@/screens/expenses"
 import Budget from "@/screens/budget"
-import Setup from "@/screens/setup"
+import Setup, { draft } from "@/screens/setup"
 import { thisMonth, useBudget } from "@/lib/budget"
 
 // Month (what's left, by category, quick add), Expenses (every one, by day: edit, delete), Budget (rename, change, add, remove categories).
@@ -33,11 +33,18 @@ function Bills() {
 
 export default function App() {
   const { fresh } = useBudget()
+  // The person's AI set the budget up while they were entering theirs: the app shows the result,
+  // and what they had entered isn't dropped without a word.
+  const was = useRef(fresh)
+  useEffect(() => {
+    if (was.current && !fresh && draft.touched && !draft.mine && draft.use) {
+      offerUndo("Your AI set up your budget. What you entered here wasn't used.", draft.use, "Use mine", true)
+    }
+    was.current = fresh
+  }, [fresh])
   // A new budget opens on Set your monthly budget, alone: nothing is "left" until the person has
   // said what they can spend.
-  if (fresh) return (
-    <div className="min-h-screen px-4 pt-4 min-[700px]:px-6 min-[900px]:pt-8"><Setup /></div>
-  )
+  if (fresh) return <div className={firstScreenPage}><Setup /></div>
   return (
     <AppShell title="Budget" screens={screens}>
       <div className="mx-auto max-w-6xl px-4 pt-4 min-[700px]:px-6 min-[900px]:px-10 min-[900px]:pt-8">

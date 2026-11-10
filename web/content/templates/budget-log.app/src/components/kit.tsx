@@ -127,32 +127,58 @@ export function Pills<T extends string>({ options, value, onChange, label }: { o
 }
 
 // Undo for deletes, in the app's own UI: removing something shows "Removed X" with Undo in a bar at
-// the top of the screen for a few seconds. No browser dialogs, no toasts.
-type Undoable = { text: string; undo: () => unknown }
+// the top of the screen for a few seconds. No browser dialogs, no toasts. The same bar carries the
+// one notice that mustn't pass unseen: what the person had typed on the first screen when their AI
+// set the app up under them (keep: it stays until it's used or dismissed).
+type Undoable = { text: string; undo: () => unknown; label: string; keep: boolean }
 let pending: Undoable | null = null
 const listeners = new Set<(u: Undoable | null) => void>()
-export function offerUndo(text: string, undo: () => unknown) {
-  pending = { text, undo }
+export function offerUndo(text: string, undo: () => unknown, label = "Undo", keep = false) {
+  pending = { text, undo, label, keep }
   listeners.forEach((f) => f(pending))
 }
 export function UndoBar() {
   const [u, setU] = useState<Undoable | null>(null)
-  useLayoutEffect(() => { listeners.add(setU); return () => { listeners.delete(setU) } }, [])
+  // What was offered before this bar was on screen shows too (the first screen has no bar).
+  useLayoutEffect(() => { listeners.add(setU); setU(pending); return () => { listeners.delete(setU) } }, [])
   useEffect(() => {
-    if (!u) return
+    if (!u || u.keep) return
     const t = setTimeout(() => { if (pending === u) pending = null; setU((now) => (now === u ? null : now)) }, 6000)
     return () => clearTimeout(t)
   }, [u])
   if (!u) return null
+  const close = () => { if (pending === u) pending = null; setU(null) }
   return (
     <div role="status" className="mb-4 animate-in fade-in duration-200 motion-reduce:animate-none">
-      <div className="flex w-full items-center gap-3 rounded-xl bg-[var(--amber-accent-soft)] py-1.5 pl-4 pr-1.5 text-foreground">
-        <span className="min-w-0 flex-1 truncate text-[0.9375rem]">{u.text}</span>
-        <button type="button" onClick={async () => { pending = null; setU(null); await u.undo() }} className="h-10 rounded-lg px-3 font-semibold text-link">Undo</button>
+      <div className="flex w-full items-center gap-1 rounded-xl bg-[var(--amber-accent-soft)] py-1.5 pl-4 pr-1.5 text-foreground">
+        <span className={cn("min-w-0 flex-1 text-[0.9375rem]", !u.keep && "truncate")}>{u.text}</span>
+        <button type="button" onClick={async () => { close(); await u.undo() }} className="h-10 shrink-0 rounded-lg px-3 font-semibold text-link">{u.label}</button>
+        {u.keep && <button type="button" aria-label="Dismiss" onClick={close} className="grid size-10 shrink-0 place-items-center rounded-lg text-muted-foreground"><X className="size-4" /></button>}
       </div>
     </div>
   )
 }
+
+/** A new app's first screen, alone in the note: the same frame in all four template apps. A
+ *  576 px column in the middle, the title at 2rem with the same space over it, one line saying
+ *  what to do, and a quiet line saying the person's AI can do it too (they are asked the same
+ *  thing in two places when the app is made with an AI). Then the form, one primary button and
+ *  a foot line. */
+export function FirstScreen({ title, lead, ai, foot, children }: { title: string; lead: string; ai: string; foot?: string; children: ReactNode }) {
+  return (
+    <div className="mx-auto w-full max-w-xl" data-testid="first-screen">
+      <header className="pb-5 pt-2">
+        <h1 className="text-[2rem] font-bold leading-tight tracking-tight">{title}</h1>
+        <p className="mt-2 text-muted-foreground text-balance">{lead}</p>
+        <p className="mt-1 text-[0.875rem] text-muted-foreground" data-testid="ai-hint">{ai}</p>
+      </header>
+      {children}
+      {foot && <p className="px-1 pb-6 pt-3 text-center text-[0.8125rem] text-muted-foreground text-balance">{foot}</p>}
+    </div>
+  )
+}
+/** The padding a first screen has around it when it stands alone (no tabs, no sidebar). */
+export const firstScreenPage = "min-h-screen px-4 pt-4 min-[700px]:px-6 min-[900px]:pt-8"
 
 /** A destructive button for the bottom of an edit sheet. */
 export function DeleteButton({ children, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
