@@ -1592,8 +1592,12 @@ struct TemplateLibraryView: View {
             case .copy: add(TemplateLibraryWords.copy, NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)) { copy(e) }
             }
         }
-        menu.popUp(positioning: nil, at: NSPoint(x: view.bounds.maxX - menu.size.width, y: view.bounds.maxY + 6), in: view)
-        _ = actions
+        // On the next turn, once the arrow's own press is over: put up inside it, the menu
+        // sometimes closed as it opened (a real click on the Air, 10 November 2026).
+        DispatchQueue.main.async {
+            menu.popUp(positioning: nil, at: NSPoint(x: view.bounds.maxX - menu.size.width, y: view.bounds.maxY + 6), in: view)
+            _ = actions
+        }
     }
 
     /// "Make with ChatGPT" with ChatGPT's mark: an AI named is an AI shown.

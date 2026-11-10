@@ -58,7 +58,7 @@ main:has(div.flex-wrap > button.h-11.rounded-full) section .rounded-xl.bg-card >
    373 x 38 pt in #A85700 beside a 26 pt Make in #BB5B05). About 13 pt semibold, 28 pt tall at 75%. */
 main button.bg-primary.w-full {
   width: auto !important; height: 2.3125rem !important; padding: 0 1rem !important;
-  background: var(--amber-accent-soft) !important; color: var(--primary) !important;
+  background: var(--amber-accent-soft) !important; color: var(--amber-accent-text) !important;
   font-size: 1.0625rem !important; border-radius: 0.75rem !important;
 }
 main button.bg-primary.w-full svg { width: 1.125rem !important; height: 1.125rem !important; }

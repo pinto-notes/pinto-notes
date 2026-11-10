@@ -865,7 +865,7 @@ import Vision
         #expect(src.components(separatedBy: ".keyboardShortcut(e == open && !covered ? .defaultAction : nil)").count == 3, "Return makes the open template")
         // The menu is put up with its right edge on the arrow's (it hung past the sheet), an
         // AI's mark in its own colours and the copy symbol in the menu's ink.
-        #expect(src.contains("menu.popUp(positioning: nil, at: NSPoint(x: view.bounds.maxX - menu.size.width, y: view.bounds.maxY + 6), in: view)"))
+        #expect(src.contains("DispatchQueue.main.async {\n            menu.popUp(positioning: nil, at: NSPoint(x: view.bounds.maxX - menu.size.width, y: view.bounds.maxY + 6), in: view)"))
         #expect(src.contains("add(TemplateLibraryWords.copy, NSImage(systemSymbolName: \"doc.on.doc\", accessibilityDescription: nil)) { copy(e) }"))
         #expect(AIGlyph.menuPicture("Claude", dark: true) != nil && AIGlyph.menuPicture("ChatGPT", dark: false) != nil)
         // Pressed, a half of the split button keeps its place and size; only its fill darkens
@@ -949,6 +949,34 @@ import Vision
             if white > 150 { return y }
         }
         return -1
+    }
+
+    /// One accent for the sheet and for the apps shown on it. Light: ticks, rings and bars #D96A06
+    /// with a white glyph, amber text #A85700, the primary button #BB5B05 with a white label.
+    /// Dark: ticks and bars #F4AD33 with the glyph #1F1300, amber text #F4AD33, the primary button
+    /// white with a black label (dark mode's buttons are white or black, never amber).
+    @Test func theSheetsAccentIsTheAppsOwn() throws {
+        let kept = ThemeStore.shared.current
+        ThemeStore.shared.set(ThemeLook(theme: .standard, accent: .theme), persist: false)
+        defer { ThemeStore.shared.set(kept, persist: false) }
+        func hex(_ c: NSColor, dark: Bool) -> String {
+            var out = ""
+            NSAppearance(named: dark ? .darkAqua : .aqua)?.performAsCurrentDrawingAppearance {
+                let s = c.usingColorSpace(.sRGB) ?? c
+                out = String(format: "#%02X%02X%02X", Int((s.redComponent * 255).rounded()), Int((s.greenComponent * 255).rounded()), Int((s.blueComponent * 255).rounded()))
+            }
+            return out
+        }
+        #expect(hex(Palette.amber, dark: false) == "#D96A06" && hex(Palette.amber, dark: true) == "#F4AD33", "ticks, rings and bars")
+        #expect(hex(PColor.paneAccent, dark: false) == "#D96A06" && hex(PColor.paneAccent, dark: true) == "#F4AD33", "the sheet's own rings and ticks")
+        #expect(hex(Palette.amberInk, dark: false) == "#A85700" && hex(Palette.amberInk, dark: true) == "#F4AD33", "amber text")
+        #expect(hex(Palette.primaryButton, dark: false) == "#BB5B05" && hex(Palette.primaryButton, dark: true) == "#FFFFFF", "the primary button")
+        #expect(hex(Palette.primaryButtonLabel, dark: false) == "#FFFFFF" && hex(Palette.primaryButtonLabel, dark: true) == "#000000", "its label")
+        // The apps on the stage are drawn with the same set.
+        let css = TemplateFiles.stageCSS
+        #expect(css.contains("--amber-accent: #D96A06; --amber-accent-text: #A85700;") && css.contains("--amber-on-accent: #FFFFFF;"))
+        #expect(css.contains("--amber-accent: #F4AD33; --amber-accent-text: #F4AD33;") && css.contains("--amber-on-accent: #1F1300;"))
+        #expect(css.contains("background: var(--amber-accent-soft) !important; color: var(--amber-accent-text) !important;"), "the tinted pill's words are amber text, not the button's fill")
     }
 
     /// The Tab key walks the page's own buttons, in order, each ringed in its turn: Make, the
