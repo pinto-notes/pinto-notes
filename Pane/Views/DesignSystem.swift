@@ -203,6 +203,8 @@ private struct AmberProminentButton: View {
             : configuration.role == .destructive ? AmberProminentButtonStyle.destructiveFill
             : ink ? Palette.inkButton : AmberProminentButtonStyle.fill
         let label = ink && !off ? Palette.inkButtonLabel : off ? AmberProminentButtonStyle.disabledLabel : labelColor
+        // Pressed, or drawn as pressed for a picture or a test (a split button's Make half).
+        let pressed = configuration.isPressed || (joined == .leading && preview.contains("split.pressed"))
         return configuration.label
             // Semibold, as the secondary button is: bold read as an iPhone button (council, 8 November 2026).
             .font(.system(size: textSize, weight: .semibold))
@@ -225,7 +227,7 @@ private struct AmberProminentButton: View {
                     // Under the pointer a touch lighter (greyer on the dark mode's white); pressed, darker.
                     .overlay {
                         // A half of a split button doesn't dip when pressed, so its fill darkens more.
-                        if configuration.isPressed || (joined == .leading && preview.contains("split.pressed")) {
+                        if pressed {
                             shape.fill(Color(ink ? Palette.inkButtonLabel : PColor.black).opacity(ink ? 0.22 : joined != nil ? 0.2 : 0.14))
                         } else if !off && (hovering || preview.contains("*") || (joined == .leading && preview.contains("split.hover"))) {
                             shape.fill(ink ? Color.white.opacity(0.12) : Color(Palette.primaryButtonHover))
@@ -235,7 +237,7 @@ private struct AmberProminentButton: View {
             // One half of a split button keeps its place and size when pressed, and only its fill
             // darkens: dipping, it drew away from its other half and a gap opened between the two
             // (real clicks on the Air, 10 November 2026).
-            .modifier(ButtonChrome(shape: shape, pressed: joined == nil && configuration.isPressed, focused: isFocused))
+            .modifier(ButtonChrome(shape: shape, pressed: joined == nil && pressed, focused: isFocused))
             .modifier(HoverTracking(hovering: $hovering))
             .accessibilityValue(busy ? Text("Working") : Text(""))
     }

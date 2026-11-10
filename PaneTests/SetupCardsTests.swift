@@ -794,7 +794,7 @@ import Vision
         // Pressed, a half of the split button keeps its place and size; only its fill darkens
         // (dipping, the two halves drew apart and a gap opened between them).
         let design = try SettingsHomeTests.source("Pane/Views/DesignSystem.swift")
-        #expect(design.contains(".modifier(ButtonChrome(shape: shape, pressed: joined == nil && configuration.isPressed, focused: isFocused))"))
+        #expect(design.contains(".modifier(ButtonChrome(shape: shape, pressed: joined == nil && pressed, focused: isFocused))"))
         // Drawn: at rest, under the pointer and pressed, Make is the same shape in the same
         // place; only its fill changes, each step plainly darker than the last.
         func make(_ state: Set<String>) throws -> Pixels {
