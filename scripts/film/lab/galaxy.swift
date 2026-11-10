@@ -31,6 +31,8 @@ final class GalaxyScene: FilmScene {
     /// Every time anything was written in, in order: for how much work there is at a moment.
     private let allEdits: [Double]
     private var groupEdits: [[Double]] = []
+    /// While it's only being laid out (to know where the camera should look), nothing is drawn.
+    private var quiet = false
 
     static let skies: [(UInt32, [UInt32])] = [
         (0x15133A, [0x241F5C, 0x3A2F7C, 0x5B4196, 0x8257A8]),
@@ -95,7 +97,7 @@ final class GalaxyScene: FilmScene {
 
     /// Paper on paper: a shape with the shade it casts.
     private func paper(_ pts: [CGPoint], _ c: GR, lift: Double = 1, in ctx: CGContext) {
-        guard pts.count > 2 else { return }
+        guard pts.count > 2, !quiet else { return }
         let k = abs(ctx.ctm.a)
         ctx.saveGState()
         ctx.setShadow(offset: CGSize(width: 0, height: -5 * lift * k), blur: 12 * lift * k, color: CGColor(gray: 0, alpha: 0.42))
@@ -170,7 +172,7 @@ final class GalaxyScene: FilmScene {
 
     /// A star of paper with any number of points, with its shade.
     private func burst(_ p: CGPoint, _ r: Double, points: Int, inner: Double, turn: Double, _ c: GR, shade: Double = 2.2, in ctx: CGContext) {
-        guard r > 0.5 else { return }
+        guard r > 0.5, !quiet else { return }
         func shape(_ dy: Double) {
             for k in 0..<(points * 2) {
                 let a = turn + Double(k) * .pi / Double(points), d = k % 2 == 0 ? r : r * inner
@@ -213,6 +215,40 @@ final class GalaxyScene: FilmScene {
         ctx.restoreGState()
     }
 
+    // MARK: Camera
+
+    /// Where the camera is: how close, and which point of the picture (as laid out to fit the
+    /// frame) it's on. It opens close on the first notes and draws back as the notebook fills,
+    /// goes in on each of the month's own moments, and is back for the end to take all of it in.
+    private func camera(_ t: Double, at: [CGPoint], mid: CGPoint) -> (k: Double, on: CGPoint) {
+        let gt = min(t, growth)
+        func middle(_ list: [Int]) -> CGPoint? {
+            let alive = list.filter { script.nodes[$0].birth <= gt }
+            guard !alive.isEmpty else { return nil }
+            return CGPoint(x: alive.reduce(0) { $0 + at[$1].x } / Double(alive.count), y: alive.reduce(0) { $0 + at[$1].y } / Double(alive.count))
+        }
+        func between(_ a: CGPoint, _ b: CGPoint, _ f: Double) -> CGPoint { CGPoint(x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f) }
+        let opening = 1 - lsmooth(gt / (growth * 0.3))
+        // (A little closer than everything, and breathing, until the end.)
+        var k = 1.05 + 0.02 * sin(0.5 * t) + 0.75 * opening
+        var on = mid
+        if opening > 0, let c = middle(Array(script.nodes.indices.prefix(8))) { on = between(mid, c, 0.8 * opening) }
+        for b in script.story {
+            let a = lsmooth((t - (b.from - 0.35)) / 0.45) * (1 - lsmooth((t - (b.until - 0.35)) / 0.5))
+            guard a > 0 else { continue }
+            var target: CGPoint?
+            if let n = b.node, script.nodes[n].birth <= gt { target = at[n] }
+            else if let f = b.folder { target = middle(script.nodes.indices.filter { script.nodes[$0].folder == f }) }
+            let close = target == nil ? 1.14 : b.node != nil ? 2.0 : 1.55
+            k += (max(k, close) - k) * a
+            if let target { on = between(on, between(mid, target, 0.88), a) }
+        }
+        let end = lsmooth((t - growth + 0.3) / 1.3)
+        k += (1 - k) * end
+        on = between(on, mid, end)
+        return (k, on)
+    }
+
     // MARK: Drawing
 
     func drawBehind(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {
@@ -222,21 +258,12 @@ final class GalaxyScene: FilmScene {
         let bottom = canvas.bottom + 330, top = H - canvas.top - 120
         let mid = CGPoint(x: W / 2, y: (bottom + top) / 2)
         let half = CGSize(width: (W - 120) / 2, height: (top - bottom) / 2)
-        // Far clouds, two big sheets, and the small stars of the sky itself.
-        paper(cloud(CGPoint(x: mid.x - 190 + 14 * sin(0.2 * t), y: mid.y + 150), 560, 380, turn: 0.4, key: seed * 7 + 1), sky.mix(clouds[0], 0.55), lift: 1.6, in: ctx)
-        paper(cloud(CGPoint(x: mid.x + 230 - 12 * sin(0.17 * t), y: mid.y - 170), 470, 330, turn: -0.5, key: seed * 7 + 2), sky.mix(clouds[0], 0.9), lift: 1.4, in: ctx)
-        ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
-        for k in 0..<110 {
-            let p = CGPoint(x: lhash(k, seed + 1) * W, y: canvas.bottom + 300 + lhash(k, seed + 2) * (H - canvas.bottom - 300))
-            let r = 1.3 + 2.4 * pow(lhash(k, seed + 3), 3)
-            ctx.setFillColor(cream.cg(0.25 + 0.4 * lhash(k, seed + 4) * (0.7 + 0.3 * sin(1.7 * t + Double(k)))))
-            ctx.fillEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
-        }
-
         // Where every note is, by the kind of thing this is.
+        func build() -> (at: [CGPoint], labels: [(name: String, at: CGPoint, a: Double)], zoom: Double, heart: CGPoint) {
         var where_ = [CGPoint](repeating: .zero, count: script.nodes.count)
         var labels: [(name: String, at: CGPoint, a: Double)] = []
         var zoom = 1.0
+        var heart = mid
         func alive(_ notes: [Int]) -> Double { notes.reduce(0) { $0 + (script.nodes[$1].birth <= gt ? lsmooth((gt - script.nodes[$1].birth) / 0.45) : 0) } }
         func born(_ notes: [Int]) -> Double { notes.first.map { script.nodes[$0].birth } ?? .infinity }
         let most = Double(max(1, groups.first?.notes.count ?? 1))
@@ -396,15 +423,66 @@ final class GalaxyScene: FilmScene {
             let far2 = show(work, from: 4.5), near = show(work, from: 1.6)
             if far2 > 0 { rays(head, 62 * big * 1.75 * far2, lean: 1, axis: 0, turn: -0.07 * t, points: 20, clouds[2], in: ctx) }
             if near > 0 { rays(head, 62 * big * 1.32 * near, lean: 1, axis: 0, turn: 0.1 * t, points: 14, clouds[3].mix(peach, 0.3), in: ctx) }
+            heart = head
             paper(cloud(head, 62 * big, 62 * big, key: seed * 7 + 6), clouds[3], in: ctx)
             paper(cloud(head, 44 * big, 44 * big, key: seed * 7 + 7), peach, lift: 0.7, in: ctx)
             paper(cloud(head, 24 * big, 24 * big, key: seed * 7 + 8), cream, lift: 0.5, in: ctx)
         }
+        return (where_, labels, zoom, heart)
+        }
+
+        // Laid out once without drawing, to know where the camera should look.
+        quiet = true
+        let plan = build()
+        quiet = false
+        let cam = camera(t, at: plan.at, mid: mid)
+        /// Draws through the camera. Things further away move less: that's what gives it depth.
+        func through(_ depth: Double, _ draw: () -> Void) {
+            let k = 1 + (cam.k - 1) * depth
+            ctx.saveGState()
+            ctx.translateBy(x: mid.x, y: mid.y)
+            ctx.scaleBy(x: k, y: k)
+            ctx.translateBy(x: -(mid.x + (cam.on.x - mid.x) * depth), y: -(mid.y + (cam.on.y - mid.y) * depth))
+            draw()
+            ctx.restoreGState()
+        }
+        func seen(_ p: CGPoint) -> CGPoint { CGPoint(x: mid.x + (p.x - cam.on.x) * cam.k, y: mid.y + (p.y - cam.on.y) * cam.k) }
+        // Far clouds, two big sheets, and the small stars of the sky itself.
+        through(0.25) {
+            paper(cloud(CGPoint(x: mid.x - 190 + 14 * sin(0.2 * t), y: mid.y + 150), 620, 420, turn: 0.4, key: seed * 7 + 1), sky.mix(clouds[0], 0.55), lift: 1.6, in: ctx)
+        }
+        through(0.45) {
+            paper(cloud(CGPoint(x: mid.x + 230 - 12 * sin(0.17 * t), y: mid.y - 170), 500, 350, turn: -0.5, key: seed * 7 + 2), sky.mix(clouds[0], 0.9), lift: 1.4, in: ctx)
+        }
+        ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
+        through(0.15) {
+            for k in 0..<140 {
+                let p = CGPoint(x: -120 + lhash(k, seed + 1) * (W + 240), y: canvas.bottom + 200 + lhash(k, seed + 2) * (H - canvas.bottom - 100))
+                let r = 1.3 + 2.4 * pow(lhash(k, seed + 3), 3)
+                ctx.setFillColor(cream.cg(0.25 + 0.4 * lhash(k, seed + 4) * (0.7 + 0.3 * sin(1.7 * t + Double(k)))))
+                ctx.fillEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
+            }
+        }
+        ctx.saveGState()
+        ctx.translateBy(x: mid.x, y: mid.y)
+        ctx.scaleBy(x: cam.k, y: cam.k)
+        ctx.translateBy(x: -cam.on.x, y: -cam.on.y)
+        let made = build()
+        let where_ = made.at, labels = made.labels, zoom = made.zoom, heart = made.heart
 
         // The work: a speck of paper for every time a note was written in, amber when it was you
         // and blue when it was your AI. It flies out from its note as it happens, and stays.
         let u = min(1.35, max(0.62, zoom.squareRoot())) / pow(size, 0.3)
         let white = GR(0xFFFFFF)
+        // When the month is over, one wave goes out from the heart and everything it passes
+        // lights for a moment: all of the work at once.
+        let since = t - growth, reach = hypot(W, H) * 0.62
+        let wave = (since - 0.1) / 1.1 * reach
+        func lit(_ p: CGPoint) -> Double {
+            guard since > 0.1, wave < reach * 1.25 else { return 0 }
+            let d = (hypot(p.x - heart.x, p.y - heart.y) - wave) / 80
+            return exp(-d * d)
+        }
         for (i, n) in script.nodes.enumerated() where n.birth <= gt && n.edits.count > 1 {
             let p = where_[i], a0 = lhash(i, 31) * 6.283
             for k in 1..<n.edits.count {
@@ -413,14 +491,15 @@ final class GalaxyScene: FilmScene {
                 let fresh = max(0, 1 - age / 0.5)
                 let a = a0 + Double(k) * 2.399963, rad = (8 + 4.6 * Double(k).squareRoot()) * u * lbackOut(age / 0.4)
                 let q = CGPoint(x: p.x + cos(a) * rad, y: p.y + sin(a) * rad)
-                let h = lhash(i * 131 + k, 7), sz = (2.0 + 1.8 * h) * u * (1 + 1.2 * fresh)
+                let flash = lit(q)
+                let h = lhash(i * 131 + k, 7), sz = (2.0 + 1.8 * h) * u * (1 + 1.2 * fresh + 1.5 * flash)
                 let alpha = t <= growth ? 0.92 : 0.66 + 0.3 * sin(2.6 * t + Double(k) * 1.7 + Double(i))
                 ctx.move(to: CGPoint(x: q.x, y: q.y + sz))
                 ctx.addLine(to: CGPoint(x: q.x + sz * 0.8, y: q.y))
                 ctx.addLine(to: CGPoint(x: q.x, y: q.y - sz))
                 ctx.addLine(to: CGPoint(x: q.x - sz * 0.8, y: q.y))
                 ctx.closePath()
-                ctx.setFillColor((n.aiEdits[k] ? ai : you).mix(white, 0.3 * h + 0.6 * fresh).cg(alpha))
+                ctx.setFillColor((n.aiEdits[k] ? ai : you).mix(white, min(1, 0.3 * h + 0.6 * fresh + 0.7 * flash)).cg(min(1, alpha + flash)))
                 ctx.fillPath()
             }
         }
@@ -430,15 +509,23 @@ final class GalaxyScene: FilmScene {
         for (i, n) in script.nodes.enumerated() where n.birth <= gt {
             var done = 0.0, last = n.birth
             for e in n.edits where e <= gt { done += 1; last = e }
-            let pulse = t <= growth ? exp(-(gt - last) / 0.35) : 0.25 + 0.25 * sin(2.2 * t + Double(i))
+            let pulse = t <= growth ? exp(-(gt - last) / 0.35) : 0.25 + 0.25 * sin(2.2 * t + Double(i)) + 0.9 * lit(where_[i])
             let r = min(30, 7 + 1.9 * done.squareRoot()) * u * lbackOut((gt - n.birth) / 0.35) * (1 + 0.4 * pulse)
             let helped = lsmooth((gt - aiFrom[i]) / 0.35)
-            note(where_[i], r, turn: lhash(i, 21) * 1.5 + 0.25 * sin(0.8 * t + Double(i)), you.mix(ai, helped).mix(white, 0.35 * pulse), edits: done, in: ctx)
+            note(where_[i], r, turn: lhash(i, 21) * 1.5 + 0.25 * sin(0.8 * t + Double(i)), you.mix(ai, helped).mix(white, min(0.8, 0.35 * pulse)), edits: done, in: ctx)
         }
+        ctx.restoreGState()
+        // (When the camera is close, nothing bright lies under the mark and the key at the top.)
+        let shade = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [sky.cg(0.9), sky.cg(0)] as CFArray, locations: [0, 1])!
+        ctx.saveGState()
+        ctx.clip(to: CGRect(x: 0, y: H - canvas.top - 190, width: W, height: canvas.top + 190))
+        ctx.drawLinearGradient(shade, start: CGPoint(x: 0, y: H - canvas.top - 60), end: CGPoint(x: 0, y: H - canvas.top - 190), options: [.drawsBeforeStartLocation])
+        ctx.restoreGState()
         // (Names never lie over one another: where two would, they move apart, up and down.)
         var boxes = labels.map { l -> CGRect in
             let w = FilmKit.width(l.name, 27, 0.3) + 26
-            return CGRect(x: min(W - 30 - w, max(30, l.at.x - w / 2)), y: l.at.y, width: w, height: 40)
+            let p = seen(l.at)
+            return CGRect(x: min(W - 30 - w, max(30, p.x - w / 2)), y: p.y, width: w, height: 40)
         }
         for _ in 0..<40 {
             var moved = false
@@ -451,7 +538,8 @@ final class GalaxyScene: FilmScene {
             } }
             if !moved { break }
         }
-        for (k, l) in labels.enumerated() { tag(l.name, at: CGPoint(x: boxes[k].midX, y: boxes[k].minY), alpha: l.a, in: ctx) }
+        // (A name the camera has carried up under the mark and the key fades out there.)
+        for (k, l) in labels.enumerated() { tag(l.name, at: CGPoint(x: boxes[k].midX, y: boxes[k].minY), alpha: l.a * (1 - lsmooth((boxes[k].maxY - (H - canvas.top - 160)) / 50)), in: ctx) }
 
         // Nothing under the words but the sky.
         let fade = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [sky.cg(1), sky.cg(0)] as CFArray, locations: [0, 1])!

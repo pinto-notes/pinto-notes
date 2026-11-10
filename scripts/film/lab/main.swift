@@ -77,9 +77,14 @@ case "galaxy":
     // What it's drawn as comes from how the notebook was written in; naming one here overrides that.
     let form: FilmForm? = args.contains("spiral") ? .spiral : args.contains("nebula") ? .nebula : args.contains("comet") ? .comet : nil
     labels.workCount = { notes, edits in "\(notes) notes \u{00B7} \(edits) edits" }
+    // The film says what the notebook turned out to be: something to post it with.
+    let kind = [FilmForm.comet: "a comet", .nebula: "a nebula", .spiral: "a spiral galaxy"][form ?? script.form]!
+    labels.title = { "My \($0.period) \($0.months == 1 ? "is" : "are") \(kind)" }
     print("form: \(script.form.rawValue)\(form.map { " (shown as \($0.rawValue))" } ?? ""), \(script.nodes.count) notes, \(script.stats.folders) folders, \(script.work) edits, away \(script.stats.quietDays) days, wrote on \(script.stats.writingDays) of \(script.stats.days)")
     labels.scene = { script, names in GalaxyScene(script: script, names: names, seed: Int(seed), form: form) }
-    try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
+    // "tall" is the shape for stories and reels, 9:16, with room left for the app's own buttons.
+    let canvas = args.contains("tall") ? FilmCanvas(height: 1920, top: 150, bottom: 190) : FilmCanvas.shared
+    try FilmVideo.write(FilmRenderer(script: script, labels: labels, canvas: canvas), to: out)
 case "bench":
     let town = TownFilm(script: script)
     let frames = Array(stride(from: 40, to: 400, by: 12))
