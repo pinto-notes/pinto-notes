@@ -562,6 +562,26 @@ import Testing
         #expect(town.closeness(at: 4, canvas: .shared) == once)
     }
 
+    @Test func aBigNotebookStillMakesATown() {
+        // Twelve folders and a few hundred notes: the folders with most notes get a hill each,
+        // the rest share one; every note has a house, inside the frame and above the words.
+        let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now, heavy: true), calendar: Self.cal)
+        #expect(script.folders.count == 12 && script.nodes.count > 180)
+        let town = TownScene(script: script, folderNames: true)
+        #expect(town.hillCount == TownScene.maxHills)
+        let frames = town.houseFrames(canvas: .shared)
+        #expect(frames.count == script.nodes.count)
+        #expect(frames.allSatisfy { $0.minX > -20 && $0.maxX < 1100 && $0.minY > 340 && $0.maxY < 1250 && $0.width > 8 })
+        // And it draws the whole film.
+        var labels = FilmRenderer.Labels()
+        labels.look = .town
+        let r = FilmRenderer(script: script, labels: labels)
+        let ctx = FilmRenderer.context(width: 540, height: 675)!
+        while r.frame < script.frameCount - 1 { r.skip() }
+        r.drawNext(in: ctx)
+        #expect(Self.litPixels(ctx, rows: 180..<470) > 500)
+    }
+
     @Test func theTownStandsTallerOnAPhonesScreen() {
         // More room above the ground on a tall screen: the hills use some of it, and the frame
         // it settles to is the shared one.

@@ -6,7 +6,8 @@ import Foundation
 enum FilmDemo {
     /// `light` is the thinnest month the film is still offered for: two folders, a note most
     /// days, no AI.
-    static func notebook(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), ai: String = "ChatGPT", light: Bool = false) -> FilmInput {
+    /// `heavy` is a big month: twelve folders, some with long names, and about three times the notes.
+    static func notebook(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), ai: String = "ChatGPT", light: Bool = false, heavy: Bool = false) -> FilmInput {
         var rng = seed &* 0x2545_F491_4F6C_DD1D | 1
         func rand() -> Double {
             rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
@@ -14,7 +15,11 @@ enum FilmDemo {
         }
         func pick<T>(_ a: [T]) -> T { a[Int(rand() * Double(a.count)) % a.count] }
 
-        let folders: [(String, Double, Int)] = light ? [("Journal", 0.7, 0), ("Recipes", 0.3, 5)] : [  // name, weight, first day
+        let folders: [(String, Double, Int)] = light ? [("Journal", 0.7, 0), ("Recipes", 0.3, 5)] : heavy ? [
+            ("Work", 0.2, 0), ("Product research 2026", 0.14, 1), ("Thesis", 0.12, 2), ("Reading", 0.08, 1), ("Apartment hunt", 0.08, 6),
+            ("Running", 0.06, 4), ("Recipes", 0.06, 8), ("Home", 0.07, 3), ("Lisbon trip", 0.05, 17), ("Quarterly planning", 0.06, 10),
+            ("Ideas", 0.05, 2), ("Family", 0.03, 12),
+        ] : [  // name, weight, first day
             ("Work", 0.27, 0), ("Thesis", 0.2, 2), ("Reading", 0.12, 1), ("Running", 0.09, 4),
             ("Recipes", 0.1, 8), ("Home", 0.12, 3), ("Lisbon trip", 0.1, 17),
         ]
@@ -67,7 +72,7 @@ enum FilmDemo {
                 for f in open { r -= f.1; if r <= 0 { return f.0 } }
                 return open[0].0
             }
-            let newNotes = light ? Int(rand() * 3.2) + (d < 2 ? 2 : 0) : Int(rand() * (weekend ? 3 : 5)) + (d < 3 ? 3 : 0)
+            let newNotes = (light ? Int(rand() * 3.2) + (d < 2 ? 2 : 0) : Int(rand() * (weekend ? 3 : 5)) + (d < 3 ? 3 : 0)) * (heavy ? 3 : 1)
             for _ in 0..<newNotes {
                 let f = folderPick()
                 let at = day.addingTimeInterval(8 * 3600 + rand() * 13 * 3600)

@@ -226,55 +226,82 @@ final class TownScene: FilmScene {
         stretch = min(1.6, max(0.96, (H - canvas.top - ground - 260) / 790))
     }
 
+    /// A town has at most this many hills: the folders with most notes get one each, and the
+    /// rest share the last (it has no name board).
+    static let maxHills = 9
+    /// The folder each hill is for; -1 for the hill the smaller folders share.
+    private var shared: Set<Int> = []
+
+    private func name(_ hill: Hill) -> String { hill.folder >= 0 ? script.folders[hill.folder] : "" }
+
     private func layout() {
         let F = script.folders.count
         var count = [Int](repeating: 0, count: F), first = [Double](repeating: .infinity, count: F)
         for n in script.nodes { count[n.folder] += 1; first[n.folder] = min(first[n.folder], n.birth) }
-        // Three sheets of hills, front to back. The biggest folders get the front, where all of
-        // a hill shows; each row's hills sit between the row in front's.
-        let bySize = (0..<F).sorted { count[$0] == count[$1] ? $0 < $1 : count[$0] > count[$1] }
-        var rows: [[Int]] = [[], [], []]            // depth 2 (front), 1, 0
-        for (j, f) in bySize.enumerated() { rows[F <= 2 ? j : j % 3].append(f) }
+        var bySize = (0..<F).sorted { count[$0] == count[$1] ? $0 < $1 : count[$0] > count[$1] }
+        // More folders than hills: the smallest share one.
+        var lots: [(folder: Int, count: Int, first: Double)] = []
+        if bySize.count > Self.maxHills {
+            shared = Set(bySize[(Self.maxHills - 1)...])
+            bySize = Array(bySize[..<(Self.maxHills - 1)])
+            lots.append((-1, shared.map { count[$0] }.reduce(0, +), shared.map { first[$0] }.min() ?? 0))
+        }
+        lots = bySize.map { ($0, count[$0], first[$0]) } + lots
+        lots.sort { $0.count == $1.count ? $0.folder < $1.folder : $0.count > $1.count }
+        // Three sheets of hills, front to back. The biggest get the front, where all of a hill
+        // shows; in a row each hill has room by its size.
+        let H = lots.count
+        var rows: [[Int]] = [[], [], []]            // depth 2 (front), 1, 0; indices into lots
+        for j in lots.indices { rows[H <= 2 ? j : j % 3].append(j) }
         for (ri, row) in rows.enumerated() {
             let depth = 2 - ri
             // The row's biggest hill on the left in one row and on the right in the next, so the
             // town isn't all on one side.
-            var ordered = row.sorted { count[$0] > count[$1] }
+            var ordered = row.sorted { lots[$0].count > lots[$1].count }
             if ri % 2 == 1 { ordered.reverse() }
-            for (k, f) in ordered.enumerated() {
+            let weights = ordered.map { Double(lots[$0].count).squareRoot() + 2 }
+            let total = weights.reduce(0, +)
+            var before = 0.0
+            for (k, j) in ordered.enumerated() {
+                let lot = lots[j]
                 let m = Double(ordered.count)
-                var xs = ri == 1 ? (Double(k) + 1) / (m + 1) : (Double(k) + 0.5) / m
+                let share = weights[k] / total
+                var xs = before + share / 2
+                before += share
                 // Two folders: side by side, not one behind the other.
-                if F == 2 { xs = ri == 0 ? 0.36 : 0.7 }
-                if F >= 3, m == 1 { xs = ri == 1 ? 0.62 : 0.4 }
-                let n = Double(count[f])
+                if H == 2 { xs = ri == 0 ? 0.36 : 0.7 }
+                if H >= 3, m == 1 { xs = ri == 1 ? 0.62 : 0.4 }
+                let n = Double(lot.count)
                 let s = [0.94, 1.08, 1.24][depth]
-                let w = min(W * 0.9 / max(1, m) * 1.25, (300 + 46 * n.squareRoot()) * (0.94 + 0.12 * hash(f, 5)))
-                let h = (150 + 24 * n.squareRoot()) * (0.92 + 0.16 * hash(f, 7))
+                let key = lot.folder + 1
+                let room = m == 1 ? W * 0.9 : share * (W - 120) * 1.3
+                let w = min(room, (300 + 46 * n.squareRoot()) * (0.94 + 0.12 * hash(key, 5)))
+                let h = (150 + 24 * n.squareRoot()) * (0.92 + 0.16 * hash(key, 7))
                 let base = Self.rowBase[depth]
-                let cx = 60 + xs * (W - 120) + (hash(f, 3) - 0.5) * 36
-                hills.append(Hill(folder: f, cx: cx, base: base, w: w, h: h, s: s, depth: depth, birth: max(0, first[f] - 0.3), skew: 0))
+                let cx = 60 + xs * (W - 120) + (hash(key, 3) - 0.5) * 24
+                hills.append(Hill(folder: lot.folder, cx: cx, base: base, w: w, h: h, s: s, depth: depth, birth: max(0, lot.first - 0.3), skew: 0))
             }
         }
         hills.sort { $0.depth == $1.depth ? $0.cx < $1.cx : $0.depth < $1.depth }
         // Houses: terraces under each hill's top, the first notes nearest the top.
         houses = Array(repeating: House(hill: 0, x: 0, y: 0, s: 1, w: 40, wall: 0, roof: 0, chimneyLeft: false), count: script.nodes.count)
         for (hi, hill) in hills.enumerated() {
-            let notes = script.nodes.indices.filter { script.nodes[$0].folder == hill.folder }
+            let notes = script.nodes.indices.filter { let f = script.nodes[$0].folder; return hill.folder >= 0 ? f == hill.folder : shared.contains(f) }
             var s = hill.s
             var perRow = 1, rows = 1
-            for _ in 0..<14 {
+            for _ in 0..<24 {
                 perRow = max(1, Int(hill.w * 0.8 / (56 * s)))
-                // Lower terraces hold one more each.
+                // Lower terraces hold one more each, up to the hill's width.
                 rows = 1
                 var held = perRow
-                while held < notes.count { rows += 1; held += perRow + rows - 1 }
-                if rows <= 4 { break }
-                s *= 0.93
+                while held < notes.count { rows += 1; held += min(perRow + rows - 1, perRow + 3) }
+                // Terraces down the hill's own face, no further; a very full hill has smaller houses.
+                if Double(rows) * 54 * s <= max(250, hill.h * 0.95) || s <= hill.s * 0.4 { break }
+                s *= 0.94
             }
             var spots: [(x: Double, drop: Double, key: Double)] = []
             for r in 0..<rows {
-                let n = perRow + r
+                let n = min(perRow + r, perRow + 3)
                 for k in 0..<n {
                     let u = (Double(k) + 0.5 - Double(n) / 2) / Double(perRow + 3) * 2 * 0.94
                     let x = hill.cx + u * hill.w / 2 + (hash(hi * 100 + r, k) - 0.5) * 9 * s
@@ -469,7 +496,7 @@ final class TownScene: FilmScene {
         // would run off the frame or under the top line is left out, never cut.
         if folderNames {
             for (hi, hill) in hills.enumerated() {
-                let name = script.folders[hill.folder]
+                let name = self.name(hill)
                 var a = smooth((gt - hill.birth - 0.45) / 0.4)
                 guard !name.isEmpty, a > 0, hi < pills.count else { continue }
                 let p = pills[hi], anchor = pillAnchors[hi], size = Self.pillSize(name)
@@ -590,7 +617,7 @@ final class TownScene: FilmScene {
         let order = hills.indices.sorted { a, b in rects.indices.filter { houses[$0].hill == a }.count > rects.indices.filter { houses[$0].hill == b }.count }
         for hi in order {
             let hill = hills[hi]
-            let size = Self.pillSize(script.folders[hill.folder])
+            let size = Self.pillSize(name(hill))
             // Over the highest roof near the hill's top, so its pole comes straight down onto its own houses.
             var top = ridge(depth: hill.depth, hill.cx, growth) + 30 * hill.s, x = hill.cx
             for i in rects.indices where houses[i].hill == hi && abs(houses[i].x - hill.cx) < 95 * hill.s && rects[i].maxY > top { top = rects[i].maxY; x = rects[i].midX }
@@ -627,8 +654,8 @@ final class TownScene: FilmScene {
             var r = CGRect.null
             for i in picked { r = r.union(rects[i]) }
             if folderNames {
-                for h in shown where !script.folders[hills[h].folder].isEmpty {
-                    let size = Self.pillSize(script.folders[hills[h].folder])
+                for h in shown where !name(hills[h]).isEmpty {
+                    let size = Self.pillSize(name(hills[h]))
                     r = r.union(CGRect(x: pills[h].x - size.width / 2, y: pills[h].y, width: size.width, height: size.height))
                 }
             }
@@ -713,6 +740,13 @@ final class TownScene: FilmScene {
         let f = t / Self.shotStep, k = min(cover.count - 1, Int(f))
         let next = min(cover.count - 1, k + 1)
         return cover[k] + (cover[next] - cover[k]) * (f - Double(k))
+    }
+
+    /// How many hills the town has, and where each note's house stands at the end (for tests).
+    var hillCount: Int { hills.count }
+    func houseFrames(canvas: FilmCanvas) -> [CGRect] {
+        place(canvas)
+        return script.nodes.indices.map(finalRect)
     }
 
     /// How close the camera is at film time `t` in a shape: 1 is the whole stage.
