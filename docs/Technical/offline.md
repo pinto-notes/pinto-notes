@@ -82,12 +82,46 @@ every migration, light and dark. Both tests passed in both appearances:
 - `NetworkPath` (NWPathMonitor): with no network nothing polls and a sync doesn't send anything;
   when it's back the engine syncs, the key is checked (`AccountCrypto.networkReturned`) and AI
   connection asks are looked at, at once.
-- `SyncEngine.reach` (online, offline, unreachable) drives `OfflineLine` and the
+- `SyncEngine.reach` (online, offline, unreachable) drives `OfflineLine` (the Mac's `OfflineStatus`) and the
   `networkReach` environment value that network-only controls read.
 - Keep Files Downloaded: a folder's files are fetched after each sync. Per device
   (`files.keepDownloaded` in UserDefaults). Its item in the folder's menu was removed on 2026-10-11
   (files download when opened and stay cached); a folder that had it on keeps it, and
   `SyncEngine.setKeepsDownloaded` is still there.
+
+## The status, and a second audit (2026-11-10)
+
+"Can't reach Pinto Notes" with a wifi-exclamation glyph above Templates, and a spinner beside the
+name, read as trouble ("this scares me away from working offline"). Now:
+
+- **Words.** `OfflineCopy.lines`: "Offline · saved on this Mac" with no network, "Sync paused ·
+  saved on this Mac" with a network that doesn't reach the server ("iPhone", "iPad" there). The
+  whole line whenever it fits; in a narrow sidebar "… · saved here", then "Saved on this Mac".
+  Never a failure first, never cut or wrapped. Settings says "Offline" / "Sync paused" with the
+  last sync's time, in grey.
+- **Glyph.** `icloud.slash` for both.
+- **Where (Mac).** A second line under your name in the sidebar's account row, with the cloud on
+  the name's line. Nothing in the foot moves when it shows. The row opens a popover
+  (`OfflinePopover`): keep writing, saved here, syncs by itself, your AI sees it after; how many
+  changes wait; "Try now", which runs one sync and says what it found. iPhone and iPad keep the
+  capsule over the lists.
+- **Spinner.** `OfflineCopy.spins`: only for a sync while the server can be reached. Each retry
+  against a server that was away set the status to syncing for as long as the request took to
+  time out, which is what turned beside "Can't reach".
+
+| Case | Before | Now | Test |
+|---|---|---|---|
+| Make, edit, pin, move, delete notes; rename and nest folders; add a file; search; Go to Note; export. No network, and server only away | Worked | Works; nothing shown as a problem, no spinner; one sync puts it all up | `everythingOnThisDeviceWorksWithTheServerAway` |
+| Unlock locked notes with the password, server only away | **Sat on the password sheet for up to a minute**: unlock first asked the server for the setup and waited out the request's timeout | Waits 3 s at most, then checks the password against what this device knows (`NoteVault.serverWait`). With no network it was already instant | `lockedNotesWorkWithTheServerAway` |
+| Lock and unlock a note, remove a lock | Worked | Works | same |
+| Set or change the notes password | Needs the server. Said "You're offline…" with only the server away | "Setting or changing your notes password needs Pinto Notes. Try again when you're back online." | same |
+| Templates, "Add without AI" | Worked (the app's own copy) | Works | `makeWhileSyncIsAwayAddsTheNoteAndOpensNothing` |
+| Templates, "Make with ChatGPT" | Added the note, then opened the AI on a note it can't see yet (a browser error with no network) | Adds the note and copies the ask; the AI isn't opened; the line under the button says "Ask ChatGPT after it syncs." | same, `everyTemplateSaysWhatMakeAddsOnOneLine` |
+| A note app | Runs on its local data, which is kept on disk with what's unsynced (`NotePageDataStore`) | Same | `NoteSourceTests` |
+| Back online | Everything goes up, the line goes | Same; after Try now the popover says "Back online. Everything is synced." for 2 s, then goes with the line | `tryNowSaysWhatItFound`, `everythingOnThisDeviceWorksWithTheServerAway` |
+
+Needs the server, and says so at its own control: Connect an AI, share links, add a device,
+sign-in, delete account, version history, storage counts, a file never downloaded to this device.
 
 ## What's left
 
