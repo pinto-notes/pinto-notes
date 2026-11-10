@@ -6,7 +6,7 @@
     "Personal"
   ],
   "audience": "For anyone training a few times a week who wants to see progress.",
-  "description": "A workout log in one table. Describe the session after training and your AI logs it and updates your personal bests.",
+  "description": "A workout log in one table. Describe a session and your AI logs it and updates your personal bests.",
   "tagline": "A row per session, and your bests.",
   "folder": "Health",
   "note": "Workout log\n\nOne row per session. Add it yourself, or tell your AI what you did after training and it logs it.\n\n## Sessions\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Exercise=text; Result=text; Effort (1–10)=scale 1-10 -->\n| Date | Workout | Exercise | Result | Effort (1–10) |\n| --- | --- | --- | --- | --- |\n\n## Personal bests\nYour best result for each exercise, with its date.\n\n## Program\nLegs, push and pull in turn with a day between, and an easy run on a rest day.\n- Legs: squat, lunges, calves\n- Push: bench press, overhead press, dips\n- Pull: deadlift, rows, pull-ups\n",

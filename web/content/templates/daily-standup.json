@@ -7,7 +7,7 @@
     "Work"
   ],
   "audience": "For developers who'd rather not reconstruct yesterday from memory at 9:58.",
-  "description": "One section per working day. Tell your AI what you did and what's next, or let a coding agent draft it from your commits.",
+  "description": "One section per working day. Tell your AI what you did and what's next, or have a coding agent draft it.",
   "tagline": "Yesterday, today and what's in the way.",
   "seoTitle": "Daily standup template for Claude Code and ChatGPT",
   "folder": "Work",

@@ -6,7 +6,7 @@
     "Work"
   ],
   "audience": "For creators, marketers and founders who post every week.",
-  "description": "A calendar and a list of ideas. Ask your AI to plan the next two weeks from your ideas, and tell it when a post goes out.",
+  "description": "A calendar and a list of ideas. Ask your AI to plan the next two weeks from your ideas.",
   "tagline": "What goes out when, and ideas for later.",
   "folder": "Work",
   "note": "Content calendar\n\nWhat's going out, where and when, plus your ideas, so you never start from a blank page. Tell your AI an idea to add the first.\n\n## Calendar\n<!-- pane-table: Publish on=text; Title=text; Channel=choice Blog|Newsletter|LinkedIn|Instagram|YouTube; Status=choice Idea|Drafting|Scheduled|Published -->\n| Publish on | Title | Channel | Status |\n| --- | --- | --- | --- |\n\n## Ideas\nAnything worth a post, added the moment you think of it.\n\n## Voice\n- Short sentences. One idea per post.\n- Show the work: a screenshot or a number beats an adjective.\n- End with a question, not a sales pitch.\n",
