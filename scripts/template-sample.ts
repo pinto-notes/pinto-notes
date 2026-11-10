@@ -2,7 +2,7 @@
 // by scripts/template-samples.py): the app in use. Its dates are written for ANCHOR and moved to
 // the day a picture is drawn, as the Mac app moves them when it shows the sample
 // (TemplateFiles.sample), so a habit ticked "today" is ticked today.
-// scripts/template-stage-pictures.ts moves them the same way, with its own copy of this.
+// scripts/template-stage-pictures.ts moves them with this too.
 
 /** The day the samples' dates are written for (scripts/template-samples.py, ANCHOR). */
 export const ANCHOR = "2026-11-08";

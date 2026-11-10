@@ -11,6 +11,7 @@
 // PaneTests/SetupCardsTests (theAppPictureIsTheLiveViewsSize) fails while the sizes are out of step.
 import "../supabase/functions/mcp/tools.ts";
 import { render as renderService } from "../supabase/functions/mcp/app_check.ts";
+import { ANCHOR, localToday, moved } from "./template-sample.ts";
 
 /** The live view's size in CSS pixels on the template page's stage: TemplateAppPreview.css in the
  * app. The stage's 624 x 464 pt at 75%, where the apps lay out in two columns. */
@@ -20,26 +21,11 @@ const SIZES = Deno.env.get("STAGE_SIZES")
   // "stage-narrow": a narrow sheet's stage (a small window), the app in its one column.
   : [{ name: "stage", width: 832, height: 619 }, { name: "stage-narrow", width: 533, height: 640 }];
 
-/** The sample's dates are written for this day and moved to today: TemplateFiles.sample in the app. */
-const ANCHOR = "2026-11-08";
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-function moved(value: unknown, days: number): unknown {
-  const shift = (s: string) => {
-    const t = new Date(s + "T12:00:00Z");
-    t.setUTCDate(t.getUTCDate() + days);
-    return t.toISOString().slice(0, 10);
-  };
-  if (typeof value === "string") return DATE.test(value) ? shift(value) : value;
-  if (Array.isArray(value)) return value.map((v) => moved(v, days));
-  if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [DATE.test(k) ? shift(k) : k, moved(v, days)]));
-  }
-  return value;
-}
-// The stage's day is today, as the live app shows it (9 November 2026: it used to be the latest
-// Thursday, and the app said "Thursday 5 November, Today" on a Monday).
-const local = new Date();
-const today = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, "0")}-${String(local.getDate()).padStart(2, "0")}`;
+// The sample's dates are written for ANCHOR and moved to today: TemplateFiles.sample in the app,
+// and scripts/template-sample.ts here. The stage's day is today, as the live app shows it
+// (9 November 2026: it used to be the latest Thursday, and the app said "Thursday 5 November,
+// Today" on a Monday).
+const today = localToday();
 const since = Math.round((Date.parse(today) - Date.parse(ANCHOR)) / 86_400_000);
 
 const ROOT = new URL("../", import.meta.url);
