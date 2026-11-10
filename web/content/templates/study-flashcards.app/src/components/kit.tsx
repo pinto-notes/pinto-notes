@@ -190,9 +190,9 @@ export function DeleteButton({ children, className, ...props }: React.ButtonHTML
 }
 
 /** The big title at the top of a screen, with a line under it and an action on the right. */
-export function Title({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
+export function Title({ title, subtitle, action, className }: { title: string; subtitle?: string; action?: ReactNode; className?: string }) {
   return (
-    <header className="flex items-end gap-3 pb-5 pt-2">
+    <header className={cn("flex items-end gap-3 pb-5 pt-2", className)}>
       <div className="min-w-0 flex-1">
         {subtitle && <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">{subtitle}</p>}
         <h1 className="text-[2rem] font-bold leading-tight tracking-tight">{title}</h1>

@@ -5,6 +5,21 @@ import { cn } from "@/lib/utils"
 // Small building blocks in the style of Apple's own apps: grouped sections on solid surfaces,
 // rows at least 44 pt tall, one accent (Pinto's amber), and motion only where it explains a change.
 
+/** Whether a media query holds now, kept current as the note is resized. */
+export function useMedia(query: string): boolean {
+  const [on, setOn] = useState(() => typeof matchMedia === "function" && matchMedia(query).matches)
+  useEffect(() => {
+    if (typeof matchMedia !== "function") return
+    const m = matchMedia(query), f = () => setOn(m.matches)
+    f(); m.addEventListener("change", f)
+    return () => m.removeEventListener("change", f)
+  }, [query])
+  return on
+}
+/** A note in one column with little height (a small phone, a small window): screens show their
+ *  rows compact there, so the list isn't one row under a tall summary. */
+export const SHORT = "(max-width: 699px) and (max-height: 640px)"
+
 /** A titled group of rows on the surface colour, like a Settings or Health section. */
 export function Section({ title, action, footer, children, className }: { title?: string; action?: ReactNode; footer?: ReactNode; children: ReactNode; className?: string }) {
   return (
@@ -190,9 +205,9 @@ export function DeleteButton({ children, className, ...props }: React.ButtonHTML
 }
 
 /** The big title at the top of a screen, with a line under it and an action on the right. */
-export function Title({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
+export function Title({ title, subtitle, action, className }: { title: string; subtitle?: string; action?: ReactNode; className?: string }) {
   return (
-    <header className="flex items-end gap-3 pb-5 pt-2">
+    <header className={cn("flex items-end gap-3 pb-5 pt-2", className)}>
       <div className="min-w-0 flex-1">
         {subtitle && <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">{subtitle}</p>}
         <h1 className="text-[2rem] font-bold leading-tight tracking-tight">{title}</h1>

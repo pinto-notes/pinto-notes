@@ -2,6 +2,8 @@
 @import "tw-animate-css";
 
 @custom-variant dark (@media (prefers-color-scheme: dark));
+/* A mouse or trackpad: rows can be closer than the 44 pt a finger needs (a month's weeks at 28). */
+@custom-variant mouse (@media (pointer: fine));
 
 /* shadcn/ui's colours, from Amber Notes' tokens (they switch for dark mode by themselves). */
 :root {

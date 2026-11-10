@@ -468,6 +468,24 @@ describe("First use", () => {
   })
 })
 
+describe("A short note", () => {
+  // The test page is as tall as the screen it runs on, so the layout is asked for by its rule.
+  it("has one rule for when rows go compact: one column, and no more than 640 px of height", async () => {
+    const { SHORT } = await import("@/components/kit")
+    expect(SHORT).toBe("(max-width: 699px) and (max-height: 640px)")
+    expect(typeof matchMedia(SHORT).matches).toBe("boolean")
+  })
+})
+
+describe("Habits tab", () => {
+  it("says what happens to past check-ins when a habit is removed", async () => {
+    await amber.store.set("habits", [walk])
+    render(<App />)
+    await go("Habits")
+    expect(await screen.findByText(/Past check-ins are kept when you remove a habit\.$/)).toBeInTheDocument()
+  })
+})
+
 describe("Older data", () => {
   it("opens data from before schedules and skips (no skips key, no days on habits)", async () => {
     await amber.store.set("skips", null)
