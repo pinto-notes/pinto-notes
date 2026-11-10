@@ -559,13 +559,13 @@ import Vision
         #expect(L.size(on: CGSize(width: 1500, height: 950)) == CGSize(width: 1260, height: 790))
         #expect(L.size(on: CGSize(width: 1728, height: 1080)) == L.largest && L.size(on: CGSize(width: 3000, height: 2000)) == L.largest)
         #expect(L.largest.width <= 1300 && L.largest.height <= 900)
-        let columns = { (w: CGFloat) in Int((w - 48 + 16) / (L.cardWidth(row: w - 48, gap: 16) + 16)) }
+        let columns = { (w: CGFloat) in Int((w - 64 + 16) / (L.cardWidth(row: w - 64, gap: 16) + 16)) }
         #expect(columns(L.size.width) == 5 && columns(L.largest.width) == 6, "a column more on the largest")
         let small = L.size(on: CGSize(width: 800, height: 560))
         #expect(small.width <= 800 - 80 && small.height <= 560 - 60)
         #expect(L.size(on: CGSize(width: 500, height: 300)) == CGSize(width: 720, height: 500))
-        let wide = TemplateLibraryView.cardWidth(row: TemplateLibraryView.size.width - 48, gap: 16)
-        #expect(wide == 185, "five across: \(wide)")
+        let wide = TemplateLibraryView.cardWidth(row: TemplateLibraryView.size.width - 64, gap: 16)
+        #expect(wide == 182, "five across, inside the sheet's 32 pt margins: \(wide)")
         #expect(abs(wide - SetupTemplateCard.size.width) < 30, "near the covers' own size")
         let narrow = TemplateLibraryView.cardWidth(row: 720 - 48, gap: 16)
         #expect(narrow == 213, "three across the smallest sheet: \(narrow)")
@@ -580,23 +580,28 @@ import Vision
         typealias L = TemplateLibraryView
         #expect(TemplateLibraryWords.subtitle == "Notes and small apps your AI can fill in and keep up to date.")
         let src = try library
-        #expect(src.components(separatedBy: ".frame(height: Self.topRow)").count == 3, "the gallery's row and a page's row are one height")
+        #expect(src.components(separatedBy: ".frame(height: Self.controls)").count == 3, "the gallery's row and a page's row are one height")
+        #expect(src.components(separatedBy: ".padding(.top, Self.margin(for: size))").count == 3, "and both start a margin under the sheet's top")
         #expect(src.contains("Text(TemplateLibraryWords.subtitle)\n                .font(.system(size: 13)).foregroundStyle(Color.muted)"))
         let width = L.cardWidth(row: L.size.width - L.margin * 2, gap: L.gap)
-        #expect(SetupTemplateCard.artHeight(width) == (width * 0.75).rounded(), "4:3")
+        #expect(SetupTemplateCard.artHeight(width) == (width * 0.7).rounded(), "10:7")
         let name = NSFont.systemFont(ofSize: SetupTemplateCard.nameSize, weight: .semibold)
         func tall(_ f: NSFont) -> CGFloat { (f.ascender - f.descender + f.leading).rounded(.up) }
         let card = SetupTemplateCard.artHeight(width) + 8 + tall(name) + 2 + 17
-        let room = L.size.height - L.topRow - L.subtitleRow - 1
-        #expect(L.gridTop + card * 3 + L.rowGap * 2 <= room, "three rows of \(card) pt in \(room) pt")
-        #expect(src.contains(".padding(.bottom, Self.margin)\n                    .coordinateSpace(.named(Self.space))"), "the last row ends a margin clear of the foot")
+        let room = L.size.height - L.topRow(for: L.size) - L.subtitleRow
+        // Three rows whole, clear of the fade at the foot, and the fourth's tops in it.
+        #expect(L.gridTop + card * 3 + L.rowGap * 2 <= room - L.galleryFoot, "three rows of \(card) pt in \(room) pt")
+        #expect(L.gridTop + card * 3 + L.rowGap * 3 < room, "the fourth row's covers show at the foot")
+        #expect(src.contains(".padding(.bottom, Self.margin(for: size))\n                    .coordinateSpace(.named(Self.space))"), "the last row ends a margin clear of the foot")
+        // The rows under the foot fade out there, and at the gallery's end there's no fade.
+        #expect(src.contains("LinearGradient(colors: [.black, galleryMore ? .clear : .black], startPoint: .top, endPoint: .bottom).frame(height: Self.galleryFoot)"))
         // The name is in the row on every sheet: with Search at its least it fits the smallest.
         #expect(!src.contains("headerRow(named: false)") && src.contains("headerRow(search: Self.searchWidth)\n                headerRow(search: Self.searchNarrow)"))
         let kinds = NSHostingView(rootView: TemplateKinds(filter: .constant("All"))).fittingSize.width
         let title = (TemplateLibraryWords.title as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 20, weight: .bold)]).width
         let smallest = L.size(on: CGSize(width: 500, height: 300)).width
         // The name, the kinds, Search at its least, the close x (28) and 10 pt between each, inside the margins.
-        #expect(title + kinds + L.searchNarrow + 28 + 10 * 3 <= smallest - L.margin * 2, "the smallest sheet's row: \(title) + \(kinds) + \(L.searchNarrow) + 28 + 30 in \(smallest - L.margin * 2)")
+        #expect(title + kinds + L.searchNarrow + 28 + 10 * 3 <= smallest - L.marginSmall * 2, "the smallest sheet's row: \(title) + \(kinds) + \(L.searchNarrow) + 28 + 30 in \(smallest - L.marginSmall * 2)")
     }
 
     /// Under each cover, its name and a few words, each whole on its one line at the narrowest
@@ -606,13 +611,12 @@ import Vision
         #expect(!short.hasSuffix(".") && short.first?.isUppercase == true, "\(e.slug): \(short)")
         let line = TemplateLibraryWords.line(e)
         #expect(line == short, "the line is its words; an app's mark is drawn before it, never written in it")
-        let width = SetupTemplateCard.wordsWidth(TemplateLibraryView.cardWidth(row: TemplateLibraryView.size.width - 48 - 15, gap: 16))
+        let width = SetupTemplateCard.wordsWidth(TemplateLibraryView.cardWidth(row: TemplateLibraryView.size.width - 64 - 15, gap: 16))
         func wide(_ s: String, _ f: NSFont) -> CGFloat { (s as NSString).size(withAttributes: [.font: f]).width }
         // An app's line starts after the app's mark.
         let room = width - (e.app ? SetupTemplateCard.markRoom : 0)
         // Whole on the full sheet's card; beside a scroll bar, at most a hair smaller.
         #expect(wide(line, .systemFont(ofSize: SetupTemplateCard.lineSize)) * SetupTemplateCard.nameShrink <= room, "\(e.slug): \u{201C}\(line)\u{201D} is wider than \(room) pt")
-        #expect(wide(line, .systemFont(ofSize: SetupTemplateCard.lineSize)) <= room + 15 / 5, "\(e.slug): whole with no scroll bar")
         // The longest name ("Study notes and flashcards") is set a hair smaller to stay whole.
         #expect(wide(e.title, .systemFont(ofSize: SetupTemplateCard.nameSize, weight: .semibold)) * SetupTemplateCard.nameShrink <= width, "\(e.slug): its name is wider than \(width) pt")
     }
@@ -671,14 +675,14 @@ import Vision
         typealias L = TemplateLibraryView
         let size = L.size
         #expect(L.stageWidth(for: size) == 624)
-        #expect(L.frameInset(for: size) == L.margin && L.frameRadius == 12)
+        #expect(L.frameRadius == 12)
         #expect(L.window(for: size) == CGSize(width: 576, height: 428.5), "the frame: \(L.window(for: size))")
-        #expect(L.notePadding == 16 && L.lineRoom(for: size) == 544, "a note's margin in the frame is less than in its window, for the tables")
+        #expect(L.notePadding == 24 && L.lineRoom(for: size) == 528, "a note's margin in the panel, the same on all four sides")
         #expect(L.showsMore(size))
         #expect(!L.narrow(size))
         let small = L.size(on: CGSize(width: 800, height: 560))
         #expect(!L.showsMore(small) && L.narrow(small))
-        #expect(L.window(for: small).height == small.height - L.topRow - L.exampleRow - L.frameInset(for: small))
+        #expect(L.window(for: small).height == small.height - L.topRow(for: small) - L.exampleRow - L.margin(for: small))
         // A narrow sheet gives the words more of it, so the button keeps its whole name.
         #expect(L.stageWidth(for: small) == 396)
         let words = L.wordsWidth(for: small)
@@ -704,9 +708,55 @@ import Vision
         #expect(body.contains(".shadow(color: .black.opacity(scheme == .dark ? 0 : Self.panelShadow.near), radius: 1.5, y: 0.5)"))
         #expect(L.panelShadow.near <= 0.12 && L.panelShadow.far <= 0.1, "a very soft shadow")
         // The words start a clear gap beside the panel, and "More like this" a clear space under it.
-        #expect(L.wordsGap >= 32 && L.wordsGap <= 40)
-        #expect(L.frameInset(for: L.size) + L.moreTop >= 28 && L.frameInset(for: L.size) + L.moreTop <= 32)
-        #expect(L.wordsWidth(for: L.size) == L.size.width - L.margin - L.window(for: L.size).width - L.wordsGap - L.margin)
+        #expect(L.gap(for: L.size) == 32 && L.gap(for: L.size) == L.margin(for: L.size), "one gap between regions, the margin's measure")
+        #expect(L.wordsWidth(for: L.size) == L.size.width - L.margin - L.window(for: L.size).width - L.gap(for: L.size) - L.margin)
+    }
+
+    /// One outer margin frames the whole library, the same on all four sides (Emil, 10 November
+    /// 2026: "nice padding around the outline of all content"): 32 pt, 24 on a small sheet. Drawn
+    /// on the full sheet, the smallest and the largest: the outermost things on the gallery and
+    /// on a template's page (the name, the kinds, the close circle, the covers; Back, the
+    /// example's panel, the words, "More like this") are that far from the sheet's edges, left
+    /// as right, top as sides, and a page's last thing as far over the foot. (The gallery
+    /// scrolls: its rows run under the foot, and its end has the margin under the last row.)
+    @Test func oneMarginFramesTheSheetOnEverySide() throws {
+        typealias L = TemplateLibraryView
+        #expect(L.margin(for: L.size) == 32 && L.margin(for: L.largest) == 32 && L.margin(for: L.size(on: CGSize(width: 800, height: 560))) == 24)
+        // What isn't the sheet's ground, in the dark look (a panel there has no shadow): its bounds.
+        func bounds(_ open: TemplateCatalog.Entry?, _ size: CGSize) throws -> (left: Int, right: Int, top: Int, bottom: Int) {
+            let view = TemplateLibraryView(catalog: TemplateCatalog.shipped, ais: [.chatgpt, .claude], open: open, size: size)
+                .environment(\.inSheet, true).frame(width: size.width, height: size.height).background(SetupCards.ground).environment(\.colorScheme, .dark)
+            let r = ImageRenderer(content: view)
+            r.scale = 1
+            let cg = try #require(r.cgImage)
+            let p = try #require(Pixels(cg))
+            let ground = p.rgb(at: 2 * p.width + 2)
+            func far(_ a: UInt32, _ b: UInt32) -> Int { (0..<3).map { abs(Int((a >> ($0 * 8)) & 255) - Int((b >> ($0 * 8)) & 255)) }.max() ?? 0 }
+            var x0 = p.width, x1 = -1, y0 = p.height, y1 = -1
+            for y in 0..<p.height { for x in 0..<p.width where far(p.rgb(at: y * p.width + x), ground) > 8 { x0 = min(x0, x); x1 = max(x1, x); y0 = min(y0, y); y1 = max(y1, y) } }
+            return (x0, p.width - 1 - x1, y0, p.height - 1 - y1)
+        }
+        for size in [L.size, L.size(on: CGSize(width: 800, height: 560)), L.largest] {
+            let m = Int(L.margin(for: size))
+            let name = "\(Int(size.width)) by \(Int(size.height))"
+            let gallery = try bounds(nil, size)
+            #expect(gallery.left >= m && gallery.left <= m + 2, "\(name), gallery: \(gallery.left) pt at the left")
+            #expect(gallery.right >= m && gallery.right <= m + 2 && abs(gallery.left - gallery.right) <= 2, "\(name), gallery: \(gallery.right) pt at the right")
+            #expect(gallery.top >= m && gallery.top <= m + 2, "\(name), gallery: \(gallery.top) pt at the top")
+            for slug in ["reading-list", "habit-tracker", "study-flashcards"] {
+                let page = try bounds(try entry(slug), size)
+                #expect(page.left >= m && page.left <= m + 2, "\(name), \(slug): \(page.left) pt at the left")
+                #expect(page.right >= m && page.right <= m + 2 && abs(page.left - page.right) <= 2, "\(name), \(slug): \(page.right) pt at the right")
+                #expect(page.top >= m && page.top <= m + 2, "\(name), \(slug): \(page.top) pt at the top")
+                #expect(page.bottom >= m && page.bottom <= m + 2, "\(name), \(slug): \(page.bottom) pt at the foot")
+            }
+        }
+        // Inside the example's panel: one padding on all four sides, a note's and an app's.
+        let preview = try SettingsHomeTests.source("Pane/Views/NoteSourceSheet.swift")
+        #expect(preview.contains(".padding(.bottom, margin ?? (compact ? 12 : 16))") && preview.contains(".padding(.top, margin.map { $0 - ((given ?? Self.blocks(markdown)).first?.isHeading == true ? 6 : 0) }"))
+        #expect(TemplateFiles.stageCSS.contains("main > div:first-child { padding-left: 35px !important; padding-right: 35px !important; padding-top: 26px !important; }"))
+        #expect(TemplateFiles.stageScript.contains("const GAP = 35"), "and over an app's tabs")
+        #expect(abs(35 * TemplateAppPreview.zoom(for: L.window(for: L.size)) - L.notePadding) < 0.5)
     }
 
     /// No lines between the regions of the sheet (Emil, 10 November 2026: "many divider lines ...
@@ -742,16 +792,18 @@ import Vision
             }
             let gallery = try pixels(nil)
             // Under the header, in the gallery's left margin, from the subtitle down into the grid's margin.
-            plain(gallery, x: 4..<20, y: Int(L.topRow + L.subtitleRow) - 4..<Int(L.topRow + L.subtitleRow) + 10, "under the gallery's header")
+            let top = Int(L.topRow(for: L.size)), more = Int(L.size.height - L.moreHeight(for: L.size))
+            plain(gallery, x: 4..<20, y: top + Int(L.subtitleRow) - 4..<top + Int(L.subtitleRow) + 10, "under the gallery's header")
             let page = try pixels(try entry("reading-list"))
             // Under the top row; between the panel and the words; over "More like this".
-            plain(page, x: 4..<20, y: Int(L.topRow) - 4..<Int(L.topRow) + 8, "under the page's top row")
-            plain(page, x: Int(L.size.width) - 20..<Int(L.size.width) - 4, y: Int(L.topRow) - 4..<Int(L.topRow) + 8, "under the top row, at the right")
-            let between = Int(L.margin + L.window(for: L.size).width) + 22
-            plain(page, x: between..<between + 8, y: Int(L.topRow) + 4..<Int(L.size.height - L.moreHeight) - 4, "between the example and the words")
+            plain(page, x: 4..<20, y: top - 4..<top + 8, "under the page's top row")
+            plain(page, x: Int(L.size.width) - 20..<Int(L.size.width) - 4, y: top - 4..<top + 8, "under the top row, at the right")
+            // Past the panel's own soft shadow, which falls a little way into the gap.
+            let between = Int(L.margin + L.window(for: L.size).width) + 20
+            plain(page, x: between..<between + 8, y: top + 4..<more - 4, "between the example and the words")
             // Clear of the panel's own soft shadow, which falls a little way into the margin.
-            plain(page, x: 2..<8, y: Int(L.size.height - L.moreHeight) - 6..<Int(L.size.height - L.moreHeight) + 6, "over More like this")
-            plain(page, x: Int(L.size.width) - 20..<Int(L.size.width) - 4, y: Int(L.size.height - L.moreHeight) - 6..<Int(L.size.height - L.moreHeight) + 6, "over More like this, at the right")
+            plain(page, x: 2..<8, y: more - 6..<more + 6, "over More like this")
+            plain(page, x: Int(L.size.width) - 20..<Int(L.size.width) - 4, y: more - 6..<more + 6, "over More like this, at the right")
         }
     }
 
@@ -1145,7 +1197,7 @@ import Vision
     /// template's page: its name the one large thing, over twice the body (a long name steps
     /// down to stay on one line); with the button's own size, four sizes in three weights.
     @Test func oneMeasureAndAShortTypeLadder() throws {
-        #expect(TemplateLibraryView.margin == 24 && TemplateLibraryView.gap == 16)
+        #expect(TemplateLibraryView.margin == 32 && TemplateLibraryView.marginSmall == 24 && TemplateLibraryView.gap == 16)
         typealias T = TemplateLibraryView.PageType
         #expect(T.name / T.body >= 2 && T.name / T.body <= 2.6 && T.small < T.body)
         #expect(T.names.first == T.name && T.names == T.names.sorted(by: >) && (T.names.last ?? 0) > T.body)
@@ -1160,9 +1212,9 @@ import Vision
         #expect(weights == ["bold", "semibold"], "bold and semibold, and regular where none is said: \(weights)")
         // Everything starts on the margin: the sheet's name, Back's chevron, the frame, the
         // words beside it and "More like this".
-        #expect(page.contains(".padding(.leading, Self.margin - 9)") && page.contains(".padding(.leading, inset)"))
-        #expect(src.contains("                .accessibilityIdentifier(\"templates.subtitle\")\n        }\n        .padding(.horizontal, Self.margin)"))
-        #expect(TemplateFiles.stageCSS.contains("main > div:first-child { padding-left: 32px !important; padding-right: 32px !important; }"), "an app's own margin in the frame")
+        #expect(page.contains(".padding(.leading, Self.margin(for: size) - 9)") && page.contains(".padding(.leading, inset)"))
+        #expect(src.contains("                .accessibilityIdentifier(\"templates.subtitle\")\n        }\n        .padding(.horizontal, Self.margin(for: size))\n        .padding(.top, Self.margin(for: size))"))
+        #expect(TemplateFiles.stageCSS.contains("main > div:first-child { padding-left: 35px !important; padding-right: 35px !important;"), "an app's own margin in the panel")
     }
 
     /// The page keeps the card you clicked: its cover, small, beside its name; the same small
@@ -1759,7 +1811,8 @@ import Vision
         try await shoot("13c-page-while-sync-is-away", TemplateLibraryView(catalog: c, ais: both, open: entry("reading-list"), folder: "Work", size: big), size: big, reach: .offline)
         try await shoot("13d-page-app-while-sync-is-away", TemplateLibraryView(catalog: c, ais: both, open: entry("habit-tracker"), folder: "Work", size: big), size: big, reach: .offline)
         try await shoot("14-gallery-large-window", TemplateLibraryView(catalog: c, ais: both, size: large), size: large)
-        try await shoot("14b-page-large-window", TemplateLibraryView(catalog: c, ais: both, open: entry("trip-plan"), size: large), size: large)
+        // (An app's page on the largest sheet is in the real frames only: here its picture, drawn
+        // for the full sheet's panel, would stand in for the app, shorter than the panel.)
         try await shoot("14c-page-large-window-note", TemplateLibraryView(catalog: c, ais: both, open: entry("workout-log"), size: large), size: large)
     }
 }

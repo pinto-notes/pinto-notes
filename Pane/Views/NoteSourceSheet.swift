@@ -295,7 +295,8 @@ struct NotePreview: View {
     /// The small stage's type: 12 pt lines, closer together, so a short note shows whole there
     /// (council round 4: Weekly review showed four of its five questions).
     var compact = false
-    /// The note's margin at its sides in a `whole` window; nil is its own (20, or 16 compact).
+    /// The note's margin on all four sides in a `whole` window; nil is its own (20 at the sides
+    /// and 16 over and under, or 16 and 12 compact).
     var margin: CGFloat? = nil
     /// A table's type size in a `whole` window; nil is the system's footnote (the template
     /// library's page sets tables at the body's size: at 10 pt beside 13 pt lines the table was
@@ -381,7 +382,10 @@ struct NotePreview: View {
                 }
             }
             .padding(.horizontal, margin ?? (compact ? 16 : 20))
-            .padding(.vertical, compact ? 12 : 16)
+            // With a margin given (the template library's panel), the same on all four sides: a
+            // first heading's own 6 pt over it is taken off, so its top is on the margin too.
+            .padding(.top, margin.map { $0 - ((given ?? Self.blocks(markdown)).first?.isHeading == true ? 6 : 0) } ?? (compact ? 12 : 16))
+            .padding(.bottom, margin ?? (compact ? 12 : 16))
             .font(compact ? .system(size: 12) : nil)
             .foregroundStyle(Color.ink)
         } else {

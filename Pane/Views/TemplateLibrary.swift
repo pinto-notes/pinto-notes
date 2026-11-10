@@ -415,6 +415,8 @@ struct TemplateLibraryView: View {
     @FocusState private var keys: Keys?
     /// The examples with more under their frame's foot than shows: the foot fades while there is.
     @State private var below: Set<String> = []
+    /// The gallery has rows under its foot: they fade out there.
+    @State private var galleryMore = true
     /// The examples scrolled down from their top: the top fades while one is.
     @State private var above: Set<String> = []
     /// Counts the moves, so one overtaken by the next stops where it is.
@@ -454,10 +456,20 @@ struct TemplateLibraryView: View {
 
     // MARK: The page's parts
 
-    /// The row at the top of both pages, one height: the sheet's name, the kinds, Search and the
-    /// close x on the gallery; Back and the x on a template's page. The x never moves between them.
-    static let topRow: CGFloat = 52
-    /// The gallery's one line under its name.
+    /// One outer margin for the whole library, on all four sides of the gallery and of a
+    /// template's page: with no lines on the sheet, the margin is its frame (Emil, 10 November
+    /// 2026: "nice padding around the outline of all content"). Nothing that doesn't scroll sits
+    /// closer to the sheet's edge: the sheet's name, the kinds, Search, the close circle, Back's
+    /// chevron, the example's label and panel, the words' right edge, "More like this" and its
+    /// tiles. On a small sheet (narrow or short) it's 24, the same on every side.
+    static let margin: CGFloat = 32
+    static let marginSmall: CGFloat = 24
+    static func margin(for size: CGSize) -> CGFloat { narrow(size) || short(size) ? marginSmall : margin }
+    /// The row at the top of both pages: its controls' height (the kinds, Search, Back, the close
+    /// circle), a margin under the sheet's top. The x never moves between the two pages.
+    static let controls: CGFloat = 28
+    static func topRow(for size: CGSize) -> CGFloat { margin(for: size) + controls }
+    /// The gallery's one line under its name, a little under the row.
     static let subtitleRow: CGFloat = 22
     /// A narrow sheet (a small window): the words beside the stage need a larger share of it, and
     /// an app is laid out in its one-column width.
@@ -465,37 +477,31 @@ struct TemplateLibraryView: View {
     /// The stage takes six tenths of the page's width, the words beside it the rest; on a narrow
     /// sheet a little less, so the button keeps its whole name ("Make with Cha…" at 0.6).
     static func stageWidth(for size: CGSize) -> CGFloat { (size.width * (narrow(size) ? 0.55 : 0.6)).rounded() }
-    /// "More like this", under the stage and the words: on a sheet tall enough for it.
-    static let moreHeight: CGFloat = 134
-    /// The space over "More like this": the panel's own inset under it and this, 32 pt in all,
-    /// with no line (it's set off by space alone).
-    static let moreTop: CGFloat = 8
-    /// The clear gap between the example's panel and the words beside it.
-    static let wordsGap: CGFloat = 36
+    /// "More like this", under the stage and the words, on a sheet tall enough for it: the gap
+    /// over its heading, the heading (15), 10 under it, a tile (72, its cover with 8 of wash over
+    /// and under), and the margin under the cover.
+    static func moreHeight(for size: CGSize) -> CGFloat { gap(for: size) + 15 + 10 + 72 + margin(for: size) - 8 }
     static func showsMore(_ size: CGSize) -> Bool { size.height > 560 }
-    /// The stage's height: what the top row and "More like this" leave.
-    static func stageHeight(for size: CGSize) -> CGFloat { size.height - topRow - (showsMore(size) ? moreHeight : 0) }
-    /// The "Example" label's row, over the frame. With the frame's inset under it, the frame on the
-    /// full sheet is 576 by 428.5 pt: the shape an app's picture is drawn in (832 by 619 px).
-    static let exampleRow: CGFloat = 41.5
-    /// The frame's inset in the stage's pane: the sheet's margin; less on a narrow sheet, where
-    /// the example needs the width.
-    static func frameInset(for size: CGSize) -> CGFloat { narrow(size) ? 14 : margin }
+    /// The one gap between the page's regions: the example's panel and the words beside it, the
+    /// page's body and "More like this" under it. The margin's own measure.
+    static func gap(for size: CGSize) -> CGFloat { margin(for: size) }
+    /// The stage's height: what the top row and "More like this" leave (with none, the margin).
+    static func stageHeight(for size: CGSize) -> CGFloat { size.height - topRow(for: size) - (showsMore(size) ? moreHeight(for: size) : margin(for: size)) }
+    /// The "Example" label's row, over the panel. On the full sheet the panel is 576 by 428.5 pt:
+    /// the shape an app's picture is drawn in (832 by 619 px).
+    static let exampleRow: CGFloat = 38.5
+    /// What the panel is narrower than the stage's share of the sheet by, each side.
+    static func frameInset(for size: CGSize) -> CGFloat { narrow(size) ? 14 : 24 }
     static let frameRadius: CGFloat = 12
-    /// What a template's note or app has to show itself in: the frame.
+    /// What a template's note or app has to show itself in: the panel.
     static func window(for size: CGSize) -> CGSize {
-        let inset = frameInset(for: size)
-        return CGSize(width: stageWidth(for: size) - inset * 2, height: stageHeight(for: size) - exampleRow - inset)
+        CGSize(width: stageWidth(for: size) - frameInset(for: size) * 2, height: stageHeight(for: size) - exampleRow)
     }
-    /// One measure everywhere: the sheet's margin (the gallery's, the page's stage and words, and
-    /// "More like this") and the gap between things (`gap`). The sheet's name, Back, the frame
-    /// and "More like this" all start on the margin.
-    static let margin: CGFloat = 24
-    /// A note's own margin inside the frame: less than a note has in its window (20), so a table
-    /// has the width for its words at the body's size.
-    static let notePadding: CGFloat = 16
+    /// A note's own margin inside the panel, the same on all four sides, and an app's (35 px at
+    /// the stage's 69%, in template-stage.css).
+    static let notePadding: CGFloat = 24
     /// The list's share of the frame when a sub-note shows open beside it.
-    static let listWidth: CGFloat = 236
+    static let listWidth: CGFloat = 252
 
     /// The page's type: one large thing (the name, over twice the body's size), the body, and
     /// small quiet labels; with the button's own size, four sizes, in three weights (bold for the
@@ -521,7 +527,7 @@ struct TemplateLibraryView: View {
     /// The room a note's lines have in the frame: its width less the note's margins.
     static func lineRoom(for size: CGSize) -> CGFloat { window(for: size).width - notePadding * 2 }
     /// The room the words beside the stage have.
-    static func wordsWidth(for size: CGSize) -> CGFloat { size.width - (stageWidth(for: size) - frameInset(for: size)) - wordsGap - margin }
+    static func wordsWidth(for size: CGSize) -> CGFloat { size.width - margin(for: size) - window(for: size).width - gap(for: size) - margin(for: size) }
     /// The name's size on every page of a sheet: the largest of the steps at which the longest
     /// name takes one line, under its cover, at the words' full width.
     static func nameSize(for names: [String], room: CGFloat) -> CGFloat {
@@ -762,7 +768,7 @@ struct TemplateLibraryView: View {
     // MARK: The gallery
 
     private var columns: Int {
-        let r = row > 0 ? row : size.width - 49
+        let r = row > 0 ? row : size.width - Self.margin(for: size) * 2 - 1
         let w = Self.cardWidth(row: r, gap: Self.gap)
         return max(1, Int((r + Self.gap) / (w + Self.gap)))
     }
@@ -804,16 +810,15 @@ struct TemplateLibraryView: View {
                 headerRow(search: Self.searchWidth)
                 headerRow(search: Self.searchNarrow)
             }
-            .frame(height: Self.topRow)
+            .frame(height: Self.controls)
             Text(TemplateLibraryWords.subtitle)
                 .font(.system(size: 13)).foregroundStyle(Color.muted)
                 .lineLimit(1)
-                // Close under the name: the row over it centres its own things.
-                .offset(y: -6)
-                .frame(height: Self.subtitleRow, alignment: .top)
+                .frame(height: Self.subtitleRow, alignment: .bottom)
                 .accessibilityIdentifier("templates.subtitle")
         }
-        .padding(.horizontal, Self.margin)
+        .padding(.horizontal, Self.margin(for: size))
+        .padding(.top, Self.margin(for: size))
     }
 
     /// Search's least width: on the full sheet, and on one too narrow for that beside the name.
@@ -866,7 +871,7 @@ struct TemplateLibraryView: View {
         GeometryReader { geo in
             // The row the cards really get: less than the pane when a mouse is attached and the
             // scroll bar takes its own room (the cards then left a column's gap).
-            let width = Self.cardWidth(row: row > 0 ? row : geo.size.width - Self.margin * 2, gap: Self.gap)
+            let width = Self.cardWidth(row: row > 0 ? row : geo.size.width - Self.margin(for: size) * 2, gap: Self.gap)
             ScrollViewReader { scroller in
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: Self.gap, alignment: .top)], alignment: .leading, spacing: Self.rowGap) {
@@ -884,13 +889,15 @@ struct TemplateLibraryView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { row = $0 }
-                    .padding(.horizontal, Self.margin)
+                    .padding(.horizontal, Self.margin(for: size))
                     .padding(.top, Self.gridTop)
-                    // Under the last row, the sheet's margin: its names and lines end clear of the foot.
-                    .padding(.bottom, Self.margin)
+                    // Under the last row's line, the sheet's margin: scrolled to its end, the
+                    // gallery ends as it's framed at its sides.
+                    .padding(.bottom, Self.margin(for: size))
                     .coordinateSpace(.named(Self.space))
                 }
                 .onScrollGeometryChange(for: CGRect.self, of: { $0.visibleRect }) { [seen] _, now in seen.visible = now }
+                .onScrollGeometryChange(for: Bool.self, of: { Self.more(content: $0.contentSize.height, offset: $0.contentOffset.y, room: $0.containerSize.height) }) { _, more in galleryMore = more }
                 // The cover the keys are on is always in full view: it comes in by the nearest
                 // edge, no further than it must.
                 .onChange(of: focused?.slug, initial: true) { _, slug in
@@ -902,10 +909,14 @@ struct TemplateLibraryView: View {
         .frame(maxWidth: .infinity)
         // Scrolled up under the header, the covers fade out over the grid's own top margin: no
         // edge is drawn there, and at rest nothing is in the fade.
+        // At the foot, while there are rows under it, they fade out the same way: whatever the
+        // foot cuts (a cover, a name) is never a hard edge, and at the gallery's end, where the
+        // margin shows under the last row, there's no fade.
         .mask {
             VStack(spacing: 0) {
                 LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: Self.gridTop)
                 Rectangle()
+                LinearGradient(colors: [.black, galleryMore ? .clear : .black], startPoint: .top, endPoint: .bottom).frame(height: Self.galleryFoot)
             }
         }
         // The covers take the keys from Search when an arrow moves the ring onto one. No ring of
@@ -931,6 +942,8 @@ struct TemplateLibraryView: View {
     static let revealSpare: CGFloat = 8
     /// The grid's margin over its first row.
     static let gridTop: CGFloat = 14
+    /// How tall the fade at the gallery's foot is, while there are rows under it.
+    static let galleryFoot: CGFloat = 24
 
     /// Where the grid's cards are and what's in view, kept outside the view's state so scrolling
     /// never draws the library again.
@@ -975,9 +988,10 @@ struct TemplateLibraryView: View {
                 CardCloseButton(cancels: false, action: close)
             }
             // Back's chevron on the margin: the quiet button has 9 pt of its own inside it.
-            .padding(.leading, Self.margin - 9)
-            .padding(.trailing, Self.margin)
-            .frame(height: Self.topRow)
+            .padding(.leading, Self.margin(for: size) - 9)
+            .padding(.trailing, Self.margin(for: size))
+            .frame(height: Self.controls)
+            .padding(.top, Self.margin(for: size))
             // One surface, and no lines on it: the example in its panel, the words a clear gap
             // beside it, "More like this" set off by the space over its heading (Emil, 10
             // November 2026: "many divider lines ... makes it look cheap").
@@ -989,7 +1003,7 @@ struct TemplateLibraryView: View {
             .frame(height: Self.stageHeight(for: size))
             if Self.showsMore(size) {
                 more(e)
-                    .frame(height: Self.moreHeight)
+                    .frame(height: Self.moreHeight(for: size))
                     // A template with none like it (one the site adds later): the room stays.
                     .opacity(Self.related(e, in: catalog.entries).isEmpty ? 0 : 1)
             }
@@ -1010,7 +1024,7 @@ struct TemplateLibraryView: View {
     /// app takes the panel's whole width, with its own tabs at the foot, and scrolls as it does
     /// in your notes.
     private func stage(_ e: TemplateCatalog.Entry) -> some View {
-        let window = Self.window(for: size), inset = Self.frameInset(for: size)
+        let window = Self.window(for: size), inset = Self.margin(for: size)
         let frame = RoundedRectangle(cornerRadius: Self.frameRadius, style: .continuous)
         return VStack(alignment: .leading, spacing: 0) {
             Text(TemplateLibraryWords.example(e))
@@ -1031,7 +1045,7 @@ struct TemplateLibraryView: View {
                 .accessibilityLabel("\(e.title), an example")
         }
         .padding(.leading, inset)
-        .frame(width: Self.stageWidth(for: size) - inset, height: Self.stageHeight(for: size), alignment: .topLeading)
+        .frame(width: inset + window.width, height: Self.stageHeight(for: size), alignment: .topLeading)
     }
 
     /// The panel's shadow in the light: how dark its close edge and its wider fall are.
@@ -1199,8 +1213,8 @@ struct TemplateLibraryView: View {
             Spacer(minLength: 0)
         }
         .frame(width: wide, alignment: .leading)
-        .padding(.leading, Self.wordsGap)
-        .padding(.trailing, Self.margin)
+        .padding(.leading, Self.gap(for: size))
+        .padding(.trailing, Self.margin(for: size))
         // The cover's top level with the panel's (on a short sheet, with the label over it).
         .padding(.top, short ? 16 : Self.exampleRow)
     }
@@ -1333,7 +1347,7 @@ struct TemplateLibraryView: View {
     /// page to it.
     private func more(_ e: TemplateCatalog.Entry) -> some View {
         let related = Self.related(e, in: catalog.entries)
-        let share = (size.width - Self.margin * 2 - Self.gap * CGFloat(max(related.count, 1) - 1)) / CGFloat(max(related.count, 1))
+        let share = (size.width - Self.margin(for: size) * 2 - Self.gap * CGFloat(max(related.count, 1) - 1)) / CGFloat(max(related.count, 1))
         return VStack(alignment: .leading, spacing: 10) {
             Text(TemplateLibraryWords.moreLike).font(.system(size: PageType.small, weight: .semibold)).foregroundStyle(Color.muted)
             HStack(alignment: .top, spacing: Self.gap) {
@@ -1373,9 +1387,11 @@ struct TemplateLibraryView: View {
             // The first cover on the margin, its tile's wash 8 pt past it.
             .padding(.leading, -8)
         }
-        .padding(.leading, Self.margin)
-        .padding(.top, Self.moreTop)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.leading, Self.margin(for: size))
+        // The covers end a margin over the sheet's foot (a tile's wash reaches 8 pt under its
+        // cover); the heading starts the page's gap under the example's panel.
+        .padding(.bottom, Self.margin(for: size) - 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
     }
 
     static let moreCover: CGFloat = 56

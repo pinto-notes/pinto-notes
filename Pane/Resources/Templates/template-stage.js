@@ -17,9 +17,9 @@
   const clipped = new Set()
 
   // The foot: the top of the app's own tabs, which sit along the stage's foot as they do in your
-  // notes, with a little air over them; with no tabs, the fade. A pixel spare, so a block ending
+  // notes, with the panel's padding over them (24 pt, 35 px at the stage's 69%); with no tabs, the fade. A pixel spare, so a block ending
   // on the line is never under either once rounded.
-  const GAP = 8
+  const GAP = 35
   const tabs = () => {
     const nav = document.querySelector('nav[aria-label="Screens"]')
     if (!nav || getComputedStyle(nav).display === "none") return null

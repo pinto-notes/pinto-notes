@@ -539,9 +539,11 @@ struct SetupTemplateCard: View {
     static func quietBrightness(dark: Bool, hover: Bool) -> Double { hover ? (dark ? 0.05 : -0.03) : 0 }
 
     static let size = CGSize(width: 164, height: 228)
-    /// The library's art: 4:3, the cover's picture from its top (every cover keeps its subject
+    /// The library's art: 10:7, the cover's picture from its top (every cover keeps its subject
     /// in its top two thirds; only plain ground at the foot is cut), the same in light and dark.
-    static func artHeight(_ width: CGFloat) -> CGFloat { (width * 0.75).rounded() }
+    /// A little under 4:3, so three rows show whole on the full sheet with the sheet's margins,
+    /// and the fourth's tops show under them (at 4:3 the foot cut the third row's line).
+    static func artHeight(_ width: CGFloat) -> CGFloat { (width * 0.7).rounded() }
     /// The library's words under the art: the name, and one line.
     static let nameSize: CGFloat = 14
     /// How far the longest name may shrink to stay whole on its one line ("Study notes and

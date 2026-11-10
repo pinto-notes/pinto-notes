@@ -91,8 +91,13 @@ main [role="radiogroup"] > button.h-11.rounded-full:not(.bg-primary) { color: va
     --amber-on-accent: #1F1300; --amber-danger: #FF6B5E; --amber-field: #1A1918; --amber-field-border: #7A716A;
   }
 }
-/* On the template page's wide stage the app starts on the sheet's margin, where the stage's
-   "Example" label, the sheet's name and Back start: 24 pt, 32 px at the stage's 75% (it was 19 pt). */
+/* In the example's panel the app keeps the panel's own padding, the same on all four sides as a
+   note's: 24 pt, 35 px at the stage's 69% (wide and narrow both). Over the app's tabs the same,
+   from template-stage.js (GAP). */
+main > div:first-child { padding-left: 35px !important; padding-right: 35px !important; padding-top: 26px !important; }
+/* (26 px over the title's own line, so its capitals start 24 pt under the panel's top.) The
+   title sits a little closer to what's under it on the wide stage, so Trip's first day shows
+   whole over the tabs with the panel's padding under it. */
 @media (min-width: 600px) {
-  main > div:first-child { padding-left: 32px !important; padding-right: 32px !important; }
+  main header:first-child, main > * > header { padding-bottom: 0.75rem !important; }
 }
