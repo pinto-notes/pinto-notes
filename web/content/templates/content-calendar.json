@@ -6,15 +6,15 @@
     "Work"
   ],
   "audience": "For creators, marketers and founders who post every week.",
-  "description": "An idea bank and a calendar. Ask your AI to plan the next two weeks from your ideas, and tell it when a post goes out.",
-  "tagline": "What goes out when, and a bank of ideas.",
+  "description": "A calendar and a list of ideas. Ask your AI to plan the next two weeks from your ideas, and tell it when a post goes out.",
+  "tagline": "What goes out when, and ideas for later.",
   "folder": "Work",
-  "note": "Content calendar\n\nWhat's going out, where and when, plus a bank of ideas so you never start from a blank page. Tell your AI an idea to add the first.\n\n## Calendar\n<!-- pane-table: Publish on=text; Title=text; Channel=choice Blog|Newsletter|LinkedIn|Instagram|YouTube; Status=choice Idea|Drafting|Scheduled|Published -->\n| Publish on | Title | Channel | Status |\n| --- | --- | --- | --- |\n\n## Ideas\nAnything worth a post, added the moment you think of it.\n\n## Voice\n- Short sentences. One idea per post.\n- Show the work: a screenshot or a number beats an adjective.\n- End with a question, not a sales pitch.\n",
+  "note": "Content calendar\n\nWhat's going out, where and when, plus your ideas, so you never start from a blank page. Tell your AI an idea to add the first.\n\n## Calendar\n<!-- pane-table: Publish on=text; Title=text; Channel=choice Blog|Newsletter|LinkedIn|Instagram|YouTube; Status=choice Idea|Drafting|Scheduled|Published -->\n| Publish on | Title | Channel | Status |\n| --- | --- | --- | --- |\n\n## Ideas\nAnything worth a post, added the moment you think of it.\n\n## Voice\n- Short sentences. One idea per post.\n- Show the work: a screenshot or a number beats an adjective.\n- End with a question, not a sales pitch.\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Content calendar\". Read it with fetch before each change. When I have an idea, add it under \"Ideas\" as a bullet with edit. When I ask you to plan the next two weeks, pick ideas from \"Ideas\" and add a row per post to the table with edit: Publish on as a date, a working Title, the Channel and Status Drafting. Write drafts in the tone described under \"Voice\". When I say a post went out, set its Status to Published."
   },
   "asks": [
-    "Ask for my content idea and where it should go, then add it to the idea bank.",
+    "Ask for my content idea and where it should go, then add it under Ideas.",
     "Plan the next two weeks: two LinkedIn posts and one newsletter.",
     "What's scheduled for this week?"
   ],
@@ -24,31 +24,31 @@
       "args": {
         "path": "Work/Content calendar.md",
         "old_string": "| --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- |\n| 2026-11-03 | Five questions we ask every new customer | Blog | Published |\n"
+        "new_string": "| --- | --- | --- | --- |\n| 2026-11-03 | Five questions for every new customer | Blog | Published |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Content calendar.md",
-        "old_string": "| 2026-11-03 | Five questions we ask every new customer | Blog | Published |\n",
-        "new_string": "| 2026-11-03 | Five questions we ask every new customer | Blog | Published |\n| 2026-11-10 | What we learned from 100 customer calls | LinkedIn | Scheduled |\n"
+        "old_string": "| 2026-11-03 | Five questions for every new customer | Blog | Published |\n",
+        "new_string": "| 2026-11-03 | Five questions for every new customer | Blog | Published |\n| 2026-11-10 | What 100 customer calls taught us | LinkedIn | Scheduled |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Content calendar.md",
-        "old_string": "| 2026-11-10 | What we learned from 100 customer calls | LinkedIn | Scheduled |\n",
-        "new_string": "| 2026-11-10 | What we learned from 100 customer calls | LinkedIn | Scheduled |\n| 2026-11-12 | This month's newsletter: three customer stories | Newsletter | Drafting |\n"
+        "old_string": "| 2026-11-10 | What 100 customer calls taught us | LinkedIn | Scheduled |\n",
+        "new_string": "| 2026-11-10 | What 100 customer calls taught us | LinkedIn | Scheduled |\n| 2026-11-12 | Newsletter: three customer stories | Newsletter | Drafting |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Content calendar.md",
-        "old_string": "| 2026-11-12 | This month's newsletter: three customer stories | Newsletter | Drafting |\n",
-        "new_string": "| 2026-11-12 | This month's newsletter: three customer stories | Newsletter | Drafting |\n| 2026-11-17 | Our onboarding, before and after | LinkedIn | Drafting |\n"
+        "old_string": "| 2026-11-12 | Newsletter: three customer stories | Newsletter | Drafting |\n",
+        "new_string": "| 2026-11-12 | Newsletter: three customer stories | Newsletter | Drafting |\n| 2026-11-17 | Our onboarding, before and after | LinkedIn | Drafting |\n"
       }
     },
     {
@@ -68,7 +68,7 @@
       }
     }
   ],
-  "example": "Content calendar\n\nWhat's going out, where and when, plus a bank of ideas so you never start from a blank page. Tell your AI an idea to add the first.\n\n## Calendar\n<!-- pane-table: Publish on=text; Title=text; Channel=choice Blog|Newsletter|LinkedIn|Instagram|YouTube; Status=choice Idea|Drafting|Scheduled|Published -->\n| Publish on | Title | Channel | Status |\n| --- | --- | --- | --- |\n| 2026-11-03 | Five questions we ask every new customer | Blog | Published |\n| 2026-11-10 | What we learned from 100 customer calls | LinkedIn | Scheduled |\n| 2026-11-12 | This month's newsletter: three customer stories | Newsletter | Drafting |\n| 2026-11-17 | Our onboarding, before and after | LinkedIn | Drafting |\n| 2026-11-19 | Behind the scenes: the support desk | Instagram | Idea |\n\n## Ideas\nAnything worth a post, added the moment you think of it.\n- Three tools I use every day\n- A day in support, in numbers\n- What we stopped doing this year\n\n## Voice\n- Short sentences. One idea per post.\n- Show the work: a screenshot or a number beats an adjective.\n- End with a question, not a sales pitch.\n",
+  "example": "Content calendar\n\nWhat's going out, where and when, plus your ideas, so you never start from a blank page. Tell your AI an idea to add the first.\n\n## Calendar\n<!-- pane-table: Publish on=text; Title=text; Channel=choice Blog|Newsletter|LinkedIn|Instagram|YouTube; Status=choice Idea|Drafting|Scheduled|Published -->\n| Publish on | Title | Channel | Status |\n| --- | --- | --- | --- |\n| 2026-11-03 | Five questions for every new customer | Blog | Published |\n| 2026-11-10 | What 100 customer calls taught us | LinkedIn | Scheduled |\n| 2026-11-12 | Newsletter: three customer stories | Newsletter | Drafting |\n| 2026-11-17 | Our onboarding, before and after | LinkedIn | Drafting |\n| 2026-11-19 | Behind the scenes: the support desk | Instagram | Idea |\n\n## Ideas\nAnything worth a post, added the moment you think of it.\n- Three tools I use every day\n- A day in support, in numbers\n- What we stopped doing this year\n\n## Voice\n- Short sentences. One idea per post.\n- Show the work: a screenshot or a number beats an adjective.\n- End with a question, not a sales pitch.\n",
   "related": [
     "meeting-notes",
     "weekly-review",
