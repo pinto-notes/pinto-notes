@@ -30,8 +30,8 @@ export default function History() {
           <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">Month</p>
           <h1 className="text-[2rem] font-bold leading-tight tracking-tight">{first.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</h1>
         </div>
-        <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="grid size-11 place-items-center rounded-full text-primary"><ChevronLeft className="size-6" /></button>
-        <button type="button" aria-label="Next month" disabled={current} onClick={() => shift(1)} className="grid size-11 place-items-center rounded-full text-primary disabled:opacity-30"><ChevronRight className="size-6" /></button>
+        <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="grid size-11 place-items-center rounded-full text-link"><ChevronLeft className="size-6" /></button>
+        <button type="button" aria-label="Next month" disabled={current} onClick={() => shift(1)} className="grid size-11 place-items-center rounded-full text-link disabled:opacity-30"><ChevronRight className="size-6" /></button>
       </header>
       {habits.length === 0 && <p className="px-1 text-muted-foreground">Nothing to show yet. Add a habit in the Habits tab.</p>}
       {habits.length > 0 && (
@@ -55,7 +55,7 @@ export default function History() {
               <div className="p-4" aria-label={`${h.name}: ${s.got} of ${s.of}`}>
                 <div className="mb-2 flex items-baseline justify-between gap-3">
                   <h2 className="text-[1.0625rem] font-semibold">{h.name}</h2>
-                  <span className={cn("text-[0.9375rem] font-semibold tabular-nums", s.of ? "text-primary" : "text-muted-foreground")}>{s.of ? `${Math.round((s.got / s.of) * 100)}%` : "–"}</span>
+                  <span className={cn("text-[0.9375rem] font-semibold tabular-nums", s.of ? "text-link" : "text-muted-foreground")}>{s.of ? `${Math.round((s.got / s.of) * 100)}%` : "–"}</span>
                 </div>
                 <MonthGrid habit={h} days={days} skips={skips} first={first} from={from} onTap={(k) => cycle(h, k)} />
                 <p className="mt-2 text-[0.875rem] text-muted-foreground tabular-nums">

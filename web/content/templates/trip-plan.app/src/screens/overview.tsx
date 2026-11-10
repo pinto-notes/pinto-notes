@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { ChevronRight, Pencil } from "lucide-react"
 import { TripSheet } from "@/components/trip-sheet"
+import First from "@/screens/first"
 import { route } from "amber-router"
 import { Bar, PrimaryButton, Ring, Section, TintButton } from "@/components/kit"
 import { ShareButton, Timeline } from "@/components/timeline"
@@ -10,15 +11,9 @@ import { dayText, iso, longDate, range, useTrip } from "@/lib/trip"
 export default function Overview() {
   const { trip, days, bookings, packing, phase, packed, past } = useTrip()
   const [editing, setEditing] = useState(false)
-  if (!trip) return (
-    <div className="mx-auto max-w-md py-10 text-center">
-      <p className="text-[1.0625rem] font-semibold">Where are you going?</p>
-      <p className="mt-1 text-muted-foreground">Add the place and the dates. The days, bookings and packing list come after. Or ask your AI to plan it.</p>
-      {past.length > 0 && packing.length > 0 && <p className="mt-3 text-[0.9375rem] text-muted-foreground">Your packing list from {past[past.length - 1].name} is ready: {packing.length} things.</p>}
-      <PrimaryButton className="mt-6" onClick={() => setEditing(true)}>Plan a trip</PrimaryButton>
-      <TripSheet open={editing} onClose={() => setEditing(false)} />
-    </div>
-  )
+  // After a trip that's been put away: the same first screen, inside the app, so the packing list
+  // it kept is a tab away. (A brand-new app shows it alone: App.tsx.)
+  if (!trip) return <First />
   const paid = bookings.filter((b) => b.paid).length
   const today = iso(new Date())
   const dated = [...new Set([...days.map((d) => d.date), ...bookings.map((b) => b.date).filter((d): d is string => !!d)])].sort()
@@ -40,7 +35,7 @@ export default function Overview() {
           <Section>
             <div className="flex items-center gap-5 p-5" data-testid="countdown">
               {phase.kind === "before" && <>
-                <p className="text-[4rem] font-bold leading-none tracking-tight tabular-nums text-primary">{phase.toGo}</p>
+                <p className="text-[4rem] font-bold leading-none tracking-tight tabular-nums text-link">{phase.toGo}</p>
                 <div>
                   <p className="text-[1.375rem] font-bold leading-tight">{phase.toGo === 1 ? "day to go" : "days to go"}</p>
                   <p className="text-[0.9375rem] text-muted-foreground">then {phase.length} {phase.length === 1 ? "day" : "days"} in {trip.name}</p>
@@ -60,7 +55,13 @@ export default function Overview() {
             <button type="button" onClick={() => route("/bookings")} className="flex min-h-11 w-full items-center gap-3 px-4 py-3 text-left">
               <div className="min-w-0 flex-1">
                 <p className="font-semibold">Bookings</p>
-                <p className="text-[0.875rem] text-muted-foreground tabular-nums">{paid} of {bookings.length} paid{unpaid.length ? ` · next to pay: ${unpaid[0].what}` : ""}</p>
+                {/* Two pieces that wrap whole: the count, and what's next to pay. The dot between them hangs in
+                    the gap, so when the second piece takes its own line the dot is cut off, not left
+                    dangling ("next to / pay: Pena Palace tickets", and before that "tickets" alone). */}
+                <p className="flex flex-wrap gap-x-3 overflow-hidden text-[0.875rem] text-muted-foreground tabular-nums">
+                  {paid} of {bookings.length} paid
+                  {unpaid.length > 0 && <span className="relative"><span aria-hidden="true" className="absolute -left-2">{" · "}</span><span>next to pay: {unpaid[0].what}</span></span>}
+                </p>
               </div>
               <ChevronRight className="size-5 text-muted-foreground" />
             </button>

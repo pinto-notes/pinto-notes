@@ -133,7 +133,7 @@ describe("Habits", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Remove Walk" }))
     await waitFor(() => expect(values().habits.map((h: { id: string }) => h.id)).toEqual(["water"]))
     expect(await screen.findByText("Removed Walk")).toBeInTheDocument()
-    await userEvent.click(screen.getByRole("button", { name: "Undo" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
     await waitFor(() => expect(values().habits.map((h: { id: string }) => h.id)).toEqual(["walk", "water"]))
     expect(await screen.findByText("Walk")).toBeInTheDocument()
   })
@@ -384,6 +384,51 @@ describe("First use", () => {
     await waitFor(() => expect(values().habits).toEqual([walk]))
   })
 
+  it("says your AI can set it up too, and shows an unticked suggestion as clearly as a ticked one", async () => {
+    await fresh([walk, { id: "no-phone-in-bed", name: "No phone in bed", detail: "Charges in the kitchen", target: 1, pick: false }])
+    render(<App />)
+    expect(await screen.findByTestId("ai-hint")).toHaveTextContent("Pick here, or tell your AI and it sets this up.")
+    // The tick alone shows the pick: nothing about the unticked row is faded.
+    const row = screen.getByLabelText("Name of No phone in bed").closest("div")!
+    expect(row.className).not.toMatch(/opacity/)
+    expect(screen.getByLabelText("Name of No phone in bed").className).toContain("text-foreground")
+  })
+
+  it("leaves Pick your habits by itself when your AI sets it up, and keeps what you had picked within reach", async () => {
+    await fresh([walk, water])
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText("Add your own"), "Stretch")
+    // The person's AI writes their habits and the day counting starts, as its prompt says.
+    await amber.store.set("habits", [{ id: "run", name: "Run", target: 1 }])
+    await amber.store.set("started", day)
+    expect(await screen.findByRole("button", { name: "Done: Run" })).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "Pick your habits" })).toBeNull()
+    expect(await screen.findByText("Your AI set up your habits. What you picked here wasn't used.")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Use mine" }))
+    await waitFor(() => expect(values().habits).toEqual([walk, water, { id: "stretch", name: "Stretch", target: 1 }]))
+    expect(await screen.findByRole("button", { name: "Done: Stretch" })).toBeInTheDocument()
+  })
+
+  it("says nothing more when your AI sets it up and you hadn't touched the screen", async () => {
+    await fresh([walk])
+    render(<App />)
+    await screen.findByRole("heading", { name: "Pick your habits" })
+    await amber.store.set("habits", [{ id: "run", name: "Run", target: 1 }])
+    await amber.store.set("started", day)
+    expect(await screen.findByRole("button", { name: "Done: Run" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Use mine" })).toBeNull()
+  })
+
+  it("goes from the first screen to a first tick: pick, Start, tick", async () => {
+    await fresh([walk, water, { id: "no-phone-in-bed", name: "No phone in bed", target: 1, pick: false }])
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Start with 2 habits" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Done: Walk" }))
+    await waitFor(() => expect(values().days?.[day]).toEqual({ walk: 1 }))
+    await waitFor(() => expect(screen.getByTestId("week-count")).toHaveTextContent("1 of 2"))
+    expect(screen.getByText("1-day streak")).toBeInTheDocument()
+  })
+
   it("can't start with nothing picked", async () => {
     await fresh([walk])
     render(<App />)
@@ -420,6 +465,24 @@ describe("First use", () => {
     render(<App />)
     expect(await screen.findByRole("button", { name: "Done: Walk" })).toHaveAttribute("aria-pressed", "true")
     expect(screen.queryByRole("heading", { name: "Pick your habits" })).toBeNull()
+  })
+})
+
+describe("A short note", () => {
+  // The test page is as tall as the screen it runs on, so the layout is asked for by its rule.
+  it("has one rule for when rows go compact: one column, and no more than 640 px of height", async () => {
+    const { SHORT } = await import("@/components/kit")
+    expect(SHORT).toBe("(max-width: 699px) and (max-height: 640px)")
+    expect(typeof matchMedia(SHORT).matches).toBe("boolean")
+  })
+})
+
+describe("Habits tab", () => {
+  it("says what happens to past check-ins when a habit is removed", async () => {
+    await amber.store.set("habits", [walk])
+    render(<App />)
+    await go("Habits")
+    expect(await screen.findByText(/Past check-ins are kept when you remove a habit\.$/)).toBeInTheDocument()
   })
 })
 

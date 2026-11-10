@@ -17,7 +17,7 @@ export default function Manage() {
   return (
     <div className="max-w-2xl">
       <Title title="Habits" action={<TintButton onClick={() => setEditing("new")}><Plus /> Add</TintButton>} />
-      <Section footer="Set how often each habit is for: every day, some weekdays, or a number of times a week. A goal above 1 is counted, like 8 glasses of water. Removing a habit keeps what you ticked in the data.">
+      <Section footer="Set how often each habit is for: every day, some weekdays, or a number of times a week. A goal above 1 is counted, like 8 glasses of water. Past check-ins are kept when you remove a habit.">
         {habits.length === 0 && <p className="px-4 py-6 text-center text-muted-foreground">No habits yet. Use Add to make your first one.</p>}
         {habits.map((h, i) => (
           <Row key={h.id} className="gap-0 pr-1">

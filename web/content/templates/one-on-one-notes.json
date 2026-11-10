@@ -6,7 +6,7 @@
     "Work"
   ],
   "audience": "For managers and the people they meet with every week or two.",
-  "description": "A running 1:1 note. Add topics during the week; after the meeting, tell your AI how it went and it writes it up with the follow-ups.",
+  "description": "A running 1:1 note. Add topics during the week; afterwards, tell your AI how it went and it writes it up.",
   "tagline": "Topics, follow-ups and every 1:1 so far.",
   "seoTitle": "1:1 meeting notes template for ChatGPT and Claude",
   "folder": "Work",
@@ -49,11 +49,11 @@
       "args": {
         "path": "Work/1:1 notes.md",
         "old_string": "Newest first: what you talked about and how they seemed.\n",
-        "new_string": "Newest first: what you talked about and how they seemed.\n### 1:1 with Emma, 5 November\n- On-call was rough: two pages at night. She wants a quieter rotation.\n- Wants to lead the spring launch.\n- Would like more feedback, sooner.\n- Seemed tired but positive.\n"
+        "new_string": "Newest first: what you talked about and how they seemed.\n### 1:1 with Emma, 5 November\n- On-call was rough: two pages at night. She wants a quieter rotation.\n- Wants to lead the spring launch. Seemed tired but positive.\n"
       }
     }
   ],
-  "example": "1:1 notes\n\nMy 1:1s with Emma, every other Thursday. Topics go in during the week so nothing waits until I've forgotten it.\n\n## Next time\nWhat to bring up, added during the week.\n- Feedback on the design review\n- The conference budget\n- Emma's goals for next quarter\n\n## Follow-ups\nWhat each of you promised, ticked when done.\n- [ ] Me: find Emma a mentor from the platform team\n- [ ] Me: ask about a quieter rotation\n- [ ] Emma: draft the launch plan by 20 Nov\n- [x] Emma: share the on-call notes\n\n## Past 1:1s\nNewest first: what you talked about and how they seemed.\n### 1:1 with Emma, 5 November\n- On-call was rough: two pages at night. She wants a quieter rotation.\n- Wants to lead the spring launch.\n- Would like more feedback, sooner.\n- Seemed tired but positive.\n",
+  "example": "1:1 notes\n\nMy 1:1s with Emma, every other Thursday. Topics go in during the week so nothing waits until I've forgotten it.\n\n## Next time\nWhat to bring up, added during the week.\n- Feedback on the design review\n- The conference budget\n- Emma's goals for next quarter\n\n## Follow-ups\nWhat each of you promised, ticked when done.\n- [ ] Me: find Emma a mentor from the platform team\n- [ ] Me: ask about a quieter rotation\n- [ ] Emma: draft the launch plan by 20 Nov\n- [x] Emma: share the on-call notes\n\n## Past 1:1s\nNewest first: what you talked about and how they seemed.\n### 1:1 with Emma, 5 November\n- On-call was rough: two pages at night. She wants a quieter rotation.\n- Wants to lead the spring launch. Seemed tired but positive.\n",
   "related": [
     "meeting-notes",
     "daily-standup",

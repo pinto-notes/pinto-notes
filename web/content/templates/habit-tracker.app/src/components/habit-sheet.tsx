@@ -32,8 +32,8 @@ export function HabitSheet({ habit: h, onClose }: { habit: Habit | null; onClose
         </div>
         <div className="mb-1 flex items-center">
           <p className="flex-1 font-semibold">{first.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</p>
-          <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="grid size-11 place-items-center rounded-full text-primary"><ChevronLeft className="size-5" /></button>
-          <button type="button" aria-label="Next month" disabled={thisMonth} onClick={() => shift(1)} className="grid size-11 place-items-center rounded-full text-primary disabled:opacity-30"><ChevronRight className="size-5" /></button>
+          <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="grid size-11 place-items-center rounded-full text-link"><ChevronLeft className="size-5" /></button>
+          <button type="button" aria-label="Next month" disabled={thisMonth} onClick={() => shift(1)} className="grid size-11 place-items-center rounded-full text-link disabled:opacity-30"><ChevronRight className="size-5" /></button>
         </div>
         <MonthGrid habit={h} days={days} skips={skips} first={first} from={from} onTap={(k) => cycle(h, k)} />
         <p className="mt-2 text-[0.8125rem] text-muted-foreground">Choose a day to tick it, again to skip it, again to clear it. A skipped day keeps your streak.</p>

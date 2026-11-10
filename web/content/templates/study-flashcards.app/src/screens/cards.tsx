@@ -3,6 +3,7 @@ import { ClipboardList, Search, Trash2 } from "lucide-react"
 import { DeleteButton, Field, inputClass, offerUndo, PrimaryButton, Row, Section, Sheet, Title, TintButton } from "@/components/kit"
 import { Levels } from "@/components/levels"
 import { dueOn, iso, level, parseLines, span, useCards, type Card } from "@/lib/cards"
+import { carry } from "@/screens/first"
 import { cn } from "@/lib/utils"
 
 // Every card by topic. Adding is fast: type the question, Tab, the answer, Return, and the next one
@@ -11,9 +12,12 @@ import { cn } from "@/lib/utils"
 export default function Cards() {
   const { cards, topics, add, addMany, update, remove, restore } = useCards()
   const [editing, setEditing] = useState<Card | null>(null)
-  const [q, setQ] = useState("")
-  const [a, setA] = useState("")
-  const [topic, setTopic] = useState(topics[0] === "No topic" ? "" : topics[0] ?? "")
+  // A card half-written on the first screen when the person's AI made the first cards arrives
+  // here once, to finish (screens/first.tsx).
+  const [brought] = useState(() => { const c = carry.card; carry.card = null; return c })
+  const [q, setQ] = useState(brought?.q ?? "")
+  const [a, setA] = useState(brought?.a ?? "")
+  const [topic, setTopic] = useState(brought?.topic || (topics[0] === "No topic" ? "" : topics[0] ?? ""))
   const [added, setAdded] = useState("")
   const [pasting, setPasting] = useState(false)
   const [find, setFind] = useState("")

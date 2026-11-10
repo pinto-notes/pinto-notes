@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Check, ChevronRight, Minus, Plus } from "lucide-react"
 import { route } from "amber-router"
-import { Ring, Row, Section, Title, TintButton } from "@/components/kit"
+import { Ring, Row, Section, SHORT, Title, TintButton, useMedia } from "@/components/kit"
 import { HabitSheet } from "@/components/habit-sheet"
 import { addDays, amount, done, doneInWeek, dueToday, iso, LETTERS, parse, scheduled, skipped, streak, today, week, weekStart, WEEKDAYS, weekday, useHabits, type Days, type Habit, type Skips } from "@/lib/habits"
 import { cn } from "@/lib/utils"
@@ -14,6 +14,10 @@ export default function Today() {
   const hb = useHabits()
   const { habits, days, skips, from } = hb
   const [open, setOpen] = useState<string | null>(null)
+  // One column and little height (a small phone, the smallest window): a smaller ring and rows
+  // without their week strip, so four habits show where one did under 120 pt of empty card
+  // (council round 4). The week is still the ring.
+  const short = useMedia(SHORT)
   const now = today(), day = iso(now)
   const w = week(days, skips, habits, now, from)
   const due = habits.filter((h) => dueToday(days, h, now))
@@ -30,7 +34,7 @@ export default function Today() {
 
   if (!habits.length) return (
     <>
-      <Title subtitle={dateLine} title="Today" />
+      <Title subtitle={dateLine} title="Today" className={short ? "pb-3" : undefined} />
       <Section className="max-w-xl">
         <div className="px-6 py-10 text-center">
           <p className="text-[1.0625rem] font-semibold">No habits yet</p>
@@ -41,16 +45,16 @@ export default function Today() {
     </>
   )
 
-  const row = (h: Habit) => <HabitRow key={h.id} habit={h} days={days} skips={skips} from={from} set={hb.set} onOpen={() => setOpen(h.id)} />
+  const row = (h: Habit) => <HabitRow key={h.id} habit={h} days={days} skips={skips} from={from} set={hb.set} onOpen={() => setOpen(h.id)} compact={short} />
   return (
     <>
-      <Title subtitle={dateLine} title="Today" />
+      <Title subtitle={dateLine} title="Today" className={short ? "pb-3" : undefined} />
       <div className="min-[700px]:grid min-[700px]:grid-cols-2 min-[900px]:block min-[1100px]:grid min-[1100px]:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] min-[700px]:items-start min-[700px]:gap-6">
         <div>
-          <Section>
-            <div className="flex items-center gap-5 p-5">
-              <Ring value={w.share} size={96} stroke={11} label={`This week ${Math.round(w.share * 100)}%`}>
-                {allDone ? <Check className="size-9 text-primary" strokeWidth={3} /> : <span className="text-xl font-bold tabular-nums">{Math.round(w.share * 100)}%</span>}
+          <Section className={short ? "mb-2" : undefined}>
+            <div className={cn("flex items-center", short ? "gap-4 px-4 py-3" : "gap-5 p-5")}>
+              <Ring value={w.share} size={short ? 56 : 96} stroke={short ? 7 : 11} label={`This week ${Math.round(w.share * 100)}%`}>
+                {allDone ? <Check className={cn("text-link", short ? "size-6" : "size-9")} strokeWidth={3} /> : <span className={cn("font-bold tabular-nums", short ? "text-[0.8125rem]" : "text-xl")}>{Math.round(w.share * 100)}%</span>}
               </Ring>
               {/* The ring is the week, so the lines beside it are the week too: a label, then the
                   count on one line whatever the numbers ("2 of 4 since Monday" broke in two beside
@@ -61,7 +65,7 @@ export default function Today() {
                   the grid's heading under this card. */}
               <div className="min-w-0">
                 <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground" data-testid="week-label">{sameAsWeek ? "Today" : since}</p>
-                <p className="whitespace-nowrap text-[1.375rem] font-bold leading-snug tabular-nums" data-testid="week-count">{w.got} of {w.of}</p>
+                <p className={cn("whitespace-nowrap font-bold tabular-nums", short ? "text-[1.0625rem] leading-tight" : "text-[1.375rem] leading-snug")} data-testid="week-count">{w.got} of {w.of}</p>
                 {(allDone || !sameAsWeek) && <p className="text-[0.9375rem] text-muted-foreground tabular-nums" data-testid="today-count">{allDone ? "All done today" : `Today: ${doneCount} of ${due.length} done`}</p>}
               </div>
             </div>
@@ -69,7 +73,7 @@ export default function Today() {
           <WeekGrid habits={habits} days={days} skips={skips} from={from} className="hidden min-[700px]:block min-[900px]:hidden min-[1100px]:block" />
         </div>
         <div>
-          <Section title="Habits" footer={later.length ? undefined : "Choose a habit to see or change it."}>
+          <Section title={short ? undefined : "Habits"} footer={later.length ? undefined : "Choose a habit to see or change it."}>
             {due.map(row)}
             {!due.length && <p className="px-4 py-5 text-center text-muted-foreground">Nothing is due today. Enjoy the day off.</p>}
           </Section>
@@ -93,7 +97,7 @@ function WeekGrid({ habits, days, skips, from, className }: { habits: Habit[]; d
       <div className="px-4 py-3" role="img" aria-label="This week, every habit">
         <div className="grid grid-cols-[minmax(0,1fr)_repeat(7,18px)] items-center gap-x-1 gap-y-2.5">
           <span />
-          {LETTERS.map((l, i) => <span key={i} className={cn("text-center text-[0.75rem] font-semibold", iso(addDays(start, i)) === iso(now) ? "text-primary" : "text-muted-foreground")}>{l}</span>)}
+          {LETTERS.map((l, i) => <span key={i} className={cn("text-center text-[0.75rem] font-semibold", iso(addDays(start, i)) === iso(now) ? "text-link" : "text-muted-foreground")}>{l}</span>)}
           {habits.map((h) => (
             <Dots key={h.id} habit={h} days={days} skips={skips} start={start} now={now} from={from} />
           ))}
@@ -112,7 +116,7 @@ function Dots({ habit: h, days, skips, start, now, from }: { habit: Habit; days:
       {LETTERS.map((_, i) => {
         const d = addDays(start, i), k = iso(d), v = amount(days, h, k), full = v >= h.target
         return <span key={i} className={cn("mx-auto size-[18px] rounded-full",
-          full ? "bg-primary" : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60"
+          full ? "bg-[var(--amber-accent)]" : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60"
             : v > 0 ? "bg-[var(--amber-accent-soft)]" : k < from ? "invisible" : k > iso(now) || !scheduled(h, d) ? "bg-muted/50" : "bg-muted",
           k === iso(now) && !full && "ring-[1.5px] ring-[var(--amber-accent)]")} />
       })}
@@ -120,7 +124,7 @@ function Dots({ habit: h, days, skips, start, now, from }: { habit: Habit; days:
   )
 }
 
-function HabitRow({ habit: h, days, skips, from, set, onOpen }: { habit: Habit; days: Days; skips: Skips; from: string; set: (h: Habit, v: number | ((was: number) => number), on?: string) => unknown; onOpen: () => void }) {
+function HabitRow({ habit: h, days, skips, from, set, onOpen, compact }: { habit: Habit; days: Days; skips: Skips; from: string; compact?: boolean; set: (h: Habit, v: number | ((was: number) => number), on?: string) => unknown; onOpen: () => void }) {
   const [popping, setPopping] = useState(false)
   const now = today(), day = iso(now)
   const value = amount(days, h, day)
@@ -135,7 +139,7 @@ function HabitRow({ habit: h, days, skips, from, set, onOpen }: { habit: Habit; 
   const pop = () => setPopping(true)
   const settle = (e: React.AnimationEvent) => { if (e.animationName === "tick-ring") setPopping(false) }
   return (
-    <Row className="py-3">
+    <Row className={compact ? "py-2" : "py-3"}>
       <button type="button" aria-label={`Open ${h.name}`} onClick={onOpen} className="min-w-0 flex-1 text-left">
         <p className="flex items-center gap-1 text-[1.0625rem] font-semibold leading-tight">{h.name}<ChevronRight className="size-4 text-muted-foreground" /></p>
         {/* The line and the streak wrap as two pieces, never mid-phrase ("streak" sat alone on a line:
@@ -143,35 +147,35 @@ function HabitRow({ habit: h, days, skips, from, set, onOpen }: { habit: Habit; 
             of its own the dot falls outside the paragraph and is cut off, not left dangling. */}
         <p className="mt-0.5 flex flex-wrap gap-x-3 overflow-hidden text-[0.875rem] text-muted-foreground tabular-nums">
           {line}
-          {s > 0 && <span className="relative whitespace-nowrap"><span aria-hidden="true" className="absolute -left-2">{" · "}</span><span className="text-primary">{s}-{h.perWeek ? "week" : "day"} streak</span></span>}
+          {s > 0 && <span className="relative whitespace-nowrap"><span aria-hidden="true" className="absolute -left-2">{" · "}</span><span className="text-link">{s}-{h.perWeek ? "week" : "day"} streak</span></span>}
         </p>
-        <span className="mt-2 flex gap-1.5 min-[700px]:hidden min-[900px]:flex min-[1100px]:hidden" aria-hidden="true">
+        {!compact && <span className="mt-2 flex gap-1.5 min-[700px]:hidden min-[900px]:flex min-[1100px]:hidden" aria-hidden="true">
           {LETTERS.map((l, i) => {
             const d = addDays(start, i), k = iso(d), got = amount(days, h, k)
             const full = got >= h.target, part = got > 0 && !full
             return (
               <span key={i} className={cn("grid size-6 place-items-center rounded-full text-[0.75rem] font-semibold",
-                full ? "bg-primary text-primary-foreground" : part ? "bg-[var(--amber-accent-soft)] text-primary"
+                full ? "bg-[var(--amber-accent)] text-mark-text" : part ? "bg-[var(--amber-accent-soft)] text-link"
                   : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60 text-muted-foreground"
                   : k < from ? "invisible" : !scheduled(h, d) ? "bg-muted/50 text-muted-foreground/60" : "bg-muted text-muted-foreground",
                 k === day && !full && "ring-[1.5px] ring-[var(--amber-accent)]")}>{l}</span>
             )
           })}
-        </span>
+        </span>}
       </button>
       {counted ? (
         <div className="flex items-center gap-2">
           <button type="button" aria-label={`One less ${h.name}`} disabled={value === 0} onClick={() => set(h, (was) => Math.max(0, was - 1))}
             className="grid size-11 place-items-center rounded-full bg-muted text-foreground disabled:opacity-30"><Minus className="size-5" /></button>
           <button type="button" aria-label={`One more ${h.name}`} onClick={() => { if (value + 1 === h.target) pop(); set(h, (was) => was + 1) }}
-            onAnimationEnd={settle} className={cn("relative grid size-12 place-items-center rounded-full", popping && "tick-pop")}>
-            <Ring value={value / h.target} size={48} stroke={5} />
-            <span className="absolute inset-0 grid place-items-center">{isDone ? <Check className="size-5 text-primary" strokeWidth={3} /> : <Plus className="size-5 text-primary" strokeWidth={2.5} />}</span>
+            onAnimationEnd={settle} className={cn("relative grid place-items-center rounded-full", compact ? "size-11" : "size-12", popping && "tick-pop")}>
+            <Ring value={value / h.target} size={compact ? 44 : 48} stroke={5} />
+            <span className="absolute inset-0 grid place-items-center">{isDone ? <Check className="size-5 text-link" strokeWidth={3} /> : <Plus className="size-5 text-link" strokeWidth={2.5} />}</span>
           </button>
         </div>
       ) : (
         <button type="button" aria-label={`Done: ${h.name}`} aria-pressed={isDone} onAnimationEnd={settle} onClick={() => { if (!isDone) pop(); set(h, isDone ? 0 : 1) }}
-          className={cn("grid size-12 shrink-0 place-items-center rounded-full border-2 transition-colors duration-150 motion-reduce:transition-none",
+          className={cn("grid shrink-0 place-items-center rounded-full border-2 transition-colors duration-150 motion-reduce:transition-none", compact ? "size-11" : "size-12",
             isDone ? "border-transparent bg-[var(--amber-accent)] text-[var(--amber-on-accent)]" : "border-[var(--amber-field-border)] text-transparent",
             popping && "tick-pop")}>
           <Check className={cn("size-6 transition-transform duration-200 motion-reduce:transition-none", isDone ? "scale-100" : "scale-50")} strokeWidth={3} />

@@ -1,6 +1,4 @@
 import { useLayoutEffect, useRef, useState } from "react"
-import { Plus } from "lucide-react"
-import { route } from "amber-router"
 import { Pills, PrimaryButton, Section, Title, Bar } from "@/components/kit"
 import { dueOn, GRADES, intervalOf, iso, level, next, plus, short, span, streak, useCards, type Card, type Grade } from "@/lib/cards"
 import { cn } from "@/lib/utils"
@@ -24,22 +22,6 @@ export default function Study() {
 
   if (session) return <Studying session={session} setSession={setSession} cards={cards} grade={grade} streakNow={streak(studied)} />
 
-  // No cards yet: one clear first step, and no numbers about cards that don't exist ("Nothing
-  // due", "No streak yet" and an empty week said nothing). The app starts empty: sample cards
-  // would be someone else's biology in the person's deck (council round 3).
-  if (!cards.length) return (
-    <>
-      <Title title="Study" />
-      <Section className="max-w-xl">
-        <div className="px-6 py-10 text-center">
-          <p className="text-[1.0625rem] font-semibold">Make your first cards</p>
-          <p className="mt-1 text-muted-foreground">A question on one side, the answer on the other. Add them yourself, paste a list, or give your AI your notes and it makes them.</p>
-          <PrimaryButton className="mx-auto mt-5 max-w-xs" onClick={() => route("/cards")}><Plus /> Add a card</PrimaryButton>
-        </div>
-      </Section>
-    </>
-  )
-
   // Least known first: the lowest box, then the shortest interval.
   const start = () => setSession({ ids: dueHere.slice().sort((a, b) => (a.box || 1) - (b.box || 1) || intervalOf(a) - intervalOf(b)).map((c) => c.id), at: 0, shown: false, counts: { again: 0, hard: 0, good: 0, easy: 0 }, again: [] })
   const week = Array.from({ length: 7 }, (_, i) => plus(today, i + 1)).map((d) => ({ d, n: cards.filter((c) => inTopic(c) && c.seen && dueOn(c) === d).length }))
@@ -56,7 +38,7 @@ export default function Study() {
             <div className="p-5">
               <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">Due today</p>
               <p className="text-[2.5rem] font-bold leading-tight tracking-tight tabular-nums" data-testid="due">{dueHere.length ? `${dueHere.length} ${dueHere.length === 1 ? "card" : "cards"}` : "Nothing due"}</p>
-              <p className="text-[0.9375rem] text-muted-foreground">{cards.length ? <>{cards.filter(inTopic).length} cards{topic === "All" ? ` in ${topics.length} ${topics.length === 1 ? "topic" : "topics"}` : ` in ${topic}`}</> : "No cards yet. Add the first one in the Cards tab."}</p>
+              <p className="text-[0.9375rem] text-muted-foreground">{cards.filter(inTopic).length} cards{topic === "All" ? ` in ${topics.length} ${topics.length === 1 ? "topic" : "topics"}` : ` in ${topic}`}</p>
               {fresh > 0 && <p className="text-[0.9375rem] text-muted-foreground">{fresh} new</p>}
             </div>
           </Section>
@@ -70,10 +52,19 @@ export default function Study() {
               <Pills label="Topic" options={["All", ...topics]} value={topic} onChange={setTopic} />
             </div>
           )}
+          {/* The streak and its calendar side by side: under each other the card was too tall for
+              the template library's stage over the app's tabs, and the stage dropped the calendar. */}
           <Section>
-            <div className="p-4">
-              <p className="text-[1.375rem] font-bold leading-tight tabular-nums" data-testid="streak">{s ? `${s}-day streak` : "No streak yet"}</p>
-              <p className="mb-3 text-[0.875rem] text-muted-foreground">{studied[today] ? `${studied[today]} ${studied[today] === 1 ? "card" : "cards"} today.` : s ? "Study a card today to keep it going." : "Study a few cards a day: that's what makes them stick."}</p>
+            <div className="flex items-start gap-4 p-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-[1.375rem] font-bold leading-tight tabular-nums" data-testid="streak">{s ? `${s}-day streak` : "No streak yet"}</p>
+                <p className="text-[0.875rem] text-muted-foreground text-balance">{studied[today] ? `${studied[today]} ${studied[today] === 1 ? "card" : "cards"} today.` : s ? "Keep it going today." : "A few cards a day makes them stick."}</p>
+                <div className="mt-2 text-[0.75rem] leading-snug text-muted-foreground" aria-hidden="true">
+                  <p>A square a day.</p>
+                  <p>Today is ringed.</p>
+                  <p className="mt-0.5 flex items-center gap-1">Fewer{[0.35, 0.6, 0.8, 1].map((o) => <span key={o} className="size-2.5 shrink-0 rounded-[2px] bg-[var(--amber-accent)]" style={{ opacity: o }} />)}more</p>
+                </div>
+              </div>
               <Heatmap studied={studied} today={today} />
             </div>
           </Section>
@@ -84,7 +75,7 @@ export default function Study() {
               <div className="p-5" data-testid="newest">
                 <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">{newest.topic || "No topic"} · {level(newest)}</p>
                 <p className="mt-2 text-[1.1875rem] font-semibold leading-snug">{newest.q}</p>
-                <p className="mt-3 border-t border-border pt-3 text-[1.0625rem] leading-snug text-primary">{newest.a}</p>
+                <p className="mt-3 border-t border-border pt-3 text-[1.0625rem] leading-snug text-link">{newest.a}</p>
               </div>
             </Section>
           )}
@@ -119,25 +110,16 @@ function Heatmap({ studied, today }: { studied: Record<string, number>; today: s
   // A month's name over the first week that starts in it (and over the first column).
   const heads = Array.from({ length: 12 }, (_, w) => { const d = days[w * 7]; return w === 0 || month(d) !== month(days[(w - 1) * 7]) ? month(d) : "" })
   return (
-    <div className="flex items-end gap-4" role="img" aria-label={`Studied on ${total} of the last 12 weeks' days`}>
-      <div className="w-[201px] shrink-0">
-        <div className="mb-1 grid grid-cols-12 gap-[3px]" aria-hidden="true">
-          {heads.map((h, w) => <span key={w} className="overflow-visible whitespace-nowrap text-[0.75rem] leading-none text-muted-foreground">{h}</span>)}
-        </div>
-        <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
-          {days.map((d) => {
-            const n = studied[d] ?? 0
-            return <span key={d} data-today={d === today || undefined} className={cn("aspect-square rounded-[3px]", d > today ? "bg-transparent" : n ? "bg-[var(--amber-accent)]" : "bg-muted",
-              d === today && "ring-[1.5px] ring-foreground ring-offset-1 ring-offset-[var(--card)]")} style={n && d <= today ? { opacity: 0.35 + 0.65 * (n / top) } : undefined} />
-          })}
-        </div>
+    <div className="w-[165px] shrink-0" role="img" aria-label={`Studied on ${total} of the last 12 weeks' days`}>
+      <div className="mb-1 grid grid-cols-12 gap-[3px]" aria-hidden="true">
+        {heads.map((h, w) => <span key={w} className="overflow-visible whitespace-nowrap text-[0.75rem] leading-none text-muted-foreground">{h}</span>)}
       </div>
-      {/* Beside the squares, in the room the card has there: under them it made the card too tall
-          for the library's stage, which then dropped the calendar. */}
-      <div className="min-w-0 text-[0.75rem] leading-snug text-muted-foreground" aria-hidden="true">
-        <p>A square a day.</p>
-        <p>Today is ringed.</p>
-        <p className="mt-1 flex items-center gap-1">Fewer{[0.35, 0.6, 0.8, 1].map((o) => <span key={o} className="size-2.5 shrink-0 rounded-[2px] bg-[var(--amber-accent)]" style={{ opacity: o }} />)}more</p>
+      <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
+        {days.map((d) => {
+          const n = studied[d] ?? 0
+          return <span key={d} data-today={d === today || undefined} className={cn("aspect-square rounded-[2px]", d > today ? "bg-transparent" : n ? "bg-[var(--amber-accent)]" : "bg-muted",
+            d === today && "ring-[1.5px] ring-foreground ring-offset-1 ring-offset-[var(--card)]")} style={n && d <= today ? { opacity: 0.35 + 0.65 * (n / top) } : undefined} />
+        })}
       </div>
     </div>
   )
@@ -184,7 +166,7 @@ function Studying({ session, setSession, cards, grade, streakNow }: { session: S
       <div className="mb-4 flex items-center gap-3">
         <Bar className="flex-1" value={session.at / session.ids.length} label="Studied" />
         <span className="text-[0.875rem] font-medium tabular-nums text-muted-foreground">{session.at + 1} of {session.ids.length}</span>
-        <button type="button" onClick={() => setSession(null)} className="h-11 px-2 font-semibold text-primary">End</button>
+        <button type="button" onClick={() => setSession(null)} className="h-11 px-2 font-semibold text-link">End</button>
       </div>
       <Section>
         <div className="flex min-h-[18rem] flex-col p-6">
@@ -192,7 +174,7 @@ function Studying({ session, setSession, cards, grade, streakNow }: { session: S
           <p className="mt-4 text-[1.5rem] font-semibold leading-snug" data-testid="question">{card.q}</p>
           {session.shown && (
             <div className="mt-5 border-t border-border pt-5 animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
-              <p className="text-[1.25rem] leading-snug text-primary" data-testid="answer">{card.a}</p>
+              <p className="text-[1.25rem] leading-snug text-link" data-testid="answer">{card.a}</p>
             </div>
           )}
         </div>
@@ -202,12 +184,15 @@ function Studying({ session, setSession, cards, grade, streakNow }: { session: S
           <div className="grid grid-cols-4 gap-2">
             {GRADES.map(({ grade: g, label }) => {
               const days = next(card, g).interval
+              // Again asks the card once more at the end of this session (the first time), and
+              // that is what its button says: "soon", not the day after it's due again.
+              const soon = g === "again" && !session.again.includes(card.id)
               return (
-                <button key={g} type="button" aria-label={`${label}, back in ${span(days)}`} onClick={() => answer(g)}
+                <button key={g} type="button" aria-label={soon ? `${label}, once more this session, then back in ${span(days)}` : `${label}, back in ${span(days)}`} onClick={() => answer(g)}
                   className={cn("flex h-14 flex-col items-center justify-center rounded-xl font-semibold active:opacity-80",
-                    g === "good" ? "bg-primary text-primary-foreground" : g === "again" ? "bg-muted text-foreground" : "bg-[var(--amber-accent-soft)] text-primary")}>
+                    g === "good" ? "bg-primary text-primary-foreground" : g === "again" ? "bg-muted text-foreground" : "bg-[var(--amber-accent-soft)] text-link")}>
                   <span className="text-[1rem] leading-tight">{label}</span>
-                  <span className="text-[0.75rem] font-medium tabular-nums opacity-80">{short(days)}</span>
+                  <span className="text-[0.75rem] font-medium tabular-nums opacity-80" data-testid={`when-${g}`}>{soon ? "soon" : short(days)}</span>
                 </button>
               )
             })}

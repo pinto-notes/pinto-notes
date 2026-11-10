@@ -51,30 +51,63 @@ describe("Trip details", () => {
     await waitFor(() => expect(screen.getByTestId("countdown")).toHaveTextContent(/^3\s*days to go/))
   })
 
-  it("says the packing list is a starter until there's a trip, with no count for it", async () => {
+  it("opens a new app on Where are you going?, alone, with no countdown, counts or packing list", async () => {
     await amber.store.set("trip", null)
-    await amber.store.set("past", [])
     render(<App />)
-    await go("Packing")
-    expect(await screen.findByTestId("starter")).toHaveTextContent("A starter list. Change it to what you pack.")
-    expect(screen.queryByText(/of 2 packed/)).toBeNull()
-    expect(screen.queryByRole("progressbar", { name: "Packed" })).toBeNull()
-    // Packing something makes it yours: the count is back.
-    await userEvent.click(screen.getByRole("button", { name: "Passport" }))
-    expect(await screen.findByText("1 of 2 packed")).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Where are you going?" })).toBeInTheDocument()
+    expect(screen.getByTestId("ai-hint")).toHaveTextContent("Plan it here, or tell your AI and it sets this up.")
+    expect(screen.queryByTestId("countdown")).toBeNull()
+    expect(screen.queryByText(/packed/)).toBeNull()
+    expect(screen.queryByRole("link", { name: "Packing" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Name the place to start" })).toBeDisabled()
   })
 
-  it("starts a trip from nothing", async () => {
+  it("starts a trip from nothing: the place and the dates, then the countdown", async () => {
     await amber.store.set("trip", null)
     render(<App />)
-    expect(await screen.findByText("Where are you going?")).toBeInTheDocument()
-    await userEvent.click(await screen.findByRole("button", { name: "Plan a trip" }))
     await userEvent.type(await screen.findByLabelText("Where to"), "Rome")
     await pick("First day", day(10))
     await pick("Last day", day(12))
-    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Plan Rome" }))
     await waitFor(() => expect(values().trip).toEqual({ name: "Rome", start: day(10), end: day(12) }))
     expect(await screen.findByRole("heading", { name: "Rome" })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId("countdown")).toHaveTextContent(/^10\s*days to go/))
+    // The app's other screens are there now, the packing list among them.
+    await go("Packing")
+    expect(await screen.findByText("0 of 2 packed")).toBeInTheDocument()
+  })
+
+  it("leaves the first screen by itself when your AI plans the trip, and keeps what you had typed within reach", async () => {
+    await amber.store.set("trip", null)
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText("Where to"), "Rome")
+    // The person's AI writes the trip, as its prompt says.
+    await amber.store.set("trip", trip(9, 13))
+    expect(await screen.findByRole("heading", { name: "Lisbon" })).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "Where are you going?" })).toBeNull()
+    expect(await screen.findByText("Your AI planned Lisbon. What you typed here wasn't used.")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Use mine" }))
+    await waitFor(() => expect(values().trip?.name).toBe("Rome"))
+    expect(await screen.findByRole("heading", { name: "Rome" })).toBeInTheDocument()
+  })
+
+  it("says nothing more when your AI plans the trip and you hadn't typed anything", async () => {
+    await amber.store.set("trip", null)
+    render(<App />)
+    await screen.findByRole("heading", { name: "Where are you going?" })
+    await amber.store.set("trip", trip(9, 13))
+    expect(await screen.findByRole("heading", { name: "Lisbon" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Use mine" })).toBeNull()
+  })
+
+  it("after a trip is put away, asks where next inside the app, with the packing list a tab away", async () => {
+    await amber.store.set("trip", null)
+    await amber.store.set("past", [trip(-20, -16)])
+    render(<App />)
+    expect(await screen.findByRole("heading", { name: "Where are you going?" })).toBeInTheDocument()
+    expect(screen.getByText("Your packing list from Lisbon is ready: 2 things.")).toBeInTheDocument()
+    await go("Packing")
+    expect(await screen.findByRole("button", { name: "Passport" })).toBeInTheDocument()
   })
 })
 
@@ -143,7 +176,7 @@ describe("Bookings", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Delete Hotel" }))
     await waitFor(() => expect(values().bookings).toEqual([]))
     expect(await screen.findByText(/^No bookings yet/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole("button", { name: "Undo" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
     await waitFor(() => expect(values().bookings).toHaveLength(1))
   })
 
@@ -262,7 +295,11 @@ describe("Sharing", () => {
     await amber.store.set("days", [{ date: day(9), title: "Arrive", items: ["09:00 Tram 28"] }])
     render(<App />)
     await go("Days")
-    await userEvent.click((await screen.findAllByRole("button", { name: `Share ${new Date(day(9) + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}` }))[0])
+    // One day is shared from its own sheet; the screen itself has one Share, for the whole trip.
+    const name = new Date(day(9) + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
+    expect(await screen.findAllByRole("button", { name: /^Share / })).toHaveLength(1)
+    await userEvent.click((await screen.findAllByRole("button", { name: `Edit ${name}` }))[0])
+    await userEvent.click(await screen.findByRole("button", { name: `Share ${name}` }))
     await waitFor(() => expect(share).toHaveBeenCalled())
     const file = (share.mock.calls[0] as unknown[])[0] as { name: string; type: string; text: string }
     expect(file.name).toBe("Lisbon, day 1.txt")
@@ -305,7 +342,7 @@ describe("Next trip", () => {
     expect(values().packing).toEqual([{ id: "p1", text: "Passport", group: "Documents", packed: false }, { id: "p2", text: "Sunglasses", group: "Clothes", packed: false }])
     expect(values().past.map((t: { name: string }) => t.name)).toEqual(["Lisbon"])
     expect(await screen.findByText("Your packing list from Lisbon is ready: 2 things.")).toBeInTheDocument()
-    await userEvent.click(screen.getByRole("button", { name: "Undo" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
     await waitFor(() => expect(values().trip?.name).toBe("Lisbon"))
     await waitFor(() => expect(values().past).toEqual([]))
     expect(values().packing[0].packed).toBe(true)

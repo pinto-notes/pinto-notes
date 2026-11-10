@@ -6,7 +6,7 @@
     "Work"
   ],
   "audience": "For anyone who leaves meetings with messy notes and a vague sense of who does what.",
-  "description": "Paste rough notes or a transcript after a meeting. Your AI writes the summary, what was decided and who does what.",
+  "description": "Paste rough notes or a transcript after a meeting. Your AI writes the summary, the decisions and who does what.",
   "tagline": "What was decided, and who does what.",
   "seoTitle": "Meeting notes to action items template for AI",
   "folder": "Work",
@@ -33,7 +33,7 @@
       "args": {
         "path": "Work/Meeting notes.md",
         "old_string": "One section per meeting: what was said in two lines, and what was decided.\n",
-        "new_string": "One section per meeting: what was said in two lines, and what was decided.\n### Design review, 3 November\nThe new checkout is approved with two changes: the total shows before the card details, and the error messages are in plain words.\n\n- Decided: one page, not three steps.\n- Open: who writes the error messages.\n"
+        "new_string": "One section per meeting: what was said in two lines, and what was decided.\n### Design review, 3 November\nThe new checkout is approved with two changes: the total shows before the card details, and the error messages are in plain words.\n\n- Decided: one page, not three steps.\n"
       }
     },
     {
@@ -41,7 +41,7 @@
       "args": {
         "path": "Work/Meeting notes.md",
         "old_string": "One section per meeting: what was said in two lines, and what was decided.\n",
-        "new_string": "One section per meeting: what was said in two lines, and what was decided.\n### Pricing sync, 5 November\nThree plans stay and the lifetime deal goes. The yearly discount drops from 20% to 15%.\n\n- Decided: no lifetime plan.\n- Open: whether students get the Pro plan free.\n\n"
+        "new_string": "One section per meeting: what was said in two lines, and what was decided.\n### Pricing sync, 5 November\nThree plans stay, the lifetime deal goes, and the yearly discount drops to 15%.\n\n- Decided: no lifetime plan.\n- Open: whether students get the Pro plan free.\n\n"
       }
     },
     {
@@ -53,7 +53,7 @@
       }
     }
   ],
-  "example": "Meeting notes\n\nAfter a meeting, paste your rough notes or the transcript into your AI. The summary and action items land here, newest meeting first.\n\n## Action items\nWho does what, and by when. Ticked when done.\n- [ ] Sara: send the new pricing to sales (10 Nov)\n- [ ] Emma: check Norway's VAT rules (next week)\n- [x] Jonas: review the checkout design (6 Nov)\n\n## Meetings\nOne section per meeting: what was said in two lines, and what was decided.\n### Pricing sync, 5 November\nThree plans stay and the lifetime deal goes. The yearly discount drops from 20% to 15%.\n\n- Decided: no lifetime plan.\n- Open: whether students get the Pro plan free.\n\n### Design review, 3 November\nThe new checkout is approved with two changes: the total shows before the card details, and the error messages are in plain words.\n\n- Decided: one page, not three steps.\n- Open: who writes the error messages.\n",
+  "example": "Meeting notes\n\nAfter a meeting, paste your rough notes or the transcript into your AI. The summary and action items land here, newest meeting first.\n\n## Action items\nWho does what, and by when. Ticked when done.\n- [ ] Sara: send the new pricing to sales (10 Nov)\n- [ ] Emma: check Norway's VAT rules (next week)\n- [x] Jonas: review the checkout design (6 Nov)\n\n## Meetings\nOne section per meeting: what was said in two lines, and what was decided.\n### Pricing sync, 5 November\nThree plans stay, the lifetime deal goes, and the yearly discount drops to 15%.\n\n- Decided: no lifetime plan.\n- Open: whether students get the Pro plan free.\n\n### Design review, 3 November\nThe new checkout is approved with two changes: the total shows before the card details, and the error messages are in plain words.\n\n- Decided: one page, not three steps.\n",
   "related": [
     "one-on-one-notes",
     "daily-standup",

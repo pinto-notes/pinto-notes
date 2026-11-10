@@ -65,6 +65,28 @@ describe("Month", () => {
   })
 })
 
+describe("By category", () => {
+  it("shows every category, and their rows add up to the summary over them", async () => {
+    await amber.store.set("categories", [...cats, { name: "Transport", budget: 800 }])
+    await amber.store.set("expenses", [
+      { id: "a", date: today, what: "Weekly shop", category: "Groceries", amount: 412 },
+      { id: "b", date: today, what: "Lunch", category: "Eating out", amount: 120 },
+      { id: "c", date: today, what: "Travel card", category: "Transport", amount: 790 },
+    ])
+    render(<App />)
+    await waitFor(() => expect(screen.getByTestId("month-line")).toHaveTextContent("1,322 kr spent of 2,300 kr"))
+    const rows = ["Groceries", "Eating out", "Transport"].map((n) => screen.getByTestId(`spent-${n}`).textContent ?? "")
+    expect(rows).toEqual(["412 kr of 1,000 kr", "120 kr of 500 kr", "790 kr of 800 kr"])
+    const sum = (i: number) => rows.reduce((t, r) => t + Number(r.split(" of ")[i].replace(/[^\d.]/g, "")), 0)
+    expect([sum(0), sum(1)]).toEqual([1322, 2300])
+  })
+
+  it("has one Add expense, wherever the note's width puts it", async () => {
+    render(<App />)
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Add expense" })).toHaveLength(1))
+  })
+})
+
 describe("Expenses", () => {
   it("lists expenses by day and deletes one, with Undo", async () => {
     await amber.store.set("expenses", [
@@ -226,7 +248,7 @@ describe("Monthly bills", () => {
     await go("Budget")
     await userEvent.click(await screen.findByRole("button", { name: "Add bill" }))
     await userEvent.type(await screen.findByLabelText("What"), "Phone")
-    await userEvent.type(screen.getByLabelText("Amount (kr)"), "299")
+    await userEvent.type(await screen.findByLabelText("Amount (kr)"), "299")
     await userEvent.clear(screen.getByLabelText("Day of month"))
     await userEvent.type(screen.getByLabelText("Day of month"), "28")
     await userEvent.click(screen.getByRole("radio", { name: "Eating out" }))
@@ -344,6 +366,54 @@ describe("First use", () => {
     // The month, from the person's own numbers.
     await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("3,600 kr"))
     expect(await screen.findAllByRole("link", { name: "Budget" })).not.toHaveLength(0)
+  })
+
+  it("says your AI can set it up too", async () => {
+    await fresh()
+    render(<App />)
+    expect(await screen.findByTestId("ai-hint")).toHaveTextContent("Set it here, or tell your AI and it sets this up.")
+    expect(screen.getByText("Change categories, recurring bills and rollover in Budget.")).toBeInTheDocument()
+  })
+
+  it("leaves Set your monthly budget by itself when your AI sets it up, and keeps what you had entered within reach", async () => {
+    await fresh()
+    render(<App />)
+    const groceries = await screen.findByLabelText("Groceries a month")
+    await userEvent.clear(groceries)
+    await userEvent.type(groceries, "3200")
+    // The person's AI writes the budget and the day it was set, as its prompt says.
+    await amber.store.set("categories", [{ name: "Food", budget: 5000 }])
+    await amber.store.set("currency", "€")
+    await amber.store.set("started", today)
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("€5,000"))
+    expect(screen.queryByRole("heading", { name: "Set your monthly budget" })).toBeNull()
+    expect(await screen.findByText("Your AI set up your budget. What you entered here wasn't used.")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Use mine" }))
+    await waitFor(() => expect(values().categories).toEqual([{ name: "Groceries", budget: 3200 }, { name: "Eating out", budget: 500 }]))
+    await waitFor(() => expect(values().currency).toBe("kr"))
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("3,700 kr"))
+  })
+
+  it("says nothing more when your AI sets it up and you hadn't touched the screen", async () => {
+    await fresh()
+    render(<App />)
+    await screen.findByRole("heading", { name: "Set your monthly budget" })
+    await amber.store.set("categories", [{ name: "Food", budget: 5000 }])
+    await amber.store.set("started", today)
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("5,000 kr"))
+    expect(screen.queryByRole("button", { name: "Use mine" })).toBeNull()
+  })
+
+  it("goes from the first screen to a first expense: set the budget, Start, add what you spent", async () => {
+    await fresh()
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Start with 1,500 kr a month" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Add expense" }))
+    await userEvent.type(await screen.findByLabelText("Amount (kr)"), "85")
+    await userEvent.type(screen.getByLabelText("What"), "Bus card")
+    await userEvent.click(screen.getByRole("button", { name: "Add" }))
+    await waitFor(() => expect(saved()).toEqual([{ date: today, what: "Bus card", category: "Groceries", amount: 85 }]))
+    await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("1,415 kr"))
   })
 
   it("can't start before an amount is in", async () => {

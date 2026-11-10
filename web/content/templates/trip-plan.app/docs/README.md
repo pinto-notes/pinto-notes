@@ -13,7 +13,11 @@ data.json, all under "values" (the person's AI reads and edits it directly):
 - ids are any unique text ("b6", "p15").
 
 ## Decisions
-- First use: with no trip the Trip tab asks "Where are you going?" with one button, Plan a trip, and shows no countdown or counts. The packing list the app starts with (seven things most trips need) is labelled "A starter list. Change it to what you pack." and has no "0 of 7 packed" or bar until there is a trip or something is packed: it isn't the person's list yet.
+- Days has one Share, in its header, for the whole trip. One day is shared from its own sheet (the pencil). Add day is after the last day. Before round 5 the view had three Share buttons, two pencils and Add day, and the header's Share ended 18 px inside the pencils' column; both now end 8 px inside the cards' edge.
+- The packing list the app starts with is ten things in four groups, each a thing you pack (Toothbrush, Sunscreen; not a group called Toiletries holding one item called Toiletries).
+- The first screen's frame is the same in the four template apps (kit.tsx, FirstScreen): alone in the note with no tabs, a 576 px column in the middle, the title at 2rem, one line saying what to do, a quiet line saying the person's AI can do it too, the form, one primary button and a foot line. Made with an AI, the person is asked the same thing in the app and in the chat; the quiet line ("Pick here, or tell your AI and it sets this up.") says either works.
+- When the person's AI sets the app up while the first screen is open, the app leaves it by itself and shows the result. If the person had changed anything there, a bar that stays says so and offers it back ("Use mine"); with nothing touched, nothing more is said. Tested in tests/app.test.tsx, "First use".
+- First use (src/screens/first.tsx): a new app opens on "Where are you going?" with the place and the dates in the screen itself, and the button reads "Plan Lisbon" once the place is named. There is no countdown, no count and no packing list before there is a trip. After a trip has been put away (Start a new trip) the same screen shows inside the app, and says the packing list is waiting.
 - The first screen answers "how long until I go, and what's still open": the countdown, then bookings paid and items packed, then the first day of the plan. During the trip the countdown becomes "Day 2 of 5" and the plan shows today.
 - Paid and packed are one-tap ticks, like Reminders. Packed items drop to the bottom of the list.
 - The person is in control without the AI: change the trip and its dates (Edit on the Trip tab), add, edit and delete days, bookings and packing items. Deleting shows Undo in a bar at the top of the screen.
@@ -25,6 +29,8 @@ data.json, all under "values" (the person's AI reads and edits it directly):
 - The Trip tab has two columns from 700 px: the countdown and to-dos, and the next day's timeline with Share.
 - The app sets the note's summary line to "Lisbon: 9 days to go, 5 of 14 packed".
 - No text under 12 px (0.75rem), Apple's minimum. Tests check text that changes after an action (saving and grading are async) inside waitFor, never on the first find.
+
+- Colour: three ambers, one job each, the same three the Mac app has (src/index.css). The accent (`--amber-accent`, #D96A06 in the light, #F4AD33 in the dark) is for ticks, rings, bars and dots. `text-link` is its ink shade (#A85700 in the light) for amber text. `bg-primary` is the primary button: #BB5B05 with a white label in the light, white with a black label in the dark, as the Mac's own buttons are (dark-mode buttons are white or black, never amber). Before round 5 `--primary` was the ink shade, so a tick, a done day's dot and the button were three different oranges in one view. Letters on an accent fill use `text-mark-text` (the page's ink in the light: white on the accent is 3.5:1).
 
 ## Known gaps
 - A day's plan is edited as text, one line per item; there is no reordering of items within a day.

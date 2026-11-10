@@ -13,10 +13,10 @@
   "folder": "Home",
   "note": "Budget and expenses\n\nSet your monthly budget in the app, then add what you spend. Or tell your AI what you spent and it logs it. Amounts are in your own currency.\n\n## Month summaries\nAsk your AI to sum up a month, and its lines land here.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Budget and expenses\". It is an app; its data is \"Budget and expenses.app/data.json\", beside the note. Read it with fetch before each change. If values.started isn't set, its categories are only suggestions: ask what I can spend a month and on what, write values.categories as { name, budget }, and set values.currency and values.started (today, yyyy-mm-dd). When I say what I spent, add { id, date, what, category, amount } to values.expenses with edit, with a category from values.categories. A monthly bill goes in values.recurring as { id, what, category, amount, day }. When I ask about a month, say what was over its budget, what was under, and one suggestion. No other financial advice."
+    "default": "Use my Pinto Notes note \"Budget and expenses\". It is an app; its data is \"Budget and expenses.app/data.json\", beside the note. Read it with fetch before each change. If values.started is set, I've set my budget in the app: use it. If not, its categories are only suggestions: ask what I can spend a month and on what, write values.categories as { name, budget }, and set values.currency and values.started (today, yyyy-mm-dd). When I say what I spent, add { id, date, what, category, amount } to values.expenses with edit. A monthly bill goes in values.recurring as { id, what, category, amount, day }. When I ask about a month, say what was over its budget, what was under, and one suggestion."
   },
   "asks": [
-    "Ask what I can spend a month and on what, then set up my budget.",
+    "Ask what I can spend a month and on what, unless I've already set it, then set up my budget.",
     "How am I doing against the budget this month?",
     "What did we spend on eating out last month?"
   ],

@@ -6,7 +6,9 @@ const long = (d: Date) => d.toLocaleDateString("en-GB", { weekday: "long", day: 
 // A habit's month as a calendar, a day a circle (44 pt targets). Filled: done; a soft fill: part of
 // a count; a dashed ring: skipped on purpose; faint: a day the habit isn't for, or one before the
 // tracker was started. Tap a day to tick
-// it, again to skip it, again to clear it. Days to come can't be tapped.
+// it, again to skip it, again to clear it. Days to come can't be tapped. With a mouse a week is
+// 28 pt tall, so a month of six weeks fits a Mac note with its tabs under it (council round 4: the
+// last week sat half under the tab bar); under a finger it stays 44.
 export function MonthGrid({ habit: h, days, skips, first, from = "", onTap, className }: { habit: Habit; days: Days; skips: Skips; first: Date; from?: string; onTap: (day: string) => unknown; className?: string }) {
   const now = iso(today())
   const lead = weekday(first)
@@ -23,12 +25,12 @@ export function MonthGrid({ habit: h, days, skips, first, from = "", onTap, clas
         return (
           <button key={k} type="button" disabled={future} aria-pressed={full} data-state={full ? "done" : skip ? "skipped" : "none"}
             aria-label={`${h.name}, ${long(d)}${skip ? ", skipped" : ""}`} onClick={() => onTap(k)}
-            className="grid min-h-11 place-items-center">
-            <span className={cn("grid size-[34px] place-items-center rounded-full text-[0.8125rem] font-medium tabular-nums transition-colors duration-150 motion-reduce:transition-none",
+            className="grid min-h-11 place-items-center mouse:min-h-7">
+            <span className={cn("grid size-[34px] place-items-center rounded-full text-[0.8125rem] font-medium tabular-nums transition-colors duration-150 motion-reduce:transition-none mouse:size-[26px] mouse:text-[0.75rem]",
               future ? "text-muted-foreground/50"
-                : full ? "bg-primary font-semibold text-primary-foreground"
+                : full ? "bg-[var(--amber-accent)] font-semibold text-mark-text"
                 : skip ? "border-[1.5px] border-dashed border-muted-foreground/60 text-muted-foreground"
-                : v > 0 ? "bg-[var(--amber-accent-soft)] text-primary"
+                : v > 0 ? "bg-[var(--amber-accent-soft)] text-link"
                 : off ? "text-muted-foreground/60"
                 : "bg-muted text-muted-foreground",
               k === now && !full && "ring-[1.5px] ring-[var(--amber-accent)]")}>{d.getDate()}</span>

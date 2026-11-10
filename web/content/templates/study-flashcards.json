@@ -12,10 +12,10 @@
   "folder": "Study",
   "note": "Study notes and flashcards\n\nAdd your first cards in the app, or paste your notes into your AI and it makes them. Cards you miss come back sooner; cards you know wait longer.\n\n## Notes\nYour notes on each topic, under a heading of its own.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Study notes and flashcards\". It is an app; its data is \"Study notes and flashcards.app/data.json\", beside the note. Read it with fetch before each change. When I paste lecture notes or a chapter, make five to ten flashcards with edit: add { id, q, a, topic, box: 1 } to values.cards. When I say \"quiz me\", ask me one card at a time, lowest box first, without showing the answer. After each answer, tell me if I was right and update the card as the app does (its docs/README.md): seen today; right: interval times ease (1 if new); wrong: interval 1, box 1. Add 1 to values.studied under today's date. I can add, edit and delete cards in the app myself."
+    "default": "Use my Pinto Notes note \"Study notes and flashcards\". It is an app; its data is \"Study notes and flashcards.app/data.json\", beside the note. Read it with fetch before each change. When I paste lecture notes or a chapter, make five to ten flashcards with edit: add { id, q, a, topic, box: 1 } to values.cards, after any I've made myself. When I say \"quiz me\", ask me one card at a time, lowest box first, without showing the answer. After each answer, tell me if I was right and update the card as the app does (its docs/README.md): seen today; right: interval times ease (2 if new); wrong: interval 1, box 1. Add 1 to values.studied under today's date. I can add, edit and delete cards in the app myself."
   },
   "asks": [
-    "Ask me for the notes I want to study, then make flashcards from them.",
+    "Ask me for the notes I want to study, then make flashcards from them, next to any I've added.",
     "Quiz me on biology, ten cards.",
     "Which cards do I keep missing?"
   ],

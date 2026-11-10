@@ -144,8 +144,9 @@ def trip() -> None:
         {"id": "b3", "what": "Pena Palace tickets", "kind": "activity", "date": d(16), "time": "10:30", "paid": False},
         {"id": "b4", "what": "Flight home", "kind": "flight", "date": d(18), "time": "15:40", "paid": True},
     ]
+    # Four nights in Lisbon: the documents and the shoes are in the bag, the rest isn't yet.
     for p in v["packing"]:
-        if p["id"] in ("p1", "p4", "p5"):
+        if p["id"] in ("p1", "p4", "p5", "p6"):
             p["packed"] = True
     write("trip-plan", v)
 

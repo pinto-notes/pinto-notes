@@ -32,11 +32,11 @@
       "args": {
         "path": "Journal/Daily journal.md",
         "old_string": "Newest day first.\n",
-        "new_string": "Newest day first.\n### Sunday 8 November\n- **Today:** quiet day; a morning run, then I finished the bookshelf.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n\n"
+        "new_string": "Newest day first.\n### Sunday 8 November\n- **Today:** quiet day; finished the bookshelf and went for a long walk.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n\n"
       }
     }
   ],
-  "example": "Daily journal\n\nA few lines a day. Tell your AI about your day, or let it ask the questions below, and the entry lands here, newest day first.\n\n## Questions\n1. What happened today?\n2. What took energy, and what gave it back?\n3. What do I want to remember?\n4. What's one thing for tomorrow?\n\n## Entries\nNewest day first.\n### Sunday 8 November\n- **Today:** quiet day; a morning run, then I finished the bookshelf.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n\n### Saturday 7 November\n- **Today:** helped Maja move; it went faster than we feared.\n- **Energy:** the stairs took it, the pizza after gave it back.\n- **Remember:** Maja said the new flat gets the evening sun.\n- **Tomorrow:** reply to the landlord before noon.\n",
+  "example": "Daily journal\n\nA few lines a day. Tell your AI about your day, or let it ask the questions below, and the entry lands here, newest day first.\n\n## Questions\n1. What happened today?\n2. What took energy, and what gave it back?\n3. What do I want to remember?\n4. What's one thing for tomorrow?\n\n## Entries\nNewest day first.\n### Sunday 8 November\n- **Today:** quiet day; finished the bookshelf and went for a long walk.\n- **Energy:** low after lunch, better after coffee with Jonas.\n- **Remember:** the bakery on the corner opens at seven.\n- **Tomorrow:** call Mum.\n\n### Saturday 7 November\n- **Today:** helped Maja move; it went faster than we feared.\n- **Energy:** the stairs took it, the pizza after gave it back.\n- **Remember:** Maja said the new flat gets the evening sun.\n- **Tomorrow:** reply to the landlord before noon.\n",
   "related": [
     "mood-energy-log",
     "weekly-review",

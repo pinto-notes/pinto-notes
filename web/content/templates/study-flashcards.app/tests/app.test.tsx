@@ -50,8 +50,8 @@ describe("Study", () => {
     expect(screen.queryByTestId("answer")).toBeNull()
     await userEvent.click(screen.getByRole("button", { name: "Show answer" }))
     await waitFor(() => expect(screen.getByTestId("answer")).toHaveTextContent("Energy the cell can use"))
-    // A new card: Good brings it back tomorrow, Easy in four days.
-    expect(screen.getByRole("button", { name: "Good, back in 1 day" })).toBeInTheDocument()
+    // A new card: Good brings it back in two days, Easy in four.
+    expect(screen.getByRole("button", { name: "Good, back in 2 days" })).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: "Easy, back in 4 days" }))
     await waitFor(() => expect(values().cards[1]).toEqual({ ...card("c2", "What is ATP for?", "Energy the cell can use", "Biology", 3, today), interval: 4, ease: 2.65 }))
 
@@ -110,13 +110,17 @@ describe("Study", () => {
 
 describe("Cards", () => {
   it("adds a card to box 1, due at once", async () => {
+    // A deck with nothing in it opens on the first screen; the Cards screen's own form is for a
+    // deck that has cards. This one's card isn't due, so what's due is the new one.
+    await amber.store.set("cards", [card("c1", "Q one", "A one", "Biology", 3, today)])
     render(<App />)
     await go("Cards")
     await userEvent.type(await screen.findByLabelText("Question"), "What is a codon?")
     await userEvent.type(screen.getByLabelText("Answer"), "Three bases")
+    await userEvent.clear(screen.getByLabelText("Topic"))
     await userEvent.type(screen.getByLabelText("Topic"), "DNA")
     await userEvent.click(screen.getByRole("button", { name: "Add card" }))
-    await waitFor(() => expect(values().cards.map(({ id, ...c }: { id: string }) => c)).toEqual([{ q: "What is a codon?", a: "Three bases", topic: "DNA", box: 1 }]))
+    await waitFor(() => expect(values().cards.slice(1).map(({ id, ...c }: { id: string }) => c)).toEqual([{ q: "What is a codon?", a: "Three bases", topic: "DNA", box: 1 }]))
     expect(await screen.findByText("What is a codon?")).toBeInTheDocument()
     await go("Study")
     await waitFor(() => expect(screen.getByTestId("due")).toHaveTextContent("1 card"))
@@ -137,21 +141,64 @@ describe("Cards", () => {
     expect(await screen.findByText("A better answer")).toBeInTheDocument()
   })
 
-  it("starts with one clear step when there are no cards, and no numbers about none", async () => {
+  it("opens a new app on Make your first cards, alone, with no numbers about none", async () => {
     render(<App />)
-    expect(await screen.findByText("Make your first cards")).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Make your first cards" })).toBeInTheDocument()
+    expect(screen.getByTestId("ai-hint")).toHaveTextContent("Add one here, or tell your AI and it sets this up.")
     expect(screen.queryByTestId("due")).toBeNull()
     expect(screen.queryByTestId("streak")).toBeNull()
     expect(screen.queryByText("Coming up")).toBeNull()
-    await userEvent.click(screen.getByRole("button", { name: "Add a card" }))
-    expect(await screen.findByText(/^No cards yet\. Add the first one here/)).toBeInTheDocument()
-    // The first card: the Study screen is the usual one from then on.
+    expect(screen.queryByRole("link", { name: "Cards" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Write a question and its answer to start" })).toBeDisabled()
+  })
+
+  it("goes from the first screen to a studied card: write one, study it, grade it", async () => {
+    render(<App />)
     await userEvent.type(await screen.findByLabelText("Question"), "What is a codon?")
     await userEvent.type(screen.getByLabelText("Answer"), "Three bases")
-    await userEvent.click(screen.getByRole("button", { name: "Add card" }))
-    await waitFor(() => expect(values().cards).toHaveLength(1))
-    await go("Study")
+    await userEvent.type(screen.getByLabelText("Topic (optional)"), "DNA")
+    await userEvent.click(await screen.findByRole("button", { name: "Add card" }))
+    await waitFor(() => expect(values().cards.map(({ id, ...c }: { id: string }) => c)).toEqual([{ q: "What is a codon?", a: "Three bases", topic: "DNA", box: 1 }]))
+    // The app itself, from here on: one card due.
     await waitFor(() => expect(screen.getByTestId("due")).toHaveTextContent("1 card"))
+    await userEvent.click(screen.getByRole("button", { name: "Study now" }))
+    expect(await screen.findByText("What is a codon?")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Show answer" }))
+    expect(await screen.findByText("Three bases")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: /^Good/ }))
+    await waitFor(() => expect(values().cards[0].seen).toBe(today))
+    await waitFor(() => expect(values().studied?.[today]).toBe(1))
+  })
+
+  it("leaves the first screen by itself when your AI makes the cards, and offers to add the one you had written", async () => {
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText("Question"), "What is a codon?")
+    await userEvent.type(screen.getByLabelText("Answer"), "Three bases")
+    // The person's AI adds cards, as its prompt says.
+    await amber.store.set("cards", [card("c1", "Where does glycolysis happen?", "In the cytoplasm", "Biology")])
+    await waitFor(() => expect(screen.getByTestId("due")).toHaveTextContent("1 card"))
+    expect(screen.queryByRole("heading", { name: "Make your first cards" })).toBeNull()
+    expect(await screen.findByText("Your AI made your first cards. The card you were writing wasn't added.")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Add it" }))
+    await waitFor(() => expect(values().cards.map((c: { q: string }) => c.q)).toEqual(["Where does glycolysis happen?", "What is a codon?"]))
+  })
+
+  it("brings a half-written card to the Cards screen to finish, when your AI makes the cards first", async () => {
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText("Question"), "What is a codon?")
+    await amber.store.set("cards", [card("c1", "Where does glycolysis happen?", "In the cytoplasm", "Biology")])
+    expect(await screen.findByText("Your AI made your first cards. The card you were writing isn't finished.")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Finish it" }))
+    await waitFor(() => expect(screen.getByLabelText("Question")).toHaveValue("What is a codon?"))
+    expect(screen.getByRole("heading", { name: "Cards" })).toBeInTheDocument()
+  })
+
+  it("says nothing more when your AI makes the cards and you hadn't typed anything", async () => {
+    render(<App />)
+    await screen.findByRole("heading", { name: "Make your first cards" })
+    await amber.store.set("cards", [card("c1", "Where does glycolysis happen?", "In the cytoplasm", "Biology")])
+    await waitFor(() => expect(screen.getByTestId("due")).toHaveTextContent("1 card"))
+    expect(screen.queryByRole("button", { name: "Add it" })).toBeNull()
   })
 
   it("deletes a card, with Undo", async () => {
@@ -180,13 +227,40 @@ describe("Spaced repetition", () => {
     expect(await screen.findByText("In 8 days")).toBeInTheDocument()
   })
 
+  it("gives a new card four different answers: soon, tomorrow, two days, four days", async () => {
+    await amber.store.set("cards", [card("c1", "Q one", "A one", "Biology")])
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Study now" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Show answer" }))
+    expect(await screen.findByRole("button", { name: "Again, once more this session, then back in 1 day" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Hard, back in 1 day" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Good, back in 2 days" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Easy, back in 4 days" })).toBeInTheDocument()
+    const shown = ["again", "hard", "good", "easy"].map((g) => screen.getByTestId(`when-${g}`).textContent)
+    expect(shown).toEqual(["soon", "1d", "2d", "4d"])
+    expect(new Set(shown).size).toBe(4)
+    await userEvent.click(screen.getByRole("button", { name: "Good, back in 2 days" }))
+    await waitFor(() => expect(values().cards[0]).toEqual({ ...card("c1", "Q one", "A one", "Biology", 2, today), interval: 2, ease: 2.5 }))
+  })
+
+  it("says tomorrow, not soon, the second time a card gets Again in one session", async () => {
+    await amber.store.set("cards", [card("c1", "Q one", "A one", "Biology")])
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Study now" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Show answer" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Again, once more this session, then back in 1 day" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Show answer" }))
+    expect(await screen.findByRole("button", { name: "Again, back in 1 day" })).toBeInTheDocument()
+    expect(screen.getByTestId("when-again")).toHaveTextContent("1d")
+  })
+
   it("asks a card again at the end of the session after Again", async () => {
     await amber.store.set("cards", [card("c1", "Q one", "A one", "Biology"), card("c2", "Q two", "A two", "Biology")])
     render(<App />)
     await userEvent.click(await screen.findByRole("button", { name: "Study now" }))
     await waitFor(() => expect(screen.getByTestId("question")).toHaveTextContent("Q one"))
     await userEvent.click(screen.getByRole("button", { name: "Show answer" }))
-    await userEvent.click(await screen.findByRole("button", { name: "Again, back in 1 day" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Again, once more this session, then back in 1 day" }))
     expect(await screen.findByText("2 of 3")).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: "Show answer" }))
     await userEvent.click(await screen.findByRole("button", { name: /^Good/ }))
@@ -216,7 +290,7 @@ describe("Spaced repetition", () => {
     await userEvent.keyboard(" ")
     await waitFor(() => expect(screen.getByTestId("answer")).toHaveTextContent("A one"))
     await userEvent.keyboard("3")
-    await waitFor(() => expect(values().cards[0].interval).toBe(1))
+    await waitFor(() => expect(values().cards[0].interval).toBe(2))
   })
 
   it("shows what's coming up tomorrow", async () => {
@@ -259,18 +333,21 @@ describe("The calendar", () => {
 
 describe("Adding fast", () => {
   it("adds one card after another with Return, keeping the topic", async () => {
+    // On a deck that has a card (an empty one opens on the first screen).
+    await amber.store.set("cards", [card("c0", "Q zero", "A zero", "Biology", 3, today)])
     route("/cards")
     render(<App />)
-    await userEvent.type(await screen.findByLabelText("Topic"), "DNA")
+    await userEvent.clear(await screen.findByLabelText("Topic"))
+    await userEvent.type(screen.getByLabelText("Topic"), "DNA")
     await userEvent.type(screen.getByLabelText("Question"), "What is a gene?")
     await userEvent.type(screen.getByLabelText("Answer"), "A stretch of DNA{enter}")
-    await waitFor(() => expect(values().cards).toHaveLength(1))
+    await waitFor(() => expect(values().cards).toHaveLength(2))
     expect(await screen.findByText('Added "What is a gene?". The next one is ready.')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByLabelText("Question")).toHaveValue(""))
     await waitFor(() => expect(screen.getByLabelText("Question")).toHaveFocus())
     await userEvent.type(screen.getByLabelText("Question"), "What is a codon?")
     await userEvent.type(screen.getByLabelText("Answer"), "Three bases{enter}")
-    await waitFor(() => expect(values().cards.map(({ id, ...c }: { id: string }) => c)).toEqual([
+    await waitFor(() => expect(values().cards.slice(1).map(({ id, ...c }: { id: string }) => c)).toEqual([
       { q: "What is a gene?", a: "A stretch of DNA", topic: "DNA", box: 1 },
       { q: "What is a codon?", a: "Three bases", topic: "DNA", box: 1 },
     ]))

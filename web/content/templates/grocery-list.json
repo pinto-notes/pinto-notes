@@ -7,7 +7,7 @@
     "Families"
   ],
   "audience": "For anyone who keeps a grocery list in their notes and is tired of sorting it by aisle by hand.",
-  "description": "One list sorted by aisle. Tell your AI what you need and it files each item; say you're back and it clears what's ticked.",
+  "description": "One list sorted by aisle. Tell your AI what you need and it files each item where it belongs.",
   "tagline": "One list for the shop, sorted by aisle.",
   "folder": "Home",
   "note": "Grocery list\n\nOne running list for the shop, sorted by aisle. Type what you need under an aisle, or tell your AI and it files each thing. Tick things off as you shop.\n\n## Fruit and veg\n\n## Bread and dairy\n\n## Meat and fish\n\n## Cupboard\n\n## Frozen\n\n## Household\n",

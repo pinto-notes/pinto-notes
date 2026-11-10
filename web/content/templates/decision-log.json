@@ -7,7 +7,7 @@
     "Developers"
   ],
   "audience": "For teams and founders who keep re-arguing settled questions.",
-  "description": "Tell your AI about a decision and it logs the context, the options and the reason. Ask it later why you decided something.",
+  "description": "Tell your AI about a decision and it logs the context, the options and why. Ask it later why you chose.",
   "tagline": "What you chose, what you didn't, and why.",
   "folder": "Work",
   "note": "Decision log\n\nEvery decision worth remembering: what you chose, what you didn't, and why. Tell your AI about one to log the first.\n\n## Open questions\nWhat still needs deciding.\n\n## Decisions\nNewest first: the context, what you chose and why.\n",

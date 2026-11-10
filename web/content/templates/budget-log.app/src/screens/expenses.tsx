@@ -27,9 +27,9 @@ export default function Expenses() {
         <TintButton aria-label="Add expense" onClick={() => setAdding(true)}><Plus /> Add</TintButton>
       </header>
       <div className="mb-4 flex items-center gap-1">
-        <button type="button" aria-label="Previous month" onClick={() => setM(shiftMonth(m, -1))} className="grid size-11 place-items-center rounded-full text-primary"><ChevronLeft className="size-5" /></button>
+        <button type="button" aria-label="Previous month" onClick={() => setM(shiftMonth(m, -1))} className="grid size-11 place-items-center rounded-full text-link"><ChevronLeft className="size-5" /></button>
         <p className="min-w-0 flex-1 text-center font-semibold">{monthName(m)} <span className="font-normal text-muted-foreground tabular-nums">· {fmt(mo.spent)}</span></p>
-        <button type="button" aria-label="Next month" disabled={m === thisMonth()} onClick={() => setM(shiftMonth(m, 1))} className="grid size-11 place-items-center rounded-full text-primary disabled:opacity-30"><ChevronRight className="size-5" /></button>
+        <button type="button" aria-label="Next month" disabled={m === thisMonth()} onClick={() => setM(shiftMonth(m, 1))} className="grid size-11 place-items-center rounded-full text-link disabled:opacity-30"><ChevronRight className="size-5" /></button>
       </div>
       {days.map((d) => {
         const items = mo.items.filter((e) => e.date === d)

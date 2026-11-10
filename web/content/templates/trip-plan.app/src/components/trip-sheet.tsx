@@ -36,7 +36,7 @@ export function TripSheet({ open, onClose }: { open: boolean; onClose: () => voi
         </div>
         <PrimaryButton type="submit" disabled={!ok}>Save</PrimaryButton>
         {trip && (
-          <DeleteButton className="text-primary" onClick={async () => {
+          <DeleteButton className="text-link" onClick={async () => {
             const name = trip.name
             onClose()
             const undo = await newTrip()

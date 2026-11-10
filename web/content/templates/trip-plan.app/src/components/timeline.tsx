@@ -28,7 +28,7 @@ export function Timeline({ day, bookings, date }: { day?: Day; bookings: Booking
               <span className={cn("block", s.booking && "font-semibold")}>{s.text}</span>
               {s.booking && (
                 <span className="block text-[0.8125rem] text-muted-foreground">
-                  {s.booking.ref ? `Ref ${s.booking.ref} · ` : ""}{s.booking.paid ? "Paid" : <span className="font-medium text-primary">Not paid</span>}
+                  {s.booking.ref ? `Ref ${s.booking.ref} · ` : ""}{s.booking.paid ? "Paid" : <span className="font-medium text-link">Not paid</span>}
                 </span>
               )}
             </span>
@@ -51,7 +51,7 @@ export function ShareButton({ label, name, text, className }: { label: string; n
   }
   return (
     <>
-      <button type="button" aria-label={label} onClick={go} className={cn("-my-2 inline-flex h-11 items-center gap-1.5 rounded-full px-2 text-[0.9375rem] font-semibold text-primary", className)}>
+      <button type="button" aria-label={label} onClick={go} className={cn("-my-2 inline-flex h-11 items-center gap-1.5 rounded-full px-2 text-[0.9375rem] font-semibold text-link", className)}>
         {state === "done" ? <><Check className="size-4" /> Shared</> : <><Share className="size-4" /> Share</>}
       </button>
       {state !== "idle" && state !== "done" && <span role="status" className="text-[0.8125rem] text-destructive">{state}</span>}
