@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from "react"
 import { DeleteButton, Field, inputClass, offerUndo, Pills, PrimaryButton, Sheet } from "@/components/kit"
-import { useBudget, type Bill } from "@/lib/budget"
+import { useBudget, type Bill, amountLabel } from "@/lib/budget"
 import { cn } from "@/lib/utils"
 
 // Add or change a monthly bill: what, how much, its category and the day of the month it's paid.
@@ -42,7 +42,7 @@ export function BillSheet({ bill, onClose }: { bill: Bill | "new" | null; onClos
       <form onSubmit={save}>
         <Field label="What" htmlFor="bill-what"><input id="bill-what" className={inputClass} placeholder="Rent" value={what} onInput={(e) => setWhat(e.currentTarget.value)} /></Field>
         <div className="flex gap-3">
-          <div className="min-w-0 flex-1"><Field label={`Amount (${currency})`} htmlFor="bill-amount"><input id="bill-amount" inputMode="decimal" autoComplete="off" placeholder="0" className={cn(inputClass, "tabular-nums")} value={amount} onInput={(e) => setAmount(e.currentTarget.value)} /></Field></div>
+          <div className="min-w-0 flex-1"><Field label={amountLabel(currency)} htmlFor="bill-amount"><input id="bill-amount" inputMode="decimal" autoComplete="off" placeholder="0" className={cn(inputClass, "tabular-nums")} value={amount} onInput={(e) => setAmount(e.currentTarget.value)} /></Field></div>
           <div className="w-28"><Field label="Day of month" htmlFor="bill-day"><input id="bill-day" type="number" inputMode="numeric" min={1} max={31} className={cn(inputClass, "tabular-nums")} value={day} onInput={(e) => setDay(e.currentTarget.value)} /></Field></div>
         </div>
         <div className="mb-4">

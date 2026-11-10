@@ -26,7 +26,7 @@
       "args": {
         "path": "Home/Meal plan and groceries.md",
         "old_string": "| Monday | | |\n| Tuesday | | |\n| Wednesday | | |\n| Thursday | | |\n| Friday | | |\n| Saturday | | |\n| Sunday | | |",
-        "new_string": "| Monday | Lemon chicken with rice | Sara |\n| Tuesday | Pasta with tomato and basil | Jonas |\n| Wednesday | Fish tacos | Sara |\n| Thursday | Chickpea curry | Jonas |\n| Friday | Homemade pizza | Sara |\n| Saturday | Out with friends | – |\n| Sunday | Roast chicken and potatoes | Jonas |"
+        "new_string": "| Monday | Lemon chicken with rice | Me |\n| Tuesday | Pasta with tomato and basil | Oskar |\n| Wednesday | Fish tacos | Me |\n| Thursday | Chickpea curry | Oskar |\n| Friday | Homemade pizza | Me |\n| Saturday | Out with friends | – |\n| Sunday | Roast chicken and potatoes | Oskar |"
       }
     },
     {
@@ -38,7 +38,7 @@
       }
     }
   ],
-  "example": "Meal plan and groceries\n\nThis week's dinners and the shopping list that goes with them. Fill in the days, or ask your AI to plan the week.\n\n## Dinners\n| Day | Dinner | Who cooks |\n| --- | --- | --- |\n| Monday | Lemon chicken with rice | Sara |\n| Tuesday | Pasta with tomato and basil | Jonas |\n| Wednesday | Fish tacos | Sara |\n| Thursday | Chickpea curry | Jonas |\n| Friday | Homemade pizza | Sara |\n| Saturday | Out with friends | – |\n| Sunday | Roast chicken and potatoes | Jonas |\n\n## Groceries\nWhat the week's dinners need, by aisle. Tick things off in the shop.\n**Fruit and veg**\n- [ ] Lemons\n- [ ] Basil\n- [ ] Cherry tomatoes\n- [ ] Limes\n- [ ] Potatoes\n\n**Meat and fish**\n- [ ] Chicken thighs\n- [ ] White fish\n- [ ] Whole chicken\n\n**Other**\n- [ ] Tortillas\n- [ ] Chickpeas\n- [ ] Coconut milk\n- [ ] Pizza dough\n- [ ] Mozzarella\n- [x] Parmesan\n\n## Always in the cupboard\n- Olive oil, salt, pepper\n- Rice, pasta, oats\n- Onions, garlic\n",
+  "example": "Meal plan and groceries\n\nThis week's dinners and the shopping list that goes with them. Fill in the days, or ask your AI to plan the week.\n\n## Dinners\n| Day | Dinner | Who cooks |\n| --- | --- | --- |\n| Monday | Lemon chicken with rice | Me |\n| Tuesday | Pasta with tomato and basil | Oskar |\n| Wednesday | Fish tacos | Me |\n| Thursday | Chickpea curry | Oskar |\n| Friday | Homemade pizza | Me |\n| Saturday | Out with friends | – |\n| Sunday | Roast chicken and potatoes | Oskar |\n\n## Groceries\nWhat the week's dinners need, by aisle. Tick things off in the shop.\n**Fruit and veg**\n- [ ] Lemons\n- [ ] Basil\n- [ ] Cherry tomatoes\n- [ ] Limes\n- [ ] Potatoes\n\n**Meat and fish**\n- [ ] Chicken thighs\n- [ ] White fish\n- [ ] Whole chicken\n\n**Other**\n- [ ] Tortillas\n- [ ] Chickpeas\n- [ ] Coconut milk\n- [ ] Pizza dough\n- [ ] Mozzarella\n- [x] Parmesan\n\n## Always in the cupboard\n- Olive oil, salt, pepper\n- Rice, pasta, oats\n- Onions, garlic\n",
   "related": [
     "grocery-list",
     "recipe-box",

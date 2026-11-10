@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils"
 import { useLayoutEffect, useState } from "react"
 import { DeleteButton, Field, inputClass, offerUndo, Pills, PrimaryButton, Sheet } from "@/components/kit"
 import { Toggle } from "@/components/kit"
-import { iso, monthOf, newId, useBudget, type Expense } from "@/lib/budget"
+import { iso, monthOf, newId, useBudget, type Expense, amountLabel } from "@/lib/budget"
 
 // Add or edit an expense: the amount first (the number keypad on iPhone), what it was, a category,
 // the day. Editing has Delete at the bottom, with Undo afterwards.
@@ -47,7 +47,7 @@ export function ExpenseSheet({ open, expense, onClose }: { open: boolean; expens
   return (
     <Sheet open={open} title={expense ? "Edit expense" : "Add expense"} onClose={onClose}>
       <form onSubmit={save}>
-        <Field label={`Amount (${currency})`} htmlFor="amount">
+        <Field label={amountLabel(currency)} htmlFor="amount">
           <input id="amount" inputMode="decimal" autoComplete="off" placeholder="0" value={amount} onInput={(e) => setAmount(e.currentTarget.value)}
             className={cn(inputClass, "h-14 text-[1.75rem] font-semibold tabular-nums")} />
         </Field>

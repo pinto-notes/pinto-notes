@@ -137,11 +137,21 @@ describe("Cards", () => {
     expect(await screen.findByText("A better answer")).toBeInTheDocument()
   })
 
-  it("says how to start when there are no cards", async () => {
+  it("starts with one clear step when there are no cards, and no numbers about none", async () => {
     render(<App />)
-    expect(await screen.findByText("No cards yet. Add the first one in the Cards tab.")).toBeInTheDocument()
-    await go("Cards")
+    expect(await screen.findByText("Make your first cards")).toBeInTheDocument()
+    expect(screen.queryByTestId("due")).toBeNull()
+    expect(screen.queryByTestId("streak")).toBeNull()
+    expect(screen.queryByText("Coming up")).toBeNull()
+    await userEvent.click(screen.getByRole("button", { name: "Add a card" }))
     expect(await screen.findByText(/^No cards yet\. Add the first one here/)).toBeInTheDocument()
+    // The first card: the Study screen is the usual one from then on.
+    await userEvent.type(await screen.findByLabelText("Question"), "What is a codon?")
+    await userEvent.type(screen.getByLabelText("Answer"), "Three bases")
+    await userEvent.click(screen.getByRole("button", { name: "Add card" }))
+    await waitFor(() => expect(values().cards).toHaveLength(1))
+    await go("Study")
+    await waitFor(() => expect(screen.getByTestId("due")).toHaveTextContent("1 card"))
   })
 
   it("deletes a card, with Undo", async () => {
@@ -229,6 +239,21 @@ describe("Streak", () => {
     await userEvent.click(screen.getByRole("button", { name: "Done" }))
     await waitFor(() => expect(screen.getByTestId("streak")).toHaveTextContent("3-day streak"))
     expect(screen.getByText("1 card today.")).toBeInTheDocument()
+  })
+})
+
+describe("The calendar", () => {
+  it("can be read: the months over it, today ringed, and what darker means", async () => {
+    await amber.store.set("cards", [card("c1", "Q one", "A one", "Biology", 2, plus(today, -1))])
+    await amber.store.set("studied", { [plus(today, -1)]: 4 })
+    const { container } = render(<App />)
+    expect(await screen.findByText("A square a day.")).toBeInTheDocument()
+    expect(screen.getByText("Today is ringed.")).toBeInTheDocument()
+    expect(screen.getByText(/^Fewer\s*more$/)).toBeInTheDocument()
+    expect(container.querySelectorAll("[data-today]")).toHaveLength(1)
+    const month = new Date(today + "T12:00:00").toLocaleDateString("en-GB", { month: "short" })
+    expect(screen.getAllByText(month).length).toBeGreaterThan(0)
+    expect(screen.getByTestId("streak")).toHaveTextContent("1-day streak")
   })
 })
 

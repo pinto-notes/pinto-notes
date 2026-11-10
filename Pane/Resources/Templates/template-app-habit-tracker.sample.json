@@ -16,7 +16,7 @@
    {
     "id": "no-phone-in-bed",
     "name": "No phone in bed",
-    "detail": "It charges in the kitchen",
+    "detail": "Charges in the kitchen",
     "target": 1
    },
    {
@@ -135,7 +135,8 @@
     "read": 1,
     "water": 5
    }
-  }
+  },
+  "started": "2026-10-19"
  },
  "collections": {}
 }

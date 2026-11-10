@@ -4,9 +4,10 @@ import { cn } from "@/lib/utils"
 const long = (d: Date) => d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
 
 // A habit's month as a calendar, a day a circle (44 pt targets). Filled: done; a soft fill: part of
-// a count; a dashed ring: skipped on purpose; faint: a day the habit isn't for. Tap a day to tick
+// a count; a dashed ring: skipped on purpose; faint: a day the habit isn't for, or one before the
+// tracker was started. Tap a day to tick
 // it, again to skip it, again to clear it. Days to come can't be tapped.
-export function MonthGrid({ habit: h, days, skips, first, onTap, className }: { habit: Habit; days: Days; skips: Skips; first: Date; onTap: (day: string) => unknown; className?: string }) {
+export function MonthGrid({ habit: h, days, skips, first, from = "", onTap, className }: { habit: Habit; days: Days; skips: Skips; first: Date; from?: string; onTap: (day: string) => unknown; className?: string }) {
   const now = iso(today())
   const lead = weekday(first)
   const cells: (Date | null)[] = Array.from({ length: lead }, () => null)
@@ -17,7 +18,8 @@ export function MonthGrid({ habit: h, days, skips, first, onTap, className }: { 
       {cells.map((d, i) => {
         if (!d) return <span key={"x" + i} />
         const k = iso(d), v = amount(days, h, k), full = v >= h.target, skip = skipped(skips, h, k)
-        const off = !!h.perWeek || !scheduled(h, d), future = k > now
+        // A day before the tracker was started is drawn like a day the habit isn't for: nothing was due.
+        const off = !!h.perWeek || !scheduled(h, d) || k < from, future = k > now
         return (
           <button key={k} type="button" disabled={future} aria-pressed={full} data-state={full ? "done" : skip ? "skipped" : "none"}
             aria-label={`${h.name}, ${long(d)}${skip ? ", skipped" : ""}`} onClick={() => onTap(k)}

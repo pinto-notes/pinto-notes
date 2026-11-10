@@ -9,17 +9,17 @@ import { cn } from "@/lib/utils"
 // it), how often each was done, and the month as a whole. Two or three calendars side by side on a
 // wide note.
 export default function History() {
-  const { habits, days, skips, cycle } = useHabits()
+  const { habits, days, skips, cycle, from } = useHabits()
   const now = today()
   const [first, setFirst] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1, 12))
   const current = first.getMonth() === now.getMonth() && first.getFullYear() === now.getFullYear()
   const shift = (by: number) => setFirst(new Date(first.getFullYear(), first.getMonth() + by, 1, 12))
-  const stats = habits.map((h) => month(days, skips, h, first, now))
+  const stats = habits.map((h) => month(days, skips, h, first, now, from))
   const got = stats.reduce((t, s) => t + s.got, 0), of = stats.reduce((t, s) => t + s.of, 0)
   // A perfect day: every habit that was due that day was done (or skipped on purpose).
   let perfect = 0
   for (let d = first; d.getMonth() === first.getMonth() && iso(d) < iso(now); d = addDays(d, 1)) {
-    const k = iso(d), due = habits.filter((h) => !h.perWeek && scheduled(h, d) && !skipped(skips, h, k))
+    const k = iso(d), due = k < from ? [] : habits.filter((h) => !h.perWeek && scheduled(h, d) && !skipped(skips, h, k))
     if (due.length && due.every((h) => done(days, h, k))) perfect++
   }
 
@@ -57,7 +57,7 @@ export default function History() {
                   <h2 className="text-[1.0625rem] font-semibold">{h.name}</h2>
                   <span className={cn("text-[0.9375rem] font-semibold tabular-nums", s.of ? "text-primary" : "text-muted-foreground")}>{s.of ? `${Math.round((s.got / s.of) * 100)}%` : "–"}</span>
                 </div>
-                <MonthGrid habit={h} days={days} skips={skips} first={first} onTap={(k) => cycle(h, k)} />
+                <MonthGrid habit={h} days={days} skips={skips} first={first} from={from} onTap={(k) => cycle(h, k)} />
                 <p className="mt-2 text-[0.875rem] text-muted-foreground tabular-nums">
                   {s.got} of {s.of} · now {streak(days, skips, h, now)} in a row · best {best(days, skips, h, now)}
                 </p>

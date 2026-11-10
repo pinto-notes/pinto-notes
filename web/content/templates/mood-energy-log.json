@@ -25,55 +25,39 @@
       "args": {
         "path": "Habits/Mood and energy log.md",
         "old_string": "| --- | --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- | --- |\n| 2026-11-02 | 5 | 4 | 8.5 | Long walk, early night |\n"
+        "new_string": "| --- | --- | --- | --- | --- |\n| 2026-11-04 | 4 | 4 | 7.5 | Gym before work |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Habits/Mood and energy log.md",
-        "old_string": "| 2026-11-02 | 5 | 4 | 8.5 | Long walk, early night |\n",
-        "new_string": "| 2026-11-02 | 5 | 4 | 8.5 | Long walk, early night |\n| 2026-11-03 | 3 | 3 | 7 | Nothing special |\n"
+        "old_string": "| 2026-11-04 | 4 | 4 | 7.5 | Gym before work |\n",
+        "new_string": "| 2026-11-04 | 4 | 4 | 7.5 | Gym before work |\n| 2026-11-05 | 3 | 2 | 6 | Meetings all day |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Habits/Mood and energy log.md",
-        "old_string": "| 2026-11-03 | 3 | 3 | 7 | Nothing special |\n",
-        "new_string": "| 2026-11-03 | 3 | 3 | 7 | Nothing special |\n| 2026-11-04 | 4 | 4 | 7.5 | Ran before work |\n"
+        "old_string": "| 2026-11-05 | 3 | 2 | 6 | Meetings all day |\n",
+        "new_string": "| 2026-11-05 | 3 | 2 | 6 | Meetings all day |\n| 2026-11-06 | 4 | 3 | 6.5 | Lunch with Maja |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Habits/Mood and energy log.md",
-        "old_string": "| 2026-11-04 | 4 | 4 | 7.5 | Ran before work |\n",
-        "new_string": "| 2026-11-04 | 4 | 4 | 7.5 | Ran before work |\n| 2026-11-05 | 3 | 2 | 6 | Back-to-back meetings |\n"
+        "old_string": "| 2026-11-06 | 4 | 3 | 6.5 | Lunch with Maja |\n",
+        "new_string": "| 2026-11-06 | 4 | 3 | 6.5 | Lunch with Maja |\n| 2026-11-07 | 4 | 2 | 5.5 | Maja's moving day |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Habits/Mood and energy log.md",
-        "old_string": "| 2026-11-05 | 3 | 2 | 6 | Back-to-back meetings |\n",
-        "new_string": "| 2026-11-05 | 3 | 2 | 6 | Back-to-back meetings |\n| 2026-11-06 | 4 | 3 | 6.5 | Long day, good lunch with Maja |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Habits/Mood and energy log.md",
-        "old_string": "| 2026-11-06 | 4 | 3 | 6.5 | Long day, good lunch with Maja |\n",
-        "new_string": "| 2026-11-06 | 4 | 3 | 6.5 | Long day, good lunch with Maja |\n| 2026-11-07 | 2 | 2 | 5.5 | Slept badly, cancelled plans |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Habits/Mood and energy log.md",
-        "old_string": "| 2026-11-07 | 2 | 2 | 5.5 | Slept badly, cancelled plans |\n",
-        "new_string": "| 2026-11-07 | 2 | 2 | 5.5 | Slept badly, cancelled plans |\n| 2026-11-08 | 4 | 4 | 8 | Slept in, long breakfast |\n"
+        "old_string": "| 2026-11-07 | 4 | 2 | 5.5 | Maja's moving day |\n",
+        "new_string": "| 2026-11-07 | 4 | 2 | 5.5 | Maja's moving day |\n| 2026-11-08 | 4 | 4 | 8 | Morning run |\n"
       }
     },
     {
@@ -81,11 +65,11 @@
       "args": {
         "path": "Habits/Mood and energy log.md",
         "old_string": "What your AI notices when you ask it to look back.\n",
-        "new_string": "What your AI notices when you ask it to look back.\n- Energy follows sleep: it was 2 on six hours or less, and 4 on seven and a half or more.\n- Both days with a walk or a run had a mood of 4 or 5.\n- Seven days so far. Worth another look in a month.\n"
+        "new_string": "What your AI notices when you ask it to look back.\n- Energy follows sleep: 2 on six hours or less, 4 on seven and a half or more.\n- Mood dipped to 3 only on the day with meetings all day.\n- Five days so far. Worth another look in a month.\n"
       }
     }
   ],
-  "example": "Mood and energy log\n\nA short check-in each evening: add a row, or tell your AI about your day and it logs it. After a few weeks, ask it what the patterns are.\n\n## Check-ins\n<!-- pane-table: Date=date; Mood (1–5)=scale 1-5; Energy (1–5)=scale 1-5; Sleep (hours)=number; Note=text -->\n| Date | Mood (1–5) | Energy (1–5) | Sleep (hours) | Note |\n| --- | --- | --- | --- | --- |\n| 2026-11-02 | 5 | 4 | 8.5 | Long walk, early night |\n| 2026-11-03 | 3 | 3 | 7 | Nothing special |\n| 2026-11-04 | 4 | 4 | 7.5 | Ran before work |\n| 2026-11-05 | 3 | 2 | 6 | Back-to-back meetings |\n| 2026-11-06 | 4 | 3 | 6.5 | Long day, good lunch with Maja |\n| 2026-11-07 | 2 | 2 | 5.5 | Slept badly, cancelled plans |\n| 2026-11-08 | 4 | 4 | 8 | Slept in, long breakfast |\n\n## Patterns\nWhat your AI notices when you ask it to look back.\n- Energy follows sleep: it was 2 on six hours or less, and 4 on seven and a half or more.\n- Both days with a walk or a run had a mood of 4 or 5.\n- Seven days so far. Worth another look in a month.\n",
+  "example": "Mood and energy log\n\nA short check-in each evening: add a row, or tell your AI about your day and it logs it. After a few weeks, ask it what the patterns are.\n\n## Check-ins\n<!-- pane-table: Date=date; Mood (1–5)=scale 1-5; Energy (1–5)=scale 1-5; Sleep (hours)=number; Note=text -->\n| Date | Mood (1–5) | Energy (1–5) | Sleep (hours) | Note |\n| --- | --- | --- | --- | --- |\n| 2026-11-04 | 4 | 4 | 7.5 | Gym before work |\n| 2026-11-05 | 3 | 2 | 6 | Meetings all day |\n| 2026-11-06 | 4 | 3 | 6.5 | Lunch with Maja |\n| 2026-11-07 | 4 | 2 | 5.5 | Maja's moving day |\n| 2026-11-08 | 4 | 4 | 8 | Morning run |\n\n## Patterns\nWhat your AI notices when you ask it to look back.\n- Energy follows sleep: 2 on six hours or less, 4 on seven and a half or more.\n- Mood dipped to 3 only on the day with meetings all day.\n- Five days so far. Worth another look in a month.\n",
   "related": [
     "daily-journal",
     "habit-tracker",

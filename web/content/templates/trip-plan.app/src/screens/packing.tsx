@@ -9,7 +9,10 @@ import { cn } from "@/lib/utils"
 // group; the cross deletes it (with Undo). The list stays for the next trip: New trip unpacks it.
 // Groups sit side by side on a wide note.
 export default function Packing() {
-  const { packing, packed, togglePacked, addItem, updateItem, updateItemGroup, removeItem, restorePacking, unpackAll } = useTrip()
+  const { trip, past, packing, packed, togglePacked, addItem, updateItem, updateItemGroup, removeItem, restorePacking, unpackAll } = useTrip()
+  // Before the first trip the list is the one the app starts with, not what the person packs: it
+  // says so, and shows no count or bar for it (council round 3: nothing pretends to be your data).
+  const starter = !trip && !past.length && packed === 0 && packing.length > 0
   const [text, setText] = useState("")
   const [group, setGroup] = useState<string>("Clothes")
   const [editing, setEditing] = useState<Item | null>(null)
@@ -48,8 +51,9 @@ export default function Packing() {
 
   return (
     <>
-      <Title title="Packing" subtitle={`${packed} of ${packing.length} packed`} action={packed > 0 ? <TintButton onClick={unpack}>Unpack all</TintButton> : undefined} />
-      <Bar className="mb-5" value={packing.length ? packed / packing.length : 0} label="Packed" />
+      <Title title="Packing" subtitle={starter ? undefined : `${packed} of ${packing.length} packed`} action={packed > 0 ? <TintButton onClick={unpack}>Unpack all</TintButton> : undefined} />
+      {starter ? <p className="-mt-3 pb-5 text-muted-foreground" data-testid="starter">A starter list. Change it to what you pack.</p>
+        : <Bar className="mb-5" value={packing.length ? packed / packing.length : 0} label="Packed" />}
       <Section title="Add to the list">
         <form onSubmit={add} className="px-4 py-3">
           <div className="flex items-center gap-2">

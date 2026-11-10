@@ -5,15 +5,21 @@ A person or a household keeps a monthly budget per category and logs what they s
 
 ## Data
 data.json, all under "values" (the person's AI reads and edits it directly):
-- currency: "kr". Shown after amounts; "$", "€" and "£" are shown before them.
+- currency: "kr". Shown after amounts; "$", "€" and "£" are shown before them. Missing or "" shows plain numbers.
 - categories: [{ name, budget }]. The monthly budget per category, a plain number.
 - expenses: [{ id, date: "yyyy-mm-dd", what, category, amount, rec? }]. amount is a positive number in the currency; category is one of the categories' names. id is any unique text ("e" plus a few letters is fine). rec is the id of the monthly bill it came from.
 - recurring: [{ id, what, category, amount, day, last? }]. Monthly bills. On or after its day (the 31st means the month's last day) the app adds the bill's expense once, with rec set, and sets last to that month ("yyyy-mm"). A bill added mid-month whose day has passed is added for this month too. Deleting that expense doesn't bring it back; last says it's done.
+- started: "yyyy-mm-dd". The day the person set their budget. Missing is fine once anything is spent.
 - rollover: "yyyy-mm" or null. From that month on, each category's budget carries what was left (or what went over) into the next month. Missing is fine (off).
+
+A new budget has categories (six suggestions, amounts written in kronor), no currency, no started and nothing spent. **To set one up, write the person's categories with their own amounts, set currency to theirs and started to today's date.** Without started (and with nothing spent and no bills) the app opens on Set your monthly budget and treats the categories as suggestions.
 
 To log an expense, append to expenses with a new id. To add a bill, append to recurring without last. A category that's removed keeps its expenses; they still count, under their old name, with no budget.
 
 ## Decisions
+- First use (src/screens/setup.tsx): a budget with no started, no expenses and no bills opens on "Set your monthly budget", alone, with no tab bar. The categories in the data are suggestions: change a name or an amount, remove one, add your own, set the currency, then "Start with 6,300 kr a month". Nothing is "left" and there is no per-day figure there: those belong to the person's own numbers (council round 3: a new budget opened on "11,800 kr left, about 561 kr a day" before anyone had set one).
+- The currency is a guess from the device's language and region (guessCurrency: "sv-SE" is kr, "en-GB" is £), shown in the first screen's Currency field to change. The suggested amounts are written in kronor; a tenth of each is shown for $, € and £, and they are left blank where the currency isn't known. With no currency, amounts are plain numbers.
+- Last six months shows once an earlier month has something spent in it. A first month has no history, so there is no chart and no caption about empty bars.
 - The first screen answers one question: how much is left this month. The bar and the per-day figure ("about 377 kr a day") come from the same numbers; with bills still to come this month the per-day figure is what's left after them.
 - Monthly bills are posted by the app (App.tsx, Bills), not by the AI, so they come in even when nobody asks. They are listed on Month ("Paid" or "Due 25 Oct") and managed on Budget, or made by turning on Every month when adding an expense.
 - Roll-over is the YNAB habit people love, without its learning curve: one switch. It starts from the month it's turned on, so old months don't suddenly change this month's numbers.
