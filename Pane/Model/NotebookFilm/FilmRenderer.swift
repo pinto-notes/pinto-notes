@@ -732,13 +732,32 @@ final class FilmRenderer {
             if let day = s.busiestDay, let span = script.span(ofDay: day), span.start >= titleUntil + 0.3 + startOffset {
                 mine.append((span.start, span.start + min(2.4, max(0.9, span.length - 0.15)), labels.busiestCaption(s.busiestDayEdits), look.you))
             }
-            if labels.folderNames, let f = s.topFolder, script.growth > 5, s.folders >= 3 {
-                let m = script.topFolderMoment
-                mine.append((m.from, m.until, labels.topFolderCaption(f, s.topFolderNotes), look.you))
+            if namesTopFolder(s), let f = s.topFolder, let m = script.topFolderMoment {
+                // (Its count so far, like the notes beside it: its moment can come before the month is out.)
+                let k = script.folders.firstIndex(of: f)
+                let soFar = script.nodes.reduce(0) { $1.folder == k && $1.birth <= t ? $0 + 1 : $0 }
+                mine.append((m.from, m.until, labels.topFolderCaption(f, max(1, soFar)), look.you))
             } else if s.writingDays > 1 {
                 mine.append((script.growth - 1.9, script.growth - 0.25, s.streak >= 3 ? labels.streakCaption(s.streak) : labels.daysCaption(s.writingDays), look.you))
             }
             mine.sort { $0.from < $1.from }
+            // As many as fit while it grows: a thin month's shorter film says less.
+            var lines: [(String, RGB?)] = (scene?.captions ?? labels.captions).map { ($0, nil) }
+            // The AI has a line of its own, in its colour, after how to read a house. Its number is
+            // the count so far, like the notes beside it: never more than the film has shown.
+            let helped = helped(at: t)
+            if let ai = s.ai, s.aiNotes > 0 { lines.append((helped > 0 ? labels.aiCaption(ai, helped) : "", look.dark ? look.ai : FilmLook.paper.ai)) }
+            // Under the first house at once where the film takes the month up from it.
+            var from = rewound ? startOffset + 0.12 : titleUntil + 0.6 + startOffset
+            // Brief: how to read it takes a couple of seconds, and the rest of the film is the month's own.
+            var slot = min(1.5, max(1.25, (script.growth - from - FilmScript.topFolderMoment - 0.2) / Double(lines.count)))
+            // Reading it comes first. Where a line of your own would start over these, they hurry a
+            // little and it waits for them, as long as it keeps time enough to be read.
+            if !mine.isEmpty, mine[0].from < from + slot * Double(lines.count) + 0.1 {
+                slot = min(slot, max(1.05, (mine[0].from - 0.1 - from) / Double(lines.count)))
+                let after = from + slot * Double(lines.count) + 0.1
+                if mine[0].from < after, mine[0].until - after >= 1.2 { mine[0].from = after }
+            }
             var cover = 0.0
             for (k, m) in mine.enumerated() {
                 // One that meets an earlier one waits for it.
@@ -747,16 +766,9 @@ final class FilmRenderer {
                 cover = max(cover, held(m.from, m.until))
                 if a > 0 { text(m.line, size: 48, weight: .semibold, color: m.color.cg(a * running), at: CGPoint(x: side, y: base + 86), in: ctx) }
             }
-            // As many as fit while it grows: a thin month's shorter film says less.
-            var lines: [(String, RGB?)] = (scene?.captions ?? labels.captions).map { ($0, nil) }
-            // The AI has a line of its own, in its colour, right after what a house is.
-            if let ai = s.ai, s.aiNotes > 0 { lines.insert((labels.aiCaption(ai, s.aiNotes), look.dark ? look.ai : FilmLook.paper.ai), at: min(1, lines.count)) }
-            var from = titleUntil + 0.6 + startOffset
-            // Brief: how to read it takes a couple of seconds, and the rest of the film is the month's own.
-            let slot = min(1.5, max(1.25, (script.growth - from - FilmScript.topFolderMoment - 0.2) / Double(lines.count)))
             for (line, color) in lines where from + slot <= script.growth + 0.01 {
                 let a = shown(from, from + slot - 0.1) * (1 - cover) * running
-                if a > 0 { text(line, size: 48, weight: color == nil ? .regular : .medium, color: (color ?? ink).cg((color == nil ? 0.76 : 1) * a), at: CGPoint(x: side, y: base + 86), in: ctx) }
+                if a > 0, !line.isEmpty { text(line, size: 48, weight: color == nil ? .regular : .medium, color: (color ?? ink).cg((color == nil ? 0.76 : 1) * a), at: CGPoint(x: side, y: base + 86), in: ctx) }
                 from += slot
             }
         }
@@ -766,16 +778,23 @@ final class FilmRenderer {
         let outroIn = smooth((t - script.growth - 0.25) / 0.7)
         guard outroIn > 0 else { return }
         let rise = (1 - outroIn) * 14
-        text(labels.title(s), size: 60, weight: .semibold, color: ink.cg(outroIn), at: CGPoint(x: side, y: base + 256 - rise), in: ctx)
-        if let line = highlight(s) {
-            let a = smooth((t - script.growth - 0.55) / 0.6)
-            text(line, size: 40, weight: .regular, color: ink.cg(0.84 * a), at: CGPoint(x: side, y: base + 200 - rise), in: ctx)
+        let across = Double(width) - side * 2
+        let line = highlight(s)
+        if let line {
+            // What's only yours is the headline, as large as fits; the title sits small above it.
+            text(labels.title(s), size: 36, weight: .medium, color: ink.cg(0.74 * outroIn), at: CGPoint(x: side, y: base + 270 - rise), in: ctx)
+            let a = smooth((t - script.growth - 0.4) / 0.6)
+            let fit = min(1, across / max(1, textWidth(line.text, size: 58, weight: .semibold)))
+            text(line.text, size: max(38, (58 * fit).rounded(.down)), weight: .semibold, color: ink.cg(a), at: CGPoint(x: side, y: base + 204 - rise), in: ctx)
+        } else {
+            text(labels.title(s), size: 60, weight: .semibold, color: ink.cg(outroIn), at: CGPoint(x: side, y: base + 256 - rise), in: ctx)
         }
-        var stats: [(String, String, RGB?)] = [("\(s.notes)", labels.statNotes, nil), ("\(s.writingDays)", labels.statDays, nil)]
+        // (Under a headline about days in a row, edits rather than a second number of days.)
+        var stats: [(String, String, RGB?)] = [("\(s.notes)", labels.statNotes, nil),
+                                               line?.streak == true && s.ai != nil && s.aiNotes > 0 ? ("\(s.edits)", labels.statEdits, nil) : ("\(s.writingDays)", labels.statDays, nil)]
         // The AI's number in its colour; the totals in ink, so nobody adds them up as yours plus its.
         if let ai = s.ai, s.aiNotes > 0 { stats.append(("\(s.aiNotes)", labels.statAI(ai), look.ai)) } else { stats.append(("\(s.edits)", labels.statEdits, nil)) }
         // The third column is the widest: its label names the AI.
-        let across = Double(width) - side * 2
         let starts = [0, 0.3, 0.6, 1.0]
         for (k, (number, label, color)) in stats.enumerated() {
             let a = smooth((t - script.growth - 0.75 - 0.12 * Double(k)) / 0.5)
@@ -814,17 +833,25 @@ final class FilmRenderer {
         if subtitle > 0 { text(scene?.subtitle(script.stats) ?? labels.subtitle(script.stats), size: 40, weight: .regular, color: look.ink.cg(0.78 * a * subtitle), at: CGPoint(x: 72, y: canvas.bottom + 196), in: ctx) }
     }
 
-    private func highlight(_ s: FilmStats) -> String? {
+    /// How many notes an AI has helped with by a film time.
+    func helped(at t: Double) -> Int { aiFrom.reduce(0) { $1 <= t ? $0 + 1 : $0 } }
+
+    /// Whether the film stops to name the folder written in most (it needs folders enough for
+    /// that to say something, and a moment of its own).
+    private func namesTopFolder(_ s: FilmStats) -> Bool {
+        labels.folderNames && s.topFolder != nil && script.growth > 5 && s.folders >= 3 && script.topFolderMoment != nil
+    }
+
+    private func highlight(_ s: FilmStats) -> (text: String, streak: Bool)? {
         // Something the film hasn't just said: where it named the folder written in most, the
         // card has the longest run of days instead.
-        let namedTopFolder = labels.folderNames && s.topFolder != nil && script.growth > 5 && s.folders >= 3
-        if namedTopFolder, s.streak >= 3 { return labels.streakCard(s.streak) }
-        if labels.folderNames, let f = s.topFolder { return labels.topFolder(f, s.topFolderNotes) }
+        if namesTopFolder(s), s.streak >= 3 { return (labels.streakCard(s.streak), true) }
+        if labels.folderNames, let f = s.topFolder { return (labels.topFolder(f, s.topFolderNotes), false) }
         guard let d = s.busiestDay else { return nil }
         let f = DateFormatter()
         f.locale = labels.locale
         f.setLocalizedDateFormatFromTemplate("MMMM d")
-        return labels.busiestDay(f.string(from: d), s.busiestDayEdits)
+        return (labels.busiestDay(f.string(from: d), s.busiestDayEdits), false)
     }
 
     private func textWidth(_ s: String, size: Double, weight: FontWeight) -> Double {

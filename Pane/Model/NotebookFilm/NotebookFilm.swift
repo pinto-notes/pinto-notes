@@ -223,9 +223,11 @@ struct FilmScript: Sendable {
         }
         // The first notes come one at a time, even when they were made within minutes of each
         // other: the film starts with one, then the next. (Later ones keep their order.)
+        // After those, a day's notes still arrive one after another, never all in one frame.
         let gaps = [0.34, 0.28, 0.24, 0.2, 0.16, 0.12]
+        let apart = min(0.05, growth * 0.5 / Double(max(1, nodes.count)))
         for k in nodes.indices.dropFirst() {
-            let least = min(growth * 0.4, nodes[k - 1].birth + (k - 1 < gaps.count ? gaps[k - 1] : 0))
+            let least = k - 1 < gaps.count ? min(growth * 0.4, nodes[k - 1].birth + gaps[k - 1]) : min(growth - 0.05, nodes[k - 1].birth + apart)
             guard nodes[k].birth < least else { continue }
             nodes[k].birth = least
             nodes[k].edits = nodes[k].edits.map { max($0, least) }
@@ -254,13 +256,14 @@ struct FilmScript: Sendable {
     }
 
     /// When the folder written in most has its moment: near the end, but never over the day you
-    /// wrote most (after it when there's room, otherwise before it).
-    var topFolderMoment: (from: Double, until: Double) {
+    /// wrote most (after it when there's room, otherwise before it). Nil when neither leaves it
+    /// time enough to be read: then the end card says it instead.
+    var topFolderMoment: (from: Double, until: Double)? {
         var from = growth - Self.topFolderMoment, until = growth - 0.25
         if let b = busiestMoment, b.from < until, b.until > from {
             if until - b.until >= 1.4 { from = b.until + 0.15 } else { until = b.from - 0.2; from = max(growth * 0.4, until - 2.2) }
         }
-        return (from, until)
+        return until - from >= 1.2 ? (from, until) : nil
     }
 
     /// When a day is on screen: where it begins in film time, and for how long.

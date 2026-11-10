@@ -607,10 +607,33 @@ import Testing
         // when there's room before the end, otherwise before it.
         for seed in [UInt64(7), 11, 23, 42, 77] {
             let script = FilmScript(FilmDemo.notebook(days: 35, seed: seed, now: Self.now), calendar: Self.cal)
-            let top = script.topFolderMoment
+            // (With no room for it either side of that day, the film leaves it to the end card.)
+            guard let top = script.topFolderMoment else { continue }
             #expect(top.until - top.from >= 1.2 && top.until <= script.growth, "seed \(seed)")
             guard let busy = script.busiestMoment else { continue }
             #expect(top.until <= busy.from || top.from >= busy.until, "seed \(seed)")
+        }
+    }
+
+    @Test func theAILineCountsOnlyWhatTheFilmHasShown() {
+        // Its number sits beside the running count of notes, so it's the count so far: it never
+        // says "helped with 36" while the film is still on 27 notes.
+        let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        let r = FilmRenderer(script: script, labels: .init())
+        for step in 0...90 {
+            let t = script.growth * Double(step) / 90
+            #expect(r.helped(at: t) <= script.nodes.filter { $0.birth <= t }.count)
+        }
+        #expect(r.helped(at: 0.5) < script.stats.aiNotes)
+        #expect(r.helped(at: script.growth) == script.stats.aiNotes, "and it ends on the month's number")
+    }
+
+    @Test func notesMadeTogetherStillArriveOneAfterAnother() {
+        // A busy day's houses never all land in one frame.
+        for input in [FilmDemo.notebook(days: 35, now: Self.now), FilmDemo.notebook(days: 35, now: Self.now, heavy: true)] {
+            let script = FilmScript(input, calendar: Self.cal)
+            for (a, b) in zip(script.nodes, script.nodes.dropFirst()) { #expect(b.birth > a.birth) }
+            #expect(script.nodes.allSatisfy { n in n.birth <= script.growth && n.edits.allSatisfy { $0 >= n.birth } })
         }
     }
 

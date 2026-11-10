@@ -165,10 +165,11 @@ final class TownScene: FilmScene {
     /// (Just after the first note: one whole house on its hill, before the second arrives.)
     var appStart: Double { 0.26 }
     /// The folder you wrote most in has its moment when there are folders enough for that to say something.
-    private var namesTopFolder: Bool { folderNames && topFolder >= 0 && growth > 5 && hills.count >= 3 }
+    private var namesTopFolder: Bool { folderNames && topFolder >= 0 && growth > 5 && hills.count >= 3 && script.topFolderMoment != nil }
     /// The houses written in on the day you wrote most, and when the film is on that day.
     private var busy: Set<Int> = []
     private var busyFrom = Double.infinity, busyUntil = Double.infinity
+    private var topFolderFrom: Double { script.topFolderMoment?.from ?? .infinity }
     var wordsDelay: Double { 0.1 }
     func drawInFront(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {}
 
@@ -472,11 +473,16 @@ final class TownScene: FilmScene {
                     let x = 70 + (Double(k) + 0.2 + 0.6 * hash(k, 51)) / 4 * (W - 140)
                     let y = ridge(depth: 2, x, gt) - 6
                     let on = smooth((dusk - 0.35 - 0.1 * hash(k, 52)) / 0.15)
+                    // A lamp goes up once there's a street to light: the first house stands alone.
+                    let since = gt - script.nodes[min(script.nodes.count - 1, 4 + 3 * k)].birth
+                    guard since > 0, script.nodes.count > 3 else { continue }
+                    ctx.setAlpha(smooth(since / 0.4))
                     ctx.setFillColor(col(0x4A3A40, 0x33272E, 0x150F14).cg())
                     ctx.fill(CGRect(x: x - 2, y: y, width: 4, height: 46))
                     ctx.fill(CGRect(x: x - 7, y: y + 44, width: 14, height: 4))
                     ctx.setFillColor(col(0xE9DCC6, 0xD9C6A8, 0x6A5560).mix(C(0xFFDF9A), on).cg())
                     ctx.fill(CGRect(x: x - 5, y: y + 48, width: 10, height: 13))
+                    ctx.setAlpha(1)
                     if on > 0.02 {
                         ctx.setBlendMode(.plusLighter)
                         ctx.setAlpha(0.6 * on * (0.5 + 0.5 * night + 0.2 * dusk))
@@ -663,7 +669,6 @@ final class TownScene: FilmScene {
         }
         // The two moments it goes in for.
         var moments: [(from: Double, until: Double, shot: (z: Double, x: Double, y: Double))] = []
-        var busiestHill = -1
         if let day = script.stats.busiestDay, let span = script.span(ofDay: day), span.start >= 0.55 {
             // The hill most written in that day.
             var edits = [Int](repeating: 0, count: hills.count)
@@ -672,13 +677,11 @@ final class TownScene: FilmScene {
                 let until = span.start + min(2.4, max(1.2, span.length))
                 let there = script.nodes.indices.filter { houses[$0].hill == h && script.nodes[$0].birth <= until }
                 moments.append((span.start - 0.15, until, shot(box(there, hills: [h]), closest: 1.7)))
-                busiestHill = h
             }
         }
-        // (Not twice running on the same hill: there the busiest day has already been in on it.)
-        if namesTopFolder, let h = hills.firstIndex(where: { $0.folder == topFolder }), h != busiestHill {
+        // (Its own shot even on the hill the busiest day was on: the line about it needs its picture.)
+        if namesTopFolder, let m = script.topFolderMoment, let h = hills.firstIndex(where: { $0.folder == topFolder }) {
             let there = script.nodes.indices.filter { houses[$0].hill == h }
-            let m = script.topFolderMoment
             moments.append((m.from + 0.1, m.until - 0.1, shot(box(there, hills: [h]), closest: 1.6)))
         }
         // A tenth of a second apart, on past the end so it's back, wide, for the night.
@@ -901,7 +904,7 @@ final class TownScene: FilmScene {
         let evening = smooth((night * 1.5 - xfrac * 0.5))
         // As the film names the folder you wrote most in, its hill's lights come on first.
         let first = namesTopFolder && hills[hs.hill].folder == topFolder
-            ? 0.85 * smooth((gt - script.topFolderMoment.from - 0.9 * hash(i, 61)) / 0.3) : 0
+            ? 0.85 * smooth((gt - topFolderFrom - 0.9 * hash(i, 61)) / 0.3) : 0
         // On the day you wrote most, the houses you wrote in are lit while the film is on it.
         let today = busy.contains(i) ? 0.9 * smooth((gt - busyFrom) / 0.25) * (1 - smooth((gt - busyUntil) / 0.4)) : 0
         let lit = min(1, max(flash, first, today, dusk * 0.55 * exp(-(gt - last) / 2.2), evening * (0.3 + 0.7 * worked[i])))

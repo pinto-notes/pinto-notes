@@ -400,7 +400,7 @@ struct NotebookFilmView: View {
                         .font(.body)
                         .foregroundStyle(.white)
                     // What the switch puts in the film, said where you choose it.
-                    Text(store.folderNames ? "Shown in the film. Note titles and text never are." : "Left out, like note titles and text.")
+                    Text((store.folderNames ? "Shown in the film." : "Left out of the film.") + " Note titles and text are never in it.")
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.68))
                         // Room for two lines either way, so the screen doesn't shift when it's switched.
