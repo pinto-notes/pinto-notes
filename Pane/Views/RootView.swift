@@ -263,10 +263,16 @@ struct RootView: View {
     }()
 
     private func templates(_ ais: [SetupCards.AI]) -> some View {
-        TemplateLibraryView(ais: ais, make: { e, ai in
+        // Make adds where New Note would: the folder shown, or with All Notes the first.
+        let target = TemplateMaking.folder(in: context, scope: scope)
+        let account = backendForConnect?.userID
+        return TemplateLibraryView(ais: ais, folder: target?.name ?? TemplateMaking.firstFolder,
+                                   have: { TemplateMaking.have($0, context: context, account: account) }, make: { e, ai in
             Task {
                 // A real-input check never opens the AI's page in a browser.
-                let note = await TemplateMaking.make(e, with: ai, context: context, account: backendForConnect?.userID, open: { if !Self.templatesStandIn { openURLForTemplates($0) } })
+                let note = await TemplateMaking.make(e, with: ai, context: context, account: account,
+                                                     into: target.map { .existing($0.id) } ?? .new(TemplateMaking.firstFolder),
+                                                     open: { if !Self.templatesStandIn { openURLForTemplates($0) } })
                 // No second sheet: the page just said what it is. The note opens with a line
                 // saying where it went.
                 if let note, let made = context.note(note) {
@@ -276,7 +282,7 @@ struct RootView: View {
                 withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
                 if let note { selection = [note] }
             }
-        }, close: { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } })
+        }, connect: { openPopup(.connectAI) }, close: { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } })
         // Esc is the library's own: its x on the gallery, Back on a template's page.
     }
     #endif

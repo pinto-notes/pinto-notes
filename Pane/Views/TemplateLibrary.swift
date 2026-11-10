@@ -102,8 +102,11 @@ struct TemplateCatalog: Sendable {
         entries = url.flatMap { try? Data(contentsOf: $0) }.flatMap { try? JSONDecoder().decode([Entry].self, from: $0) } ?? []
     }
 
-    /// The filters, in the site's order: everything, the ones with an app, then each kind.
-    static let filters = ["All", "Apps", "Habits and health", "Work", "Learning", "Home and life"]
+    /// The filters: everything, each kind, and last, set apart, the ones with an app: "Apps" is a
+    /// format, not a topic, and among the topics it read as one of them (council, 10 November 2026).
+    static let filters = ["All", "Habits and health", "Work", "Learning", "Home and life", "Apps"]
+    /// The filters that are topics: every one but All and Apps.
+    static let topics = filters.filter { $0 != "All" && $0 != "Apps" }
 
     /// A kind's name on its segment: one word each, so the six fit a small window (the site's
     /// full names made the control 750 pt wide, wider than the sheet in a small window).
@@ -228,12 +231,6 @@ enum TemplateLibraryWords {
         TemplateCatalog.label(e.category) + (e.app ? " \u{00B7} \(app)" : "")
     }
 
-    /// Under "More like this", a template's kind only where it says something the page doesn't:
-    /// its kind when that differs from the open template's, and "App" for one with an app.
-    static func kind(_ r: TemplateCatalog.Entry, under open: TemplateCatalog.Entry) -> String? {
-        r.category == open.category ? (r.app ? app : nil) : kind(r)
-    }
-
     /// Over the prompt: whose it is. With no AI that opens with the ask, it's yours to copy.
     static func asked(_ ai: SetupCards.AI) -> String {
         ai.asks ? "What \(ai.name) is asked" : "What to ask your AI"
@@ -257,14 +254,14 @@ enum TemplateLibraryWords {
         "budget-log": "This month's spending",
         "one-on-one-notes": "Topics and follow-ups",
         "book-notes": "The big idea, the best lines",
-        "bug-triage": "Every bug, by how it hurts",
-        "weekly-review": "Five questions a week",
-        "recipe-box": "Recipes, cleaned up, filed",
+        "bug-triage": "Bugs, sorted by severity",
+        "weekly-review": "Five questions, once a week",
+        "recipe-box": "Recipes, cleaned up and filed",
         "content-calendar": "What goes out, and when",
-        "home-maintenance": "What's due at home",
-        "gift-ideas": "Ideas for everyone",
+        "home-maintenance": "Chores and repairs, when due",
+        "gift-ideas": "By person, with sizes and likes",
         "cornell-notes": "Notes, questions, summary",
-        "daily-journal": "Four questions a day",
+        "daily-journal": "Four questions, every day",
         "grocery-list": "One list, sorted by aisle",
     ]
 
@@ -273,15 +270,19 @@ enum TemplateLibraryWords {
     /// ("App · " in the line's own grey was lost among the words; council, 10 November 2026).
     static func line(_ e: TemplateCatalog.Entry) -> String { lines[e.slug] ?? e.tagline }
 
-    /// The line under the buttons, in three parts around the folder's tag, saying plainly what
-    /// Make does, on one line: "Adds an empty note to (folder) Reading, then opens ChatGPT." (the
-    /// example beside it is filled in; what you get is not). With no AI that opens with the ask,
-    /// only what it adds and where.
-    static func caption(_ e: TemplateCatalog.Entry, ai: SetupCards.AI) -> (lead: String, folder: String, rest: String) {
-        let folder = e.folder ?? "Notes"
-        let lead = "Adds an empty \(e.app ? "app" : "note") to "
-        return (lead, folder, ai.asks ? ", then opens \(ai.name)." : ".")
+    /// The line under Make, in three parts around the folder's tag, saying plainly what Make
+    /// does, on one line: "Adds an empty note to (folder) Work, then opens ChatGPT." (the example
+    /// beside it is filled in; what you get is not). The folder is where New Note would put a
+    /// note: the one you're in, or your first (never the template's own: three makes made three
+    /// folders of one note each; council, 10 November 2026). With no AI that opens with the ask,
+    /// only what it adds and where. A template you made and still have isn't added again: the
+    /// line says where it is and that this opens it.
+    static func caption(_ e: TemplateCatalog.Entry, ai: SetupCards.AI, folder: String, have: String? = nil) -> (lead: String, folder: String, rest: String) {
+        if let have { return ("Already in ", have, ai.asks ? ". This opens it, then \(ai.name)." : ". This opens it.") }
+        return ("Adds an empty \(e.app ? "app" : "note") to ", folder, ai.asks ? ", then opens \(ai.name)." : ".")
     }
+    /// Under Make's line with no AI connected: the way to get one.
+    static let connect = "Connect ChatGPT or Claude to have it filled in for you."
 }
 
 /// Making a template from the library: your AIs to offer, and what Make does.
@@ -297,13 +298,27 @@ enum TemplateMaking {
         return ais.isEmpty ? [.other] : ais
     }
 
+    /// Where Make puts a template: where New Note would put a note, the folder you're in, or with
+    /// All Notes your first folder (never "Shared with me"). Nil with no folder yet: "Notes" is made.
+    @MainActor static func folder(in context: ModelContext, scope: Scope?) -> Folder? {
+        if case .folder(let id) = scope, let f = context.folder(id), f.deletedAt == nil { return f }
+        return context.allFolders().filter { $0.parent == nil && $0.deletedAt == nil && !ModelContext.isSharedWithMe($0) }.min { $0.sortIndex < $1.sortIndex }
+    }
+    static let firstFolder = "Notes"
+
+    /// The folder of the note this template made, if you still have it: Make opens that one.
+    @MainActor static func have(_ e: TemplateCatalog.Entry, context: ModelContext, account: UUID?) -> String? {
+        NoteSourceLedger(account: account).existing(NoteSourceLink(kind: .template, slug: e.slug), in: context).map { $0.folder?.name ?? firstFolder }
+    }
+
     /// The template's note is added (as the setup gallery and the website add it); for ChatGPT or
     /// Claude the ask goes on the clipboard and the AI opens with it. Returns the new note, to open.
     /// The note comes from the app's own copy, so Make is instant and works offline (8 November
     /// 2026: it waited on up to five requests to the site, and offline opened the AI on a note that
     /// was never added). A template you added and still have is opened, not added again: the ask
     /// names the note, and two of the same name leave the AI guessing. No note, no ask.
-    @MainActor static func make(_ e: TemplateCatalog.Entry, with ai: SetupCards.AI, context: ModelContext, account: UUID?,
+    /// `into` is the folder it goes to (the library's: New Note's folder); nil is the template's own.
+    @MainActor static func make(_ e: TemplateCatalog.Entry, with ai: SetupCards.AI, context: ModelContext, account: UUID?, into: FolderChoice? = nil,
                                 source: any NoteSourceFetching = ShippedTemplates(), ledger: NoteSourceLedger? = nil,
                                 copy: (String) -> Void = ConnectClipboard.set, open: (URL) -> Void) async -> UUID? {
         let link = NoteSourceLink(kind: .template, slug: e.slug)
@@ -311,6 +326,7 @@ enum TemplateMaking {
         var note = ledger.existing(link, in: context)?.id
         if note == nil {
             let model = NoteSourceModel(link: link, source: source, ledger: ledger)
+            model.folder = into
             await model.load(context: context)
             model.add(context: context, again: true)
             if case .added(_, let id, _) = model.phase {
@@ -361,7 +377,13 @@ struct TemplateLibraryView: View {
     var ais: [SetupCards.AI] = [.chatgpt]
     /// The template whose page is open; nil is the gallery.
     @State var open: TemplateCatalog.Entry?
+    /// The folder Make adds to: New Note's (the one you're in, or your first).
+    var folder = TemplateMaking.firstFolder
+    /// The folder of the note a template made, if you still have it.
+    var have: (TemplateCatalog.Entry) -> String? = { _ in nil }
     var make: (TemplateCatalog.Entry, SetupCards.AI) -> Void = { _, _ in }
+    /// Opens Connect an AI; nil where there's none to open (a picture, a test).
+    var connect: (() -> Void)? = nil
     var close: () -> Void = {}
     /// Captures: the kind picked and what's typed in Search.
     @State var filter = "All"
@@ -404,10 +426,18 @@ struct TemplateLibraryView: View {
     static let size = CGSize(width: 1040, height: 680)
     static let gap: CGFloat = 16
 
+    /// The largest the sheet grows to, on a large window.
+    static let largest = CGSize(width: 1280, height: 860)
+
     /// The sheet's size on a window: the full size where it fits, never wider or taller than the
-    /// window less a margin, and never so small a template's page loses its button.
+    /// window less a margin, and never so small a template's page loses its button. On a window
+    /// with room to spare it grows with it, up to `largest`, keeping 120 pt of the window either
+    /// side and 80 above and below, so a large window shows another column and another row (it
+    /// stayed 1040 by 680 in a window twice that; council, 10 November 2026).
     static func size(on window: CGSize) -> CGSize {
-        CGSize(width: min(size.width, max(720, window.width - 80)), height: min(size.height, max(500, window.height - 60)))
+        let width = max(min(size.width, window.width - 80), min(largest.width, window.width - 240))
+        let height = max(min(size.height, window.height - 60), min(largest.height, window.height - 160))
+        return CGSize(width: max(720, width), height: max(500, height))
     }
 
     // MARK: The page's parts
@@ -1105,6 +1135,13 @@ struct TemplateLibraryView: View {
             // that one's ("Adds… then opens ChatGPT" under Add without AI; council, 10 November 2026).
             caption(e)
                 .padding(.top, 8)
+            if !ai.asks, let connect {
+                // No AI connected: the way to get one, quietly, under what Add does.
+                Button(TemplateLibraryWords.connect, action: connect)
+                    .buttonStyle(.textLink)
+                    .padding(.top, 4)
+                    .accessibilityIdentifier("templates.connect")
+            }
             if ai.asks {
                 // The other way, in plain sight and plainly a button: these work without an AI.
                 Button(TemplateLibraryWords.withoutAI) { make(e, .other) }
@@ -1121,29 +1158,39 @@ struct TemplateLibraryView: View {
         .padding(.top, short ? 16 : 24)
     }
 
-    /// What your AI is asked: a small label naming it, and the prompt under it, small and quiet in
-    /// a soft box, so it never reads as a second description (council, 10 November 2026: three
-    /// blocks of the same weight said one thing). Words, not a field: nothing here is typed in.
+    /// What your AI is asked: a small label naming it, and the prompt under it as a quotation,
+    /// in ink beside a 2 pt rule. No box: in a filled box with a field's corners it read as
+    /// something to type in, and its grey words on the grey fill were hard to read in the dark
+    /// (council, 10 November 2026). Words, not a field: nothing here is typed in.
     private func asked(_ e: TemplateCatalog.Entry) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(TemplateLibraryWords.asked(ai)).font(.system(size: PageType.small, weight: .semibold)).foregroundStyle(Color.muted)
-            // Small, in a soft box, but in ink a little eased: in the muted grey on the box's grey
-            // it was hard to read in the dark (council, 10 November 2026).
             Text("\u{201C}\(NoWidow.kept(TemplateCatalog.Entry.sendable(e.ask), phrases: true))\u{201D}")
-                .font(.system(size: PageType.small)).foregroundStyle(Color.ink.opacity(Self.askInk))
+                .font(.system(size: PageType.small)).foregroundStyle(Color.ink)
                 .lineSpacing(2)
                 .lineLimit(5)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(SetupCards.soft, in: .rect(cornerRadius: 8, style: .continuous))
+                .padding(.leading, 12)
+                .overlay(alignment: .leading) { RoundedRectangle(cornerRadius: 1).fill(Color.primary.opacity(Self.askRule)).frame(width: 2) }
                 .accessibilityIdentifier("templates.ask")
         }
     }
 
-    /// How strong the prompt's ink is in its box: under the description's, over the labels'.
-    static let askInk = 0.8
+    /// Make's line with a folder's name too long for it cut short with "…", so the line keeps
+    /// its end ("…, then opens ChatGPT.") in the room it has; a name that fits is whole.
+    static func fitted(_ c: (lead: String, folder: String, rest: String), room: CGFloat) -> (lead: String, folder: String, rest: String) {
+        let font = NSFont.systemFont(ofSize: PageType.small)
+        // The words, the folder's glyph (16 pt with room to spare) and its thin space.
+        func wide(_ folder: String) -> CGFloat { ((c.lead + "\u{2009}" + folder + c.rest) as NSString).size(withAttributes: [.font: font]).width + 16 }
+        guard wide(c.folder) > room else { return c }
+        var name = c.folder
+        while name.count > 3, wide(name + "\u{2026}") > room { name.removeLast() }
+        return (c.lead, name.trimmingCharacters(in: .whitespaces) + "\u{2026}", c.rest)
+    }
+
+    /// The rule beside the prompt: a quiet grey, never the accent (it isn't a thing to press).
+    static let askRule = 0.22
 
     /// What Make does, plainly, under the buttons, on one line: "Adds an empty note to (folder)
     /// Reading, then opens ChatGPT." The folder is Go to Note's tag: a small folder in the accent,
@@ -1154,7 +1201,7 @@ struct TemplateLibraryView: View {
             if copied {
                 Text("\(Image(systemName: "checkmark")) \(TemplateLibraryWords.copied)")
             } else {
-                let c = TemplateLibraryWords.caption(e, ai: ai)
+                let c = Self.fitted(TemplateLibraryWords.caption(e, ai: ai, folder: folder, have: have(e)), room: Self.wordsWidth(for: size) * CGFloat(Self.captionLines(for: size)) - (Self.captionLines(for: size) > 1 ? 40 : 0))
                 Text(c.lead)
                     + Text(Image(systemName: "folder")).foregroundStyle(Color.paneAccent.opacity(0.85))
                     + Text("\u{2009}\(c.folder)").foregroundStyle(Color.ink)
@@ -1189,7 +1236,9 @@ struct TemplateLibraryView: View {
                 }
                 if ais.contains(where: { $0 != ai && $0.asks }) { Divider() }
                 Button { copy(e) } label: {
-                    Label(TemplateLibraryWords.copy, systemImage: "doc.on.doc").labelStyle(.titleAndIcon)
+                    // In the menu's own ink, never the accent: only an AI's mark carries colour here.
+                    Label { Text(TemplateLibraryWords.copy) } icon: { Self.menuSymbol("doc.on.doc", dark: scheme == .dark) }
+                        .labelStyle(.titleAndIcon)
                 }
             } label: {
                 Image(systemName: "chevron.down").font(.system(size: PageType.small, weight: .semibold))
@@ -1201,6 +1250,15 @@ struct TemplateLibraryView: View {
             .accessibilityLabel(TemplateLibraryWords.more)
             .accessibilityIdentifier("templates.makeWith")
         }
+    }
+
+    /// A symbol for a menu row as a finished picture in the menu's ink: a template symbol there
+    /// takes the sheet's tint, and "Copy the prompt" drew in amber beside the AIs' marks.
+    static func menuSymbol(_ name: String, dark: Bool) -> Image {
+        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular).applying(.init(paletteColors: [dark ? .white : .black]))
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config) else { return Image(systemName: name) }
+        image.isTemplate = false
+        return Image(nsImage: image)
     }
 
     /// "Make with ChatGPT" with ChatGPT's mark: an AI named is an AI shown.
@@ -1220,8 +1278,8 @@ struct TemplateLibraryView: View {
         }
     }
 
-    /// More like this, under the page: three or four for the same need, a small cover and a name
-    /// each, the names on one line across the row. Each takes an even share of the row (three
+    /// More like this, under the page: three or four for the same need, a small cover, a name and
+    /// its line from the gallery each, the names on one line across the row. Each takes an even share of the row (three
     /// take a third each: a quarter each left a hole where a fourth would be). A click swaps the
     /// page to it.
     private func more(_ e: TemplateCatalog.Entry) -> some View {
@@ -1237,13 +1295,16 @@ struct TemplateLibraryView: View {
                         HStack(alignment: .top, spacing: 12) {
                             Self.thumbnail(r.pick)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(r.title).font(.system(size: PageType.body, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(2)
-                                if let kind = TemplateLibraryWords.kind(r, under: e) {
-                                    Text(kind).font(.system(size: PageType.small)).foregroundStyle(Color.muted).lineLimit(1)
+                                Text(r.title).font(.system(size: PageType.body, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                                // Its line from its card in the gallery, on every tile: one
+                                // pattern (a kind showed on some tiles and not on others).
+                                HStack(spacing: SetupTemplateCard.markGap) {
+                                    if r.app { AppMarkView(size: SetupTemplateCard.markSize) }
+                                    Text(TemplateLibraryWords.line(r)).font(.system(size: PageType.small)).foregroundStyle(Color.muted).lineLimit(1)
                                 }
                             }
                             .multilineTextAlignment(.leading)
-                            .padding(.top, 11)
+                            .padding(.top, 10)
                             Spacer(minLength: 0)
                         }
                         .padding(.vertical, 8)
@@ -1305,6 +1366,11 @@ struct TemplateKinds: View {
     var body: some View {
         HStack(spacing: 2) {
             ForEach(TemplateCatalog.filters, id: \.self) { kind in
+                // Apps is a format among topics: a hairline sets it apart.
+                if kind == "Apps" {
+                    Rectangle().fill(Color.primary.opacity(0.14)).frame(width: 1, height: 14).padding(.horizontal, 4)
+                        .accessibilityHidden(true)
+                }
                 Kind(name: TemplateCatalog.label(kind), on: filter == kind) { filter = kind }
                     .accessibilityIdentifier("templates.kind.\(TemplateCatalog.label(kind))")
             }

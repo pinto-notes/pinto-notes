@@ -588,6 +588,8 @@ struct SetupTemplateCard: View {
                         if app { AppMarkView(size: Self.markSize) }
                         Text(line ?? pick.line).font(.system(size: Self.lineSize)).foregroundStyle(Color.muted)
                             .lineLimit(1)
+                            // A hair smaller before it's cut short, beside a scroll bar.
+                            .minimumScaleFactor(Self.nameShrink)
                             .truncationMode(.tail)
                     }
                     // One height with the mark and without, so every card is as tall.

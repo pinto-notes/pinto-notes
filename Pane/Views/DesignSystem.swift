@@ -224,8 +224,12 @@ private struct AmberProminentButton: View {
                     .fill(Color(fill))
                     // Under the pointer a touch lighter (greyer on the dark mode's white); pressed, darker.
                     .overlay {
-                        if configuration.isPressed { shape.fill(Color(ink ? Palette.inkButtonLabel : PColor.black).opacity(ink ? 0.22 : 0.14)) }
-                        else if !off && (hovering || preview.contains("*")) { shape.fill(ink ? Color.white.opacity(0.12) : Color(Palette.primaryButtonHover)) }
+                        // A half of a split button doesn't dip when pressed, so its fill darkens more.
+                        if configuration.isPressed || (joined == .leading && preview.contains("split.pressed")) {
+                            shape.fill(Color(ink ? Palette.inkButtonLabel : PColor.black).opacity(ink ? 0.22 : joined != nil ? 0.2 : 0.14))
+                        } else if !off && (hovering || preview.contains("*") || (joined == .leading && preview.contains("split.hover"))) {
+                            shape.fill(ink ? Color.white.opacity(0.12) : Color(Palette.primaryButtonHover))
+                        }
                     }
             }
             // One half of a split button keeps its place and size when pressed, and only its fill
@@ -746,6 +750,32 @@ struct Toast: View {
         .accessibilityElement(children: undo == nil ? .combine : .contain)
         .accessibilityAddTraits(.updatesFrequently)
     }
+}
+
+/// A line of words that is a link: quiet, underlined under the pointer and in ink there.
+struct TextLinkStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { Link(configuration: configuration) }
+
+    private struct Link: View {
+        let configuration: ButtonStyleConfiguration
+        @State private var hover = false
+        @Environment(\.isFocused) private var focused
+
+        var body: some View {
+            configuration.label
+                .font(.system(size: 12))
+                .foregroundStyle(hover || configuration.isPressed ? Color.ink : Color.muted)
+                .underline(true, color: (hover ? Color.ink : Color.muted).opacity(hover ? 0.9 : 0.45))
+                .multilineTextAlignment(.leading)
+                .opacity(configuration.isPressed ? 0.7 : 1)
+                .modifier(ButtonChrome(shape: AnyShape(RoundedRectangle(cornerRadius: 4)), pressed: false, focused: focused))
+                .onHover { hover = $0 }
+        }
+    }
+}
+
+extension ButtonStyle where Self == TextLinkStyle {
+    static var textLink: TextLinkStyle { .init() }
 }
 
 /// Link and Undo: small, solid, black on white or white on black, never amber.

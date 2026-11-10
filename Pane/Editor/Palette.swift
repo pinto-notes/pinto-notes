@@ -100,7 +100,7 @@ enum Palette {
     static let primaryButtonLabel = byAppearance(light: rgb(0xFFFFFF), dark: inkButtonLabel)
     // A touch darker under the pointer in the light, not lighter: lighter took the white label
     // under 4.5:1 (council round 14).
-    static let primaryButtonHover = pair(0x000000, 0.07, 0x000000, 0.08)
+    static let primaryButtonHover = pair(0x000000, 0.11, 0x000000, 0.11)
     /// What a secondary or quiet button, or a choice card, lays over its fill under the pointer and
     /// when pressed: a lean toward amber in the light, toward white in the dark.
     static var buttonHover: PColor { live("buttonHover") { let a = $0.accentShades; return pair(a.light, 0.12, 0xFFFFFF, 0.08) } }

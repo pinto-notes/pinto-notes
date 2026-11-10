@@ -547,13 +547,23 @@ import Vision
         #expect(TemplateLibraryView.revealAnchor(cell: CGRect(x: 0, y: TemplateLibraryView.gridTop, width: 185, height: 183), visible: visible) == nil)
     }
 
-    /// The sheet is never wider or taller than its window less a margin; on a big window it's
-    /// its full size. Five covers go across the full sheet, three on the smallest.
+    /// The sheet is never wider or taller than its window less a margin. On a window with room
+    /// to spare it grows with it, up to a largest size, so a large window shows another column
+    /// and another row. Five covers go across the full sheet, three on the smallest.
     @Test func theSheetFitsItsWindowAndFiveCoversGoAcross() {
-        #expect(TemplateLibraryView.size(on: CGSize(width: 1600, height: 1000)) == TemplateLibraryView.size)
-        let small = TemplateLibraryView.size(on: CGSize(width: 800, height: 560))
+        typealias L = TemplateLibraryView
+        // The Air's whole screen and a window a little larger than the sheet: its own size.
+        #expect(L.size(on: CGSize(width: 1280, height: 800)) == L.size)
+        #expect(L.size(on: CGSize(width: 1180, height: 760)) == L.size)
+        // A large window: larger, to the largest and no further, with the window's edge in view.
+        #expect(L.size(on: CGSize(width: 1500, height: 950)) == CGSize(width: 1260, height: 790))
+        #expect(L.size(on: CGSize(width: 1728, height: 1080)) == L.largest && L.size(on: CGSize(width: 3000, height: 2000)) == L.largest)
+        #expect(L.largest.width <= 1300 && L.largest.height <= 900)
+        let columns = { (w: CGFloat) in Int((w - 48 + 16) / (L.cardWidth(row: w - 48, gap: 16) + 16)) }
+        #expect(columns(L.size.width) == 5 && columns(L.largest.width) == 6, "a column more on the largest")
+        let small = L.size(on: CGSize(width: 800, height: 560))
         #expect(small.width <= 800 - 80 && small.height <= 560 - 60)
-        #expect(TemplateLibraryView.size(on: CGSize(width: 500, height: 300)) == CGSize(width: 720, height: 500))
+        #expect(L.size(on: CGSize(width: 500, height: 300)) == CGSize(width: 720, height: 500))
         let wide = TemplateLibraryView.cardWidth(row: TemplateLibraryView.size.width - 48, gap: 16)
         #expect(wide == 185, "five across: \(wide)")
         #expect(abs(wide - SetupTemplateCard.size.width) < 30, "near the covers' own size")
@@ -600,7 +610,9 @@ import Vision
         func wide(_ s: String, _ f: NSFont) -> CGFloat { (s as NSString).size(withAttributes: [.font: f]).width }
         // An app's line starts after the app's mark.
         let room = width - (e.app ? SetupTemplateCard.markRoom : 0)
-        #expect(wide(line, .systemFont(ofSize: SetupTemplateCard.lineSize)) <= room, "\(e.slug): \u{201C}\(line)\u{201D} is wider than \(room) pt")
+        // Whole on the full sheet's card; beside a scroll bar, at most a hair smaller.
+        #expect(wide(line, .systemFont(ofSize: SetupTemplateCard.lineSize)) * SetupTemplateCard.nameShrink <= room, "\(e.slug): \u{201C}\(line)\u{201D} is wider than \(room) pt")
+        #expect(wide(line, .systemFont(ofSize: SetupTemplateCard.lineSize)) <= room + 15 / 5, "\(e.slug): whole with no scroll bar")
         // The longest name ("Study notes and flashcards") is set a hair smaller to stay whole.
         #expect(wide(e.title, .systemFont(ofSize: SetupTemplateCard.nameSize, weight: .semibold)) * SetupTemplateCard.nameShrink <= width, "\(e.slug): its name is wider than \(width) pt")
     }
@@ -632,6 +644,8 @@ import Vision
     /// pick with the accent under white words in the real window, about 2:1).
     @Test func thePickedKindIsNeutral() throws {
         let src = try library
+        // Apps is a format among topics: last, with a hairline before it.
+        #expect(src.contains("if kind == \"Apps\" {\n                    Rectangle().fill(Color.primary.opacity(0.14)).frame(width: 1, height: 14).padding(.horizontal, 4)"))
         #expect(src.contains("TemplateKinds(filter: $filter)") && !src.contains(".pickerStyle(.segmented)"))
         func kinds(_ dark: Bool) throws -> Pixels {
             let r = ImageRenderer(content: TemplateKinds(filter: .constant("Work")).padding(4).background(SetupCards.ground).environment(\.colorScheme, dark ? .dark : .light))
@@ -733,19 +747,48 @@ import Vision
         let actions = try #require(src.range(of: "private func actions(_ e: TemplateCatalog.Entry) -> some View {"))
         let menu = String(src[actions.lowerBound...].prefix(2200))
         #expect(menu.contains("icon: { AIGlyph.menuImage(other.name, dark: scheme == .dark) ?? Image(systemName: \"sparkle\") }") && menu.contains(".labelStyle(.titleAndIcon)"))
-        #expect(menu.contains("Label(TemplateLibraryWords.copy, systemImage: \"doc.on.doc\")") && !menu.contains("withoutAI"))
+        #expect(menu.contains("Label { Text(TemplateLibraryWords.copy) } icon:") && !menu.contains("withoutAI"))
         #expect(AIGlyph.menuPicture("Claude", dark: true) != nil && AIGlyph.menuPicture("ChatGPT", dark: false) != nil)
         // Pressed, a half of the split button keeps its place and size; only its fill darkens
         // (dipping, the two halves drew apart and a gap opened between them).
         let design = try SettingsHomeTests.source("Pane/Views/DesignSystem.swift")
         #expect(design.contains(".modifier(ButtonChrome(shape: shape, pressed: joined == nil && configuration.isPressed, focused: isFocused))"))
-        // What your AI is asked: small, in a soft box, never the description's weight, and plain
-        // to read in the dark: ink a little eased, not the muted grey on the box's grey.
+        // Drawn: at rest, under the pointer and pressed, Make is the same shape in the same
+        // place; only its fill changes, each step plainly darker than the last.
+        func make(_ state: Set<String>) throws -> Pixels {
+            let view = HStack(spacing: 1) {
+                Button("Make with ChatGPT") {}.buttonStyle(.amberProminent(.regular, wide: true, joined: .leading))
+                Button("v") {}.buttonStyle(.amberProminent(.regular, joined: .trailing))
+            }
+            .frame(width: 300).padding(6).background(Color.white).environment(\.hoverPreview, state).environment(\.colorScheme, .light)
+            let r = ImageRenderer(content: view)
+            r.scale = 2
+            let cg = try #require(r.cgImage)
+            return try #require(Pixels(cg))
+        }
+        let rest = try make([]), over = try make(["split.hover"]), pressed = try make(["split.pressed"])
+        func edges(_ p: Pixels) -> [Int] {
+            // The columns of the middle row that aren't the white ground: where the buttons are.
+            let y = p.height / 2
+            return (0..<p.width).filter { p.rgb(at: y * p.width + $0) & 0xFF < 200 }
+        }
+        #expect(edges(rest) == edges(over) && edges(rest) == edges(pressed), "one shape at rest, under the pointer and pressed")
+        func red(_ p: Pixels) -> Int { Int((p.rgb(at: (p.height / 2) * p.width + 40) >> 16) & 0xFF) }
+        #expect(red(rest) - red(over) >= 14 && red(over) - red(pressed) >= 10, "rest \(red(rest)), hover \(red(over)), pressed \(red(pressed))")
+        // What your AI is asked: a quotation in ink beside a 2 pt rule, with no box: a filled
+        // box with a field's corners read as something to type in.
         let asked = try #require(src.range(of: "private func asked(_ e: TemplateCatalog.Entry) -> some View {"))
-        let box = String(src[asked.lowerBound...].prefix(1300))
-        #expect(box.contains(".font(.system(size: PageType.small)).foregroundStyle(Color.ink.opacity(Self.askInk))"))
-        #expect(L.askInk >= 0.75 && L.askInk < 1)
-        #expect(box.contains(".background(SetupCards.soft, in: .rect(cornerRadius: 8, style: .continuous))"))
+        let quote = String(src[asked.lowerBound...].prefix(1100))
+        #expect(quote.contains(".font(.system(size: PageType.small)).foregroundStyle(Color.ink)"))
+        #expect(quote.contains(".overlay(alignment: .leading) { RoundedRectangle(cornerRadius: 1).fill(Color.primary.opacity(Self.askRule)).frame(width: 2) }"))
+        #expect(!quote.contains(".background(") && !quote.contains("SetupCards.soft"), "no fill behind the prompt")
+        // With no AI connected, the way to get one is under Make's line; it opens Connect an AI.
+        #expect(TemplateLibraryWords.connect == "Connect ChatGPT or Claude to have it filled in for you.")
+        #expect(body.contains("if !ai.asks, let connect {\n                // No AI connected: the way to get one, quietly, under what Add does.\n                Button(TemplateLibraryWords.connect, action: connect)"))
+        let root = try SettingsHomeTests.source("Pane/Views/RootView.swift")
+        #expect(root.contains("}, connect: { openPopup(.connectAI) }, close:"))
+        // The menu's "Copy the prompt" is in the menu's ink: only an AI's mark carries colour.
+        #expect(menu.contains("icon: { Self.menuSymbol(\"doc.on.doc\", dark: scheme == .dark) }"))
         // One size and one line for every name, under its cover, at the words' full width: on the
         // full sheet the page's 28 pt; on the smallest, the largest size the longest name fits at.
         let titles = Self.all.map(\.title)
@@ -813,33 +856,70 @@ import Vision
         }
     }
 
-    /// The line under the buttons says plainly what Make does, for every template, on one line
-    /// on the full sheet: "Adds an empty note to (folder) Reading, then opens ChatGPT." (the
-    /// example beside it is filled in; what you get is empty). An app's says app. With no AI
-    /// that opens with the ask: "Adds an empty note to (folder) Reading." A narrow sheet has
-    /// room for two lines.
+    /// The line under Make says plainly what Make does, for every template, on one line on the
+    /// full sheet: "Adds an empty note to (folder) Work, then opens ChatGPT." (the example beside
+    /// it is filled in; what you get is empty). An app's says app. The folder is New Note's, not
+    /// the template's own. With no AI that opens with the ask: "Adds an empty note to (folder)
+    /// Work." A narrow sheet has room for two lines. One you made and still have isn't added
+    /// again: the line says where it is and that this opens it.
     @Test(arguments: all) func everyTemplateSaysWhatMakeAddsOnOneLine(_ e: TemplateCatalog.Entry) throws {
         typealias L = TemplateLibraryView
-        let folder = try #require(e.folder)
         let what = e.app ? "app" : "note"
-        let with = TemplateLibraryWords.caption(e, ai: .chatgpt)
-        #expect(with.lead == "Adds an empty \(what) to " && with.folder == folder && with.rest == ", then opens ChatGPT.")
-        let without = TemplateLibraryWords.caption(e, ai: .other)
-        #expect(without.lead + without.folder + without.rest == "Adds an empty \(what) to \(folder).")
+        let with = TemplateLibraryWords.caption(e, ai: .chatgpt, folder: "Work")
+        #expect(with.lead == "Adds an empty \(what) to " && with.folder == "Work" && with.rest == ", then opens ChatGPT.")
+        let without = TemplateLibraryWords.caption(e, ai: .other, folder: "Work")
+        #expect(without.lead + without.folder + without.rest == "Adds an empty \(what) to Work.")
+        let had = TemplateLibraryWords.caption(e, ai: .claude, folder: "Work", have: "Habits")
+        #expect(had.lead + had.folder + had.rest == "Already in Habits. This opens it, then Claude.")
         let font = NSFont.systemFont(ofSize: L.PageType.small)
         func wide(_ c: (lead: String, folder: String, rest: String)) -> CGFloat {
             // The words, the folder's glyph (a small symbol's width, 16 pt with room to spare) and its thin space.
             ((c.lead + "\u{2009}" + c.folder + c.rest) as NSString).size(withAttributes: [.font: font]).width + 16
         }
         #expect(L.captionLines(for: L.size) == 1 && L.captionLines(for: L.size(on: CGSize(width: 800, height: 560))) == 2)
+        // A folder's name of a dozen letters, with the longer AI's name: whole, on one line.
         for ai in [SetupCards.AI.chatgpt, .claude] {
-            let c = TemplateLibraryWords.caption(e, ai: ai)
+            let c = TemplateLibraryWords.caption(e, ai: ai, folder: "Side projects")
             #expect(wide(c) <= L.wordsWidth(for: L.size), "\(e.slug) with \(ai.name): \(wide(c)) pt of \(L.wordsWidth(for: L.size))")
+            #expect(L.fitted(c, room: L.wordsWidth(for: L.size)).folder == "Side projects")
             #expect(wide(c) <= L.wordsWidth(for: L.size(on: CGSize(width: 800, height: 560))) * 2 - 40, "\(e.slug) with \(ai.name): two lines on a narrow sheet")
         }
-        // The longest folder a template has, with the longer AI's name: still one line.
-        let longest = try #require(Self.all.compactMap(\.folder).max { $0.count < $1.count })
-        #expect(wide(("Adds an empty note to ", longest, ", then opens ChatGPT.")) <= L.wordsWidth(for: L.size), "\(longest)")
+        // A longer name is cut short with "…", and the line keeps its end.
+        let long = L.fitted(TemplateLibraryWords.caption(e, ai: .chatgpt, folder: "Everything for the house move in March"), room: L.wordsWidth(for: L.size))
+        #expect(long.folder.hasSuffix("\u{2026}") && long.folder.hasPrefix("Everything") && long.rest == ", then opens ChatGPT." && wide(long) <= L.wordsWidth(for: L.size), "\(long.folder)")
+        let src = try library
+        #expect(src.contains("Self.fitted(TemplateLibraryWords.caption(e, ai: ai, folder: folder, have: have(e)), room:"))
+    }
+
+    /// Make from the library puts a template where New Note would put a note: the folder you're
+    /// in, or with All Notes your first folder; never a folder of the template's own (three makes
+    /// made three folders of one note each). The website's way keeps the template's folder.
+    @Test func makeAddsWhereNewNoteWould() async throws {
+        let container = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = container.mainContext
+        #expect(TemplateMaking.folder(in: ctx, scope: .all) == nil, "no folder yet: Notes is made")
+        let notes = ctx.createFolder(named: "Notes"), work = ctx.createFolder(named: "Work")
+        notes.sortIndex = 0; work.sortIndex = 1
+        #expect(TemplateMaking.folder(in: ctx, scope: .all)?.id == notes.id, "All Notes: the first folder")
+        #expect(TemplateMaking.folder(in: ctx, scope: .folder(work.id))?.id == work.id, "a folder: that one")
+        #expect(TemplateMaking.folder(in: ctx, scope: .trash)?.id == notes.id)
+        let defaults = try #require(UserDefaults(suiteName: "templates.where.\(UUID().uuidString)"))
+        let ledger = NoteSourceLedger(defaults: defaults, account: nil)
+        let reading = try entry("reading-list"), habits = try entry("habit-tracker")
+        let a = await TemplateMaking.make(reading, with: .other, context: ctx, account: nil, into: .existing(work.id), ledger: ledger, copy: { _ in }, open: { _ in })
+        let b = await TemplateMaking.make(habits, with: .other, context: ctx, account: nil, into: .existing(work.id), ledger: ledger, copy: { _ in }, open: { _ in })
+        #expect(a.flatMap { ctx.note($0) }?.folder?.id == work.id && b.flatMap { ctx.note($0) }?.folder?.id == work.id)
+        #expect(ctx.allFolders().count == 2, "no Reading and no Habits folder: \(ctx.allFolders().map(\.name))")
+        // Made again: the one you have is opened, and the page says where it is.
+        let again = await TemplateMaking.make(habits, with: .other, context: ctx, account: nil, into: .existing(notes.id), ledger: ledger, copy: { _ in }, open: { _ in })
+        let all = try ctx.fetch(FetchDescriptor<Note>())
+        #expect(again == b && all.filter { $0.title == "Habit tracker" }.count == 1, "no second Habit tracker: \(all.map(\.title))")
+        let root = try SettingsHomeTests.source("Pane/Views/RootView.swift")
+        #expect(root.contains("let target = TemplateMaking.folder(in: context, scope: scope)"))
+        #expect(root.contains("into: target.map { .existing($0.id) } ?? .new(TemplateMaking.firstFolder),"))
+        #expect(root.contains("have: { TemplateMaking.have($0, context: context, account: account) }"))
+        let source = try SettingsHomeTests.source("Pane/Model/NoteSource.swift")
+        #expect(source.contains("if folder == nil { folder = context.suggestedFolder(for: d) }"), "the website's sheet keeps the template's folder")
     }
 
     /// Search and the kinds filter the covers in place; when nothing matches, the gallery says
@@ -1006,7 +1086,7 @@ import Vision
         let sizes = Set(page.matches(of: /\.system\(size: ([A-Za-z.0-9]+)/).map { String($0.1) })
         #expect(sizes == ["name", "PageType.body", "PageType.small"], "\(sizes)")
         let weights = Set(page.matches(of: /weight: \.([a-z]+)/).map { String($0.1) })
-        #expect(weights == ["bold", "semibold"], "bold and semibold, and regular where none is said: \(weights)")
+        #expect(weights == ["bold", "semibold", "regular"], "bold, semibold and regular: \(weights)")
         // Everything starts on the margin: the sheet's name, Back's chevron, the frame, the
         // words beside it and "More like this".
         #expect(page.contains(".padding(.leading, Self.margin - 9)") && page.contains(".padding(.horizontal, inset)"))
@@ -1016,8 +1096,8 @@ import Vision
 
     /// The page keeps the card you clicked: its cover, small, beside its name; the same small
     /// cover as under "More like this", the whole picture, the same in light and dark. Under
-    /// "More like this" the names start level, a kind shows only where it says something the
-    /// page doesn't, and three share the row evenly.
+    /// "More like this" the names start level, each with its line from the gallery under it,
+    /// and three share the row evenly.
     @Test func thePageKeepsItsCoverAndMoreLikeThisLinesUp() throws {
         let src = try library
         let words = try #require(src.range(of: "private func words(_ e: TemplateCatalog.Entry) -> some View {"))
@@ -1030,12 +1110,20 @@ import Vision
         #expect(body.contains(".contentShape(.rect)"))
         #expect(body.contains("HStack(alignment: .top, spacing: Self.gap)") && body.contains("HStack(alignment: .top, spacing: 12)"), "the names start level")
         #expect(body.contains("/ CGFloat(max(related.count, 1))") && body.contains(".frame(width: share - 8, alignment: .leading)"), "an even share each")
-        // A kind only where it differs from the page's; "App" for one with an app.
-        let reading = try entry("reading-list"), books = try entry("book-notes"), cards = try entry("study-flashcards"), habits = try entry("habit-tracker")
-        #expect(TemplateLibraryWords.kind(books, under: reading) == nil)
-        #expect(TemplateLibraryWords.kind(cards, under: reading) == "App")
-        #expect(TemplateLibraryWords.kind(habits, under: reading) == "Health \u{00B7} App")
+        // Every tile has its line from its card in the gallery under its name, an app's with the
+        // app's mark: one pattern (a kind showed under some names and not under others).
+        let reading = try entry("reading-list")
+        #expect(body.contains("if r.app { AppMarkView(size: SetupTemplateCard.markSize) }\n                                    Text(TemplateLibraryWords.line(r))"))
+        #expect(!src.contains("kind(r, under: e)") && !body.contains("if let kind"))
         #expect(TemplateLibraryWords.app == "App")
+        // Each name and line fits its tile with four across.
+        let tile = (TemplateLibraryView.size.width - TemplateLibraryView.margin * 2 - TemplateLibraryView.gap * 3) / 4 - 8 - TemplateLibraryView.moreCover - 12 - 8
+        for e in Self.all {
+            let name = (e.title as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: TemplateLibraryView.PageType.body, weight: .semibold)]).width
+            let line = (TemplateLibraryWords.line(e) as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: TemplateLibraryView.PageType.small)]).width + (e.app ? SetupTemplateCard.markRoom : 0)
+            if TemplateLibraryView.related(e, in: Self.all).count < 4, Self.all.allSatisfy({ TemplateLibraryView.related($0, in: Self.all).count < 4 || !TemplateLibraryView.related($0, in: Self.all).contains(e) }) { continue }
+            #expect(name <= tile && line <= tile, "\(e.slug): its name \(name) and line \(line) in \(tile) pt")
+        }
         // The small cover is the same picture in light and dark: nothing in it reads the look.
         func cover(_ dark: Bool) throws -> Pixels {
             let r = ImageRenderer(content: TemplateLibraryView.thumbnail(reading.pick).environment(\.colorScheme, dark ? .dark : .light))
@@ -1445,14 +1533,17 @@ import Vision
         #expect(FirstOpen.Moment(note: UUID(), isApp: false, title: "", description: nil, ask: nil, slug: "", preview: nil, full: false).line == "Added to your notes")
         let root = try SettingsHomeTests.source("Pane/Views/RootView.swift")
         let made = try #require(root.range(of: "private func templates(_ ais: [SetupCards.AI]) -> some View {"))
-        let body = String(root[made.lowerBound...].prefix(1400))
+        let body = String(root[made.lowerBound...].prefix(2200))
         let quiet = try #require(body.range(of: "FirstOpen.shared.fromLibrary(note, title: e.title, slug: e.slug"))
         let shows = try #require(body.range(of: "if let note { selection = [note] }"))
         #expect(quiet.lowerBound < shows.lowerBound, "the sheet is put off before the note opens")
         let detail = try SettingsHomeTests.source("Pane/Views/NoteDetailView.swift")
         #expect(detail.contains("notice(m.line)") && detail.contains("NoticeText.text(undoFailed)"))
-        // Over an app's bar of screens, never on it.
-        #expect(detail.contains(".padding(.bottom, showingPage ? Self.noticeOverAppBar : 20)") && NoteDetailView.noticeOverAppBar >= 64)
+        // While an app shows, the line is in the window's bar, never over the app: there it
+        // sat on the app's bar of screens, and moved up, on a row of Budget.
+        #expect(detail.contains("if let undoFailed, !noticeInBar {") && detail.contains("said: noticeInBar ? undoFailed : nil,"))
+        #expect(detail.contains("if let said = self.parts?.said {\n                        ToolbarItem {\n                            NoticeText.text(said)"))
+        #expect(!detail.contains("noticeOverAppBar"))
     }
 
     /// A template's table that has only its header gets one empty row when the note is added: a
@@ -1475,6 +1566,23 @@ import Vision
         }
         let source = try SettingsHomeTests.source("Pane/Model/NoteSource.swift")
         #expect(source.contains("if link.kind == .template, d.appProject == nil { d.body = TemplateSkeleton.withFirstRows(d.body) }"))
+    }
+
+    /// A template's table as it lands fills the note's width, not just its headers': a tracker (a
+    /// table with column types) always does, so it doesn't grow as it's filled in. A plain short
+    /// table keeps its own width, as before.
+    @Test func aTrackerFillsTheNotesWidth() throws {
+        let note = TemplateSkeleton.withFirstRows(try #require(try entry("reading-list").note))
+        let tracker = try #require(NoteStructure(note).grids.first)
+        #expect(tracker.types != nil)
+        #expect(abs(tracker.columnWidths(available: 620).reduce(0, +) - 620) < 1, "\(tracker.columnWidths(available: 620))")
+        let plain = try #require(NoteStructure("T\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n").grids.first)
+        #expect(plain.types == nil && plain.columnWidths(available: 620).reduce(0, +) < 300, "a plain short table keeps its own width")
+        for e in Self.all where !e.app {
+            for g in NoteStructure(TemplateSkeleton.withFirstRows(try #require(e.note))).grids where g.types != nil {
+                #expect(abs(g.columnWidths(available: 620).reduce(0, +) - 620) < 1, "\(e.slug)")
+            }
+        }
     }
 
     /// In the real editor, offscreen: a template's note as it lands has its table as a grid of
@@ -1611,7 +1719,8 @@ extension TemplateCatalog.Entry: CustomTestStringConvertible {
         #expect(Self.all.count == 23)
         #expect(Set(Self.all.map(\.slug)).count == Self.all.count, "no slug twice")
         #expect(Self.all.filter(\.app).map(\.slug).sorted() == ["budget-log", "habit-tracker", "study-flashcards", "trip-plan"])
-        let byKind = TemplateCatalog.filters.dropFirst(2).flatMap { TemplateCatalog.shipped.shown(filter: $0, query: "") }
+        let byKind = TemplateCatalog.topics.flatMap { TemplateCatalog.shipped.shown(filter: $0, query: "") }
+        #expect(TemplateCatalog.filters.first == "All" && TemplateCatalog.filters.last == "Apps" && TemplateCatalog.topics.count == 4, "Apps is a format: last, apart from the topics")
         #expect(byKind.count == Self.all.count, "every template is under exactly one kind")
     }
 

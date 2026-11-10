@@ -170,7 +170,7 @@ struct GridTable: Equatable {
     }
 
     /// Widths that fit each column's text, as in Notes and Obsidian: a table whose text fills most
-    /// of the width (70%) stretches to it, a short one keeps its own width (council round 2, 11-04:
+    /// of the width (70%) stretches to it, and so does a tracker; another short one keeps its own width (council round 2, 11-04:
     /// two short columns ran 860 pt wide with the sidebar hidden). A table a little too
     /// wide gives up spare room around its text first (down to the cell's own insets), so a
     /// four-column log fits an iPhone instead of cutting its last column.
@@ -186,7 +186,10 @@ struct GridTable: Equatable {
         let widest = max(280, 280 * EditorMetrics.body / 17)
         var natural = longest.map { min(max($0 + 2 * GridMetrics.inset + 8, 64), widest) }
         let total = natural.reduce(0, +)
-        if total < available, total >= available * 0.7 {
+        // A tracker (a table with column types, as a template's is) fills the width whatever it
+        // holds: empty, it was as narrow as its headers, and grew as it was filled in
+        // (a template's table as it lands; council, 10 November 2026).
+        if total < available, total >= available * 0.7 || types != nil {
             natural = natural.map { $0 * available / total }
         } else if total > available {
             // The text plus the cells' insets either side.

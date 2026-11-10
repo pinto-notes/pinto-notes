@@ -442,9 +442,21 @@ struct NoteDetailView: View {
     }
     #endif
 
+    /// Whether the note's line shows in the window's bar instead of over the note: while an app
+    /// shows on the Mac. Over the app it covered what the app drew: on its bar of screens first,
+    /// then, moved up, on a row of Budget, cutting an amount (real frames from the Air, 10
+    /// November 2026). The bar is never the app's.
+    private var noticeInBar: Bool {
+        #if os(macOS)
+        showingPage
+        #else
+        false
+        #endif
+    }
+
     @ViewBuilder
     private var undoProblem: some View {
-        if let undoFailed {
+        if let undoFailed, !noticeInBar {
             // Room for two lines: a notice is never squeezed into one.
             NoticeText.text(undoFailed)
                 .font(.system(size: AIReceipt.text, weight: .semibold))
@@ -458,9 +470,7 @@ struct NoteDetailView: View {
                 .overlay(RoundedRectangle(cornerRadius: AIReceipt.height / 2).strokeBorder(Color.line, lineWidth: 1))
                 .padding(.horizontal, 24)
                 #if os(macOS)
-                // Over an app's own bar of screens at its foot, never on it ("Added to Habits"
-                // sat on the app's middle tab; real frames from the Air, 10 November 2026).
-                .padding(.bottom, showingPage ? Self.noticeOverAppBar : 20)
+                .padding(.bottom, 20)
                 #else
                 .padding(.bottom, 64)
                 #endif
@@ -1119,9 +1129,6 @@ struct NoteDetailView: View {
         }
     }
 
-    /// A notice's distance from the foot while an app shows: clear of the app's bar of screens.
-    static let noticeOverAppBar: CGFloat = 76
-
     private func notice(_ text: String) {
         withAnimation(.smooth(duration: 0.25)) { undoFailed = text }
         Task { @MainActor in
@@ -1242,6 +1249,7 @@ struct NoteDetailView: View {
         NoteToolbarParts(
             // A note with an app is just the app: no writing tools. Nor in Recently Deleted, like Notes.
             writingDisabled: hidden,
+            said: noticeInBar ? undoFailed : nil,
             attachment: AnyView(attachMenu),
             people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
             // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
@@ -1960,6 +1968,9 @@ private struct HostAskAlert: ViewModifier {
 struct NoteToolbarParts: Equatable, @unchecked Sendable {
     /// The writing controls belong to the persistent stage. Only Attach opens this pane's UI.
     var writingDisabled: Bool
+    /// A line the pane has to say while an app shows ("Added to (folder) Habits"): in the bar,
+    /// after where the note is, never over the app.
+    var said: String? = nil
     var attachment: AnyView
     /// Who else is in a shared note.
     var people: AnyView?
@@ -2049,6 +2060,22 @@ struct NoteToolbarStage<Pane: View>: View {
                         ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, open: openScope) }
                             .sharedBackgroundVisibility(.hidden)
                             .hidden(!showsItems)
+                    }
+                    if let said = self.parts?.said {
+                        ToolbarItem {
+                            NoticeText.text(said)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Color.ink)
+                                .lineLimit(1)
+                                .fixedSize()
+                                .padding(.horizontal, 10)
+                                .frame(height: 24)
+                                .background(Color.primary.opacity(0.07), in: .capsule)
+                                .accessibilityAddTraits(.isStaticText)
+                                .accessibilityIdentifier("note.notice")
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                        .hidden(!showsItems)
                     }
                 }
                 // Keeps the column anchor in place even while every note item is hidden. Between
