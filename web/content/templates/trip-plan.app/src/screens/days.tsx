@@ -45,7 +45,7 @@ export default function Days() {
               action={
                 <div className="flex items-center">
                   <ShareButton label={`Share ${name}`} name={`${trip?.name ? trip.name + ", " : ""}${n > 0 ? `day ${n}` : name}.txt`} text={() => dayText(trip, d, bookings, date)} />
-                  <button type="button" aria-label={`Edit ${name}`} onClick={() => setEditing(d ?? { date, items: [] })} className="-my-2 grid size-11 place-items-center rounded-full text-primary"><Pencil className="size-4" /></button>
+                  <button type="button" aria-label={`Edit ${name}`} onClick={() => setEditing(d ?? { date, items: [] })} className="-my-2 grid size-11 place-items-center rounded-full text-link"><Pencil className="size-4" /></button>
                 </div>
               }>
               {d?.title && <p className="px-4 pt-3 font-semibold">{d.title}</p>}

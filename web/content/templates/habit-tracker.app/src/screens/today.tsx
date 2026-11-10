@@ -50,7 +50,7 @@ export default function Today() {
           <Section>
             <div className="flex items-center gap-5 p-5">
               <Ring value={w.share} size={96} stroke={11} label={`This week ${Math.round(w.share * 100)}%`}>
-                {allDone ? <Check className="size-9 text-primary" strokeWidth={3} /> : <span className="text-xl font-bold tabular-nums">{Math.round(w.share * 100)}%</span>}
+                {allDone ? <Check className="size-9 text-link" strokeWidth={3} /> : <span className="text-xl font-bold tabular-nums">{Math.round(w.share * 100)}%</span>}
               </Ring>
               {/* The ring is the week, so the lines beside it are the week too: a label, then the
                   count on one line whatever the numbers ("2 of 4 since Monday" broke in two beside
@@ -93,7 +93,7 @@ function WeekGrid({ habits, days, skips, from, className }: { habits: Habit[]; d
       <div className="px-4 py-3" role="img" aria-label="This week, every habit">
         <div className="grid grid-cols-[minmax(0,1fr)_repeat(7,18px)] items-center gap-x-1 gap-y-2.5">
           <span />
-          {LETTERS.map((l, i) => <span key={i} className={cn("text-center text-[0.75rem] font-semibold", iso(addDays(start, i)) === iso(now) ? "text-primary" : "text-muted-foreground")}>{l}</span>)}
+          {LETTERS.map((l, i) => <span key={i} className={cn("text-center text-[0.75rem] font-semibold", iso(addDays(start, i)) === iso(now) ? "text-link" : "text-muted-foreground")}>{l}</span>)}
           {habits.map((h) => (
             <Dots key={h.id} habit={h} days={days} skips={skips} start={start} now={now} from={from} />
           ))}
@@ -112,7 +112,7 @@ function Dots({ habit: h, days, skips, start, now, from }: { habit: Habit; days:
       {LETTERS.map((_, i) => {
         const d = addDays(start, i), k = iso(d), v = amount(days, h, k), full = v >= h.target
         return <span key={i} className={cn("mx-auto size-[18px] rounded-full",
-          full ? "bg-primary" : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60"
+          full ? "bg-[var(--amber-accent)]" : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60"
             : v > 0 ? "bg-[var(--amber-accent-soft)]" : k < from ? "invisible" : k > iso(now) || !scheduled(h, d) ? "bg-muted/50" : "bg-muted",
           k === iso(now) && !full && "ring-[1.5px] ring-[var(--amber-accent)]")} />
       })}
@@ -143,7 +143,7 @@ function HabitRow({ habit: h, days, skips, from, set, onOpen }: { habit: Habit; 
             of its own the dot falls outside the paragraph and is cut off, not left dangling. */}
         <p className="mt-0.5 flex flex-wrap gap-x-3 overflow-hidden text-[0.875rem] text-muted-foreground tabular-nums">
           {line}
-          {s > 0 && <span className="relative whitespace-nowrap"><span aria-hidden="true" className="absolute -left-2">{" · "}</span><span className="text-primary">{s}-{h.perWeek ? "week" : "day"} streak</span></span>}
+          {s > 0 && <span className="relative whitespace-nowrap"><span aria-hidden="true" className="absolute -left-2">{" · "}</span><span className="text-link">{s}-{h.perWeek ? "week" : "day"} streak</span></span>}
         </p>
         <span className="mt-2 flex gap-1.5 min-[700px]:hidden min-[900px]:flex min-[1100px]:hidden" aria-hidden="true">
           {LETTERS.map((l, i) => {
@@ -151,7 +151,7 @@ function HabitRow({ habit: h, days, skips, from, set, onOpen }: { habit: Habit; 
             const full = got >= h.target, part = got > 0 && !full
             return (
               <span key={i} className={cn("grid size-6 place-items-center rounded-full text-[0.75rem] font-semibold",
-                full ? "bg-primary text-primary-foreground" : part ? "bg-[var(--amber-accent-soft)] text-primary"
+                full ? "bg-[var(--amber-accent)] text-mark-text" : part ? "bg-[var(--amber-accent-soft)] text-link"
                   : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60 text-muted-foreground"
                   : k < from ? "invisible" : !scheduled(h, d) ? "bg-muted/50 text-muted-foreground/60" : "bg-muted text-muted-foreground",
                 k === day && !full && "ring-[1.5px] ring-[var(--amber-accent)]")}>{l}</span>
@@ -166,7 +166,7 @@ function HabitRow({ habit: h, days, skips, from, set, onOpen }: { habit: Habit; 
           <button type="button" aria-label={`One more ${h.name}`} onClick={() => { if (value + 1 === h.target) pop(); set(h, (was) => was + 1) }}
             onAnimationEnd={settle} className={cn("relative grid size-12 place-items-center rounded-full", popping && "tick-pop")}>
             <Ring value={value / h.target} size={48} stroke={5} />
-            <span className="absolute inset-0 grid place-items-center">{isDone ? <Check className="size-5 text-primary" strokeWidth={3} /> : <Plus className="size-5 text-primary" strokeWidth={2.5} />}</span>
+            <span className="absolute inset-0 grid place-items-center">{isDone ? <Check className="size-5 text-link" strokeWidth={3} /> : <Plus className="size-5 text-link" strokeWidth={2.5} />}</span>
           </button>
         </div>
       ) : (

@@ -12,9 +12,19 @@
   --card-foreground: var(--amber-text);
   --popover: var(--amber-bg);
   --popover-foreground: var(--amber-text);
-  /* The accent that text reaches 4.5:1 against (light: a deeper amber; dark: the accent itself). */
-  --primary: var(--amber-accent-text);
-  --primary-foreground: var(--amber-on-accent);
+  /* Three ambers, each with one job, the same three the Mac app has:
+     the accent (--amber-accent) for ticks, rings, bars and dots;
+     --link, its ink shade, for amber text, which reads at 4.5:1 on the page and on a card;
+     --primary, the primary button's fill: the accent deepened until a white label reads on it
+     (stock amber gives #BB5B05, the fill of the Mac's own buttons). In dark mode the button is
+     white with a black label, as the Mac's are: dark-mode buttons are white or black, never amber.
+     A host that knows its own button colours sets --amber-button and --amber-on-button. */
+  --primary: var(--amber-button, color-mix(in srgb, var(--amber-accent) 86%, black));
+  --primary-foreground: var(--amber-on-button, #FFFFFF);
+  --link: var(--amber-accent-text);
+  /* Letters and numbers on an accent fill (a done day's "M", a done date): the page's ink in the
+     light, where white on the accent is 3.5:1; the accent's own glyph colour in the dark. */
+  --mark-text: var(--amber-text);
   --secondary: var(--amber-fill);
   --secondary-foreground: var(--amber-text);
   --muted: var(--amber-fill);
@@ -33,6 +43,14 @@
   --chart-5: #8a6d3b;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: var(--amber-button, #FFFFFF);
+    --primary-foreground: var(--amber-on-button, #000000);
+    --mark-text: var(--amber-on-accent);
+  }
+}
+
 @theme inline {
   --font-sans: var(--amber-font);
   --color-background: var(--background);
@@ -43,6 +61,8 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-link: var(--link);
+  --color-mark-text: var(--mark-text);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);

@@ -94,7 +94,7 @@ export function PrimaryButton({ children, className, ...props }: React.ButtonHTM
 /** A quieter button: tinted fill, the accent's text colour. */
 export function TintButton({ children, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button {...props} className={cn("inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-[var(--amber-accent-soft)] px-4 font-semibold text-primary active:opacity-70 disabled:opacity-40 [&_svg]:size-[18px]", className)}>
+    <button {...props} className={cn("inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-[var(--amber-accent-soft)] px-4 font-semibold text-link active:opacity-70 disabled:opacity-40 [&_svg]:size-[18px]", className)}>
       {children}
     </button>
   )
@@ -148,7 +148,7 @@ export function UndoBar() {
     <div role="status" className="mb-4 animate-in fade-in duration-200 motion-reduce:animate-none">
       <div className="flex w-full items-center gap-3 rounded-xl bg-[var(--amber-accent-soft)] py-1.5 pl-4 pr-1.5 text-foreground">
         <span className="min-w-0 flex-1 truncate text-[0.9375rem]">{u.text}</span>
-        <button type="button" onClick={async () => { pending = null; setU(null); await u.undo() }} className="h-10 rounded-lg px-3 font-semibold text-primary">Undo</button>
+        <button type="button" onClick={async () => { pending = null; setU(null); await u.undo() }} className="h-10 rounded-lg px-3 font-semibold text-link">Undo</button>
       </div>
     </div>
   )

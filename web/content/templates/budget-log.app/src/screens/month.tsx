@@ -40,8 +40,8 @@ export default function Month() {
     <>
       <header className="flex items-center gap-1 pb-4 pt-2">
         <h1 className="min-w-0 flex-1 text-[2rem] font-bold leading-tight tracking-tight">{monthName(m)}</h1>
-        <button type="button" aria-label="Previous month" onClick={() => setM(shiftMonth(m, -1))} className="grid size-11 place-items-center rounded-full text-primary"><ChevronLeft className="size-6" /></button>
-        <button type="button" aria-label="Next month" disabled={current} onClick={() => setM(shiftMonth(m, 1))} className="grid size-11 place-items-center rounded-full text-primary disabled:opacity-30"><ChevronRight className="size-6" /></button>
+        <button type="button" aria-label="Previous month" onClick={() => setM(shiftMonth(m, -1))} className="grid size-11 place-items-center rounded-full text-link"><ChevronLeft className="size-6" /></button>
+        <button type="button" aria-label="Next month" disabled={current} onClick={() => setM(shiftMonth(m, 1))} className="grid size-11 place-items-center rounded-full text-link disabled:opacity-30"><ChevronRight className="size-6" /></button>
       </header>
 
       <div className="min-[700px]:grid min-[700px]:grid-cols-2 min-[700px]:items-start min-[700px]:gap-6">

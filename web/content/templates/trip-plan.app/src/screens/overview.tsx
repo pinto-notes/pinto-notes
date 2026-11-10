@@ -40,7 +40,7 @@ export default function Overview() {
           <Section>
             <div className="flex items-center gap-5 p-5" data-testid="countdown">
               {phase.kind === "before" && <>
-                <p className="text-[4rem] font-bold leading-none tracking-tight tabular-nums text-primary">{phase.toGo}</p>
+                <p className="text-[4rem] font-bold leading-none tracking-tight tabular-nums text-link">{phase.toGo}</p>
                 <div>
                   <p className="text-[1.375rem] font-bold leading-tight">{phase.toGo === 1 ? "day to go" : "days to go"}</p>
                   <p className="text-[0.9375rem] text-muted-foreground">then {phase.length} {phase.length === 1 ? "day" : "days"} in {trip.name}</p>

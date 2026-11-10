@@ -26,9 +26,9 @@ export function MonthGrid({ habit: h, days, skips, first, from = "", onTap, clas
             className="grid min-h-11 place-items-center">
             <span className={cn("grid size-[34px] place-items-center rounded-full text-[0.8125rem] font-medium tabular-nums transition-colors duration-150 motion-reduce:transition-none",
               future ? "text-muted-foreground/50"
-                : full ? "bg-primary font-semibold text-primary-foreground"
+                : full ? "bg-[var(--amber-accent)] font-semibold text-mark-text"
                 : skip ? "border-[1.5px] border-dashed border-muted-foreground/60 text-muted-foreground"
-                : v > 0 ? "bg-[var(--amber-accent-soft)] text-primary"
+                : v > 0 ? "bg-[var(--amber-accent-soft)] text-link"
                 : off ? "text-muted-foreground/60"
                 : "bg-muted text-muted-foreground",
               k === now && !full && "ring-[1.5px] ring-[var(--amber-accent)]")}>{d.getDate()}</span>

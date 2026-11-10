@@ -55,7 +55,7 @@ export default function Bookings() {
               <p className="flex items-center gap-1.5 font-semibold">{(() => { const I = KIND_ICON[b.kind ?? "other"]; return <I className="size-4 shrink-0 text-muted-foreground" /> })()}<span className="min-w-0">{b.what}</span></p>
               <p className="text-[0.875rem] text-muted-foreground">
                 {[b.date ? new Date(b.date + "T12:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) + (b.time ? `, ${b.time}` : "") : b.when, b.ref && `Ref ${b.ref}`].filter(Boolean).join(" · ")}
-                {!b.paid && <>{b.date || b.when || b.ref ? " · " : ""}<span className="font-medium text-primary">Not paid</span></>}
+                {!b.paid && <>{b.date || b.when || b.ref ? " · " : ""}<span className="font-medium text-link">Not paid</span></>}
               </p>
             </button>
             <button type="button" aria-label={`Delete ${b.what}`} onClick={() => drop(b)} className="grid size-11 place-items-center rounded-full text-muted-foreground"><Trash2 className="size-[18px]" /></button>

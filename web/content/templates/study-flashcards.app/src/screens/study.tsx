@@ -84,7 +84,7 @@ export default function Study() {
               <div className="p-5" data-testid="newest">
                 <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">{newest.topic || "No topic"} · {level(newest)}</p>
                 <p className="mt-2 text-[1.1875rem] font-semibold leading-snug">{newest.q}</p>
-                <p className="mt-3 border-t border-border pt-3 text-[1.0625rem] leading-snug text-primary">{newest.a}</p>
+                <p className="mt-3 border-t border-border pt-3 text-[1.0625rem] leading-snug text-link">{newest.a}</p>
               </div>
             </Section>
           )}
@@ -184,7 +184,7 @@ function Studying({ session, setSession, cards, grade, streakNow }: { session: S
       <div className="mb-4 flex items-center gap-3">
         <Bar className="flex-1" value={session.at / session.ids.length} label="Studied" />
         <span className="text-[0.875rem] font-medium tabular-nums text-muted-foreground">{session.at + 1} of {session.ids.length}</span>
-        <button type="button" onClick={() => setSession(null)} className="h-11 px-2 font-semibold text-primary">End</button>
+        <button type="button" onClick={() => setSession(null)} className="h-11 px-2 font-semibold text-link">End</button>
       </div>
       <Section>
         <div className="flex min-h-[18rem] flex-col p-6">
@@ -192,7 +192,7 @@ function Studying({ session, setSession, cards, grade, streakNow }: { session: S
           <p className="mt-4 text-[1.5rem] font-semibold leading-snug" data-testid="question">{card.q}</p>
           {session.shown && (
             <div className="mt-5 border-t border-border pt-5 animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
-              <p className="text-[1.25rem] leading-snug text-primary" data-testid="answer">{card.a}</p>
+              <p className="text-[1.25rem] leading-snug text-link" data-testid="answer">{card.a}</p>
             </div>
           )}
         </div>
@@ -205,7 +205,7 @@ function Studying({ session, setSession, cards, grade, streakNow }: { session: S
               return (
                 <button key={g} type="button" aria-label={`${label}, back in ${span(days)}`} onClick={() => answer(g)}
                   className={cn("flex h-14 flex-col items-center justify-center rounded-xl font-semibold active:opacity-80",
-                    g === "good" ? "bg-primary text-primary-foreground" : g === "again" ? "bg-muted text-foreground" : "bg-[var(--amber-accent-soft)] text-primary")}>
+                    g === "good" ? "bg-primary text-primary-foreground" : g === "again" ? "bg-muted text-foreground" : "bg-[var(--amber-accent-soft)] text-link")}>
                   <span className="text-[1rem] leading-tight">{label}</span>
                   <span className="text-[0.75rem] font-medium tabular-nums opacity-80">{short(days)}</span>
                 </button>

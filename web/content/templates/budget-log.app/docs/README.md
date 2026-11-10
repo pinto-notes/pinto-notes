@@ -28,6 +28,7 @@ To log an expense, append to expenses with a new id. To add a bill, append to re
 - Add expense is the one big button; the sheet starts on the amount, with the decimal keypad on iPhone.
 - The person is in control without the AI: add, edit (tap an expense) and delete expenses; add, rename (tap the name) and remove categories; change each budget and the currency. Deleting shows Undo in a bar at the top of the screen.
 - Over budget is the only place with a second colour (the system's red); everything else uses Pinto's amber.
+- Colour: three ambers, one job each, the same three the Mac app has (src/index.css). The accent (`--amber-accent`, #D96A06 in the light, #F4AD33 in the dark) is for ticks, rings, bars and dots. `text-link` is its ink shade (#A85700 in the light) for amber text. `bg-primary` is the primary button: #BB5B05 with a white label in the light, white with a black label in the dark, as the Mac's own buttons are (dark-mode buttons are white or black, never amber). Before round 5 `--primary` was the ink shade, so a tick, a done day's dot and the button were three different oranges in one view. Letters on an accent fill use `text-mark-text` (the page's ink in the light: white on the accent is 3.5:1).
 - Months run from the 1st. Earlier months are one tap back, on Month and on Expenses.
 - The app sets the note's summary line to "7,165 kr left in October".
 - No text under 12 px (0.75rem), Apple's minimum. Tests check text that changes after an action (saving and grading are async) inside waitFor, never on the first find.

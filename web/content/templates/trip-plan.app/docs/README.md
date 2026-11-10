@@ -26,6 +26,8 @@ data.json, all under "values" (the person's AI reads and edits it directly):
 - The app sets the note's summary line to "Lisbon: 9 days to go, 5 of 14 packed".
 - No text under 12 px (0.75rem), Apple's minimum. Tests check text that changes after an action (saving and grading are async) inside waitFor, never on the first find.
 
+- Colour: three ambers, one job each, the same three the Mac app has (src/index.css). The accent (`--amber-accent`, #D96A06 in the light, #F4AD33 in the dark) is for ticks, rings, bars and dots. `text-link` is its ink shade (#A85700 in the light) for amber text. `bg-primary` is the primary button: #BB5B05 with a white label in the light, white with a black label in the dark, as the Mac's own buttons are (dark-mode buttons are white or black, never amber). Before round 5 `--primary` was the ink shade, so a tick, a done day's dot and the button were three different oranges in one view. Letters on an accent fill use `text-mark-text` (the page's ink in the light: white on the accent is 3.5:1).
+
 ## Known gaps
 - A day's plan is edited as text, one line per item; there is no reordering of items within a day.
 - No costs per booking, no map, no weather (the network is off unless the person allows a host).
