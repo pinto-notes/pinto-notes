@@ -25,47 +25,39 @@
       "args": {
         "path": "Personal/Gift ideas.md",
         "old_string": "| --- | --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- | --- |\n| Maja | Birthday, 12 Nov | A good chef's knife | 900 | Idea |\n"
+        "new_string": "| --- | --- | --- | --- | --- |\n| Maja | Housewarming | A good chef's knife | 900 | Idea |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Personal/Gift ideas.md",
-        "old_string": "| Maja | Birthday, 12 Nov | A good chef's knife | 900 | Idea |\n",
-        "new_string": "| Maja | Birthday, 12 Nov | A good chef's knife | 900 | Idea |\n| Dad | Christmas | Tickets to the football | 500 | Bought |\n"
+        "old_string": "| Maja | Housewarming | A good chef's knife | 900 | Idea |\n",
+        "new_string": "| Maja | Housewarming | A good chef's knife | 900 | Idea |\n| Dad | Christmas | Football tickets | 500 | Bought |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Personal/Gift ideas.md",
-        "old_string": "| Dad | Christmas | Tickets to the football | 500 | Bought |\n",
-        "new_string": "| Dad | Christmas | Tickets to the football | 500 | Bought |\n| Jonas | Housewarming | A green wool beanie | 300 | Idea |\n"
+        "old_string": "| Dad | Christmas | Football tickets | 500 | Bought |\n",
+        "new_string": "| Dad | Christmas | Football tickets | 500 | Bought |\n| Jonas | Birthday | A green wool beanie | 300 | Idea |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Personal/Gift ideas.md",
-        "old_string": "| Jonas | Housewarming | A green wool beanie | 300 | Idea |\n",
-        "new_string": "| Jonas | Housewarming | A green wool beanie | 300 | Idea |\n| Mum | Christmas | A weekend in the archipelago | 2500 | Idea |\n"
+        "old_string": "| Jonas | Birthday | A green wool beanie | 300 | Idea |\n",
+        "new_string": "| Jonas | Birthday | A green wool beanie | 300 | Idea |\n| Mum | Christmas | A weekend away | 2500 | Idea |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Personal/Gift ideas.md",
-        "old_string": "| Mum | Christmas | A weekend in the archipelago | 2500 | Idea |\n",
-        "new_string": "| Mum | Christmas | A weekend in the archipelago | 2500 | Idea |\n| Emma | Thank you | Good olive oil | 200 | Given |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Personal/Gift ideas.md",
-        "old_string": "| Emma | Thank you | Good olive oil | 200 | Given |\n",
-        "new_string": "| Emma | Thank you | Good olive oil | 200 | Given |\n| Sara | Christmas | A film camera | 1200 | Idea |\n"
+        "old_string": "| Mum | Christmas | A weekend away | 2500 | Idea |\n",
+        "new_string": "| Mum | Christmas | A weekend away | 2500 | Idea |\n| Emma | Thank you | Good olive oil | 200 | Given |\n"
       }
     },
     {
@@ -73,11 +65,11 @@
       "args": {
         "path": "Personal/Gift ideas.md",
         "old_string": "What you learn about each person: sizes, favourites, what they already have.\n",
-        "new_string": "What you learn about each person: sizes, favourites, what they already have.\n- **Maja:** cooks a lot, already has a stand mixer.\n- **Jonas:** medium, loves anything green.\n- **Mum:** no more things; she'd rather do something together.\n- **Sara:** shoe size 38, shoots black and white.\n"
+        "new_string": "What you learn about each person: sizes, favourites, what they already have.\n- **Maja:** cooks a lot, already has a stand mixer.\n- **Jonas:** medium, loves anything green.\n- **Mum:** no more things; she'd rather do something together.\n- **Dad:** has every scarf the club sells.\n"
       }
     }
   ],
-  "example": "Gift ideas\n\nSave ideas the moment you hear them, so the next birthday is easy. Add one in the table, or tell your AI.\n\n## Ideas\n<!-- pane-table: Person=text; Occasion=text; Idea=text; Budget (kr)=number; Status=choice Idea|Bought|Given -->\n| Person | Occasion | Idea | Budget (kr) | Status |\n| --- | --- | --- | --- | --- |\n| Maja | Birthday, 12 Nov | A good chef's knife | 900 | Idea |\n| Dad | Christmas | Tickets to the football | 500 | Bought |\n| Jonas | Housewarming | A green wool beanie | 300 | Idea |\n| Mum | Christmas | A weekend in the archipelago | 2500 | Idea |\n| Emma | Thank you | Good olive oil | 200 | Given |\n| Sara | Christmas | A film camera | 1200 | Idea |\n\n## Sizes and likes\nWhat you learn about each person: sizes, favourites, what they already have.\n- **Maja:** cooks a lot, already has a stand mixer.\n- **Jonas:** medium, loves anything green.\n- **Mum:** no more things; she'd rather do something together.\n- **Sara:** shoe size 38, shoots black and white.\n",
+  "example": "Gift ideas\n\nSave ideas the moment you hear them, so the next birthday is easy. Add one in the table, or tell your AI.\n\n## Ideas\n<!-- pane-table: Person=text; Occasion=text; Idea=text; Budget (kr)=number; Status=choice Idea|Bought|Given -->\n| Person | Occasion | Idea | Budget (kr) | Status |\n| --- | --- | --- | --- | --- |\n| Maja | Housewarming | A good chef's knife | 900 | Idea |\n| Dad | Christmas | Football tickets | 500 | Bought |\n| Jonas | Birthday | A green wool beanie | 300 | Idea |\n| Mum | Christmas | A weekend away | 2500 | Idea |\n| Emma | Thank you | Good olive oil | 200 | Given |\n\n## Sizes and likes\nWhat you learn about each person: sizes, favourites, what they already have.\n- **Maja:** cooks a lot, already has a stand mixer.\n- **Jonas:** medium, loves anything green.\n- **Mum:** no more things; she'd rather do something together.\n- **Dad:** has every scarf the club sells.\n",
   "related": [
     "budget-log",
     "trip-plan",
