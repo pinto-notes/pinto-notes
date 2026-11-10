@@ -7,7 +7,7 @@ enum FilmDemo {
     /// `light` is the thinnest month the film is still offered for: two folders, a note most
     /// days, no AI.
     /// `heavy` is a big month: twelve folders, some with long names, and about three times the notes.
-    static func notebook(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), ai: String = "ChatGPT", light: Bool = false, heavy: Bool = false) -> FilmInput {
+    static func notebook(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), ai: String = "ChatGPT", light: Bool = false, heavy: Bool = false, person: Int = 0) -> FilmInput {
         var rng = seed &* 0x2545_F491_4F6C_DD1D | 1
         func rand() -> Double {
             rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
@@ -15,7 +15,19 @@ enum FilmDemo {
         }
         func pick<T>(_ a: [T]) -> T { a[Int(rand() * Double(a.count)) % a.count] }
 
-        let folders: [(String, Double, Int)] = light ? [("Journal", 0.7, 0), ("Recipes", 0.3, 5)] : heavy ? [
+        // Three different people, to see that no two films are alike: a student whose AI joins in
+        // the second week and who's away for a while, a founder with the AI from the first days,
+        // and someone who writes alone and starts planning a trip half way through.
+        let ai = person == 1 ? "Claude" : ai
+        let aiFromDay = person == 1 ? 12 : person == 3 ? Int.max : 2
+        let aiChance = person == 2 ? 0.8 : 0.5
+        let away: Range<Int> = person == 1 ? 16..<22 : person == 3 ? 8..<13 : 0..<0
+        let people: [[(String, Double, Int)]] = [
+            [("Thesis", 0.4, 0), ("Lectures", 0.2, 0), ("Reading", 0.15, 3), ("Gym", 0.1, 9), ("Flat hunt", 0.15, 23)],
+            [("Product", 0.3, 0), ("Ideas", 0.1, 0), ("Family", 0.1, 2), ("Investors", 0.15, 6), ("Hiring", 0.15, 11), ("Launch", 0.25, 19)],
+            [("Journal", 0.3, 0), ("Recipes", 0.25, 0), ("Garden", 0.2, 1), ("Trip to Japan", 0.3, 15)],
+        ]
+        let folders: [(String, Double, Int)] = (1...3).contains(person) ? people[person - 1] : light ? [("Journal", 0.7, 0), ("Recipes", 0.3, 5)] : heavy ? [
             ("Work", 0.2, 0), ("Product research 2026", 0.14, 1), ("Thesis", 0.12, 2), ("Reading", 0.08, 1), ("Apartment hunt", 0.08, 6),
             ("Running", 0.06, 4), ("Recipes", 0.06, 8), ("Home", 0.07, 3), ("Lisbon trip", 0.05, 17), ("Quarterly planning", 0.06, 10),
             ("Ideas", 0.05, 2), ("Family", 0.03, 12),
@@ -66,6 +78,7 @@ enum FilmDemo {
             let weekend = weekday == 1 || weekday == 7
             // Some days you don't open it at all.
             if rand() < (light ? 0.35 : weekend ? 0.35 : 0.12) { continue }
+            if away.contains(d) { continue }
             let open = folders.filter { $0.2 <= d }
             func folderPick() -> String {
                 var r = rand() * open.map(\.1).reduce(0, +)
@@ -96,7 +109,7 @@ enum FilmDemo {
                 if at > notes[i].created { notes[i].edits.append(FilmEdit(at: at, ai: nil)) }
             }
             // A session with the AI: a burst of linked notes in one folder, and edits to old ones.
-            if !light && d >= 2 && rand() < 0.5 {
+            if !light && d >= aiFromDay && rand() < aiChance {
                 let f = folderPick()
                 var at = day.addingTimeInterval(19 * 3600 + rand() * 3 * 3600)
                 let anchor = hub(in: f)

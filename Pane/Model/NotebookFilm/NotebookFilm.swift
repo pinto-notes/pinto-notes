@@ -55,6 +55,9 @@ struct FilmStats: Equatable, Sendable {
     /// The day with the most edits, and how many.
     var busiestDay: Date?
     var busiestDayEdits: Int
+    /// The longest stretch of days you wrote nothing, and the day you were back (nil if none).
+    var quietDays: Int
+    var backOn: Date?
     /// How long the film covers, in months: 1 for about a month, 2 when it came later.
     var months: Int { max(1, Int((Double(days) / 30).rounded())) }
     /// "first month", "first 2 months": what the film is called, after "My" or "Your".
@@ -80,6 +83,14 @@ struct FilmStats: Equatable, Sendable {
             best = max(best, run)
         }
         streak = best
+        var quiet = 0, back: Date?
+        let inOrder = written.sorted()
+        for (a, b) in zip(inOrder, inOrder.dropFirst()) {
+            let gap = (calendar.dateComponents([.day], from: a, to: b).day ?? 1) - 1
+            if gap > quiet { quiet = gap; back = b }
+        }
+        quietDays = quiet
+        backOn = back
         let edits = notes.flatMap(\.edits)
         var byAI: [String: Int] = [:]
         for e in edits { if let a = e.ai { byAI[a, default: 0] += 1 } }
@@ -159,6 +170,19 @@ struct FilmScript: Sendable {
         var bornByAI: Bool
     }
     struct Link: Sendable { var a: Int; var b: Int; var birth: Double }
+
+    /// Something that happened in the month, which the film stops to tell: when, and what to look at.
+    struct Beat: Sendable, Equatable {
+        enum Kind: Sendable, Equatable { case folderBegins, aiJoins, cameBack, busiestDay, quietReturn, topFolder }
+        var kind: Kind
+        var from: Double, until: Double
+        var folder: Int?
+        var node: Int?
+        var count = 0
+    }
+    /// The month's own story, in order: what the film says and shows besides the notebook growing.
+    /// Two people's are never the same, because it's made of what each of them did.
+    private(set) var story: [Beat] = []
 
     /// Oldest first, so the notes alive at any moment are a prefix.
     let nodes: [Node]
@@ -257,6 +281,58 @@ struct FilmScript: Sendable {
         self.nodes = nodes
         self.links = links.sorted { $0.birth < $1.birth }
         folders = folderNames
+        story = tell()
+    }
+
+    /// Picks what happened that's worth telling, most telling first, and gives each its own time.
+    private func tell() -> [Beat] {
+        // What's most the person's own comes first: things that happened, before things that are counted.
+        var wanted: [Beat] = []
+        // The AI's first time, when there was a time before it (an AI there from the first notes didn't join anything).
+        let firstAI = nodes.indices.compactMap { i -> (Double, Int)? in
+            let at = nodes[i].bornByAI ? nodes[i].birth : zip(nodes[i].edits, nodes[i].aiEdits).first { $0.1 }?.0
+            return at.map { ($0, i) }
+        }.min { $0.0 < $1.0 }
+        if let (at, i) = firstAI, at >= 0.9 { wanted.append(Beat(kind: .aiJoins, from: at, until: at + 1.4, node: i)) }
+        // Away for a while, and back.
+        if stats.quietDays >= 4, let day = stats.backOn, let s = span(ofDay: day) {
+            wanted.append(Beat(kind: .quietReturn, from: s.start, until: s.start + 1.4, count: stats.quietDays))
+        }
+        // Folders that began along the way (not the one the month opened with), the largest first.
+        var size = [Int](repeating: 0, count: folders.count)
+        for n in nodes { size[n.folder] += 1 }
+        let began = folders.indices.filter { !folders[$0].isEmpty && size[$0] >= 4 && $0 != nodes.first?.folder }
+            .sorted { size[$0] > size[$1] }
+            .compactMap { f in nodes.first { $0.folder == f }.map { (f, $0.birth) } }
+            .filter { $0.1 >= 1.2 }
+        func begins(_ k: Int) { if k < began.count { wanted.append(Beat(kind: .folderBegins, from: began[k].1, until: began[k].1 + 1.4, folder: began[k].0, count: size[began[k].0])) } }
+        begins(0)
+        // The note you kept coming back to.
+        if let i = nodes.indices.max(by: { nodes[$0].edits.count < nodes[$1].edits.count }), nodes[i].edits.count >= 6 {
+            let at = nodes[i].edits[Int(0.7 * Double(nodes[i].edits.count - 1))]
+            wanted.append(Beat(kind: .cameBack, from: at - 0.15, until: at + 1.3, node: i, count: nodes[i].edits.count))
+        }
+        if let b = busiestMoment { wanted.append(Beat(kind: .busiestDay, from: b.from, until: min(b.until, b.from + 1.5), count: stats.busiestDayEdits)) }
+        if growth > 5, stats.folders >= 3, let m = topFolderMoment, let f = stats.topFolder.flatMap({ folders.firstIndex(of: $0) }) {
+            wanted.append(Beat(kind: .topFolder, from: m.from, until: min(m.until, m.from + 1.6), folder: f, count: stats.topFolderNotes))
+        }
+        begins(1)
+        // Each needs time to be read, after the film has said what a light is, and none over another.
+        var told: [Beat] = []
+        for var b in wanted where told.count < 5 {
+            b.from = max(b.from, 1.5)
+            b.until = min(max(b.until, b.from + 1.3), growth - 0.25)
+            for _ in 0..<2 {
+                guard let clash = told.first(where: { b.from < $0.until + 0.2 && b.until > $0.from - 0.2 }) else { break }
+                let later = clash.until + 0.2
+                guard later - b.from <= 0.8 else { b.until = 0; break }
+                b.until = min(growth - 0.25, b.until + later - b.from)
+                b.from = later
+            }
+            guard b.until - b.from >= 1.2, !told.contains(where: { b.from < $0.until + 0.2 && b.until > $0.from - 0.2 }) else { continue }
+            told.append(b)
+        }
+        return told.sorted { $0.from < $1.from }
     }
 
     /// When the film is on the day you wrote most (nil when that day passes under the title).

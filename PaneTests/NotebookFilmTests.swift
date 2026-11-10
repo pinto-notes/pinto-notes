@@ -701,6 +701,33 @@ import Testing
         #expect(s.look == .leaf)
     }
 
+    @Test func theFilmTellsEachPersonsOwnMonth() {
+        // What the film stops to tell comes from what the person did, so no two are alike: a
+        // student whose AI joins in the second week and who's away for a while, a founder who
+        // starts new folders along the way, someone who writes alone.
+        let people = (1...3).map { FilmScript(FilmDemo.notebook(days: 35, now: Self.now, person: $0), calendar: Self.cal) }
+        let kinds = people.map { $0.story.map(\.kind) }
+        #expect(kinds[0].contains(.aiJoins) && kinds[0].contains(.quietReturn), "the student: the AI joins, and they come back after a break")
+        #expect(kinds[1].contains(.folderBegins) && !kinds[1].contains(.aiJoins), "the founder: a folder begins; the AI was there from the start")
+        #expect(!kinds[2].contains(.aiJoins) && people[2].stats.ai == nil, "writing alone: no AI in it at all")
+        #expect(Set(kinds.map { "\($0)" }).count == 3, "three people, three different stories")
+        #expect(Set(people.map(\.folders)).count == 3, "and their own folders")
+        for script in people + [FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)] {
+            #expect(script.story.count >= 2 && script.story.count <= 5)
+            // In order, each with time to be read, none over another, all while the notebook grows.
+            for b in script.story { #expect(b.until - b.from >= 1.2 && b.from >= 1.5 && b.until <= script.growth) }
+            for (a, b) in zip(script.story, script.story.dropFirst()) { #expect(b.from >= a.until + 0.19) }
+        }
+        let l = FilmRenderer.Labels()
+        #expect(l.folderBegins("Thesis") == "A new folder: Thesis" && l.aiJoins("Claude") == "Claude joins in")
+        #expect(l.cameBack(14) == "One note I came back to 14 times" && l.quietReturn(6) == "Back after 6 quiet days")
+        // The days away are counted from the days you wrote on.
+        let d = Self.now
+        func note(_ days: [Int]) -> FilmNote { FilmNote(id: UUID(), folder: "", created: d.addingTimeInterval(Double(-days.max()!) * 86_400), edits: days.map { FilmEdit(at: d.addingTimeInterval(Double(-$0) * 86_400), ai: nil) }, links: []) }
+        let s = FilmStats(FilmInput(notes: [note([20, 19]), note([12, 11]), note([2])], now: d), calendar: Self.cal)
+        #expect(s.quietDays == 8 && s.backOn == Self.cal.startOfDay(for: d.addingTimeInterval(-2 * 86_400)))
+    }
+
     @Test func theFilmBeginsAtTheFirstNote() {
         // Not at the midnight before it: there's never a frame of an empty month with "0 notes".
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)

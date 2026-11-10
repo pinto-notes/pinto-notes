@@ -49,7 +49,7 @@ final class HoloScene: FilmScene {
     private var shots: [(f: P3, rad: Double)] = []
     private static let shotStep = 0.1
     /// The systems the film stops on, and when: the day written most, the folder written in most.
-    private var locks: [(cluster: Int, from: Double, until: Double)] = []
+    private var locks: [(cluster: Int, node: Int?, from: Double, until: Double)] = []
     /// Its lines and its ground: cool on black, or Pinto's own (cream lines on leaf brown).
     private var wire: C { look == .holoLeaf ? C(0xF3DDBF) : C(0xBCD3F5) }
     private var ground: C { look.background.0 }
@@ -147,16 +147,23 @@ final class HoloScene: FilmScene {
     // MARK: Camera
 
     private func plan() {
-        if let day = script.stats.busiestDay, let span = script.span(ofDay: day), span.start >= 0.55 {
-            var edits = [Int](repeating: 0, count: clusters.count)
-            for (i, n) in script.nodes.enumerated() { edits[clusterOf[i]] += n.edits.filter { $0 >= span.start && $0 < span.start + span.length }.count }
-            if let h = edits.indices.max(by: { edits[$0] < edits[$1] }), edits[h] > 0 {
-                locks.append((h, span.start - 0.1, span.start + min(2.4, max(1.2, span.length))))
+        // The camera goes in on each thing the month's story tells: a system, or one note in it.
+        for beat in script.story {
+            switch beat.kind {
+            case .busiestDay:
+                // The system most written in that day.
+                var edits = [Int](repeating: 0, count: clusters.count)
+                for (i, n) in script.nodes.enumerated() { edits[clusterOf[i]] += n.edits.filter { $0 >= beat.from && $0 < beat.until }.count }
+                if let h = edits.indices.max(by: { edits[$0] < edits[$1] }), edits[h] > 0 { locks.append((h, nil, beat.from - 0.1, beat.until)) }
+            case .topFolder, .folderBegins:
+                guard folderNames, let f = beat.folder, let h = clusters.firstIndex(where: { $0.folder == f }) else { continue }
+                locks.append((h, nil, beat.from + 0.05, beat.until - 0.1))
+            case .aiJoins, .cameBack:
+                guard let i = beat.node else { continue }
+                locks.append((clusterOf[i], i, beat.from, beat.until - 0.1))
+            case .quietReturn:
+                continue
             }
-        }
-        if folderNames, growth > 5, clusters.count >= 3, let m = script.topFolderMoment,
-           let top = script.stats.topFolder, let h = clusters.firstIndex(where: { script.folders[$0.folder] == top }) {
-            locks.append((h, m.from + 0.05, m.until - 0.1))
         }
         let n = Int(((growth + FilmScript.outro + 1) / Self.shotStep).rounded(.up)) + 1
         var raw: [(f: P3, rad: Double)] = []
@@ -307,7 +314,11 @@ final class HoloScene: FilmScene {
         }
         // Which one the film is on, if any.
         var lock = [Double](repeating: 0, count: clusters.count)
-        for l in locks { lock[l.cluster] = max(lock[l.cluster], smooth((gt - l.from) / 0.25) * (1 - smooth((gt - l.until) / 0.3)) * (1 - ending)) }
+        var onNote = [Int: Int]()
+        for l in locks {
+            let a = smooth((gt - l.from) / 0.25) * (1 - smooth((gt - l.until) / 0.3)) * (1 - ending)
+            if a > lock[l.cluster] { lock[l.cluster] = a; onNote[l.cluster] = l.node }
+        }
 
         // Under each system, where it stands on the floor.
         for (h, cl) in clusters.enumerated() where aliveIn[h] > 0 {
@@ -437,8 +448,10 @@ final class HoloScene: FilmScene {
         // The system the film is on: brackets close round it.
         for (h, cl) in clusters.enumerated() where lock[h] > 0.01 {
             let a = lock[h]
-            let m = mids[h]
-            let half = ((Self.spread * aliveIn[h].squareRoot() + 18) * m.s + 34) * (1.25 - 0.25 * a)
+            var m = mids[h]
+            var half = ((Self.spread * aliveIn[h].squareRoot() + 18) * m.s + 34) * (1.25 - 0.25 * a)
+            // (Round the one note the story is about, when it's about one.)
+            if let i = onNote[h] ?? nil, script.nodes[i].birth <= gt { m.p = where_[i]; half = 40 * (1.25 - 0.25 * a) }
             let arm = 24.0
             ctx.setStrokeColor(look.you.cg(0.95 * a))
             ctx.setLineWidth(2.5)

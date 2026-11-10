@@ -134,6 +134,11 @@ final class FilmRenderer {
         /// The same moment in a month of one or two folders: how many days you wrote on.
         var daysCaption: @Sendable (Int) -> String = { $0 == 1 ? "I wrote on 1 day" : "I wrote on \($0) days" }
         /// ...or, better, the most days running (the end card has the count of days).
+        /// The month's story, as it happens.
+        var folderBegins: @Sendable (String) -> String = { "A new folder: \($0)" }
+        var aiJoins: @Sendable (String) -> String = { "\($0) joins in" }
+        var cameBack: @Sendable (Int) -> String = { "One note I came back to \($0) times" }
+        var quietReturn: @Sendable (Int) -> String = { "Back after \($0) quiet days" }
         var streakCaption: @Sendable (Int) -> String = { "\($0) days in a row, my longest run" }
         /// The end card's third number when no AI wrote: "214 edits".
         var statEdits = "edits"
@@ -806,25 +811,42 @@ final class FilmRenderer {
             /// 1 while a line of your own holds the baseline, with room either side of it.
             func held(_ from: Double, _ until: Double) -> Double { ramp(from - 0.34, from - 0.1) * (1 - ramp(until + 0.1, until + 0.34)) }
             var mine: [(from: Double, until: Double, line: String, color: RGB)] = []
-            // Only while that day is on screen: a day that passed under the title goes unsaid here.
-            if let day = s.busiestDay, let span = script.span(ofDay: day), span.start >= titleUntil + 0.3 + startOffset {
-                mine.append((span.start, span.start + min(2.4, max(0.9, span.length - 0.15)), labels.busiestCaption(s.busiestDayEdits), look.you))
+            // The month's own story, each thing as the film reaches it.
+            let aiInk = look.dark ? look.ai : FilmLook.paper.ai
+            for beat in script.story where beat.from >= titleUntil + 0.3 + startOffset {
+                switch beat.kind {
+                case .busiestDay:
+                    mine.append((beat.from, beat.from + min(2.4, max(0.9, beat.until - beat.from - 0.15)), labels.busiestCaption(beat.count), look.you))
+                case .topFolder:
+                    guard namesTopFolder(s), let f = beat.folder else { continue }
+                    // (Its count so far, like the notes beside it: its moment can come before the month is out.)
+                    let soFar = script.nodes.reduce(0) { $1.folder == f && $1.birth <= t ? $0 + 1 : $0 }
+                    mine.append((beat.from, beat.until, labels.topFolderCaption(script.folders[f], max(1, soFar)), look.you))
+                case .folderBegins:
+                    guard labels.folderNames, let f = beat.folder else { continue }
+                    mine.append((beat.from, beat.until, labels.folderBegins(script.folders[f]), look.you))
+                case .aiJoins:
+                    guard let ai = s.ai else { continue }
+                    mine.append((beat.from, beat.until, labels.aiJoins(ai), aiInk))
+                case .cameBack:
+                    mine.append((beat.from, beat.until, labels.cameBack(beat.count), look.you))
+                case .quietReturn:
+                    mine.append((beat.from, beat.until, labels.quietReturn(beat.count), look.you))
+                }
             }
-            if namesTopFolder(s), let f = s.topFolder, let m = script.topFolderMoment {
-                // (Its count so far, like the notes beside it: its moment can come before the month is out.)
-                let k = script.folders.firstIndex(of: f)
-                let soFar = script.nodes.reduce(0) { $1.folder == k && $1.birth <= t ? $0 + 1 : $0 }
-                mine.append((m.from, m.until, labels.topFolderCaption(f, max(1, soFar)), look.you))
-            } else if s.writingDays > 1 {
+            // A month with nothing to single out still gets a line of its own.
+            if mine.isEmpty, s.writingDays > 1 {
                 mine.append((script.growth - 1.9, script.growth - 0.25, s.streak >= 3 ? labels.streakCaption(s.streak) : labels.daysCaption(s.writingDays), look.you))
             }
             mine.sort { $0.from < $1.from }
             // As many as fit while it grows: a thin month's shorter film says less.
-            var lines: [(String, RGB?)] = (scene?.captions ?? labels.captions).map { ($0, nil) }
+            // (With a story to tell, how to read it is one line: the rest of the time is the month's.)
+            var lines: [(String, RGB?)] = (scene?.captions ?? labels.captions).prefix(script.story.count >= 3 ? 1 : 2).map { ($0, nil) }
             // The AI has a line of its own, in its colour, after how to read a house. Its number is
             // the count so far, like the notes beside it: never more than the film has shown.
             let helped = helped(at: t)
-            if let ai = s.ai, s.aiNotes > 0 { lines.append((helped > 0 ? labels.aiCaption(ai, helped) : "", look.dark ? look.ai : FilmLook.paper.ai)) }
+            // (Unless the story has the AI joining in: then that's its line.)
+            if let ai = s.ai, s.aiNotes > 0, !script.story.contains(where: { $0.kind == .aiJoins }) { lines.append((helped > 0 ? labels.aiCaption(ai, helped) : "", look.dark ? look.ai : FilmLook.paper.ai)) }
             // Under the first house at once where the film takes the month up from it.
             var from = rewound ? startOffset + 0.12 : titleUntil + 0.6 + startOffset
             // Brief: how to read it takes a couple of seconds, and the rest of the film is the month's own.
@@ -917,7 +939,7 @@ final class FilmRenderer {
     /// Whether the film stops to name the folder written in most (it needs folders enough for
     /// that to say something, and a moment of its own).
     private func namesTopFolder(_ s: FilmStats) -> Bool {
-        labels.folderNames && s.topFolder != nil && script.growth > 5 && s.folders >= 3 && script.topFolderMoment != nil
+        labels.folderNames && s.topFolder != nil && script.story.contains { $0.kind == .topFolder }
     }
 
     private func highlight(_ s: FilmStats) -> (text: String, streak: Bool)? {
