@@ -141,7 +141,8 @@ enum NoteLockError: LocalizedError, Equatable {
         case .notesChanged: "Your notes changed on another device. Try again in a moment."
         case .unverified: "The notes password on the server couldn't be checked against the one this device knows, so it wasn't used. Contact support."
         case .hasFiles: "Notes with files can't be locked."
-        case .offline: "You're offline. Connect to the internet to set or change your notes password."
+        // True with no network and with only the server away. Locked notes still open and lock.
+        case .offline: "Setting or changing your notes password needs Pinto Notes. Try again when you\u{2019}re back online."
         case .other(let s): s
         }
     }
@@ -343,10 +344,22 @@ final class NoteVault {
         return found
     }
 
+    /// How long unlocking waits for the server's word on the password before checking it against
+    /// what this device knows.
+    var serverWait: Duration = .seconds(3)
+
+    /// The setup as the server has it now, if it answers soon. With no network the ask fails at
+    /// once; with a network that lets nothing through it would wait out the request's own timeout
+    /// (a minute) with the password sheet just sitting there (offline audit, 10 November 2026).
+    private func freshSettings() async -> LockSettings? {
+        guard let remote else { return nil }
+        return try? await AccountCrypto.within(serverWait, sleep: { try await Task.sleep(for: $0) }) { try await remote.fetch() }
+    }
+
     /// Opens every locked note. Throws `.wrongPassword`, or `.changedElsewhere` for the old
     /// password after a change on another device.
     func unlock(password: String) async throws {
-        if pending == nil, let remote, let fresh = try? await remote.fetch() { take(fresh) }
+        if pending == nil, let fresh = await freshSettings() { take(fresh) }
         if let p = pending {
             let key = await Self.derive(password, p)
             if NoteCrypto.check(key, against: p.verifier) {

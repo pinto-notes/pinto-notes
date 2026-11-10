@@ -235,6 +235,8 @@ struct RootView: View {
     }
 
     @Environment(SyncEngine.self) private var syncForSettings: SyncEngine?
+    /// Whether the server can be reached: Make with an AI doesn't open the AI while it can't.
+    @Environment(\.networkReach) private var reach
 
     /// One of the first run's cards, as a sheet; Cancel or Escape closes it.
     @ViewBuilder private func popupCard(_ only: SetupCardsFlow.Only) -> some View {
@@ -266,7 +268,7 @@ struct RootView: View {
         TemplateLibraryView(ais: ais, make: { e, ai in
             Task {
                 // A real-input check never opens the AI's page in a browser.
-                let note = await TemplateMaking.make(e, with: ai, context: context, account: backendForConnect?.userID, open: { if !Self.templatesStandIn { openURLForTemplates($0) } })
+                let note = await TemplateMaking.make(e, with: ai, context: context, account: backendForConnect?.userID, reach: reach, open: { if !Self.templatesStandIn { openURLForTemplates($0) } })
                 // No second sheet: the page just said what it is. The note opens with a line
                 // saying where it went.
                 if let note, let made = context.note(note) {

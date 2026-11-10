@@ -370,6 +370,81 @@ extension NetworkFaults {
         await finish()
     }
 
+    /// The offline audit (Emil, 10 November 2026: "shouldn't it work to work offline?"). With no
+    /// network, and with a network that lets nothing through: notes are made, edited, pinned,
+    /// moved and deleted, folders renamed and nested, a file added; search, Go to Note and export
+    /// read what's here; nothing is shown as a problem and no spinner turns. Back, one sync puts
+    /// all of it up and the status goes by itself.
+    @Test(arguments: [SyncEngine.Reach.offline, .unreachable])
+    func everythingOnThisDeviceWorksWithTheServerAway(away: SyncEngine.Reach) async throws {
+        let kept = try await syncedNote("Kept\nfirst line")
+        let old = try await syncedNote("Old idea")
+        let home = context.createFolder(named: "Home")
+        await engine.sync()
+        #expect(engine.reach == .online && !home.dirty)
+        if away == .offline {
+            NetFault.config = .init(offline: true)
+            path.force(down: true)
+        } else {
+            NetFault.config = .init(timeoutAfter: 0.05)
+        }
+
+        let trip = context.createFolder(named: "Trip")
+        let made = context.createNote(in: .folder(home.id), body: "Lisbon\npack socks")
+        kept.body = "Kept\nfirst line, edited"; kept.touch()
+        context.togglePin(kept)
+        context.move(made, to: trip)
+        context.trash(old)
+        trip.name = "Trip 2026"; trip.touch()
+        context.move(trip, into: home)
+        let file = try FileStore.importData(Data("Seat 14A".utf8), filename: "pass.txt", type: .plainText)
+        file.folderID = trip.id
+        context.insert(file)
+        defer { FileStore.remove(file) }
+        try context.save()
+        await engine.sync()
+
+        #expect(engine.reach == away)
+        #expect(engine.problem == nil, "nothing to fix is shown: \(engine.problem ?? "")")
+        #expect(!OfflineCopy.spins(engine.status, reach: engine.reach), "no spinner against a connection that's away")
+        #expect(SyncStatusLabel.away(engine.status, reach: engine.reach) == OfflineCopy.lead(away), "Settings says it calmly")
+        // All of it is here.
+        #expect(made.folder?.id == trip.id && kept.isPinned && old.trashedAt != nil && trip.parent?.id == home.id && trip.name == "Trip 2026")
+        #expect(FileStore.exists(file))
+        // Search and Go to Note read this device.
+        let items = QuickOpen.noteItems(in: context)
+        #expect(items.contains { $0.title == "Lisbon" } && items.contains { $0.title == "Kept" } && !items.contains { $0.title == "Old idea" })
+        #expect(TypoSearch.matches("socks", in: made.body))
+        // Export too, with the file.
+        let exported = try await NoteExport.make(context, vault: NoteVault(keyStore: MemoryKeyStore(), defaults: MemoryDefaults()))
+        defer { try? FileManager.default.removeItem(at: exported.zip.deletingLastPathComponent()) }
+        #expect(exported.notes == 2 && exported.files == 1 && exported.missingFiles == 0)
+        #expect(AccountLibrary.hasUnsynced(context))
+
+        // Back: Try now (the status's button) runs one sync, which puts everything up.
+        NetFault.config = .init()
+        path.force(down: false)
+        #if os(macOS)
+        let status = OfflineStatus()
+        status.noticed(engine.reach)
+        status.toggle()
+        #expect(status.shows(engine.reach))
+        await status.tryNow(engine, hold: .milliseconds(50))
+        #expect(status.found == .online)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(!status.shows(engine.reach), "the status goes by itself")
+        #else
+        await engine.sync()
+        #endif
+        #expect(engine.reach == .online && OfflineCopy.line(engine.reach) == nil)
+        #expect(!AccountLibrary.hasUnsynced(context), "everything went up")
+        #expect(StubSupabase.body(kept.id) == "Kept\nfirst line, edited" && StubSupabase.body(made.id) == "Lisbon\npack socks")
+        #expect(StubSupabase.note(old.id)?["trashed_at"] is String)
+        #expect(StubSupabase.rows("attachments").count == 1 && file.uploaded)
+        #expect(StubSupabase.rows("folders").contains { ($0["parent_id"] as? String)?.lowercased() == home.id.uuidString.lowercased() })
+        await finish()
+    }
+
     @Test func theOfflineLineSaysWhatsHappening() {
         #expect(OfflineCopy.line(.online) == nil)
         // The notes are safe, said first; the same words whether or not changes are waiting

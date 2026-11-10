@@ -273,10 +273,13 @@ enum TemplateLibraryWords {
     /// Make does, on one line: "Adds an empty note to (folder) Reading, then opens ChatGPT." (the
     /// example beside it is filled in; what you get is not). With no AI that opens with the ask,
     /// only what it adds and where.
-    static func caption(_ e: TemplateCatalog.Entry, ai: SetupCards.AI) -> (lead: String, folder: String, rest: String) {
+    /// While sync is away (`reach`) the note is still added, and the line says when the AI can
+    /// fill it: it can't see a note that hasn't synced, so Make doesn't open it then.
+    static func caption(_ e: TemplateCatalog.Entry, ai: SetupCards.AI, reach: SyncEngine.Reach = .online) -> (lead: String, folder: String, rest: String) {
         let folder = e.folder ?? "Notes"
         let lead = "Adds an empty \(e.app ? "app" : "note") to "
-        return (lead, folder, ai.asks ? ", then opens \(ai.name)." : ".")
+        guard ai.asks else { return (lead, folder, ".") }
+        return (lead, folder, reach == .online ? ", then opens \(ai.name)." : ". Ask \(ai.name) once it has synced.")
     }
 }
 
@@ -300,6 +303,7 @@ enum TemplateMaking {
     /// was never added). A template you added and still have is opened, not added again: the ask
     /// names the note, and two of the same name leave the AI guessing. No note, no ask.
     @MainActor static func make(_ e: TemplateCatalog.Entry, with ai: SetupCards.AI, context: ModelContext, account: UUID?,
+                                reach: SyncEngine.Reach = .online,
                                 source: any NoteSourceFetching = ShippedTemplates(), ledger: NoteSourceLedger? = nil,
                                 copy: (String) -> Void = ConnectClipboard.set, open: (URL) -> Void) async -> UUID? {
         let link = NoteSourceLink(kind: .template, slug: e.slug)
@@ -319,7 +323,10 @@ enum TemplateMaking {
         // page's to copy ("Copy the prompt"), never put on the clipboard unasked.
         if ai.asks {
             copy(SetupCards.prompt(e.pick))
-            if let page = SetupCards.page(ai, e.pick) { open(page) }
+            // While sync is away the AI isn't opened: it can't see a note that hasn't synced, and
+            // with no network its page is a browser error. The note is here and the ask is on the
+            // clipboard; the page's line says so (`TemplateLibraryWords.caption`).
+            if reach == .online, let page = SetupCards.page(ai, e.pick) { open(page) }
         }
         return note
     }
@@ -398,6 +405,7 @@ struct TemplateLibraryView: View {
     @State private var pointed: String?
     @Environment(\.colorScheme) private var scheme
     @Environment(\.inSheet) private var inSheet
+    @Environment(\.networkReach) private var reach
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     static let size = CGSize(width: 1040, height: 680)
@@ -1155,7 +1163,7 @@ struct TemplateLibraryView: View {
             if copied {
                 Text("\(Image(systemName: "checkmark")) \(TemplateLibraryWords.copied)")
             } else {
-                let c = TemplateLibraryWords.caption(e, ai: ai)
+                let c = TemplateLibraryWords.caption(e, ai: ai, reach: reach)
                 Text(c.lead)
                     + Text(Image(systemName: "folder")).foregroundStyle(Color.paneAccent.opacity(0.85))
                     + Text("\u{2009}\(c.folder)").foregroundStyle(Color.ink)

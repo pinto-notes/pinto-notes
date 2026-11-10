@@ -767,6 +767,17 @@ import Vision
             #expect(wide(c) <= L.wordsWidth(for: L.size), "\(e.slug) with \(ai.name): \(wide(c)) pt of \(L.wordsWidth(for: L.size))")
             #expect(wide(c) <= L.wordsWidth(for: L.size(on: CGSize(width: 800, height: 560))) * 2 - 40, "\(e.slug) with \(ai.name): two lines on a narrow sheet")
         }
+        // While sync is away (offline audit, 10 November 2026): the note is still added, and the line
+        // says when the AI can fill it, calmly, on one line too. With no AI that asks, nothing changes.
+        for reach in [SyncEngine.Reach.offline, .unreachable] {
+            for ai in [SetupCards.AI.chatgpt, .claude] {
+                let c = TemplateLibraryWords.caption(e, ai: ai, reach: reach)
+                #expect(c.lead == with.lead && c.folder == folder && c.rest == ". Ask \(ai.name) once it has synced.")
+                #expect(wide(c) <= L.wordsWidth(for: L.size), "\(e.slug) with \(ai.name), away: \(wide(c)) pt of \(L.wordsWidth(for: L.size))")
+            }
+            let none = TemplateLibraryWords.caption(e, ai: .other, reach: reach)
+            #expect(none.rest == ".")
+        }
         // The longest folder a template has, with the longer AI's name: still one line.
         let longest = try #require(Self.all.compactMap(\.folder).max { $0.count < $1.count })
         #expect(wide(("Adds an empty note to ", longest, ", then opens ChatGPT.")) <= L.wordsWidth(for: L.size), "\(longest)")
@@ -1508,6 +1519,28 @@ extension TemplateCatalog.Entry: CustomTestStringConvertible {
         } else {
             #expect(e.appProject == nil && e.appPicture(dark: false) == nil)
         }
+    }
+
+    /// While sync is away (no network, or only the server away), Make with an AI still adds the
+    /// note and copies the ask, and doesn't open the AI: it can't see a note that hasn't synced.
+    /// "Add without AI" is as ever.
+    @Test(arguments: [SyncEngine.Reach.offline, .unreachable])
+    func makeWhileSyncIsAwayAddsTheNoteAndOpensNothing(reach: SyncEngine.Reach) async throws {
+        let e = try #require(Self.all.first)
+        let container = try store()
+        let ctx = container.mainContext
+        var copied: [String] = []
+        var opened: [URL] = []
+        let made = await TemplateMaking.make(e, with: .chatgpt, context: ctx, account: nil, reach: reach, source: ShippedTemplates(site: Offline()),
+                                             ledger: ledger(), copy: { copied.append($0) }, open: { opened.append($0) })
+        let id = try #require(made)
+        let note = try #require(ctx.note(id))
+        #expect(note.title == e.title && note.dirty)
+        #expect(copied.count == 1 && opened.isEmpty, "the ask is ready to paste; no browser on a page that can't load")
+        let last = try #require(Self.all.last)
+        let plain = await TemplateMaking.make(last, with: .other, context: ctx, account: nil, reach: reach,
+                                              source: ShippedTemplates(site: Offline()), ledger: ledger(), copy: { copied.append($0) }, open: { opened.append($0) })
+        #expect(plain != nil && copied.count == 1 && opened.isEmpty)
     }
 
     /// 2 to 4. Make with ChatGPT, offline: the note is added in its folder with the template's
