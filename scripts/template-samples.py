@@ -59,8 +59,8 @@ def budget() -> None:
     v["expenses"] = [
         {"id": "e1", "date": d(-6), "what": "Weekly shop", "category": "Groceries", "amount": 912},
         {"id": "e2", "date": d(-5), "what": "Travel card", "category": "Transport", "amount": 790},
-        {"id": "e3", "date": d(-4), "what": "Lunch with Sara", "category": "Eating out", "amount": 185},
-        {"id": "e4", "date": d(-2), "what": "Weekly shop", "category": "Groceries", "amount": 874},
+        {"id": "e3", "date": d(-3), "what": "Weekly shop", "category": "Groceries", "amount": 874},
+        {"id": "e4", "date": d(-2), "what": "Lunch with Maja", "category": "Eating out", "amount": 185},
         {"id": "e5", "date": d(0), "what": "Coffee and a bun", "category": "Eating out", "amount": 68},
     ]
     # The five months before, so "Last six months" is a chart and not five empty bars: four weekly

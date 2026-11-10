@@ -31,17 +31,17 @@
    },
    {
     "id": "e3",
-    "date": "2026-11-04",
-    "what": "Lunch with Sara",
-    "category": "Eating out",
-    "amount": 185
+    "date": "2026-11-05",
+    "what": "Weekly shop",
+    "category": "Groceries",
+    "amount": 874
    },
    {
     "id": "e4",
     "date": "2026-11-06",
-    "what": "Weekly shop",
-    "category": "Groceries",
-    "amount": 874
+    "what": "Lunch with Maja",
+    "category": "Eating out",
+    "amount": 185
    },
    {
     "id": "e5",

@@ -25,23 +25,23 @@
       "args": {
         "path": "Work/Bug triage.md",
         "old_string": "| --- | --- | --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- | --- | --- |\n| Checkout fails with a saved card | P1 | Checkout | In progress | 2026-11-04 | #412 |\n"
+        "new_string": "| --- | --- | --- | --- | --- | --- |\n| Saved cards fail at checkout | P1 | Checkout | In progress | 2026-11-04 | #412 |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Bug triage.md",
-        "old_string": "| Checkout fails with a saved card | P1 | Checkout | In progress | 2026-11-04 | #412 |\n",
-        "new_string": "| Checkout fails with a saved card | P1 | Checkout | In progress | 2026-11-04 | #412 |\n| Search misses names with å or ö | P2 | Search | Fixed | 2026-11-02 | #407 |\n"
+        "old_string": "| Saved cards fail at checkout | P1 | Checkout | In progress | 2026-11-04 | #412 |\n",
+        "new_string": "| Saved cards fail at checkout | P1 | Checkout | In progress | 2026-11-04 | #412 |\n| Search misses å, ä and ö | P2 | Search | Fixed | 2026-11-02 | #407 |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Bug triage.md",
-        "old_string": "| Search misses names with å or ö | P2 | Search | Fixed | 2026-11-02 | #407 |\n",
-        "new_string": "| Search misses names with å or ö | P2 | Search | Fixed | 2026-11-02 | #407 |\n| Order email arrives twice | P2 | Email | New | 2026-11-06 | #418 |\n"
+        "old_string": "| Search misses å, ä and ö | P2 | Search | Fixed | 2026-11-02 | #407 |\n",
+        "new_string": "| Search misses å, ä and ö | P2 | Search | Fixed | 2026-11-02 | #407 |\n| Order email arrives twice | P2 | Email | New | 2026-11-06 | #418 |\n"
       }
     },
     {
@@ -57,11 +57,11 @@
       "args": {
         "path": "Work/Bug triage.md",
         "old_string": "Steps to reproduce, what was expected and what happened. One section per bug.\n",
-        "new_string": "Steps to reproduce, what was expected and what happened. One section per bug.\n### Checkout fails with a saved card\n1. Sign in to an account with a saved card.\n2. Add anything to the basket and go to checkout.\n3. Choose the saved card and select Pay.\n\n- **Expected:** the order is placed.\n- **What happened:** \"Payment failed\", and no order.\n"
+        "new_string": "Steps to reproduce, what was expected and what happened. One section per bug.\n### Saved cards fail at checkout\n1. Sign in to an account with a saved card.\n2. Add anything to the basket and go to checkout.\n3. Choose the saved card and select Pay.\n\n- **Expected:** the order is placed.\n- **What happened:** \"Payment failed\", and no order.\n"
       }
     }
   ],
-  "example": "Bug triage\n\nEvery bug report in one table, with how much it hurts. Paste a report into your AI and it files it.\n\n## Bugs\n<!-- pane-table: Bug=text; Severity=choice P0|P1|P2|P3; Area=text; Status=choice New|Confirmed|In progress|Fixed|Won't fix; Reported=text; Link=text -->\n| Bug | Severity | Area | Status | Reported | Link |\n| --- | --- | --- | --- | --- | --- |\n| Checkout fails with a saved card | P1 | Checkout | In progress | 2026-11-04 | #412 |\n| Search misses names with å or ö | P2 | Search | Fixed | 2026-11-02 | #407 |\n| Order email arrives twice | P2 | Email | New | 2026-11-06 | #418 |\n| Footer logo is blurry on phones | P3 | Design | Confirmed | 2026-11-05 |   |\n\n## Severity\n- **P0:** data loss, a security hole, or everyone is blocked. Drop everything.\n- **P1:** a main flow is broken for many people. This week.\n- **P2:** broken, but there's a workaround. Schedule it.\n- **P3:** polish. When there's time.\n\n## Details\nSteps to reproduce, what was expected and what happened. One section per bug.\n### Checkout fails with a saved card\n1. Sign in to an account with a saved card.\n2. Add anything to the basket and go to checkout.\n3. Choose the saved card and select Pay.\n\n- **Expected:** the order is placed.\n- **What happened:** \"Payment failed\", and no order.\n",
+  "example": "Bug triage\n\nEvery bug report in one table, with how much it hurts. Paste a report into your AI and it files it.\n\n## Bugs\n<!-- pane-table: Bug=text; Severity=choice P0|P1|P2|P3; Area=text; Status=choice New|Confirmed|In progress|Fixed|Won't fix; Reported=text; Link=text -->\n| Bug | Severity | Area | Status | Reported | Link |\n| --- | --- | --- | --- | --- | --- |\n| Saved cards fail at checkout | P1 | Checkout | In progress | 2026-11-04 | #412 |\n| Search misses å, ä and ö | P2 | Search | Fixed | 2026-11-02 | #407 |\n| Order email arrives twice | P2 | Email | New | 2026-11-06 | #418 |\n| Footer logo is blurry on phones | P3 | Design | Confirmed | 2026-11-05 |   |\n\n## Severity\n- **P0:** data loss, a security hole, or everyone is blocked. Drop everything.\n- **P1:** a main flow is broken for many people. This week.\n- **P2:** broken, but there's a workaround. Schedule it.\n- **P3:** polish. When there's time.\n\n## Details\nSteps to reproduce, what was expected and what happened. One section per bug.\n### Saved cards fail at checkout\n1. Sign in to an account with a saved card.\n2. Add anything to the basket and go to checkout.\n3. Choose the saved card and select Pay.\n\n- **Expected:** the order is placed.\n- **What happened:** \"Payment failed\", and no order.\n",
   "related": [
     "daily-standup",
     "decision-log",

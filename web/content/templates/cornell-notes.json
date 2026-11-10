@@ -24,7 +24,7 @@
       "args": {
         "path": "Study/Cornell notes.md",
         "old_string": "One section per lecture or chapter.\n",
-        "new_string": "One section per lecture or chapter.\n### Supply and demand, 5 November\n| Cue | Notes |\n| --- | --- |\n| What shifts the demand curve? | Income, tastes, related prices, expectations. |\n| What moves along the curve? | Only the good's own price. |\n| What is the equilibrium price? | Where demand equals supply. |\n| What does a price ceiling cause? | A shortage, if it's below equilibrium. |\n\n**Summary:** The good's own price moves you along the demand curve; income, tastes, related prices and expectations shift it. The price settles where demand equals supply, and a ceiling below that leaves a shortage.\n"
+        "new_string": "One section per lecture or chapter.\n### Supply and demand, 5 November\n| Cue | Notes |\n| --- | --- |\n| What shifts the demand curve? | Income, tastes, related prices. |\n| What moves along the curve? | Only the good's own price. |\n| What is the equilibrium price? | Where demand equals supply. |\n| What does a price ceiling cause? | A shortage, if it's below equilibrium. |\n\n**Summary:** The good's own price moves you along the demand curve; income, tastes and related prices shift it. The price settles where demand equals supply, and a ceiling below that leaves a shortage.\n"
       }
     },
     {
@@ -36,7 +36,7 @@
       }
     }
   ],
-  "example": "Cornell notes\n\nPaste your lecture or reading notes into your AI. Your notes go on the right, a question each one answers on the left, and a short summary closes the section. To revise, cover the right column and answer the cues.\n\n## Lectures\nOne section per lecture or chapter.\n### Supply and demand, 5 November\n| Cue | Notes |\n| --- | --- |\n| What shifts the demand curve? | Income, tastes, related prices, expectations. |\n| What moves along the curve? | Only the good's own price. |\n| What is the equilibrium price? | Where demand equals supply. |\n| What does a price ceiling cause? | A shortage, if it's below equilibrium. |\n\n**Summary:** The good's own price moves you along the demand curve; income, tastes, related prices and expectations shift it. The price settles where demand equals supply, and a ceiling below that leaves a shortage.\n\n## Cues to revisit\nThe cues you missed when quizzed, ticked once you get them right.\n- [ ] What shifts the demand curve?\n- [x] What does a price ceiling cause?\n",
+  "example": "Cornell notes\n\nPaste your lecture or reading notes into your AI. Your notes go on the right, a question each one answers on the left, and a short summary closes the section. To revise, cover the right column and answer the cues.\n\n## Lectures\nOne section per lecture or chapter.\n### Supply and demand, 5 November\n| Cue | Notes |\n| --- | --- |\n| What shifts the demand curve? | Income, tastes, related prices. |\n| What moves along the curve? | Only the good's own price. |\n| What is the equilibrium price? | Where demand equals supply. |\n| What does a price ceiling cause? | A shortage, if it's below equilibrium. |\n\n**Summary:** The good's own price moves you along the demand curve; income, tastes and related prices shift it. The price settles where demand equals supply, and a ceiling below that leaves a shortage.\n\n## Cues to revisit\nThe cues you missed when quizzed, ticked once you get them right.\n- [ ] What shifts the demand curve?\n- [x] What does a price ceiling cause?\n",
   "related": [
     "study-flashcards",
     "book-notes",
