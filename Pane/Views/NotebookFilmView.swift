@@ -43,7 +43,10 @@ struct NotebookFilmView: View {
                 // Your notebook as the month left it, soft behind the intro. It's the film's own
                 // first picture, so pressing Watch brings it into focus rather than cutting away.
                 // (An overlay, so the picture's size never changes the layout.)
-                (pale && !dawn ? Self.cream : Color.black)
+                // (Black under the share screen, whose controls are white: on the cream page it
+                // comes in as the film settles into its card.)
+                Self.cream
+                    .overlay(Color.black.opacity(pale && !dawn ? (phase == .intro ? 0 : playback.landing) : 1))
                     .overlay {
                         if let poster, backdrop {
                             Image(decorative: poster, scale: 1)
