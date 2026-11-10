@@ -29,12 +29,8 @@ if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: "Pane/Resources/Ass
 let start = Date()
 switch style {
 case "slides":
-    // Pilot: the intro and the strongest slides, in the night and day palettes: OUT is a folder.
-    try Slides(input: input, script: script, seed: Int(seed), mark: mark).write(to: out)
-    exit(0)
-case "cards":
-    // The month as pictures to send to a friend, one true thing on each: OUT is a folder.
-    try RecapCards(input: input, script: script, seed: Int(seed), mark: mark).write(to: out)
+    // The intro and slides before the film, each at its end and on its way in: OUT is a folder.
+    try FilmSlides(input: input, script: script, mark: mark).write(to: out)
     exit(0)
 case "dump":
     // What's in the notebook, day by day, for drawing a timeline of it: {start, days, notes: [{folder, created, edits: [[day, ai]]}]}.

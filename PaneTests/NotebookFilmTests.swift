@@ -832,28 +832,36 @@ import Testing
         #expect(written([FilmNote(id: UUID(), folder: "", created: at(3), edits: [FilmEdit(at: at(3), ai: nil)], links: [])]) == 1)
     }
 
-    @Test func theMonthsCardsSayOnlyWhatsTrueInTheScreensShape() {
-        // A month like Emil's: notes brought in, a tracker filled in daily, some made and thrown away.
-        let mine = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true)
+    @Test func beforeTheFilmAnIntroAndTwoSlidesAboutYou() {
+        // A month like Emil's: notes brought in, a tracker filled in every evening, mostly late.
+        let mine = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
         let script = FilmScript(mine, calendar: Self.cal)
-        var cards = RecapCards(input: mine, script: script, seed: script.seed, mark: nil)
-        let names = cards.cards().map(\.name)
-        #expect(names.first == "began")
-        #expect(names.contains("came-back") && names.contains("threw-away"))
-        // Drawn for a phone, a card is the phone's shape, so it fills the screen and never sizes the
-        // layout around it (a 4:5 one pushed Next and Send off the bottom).
-        cards.H = 2622.0 / 1206 * 1080
-        let phone = cards.image(0, pixels: 1206)
-        #expect(phone?.width == 1206 && phone?.height == 2622)
-        // Sent, it's 4:5.
-        cards.H = 1350
-        #expect(cards.image(0, pixels: 1080)?.height == 1350)
-        #expect(cards.image(names.count, pixels: 1080) == nil)
-        // A note a week with nothing thrown away gets no card about throwing away.
-        let quiet = FilmDemo.real(now: Self.now)
+        var slides = FilmSlides(input: mine, script: script, mark: nil)
+        #expect(slides.slides().map(\.name) == ["intro", "top-notes", "when"])
+        // The top notes are the most written in, by name, none twice; a removed note isn't one.
+        let ranked = slides.ranked
+        #expect(ranked.count == 5 && Set(ranked.map(\.name)).count == 5)
+        #expect(ranked.map(\.note.edits.count) == ranked.map(\.note.edits.count).sorted(by: >))
+        #expect(ranked.allSatisfy { $0.note.removed == nil })
+        // Written in mostly after 8 pm: a night owl, or an evening writer, never a morning one.
+        #expect(["I'm a night", "I'm an evening"].contains(FilmSlides.kind(startingAt: slides.bestHours).0))
+        #expect(FilmSlides.kind(startingAt: 6).1 == "bird" && FilmSlides.kind(startingAt: 22).1 == "owl")
+        #expect(FilmSlides.hourName(0) == "midnight" && FilmSlides.hourName(21) == "9 pm" && FilmSlides.hourName(24) == "midnight")
+        // A note that may not be named (locked, gone) is left off the list, not shown blank.
+        let hidden = ranked[0].note.id
+        let named = FilmSlides(input: mine, script: script, mark: nil) { n in n.id == hidden ? nil : "Note" }
+        #expect(!named.ranked.contains { $0.note.id == hidden })
+        // Drawn for a phone it's the phone's shape, so it fills the screen and never sizes the layout
+        // around it (a picture that did pushed Next and Send off the bottom); sent, it's 9:16.
+        slides.H = 2622.0 / 1206 * 1080
+        #expect(slides.image(0, pixels: 1206).map { [$0.width, $0.height] } == [1206, 2622])
+        #expect(slides.sent.image(1, pixels: 1080).map { [$0.width, $0.height] } == [1080, 1920])
+        #expect(slides.image(3, pixels: 1080) == nil)
+        // A month with no names to show and little written gets the intro alone, then the film.
+        let quiet = FilmDemo.real(days: 30, now: Self.now, ai: nil)
         let qs = FilmScript(quiet, calendar: Self.cal)
-        let quietNames = RecapCards(input: quiet, script: qs, seed: qs.seed, mark: nil).cards().map(\.name)
-        #expect(!quietNames.contains("threw-away") || qs.stats.removed >= 3)
+        let few = FilmSlides(input: quiet, script: qs, mark: nil) { _ in nil }.slides().map(\.name)
+        #expect(few.first == "intro" && !few.contains("top-notes"))
     }
 
     @Test func theFilmBeginsAtTheFirstNote() {

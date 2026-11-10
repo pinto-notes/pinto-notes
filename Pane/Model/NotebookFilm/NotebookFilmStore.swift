@@ -178,7 +178,7 @@ final class NotebookFilmStore {
         if args.contains("-filmNoFolderNames") { folderNames = false }
         // Captures: `-filmMe` (came with notes, makes and removes some, a daily tracker), `-filmWeek`
         // (a note a week), `-filmKB` (a knowledge base of hundreds).
-        let demo = args.contains("-filmMe") ? FilmDemo.real(now: .now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true)
+        let demo = args.contains("-filmMe") ? FilmDemo.real(now: .now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
             : args.contains("-filmWeek") ? FilmDemo.real(now: .now)
             : args.contains("-filmKB") ? FilmDemo.real(now: .now, notesPerWeek: 22, imported: 240, removed: 8, linked: 0.6)
             : FilmDemo.notebook(now: .now, light: args.contains("-filmLight"))

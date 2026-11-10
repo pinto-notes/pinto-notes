@@ -1,6 +1,6 @@
 #!/bin/zsh
-# Captures the month in the app on the iPhone simulator, headless (no Simulator window): the cards,
-# then the film they end on, then the share screen. One recording per notebook, plus a still of each card.
+# Captures the month in the app on the iPhone simulator, headless (no Simulator window): the intro and
+# slides, then the film they end on, then the share screen. One recording per notebook, stills of each.
 #   SIM=<udid> scripts/film/capture-recap.sh OUT_DIR [-filmMe|-filmWeek|-filmKB ...]
 # Expects a Release build in build/ddsim (scripts/film/capture-ios.sh makes one; SKIP_BUILD=1 there).
 set -euo pipefail
@@ -24,11 +24,10 @@ for p in $profiles; do
   sleep 5
   t0=$(python3 -c "import time; print(time.time())")
   xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm -filmAutoCards $p >/dev/null
-  # The cards turn every 2.2 s after a moment to draw them: a still of each, part way through its turn.
-  sleep 2.6
-  for k in {1..7}; do xcrun simctl io "$SIM" screenshot "$OUT/$name-card-$k.png" >/dev/null 2>&1; sleep 2.2; done
-  # Then the film (up to 13 s of growth, 3.6 s of ending) and the share screen.
-  sleep 14; xcrun simctl io "$SIM" screenshot "$OUT/$name-film-late.png" >/dev/null 2>&1
+  # The slides turn every 3.2 s once up: a still of each as it settles, then the film and the share screen.
+  sleep 4.4
+  for k in 1 2 3; do xcrun simctl io "$SIM" screenshot "$OUT/$name-slide-$k.png" >/dev/null 2>&1; sleep 3.2; done
+  sleep 13; xcrun simctl io "$SIM" screenshot "$OUT/$name-film-late.png" >/dev/null 2>&1
   sleep 6; xcrun simctl io "$SIM" screenshot "$OUT/$name-share.png" >/dev/null 2>&1
   sleep 1
   t1=$(python3 -c "import time; print(time.time())")
