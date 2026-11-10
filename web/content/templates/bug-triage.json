@@ -6,18 +6,18 @@
     "Developers"
   ],
   "audience": "For small teams and solo developers without a full issue tracker.",
-  "description": "A bug triage table your AI keeps. Paste a report or an issue and it files it by severity in Pinto Notes.",
+  "description": "A bug triage table. Paste a report or an issue and your AI files it by severity, with the steps to reproduce.",
   "tagline": "Every bug in one table, with its severity.",
   "folder": "Work",
-  "note": "Bug triage\n\nEvery bug report in one table, with how much it hurts. Paste a report into your AI and it files it.\n\n## Bugs\n<!-- pane-table: Bug=text; Severity=choice P0|P1|P2|P3; Area=text; Status=choice New|Confirmed|In progress|Fixed|Won't fix; Reported=text; Link=text -->\n| Bug | Severity | Area | Status | Reported | Link |\n| --- | --- | --- | --- | --- | --- |\n\n## Severity\n- **P0:** data loss, a security hole, or everyone is blocked. Drop everything.\n- **P1:** a main flow is broken for many people. This week.\n- **P2:** broken, but there's a workaround. Schedule it.\n- **P3:** polish. When there's time.\n\n## Details\nSteps to reproduce, one section per bug.\n",
+  "note": "Bug triage\n\nEvery bug report in one table, with how much it hurts. Paste a report into your AI and it files it.\n\n## Bugs\n<!-- pane-table: Bug=text; Severity=choice P0|P1|P2|P3; Area=text; Status=choice New|Confirmed|In progress|Fixed|Won't fix; Reported=text; Link=text -->\n| Bug | Severity | Area | Status | Reported | Link |\n| --- | --- | --- | --- | --- | --- |\n\n## Severity\n- **P0:** data loss, a security hole, or everyone is blocked. Drop everything.\n- **P1:** a main flow is broken for many people. This week.\n- **P2:** broken, but there's a workaround. Schedule it.\n- **P3:** polish. When there's time.\n\n## Details\nSteps to reproduce, what was expected and what happened. One section per bug.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Bug triage\". Read it with fetch before each change. When I paste a bug report, file it: follow the rules under \"Severity\" and add one row to the table with edit, with a short Bug title, Severity by those rules, the Area, Status New, Reported as today's date, and the Link if there is one. If the report has steps to reproduce, add them under \"Details\" with edit, under a \"###\" heading with the bug title. To change a status, edit that row.",
+    "default": "Use my Pinto Notes note \"Bug triage\". Read it with fetch before each change. When I paste a bug report, file it: follow the rules under \"Severity\" and add one row to the table with edit, with a short Bug title, Severity by those rules, the Area, Status New, Reported as today's date, and the Link if there is one. Keep the rows sorted by severity, worst first. If the report says how to reproduce it, add a section under \"Details\" with edit: a \"###\" heading with the bug title, the steps, what was expected and what happened. To change a status, edit that row.",
     "claudeCode": "Use my Pinto Notes note \"Bug triage\". Read it with fetch before each change. When I paste a bug report or a GitHub issue (read it with gh issue view), file it: follow the rules under \"Severity\", add one row to the table with edit (a short Bug title, Severity, Area, Status New, Reported as today's date, Link), then look through this codebase for the likely cause and add the steps to reproduce and the files involved under \"Details\" with edit, under a \"###\" heading with the bug title. When we fix one, set its Status to Fixed."
   },
   "asks": [
     "Ask me for the customer's report, then triage it and file it in the table.",
     "What's P1 and still open?",
-    "We fixed the export crash, mark it."
+    "We fixed the saved-card checkout, mark it."
   ],
   "demo": [
     {
@@ -25,43 +25,43 @@
       "args": {
         "path": "Work/Bug triage.md",
         "old_string": "| --- | --- | --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- | --- | --- |\n| Search misses notes with an emoji in the title | P2 | Search | Fixed | 2026-11-02 | #407 |\n"
+        "new_string": "| --- | --- | --- | --- | --- | --- |\n| Checkout fails with a saved card | P1 | Checkout | In progress | 2026-11-04 | #412 |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Bug triage.md",
-        "old_string": "| Search misses notes with an emoji in the title | P2 | Search | Fixed | 2026-11-02 | #407 |\n",
-        "new_string": "| Search misses notes with an emoji in the title | P2 | Search | Fixed | 2026-11-02 | #407 |\n| Export crashes on notes with images | P1 | Export | In progress | 2026-11-04 | #412 |\n"
+        "old_string": "| Checkout fails with a saved card | P1 | Checkout | In progress | 2026-11-04 | #412 |\n",
+        "new_string": "| Checkout fails with a saved card | P1 | Checkout | In progress | 2026-11-04 | #412 |\n| Search misses names with å or ö | P2 | Search | Fixed | 2026-11-02 | #407 |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Bug triage.md",
-        "old_string": "| Export crashes on notes with images | P1 | Export | In progress | 2026-11-04 | #412 |\n",
-        "new_string": "| Export crashes on notes with images | P1 | Export | In progress | 2026-11-04 | #412 |\n| Date picker unreadable in dark mode | P3 | Settings | Confirmed | 2026-11-05 |   |\n"
+        "old_string": "| Search misses names with å or ö | P2 | Search | Fixed | 2026-11-02 | #407 |\n",
+        "new_string": "| Search misses names with å or ö | P2 | Search | Fixed | 2026-11-02 | #407 |\n| Order email arrives twice | P2 | Email | New | 2026-11-06 | #418 |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Bug triage.md",
-        "old_string": "| Date picker unreadable in dark mode | P3 | Settings | Confirmed | 2026-11-05 |   |\n",
-        "new_string": "| Date picker unreadable in dark mode | P3 | Settings | Confirmed | 2026-11-05 |   |\n| Sync stalls after waking from sleep | P2 | Sync | New | 2026-11-06 | #418 |\n"
+        "old_string": "| Order email arrives twice | P2 | Email | New | 2026-11-06 | #418 |\n",
+        "new_string": "| Order email arrives twice | P2 | Email | New | 2026-11-06 | #418 |\n| Footer logo is blurry on phones | P3 | Design | Confirmed | 2026-11-05 |   |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Work/Bug triage.md",
-        "old_string": "Steps to reproduce, one section per bug.\n",
-        "new_string": "Steps to reproduce, one section per bug.\n### Export crashes on notes with images\n1. Open a note with two or more photos.\n2. Choose Export as PDF.\n3. The app quits.\n\nLikely cause: images are loaded at full size before they're scaled.\n"
+        "old_string": "Steps to reproduce, what was expected and what happened. One section per bug.\n",
+        "new_string": "Steps to reproduce, what was expected and what happened. One section per bug.\n### Checkout fails with a saved card\n1. Sign in to an account with a saved card.\n2. Add anything to the basket and go to checkout.\n3. Choose the saved card and select Pay.\n\n- **Expected:** the order is placed.\n- **What happened:** \"Payment failed\", and no order.\n"
       }
     }
   ],
-  "example": "Bug triage\n\nEvery bug report in one table, with how much it hurts. Paste a report into your AI and it files it.\n\n## Bugs\n<!-- pane-table: Bug=text; Severity=choice P0|P1|P2|P3; Area=text; Status=choice New|Confirmed|In progress|Fixed|Won't fix; Reported=text; Link=text -->\n| Bug | Severity | Area | Status | Reported | Link |\n| --- | --- | --- | --- | --- | --- |\n| Search misses notes with an emoji in the title | P2 | Search | Fixed | 2026-11-02 | #407 |\n| Export crashes on notes with images | P1 | Export | In progress | 2026-11-04 | #412 |\n| Date picker unreadable in dark mode | P3 | Settings | Confirmed | 2026-11-05 |   |\n| Sync stalls after waking from sleep | P2 | Sync | New | 2026-11-06 | #418 |\n\n## Severity\n- **P0:** data loss, a security hole, or everyone is blocked. Drop everything.\n- **P1:** a main flow is broken for many people. This week.\n- **P2:** broken, but there's a workaround. Schedule it.\n- **P3:** polish. When there's time.\n\n## Details\nSteps to reproduce, one section per bug.\n### Export crashes on notes with images\n1. Open a note with two or more photos.\n2. Choose Export as PDF.\n3. The app quits.\n\nLikely cause: images are loaded at full size before they're scaled.\n",
+  "example": "Bug triage\n\nEvery bug report in one table, with how much it hurts. Paste a report into your AI and it files it.\n\n## Bugs\n<!-- pane-table: Bug=text; Severity=choice P0|P1|P2|P3; Area=text; Status=choice New|Confirmed|In progress|Fixed|Won't fix; Reported=text; Link=text -->\n| Bug | Severity | Area | Status | Reported | Link |\n| --- | --- | --- | --- | --- | --- |\n| Checkout fails with a saved card | P1 | Checkout | In progress | 2026-11-04 | #412 |\n| Search misses names with å or ö | P2 | Search | Fixed | 2026-11-02 | #407 |\n| Order email arrives twice | P2 | Email | New | 2026-11-06 | #418 |\n| Footer logo is blurry on phones | P3 | Design | Confirmed | 2026-11-05 |   |\n\n## Severity\n- **P0:** data loss, a security hole, or everyone is blocked. Drop everything.\n- **P1:** a main flow is broken for many people. This week.\n- **P2:** broken, but there's a workaround. Schedule it.\n- **P3:** polish. When there's time.\n\n## Details\nSteps to reproduce, what was expected and what happened. One section per bug.\n### Checkout fails with a saved card\n1. Sign in to an account with a saved card.\n2. Add anything to the basket and go to checkout.\n3. Choose the saved card and select Pay.\n\n- **Expected:** the order is placed.\n- **What happened:** \"Payment failed\", and no order.\n",
   "related": [
     "daily-standup",
     "decision-log",
