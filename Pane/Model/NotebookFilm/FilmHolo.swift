@@ -50,7 +50,9 @@ final class HoloScene: FilmScene {
     private static let shotStep = 0.1
     /// The systems the film stops on, and when: the day written most, the folder written in most.
     private var locks: [(cluster: Int, from: Double, until: Double)] = []
-    private static let line = C(0xBCD3F5)
+    /// Its lines and its ground: cool on black, or Pinto's own (cream lines on leaf brown).
+    private var wire: C { look == .holoLeaf ? C(0xF3DDBF) : C(0xBCD3F5) }
+    private var ground: C { look.background.0 }
     /// How far apart a system's notes sit.
     private static let spread = 19.0
 
@@ -239,15 +241,15 @@ final class HoloScene: FilmScene {
         let ending = smooth((t - growth) / 1.0)
         let cam = camera(t, canvas: canvas)
         let s0 = shot(t)
-        let lineC = Self.line
+        let lineC = wire
 
-        ctx.setFillColor(CGColor(gray: 0, alpha: 1))
+        ctx.setFillColor(ground.cg())
         ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
         // The projector's light, faintly, where the thing stands.
         ctx.saveGState()
         ctx.setBlendMode(.plusLighter)
         ctx.setAlpha(0.10 + 0.05 * ending)
-        ctx.draw(aiGlow, in: CGRect(x: cam.cx - 620, y: cam.cy - 560, width: 1240, height: 1120))
+        ctx.draw(look == .holoLeaf ? youGlow : aiGlow, in: CGRect(x: cam.cx - 620, y: cam.cy - 560, width: 1240, height: 1120))
         ctx.restoreGState()
 
         ctx.setLineCap(.round)
@@ -478,23 +480,23 @@ final class HoloScene: FilmScene {
                 a *= 1 - smooth(covered * 3)
                 guard a > 0.01 else { continue }
                 taken.append(box)
-                ctx.setStrokeColor(Self.line.cg(0.4 * a))
+                ctx.setStrokeColor(wire.cg(0.4 * a))
                 ctx.setLineWidth(1.1)
                 ctx.move(to: CGPoint(x: m.p.x, y: tops[h] + 3))
                 ctx.addLine(to: CGPoint(x: m.p.x, y: y - 6))
                 ctx.strokePath()
                 // (On a dark plate, so it reads over whatever lights are behind it.)
-                ctx.setFillColor(CGColor(gray: 0, alpha: 0.5 * a))
+                ctx.setFillColor(ground.mix(C(0x000000), 0.4).cg(0.55 * a))
                 ctx.addPath(CGPath(roundedRect: CGRect(x: x - 9, y: y - 9, width: total + 18, height: size + 12), cornerWidth: 8, cornerHeight: 8, transform: nil))
                 ctx.fillPath()
                 FilmKit.text(name, size, 0.23, look.ink.cg(0.94 * a), at: CGPoint(x: x, y: y), in: ctx)
-                FilmKit.text(digits, size - 4, 0, Self.line.cg(0.7 * a), at: CGPoint(x: x + nameW + gap, y: y), in: ctx)
+                FilmKit.text(digits, size - 4, 0, wire.cg(0.7 * a), at: CGPoint(x: x + nameW + gap, y: y), in: ctx)
             }
         }
 
         // It never runs under the words.
-        let fade = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [CGColor(gray: 0, alpha: 1), CGColor(gray: 0, alpha: 0)] as CFArray, locations: [0, 1])!
-        ctx.setFillColor(CGColor(gray: 0, alpha: 1))
+        let fade = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [ground.cg(1), ground.cg(0)] as CFArray, locations: [0, 1])!
+        ctx.setFillColor(ground.cg())
         ctx.fill(CGRect(x: 0, y: 0, width: W, height: canvas.bottom + 250))
         ctx.saveGState()
         ctx.clip(to: CGRect(x: 0, y: canvas.bottom + 250, width: W, height: 90))

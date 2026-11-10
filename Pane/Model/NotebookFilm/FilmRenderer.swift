@@ -9,7 +9,7 @@ import Foundation
 /// How the film looks: what it's drawn on and in which colours. You pick one before sharing.
 enum FilmLook: String, CaseIterable, Sendable, Codable {
     /// Town first: it's the one in Pinto's own cut-paper world, and what a new film opens in.
-    case town, night, paper, holo, cream, leaf
+    case town, night, paper, holo, cream, leaf, holoLeaf
 
     /// The looks a film can be shared in: light and dark, in Pinto's own colours. (The others
     /// are kept, not offered.)
@@ -25,6 +25,7 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
         case .holo: "Hologram"
         case .cream: "Light"
         case .leaf: "Dark"
+        case .holoLeaf: "Hologram"
         }
     }
 
@@ -37,12 +38,13 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
         case .paper: (RGB(0.985, 0.98, 0.968), RGB(0.985, 0.98, 0.968))
         // The site's own two grounds: its cream page, and the leaf brown of the icon's leaf.
         case .cream: (RGB(0xFFF4E6), RGB(0xFFF4E6))
-        case .leaf: (RGB(0x2E180A), RGB(0x2E180A))
+        case .leaf, .holoLeaf: (RGB(0x2E180A), RGB(0x2E180A))
         }
     }
     var dark: Bool { self != .paper && self != .cream }
     /// Cut paper: each folder is a disc of paper its notes sit on, and links are stitched.
     var cutPaper: Bool { self == .cream || self == .leaf }
+    private var leafy: Bool { self == .leaf || self == .holoLeaf }
     /// The papers a folder's disc is cut from, in turn.
     var papers: [RGB] {
         self == .cream ? [RGB(0xC3D6B1), RGB(0xD9CBEA), RGB(0xF7CDAA), RGB(0xF2DCA6), RGB(0xF0C3B8), RGB(0xEAD9BC), RGB(0xCFE0D8)]
@@ -51,7 +53,7 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
     /// Draws a whole paper scene each frame: played in the app a little smaller, to keep its pace.
     var scenic: Bool { self == .town }
     /// You: the app's accent, deeper on paper.
-    var you: RGB { self == .cream ? RGB(0xE07E0A) : self == .leaf ? RGB(0xF5A53A) : dark ? RGB(0.957, 0.678, 0.200) : RGB(0.85, 0.42, 0.02) }
+    var you: RGB { self == .cream ? RGB(0xE07E0A) : leafy ? RGB(0xF5A53A) : dark ? RGB(0.957, 0.678, 0.200) : RGB(0.85, 0.42, 0.02) }
     var ai: RGB {
         switch self {
         case .town: RGB(0.56, 0.78, 1.0)
@@ -59,12 +61,12 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
         case .holo: RGB(0.36, 0.74, 1.0)
         case .paper: RGB(0.18, 0.42, 0.85)
         case .cream: RGB(0x2C6FCB)
-        case .leaf: RGB(0x86B8F7)
+        case .leaf, .holoLeaf: RGB(0x86B8F7)
         }
     }
     /// Words and lines.
-    var ink: RGB { self == .cream ? RGB(0x2A1D10) : self == .leaf ? RGB(0xFBEEDD) : dark ? RGB(1, 1, 1) : RGB(0.11, 0.09, 0.07) }
-    var line: RGB { self == .cream ? RGB(0x4A3018) : self == .leaf ? RGB(0xF3DDBF) : dark ? RGB(0.92, 0.90, 0.86) : RGB(0.25, 0.22, 0.18) }
+    var ink: RGB { self == .cream ? RGB(0x2A1D10) : leafy ? RGB(0xFBEEDD) : dark ? RGB(1, 1, 1) : RGB(0.11, 0.09, 0.07) }
+    var line: RGB { self == .cream ? RGB(0x4A3018) : leafy ? RGB(0xF3DDBF) : dark ? RGB(0.92, 0.90, 0.86) : RGB(0.25, 0.22, 0.18) }
     /// A note no one has touched in a while fades toward this.
     /// It keeps its own colour, dimmer: never a grey that means nothing.
     var cool: RGB {
@@ -72,7 +74,7 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
         case .town, .night, .holo: RGB(0, 0, 0)
         case .paper: RGB(0.985, 0.98, 0.968)
         case .cream: RGB(0xFFF4E6)
-        case .leaf: RGB(0x2E180A)
+        case .leaf, .holoLeaf: RGB(0x2E180A)
         }
     }
     /// How far a note no one has touched in a while fades toward `cool`.
@@ -220,7 +222,7 @@ final class FilmRenderer {
         self.canvas = canvas
         switch labels.look {
         case .town: scene = TownScene(script: script, folderNames: labels.folderNames)
-        case .holo: scene = HoloScene(script: script, folderNames: labels.folderNames, look: .holo)
+        case .holo, .holoLeaf: scene = HoloScene(script: script, folderNames: labels.folderNames, look: labels.look)
         case .night, .paper, .cream, .leaf: scene = nil
         }
         switch opening {
