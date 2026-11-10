@@ -9,10 +9,10 @@ import Foundation
 /// How the film looks: what it's drawn on and in which colours. You pick one before sharing.
 enum FilmLook: String, CaseIterable, Sendable, Codable {
     /// Town first: it's the one in Pinto's own cut-paper world, and what a new film opens in.
-    case town, night, paper, holo
+    case town, night, paper, holo, cream, leaf
 
     /// The looks a film can be shared in. (The town is kept, not offered.)
-    static let offered: [FilmLook] = [.night, .holo, .paper]
+    static let offered: [FilmLook] = [.night, .holo, .cream, .leaf, .paper]
 
     var name: String {
         switch self {
@@ -20,6 +20,8 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
         case .night: "Night"
         case .paper: "Paper"
         case .holo: "Hologram"
+        case .cream: "Cream"
+        case .leaf: "Leaf"
         }
     }
 
@@ -30,30 +32,44 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
         case .town: (RGB(0.04, 0.07, 0.07), RGB(0.04, 0.07, 0.07))
         case .night, .holo: (RGB(0, 0, 0), RGB(0, 0, 0))
         case .paper: (RGB(0.985, 0.98, 0.968), RGB(0.985, 0.98, 0.968))
+        // The site's own two grounds: its cream page, and the leaf brown of the icon's leaf.
+        case .cream: (RGB(0xFFF4E6), RGB(0xFFF4E6))
+        case .leaf: (RGB(0x2E180A), RGB(0x2E180A))
         }
     }
-    var dark: Bool { self != .paper }
+    var dark: Bool { self != .paper && self != .cream }
+    /// Cut paper: each folder is a disc of paper its notes sit on, and links are stitched.
+    var cutPaper: Bool { self == .cream || self == .leaf }
+    /// The papers a folder's disc is cut from, in turn.
+    var papers: [RGB] {
+        self == .cream ? [RGB(0xC3D6B1), RGB(0xD9CBEA), RGB(0xF7CDAA), RGB(0xF2DCA6), RGB(0xF0C3B8), RGB(0xEAD9BC), RGB(0xCFE0D8)]
+            : [RGB(0x44260F), RGB(0x3B2A1B), RGB(0x4C2C16), RGB(0x38241A), RGB(0x47301A), RGB(0x402316), RGB(0x3A2C22)]
+    }
     /// Draws a whole paper scene each frame: played in the app a little smaller, to keep its pace.
     var scenic: Bool { self == .town }
     /// You: the app's accent, deeper on paper.
-    var you: RGB { dark ? RGB(0.957, 0.678, 0.200) : RGB(0.85, 0.42, 0.02) }
+    var you: RGB { self == .cream ? RGB(0xE07E0A) : self == .leaf ? RGB(0xF5A53A) : dark ? RGB(0.957, 0.678, 0.200) : RGB(0.85, 0.42, 0.02) }
     var ai: RGB {
         switch self {
         case .town: RGB(0.56, 0.78, 1.0)
         case .night: RGB(0.50, 0.68, 1.0)
         case .holo: RGB(0.36, 0.74, 1.0)
         case .paper: RGB(0.18, 0.42, 0.85)
+        case .cream: RGB(0x2C6FCB)
+        case .leaf: RGB(0x86B8F7)
         }
     }
     /// Words and lines.
-    var ink: RGB { dark ? RGB(1, 1, 1) : RGB(0.11, 0.09, 0.07) }
-    var line: RGB { dark ? RGB(0.92, 0.90, 0.86) : RGB(0.25, 0.22, 0.18) }
+    var ink: RGB { self == .cream ? RGB(0x2A1D10) : self == .leaf ? RGB(0xFBEEDD) : dark ? RGB(1, 1, 1) : RGB(0.11, 0.09, 0.07) }
+    var line: RGB { self == .cream ? RGB(0x4A3018) : self == .leaf ? RGB(0xF3DDBF) : dark ? RGB(0.92, 0.90, 0.86) : RGB(0.25, 0.22, 0.18) }
     /// A note no one has touched in a while fades toward this.
     /// It keeps its own colour, dimmer: never a grey that means nothing.
     var cool: RGB {
         switch self {
         case .town, .night, .holo: RGB(0, 0, 0)
         case .paper: RGB(0.985, 0.98, 0.968)
+        case .cream: RGB(0xFFF4E6)
+        case .leaf: RGB(0x2E180A)
         }
     }
     /// How far a note no one has touched in a while fades toward `cool`.
@@ -202,7 +218,7 @@ final class FilmRenderer {
         switch labels.look {
         case .town: scene = TownScene(script: script, folderNames: labels.folderNames)
         case .holo: scene = HoloScene(script: script, folderNames: labels.folderNames, look: .holo)
-        case .night, .paper: scene = nil
+        case .night, .paper, .cream, .leaf: scene = nil
         }
         switch opening {
         case .full: frame = 0
@@ -539,6 +555,7 @@ final class FilmRenderer {
         let gt = min(t, script.growth)
         let lineScale = min(1.6, max(0.9, camScale / 2.2))
 
+        if look.cutPaper { drawDiscs(gt, in: ctx) }
         // Links: settled ones in one path, new ones drawn growing out with a brighter line.
         ctx.setLineCap(.round)
         let settled = CGMutablePath()
@@ -554,10 +571,13 @@ final class FilmRenderer {
             ctx.addLine(to: CGPoint(x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e))
             ctx.strokePath()
         }
-        ctx.setStrokeColor(look.line.cg(look.lineAlpha))
+        ctx.setStrokeColor(look.line.cg(look.cutPaper ? 0.62 : look.lineAlpha))
         ctx.setLineWidth(1.3 * lineScale * look.lineWidth)
+        // (On cut paper a link is stitched.)
+        if look.cutPaper { ctx.setLineDash(phase: 0, lengths: [7 * lineScale, 6 * lineScale]) }
         ctx.addPath(settled)
         ctx.strokePath()
+        ctx.setLineDash(phase: 0, lengths: [])
         // Each note to its folder's middle, faintly: the shape a folder makes even when nothing links.
         let spokes = CGMutablePath()
         for i in 0..<alive {
@@ -572,7 +592,7 @@ final class FilmRenderer {
         ctx.strokePath()
 
         // Glow: added light on light in the dark looks; none on paper.
-        struct Core { var p: CGPoint; var r: Double; var color: RGB; var flash: Double }
+        struct Core { var p: CGPoint; var r: Double; var color: RGB; var flash: Double; var kept = 0.0 }
         ftop = Array(repeating: -.infinity, count: fpos.count)
         var cores: [Core] = []
         ctx.setBlendMode(look.dark ? .plusLighter : .normal)
@@ -618,7 +638,9 @@ final class FilmRenderer {
             let rest = 0.24 + 0.36 * max(heat, outro * (0.4 + 0.6 * worked)) + 0.06 * breathe
             let glowR = r * (4 + 5 * outro * worked)
             let glowA = min(1, rest + 0.5 * outro * worked)
-            if !look.dark {
+            if look == .cream {
+                // Cut paper doesn't glow: a ring goes out from a note as it's written in (below).
+            } else if !look.dark {
                 // On paper wide light is a stain: a tight halo in the note's colour, wider as
                 // it's written in and round the notes written in most at the end.
                 let lit = min(1, max(you + ai, outro * worked))
@@ -632,11 +654,26 @@ final class FilmRenderer {
                 if you > 0.01 { sprite(youGlow, at: p, radius: r * (3.4 + 6 * min(1.4, you)), alpha: min(1, 0.75 * you), in: ctx) }
                 if ai > 0.01 { sprite(aiGlow, at: p, radius: r * (3.4 + 6 * min(1.4, ai)), alpha: min(1, 0.75 * ai), in: ctx) }
             }
-            cores.append(Core(p: p, r: r, color: color.mix(look.cool, look.cooling * (1 - heat) * (1 - outro)), flash: min(1, you + ai)))
+            cores.append(Core(p: p, r: r, color: color.mix(look.cool, look.cooling * (1 - heat) * (1 - outro) * (look.cutPaper ? 0.4 : 1)), flash: min(1, you + ai), kept: outro * worked))
         }
         ctx.setBlendMode(.normal)
         for c in cores {
-            let r = c.r * (1 + 0.15 * outro)
+            // (A little larger on the cream: paper dots have no light round them to be seen by.)
+            let r = c.r * (1 + 0.15 * outro) * (look == .cream ? 1.3 + 0.25 * c.kept : 1)
+            if look.cutPaper {
+                // A dot of paper, with the shade it casts on the paper under it.
+                ctx.setFillColor(RGB(0x2A1D10).cg(look.dark ? 0.45 : 0.22))
+                ctx.fillEllipse(in: CGRect(x: c.p.x - r - 0.5, y: c.p.y - r - 2.2, width: r * 2 + 1, height: r * 2 + 1))
+            }
+            if look == .cream {
+                // Written in just now: a ring going out.
+                if c.flash > 0.03 {
+                    let out = r + 2 + (1 - c.flash) * 13 * lineScale
+                    ctx.setStrokeColor(c.color.cg(0.8 * c.flash * c.flash))
+                    ctx.setLineWidth(2)
+                    ctx.strokeEllipse(in: CGRect(x: c.p.x - out, y: c.p.y - out, width: out * 2, height: out * 2))
+                }
+            }
             ctx.setFillColor((look.dark ? c.color.mix(RGB(1, 1, 1), 0.12 + 0.25 * c.flash) : c.color).cg())
             ctx.fillEllipse(in: CGRect(x: c.p.x - r, y: c.p.y - r, width: r * 2, height: r * 2))
         }
@@ -657,6 +694,32 @@ final class FilmRenderer {
         } else {
             ctx.setFillColor(top.cg())
             ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        // The page's own grain.
+        if look.cutPaper { ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true) }
+    }
+
+    /// Cut paper: each folder is a disc its notes sit on, as wide as what's in it so far, with a
+    /// smaller sheet on top. They lie on the page and cast a little shade.
+    private func drawDiscs(_ gt: Double, in ctx: CGContext) {
+        var held = [Double](repeating: 0, count: fpos.count)
+        for i in 0..<alive { held[script.nodes[i].folder] += smooth((gt - script.nodes[i].birth) / 0.45) }
+        // (Shade is set in the picture's own pixels, whatever size it's drawn at.)
+        let k = abs(ctx.ctm.a)
+        let papers = look.papers
+        for f in fpos.indices.sorted(by: { held[$0] > held[$1] }) where falive[f] && held[f] > 0 {
+            let c = screen(fpos[f])
+            let r = (10 * held[f].squareRoot() + 15) * camScale * min(1, held[f] * 1.4)
+            let paper = papers[f % papers.count]
+            ctx.saveGState()
+            ctx.setShadow(offset: CGSize(width: 0, height: -5 * k), blur: 13 * k, color: RGB(0x2A1D10).cg(look.dark ? 0.55 : 0.2))
+            ctx.setFillColor(paper.cg())
+            ctx.fillEllipse(in: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
+            ctx.setShadow(offset: CGSize(width: 0, height: -2.5 * k), blur: 7 * k, color: RGB(0x2A1D10).cg(look.dark ? 0.4 : 0.13))
+            ctx.setFillColor(paper.mix(look.dark ? RGB(0x6A4322) : RGB(0xFFFFFF), look.dark ? 0.16 : 0.34).cg())
+            let inner = r * 0.62
+            ctx.fillEllipse(in: CGRect(x: c.x - inner, y: c.y - inner, width: inner * 2, height: inner * 2))
+            ctx.restoreGState()
         }
     }
 

@@ -113,8 +113,8 @@ enum FilmEligibility {
     /// Days in the last 30 on which you wrote or edited something yourself (AI edits don't count).
     static let minActiveDays = 12
     /// Links don't count: most notes link to nothing, and the film's shape comes from folders.
-    /// (Fifty: with fewer the film is a few lights on an empty stage.)
-    static let minNotes = 50
+    /// (Thirty: with fewer the film is a few lights on an empty stage.)
+    static let minNotes = 30
 
     static func activeDays(_ input: FilmInput, calendar: Calendar = .current) -> Int {
         let since = calendar.date(byAdding: .day, value: -30, to: input.now) ?? input.now

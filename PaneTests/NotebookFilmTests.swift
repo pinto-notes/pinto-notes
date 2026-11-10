@@ -466,6 +466,7 @@ import Testing
         let thin = FilmDemo.notebook(days: 35, now: Self.now, light: true)
         #expect(thin.notes.count < FilmEligibility.minNotes)
         #expect(!FilmEligibility.isReady(thin, calendar: Self.cal))
+        #expect(FilmEligibility.minNotes == 30)
         // The same person seven weeks in, with notes enough: ready, as their first 2 months.
         let later = FilmDemo.notebook(days: 52, now: Self.now)
         #expect(later.notes.count >= FilmEligibility.minNotes)
@@ -735,7 +736,7 @@ import Testing
             let p = ctx.data!.assumingMemoryBound(to: UInt8.self)
             let corner = Int(p[0]) + Int(p[1]) + Int(p[2])
             // Paper's page and the town's daytime sky are pale; the others are dark.
-            #expect(look == .paper || look == .town ? corner > 600 : corner < 200, "\(look) has its own background")
+            #expect(look == .paper || look == .town || look == .cream ? corner > 600 : corner < 200, "\(look) has its own background")
         }
     }
 
