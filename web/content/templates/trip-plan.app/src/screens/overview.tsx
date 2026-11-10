@@ -55,7 +55,7 @@ export default function Overview() {
             <button type="button" onClick={() => route("/bookings")} className="flex min-h-11 w-full items-center gap-3 px-4 py-3 text-left">
               <div className="min-w-0 flex-1">
                 <p className="font-semibold">Bookings</p>
-                <p className="text-[0.875rem] text-muted-foreground tabular-nums">{paid} of {bookings.length} paid{unpaid.length ? ` · next to pay: ${unpaid[0].what}` : ""}</p>
+                <p className="text-[0.875rem] text-muted-foreground tabular-nums text-balance">{paid} of {bookings.length} paid{unpaid.length ? ` · next to pay: ${unpaid[0].what}` : ""}</p>
               </div>
               <ChevronRight className="size-5 text-muted-foreground" />
             </button>

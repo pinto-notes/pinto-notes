@@ -52,10 +52,19 @@ export default function Study() {
               <Pills label="Topic" options={["All", ...topics]} value={topic} onChange={setTopic} />
             </div>
           )}
+          {/* The streak and its calendar side by side: under each other the card was too tall for
+              the template library's stage over the app's tabs, and the stage dropped the calendar. */}
           <Section>
-            <div className="p-4">
-              <p className="text-[1.375rem] font-bold leading-tight tabular-nums" data-testid="streak">{s ? `${s}-day streak` : "No streak yet"}</p>
-              <p className="mb-3 text-[0.875rem] text-muted-foreground">{studied[today] ? `${studied[today]} ${studied[today] === 1 ? "card" : "cards"} today.` : s ? "Study a card today to keep it going." : "Study a few cards a day: that's what makes them stick."}</p>
+            <div className="flex items-start gap-4 p-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-[1.375rem] font-bold leading-tight tabular-nums" data-testid="streak">{s ? `${s}-day streak` : "No streak yet"}</p>
+                <p className="text-[0.875rem] text-muted-foreground text-balance">{studied[today] ? `${studied[today]} ${studied[today] === 1 ? "card" : "cards"} today.` : s ? "Keep it going today." : "A few cards a day makes them stick."}</p>
+                <div className="mt-2 text-[0.75rem] leading-snug text-muted-foreground" aria-hidden="true">
+                  <p>A square a day.</p>
+                  <p>Today is ringed.</p>
+                  <p className="mt-0.5 flex items-center gap-1">Fewer{[0.35, 0.6, 0.8, 1].map((o) => <span key={o} className="size-2.5 shrink-0 rounded-[2px] bg-[var(--amber-accent)]" style={{ opacity: o }} />)}more</p>
+                </div>
+              </div>
               <Heatmap studied={studied} today={today} />
             </div>
           </Section>
@@ -101,25 +110,16 @@ function Heatmap({ studied, today }: { studied: Record<string, number>; today: s
   // A month's name over the first week that starts in it (and over the first column).
   const heads = Array.from({ length: 12 }, (_, w) => { const d = days[w * 7]; return w === 0 || month(d) !== month(days[(w - 1) * 7]) ? month(d) : "" })
   return (
-    <div className="flex items-end gap-4" role="img" aria-label={`Studied on ${total} of the last 12 weeks' days`}>
-      <div className="w-[201px] shrink-0">
-        <div className="mb-1 grid grid-cols-12 gap-[3px]" aria-hidden="true">
-          {heads.map((h, w) => <span key={w} className="overflow-visible whitespace-nowrap text-[0.75rem] leading-none text-muted-foreground">{h}</span>)}
-        </div>
-        <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
-          {days.map((d) => {
-            const n = studied[d] ?? 0
-            return <span key={d} data-today={d === today || undefined} className={cn("aspect-square rounded-[3px]", d > today ? "bg-transparent" : n ? "bg-[var(--amber-accent)]" : "bg-muted",
-              d === today && "ring-[1.5px] ring-foreground ring-offset-1 ring-offset-[var(--card)]")} style={n && d <= today ? { opacity: 0.35 + 0.65 * (n / top) } : undefined} />
-          })}
-        </div>
+    <div className="w-[165px] shrink-0" role="img" aria-label={`Studied on ${total} of the last 12 weeks' days`}>
+      <div className="mb-1 grid grid-cols-12 gap-[3px]" aria-hidden="true">
+        {heads.map((h, w) => <span key={w} className="overflow-visible whitespace-nowrap text-[0.75rem] leading-none text-muted-foreground">{h}</span>)}
       </div>
-      {/* Beside the squares, in the room the card has there: under them it made the card too tall
-          for the library's stage, which then dropped the calendar. */}
-      <div className="min-w-0 text-[0.75rem] leading-snug text-muted-foreground" aria-hidden="true">
-        <p>A square a day.</p>
-        <p>Today is ringed.</p>
-        <p className="mt-1 flex items-center gap-1">Fewer{[0.35, 0.6, 0.8, 1].map((o) => <span key={o} className="size-2.5 shrink-0 rounded-[2px] bg-[var(--amber-accent)]" style={{ opacity: o }} />)}more</p>
+      <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
+        {days.map((d) => {
+          const n = studied[d] ?? 0
+          return <span key={d} data-today={d === today || undefined} className={cn("aspect-square rounded-[2px]", d > today ? "bg-transparent" : n ? "bg-[var(--amber-accent)]" : "bg-muted",
+            d === today && "ring-[1.5px] ring-foreground ring-offset-1 ring-offset-[var(--card)]")} style={n && d <= today ? { opacity: 0.35 + 0.65 * (n / top) } : undefined} />
+        })}
       </div>
     </div>
   )
