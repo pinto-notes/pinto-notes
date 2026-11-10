@@ -772,7 +772,7 @@ import Vision
         for reach in [SyncEngine.Reach.offline, .unreachable] {
             for ai in [SetupCards.AI.chatgpt, .claude] {
                 let c = TemplateLibraryWords.caption(e, ai: ai, reach: reach)
-                #expect(c.lead == with.lead && c.folder == folder && c.rest == ". Ask \(ai.name) once it has synced.")
+                #expect(c.lead == with.lead && c.folder == folder && c.rest == ". Ask \(ai.name) after it syncs.")
                 #expect(wide(c) <= L.wordsWidth(for: L.size), "\(e.slug) with \(ai.name), away: \(wide(c)) pt of \(L.wordsWidth(for: L.size))")
             }
             let none = TemplateLibraryWords.caption(e, ai: .other, reach: reach)

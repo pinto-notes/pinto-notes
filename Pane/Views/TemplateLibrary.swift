@@ -279,7 +279,7 @@ enum TemplateLibraryWords {
         let folder = e.folder ?? "Notes"
         let lead = "Adds an empty \(e.app ? "app" : "note") to "
         guard ai.asks else { return (lead, folder, ".") }
-        return (lead, folder, reach == .online ? ", then opens \(ai.name)." : ". Ask \(ai.name) once it has synced.")
+        return (lead, folder, reach == .online ? ", then opens \(ai.name)." : ". Ask \(ai.name) after it syncs.")
     }
 }
 
