@@ -6,10 +6,10 @@
     "Personal"
   ],
   "audience": "For anyone training a few times a week who wants to see progress.",
-  "description": "A workout log in one table. Describe the session after training and your AI logs it, and keeps your personal bests.",
+  "description": "A workout log in one table. Describe the session after training and your AI logs it and updates your personal bests.",
   "tagline": "A row per session, and your bests.",
   "folder": "Health",
-  "note": "Workout log\n\nOne row per session. Add it yourself, or tell your AI what you did after training and it logs it.\n\n## Sessions\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Exercise=text; Result=text; Effort (1–10)=scale 1-10 -->\n| Date | Workout | Exercise | Result | Effort (1–10) |\n| --- | --- | --- | --- | --- |\n\n## Program\nLegs, push and pull in turn with a day between, and an easy run on a rest day.\n- Legs: squat, lunges, calves\n- Push: bench press, overhead press, dips\n- Pull: deadlift, rows, pull-ups\n\n## Personal bests\nYour best result for each exercise, with its date.\n",
+  "note": "Workout log\n\nOne row per session. Add it yourself, or tell your AI what you did after training and it logs it.\n\n## Sessions\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Exercise=text; Result=text; Effort (1–10)=scale 1-10 -->\n| Date | Workout | Exercise | Result | Effort (1–10) |\n| --- | --- | --- | --- | --- |\n\n## Personal bests\nYour best result for each exercise, with its date.\n\n## Program\nLegs, push and pull in turn with a day between, and an easy run on a rest day.\n- Legs: squat, lunges, calves\n- Push: bench press, overhead press, dips\n- Pull: deadlift, rows, pull-ups\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Workout log\". Read it with fetch before each change. After a session I'll tell you what I did. Add one row to the table with edit: Workout as one of the options, the main Exercise, the Result like \"100 kg x 5\" or \"5 km in 29 min\", and Effort from 1 to 10. If I beat a result listed under \"Personal bests\", or there's none for that exercise yet, add it there with today's date. When I ask how I'm doing, compare the last four weeks."
   },
@@ -32,15 +32,7 @@
       "args": {
         "path": "Health/Workout log.md",
         "old_string": "| 2026-10-30 | Pull | Deadlift | 115 kg x 3 | 8 |\n",
-        "new_string": "| 2026-10-30 | Pull | Deadlift | 115 kg x 3 | 8 |\n| 2026-11-01 | Run | Easy run | 5 km in 30 min | 5 |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Health/Workout log.md",
-        "old_string": "| 2026-11-01 | Run | Easy run | 5 km in 30 min | 5 |\n",
-        "new_string": "| 2026-11-01 | Run | Easy run | 5 km in 30 min | 5 |\n| 2026-11-02 | Legs | Squat | 100 kg x 5 | 8 |\n"
+        "new_string": "| 2026-10-30 | Pull | Deadlift | 115 kg x 3 | 8 |\n| 2026-11-02 | Legs | Squat | 100 kg x 5 | 8 |\n"
       }
     },
     {
@@ -72,11 +64,11 @@
       "args": {
         "path": "Health/Workout log.md",
         "old_string": "Your best result for each exercise, with its date.\n",
-        "new_string": "Your best result for each exercise, with its date.\n- Squat: 100 kg x 5 (2 Nov)\n- Bench press: 70 kg x 6 (4 Nov)\n- Deadlift: 120 kg x 3 (6 Nov)\n- 5 km: 29 min (8 Nov)\n"
+        "new_string": "Your best result for each exercise, with its date.\n- Deadlift: 120 kg x 3 (6 Nov)\n- Squat: 100 kg x 5 (2 Nov)\n- Bench press: 70 kg x 6 (4 Nov)\n- 5 km: 29 min (8 Nov)\n"
       }
     }
   ],
-  "example": "Workout log\n\nOne row per session. Add it yourself, or tell your AI what you did after training and it logs it.\n\n## Sessions\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Exercise=text; Result=text; Effort (1–10)=scale 1-10 -->\n| Date | Workout | Exercise | Result | Effort (1–10) |\n| --- | --- | --- | --- | --- |\n| 2026-10-30 | Pull | Deadlift | 115 kg x 3 | 8 |\n| 2026-11-01 | Run | Easy run | 5 km in 30 min | 5 |\n| 2026-11-02 | Legs | Squat | 100 kg x 5 | 8 |\n| 2026-11-04 | Push | Bench press | 70 kg x 6 | 7 |\n| 2026-11-06 | Pull | Deadlift | 120 kg x 3 | 9 |\n| 2026-11-08 | Run | Easy run | 5 km in 29 min | 5 |\n\n## Program\nLegs, push and pull in turn with a day between, and an easy run on a rest day.\n- Legs: squat, lunges, calves\n- Push: bench press, overhead press, dips\n- Pull: deadlift, rows, pull-ups\n\n## Personal bests\nYour best result for each exercise, with its date.\n- Squat: 100 kg x 5 (2 Nov)\n- Bench press: 70 kg x 6 (4 Nov)\n- Deadlift: 120 kg x 3 (6 Nov)\n- 5 km: 29 min (8 Nov)\n",
+  "example": "Workout log\n\nOne row per session. Add it yourself, or tell your AI what you did after training and it logs it.\n\n## Sessions\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Exercise=text; Result=text; Effort (1–10)=scale 1-10 -->\n| Date | Workout | Exercise | Result | Effort (1–10) |\n| --- | --- | --- | --- | --- |\n| 2026-10-30 | Pull | Deadlift | 115 kg x 3 | 8 |\n| 2026-11-02 | Legs | Squat | 100 kg x 5 | 8 |\n| 2026-11-04 | Push | Bench press | 70 kg x 6 | 7 |\n| 2026-11-06 | Pull | Deadlift | 120 kg x 3 | 9 |\n| 2026-11-08 | Run | Easy run | 5 km in 29 min | 5 |\n\n## Personal bests\nYour best result for each exercise, with its date.\n- Deadlift: 120 kg x 3 (6 Nov)\n- Squat: 100 kg x 5 (2 Nov)\n- Bench press: 70 kg x 6 (4 Nov)\n- 5 km: 29 min (8 Nov)\n\n## Program\nLegs, push and pull in turn with a day between, and an easy run on a rest day.\n- Legs: squat, lunges, calves\n- Push: bench press, overhead press, dips\n- Pull: deadlift, rows, pull-ups\n",
   "related": [
     "habit-tracker",
     "mood-energy-log",
