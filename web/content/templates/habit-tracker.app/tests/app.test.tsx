@@ -133,7 +133,7 @@ describe("Habits", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Remove Walk" }))
     await waitFor(() => expect(values().habits.map((h: { id: string }) => h.id)).toEqual(["water"]))
     expect(await screen.findByText("Removed Walk")).toBeInTheDocument()
-    await userEvent.click(screen.getByRole("button", { name: "Undo" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
     await waitFor(() => expect(values().habits.map((h: { id: string }) => h.id)).toEqual(["walk", "water"]))
     expect(await screen.findByText("Walk")).toBeInTheDocument()
   })

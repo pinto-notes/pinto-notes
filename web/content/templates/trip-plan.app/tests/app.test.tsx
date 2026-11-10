@@ -176,7 +176,7 @@ describe("Bookings", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Delete Hotel" }))
     await waitFor(() => expect(values().bookings).toEqual([]))
     expect(await screen.findByText(/^No bookings yet/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole("button", { name: "Undo" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
     await waitFor(() => expect(values().bookings).toHaveLength(1))
   })
 
@@ -338,7 +338,7 @@ describe("Next trip", () => {
     expect(values().packing).toEqual([{ id: "p1", text: "Passport", group: "Documents", packed: false }, { id: "p2", text: "Sunglasses", group: "Clothes", packed: false }])
     expect(values().past.map((t: { name: string }) => t.name)).toEqual(["Lisbon"])
     expect(await screen.findByText("Your packing list from Lisbon is ready: 2 things.")).toBeInTheDocument()
-    await userEvent.click(screen.getByRole("button", { name: "Undo" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
     await waitFor(() => expect(values().trip?.name).toBe("Lisbon"))
     await waitFor(() => expect(values().past).toEqual([]))
     expect(values().packing[0].packed).toBe(true)

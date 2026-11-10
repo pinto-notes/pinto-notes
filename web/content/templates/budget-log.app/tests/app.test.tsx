@@ -226,7 +226,7 @@ describe("Monthly bills", () => {
     await go("Budget")
     await userEvent.click(await screen.findByRole("button", { name: "Add bill" }))
     await userEvent.type(await screen.findByLabelText("What"), "Phone")
-    await userEvent.type(screen.getByLabelText("Amount (kr)"), "299")
+    await userEvent.type(await screen.findByLabelText("Amount (kr)"), "299")
     await userEvent.clear(screen.getByLabelText("Day of month"))
     await userEvent.type(screen.getByLabelText("Day of month"), "28")
     await userEvent.click(screen.getByRole("radio", { name: "Eating out" }))
