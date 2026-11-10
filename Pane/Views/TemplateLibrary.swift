@@ -617,6 +617,10 @@ struct TemplateLibraryView: View {
         .onKeyPress(.downArrow) { arrow(shown, rows: 1, along: 0) }
         .onKeyPress(.leftArrow) { arrow(shown, rows: 0, along: -1) }
         .onKeyPress(.rightArrow) { arrow(shown, rows: 0, along: 1) }
+        // Esc with the keys inside an app's example (after a click in it): the same as Esc
+        // anywhere on the page, back to the gallery. There the key is the example's first, and
+        // what it didn't use closed the whole sheet (real keys on the Air, 10 November 2026).
+        .onExitCommand { if open != nil { show(nil) } else { close() } }
         // On a page Return is Make, the page's default button.
         .onKeyPress(.return) { openFromKeys() ? .handled : .ignored }
         // With the ring out, what's typed still goes to Search, and the ring to its first match.

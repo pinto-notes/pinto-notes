@@ -1316,6 +1316,9 @@ import Vision
         // The app's own tabs show, at the frame's foot, and its blocks end whole above them.
         #expect(!TemplateFiles.stageCSS.contains("nav[aria-label=\"Screens\"] { display: none") && !TemplateFiles.stageCSS.contains("main { padding-bottom: 0"), "the tabs are the app's, and show in its example")
         #expect(js.contains("const limit = () => { const t = tabs(); return (t ? t.top - GAP : innerHeight - FADE) - 1 }"), "the foot is the top of the app's tabs")
+        #expect(js.contains("if (!open && e.target.closest && e.target.closest('nav[aria-label=\"Screens\"]')) reveal()"), "another screen of the app shows whole")
+        // Esc with the keys inside the example goes back, as Esc anywhere on the page does.
+        #expect(src.contains(".onExitCommand { if open != nil { show(nil) } else { close() } }"))
         #expect(js.contains("const cuts = [{ left: -Infinity, right: Infinity, y: limit() }]"), "the foot is worked out per column")
         let script = try SettingsHomeTests.source("scripts/template-stage-pictures.ts")
         #expect(script.contains(".sample.json") && script.contains("staged(") && !script.contains("getDay()"), "the pictures are drawn from the same sample and trim, today")

@@ -4,7 +4,7 @@
 // would cut ends after its last row that fits, with its own padding under it; anything else the
 // foot would cut goes, with all that comes after it in its column; a section heading left last
 // without its card goes too. The foot is the top of the app's own tabs. Once the person scrolls
-// the live app (a wheel or a key), everything shows again. Nothing here reaches a made note: Make adds the app as it is.
+// the live app (a wheel or a key) or changes its screen (a tab), everything shows again. Nothing here reaches a made note: Make adds the app as it is.
 // The app shows today, as it would in your notes (9 November 2026: the stage used to set the
 // app's clock to the latest Thursday, and said "Thursday 5 November, Today" on a Monday).
 (() => {
@@ -170,6 +170,9 @@
   observe()
   addEventListener("resize", soon)
   addEventListener("load", soon)
+  // A press on one of the app's own tabs too: another screen is the app as it is, scrolled as
+  // it scrolls in your notes (cut to whole blocks, Month's cards drew empty).
+  addEventListener("click", (e) => { if (!open && e.target.closest && e.target.closest('nav[aria-label="Screens"]')) reveal() }, true)
   addEventListener("wheel", reveal, { passive: true, once: true })
   addEventListener("keydown", reveal, { once: true })
   if (document.fonts) document.fonts.ready.then(soon)
