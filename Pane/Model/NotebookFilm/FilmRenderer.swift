@@ -13,9 +13,9 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
 
     /// The looks a film can be shared in: light and dark, in Pinto's own colours. (The others
     /// are kept, not offered.)
-    static let offered: [FilmLook] = [.cream, .leaf]
+    static let offered: [FilmLook] = [.cream, .holoLeaf]
     /// The one a film opens in: the appearance the app is in.
-    static func matching(dark: Bool) -> FilmLook { dark ? .leaf : .cream }
+    static func matching(dark: Bool) -> FilmLook { dark ? .holoLeaf : .cream }
 
     var name: String {
         switch self {
@@ -24,8 +24,8 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
         case .paper: "Paper"
         case .holo: "Hologram"
         case .cream: "Light"
-        case .leaf: "Dark"
-        case .holoLeaf: "Hologram"
+        case .leaf: "Dark, flat"
+        case .holoLeaf: "Dark"
         }
     }
 

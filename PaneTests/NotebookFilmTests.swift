@@ -689,16 +689,16 @@ import Testing
 
     @Test func aNewFilmOpensAsTheConstellation() {
         // Two looks are offered, light and dark, in Pinto's own colours; the rest are kept, not offered.
-        #expect(FilmLook.offered == [.cream, .leaf])
-        #expect(FilmLook.cream.name == "Light" && FilmLook.leaf.name == "Dark")
-        #expect(!FilmLook.cream.dark && FilmLook.leaf.dark)
+        #expect(FilmLook.offered == [.cream, .holoLeaf])
+        #expect(FilmLook.cream.name == "Light" && FilmLook.holoLeaf.name == "Dark")
+        #expect(!FilmLook.cream.dark && FilmLook.holoLeaf.dark)
         // It opens in the one the app is in.
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("film-look-\(UUID().uuidString)")
         let s = NotebookFilmStore(defaults: UserDefaults(suiteName: "film-look-\(UUID().uuidString)")!, launched: Self.now, arguments: [], folder: folder)
         s.follow(dark: false)
         #expect(s.look == .cream)
         s.follow(dark: true)
-        #expect(s.look == .leaf)
+        #expect(s.look == .holoLeaf)
     }
 
     @Test func theFilmTellsEachPersonsOwnMonth() {

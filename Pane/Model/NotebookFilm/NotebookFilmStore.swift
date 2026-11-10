@@ -27,7 +27,7 @@ final class NotebookFilmStore {
     var visible = false
     /// The film being shown.
     private(set) var script: FilmScript?
-    var look: FilmLook = .leaf
+    var look: FilmLook = .holoLeaf
     /// A look asked for by name (captures) stays; otherwise the film opens in the app's appearance.
     private(set) var lookFixed = false
     /// The film is about to come up in an app that's dark, or light: it opens in that one.

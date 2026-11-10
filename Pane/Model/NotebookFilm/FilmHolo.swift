@@ -230,8 +230,8 @@ final class HoloScene: FilmScene {
         let s = shot(t)
         let bottom = canvas.bottom + 340, top = canvas.height - canvas.top - 130
         let fit = min((W - 150) / 2, (top - bottom) / 2 * 1.08)
-        // (With no floor under it, it's seen more from above and closer: the lights fill the frame.)
-        let yaw = -0.5 + 0.16 * t, pitch = (rings ? 0.6 : 0.92) + 0.05 * sin(0.3 * t)
+        // (With no floor under it, a little closer: the lights fill more of the frame.)
+        let yaw = -0.5 + 0.16 * t, pitch = 0.6 + 0.05 * sin(0.3 * t)
         return Camera(f: s.f, cosY: cos(yaw), sinY: sin(yaw), cosP: cos(pitch), sinP: sin(pitch),
                       zoom: min(2.3, fit / s.rad) * (rings ? 1 : 1.22), cx: W / 2, cy: (bottom + top) / 2 + 6)
     }
@@ -366,104 +366,16 @@ final class HoloScene: FilmScene {
             }
         }
 
-        // What joins the notes. With rings: straight arms. Without: nerve fibres, each bending its
-        // own way, with a few short branches off every note, and signals running along them.
-        /// The fibre from a note to the one it hangs from: its ends and the point it bends round.
-        func fibre(_ i: Int) -> (a: CGPoint, c: CGPoint, b: CGPoint) {
-            let a = where_[i], b = where_[parent[i]]
-            let bend = (hash(i, 41) - 0.5) * 0.7
-            return (a, CGPoint(x: (a.x + b.x) / 2 - (b.y - a.y) * bend, y: (a.y + b.y) / 2 + (b.x - a.x) * bend), b)
+        // The arms of each system.
+        let arms = CGMutablePath()
+        for l in lights where parent[l.i] >= 0 {
+            arms.move(to: where_[parent[l.i]])
+            arms.addLine(to: where_[l.i])
         }
-        func along(_ f: (a: CGPoint, c: CGPoint, b: CGPoint), _ x: Double) -> CGPoint {
-            let u = 1 - x
-            return CGPoint(x: u * u * f.a.x + 2 * u * x * f.c.x + x * x * f.b.x, y: u * u * f.a.y + 2 * u * x * f.c.y + x * x * f.b.y)
-        }
-        if rings {
-            let arms = CGMutablePath()
-            for l in lights where parent[l.i] >= 0 {
-                arms.move(to: where_[parent[l.i]])
-                arms.addLine(to: where_[l.i])
-            }
-            ctx.addPath(arms)
-            ctx.setStrokeColor(lineC.cg(0.20 + 0.08 * ending))
-            ctx.setLineWidth(1.1)
-            ctx.strokePath()
-        } else {
-            // Each folder's first note reaches back to an older folder's: the notebook is one thing.
-            for (h, cl) in clusters.enumerated() where aliveIn[h] > 0 {
-                guard let older = clusters.indices.filter({ $0 != h && clusters[$0].birth < cl.birth }).min(by: { simd_length(clusters[$0].c - cl.c) < simd_length(clusters[$1].c - cl.c) }) else { continue }
-                let a = where_[clusters[older].notes[0]], b = cam.project(position(cl.notes[0], t)).p
-                let grown = smooth((gt - cl.birth + 0.3) / 0.7)
-                let bend = (hash(h, 43) - 0.5) * 0.5
-                let f = (a: a, c: CGPoint(x: (a.x + b.x) / 2 - (b.y - a.y) * bend, y: (a.y + b.y) / 2 + (b.x - a.x) * bend), b: b)
-                ctx.move(to: a)
-                for k in 1...14 { ctx.addLine(to: along(f, grown * Double(k) / 14)) }
-                ctx.setStrokeColor(lineC.cg(0.2))
-                ctx.setLineWidth(1.5)
-                ctx.strokePath()
-                // Now and then something passes along it.
-                let x = (0.22 * t + hash(h, 44)).truncatingRemainder(dividingBy: 1)
-                if grown >= 1, x < 0.5 {
-                    let p = along(f, x * 2)
-                    ctx.setAlpha(0.7 * sin(x * 2 * .pi))
-                    ctx.draw(whiteGlow, in: CGRect(x: p.x - 10, y: p.y - 10, width: 20, height: 20))
-                    ctx.setAlpha(1)
-                }
-            }
-            for l in lights {
-                // Its fibre to the note it hangs from, thicker at the older end.
-                if parent[l.i] >= 0 {
-                    let f = fibre(l.i)
-                    ctx.move(to: f.a)
-                    ctx.addQuadCurve(to: f.b, control: f.c)
-                    ctx.setStrokeColor(lineC.cg((0.34 + 0.1 * ending) * fog[l.i] * pops[l.i]))
-                    ctx.setLineWidth(1.5 * min(1.6, l.s))
-                    ctx.strokePath()
-                }
-                // Short branches off it, each forking once.
-                for k in 0..<3 {
-                    let a = hash(l.i, 50 + k) * 6.283 + 0.25 * sin(0.7 * t + Double(l.i + k))
-                    let len = (9 + 13 * hash(l.i, 60 + k)) * l.s * pops[l.i]
-                    let knee = CGPoint(x: l.p.x + cos(a) * len * 0.6, y: l.p.y + sin(a) * len * 0.6)
-                    for fork in [-0.5, 0.45] {
-                        ctx.move(to: l.p)
-                        ctx.addLine(to: knee)
-                        ctx.addLine(to: CGPoint(x: knee.x + cos(a + fork) * len * 0.5, y: knee.y + sin(a + fork) * len * 0.5))
-                    }
-                }
-                ctx.setStrokeColor(lineC.cg(0.26 * fog[l.i]))
-                ctx.setLineWidth(1)
-                ctx.strokePath()
-            }
-            // Signals: each time a note is written in, one runs from it along its fibre and on up
-            // the next, in the colour of who wrote. Once the month is over they keep passing, quietly.
-            for l in lights {
-                let n = script.nodes[l.i]
-                var fired: [(at: Double, ai: Bool)] = n.edits.indices.filter { n.edits[$0] <= gt && gt - n.edits[$0] < 1.1 }.map { (n.edits[$0], n.aiEdits[$0]) }
-                if t > growth, hash(l.i, 70) < 0.45 {
-                    let every = 1.6 + 1.4 * hash(l.i, 71)
-                    let since = (t - growth + every * hash(l.i, 72)).truncatingRemainder(dividingBy: every)
-                    fired.append((t - since, gt >= aiFrom[l.i]))
-                }
-                for f in fired {
-                    var from = l.i, since = t - f.at
-                    if t <= growth { since = gt - f.at }
-                    for _ in 0..<2 {
-                        guard parent[from] >= 0 else { break }
-                        if since < 0.5 {
-                            let p = along(fibre(from), since / 0.5)
-                            let r = 13 * min(1.5, l.s)
-                            ctx.setAlpha(0.95 * sin(max(0.05, since / 0.5) * .pi).squareRoot() * (t > growth ? 0.55 : 1))
-                            ctx.draw(f.ai ? aiGlow : youGlow, in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
-                            ctx.setAlpha(1)
-                            break
-                        }
-                        since -= 0.5
-                        from = parent[from]
-                    }
-                }
-            }
-        }
+        ctx.addPath(arms)
+        ctx.setStrokeColor(lineC.cg((rings ? 0.20 : 0.3) + 0.08 * ending))
+        ctx.setLineWidth(rings ? 1.1 : 1.3)
+        ctx.strokePath()
         // Links between notes: brighter, drawn out from one to the other when they're made.
         for l in script.links where l.birth <= gt {
             let a = where_[l.a], b = where_[l.b]
@@ -528,8 +440,7 @@ final class HoloScene: FilmScene {
             ctx.setBlendMode(.plusLighter)
             // A ring goes out from it each time it's written in.
             let since = gt - last
-            // (Only with the rings: a nerve cell flares, it doesn't draw circles.)
-            if since >= 0, since < 0.6, t <= growth, rings {
+            if since >= 0, since < 0.6, t <= growth {
                 let x = since / 0.6
                 let r = (8 + 30 * x) * l.s
                 ctx.setStrokeColor(look.you.mix(look.ai, ai).cg(0.6 * (1 - x) * f))
