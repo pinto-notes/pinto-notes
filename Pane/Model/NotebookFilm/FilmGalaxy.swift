@@ -61,7 +61,7 @@ final class GalaxyScene: FilmScene {
     private func starSize(_ edits: Double) -> Double { min(24, 6 + 1.6 * edits.squareRoot()) }
     private func cloudSize(_ j: Int, _ notes: Double) -> Double { cells[j] * notes.squareRoot() + cells[j] * 1.3 + 14 }
 
-    /// What each is called: "My first month is a comet".
+    /// What each is called: "My notebook is a comet".
     static func name(of form: FilmForm) -> String {
         switch form { case .comet: "a comet"; case .nebula: "a nebula"; case .spiral: "a spiral galaxy" }
     }
@@ -510,7 +510,40 @@ final class GalaxyScene: FilmScene {
         ctx.scaleBy(x: cam.k, y: cam.k)
         ctx.translateBy(x: -cam.on.x, y: -cam.on.y)
         let made = build()
-        let where_ = made.at, labels = made.labels, zoom = made.zoom, heart = made.heart
+        var where_ = made.at
+        let labels = made.labels, zoom = made.zoom, heart = made.heart
+
+        // Before the month: an empty sky, and one faint point at its heart that slowly gathers.
+        if script.opening > 0 {
+            let until = script.bangAt ?? script.opening
+            let gather = filmSmooth(gt / until), left = 1 - filmSmooth((gt - until) / 0.35)
+            if left > 0.01 {
+                let r = (3 + 9 * gather) * (1 + 0.12 * sin(9 * gt))
+                let glow = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cream.cg(0.5 * gather * left), cream.cg(0)] as CFArray, locations: [0, 1])!
+                ctx.drawRadialGradient(glow, startCenter: heart, startRadius: 0, endCenter: heart, endRadius: r * 7, options: [])
+                ctx.setFillColor(cream.mix(GR(0xFFFFFF), 0.5).cg((0.35 + 0.6 * gather) * left))
+                ctx.fillEllipse(in: CGRect(x: heart.x - r, y: heart.y - r, width: r * 2, height: r * 2))
+            }
+        }
+        // Then what you brought in arrives all at once: it bursts out from that point and settles.
+        var burst: Double?
+        if let bang = script.bangAt, gt >= bang {
+            let s = gt - bang
+            burst = s
+            for (i, n) in script.nodes.enumerated() where n.imported && n.birth <= gt && gt < n.birth + 1.1 {
+                let x = min(1, (gt - n.birth) / 1.1), out = 1 - pow(1 - x, 3)
+                where_[i] = CGPoint(x: heart.x + (where_[i].x - heart.x) * out, y: heart.y + (where_[i].y - heart.y) * out)
+            }
+            if s < 1.4 {
+                // (A ring of paper light going out, and a glow that fades behind it.)
+                let x = s / 1.4, ring = 30 + 760 * (1 - pow(1 - x, 2.4))
+                let glow = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cream.cg(0.55 * (1 - x) * (1 - x)), cream.cg(0)] as CFArray, locations: [0, 1])!
+                ctx.drawRadialGradient(glow, startCenter: heart, startRadius: 0, endCenter: heart, endRadius: 80 + 380 * x, options: [])
+                ctx.setStrokeColor(cream.cg(0.7 * (1 - x)))
+                ctx.setLineWidth(2 + 10 * (1 - x))
+                ctx.strokeEllipse(in: CGRect(x: heart.x - ring, y: heart.y - ring, width: ring * 2, height: ring * 2))
+            }
+        }
 
         // (Links between notes aren't drawn: across hundreds of notes they were a tangle.)
 
@@ -584,6 +617,11 @@ final class GalaxyScene: FilmScene {
             note(at, size, turn: filmHash(i, 21) * 1.5 + 0.25 * sin(0.8 * t + Double(i)), you.mix(ai, helped).mix(white, min(0.8, 0.35 * pulse)), edits: done, in: ctx)
         }
         ctx.restoreGState()
+        // (The moment it bursts, the whole sky lights a little, and dims again within a fifth of a second.)
+        if let s = burst, s < 0.6 {
+            ctx.setFillColor(cream.cg(0.22 * exp(-s / 0.14)))
+            ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+        }
         // (When the camera is close, nothing bright lies under the mark and the key at the top.)
         let shade = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [sky.cg(0.9), sky.cg(0)] as CFArray, locations: [0, 1])!
         ctx.saveGState()

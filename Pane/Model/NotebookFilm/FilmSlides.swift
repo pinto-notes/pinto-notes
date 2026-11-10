@@ -2,8 +2,10 @@ import CoreGraphics
 import Foundation
 import ImageIO
 
-// The month before its film, opened from a card (NotebookFilmStore.offered): two slides, each with one
-// strong thing on it in its own bold paper colour, then the film's own night sky with a play button.
+// The month before its film, opened from a card (NotebookFilmStore.offered): where you started (the
+// notes you brought in, or your first one), two slides, each with one strong thing on it in its own
+// bold paper colour, then the film's own night sky with a play button. On screen it talks to you;
+// the picture you send is in your own voice ("I").
 // A slide is drawn from how long it's been on screen, so it unfolds as it comes in, and a picture of
 // it is the same drawing at its end.
 
@@ -18,6 +20,8 @@ struct FilmSlides: @unchecked Sendable {
     let W = 1080.0
     /// A note's name, when it may be shown; a note without one is left off the list.
     var title: @Sendable (FilmNote) -> String?
+    /// In your own voice, for the picture you send: "my top notes" rather than "your top notes".
+    var me = false
 
     /// A slide: how long it takes to come in, and its drawing at a time since it appeared.
     struct Slide: @unchecked Sendable {
@@ -41,7 +45,7 @@ struct FilmSlides: @unchecked Sendable {
     /// Sent as a picture: tall like a story, which a chat shows well too.
     var sent: FilmSlides {
         var s = self
-        s.H = 1920; s.top = 90; s.bottom = 90
+        s.H = 1920; s.top = 90; s.bottom = 90; s.me = true
         return s
     }
 
@@ -71,17 +75,20 @@ struct FilmSlides: @unchecked Sendable {
         return (0..<24).max { window($0) < window($1) } ?? 0
     }
 
-    /// What your hours make you: "I'm a night" over "owl".
-    static func kind(startingAt start: Int) -> (String, String) {
-        let mid = (start + 1) % 24
+    /// What your hours make you: "You're a night" over "owl" (with `me`, "I'm a night").
+    static func kind(startingAt start: Int, me: Bool = false) -> (String, String) {
+        let mid = (start + 1) % 24, who = me ? "I'm" : "You're"
         switch mid {
-        case 5..<9: return ("I'm an early", "bird")
-        case 9..<12: return ("I'm a morning", "writer")
-        case 12..<17: return ("I'm an afternoon", "writer")
-        case 17..<21: return ("I'm an evening", "writer")
-        default: return ("I'm a night", "owl")
+        case 5..<9: return ("\(who) an early", "bird")
+        case 9..<12: return ("\(who) a morning", "writer")
+        case 12..<17: return ("\(who) an afternoon", "writer")
+        case 17..<21: return ("\(who) an evening", "writer")
+        default: return ("\(who) a night", "owl")
         }
     }
+
+    /// The words for you on screen, or for you to send (`me`).
+    private func voice(_ you: String, _ i: String) -> String { me ? i : you }
 
     static func hourName(_ h: Int) -> String {
         let h = (h % 24 + 24) % 24
@@ -186,20 +193,24 @@ struct FilmSlides: @unchecked Sendable {
 
     // MARK: The slides
 
+    /// Where the top note's star is: high enough that the caption under it (460 below) never meets
+    /// the list, whose first row's top is 414 above the bottom margin.
+    var topStar: Double { max(H * 0.52, bottom + 960) }
+
     func slides() -> [Slide] {
-        var out: [Slide] = []
+        var out: [Slide] = [start()]
         let months = script.stats.months
         // Your top notes: the brightest stars, by name.
         let top5 = ranked
         if let first = top5.first, first.note.edits.count >= 6 {
             let rows = top5.count
-            let spoken = "My top notes: " + top5.enumerated().map { "\($0.offset + 1), \($0.element.name), \($0.element.note.edits.count) times" }.joined(separator: "; ")
+            let spoken = voice("Your top notes: ", "My top notes: ") + top5.enumerated().map { "\($0.offset + 1), \($0.element.name), \($0.element.note.edits.count) times" }.joined(separator: "; ")
             out.append(Slide(name: "top-notes", length: 1.0 + 0.12 * Double(max(0, rows - 2)) + 0.45, spoken: spoken) { ctx, t in
                 let p = palette(1)
                 ground(1, p, in: ctx)
-                say("My top notes", 112, 0.8, p.ink.cg(), x: 66, y: H - top - 230, t: t, at: 0, in: ctx)
-                say("the ones I kept coming back to", 40, 0.2, p.ink.cg(0.72), y: H - top - 300, t: t, at: 0.12, in: ctx)
-                let c = CGPoint(x: W / 2, y: H * 0.52)
+                say(voice("Your top notes", "My top notes"), 112, 0.8, p.ink.cg(), x: 66, y: H - top - 230, t: t, at: 0, in: ctx)
+                say(voice("the ones you kept coming back to", "the ones I kept coming back to"), 40, 0.2, p.ink.cg(0.72), y: H - top - 300, t: t, at: 0.12, in: ctx)
+                let c = CGPoint(x: W / 2, y: topStar)
                 let n = first.note
                 let byAI = Double(n.edits.filter { $0.ai != nil }.count) / Double(n.edits.count)
                 let e = filmBackOut((t - 0.22) / 0.7)
@@ -232,7 +243,7 @@ struct FilmSlides: @unchecked Sendable {
         // When you write: the day as a paper dial, swept hour by hour, and what that makes you.
         let hours = byHour
         if hours.reduce(0, +) >= 20 {
-            let start = bestHours, kind = Self.kind(startingAt: start)
+            let start = bestHours, kind = Self.kind(startingAt: start, me: me)
             let dark = !(5..<17).contains((start + 1) % 24)
             var times: [(Double, Bool)] = []
             for n in input.notes { for e in n.edits.dropFirst(n.imported == true ? 1 : 0) where e.ai == nil {
@@ -300,6 +311,7 @@ struct FilmSlides: @unchecked Sendable {
             })
         }
         // Last, the film's own sky, waiting for you to press play.
+        // (The picture you send of it says what it is: "My month".)
         let line = Self.story(input, script: script)
         out.append(Slide(name: "play", length: 1.0, light: true, spoken: "\(line). See your month: press play.") { ctx, t in
             let sky = GalaxyScene.skies[(seed / 3 + seed) % GalaxyScene.skies.count]
@@ -319,9 +331,71 @@ struct FilmSlides: @unchecked Sendable {
             let y = bottom + 120
             say(line, 40, 0.25, cream.cg(0.8), y: y, t: t, at: 0.3, in: ctx)
             say("month", 170, 0.8, cream.cg(), x: 66, y: y + 110, t: t, at: 0.15, in: ctx)
-            say("See your", 170, 0.8, cream.cg(), x: 66, y: y + 280, t: t, at: 0.05, in: ctx)
+            say(voice("See your", "See my"), 170, 0.8, cream.cg(), x: 66, y: y + 280, t: t, at: 0.05, in: ctx)
         })
         return out
+    }
+
+    /// Where you started: the notes you brought in, falling into a pile as they're counted, or your
+    /// first note on its own. What the rest of it is measured from.
+    private func start() -> Slide {
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US"); f.calendar = cal; f.dateFormat = "MMMM d"
+        let day = f.string(from: script.start)
+        let brought = input.notes.filter { $0.imported == true }.sorted { $0.created < $1.created }
+        let first = input.notes.min { $0.created < $1.created }
+        // The pile: the notes themselves, with their names where they can be shown.
+        let pile: [String?] = brought.isEmpty ? [first.flatMap(title)] : brought.prefix(7).map { title($0) }
+        let count = brought.count
+        let lines = count > 0
+            ? (voice("You brought in", "I brought in"), "\(count) notes", voice("on \(day). Here\u{2019}s what you did with them.", "on \(day). Here\u{2019}s what I did with them."))
+            : ("It started with", "one note", voice("on \(day). Here\u{2019}s what came of it.", "on \(day). Here\u{2019}s what came of it."))
+        return Slide(name: "start", length: 1.0 + 0.11 * Double(pile.count) + 0.4, spoken: "\(lines.0) \(lines.1) \(lines.2)") { ctx, t in
+            let p = palette(0)
+            ground(0, p, in: ctx)
+            // Each note drops in from above and lands a little askew on the one before.
+            let c = CGPoint(x: W / 2, y: bottom + 560 + (H - top - bottom - 560) * 0.46)
+            let cw = pile.count == 1 ? 640.0 : 600.0, ch = cw * 1.2
+            for (k, name) in pile.enumerated() {
+                let at = 0.1 + 0.11 * Double(k), e = filmBackOut((t - at) / 0.5)
+                guard t > at else { continue }
+                let fall = (1 - filmSmooth((t - at) / 0.42)) * 900
+                let turn = pile.count == 1 ? -0.05 : (filmHash(k, seed + 61) - 0.5) * 0.5 * (k == pile.count - 1 ? 0.3 : 1)
+                let shift = pile.count == 1 ? 0 : (filmHash(k, seed + 62) - 0.5) * 130
+                ctx.saveGState()
+                ctx.translateBy(x: c.x + shift, y: c.y + fall + Double(k) * 6)
+                ctx.rotate(by: turn * e)
+                card(name, w: cw, h: ch, key: k, p, in: ctx)
+                ctx.restoreGState()
+            }
+            let shown = count > 0 ? Int((Double(count) * filmSmooth((t - 0.1) / (0.11 * Double(pile.count) + 0.4))).rounded()) : 1
+            let big = count > 0 ? "\(shown) note\(shown == 1 ? "" : "s")" : lines.1
+            let y = bottom + 120
+            say(lines.0, 110, 0.75, p.ink.cg(), x: 66, y: y + 280, t: t, at: 0, in: ctx)
+            say(big, 170, 0.8, p.ink.cg(), x: 66, y: y + 110, t: t, at: 0.1, in: ctx)
+            say(lines.2, 40, 0.25, p.ink.cg(0.8), y: y, t: t, at: 0.5 + 0.11 * Double(pile.count), in: ctx)
+        }
+    }
+
+    /// A note as a sheet of paper: its name, if it has one that may be shown, and lines of writing.
+    private func card(_ name: String?, w: Double, h: Double, key: Int, _ p: Palette, in ctx: CGContext) {
+        let r = CGRect(x: -w / 2, y: -h / 2, width: w, height: h)
+        ctx.saveGState()
+        ctx.setShadow(offset: CGSize(width: 0, height: -8), blur: 22, color: CGColor(gray: 0, alpha: 0.32))
+        ctx.addPath(CGPath(roundedRect: r, cornerWidth: 26, cornerHeight: 26, transform: nil))
+        ctx.setFillColor(p.you.cg()); ctx.fillPath()
+        ctx.restoreGState()
+        var y = h / 2 - 96
+        if let name {
+            let size = min(54, 54 * (w - 110) / max(1, FilmKit.width(name, 54, 0.7)))
+            FilmKit.text(name, size, 0.7, p.ink.cg(), at: CGPoint(x: -w / 2 + 54, y: y), in: ctx)
+            y -= 90
+        }
+        for k in 0..<7 {
+            let len = (w - 108) * (k == 6 ? 0.45 : 0.62 + 0.38 * filmHash(key * 13 + k, 71))
+            ctx.addPath(CGPath(roundedRect: CGRect(x: -w / 2 + 54, y: y, width: len, height: 16), cornerWidth: 8, cornerHeight: 8, transform: nil))
+            ctx.setFillColor(p.ink.cg(0.13)); ctx.fillPath()
+            y -= 52
+        }
     }
 
     /// Where your month began and where it is now, in your own terms: what you brought, or your first note.

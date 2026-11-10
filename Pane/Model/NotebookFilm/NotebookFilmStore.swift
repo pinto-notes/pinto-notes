@@ -120,7 +120,7 @@ final class NotebookFilmStore {
               let data = try? Data(contentsOf: preparedURL),
               let input = try? JSONDecoder().decode(FilmInput.self, from: data) else { return }
         self.input = input
-        script = FilmScript(input)
+        script = FilmScript(input, bang: galaxy)
         rewatching = false
         offered = true
     }
@@ -173,7 +173,7 @@ final class NotebookFilmStore {
         guard let data = try? Data(contentsOf: keptURL),
               let input = try? JSONDecoder().decode(FilmInput.self, from: data) else { return }
         self.input = input
-        script = FilmScript(input)
+        script = FilmScript(input, bang: galaxy)
         rewatching = true
         visible = true
     }
@@ -211,7 +211,7 @@ final class NotebookFilmStore {
             : FilmDemo.notebook(now: .now, light: args.contains("-filmLight"))
         if args.contains("-filmOldLooks") { galaxy = false }
         input = demo
-        script = FilmScript(demo)
+        script = FilmScript(demo, bang: galaxy)
         // Captures: `-filmCard` offers it as its card; otherwise it opens at once.
         // (`-filmAutoOpen` then opens it from the card a moment later, as a tap would.)
         if args.contains("-filmCard") {
@@ -257,12 +257,12 @@ final class NotebookFilmStore {
                 self?.makingKey = key
                 let dir = FileManager.default.temporaryDirectory.appendingPathComponent("NotebookFilm-\(UUID().uuidString)", isDirectory: true)
                 let url = dir.appendingPathComponent(await MainActor.run { self?.fileName } ?? "Pinto Notes \u{2013} my first month.mp4")
-                let work = Task.detached(priority: priority) { () -> Bool in
+                let work = Task.detached(priority: priority) { () async -> Bool in
                     do {
                         // Written under another name and renamed when it's whole.
                         let making = dir.appendingPathComponent("making.mp4")
                         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                        try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: making) { p in
+                        try await FilmVideo.write(FilmRenderer(script: script, labels: labels), to: making) { p in
                             Task { @MainActor in self?.progress[key] = p }
                         }
                         try FileManager.default.moveItem(at: making, to: url)
@@ -301,9 +301,11 @@ final class NotebookFilmStore {
             l.startsAtFirstNote = true
             // (The play screen before it has said what this is.)
             l.openingTitle = false
+            l.sound = true
             l.workCount = { notes, edits in "\(notes) notes \u{00B7} \(edits) edits" }
             let kind = GalaxyScene.name(of: script?.form ?? .nebula)
-            l.endTitle = { s in "My \(s.period) \(s.months == 1 ? "is" : "are") \(kind)" }
+            // (Not "my first month": what it is, is the notebook.)
+            l.endTitle = { _ in "My notebook is \(kind)" }
         }
         return l
     }

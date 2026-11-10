@@ -166,6 +166,8 @@ final class FilmRenderer {
         var startsAtFirstNote = false
         /// False leaves out the title over the first seconds (the screen before it has said it).
         var openingTitle = true
+        /// True gives it its sound (FilmSound), when it's played and in the movie that's shared.
+        var sound = false
     }
 
     private var look: FilmLook { labels.look }

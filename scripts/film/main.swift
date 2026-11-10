@@ -20,5 +20,5 @@ labels.folderNames = !args.contains("nofolders")
 let markURL = URL(fileURLWithPath: "Pane/Resources/Assets.xcassets/MarkTight.imageset/mark-tight.png")
 if let src = CGImageSourceCreateWithURL(markURL as CFURL, nil) { labels.markImage = CGImageSourceCreateImageAtIndex(src, 0, nil) }
 let start = Date()
-try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
+try await FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
 print("wrote \(out.path) in \(String(format: "%.1f", Date().timeIntervalSince(start)))s")

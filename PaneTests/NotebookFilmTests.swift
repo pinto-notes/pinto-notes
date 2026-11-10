@@ -2,6 +2,7 @@ import CoreGraphics
 import Foundation
 import SwiftData
 import Testing
+import AVFoundation
 @testable import Pane
 
 /// The notebook film: offered only after a month of real use, made from the notes here and who
@@ -438,7 +439,7 @@ import Testing
         #expect(many.growth > full.growth + 1 && livesInIt.growth > many.growth + 1)
         #expect(livesInIt.growth > 12 && more.growth == FilmScript.longGrowth)
         #expect(more.nodes.allSatisfy { $0.birth <= more.growth && $0.edits.allSatisfy { $0 <= more.growth } })
-        #expect(thin.growth < 6.5 && thin.growth >= FilmScript.thinGrowth)
+        #expect(thin.growth < FilmScript.thinGrowth + 0.9 && thin.growth >= FilmScript.thinGrowth)
         #expect(thin.frameCount < full.frameCount)
         #expect(thin.nodes.allSatisfy { $0.birth <= thin.growth })
         let r = FilmRenderer(script: thin)
@@ -826,8 +827,14 @@ import Testing
         let mine = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
         let script = FilmScript(mine, calendar: Self.cal)
         var slides = FilmSlides(input: mine, script: script, mark: nil)
-        #expect(slides.slides().map(\.name) == ["top-notes", "when", "play"])
+        #expect(slides.slides().map(\.name) == ["start", "top-notes", "when", "play"])
         // It begins from what you set out with: here, the notes you brought.
+        #expect(slides.slides()[0].spoken.hasPrefix("You brought in 20 notes on "))
+        // On screen it talks to you; the picture you send is in your own voice.
+        #expect(slides.slides()[1].spoken.hasPrefix("Your top notes"))
+        #expect(slides.sent.slides()[0].spoken.hasPrefix("I brought in 20 notes on "))
+        #expect(slides.sent.slides()[1].spoken.hasPrefix("My top notes"))
+        #expect(FilmSlides.kind(startingAt: 22, me: true).0 == "I'm a night")
         #expect(FilmSlides.cardLine(mine, script: script).hasPrefix("You brought 20 notes in on "))
         #expect(FilmSlides.story(mine, script: script).hasPrefix("From 20 notes brought in on "))
         // The top notes are the most written in, by name, none twice; a removed note isn't one.
@@ -836,7 +843,7 @@ import Testing
         #expect(ranked.map(\.note.edits.count) == ranked.map(\.note.edits.count).sorted(by: >))
         #expect(ranked.allSatisfy { $0.note.removed == nil })
         // Written in mostly after 8 pm: a night owl, or an evening writer, never a morning one.
-        #expect(["I'm a night", "I'm an evening"].contains(FilmSlides.kind(startingAt: slides.bestHours).0))
+        #expect(["You're a night", "You're an evening"].contains(FilmSlides.kind(startingAt: slides.bestHours).0))
         #expect(FilmSlides.kind(startingAt: 6).1 == "bird" && FilmSlides.kind(startingAt: 22).1 == "owl")
         #expect(FilmSlides.hourName(0) == "midnight" && FilmSlides.hourName(21) == "9 pm" && FilmSlides.hourName(24) == "midnight")
         // A note that may not be named (locked, gone) is left off the list, not shown blank.
@@ -848,13 +855,70 @@ import Testing
         slides.H = 2622.0 / 1206 * 1080
         #expect(slides.image(0, pixels: 1206).map { [$0.width, $0.height] } == [1206, 2622])
         #expect(slides.sent.image(1, pixels: 1080).map { [$0.width, $0.height] } == [1080, 1920])
-        #expect(slides.image(3, pixels: 1080) == nil)
+        #expect(slides.image(4, pixels: 1080) == nil)
+        // With room left for the Share button under it, the top note's caption stays clear of the list.
+        var phone = slides
+        phone.bottom = 34 * 1080 / 402 + 70 + 64 * 1080 / 402
+        #expect(phone.topStar - 460 - 20 > phone.bottom + 414)
         // A month with no names to show gets no list: the film's sky and its play button.
         let quiet = FilmDemo.real(days: 30, now: Self.now, ai: nil)
         let qs = FilmScript(quiet, calendar: Self.cal)
         let few = FilmSlides(input: quiet, script: qs, mark: nil) { _ in nil }.slides().map(\.name)
-        #expect(few.last == "play" && !few.contains("top-notes"))
+        #expect(few.first == "start" && few.last == "play" && !few.contains("top-notes"))
+        #expect(FilmSlides(input: quiet, script: qs, mark: nil).slides()[0].spoken.hasPrefix("It started with one note on "))
         #expect(FilmSlides.cardLine(quiet, script: qs).hasPrefix("You wrote your first note on "))
+    }
+
+    @Test func itOpensOnAnEmptySkyThenWhatYouBroughtArrivesAtOnce() {
+        // Emil, 11-10: "keep it empty and then a big bang happens".
+        let mine = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
+        let plain = FilmScript(mine, calendar: Self.cal)
+        let bang = FilmScript(mine, calendar: Self.cal, bang: true)
+        let lead = FilmScript.lead, hold = FilmScript.bangHold
+        #expect(bang.bangAt == lead && bang.opening == lead + hold)
+        #expect(abs(bang.growth - (plain.growth + lead + hold)) < 1e-9, "the month itself keeps its length")
+        // Nothing in the sky before it...
+        #expect(bang.nodes.allSatisfy { $0.birth >= lead - 1e-9 })
+        // ...then all twenty within a third of a second...
+        let brought = bang.nodes.filter(\.imported).map(\.birth)
+        #expect(brought.count == 20 && brought.allSatisfy { $0 <= lead + 0.3 + 1e-9 })
+        // ...and your own notes only once it has settled.
+        #expect(bang.nodes.filter { !$0.imported }.allSatisfy { $0.birth >= lead + hold - 1e-9 })
+        // A notebook with nothing brought in still opens on the empty sky, and has no burst.
+        let own = FilmScript(FilmDemo.real(days: 30, now: Self.now, ai: nil), calendar: Self.cal, bang: true)
+        #expect(own.bangAt == nil && own.opening == lead && own.nodes.first.map { abs($0.birth - lead) < 1e-9 } == true)
+        // Slower than it was: even a thin month grows for nine seconds.
+        #expect(FilmScript.thinGrowth >= 9 && plain.growth >= 9)
+        // In the app it has its sound, and ends on what the notebook is, not "my first month".
+        let store = NotebookFilmStore(defaults: UserDefaults(suiteName: "film-end-\(UUID().uuidString)")!, launched: Self.now, arguments: [],
+                                      folder: FileManager.default.temporaryDirectory.appendingPathComponent("film-end-\(UUID().uuidString)"))
+        let labels = store.labels(look: .town, folderNames: true)
+        #expect(labels.sound && labels.endTitle?(plain.stats).hasPrefix("My notebook is ") == true)
+        // Its sound lasts as long as the film, and is never silent or clipped.
+        let sound = FilmSound(script: bang).samples()
+        #expect(abs(Double(sound.count / 2) / FilmSound.rate - (bang.growth + FilmScript.outro)) < 0.01)
+        let peak = sound.map { abs($0) }.max() ?? 0
+        #expect(peak > 0.5 && peak <= 0.9)
+    }
+
+    @Test func theSharedMovieCarriesTheSound() async throws {
+        // The movie that's shared has the film's sound, as long as its picture.
+        let quiet = FilmDemo.real(days: 30, now: Self.now, ai: nil)
+        let script = FilmScript(quiet, calendar: Self.cal, bang: true)
+        var labels = FilmRenderer.Labels()
+        labels.look = .town
+        labels.startsAtFirstNote = true
+        labels.sound = true
+        labels.scene = { script, names in GalaxyScene(script: script, names: names, seed: script.seed) }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("film-sound-\(UUID().uuidString).mp4")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try await FilmVideo.write(FilmRenderer(script: script, labels: labels), to: url)
+        let asset = AVURLAsset(url: url)
+        let audio = try await asset.loadTracks(withMediaType: .audio), video = try await asset.loadTracks(withMediaType: .video)
+        #expect(audio.count == 1 && video.count == 1)
+        let length = try await asset.load(.duration).seconds
+        #expect(abs(length - (script.growth + FilmScript.outro)) < 0.2)
+        if let a = audio.first { #expect(try await a.load(.timeRange).duration.seconds > script.growth) }
     }
 
     @Test func theFilmBeginsAtTheFirstNote() {

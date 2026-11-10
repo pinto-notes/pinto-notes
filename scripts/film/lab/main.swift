@@ -23,7 +23,7 @@ let input = args.contains("me") ? FilmDemo.real(days: days, seed: seed, notesPer
     : FilmDemo.notebook(days: days, seed: seed, light: args.contains("light"), heavy: args.contains("heavy") || lives, person: person, work: lives ? 8 : args.contains("busy") ? 3 : 1, daily: (style == "galaxy" || style == "dump" || style == "cards") && !args.contains("mixed"))
 // "long=17" tries another length for the biggest notebooks' films (seconds of growing).
 let longest = args.first { $0.hasPrefix("long=") }.flatMap { Double($0.dropFirst(5)) } ?? FilmScript.longGrowth
-let script = FilmScript(input, calendar: Calendar(identifier: .gregorian), longest: longest)
+let script = FilmScript(input, calendar: Calendar(identifier: .gregorian), longest: longest, bang: style == "galaxy" || style == "slides")
 var mark: CGImage?
 if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: "Pane/Resources/Assets.xcassets/MarkTight.imageset/mark-tight.png") as CFURL, nil) { mark = CGImageSourceCreateImageAtIndex(src, 0, nil) }
 let start = Date()
@@ -61,7 +61,7 @@ case "night", "paper", "apptown":
     labels.markImage = mark
     labels.look = style == "apptown" ? .town : FilmLook(rawValue: style) ?? .night
     labels.folderNames = !args.contains("nofolders")
-    try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
+    try await FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
 case "pages", "rings", "leaf":
     // New scenes tried through the app's own renderer (its words, opening and end card), in
     // Pinto's cut paper: on the cream page, or with "dark" on leaf brown.
@@ -79,7 +79,7 @@ case "pages", "rings", "leaf":
         default: LeafScene(script: script, names: names, calendar: cal, dark: dark)
         }
     }
-    try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
+    try await FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
 case "flock", "lanterns", "bloom":
     // Spectacles in Pinto's world: the footer's dusk sky and hills, or its cream page.
     var labels = FilmRenderer.Labels()
@@ -94,7 +94,7 @@ case "flock", "lanterns", "bloom":
         default: BloomScene(script: script, names: names)
         }
     }
-    try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
+    try await FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
 case "galaxy":
     // The notebook as something in space, cut from paper: its kind comes from how it was written in, its sky from the seed.
     var labels = FilmRenderer.Labels()
@@ -115,13 +115,16 @@ case "galaxy":
     // The film says what the notebook turned out to be: something to post it with.
     let kind = GalaxyScene.name(of: form ?? script.form)
     // (Only at the end: what it turned out to be is the film's last word, not its first.)
-    labels.endTitle = { "My \($0.period) \($0.months == 1 ? "is" : "are") \(kind)" }
+    labels.endTitle = { _ in "My notebook is \(kind)" }
+    labels.openingTitle = false
     print("form: \(script.form.rawValue)\(form.map { " (shown as \($0.rawValue))" } ?? ""), \(script.nodes.count) notes, \(script.stats.folders) folders, \(script.work) edits, away \(script.stats.quietDays) days, wrote on \(script.stats.writingDays) of \(script.stats.days)")
     labels.scene = { script, names in GalaxyScene(script: script, names: names, seed: Int(seed), form: form) }
     // "tall" is the shape for stories and reels, 9:16, with room left for the app's own buttons.
     let canvas = args.contains("tall") ? FilmCanvas(height: 1920, top: 150, bottom: 190) : FilmCanvas.shared
     // It starts at the first note and never shows the finished thing before the end: that's the film's payoff.
-    try FilmVideo.write(FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .none), to: out)
+    try await FilmVideo.write(FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .none), to: out)
+    // "sound" also writes its sound beside it, as OUT.wav (render.sh puts the two together).
+    if args.contains("sound") { try FilmSound(script: script).wav().write(to: out.appendingPathExtension("wav")) }
 case "bench":
     let town = TownFilm(script: script)
     let frames = Array(stride(from: 40, to: 400, by: 12))

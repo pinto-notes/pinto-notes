@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 import os
 import SwiftData
 #if os(macOS)
@@ -216,6 +217,8 @@ struct NotebookFilmView: View {
     @State private var slideList: [FilmSlides.Slide] = []
     @State private var slide = 0
     @State private var slideFrame: CGImage?
+    /// Which slide `slideFrame` is of: the play button waits for its own slide to be drawn.
+    @State private var slideShown = -1
     @State private var slideTask: Task<Void, Never>?
     @Environment(\.modelContext) private var modelContext
 
@@ -228,7 +231,10 @@ struct NotebookFilmView: View {
         if !store.forced {
             var found: [UUID: String] = [:]
             let most = input.notes.filter { $0.removed == nil }.sorted { $0.edits.count > $1.edits.count }.prefix(12)
-            for n in most {
+            // (And the notes on the pile the slides open with: what you brought in, or your first note.)
+            let brought = input.notes.filter { $0.imported == true }
+            let pile = (brought.isEmpty ? input.notes : brought).sorted { $0.created < $1.created }.prefix(7)
+            for n in Array(most) + Array(pile) where found[n.id] == nil {
                 let id = n.id
                 guard let note = try? modelContext.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })).first,
                       note.deletedAt == nil, note.trashedAt == nil, note.lockedBody == nil else { continue }
@@ -243,7 +249,8 @@ struct NotebookFilmView: View {
         let u = 1080 / Double(screen.size.width)
         s.H = Double(screen.size.height) * u
         s.top = Double(screen.top) * u + 60
-        s.bottom = Double(screen.bottom) * u + 70
+        // (Room under the words for the Share button.)
+        s.bottom = Double(screen.bottom) * u + 70 + 64 * u
         return s
     }
 
@@ -271,12 +278,13 @@ struct NotebookFilmView: View {
                     let image = await Self.draw(slides, k, at: t, pixels: moving, list)
                     guard !Task.isCancelled else { return }
                     slideFrame = image
+                    slideShown = k
                     try? await clock.sleep(until: began + .seconds((t * 30).rounded(.down) / 30 + 1.0 / 30))
                 }
             }
             guard !Task.isCancelled else { return }
             let image = await Self.draw(slides, k, at: nil, pixels: full, list)
-            if !Task.isCancelled { slideFrame = image }
+            if !Task.isCancelled { slideFrame = image; slideShown = k }
         }
     }
 
@@ -325,11 +333,13 @@ struct NotebookFilmView: View {
                 }
                 .clipped()
                 .ignoresSafeArea()
-            // Tap to go on; the left edge goes back.
-            HStack(spacing: 0) {
-                Color.clear.contentShape(Rectangle()).frame(width: 84)
-                    .onTapGesture { previousSlide() }
-                Color.clear.contentShape(Rectangle()).onTapGesture { nextSlide() }
+            // Tap anywhere to go on; the left third goes back. (Not on the play slide: there, play does.)
+            GeometryReader { g in
+                HStack(spacing: 0) {
+                    Color.clear.contentShape(Rectangle()).frame(width: g.size.width / 3)
+                        .onTapGesture { previousSlide() }
+                    Color.clear.contentShape(Rectangle()).onTapGesture { if !atPlay { nextSlide() } }
+                }
             }
             .ignoresSafeArea()
             .accessibilityHidden(true)
@@ -350,7 +360,7 @@ struct NotebookFilmView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 10)
                 Spacer()
-                if atPlay {
+                if atPlay, slideShown == slide {
                     // The film waits for you: press play.
                     Button(action: watch) {
                         Image(systemName: "play.fill")
@@ -368,30 +378,31 @@ struct NotebookFilmView: View {
                     Spacer()
                     Spacer()
                 }
-                HStack {
-                    if !atPlay {
-                        Button("Next") { nextSlide() }
-                        .buttonStyle(.plain)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(ink)
-                        .frame(minWidth: 64, minHeight: 44)
-                        .contentShape(Rectangle())
-                        .accessibilityIdentifier("notebookFilm.nextSlide")
+                // One button: send this slide as a picture. Everything else is a tap.
+                #if os(iOS)
+                if !atPlay {
+                    Button { shareSlide() } label: {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(light ? Color(red: 0.118, green: 0.106, blue: 0.294) : Self.cream)
+                            .padding(.horizontal, 26)
+                            .frame(minHeight: 48)
+                            .background(ink, in: Capsule())
+                            .contentShape(Capsule())
                     }
-                    Spacer()
-                    #if os(iOS)
-                    if !atPlay {
-                        roundButton("square.and.arrow.up", label: "Send this picture") { shareSlide() }
-                            .accessibilityIdentifier("notebookFilm.shareSlide")
-                    }
-                    #endif
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Share this as a picture")
+                    .accessibilityIdentifier("notebookFilm.shareSlide")
+                    .padding(.bottom, 12)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 10)
+                #endif
             }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("notebookFilm.slides")
+        // (VoiceOver: the slide reads itself; these move between them.)
+        .accessibilityAction(named: "Next") { nextSlide() }
+        .accessibilityAction(named: "Back") { previousSlide() }
     }
 
     private var intro: some View {
@@ -770,7 +781,28 @@ final class FilmPlayback {
     @ObservationIgnored private var skip = OSAllocatedUnfairLock(initialState: false)
 
     /// A tap while watching: straight to the end.
-    func skipToEnd() { skip.withLock { $0 = true } }
+    func skipToEnd() {
+        skip.withLock { $0 = true }
+        if let player, player.isPlaying { player.currentTime = max(player.currentTime, soundEnd) }
+    }
+
+    /// Its sound (FilmSound), started with the film's first frame. The ringer switch silences it, and
+    /// it plays over whatever else is playing rather than stopping it. Never in test runs.
+    @ObservationIgnored private var player: AVAudioPlayer?
+    @ObservationIgnored private var soundEnd = 0.0
+    private nonisolated static let muted = ProcessInfo.processInfo.arguments.contains("-uitest") && !ProcessInfo.processInfo.arguments.contains("-filmSound")
+
+    private func startSound(_ wav: Data, at time: Double) {
+        #if os(iOS)
+        try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
+        try? AVAudioSession.sharedInstance().setActive(true)
+        #endif
+        guard let p = try? AVAudioPlayer(data: wav) else { return }
+        p.currentTime = time
+        p.prepareToPlay()
+        p.play()
+        player = p
+    }
 
     /// What `prepare` got ready: the film and its first frame, so Watch shows it at once.
     private final class Ready: @unchecked Sendable {
@@ -804,6 +836,8 @@ final class FilmPlayback {
 
     func play(script: FilmScript, labels: FilmRenderer.Labels, screen: Screen, settle: Double) {
         task?.cancel()
+        player?.stop()
+        player = nil
         settling = false
         progress = 0
         landing = 0
@@ -823,6 +857,20 @@ final class FilmPlayback {
             let total = Double(script.frameCount - first)
             let clock = ContinuousClock()
             var began = clock.now
+            // The sound is made alongside, and comes in where the film has got to when it's ready.
+            if labels.sound, labels.startsAtFirstNote, !Self.muted {
+                let start = began
+                Task.detached(priority: .userInitiated) { [weak self] in
+                    let wav = FilmSound(script: script).wav()
+                    guard !Task.isCancelled else { return }
+                    let at = (clock.now - start) / .seconds(1)
+                    await MainActor.run {
+                        guard let self, !skip.withLock({ $0 }), at < script.growth else { return }
+                        self.soundEnd = script.growth
+                        self.startSound(wav, at: at)
+                    }
+                }
+            }
             while !renderer.isDone && !Task.isCancelled {
                 if skip.withLock({ $0 }) { while renderer.frame < script.frameCount - 1 { renderer.skip() } }
                 // It keeps the film's own time: a frame that took a little too long to draw is
@@ -873,6 +921,8 @@ final class FilmPlayback {
     }
 
     func stop() {
+        player?.stop()
+        player = nil
         task?.cancel()
         task = nil
     }

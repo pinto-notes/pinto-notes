@@ -195,7 +195,14 @@ struct FilmScript: Sendable {
     /// still, up to `longGrowth`: with thousands of edits in nine seconds the work is a blur.
     /// Above this many notes the film leaves out the specks for each edit: the stars carry the work.
     static let speckLimit = 120
-    static let fullGrowth = 9.0, thinGrowth = 5.6, longGrowth = 13.0, outro = 3.6
+    static let fullGrowth = 14.0, thinGrowth = 9.0, longGrowth = 20.0, outro = 3.6
+    /// With `bang`: the sky stays empty this long, then what you brought in arrives all at once,
+    /// and your own notes follow once it has settled.
+    static let lead = 1.6, bangHold = 1.5
+    /// When what you brought in arrives (with `bang`, and only if you brought something).
+    let bangAt: Double?
+    /// How long the film is before the month itself starts: the empty sky and the arrival (0 without `bang`).
+    let opening: Double
     /// How much there is in a full month's film, and in the longest one (notes and edits together).
     static let fullEvents = 400.0, longEvents = 3200.0
     let growth: Double
@@ -245,7 +252,7 @@ struct FilmScript: Sendable {
     private let dayStarts: [Double]
     private let calendar: Calendar
 
-    init(_ input: FilmInput, calendar: Calendar = .current, longest: Double = FilmScript.longGrowth) {
+    init(_ input: FilmInput, calendar: Calendar = .current, longest: Double = FilmScript.longGrowth, bang: Bool = false) {
         self.calendar = calendar
         stats = FilmStats(input, calendar: calendar)
         // By how much there is to show: every note and every time one was written in.
@@ -253,8 +260,14 @@ struct FilmScript: Sendable {
         let fullness = min(1, max(0, (events - 100) / 300))
         // (Past a full month it lengthens by how many times over the notebook is: each doubling adds the same.)
         let over = min(1, max(0, log2(max(1, events / Self.fullEvents)) / log2(Self.longEvents / Self.fullEvents)))
-        let growth = Self.thinGrowth + (Self.fullGrowth - Self.thinGrowth) * fullness * fullness * (3 - 2 * fullness)
+        // (`span` is the month itself; with `bang` the empty sky and the arrival come before it.)
+        let span = Self.thinGrowth + (Self.fullGrowth - Self.thinGrowth) * fullness * fullness * (3 - 2 * fullness)
             + (max(Self.fullGrowth, longest) - Self.fullGrowth) * over * over * (3 - 2 * over)
+        let brings = input.notes.contains { $0.imported == true }
+        let offset = bang ? Self.lead + (brings ? Self.bangHold : 0) : 0
+        bangAt = bang && brings ? Self.lead : nil
+        opening = offset
+        let growth = span + offset
         self.growth = growth
         let sorted = input.notes.sorted { ($0.created, $0.id.uuidString) < ($1.created, $1.id.uuidString) }
         let firstDay = calendar.startOfDay(for: sorted.first?.created ?? input.now)
@@ -281,15 +294,15 @@ struct FilmScript: Sendable {
         }
         let total = weights.reduce(0, +)
         var starts = [0.0]
-        for w in weights { starts.append(starts.last! + w / total * growth) }
+        for w in weights { starts.append(starts.last! + w / total * span) }
         // The film begins at the first note, not at the midnight before it.
         if let firstNote = input.notes.map(\.created).min() {
             let k = day(firstNote)
             let dayStart = calendar.date(byAdding: .day, value: k, to: firstDay)!
             let base = starts[k] + (starts[k + 1] - starts[k]) * min(1, max(0, firstNote.timeIntervalSince(dayStart) / 86_400))
-            if base > 0, base < growth * 0.5 { starts = starts.map { ($0 - base) * growth / (growth - base) } }
+            if base > 0, base < span * 0.5 { starts = starts.map { ($0 - base) * span / (span - base) } }
         }
-        dayStarts = starts
+        dayStarts = starts.map { $0 + offset }
 
         var folderNames: [String] = []
         var folderIndex: [String: Int] = [:]
@@ -301,8 +314,8 @@ struct FilmScript: Sendable {
             let dayStart = calendar.date(byAdding: .day, value: k, to: firstDay)!
             let f = min(1, max(0, d.timeIntervalSince(dayStart) / 86_400))
             // (The first note is at exactly 0, whatever the arithmetic above leaves of it.)
-            let at = min(growth, max(0, starts[k] + (starts[k + 1] - starts[k]) * f))
-            return at < 1e-9 ? 0 : at
+            let at = min(span, max(0, starts[k] + (starts[k + 1] - starts[k]) * f))
+            return (at < 1e-9 ? 0 : at) + offset
         }
         for n in sorted {
             let f = folderIndex[n.folder] ?? { folderNames.append(n.folder); folderIndex[n.folder] = folderNames.count - 1; return folderNames.count - 1 }()
@@ -320,8 +333,17 @@ struct FilmScript: Sendable {
         let apart = min(0.05, growth * 0.5 / Double(max(1, nodes.count)))
         // (What was brought in arrives together, in about a second, however much there is of it.)
         let brought = Double(max(1, nodes.filter(\.imported).count))
+        // (With `bang`, all at once: within a third of a second, as the sky bursts.)
+        if let at = bangAt {
+            var j = 0.0
+            for k in nodes.indices where nodes[k].imported {
+                nodes[k].birth = at + 0.3 * j / brought
+                if !nodes[k].edits.isEmpty { nodes[k].edits[0] = nodes[k].birth }
+                j += 1
+            }
+        }
         for k in nodes.indices.dropFirst() {
-            let least = nodes[k].imported ? nodes[k - 1].birth + min(0.06, 1.0 / brought) : k - 1 < gaps.count ? min(growth * 0.4, nodes[k - 1].birth + gaps[k - 1]) : min(growth - 0.05, nodes[k - 1].birth + apart)
+            let least = nodes[k].imported && bangAt != nil ? nodes[k - 1].birth : nodes[k].imported ? nodes[k - 1].birth + min(0.06, 1.0 / brought) : k - 1 < gaps.count ? min(growth * 0.4, nodes[k - 1].birth + gaps[k - 1]) : min(growth - 0.05, nodes[k - 1].birth + apart)
             guard nodes[k].birth < least else { continue }
             nodes[k].birth = least
             nodes[k].edits = nodes[k].edits.map { max($0, least) }
@@ -366,7 +388,7 @@ struct FilmScript: Sendable {
             let at = nodes[i].bornByAI ? nodes[i].birth : zip(nodes[i].edits, nodes[i].aiEdits).first { $0.1 }?.0
             return at.map { ($0, i) }
         }.min { $0.0 < $1.0 }
-        if let (at, i) = firstAI, at >= 0.9 { wanted.append(Beat(kind: .aiJoins, from: at, until: at + 1.4, node: i)) }
+        if let (at, i) = firstAI, at - opening >= 0.1 * (growth - opening) { wanted.append(Beat(kind: .aiJoins, from: at, until: at + 1.4, node: i)) }
         // Away for a while, and back.
         if stats.quietDays >= 4, let day = stats.backOn, let s = span(ofDay: day) {
             wanted.append(Beat(kind: .quietReturn, from: s.start, until: s.start + 1.4, count: stats.quietDays))
@@ -377,7 +399,7 @@ struct FilmScript: Sendable {
         let began = folders.indices.filter { !folders[$0].isEmpty && size[$0] >= 4 && $0 != nodes.first?.folder }
             .sorted { size[$0] > size[$1] }
             .compactMap { f in nodes.first { $0.folder == f }.map { (f, $0.birth) } }
-            .filter { $0.1 >= 1.2 }
+            .filter { $0.1 >= opening + 1.2 }
         func begins(_ k: Int) { if k < began.count { wanted.append(Beat(kind: .folderBegins, from: began[k].1, until: began[k].1 + 1.4, folder: began[k].0, count: size[began[k].0])) } }
         begins(0)
         // The note you kept coming back to.
@@ -393,7 +415,7 @@ struct FilmScript: Sendable {
         // Each needs time to be read, after the film has said what a light is, and none over another.
         var told: [Beat] = []
         for var b in wanted where told.count < 5 {
-            b.from = max(b.from, 1.5)
+            b.from = max(b.from, opening + 1.5)
             b.until = min(max(b.until, b.from + 1.3), growth - 0.25)
             for _ in 0..<2 {
                 guard let clash = told.first(where: { b.from < $0.until + 0.2 && b.until > $0.from - 0.2 }) else { break }
@@ -410,7 +432,7 @@ struct FilmScript: Sendable {
 
     /// When the film is on the day you wrote most (nil when that day passes under the title).
     var busiestMoment: (from: Double, until: Double)? {
-        guard let day = stats.busiestDay, let s = span(ofDay: day), s.start >= 0.55 else { return nil }
+        guard let day = stats.busiestDay, let s = span(ofDay: day), s.start >= opening + 0.55 else { return nil }
         return (s.start, s.start + min(2.4, max(1.2, s.length)))
     }
 
@@ -434,6 +456,8 @@ struct FilmScript: Sendable {
     /// The date shown at a film time.
     func date(at t: Double) -> Date {
         if t >= growth { return end }
+        // (Before the month, in the empty sky: the day it begins.)
+        let t = max(t, opening)
         var k = 0
         while k + 1 < dayStarts.count - 1 && dayStarts[k + 1] <= t { k += 1 }
         let span = max(0.0001, dayStarts[k + 1] - dayStarts[k])
