@@ -107,7 +107,7 @@ export default function Study() {
 
 // The last 12 weeks, a square a day, darker for more cards (like GitHub's, and Anki's heatmap add-on).
 // Labelled so it can be read without guessing: each column is a week, with the month over its first
-// week; today has a ring; a line under it says what darker means. The streak over it is the run of
+// week; today has a ring; the lines beside it say what a square and a darker one mean. The streak over it is the run of
 // squares that ends today or yesterday (council round 3: "attractive but poorly explained").
 function Heatmap({ studied, today }: { studied: Record<string, number>; today: string }) {
   const end = new Date(today + "T12:00:00")
@@ -119,22 +119,26 @@ function Heatmap({ studied, today }: { studied: Record<string, number>; today: s
   // A month's name over the first week that starts in it (and over the first column).
   const heads = Array.from({ length: 12 }, (_, w) => { const d = days[w * 7]; return w === 0 || month(d) !== month(days[(w - 1) * 7]) ? month(d) : "" })
   return (
-    <div className="max-w-[264px]" role="img" aria-label={`Studied on ${total} of the last 12 weeks' days`}>
-      <div className="mb-1 grid grid-cols-12 gap-[3px]" aria-hidden="true">
-        {heads.map((h, w) => <span key={w} className="overflow-visible whitespace-nowrap text-[0.75rem] leading-none text-muted-foreground">{h}</span>)}
+    <div className="flex items-end gap-4" role="img" aria-label={`Studied on ${total} of the last 12 weeks' days`}>
+      <div className="w-[201px] shrink-0">
+        <div className="mb-1 grid grid-cols-12 gap-[3px]" aria-hidden="true">
+          {heads.map((h, w) => <span key={w} className="overflow-visible whitespace-nowrap text-[0.75rem] leading-none text-muted-foreground">{h}</span>)}
+        </div>
+        <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
+          {days.map((d) => {
+            const n = studied[d] ?? 0
+            return <span key={d} data-today={d === today || undefined} className={cn("aspect-square rounded-[3px]", d > today ? "bg-transparent" : n ? "bg-[var(--amber-accent)]" : "bg-muted",
+              d === today && "ring-[1.5px] ring-foreground ring-offset-1 ring-offset-[var(--card)]")} style={n && d <= today ? { opacity: 0.35 + 0.65 * (n / top) } : undefined} />
+          })}
+        </div>
       </div>
-      <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
-        {days.map((d) => {
-          const n = studied[d] ?? 0
-          return <span key={d} data-today={d === today || undefined} className={cn("aspect-square rounded-[3px]", d > today ? "bg-transparent" : n ? "bg-[var(--amber-accent)]" : "bg-muted",
-            d === today && "ring-[1.5px] ring-foreground ring-offset-1 ring-offset-[var(--card)]")} style={n && d <= today ? { opacity: 0.35 + 0.65 * (n / top) } : undefined} />
-        })}
+      {/* Beside the squares, in the room the card has there: under them it made the card too tall
+          for the library's stage, which then dropped the calendar. */}
+      <div className="min-w-0 text-[0.75rem] leading-snug text-muted-foreground" aria-hidden="true">
+        <p>A square a day.</p>
+        <p>Today is ringed.</p>
+        <p className="mt-1 flex items-center gap-1">Fewer{[0.35, 0.6, 0.8, 1].map((o) => <span key={o} className="size-2.5 shrink-0 rounded-[2px] bg-[var(--amber-accent)]" style={{ opacity: o }} />)}more</p>
       </div>
-      <p className="mt-2 flex items-center gap-1.5 text-[0.75rem] text-muted-foreground" aria-hidden="true">
-        A square a day, today ringed. Fewer
-        {[0.35, 0.6, 0.8, 1].map((o) => <span key={o} className="size-2.5 rounded-[2px] bg-[var(--amber-accent)]" style={{ opacity: o }} />)}
-        more cards
-      </p>
     </div>
   )
 }
