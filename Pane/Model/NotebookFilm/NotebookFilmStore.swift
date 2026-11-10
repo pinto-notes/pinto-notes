@@ -27,7 +27,7 @@ final class NotebookFilmStore {
     var visible = false
     /// The film being shown.
     private(set) var script: FilmScript?
-    var look: FilmLook = .town
+    var look: FilmLook = .night
     /// Folder names over their clusters (on unless you turn them off); note titles never show.
     var folderNames = true
     /// The film as a movie file for the look and folder names chosen now, once it's made. Movies
@@ -183,7 +183,7 @@ final class NotebookFilmStore {
         if let makingKey, makingKey == movieKey, maker != nil { return }
         maker?.cancel()
         let folderNames = folderNames
-        let order = [look] + FilmLook.allCases.filter { $0 != look }
+        let order = [look] + FilmLook.offered.filter { $0 != look }
         let jobs = order.map { (Self.key($0, folderNames), labels(look: $0, folderNames: folderNames)) }
             .filter { movies[$0.0] == nil }
         guard !jobs.isEmpty else { maker = nil; return }

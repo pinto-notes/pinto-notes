@@ -9,13 +9,17 @@ import Foundation
 /// How the film looks: what it's drawn on and in which colours. You pick one before sharing.
 enum FilmLook: String, CaseIterable, Sendable, Codable {
     /// Town first: it's the one in Pinto's own cut-paper world, and what a new film opens in.
-    case town, night, paper
+    case town, night, paper, holo
+
+    /// The looks a film can be shared in. (The town is kept, not offered.)
+    static let offered: [FilmLook] = [.night, .holo, .paper]
 
     var name: String {
         switch self {
         case .town: "Town"
         case .night: "Night"
         case .paper: "Paper"
+        case .holo: "Hologram"
         }
     }
 
@@ -24,7 +28,7 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
     var background: (RGB, RGB) {
         switch self {
         case .town: (RGB(0.04, 0.07, 0.07), RGB(0.04, 0.07, 0.07))
-        case .night: (RGB(0, 0, 0), RGB(0, 0, 0))
+        case .night, .holo: (RGB(0, 0, 0), RGB(0, 0, 0))
         case .paper: (RGB(0.985, 0.98, 0.968), RGB(0.985, 0.98, 0.968))
         }
     }
@@ -37,6 +41,7 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
         switch self {
         case .town: RGB(0.56, 0.78, 1.0)
         case .night: RGB(0.50, 0.68, 1.0)
+        case .holo: RGB(0.36, 0.74, 1.0)
         case .paper: RGB(0.18, 0.42, 0.85)
         }
     }
@@ -47,7 +52,7 @@ enum FilmLook: String, CaseIterable, Sendable, Codable {
     /// It keeps its own colour, dimmer: never a grey that means nothing.
     var cool: RGB {
         switch self {
-        case .town, .night: RGB(0, 0, 0)
+        case .town, .night, .holo: RGB(0, 0, 0)
         case .paper: RGB(0.985, 0.98, 0.968)
         }
     }
@@ -196,6 +201,7 @@ final class FilmRenderer {
         self.canvas = canvas
         switch labels.look {
         case .town: scene = TownScene(script: script, folderNames: labels.folderNames)
+        case .holo: scene = HoloScene(script: script, folderNames: labels.folderNames, look: .holo)
         case .night, .paper: scene = nil
         }
         switch opening {

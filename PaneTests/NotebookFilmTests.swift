@@ -637,6 +637,42 @@ import Testing
         }
     }
 
+    @Test func theHologramHasALightForEveryNoteAndKeepsThemInThePicture() {
+        // The constellation in depth: every note is a light, and when the month is over the
+        // camera has drawn back far enough that all of them are in the frame, above the words.
+        for input in [FilmDemo.notebook(days: 35, now: Self.now), FilmDemo.notebook(days: 35, now: Self.now, light: true), FilmDemo.notebook(days: 35, now: Self.now, heavy: true)] {
+            let script = FilmScript(input, calendar: Self.cal)
+            let holo = HoloScene(script: script, folderNames: true, look: .holo)
+            let end = script.growth + FilmScript.outro - 0.1
+            let lights = holo.lights(at: end)
+            #expect(lights.count == script.nodes.count)
+            #expect(lights.allSatisfy { $0.x > 20 && $0.x < 1060 && $0.y > 300 && $0.y < 1290 })
+            #expect(holo.lights(at: 0.1).count == 1, "it starts with the first note")
+            #expect(holo.systemCount == Set(script.nodes.map(\.folder)).count, "a system for each folder")
+        }
+        // On the day written most it goes in closer than it is when the month is over.
+        let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        let holo = HoloScene(script: script, folderNames: true, look: .holo)
+        if let busy = script.busiestMoment { #expect(holo.zoom(at: (busy.from + busy.until) / 2) > holo.zoom(at: script.growth + 2) * 1.15) }
+        // And the same film every time: a frame is drawn from its time alone.
+        var labels = FilmRenderer.Labels()
+        labels.look = .holo
+        func frame() -> Data {
+            let r = FilmRenderer(script: script, labels: labels)
+            for _ in 0..<200 { r.skip() }
+            let c = FilmRenderer.context(width: 270, height: 338)!
+            r.drawNext(in: c)
+            return Data(bytes: c.data!, count: c.bytesPerRow * c.height)
+        }
+        #expect(frame() == frame())
+    }
+
+    @Test func aNewFilmOpensAsTheConstellation() {
+        // The town is kept but not offered; the constellation is what a film opens in.
+        #expect(FilmLook.offered.first == .night && !FilmLook.offered.contains(.town))
+        #expect(FilmRenderer.Labels().look == .night)
+    }
+
     @Test func theFilmBeginsAtTheFirstNote() {
         // Not at the midnight before it: there's never a frame of an empty month with "0 notes".
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)

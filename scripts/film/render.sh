@@ -5,6 +5,6 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 bin=${TMPDIR:-/tmp}/pinto-film-render
 cd Pane/Model/NotebookFilm
-xcrun swiftc -O -o $bin NotebookFilm.swift FilmRenderer.swift FilmScenes.swift FilmVideo.swift FilmDemo.swift ../../../scripts/film/main.swift
+xcrun swiftc -O -o $bin NotebookFilm.swift FilmRenderer.swift FilmScenes.swift FilmHolo.swift FilmVideo.swift FilmDemo.swift ../../../scripts/film/main.swift
 cd - >/dev/null
 $bin "$@"

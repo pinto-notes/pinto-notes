@@ -388,7 +388,7 @@ struct NotebookFilmView: View {
     private var controls: some View {
         VStack(spacing: 14) {
             Picker("Look", selection: $store.look) {
-                ForEach(FilmLook.allCases, id: \.self) { look in
+                ForEach(FilmLook.offered, id: \.self) { look in
                     Text(look.name).tag(look)
                 }
             }

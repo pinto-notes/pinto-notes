@@ -458,6 +458,7 @@
 		77BD4F4AD7D96478C461BEB9 /* EmptyLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2645544EC93B2A847792408A /* EmptyLibraryTests.swift */; };
 		77F7EB8A8F8DFCBFB2EB1F6F /* LinkedLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E309D28E80265DB79E8CAC3 /* LinkedLibraryTests.swift */; };
 		785C3422E20A3DE257DE2222 /* FilmVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D6BC54A9C43B2BCA91D3097 /* FilmVideo.swift */; };
+		78F707717412B99795905C41 /* FilmHolo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359DDF3506C744078E66FB21 /* FilmHolo.swift */; };
 		79738886844F66E95BFAB207 /* HeardFromView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 730B7663C46D3F18F6A80738 /* HeardFromView.swift */; };
 		7A098FE97DEFF91BC87CF24B /* AppleNotesImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 483CA88017A03E92EEC52DFD /* AppleNotesImport.swift */; };
 		7A32D62F8BB535F2D619E965 /* template-cover-gift-ideas.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 695A1AFB9BA9A60183F68508 /* template-cover-gift-ideas.jpg */; };
@@ -822,6 +823,7 @@
 		DF9F9E1C9BB444B9E20CA579 /* TelemetryEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCAD911A07A941123F09D16 /* TelemetryEvent.swift */; };
 		E0021816C242995928B1F014 /* marked.js in Resources */ = {isa = PBXBuildFile; fileRef = CE878236645FC7961A369E8A /* marked.js */; };
 		E0C66389A3A5888FAFDD0160 /* AccountKeysSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 569EB1430761546DBD046F80 /* AccountKeysSync.swift */; };
+		E0E17E9DA99F2EC7D611C478 /* FilmHolo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359DDF3506C744078E66FB21 /* FilmHolo.swift */; };
 		E115FF6529869E348277D21A /* NotebookFilm.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1583387B5EF759213F007C /* NotebookFilm.swift */; };
 		E140651BA8DFAA471F7B4D54 /* FileViewerSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2AACF92D630BFBA10B051 /* FileViewerSnapshots.swift */; };
 		E1532F5AED5412F02988BC10 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 2362C327276BB2E859165EFB /* ZIPFoundation */; };
@@ -1097,6 +1099,7 @@
 		35649101F1DCFA7BD1618B78 /* WelcomeSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeSnapshots.swift; sourceTree = "<group>"; };
 		3595708C4A80422C798DEB09 /* AppSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSnapshotTests.swift; sourceTree = "<group>"; };
 		359BF7373A9A0550A24620EF /* AccountLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountLibrary.swift; sourceTree = "<group>"; };
+		359DDF3506C744078E66FB21 /* FilmHolo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilmHolo.swift; sourceTree = "<group>"; };
 		35D79FDD1B9E683ACD5F3BCA /* OldNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OldNameTests.swift; sourceTree = "<group>"; };
 		37C6B4F675EF00B712CB8496 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3891EC4D2DC7BF10221F3CBC /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -1953,6 +1956,7 @@
 			isa = PBXGroup;
 			children = (
 				024CDE6759BEB3033F5CEC9A /* FilmDemo.swift */,
+				359DDF3506C744078E66FB21 /* FilmHolo.swift */,
 				EDF23B4B7CA8B544B1F3E573 /* FilmRenderer.swift */,
 				1E986333ADF78B16A0249D6D /* FilmScenes.swift */,
 				BADEE9B1C7F1AFB8C0DF0946 /* FilmSource.swift */,
@@ -3261,6 +3265,7 @@
 				F7D33BF9A78FE9F4F285086E /* FileExport.swift in Sources */,
 				E269E6CE6C29AD8F633022CE /* Files.swift in Sources */,
 				F57299CBF5571E92A2C92C78 /* FilmDemo.swift in Sources */,
+				E0E17E9DA99F2EC7D611C478 /* FilmHolo.swift in Sources */,
 				295DA5720131670956A903DB /* FilmRenderer.swift in Sources */,
 				753225B5DC11EC88AD87E1DB /* FilmScenes.swift in Sources */,
 				F876A7EACF466238B27F5690 /* FilmSource.swift in Sources */,
@@ -3550,6 +3555,7 @@
 				4317173F1496865E53725B90 /* FileExport.swift in Sources */,
 				C23E87D238AFF3935F64E24B /* Files.swift in Sources */,
 				7AC69A5B1957646845A5F4B0 /* FilmDemo.swift in Sources */,
+				78F707717412B99795905C41 /* FilmHolo.swift in Sources */,
 				46D603A3A591F17331C22FBE /* FilmRenderer.swift in Sources */,
 				1999145D74CE3751FED107A2 /* FilmScenes.swift in Sources */,
 				EFE203C5B833E65CB5DF46D9 /* FilmSource.swift in Sources */,
