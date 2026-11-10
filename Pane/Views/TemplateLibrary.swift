@@ -277,9 +277,14 @@ enum TemplateLibraryWords {
     /// folders of one note each; council, 10 November 2026). With no AI that opens with the ask,
     /// only what it adds and where. A template you made and still have isn't added again: the
     /// line says where it is and that this opens it.
-    static func caption(_ e: TemplateCatalog.Entry, ai: SetupCards.AI, folder: String, have: String? = nil) -> (lead: String, folder: String, rest: String) {
-        if let have { return ("Already in ", have, ai.asks ? ". This opens it, then \(ai.name)." : ". This opens it.") }
-        return ("Adds an empty \(e.app ? "app" : "note") to ", folder, ai.asks ? ", then opens \(ai.name)." : ".")
+    /// While sync is away (`reach`) the note is still added, and the line says when the AI can
+    /// fill it: it can't see a note that hasn't synced, so Make doesn't open it then.
+    static func caption(_ e: TemplateCatalog.Entry, ai: SetupCards.AI, folder: String, have: String? = nil, reach: SyncEngine.Reach = .online) -> (lead: String, folder: String, rest: String) {
+        let opens = ai.asks && reach == .online
+        if let have { return ("Already in ", have, opens ? ". This opens it, then \(ai.name)." : ". This opens it.") }
+        let lead = "Adds an empty \(e.app ? "app" : "note") to "
+        guard ai.asks else { return (lead, folder, ".") }
+        return (lead, folder, opens ? ", then opens \(ai.name)." : ". Ask \(ai.name) after it syncs.")
     }
     /// Under Make's line with no AI connected: the way to get one.
     static let connect = "Connect ChatGPT or Claude to have it filled in for you."
@@ -319,6 +324,7 @@ enum TemplateMaking {
     /// names the note, and two of the same name leave the AI guessing. No note, no ask.
     /// `into` is the folder it goes to (the library's: New Note's folder); nil is the template's own.
     @MainActor static func make(_ e: TemplateCatalog.Entry, with ai: SetupCards.AI, context: ModelContext, account: UUID?, into: FolderChoice? = nil,
+                                reach: SyncEngine.Reach = .online,
                                 source: any NoteSourceFetching = ShippedTemplates(), ledger: NoteSourceLedger? = nil,
                                 copy: (String) -> Void = ConnectClipboard.set, open: (URL) -> Void) async -> UUID? {
         let link = NoteSourceLink(kind: .template, slug: e.slug)
@@ -339,7 +345,10 @@ enum TemplateMaking {
         // page's to copy ("Copy the prompt"), never put on the clipboard unasked.
         if ai.asks {
             copy(SetupCards.prompt(e.pick))
-            if let page = SetupCards.page(ai, e.pick) { open(page) }
+            // While sync is away the AI isn't opened: it can't see a note that hasn't synced, and
+            // with no network its page is a browser error. The note is here and the ask is on the
+            // clipboard; the page's line says so (`TemplateLibraryWords.caption`).
+            if reach == .online, let page = SetupCards.page(ai, e.pick) { open(page) }
         }
         return note
     }
@@ -421,6 +430,7 @@ struct TemplateLibraryView: View {
     @State private var pointed: String?
     @Environment(\.colorScheme) private var scheme
     @Environment(\.inSheet) private var inSheet
+    @Environment(\.networkReach) private var reach
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     static let size = CGSize(width: 1040, height: 680)
@@ -1220,7 +1230,7 @@ struct TemplateLibraryView: View {
             if copied {
                 Text("\(Image(systemName: "checkmark")) \(TemplateLibraryWords.copied)")
             } else {
-                let c = Self.fitted(TemplateLibraryWords.caption(e, ai: ai, folder: folder, have: have(e)), room: Self.wordsWidth(for: size) * CGFloat(Self.captionLines(for: size)) - (Self.captionLines(for: size) > 1 ? 40 : 0))
+                let c = Self.fitted(TemplateLibraryWords.caption(e, ai: ai, folder: folder, have: have(e), reach: reach), room: Self.wordsWidth(for: size) * CGFloat(Self.captionLines(for: size)) - (Self.captionLines(for: size) > 1 ? 40 : 0))
                 Text(c.lead)
                     + Text(Image(systemName: "folder")).foregroundStyle(Color.paneAccent.opacity(0.85))
                     + Text("\u{2009}\(c.folder)").foregroundStyle(Color.ink)

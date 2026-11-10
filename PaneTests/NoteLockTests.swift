@@ -158,6 +158,20 @@ private actor HeldLockRemote: NoteLockRemote {
     func changePassword(_ settings: LockSettings, expecting keyID: String, notes: [ResealedNote]) async throws -> [UUID: Int64] { [:] }
 }
 
+/// A server that doesn't answer: a network that lets nothing through (a plane's Wi-Fi before you pay).
+private actor SilentLockRemote: NoteLockRemote {
+    private(set) var asked = 0
+    func fetch() async throws -> LockSettings? {
+        asked += 1
+        try await Task.sleep(for: .seconds(60))
+        throw URLError(.timedOut)
+    }
+    func create(_ settings: LockSettings) async throws { try await Task.sleep(for: .seconds(60)); throw URLError(.timedOut) }
+    func changePassword(_ settings: LockSettings, expecting keyID: String, notes: [ResealedNote]) async throws -> [UUID: Int64] {
+        try await Task.sleep(for: .seconds(60)); throw URLError(.timedOut)
+    }
+}
+
 @MainActor @Suite struct NoteVaultTests {
     let context: ModelContext
     let remote = FakeLockRemote()
@@ -192,6 +206,49 @@ private actor HeldLockRemote: NoteLockRemote {
         await held.answer()
         await refresh.value
         #expect(!vault.isSetUp)
+    }
+
+    /// Offline (Emil, 10 November 2026: "shouldn't it work to work offline?"). Locked notes open,
+    /// lock and unlock with no server: at once with no network, and with a network that lets
+    /// nothing through the password is checked against what this device knows after a short wait,
+    /// not after the request's minute-long timeout. Setting a first password needs the server and
+    /// says so plainly.
+    @Test func lockedNotesWorkWithTheServerAway() async throws {
+        let vault = try device()
+        try await vault.setUp(password: "hunter22", hint: nil)
+        let n = context.createNote(in: .all, body: "Diary\nprivate")
+        try vault.lock(n)
+        vault.lockNow()
+
+        // No network.
+        await remote.goOffline(true)
+        try await vault.unlock(password: "hunter22")
+        #expect(vault.text(of: n) == "Diary\nprivate")
+        let made = context.createNote(in: .all, body: "Made offline\nsecret")
+        try vault.lock(made)
+        #expect(made.lockedBody != nil && vault.text(of: made) == "Made offline\nsecret")
+        try vault.removeLock(made)
+        #expect(made.lockedBody == nil && made.body == "Made offline\nsecret")
+        vault.lockNow()
+        await #expect(throws: NoteLockError.wrongPassword) { try await vault.unlock(password: "nope") }
+
+        // A network that lets nothing through: the same, without waiting for it.
+        let silent = SilentLockRemote()
+        vault.attach(account: UUID(uuidString: "00000000-0000-0000-0000-00000000000a"), remote: silent)
+        vault.serverWait = .milliseconds(200)
+        let began = ContinuousClock.now
+        try await vault.unlock(password: "hunter22")
+        let took = ContinuousClock.now - began
+        #expect(await silent.asked == 1 && took < .seconds(5), "unlocked after \(took), not after the request timed out")
+        #expect(vault.text(of: n) == "Diary\nprivate")
+
+        // A first password is the account's: it needs the server, and says so in plain words.
+        let fresh = NoteVault(keyStore: MemoryKeyStore(), remote: remote, defaults: MemoryDefaults(), iterations: fast)
+        fresh.attach(account: UUID(), remote: remote)
+        await #expect(throws: NoteLockError.offline) { try await fresh.setUp(password: "hunter22", hint: nil) }
+        let said = try #require(NoteLockError.offline.errorDescription)
+        #expect(!said.contains("You\u{2019}re offline") && !said.contains("You're offline"), "true with only the server away too: \(said)")
+        #expect(said.contains("when you\u{2019}re back online"))
     }
 
     @Test func lockingSealsTheTextAndKeepsOnlyTheTitle() async throws {

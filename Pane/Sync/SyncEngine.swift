@@ -1794,7 +1794,8 @@ final class SyncEngine {
         if let u = error as? URLError {
             switch u.code {
             case .notConnectedToInternet, .networkConnectionLost: return "Offline"
-            case .cannotConnectToHost, .cannotFindHost, .timedOut: return "Can't reach the server"
+            // Not "Can't reach the server": nothing is wrong on this device, and notes keep working.
+            case .cannotConnectToHost, .cannotFindHost, .timedOut: return "Sync paused"
             default: break
             }
         }

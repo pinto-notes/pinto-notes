@@ -928,8 +928,24 @@ import Vision
         // A longer name is cut short with "…", and the line keeps its end.
         let long = L.fitted(TemplateLibraryWords.caption(e, ai: .chatgpt, folder: "Everything for the house move in March"), room: L.wordsWidth(for: L.size))
         #expect(long.folder.hasSuffix("\u{2026}") && long.folder.hasPrefix("Everything") && long.rest == ", then opens ChatGPT." && wide(long) <= L.wordsWidth(for: L.size), "\(long.folder)")
+        // While sync is away (offline audit, 10 November 2026): the note is still added, and the line
+        // says when the AI can fill it, calmly, on one line too. With no AI that asks, nothing changes.
+        for reach in [SyncEngine.Reach.offline, .unreachable] {
+            for ai in [SetupCards.AI.chatgpt, .claude] {
+                let c = TemplateLibraryWords.caption(e, ai: ai, folder: "Reading", reach: reach)
+                #expect(c.lead == with.lead && c.folder == "Reading" && c.rest == ". Ask \(ai.name) after it syncs.")
+                #expect(wide(c) <= L.wordsWidth(for: L.size), "\(e.slug) with \(ai.name), away: \(wide(c)) pt of \(L.wordsWidth(for: L.size))")
+                // A longer folder's name is cut short, and the line keeps its end.
+                let long = L.fitted(TemplateLibraryWords.caption(e, ai: ai, folder: "Side projects and plans", reach: reach), room: L.wordsWidth(for: L.size))
+                #expect(long.rest == c.rest && wide(long) <= L.wordsWidth(for: L.size))
+            }
+            let none = TemplateLibraryWords.caption(e, ai: .other, folder: "Work", reach: reach)
+            #expect(none.rest == ".")
+            let had = TemplateLibraryWords.caption(e, ai: .chatgpt, folder: "Work", have: "Habits", reach: reach)
+            #expect(had.rest == ". This opens it.", "away, Make opens the one you have and no AI")
+        }
         let src = try library
-        #expect(src.contains("Self.fitted(TemplateLibraryWords.caption(e, ai: ai, folder: folder, have: have(e)), room:"))
+        #expect(src.contains("Self.fitted(TemplateLibraryWords.caption(e, ai: ai, folder: folder, have: have(e), reach: reach), room:"))
     }
 
     /// Make from the library puts a template where New Note would put a note: the folder you're
@@ -957,7 +973,7 @@ import Vision
         #expect(again == b && all.filter { $0.title == "Habit tracker" }.count == 1, "no second Habit tracker: \(all.map(\.title))")
         let root = try SettingsHomeTests.source("Pane/Views/RootView.swift")
         #expect(root.contains("let target = TemplateMaking.folder(in: context, scope: scope)"))
-        #expect(root.contains("into: target.map { .existing($0.id) } ?? .new(TemplateMaking.firstFolder),"))
+        #expect(root.contains("into: target.map { .existing($0.id) } ?? .new(TemplateMaking.firstFolder), reach: reach,"))
         #expect(root.contains("have: { TemplateMaking.have($0, context: context, account: account) }"))
         let source = try SettingsHomeTests.source("Pane/Model/NoteSource.swift")
         #expect(source.contains("if folder == nil { folder = context.suggestedFolder(for: d) }"), "the website's sheet keeps the template's folder")
@@ -1817,6 +1833,28 @@ extension TemplateCatalog.Entry: CustomTestStringConvertible {
         } else {
             #expect(e.appProject == nil && e.appPicture(dark: false) == nil)
         }
+    }
+
+    /// While sync is away (no network, or only the server away), Make with an AI still adds the
+    /// note and copies the ask, and doesn't open the AI: it can't see a note that hasn't synced.
+    /// "Add without AI" is as ever.
+    @Test(arguments: [SyncEngine.Reach.offline, .unreachable])
+    func makeWhileSyncIsAwayAddsTheNoteAndOpensNothing(reach: SyncEngine.Reach) async throws {
+        let e = try #require(Self.all.first)
+        let container = try store()
+        let ctx = container.mainContext
+        var copied: [String] = []
+        var opened: [URL] = []
+        let made = await TemplateMaking.make(e, with: .chatgpt, context: ctx, account: nil, reach: reach, source: ShippedTemplates(site: Offline()),
+                                             ledger: ledger(), copy: { copied.append($0) }, open: { opened.append($0) })
+        let id = try #require(made)
+        let note = try #require(ctx.note(id))
+        #expect(note.title == e.title && note.dirty)
+        #expect(copied.count == 1 && opened.isEmpty, "the ask is ready to paste; no browser on a page that can't load")
+        let last = try #require(Self.all.last)
+        let plain = await TemplateMaking.make(last, with: .other, context: ctx, account: nil, reach: reach,
+                                              source: ShippedTemplates(site: Offline()), ledger: ledger(), copy: { copied.append($0) }, open: { opened.append($0) })
+        #expect(plain != nil && copied.count == 1 && opened.isEmpty)
     }
 
     /// 2 to 4. Make with ChatGPT, offline: the note is added in its folder with the template's
