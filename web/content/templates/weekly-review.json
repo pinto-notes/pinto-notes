@@ -25,7 +25,7 @@
       "args": {
         "path": "Notes/Weekly review.md",
         "old_string": "Newest week first.\n",
-        "new_string": "Newest week first.\n### Week of 2 November\n- **Went well:** handed in the report a day early; two early nights.\n- **Didn't:** no deep work on Thursday, too many meetings.\n- **Learned:** a 30-minute agenda beats a 60-minute meeting.\n- **Grateful for:** dinner with my sister.\n- [ ] Block Thursday mornings for deep work\n- [ ] Send the Q4 plan to Jonas\n- [ ] Book the dentist\n"
+        "new_string": "Newest week first.\n### Week of 2 November\n- **Went well:** handed in the report a day early; trained four times.\n- **Didn't:** no deep work on Thursday, too many meetings.\n- **Learned:** a 30-minute agenda beats a 60-minute meeting.\n- **Grateful for:** dinner with my sister.\n- [ ] Block Thursday mornings for deep work\n- [ ] Send the Q4 plan to Jonas\n- [ ] Book the dentist\n"
       }
     },
     {
@@ -37,7 +37,7 @@
       }
     }
   ],
-  "example": "Weekly review\n\nTwenty minutes on Sunday. Your AI asks the questions, and the answers land here, newest week first.\n\n## Questions\n1. What went well this week?\n2. What didn't, and why?\n3. What did I learn?\n4. What am I grateful for?\n5. What are my top three for next week?\n\n## Reviews\nNewest week first.\n### Week of 2 November\n- **Went well:** handed in the report a day early; two early nights.\n- **Didn't:** no deep work on Thursday, too many meetings.\n- **Learned:** a 30-minute agenda beats a 60-minute meeting.\n- **Grateful for:** dinner with my sister.\n- [ ] Block Thursday mornings for deep work\n- [ ] Send the Q4 plan to Jonas\n- [x] Book the dentist\n",
+  "example": "Weekly review\n\nTwenty minutes on Sunday. Your AI asks the questions, and the answers land here, newest week first.\n\n## Questions\n1. What went well this week?\n2. What didn't, and why?\n3. What did I learn?\n4. What am I grateful for?\n5. What are my top three for next week?\n\n## Reviews\nNewest week first.\n### Week of 2 November\n- **Went well:** handed in the report a day early; trained four times.\n- **Didn't:** no deep work on Thursday, too many meetings.\n- **Learned:** a 30-minute agenda beats a 60-minute meeting.\n- **Grateful for:** dinner with my sister.\n- [ ] Block Thursday mornings for deep work\n- [ ] Send the Q4 plan to Jonas\n- [x] Book the dentist\n",
   "related": [
     "daily-journal",
     "mood-energy-log",
