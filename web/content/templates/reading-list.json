@@ -42,15 +42,15 @@
       "args": {
         "path": "Reading/Reading list.md",
         "old_string": "| Piranesi | Susanna Clarke | Reading |   | From Jonas |\n",
-        "new_string": "| Piranesi | Susanna Clarke | Reading |   | From Jonas |\n| Atomic Habits | James Clear | To read |   | For January |\n"
+        "new_string": "| Piranesi | Susanna Clarke | Reading |   | From Jonas |\n| Atomic Habits | James Clear | To read |   | New-year plan |\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Reading/Reading list.md",
-        "old_string": "| Atomic Habits | James Clear | To read |   | For January |\n",
-        "new_string": "| Atomic Habits | James Clear | To read |   | For January |\n| Klara and the Sun | Kazuo Ishiguro | Finished | 4 | Holiday read |\n"
+        "old_string": "| Atomic Habits | James Clear | To read |   | New-year plan |\n",
+        "new_string": "| Atomic Habits | James Clear | To read |   | New-year plan |\n| Klara and the Sun | Kazuo Ishiguro | Finished | 4 | Holiday read |\n"
       }
     },
     {
@@ -78,7 +78,7 @@
       }
     }
   ],
-  "example": "Reading list\n\nEvery book you want to read, are reading or have finished. Add one in the table, or tell your AI about a book and it files it.\n\n## Books\n<!-- pane-table: Title=text; Author=text; Status=choice To read|Reading|Finished|Dropped; Rating (1–5)=scale 1-5; Why=text -->\n| Title | Author | Status | Rating (1–5) | Why |\n| --- | --- | --- | --- | --- |\n| Project Hail Mary | Andy Weir | Finished | 5 | Book club |\n| Piranesi | Susanna Clarke | Reading |   | From Jonas |\n| Atomic Habits | James Clear | To read |   | For January |\n| Klara and the Sun | Kazuo Ishiguro | Finished | 4 | Holiday read |\n| The Overstory | Richard Powers | To read |   | Sara lent it |\n\n## Notes\nA few lines on each book once you've read it.\n### Project Hail Mary\nThe friendship carries the whole book. Lending my copy to Dad next.\n\n### Klara and the Sun\nQuiet and strange. I kept thinking about it for weeks after.\n",
+  "example": "Reading list\n\nEvery book you want to read, are reading or have finished. Add one in the table, or tell your AI about a book and it files it.\n\n## Books\n<!-- pane-table: Title=text; Author=text; Status=choice To read|Reading|Finished|Dropped; Rating (1–5)=scale 1-5; Why=text -->\n| Title | Author | Status | Rating (1–5) | Why |\n| --- | --- | --- | --- | --- |\n| Project Hail Mary | Andy Weir | Finished | 5 | Book club |\n| Piranesi | Susanna Clarke | Reading |   | From Jonas |\n| Atomic Habits | James Clear | To read |   | New-year plan |\n| Klara and the Sun | Kazuo Ishiguro | Finished | 4 | Holiday read |\n| The Overstory | Richard Powers | To read |   | Sara lent it |\n\n## Notes\nA few lines on each book once you've read it.\n### Project Hail Mary\nThe friendship carries the whole book. Lending my copy to Dad next.\n\n### Klara and the Sun\nQuiet and strange. I kept thinking about it for weeks after.\n",
   "related": [
     "book-notes",
     "study-flashcards",
