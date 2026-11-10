@@ -582,6 +582,18 @@ import Testing
         #expect(Data(bytes: landed.data!, count: landed.bytesPerRow * landed.height) == Data(bytes: want.data!, count: want.bytesPerRow * want.height), "it lands as the film that's shared")
     }
 
+    @Test func theBusiestDayAndTheTopFolderNeverShareAMoment() {
+        // Whenever the busiest day falls, the folder written in most has its own time: after it
+        // when there's room before the end, otherwise before it.
+        for seed in [UInt64(7), 11, 23, 42, 77] {
+            let script = FilmScript(FilmDemo.notebook(days: 35, seed: seed, now: Self.now), calendar: Self.cal)
+            let top = script.topFolderMoment
+            #expect(top.until - top.from >= 1.2 && top.until <= script.growth, "seed \(seed)")
+            guard let busy = script.busiestMoment else { continue }
+            #expect(top.until <= busy.from || top.from >= busy.until, "seed \(seed)")
+        }
+    }
+
     @Test func theFilmBeginsAtTheFirstNote() {
         // Not at the midnight before it: there's never a frame of an empty month with "0 notes".
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)

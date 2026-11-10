@@ -247,6 +247,22 @@ struct FilmScript: Sendable {
         folders = folderNames
     }
 
+    /// When the film is on the day you wrote most (nil when that day passes under the title).
+    var busiestMoment: (from: Double, until: Double)? {
+        guard let day = stats.busiestDay, let s = span(ofDay: day), s.start >= 0.55 else { return nil }
+        return (s.start, s.start + min(2.4, max(1.2, s.length)))
+    }
+
+    /// When the folder written in most has its moment: near the end, but never over the day you
+    /// wrote most (after it when there's room, otherwise before it).
+    var topFolderMoment: (from: Double, until: Double) {
+        var from = growth - Self.topFolderMoment, until = growth - 0.25
+        if let b = busiestMoment, b.from < until, b.until > from {
+            if until - b.until >= 1.4 { from = b.until + 0.15 } else { until = b.from - 0.2; from = max(growth * 0.4, until - 2.2) }
+        }
+        return (from, until)
+    }
+
     /// When a day is on screen: where it begins in film time, and for how long.
     func span(ofDay day: Date) -> (start: Double, length: Double)? {
         guard let k = calendar.dateComponents([.day], from: start, to: calendar.startOfDay(for: day)).day, k >= 0, k + 1 < dayStarts.count else { return nil }

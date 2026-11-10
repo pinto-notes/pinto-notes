@@ -733,7 +733,8 @@ final class FilmRenderer {
                 mine.append((span.start, span.start + min(2.4, max(0.9, span.length - 0.15)), labels.busiestCaption(s.busiestDayEdits), look.you))
             }
             if labels.folderNames, let f = s.topFolder, script.growth > 5, s.folders >= 3 {
-                mine.append((script.growth - FilmScript.topFolderMoment, script.growth - 0.25, labels.topFolderCaption(f, s.topFolderNotes), look.you))
+                let m = script.topFolderMoment
+                mine.append((m.from, m.until, labels.topFolderCaption(f, s.topFolderNotes), look.you))
             } else if s.writingDays > 1 {
                 mine.append((script.growth - 1.9, script.growth - 0.25, s.streak >= 3 ? labels.streakCaption(s.streak) : labels.daysCaption(s.writingDays), look.you))
             }

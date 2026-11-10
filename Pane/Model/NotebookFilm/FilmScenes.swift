@@ -651,7 +651,8 @@ final class TownScene: FilmScene {
         // (Not twice running on the same hill: there the busiest day has already been in on it.)
         if namesTopFolder, let h = hills.firstIndex(where: { $0.folder == topFolder }), h != busiestHill {
             let there = script.nodes.indices.filter { houses[$0].hill == h }
-            moments.append((growth - FilmScript.topFolderMoment + 0.1, growth - 0.35, shot(box(there, hills: [h]), closest: 1.6)))
+            let m = script.topFolderMoment
+            moments.append((m.from + 0.1, m.until - 0.1, shot(box(there, hills: [h]), closest: 1.6)))
         }
         // A tenth of a second apart, on past the end so it's back, wide, for the night.
         let n = Int(((growth + 1.8) / Self.shotStep).rounded(.up)) + 1
@@ -866,7 +867,7 @@ final class TownScene: FilmScene {
         let evening = smooth((night * 1.5 - xfrac * 0.5))
         // As the film names the folder you wrote most in, its hill's lights come on first.
         let first = namesTopFolder && hills[hs.hill].folder == topFolder
-            ? 0.85 * smooth((gt - (growth - FilmScript.topFolderMoment) - 0.9 * hash(i, 61)) / 0.3) : 0
+            ? 0.85 * smooth((gt - script.topFolderMoment.from - 0.9 * hash(i, 61)) / 0.3) : 0
         // On the day you wrote most, the houses you wrote in are lit while the film is on it.
         let today = busy.contains(i) ? 0.9 * smooth((gt - busyFrom) / 0.25) * (1 - smooth((gt - busyUntil) / 0.4)) : 0
         let lit = min(1, max(flash, first, today, dusk * 0.55 * exp(-(gt - last) / 2.2), evening * (0.3 + 0.7 * worked[i])))
