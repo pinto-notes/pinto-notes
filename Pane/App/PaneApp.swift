@@ -894,16 +894,16 @@ final class AppSession {
         let noteQuery = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil })
         let hasNote = ((try? context.fetchCount(noteQuery)) ?? 0) > 0
         // Never during the first-run flow, nor in the day after it.
-        if !onboarding.holdsAsks() && !notebookFilm.visible {
+        if !onboarding.holdsAsks() && !notebookFilm.visible && !notebookFilm.offered {
             let days = max(shareAsk.server?.days ?? 0, ShareAsk.localDays().count)
             await heardFrom.refresh(daysOfUse: days, hasNote: hasNote,
                                     otherPrompt: (notices?.shownThisLaunch ?? false) || notices?.current != nil
                                         || AccountCrypto.shared.recoveryKeyChangeNeedsSaying || PaneTips.all.contains { $0.shouldDisplay })
         }
         // "Enjoying Pinto Notes?": only here, at launch, and only when nothing else asks or shows.
-        shareAsk.atLaunch(otherPrompt: onboarding.holdsAsks() || heardFrom.visible || notebookFilm.visible || (notices?.shownThisLaunch ?? false)
+        shareAsk.atLaunch(otherPrompt: onboarding.holdsAsks() || heardFrom.visible || notebookFilm.visible || notebookFilm.offered || (notices?.shownThisLaunch ?? false)
                           || notices?.current != nil || AccountCrypto.shared.recoveryKeyChangeNeedsSaying || PaneTips.all.contains { $0.shouldDisplay })
-        // The notebook film is only got ready here, for the next launch to show as it opens.
+        // The notebook film is only got ready here, for the next launch to offer as a card.
         await notebookFilm.prepare(context: context)
         await InstallID.report(client)
     }
@@ -1093,6 +1093,8 @@ struct AppGate: View {
                     .shareAskSheet(shareAsk)
                     .heardFromSheet(heardFrom)
                     .notebookFilmSheet(session.notebookFilm)
+                    // Its card sits in the sidebar (FilmCard).
+                    .environment(session.notebookFilm)
                     .task {
                         session.notebookFilm.showIfForced()
                         try? await Task.sleep(for: .seconds(1.2))

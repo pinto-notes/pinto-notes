@@ -227,22 +227,26 @@ import Testing
         FileManager.default.temporaryDirectory.appendingPathComponent("film-\(UUID().uuidString)", isDirectory: true)
     }
 
-    @Test func oneLaunchGetsItReadyTheNextShowsItAsItOpensThenNeverAgain() async throws {
+    @Test func oneLaunchGetsItReadyTheNextOffersItAsACardThenNeverAgain() async throws {
         let (c, source) = try Self.library(days: 35)
         let d = TestDefaults(), account = UUID(), folder = Self.tempFolder()
         ShareAsk.lastKeystroke = .distantPast
 
         let first = Self.store(d, account: account, source: source, folder: folder)
         first.atLaunch(otherPrompt: false)
-        #expect(!first.visible, "nothing ready yet")
+        #expect(!first.offered && !first.visible, "nothing ready yet")
         await first.prepare(context: c.mainContext)
-        #expect(!first.visible, "getting it ready never shows it")
+        #expect(!first.offered && !first.visible, "getting it ready never offers it")
         #expect(FileManager.default.fileExists(atPath: first.preparedURL.path))
 
+        // It never comes up by itself: its card is offered, and it opens when you tap it.
         let next = Self.store(d, account: account, source: source, folder: folder)
         next.atLaunch(otherPrompt: false)
-        #expect(next.visible, "shown as the app opens")
+        #expect(next.offered && !next.visible, "a card, not a screen over the notes")
+        #expect(next.offerLine?.hasPrefix("You ") == true)
         #expect(next.script?.stats.ai == "ChatGPT")
+        next.open()
+        #expect(next.visible && !next.offered && next.asked)
         next.didPresent()
         #expect(!FileManager.default.fileExists(atPath: next.preparedURL.path))
         next.visible = false
@@ -250,33 +254,28 @@ import Testing
         let after = Self.store(d, account: account, source: source, folder: folder)
         after.atLaunch(otherPrompt: false)
         await after.prepare(context: c.mainContext)
-        #expect(!after.visible)
+        #expect(!after.offered && !after.visible)
         #expect(!FileManager.default.fileExists(atPath: after.preparedURL.path), "once per device")
     }
 
-    @Test func touchingSomethingBeforeItComesUpLeavesItForTheNextLaunch() async throws {
-        // It comes up a moment after the notes: if you've already started on something, it never
-        // lands on top of that. Nothing is used up; the next launch offers it.
+    @Test func openedFromItsCardNothingYouDoPutsItOff() async throws {
+        // Touching or typing before it comes up only put it off when it came up by itself. Asked
+        // for, it comes up.
         let (c, source) = try Self.library(days: 35)
         let d = TestDefaults(), account = UUID(), folder = Self.tempFolder()
         ShareAsk.lastKeystroke = .distantPast
         await Self.store(d, account: account, source: source, folder: folder).prepare(context: c.mainContext)
 
-        let busy = Self.store(d, account: account, source: source, folder: folder)
-        busy.atLaunch(otherPrompt: false)
-        #expect(busy.visible)
-        busy.postpone()
-        #expect(!busy.visible && !busy.shown)
-        busy.atLaunch(otherPrompt: false)
-        #expect(!busy.visible, "not again on this launch")
-
-        let next = Self.store(d, account: account, source: source, folder: folder)
-        next.atLaunch(otherPrompt: false)
-        #expect(next.visible, "the next launch offers it")
+        let s = Self.store(d, account: account, source: source, folder: folder, launched: .now.addingTimeInterval(-600))
+        s.atLaunch(otherPrompt: false)
+        #expect(s.offered, "the card waits however long the app has been open")
+        s.open()
+        s.postpone()
+        #expect(s.visible)
     }
 
-    @Test func onceShownItCanBeWatchedAgainFromHelp() async throws {
-        // Not now, or closing it, isn't losing it: it's kept on this device and Help shows it again.
+    @Test func onceShownOrPutAwayItCanBeWatchedAgainFromHelp() async throws {
+        // Closing its card isn't losing it: it's kept on this device and Help shows it again.
         let (c, source) = try Self.library(days: 35)
         let d = TestDefaults(), account = UUID(), folder = Self.tempFolder()
         ShareAsk.lastKeystroke = .distantPast
@@ -285,39 +284,29 @@ import Testing
 
         let s = Self.store(d, account: account, source: source, folder: folder)
         s.atLaunch(otherPrompt: false)
-        s.didPresent()
-        s.visible = false
+        let notes = s.script?.stats.notes
+        s.closeOffer()
+        #expect(!s.offered && !s.visible && s.shown)
         #expect(NotebookFilmStore.canRewatch(account, in: folder))
 
         let later = Self.store(d, account: account, source: source, folder: folder, launched: .now.addingTimeInterval(-600))
         later.atLaunch(otherPrompt: false)
-        #expect(!later.visible, "never offered again by itself")
+        #expect(!later.offered && !later.visible, "never offered again by itself")
         later.rewatch()
         #expect(later.visible && later.rewatching)
-        #expect(later.script?.stats.notes == s.script?.stats.notes)
+        #expect(later.script?.stats.notes == notes)
         #expect(!NotebookFilmStore.canRewatch(UUID(), in: folder), "another account's film isn't this one's")
     }
 
-    @Test func neverLaterInALaunchNorBesideAnotherPrompt() async throws {
+    @Test func neverBesideAnotherPrompt() async throws {
         let (c, source) = try Self.library(days: 35)
         let d = TestDefaults(), account = UUID(), folder = Self.tempFolder()
         ShareAsk.lastKeystroke = .distantPast
         await Self.store(d, account: account, source: source, folder: folder).prepare(context: c.mainContext)
 
-        let late = Self.store(d, account: account, source: source, folder: folder, launched: .now.addingTimeInterval(-30))
-        late.atLaunch(otherPrompt: false)
-        #expect(!late.visible, "half a minute in, the app is in use")
-
         let busy = Self.store(d, account: account, source: source, folder: folder)
         busy.atLaunch(otherPrompt: true)
-        #expect(!busy.visible)
-
-        let launched = Date.now
-        let typing = Self.store(d, account: account, source: source, folder: folder, launched: launched)
-        ShareAsk.lastKeystroke = launched.addingTimeInterval(0.5)
-        typing.atLaunch(otherPrompt: false)
-        ShareAsk.lastKeystroke = .distantPast
-        #expect(!typing.visible, "never over a note being typed in")
+        #expect(!busy.offered && !busy.visible)
         #expect(FileManager.default.fileExists(atPath: busy.preparedURL.path), "it waits for a launch that suits")
     }
 
@@ -837,7 +826,10 @@ import Testing
         let mine = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
         let script = FilmScript(mine, calendar: Self.cal)
         var slides = FilmSlides(input: mine, script: script, mark: nil)
-        #expect(slides.slides().map(\.name) == ["intro", "top-notes", "when"])
+        #expect(slides.slides().map(\.name) == ["top-notes", "when", "play"])
+        // It begins from what you set out with: here, the notes you brought.
+        #expect(FilmSlides.cardLine(mine, script: script).hasPrefix("You brought 20 notes in on "))
+        #expect(FilmSlides.story(mine, script: script).hasPrefix("From 20 notes brought in on "))
         // The top notes are the most written in, by name, none twice; a removed note isn't one.
         let ranked = slides.ranked
         #expect(ranked.count == 5 && Set(ranked.map(\.name)).count == 5)
@@ -857,11 +849,12 @@ import Testing
         #expect(slides.image(0, pixels: 1206).map { [$0.width, $0.height] } == [1206, 2622])
         #expect(slides.sent.image(1, pixels: 1080).map { [$0.width, $0.height] } == [1080, 1920])
         #expect(slides.image(3, pixels: 1080) == nil)
-        // A month with no names to show and little written gets the intro alone, then the film.
+        // A month with no names to show gets no list: the film's sky and its play button.
         let quiet = FilmDemo.real(days: 30, now: Self.now, ai: nil)
         let qs = FilmScript(quiet, calendar: Self.cal)
         let few = FilmSlides(input: quiet, script: qs, mark: nil) { _ in nil }.slides().map(\.name)
-        #expect(few.first == "intro" && !few.contains("top-notes"))
+        #expect(few.last == "play" && !few.contains("top-notes"))
+        #expect(FilmSlides.cardLine(quiet, script: qs).hasPrefix("You wrote your first note on "))
     }
 
     @Test func theFilmBeginsAtTheFirstNote() {

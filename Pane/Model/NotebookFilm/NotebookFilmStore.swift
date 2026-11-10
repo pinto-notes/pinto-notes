@@ -7,24 +7,28 @@ import AppKit
 import UIKit
 #endif
 
-/// The notebook film, offered once: after about a month of real use (FilmEligibility), as the app
-/// opens. Made on this device from the notes here and who wrote them; titles and words are never
-/// in it.
+/// The notebook film, offered after about a month of real use (FilmEligibility): a card in the
+/// sidebar (`offered`) that you open when you like (`open`). It never comes up by itself. Made on
+/// this device from the notes here and who wrote them; titles show only on your screen, and only
+/// in the slides before the film.
 ///
-/// It never comes in the middle of a session. A launch on which the account is due only gets it
-/// ready (`prepare`: reads who wrote what and keeps what the film needs on this device). The next
-/// launch shows it as the app opens (`atLaunch`), before anything has been typed or touched and
-/// never beside another prompt or during the first-run flow. A launch that isn't ready in time, or
-/// on which you're already doing something (`postpone`), leaves it for the next one. Once it has
-/// been on screen (`didPresent`) it isn't offered there again; it's kept, and Help shows it again
-/// when you ask (`rewatch`).
+/// A launch on which the account is due only gets it ready (`prepare`: reads who wrote what and
+/// keeps what the film needs on this device). The next launch offers it (`atLaunch`), never during
+/// the first-run flow or beside another prompt. Once it's been opened (`didPresent`), or its card
+/// closed (`closeOffer`), it isn't offered again; it's kept, and Help shows it again (`rewatch`).
 ///
-/// Dev: `-forceNotebookFilm` shows a film of a made-up month (FilmDemo) as the notes open;
-/// `-filmLook paper` starts it on a look.
+/// Dev: `-forceNotebookFilm` opens a film of a made-up month (FilmDemo) as the notes open
+/// (`-filmCard` offers it as the card instead); `-filmLook paper` starts it on a look.
 @MainActor
 @Observable
 final class NotebookFilmStore {
     var visible = false
+    /// Its card is in the sidebar: tap to open it, or close it.
+    private(set) var offered = false
+    /// Opened from its card: it comes up at once, and nothing you do first puts it off.
+    private(set) var opened = false
+    /// You asked for it (its card, or Help): it comes up at once.
+    var asked: Bool { opened || rewatching }
     /// The film being shown.
     private(set) var script: FilmScript?
     /// What the film in hand was made from: the cards before it are drawn from it.
@@ -65,9 +69,6 @@ final class NotebookFilmStore {
     @ObservationIgnored let launched: Date
     @ObservationIgnored let forced: Bool
     @ObservationIgnored let folder: URL
-
-    /// How long after launch it may still show: the app is opening, nothing has happened yet.
-    static let launchWindow: TimeInterval = 6
 
     init(defaults: UserDefaults = .standard, launched: Date = .now, arguments: [String] = ProcessInfo.processInfo.arguments,
          folder: URL = NotebookFilmStore.defaultFolder) {
@@ -111,22 +112,45 @@ final class NotebookFilmStore {
         self.service = service
     }
 
-    /// As the app opens: shows the film an earlier launch got ready, or nothing.
+    /// As the app opens: offers the film an earlier launch got ready, as a card, or nothing.
     func atLaunch(otherPrompt: Bool, now: Date = .now) {
-        guard !forced, !visible, !launchChecked else { return }
+        guard !forced, !visible, !offered, !launchChecked else { return }
         launchChecked = true
-        guard !otherPrompt, !shown, now.timeIntervalSince(launched) <= Self.launchWindow,
-              ShareAsk.lastKeystroke < launched,
+        guard !otherPrompt, !shown,
               let data = try? Data(contentsOf: preparedURL),
               let input = try? JSONDecoder().decode(FilmInput.self, from: data) else { return }
         self.input = input
         script = FilmScript(input)
         rewatching = false
+        offered = true
+    }
+
+    /// Its card was tapped: it comes up now.
+    func open() {
+        guard offered, script != nil else { return }
+        offered = false
+        opened = true
+        rewatching = false
         visible = true
+    }
+
+    /// Its card was closed: not offered again, and kept for Help.
+    func closeOffer() {
+        guard offered else { return }
+        offered = false
+        didPresent()
+        if !forced { script = nil; input = nil }
+    }
+
+    /// What its card says: what you set out with, and that it's ready.
+    var offerLine: String? {
+        guard let input, let script else { return nil }
+        return FilmSlides.cardLine(input, script: script)
     }
 
     /// It's on screen: it isn't offered on this device again, and it's kept to watch again.
     func didPresent() {
+        offered = false
         guard !forced, !rewatching, !shown else { return }
         defaults.set(true, forKey: Self.shownKey(account))
         try? FileManager.default.removeItem(at: keptURL)
@@ -136,14 +160,17 @@ final class NotebookFilmStore {
     /// Something was touched or typed before it came up: not on this launch. It stays ready
     /// for the next one.
     func postpone() {
-        guard visible, !forced, !rewatching, !shown else { return }
+        guard visible, !forced, !asked, !shown else { return }
         visible = false
         script = nil
     }
 
     /// From Help: shows the film this device kept.
     func rewatch() {
-        guard !visible, let data = try? Data(contentsOf: keptURL),
+        guard !visible else { return }
+        // (Its card, if it's up, is what Help means.)
+        if offered { open(); return }
+        guard let data = try? Data(contentsOf: keptURL),
               let input = try? JSONDecoder().decode(FilmInput.self, from: data) else { return }
         self.input = input
         script = FilmScript(input)
@@ -170,7 +197,7 @@ final class NotebookFilmStore {
     /// Dev: `-forceNotebookFilm`; captures: `-filmLook paper`, `-filmNoFolderNames`, `-filmLight`
     /// (the thinnest month it's offered for).
     func showIfForced() {
-        guard forced, !visible else { return }
+        guard forced, !visible, !offered else { return }
         rewatching = false
         // Captures: `-filmLook paper`.
         let args = ProcessInfo.processInfo.arguments
@@ -185,7 +212,12 @@ final class NotebookFilmStore {
         if args.contains("-filmOldLooks") { galaxy = false }
         input = demo
         script = FilmScript(demo)
-        visible = true
+        // Captures: `-filmCard` offers it as its card; otherwise it opens at once.
+        // (`-filmAutoOpen` then opens it from the card a moment later, as a tap would.)
+        if args.contains("-filmCard") {
+            offered = true
+            if args.contains("-filmAutoOpen") { Task { try? await Task.sleep(for: .seconds(3)); self.open() } }
+        } else { opened = true; visible = true }
     }
 
     /// The film as you've set it: its look, folder names, and the app's mark in the corner.
@@ -267,6 +299,8 @@ final class NotebookFilmStore {
             l.scene = { script, names in GalaxyScene(script: script, names: names, seed: script.seed) }
             l.captionsOn = false
             l.startsAtFirstNote = true
+            // (The play screen before it has said what this is.)
+            l.openingTitle = false
             l.workCount = { notes, edits in "\(notes) notes \u{00B7} \(edits) edits" }
             let kind = GalaxyScene.name(of: script?.form ?? .nebula)
             l.endTitle = { s in "My \(s.period) \(s.months == 1 ? "is" : "are") \(kind)" }

@@ -23,11 +23,13 @@ for p in $profiles; do
   xcrun simctl io "$SIM" recordVideo --codec=h264 --force "$OUT/$name-raw.mov" >/dev/null 2>&1 & rec=$!
   sleep 5
   t0=$(python3 -c "import time; print(time.time())")
-  xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm -filmAutoCards $p >/dev/null
-  # The slides turn every 3.2 s once up: a still of each as it settles, then the film and the share screen.
-  sleep 4.4
+  # From its card at the foot of the folders, opened a moment later as a tap would; the slides
+  # turn every 3.2 s, the last one's play is pressed, then the film and the share screen.
+  xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm -filmCard -filmAutoOpen -showFolders -filmAutoCards $p >/dev/null
+  sleep 2.5; xcrun simctl io "$SIM" screenshot "$OUT/$name-card.png" >/dev/null 2>&1
+  sleep 3.5
   for k in 1 2 3; do xcrun simctl io "$SIM" screenshot "$OUT/$name-slide-$k.png" >/dev/null 2>&1; sleep 3.2; done
-  sleep 13; xcrun simctl io "$SIM" screenshot "$OUT/$name-film-late.png" >/dev/null 2>&1
+  sleep 12; xcrun simctl io "$SIM" screenshot "$OUT/$name-film-late.png" >/dev/null 2>&1
   sleep 6; xcrun simctl io "$SIM" screenshot "$OUT/$name-share.png" >/dev/null 2>&1
   sleep 1
   t1=$(python3 -c "import time; print(time.time())")

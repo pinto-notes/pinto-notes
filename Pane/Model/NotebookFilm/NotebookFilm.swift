@@ -193,6 +193,8 @@ struct FilmScript: Sendable {
     /// month takes `fullGrowth`; a thin one is shorter (down to `thinGrowth`), so the film is
     /// never stretched over days when little happened. A notebook someone lives in gets longer
     /// still, up to `longGrowth`: with thousands of edits in nine seconds the work is a blur.
+    /// Above this many notes the film leaves out the specks for each edit: the stars carry the work.
+    static let speckLimit = 120
     static let fullGrowth = 9.0, thinGrowth = 5.6, longGrowth = 13.0, outro = 3.6
     /// How much there is in a full month's film, and in the longest one (notes and edits together).
     static let fullEvents = 400.0, longEvents = 3200.0

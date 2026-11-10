@@ -2,9 +2,10 @@ import CoreGraphics
 import Foundation
 import ImageIO
 
-// The month before its film: an intro and two slides, each with one strong thing on it in its own
-// bold paper colour; then the lights go down for the galaxy. A slide is drawn from how long it's
-// been on screen, so it unfolds as it comes in, and a picture of it is the same drawing at its end.
+// The month before its film, opened from a card (NotebookFilmStore.offered): two slides, each with one
+// strong thing on it in its own bold paper colour, then the film's own night sky with a play button.
+// A slide is drawn from how long it's been on screen, so it unfolds as it comes in, and a picture of
+// it is the same drawing at its end.
 
 private typealias C = FilmRenderer.RGB
 
@@ -187,32 +188,7 @@ struct FilmSlides: @unchecked Sendable {
 
     func slides() -> [Slide] {
         var out: [Slide] = []
-        let s = script.stats
-        let months = s.months
-        // The intro: what this is, and the one bright star it starts from.
-        out.append(Slide(name: "intro", length: 1.3, spoken: "My first \(months == 1 ? "month" : "\(months) months") in Pinto Notes, \(short(script.start)) to \(short(input.now))") { ctx, t in
-            let p = palette(0)
-            ground(0, p, in: ctx)
-            let c = CGPoint(x: W / 2, y: H * 0.64)
-            for (i, (r, tone)) in [(370.0, 1), (262.0, 2), (155.0, 3)].enumerated() {
-                let at = 0.05 + 0.12 * Double(i)
-                around(c, scale: 0.6 + 0.4 * filmBackOut((t - at) / 0.6), alpha: filmSmooth((t - at) / 0.25), in: ctx) {
-                    paper(blob(c, r, r * 0.95, key: seed + i + 1), p.tones[tone], lift: 1.4 - 0.3 * Double(i), in: ctx)
-                }
-            }
-            for j in 0..<22 {
-                let a = filmHash(j, 41) * 2 * .pi, d = 120 + filmHash(j, 42) * 230
-                let q = CGPoint(x: c.x + cos(a) * d, y: c.y + sin(a) * d * 0.95)
-                star(q, (7 + 5 * filmHash(j, 43)) * filmBackOut((t - 0.55 - 0.025 * Double(j)) / 0.35), turn: filmHash(j, 44), p.ink.mix(p.tones[1], 0.55), shadow: 0.2, in: ctx)
-            }
-            let e = filmBackOut((t - 0.4) / 0.6)
-            around(c, scale: e, in: ctx) { bigStar(c, 74, turn: (1 - e) * 0.8, p.ink, behind: p.tones[3], in: ctx) }
-            let y = bottom + 120
-            say("My first", 178, 0.8, p.ink.cg(), x: 66, y: y + 410, t: t, at: 0.1, in: ctx)
-            say(months == 1 ? "month" : "\(months) months", 178, 0.8, p.ink.cg(), x: 66, y: y + 240, t: t, at: 0.22, in: ctx)
-            say("in Pinto Notes", 66, 0.45, p.ink.cg(), y: y + 92, t: t, at: 0.45, in: ctx)
-            say("\(short(script.start)) to \(short(input.now))", 40, 0.2, p.ink.cg(0.75), y: y, t: t, at: 0.58, in: ctx)
-        })
+        let months = script.stats.months
         // Your top notes: the brightest stars, by name.
         let top5 = ranked
         if let first = top5.first, first.note.edits.count >= 6 {
@@ -323,7 +299,45 @@ struct FilmSlides: @unchecked Sendable {
                 say("Most of it between \(Self.hourName(start)) and \(Self.hourName(start + 3))", 40, 0.25, p.ink.cg(0.8), y: y, t: t, at: 1.75, in: ctx)
             })
         }
+        // Last, the film's own sky, waiting for you to press play.
+        let line = Self.story(input, script: script)
+        out.append(Slide(name: "play", length: 1.0, light: true, spoken: "\(line). See your month: press play.") { ctx, t in
+            let sky = GalaxyScene.skies[(seed / 3 + seed) % GalaxyScene.skies.count]
+            let bg = C(sky.0), tones = sky.1.map { C($0) }, cream = C(0xFFF4E6)
+            ctx.setFillColor(bg.cg()); ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+            paper(blob(CGPoint(x: 330, y: H * 0.42), 660, 560, key: seed * 7 + 1), bg.mix(tones[0], 0.55), lift: 1.6, in: ctx)
+            paper(blob(CGPoint(x: 800, y: H * 0.66), 520, 420, key: seed * 7 + 2), bg.mix(tones[0], 0.9), lift: 1.4, in: ctx)
+            ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
+            for j in 0..<150 {
+                let q = CGPoint(x: filmHash(j, seed + 1) * W, y: filmHash(j, seed + 2) * H), r = 1.3 + 2.4 * pow(filmHash(j, seed + 3), 3)
+                ctx.setFillColor(cream.cg((0.2 + 0.45 * filmHash(j, seed + 4)) * filmSmooth((t - filmHash(j, 5) * 0.6) / 0.4)))
+                ctx.fillEllipse(in: CGRect(x: q.x - r, y: q.y - r, width: r * 2, height: r * 2))
+            }
+            // (The play button itself is the app's, over the middle of this.)
+            if let mark { ctx.draw(mark, in: CGRect(x: 64, y: H - top - 70, width: 52, height: 52)) }
+            FilmKit.text("Pinto Notes", 34, 0.45, cream.cg(0.92), at: CGPoint(x: 130, y: H - top - 56), in: ctx)
+            let y = bottom + 120
+            say(line, 40, 0.25, cream.cg(0.8), y: y, t: t, at: 0.3, in: ctx)
+            say("month", 170, 0.8, cream.cg(), x: 66, y: y + 110, t: t, at: 0.15, in: ctx)
+            say("See your", 170, 0.8, cream.cg(), x: 66, y: y + 280, t: t, at: 0.05, in: ctx)
+        })
         return out
+    }
+
+    /// Where your month began and where it is now, in your own terms: what you brought, or your first note.
+    static func story(_ input: FilmInput, script: FilmScript) -> String {
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US"); f.dateFormat = "MMM d"
+        let brought = input.notes.filter { $0.imported == true }.count, now = script.stats.notes
+        return brought > 0 ? "From \(brought) notes brought in on \(f.string(from: script.start)) to \(now) today"
+            : "From your first note on \(f.string(from: script.start)) to \(now) today"
+    }
+
+    /// The card that offers it: what you set out with, and what it became.
+    static func cardLine(_ input: FilmInput, script: FilmScript) -> String {
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US"); f.dateFormat = "MMMM d"
+        let brought = input.notes.filter { $0.imported == true }.count
+        return brought > 0 ? "You brought \(brought) notes in on \(f.string(from: script.start)). Here\u{2019}s what you did with them."
+            : "You wrote your first note on \(f.string(from: script.start)). Here\u{2019}s what came of it."
     }
 
     private func short(_ d: Date) -> String {

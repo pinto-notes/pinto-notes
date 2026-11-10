@@ -369,3 +369,38 @@ extension SidebarCard {
         card == .connect && !ConnectHere.nudges(mac: mac) ? nil : card
     }
 }
+
+/// "See your month": the notebook film's card, after about a month of real use (NotebookFilmStore).
+/// Three paper tiles in the slides' colours; a tap opens it, the X puts it away (Help keeps it).
+struct FilmCard: View {
+    let store: NotebookFilmStore
+
+    static let title = "See your month"
+    static let button = "Show me"
+    /// The slides' own colours: amber, cream and blue.
+    static let tiles: [(Color, Color, String)] = [
+        (Color(red: 1, green: 0.682, blue: 0.204), Color(red: 0.118, green: 0.106, blue: 0.294), "star.fill"),
+        (Color(red: 1, green: 0.941, blue: 0.863), Color(red: 0.941, green: 0.565, blue: 0.102), "list.number"),
+        (Color(red: 0.165, green: 0.294, blue: 0.796), Color(red: 1, green: 0.965, blue: 0.91), "moon.stars.fill"),
+    ]
+
+    var body: some View {
+        SidebarCardShell(id: "sidebar.film", title: Self.title, line: store.offerLine ?? "", button: Self.button,
+                         opensWeb: false, action: { store.open() }, onClose: { withAnimation(.easeOut(duration: 0.2)) { store.closeOffer() } }) { size in
+            ForEach(Array(Self.tiles.enumerated()), id: \.offset) { i, tile in
+                let shape = RoundedRectangle(cornerRadius: size * 0.2, style: .continuous)
+                Image(systemName: tile.2)
+                    .font(.system(size: size * 0.38, weight: .bold))
+                    .foregroundStyle(tile.1)
+                    .frame(width: size * 0.86, height: size * 0.86)
+                    .background(tile.0, in: shape)
+                    .overlay(shape.strokeBorder(Color.white.opacity(0.7), lineWidth: 1.5))
+                    .shadow(color: .black.opacity(0.18), radius: 3, y: 1.5)
+                    .rotationEffect(.degrees(Double(i - 1) * 9))
+                    .offset(x: CGFloat(i - 1) * size * 0.42, y: abs(CGFloat(i - 1)) * 3)
+                    .zIndex(i == 1 ? 1 : 0)
+            }
+        }
+        .transition(.opacity)
+    }
+}

@@ -512,24 +512,7 @@ final class GalaxyScene: FilmScene {
         let made = build()
         let where_ = made.at, labels = made.labels, zoom = made.zoom, heart = made.heart
 
-        // Links: where one note links to another, a stitched thread between their stars. Only real
-        // links, and only while both notes are there.
-        if !script.links.isEmpty {
-            ctx.saveGState()
-            ctx.setLineCap(.round)
-            ctx.setLineWidth(max(1.2, 1.6 * min(1.6, zoom)))
-            ctx.setLineDash(phase: 0, lengths: [5, 5])
-            for l in script.links where l.birth <= gt {
-                let a = script.nodes[l.a], b = script.nodes[l.b]
-                let on = filmSmooth((gt - l.birth) / 0.5) * (1 - filmSmooth((t - min(a.gone ?? .infinity, b.gone ?? .infinity)) / 0.3))
-                guard on > 0.01 else { continue }
-                ctx.setStrokeColor(cream.cg(0.5 * on))
-                ctx.move(to: where_[l.a])
-                ctx.addLine(to: where_[l.b])
-                ctx.strokePath()
-            }
-            ctx.restoreGState()
-        }
+        // (Links between notes aren't drawn: across hundreds of notes they were a tangle.)
 
         // The work: a speck of paper for every time a note was written in, amber when it was you
         // and blue when it was your AI. It flies out from its note as it happens, and stays.
@@ -544,7 +527,10 @@ final class GalaxyScene: FilmScene {
             let d = (hypot(p.x - heart.x, p.y - heart.y) - wave) / 80
             return exp(-d * d)
         }
-        for (i, n) in script.nodes.enumerated() where n.birth <= gt && n.edits.count > 1 {
+        // (In a big notebook there are too many to see one by one: there the stars carry the work,
+        // in more layers the more they're written in, and the specks are left out.)
+        let specks = script.nodes.count <= FilmScript.speckLimit
+        for (i, n) in script.nodes.enumerated() where specks && n.birth <= gt && n.edits.count > 1 {
             let p = where_[i], a0 = filmHash(i, 31) * 6.283
             let left = 1 - filmSmooth((t - (n.gone ?? .infinity)) / 0.3)
             guard left > 0.01 else { continue }

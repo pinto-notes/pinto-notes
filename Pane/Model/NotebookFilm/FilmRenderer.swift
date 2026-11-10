@@ -164,6 +164,8 @@ final class FilmRenderer {
         /// True starts it at the first note wherever it's played or saved: it never shows the
         /// finished notebook before the end.
         var startsAtFirstNote = false
+        /// False leaves out the title over the first seconds (the screen before it has said it).
+        var openingTitle = true
     }
 
     private var look: FilmLook { labels.look }
@@ -805,7 +807,7 @@ final class FilmRenderer {
         // After a rewind the date and the count are already there, where the title's second line was.
         let rewound = self.opening != .none && scene?.rewinds == true
         // (In the app a scene has no title of its own: the intro has just said it.)
-        if opening > 0, !(rewound && self.opening == .brief) { drawOpeningTitle(opening, subtitle: rewound ? 0 : 1, in: ctx) }
+        if opening > 0, labels.openingTitle, !(rewound && self.opening == .brief) { drawOpeningTitle(opening, subtitle: rewound ? 0 : 1, in: ctx) }
         // The date and the count while it grows.
         // (Once the title has gone: the two never share the space.)
         let running = (rewound ? 1 : smooth((since - titleUntil - 0.5) / 0.4)) * (1 - smooth((t - script.growth - (scene == nil ? 0 : 0.15)) / 0.4))

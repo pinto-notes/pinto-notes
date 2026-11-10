@@ -306,6 +306,9 @@ struct NotebookFilmView: View {
         #endif
     }
 
+    /// On the last slide: the film's sky and its play button.
+    private var atPlay: Bool { slideList.indices.contains(slide) && slideList[slide].name == "play" }
+
     private var slidesView: some View {
         let light = slideList.indices.contains(slide) ? slideList[slide].light : false
         let ink: Color = light ? Self.cream : Color(red: 0.118, green: 0.106, blue: 0.294)
@@ -331,9 +334,9 @@ struct NotebookFilmView: View {
             .ignoresSafeArea()
             .accessibilityHidden(true)
             VStack(spacing: 0) {
-                // Where you are: a bar for each slide, and one more for the film they end on.
+                // Where you are: a bar for each slide (the last is the film's, with its play button).
                 HStack(spacing: 4) {
-                    ForEach(0..<(slideList.count + 1), id: \.self) { k in
+                    ForEach(0..<slideList.count, id: \.self) { k in
                         Capsule().fill(ink.opacity(k <= slide ? 0.9 : 0.25)).frame(height: 3)
                     }
                 }
@@ -347,17 +350,37 @@ struct NotebookFilmView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 10)
                 Spacer()
+                if atPlay {
+                    // The film waits for you: press play.
+                    Button(action: watch) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 34, weight: .semibold))
+                            .foregroundStyle(Color(red: 0.118, green: 0.106, blue: 0.294))
+                            .offset(x: 3)
+                            .frame(width: 88, height: 88)
+                            .background(Self.cream, in: Circle())
+                            .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Play the film")
+                    .accessibilityIdentifier("notebookFilm.play")
+                    Spacer()
+                    Spacer()
+                }
                 HStack {
-                    Button(slide == 0 ? "Start" : "Next") { nextSlide() }
+                    if !atPlay {
+                        Button("Next") { nextSlide() }
                         .buttonStyle(.plain)
                         .font(.body.weight(.semibold))
                         .foregroundStyle(ink)
                         .frame(minWidth: 64, minHeight: 44)
                         .contentShape(Rectangle())
                         .accessibilityIdentifier("notebookFilm.nextSlide")
+                    }
                     Spacer()
                     #if os(iOS)
-                    if slide > 0 {
+                    if !atPlay {
                         roundButton("square.and.arrow.up", label: "Send this picture") { shareSlide() }
                             .accessibilityIdentifier("notebookFilm.shareSlide")
                     }
@@ -902,7 +925,7 @@ private struct NotebookFilmSheet: ViewModifier {
 
     func body(content: Content) -> some View {
         let binding = Binding(get: { shown }, set: { shown = $0; if !$0 { store.visible = false } })
-        let waiting = store.visible && !shown && !store.rewatching
+        let waiting = store.visible && !shown && !store.asked
         let touch = DragGesture(minimumDistance: 0).onChanged { _ in store.postpone() }
         #if os(iOS)
         content
@@ -919,7 +942,7 @@ private struct NotebookFilmSheet: ViewModifier {
 
     private func present() async {
         guard store.visible else { shown = false; return }
-        try? await Task.sleep(for: .seconds(store.rewatching ? 0.5 : 1.5))
+        try? await Task.sleep(for: .seconds(store.asked ? 0.2 : 1.5))
         if ShareAsk.lastKeystroke > store.launched { store.postpone() }
         guard store.visible else { return }
         store.follow(dark: scheme == .dark)
