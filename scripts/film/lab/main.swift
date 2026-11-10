@@ -64,6 +64,16 @@ case "flock", "lanterns", "bloom":
         }
     }
     try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
+case "galaxy":
+    // The notebook as something in space, cut from paper: its kind and its sky come from the seed.
+    var labels = FilmRenderer.Labels()
+    labels.locale = Locale(identifier: "en_US")
+    labels.markImage = mark
+    labels.look = .town
+    labels.folderNames = !args.contains("nofolders")
+    let form: GalaxyScene.Form? = args.contains("spiral") ? .spiral : args.contains("nebula") ? .nebula : args.contains("comet") ? .comet : nil
+    labels.scene = { script, names in GalaxyScene(script: script, names: names, seed: Int(seed), form: form) }
+    try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
 case "bench":
     let town = TownFilm(script: script)
     let frames = Array(stride(from: 40, to: 400, by: 12))

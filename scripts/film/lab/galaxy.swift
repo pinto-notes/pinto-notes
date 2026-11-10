@@ -1,0 +1,319 @@
+import CoreGraphics
+import Foundation
+
+// Lab: your notebook as something in space, cut from paper. Each person gets their own kind of
+// thing (a spiral galaxy, a nebula, a comet) and their own sky, from a seed; what it's made of
+// is theirs: an arm, a cloud or a strand of the tail for each folder, a paper star for each note.
+
+private typealias GR = FilmRenderer.RGB
+
+final class GalaxyScene: FilmScene {
+    enum Form: Int, CaseIterable { case spiral, nebula, comet }
+    let script: FilmScript
+    let names: Bool
+    let form: Form
+    let W = 1080.0
+    private var growth: Double { script.growth }
+    private let sky: GR, clouds: [GR]
+    private let you = GR(0xFFC45A), ai = GR(0x8FC4FF), cream = GR(0xFFF4E6), inkDark = GR(0x2A1D10)
+    private let aiFrom: [Double]
+    private let busy: Double
+    private let seed: Int
+    /// Folders with a name, largest first, and the notes in each; and the notes in none.
+    private var groups: [(folder: Int, notes: [Int])] = []
+    private var loose: [Int] = []
+    private var slot: [(group: Int, k: Int)]
+    private var centres: [CGPoint] = []
+
+    static let skies: [(UInt32, [UInt32])] = [
+        (0x15133A, [0x241F5C, 0x3A2F7C, 0x5B4196, 0x8257A8]),
+        (0x0B242E, [0x103B45, 0x1A595C, 0x2F7D74, 0x66AA8E]),
+        (0x26112B, [0x45183E, 0x6B2450, 0x963A5E, 0xC65F6E]),
+        (0x0D1A35, [0x182F55, 0x25467A, 0x3C649C, 0x7396C6]),
+        (0x1D0E33, [0x381A5C, 0x5A2A86, 0x8846A8, 0xC47BCB]),
+    ]
+
+    init(script: FilmScript, names: Bool, seed: Int, form: Form? = nil) {
+        self.script = script
+        self.names = names
+        self.seed = seed
+        self.form = form ?? Form(rawValue: seed % Form.allCases.count)!
+        let s = Self.skies[(seed / 3 + seed) % Self.skies.count]
+        sky = GR(s.0)
+        clouds = s.1.map { GR($0) }
+        aiFrom = script.nodes.map { n in n.bornByAI ? n.birth : zip(n.edits, n.aiEdits).first { $0.1 }?.0 ?? .infinity }
+        let counts = script.nodes.map(\.edits.count).sorted()
+        busy = Double(max(1, counts.isEmpty ? 1 : counts[Int(0.9 * Double(counts.count - 1))]))
+        var by = [[Int]](repeating: [], count: script.folders.count)
+        for (i, n) in script.nodes.enumerated() { by[n.folder].append(i) }
+        slot = Array(repeating: (-1, 0), count: script.nodes.count)
+        for f in by.indices.filter({ !by[$0].isEmpty }).sorted(by: { (by[$0].count, -$0) > (by[$1].count, -$1) }) {
+            if script.folders[f].isEmpty { loose = by[f]; for (k, i) in by[f].enumerated() { slot[i] = (-1, k) }; continue }
+            groups.append((f, by[f]))
+            for (k, i) in by[f].enumerated() { slot[i] = (groups.count - 1, k) }
+        }
+        // (For the nebula: where each folder's cloud sits, kept apart by their sizes.)
+        var cs = groups.indices.map { j -> (c: CGPoint, r: Double) in
+            let r = 120 * Double(j).squareRoot(), a = Double(j) * 2.399963 + Double(seed)
+            return (CGPoint(x: r * cos(a) * 1.15, y: r * sin(a) * 0.85), 15 * Double(groups[j].notes.count).squareRoot() + 30)
+        }
+        for _ in 0..<120 {
+            for a in cs.indices { for b in cs.indices where b > a {
+                let d = CGPoint(x: cs[a].c.x - cs[b].c.x, y: cs[a].c.y - cs[b].c.y)
+                let len = max(0.5, hypot(d.x, d.y)), want = cs[a].r + cs[b].r + 26
+                guard len < want else { continue }
+                let push = (want - len) / 2 / len
+                cs[a].c.x += d.x * push; cs[a].c.y += d.y * push
+                cs[b].c.x -= d.x * push; cs[b].c.y -= d.y * push
+            } }
+            for a in cs.indices { cs[a].c.x *= 0.99; cs[a].c.y *= 0.99 }
+        }
+        centres = cs.map(\.c)
+    }
+
+    var replacesNotebook: Bool { true }
+    var lift: Double { 0 }
+    var captions: [String]? { ["Each star is a note", "It grows each time it\u{2019}s written in"] }
+    var wordsDelay: Double { 0 }
+    var rewinds: Bool { false }
+    var appStart: Double { 0 }
+    func subtitle(_ stats: FilmStats) -> String? { nil }
+    func drawInFront(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {}
+    func drawRewinding(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) { drawBehind(t, canvas: canvas, in: ctx) }
+    func topInk(_ t: Double) -> FilmRenderer.RGB { cream }
+    func drawKey(ai: Bool, at p: CGPoint, alpha: Double, t: Double, in ctx: CGContext) -> Bool { false }
+
+    // MARK: Paper
+
+    /// Paper on paper: a shape with the shade it casts.
+    private func paper(_ pts: [CGPoint], _ c: GR, lift: Double = 1, in ctx: CGContext) {
+        guard pts.count > 2 else { return }
+        let k = abs(ctx.ctm.a)
+        ctx.saveGState()
+        ctx.setShadow(offset: CGSize(width: 0, height: -5 * lift * k), blur: 12 * lift * k, color: CGColor(gray: 0, alpha: 0.42))
+        ctx.addLines(between: pts)
+        ctx.closePath()
+        ctx.setFillColor(c.cg())
+        ctx.fillPath()
+        ctx.restoreGState()
+    }
+
+    /// A cloud cut by hand: a round shape whose edge wanders.
+    private func cloud(_ c: CGPoint, _ rx: Double, _ ry: Double, turn: Double = 0, key: Int) -> [CGPoint] {
+        (0..<72).map { k in
+            let a = Double(k) / 72 * 2 * .pi
+            let wob = 1 + 0.09 * sin(3 * a + lhash(key, 1) * 6) + 0.06 * sin(5 * a + lhash(key, 2) * 6) + 0.035 * sin(9 * a + lhash(key, 3) * 6)
+            let x = cos(a) * rx * wob, y = sin(a) * ry * wob
+            return CGPoint(x: c.x + x * cos(turn) - y * sin(turn), y: c.y + x * sin(turn) + y * cos(turn))
+        }
+    }
+
+    /// A four-pointed star of paper, with its shade.
+    private func star(_ p: CGPoint, _ r: Double, turn: Double, _ c: GR, in ctx: CGContext) {
+        func shape(_ dy: Double) {
+            for k in 0..<8 {
+                let a = turn + Double(k) * .pi / 4, d = k % 2 == 0 ? r : r * 0.4
+                let q = CGPoint(x: p.x + cos(a) * d, y: p.y + sin(a) * d + dy)
+                if k == 0 { ctx.move(to: q) } else { ctx.addLine(to: q) }
+            }
+            ctx.closePath()
+        }
+        shape(-2.2)
+        ctx.setFillColor(CGColor(gray: 0, alpha: 0.4))
+        ctx.fillPath()
+        shape(0)
+        ctx.setFillColor(c.cg())
+        ctx.fillPath()
+        // (A fold down its middle: one half a little lighter.)
+        ctx.move(to: CGPoint(x: p.x + cos(turn) * r, y: p.y + sin(turn) * r))
+        ctx.addLine(to: CGPoint(x: p.x + cos(turn + .pi / 4) * r * 0.4, y: p.y + sin(turn + .pi / 4) * r * 0.4))
+        ctx.addLine(to: CGPoint(x: p.x + cos(turn + .pi) * r, y: p.y + sin(turn + .pi) * r))
+        ctx.closePath()
+        ctx.setFillColor(GR(0xFFFFFF).cg(0.22))
+        ctx.fillPath()
+    }
+
+    /// A folder's name on a slip of cream paper.
+    private func tag(_ name: String, at p: CGPoint, alpha: Double, in ctx: CGContext) {
+        guard alpha > 0.02 else { return }
+        let w = FilmKit.width(name, 27, 0.3) + 26
+        let x = min(W - 30 - w, max(30, p.x - w / 2))
+        let box = CGRect(x: x, y: p.y, width: w, height: 40)
+        ctx.saveGState()
+        ctx.setAlpha(alpha)
+        ctx.setShadow(offset: CGSize(width: 0, height: -3 * abs(ctx.ctm.a)), blur: 8 * abs(ctx.ctm.a), color: CGColor(gray: 0, alpha: 0.45))
+        ctx.addPath(CGPath(roundedRect: box, cornerWidth: 7, cornerHeight: 7, transform: nil))
+        ctx.setFillColor(cream.cg())
+        ctx.fillPath()
+        ctx.restoreGState()
+        FilmKit.text(name, 27, 0.3, inkDark.cg(alpha), at: CGPoint(x: x + 13, y: p.y + 11), in: ctx)
+    }
+
+    // MARK: Drawing
+
+    func drawBehind(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {
+        let H = canvas.height, gt = min(t, growth)
+        ctx.setFillColor(sky.cg())
+        ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+        let bottom = canvas.bottom + 330, top = H - canvas.top - 120
+        let mid = CGPoint(x: W / 2, y: (bottom + top) / 2)
+        let half = CGSize(width: (W - 120) / 2, height: (top - bottom) / 2)
+        // Far clouds, two big sheets, and the small stars of the sky itself.
+        paper(cloud(CGPoint(x: mid.x - 190 + 14 * sin(0.2 * t), y: mid.y + 150), 560, 380, turn: 0.4, key: seed * 7 + 1), sky.mix(clouds[0], 0.55), lift: 1.6, in: ctx)
+        paper(cloud(CGPoint(x: mid.x + 230 - 12 * sin(0.17 * t), y: mid.y - 170), 470, 330, turn: -0.5, key: seed * 7 + 2), sky.mix(clouds[0], 0.9), lift: 1.4, in: ctx)
+        ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
+        for k in 0..<110 {
+            let p = CGPoint(x: lhash(k, seed + 1) * W, y: canvas.bottom + 300 + lhash(k, seed + 2) * (H - canvas.bottom - 300))
+            let r = 1.3 + 2.4 * pow(lhash(k, seed + 3), 3)
+            ctx.setFillColor(cream.cg(0.25 + 0.4 * lhash(k, seed + 4) * (0.7 + 0.3 * sin(1.7 * t + Double(k)))))
+            ctx.fillEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
+        }
+
+        // Where every note is, by the kind of thing this is.
+        var where_ = [CGPoint](repeating: .zero, count: script.nodes.count)
+        var labels: [(name: String, at: CGPoint, a: Double)] = []
+        var zoom = 1.0
+        func alive(_ notes: [Int]) -> Double { notes.reduce(0) { $0 + (script.nodes[$1].birth <= gt ? lsmooth((gt - script.nodes[$1].birth) / 0.45) : 0) } }
+        func born(_ notes: [Int]) -> Double { notes.first.map { script.nodes[$0].birth } ?? .infinity }
+        let most = Double(max(1, groups.first?.notes.count ?? 1))
+
+        switch form {
+        case .spiral:
+            // An arm of paper for each folder, as long as what's in it, winding out from the middle.
+            let lean = 0.62 + 0.3 * lhash(seed, 11), axis = lhash(seed, 12) * 3.14, way: Double = lhash(seed, 13) < 0.5 ? 1 : -1
+            let wind = 1.5 + 1.2 * lhash(seed, 14), spin = way * 0.05 * t
+            let full = 370.0
+            func at(_ arm: Int, _ s: Double, _ off: Double) -> CGPoint {
+                let a = Double(arm) / Double(max(1, groups.count)) * 2 * .pi + Double(seed) + way * wind * s + spin
+                let r = 46 + (full - 46) * s
+                let x = cos(a) * r - sin(a) * off, y = (sin(a) * r + cos(a) * off) * lean
+                return CGPoint(x: x * cos(axis) - y * sin(axis), y: x * sin(axis) + y * cos(axis))
+            }
+            func reach(_ j: Int) -> Double { 0.42 + 0.58 * (Double(groups[j].notes.count) / most).squareRoot() }
+            var far = 90.0
+            for (j, g) in groups.enumerated() {
+                for (k, i) in g.notes.enumerated() where script.nodes[i].birth <= gt {
+                    let s = reach(j) * (Double(k) + 0.8) / (Double(g.notes.count) + 0.4)
+                    where_[i] = at(j, s, (lhash(i, 15) - 0.5) * 2 * (30 - 12 * s))
+                    far = max(far, hypot(where_[i].x, where_[i].y) + 50)
+                }
+            }
+            for (k, i) in loose.enumerated() where script.nodes[i].birth <= gt {
+                let r = 12 * (Double(k) + 0.5).squareRoot(), a = Double(k) * 2.399963 + spin
+                where_[i] = CGPoint(x: cos(a) * r, y: sin(a) * r * lean)
+            }
+            zoom = min(2.5, min(half.width, half.height) / far)
+            func scr(_ p: CGPoint) -> CGPoint { CGPoint(x: mid.x + p.x * zoom, y: mid.y + p.y * zoom) }
+            // The disc it lies in, two sheets, then the arms, then its heart.
+            paper(cloud(mid, far * zoom * 0.98, far * zoom * 0.98 * lean, turn: axis, key: seed * 7 + 3), clouds[0], in: ctx)
+            paper(cloud(mid, far * zoom * 0.66, far * zoom * 0.66 * lean, turn: axis, key: seed * 7 + 4), clouds[1], in: ctx)
+            for (j, g) in groups.enumerated() {
+                let got = alive(g.notes)
+                guard got > 0 else { continue }
+                let upTo = reach(j) * min(1, (got + 0.6) / (Double(g.notes.count) + 0.4)) + 0.03
+                var one: [CGPoint] = [], other: [CGPoint] = []
+                for k in 0...22 {
+                    let s = upTo * Double(k) / 22
+                    let w = (40 - 14 * s) * sin(.pi * min(1, 0.12 + 0.88 * (1 - Double(k) / 22)) / 1) * min(1, got)
+                    one.append(scr(at(j, s, w))); other.append(scr(at(j, s, -w)))
+                }
+                paper(one + other.reversed(), clouds[2 + j % 2], in: ctx)
+                if names { labels.append((script.folders[g.folder], scr(at(j, upTo + 0.07, 0)), lsmooth((gt - born(g.notes) - 0.2) / 0.5))) }
+            }
+            paper(cloud(mid, 40 * zoom, 40 * zoom * lean, turn: axis, key: seed * 7 + 5), GR(0xFFE2B0), lift: 0.7, in: ctx)
+            for i in where_.indices { where_[i] = scr(where_[i]) }
+
+        case .nebula:
+            // A cloud of paper for each folder, as wide as what's in it, with its stars inside.
+            var lo = CGPoint(x: -120, y: -120), hi = CGPoint(x: 120, y: 120)
+            var radius = [Double](repeating: 0, count: groups.count)
+            for (j, g) in groups.enumerated() {
+                let got = alive(g.notes)
+                radius[j] = got > 0 ? (15 * got.squareRoot() + 30) * min(1, got * 1.5) : 0
+                guard born(g.notes) <= gt + 0.8 else { continue }
+                lo.x = min(lo.x, centres[j].x - radius[j] - 20); hi.x = max(hi.x, centres[j].x + radius[j] + 20)
+                lo.y = min(lo.y, centres[j].y - radius[j] - 20); hi.y = max(hi.y, centres[j].y + radius[j] + 60)
+            }
+            zoom = min(2.4, half.width * 2 / (hi.x - lo.x), half.height * 2 / (hi.y - lo.y))
+            let c0 = CGPoint(x: (lo.x + hi.x) / 2, y: (lo.y + hi.y) / 2)
+            func scr(_ p: CGPoint) -> CGPoint { CGPoint(x: mid.x + (p.x - c0.x) * zoom, y: mid.y + (p.y - c0.y) * zoom) }
+            for (j, g) in groups.enumerated() where radius[j] > 0 {
+                let c = scr(centres[j]), r = radius[j] * zoom
+                paper(cloud(c, r * 1.12, r * 1.02, turn: lhash(j, seed) * 3, key: seed * 13 + j), clouds[1 + j % 3].mix(sky, 0.25), in: ctx)
+                paper(cloud(c, r * 0.72, r * 0.66, turn: lhash(j, seed + 5) * 3, key: seed * 17 + j), clouds[1 + j % 3], lift: 0.6, in: ctx)
+                if names { labels.append((script.folders[g.folder], CGPoint(x: c.x, y: c.y + r * 1.05 + 8), lsmooth((gt - born(g.notes) - 0.2) / 0.5))) }
+                for (k, i) in g.notes.enumerated() where script.nodes[i].birth <= gt {
+                    let rr = 15 * (Double(k) + 0.5).squareRoot(), a = Double(k) * 2.399963 + lhash(j, seed + 9) * 6 + 0.03 * t
+                    where_[i] = scr(CGPoint(x: centres[j].x + cos(a) * rr, y: centres[j].y + sin(a) * rr))
+                }
+            }
+            for (k, i) in loose.enumerated() where script.nodes[i].birth <= gt {
+                where_[i] = scr(CGPoint(x: c0.x + (lhash(i, 3) - 0.5) * (hi.x - lo.x) * 0.9, y: c0.y + (lhash(k, 4) - 0.5) * (hi.y - lo.y) * 0.9))
+            }
+
+        case .comet:
+            // A comet crossing the sky through the month. Each note is left behind where the comet
+            // was when it was made, on its folder's strand of the tail: the tail is the month.
+            let from = CGPoint(x: mid.x - half.width * 0.74, y: mid.y - half.height * 0.42), to = CGPoint(x: mid.x + half.width * 0.6, y: mid.y + half.height * 0.66)
+            func path(_ time: Double) -> CGPoint {
+                let u = min(1, max(0, time / growth)), bow = sin(.pi * u) * 90
+                return CGPoint(x: from.x + (to.x - from.x) * u + bow * 0.5, y: from.y + (to.y - from.y) * u - bow)
+            }
+            let head = path(gt)
+            let dir = CGPoint(x: (to.x - from.x) / hypot(to.x - from.x, to.y - from.y), y: (to.y - from.y) / hypot(to.x - from.x, to.y - from.y))
+            let across = CGPoint(x: -dir.y, y: dir.x)
+            func strand(_ j: Int, _ time: Double) -> CGPoint {
+                // Further back along the tail the strands fan apart.
+                let p = path(time), age = (gt - time) / growth
+                let off = (Double(j) - Double(groups.count - 1) / 2) * (16 + 150 * age) / Double(max(1, groups.count - 1)) * 2.2
+                return CGPoint(x: p.x + across.x * off, y: p.y + across.y * off - 46 * age * age)
+            }
+            for (j, g) in groups.enumerated() {
+                let first = born(g.notes)
+                guard first <= gt else { continue }
+                var one: [CGPoint] = [], other: [CGPoint] = []
+                for k in 0...20 {
+                    let time = first + (gt - first) * Double(k) / 20
+                    let p = strand(j, time), w = 5 + 15 * sin(.pi * min(1, 0.1 + 0.9 * Double(k) / 20) / 2) * min(1, alive(g.notes) / 2)
+                    one.append(CGPoint(x: p.x + across.x * w, y: p.y + across.y * w)); other.append(CGPoint(x: p.x - across.x * w, y: p.y - across.y * w))
+                }
+                paper(one + other.reversed(), clouds[1 + j % 3], in: ctx)
+                // (Its name where the strand begins, on the side away from the others.)
+                if names {
+                    let end = strand(j, first), side: Double = Double(j) < Double(groups.count - 1) / 2 ? -1 : 1
+                    labels.append((script.folders[g.folder], CGPoint(x: end.x + across.x * side * 46 - dir.x * 20, y: end.y + across.y * side * 46 - dir.y * 20 - 20), lsmooth((gt - first - 0.6) / 0.5)))
+                }
+                for i in g.notes where script.nodes[i].birth <= gt {
+                    let p = strand(j, script.nodes[i].birth)
+                    where_[i] = CGPoint(x: p.x + across.x * (lhash(i, 5) - 0.5) * 26, y: p.y + across.y * (lhash(i, 5) - 0.5) * 26)
+                }
+            }
+            for i in loose where script.nodes[i].birth <= gt { where_[i] = path(script.nodes[i].birth) }
+            // Its head: sheets of paper, the lightest on top.
+            paper(cloud(head, 62, 62, key: seed * 7 + 6), clouds[3], in: ctx)
+            paper(cloud(head, 44, 44, key: seed * 7 + 7), GR(0xFFE2B0), lift: 0.7, in: ctx)
+            paper(cloud(head, 24, 24, key: seed * 7 + 8), cream, lift: 0.5, in: ctx)
+        }
+
+        // The notes: paper stars, amber for yours, blue where your AI helped, larger the more
+        // they were written in, and each one flares as it's written in.
+        for (i, n) in script.nodes.enumerated() where n.birth <= gt {
+            var done = 0.0, last = n.birth
+            for e in n.edits where e <= gt { done += 1; last = e }
+            let pulse = t <= growth ? exp(-(gt - last) / 0.35) : 0.25 + 0.25 * sin(2.2 * t + Double(i))
+            let size = (7.5 + 8 * min(1, (done / busy).squareRoot())) * min(1.35, max(0.8, zoom.squareRoot())) * lbackOut((gt - n.birth) / 0.35) * (1 + 0.45 * pulse)
+            let helped = lsmooth((gt - aiFrom[i]) / 0.35)
+            star(where_[i], size, turn: lhash(i, 21) * 1.5 + 0.25 * sin(0.8 * t + Double(i)), you.mix(ai, helped).mix(GR(0xFFFFFF), 0.35 * pulse), in: ctx)
+        }
+        for l in labels { tag(l.name, at: l.at, alpha: l.a, in: ctx) }
+
+        // Nothing under the words but the sky.
+        let fade = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [sky.cg(1), sky.cg(0)] as CFArray, locations: [0, 1])!
+        ctx.setFillColor(sky.cg())
+        ctx.fill(CGRect(x: 0, y: 0, width: W, height: canvas.bottom + 250))
+        ctx.saveGState()
+        ctx.clip(to: CGRect(x: 0, y: canvas.bottom + 250, width: W, height: 80))
+        ctx.drawLinearGradient(fade, start: CGPoint(x: 0, y: canvas.bottom + 250), end: CGPoint(x: 0, y: canvas.bottom + 330), options: [])
+        ctx.restoreGState()
+    }
+}
