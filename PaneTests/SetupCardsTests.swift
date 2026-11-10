@@ -850,7 +850,7 @@ import Vision
         let words = try #require(src.range(of: "private func words(_ e: TemplateCatalog.Entry) -> some View {"))
         let body = String(src[words.lowerBound...].prefix(4200))
         let order = ["Self.thumbnail(e.pick, side: cover)", "Text(e.title)", "kind(e, have: p.have)", "e.shownDescription", "actions(e, p)", "caption(e, p)",
-                     "Button(TemplateLibraryWords.connect, action: connect)", "Button(TemplateLibraryWords.addMyself(e)) { make(e, .other) }", "asked(e, p)"]
+                     "Button(TemplateLibraryWords.connect, action: connect)", "Button(TemplateLibraryWords.addMyself(e)) { press(e, .other) }", "asked(e, p)"]
         var at = body.startIndex
         for part in order {
             let found = try #require(body.range(of: part, range: at..<body.endIndex), "\(part) is missing or out of order")
@@ -859,7 +859,11 @@ import Vision
         #expect(body.contains("HStack(alignment: .center, spacing: Self.headGap) {\n                Self.thumbnail(e.pick, side: cover)"), "the cover is beside the name, on one row")
         #expect(body.contains("caption(e, p)\n                .padding(.top, 8)"), "the line sits close under Make")
         // Plainly second: lower than Make, a quieter fill.
-        #expect(body.contains("Button(TemplateLibraryWords.addMyself(e)) { make(e, .other) }\n                    .buttonStyle(.secondaryQuiet)") && SecondaryQuietButtonStyle.height == 32)
+        #expect(body.contains("Button(TemplateLibraryWords.addMyself(e)) { press(e, .other) }\n                    .buttonStyle(.secondaryQuiet)") && SecondaryQuietButtonStyle.height == 32)
+        // Once its button is pressed a page keeps what it says: it never turns to "Open …,
+        // Already in Notes" while the library waits for the note it just made.
+        #expect(src.contains("let had = pressed[e.slug] ?? have(e)") && src.contains("if pressed[e.slug] == nil { pressed[e.slug] = .some(have(e)) }\n        make(e, ai)"))
+        #expect(!src.contains("{ make(e, ") && src.contains("case .secondary: press(e, .other)") && src.contains("{ picked = other; press(e, other) }"), "every button makes by way of press")
         #expect(src.contains("var secondary: Bool { mode == .make }"), "no second button where the first already only adds, or opens")
         #expect(!src.contains("askBox") && !src.contains("Copy Prompt") && !src.contains("opensWith"))
         #expect(src.components(separatedBy: ".keyboardShortcut(e == open && !covered ? .defaultAction : nil)").count == 3, "Return makes the open template")

@@ -462,6 +462,14 @@ struct TemplateLibraryView: View {
     /// Each app example's own page, by its template, to give it the keys.
     @State private var webs: [String: UUID] = [:]
     @State private var anchor = TemplateMenuAnchor.Box()
+    /// The pages whose button has been pressed, with where each template's note was then (nil: none).
+    @State private var pressed: [String: String?] = [:]
+
+    /// Makes a template, the page keeping what it says while it's made.
+    private func press(_ e: TemplateCatalog.Entry, _ ai: SetupCards.AI) {
+        if pressed[e.slug] == nil { pressed[e.slug] = .some(have(e)) }
+        make(e, ai)
+    }
     /// The gallery has rows under its foot: they fade out there.
     @State private var galleryMore = true
     /// The examples scrolled down from their top: the top fades while one is.
@@ -1326,7 +1334,10 @@ struct TemplateLibraryView: View {
         var copy: Bool { menu.isEmpty }
     }
     private func parts(_ e: TemplateCatalog.Entry) -> Parts {
-        let had = have(e)
+        // Once its button is pressed a page stays as it was: the note is made at once, and while
+        // the library waited for an app's first screen the page turned to "Open Habit tracker,
+        // Already in Notes" for a third of a second (real frames from the Air, 10 November 2026).
+        let had = pressed[e.slug] ?? have(e)
         let mode = Self.mode(ai: ai, reach: reach, have: had)
         return Parts(mode: mode, menu: Self.menu(mode, ai: ai, ais: ais, reach: reach), have: had, connect: mode == .plain && !ai.asks && connect != nil)
     }
@@ -1358,7 +1369,7 @@ struct TemplateLibraryView: View {
         switch s {
         case .make: primary(e, parts(e))
         case .arrow: popMenu(e, parts(e))
-        case .secondary: make(e, .other)
+        case .secondary: press(e, .other)
         case .connect: connect?()
         case .copy: copy(e)
         case .back: show(nil)
@@ -1446,7 +1457,7 @@ struct TemplateLibraryView: View {
             if p.secondary {
                 // The other way, plainly second: lower and quieter than Make, and named for what
                 // you do next.
-                Button(TemplateLibraryWords.addMyself(e)) { make(e, .other) }
+                Button(TemplateLibraryWords.addMyself(e)) { press(e, .other) }
                     .buttonStyle(.secondaryQuiet)
                     .overlay { ring(.secondary, on: e, radius: 10) }
                     .padding(.top, short ? 8 : 14)
@@ -1567,7 +1578,7 @@ struct TemplateLibraryView: View {
         }
     }
 
-    private func primary(_ e: TemplateCatalog.Entry, _ p: Parts) { make(e, p.mode == .have ? .other : ai) }
+    private func primary(_ e: TemplateCatalog.Entry, _ p: Parts) { press(e, p.mode == .have ? .other : ai) }
 
     /// The arrow's menu, its right edge on the arrow's.
     private func popMenu(_ e: TemplateCatalog.Entry, _ p: Parts) {
@@ -1589,8 +1600,8 @@ struct TemplateLibraryView: View {
             switch item {
             case .divider: menu.addItem(.separator())
             // An AI's mark is its own picture, in its colours; the copy symbol takes the menu's ink.
-            case .make(let other): add(TemplateLibraryWords.make(e, other), AIGlyph.menuPicture(other.name, dark: scheme == .dark)) { picked = other; make(e, other) }
-            case .ask(let asked): add(TemplateLibraryWords.ask(asked), AIGlyph.menuPicture(asked.name, dark: scheme == .dark)) { make(e, asked) }
+            case .make(let other): add(TemplateLibraryWords.make(e, other), AIGlyph.menuPicture(other.name, dark: scheme == .dark)) { picked = other; press(e, other) }
+            case .ask(let asked): add(TemplateLibraryWords.ask(asked), AIGlyph.menuPicture(asked.name, dark: scheme == .dark)) { press(e, asked) }
             case .copy: add(TemplateLibraryWords.copy, NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)) { copy(e) }
             }
         }
