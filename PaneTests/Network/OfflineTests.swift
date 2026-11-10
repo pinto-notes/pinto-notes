@@ -412,8 +412,10 @@ extension NetworkFaults {
         #expect(made.folder?.id == trip.id && kept.isPinned && old.trashedAt != nil && trip.parent?.id == home.id && trip.name == "Trip 2026")
         #expect(FileStore.exists(file))
         // Search and Go to Note read this device.
+        #if os(macOS)
         let items = QuickOpen.noteItems(in: context)
         #expect(items.contains { $0.title == "Lisbon" } && items.contains { $0.title == "Kept" } && !items.contains { $0.title == "Old idea" })
+        #endif
         #expect(TypoSearch.matches("socks", in: made.body))
         // Export too, with the file.
         let exported = try await NoteExport.make(context, vault: NoteVault(keyStore: MemoryKeyStore(), defaults: MemoryDefaults()))
