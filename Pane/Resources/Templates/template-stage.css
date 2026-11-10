@@ -1,11 +1,12 @@
 /* A template app on the Mac template library's stage (TemplateAppPreview.staged, and the pictures
    scripts/template-stage-pictures.ts draws): the app in use, trimmed for a window at 70 to 75%.
-   The tab bar goes, so the window shows the app's content, and the large titles and hero figures
+   The large titles and hero figures
    come down to under the sheet's own 22 pt title once zoomed (council round 4: "Today" drew at
    33 pt, "11,800 kr" at 44 pt, and the tab bar cut the first habit). Nothing here reaches a made
    note: Make adds the app as it is. */
-nav[aria-label="Screens"] { display: none !important; }
-main { padding-bottom: 0 !important; }
+/* The app's own tabs stay, at the frame's foot, as they are in your notes (council, 10 November
+   2026: the example hid the app's Month, Habits, Days and Packing, and said "See them all in
+   Days" with no Days to press). They were hidden through round 3. */
 h1, h1[class] { font-size: 1.375rem !important; line-height: 1.25 !important; }
 /* Sections a little closer, so the stage's window ends on whole rows, not on a blank band where
    the next section didn't fit (council round 6: 75 pt of empty card under Budget, 45 under Study).

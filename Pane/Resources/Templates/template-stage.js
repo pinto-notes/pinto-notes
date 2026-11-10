@@ -3,8 +3,8 @@
 // round 5: half a "Groceries" row, "STREAK" and "TO DO" alone in the fade). A card that the foot
 // would cut ends after its last row that fits, with its own padding under it; anything else the
 // foot would cut goes, with all that comes after it in its column; a section heading left last
-// without its card goes too. Once the person scrolls the live app (a wheel or a key), everything
-// shows again. Nothing here reaches a made note: Make adds the app as it is.
+// without its card goes too. The foot is the top of the app's own tabs. Once the person scrolls
+// the live app (a wheel or a key), everything shows again. Nothing here reaches a made note: Make adds the app as it is.
 // The app shows today, as it would in your notes (9 November 2026: the stage used to set the
 // app's clock to the latest Thursday, and said "Thursday 5 November, Today" on a Monday).
 (() => {
@@ -16,8 +16,17 @@
   let open = false
   const clipped = new Set()
 
-  // A pixel spare, so a block ending on the line is never in the fade once rounded.
-  const limit = () => innerHeight - FADE - 1
+  // The foot: the top of the app's own tabs, which sit along the stage's foot as they do in your
+  // notes, with a little air over them; with no tabs, the fade. A pixel spare, so a block ending
+  // on the line is never under either once rounded.
+  const GAP = 8
+  const tabs = () => {
+    const nav = document.querySelector('nav[aria-label="Screens"]')
+    if (!nav || getComputedStyle(nav).display === "none") return null
+    const r = nav.getBoundingClientRect()
+    return r.height ? r : null
+  }
+  const limit = () => { const t = tabs(); return (t ? t.top - GAP : innerHeight - FADE) - 1 }
 
   const box = (style) => style.backgroundColor !== "rgba(0, 0, 0, 0)" && style.backgroundColor !== "transparent"
   // A block nothing may cut: a leaf (text, an icon, a control), or anything drawn as a box of its own.

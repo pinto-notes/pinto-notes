@@ -295,6 +295,14 @@ struct NotePreview: View {
     /// The small stage's type: 12 pt lines, closer together, so a short note shows whole there
     /// (council round 4: Weekly review showed four of its five questions).
     var compact = false
+    /// The note's margin at its sides in a `whole` window; nil is its own (20, or 16 compact).
+    var margin: CGFloat? = nil
+    /// A table's type size in a `whole` window; nil is the system's footnote (the template
+    /// library's page sets tables at the body's size: at 10 pt beside 13 pt lines the table was
+    /// the hardest thing to read in an example; council, 10 November 2026).
+    var tableSize: CGFloat? = nil
+    /// The sub-note row shown as picked (the one open beside the list), by its name.
+    var picked: String? = nil
 
     enum Block: Equatable {
         case title(String)
@@ -372,7 +380,7 @@ struct NotePreview: View {
                     }
                 }
             }
-            .padding(.horizontal, compact ? 16 : 20)
+            .padding(.horizontal, margin ?? (compact ? 16 : 20))
             .padding(.vertical, compact ? 12 : 16)
             .font(compact ? .system(size: 12) : nil)
             .foregroundStyle(Color.ink)
@@ -409,6 +417,9 @@ struct NotePreview: View {
         out = out.replacingOccurrences(of: #"\b(\d{1,2})\s+("# + months + #")\b"#, with: "$1\(nb)$2", options: .regularExpression)
         return out
     }
+
+    /// The wash under the picked sub-note's row.
+    nonisolated static let pickedWash = 0.09
 
     /// A line that is one link to a sub-note ("[Cardamom buns](pane-note:…)"): its title.
     nonisolated static func subnote(_ line: String) -> String? {
@@ -457,13 +468,13 @@ struct NotePreview: View {
     /// How wide each column must be so none of its words breaks: its longest word ("Workout",
     /// "120 kg × 3", "26 Sep": a value kept in one piece is one word), in the cell's type, and the
     /// cell's padding (council round 5: "Work-out", "Min-utes" and "26 / Sep" broke mid-word).
-    nonisolated static func leastWidths(header: [String], rows: [[String]]) -> [CGFloat] {
+    nonisolated static func leastWidths(header: [String], rows: [[String]], size given: CGFloat? = nil) -> [CGFloat] {
         #if os(iOS)
         typealias Font = UIFont
         #else
         typealias Font = NSFont
         #endif
-        let size = Font.preferredFont(forTextStyle: .footnote).pointSize
+        let size = given ?? Font.preferredFont(forTextStyle: .footnote).pointSize
         let plain = Font.monospacedDigitSystemFont(ofSize: size, weight: .regular)
         let bold = Font.monospacedDigitSystemFont(ofSize: size, weight: .semibold)
         func widest(_ s: String, _ font: Font) -> CGFloat {
@@ -479,7 +490,7 @@ struct NotePreview: View {
     /// at the same column widths, joined with no space between, cells wrapped at a word.
     @ViewBuilder private func tableRows(header: [String], rows: [[String]]) -> some View {
         let shares = Self.shares(header: header, rows: rows)
-        let least = Self.leastWidths(header: header, rows: rows)
+        let least = Self.leastWidths(header: header, rows: rows, size: tableSize)
         let need = least.reduce(0, +)
         let shown = rows.isEmpty ? [header.map { _ in "" }] : rows
         TableRowLayout(shares: shares, least: least) { ForEach(Array(header.enumerated()), id: \.offset) { wholeCell($0.element, header: true) } }
@@ -523,7 +534,7 @@ struct NotePreview: View {
 
     private func wholeCell(_ s: String, header: Bool) -> some View {
         inline(Self.shownCell(s).isEmpty ? " " : Self.shownCell(s))
-            .font(header ? .footnote.weight(.semibold) : .footnote)
+            .font(tableSize.map { .system(size: $0, weight: header ? .semibold : .regular) } ?? (header ? .footnote.weight(.semibold) : .footnote))
             .monospacedDigit()
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -549,13 +560,22 @@ struct NotePreview: View {
                     Image(systemName: "doc.text").foregroundStyle(Color.muted)
                     Text(title)
                 }
+                // The one open beside the list is picked, as a note is in the notes list.
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 3)
+                .padding(.horizontal, 8)
+                .background { if title == picked { RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.primary.opacity(Self.pickedWash)) } }
+                .padding(.horizontal, -8)
+                .accessibilityAddTraits(title == picked ? .isSelected : [])
             } else {
                 inline(whole ? Self.lastWordsKept(s) : s).fixedSize(horizontal: false, vertical: true)
             }
         case .check(let done, let s, let n):
             HStack(alignment: .firstTextBaseline, spacing: 10) {
+                // In an example an empty circle is as plain to see as a ticked one: in the
+                // tertiary grey it all but went on the dark frame (council, 10 November 2026).
                 Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(done ? AnyShapeStyle(Color(PColor.paneAccent)) : AnyShapeStyle(.tertiary))
+                    .foregroundStyle(done ? AnyShapeStyle(Color(PColor.paneAccent)) : whole ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
                     .imageScale(.large)
                 inline(whole ? Self.lastWordsKept(s) : s).foregroundStyle(done ? Color.muted : Color.ink)
             }
@@ -641,8 +661,13 @@ struct WholeBlocks: Layout {
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let width = proposal.width ?? 320
-        let height = proposal.height ?? subviews.reduce(0) { $0 + $1.sizeThatFits(.init(width: width, height: nil)).height + spacing }
-        return CGSize(width: width, height: height)
+        // With no height given (in a scroll view): all of them, as they're placed, a joined
+        // block right under the one before it and no space after the last.
+        var all: CGFloat = 0
+        if proposal.height == nil {
+            for (i, s) in subviews.enumerated() { all += s.sizeThatFits(.init(width: width, height: nil)).height + (i > 0 && s[Joined.self] ? 0 : (i > 0 ? spacing : 0)) }
+        }
+        return CGSize(width: width, height: proposal.height ?? all)
     }
 
     /// How many of the blocks show, given their heights, in a window of `room` points: whole ones

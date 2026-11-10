@@ -228,7 +228,10 @@ private struct AmberProminentButton: View {
                         else if !off && (hovering || preview.contains("*")) { shape.fill(ink ? Color.white.opacity(0.12) : Color(Palette.primaryButtonHover)) }
                     }
             }
-            .modifier(ButtonChrome(shape: shape, pressed: configuration.isPressed, focused: isFocused))
+            // One half of a split button keeps its place and size when pressed, and only its fill
+            // darkens: dipping, it drew away from its other half and a gap opened between the two
+            // (real clicks on the Air, 10 November 2026).
+            .modifier(ButtonChrome(shape: shape, pressed: joined == nil && configuration.isPressed, focused: isFocused))
             .modifier(HoverTracking(hovering: $hovering))
             .accessibilityValue(busy ? Text("Working") : Text(""))
     }

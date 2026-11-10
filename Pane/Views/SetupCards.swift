@@ -512,9 +512,12 @@ struct SetupTemplateCard: View {
     /// Which of its words draw on the cover, each kept in its place when it doesn't: the
     /// caption-contrast test reads the cover behind them (SetupCardsTests).
     var words: Words = .both
-    /// The line under the art, where it isn't the pick's own (the library's: a few words, and
-    /// "App · " first for one with an app).
+    /// The line under the art, where it isn't the pick's own (the library's: a few words).
     var line: String?
+    /// A template with an app: the app's own mark (the soft capsule the notes list shows after an
+    /// app's name) leads the line under the art, in the same place on every app's card. Beside
+    /// the name it didn't fit: "Study notes and flashcards" fills its line alone.
+    var app = false
     /// The pointer came onto the card, or left it (the library gets a template's page ready then).
     var pointer: (Bool) -> Void = { _ in }
     let action: () -> Void
@@ -547,6 +550,13 @@ struct SetupTemplateCard: View {
     static let lineSize: CGFloat = 12.5
     /// How wide the words under the art may be: the art's width less a hair each side.
     static func wordsWidth(_ width: CGFloat) -> CGFloat { width - 4 }
+    /// The app's mark before an app's line, and the room it takes with the gap after it.
+    static let markSize: CGFloat = 12
+    static let markGap: CGFloat = 5
+    static var markRoom: CGFloat {
+        let word = ("App" as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: markSize * 0.74, weight: .semibold)]).width
+        return (word + markSize * 0.4 * 2).rounded(.up) + markGap
+    }
 
     var body: some View {
         if captionBelow { below } else { onCover }
@@ -574,9 +584,14 @@ struct SetupTemplateCard: View {
                         .minimumScaleFactor(Self.nameShrink)
                         // One height for every name, the shrunk one too, so the lines under them are level.
                         .frame(height: 18, alignment: .bottomLeading)
-                    Text(line ?? pick.line).font(.system(size: Self.lineSize)).foregroundStyle(Color.muted)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                    HStack(spacing: Self.markGap) {
+                        if app { AppMarkView(size: Self.markSize) }
+                        Text(line ?? pick.line).font(.system(size: Self.lineSize)).foregroundStyle(Color.muted)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    // One height with the mark and without, so every card is as tall.
+                    .frame(height: 17, alignment: .leading)
                 }
                 .frame(width: Self.wordsWidth(width), alignment: .leading)
                 .padding(.horizontal, 2)
@@ -592,7 +607,7 @@ struct SetupTemplateCard: View {
             withAnimation(.smooth(duration: 0.15)) { hover = h }
             pointer(h)
         }
-        .accessibilityLabel("\(pick.title). \(line ?? pick.line)")
+        .accessibilityLabel("\(pick.title). \(app ? "App. " : "")\(line ?? pick.line)")
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityIdentifier("templates.\(pick.slug)")
     }
