@@ -16,7 +16,7 @@ let days = args.first { $0.hasPrefix("days=") }.flatMap { Int($0.dropFirst(5)) }
 let perWeek = args.first { $0.hasPrefix("perweek=") }.flatMap { Double($0.dropFirst(8)) } ?? 1
 // "me" is Emil's own month: 20 notes brought in, 15 made, 12 of those removed again, and a tracker
 // written in every day. "kb" is a knowledge base built for an AI: hundreds brought in and many made.
-let input = args.contains("me") ? FilmDemo.real(days: days, seed: seed, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true)
+let input = args.contains("me") ? FilmDemo.real(days: days, seed: seed, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: args.contains("evening"))
     : args.contains("kb") ? FilmDemo.real(days: days, seed: seed, notesPerWeek: 22, imported: 240, removed: 8, linked: 0.6)
     : args.contains("real") || args.contains("realdaily")
     ? FilmDemo.real(days: days, seed: seed, notesPerWeek: perWeek, dailyNote: args.contains("realdaily"))
@@ -28,6 +28,10 @@ var mark: CGImage?
 if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: "Pane/Resources/Assets.xcassets/MarkTight.imageset/mark-tight.png") as CFURL, nil) { mark = CGImageSourceCreateImageAtIndex(src, 0, nil) }
 let start = Date()
 switch style {
+case "slides":
+    // Pilot: the intro and the strongest slides, in the night and day palettes: OUT is a folder.
+    try Slides(input: input, script: script, seed: Int(seed), mark: mark).write(to: out)
+    exit(0)
 case "cards":
     // The month as pictures to send to a friend, one true thing on each: OUT is a folder.
     try RecapCards(input: input, script: script, seed: Int(seed), mark: mark).write(to: out)

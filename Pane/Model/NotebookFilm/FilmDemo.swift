@@ -154,7 +154,7 @@ enum FilmDemo {
     /// `imported` notes are brought in on the first day (most are seldom opened again), `removed`
     /// of the notes made along the way are thrown out some days later, and `habit` is one note
     /// written in every day (a tracker).
-    static func real(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), notesPerWeek: Double = 1, dailyNote: Bool = false, ai: String? = "ChatGPT", imported: Int = 0, removed: Int = 0, habit: Bool = false, linked: Double = 0) -> FilmInput {
+    static func real(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), notesPerWeek: Double = 1, dailyNote: Bool = false, ai: String? = "ChatGPT", imported: Int = 0, removed: Int = 0, habit: Bool = false, linked: Double = 0, evening: Bool = false) -> FilmInput {
         var rng = seed &* 0x2545_F491_4F6C_DD1D | 1
         func rand() -> Double {
             rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
@@ -208,6 +208,8 @@ enum FilmDemo {
                 let chance = notes[i].habit ? 1 : notes[i].imported ? 0.07 : notes[i].standing ? (day.timeIntervalSince(notes[i].created) > 21 * 86_400 ? 0.3 : 0.45) : 0.03
                 guard d > 0, rand() < chance else { continue }
                 var at = day.addingTimeInterval(9 * 3600 + rand() * 9 * 3600)
+                // (Someone who writes after work: most of it in the evening, late.)
+                if evening, rand() < 0.65 { at = day.addingTimeInterval(20.5 * 3600 + rand() * 3.2 * 3600) }
                 let versions = 1 + (rand() < 0.35 ? 1 : 0) + (rand() < 0.1 ? 1 : 0)
                 // (Now and then your AI is the one writing in it.)
                 let helped = ai != nil && d >= 4 && rand() < 0.22
