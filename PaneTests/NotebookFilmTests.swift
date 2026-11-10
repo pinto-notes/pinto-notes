@@ -769,6 +769,24 @@ import Testing
         #expect(livesInIt.work > usual.work * 3)
     }
 
+    @Test func theRealisticDemoIsAMonthAsNotebooksAreReallyUsed() {
+        // A new note about once a week, each written in on up to every other day, and an edit is
+        // what the server keeps of a day's work in a note: a version or a few, never dozens.
+        let input = FilmDemo.real(days: 35, now: Self.now)
+        #expect((5...9).contains(input.notes.count))
+        let perDay = Dictionary(grouping: input.notes.flatMap(\.edits), by: { Self.cal.startOfDay(for: $0.at) }).mapValues(\.count)
+        #expect((perDay.values.max() ?? 0) <= 12)
+        for n in input.notes {
+            let alive = Self.now.timeIntervalSince(n.created) / 86_400
+            #expect(Double(n.edits.count) <= alive * 0.9 + 4, "about every other day, a version or two each time")
+        }
+        #expect(input.notes.allSatisfy { $0.edits.first?.at == $0.created && $0.edits.map(\.at) == $0.edits.map(\.at).sorted() })
+        #expect(FilmDemo.real(days: 35, now: Self.now, dailyNote: true).notes.count > 25, "someone who keeps a note for each day")
+        // At a note a week a month isn't notes enough for the film as the bar stands.
+        #expect(!FilmEligibility.isReady(input, calendar: Self.cal))
+        #expect(FilmScript(input, calendar: Self.cal).form == .nebula, "a few folders: a cloud for each")
+    }
+
     @Test func theFilmBeginsAtTheFirstNote() {
         // Not at the midnight before it: there's never a frame of an empty month with "0 notes".
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)

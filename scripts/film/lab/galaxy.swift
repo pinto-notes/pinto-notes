@@ -33,6 +33,13 @@ final class GalaxyScene: FilmScene {
     private var groupEdits: [[Double]] = []
     /// While it's only being laid out (to know where the camera should look), nothing is drawn.
     private var quiet = false
+    /// In the nebula every note has room of its own: how far apart a folder's notes sit, by how
+    /// large its stars will be, so no star lies on another and each one's specks stay its own.
+    private var cells: [Double] = []
+    private var noteCell: [Double] = []
+    /// A star's size there, by how often it's been written in (in the picture's own units).
+    private func starSize(_ edits: Double) -> Double { min(24, 6 + 1.6 * edits.squareRoot()) }
+    private func cloudSize(_ j: Int, _ notes: Double) -> Double { cells[j] * notes.squareRoot() + cells[j] * 1.3 + 14 }
 
     static let skies: [(UInt32, [UInt32])] = [
         (0x15133A, [0x241F5C, 0x3A2F7C, 0x5B4196, 0x8257A8]),
@@ -62,10 +69,15 @@ final class GalaxyScene: FilmScene {
             for (k, i) in by[f].enumerated() { slot[i] = (groups.count - 1, k) }
         }
         groupEdits = groups.map { g in g.notes.flatMap { script.nodes[$0].edits }.sorted() }
+        cells = groups.map { g in
+            let sizes = g.notes.map { starSize(Double(script.nodes[$0].edits.count)) }
+            return max(15, 1.3 * (0.5 * sizes.reduce(0, +) / Double(max(1, sizes.count)) + 0.5 * (sizes.max() ?? 6)))
+        }
+        noteCell = slot.map { $0.group >= 0 ? cells[$0.group] : 15 }
         // (For the nebula: where each folder's cloud sits, kept apart by their sizes.)
         var cs = groups.indices.map { j -> (c: CGPoint, r: Double) in
             let r = 120 * Double(j).squareRoot(), a = Double(j) * 2.399963 + Double(seed)
-            return (CGPoint(x: r * cos(a) * 1.15, y: r * sin(a) * 0.85), 15 * Double(groups[j].notes.count).squareRoot() + 30)
+            return (CGPoint(x: r * cos(a) * 1.15, y: r * sin(a) * 0.85), cloudSize(j, Double(groups[j].notes.count)))
         }
         for _ in 0..<120 {
             for a in cs.indices { for b in cs.indices where b > a {
@@ -263,6 +275,8 @@ final class GalaxyScene: FilmScene {
             if let n = b.node { spot[n] = a } else if let f = b.folder, let j = groups.firstIndex(where: { $0.folder == f }) { named[j] = a }
         }
 
+        /// Set where stars are sized in the picture's own units (the nebula): how large a unit is drawn.
+        var unit: Double?
         // Where every note is, by the kind of thing this is.
         func build() -> (at: [CGPoint], labels: [(name: String, at: CGPoint, a: Double, group: Int)], zoom: Double, heart: CGPoint) {
         var where_ = [CGPoint](repeating: .zero, count: script.nodes.count)
@@ -354,12 +368,13 @@ final class GalaxyScene: FilmScene {
             var radius = [Double](repeating: 0, count: groups.count)
             for (j, g) in groups.enumerated() {
                 let got = alive(g.notes)
-                radius[j] = got > 0 ? (15 * got.squareRoot() + 30) * min(1, got * 1.5) : 0
+                radius[j] = got > 0 ? cloudSize(j, got) * min(1, got * 1.5) : 0
                 guard born(g.notes) <= gt + 0.8 else { continue }
                 lo.x = min(lo.x, centres[j].x - radius[j] - 20); hi.x = max(hi.x, centres[j].x + radius[j] + 20)
                 lo.y = min(lo.y, centres[j].y - radius[j] - 20); hi.y = max(hi.y, centres[j].y + radius[j] + 60)
             }
-            zoom = min(2.4, half.width * 2 / (hi.x - lo.x), half.height * 2 / (hi.y - lo.y))
+            zoom = min(3.4, half.width * 2 / (hi.x - lo.x), half.height * 2 / (hi.y - lo.y))
+            unit = zoom
             let c0 = CGPoint(x: (lo.x + hi.x) / 2, y: (lo.y + hi.y) / 2)
             func scr(_ p: CGPoint) -> CGPoint { CGPoint(x: mid.x + (p.x - c0.x) * zoom, y: mid.y + (p.y - c0.y) * zoom) }
             // (With a lot of work in it the clouds lie on one great sheet: it's become one thing.)
@@ -374,7 +389,7 @@ final class GalaxyScene: FilmScene {
                 if b > 0 { paper(cloud(c, r * 0.25 * b, r * 0.23 * b, turn: lhash(j, seed + 7) * 3, key: seed * 23 + j), base.mix(cream, 0.42), lift: 0.4, in: ctx) }
                 if names { labels.append((script.folders[g.folder], CGPoint(x: c.x, y: c.y + r * 1.05 + 8), lsmooth((gt - born(g.notes) - 0.2) / 0.5), j)) }
                 for (k, i) in g.notes.enumerated() where script.nodes[i].birth <= gt {
-                    let rr = 15 * (Double(k) + 0.5).squareRoot(), a = Double(k) * 2.399963 + lhash(j, seed + 9) * 6 + 0.03 * t
+                    let rr = cells[j] * (Double(k) + 0.5).squareRoot(), a = Double(k) * 2.399963 + lhash(j, seed + 9) * 6 + 0.03 * t
                     where_[i] = scr(CGPoint(x: centres[j].x + cos(a) * rr, y: centres[j].y + sin(a) * rr))
                 }
             }
@@ -490,10 +505,14 @@ final class GalaxyScene: FilmScene {
                 let age = gt - n.edits[k]
                 if age < 0 { break }
                 let fresh = max(0, 1 - age / 0.5)
-                let a = a0 + Double(k) * 2.399963, rad = (8 + 4.6 * Double(k).squareRoot()) * u * lbackOut(age / 0.4)
+                let a = a0 + Double(k) * 2.399963
+                var rad = (8 + 4.6 * Double(k).squareRoot()) * u
+                // (In the nebula a note's specks keep to the room round it, just outside the star.)
+                if let unit { rad = (1.2 * starSize(Double(n.edits.count)) + 0.42 * noteCell[i] * (Double(k) / Double(max(6, n.edits.count))).squareRoot()) * unit }
+                rad *= lbackOut(age / 0.4)
                 let q = CGPoint(x: p.x + cos(a) * rad, y: p.y + sin(a) * rad)
                 let flash = lit(q)
-                let h = lhash(i * 131 + k, 7), sz = (2.0 + 1.8 * h) * u * (1 + 1.2 * fresh + 1.5 * flash)
+                let h = lhash(i * 131 + k, 7), sz = (2.0 + 1.8 * h) * (unit.map { min(2.6, max(0.8, $0 * 0.8)) } ?? u) * (1 + 1.2 * fresh + 1.5 * flash)
                 let alpha = t <= growth ? 0.92 : 0.66 + 0.3 * sin(2.6 * t + Double(k) * 1.7 + Double(i))
                 ctx.move(to: CGPoint(x: q.x, y: q.y + sz))
                 ctx.addLine(to: CGPoint(x: q.x + sz * 0.8, y: q.y))
@@ -511,7 +530,7 @@ final class GalaxyScene: FilmScene {
             var done = 0.0, last = n.birth
             for e in n.edits where e <= gt { done += 1; last = e }
             let pulse = t <= growth ? exp(-(gt - last) / 0.35) : 0.25 + 0.25 * sin(2.2 * t + Double(i)) + 0.9 * lit(where_[i])
-            let r = min(30, 7 + 1.9 * done.squareRoot()) * u * lbackOut((gt - n.birth) / 0.35) * (1 + 0.4 * pulse) * (1 + 0.5 * (spot[i] ?? 0))
+            let r = (unit.map { starSize(done) * $0 } ?? min(30, 7 + 1.9 * done.squareRoot()) * u) * lbackOut((gt - n.birth) / 0.35) * (1 + (unit == nil ? 0.4 : 0.22) * pulse) * (1 + (unit == nil ? 0.5 : 0.2) * (spot[i] ?? 0))
             let helped = lsmooth((gt - aiFrom[i]) / 0.35)
             if let a = spot[i] {
                 // (The note this moment is about: a ring of paper round it, and it stands larger.)

@@ -146,4 +146,66 @@ enum FilmDemo {
         for i in notes.indices { notes[i].edits.sort { $0.at < $1.at } }
         return FilmInput(notes: notes.map { FilmNote(id: $0.id, folder: $0.folder, created: $0.created, edits: $0.edits, links: $0.links) }, now: now)
     }
+
+    /// A month the way a notebook is really used, for judging the film honestly: a new note about
+    /// once a week, each one written in on up to every other day, and an edit is what the server
+    /// keeps of that (a version or two for a day a note was worked in, never dozens).
+    /// `dailyNote` adds someone's note for each day, written that day and seldom again.
+    static func real(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), notesPerWeek: Double = 1, dailyNote: Bool = false, ai: String? = "ChatGPT") -> FilmInput {
+        var rng = seed &* 0x2545_F491_4F6C_DD1D | 1
+        func rand() -> Double {
+            rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
+            return Double(rng >> 11) / Double(1 << 53)
+        }
+        let cal = Calendar(identifier: .gregorian)
+        let firstDay = cal.startOfDay(for: now.addingTimeInterval(-Double(days - 1) * 86_400))
+        let folders: [(String, Double)] = [("Work", 0.4), ("Ideas", 0.25), ("Home", 0.2), ("Reading", 0.15)]
+        struct Draft { var id: UUID; var folder: String; var created: Date; var edits: [FilmEdit]; var standing: Bool }
+        var notes: [Draft] = []
+        var made: UInt64 = seed << 32
+        func add(_ folder: String, at: Date, standing: Bool) {
+            made += 1
+            var b = made
+            let id = withUnsafeBytes(of: &b) { raw -> UUID in
+                let x = Array(raw)
+                return UUID(uuid: (x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], 0x40, 0, 0x80, 1, 0, 0, 0, UInt8(seed & 0xFF)))
+            }
+            notes.append(Draft(id: id, folder: folder, created: at, edits: [FilmEdit(at: at, ai: nil)], standing: standing))
+        }
+        // (You begin by writing a couple.)
+        var owed = 2.0
+        for d in 0..<days {
+            let day = firstDay.addingTimeInterval(Double(d) * 86_400)
+            let weekday = cal.component(.weekday, from: day)
+            owed += notesPerWeek / 7
+            // Some days you don't open it at all, weekends most.
+            if d > 0, rand() < (weekday == 1 || weekday == 7 ? 0.5 : 0.1) { continue }
+            let before = notes.count
+            // What's there already: each standing note on up to every other day, a little less once it's old.
+            for i in 0..<before where rand() < (notes[i].standing ? (day.timeIntervalSince(notes[i].created) > 21 * 86_400 ? 0.3 : 0.45) : 0.03) {
+                var at = day.addingTimeInterval(9 * 3600 + rand() * 9 * 3600)
+                let versions = 1 + (rand() < 0.35 ? 1 : 0) + (rand() < 0.1 ? 1 : 0)
+                // (Now and then your AI is the one writing in it.)
+                let helped = ai != nil && d >= 4 && rand() < 0.22
+                for v in 0..<versions {
+                    notes[i].edits.append(FilmEdit(at: at, ai: helped && v == versions - 1 ? ai : nil))
+                    at += 600 + rand() * 5400
+                }
+            }
+            while owed + (rand() - 0.5) * 0.9 >= 1 {
+                owed -= 1
+                var r = rand(), f = folders[0].0
+                for x in folders { r -= x.1; if r <= 0 { f = x.0; break } }
+                add(f, at: day.addingTimeInterval(9 * 3600 + rand() * 11 * 3600), standing: true)
+            }
+            if dailyNote {
+                let at = day.addingTimeInterval(8 * 3600 + rand() * 3 * 3600)
+                add("Daily", at: at, standing: false)
+                if rand() < 0.5 { notes[notes.count - 1].edits.append(FilmEdit(at: at.addingTimeInterval(4 * 3600 + rand() * 6 * 3600), ai: nil)) }
+            }
+        }
+        notes.removeAll { $0.created > now }
+        for i in notes.indices { notes[i].edits.removeAll { $0.at > now }; notes[i].edits.sort { $0.at < $1.at } }
+        return FilmInput(notes: notes.map { FilmNote(id: $0.id, folder: $0.folder, created: $0.created, edits: $0.edits, links: []) }, now: now)
+    }
 }

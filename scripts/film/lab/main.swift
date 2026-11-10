@@ -10,7 +10,13 @@ let person = args.contains("p1") ? 1 : args.contains("p2") ? 2 : args.contains("
 // "busy" is someone who writes in their notes three times as often; "super" lives in it: a big
 // month, written in eight times as often.
 let lives = args.contains("super")
-let input = FilmDemo.notebook(days: 35, seed: seed, light: args.contains("light"), heavy: args.contains("heavy") || lives, person: person, work: lives ? 8 : args.contains("busy") ? 3 : 1, daily: style == "galaxy" && !args.contains("mixed"))
+let days = args.first { $0.hasPrefix("days=") }.flatMap { Int($0.dropFirst(5)) } ?? 35
+// "real" is a month the way a notebook is really used (a new note about once a week, written in on
+// up to every other day); "realdaily" adds a note for each day; "perweek=3" changes how often.
+let perWeek = args.first { $0.hasPrefix("perweek=") }.flatMap { Double($0.dropFirst(8)) } ?? 1
+let input = args.contains("real") || args.contains("realdaily")
+    ? FilmDemo.real(days: days, seed: seed, notesPerWeek: perWeek, dailyNote: args.contains("realdaily"))
+    : FilmDemo.notebook(days: days, seed: seed, light: args.contains("light"), heavy: args.contains("heavy") || lives, person: person, work: lives ? 8 : args.contains("busy") ? 3 : 1, daily: (style == "galaxy" || style == "dump") && !args.contains("mixed"))
 // "long=17" tries another length for the biggest notebooks' films (seconds of growing).
 let longest = args.first { $0.hasPrefix("long=") }.flatMap { Double($0.dropFirst(5)) } ?? FilmScript.longGrowth
 let script = FilmScript(input, calendar: Calendar(identifier: .gregorian), longest: longest)
@@ -18,6 +24,18 @@ var mark: CGImage?
 if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: "Pane/Resources/Assets.xcassets/MarkTight.imageset/mark-tight.png") as CFURL, nil) { mark = CGImageSourceCreateImageAtIndex(src, 0, nil) }
 let start = Date()
 switch style {
+case "dump":
+    // What's in the notebook, day by day, for drawing a timeline of it: {start, days, notes: [{folder, created, edits: [[day, ai]]}]}.
+    let cal = Calendar(identifier: .gregorian)
+    let day0 = cal.startOfDay(for: input.notes.map(\.created).min() ?? input.now)
+    func day(_ d: Date) -> Double { (d.timeIntervalSince(day0) / 86_400 * 1000).rounded() / 1000 }
+    let notes = input.notes.sorted { $0.created < $1.created }.map { n -> [String: Any] in
+        ["folder": n.folder, "created": day(n.created), "edits": n.edits.map { [day($0.at), $0.ai == nil ? 0 : 1] }]
+    }
+    let all: [String: Any] = ["start": ISO8601DateFormatter().string(from: day0), "days": day(input.now), "notes": notes, "form": script.form.rawValue, "growth": script.growth]
+    try JSONSerialization.data(withJSONObject: all).write(to: out)
+    print("\(input.notes.count) notes, \(script.work) edits, most in one note \(input.notes.map(\.edits.count).max() ?? 0), form \(script.form.rawValue)")
+    exit(0)
 case "town":
     let film = TownFilm(script: script)
     film.mark = mark
