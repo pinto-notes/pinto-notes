@@ -11,7 +11,9 @@ let person = args.contains("p1") ? 1 : args.contains("p2") ? 2 : args.contains("
 // month, written in eight times as often.
 let lives = args.contains("super")
 let input = FilmDemo.notebook(days: 35, seed: seed, light: args.contains("light"), heavy: args.contains("heavy") || lives, person: person, work: lives ? 8 : args.contains("busy") ? 3 : 1)
-let script = FilmScript(input, calendar: Calendar(identifier: .gregorian))
+// "long=17" tries another length for the biggest notebooks' films (seconds of growing).
+let longest = args.first { $0.hasPrefix("long=") }.flatMap { Double($0.dropFirst(5)) } ?? FilmScript.longGrowth
+let script = FilmScript(input, calendar: Calendar(identifier: .gregorian), longest: longest)
 var mark: CGImage?
 if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: "Pane/Resources/Assets.xcassets/MarkTight.imageset/mark-tight.png") as CFURL, nil) { mark = CGImageSourceCreateImageAtIndex(src, 0, nil) }
 let start = Date()

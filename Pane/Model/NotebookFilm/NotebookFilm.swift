@@ -176,8 +176,11 @@ struct FilmScript: Sendable {
     static let width = 1080, height = 1350, fps = 30
     /// The notebook grows for `growth` seconds, then holds while the end card comes up. A full
     /// month takes `fullGrowth`; a thin one is shorter (down to `thinGrowth`), so the film is
-    /// never stretched over days when little happened.
-    static let fullGrowth = 9.0, thinGrowth = 5.6, outro = 3.6
+    /// never stretched over days when little happened. A notebook someone lives in gets longer
+    /// still, up to `longGrowth`: with thousands of edits in nine seconds the work is a blur.
+    static let fullGrowth = 9.0, thinGrowth = 5.6, longGrowth = 13.0, outro = 3.6
+    /// How much there is in a full month's film, and in the longest one (notes and edits together).
+    static let fullEvents = 400.0, longEvents = 3200.0
     let growth: Double
     /// How long before the end of the growth the folder written in most has its moment.
     static let topFolderMoment = 2.6
@@ -222,13 +225,16 @@ struct FilmScript: Sendable {
     private let dayStarts: [Double]
     private let calendar: Calendar
 
-    init(_ input: FilmInput, calendar: Calendar = .current) {
+    init(_ input: FilmInput, calendar: Calendar = .current, longest: Double = FilmScript.longGrowth) {
         self.calendar = calendar
         stats = FilmStats(input, calendar: calendar)
         // By how much there is to show: every note and every time one was written in.
         let events = Double(input.notes.count + input.notes.map(\.edits.count).reduce(0, +))
         let fullness = min(1, max(0, (events - 100) / 300))
+        // (Past a full month it lengthens by how many times over the notebook is: each doubling adds the same.)
+        let over = min(1, max(0, log2(max(1, events / Self.fullEvents)) / log2(Self.longEvents / Self.fullEvents)))
         let growth = Self.thinGrowth + (Self.fullGrowth - Self.thinGrowth) * fullness * fullness * (3 - 2 * fullness)
+            + (max(Self.fullGrowth, longest) - Self.fullGrowth) * over * over * (3 - 2 * over)
         self.growth = growth
         let sorted = input.notes.sorted { ($0.created, $0.id.uuidString) < ($1.created, $1.id.uuidString) }
         let firstDay = calendar.startOfDay(for: sorted.first?.created ?? input.now)
@@ -273,7 +279,9 @@ struct FilmScript: Sendable {
             let k = day(d)
             let dayStart = calendar.date(byAdding: .day, value: k, to: firstDay)!
             let f = min(1, max(0, d.timeIntervalSince(dayStart) / 86_400))
-            return min(growth, max(0, starts[k] + (starts[k + 1] - starts[k]) * f))
+            // (The first note is at exactly 0, whatever the arithmetic above leaves of it.)
+            let at = min(growth, max(0, starts[k] + (starts[k + 1] - starts[k]) * f))
+            return at < 1e-9 ? 0 : at
         }
         for n in sorted {
             let f = folderIndex[n.folder] ?? { folderNames.append(n.folder); folderIndex[n.folder] = folderNames.count - 1; return folderNames.count - 1 }()

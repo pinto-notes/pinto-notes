@@ -440,7 +440,15 @@ import Testing
         // Never stretched over days when little happened; a full month gets the full length.
         let thin = FilmScript(FilmDemo.notebook(days: 35, now: Self.now, light: true), calendar: Self.cal)
         let full = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
-        #expect(full.growth == FilmScript.fullGrowth)
+        #expect(full.growth >= FilmScript.fullGrowth && full.growth < FilmScript.fullGrowth + 0.5)
+        // And a notebook someone lives in gets longer still, so the work isn't a blur: up to the
+        // longest, never past it.
+        let many = FilmScript(FilmDemo.notebook(days: 35, now: Self.now, heavy: true), calendar: Self.cal)
+        let livesInIt = FilmScript(FilmDemo.notebook(days: 35, now: Self.now, heavy: true, work: 8), calendar: Self.cal)
+        let more = FilmScript(FilmDemo.notebook(days: 35, now: Self.now, heavy: true, work: 40), calendar: Self.cal)
+        #expect(many.growth > full.growth + 1 && livesInIt.growth > many.growth + 1)
+        #expect(livesInIt.growth > 12 && more.growth == FilmScript.longGrowth)
+        #expect(more.nodes.allSatisfy { $0.birth <= more.growth && $0.edits.allSatisfy { $0 <= more.growth } })
         #expect(thin.growth < 6.5 && thin.growth >= FilmScript.thinGrowth)
         #expect(thin.frameCount < full.frameCount)
         #expect(thin.nodes.allSatisfy { $0.birth <= thin.growth })
