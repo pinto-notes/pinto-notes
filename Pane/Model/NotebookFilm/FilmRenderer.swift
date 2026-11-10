@@ -154,6 +154,8 @@ final class FilmRenderer {
         var dateFormat = "MMM d"
         var locale = Locale.current
         var notesCount: @Sendable (Int) -> String = { $0 == 1 ? "1 note" : "\($0) notes" }
+        /// When set, the running count says the work too: notes so far, and times written in so far.
+        var workCount: (@Sendable (Int, Int) -> String)? = nil
     }
 
     private var look: FilmLook { labels.look }
@@ -801,7 +803,12 @@ final class FilmRenderer {
         if running > 0 {
             let date = script.date(at: min(t, script.growth))
             text(dateFormatter.string(from: date), size: 40, weight: .medium, color: ink.cg(0.7 * running), at: CGPoint(x: side, y: base + 156), in: ctx)
-            text(labels.notesCount(alive), size: 40, weight: .medium, color: ink.cg(0.7 * running), at: CGPoint(x: Double(width) - side, y: base + 156), align: 1, in: ctx)
+            var count = labels.notesCount(alive)
+            if let both = labels.workCount {
+                let now = min(t, script.growth)
+                count = both(alive, script.nodes.reduce(0) { $0 + $1.edits.reduce(0) { $1 <= now ? $0 + 1 : $0 } })
+            }
+            text(count, size: 40, weight: .medium, color: ink.cg(0.7 * running), at: CGPoint(x: Double(width) - side, y: base + 156), align: 1, in: ctx)
         }
         // Under them, one line at a time (a line is gone before the next comes): what a light is,
         // then what's yours: the day you wrote most as it passes, and the folder you wrote in most.

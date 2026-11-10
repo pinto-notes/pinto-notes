@@ -142,6 +142,34 @@ enum FilmEligibility {
     }
 }
 
+/// What the notebook is drawn as. It's chosen by how you wrote, never at random, so the picture
+/// says something true about the person it belongs to.
+enum FilmForm: String, Sendable, CaseIterable {
+    /// You wrote in bursts with days away between them: a comet, whose tail is the month.
+    case comet
+    /// Most of your writing went into a few folders: a cloud for each.
+    case nebula
+    /// You wrote across many folders: a spiral with an arm for each.
+    case spiral
+
+    /// Away for this many days running (or more days away than writing) makes it a comet.
+    static let awayDays = 5
+    /// The three folders written in most hold at least this much of the writing: a nebula.
+    static let deepShare = 0.8
+
+    init(_ stats: FilmStats, writingByFolder: [Int]) {
+        let named = writingByFolder.filter { $0 > 0 }.sorted(by: >)
+        let all = named.reduce(0, +)
+        if named.isEmpty || stats.quietDays >= Self.awayDays || stats.writingDays * 2 < stats.days {
+            self = .comet
+        } else if named.count <= 3 || Double(named.prefix(3).reduce(0, +)) >= Self.deepShare * Double(all) {
+            self = .nebula
+        } else {
+            self = .spiral
+        }
+    }
+}
+
 /// The film's shape: its size, length and when each thing in it happens, in seconds of film.
 /// Quiet days pass quickly and busy days slowly, so the film spends its time where you did.
 struct FilmScript: Sendable {
@@ -283,6 +311,17 @@ struct FilmScript: Sendable {
         folders = folderNames
         story = tell()
     }
+
+    /// What this notebook is drawn as: by the days you were away and how your writing was spread
+    /// over your folders (notes in no folder aren't one).
+    var form: FilmForm {
+        var writing = [Int](repeating: 0, count: folders.count)
+        for n in nodes where !folders[n.folder].isEmpty { writing[n.folder] += max(1, n.edits.count) }
+        return FilmForm(stats, writingByFolder: writing)
+    }
+
+    /// Every time a note was written in, by you or your AI: how much work is in the film.
+    var work: Int { nodes.reduce(0) { $0 + $1.edits.count } }
 
     /// Picks what happened that's worth telling, most telling first, and gives each its own time.
     private func tell() -> [Beat] {

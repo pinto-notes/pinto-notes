@@ -7,7 +7,8 @@ enum FilmDemo {
     /// `light` is the thinnest month the film is still offered for: two folders, a note most
     /// days, no AI.
     /// `heavy` is a big month: twelve folders, some with long names, and about three times the notes.
-    static func notebook(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), ai: String = "ChatGPT", light: Bool = false, heavy: Bool = false, person: Int = 0) -> FilmInput {
+    /// `work` multiplies how often notes are written in: 8 with `heavy` is someone who lives in it.
+    static func notebook(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), ai: String = "ChatGPT", light: Bool = false, heavy: Bool = false, person: Int = 0, work: Double = 1) -> FilmInput {
         var rng = seed &* 0x2545_F491_4F6C_DD1D | 1
         func rand() -> Double {
             rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
@@ -96,12 +97,12 @@ enum FilmDemo {
                 _ = add(f, at: at, ai: nil, linkTo: to)
             }
             // Coming back to what you wrote, recent notes most.
-            let editCount = Int(rand() * (light ? 5 : weekend ? 10 : 26)) + (light ? 1 : 0)
+            let editCount = Int(rand() * (light ? 5 : weekend ? 10 : 26) * work) + (light ? 1 : 0)
             for _ in 0..<editCount where !notes.isEmpty {
                 // Recent notes most, and the few you keep coming back to.
                 var i = notes.count - 1 - Int(pow(rand(), 2.2) * Double(notes.count))
-                if rand() < 0.45 {
-                    let w = notes.map { Double($0.edits.count * $0.edits.count) }
+                if rand() < (work > 1 ? 0.3 : 0.45) {
+                    let w = notes.map { work > 1 ? Double($0.edits.count) : Double($0.edits.count * $0.edits.count) }
                     var r = rand() * w.reduce(0, +)
                     for (k, x) in w.enumerated() { r -= x; if r <= 0 { i = k; break } }
                 }
@@ -120,7 +121,7 @@ enum FilmDemo {
                     if let anchor, rand() < 0.3 { to.append(anchor) }
                     made.append(add(f, at: at, ai: ai, linkTo: to))
                 }
-                for _ in 0..<(3 + Int(rand() * 9)) {
+                for _ in 0..<Int(Double(3 + Int(rand() * 9)) * (1 + (work - 1) * 0.3)) {
                     if let i = hub(in: pick(open).0) {
                         at += 30 + rand() * 120
                         notes[i].edits.append(FilmEdit(at: at, ai: ai))

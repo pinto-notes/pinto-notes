@@ -728,6 +728,39 @@ import Testing
         #expect(s.quietDays == 8 && s.backOn == Self.cal.startOfDay(for: d.addingTimeInterval(-2 * 86_400)))
     }
 
+    @Test func whatItsDrawnAsComesFromHowYouWrote() {
+        // Never at random: a comet for bursts with days away, a nebula when a few folders hold
+        // most of the writing, a spiral when it's spread over many.
+        let d = Self.now
+        /// A note a day, `daysAgo` back from now, in the folders given (one folder per day, in turn).
+        func script(_ daysAgo: [Int], folders: [String], weight: [Int]? = nil) -> FilmScript {
+            var notes: [FilmNote] = []
+            for (k, ago) in daysAgo.enumerated() {
+                let f = k % folders.count, at = d.addingTimeInterval(Double(-ago) * 86_400 - 3600)
+                for _ in 0..<(weight?[f] ?? 1) { notes.append(FilmNote(id: UUID(), folder: folders[f], created: at, edits: [FilmEdit(at: at, ai: nil)], links: [])) }
+            }
+            return FilmScript(FilmInput(notes: notes, now: d), calendar: Self.cal)
+        }
+        let everyDay = Array(0..<30), six = ["Work", "Thesis", "Reading", "Home", "Running", "Recipes"]
+        #expect(script(everyDay, folders: six).form == .spiral, "every day, across six folders")
+        #expect(script(everyDay, folders: ["Work", "Thesis", "Reading"]).form == .nebula, "three folders are a few")
+        #expect(script(everyDay, folders: six, weight: [9, 9, 9, 1, 1, 1]).form == .nebula, "six, but three hold nearly all of it")
+        #expect(script(everyDay.filter { !(10..<16).contains($0) }, folders: six).form == .comet, "six days away")
+        #expect(script(everyDay.filter { !(10..<14).contains($0) }, folders: six).form == .spiral, "four days away isn't a burst")
+        #expect(script(Array(stride(from: 0, to: 30, by: 3)), folders: six).form == .comet, "more days away than writing")
+        #expect(script(everyDay, folders: [""]).form == .comet, "no folders: there's only the month to draw")
+        // The same notebook is always the same thing, and the three demo people aren't all alike.
+        let people = (1...3).map { FilmScript(FilmDemo.notebook(days: 35, now: Self.now, person: $0), calendar: Self.cal) }
+        #expect(people[0].form == .comet, "the student was away for a week")
+        #expect(people[1].form != .comet, "the founder wrote all month")
+        #expect(FilmScript(FilmDemo.notebook(days: 35, now: Self.now, person: 2), calendar: Self.cal).form == people[1].form)
+        // How much work is in it: every time a note was written in, by anyone.
+        let usual = FilmScript(FilmDemo.notebook(days: 35, now: Self.now, heavy: true), calendar: Self.cal)
+        let livesInIt = FilmScript(FilmDemo.notebook(days: 35, now: Self.now, heavy: true, work: 8), calendar: Self.cal)
+        #expect(usual.work == usual.nodes.map(\.edits.count).reduce(0, +))
+        #expect(livesInIt.work > usual.work * 3)
+    }
+
     @Test func theFilmBeginsAtTheFirstNote() {
         // Not at the midnight before it: there's never a frame of an empty month with "0 notes".
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)

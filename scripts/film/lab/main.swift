@@ -7,7 +7,10 @@ let style = args.count > 1 ? args[1] : "town"
 let out = URL(fileURLWithPath: args.count > 2 ? args[2] : "lab.mp4")
 let seed = args.count > 3 ? UInt64(args[3]) ?? 7 : 7
 let person = args.contains("p1") ? 1 : args.contains("p2") ? 2 : args.contains("p3") ? 3 : 0
-let input = FilmDemo.notebook(days: 35, seed: seed, light: args.contains("light"), heavy: args.contains("heavy"), person: person)
+// "busy" is someone who writes in their notes three times as often; "super" lives in it: a big
+// month, written in eight times as often.
+let lives = args.contains("super")
+let input = FilmDemo.notebook(days: 35, seed: seed, light: args.contains("light"), heavy: args.contains("heavy") || lives, person: person, work: lives ? 8 : args.contains("busy") ? 3 : 1)
 let script = FilmScript(input, calendar: Calendar(identifier: .gregorian))
 var mark: CGImage?
 if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: "Pane/Resources/Assets.xcassets/MarkTight.imageset/mark-tight.png") as CFURL, nil) { mark = CGImageSourceCreateImageAtIndex(src, 0, nil) }
@@ -65,13 +68,16 @@ case "flock", "lanterns", "bloom":
     }
     try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
 case "galaxy":
-    // The notebook as something in space, cut from paper: its kind and its sky come from the seed.
+    // The notebook as something in space, cut from paper: its kind comes from how it was written in, its sky from the seed.
     var labels = FilmRenderer.Labels()
     labels.locale = Locale(identifier: "en_US")
     labels.markImage = mark
     labels.look = .town
     labels.folderNames = !args.contains("nofolders")
-    let form: GalaxyScene.Form? = args.contains("spiral") ? .spiral : args.contains("nebula") ? .nebula : args.contains("comet") ? .comet : nil
+    // What it's drawn as comes from how the notebook was written in; naming one here overrides that.
+    let form: FilmForm? = args.contains("spiral") ? .spiral : args.contains("nebula") ? .nebula : args.contains("comet") ? .comet : nil
+    labels.workCount = { notes, edits in "\(notes) notes \u{00B7} \(edits) edits" }
+    print("form: \(script.form.rawValue)\(form.map { " (shown as \($0.rawValue))" } ?? ""), \(script.nodes.count) notes, \(script.stats.folders) folders, \(script.work) edits, away \(script.stats.quietDays) days, wrote on \(script.stats.writingDays) of \(script.stats.days)")
     labels.scene = { script, names in GalaxyScene(script: script, names: names, seed: Int(seed), form: form) }
     try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
 case "bench":
