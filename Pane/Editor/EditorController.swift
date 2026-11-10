@@ -532,6 +532,8 @@ final class EditorController {
 
     /// Scrolls the text to the line at `location` (a link to a heading).
     func reveal(_ location: Int) { target?.reveal(location) }
+    /// Puts the keyboard in a cell of table `index` (a tracker just made from a template).
+    func focusGrid(_ index: Int, cell: GridCell) { target?.focusGrid(index, cell: cell) }
     /// Goes to a found match and shows it: scrolled into view, and on the Mac the find flash.
     func showFound(_ range: NSRange) { target?.reveal(range.location); target?.flashFound(range) }
 

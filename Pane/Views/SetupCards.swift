@@ -518,6 +518,8 @@ struct SetupTemplateCard: View {
     /// app's name) leads the line under the art, in the same place on every app's card. Beside
     /// the name it didn't fit: "Study notes and flashcards" fills its line alone.
     var app = false
+    /// The art's height, where the library's rows set it (TemplateLibraryView.rhythm); nil is 10:7.
+    var art: CGFloat? = nil
     /// The pointer came onto the card, or left it (the library gets a template's page ready then).
     var pointer: (Bool) -> Void = { _ in }
     let action: () -> Void
@@ -571,7 +573,7 @@ struct SetupTemplateCard: View {
         return Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
                 Color(rgb: pick.ground)
-                    .frame(width: width, height: Self.artHeight(width))
+                    .frame(width: width, height: art ?? Self.artHeight(width))
                     .overlay(alignment: .top) { pick.image.resizable().scaledToFill().frame(width: width, height: width) }
                     .clipShape(shape)
                     .brightness(Self.quietBrightness(dark: dark, hover: over))

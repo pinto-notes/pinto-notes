@@ -356,6 +356,48 @@ private struct SecondaryButton: View {
     }
 }
 
+/// A second button that is plainly second: lower than the primary beside or over it (32 pt), a
+/// quieter fill and a medium label, as wide as its row.
+///
+///     Button("Add and fill it in myself") { … }.buttonStyle(.secondaryQuiet)
+struct SecondaryQuietButtonStyle: ButtonStyle {
+    static let height: CGFloat = 32
+    func makeBody(configuration: Configuration) -> some View { SecondaryQuietButton(configuration: configuration) }
+}
+
+extension ButtonStyle where Self == SecondaryQuietButtonStyle {
+    static var secondaryQuiet: SecondaryQuietButtonStyle { .init() }
+}
+
+private struct SecondaryQuietButton: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.isFocused) private var isFocused
+    @Environment(\.hoverPreview) private var preview
+    @State private var hovering = false
+
+    var body: some View {
+        let shape = AnyShape(RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
+        let on = isEnabled && (hovering || preview.contains("*"))
+        configuration.label
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(Color(isEnabled ? SecondaryButtonStyle.label : Palette.disabledButtonLabel))
+            .lineLimit(1)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity)
+            .frame(height: SecondaryQuietButtonStyle.height)
+            .background {
+                shape.fill(Color(SecondaryButtonStyle.fill).opacity(0.6))
+                    .overlay {
+                        if configuration.isPressed { shape.fill(Color(Palette.buttonPressed)) }
+                        else if on { shape.fill(Color(Palette.buttonHover)) }
+                    }
+            }
+            .modifier(ButtonChrome(shape: shape, pressed: configuration.isPressed, focused: isFocused))
+            .modifier(HoverTracking(hovering: $hovering))
+    }
+}
+
 // MARK: Quiet
 
 /// Cancel, Back, Skip, Not now: no fill until the pointer is over it, a muted label that turns to

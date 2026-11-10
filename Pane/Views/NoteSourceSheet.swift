@@ -302,6 +302,11 @@ struct NotePreview: View {
     /// library's page sets tables at the body's size: at 10 pt beside 13 pt lines the table was
     /// the hardest thing to read in an example; council, 10 November 2026).
     var tableSize: CGFloat? = nil
+    /// The width a table has in a `whole` window, when known: where its cells don't fit it with
+    /// every short value on one line, they wrap at any word (no column is ever left out).
+    var tableRoom: CGFloat? = nil
+    /// A table cell's room either side of its text in a `whole` window.
+    var tableInset: CGFloat = 8
     /// The sub-note row shown as picked (the one open beside the list), by its name.
     var picked: String? = nil
 
@@ -444,7 +449,7 @@ struct NotePreview: View {
 
     /// A table cell as the preview shows it: a date as "26 Sep", as a tracker's date column shows
     /// it, and any short value in one piece.
-    nonisolated static func shownCell(_ s: String) -> String {
+    nonisolated static func shownCell(_ s: String, loose: Bool = false) -> String {
         let t = s.trimmingCharacters(in: .whitespaces)
         if t.wholeMatch(of: /\d{4}-\d{2}-\d{2}/) != nil {
             let p = t.split(separator: "-").compactMap { Int($0) }
@@ -452,7 +457,8 @@ struct NotePreview: View {
             if p.count == 3, (1...12).contains(p[1]) { return "\(p[2])\u{00A0}\(names[p[1] - 1])" }
         }
         let u = unbroken(t)
-        return u.count <= 14 ? u.replacingOccurrences(of: " ", with: "\u{00A0}") : u
+        // Loose (a table too wide for its room): any value wraps at its words.
+        return u.count <= 14 && !loose ? u.replacingOccurrences(of: " ", with: "\u{00A0}") : u
     }
 
     /// Each column's share of a table's width, from how much it holds: its header or its average
@@ -472,7 +478,7 @@ struct NotePreview: View {
     /// How wide each column must be so none of its words breaks: its longest word ("Workout",
     /// "120 kg × 3", "26 Sep": a value kept in one piece is one word), in the cell's type, and the
     /// cell's padding (council round 5: "Work-out", "Min-utes" and "26 / Sep" broke mid-word).
-    nonisolated static func leastWidths(header: [String], rows: [[String]], size given: CGFloat? = nil) -> [CGFloat] {
+    nonisolated static func leastWidths(header: [String], rows: [[String]], size given: CGFloat? = nil, loose: Bool = false, inset: CGFloat = 8) -> [CGFloat] {
         #if os(iOS)
         typealias Font = UIFont
         #else
@@ -482,11 +488,11 @@ struct NotePreview: View {
         let plain = Font.monospacedDigitSystemFont(ofSize: size, weight: .regular)
         let bold = Font.monospacedDigitSystemFont(ofSize: size, weight: .semibold)
         func widest(_ s: String, _ font: Font) -> CGFloat {
-            shownCell(s).split(separator: " ").map { NSString(string: String($0)).size(withAttributes: [.font: font]).width }.max() ?? 0
+            shownCell(s, loose: loose).split(separator: " ").map { NSString(string: String($0)).size(withAttributes: [.font: font]).width }.max() ?? 0
         }
         return header.indices.map { c in
             let cells = rows.map { c < $0.count ? widest($0[c].replacingOccurrences(of: "**", with: ""), plain) : 0 }
-            return (max(widest(header[c], bold), cells.max() ?? 0) + 16 + 2).rounded(.up)
+            return (max(widest(header[c], bold), cells.max() ?? 0) + inset * 2 + 2).rounded(.up)
         }
     }
 
@@ -494,21 +500,26 @@ struct NotePreview: View {
     /// at the same column widths, joined with no space between, cells wrapped at a word.
     @ViewBuilder private func tableRows(header: [String], rows: [[String]]) -> some View {
         let shares = Self.shares(header: header, rows: rows)
-        let least = Self.leastWidths(header: header, rows: rows, size: tableSize)
+        let loose = Self.loose(header: header, rows: rows, size: tableSize, inset: tableInset, room: tableRoom)
+        let least = Self.leastWidths(header: header, rows: rows, size: tableSize, loose: loose, inset: tableInset)
         let need = least.reduce(0, +)
         let shown = rows.isEmpty ? [header.map { _ in "" }] : rows
-        TableRowLayout(shares: shares, least: least) { ForEach(Array(header.enumerated()), id: \.offset) { wholeCell($0.element, header: true) } }
-            .overlay(alignment: .top) { Rectangle().fill(.separator).frame(height: 0.5) }
-            .overlay(alignment: .leading) { Rectangle().fill(.separator).frame(width: 0.5) }
-            .modifier(RunsOffRight(need: need))
-            .padding(.top, 4)
-            .layoutValue(key: WholeBlocks.Heading.self, value: true)
-        ForEach(Array(shown.enumerated()), id: \.offset) { _, row in
-            TableRowLayout(shares: shares, least: least) { ForEach(Array(row.enumerated()), id: \.offset) { wholeCell($0.element, header: false) } }
-                .overlay(alignment: .leading) { Rectangle().fill(.separator).frame(width: 0.5) }
-                .modifier(RunsOffRight(need: need))
-                .layoutValue(key: WholeBlocks.Joined.self, value: true)
+        // As the editor draws a table at rest (GridLook): rounded, a soft header, rules between
+        // the rows and none between the columns.
+        let rule = GridLook.rule(increased: false)
+        let shape = RoundedRectangle(cornerRadius: GridLook.radius, style: .continuous)
+        VStack(spacing: 0) {
+            TableRowLayout(shares: shares, least: least) { ForEach(Array(header.enumerated()), id: \.offset) { wholeCell($0.element, header: true, last: $0.offset == header.count - 1, loose: loose) } }
+                .background { if let fill = GridLook.headerFill { fill } }
+            ForEach(Array(shown.enumerated()), id: \.offset) { _, row in
+                Rectangle().fill(rule).frame(height: 1)
+                TableRowLayout(shares: shares, least: least) { ForEach(Array(row.enumerated()), id: \.offset) { wholeCell($0.element, header: false, last: $0.offset == row.count - 1, loose: loose) } }
+            }
         }
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(rule, lineWidth: 1))
+        .modifier(RunsOffRight(need: need))
+        .padding(.top, 4)
     }
 
     /// A table row wider than the window: cut at the window's edge, under a 16 pt fade into the
@@ -536,17 +547,22 @@ struct NotePreview: View {
         }
     }
 
-    private func wholeCell(_ s: String, header: Bool) -> some View {
-        inline(Self.shownCell(s).isEmpty ? " " : Self.shownCell(s))
+    /// Whether a table's short values wrap at their words: when it's too wide for its room with
+    /// each of them kept on one line.
+    nonisolated static func loose(header: [String], rows: [[String]], size: CGFloat?, inset: CGFloat = 8, room: CGFloat?) -> Bool {
+        guard let room else { return false }
+        return leastWidths(header: header, rows: rows, size: size, inset: inset).reduce(0, +) > room
+    }
+
+    private func wholeCell(_ s: String, header: Bool, last: Bool, loose: Bool) -> some View {
+        inline(Self.shownCell(s, loose: loose).isEmpty ? " " : Self.shownCell(s, loose: loose))
             .font(tableSize.map { .system(size: $0, weight: header ? .semibold : .regular) } ?? (header ? .footnote.weight(.semibold) : .footnote))
             .monospacedDigit()
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(header ? AnyShapeStyle(.quaternary.opacity(0.6)) : AnyShapeStyle(.clear))
-            .overlay(alignment: .trailing) { Rectangle().fill(.separator).frame(width: 0.5) }
-            .overlay(alignment: .bottom) { Rectangle().fill(.separator).frame(height: 0.5) }
+            .padding(.horizontal, tableInset)
+            .padding(.vertical, 8)
+            .overlay(alignment: .trailing) { if GridLook.columnLinesAtRest, !last { Rectangle().fill(GridLook.rule(increased: false)).frame(width: 1) } }
     }
 
     @ViewBuilder private func view(_ block: Block) -> some View {
@@ -728,7 +744,9 @@ struct TableRowLayout: Layout {
     nonisolated static func widths(total: CGFloat, shares: [CGFloat], least: [CGFloat]) -> [CGFloat] {
         let want = zip(shares, least).map { max(total * $0, $1) }
         let need = least.reduce(0, +)
-        guard need < total else { return least.map { $0.rounded(.up) } }
+        // Too wide even at its least: every column gives a little, so none runs off the side
+        // (a word too long for its column then breaks, which beats a column you can't see).
+        guard need < total else { return least.map { ($0 * total / max(need, 1)).rounded(.down) } }
         let over = want.reduce(0, +) - total
         guard over > 0 else { return want.map { $0.rounded(.down) } }
         let spare = zip(want, least).map { $0 - $1 }

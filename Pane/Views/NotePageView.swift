@@ -779,6 +779,12 @@ enum NotePageLive {
         views[id] = Box(view)
     }
 
+    /// The app's view while it's in a window (to give it the keys, or to know it has drawn).
+    static func view(_ id: UUID) -> WKWebView? {
+        guard let web = views[id]?.view, web.window != nil else { return nil }
+        return web
+    }
+
     /// The app as it is, light or dark. The page follows the view's appearance, so it's set for a
     /// moment if it differs. Nil when the app isn't on screen, or doesn't answer in time.
     static func snapshot(_ id: UUID, dark: Bool) async -> CGImage? {

@@ -234,14 +234,34 @@ struct RootView: View {
         }
     }
 
+    /// Your connected AIs as the library offers them, asked for again (after Connect an AI closes
+    /// over a template's page).
+    private func connectedAIs() async -> [SetupCards.AI] {
+        var rows: [Connection] = []
+        if let client = backendForConnect?.client {
+            rows = (try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value) ?? []
+        }
+        return Self.templatesStandIn ? [.chatgpt, .claude] : TemplateMaking.ais(rows)
+    }
+
+    /// Connect an AI, over the library: the template's page stays under it, and is there with
+    /// Make naming the AI when it closes (it used to close the library and open over All Notes).
+    @State private var connectingOverTemplates = false
+
+    /// An app just made has drawn (its page is in the window), or a second and a half has gone.
+    private func appDrawn(_ note: UUID) async {
+        let start = ContinuousClock.now
+        while NotePageLive.view(note) == nil, start.duration(to: .now) < .seconds(1.5) { try? await Task.sleep(for: .milliseconds(30)) }
+    }
+
     @Environment(SyncEngine.self) private var syncForSettings: SyncEngine?
     /// Whether the server can be reached: Make with an AI doesn't open the AI while it can't.
     @Environment(\.networkReach) private var reach
 
     /// One of the first run's cards, as a sheet; Cancel or Escape closes it.
-    @ViewBuilder private func popupCard(_ only: SetupCardsFlow.Only) -> some View {
+    @ViewBuilder private func popupCard(_ only: SetupCardsFlow.Only, done: (() -> Void)? = nil) -> some View {
         if let backend = backendForConnect {
-            let close = { withAnimation(.snappy(duration: 0.2)) { popup = nil } }
+            let close = done ?? { withAnimation(.snappy(duration: 0.2)) { popup = nil } }
             SetupCardsFlow(store: nil, backend: backend, setup: setupStore, only: only, finish: { _ in
                 close()
                 Task { await setupStore?.refresh(force: true) }
@@ -268,24 +288,57 @@ struct RootView: View {
         // Make adds where New Note would: the folder shown, or with All Notes the first.
         let target = TemplateMaking.folder(in: context, scope: scope)
         let account = backendForConnect?.userID
-        return TemplateLibraryView(ais: ais, folder: target?.name ?? TemplateMaking.firstFolder,
-                                   have: { TemplateMaking.have($0, context: context, account: account) }, make: { e, ai in
+        let closeConnect = {
+            withAnimation(.snappy(duration: 0.2)) { connectingOverTemplates = false }
             Task {
-                // A real-input check never opens the AI's page in a browser.
-                let note = await TemplateMaking.make(e, with: ai, context: context, account: account,
-                                                     into: target.map { .existing($0.id) } ?? .new(TemplateMaking.firstFolder), reach: reach,
-                                                     open: { if !Self.templatesStandIn { openURLForTemplates($0) } })
-                // No second sheet: the page just said what it is. The note opens with a line
-                // saying where it went.
-                if let note, let made = context.note(note) {
-                    FirstOpen.shared.fromLibrary(note, title: e.title, slug: e.slug, isApp: NotePageStore.shared[note] != nil,
-                                                 folder: made.folder?.name ?? "Notes")
-                }
-                withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
-                if let note { selection = [note] }
+                await setupStore?.refresh(force: true)
+                let now = await connectedAIs()
+                if templateAIs != nil { templateAIs = now }
             }
-        }, connect: { openPopup(.connectAI) }, close: { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } })
-        // Esc is the library's own: its x on the gallery, Back on a template's page.
+        }
+        return ZStack {
+            TemplateLibraryView(ais: ais, folder: target?.name ?? TemplateMaking.firstFolder,
+                                have: { TemplateMaking.have($0, context: context, account: account) }, make: { e, ai in
+                Task {
+                    let before = (selection, scope)
+                    let had = TemplateMaking.have(e, context: context, account: account) != nil
+                    // A real-input check never opens the AI's page in a browser.
+                    let note = await TemplateMaking.make(e, with: ai, context: context, account: account,
+                                                         into: target.map { .existing($0.id) } ?? .new(TemplateMaking.firstFolder), reach: reach,
+                                                         open: { if !Self.templatesStandIn { openURLForTemplates($0) } })
+                    // No second sheet: the page just said what it is. The note opens with a line
+                    // saying where it went, and Undo beside it.
+                    if let note, let made = context.note(note) {
+                        let isApp = NotePageStore.shared[note] != nil
+                        let undo: (() -> Void)? = had ? nil : {
+                            if let n = context.note(note), n.trashedAt == nil { context.trash(n) }
+                            selection = before.0
+                            scope = before.1
+                        }
+                        FirstOpen.shared.fromLibrary(note, title: e.title, slug: e.slug, isApp: isApp, folder: made.folder?.name ?? "Notes", hadIt: had,
+                                                     waitingFor: ai.asks && reach != .online ? ai.name : nil, undo: undo)
+                        selection = [note]
+                        // An app: the library stays until its first screen has drawn, so the pane
+                        // is never empty in between (it was, for about seven frames).
+                        if isApp { await appDrawn(note) }
+                    }
+                    withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
+                }
+            }, connect: { withAnimation(.snappy(duration: 0.2)) { connectingOverTemplates = true } }, covered: connectingOverTemplates,
+               close: { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } })
+            // Esc is the library's own: its x on the gallery, Back on a template's page.
+            .allowsHitTesting(!connectingOverTemplates)
+            if connectingOverTemplates {
+                Color.black.opacity(0.32)
+                    .contentShape(.rect)
+                    .onTapGesture(perform: closeConnect)
+                    .transition(.opacity)
+                popupCard(.connectAI, done: closeConnect)
+                    .environment(\.inSheet, false)
+                    .transition(.opacity)
+            }
+        }
+        .onDisappear { connectingOverTemplates = false }
     }
     #endif
 

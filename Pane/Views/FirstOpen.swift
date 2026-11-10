@@ -34,6 +34,9 @@ final class FirstOpen {
         var folder: String?
         /// The library opened a template you had already: the line says it was there.
         var hadIt = false
+        /// Made while sync was away, with this AI: the line says the AI can fill it in after it
+        /// syncs, and when sync is back the same place offers to ask it.
+        var waitingFor: String?
         var id: UUID { note }
 
         /// The one line a note shows when there's no sheet: where a template from the library
@@ -41,7 +44,9 @@ final class FirstOpen {
         /// the plain "Added to your notes". `folderMark` stands where the folder's glyph draws.
         var line: String {
             guard let folder else { return "Added to your notes" }
-            return "\(hadIt ? "Already in" : "Added to") \(FirstOpen.folderMark)\(folder)"
+            let place = "\(hadIt ? "Already in" : "Added to") \(FirstOpen.folderMark)\(folder)"
+            guard let waitingFor, !hadIt else { return place }
+            return "\(place). \(waitingFor) can fill it in after it syncs."
         }
     }
 
@@ -78,15 +83,22 @@ final class FirstOpen {
     /// what Make adds and what your AI is asked, and a second sheet saying it again made you
     /// press twice (council, 10 November 2026). The note opens with a line saying where it went;
     /// the first-time sheet stays for a template added from the website, and isn't used up here.
-    func fromLibrary(_ note: UUID, title: String, slug: String, isApp: Bool, folder: String) {
+    func fromLibrary(_ note: UUID, title: String, slug: String, isApp: Bool, folder: String, hadIt: Bool = true, waitingFor: String? = nil, undo: (() -> Void)? = nil) {
         if var m = pending[note] {
             m.full = false
             m.folder = folder
+            m.waitingFor = waitingFor
             pending[note] = m
         } else {
-            pending[note] = Moment(note: note, isApp: isApp, title: title, description: nil, ask: nil, slug: slug, preview: nil, full: false, folder: folder, hadIt: true)
+            pending[note] = Moment(note: note, isApp: isApp, title: title, description: nil, ask: nil, slug: slug, preview: nil, full: false, folder: folder, hadIt: hadIt, waitingFor: waitingFor)
         }
+        undos[note] = undo
     }
+
+    /// What takes a note just made from the library away again (to Recently Deleted, and back to
+    /// where you were): the Undo beside "Added to", and Command-Z. Taken once.
+    @ObservationIgnored private var undos: [UUID: () -> Void] = [:]
+    func takeUndo(_ note: UUID) -> (() -> Void)? { undos.removeValue(forKey: note) }
 
     /// Start: seen, never shown again for that kind.
     func start(_ m: Moment) {

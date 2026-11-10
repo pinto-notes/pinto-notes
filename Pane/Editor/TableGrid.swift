@@ -878,7 +878,7 @@ struct TableGridView: View {
                             .frame(width: widths[c], height: GridMetrics.row)
                             .overlay(alignment: .trailing) {
                                 // D (reading page) had rows only, and an empty column had no edge.
-                                if c < cols - 1 && showsColumnLines { Rectangle().fill(border.opacity(DesignLook.readingPage ? 0.6 : 1)).frame(width: 1) }
+                                if c < cols - 1 && showsColumnLines { Rectangle().fill(GridLook.rule(increased: contrast == .increased)).frame(width: 1) }
                             }
                             .accessibilityIdentifier("grid.\(r).\(c)")
                             // VoiceOver: which column you're in, then where in the table.
@@ -886,14 +886,14 @@ struct TableGridView: View {
                     }
                 }
                 // D: the header row on a soft fill.
-                .background { if r == 0 && DesignLook.readingPage { Color.soft } }
+                .background { if r == 0, let fill = GridLook.headerFill { fill } }
                 .overlay(alignment: .bottom) {
-                    if r < draft.rows.count - 1 { Rectangle().fill(border.opacity(DesignLook.readingPage ? 0.6 : 1)).frame(height: 1) }
+                    if r < draft.rows.count - 1 { Rectangle().fill(GridLook.rule(increased: contrast == .increased)).frame(height: 1) }
                 }
             }
         }
         .modifier(ReadingCorners())
-        .overlay(RoundedRectangle(cornerRadius: DesignLook.readingPage ? Radius.sm : 2, style: .continuous).strokeBorder(border.opacity(DesignLook.readingPage ? 0.6 : 1), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: GridLook.radius, style: .continuous).strokeBorder(GridLook.rule(increased: contrast == .increased), lineWidth: 1))
         // Selected as a whole (about to be deleted): tinted like selected text.
         .overlay {
             if selected {
@@ -1127,7 +1127,7 @@ struct TableGridView: View {
     /// only, a new table's empty column had no edge (Emil, 1 November 2026: "why are there no
     /// vertical lines?"; round 1 compared rows only, always and while editing).
     /// An empty column keeps its lines at rest too, or it vanishes into its neighbour.
-    private var showsColumnLines: Bool { !DesignLook.readingPage || isEditing || draft.hasEmptyColumn }
+    private var showsColumnLines: Bool { GridLook.columnLinesAtRest || isEditing || draft.hasEmptyColumn }
 
     private var border: Color {
         DesignLook.isCandidate ? Color.muted.opacity(contrast == .increased ? 0.9 : 0.4) : Color.secondary.opacity(contrast == .increased ? 0.9 : 0.45)
@@ -1299,12 +1299,28 @@ private struct CellLinkPointer: ViewModifier {
     #endif
 }
 
+/// A table's look at rest: its corners, its rules and its header's fill. One place, so a picture
+/// of a table elsewhere (a template's example in the library) is the table the note has: there
+/// it was drawn square, with column rules and a darker header (council, 10 November 2026).
+enum GridLook {
+    /// The outer corners: rounded on the reading page.
+    static var radius: CGFloat { DesignLook.readingPage ? Radius.sm : 2 }
+    /// The outline and the rules between rows.
+    static func rule(increased: Bool) -> Color {
+        (DesignLook.isCandidate ? Color.muted.opacity(increased ? 0.9 : 0.4) : Color.secondary.opacity(increased ? 0.9 : 0.45)).opacity(DesignLook.readingPage ? 0.6 : 1)
+    }
+    /// The header row's fill: soft on the reading page, none otherwise.
+    static var headerFill: Color? { DesignLook.readingPage ? Color.soft : nil }
+    /// Rules between columns while nothing is being edited: none on the reading page.
+    static var columnLinesAtRest: Bool { !DesignLook.readingPage }
+}
+
 /// D (the reading page): the table's outer corners rounded (sm), its header fill clipped to them.
 /// Nothing is clipped in the other looks.
 private struct ReadingCorners: ViewModifier {
     func body(content: Content) -> some View {
         if DesignLook.readingPage {
-            content.clipShape(RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
+            content.clipShape(RoundedRectangle(cornerRadius: GridLook.radius, style: .continuous))
         } else {
             content
         }

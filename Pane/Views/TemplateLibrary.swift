@@ -1,6 +1,7 @@
 import SwiftData
 #if os(macOS)
 import SwiftUI
+import WebKit
 
 /// The website's templates, in the app (2026-10-30): every one, by kind, opened from Templates in
 /// the sidebar. A copy of the site's list ships with the app (Pane/Resources/Templates, made by
@@ -59,7 +60,9 @@ struct TemplateCatalog: Sendable {
         }
 
         /// As a pick of the setup gallery, so it draws with the same card.
-        var pick: SetupCards.Pick {
+        var pick: SetupCards.Pick { pick(asking: ask) }
+        /// The pick with another ask than the catalog's (the everyday one, for an app you have).
+        func pick(asking ask: String) -> SetupCards.Pick {
             SetupCards.Pick(slug: slug, title: title, line: tagline, cover: "template-cover-\(slug)",
                             ground: UInt32(ground, radix: 16) ?? 0x5B5651, ask: "use my \(title) note. \(Self.sendable(ask))")
         }
@@ -212,6 +215,7 @@ enum TemplateLibraryWords {
     static let copy = "Copy the prompt"
     static let copied = "Prompt copied"
     static let clear = "Clear search"
+    static let searchAll = "Search all templates"
 
     /// The gallery when nothing matches: what was typed, and the kind when one is picked
     /// ("No Work templates for “zebra”"). Clear search is beside it.
@@ -221,20 +225,52 @@ enum TemplateLibraryWords {
         return q.isEmpty ? "No \(kind)templates" : "No \(kind)templates for \u{201C}\(q)\u{201D}"
     }
 
-    /// The one button: Make with your AI; with none that opens with the ask, what it adds.
+    /// Make with an AI by name (the button, and the arrow's menu); with none that opens with the
+    /// ask, what it adds.
     static func make(_ e: TemplateCatalog.Entry, _ ai: SetupCards.AI) -> String {
         ai.asks ? "Make with \(ai.name)" : e.app ? "Add the app" : "Add the note"
     }
+
+    /// The page's one button. Make with your AI. With no AI, or while sync is away (the AI can't
+    /// see a note that hasn't synced), it says what it does: Add the note. For a template you made
+    /// and still have, it opens that one, by its name: "Make with ChatGPT" over "Already in Notes"
+    /// said two things (council, 10 November 2026).
+    static func primary(_ e: TemplateCatalog.Entry, _ ai: SetupCards.AI, _ mode: TemplateLibraryView.Mode) -> String {
+        switch mode {
+        case .have: "Open \(e.title)"
+        case .make: make(e, ai)
+        case .plain: make(e, .other)
+        }
+    }
+
+    /// The second button, for doing it yourself: it says what you do next ("Add without AI"
+    /// undersold it: the person who only wants to tick habits couldn't tell it was theirs).
+    static func addMyself(_ e: TemplateCatalog.Entry) -> String { e.app ? "Add and set it up myself" : "Add and fill it in myself" }
+
+    /// In the arrow's menu for a template you have: ask an AI about it.
+    static func ask(_ ai: SetupCards.AI) -> String { "Ask \(ai.name)" }
+
+    /// What an AI is asked about an app you already have: the everyday ask, not the one that sets
+    /// it up (the catalog's `ask` for an app is its set-up). A note's ask is its everyday one.
+    static let everyday: [String: String] = [
+        "habit-tracker": "Ask which habits I did today and which I skipped, then tick them in my tracker.",
+        "budget-log": "Ask what I spent today and on what, then log it in my budget.",
+        "trip-plan": "Ask what has changed in my trip, then update the days and bookings.",
+    ]
+    static func everydayAsk(_ e: TemplateCatalog.Entry) -> String { everyday[e.slug] ?? e.ask }
 
     /// A template's kind as a small label: "Health", and "App" after it for one with an app.
     static func kind(_ e: TemplateCatalog.Entry) -> String {
         TemplateCatalog.label(e.category) + (e.app ? " \u{00B7} \(app)" : "")
     }
 
-    /// Over the prompt: whose it is. With no AI that opens with the ask, it's yours to copy.
-    static func asked(_ ai: SetupCards.AI) -> String {
-        ai.asks ? "What \(ai.name) is asked" : "What to ask your AI"
+    /// Over the prompt: whose it is. Sent with Make: "What ChatGPT is asked". Yours to copy (no
+    /// AI that opens with the ask, or sync is away): "What to ask your AI".
+    static func asked(_ ai: SetupCards.AI, sent: Bool = true) -> String {
+        ai.asks ? (sent ? "What \(ai.name) is asked" : "What to ask \(ai.name)") : "What to ask your AI"
     }
+    static let copyShort = "Copy"
+    static let copiedShort = "Copied"
 
     /// Each template in a few words, for the one line under its cover in the gallery: short
     /// enough to show whole there (the site's lines are written for a wider card, and every one
@@ -271,23 +307,25 @@ enum TemplateLibraryWords {
     static func line(_ e: TemplateCatalog.Entry) -> String { lines[e.slug] ?? e.tagline }
 
     /// The line under Make, in three parts around the folder's tag, saying plainly what Make
-    /// does, on one line: "Adds an empty note to (folder) Work, then opens ChatGPT." (the example
-    /// beside it is filled in; what you get is not). The folder is where New Note would put a
-    /// note: the one you're in, or your first (never the template's own: three makes made three
-    /// folders of one note each; council, 10 November 2026). With no AI that opens with the ask,
-    /// only what it adds and where. A template you made and still have isn't added again: the
-    /// line says where it is and that this opens it.
-    /// While sync is away (`reach`) the note is still added, and the line says when the AI can
-    /// fill it: it can't see a note that hasn't synced, so Make doesn't open it then.
+    /// does: "Adds an empty note to (folder) Work, then opens ChatGPT." (the example beside it is
+    /// filled in; what you get is not). An app's says "Adds the app to (folder) Work, then opens
+    /// ChatGPT to set it up.": "an empty app" read as losing the example's habits, and its first
+    /// screen suggests them. The folder is where New Note would put a note: the one you're in, or
+    /// your first. With no AI that opens with the ask, only what it adds and where. While sync is
+    /// away the note is still added, and the line says when the AI can fill it. A template you
+    /// made and still have isn't added again: the line says where it is.
     static func caption(_ e: TemplateCatalog.Entry, ai: SetupCards.AI, folder: String, have: String? = nil, reach: SyncEngine.Reach = .online) -> (lead: String, folder: String, rest: String) {
-        let opens = ai.asks && reach == .online
-        if let have { return ("Already in ", have, opens ? ". This opens it, then \(ai.name)." : ". This opens it.") }
-        let lead = "Adds an empty \(e.app ? "app" : "note") to "
-        guard ai.asks else { return (lead, folder, ".") }
-        return (lead, folder, opens ? ", then opens \(ai.name)." : ". Ask \(ai.name) after it syncs.")
+        if let have { return ("Already in ", have, ".") }
+        return caption(app: e.app, ai: ai, folder: folder, reach: reach)
     }
-    /// Under Make's line with no AI connected: the way to get one.
-    static let connect = "Connect ChatGPT or Claude to have it filled in for you."
+    static func caption(app: Bool, ai: SetupCards.AI, folder: String, reach: SyncEngine.Reach = .online) -> (lead: String, folder: String, rest: String) {
+        let lead = app ? "Adds the app to " : "Adds an empty note to "
+        guard ai.asks else { return (lead, folder, ".") }
+        guard reach == .online else { return (lead, folder, ". Ask \(ai.name) after it syncs.") }
+        return (lead, folder, app ? ", then opens \(ai.name) to set it up." : ", then opens \(ai.name).")
+    }
+    /// Under Make's line with no AI connected: the way to get one (any of the four the dialog offers).
+    static let connect = "Connect your AI to have it filled in for you."
 }
 
 /// Making a template from the library: your AIs to offer, and what Make does.
@@ -330,6 +368,8 @@ enum TemplateMaking {
         let link = NoteSourceLink(kind: .template, slug: e.slug)
         let ledger = ledger ?? NoteSourceLedger(account: account)
         var note = ledger.existing(link, in: context)?.id
+        // One you have is asked about as it's used, not set up again.
+        let pick = note == nil ? e.pick : e.pick(asking: TemplateLibraryWords.everydayAsk(e))
         if note == nil {
             let model = NoteSourceModel(link: link, source: source, ledger: ledger)
             model.folder = into
@@ -344,11 +384,11 @@ enum TemplateMaking {
         // Without an AI that opens with the ask, Make only adds the note: the prompt is the
         // page's to copy ("Copy the prompt"), never put on the clipboard unasked.
         if ai.asks {
-            copy(SetupCards.prompt(e.pick))
+            copy(SetupCards.prompt(pick))
             // While sync is away the AI isn't opened: it can't see a note that hasn't synced, and
             // with no network its page is a browser error. The note is here and the ask is on the
             // clipboard; the page's line says so (`TemplateLibraryWords.caption`).
-            if reach == .online, let page = SetupCards.page(ai, e.pick) { open(page) }
+            if reach == .online, let page = SetupCards.page(ai, pick) { open(page) }
         }
         return note
     }
@@ -393,6 +433,8 @@ struct TemplateLibraryView: View {
     var make: (TemplateCatalog.Entry, SetupCards.AI) -> Void = { _, _ in }
     /// Opens Connect an AI; nil where there's none to open (a picture, a test).
     var connect: (() -> Void)? = nil
+    /// Something is shown over the library (Connect an AI): its keys are that thing's.
+    var covered = false
     var close: () -> Void = {}
     /// Captures: the kind picked and what's typed in Search.
     @State var filter = "All"
@@ -411,10 +453,15 @@ struct TemplateLibraryView: View {
     /// caret while the ring is out (council, 10 November 2026: a caret and a ring at once). On a
     /// template's page nothing has them: its keys (Esc, ⌘[, Return, and the arrows to the template
     /// before and after) are its buttons' shortcuts, which need no focus.
-    enum Keys: Hashable { case search, covers }
+    enum Keys: Hashable { case search, covers, page }
     @FocusState private var keys: Keys?
     /// The examples with more under their frame's foot than shows: the foot fades while there is.
     @State private var below: Set<String> = []
+    /// The page's button the Tab key is on; nil until Tab is pressed (no ring at rest).
+    @State var stop: Stop?
+    /// Each app example's own page, by its template, to give it the keys.
+    @State private var webs: [String: UUID] = [:]
+    @State private var anchor = TemplateMenuAnchor.Box()
     /// The gallery has rows under its foot: they fade out there.
     @State private var galleryMore = true
     /// The examples scrolled down from their top: the top fades while one is.
@@ -440,18 +487,11 @@ struct TemplateLibraryView: View {
     static let size = CGSize(width: 1040, height: 680)
     static let gap: CGFloat = 16
 
-    /// The largest the sheet grows to, on a large window.
-    static let largest = CGSize(width: 1280, height: 860)
-
     /// The sheet's size on a window: the full size where it fits, never wider or taller than the
-    /// window less a margin, and never so small a template's page loses its button. On a window
-    /// with room to spare it grows with it, up to `largest`, keeping 120 pt of the window either
-    /// side and 80 above and below, so a large window shows another column and another row (it
-    /// stayed 1040 by 680 in a window twice that; council, 10 November 2026).
+    /// window less a margin, and never so small a template's page loses its button. It doesn't
+    /// grow past the full size on a large window.
     static func size(on window: CGSize) -> CGSize {
-        let width = max(min(size.width, window.width - 80), min(largest.width, window.width - 240))
-        let height = max(min(size.height, window.height - 60), min(largest.height, window.height - 160))
-        return CGSize(width: max(720, width), height: max(500, height))
+        CGSize(width: min(size.width, max(720, window.width - 80)), height: min(size.height, max(500, window.height - 60)))
     }
 
     // MARK: The page's parts
@@ -500,6 +540,9 @@ struct TemplateLibraryView: View {
     /// A note's own margin inside the panel, the same on all four sides, and an app's (35 px at
     /// the stage's 69%, in template-stage.css).
     static let notePadding: CGFloat = 24
+    /// A table's type and its cells' inset in an example on a sheet.
+    static func tableSize(for size: CGSize) -> CGFloat { narrow(size) ? PageType.tableNarrow : PageType.table }
+    static func tableInset(for size: CGSize) -> CGFloat { narrow(size) ? 6 : 8 }
     /// The list's share of the frame when a sub-note shows open beside it.
     static let listWidth: CGFloat = 252
 
@@ -507,38 +550,41 @@ struct TemplateLibraryView: View {
     /// small quiet labels; with the button's own size, four sizes, in three weights (bold for the
     /// name, semibold for labels and the button, regular).
     enum PageType {
-        static let name: CGFloat = 28
+        static let name: CGFloat = 23
+        /// On a short sheet (a small window).
+        static let nameShort: CGFloat = 20
         static let body: CGFloat = 13
         static let small: CGFloat = 12
-        /// The name's size on a sheet too narrow for the longest name at 28 pt: the largest of
-        /// these at which every name takes one line. One size on every page of a sheet, never a
-        /// smaller one for a longer name (council, 10 November 2026: "Study notes and
-        /// flashcards" was set smaller than "Habit tracker", and read as less).
-        static let names: [CGFloat] = [28, 26, 24, 22, 20, 18]
         /// A table in an example: its words at the body's size, near enough (they were the
         /// system's footnote, 10 pt, beside 13 pt lines).
         static let table: CGFloat = 12
+        /// On a narrow sheet, where five columns share 320 pt: a size smaller, and closer cells.
+        static let tableNarrow: CGFloat = 11
     }
     /// How tall the fade at the frame's foot is, while the example has more under it.
-    static let footFade: CGFloat = 28
-    /// A table on the stage shows at most this many columns (the stage's own trim), and fewer
-    /// where the frame is too narrow for their words: never a column cut at the frame's side.
-    static let stageColumns = 5
+    static let footFade: CGFloat = 40
+    /// Where in the fade it has reached the panel's ground: its last 16 pt are solid.
+    static let footSolid = 0.6
     /// The room a note's lines have in the frame: its width less the note's margins.
     static func lineRoom(for size: CGSize) -> CGFloat { window(for: size).width - notePadding * 2 }
     /// The room the words beside the stage have.
     static func wordsWidth(for size: CGSize) -> CGFloat { size.width - margin(for: size) - window(for: size).width - gap(for: size) - margin(for: size) }
-    /// The name's size on every page of a sheet: the largest of the steps at which the longest
-    /// name takes one line, under its cover, at the words' full width.
-    static func nameSize(for names: [String], room: CGFloat) -> CGFloat {
-        let key = "\(names.count)-\(Int(room))"
-        if let size = nameSizes[key] { return size }
-        func wide(_ name: String, _ size: CGFloat) -> CGFloat { (name as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: .bold)]).width }
-        let size = PageType.names.first { size in names.allSatisfy { wide($0, size) <= room } } ?? PageType.names.last ?? PageType.name
-        nameSizes[key] = size
-        return size
+    /// The name's size on every page of a sheet: one size for all (never a smaller one for a
+    /// longer name, which read as less), beside its cover.
+    static func nameSize(for size: CGSize) -> CGFloat { short(size) ? PageType.nameShort : PageType.name }
+    /// How many lines the names take on a sheet: one where the longest fits beside the cover (the
+    /// full sheet), two where it doesn't. Every page keeps room for that many, so Make never moves.
+    static func nameLines(_ names: [String], size: CGFloat, room: CGFloat) -> Int {
+        let font = NSFont.systemFont(ofSize: size, weight: .bold)
+        return names.contains { ($0 as NSString).size(withAttributes: [.font: font]).width > room } ? 2 : 1
     }
-    private static var nameSizes: [String: CGFloat] = [:]
+    /// The head's height: the cover's, or the name's lines and the kind under them if taller.
+    static func headHeight(lines: Int, name: CGFloat, cover: CGFloat) -> CGFloat {
+        max(cover, CGFloat(lines) * (name * 1.2).rounded(.up) + 3 + 15)
+    }
+    /// The room a name has beside its cover.
+    static func nameRoom(for size: CGSize) -> CGFloat { wordsWidth(for: size) - nameCover(for: size) - headGap }
+    static let headGap: CGFloat = 14
     /// A short sheet (a small window): the words beside the stage sit closer, under a smaller
     /// cover, so the prompt still shows whole under the buttons.
     static func short(_ size: CGSize) -> Bool { size.height < 600 }
@@ -554,8 +600,20 @@ struct TemplateLibraryView: View {
         let lines = CGFloat(descriptionLines(for: size))
         return line * lines + 2 * (lines - 1)
     }
-    /// The line under the buttons takes one line on the full sheet, two where the words are narrow.
-    static func captionLines(for size: CGSize) -> Int { narrow(size) ? 2 : 1 }
+    /// How many lines Make's line takes on a sheet with this folder and AI: as many as an app's
+    /// (the longer) needs, the same on every page so what's under it never moves. Its folder's
+    /// name wraps with the rest: a long one has a line to itself.
+    static func captionLines(for size: CGSize, ai: SetupCards.AI, folder: String, reach: SyncEngine.Reach = .online) -> Int {
+        let c = TemplateLibraryWords.caption(app: true, ai: ai, folder: shownFolder(folder), reach: reach)
+        let wide = ((c.lead + "\u{2009}" + c.folder + c.rest) as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: PageType.small)]).width + 16
+        return min(3, max(1, Int((wide / (wordsWidth(for: size) - 6)).rounded(.up))))
+    }
+    /// A folder's name as Make's line shows it: whole, or with a very long one's middle left out,
+    /// so both its start and its end show ("Everything f…ve in March"); the whole name is its help tag.
+    static func shownFolder(_ name: String) -> String {
+        guard name.count > 26 else { return name }
+        return name.prefix(12).trimmingCharacters(in: .whitespaces) + "\u{2026}" + name.suffix(12).trimmingCharacters(in: .whitespaces)
+    }
 
     // MARK: Moving between pages
 
@@ -623,13 +681,20 @@ struct TemplateLibraryView: View {
                 .accessibilityHidden(open != nil)
             // The open page, and under it, out of sight, the one being got ready. Each keeps its
             // own view from the moment it's laid out, so the app that drew out of sight is the app shown.
-            ForEach(Self.pages(warm: warm, loading: loading, open: open), id: \.slug) { e in
-                page(e, shown: shown)
-                    .opacity(e == open ? 1 : 0)
-                    .allowsHitTesting(e == open)
-                    .accessibilityHidden(e != open)
-                    .zIndex(e == open ? 2 : 1)
+            ZStack {
+                ForEach(Self.pages(warm: warm, loading: loading, open: open), id: \.slug) { e in
+                    page(e, shown: shown)
+                        .opacity(e == open ? 1 : 0)
+                        .allowsHitTesting(e == open)
+                        .accessibilityHidden(e != open)
+                        .zIndex(e == open ? 2 : 1)
+                }
             }
+            // A page has the keys while it's open, so Tab walks its own buttons (TemplateLibraryView.stops)
+            // whatever the Mac's keyboard navigation setting; the ring on a button is the cue.
+            .focusable(open != nil, interactions: .edit)
+            .focused($keys, equals: .page)
+            .focusEffectDisabled()
         }
         .frame(width: size.width, height: size.height)
         // In a sheet the sheet is the panel and macOS dims the window (popupSheet).
@@ -643,9 +708,15 @@ struct TemplateLibraryView: View {
         // Esc with the keys inside an app's example (after a click in it): the same as Esc
         // anywhere on the page, back to the gallery. There the key is the example's first, and
         // what it didn't use closed the whole sheet (real keys on the Air, 10 November 2026).
-        .onExitCommand { if open != nil { show(nil) } else { close() } }
-        // On a page Return is Make, the page's default button.
-        .onKeyPress(.return) { openFromKeys() ? .handled : .ignored }
+        // Esc inside the example leaves the example (the ring is on it then); again, it goes back.
+        .onExitCommand {
+            guard !covered else { return }
+            if open != nil, Self.inExample() { leaveExample() } else if open != nil { show(nil) } else { close() }
+        }
+        // On a page Return is Make, the page's default button; with the ring on another, that one.
+        .onKeyPress(.return) { pressStop() || openFromKeys() ? .handled : .ignored }
+        .onKeyPress(.space) { pressStop() ? .handled : .ignored }
+        .onKeyPress(keys: [.tab, Self.backTab]) { tab($0) }
         // With the ring out, what's typed still goes to Search, and the ring to its first match.
         .onKeyPress(phases: .down) { typed($0) }
         .onAppear {
@@ -653,7 +724,10 @@ struct TemplateLibraryView: View {
             keys = open == nil ? .search : nil
         }
         // The keys go back to the gallery with it: to the ring if it's out, else to Search.
-        .onChange(of: open) { _, now in keys = now == nil ? (focused == nil ? .search : .covers) : nil }
+        .onChange(of: open) { _, now in
+            keys = now == nil ? (focused == nil ? .search : .covers) : .page
+            stop = nil
+        }
         // Search with the keys shows its caret: the ring goes.
         .onChange(of: keys) { _, now in if now == .search { focused = nil } }
     }
@@ -718,6 +792,8 @@ struct TemplateLibraryView: View {
         var instant = Transaction()
         instant.disablesAnimations = true
         guard let e else {
+            // Back by a key (Esc, ⌘[, Return on Back): the ring is on the cover you came from.
+            if let from = open, NSApp.currentEvent?.type == .keyDown, catalog.shown(filter: filter, query: query).contains(from) { focused = from }
             withTransaction(instant) {
                 loading = nil
                 warm = nil
@@ -791,6 +867,15 @@ struct TemplateLibraryView: View {
                         }
                         .buttonStyle(.secondary)
                         .accessibilityIdentifier("templates.clear")
+                        // Looked for inside a kind: the same words in all of them is one press away.
+                        if filter != "All" {
+                            Button(TemplateLibraryWords.searchAll) {
+                                filter = "All"
+                                keys = .search
+                            }
+                            .buttonStyle(.secondary)
+                            .accessibilityIdentifier("templates.searchAll")
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -834,7 +919,7 @@ struct TemplateLibraryView: View {
             Spacer(minLength: 0)
             search(least: least)
             // Esc is this x's while the gallery shows; on a page it's Back's.
-            CardCloseButton(cancels: open == nil, action: close)
+            CardCloseButton(cancels: open == nil && !covered, action: close)
         }
     }
 
@@ -866,19 +951,41 @@ struct TemplateLibraryView: View {
 
     /// Between the covers' rows: a little more than between the covers, since each has its words under it.
     static let rowGap: CGFloat = 18
+    /// A card's words under its art: 8 pt, the name's line (18), 2 pt and the line under it (17).
+    static let cardWords: CGFloat = 45
+
+    /// The rows' rhythm on a sheet: the art's height and the gap between rows, chosen so the
+    /// sheet's foot falls inside a row of covers at rest, never through a name or the line under
+    /// it (council, 10 November 2026: on the smallest sheet the foot cut "Dinners and the
+    /// shopping" in half). The art is 10:7 where that works, a little shorter where it doesn't,
+    /// the gap 18 to 26. Scrolled, anything can be at the foot: it fades out there.
+    static func rhythm(viewport: CGFloat, width: CGFloat) -> (art: CGFloat, gap: CGFloat) {
+        func good(_ art: CGFloat, _ gap: CGFloat) -> Bool {
+            let pitch = art + cardWords + gap
+            let into = (viewport - gridTop).truncatingRemainder(dividingBy: pitch)
+            // The foot is 6 pt or more into a cover, so the words over it are clear of the fade.
+            return into >= 6 && into <= art
+        }
+        for ratio in stride(from: 0.70, through: 0.60, by: -0.01) {
+            let art = (width * ratio).rounded()
+            for gap in stride(from: rowGap, through: rowGap + 8, by: 1) where good(art, gap) { return (art, gap) }
+        }
+        return (SetupTemplateCard.artHeight(width), rowGap)
+    }
 
     private func grid(_ shown: [TemplateCatalog.Entry]) -> some View {
         GeometryReader { geo in
             // The row the cards really get: less than the pane when a mouse is attached and the
             // scroll bar takes its own room (the cards then left a column's gap).
             let width = Self.cardWidth(row: row > 0 ? row : geo.size.width - Self.margin(for: size) * 2, gap: Self.gap)
+            let rhythm = Self.rhythm(viewport: geo.size.height, width: width)
             ScrollViewReader { scroller in
                 ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: Self.gap, alignment: .top)], alignment: .leading, spacing: Self.rowGap) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: Self.gap, alignment: .top)], alignment: .leading, spacing: rhythm.gap) {
                         ForEach(shown) { e in
                             // The art, and under it its name and a few words; the ring is the
                             // arrow keys', never a pick.
-                            SetupTemplateCard(pick: e.pick, width: width, captionBelow: true, selected: focused == e, line: TemplateLibraryWords.line(e), app: e.app,
+                            SetupTemplateCard(pick: e.pick, width: width, captionBelow: true, selected: focused == e, line: TemplateLibraryWords.line(e), app: e.app, art: rhythm.art,
                                               pointer: { on in point(e, on) }) {
                                 focused = nil
                                 show(e)
@@ -971,11 +1078,12 @@ struct TemplateLibraryView: View {
                     }
                 }
                 .buttonStyle(.quiet)
+                .overlay { ring(.back, on: e, radius: 8) }
                 // Esc goes back, and ⌘[ (the hidden button under it).
-                .keyboardShortcut(e == open ? .cancelAction : nil)
+                .keyboardShortcut(e == open && !covered ? .cancelAction : nil)
                 .background {
                     Group {
-                        Button("") { show(nil) }.keyboardShortcut(e == open ? KeyboardShortcut("[", modifiers: .command) : nil)
+                        Button("") { show(nil) }.keyboardShortcut(e == open && !covered ? KeyboardShortcut("[", modifiers: .command) : nil)
                         // The arrows, to the template before and after in the gallery's order.
                         Button("") { _ = arrow(shown, rows: 0, along: -1) }.keyboardShortcut(e == open ? KeyboardShortcut(.leftArrow, modifiers: []) : nil)
                         Button("") { _ = arrow(shown, rows: 0, along: 1) }.keyboardShortcut(e == open ? KeyboardShortcut(.rightArrow, modifiers: []) : nil)
@@ -986,6 +1094,7 @@ struct TemplateLibraryView: View {
                 .accessibilityIdentifier("templates.back")
                 Spacer(minLength: 0)
                 CardCloseButton(cancels: false, action: close)
+                    .overlay { ring(.close, on: e, radius: 13) }
             }
             // Back's chevron on the margin: the quiet button has 9 pt of its own inside it.
             .padding(.leading, Self.margin(for: size) - 9)
@@ -1042,6 +1151,7 @@ struct TemplateLibraryView: View {
                 // dark, where a shadow shows nothing and the panel is darker than the sheet.
                 .shadow(color: .black.opacity(scheme == .dark ? 0 : Self.panelShadow.near), radius: 1.5, y: 0.5)
                 .shadow(color: .black.opacity(scheme == .dark ? 0 : Self.panelShadow.far), radius: 14, y: 4)
+                .overlay { ring(.example, on: e, radius: Self.frameRadius) }
                 .accessibilityLabel("\(e.title), an example")
         }
         .padding(.leading, inset)
@@ -1058,7 +1168,10 @@ struct TemplateLibraryView: View {
         if let project = TemplateFiles.project(e) {
             // Tick, add, change tabs and scroll as you would; nothing it does is kept. Its picture
             // shows while it starts, so the stage is never blank.
-            TemplateAppPreview(entry: e, project: project, narrow: Self.narrow(size)) { ready.insert(e.slug) }
+            TemplateAppPreview(entry: e, project: project, narrow: Self.narrow(size)) { id in
+                ready.insert(e.slug)
+                webs[e.slug] = id
+            }
         } else if let opened = TemplateFiles.opened(e), !Self.narrow(size) {
             // A note that files sub-notes, with one of them open beside it: the list on the left,
             // its open row picked, and the sub-note it leads to on the right, as the two panes of
@@ -1080,7 +1193,7 @@ struct TemplateLibraryView: View {
             // the fade at the foot.
             scrolls(e) {
                 NotePreview(markdown: e.example, given: TemplateFiles.example(e, room: Self.lineRoom(for: size)), whole: true,
-                            margin: Self.notePadding, tableSize: PageType.table)
+                            margin: Self.notePadding, tableSize: Self.tableSize(for: size), tableRoom: Self.lineRoom(for: size), tableInset: Self.tableInset(for: size))
             }
             // A note is there as soon as it's laid out.
             .onAppear { ready.insert(e.slug) }
@@ -1103,7 +1216,9 @@ struct TemplateLibraryView: View {
             if scrolled { above.insert(e.slug) } else { above.remove(e.slug) }
         }
         .overlay(alignment: .bottom) {
-            LinearGradient(colors: [frameGround.opacity(0), frameGround], startPoint: .top, endPoint: .bottom)
+            // Solid over the panel's last 16 pt: a line the foot cuts is under it, so what shows
+            // ends on a whole line, fading (it showed half a line at the edge).
+            LinearGradient(stops: [.init(color: frameGround.opacity(0), location: 0), .init(color: frameGround, location: Self.footSolid), .init(color: frameGround, location: 1)], startPoint: .top, endPoint: .bottom)
                 .frame(height: Self.footFade)
                 .opacity(below.contains(e.slug) ? 1 : 0)
                 .allowsHitTesting(false)
@@ -1112,7 +1227,7 @@ struct TemplateLibraryView: View {
         // Scrolled, its top fades the same way: a line the panel's top cuts is never a hard edge
         // either (real scrolling on the Air, 10 November 2026: a table's header cut through).
         .overlay(alignment: .top) {
-            LinearGradient(colors: [frameGround, frameGround.opacity(0)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(stops: [.init(color: frameGround, location: 0), .init(color: frameGround, location: 1 - Self.footSolid), .init(color: frameGround.opacity(0), location: 1)], startPoint: .top, endPoint: .bottom)
                 .frame(height: Self.footFade)
                 .opacity(above.contains(e.slug) ? 1 : 0)
                 .allowsHitTesting(false)
@@ -1148,37 +1263,155 @@ struct TemplateLibraryView: View {
             i += 1
         }
         while blocks.last == .gap { blocks.removeLast() }
-        return blocks.map { block in
-            guard case .table(let header, let rows) = block else { return block }
-            var count = min(header.count, stageColumns)
-            while count > 2, NotePreview.leastWidths(header: Array(header.prefix(count)), rows: rows.map { Array($0.prefix(count)) }, size: PageType.table).reduce(0, +) > room { count -= 1 }
-            guard count < header.count else { return block }
-            return .table(header: Array(header.prefix(count)), rows: rows.map { Array($0.prefix(count)) })
+        // Every column shows, at any width: where a row's cells don't fit on one line each, they
+        // wrap (on the smallest sheet Job hunt lost "Next step", the column its page sells).
+        return blocks
+    }
+
+    // MARK: The page's buttons
+
+    /// What the page's button does: Make with your AI; with no AI that opens with the ask, or
+    /// while sync is away, it only adds; for a template you made and still have, it opens it.
+    enum Mode: Equatable { case make, plain, have }
+    static func mode(ai: SetupCards.AI, reach: SyncEngine.Reach, have: String?) -> Mode {
+        have != nil ? .have : ai.asks && reach == .online ? .make : .plain
+    }
+
+    /// The arrow's menu: your other AIs to make it with (for one you have: your AIs to ask about
+    /// it), and under them the prompt to copy. Empty when Copy would be all of it: then there's no
+    /// arrow, and Copy is beside the prompt (council, 10 November 2026: a menu of one item).
+    enum MenuItem: Equatable { case make(SetupCards.AI), ask(SetupCards.AI), divider, copy }
+    static func menu(_ mode: Mode, ai: SetupCards.AI, ais: [SetupCards.AI], reach: SyncEngine.Reach = .online) -> [MenuItem] {
+        let others: [MenuItem] = switch mode {
+        case .make: ais.filter { $0 != ai && $0.asks }.map { .make($0) }
+        case .have: reach == .online ? ais.filter(\.asks).map { .ask($0) } : []
+        case .plain: []
+        }
+        return others.isEmpty ? [] : others + [.divider, .copy]
+    }
+
+    /// The page's buttons in the order Tab walks them: its own first (Make, the arrow, the second
+    /// button, the link, Copy), then Back and Close, the tiles under "More like this", and last
+    /// the example, one stop: Return goes into an app there and Esc comes out. Tab used to go
+    /// into the example's app and never reach Make (council, 10 November 2026).
+    enum Stop: Hashable { case make, arrow, secondary, connect, copy, back, close, more(String), example }
+    static func stops(arrow: Bool, secondary: Bool, connect: Bool, copy: Bool, related: [String], example: Bool) -> [Stop] {
+        [.make] + (arrow ? [.arrow] : []) + (secondary ? [.secondary] : []) + (connect ? [.connect] : []) + (copy ? [.copy] : [])
+            + [.back, .close] + related.map { .more($0) } + (example ? [.example] : [])
+    }
+    /// The stop after this one (before it, by -1), around the ends; from none, the first (the last).
+    static func next(_ stops: [Stop], from at: Stop?, by: Int) -> Stop? {
+        guard !stops.isEmpty else { return nil }
+        guard let at, let i = stops.firstIndex(of: at) else { return by < 0 ? stops.last : stops.first }
+        return stops[(i + by + stops.count) % stops.count]
+    }
+    static let backTab = KeyEquivalent("\u{19}")
+
+    /// What a page shows, worked out once: its button's mode, the arrow's menu, and which of the
+    /// other things are there.
+    struct Parts {
+        let mode: Mode
+        let menu: [MenuItem]
+        let have: String?
+        let connect: Bool
+        var arrow: Bool { !menu.isEmpty }
+        var secondary: Bool { mode == .make }
+        var copy: Bool { menu.isEmpty }
+    }
+    private func parts(_ e: TemplateCatalog.Entry) -> Parts {
+        let had = have(e)
+        let mode = Self.mode(ai: ai, reach: reach, have: had)
+        return Parts(mode: mode, menu: Self.menu(mode, ai: ai, ais: ais, reach: reach), have: had, connect: mode == .plain && !ai.asks && connect != nil)
+    }
+    private func stops(_ e: TemplateCatalog.Entry) -> [Stop] {
+        let p = parts(e)
+        return Self.stops(arrow: p.arrow, secondary: p.secondary, connect: p.connect, copy: p.copy,
+                          related: Self.showsMore(size) ? Self.related(e, in: catalog.entries).map(\.slug) : [], example: e.app)
+    }
+
+    /// The ring on the button Tab is on: the covers' own ring.
+    @ViewBuilder private func ring(_ s: Stop, on e: TemplateCatalog.Entry, radius: CGFloat) -> some View {
+        if stop == s, e == open {
+            RoundedRectangle(cornerRadius: radius + 3, style: .continuous).strokeBorder(Color.paneAccent, lineWidth: 2.5).padding(-4)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 
-    /// Beside the stage, each thing once: the cover, and under it the name at the words' full
-    /// width, and the kind; what it is; the button that makes it, with the line saying what it
-    /// adds, where, and what opens right under it, so the line is Make's; then, apart, the plain
-    /// way without an AI, a button like any other; and what your AI is asked, quietly, in a box of
-    /// its own. Everything down to the buttons keeps its place from one template to the next (the
-    /// name is one size and one line on every page, the description keeps room for its longest),
-    /// so paging with the arrows never moves it.
+    private func tab(_ press: KeyPress) -> KeyPress.Result {
+        guard let open, !covered else { return .ignored }
+        let back = press.modifiers.contains(.shift) || press.key == Self.backTab
+        stop = Self.next(stops(open), from: stop, by: back ? -1 : 1)
+        return .handled
+    }
+
+    /// Return or Space with the ring on a button: presses it.
+    private func pressStop() -> Bool {
+        guard let e = open, let s = stop, !covered else { return false }
+        switch s {
+        case .make: primary(e, parts(e))
+        case .arrow: popMenu(e, parts(e))
+        case .secondary: make(e, .other)
+        case .connect: connect?()
+        case .copy: copy(e)
+        case .back: show(nil)
+        case .close: close()
+        case .more(let slug): if let r = catalog.entries.first(where: { $0.slug == slug }) { show(r) }
+        case .example: enterExample(e)
+        }
+        return true
+    }
+
+    /// The keys go into the example's app: Tab then walks its own controls.
+    private func enterExample(_ e: TemplateCatalog.Entry) {
+        guard let id = webs[e.slug], let web = NotePageLive.view(id), let window = web.window else { return }
+        window.makeFirstResponder(web)
+    }
+
+    /// Whether the keys are in an example's app.
+    static func inExample() -> Bool {
+        var view = NSApp.keyWindow?.firstResponder as? NSView
+        while let v = view {
+            if v is WKWebView { return true }
+            view = v.superview
+        }
+        return false
+    }
+
+    /// The keys come back from the example's app to the page, the ring on the example.
+    private func leaveExample() {
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        keys = nil
+        stop = .example
+        DispatchQueue.main.async { keys = .page }
+    }
+
+    /// Beside the stage, each thing once: the cover with the name and the kind beside it, on one
+    /// row; what it is; the button that makes it, with the line saying what it adds, where, and
+    /// what opens right under it, so the line is Make's; then, apart and plainly second, the way
+    /// to do it yourself; and what your AI is asked, quoted. Everything down to the buttons keeps
+    /// its place from one template to the next (the name is one size on every page and keeps room
+    /// for the longest, the description for its longest), so paging with the arrows never moves it.
     private func words(_ e: TemplateCatalog.Entry) -> some View {
         let wide = Self.wordsWidth(for: size), short = Self.short(size)
-        let name = Self.nameSize(for: catalog.entries.map(\.title), room: wide)
+        let p = parts(e)
+        let cover = Self.nameCover(for: size), name = Self.nameSize(for: size)
+        let lines = Self.nameLines(catalog.entries.map(\.title), size: name, room: Self.nameRoom(for: size))
         return VStack(alignment: .leading, spacing: 0) {
-            // The cover you clicked, small, over its name: the page is that card's.
-            Self.thumbnail(e.pick, side: Self.nameCover(for: size))
-            Text(e.title).font(.system(size: name, weight: .bold)).foregroundStyle(Color.ink)
-                .lineLimit(1)
-                .frame(height: (name * 1.22).rounded(.up), alignment: .bottomLeading)
-                .padding(.top, short ? 8 : 12)
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityIdentifier("templates.name")
-            Text(TemplateLibraryWords.kind(e)).font(.system(size: PageType.small)).foregroundStyle(Color.muted)
-                .padding(.top, 3)
-                .accessibilityIdentifier("templates.kind")
+            // The cover you clicked, small, beside its name: the page is that card's.
+            HStack(alignment: .center, spacing: Self.headGap) {
+                Self.thumbnail(e.pick, side: cover)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(e.title).font(.system(size: name, weight: .bold)).foregroundStyle(Color.ink)
+                        .lineLimit(lines)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("templates.name")
+                    kind(e, have: p.have)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(height: Self.headHeight(lines: lines, name: name, cover: cover), alignment: .leading)
             Text(NoWidow.kept(e.shownDescription, phrases: true)).font(.system(size: PageType.body)).foregroundStyle(Color.ink)
                 .lineSpacing(2)
                 .lineLimit(Self.descriptionLines(for: size))
@@ -1187,29 +1420,33 @@ struct TemplateLibraryView: View {
                 // leaves out the spacing between lines, and a three-line description put the
                 // button 4 pt lower than a two-line one (every page side by side, 10 November 2026).
                 .frame(height: Self.descriptionHeight(for: size), alignment: .topLeading)
+                .padding(.top, short ? 10 : 12)
+            actions(e, p)
                 .padding(.top, short ? 10 : 14)
-            actions(e)
-                .padding(.top, short ? 12 : 18)
             // What Make does, right under Make: never under the other button, where it read as
-            // that one's ("Adds… then opens ChatGPT" under Add without AI; council, 10 November 2026).
-            caption(e)
+            // that one's.
+            caption(e, p)
                 .padding(.top, 8)
-            if !ai.asks, let connect {
-                // No AI connected: the way to get one, quietly, under what Add does.
+            if p.connect, let connect {
+                // No AI connected: the way to get one, quietly, under what Add does. It opens over
+                // this page, and the page is here when it closes.
                 Button(TemplateLibraryWords.connect, action: connect)
                     .buttonStyle(.textLink)
+                    .overlay { ring(.connect, on: e, radius: 4) }
                     .padding(.top, 4)
                     .accessibilityIdentifier("templates.connect")
             }
-            if ai.asks {
-                // The other way, in plain sight and plainly a button: these work without an AI.
-                Button(TemplateLibraryWords.withoutAI) { make(e, .other) }
-                    .buttonStyle(.secondary(.regular, wide: true))
-                    .padding(.top, short ? 10 : 16)
+            if p.secondary {
+                // The other way, plainly second: lower and quieter than Make, and named for what
+                // you do next.
+                Button(TemplateLibraryWords.addMyself(e)) { make(e, .other) }
+                    .buttonStyle(.secondaryQuiet)
+                    .overlay { ring(.secondary, on: e, radius: 10) }
+                    .padding(.top, short ? 8 : 14)
                     .accessibilityIdentifier("templates.withoutAI")
             }
-            asked(e)
-                .padding(.top, short ? 12 : 20)
+            asked(e, p)
+                .padding(.top, short ? 12 : 18)
             Spacer(minLength: 0)
         }
         .frame(width: wide, alignment: .leading)
@@ -1219,15 +1456,41 @@ struct TemplateLibraryView: View {
         .padding(.top, short ? 16 : Self.exampleRow)
     }
 
-    /// What your AI is asked: a small label naming it, and the prompt under it in quotation marks,
-    /// as plain words in ink. No box and no rule: in a filled box with a field's corners it read
-    /// as something to type in, and its grey words on the grey fill were hard to read in the dark
-    /// (council, 10 November 2026). Nothing here is typed in.
-    private func asked(_ e: TemplateCatalog.Entry) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(TemplateLibraryWords.asked(ai)).font(.system(size: PageType.small, weight: .semibold)).foregroundStyle(Color.muted)
-            Text("\u{201C}\(NoWidow.kept(TemplateCatalog.Entry.sendable(e.ask), phrases: true))\u{201D}")
-                .font(.system(size: PageType.small)).foregroundStyle(Color.ink)
+    /// Under the name: the kind, and for a template you made and still have, where it is.
+    private func kind(_ e: TemplateCatalog.Entry, have: String?) -> some View {
+        Group {
+            if let have {
+                Text("\(TemplateLibraryWords.kind(e)) \u{00B7} Already in ")
+                    + Text(Image(systemName: "folder")).foregroundStyle(Color.paneAccent.opacity(0.85))
+                    + Text("\u{2009}\(Self.shownFolder(have))").foregroundStyle(Color.ink)
+            } else {
+                Text(TemplateLibraryWords.kind(e))
+            }
+        }
+        .font(.system(size: PageType.small)).foregroundStyle(Color.muted)
+        .lineLimit(1)
+        .accessibilityIdentifier("templates.kind")
+    }
+
+    /// What your AI is asked: a small label naming it, and under it the words that get sent, in
+    /// quotation marks, small and in the labels' grey: a quotation, not a second description (in
+    /// ink it read as one; in a box, as a field). Where there's no arrow with its menu, Copy is
+    /// beside the label.
+    private func asked(_ e: TemplateCatalog.Entry, _ p: Parts) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 10) {
+                Text(TemplateLibraryWords.asked(ai, sent: p.arrow || p.mode == .make)).font(.system(size: PageType.small, weight: .semibold)).foregroundStyle(Color.muted)
+                if p.copy {
+                    Button(copied ? TemplateLibraryWords.copiedShort : TemplateLibraryWords.copyShort) { copy(e) }
+                        .buttonStyle(.textLink)
+                        .overlay { ring(.copy, on: e, radius: 4) }
+                        .accessibilityLabel(TemplateLibraryWords.copy)
+                        .accessibilityIdentifier("templates.copy")
+                }
+            }
+            .frame(height: 16)
+            Text("\u{201C}\(NoWidow.kept(TemplateCatalog.Entry.sendable(prompt(e, p)), phrases: true))\u{201D}")
+                .font(.system(size: PageType.small)).foregroundStyle(Color.muted)
                 .lineSpacing(2)
                 .lineLimit(5)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1236,104 +1499,106 @@ struct TemplateLibraryView: View {
         }
     }
 
-    /// Make's line with a folder's name too long for it cut short with "…", so the line keeps
-    /// its end ("…, then opens ChatGPT.") in the room it has; a name that fits is whole.
-    static func fitted(_ c: (lead: String, folder: String, rest: String), room: CGFloat) -> (lead: String, folder: String, rest: String) {
-        let font = NSFont.systemFont(ofSize: PageType.small)
-        // The words, the folder's glyph (16 pt with room to spare) and its thin space.
-        func wide(_ folder: String) -> CGFloat { ((c.lead + "\u{2009}" + folder + c.rest) as NSString).size(withAttributes: [.font: font]).width + 16 }
-        guard wide(c.folder) > room else { return c }
-        var name = c.folder
-        while name.count > 3, wide(name + "\u{2026}") > room { name.removeLast() }
-        return (c.lead, name.trimmingCharacters(in: .whitespaces) + "\u{2026}", c.rest)
-    }
+    /// The ask a page shows and copies: the template's; for one you have, the everyday one.
+    private func prompt(_ e: TemplateCatalog.Entry, _ p: Parts) -> String { p.mode == .have ? TemplateLibraryWords.everydayAsk(e) : e.ask }
 
-
-    /// What Make does, plainly, under the buttons, on one line: "Adds an empty note to (folder)
-    /// Reading, then opens ChatGPT." The folder is Go to Note's tag: a small folder in the accent,
-    /// then its name. One line on the full sheet for every template and AI; a narrow sheet has
-    /// room for two. "Prompt copied" takes its place for a moment after Copy the prompt.
-    private func caption(_ e: TemplateCatalog.Entry) -> some View {
-        Group {
-            if copied {
+    /// What Make does, plainly, right under it: "Adds an empty note to (folder) Work, then opens
+    /// ChatGPT." The folder is Go to Note's tag: a small folder in the accent, then its name, whole
+    /// (a long one wraps onto a line of its own; a very long one loses its middle, and its help
+    /// tag has all of it). As many lines on every page of a sheet, so nothing under it moves.
+    private func caption(_ e: TemplateCatalog.Entry, _ p: Parts) -> some View {
+        let lines = Self.captionLines(for: size, ai: ai, folder: folder, reach: reach)
+        let c = TemplateLibraryWords.caption(e, ai: ai, folder: folder, have: p.have, reach: reach)
+        return Group {
+            if copied, p.arrow {
                 Text("\(Image(systemName: "checkmark")) \(TemplateLibraryWords.copied)")
             } else {
-                let c = Self.fitted(TemplateLibraryWords.caption(e, ai: ai, folder: folder, have: have(e), reach: reach), room: Self.wordsWidth(for: size) * CGFloat(Self.captionLines(for: size)) - (Self.captionLines(for: size) > 1 ? 40 : 0))
                 Text(c.lead)
                     + Text(Image(systemName: "folder")).foregroundStyle(Color.paneAccent.opacity(0.85))
-                    + Text("\u{2009}\(c.folder)").foregroundStyle(Color.ink)
+                    + Text("\u{2009}\(Self.shownFolder(c.folder))").foregroundStyle(Color.ink)
                     + Text(c.rest)
             }
         }
         .font(.system(size: PageType.small)).foregroundStyle(Color.muted)
-        .lineLimit(Self.captionLines(for: size))
+        .lineLimit(lines)
         .fixedSize(horizontal: false, vertical: true)
         // One height whatever it says (the folder's glyph makes a line a hair taller).
-        .frame(height: Self.captionLines(for: size) == 1 ? 17 : 34, alignment: .topLeading)
+        .frame(height: CGFloat(lines) * 17, alignment: .topLeading)
+        .help(c.folder)
         .accessibilityIdentifier("templates.caption")
     }
 
-    /// The button: Make with the AI shown (or, with none, Add the note or Add the app), and an
-    /// arrow with your other AIs, each with its mark, and the prompt to copy.
-    private func actions(_ e: TemplateCatalog.Entry) -> some View {
-        HStack(spacing: 1) {
-            Button { make(e, ai) } label: { makeLabel(e, ai) }
-                .buttonStyle(.amberProminent(.regular, wide: true, joined: .leading))
-                // Return makes the open template.
-                .keyboardShortcut(e == open ? .defaultAction : nil)
-                .accessibilityIdentifier("templates.make")
-            Menu {
-                ForEach(ais.filter { $0 != ai && $0.asks }) { other in
-                    Button { picked = other; make(e, other) } label: {
-                        // A menu row is its picture and its words: the mark is a finished picture
-                        // (AIGlyph.menuImage), shown whatever the menu's own style for icons.
-                        Label { Text(TemplateLibraryWords.make(e, other)) } icon: { AIGlyph.menuImage(other.name, dark: scheme == .dark) ?? Image(systemName: "sparkle") }
-                            .labelStyle(.titleAndIcon)
-                    }
+    /// The button: Make with the AI shown (or what it adds, or Open for one you have), and where
+    /// there's more than the prompt to offer, an arrow with your other AIs and the prompt to copy.
+    @ViewBuilder private func actions(_ e: TemplateCatalog.Entry, _ p: Parts) -> some View {
+        if p.arrow {
+            HStack(spacing: 1) {
+                Button { primary(e, p) } label: { makeLabel(e, p) }
+                    .buttonStyle(.amberProminent(.regular, wide: true, joined: .leading))
+                    .overlay { ring(.make, on: e, radius: 10) }
+                    // Return makes the open template.
+                    .keyboardShortcut(e == open && !covered ? .defaultAction : nil)
+                    .accessibilityIdentifier("templates.make")
+                // The menu is the system's, put up by hand: its right edge on the arrow's (the
+                // button's own menu hung 75 pt past the sheet), and Return opens it from the keys.
+                Button { popMenu(e, p) } label: {
+                    Image(systemName: "chevron.down").font(.system(size: PageType.small, weight: .semibold))
                 }
-                if ais.contains(where: { $0 != ai && $0.asks }) { Divider() }
-                Button { copy(e) } label: {
-                    // In the menu's own ink, never the accent: only an AI's mark carries colour here.
-                    Label { Text(TemplateLibraryWords.copy) } icon: { Self.menuSymbol("doc.on.doc", dark: scheme == .dark) }
-                        .labelStyle(.titleAndIcon)
-                }
-            } label: {
-                Image(systemName: "chevron.down").font(.system(size: PageType.small, weight: .semibold))
+                .buttonStyle(.amberProminent(.regular, joined: .trailing))
+                .fixedSize()
+                .background(TemplateMenuAnchor(box: anchor))
+                .overlay { ring(.arrow, on: e, radius: 10) }
+                .accessibilityLabel(TemplateLibraryWords.more)
+                .accessibilityIdentifier("templates.makeWith")
             }
-            .menuStyle(.button)
-            .menuIndicator(.hidden)
-            .buttonStyle(.amberProminent(.regular, joined: .trailing))
-            .fixedSize()
-            .accessibilityLabel(TemplateLibraryWords.more)
-            .accessibilityIdentifier("templates.makeWith")
+        } else {
+            Button { primary(e, p) } label: { makeLabel(e, p) }
+                .buttonStyle(.amberProminent(.regular, wide: true))
+                .overlay { ring(.make, on: e, radius: 10) }
+                .keyboardShortcut(e == open && !covered ? .defaultAction : nil)
+                .accessibilityIdentifier("templates.make")
         }
     }
 
-    /// A symbol for a menu row as a finished picture in the menu's ink: a symbol there takes the
-    /// sheet's tint, whatever colours it's given, and "Copy the prompt" drew in amber beside the
-    /// AIs' marks (real menus on the Air, 10 November 2026). Drawn once for each look.
-    @MainActor static func menuSymbol(_ name: String, dark: Bool) -> Image {
-        let key = "\(name)-\(dark)"
-        if let made = menuSymbols[key] { return Image(nsImage: made) }
-        let renderer = ImageRenderer(content: Image(systemName: name).font(.system(size: PageType.body)).foregroundStyle(dark ? Color.white : Color.black).frame(width: 16, height: 16))
-        renderer.scale = 2
-        guard let image = renderer.nsImage else { return Image(systemName: name) }
-        image.isTemplate = false
-        menuSymbols[key] = image
-        return Image(nsImage: image)
+    private func primary(_ e: TemplateCatalog.Entry, _ p: Parts) { make(e, p.mode == .have ? .other : ai) }
+
+    /// The arrow's menu, its right edge on the arrow's.
+    private func popMenu(_ e: TemplateCatalog.Entry, _ p: Parts) {
+        guard let view = anchor.view else { return }
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        var actions: [MenuAction] = []
+        func add(_ title: String, _ image: NSImage?, _ run: @escaping () -> Void) {
+            let action = MenuAction(run)
+            actions.append(action)
+            let item = NSMenuItem(title: title, action: #selector(MenuAction.fire), keyEquivalent: "")
+            item.target = action
+            item.image = image
+            menu.addItem(item)
+        }
+        for item in p.menu {
+            switch item {
+            case .divider: menu.addItem(.separator())
+            // An AI's mark is its own picture, in its colours; the copy symbol takes the menu's ink.
+            case .make(let other): add(TemplateLibraryWords.make(e, other), AIGlyph.menuPicture(other.name, dark: scheme == .dark)) { picked = other; make(e, other) }
+            case .ask(let asked): add(TemplateLibraryWords.ask(asked), AIGlyph.menuPicture(asked.name, dark: scheme == .dark)) { make(e, asked) }
+            case .copy: add(TemplateLibraryWords.copy, NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)) { copy(e) }
+            }
+        }
+        menu.popUp(positioning: nil, at: NSPoint(x: view.bounds.maxX - menu.size.width, y: view.bounds.maxY + 6), in: view)
+        _ = actions
     }
-    @MainActor private static var menuSymbols: [String: NSImage] = [:]
 
     /// "Make with ChatGPT" with ChatGPT's mark: an AI named is an AI shown.
-    private func makeLabel(_ e: TemplateCatalog.Entry, _ ai: SetupCards.AI) -> some View {
+    private func makeLabel(_ e: TemplateCatalog.Entry, _ p: Parts) -> some View {
         HStack(spacing: 7) {
-            if ai.asks { AIGlyph(ai: ai.name, size: 15, monochrome: true) }
-            Text(TemplateLibraryWords.make(e, ai))
+            if p.mode == .make { AIGlyph(ai: ai.name, size: 15, monochrome: true) }
+            Text(TemplateLibraryWords.primary(e, ai, p.mode))
         }
     }
 
     private func copy(_ e: TemplateCatalog.Entry) {
-        ConnectClipboard.set(SetupCards.prompt(e.pick))
+        ConnectClipboard.set(SetupCards.prompt(e.pick(asking: prompt(e, parts(e)))))
         copied = true
         Task {
             try? await Task.sleep(for: .seconds(1.6))
@@ -1381,6 +1646,7 @@ struct TemplateLibraryView: View {
                         .contentShape(.rect)
                     }
                     .buttonStyle(.tile(radius: 14))
+                    .overlay { ring(.more(r.slug), on: e, radius: 14) }
                     .accessibilityIdentifier("templates.more.\(r.slug)")
                 }
             }
@@ -1415,6 +1681,23 @@ struct TemplateLibraryView: View {
     }
 }
 
+/// Where the arrow's menu goes up from: the arrow's own place in the window.
+struct TemplateMenuAnchor: NSViewRepresentable {
+    final class Box { weak var view: NSView? }
+    final class Flipped: NSView { override var isFlipped: Bool { true } }
+    let box: Box
+
+    func makeNSView(context: Context) -> NSView { Flipped() }
+    func updateNSView(_ view: NSView, context: Context) { box.view = view }
+}
+
+/// A menu row's action.
+final class MenuAction: NSObject {
+    let run: () -> Void
+    init(_ run: @escaping () -> Void) { self.run = run }
+    @objc func fire() { run() }
+}
+
 /// The kinds, as one row of words in a quiet track: the picked one on a raised pill in the
 /// sheet's own greys, its word in ink. Drawn here, not the system's segmented picker: in a key
 /// window that one filled its pick with the accent under white words (white on amber, about 2:1,
@@ -1425,17 +1708,15 @@ struct TemplateKinds: View {
     @Environment(\.colorScheme) private var scheme
 
     static let height: CGFloat = 28
-    /// The gap before Apps, where the others have 2.
-    static let apart: CGFloat = 10
     /// The raised pill under the picked kind: white on the light track, a lighter grey on the dark.
     static func pill(dark: Bool) -> Color { dark ? Color(white: 0.34) : .white }
 
     var body: some View {
         HStack(spacing: 2) {
             ForEach(TemplateCatalog.filters, id: \.self) { kind in
-                // Apps is a format among topics: a wider gap sets it apart, and no line.
+                // Apps is a format among topics: last, and spaced as the rest (a wider gap before
+                // it read as a spacing fault, and a hairline as one more line).
                 Kind(name: TemplateCatalog.label(kind), on: filter == kind) { filter = kind }
-                    .padding(.leading, kind == "Apps" ? TemplateKinds.apart - 2 : 0)
                     .accessibilityIdentifier("templates.kind.\(TemplateCatalog.label(kind))")
             }
         }
@@ -1730,8 +2011,8 @@ struct TemplateAppPreview: View {
     let project: String
     /// On a narrow sheet's stage: the app in its one-column layout, and its picture of that.
     var narrow = false
-    /// The app has drawn: its page can be shown.
-    var drew: () -> Void = {}
+    /// The app has drawn: its page can be shown. With its own id, to give it the keys (NotePageLive).
+    var drew: (UUID) -> Void = { _ in }
     @State private var doc: NotePageData.Doc?
     /// Its own id, never a note's.
     @State private var id = UUID()
@@ -1773,7 +2054,7 @@ struct TemplateAppPreview: View {
                              onReady: {
                                  // At once: the page is shown only now, so there's no picture to fade from.
                                  ready = true
-                                 drew()
+                                 drew(id)
                              },
                              zoom: Self.zoom(for: geo.size, narrow: narrow))
                     .frame(width: geo.size.width, height: geo.size.height)

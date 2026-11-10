@@ -265,10 +265,38 @@ struct NoteDetailView: View {
             // Later templates: just a line.
             .task(id: firstOpen?.note) {
                 guard let m = firstOpen, !m.full else { return }
+                #if os(macOS)
+                // Made from the library: the caret is where you'd write first, at once.
+                if !m.hadIt { landInMade() }
+                try? await Task.sleep(for: .seconds(0.6))
+                let undo = FirstOpen.shared.takeUndo(m.note)
+                if let undo {
+                    // Command-Z takes it back too (Edit: "Undo Add Note").
+                    undoManager?.registerUndo(withTarget: context) { _ in MainActor.assumeIsolated { undo() } }
+                    undoManager?.setActionName(m.isApp ? "Add App" : "Add Note")
+                }
+                if let ai = m.waitingFor, !m.hadIt { waitingAsk = (ai, m.slug) }
+                say(m.line, action: undo.map { run in ("Undo", { self.said = nil; run() }) })
+                #else
                 try? await Task.sleep(for: .seconds(0.6))
                 notice(m.line)
+                #endif
                 FirstOpen.shared.start(m)
             }
+            #if os(macOS)
+            // Sync is back for a note made while it was away: the same place offers to ask the AI, once.
+            .onChange(of: reach) { _, now in
+                guard now == .online, let w = waitingAsk else { return }
+                waitingAsk = nil
+                guard let e = TemplateCatalog.shipped.entries.first(where: { $0.slug == w.slug }),
+                      let ai = SetupCards.AI.allCases.first(where: { $0.name == w.ai }) else { return }
+                say("Synced.", action: ("Ask \(w.ai)", {
+                    self.said = nil
+                    ConnectClipboard.set(SetupCards.prompt(e.pick))
+                    if let page = SetupCards.page(ai, e.pick) { openURL(page) }
+                }), seconds: 20)
+            }
+            #endif
             .sheet(isPresented: $showAppInfo) {
                 if let p = notePage {
                     AppInfoSheet(noteID: note.id, html: p.html,
@@ -439,6 +467,48 @@ struct NoteDetailView: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 6)
         .onGeometryChange(for: CGFloat.self, of: \.size.height) { controller.bottomReserve = $0 }
+    }
+    #endif
+
+    #if os(macOS)
+    /// A line the note has to say in the window's bar ("Added to (folder) Notes"), with the one
+    /// thing to do about it (Undo). In the bar for a note and for an app alike: over the note's
+    /// foot is where you type, and over an app it covered what the app drew.
+    @State private var said: (text: String, action: (title: String, run: () -> Void)?)?
+    /// A note made while sync was away: the AI to ask, and its template, once sync is back.
+    @State private var waitingAsk: (ai: String, slug: String)?
+    @Environment(\.networkReach) private var reach
+    @Environment(\.openURL) private var openURL
+
+    private func say(_ text: String, action: (title: String, run: () -> Void)?, seconds: Double = 6) {
+        withAnimation(.smooth(duration: 0.25)) { said = (text, action) }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(seconds * ChangeTint.slowMotion))
+            while ChangeTint.holdForCapture, said?.text == text { try? await Task.sleep(for: .seconds(0.1)) }
+            if said?.text == text { withAnimation(.smooth(duration: 0.25)) { said = nil } }
+        }
+    }
+
+    /// A note just made from a template: the caret goes where you'd write first, the first empty
+    /// cell of its table, or with no table the end of the note.
+    private func landInMade() {
+        guard !showingPage, let text = vault.text(of: note) else { return }
+        if let at = Self.firstEmptyCell(in: text) {
+            controller.focusGrid(at.grid, cell: at.cell)
+        } else {
+            controller.reveal((text as NSString).length)
+            controller.focus()
+        }
+    }
+
+    /// The first empty cell under a table's header in a note: where a tracker is filled in first.
+    static func firstEmptyCell(in text: String) -> (grid: Int, cell: GridCell)? {
+        for (g, grid) in NoteStructure(text).grids.enumerated() {
+            for (r, row) in grid.rows.enumerated().dropFirst() {
+                if let c = row.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }) { return (g, GridCell(row: r, column: c)) }
+            }
+        }
+        return nil
     }
     #endif
 
@@ -1249,7 +1319,8 @@ struct NoteDetailView: View {
         NoteToolbarParts(
             // A note with an app is just the app: no writing tools. Nor in Recently Deleted, like Notes.
             writingDisabled: hidden,
-            said: noticeInBar ? undoFailed : nil,
+            said: said?.text ?? (noticeInBar ? undoFailed : nil),
+            saidAction: said?.action,
             attachment: AnyView(attachMenu),
             people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
             // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
@@ -1971,6 +2042,8 @@ struct NoteToolbarParts: Equatable, @unchecked Sendable {
     /// A line the pane has to say while an app shows ("Added to (folder) Habits"): in the bar,
     /// after where the note is, never over the app.
     var said: String? = nil
+    /// The one thing to do about what's said (Undo), beside it.
+    var saidAction: (title: String, run: () -> Void)? = nil
     var attachment: AnyView
     /// Who else is in a shared note.
     var people: AnyView?
@@ -2063,16 +2136,24 @@ struct NoteToolbarStage<Pane: View>: View {
                     }
                     if let said = self.parts?.said {
                         ToolbarItem {
-                            NoticeText.text(said)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(Color.ink)
-                                .lineLimit(1)
-                                .fixedSize()
-                                .padding(.horizontal, 10)
-                                .frame(height: 24)
-                                .background(Color.primary.opacity(0.07), in: .capsule)
-                                .accessibilityAddTraits(.isStaticText)
-                                .accessibilityIdentifier("note.notice")
+                            HStack(spacing: 8) {
+                                NoticeText.text(said)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(Color.ink)
+                                    .lineLimit(1)
+                                    .fixedSize()
+                                    .accessibilityAddTraits(.isStaticText)
+                                    .accessibilityIdentifier("note.notice")
+                                if let action = self.parts?.saidAction {
+                                    Button(action.title, action: action.run)
+                                        .buttonStyle(LinkButtonStyle())
+                                        .accessibilityIdentifier("note.notice.action")
+                                }
+                            }
+                            .padding(.leading, 10)
+                            .padding(.trailing, self.parts?.saidAction == nil ? 10 : 3)
+                            .frame(height: 28)
+                            .background(Color.primary.opacity(0.07), in: .capsule)
                         }
                         .sharedBackgroundVisibility(.hidden)
                         .hidden(!showsItems)
