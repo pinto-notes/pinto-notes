@@ -1,5 +1,6 @@
 import SwiftUI
 import os
+import SwiftData
 #if os(macOS)
 import AppKit
 #else
@@ -48,7 +49,7 @@ struct NotebookFilmView: View {
                 Self.cream
                     .overlay(Color.black.opacity(pale && !dawn ? (phase == .intro ? 0 : playback.landing) : 1))
                     .overlay {
-                        if let poster, backdrop {
+                        if let poster, backdrop, !(store.galaxy && phase == .intro) {
                             Image(decorative: poster, scale: 1)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -62,7 +63,9 @@ struct NotebookFilmView: View {
                     .clipped()
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
-                if phase == .intro {
+                if phase == .intro, store.galaxy {
+                    cards.transition(.opacity)
+                } else if phase == .intro {
                     intro.transition(.opacity)
                 } else {
                     stage(g).transition(.opacity)
@@ -90,7 +93,14 @@ struct NotebookFilmView: View {
             // Captures: `-filmAutoWatch` presses Watch after a moment on the intro, `-filmAutoShare`
             // presses Share a moment after the film ends.
             let args = ProcessInfo.processInfo.arguments
-            if store.forced, args.contains("-filmAutoWatch") {
+            if store.forced, args.contains("-filmAutoCards") {
+                // Captures: goes through the cards, one every couple of seconds, and on into the film.
+                while cardImages.isEmpty { try? await Task.sleep(for: .milliseconds(100)) }
+                while phase == .intro {
+                    try? await Task.sleep(for: .seconds(2.2))
+                    nextCard()
+                }
+            } else if store.forced, args.contains("-filmAutoWatch") {
                 try? await Task.sleep(for: .seconds(3))
                 if phase == .intro { watch() }
                 // `-filmAutoClose` presses the close button part way through.
@@ -108,6 +118,7 @@ struct NotebookFilmView: View {
             poster = await FilmPlayback.poster(script: script, labels: store.labels, canvas: screen.canvas(0, card: .zero), width: screen.pixels / 2)
             // The film itself is got ready under the intro, so Watch starts it at once.
             if phase == .intro { playback.prepare(script: script, labels: store.labels, screen: screen.sized(for: store.look)) }
+            await drawCards(screen)
         }
         .onDisappear { playback.stop(); store.stopMaking() }
         .onChange(of: playback.settling) { _, settling in if settling && phase == .watching { toShare() } }
@@ -195,6 +206,136 @@ struct NotebookFilmView: View {
     }
 
     // MARK: Intro
+
+    // MARK: The month as cards
+
+    @State private var card = 0
+    @State private var cardImages: [CGImage] = []
+    /// How many cards this month has (they're drawn one after another, the first at once).
+    @State private var cardCount = 0
+    @Environment(\.modelContext) private var modelContext
+
+    /// The cards for this month, in the shape of this screen (or, to send one, as a 4:5 picture).
+    private func recap(_ screen: FilmPlayback.Screen?) -> RecapCards? {
+        guard let input = store.input, let script = store.script else { return nil }
+        var r = RecapCards(input: input, script: script, seed: script.seed, mark: NotebookFilmStore.mark)
+        if let screen {
+            let u = 1080 / Double(screen.size.width)
+            r.H = Double(screen.size.height) * u
+            r.top = Double(screen.top) * u
+            r.bottom = Double(screen.bottom) * u + 60
+        }
+        // A note's name is read here, on this device, and only for a note that's still there.
+        // (The demo's notes have none: they keep the made-up ones.)
+        if !store.forced {
+            var names: [UUID: String] = [:]
+            if let top = input.notes.max(by: { $0.edits.count < $1.edits.count }) {
+                let id = top.id
+                if let note = try? modelContext.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })).first, note.deletedAt == nil, note.lockedBody == nil {
+                    names[id] = note.title
+                }
+            }
+            let found = names
+            r.title = { found[$0.id] }
+        }
+        return r
+    }
+
+    private func drawCards(_ screen: FilmPlayback.Screen) async {
+        guard store.galaxy, let recap = recap(screen) else { return }
+        let pixels = screen.pixels
+        // The first card first, so it's up at once; the rest while it's read.
+        let count = recap.cards().count
+        guard count > 0 else { return }
+        cardCount = count
+        let first = await Task.detached(priority: .userInitiated) { recap.image(0, pixels: pixels) }.value
+        if let first, cardImages.isEmpty { cardImages = [first] }
+        let rest = await Task.detached(priority: .userInitiated) { (1..<count).compactMap { recap.image($0, pixels: pixels) } }.value
+        cardImages = (first.map { [$0] } ?? []) + rest
+    }
+
+    private func nextCard() {
+        if card + 1 < cardCount {
+            // (A card still being drawn is a moment away: the tap waits for it rather than skip it.)
+            guard card + 1 < cardImages.count else { return }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) { card += 1 }
+        } else {
+            watch()
+        }
+    }
+
+    /// Sends the card on screen: the same picture in the shape a chat shows well.
+    private func shareCard() {
+        #if os(iOS)
+        guard let image = recap(nil)?.image(card, pixels: 1080) else { return }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("Pinto Notes \u{2013} my month \(card + 1).png")
+        guard let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else { return }
+        CGImageDestinationAddImage(dest, image, nil)
+        guard CGImageDestinationFinalize(dest) else { return }
+        sharing = SharedFile(url: url)
+        #endif
+    }
+
+    private var cards: some View {
+        ZStack {
+            // The card is drawn in the screen's own shape, behind everything, so it never sizes the
+            // controls' layout (a filled image would push Next and Send off the bottom).
+            Color(red: 0.08, green: 0.07, blue: 0.2)
+                .overlay {
+                    if card < cardImages.count {
+                        Image(decorative: cardImages[card], scale: 1)
+                            .resizable()
+                            .scaledToFill()
+                            .id(card)
+                            .transition(.opacity)
+                    }
+                }
+                .clipped()
+                .ignoresSafeArea()
+            // Tap to go on; the left edge goes back.
+            HStack(spacing: 0) {
+                Color.clear.contentShape(Rectangle()).frame(width: 84)
+                    .onTapGesture { if card > 0 { withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) { card -= 1 } } }
+                Color.clear.contentShape(Rectangle()).onTapGesture { nextCard() }
+            }
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
+            VStack(spacing: 0) {
+                // Where you are: a bar for each card, and one more for the film they end on.
+                HStack(spacing: 4) {
+                    ForEach(0..<(cardCount + 1), id: \.self) { k in
+                        Capsule().fill(.white.opacity(k <= card ? 0.95 : 0.3)).frame(height: 3)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 6)
+                .accessibilityHidden(true)
+                HStack {
+                    Spacer()
+                    closeButton
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                Spacer()
+                HStack {
+                    Button("Next") { nextCard() }
+                        .buttonStyle(.plain)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .frame(minWidth: 64, minHeight: 44)
+                        .accessibilityIdentifier("notebookFilm.nextCard")
+                    Spacer()
+                    #if os(iOS)
+                    roundButton("square.and.arrow.up", label: "Send this card") { shareCard() }
+                        .accessibilityIdentifier("notebookFilm.shareCard")
+                    #endif
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 10)
+            }
+        }
+        .accessibilityIdentifier("notebookFilm.cards")
+    }
 
     private var intro: some View {
         ZStack {

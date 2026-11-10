@@ -1,7 +1,27 @@
 import CoreGraphics
 import Foundation
 
-// Lab: your notebook as something in space, cut from paper. What it is comes from how you wrote
+// Small helpers for the cut-paper scenes: a number in 0..<1 that's always the same for the same
+// two integers, a smooth step, and a step that overshoots a little before it settles.
+func filmHash(_ a: Int, _ b: Int = 0) -> Double {
+    var x = UInt64(truncatingIfNeeded: a &* 7919 &+ b &* 104_729 &+ 13) &+ 0x9E37_79B9_7F4A_7C15
+    x = (x ^ (x >> 30)) &* 0xBF58_476D_1CE4_E5B9
+    x = (x ^ (x >> 27)) &* 0x94D0_49BB_1331_11EB
+    x ^= x >> 31
+    return Double(x >> 11) / Double(1 << 53)
+}
+func filmSmooth(_ x: Double) -> Double { let c = min(1, max(0, x)); return c * c * (3 - 2 * c) }
+func filmBackOut(_ x: Double) -> Double { let c = min(1, max(0, x)) - 1; return 1 + c * c * (2.7 * c + 1.7) }
+
+extension FilmScript {
+    /// A number that's this notebook's own and never changes: its sky's colour comes from it.
+    var seed: Int {
+        guard let id = nodes.first?.id else { return 0 }
+        return withUnsafeBytes(of: id.uuid) { $0.reduce(0) { ($0 &* 31 &+ Int($1)) & 0xFFFF } }
+    }
+}
+
+// Your notebook as something in space, cut from paper. What it is comes from how you wrote
 // (FilmForm: a comet for bursts with days away, a nebula for a few deep folders, a spiral for many),
 // and the sky's colour from a seed. What it's made of is yours: an arm, a cloud or a strand of the
 // tail for each folder, a paper star for each note, and a speck of paper for every time a note was
@@ -40,6 +60,11 @@ final class GalaxyScene: FilmScene {
     /// A star's size there, by how often it's been written in (in the picture's own units).
     private func starSize(_ edits: Double) -> Double { min(24, 6 + 1.6 * edits.squareRoot()) }
     private func cloudSize(_ j: Int, _ notes: Double) -> Double { cells[j] * notes.squareRoot() + cells[j] * 1.3 + 14 }
+
+    /// What each is called: "My first month is a comet".
+    static func name(of form: FilmForm) -> String {
+        switch form { case .comet: "a comet"; case .nebula: "a nebula"; case .spiral: "a spiral galaxy" }
+    }
 
     static let skies: [(UInt32, [UInt32])] = [
         (0x15133A, [0x241F5C, 0x3A2F7C, 0x5B4196, 0x8257A8]),
@@ -124,7 +149,7 @@ final class GalaxyScene: FilmScene {
     private func cloud(_ c: CGPoint, _ rx: Double, _ ry: Double, turn: Double = 0, key: Int) -> [CGPoint] {
         (0..<72).map { k in
             let a = Double(k) / 72 * 2 * .pi
-            let wob = 1 + 0.09 * sin(3 * a + lhash(key, 1) * 6) + 0.06 * sin(5 * a + lhash(key, 2) * 6) + 0.035 * sin(9 * a + lhash(key, 3) * 6)
+            let wob = 1 + 0.09 * sin(3 * a + filmHash(key, 1) * 6) + 0.06 * sin(5 * a + filmHash(key, 2) * 6) + 0.035 * sin(9 * a + filmHash(key, 3) * 6)
             let x = cos(a) * rx * wob, y = sin(a) * ry * wob
             return CGPoint(x: c.x + x * cos(turn) - y * sin(turn), y: c.y + x * sin(turn) + y * cos(turn))
         }
@@ -241,7 +266,7 @@ final class GalaxyScene: FilmScene {
     /// One slow move and no others: a little closer at the start, drawing back all through the
     /// month, so the far paper slides behind the near. It never goes in on anything.
     private func camera(_ t: Double, mid: CGPoint) -> (k: Double, on: CGPoint) {
-        (1.14 - 0.14 * lsmooth(min(t, growth) / growth), mid)
+        (1.14 - 0.14 * filmSmooth(min(t, growth) / growth), mid)
     }
 
     // MARK: Drawing
@@ -263,7 +288,7 @@ final class GalaxyScene: FilmScene {
             return sum
         }
         let most_ = heat.max() ?? 0
-        let going = min(1, most_ / 2.5) * (1 - lsmooth((t - growth + 0.5) / 0.5))
+        let going = min(1, most_ / 2.5) * (1 - filmSmooth((t - growth + 0.5) / 0.5))
         heat = heat.map { most_ > 0 ? pow($0 / most_, 1.6) * going : 0 }
         // (Gentler on a big notebook, so a lit cloud never washes out the stars in it.)
         let glowBy = 0.42 / (1 + Double(script.nodes.count) / 120)
@@ -280,7 +305,7 @@ final class GalaxyScene: FilmScene {
         func there(_ i: Int) -> Double {
             let n = script.nodes[i]
             guard n.birth <= gt else { return 0 }
-            return lsmooth((gt - n.birth) / 0.45) * (1 - lsmooth((t - (n.gone ?? .infinity)) / 0.5))
+            return filmSmooth((gt - n.birth) / 0.45) * (1 - filmSmooth((t - (n.gone ?? .infinity)) / 0.5))
         }
         func alive(_ notes: [Int]) -> Double { notes.reduce(0) { $0 + there($1) } }
         func born(_ notes: [Int]) -> Double { notes.first.map { script.nodes[$0].birth } ?? .infinity }
@@ -288,14 +313,14 @@ final class GalaxyScene: FilmScene {
         // How much work is in it so far, all of it and folder by folder.
         let work = level(upTo(allEdits, gt), per: 60)
         func worked(_ j: Int) -> Double { level(upTo(groupEdits[j], gt), per: 30) }
-        func show(_ l: Double, from: Double) -> Double { lsmooth((l - from) / 0.6) }
+        func show(_ l: Double, from: Double) -> Double { filmSmooth((l - from) / 0.6) }
 
         switch form {
         case .spiral:
             // An arm of paper for each folder, as long as what's in it, winding out from the middle.
             // The more notes, the further the arms wind; the more work, the more there is at its heart.
-            let lean = 0.62 + 0.3 * lhash(seed, 11), axis = lhash(seed, 12) * 3.14, way: Double = lhash(seed, 13) < 0.5 ? 1 : -1
-            let wind = min(5.2, 1.3 + 0.7 * lhash(seed, 14) + 1.3 * log2(max(1, Double(script.nodes.count) / 45))), spin = way * 0.05 * t
+            let lean = 0.62 + 0.3 * filmHash(seed, 11), axis = filmHash(seed, 12) * 3.14, way: Double = filmHash(seed, 13) < 0.5 ? 1 : -1
+            let wind = min(5.2, 1.3 + 0.7 * filmHash(seed, 14) + 1.3 * log2(max(1, Double(script.nodes.count) / 45))), spin = way * 0.05 * t
             let arms = Double(max(1, groups.count))
             // (Many arms begin further out, so they aren't a knot at the middle.)
             let core = 46 * size.squareRoot() * max(1, arms / 7), full = 330 * size
@@ -311,7 +336,7 @@ final class GalaxyScene: FilmScene {
             for (j, g) in groups.enumerated() {
                 for (k, i) in g.notes.enumerated() where script.nodes[i].birth <= gt {
                     let s = reach(j) * (Double(k) + 0.8) / (Double(g.notes.count) + 0.4)
-                    where_[i] = at(j, s, (lhash(i, 15) - 0.5) * 2 * wide * (0.72 - 0.3 * s))
+                    where_[i] = at(j, s, (filmHash(i, 15) - 0.5) * 2 * wide * (0.72 - 0.3 * s))
                     far = max(far, hypot(where_[i].x, where_[i].y) + 50)
                 }
             }
@@ -348,7 +373,7 @@ final class GalaxyScene: FilmScene {
                 if lit > 0 { band(0.42 * lit, col.mix(cream, 0.26), lift: 0.4) }
                 // (Its name a short step past the arm's tip, however far the arm winds.)
                 let step = 44 / zoom / hypot(full - core, wind * (core + (full - core) * upTo))
-                if names { labels.append((script.folders[g.folder], scr(at(j, upTo + step, 0)), lsmooth((gt - born(g.notes) - 0.2) / 0.5), j)) }
+                if names { labels.append((script.folders[g.folder], scr(at(j, upTo + step, 0)), filmSmooth((gt - born(g.notes) - 0.2) / 0.5), j)) }
             }
             // Its heart: rays behind it once there's work enough, a second ring of them for a lot.
             // (It starts small and grows with the work, like everything else here.)
@@ -383,19 +408,19 @@ final class GalaxyScene: FilmScene {
             if one > 0 { paper(cloud(mid, (hi.x - lo.x) / 2 * zoom * 1.02 * one, (hi.y - lo.y) / 2 * zoom * 1.0 * one, turn: 0.2, key: seed * 7 + 12), sky.mix(clouds[0], 1.1), lift: 1.3, in: ctx) }
             for (j, g) in groups.enumerated() where radius[j] > 0 {
                 let c = scr(centres[j]), r = radius[j] * zoom, base = tint(clouds[1 + j % 3], j), lf = worked(j)
-                paper(cloud(c, r * 1.12, r * 1.02, turn: lhash(j, seed) * 3, key: seed * 13 + j), base.mix(sky, 0.25), in: ctx)
-                paper(cloud(c, r * 0.72, r * 0.66, turn: lhash(j, seed + 5) * 3, key: seed * 17 + j), base, lift: 0.6, in: ctx)
+                paper(cloud(c, r * 1.12, r * 1.02, turn: filmHash(j, seed) * 3, key: seed * 13 + j), base.mix(sky, 0.25), in: ctx)
+                paper(cloud(c, r * 0.72, r * 0.66, turn: filmHash(j, seed + 5) * 3, key: seed * 17 + j), base, lift: 0.6, in: ctx)
                 let a = show(lf, from: 2), b = show(lf, from: 3.6)
-                if a > 0 { paper(cloud(c, r * 0.46 * a, r * 0.42 * a, turn: lhash(j, seed + 6) * 3, key: seed * 19 + j), base.mix(cream, 0.2), lift: 0.5, in: ctx) }
-                if b > 0 { paper(cloud(c, r * 0.25 * b, r * 0.23 * b, turn: lhash(j, seed + 7) * 3, key: seed * 23 + j), base.mix(cream, 0.42), lift: 0.4, in: ctx) }
-                if names { labels.append((script.folders[g.folder], CGPoint(x: c.x, y: c.y + r * 1.05 + 8), lsmooth((gt - born(g.notes) - 0.2) / 0.5), j)) }
+                if a > 0 { paper(cloud(c, r * 0.46 * a, r * 0.42 * a, turn: filmHash(j, seed + 6) * 3, key: seed * 19 + j), base.mix(cream, 0.2), lift: 0.5, in: ctx) }
+                if b > 0 { paper(cloud(c, r * 0.25 * b, r * 0.23 * b, turn: filmHash(j, seed + 7) * 3, key: seed * 23 + j), base.mix(cream, 0.42), lift: 0.4, in: ctx) }
+                if names { labels.append((script.folders[g.folder], CGPoint(x: c.x, y: c.y + r * 1.05 + 8), filmSmooth((gt - born(g.notes) - 0.2) / 0.5), j)) }
                 for (k, i) in g.notes.enumerated() where script.nodes[i].birth <= gt {
-                    let rr = cells[j] * (Double(k) + 0.5).squareRoot(), a = Double(k) * 2.399963 + lhash(j, seed + 9) * 6 + 0.03 * t
+                    let rr = cells[j] * (Double(k) + 0.5).squareRoot(), a = Double(k) * 2.399963 + filmHash(j, seed + 9) * 6 + 0.03 * t
                     where_[i] = scr(CGPoint(x: centres[j].x + cos(a) * rr, y: centres[j].y + sin(a) * rr))
                 }
             }
             for (k, i) in loose.enumerated() where script.nodes[i].birth <= gt {
-                where_[i] = scr(CGPoint(x: c0.x + (lhash(i, 3) - 0.5) * (hi.x - lo.x) * 0.9, y: c0.y + (lhash(k, 4) - 0.5) * (hi.y - lo.y) * 0.9))
+                where_[i] = scr(CGPoint(x: c0.x + (filmHash(i, 3) - 0.5) * (hi.x - lo.x) * 0.9, y: c0.y + (filmHash(k, 4) - 0.5) * (hi.y - lo.y) * 0.9))
             }
 
         case .comet:
@@ -431,11 +456,11 @@ final class GalaxyScene: FilmScene {
                 // (Its name where the strand begins, on the side away from the others.)
                 if names {
                     let end = strand(j, first), side: Double = Double(j) < Double(groups.count - 1) / 2 ? -1 : 1
-                    labels.append((script.folders[g.folder], CGPoint(x: end.x + across.x * side * 46 - dir.x * 20, y: end.y + across.y * side * 46 - dir.y * 20 - 20), lsmooth((gt - first - 0.6) / 0.5), j))
+                    labels.append((script.folders[g.folder], CGPoint(x: end.x + across.x * side * 46 - dir.x * 20, y: end.y + across.y * side * 46 - dir.y * 20 - 20), filmSmooth((gt - first - 0.6) / 0.5), j))
                 }
                 for i in g.notes where script.nodes[i].birth <= gt {
                     let p = strand(j, script.nodes[i].birth)
-                    where_[i] = CGPoint(x: p.x + across.x * (lhash(i, 5) - 0.5) * 26, y: p.y + across.y * (lhash(i, 5) - 0.5) * 26)
+                    where_[i] = CGPoint(x: p.x + across.x * (filmHash(i, 5) - 0.5) * 26, y: p.y + across.y * (filmHash(i, 5) - 0.5) * 26)
                 }
             }
             for i in loose where script.nodes[i].birth <= gt { where_[i] = path(script.nodes[i].birth) }
@@ -474,9 +499,9 @@ final class GalaxyScene: FilmScene {
         ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
         through(0.15) {
             for k in 0..<140 {
-                let p = CGPoint(x: -120 + lhash(k, seed + 1) * (W + 240), y: canvas.bottom + 200 + lhash(k, seed + 2) * (H - canvas.bottom - 100))
-                let r = 1.3 + 2.4 * pow(lhash(k, seed + 3), 3)
-                ctx.setFillColor(cream.cg(0.25 + 0.4 * lhash(k, seed + 4) * (0.7 + 0.3 * sin(1.7 * t + Double(k)))))
+                let p = CGPoint(x: -120 + filmHash(k, seed + 1) * (W + 240), y: canvas.bottom + 200 + filmHash(k, seed + 2) * (H - canvas.bottom - 100))
+                let r = 1.3 + 2.4 * pow(filmHash(k, seed + 3), 3)
+                ctx.setFillColor(cream.cg(0.25 + 0.4 * filmHash(k, seed + 4) * (0.7 + 0.3 * sin(1.7 * t + Double(k)))))
                 ctx.fillEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
             }
         }
@@ -496,7 +521,7 @@ final class GalaxyScene: FilmScene {
             ctx.setLineDash(phase: 0, lengths: [5, 5])
             for l in script.links where l.birth <= gt {
                 let a = script.nodes[l.a], b = script.nodes[l.b]
-                let on = lsmooth((gt - l.birth) / 0.5) * (1 - lsmooth((t - min(a.gone ?? .infinity, b.gone ?? .infinity)) / 0.3))
+                let on = filmSmooth((gt - l.birth) / 0.5) * (1 - filmSmooth((t - min(a.gone ?? .infinity, b.gone ?? .infinity)) / 0.3))
                 guard on > 0.01 else { continue }
                 ctx.setStrokeColor(cream.cg(0.5 * on))
                 ctx.move(to: where_[l.a])
@@ -520,8 +545,8 @@ final class GalaxyScene: FilmScene {
             return exp(-d * d)
         }
         for (i, n) in script.nodes.enumerated() where n.birth <= gt && n.edits.count > 1 {
-            let p = where_[i], a0 = lhash(i, 31) * 6.283
-            let left = 1 - lsmooth((t - (n.gone ?? .infinity)) / 0.3)
+            let p = where_[i], a0 = filmHash(i, 31) * 6.283
+            let left = 1 - filmSmooth((t - (n.gone ?? .infinity)) / 0.3)
             guard left > 0.01 else { continue }
             for k in 1..<n.edits.count {
                 let age = gt - n.edits[k]
@@ -531,10 +556,10 @@ final class GalaxyScene: FilmScene {
                 var rad = (8 + 4.6 * Double(k).squareRoot()) * u
                 // (In the nebula a note's specks keep to the room round it, just outside the star.)
                 if let unit { rad = (1.2 * starSize(Double(n.edits.count)) + 0.42 * noteCell[i] * (Double(k) / Double(max(6, n.edits.count))).squareRoot()) * unit }
-                rad *= lbackOut(age / 0.4)
+                rad *= filmBackOut(age / 0.4)
                 let q = CGPoint(x: p.x + cos(a) * rad, y: p.y + sin(a) * rad)
                 let flash = lit(q)
-                let h = lhash(i * 131 + k, 7), sz = (2.0 + 1.8 * h) * (unit.map { min(2.6, max(0.8, $0 * 0.8)) } ?? u) * (1 + 1.2 * fresh + 1.5 * flash)
+                let h = filmHash(i * 131 + k, 7), sz = (2.0 + 1.8 * h) * (unit.map { min(2.6, max(0.8, $0 * 0.8)) } ?? u) * (1 + 1.2 * fresh + 1.5 * flash)
                 let alpha = (t <= growth ? 0.92 : 0.66 + 0.3 * sin(2.6 * t + Double(k) * 1.7 + Double(i))) * left
                 ctx.move(to: CGPoint(x: q.x, y: q.y + sz))
                 ctx.addLine(to: CGPoint(x: q.x + sz * 0.8, y: q.y))
@@ -552,14 +577,14 @@ final class GalaxyScene: FilmScene {
             var done = 0.0, last = n.birth
             for e in n.edits where e <= gt { done += 1; last = e }
             let pulse = t <= growth ? exp(-(gt - last) / 0.35) : 0.25 + 0.25 * sin(2.2 * t + Double(i)) + 0.9 * lit(where_[i])
-            let r = (unit.map { starSize(done) * $0 } ?? min(30, 7 + 1.9 * done.squareRoot()) * u) * lbackOut((gt - n.birth) / 0.35) * (1 + (unit == nil ? 0.4 : 0.22) * pulse)
-            let helped = lsmooth((gt - aiFrom[i]) / 0.35)
+            let r = (unit.map { starSize(done) * $0 } ?? min(30, 7 + 1.9 * done.squareRoot()) * u) * filmBackOut((gt - n.birth) / 0.35) * (1 + (unit == nil ? 0.4 : 0.22) * pulse)
+            let helped = filmSmooth((gt - aiFrom[i]) / 0.35)
             var at = where_[i], size = r
             if let gone = n.gone, t >= gone {
                 // Removed: it leaves as a shooting star, away from the heart, and is gone.
                 let x = (t - gone) / 0.7
                 guard x < 1 else { continue }
-                let away = atan2(at.y - heart.y, at.x - heart.x) + (lhash(i, 41) - 0.5) * 1.2
+                let away = atan2(at.y - heart.y, at.x - heart.x) + (filmHash(i, 41) - 0.5) * 1.2
                 let far = 520 * x * x, from = at
                 at = CGPoint(x: at.x + cos(away) * far, y: at.y + sin(away) * far)
                 size = r * (1 - 0.6 * x)
@@ -570,7 +595,7 @@ final class GalaxyScene: FilmScene {
                 ctx.addLine(to: at)
                 ctx.strokePath()
             }
-            note(at, size, turn: lhash(i, 21) * 1.5 + 0.25 * sin(0.8 * t + Double(i)), you.mix(ai, helped).mix(white, min(0.8, 0.35 * pulse)), edits: done, in: ctx)
+            note(at, size, turn: filmHash(i, 21) * 1.5 + 0.25 * sin(0.8 * t + Double(i)), you.mix(ai, helped).mix(white, min(0.8, 0.35 * pulse)), edits: done, in: ctx)
         }
         ctx.restoreGState()
         // (When the camera is close, nothing bright lies under the mark and the key at the top.)
@@ -597,7 +622,7 @@ final class GalaxyScene: FilmScene {
             if !moved { break }
         }
         // (A name the camera has carried up under the mark and the key fades out there.)
-        for (k, l) in labels.enumerated() { tag(l.name, at: CGPoint(x: boxes[k].midX, y: boxes[k].minY), alpha: l.a * (1 - lsmooth((boxes[k].maxY - (H - canvas.top - 160)) / 50)), hot: heat[l.group], in: ctx) }
+        for (k, l) in labels.enumerated() { tag(l.name, at: CGPoint(x: boxes[k].midX, y: boxes[k].minY), alpha: l.a * (1 - filmSmooth((boxes[k].maxY - (H - canvas.top - 160)) / 50)), hot: heat[l.group], in: ctx) }
 
         // Nothing under the words but the sky.
         let fade = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [sky.cg(1), sky.cg(0)] as CFArray, locations: [0, 1])!

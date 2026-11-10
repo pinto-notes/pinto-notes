@@ -161,6 +161,9 @@ final class FilmRenderer {
         /// False leaves the lines out while it grows (what a light is, the month's moments): the
         /// picture alone, with the date and the count.
         var captionsOn = true
+        /// True starts it at the first note wherever it's played or saved: it never shows the
+        /// finished notebook before the end.
+        var startsAtFirstNote = false
     }
 
     private var look: FilmLook { labels.look }
@@ -231,6 +234,7 @@ final class FilmRenderer {
     enum Opening { case full, brief, none }
 
     init(script: FilmScript, labels: Labels = Labels(), canvas: FilmCanvas = .shared, opening: Opening = .full, words: Bool = true) {
+        let opening = labels.startsAtFirstNote ? Opening.none : opening
         self.opening = opening
         self.words = words
         self.canvas = canvas

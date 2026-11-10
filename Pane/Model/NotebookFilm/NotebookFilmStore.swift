@@ -27,6 +27,10 @@ final class NotebookFilmStore {
     var visible = false
     /// The film being shown.
     private(set) var script: FilmScript?
+    /// What the film in hand was made from: the cards before it are drawn from it.
+    private(set) var input: FilmInput?
+    /// The month as cards and then the paper galaxy (false: the older looks, kept for comparing).
+    var galaxy = true
     var look: FilmLook = .holoLeaf
     /// A look asked for by name (captures) stays; otherwise the film opens in the app's appearance.
     private(set) var lookFixed = false
@@ -115,6 +119,7 @@ final class NotebookFilmStore {
               ShareAsk.lastKeystroke < launched,
               let data = try? Data(contentsOf: preparedURL),
               let input = try? JSONDecoder().decode(FilmInput.self, from: data) else { return }
+        self.input = input
         script = FilmScript(input)
         rewatching = false
         visible = true
@@ -140,6 +145,7 @@ final class NotebookFilmStore {
     func rewatch() {
         guard !visible, let data = try? Data(contentsOf: keptURL),
               let input = try? JSONDecoder().decode(FilmInput.self, from: data) else { return }
+        self.input = input
         script = FilmScript(input)
         rewatching = true
         visible = true
@@ -170,7 +176,15 @@ final class NotebookFilmStore {
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-filmLook"), i + 1 < args.count, let l = FilmLook(rawValue: args[i + 1]) { look = l; lookFixed = true }
         if args.contains("-filmNoFolderNames") { folderNames = false }
-        script = FilmScript(FilmDemo.notebook(now: .now, light: args.contains("-filmLight")))
+        // Captures: `-filmMe` (came with notes, makes and removes some, a daily tracker), `-filmWeek`
+        // (a note a week), `-filmKB` (a knowledge base of hundreds).
+        let demo = args.contains("-filmMe") ? FilmDemo.real(now: .now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true)
+            : args.contains("-filmWeek") ? FilmDemo.real(now: .now)
+            : args.contains("-filmKB") ? FilmDemo.real(now: .now, notesPerWeek: 22, imported: 240, removed: 8, linked: 0.6)
+            : FilmDemo.notebook(now: .now, light: args.contains("-filmLight"))
+        if args.contains("-filmOldLooks") { galaxy = false }
+        input = demo
+        script = FilmScript(demo)
         visible = true
     }
 
@@ -199,7 +213,7 @@ final class NotebookFilmStore {
         if let makingKey, makingKey == movieKey, maker != nil { return }
         maker?.cancel()
         let folderNames = folderNames
-        let order = [look] + FilmLook.offered.filter { $0 != look }
+        let order = galaxy ? [look] : [look] + FilmLook.offered.filter { $0 != look }
         let jobs = order.map { (Self.key($0, folderNames), labels(look: $0, folderNames: folderNames)) }
             .filter { movies[$0.0] == nil }
         guard !jobs.isEmpty else { maker = nil; return }
@@ -247,6 +261,16 @@ final class NotebookFilmStore {
         l.look = look
         l.folderNames = folderNames
         l.markImage = Self.mark
+        if galaxy {
+            // The paper galaxy: no lines to read while it grows, and its name only at the end.
+            l.look = .town
+            l.scene = { script, names in GalaxyScene(script: script, names: names, seed: script.seed) }
+            l.captionsOn = false
+            l.startsAtFirstNote = true
+            l.workCount = { notes, edits in "\(notes) notes \u{00B7} \(edits) edits" }
+            let kind = GalaxyScene.name(of: script?.form ?? .nebula)
+            l.endTitle = { s in "My \(s.period) \(s.months == 1 ? "is" : "are") \(kind)" }
+        }
         return l
     }
 }

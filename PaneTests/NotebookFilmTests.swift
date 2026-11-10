@@ -832,6 +832,30 @@ import Testing
         #expect(written([FilmNote(id: UUID(), folder: "", created: at(3), edits: [FilmEdit(at: at(3), ai: nil)], links: [])]) == 1)
     }
 
+    @Test func theMonthsCardsSayOnlyWhatsTrueInTheScreensShape() {
+        // A month like Emil's: notes brought in, a tracker filled in daily, some made and thrown away.
+        let mine = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true)
+        let script = FilmScript(mine, calendar: Self.cal)
+        var cards = RecapCards(input: mine, script: script, seed: script.seed, mark: nil)
+        let names = cards.cards().map(\.name)
+        #expect(names.first == "began")
+        #expect(names.contains("came-back") && names.contains("threw-away"))
+        // Drawn for a phone, a card is the phone's shape, so it fills the screen and never sizes the
+        // layout around it (a 4:5 one pushed Next and Send off the bottom).
+        cards.H = 2622.0 / 1206 * 1080
+        let phone = cards.image(0, pixels: 1206)
+        #expect(phone?.width == 1206 && phone?.height == 2622)
+        // Sent, it's 4:5.
+        cards.H = 1350
+        #expect(cards.image(0, pixels: 1080)?.height == 1350)
+        #expect(cards.image(names.count, pixels: 1080) == nil)
+        // A note a week with nothing thrown away gets no card about throwing away.
+        let quiet = FilmDemo.real(now: Self.now)
+        let qs = FilmScript(quiet, calendar: Self.cal)
+        let quietNames = RecapCards(input: quiet, script: qs, seed: qs.seed, mark: nil).cards().map(\.name)
+        #expect(!quietNames.contains("threw-away") || qs.stats.removed >= 3)
+    }
+
     @Test func theFilmBeginsAtTheFirstNote() {
         // Not at the midnight before it: there's never a frame of an empty month with "0 notes".
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)

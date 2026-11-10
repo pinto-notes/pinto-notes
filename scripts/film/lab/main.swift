@@ -113,7 +113,7 @@ case "galaxy":
         labels.subtitle = { s in s.ai.map { "\(s.aiNotes) of them written with \($0)" } ?? "\(s.edits) edits" }
     }
     // The film says what the notebook turned out to be: something to post it with.
-    let kind = [FilmForm.comet: "a comet", .nebula: "a nebula", .spiral: "a spiral galaxy"][form ?? script.form]!
+    let kind = GalaxyScene.name(of: form ?? script.form)
     // (Only at the end: what it turned out to be is the film's last word, not its first.)
     labels.endTitle = { "My \($0.period) \($0.months == 1 ? "is" : "are") \(kind)" }
     print("form: \(script.form.rawValue)\(form.map { " (shown as \($0.rawValue))" } ?? ""), \(script.nodes.count) notes, \(script.stats.folders) folders, \(script.work) edits, away \(script.stats.quietDays) days, wrote on \(script.stats.writingDays) of \(script.stats.days)")

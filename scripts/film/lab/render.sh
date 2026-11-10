@@ -6,5 +6,5 @@ cd "$(dirname "$0")/../../.."
 bin=${TMPDIR:-/tmp}/pinto-film-lab
 N=Pane/Model/NotebookFilm
 rm -f $bin
-xcrun swiftc -O -o $bin $N/NotebookFilm.swift $N/FilmDemo.swift $N/FilmRenderer.swift $N/FilmScenes.swift $N/FilmHolo.swift $N/FilmVideo.swift scripts/film/lab/*.swift 2>&1 | grep -E "error" -A6 || true
+xcrun swiftc -O -o $bin $N/NotebookFilm.swift $N/FilmDemo.swift $N/FilmRenderer.swift $N/FilmScenes.swift $N/FilmHolo.swift $N/FilmGalaxy.swift $N/FilmRecap.swift $N/FilmVideo.swift scripts/film/lab/*.swift 2>&1 | grep -E "error" -A6 || true
 $bin "$@"
