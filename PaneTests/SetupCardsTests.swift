@@ -1663,6 +1663,26 @@ import Vision
                 .tint(Color(PColor.paneAccent))
             try await VersionHistorySnapshots.shoot(view, to: dir.appending(path: "\(name)-\(dark ? "dark" : "light").png"), size: size, dark: dark)
         }
+        // The states the list above has no column for.
+        func shoot(_ name: String, _ library: TemplateLibraryView, size: CGSize, hover: Set<String> = []) async throws {
+            let view = library
+                .environment(\.inSheet, true)
+                .environment(\.hoverPreview, hover)
+                .frame(width: size.width, height: size.height, alignment: .topLeading)
+                .background(SetupCards.ground)
+                .tint(Color(PColor.paneAccent))
+            try await VersionHistorySnapshots.shoot(view, to: dir.appending(path: "\(name)-\(dark ? "dark" : "light").png"), size: size, dark: dark)
+        }
+        let large = TemplateLibraryView.largest
+        try await shoot("9c-page-no-ai-with-the-way-to-connect", TemplateLibraryView(catalog: c, ais: [.other], open: entry("reading-list"), connect: {}, size: big), size: big)
+        try await shoot("12a-make-at-rest", TemplateLibraryView(catalog: c, ais: both, open: entry("reading-list"), folder: "Work", size: big), size: big)
+        try await shoot("12b-make-under-the-pointer", TemplateLibraryView(catalog: c, ais: both, open: entry("reading-list"), folder: "Work", size: big), size: big, hover: ["split.hover"])
+        try await shoot("12c-make-pressed", TemplateLibraryView(catalog: c, ais: both, open: entry("reading-list"), folder: "Work", size: big), size: big, hover: ["split.pressed"])
+        try await shoot("13-page-one-you-already-made", TemplateLibraryView(catalog: c, ais: both, open: entry("habit-tracker"), folder: "Work", have: { _ in "Notes" }, size: big), size: big)
+        try await shoot("13b-page-a-long-folder-name", TemplateLibraryView(catalog: c, ais: both, open: entry("meeting-notes"), folder: "Everything for the house move in March", size: big), size: big)
+        try await shoot("14-gallery-large-window", TemplateLibraryView(catalog: c, ais: both, size: large), size: large)
+        try await shoot("14b-page-large-window", TemplateLibraryView(catalog: c, ais: both, open: entry("trip-plan"), size: large), size: large)
+        try await shoot("14c-page-large-window-note", TemplateLibraryView(catalog: c, ais: both, open: entry("workout-log"), size: large), size: large)
     }
 }
 
