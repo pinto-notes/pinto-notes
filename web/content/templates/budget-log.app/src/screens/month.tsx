@@ -2,7 +2,7 @@ import { useState } from "react"
 import { ChevronLeft, ChevronRight, Plus, Repeat } from "lucide-react"
 import { route } from "amber-router"
 import { ExpenseSheet } from "@/components/add-expense"
-import { Bar, PrimaryButton, Row, Section, TintButton } from "@/components/kit"
+import { Bar, PrimaryButton, Row, Section, SHORT, TintButton, useMedia, WIDE } from "@/components/kit"
 import { billDate, daysIn, iso, money, monthName, monthOf, ordinal, shiftMonth, thisMonth, useBudget, type Expense } from "@/lib/budget"
 import { cn } from "@/lib/utils"
 
@@ -14,6 +14,11 @@ export default function Month() {
   const [m, setM] = useState(thisMonth())
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Expense | null>(null)
+  // Every category must show under "By category", or the rows on screen don't add up to the
+  // summary over them (council round 4: 2,829 kr spent of 6,300 kr over two rows that came to 2,039
+  // of 5,500, the third cut off). So with two columns Add expense is in the header, not over the
+  // categories, and a short one-column note draws the summary and the rows compact.
+  const short = useMedia(SHORT), wide = useMedia(WIDE)
   const mo = b.month(m)
   const current = m === thisMonth()
   const todayNum = new Date().getDate()
@@ -40,29 +45,32 @@ export default function Month() {
     <>
       <header className="flex items-center gap-1 pb-4 pt-2">
         <h1 className="min-w-0 flex-1 text-[2rem] font-bold leading-tight tracking-tight">{monthName(m)}</h1>
+        {wide && <TintButton className="mr-1 h-10 shrink-0" onClick={() => setAdding(true)}><Plus /> Add expense</TintButton>}
         <button type="button" aria-label="Previous month" onClick={() => setM(shiftMonth(m, -1))} className="grid size-11 place-items-center rounded-full text-link"><ChevronLeft className="size-6" /></button>
         <button type="button" aria-label="Next month" disabled={current} onClick={() => setM(shiftMonth(m, 1))} className="grid size-11 place-items-center rounded-full text-link disabled:opacity-30"><ChevronRight className="size-6" /></button>
       </header>
 
       <div className="min-[700px]:grid min-[700px]:grid-cols-2 min-[700px]:items-start min-[700px]:gap-6">
         <div>
-          <Section>
-            <div className="p-5">
-              <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">{mo.left >= 0 ? (current ? "Left this month" : "Left over") : "Over budget"}</p>
-              <p data-testid="left" className={cn("mt-0.5 text-[2.5rem] font-bold leading-tight tracking-tight tabular-nums", mo.left < 0 && "text-destructive")}>{fmt(Math.abs(mo.left))}</p>
-              <Bar className="mt-3 h-2.5" value={mo.budget ? mo.spent / mo.budget : 0} over={mo.left < 0} label="Spent of budget" />
-              <p className="mt-2.5 text-[0.9375rem] text-muted-foreground tabular-nums" data-testid="month-line">
+          <Section className={short ? "mb-3" : undefined}>
+            <div className={short ? "px-4 py-3" : "p-5"}>
+              <div className={cn(short && "flex items-baseline justify-between gap-3")}>
+                <p className={cn("text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground", short && "order-2")}>{mo.left >= 0 ? (current ? "Left this month" : "Left over") : "Over budget"}</p>
+                <p data-testid="left" className={cn("font-bold leading-tight tracking-tight tabular-nums", short ? "text-[1.5rem]" : "mt-0.5 text-[2.5rem]", mo.left < 0 && "text-destructive")}>{fmt(Math.abs(mo.left))}</p>
+              </div>
+              <Bar className={short ? "mt-2 h-2" : "mt-3 h-2.5"} value={mo.budget ? mo.spent / mo.budget : 0} over={mo.left < 0} label="Spent of budget" />
+              <p className={cn("text-muted-foreground tabular-nums", short ? "mt-1.5 truncate text-[0.875rem]" : "mt-2.5 text-[0.9375rem]")} data-testid="month-line">
                 {fmt(mo.spent)} spent of {fmt(mo.budget)}
                 {mo.carried !== 0 && <> ({mo.carried > 0 ? `${fmt(mo.carried)} carried over` : `${fmt(-mo.carried)} over last month`})</>}
-                {current && daysLeft > 0 && <span data-testid="month-pace"> · {daysLeft} {daysLeft === 1 ? "day" : "days"} left{perDay > 0 && <>, <span className="whitespace-nowrap">about {fmt(Math.floor(perDay))} a day</span>{toCome > 0 ? " after bills" : ""}</>}</span>}
+                {!short && current && daysLeft > 0 && <span data-testid="month-pace"> · {daysLeft} {daysLeft === 1 ? "day" : "days"} left{perDay > 0 && <>, <span className="whitespace-nowrap">about {fmt(Math.floor(perDay))} a day</span>{toCome > 0 ? " after bills" : ""}</>}</span>}
               </p>
             </div>
           </Section>
-          <PrimaryButton className="mb-6" onClick={() => setAdding(true)}><Plus /> Add expense</PrimaryButton>
+          {!wide && <PrimaryButton className={short ? "mb-3" : "mb-6"} onClick={() => setAdding(true)}><Plus /> Add expense</PrimaryButton>}
 
           <Section title="By category">
             {mo.by.filter((c) => c.budget || c.spent).map((c) => (
-              <Row key={c.name} className="block py-3">
+              <Row key={c.name} className={cn("block", short ? "py-2" : "py-3")}>
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="font-semibold">{c.name}</span>
                   {/* Beside the bar, the two numbers the bar draws: spent of the budget (council round 2:
@@ -71,8 +79,8 @@ export default function Month() {
                     {c.budget >= 0 ? <>{fmt(c.spent)} of {fmt(c.budget)}</> : <>{fmt(c.spent)} spent</>}
                   </span>
                 </div>
-                <Bar className="mt-2" value={c.budget ? c.spent / c.budget : c.spent ? 1 : 0} over={c.left < 0} label={`${c.name} spent of budget`} />
-                <p className="mt-1.5 text-[0.8125rem] text-muted-foreground tabular-nums">
+                <Bar className={short ? "mt-1.5" : "mt-2"} value={c.budget ? c.spent / c.budget : c.spent ? 1 : 0} over={c.left < 0} label={`${c.name} spent of budget`} />
+                <p className={cn("mt-1.5 text-[0.8125rem] text-muted-foreground tabular-nums", short && "hidden")}>
                   {c.left < 0 ? `${fmt(-c.left)} over` : `${fmt(c.left)} left`}
                   {c.budget >= 0 ? (c.carried ? ` (${c.carried > 0 ? "+" : "−"}${fmt(Math.abs(c.carried))} from last month)` : "")
                     : `, with ${fmt(-c.carried)} from last month`}

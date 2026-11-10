@@ -5,6 +5,23 @@ import { cn } from "@/lib/utils"
 // Small building blocks in the style of Apple's own apps: grouped sections on solid surfaces,
 // rows at least 44 pt tall, one accent (Pinto's amber), and motion only where it explains a change.
 
+/** Whether a media query holds now, kept current as the note is resized. */
+export function useMedia(query: string): boolean {
+  const [on, setOn] = useState(() => typeof matchMedia === "function" && matchMedia(query).matches)
+  useEffect(() => {
+    if (typeof matchMedia !== "function") return
+    const m = matchMedia(query), f = () => setOn(m.matches)
+    f(); m.addEventListener("change", f)
+    return () => m.removeEventListener("change", f)
+  }, [query])
+  return on
+}
+/** A note in one column with little height (a small phone, a small window): screens show their
+ *  rows compact there, so the list isn't one row under a tall summary. */
+export const SHORT = "(max-width: 699px) and (max-height: 640px)"
+/** Two columns: the note is at least 700 px wide. */
+export const WIDE = "(min-width: 700px)"
+
 /** A titled group of rows on the surface colour, like a Settings or Health section. */
 export function Section({ title, action, footer, children, className }: { title?: string; action?: ReactNode; footer?: ReactNode; children: ReactNode; className?: string }) {
   return (

@@ -65,6 +65,28 @@ describe("Month", () => {
   })
 })
 
+describe("By category", () => {
+  it("shows every category, and their rows add up to the summary over them", async () => {
+    await amber.store.set("categories", [...cats, { name: "Transport", budget: 800 }])
+    await amber.store.set("expenses", [
+      { id: "a", date: today, what: "Weekly shop", category: "Groceries", amount: 412 },
+      { id: "b", date: today, what: "Lunch", category: "Eating out", amount: 120 },
+      { id: "c", date: today, what: "Travel card", category: "Transport", amount: 790 },
+    ])
+    render(<App />)
+    await waitFor(() => expect(screen.getByTestId("month-line")).toHaveTextContent("1,322 kr spent of 2,300 kr"))
+    const rows = ["Groceries", "Eating out", "Transport"].map((n) => screen.getByTestId(`spent-${n}`).textContent ?? "")
+    expect(rows).toEqual(["412 kr of 1,000 kr", "120 kr of 500 kr", "790 kr of 800 kr"])
+    const sum = (i: number) => rows.reduce((t, r) => t + Number(r.split(" of ")[i].replace(/[^\d.]/g, "")), 0)
+    expect([sum(0), sum(1)]).toEqual([1322, 2300])
+  })
+
+  it("has one Add expense, wherever the note's width puts it", async () => {
+    render(<App />)
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Add expense" })).toHaveLength(1))
+  })
+})
+
 describe("Expenses", () => {
   it("lists expenses by day and deletes one, with Undo", async () => {
     await amber.store.set("expenses", [
