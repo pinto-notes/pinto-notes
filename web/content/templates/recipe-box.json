@@ -12,19 +12,19 @@
   "folder": "Recipes",
   "note": "Recipe box\n\nYour recipes, cleaned up and filed: one sub-note each, with the ingredients as a checklist you can tick off while you cook. Paste a recipe into your AI to add the first.\n\n## Weeknight\n\n## Weekend\n\n## Baking\n\n## Want to try\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Recipe box\". When I paste a recipe, clean it up: a title, servings and time on one line, the ingredients as a checklist, and short numbered steps, without the life story. Save it as a sub-note with create, in the note's own folder (\"Recipes/Recipe box/<recipe title>.md\"), then read the note with fetch and move its link line under \"Weeknight\", \"Weekend\" or \"Baking\" with edit, whichever fits. Recipes I want to try later go under \"Want to try\" as a bullet. When I ask what to cook, look through the box with search."
+    "default": "Use my Pinto Notes note \"Recipe box\". When I paste a recipe, clean it up: a title, servings and time on one line, the ingredients as a checklist, staples the steps use (oil, salt) on a \"From the cupboard\" line, and short numbered steps, without the life story. Save it as a sub-note with create, in the folder named after the note (\"Recipe box/<recipe title>.md\", beside it), then read the note with fetch and move its link line under \"Weeknight\", \"Weekend\" or \"Baking\" with edit, whichever fits. Recipes I want to try later go under \"Want to try\" as a bullet. When I ask what to cook, look through the box with search."
   },
   "asks": [
     "Ask me for the recipe I want to save, then add it with its ingredients and steps.",
     "What can I make with chickpeas and spinach?",
-    "Halve the lemon chicken recipe for two."
+    "Halve the lentil soup for two."
   ],
   "demo": [
     {
       "tool": "create",
       "args": {
         "path": "Recipes/Recipe box/Lentil soup with lemon.md",
-        "content": "Lentil soup with lemon\n\nServes 4, 35 minutes.\n\n- [ ] 250 g red lentils\n- [ ] 1 onion\n- [ ] 2 carrots\n- [ ] 2 cloves of garlic\n- [ ] 1 tsp ground cumin\n- [ ] 2 lemons\n\n1. Soften the onion, carrots and garlic in olive oil with the cumin.\n2. Add the lentils and a litre of water. Simmer for 20 minutes.\n3. Blend half of it, then stir in the lemon juice and salt to taste.",
+        "content": "Lentil soup with lemon\n\nServes 4, 35 minutes.\n\n- [ ] 250 g red lentils\n- [ ] 1 onion\n- [ ] 2 carrots\n- [ ] 2 cloves of garlic\n- [ ] 1 tsp ground cumin\n- [ ] 2 lemons\n\nFrom the cupboard: olive oil, salt.\n\n1. Soften the onion, carrots and garlic in olive oil with the cumin.\n2. Add the lentils and a litre of water. Simmer for 20 minutes.\n3. Blend half of it, then stir in the lemon juice and salt to taste.",
         "id": "3f6c2a1e-8b4d-4c2a-9e1f-5a7b8c9d0e1f"
       }
     },
