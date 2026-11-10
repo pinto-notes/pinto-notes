@@ -2,7 +2,8 @@
 // compiles it with the server's own code (as a save does), runs its tests and the smoke check in
 // headless WebKit (as the save gate does), and writes what the site serves to
 // web/public/templates/apps/. --pictures draws preview-light.png and preview-dark.png from the app
-// itself, over its own data, at 1280 px; without it, missing pictures are drawn and others kept.
+// itself at 1280 px, over its sample (scripts/template-samples.py: the app in use, not the first
+// screen a new one opens on); without it, missing pictures are drawn and others kept.
 //   deno run -A scripts/template-apps.ts [<slug>…] [--pictures] [--no-render]
 // The server's modules import each other; loading tools.ts first gives them their usual order.
 import "../supabase/functions/mcp/tools.ts";
@@ -11,6 +12,7 @@ import { withFiles } from "../supabase/functions/mcp/app_files.ts";
 import { render as renderService, testSummary, type Rendered } from "../supabase/functions/mcp/app_check.ts";
 import { declaredHosts, hostDeclared } from "../supabase/functions/mcp/page.ts";
 import { fromTree, PREVIEWS, treeProblems } from "../supabase/functions/mcp/template_apps.ts";
+import { localToday, sampleFor } from "./template-sample.ts";
 
 const ROOT = new URL("../web/", import.meta.url);
 const CONTENT = new URL("content/templates/", ROOT);
@@ -86,11 +88,20 @@ for (const slug of slugs) {
     const smoke = (await render(stored, note, data, { smoke: true })).smoke;
     if (smoke && !smoke.ok) gate.push(...smoke.problems.map((m: string) => `smoke check: ${m}`));
     if (gate.length) { fail(gate); continue; }
-    // The site's pictures, from the app itself.
+    // The site's pictures, from the app itself, in use: over its sample, its dates moved to today.
+    // The starting data is what Make adds, and a new habit tracker or budget opens on its first
+    // screen ("Pick your habits"), which says nothing about the app. A template with no sample yet
+    // is drawn over its starting data, and says so.
+    const today = localToday();
+    let shown: unknown = null;
     for (const scheme of ["light", "dark"] as const) {
       const name = `preview-${scheme}.png`;
       if (!pictures && tree.pictures[name]) continue;
-      const view = (await render(stored, note, data, { views: [{ width: 1280, scheme }], capture: true })).views[0];
+      if (shown === null) {
+        shown = await sampleFor(slug, today);
+        if (shown === null) { shown = data; console.log(`  ${slug}: no sample yet (scripts/template-samples.py), so its pictures show the starting data. Run again with --pictures once it has one.`); }
+      }
+      const view = (await render(stored, note, shown, { views: [{ width: 1280, scheme }], capture: true, today })).views[0];
       if (!view?.png) { fail([`${name} couldn't be drawn.`]); continue; }
       tree.pictures[name] = Uint8Array.from(atob(view.png), (ch) => ch.charCodeAt(0));
       await Deno.writeFile(new URL(name, dir), tree.pictures[name]);

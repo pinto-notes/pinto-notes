@@ -110,3 +110,10 @@ same paths and the same text, and `read "<Note>.app/data.json"` the same data. T
   all three (the same code on Mac and iPhone); a template without an app adds only its note.
 - `AMBER_PAGE_SCENES=template scripts/note-pages-mac.sh`: Use template on the habit tracker with
   the site's real files, in the Mac app off screen, light and dark.
+- The site's pictures (`preview-light.png`, `preview-dark.png`) show the app in use: with
+  `--pictures`, `scripts/template-apps.ts` draws them over the app's sample
+  (`Pane/Resources/Templates/template-app-<slug>.sample.json`, from `scripts/template-samples.py`,
+  its dates moved to today), not over `data.json`. A new habit tracker or budget opens on its first
+  screen, which is the wrong picture of the app. After changing an app or its sample, in this
+  order: `template-apps.ts`, `template-catalog.py`, `template-samples.py`, then
+  `template-apps.ts --pictures` and `template-catalog.py` again for the Mac's copies.
