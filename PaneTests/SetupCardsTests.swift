@@ -965,7 +965,9 @@ import Vision
         #expect(L.next(all, from: .make, by: 1) == .arrow && L.next(all, from: .example, by: 1) == .make && L.next(all, from: .make, by: -1) == .example)
         #expect(L.next(all, from: .more("gone"), by: 1) == .make, "a stop that's no longer there starts again")
         let src = try library
-        #expect(src.contains(".focusable(open != nil, interactions: .edit)\n            .focused($keys, equals: .page)\n            .focusEffectDisabled()"), "the page has the keys")
+        // The keys are with a view beside the page, never around it: buttons inside a view that
+        // has the keys all drew their own focus rings at once.
+        #expect(src.contains("Color.clear.frame(width: 1, height: 1)\n                    .focusable(open != nil, interactions: .edit)\n                    .focused($keys, equals: .page)\n                    .focusEffectDisabled()"), "the page has the keys")
         #expect(src.contains(".onKeyPress(keys: [.tab, Self.backTab]) { tab($0) }") && src.contains(".onKeyPress(.space) { pressStop() ? .handled : .ignored }") && src.contains(".onKeyPress(.return) { pressStop() || openFromKeys() ? .handled : .ignored }"))
         for stop in [".make", ".arrow", ".secondary", ".connect", ".copy", ".back", ".close", ".more(r.slug)", ".example"] {
             #expect(src.contains(".overlay { ring(\(stop), on: e, radius:"), "\(stop) shows the ring")

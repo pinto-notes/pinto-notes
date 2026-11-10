@@ -690,11 +690,18 @@ struct TemplateLibraryView: View {
                         .zIndex(e == open ? 2 : 1)
                 }
             }
-            // A page has the keys while it's open, so Tab walks its own buttons (TemplateLibraryView.stops)
-            // whatever the Mac's keyboard navigation setting; the ring on a button is the cue.
-            .focusable(open != nil, interactions: .edit)
-            .focused($keys, equals: .page)
-            .focusEffectDisabled()
+            // While a page is open the keys are with a view of no size beside it, so Tab walks the
+            // page's own buttons (TemplateLibraryView.stops) whatever the Mac's keyboard navigation
+            // setting, and the ring on a button is the cue. Beside the page, never around it: a
+            // button inside something that has the keys counts as focused, and every one of them
+            // drew its ring at once (real keys on the Air, 10 November 2026).
+            .background {
+                Color.clear.frame(width: 1, height: 1)
+                    .focusable(open != nil, interactions: .edit)
+                    .focused($keys, equals: .page)
+                    .focusEffectDisabled()
+                    .accessibilityHidden(true)
+            }
         }
         .frame(width: size.width, height: size.height)
         // In a sheet the sheet is the panel and macOS dims the window (popupSheet).
