@@ -98,7 +98,7 @@ final class FilmRenderer {
         /// the title: it's the person sharing it who speaks.
         var busiestCaption: @Sendable (Int) -> String = { "My busiest day \u{00B7} \($0 == 1 ? "1 edit" : "\($0) edits")" }
         /// Near the end, as the folder written in most has its moment (its count is on the end card).
-        var topFolderCaption: @Sendable (String) -> String = { "I wrote most in \($0)" }
+        var topFolderCaption: @Sendable (String, Int) -> String = { "I wrote most in \($0) \u{00B7} \($1 == 1 ? "1 note" : "\($1) notes")" }
         /// The AI's line, after the one that says what a house (or a light) is: "ChatGPT helped with 36 of them".
         var aiCaption: @Sendable (String, Int) -> String = { "\($0) helped with \($1) of them" }
         /// On the end card, when the film has already named the folder written in most.
@@ -733,7 +733,7 @@ final class FilmRenderer {
                 mine.append((span.start, span.start + min(2.4, max(0.9, span.length - 0.15)), labels.busiestCaption(s.busiestDayEdits), look.you))
             }
             if labels.folderNames, let f = s.topFolder, script.growth > 5, s.folders >= 3 {
-                mine.append((script.growth - FilmScript.topFolderMoment, script.growth - 0.25, labels.topFolderCaption(f), look.you))
+                mine.append((script.growth - FilmScript.topFolderMoment, script.growth - 0.25, labels.topFolderCaption(f, s.topFolderNotes), look.you))
             } else if s.writingDays > 1 {
                 mine.append((script.growth - 1.9, script.growth - 0.25, s.streak >= 3 ? labels.streakCaption(s.streak) : labels.daysCaption(s.writingDays), look.you))
             }
@@ -751,7 +751,8 @@ final class FilmRenderer {
             // The AI has a line of its own, in its colour, right after what a house is.
             if let ai = s.ai, s.aiNotes > 0 { lines.insert((labels.aiCaption(ai, s.aiNotes), look.dark ? look.ai : FilmLook.paper.ai), at: min(1, lines.count)) }
             var from = titleUntil + 0.6 + startOffset
-            let slot = min(2.4, max(1.4, (script.growth - from - FilmScript.topFolderMoment - 0.2) / Double(lines.count)))
+            // Brief: how to read it takes a couple of seconds, and the rest of the film is the month's own.
+            let slot = min(1.5, max(1.25, (script.growth - from - FilmScript.topFolderMoment - 0.2) / Double(lines.count)))
             for (line, color) in lines where from + slot <= script.growth + 0.01 {
                 let a = shown(from, from + slot - 0.1) * (1 - cover) * running
                 if a > 0 { text(line, size: 48, weight: color == nil ? .regular : .medium, color: (color ?? ink).cg((color == nil ? 0.76 : 1) * a), at: CGPoint(x: side, y: base + 86), in: ctx) }

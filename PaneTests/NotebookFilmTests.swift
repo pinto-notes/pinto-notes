@@ -417,7 +417,7 @@ import Testing
         #expect(s.topFolder == "Work")
         #expect(s.topFolderNotes == input.notes.filter { $0.folder == "Work" }.count)
         #expect(FilmRenderer.Labels().topFolder("Work", 27) == "Most written in Work \u{00B7} 27 notes")
-        #expect(FilmRenderer.Labels().topFolderCaption("Work") == "I wrote most in Work", "said while it grows, with no count that isn't true yet")
+        #expect(FilmRenderer.Labels().topFolderCaption("Work", 22) == "I wrote most in Work \u{00B7} 22 notes")
         #expect(FilmRenderer.Labels().daysCaption(25) == "I wrote on 25 days", "a month of one or two folders gets a line of its own too")
         #expect(FilmRenderer.Labels().streakCaption(9) == "9 days in a row, my longest run")
         #expect(FilmRenderer.Labels().aiCaption("ChatGPT", 36) == "ChatGPT helped with 36 of them", "the AI always has a line of its own")
@@ -589,8 +589,11 @@ import Testing
         #expect(script.date(at: 0) == FilmDemo.notebook(days: 35, now: Self.now).notes.map(\.created).min())
         // And in the app the town starts with its first houses there, as the intro shows it.
         let town = TownScene(script: script, folderNames: true)
-        #expect(town.appStart >= 0.3 && town.appStart <= 0.5)
-        #expect(script.nodes.filter { $0.birth <= town.appStart }.count >= 2)
+        // ...with one whole house: the first notes come one at a time, however close together they were made.
+        #expect(script.nodes.filter { $0.birth <= town.appStart }.count == 1)
+        #expect(script.nodes[1].birth >= 0.3 && script.nodes[2].birth >= script.nodes[1].birth + 0.2)
+        #expect(script.nodes.map(\.birth) == script.nodes.map(\.birth).sorted())
+        #expect(script.nodes.allSatisfy { n in n.edits.allSatisfy { $0 >= n.birth } }, "nothing is written in before it's there")
     }
 
     @Test func theFilmWaitsThroughAStallAndNeverJumpsAhead() {

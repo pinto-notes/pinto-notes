@@ -131,7 +131,7 @@ struct FilmScript: Sendable {
     static let fullGrowth = 9.0, thinGrowth = 5.6, outro = 3.6
     let growth: Double
     /// How long before the end of the growth the folder written in most has its moment.
-    static let topFolderMoment = 2.1
+    static let topFolderMoment = 2.6
     /// It opens on a glimpse of where the month ended up, then goes back to the first day: the
     /// first frame, which is what a feed or a message shows before it plays, is the whole notebook.
     static let prelude = 2.4
@@ -220,6 +220,15 @@ struct FilmScript: Sendable {
             let firstEdit = edits.first
             let bornByAI = firstEdit.map { $0.ai != nil && abs($0.at.timeIntervalSince(n.created)) < 600 } ?? false
             nodes.append(Node(id: n.id, folder: f, birth: time(n.created), edits: edits.map { time($0.at) }, aiEdits: edits.map { $0.ai != nil }, bornByAI: bornByAI))
+        }
+        // The first notes come one at a time, even when they were made within minutes of each
+        // other: the film starts with one, then the next. (Later ones keep their order.)
+        let gaps = [0.34, 0.28, 0.24, 0.2, 0.16, 0.12]
+        for k in nodes.indices.dropFirst() {
+            let least = min(growth * 0.4, nodes[k - 1].birth + (k - 1 < gaps.count ? gaps[k - 1] : 0))
+            guard nodes[k].birth < least else { continue }
+            nodes[k].birth = least
+            nodes[k].edits = nodes[k].edits.map { max($0, least) }
         }
         var seen = Set<[Int]>()
         var links: [Link] = []

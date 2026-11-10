@@ -162,8 +162,8 @@ final class TownScene: FilmScene {
     var captions: [String]? { ["Each house is a note", "It grows as it\u{2019}s written in"] }
     var rewinds: Bool { true }
     func subtitle(_ stats: FilmStats) -> String? { stats.notes == 1 ? "1 note, and a house for it" : "\(stats.notes) notes, a house for each" }
-    /// (Soon after the first note: a first house or two, never an empty hill and never a town already.)
-    var appStart: Double { min(0.5, (script.nodes.count > 1 ? script.nodes[1].birth : 0) + 0.3) }
+    /// (Just after the first note: one whole house on its hill, before the second arrives.)
+    var appStart: Double { 0.26 }
     /// The folder you wrote most in has its moment when there are folders enough for that to say something.
     private var namesTopFolder: Bool { folderNames && topFolder >= 0 && growth > 5 && hills.count >= 3 }
     /// The houses written in on the day you wrote most, and when the film is on that day.
@@ -284,7 +284,7 @@ final class TownScene: FilmScene {
             spots.sort { $0.key < $1.key }
             for (k, i) in notes.enumerated() {
                 let spot = spots[k % spots.count]
-                houses[i] = House(hill: hi, x: spot.x, y: spot.drop, s: s, w: (38 + 13 * hash(i, 1)) * s, wall: Int(hash(i, 2) * 4), roof: Int(hash(i, 3) * 3), chimneyLeft: hash(i, 4) < 0.5, style: Int(hash(i, 6) * 4))
+                houses[i] = House(hill: hi, x: spot.x, y: spot.drop, s: s, w: (33 + 10 * hash(i, 1)) * s, wall: Int(hash(i, 2) * 4), roof: Int(hash(i, 3) * 3), chimneyLeft: hash(i, 4) < 0.5, style: Int(hash(i, 6) * 4))
             }
             // Round trees on the shoulders of the hill and low on its face.
             let treeCount = 4 + Int(hash(hi, 21) * 3)
@@ -824,7 +824,7 @@ final class TownScene: FilmScene {
         // Some have a low wing at one side, with its own lean-to roof.
         if hs.style == 2 {
             let side: Double = hs.chimneyLeft ? 1 : -1
-            let ww = w * 0.5, wh = 15 * s * pop
+            let ww = w * 0.42, wh = 15 * s * pop
             let wx = side > 0 ? x0 + w - 1 : x0 - ww + 1
             ctx.setFillColor(wall.mix(C(0x000000), 0.07).cg())
             ctx.fill(CGRect(x: wx, y: y0, width: ww, height: wh))
