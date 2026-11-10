@@ -183,12 +183,23 @@ describe("the instructions", () => {
     for (const t of all.filter((t) => !t.app)) {
       for (const i of instructions(t)) {
         expect(i.prompt.startsWith(createStep(t)), `${t.slug} (${i.name})`).toBe(true);
-        expect(i.prompt).toContain(`with create at "${t.folder}/${t.title}.md"`);
+        expect(i.prompt).toContain(`with create at "${t.title}.md"`);
         // create stores the content as it's given; the title is its first line.
         const body = markdownIn(i.prompt);
         expect(body, `${t.slug} (${i.name})`).toBe(t.note);
         expect(notes.titleOf(body!)).toBe(t.title);
         expect(notes.findTables(body!).map((x) => x.columns), t.slug).toEqual(notes.findTables(t.note).map((x) => x.columns));
+      }
+    }
+  });
+
+  it("never name a fixed folder: the note goes where the person says", () => {
+    // The app's Make adds a template to the folder the person is in; the site's prompt used to say
+    // "Habits/Habit tracker.md" and "Home/Budget and expenses.app/data.json".
+    for (const t of all) {
+      for (const i of instructions(t)) {
+        expect(i.prompt, `${t.slug} (${i.name})`).not.toContain(`${t.folder}/`);
+        expect(i.prompt, `${t.slug} (${i.name})`).not.toMatch(new RegExp(`\\b(in|to) (my|your|the) ${t.folder} folder`, "i"));
       }
     }
   });
