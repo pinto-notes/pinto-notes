@@ -868,6 +868,9 @@ import Vision
         #expect(src.contains("DispatchQueue.main.async {\n            menu.popUp(positioning: nil, at: NSPoint(x: view.bounds.maxX - menu.size.width, y: view.bounds.maxY + 6), in: view)"))
         #expect(src.contains("add(TemplateLibraryWords.copy, NSImage(systemSymbolName: \"doc.on.doc\", accessibilityDescription: nil)) { copy(e) }"))
         #expect(AIGlyph.menuPicture("Claude", dark: true) != nil && AIGlyph.menuPicture("ChatGPT", dark: false) != nil)
+        let row = L.menuTitle("Make with Claude", AIGlyph.menuPicture("Claude", dark: false))
+        #expect(row.string.hasSuffix("Make with Claude") && row.containsAttachments(in: NSRange(location: 0, length: row.length)), "an AI named in the menu is an AI shown")
+        #expect(src.contains("item.attributedTitle = Self.menuTitle(title, image)"))
         // Pressed, a half of the split button keeps its place and size; only its fill darkens
         // (dipping, the two halves drew apart and a gap opened between them).
         let design = try SettingsHomeTests.source("Pane/Views/DesignSystem.swift")

@@ -1580,7 +1580,9 @@ struct TemplateLibraryView: View {
             actions.append(action)
             let item = NSMenuItem(title: title, action: #selector(MenuAction.fire), keyEquivalent: "")
             item.target = action
-            item.image = image
+            // The picture is in the row's own words: a menu put up by hand showed no item's
+            // image (a real menu on the Air, 10 November 2026), and an AI named is an AI shown.
+            item.attributedTitle = Self.menuTitle(title, image)
             menu.addItem(item)
         }
         for item in p.menu {
@@ -1598,6 +1600,21 @@ struct TemplateLibraryView: View {
             menu.popUp(positioning: nil, at: NSPoint(x: view.bounds.maxX - menu.size.width, y: view.bounds.maxY + 6), in: view)
             _ = actions
         }
+    }
+
+    /// A menu row's words with its picture before them, at the menu's size.
+    static func menuTitle(_ title: String, _ image: NSImage?) -> NSAttributedString {
+        let out = NSMutableAttributedString()
+        if let image {
+            let picture = NSTextAttachment()
+            picture.image = image
+            picture.bounds = CGRect(x: 0, y: -3, width: 16, height: 16)
+            out.append(NSAttributedString(attachment: picture))
+            out.append(NSAttributedString(string: "  "))
+        }
+        out.append(NSAttributedString(string: title))
+        out.addAttribute(.font, value: NSFont.menuFont(ofSize: 0), range: NSRange(location: 0, length: out.length))
+        return out
     }
 
     /// "Make with ChatGPT" with ChatGPT's mark: an AI named is an AI shown.
