@@ -87,6 +87,12 @@ final class NotebookFilmStore {
     static func canRewatch(_ account: UUID?, in folder: URL = defaultFolder) -> Bool {
         FileManager.default.fileExists(atPath: keptURL(account, in: folder).path)
     }
+    /// How many months the kept film covers (1 when there's none to read).
+    static func keptMonths(_ account: UUID?, in folder: URL = defaultFolder) -> Int {
+        guard let data = try? Data(contentsOf: keptURL(account, in: folder)),
+              let input = try? JSONDecoder().decode(FilmInput.self, from: data) else { return 1 }
+        return FilmStats(input).months
+    }
 
     func attach(account: UUID?, service: FilmSource.Service?) {
         if account != self.account { launchChecked = false; prepareChecked = false }
@@ -172,7 +178,10 @@ final class NotebookFilmStore {
         #endif
     }()
 
-    static func title(_ s: FilmStats?) -> String { "Your first month" }
+    static func title(_ s: FilmStats?) -> String { "Your \(s?.period ?? "first month")" }
+    /// What the film in hand is called when it's shared or saved.
+    var shareTitle: String { script.map { labels.title($0.stats) } ?? "My first month" }
+    var fileName: String { "Pinto Notes \u{2013} \(shareTitle.prefix(1).lowercased() + shareTitle.dropFirst()).mp4" }
 
     /// Makes the movies still missing: the one chosen now first, then the other looks with the
     /// same folder names. Choosing another look or folder names while one is being made moves
@@ -194,7 +203,7 @@ final class NotebookFilmStore {
                 let priority: TaskPriority = k == 0 && key == self?.movieKey ? .userInitiated : .utility
                 self?.makingKey = key
                 let dir = FileManager.default.temporaryDirectory.appendingPathComponent("NotebookFilm-\(UUID().uuidString)", isDirectory: true)
-                let url = dir.appendingPathComponent("Pinto Notes \u{2013} my first month.mp4")
+                let url = dir.appendingPathComponent(await MainActor.run { self?.fileName } ?? "Pinto Notes \u{2013} my first month.mp4")
                 let work = Task.detached(priority: priority) { () -> Bool in
                     do {
                         // Written under another name and renamed when it's whole.

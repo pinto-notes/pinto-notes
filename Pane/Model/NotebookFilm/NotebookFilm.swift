@@ -55,6 +55,10 @@ struct FilmStats: Equatable, Sendable {
     /// The day with the most edits, and how many.
     var busiestDay: Date?
     var busiestDayEdits: Int
+    /// How long the film covers, in months: 1 for about a month, 2 when it came later.
+    var months: Int { max(1, Int((Double(days) / 30).rounded())) }
+    /// "first month", "first 2 months": what the film is called, after "My" or "Your".
+    var period: String { months == 1 ? "first month" : "first \(months) months" }
 
     init(_ input: FilmInput, calendar: Calendar = .current) {
         let notes = input.notes
@@ -96,15 +100,21 @@ struct FilmStats: Equatable, Sendable {
     }
 }
 
-/// When the film is offered: only to someone who has really used Pinto for about a month, so
-/// nobody ever sees a thin, half-empty graph.
+/// When the film is offered: only to someone who has really used Pinto for about a month, and
+/// only once there are notes enough for it to be worth showing anyone. A notebook that's still
+/// thin after a month waits: the film comes when it's grown, and says how long that took ("My
+/// first 2 months").
 enum FilmEligibility {
     /// Your first note is at least this many days old.
     static let minDays = 28
+    /// And no older than this. Past it the history of edits is thinned, so the film couldn't
+    /// show how the notebook grew; the yearly one is the next.
+    static let maxDays = 92
     /// Days in the last 30 on which you wrote or edited something yourself (AI edits don't count).
     static let minActiveDays = 12
     /// Links don't count: most notes link to nothing, and the film's shape comes from folders.
-    static let minNotes = 20
+    /// (Fifty: with fewer the film is a few lights on an empty stage.)
+    static let minNotes = 50
 
     static func activeDays(_ input: FilmInput, calendar: Calendar = .current) -> Int {
         let since = calendar.date(byAdding: .day, value: -30, to: input.now) ?? input.now
@@ -117,7 +127,7 @@ enum FilmEligibility {
 
     static func isReady(_ input: FilmInput, calendar: Calendar = .current) -> Bool {
         let s = FilmStats(input, calendar: calendar)
-        return s.days >= minDays && s.activeDays >= minActiveDays && s.notes >= minNotes
+        return s.days >= minDays && s.days <= maxDays && s.activeDays >= minActiveDays && s.notes >= minNotes
     }
 }
 

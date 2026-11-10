@@ -460,10 +460,29 @@ import Testing
         #expect(FilmRenderer.Labels().withAI("ChatGPT") == "With ChatGPT")
     }
 
-    @Test func theThinnestMonthItsOfferedForStillMakesAFilm() {
-        // Two folders, a note most days, no AI: still ready, and the end card leaves the AI out.
+    @Test func aThinNotebookWaitsUntilItsWorthShowing() {
+        // A month in with 26 notes: not yet. The film is a few lights on an empty stage, so it
+        // waits until the notebook has grown, and then says how long that took.
+        let thin = FilmDemo.notebook(days: 35, now: Self.now, light: true)
+        #expect(thin.notes.count < FilmEligibility.minNotes)
+        #expect(!FilmEligibility.isReady(thin, calendar: Self.cal))
+        // The same person seven weeks in, with notes enough: ready, as their first 2 months.
+        let later = FilmDemo.notebook(days: 52, now: Self.now)
+        #expect(later.notes.count >= FilmEligibility.minNotes)
+        #expect(FilmEligibility.isReady(later, calendar: Self.cal))
+        let s = FilmStats(later, calendar: Self.cal)
+        #expect(s.months == 2 && FilmRenderer.Labels().title(s) == "My first 2 months")
+        #expect(NotebookFilmStore.title(s) == "Your first 2 months" && HelpCopy.film(months: 2) == "Watch your first 2 months")
+        // About a month is still "my first month".
+        let month = FilmStats(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
+        #expect(month.months == 1 && FilmRenderer.Labels().title(month) == "My first month" && HelpCopy.film(months: 1) == "Watch your first month")
+        // Past three months the edit history is thinned: no first film then (the yearly one is next).
+        #expect(!FilmEligibility.isReady(FilmDemo.notebook(days: 120, now: Self.now), calendar: Self.cal))
+    }
+
+    @Test func aMonthWithNoAIStillMakesAFilm() {
+        // Two folders, a note most days, no AI: the end card leaves the AI out.
         let input = FilmDemo.notebook(days: 35, now: Self.now, light: true)
-        #expect(FilmEligibility.isReady(input, calendar: Self.cal))
         let s = FilmStats(input, calendar: Self.cal)
         #expect(s.ai == nil && s.aiNotes == 0)
         #expect(s.edits == input.notes.map(\.edits.count).reduce(0, +), "with no AI the end card's third number is how often you wrote")

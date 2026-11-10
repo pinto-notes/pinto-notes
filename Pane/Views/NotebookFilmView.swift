@@ -73,7 +73,7 @@ struct NotebookFilmView: View {
         .alert("Couldn\u{2019}t save the film", isPresented: $saveFailed) { Button("OK", role: .cancel) {} }
         #else
         .sheet(item: $sharing) { file in
-            ActivitySheet(url: file.url, title: "My first month", picture: endFrame)
+            ActivitySheet(url: file.url, title: store.shareTitle, picture: endFrame)
                 .presentationDetents([.medium, .large])
                 .ignoresSafeArea()
         }
@@ -201,7 +201,7 @@ struct NotebookFilmView: View {
                 // Over the town the words sit in the sky, above the hills.
                 Spacer().frame(maxHeight: dawn ? 56 : .infinity)
                 AppMark(size: 44)
-                Text("Your first month\nwith Pinto Notes")
+                Text("\(NotebookFilmStore.title(store.script?.stats))\nwith Pinto Notes")
                     .font(.system(size: 34, weight: .bold))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(dawn ? Self.ink : .white)
@@ -440,7 +440,7 @@ struct NotebookFilmView: View {
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("notebookFilm.share")
             #else
-            ShareLink(item: movie, preview: SharePreview("My first month", image: Image("MarkTight"))) { shareLabel(waiting: false) }
+            ShareLink(item: movie, preview: SharePreview(store.shareTitle, image: Image("MarkTight"))) { shareLabel(waiting: false) }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("notebookFilm.share")
             #endif
@@ -495,7 +495,7 @@ struct NotebookFilmView: View {
     private func save() {
         guard let movie = store.movie else { return }
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = "Pinto Notes \u{2013} my first month.mp4"
+        panel.nameFieldStringValue = store.fileName
         panel.allowedContentTypes = [.mpeg4Movie]
         guard panel.runModal() == .OK, let to = panel.url else { return }
         do {

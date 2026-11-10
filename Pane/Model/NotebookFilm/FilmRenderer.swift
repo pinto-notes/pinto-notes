@@ -88,7 +88,7 @@ final class FilmRenderer {
         var you = "Just me"
         var withAI: @Sendable (String) -> String = { "With \($0)" }
         /// Over the first second, so a still of the start says what it is, and on the end card.
-        var title: @Sendable (FilmStats) -> String = { _ in "My first month" }
+        var title: @Sendable (FilmStats) -> String = { "My \($0.period)" }
         /// Under the title as it opens: what's in it, and where.
         var subtitle: @Sendable (FilmStats) -> String = { "\($0.notes == 1 ? "1 note" : "\($0.notes) notes") in Pinto Notes" }
         /// The end card's one line that's only yours: the folder you wrote in most (when folder

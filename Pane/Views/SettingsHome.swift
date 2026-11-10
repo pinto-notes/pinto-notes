@@ -311,6 +311,7 @@ enum HelpCopy {
     static let feedbackFooter = "Write to \(email) about a problem or an idea. You\u{2019}ll normally hear back within a day or two."
     static let setupGuideFooter = "Shows the first steps again: your name, bringing your notes and connecting your AI."
     static let film = "Watch your first month"
+    static func film(months: Int) -> String { months <= 1 ? film : "Watch your first \(months) months" }
     static let filmFooter = "The short film of how your notes grew, to watch again or share."
     static let openSource = "Open source on GitHub"
     static let openSourceFooter = "Pinto Notes is built in the open. Reporting an issue there needs a GitHub account."
@@ -350,6 +351,8 @@ struct HelpPage: View {
     var signedIn: Bool
     /// The notebook film has been shown on this device and is kept: Help shows it again.
     var film = false
+    /// How many months that film covers, for its name here.
+    var filmMonths = 1
     /// Closes Settings, so the setup guide shows.
     var close: () -> Void = {}
     /// Where the address goes when no mail app opens; tests keep the real clipboard out of it.
@@ -369,7 +372,7 @@ struct HelpPage: View {
         }
         if film {
             Section {
-                Button(HelpCopy.film) { Self.playFilm(close: close) }
+                Button(HelpCopy.film(months: filmMonths)) { Self.playFilm(close: close) }
                     .accessibilityIdentifier("settings.notebookFilm")
             } footer: {
                 Text(HelpCopy.filmFooter)

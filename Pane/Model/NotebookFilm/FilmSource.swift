@@ -60,7 +60,8 @@ enum FilmSource {
     nonisolated static func mightBeReady(_ context: ModelContext, now: Date = .now) -> Bool {
         let notes = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? []
         guard notes.count >= FilmEligibility.minNotes, let first = notes.map(\.createdAt).min() else { return false }
-        return now.timeIntervalSince(first) >= Double(FilmEligibility.minDays - 1) * 86_400
+        let age = now.timeIntervalSince(first)
+        return age >= Double(FilmEligibility.minDays - 1) * 86_400 && age <= Double(FilmEligibility.maxDays + 1) * 86_400
     }
 }
 
