@@ -12,12 +12,14 @@ const day = iso(today())
 const walk = { id: "walk", name: "Walk", detail: "30 minutes outside", target: 1 }
 const water = { id: "water", name: "Water", target: 8, unit: "glasses" }
 
-// Start each test from no habits and no days, whatever data the app holds.
+// Start each test from no habits and no days, whatever data the app holds, in a tracker that was
+// started long ago (a new one opens on Pick your habits: see "First use").
 beforeEach(async () => {
   route("/")
   await amber.store.set("habits", [])
   await amber.store.set("days", {})
   await amber.store.set("skips", {})
+  await amber.store.set("started", "2026-01-05")
 })
 // The sidebar (Mac) and the tab bar (iPhone) both have the screens' links; either one goes there.
 const go = async (name: string) => userEvent.click((await screen.findAllByRole("link", { name }))[0])
@@ -315,9 +317,82 @@ describe("Skipping", () => {
   })
 })
 
+describe("First use", () => {
+  // A new tracker: the habits it holds are suggestions, nothing is started and nothing is logged.
+  const fresh = async (habits: unknown[]) => {
+    await amber.store.set("started", null)
+    await amber.store.set("habits", habits)
+  }
+
+  it("opens on Pick your habits, with no score and no other screens", async () => {
+    await fresh([walk, water])
+    render(<App />)
+    expect(await screen.findByRole("heading", { name: "Pick your habits" })).toBeInTheDocument()
+    expect(screen.getByRole("checkbox", { name: "Track Walk" })).toHaveAttribute("aria-checked", "true")
+    expect(screen.getByText("8 glasses a day")).toBeInTheDocument()
+    expect(screen.queryByTestId("week-count")).toBeNull()
+    expect(screen.queryByText(/%/)).toBeNull()
+    expect(screen.queryByRole("link", { name: "Month" })).toBeNull()
+    expect(values().started ?? null).toBeNull()
+  })
+
+  it("starts with the habits you keep, one renamed and one of your own", async () => {
+    await fresh([walk, { id: "read", name: "Read", detail: "20 pages", target: 1 }, water])
+    render(<App />)
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Track Water" }))
+    const name = screen.getByLabelText("Name of Read")
+    await userEvent.clear(name)
+    await userEvent.type(name, "Read before bed")
+    await userEvent.type(screen.getByLabelText("Add your own"), "Stretch")
+    await userEvent.click(screen.getByRole("button", { name: "Add" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Start with 3 habits" }))
+
+    await waitFor(() => expect(values().started).toBe(day))
+    expect(values().habits).toEqual([
+      { id: "walk", name: "Walk", detail: "30 minutes outside", target: 1 },
+      { id: "read-before-bed", name: "Read before bed", detail: "20 pages", target: 1 },
+      { id: "stretch", name: "Stretch", target: 1 },
+    ])
+    // Today, counted from today: the week so far is today, whatever the weekday.
+    expect(await screen.findByRole("button", { name: "Done: Stretch" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "One more Water" })).toBeNull()
+    await waitFor(() => expect(screen.getByTestId("week-label")).toHaveTextContent("Today"))
+    expect(screen.getByTestId("week-count")).toHaveTextContent("0 of 3")
+    expect(await screen.findAllByRole("link", { name: "Habits" })).not.toHaveLength(0)
+  })
+
+  it("can't start with nothing picked", async () => {
+    await fresh([walk])
+    render(<App />)
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Track Walk" }))
+    expect(await screen.findByRole("button", { name: "Pick a habit to start" })).toBeDisabled()
+  })
+
+  it("counts from the day you started, not from Monday", async () => {
+    // Started yesterday with one daily habit, not done yesterday: one day missed, today to do.
+    const yesterday = iso(addDays(today(), -1))
+    await amber.store.set("started", yesterday)
+    await amber.store.set("habits", [walk])
+    render(<App />)
+    const monday = today().getDay() === 1
+    await waitFor(() => expect(screen.getByTestId("week-count")).toHaveTextContent(monday ? "0 of 1" : "0 of 2"))
+    expect(screen.getByTestId("week-label")).toHaveTextContent(monday ? "Today"
+      : `Since ${addDays(today(), -1).toLocaleDateString("en-GB", { weekday: "long" })}`)
+  })
+
+  it("skips Pick your habits once something is logged (a tracker an AI filled in)", async () => {
+    await fresh([walk])
+    await amber.store.set("days", { [day]: { walk: 1 } })
+    render(<App />)
+    expect(await screen.findByRole("button", { name: "Done: Walk" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.queryByRole("heading", { name: "Pick your habits" })).toBeNull()
+  })
+})
+
 describe("Older data", () => {
   it("opens data from before schedules and skips (no skips key, no days on habits)", async () => {
     await amber.store.set("skips", null)
+    await amber.store.set("started", null)
     await amber.store.set("habits", [walk, water])
     await amber.store.set("days", { [iso(addDays(today(), -1))]: { walk: 1, water: 8 } })
     render(<App />)

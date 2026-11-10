@@ -8,12 +8,12 @@ import { amount, best, iso, month, schedule, skipped, streak, today, useHabits, 
 // A habit's own page: its streak, its best, this month as a calendar (tap a day to tick, skip or
 // clear it), Skip today, and Edit.
 export function HabitSheet({ habit: h, onClose }: { habit: Habit | null; onClose: () => void }) {
-  const { days, skips, skip, cycle } = useHabits()
+  const { days, skips, skip, cycle, from } = useHabits()
   const [editing, setEditing] = useState<Habit | null>(null)
   const now = today(), day = iso(now)
   const [first, setFirst] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1, 12))
   if (!h) return null
-  const s = streak(days, skips, h, now), b = best(days, skips, h, now), m = month(days, skips, h, first, now)
+  const s = streak(days, skips, h, now), b = best(days, skips, h, now), m = month(days, skips, h, first, now, from)
   const isSkipped = skipped(skips, h, day), isDone = amount(days, h, day) >= h.target
   const unit = h.perWeek ? "week" : "day"
   const thisMonth = first.getMonth() === now.getMonth() && first.getFullYear() === now.getFullYear()

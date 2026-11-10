@@ -10,12 +10,12 @@
   "tagline": "Tick off a few small habits every day.",
   "seoTitle": "Habit tracker template and app for ChatGPT and Claude",
   "folder": "Habits",
-  "note": "Habit tracker\n\nTick off your habits in the app each day, or tell your AI what you did and it records the day.\n\n## Weekly check-in\nAsk your AI how your week went, and its three lines land here.\n",
+  "note": "Habit tracker\n\nPick your habits in the app, then tick them off each day. Or tell your AI what you did and it records the day.\n\n## Weekly check-in\nAsk your AI how your week went, and its three lines land here.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Habit tracker\". It is an app; its data is \"Habits/Habit tracker.app/data.json\". Read it with fetch before each change. When I tell you what I did, change it with edit: in values.days, under the date (yyyy-mm-dd), set each habit id from values.habits to 1 for a yes/no habit, or to the count for a counted one (Water: glasses). Keep the habit ids as they are. If I skip a day on purpose, add the habit id to values.skips under the date instead. I can add, rename and remove habits in the app myself. When I ask for my week, add three short lines under \"Weekly check-in\" in the note with edit: what went well, what slipped, and one thing to try next week."
+    "default": "Use my Pinto Notes note \"Habit tracker\". It is an app; its data is \"Habits/Habit tracker.app/data.json\". Read it with fetch before each change, and change it with edit. If values.started isn't set, its habits are only suggestions: ask which I want, write values.habits as { id, name, target } (target 1, or a count with its unit) and set values.started to today (yyyy-mm-dd). When I tell you what I did: in values.days, under the date, set each habit id to 1, or to its count. Keep the ids. If I skip a day on purpose, add the id to values.skips under the date instead. When I ask for my week, add three short lines under \"Weekly check-in\" in the note: what went well, what slipped, one thing to try."
   },
   "asks": [
-    "Ask which habits I did today and which I skipped, then tick them in my tracker.",
+    "Ask which habits I want to track, then set up my tracker.",
     "Which habit did I miss most this month?",
     "How's my week looking?"
   ],
@@ -29,7 +29,7 @@
       }
     }
   ],
-  "example": "Habit tracker\n\nTick off your habits in the app each day, or tell your AI what you did and it records the day.\n\n## Weekly check-in\nAsk your AI how your week went, and its three lines land here.\n**Week of 2 November:** walked six days out of seven and read every evening. Water slipped on two days. Next week: a full bottle on the desk before the first meeting.\n",
+  "example": "Habit tracker\n\nPick your habits in the app, then tick them off each day. Or tell your AI what you did and it records the day.\n\n## Weekly check-in\nAsk your AI how your week went, and its three lines land here.\n**Week of 2 November:** walked six days out of seven and read every evening. Water slipped on two days. Next week: a full bottle on the desk before the first meeting.\n",
   "related": [
     "mood-energy-log",
     "workout-log",

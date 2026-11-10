@@ -3,7 +3,7 @@ import { Check, ChevronRight, Minus, Plus } from "lucide-react"
 import { route } from "amber-router"
 import { Ring, Row, Section, Title, TintButton } from "@/components/kit"
 import { HabitSheet } from "@/components/habit-sheet"
-import { addDays, amount, done, doneInWeek, dueToday, iso, LETTERS, scheduled, skipped, streak, today, week, weekStart, useHabits, type Days, type Habit, type Skips } from "@/lib/habits"
+import { addDays, amount, done, doneInWeek, dueToday, iso, LETTERS, parse, scheduled, skipped, streak, today, week, weekStart, WEEKDAYS, weekday, useHabits, type Days, type Habit, type Skips } from "@/lib/habits"
 import { cn } from "@/lib/utils"
 
 // The app's main job: tick off today's habits in one tap, and see the week at a glance. Habits that
@@ -11,16 +11,19 @@ import { cn } from "@/lib/utils"
 // From 700 px the week sits beside the list as a grid of every habit.
 export default function Today() {
   const hb = useHabits()
-  const { habits, days, skips } = hb
+  const { habits, days, skips, from } = hb
   const [open, setOpen] = useState<string | null>(null)
   const now = today(), day = iso(now)
-  const w = week(days, skips, habits, now)
+  const w = week(days, skips, habits, now, from)
   const due = habits.filter((h) => dueToday(days, h, now))
   const later = habits.filter((h) => !due.includes(h))
   const doneCount = due.filter((h) => done(days, h, day)).length
   const allDone = due.length > 0 && doneCount === due.length
-  // Monday with nothing but daily habits: the week so far is today.
-  const sameAsWeek = now.getDay() === 1 && w.got === doneCount && w.of === due.length
+  // The first day counted is today (a Monday, or the day the tracker was started) with nothing but
+  // daily habits: the week so far is today.
+  const sameAsWeek = w.first === day && w.got === doneCount && w.of === due.length
+  // "Since Monday", or since the day the tracker was started when that's later in the week.
+  const since = `Since ${WEEKDAYS[weekday(parse(w.first))]}`
   const dateLine = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
   const showing = habits.find((h) => h.id === open) ?? null
 
@@ -37,7 +40,7 @@ export default function Today() {
     </>
   )
 
-  const row = (h: Habit) => <HabitRow key={h.id} habit={h} days={days} skips={skips} set={hb.set} onOpen={() => setOpen(h.id)} />
+  const row = (h: Habit) => <HabitRow key={h.id} habit={h} days={days} skips={skips} from={from} set={hb.set} onOpen={() => setOpen(h.id)} />
   return (
     <>
       <Title subtitle={dateLine} title="Today" />
@@ -50,25 +53,27 @@ export default function Today() {
               </Ring>
               {/* The ring is the week, so the lines beside it are the week too: a label, then the
                   count on one line whatever the numbers ("2 of 4 since Monday" broke in two beside
-                  the ring), and today under it. On a Monday the week so far is today: the label
-                  says Today and today's own line, which would say the count twice, is left out
-                  (council round 2). "This week" is the grid's heading under this card. */}
+                  the ring), and today under it. Counting starts on Monday or on the day the
+                  tracker was started, whichever is later ("Since Wednesday"). When that day is
+                  today the week so far is today: the label says Today and today's own line, which
+                  would say the count twice, is left out (council rounds 2 and 3). "This week" is
+                  the grid's heading under this card. */}
               <div className="min-w-0">
-                <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground" data-testid="week-label">{sameAsWeek ? "Today" : "Since Monday"}</p>
+                <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground" data-testid="week-label">{sameAsWeek ? "Today" : since}</p>
                 <p className="whitespace-nowrap text-[1.375rem] font-bold leading-snug tabular-nums" data-testid="week-count">{w.got} of {w.of}</p>
                 {(allDone || !sameAsWeek) && <p className="text-[0.9375rem] text-muted-foreground tabular-nums" data-testid="today-count">{allDone ? "All done today" : `Today: ${doneCount} of ${due.length} done`}</p>}
               </div>
             </div>
           </Section>
-          <WeekGrid habits={habits} days={days} skips={skips} className="hidden min-[700px]:block" />
+          <WeekGrid habits={habits} days={days} skips={skips} from={from} className="hidden min-[700px]:block" />
         </div>
         <div>
-          <Section title="Habits" footer={later.length ? undefined : "Choose a habit to see its month, skip a day or change it."}>
+          <Section title="Habits" footer={later.length ? undefined : "Choose a habit for its month, skips and settings."}>
             {due.map(row)}
             {!due.length && <p className="px-4 py-5 text-center text-muted-foreground">Nothing is due today. Enjoy the day off.</p>}
           </Section>
           {later.length > 0 && (
-            <Section title="Not today" footer="Choose a habit to see its month, skip a day or change it.">
+            <Section title="Not today" footer="Choose a habit for its month, skips and settings.">
               {later.map(row)}
             </Section>
           )}
@@ -80,7 +85,7 @@ export default function Today() {
 }
 
 // Every habit's week, a dot a day (Mac and wide notes). Days to come are empty; a dashed ring is a skip.
-function WeekGrid({ habits, days, skips, className }: { habits: Habit[]; days: Days; skips: Skips; className?: string }) {
+function WeekGrid({ habits, days, skips, from, className }: { habits: Habit[]; days: Days; skips: Skips; from: string; className?: string }) {
   const now = today(), start = weekStart(now)
   return (
     <Section title="This week" className={className}>
@@ -89,7 +94,7 @@ function WeekGrid({ habits, days, skips, className }: { habits: Habit[]; days: D
           <span />
           {LETTERS.map((l, i) => <span key={i} className={cn("text-center text-[0.75rem] font-semibold", iso(addDays(start, i)) === iso(now) ? "text-primary" : "text-muted-foreground")}>{l}</span>)}
           {habits.map((h) => (
-            <Dots key={h.id} habit={h} days={days} skips={skips} start={start} now={now} />
+            <Dots key={h.id} habit={h} days={days} skips={skips} start={start} now={now} from={from} />
           ))}
         </div>
       </div>
@@ -97,7 +102,8 @@ function WeekGrid({ habits, days, skips, className }: { habits: Habit[]; days: D
   )
 }
 
-function Dots({ habit: h, days, skips, start, now }: { habit: Habit; days: Days; skips: Skips; start: Date; now: Date }) {
+// Days to come, days the habit isn't for and days before the tracker was started are faint.
+function Dots({ habit: h, days, skips, start, now, from }: { habit: Habit; days: Days; skips: Skips; start: Date; now: Date; from: string }) {
   return (
     <>
       <span className="truncate text-[0.9375rem] font-medium">{h.name}</span>
@@ -105,14 +111,14 @@ function Dots({ habit: h, days, skips, start, now }: { habit: Habit; days: Days;
         const d = addDays(start, i), k = iso(d), v = amount(days, h, k), full = v >= h.target
         return <span key={i} className={cn("mx-auto size-5 rounded-full",
           full ? "bg-primary" : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60"
-            : v > 0 ? "bg-[var(--amber-accent-soft)]" : k > iso(now) || !scheduled(h, d) ? "bg-muted/50" : "bg-muted",
+            : v > 0 ? "bg-[var(--amber-accent-soft)]" : k > iso(now) || k < from || !scheduled(h, d) ? "bg-muted/50" : "bg-muted",
           k === iso(now) && !full && "ring-[1.5px] ring-[var(--amber-accent)]")} />
       })}
     </>
   )
 }
 
-function HabitRow({ habit: h, days, skips, set, onOpen }: { habit: Habit; days: Days; skips: Skips; set: (h: Habit, v: number | ((was: number) => number), on?: string) => unknown; onOpen: () => void }) {
+function HabitRow({ habit: h, days, skips, from, set, onOpen }: { habit: Habit; days: Days; skips: Skips; from: string; set: (h: Habit, v: number | ((was: number) => number), on?: string) => unknown; onOpen: () => void }) {
   const [popping, setPopping] = useState(false)
   const now = today(), day = iso(now)
   const value = amount(days, h, day)
@@ -132,7 +138,7 @@ function HabitRow({ habit: h, days, skips, set, onOpen }: { habit: Habit; days: 
         <p className="flex items-center gap-1 text-[1.0625rem] font-semibold leading-tight">{h.name}<ChevronRight className="size-4 text-muted-foreground" /></p>
         <p className="mt-0.5 text-[0.875rem] text-muted-foreground tabular-nums">
           {line}
-          {s > 0 && <> · <span className="text-primary">{s}-{h.perWeek ? "week" : "day"} streak</span></>}
+          {s > 0 && <> · <span className="whitespace-nowrap text-primary">{s}-{h.perWeek ? "week" : "day"} streak</span></>}
         </p>
         <span className="mt-2 flex gap-1.5 min-[700px]:hidden" aria-hidden="true">
           {LETTERS.map((l, i) => {
@@ -142,7 +148,7 @@ function HabitRow({ habit: h, days, skips, set, onOpen }: { habit: Habit; days: 
               <span key={i} className={cn("grid size-6 place-items-center rounded-full text-[0.75rem] font-semibold",
                 full ? "bg-primary text-primary-foreground" : part ? "bg-[var(--amber-accent-soft)] text-primary"
                   : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60 text-muted-foreground"
-                  : !scheduled(h, d) ? "bg-muted/50 text-muted-foreground/60" : "bg-muted text-muted-foreground",
+                  : !scheduled(h, d) || k < from ? "bg-muted/50 text-muted-foreground/60" : "bg-muted text-muted-foreground",
                 k === day && !full && "ring-[1.5px] ring-[var(--amber-accent)]")}>{l}</span>
             )
           })}

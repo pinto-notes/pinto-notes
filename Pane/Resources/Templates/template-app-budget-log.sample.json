@@ -345,7 +345,8 @@
     "category": "Groceries",
     "amount": 600
    }
-  ]
+  ],
+  "started": "2026-06-01"
  },
  "collections": {}
 }

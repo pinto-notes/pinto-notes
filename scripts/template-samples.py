@@ -40,11 +40,18 @@ def habits() -> None:
     for k, done in week.items():
         days[d(k)] = done
     v["days"] = dict(sorted(days.items()))
+    # Started three weeks ago: the app counts from the day it was started, and one with no start
+    # and nothing logged opens on Pick your habits (council round 3).
+    v["started"] = d(-20)
     write("habit-tracker", v)
 
 
 def budget() -> None:
     v = start("budget-log")
+    # The starting data has no currency (a new budget guesses it from the device and asks). The
+    # sample is one household's, in kronor like the notes around it, set five months ago.
+    v["currency"] = "kr"
+    v["started"] = "2026-06-01"
     # A day-to-day budget of three categories: the stage has room for three rows under "By
     # category", so every category shows and their sums are the card's own "spent of" line
     # (council round 2: three rows of six, and the balances didn't add up to the headline).

@@ -8,6 +8,8 @@ import { useStore, setSummary } from "@/lib/amber"
 //     perWeek: a weekly goal instead (3 is any three days a week).
 //   days:  { "2026-10-13": { "walk": 1, "water": 6 } }   how much of each habit was done that day
 //   skips: { "2026-10-13": ["walk"] }   days a habit was skipped on purpose: they keep the streak
+//   started: "2026-10-13"   the day the person started: nothing before it is due. A tracker with no
+//     started and nothing logged opens on "Pick your habits" (src/screens/setup.tsx).
 export type Habit = { id: string; name: string; detail?: string; target: number; unit?: string; days?: number[]; perWeek?: number }
 export type Days = Record<string, Record<string, number>>
 export type Skips = Record<string, string[]>
@@ -89,40 +91,52 @@ export function best(days: Days, skips: Skips, h: Habit, now = today()): number 
   return top
 }
 
+/** The day counting starts: the day the person started, else the first day anything was logged,
+ *  else today. Nothing before it is due, so a tracker made on a Wednesday isn't "0 of 8 since Monday". */
+export function begin(started: string | null | undefined, days: Days, skips: Skips, now = today()): string {
+  if (started) return started
+  const first = [...Object.keys(days), ...Object.keys(skips)].sort()[0]
+  return first && first < iso(now) ? first : iso(now)
+}
+
 /** Is it still to do today? A weekly goal stops asking once the week's goal is met. */
 export const dueToday = (days: Days, h: Habit, now = today()) =>
   weekly(h) ? doneInWeek(days, h, now) < h.perWeek! || done(days, h, iso(now)) : scheduled(h, now)
 
-/** This week so far (Monday to today): habit-days done of habit-days due. A weekly goal counts its
- *  goal. Skipped days and days a habit isn't for don't count against you. */
-export function week(days: Days, skips: Skips, habits: Habit[], now = today()) {
+/** This week so far (Monday to today, or from the day counting starts if that's later): habit-days
+ *  done of habit-days due. A weekly goal counts its goal. Skipped days and days a habit isn't for
+ *  don't count against you. first is the first day counted. */
+export function week(days: Days, skips: Skips, habits: Habit[], now = today(), from = "") {
   let got = 0, of = 0
+  const monday = weekStart(now), first = from > iso(monday) ? (from > iso(now) ? iso(now) : from) : iso(monday)
   for (const h of habits) {
     if (weekly(h)) { of += h.perWeek!; got += Math.min(h.perWeek!, doneInWeek(days, h, now)); continue }
-    for (let d = weekStart(now); iso(d) <= iso(now); d = addDays(d, 1)) {
+    for (let d = monday; iso(d) <= iso(now); d = addDays(d, 1)) {
       const k = iso(d)
-      if (done(days, h, k)) { got++; of++ } else if (scheduled(h, d) && !skipped(skips, h, k)) of++
+      if (done(days, h, k)) { got++; of++ } else if (k >= first && scheduled(h, d) && !skipped(skips, h, k)) of++
     }
   }
-  return { got, of, share: of ? got / of : 0 }
+  return { got, of, share: of ? got / of : 0, first }
 }
 
 /** One month up to today: how often the habit was done of how often it was due. A weekly goal
- *  counts its goal for each week (days done that week, at most the goal). Today isn't due yet. */
-export function month(days: Days, skips: Skips, h: Habit, first: Date, now = today()) {
+ *  counts its goal for each week (days done that week, at most the goal). Today isn't due yet, and
+ *  nothing is due before from (the day counting starts). */
+export function month(days: Days, skips: Skips, h: Habit, first: Date, now = today(), from = "") {
   let got = 0, of = 0
   const inMonth = (d: Date) => d.getMonth() === first.getMonth() && iso(d) <= iso(now)
   if (weekly(h)) {
     for (let w = weekStart(first); inMonth(w) || iso(w) < iso(first); w = addDays(w, 7)) {
       let n = 0
       for (let d = w, i = 0; i < 7; i++, d = addDays(d, 1)) if (inMonth(d) && iso(d) >= iso(first) && done(days, h, iso(d))) n++
+      if (iso(addDays(w, 6)) < from && !n) continue
       got += Math.min(n, h.perWeek!); of += h.perWeek!
     }
     return { got, of }
   }
   for (let d = first; inMonth(d); d = addDays(d, 1)) {
     const k = iso(d)
-    if (done(days, h, k)) { got++; of++ } else if (scheduled(h, d) && !skipped(skips, h, k) && k !== iso(now)) of++
+    if (done(days, h, k)) { got++; of++ } else if (k >= from && scheduled(h, d) && !skipped(skips, h, k) && k !== iso(now)) of++
   }
   return { got, of }
 }
@@ -133,14 +147,17 @@ export function useHabits() {
   const [habits, setHabits] = useStore<Habit[]>("habits", [])
   const [days, setDays] = useStore<Days>("days", {})
   const [skips, setSkips] = useStore<Skips>("skips", {})
+  const [started, setStarted] = useStore<string | null>("started", null)
   const list = (habits ?? []) as Habit[], log = (days ?? {}) as Days, skip = (skips ?? {}) as Skips
   const now = today(), day = iso(now)
+  // A new tracker: nothing chosen yet, so nothing is counted. The habits it holds are suggestions.
+  const fresh = !started && !Object.keys(log).length && !Object.keys(skip).length
   const due = list.filter((h) => dueToday(log, h, now))
   const doneToday = due.filter((h) => done(log, h, day)).length
   useEffect(() => {
-    if (!list.length) return
+    if (!list.length || fresh) return
     setSummary(due.length && doneToday === due.length ? `All ${due.length} habits done today` : `${doneToday} of ${due.length} habits today`)
-  }, [doneToday, due.length, list.length])
+  }, [doneToday, due.length, list.length, fresh])
   const setSkip = (h: Habit, on: string, yes: boolean) => setSkips((was: Skips) => {
     const out = { ...(was ?? {}) }
     const ids = (out[on] ?? []).filter((x) => x !== h.id)
@@ -158,6 +175,21 @@ export function useHabits() {
   })
   return {
     habits: list, days: log, skips: skip, due, doneToday,
+    /** True until the person has picked their habits (or anything is logged). */
+    fresh,
+    /** The first day that counts (yyyy-mm-dd): see begin. */
+    from: begin(started, log, skip, now),
+    /** Picks the habits and starts counting from today. Ids are made from the names. */
+    start: async (picked: Omit<Habit, "id">[]) => {
+      const out: Habit[] = []
+      for (const h of picked) {
+        let id = slug(h.name), k = 2
+        while (out.some((x) => x.id === id)) id = `${slug(h.name)}-${k++}`
+        out.push({ ...h, id })
+      }
+      await setHabits(out)
+      return setStarted(day)
+    },
     /** Sets how much of a habit was done on a day (0 removes it). next can be a function of what's
      *  saved now, so quick taps add up (One more, One more). Doing it clears a skip. */
     set: async (h: Habit, next: number | ((was: number) => number), on = day) => {

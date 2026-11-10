@@ -2,12 +2,15 @@ import { useEffect } from "react"
 import { useStore, setSummary } from "@/lib/amber"
 
 // The app's data (data.json "values"), kept simple so the person's AI can read and edit it:
-//   currency:   "kr"   (shown after amounts; "$", "€" and "£" go before)
+//   currency:   "kr"   (shown after amounts; "$", "€" and "£" go before; "" shows plain numbers)
 //   categories: [{ name, budget }]   the monthly budget per category
 //   expenses:   [{ id, date: "yyyy-mm-dd", what, category, amount, rec }]   rec: the bill it came from
 //   recurring:  [{ id, what, category, amount, day, last }]   monthly bills, added on their day;
 //               last is the month ("yyyy-mm") it was last added
 //   rollover:   "yyyy-mm" or null   from that month on, what's left in a category carries over
+//   started:    "yyyy-mm-dd"   the day the person set their budget. A budget with no started, no
+//               expenses and no bills opens on "Set your monthly budget" (src/screens/setup.tsx):
+//               the categories it holds are suggestions until then.
 export type Category = { name: string; budget: number }
 export type Expense = { id: string; date: string; what: string; category: string; amount: number; rec?: string }
 export type Bill = { id: string; what: string; category: string; amount: number; day: number; last?: string }
@@ -24,20 +27,44 @@ export const money = (n: number, currency: string) => {
   const s = num.format(Math.round(Math.abs(n) * 100) / 100)
   return /^[$€£]$/.test(currency) ? `${n < 0 ? "-" : ""}${currency}${s}` : `${n < 0 ? "-" : ""}${s} ${currency}`.trim()
 }
+/** "Amount (kr)", or "Amount" when no currency is set. */
+export const amountLabel = (currency: string) => (currency ? `Amount (${currency})` : "Amount")
+/** The currency people most likely use where this device is set up, from its language and region
+ *  ("sv-SE" → "kr", "en-GB" → "£"). "" when it can't tell: amounts then show as plain numbers until
+ *  the person types theirs. */
+export function guessCurrency(locale: string = typeof navigator === "undefined" ? "" : navigator.language): string {
+  let region = ""
+  try { region = new Intl.Locale(locale).maximize().region ?? "" } catch { return "" }
+  if (["SE", "NO", "DK", "IS"].includes(region)) return "kr"
+  if (["US", "CA", "AU", "NZ", "SG", "HK", "MX"].includes(region)) return "$"
+  if (["GB", "IM", "JE", "GG"].includes(region)) return "£"
+  if (["AT", "BE", "CY", "DE", "EE", "ES", "FI", "FR", "GR", "HR", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PT", "SI", "SK"].includes(region)) return "€"
+  if (region === "CH") return "CHF"
+  if (region === "JP" || region === "CN") return "¥"
+  if (region === "IN") return "₹"
+  if (region === "PL") return "zł"
+  return ""
+}
+/** A starter amount in a currency: the suggestions are written in kronor, a tenth of that reads
+ *  right in dollars, euros and pounds, and elsewhere the amount is left for the person to fill in. */
+export const suggested = (kr: number, currency: string) => (currency === "kr" ? kr : /^[$€£]$/.test(currency) || currency === "CHF" ? Math.round(kr / 10) : 0)
 export const newId = (p = "e") => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 /** The date a bill falls on in month m (the 31st is the last day of a short month). */
 export const billDate = (b: Bill, m: string) => `${m}-${String(Math.min(Math.max(1, b.day || 1), daysIn(m))).padStart(2, "0")}`
 export const ordinal = (n: number) => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th")
 
 export function useBudget() {
-  const [currency, setCurrency] = useStore<string>("currency", "kr")
+  const [currency, setCurrency] = useStore<string>("currency", "")
   const [categories, setCategories] = useStore<Category[]>("categories", [])
   const [expenses, setExpenses] = useStore<Expense[]>("expenses", [])
   const [recurring, setRecurring] = useStore<Bill[]>("recurring", [])
   const [rollover, setRollover] = useStore<string | null>("rollover", null)
-  const cats = (categories ?? []) as Category[], list = (expenses ?? []) as Expense[], cur = (currency ?? "kr") as string
+  const [started, setStarted] = useStore<string | null>("started", null)
+  const cats = (categories ?? []) as Category[], list = (expenses ?? []) as Expense[], cur = (currency ?? "") as string
   const bills = ((recurring ?? []) as Bill[]).slice().sort((a, b) => a.day - b.day)
   const from = typeof rollover === "string" && /^\d{4}-\d{2}$/.test(rollover) ? rollover : null
+  // A new budget: nothing set yet, so nothing is "left". Its categories are suggestions.
+  const fresh = !started && !list.length && !((recurring ?? []) as Bill[]).length
 
   const spentIn = (m: string, name: string) => list.filter((e) => monthOf(e.date) === m && e.category === name).reduce((t, e) => t + (Number(e.amount) || 0), 0)
   /** What carries into month m for a category: last month's budget plus its own carry, less what was
@@ -66,10 +93,18 @@ export function useBudget() {
   }
 
   const now = month(thisMonth())
-  useEffect(() => { if (cats.length) setSummary(`${money(now.left, cur)} ${now.left >= 0 ? "left" : "over"} in ${monthName(thisMonth(), false)}`) }, [now.left, cur, cats.length])
+  useEffect(() => { if (cats.length && !fresh) setSummary(`${money(now.left, cur)} ${now.left >= 0 ? "left" : "over"} in ${monthName(thisMonth(), false)}`) }, [now.left, cur, cats.length, fresh])
 
   return {
     currency: cur, categories: cats, expenses: list, month, bills, rollover: from,
+    /** True until the person has set their budget (or anything is logged). */
+    fresh,
+    /** Sets the budget the person chose and starts the app. */
+    start: async (chosen: Category[], currency: string) => {
+      await setCategories(chosen)
+      await setCurrency(currency)
+      return setStarted(iso(new Date()))
+    },
     setCurrency,
     /** Roll-over on (from this month) or off. */
     setRollover: (on: boolean) => setRollover(on ? thisMonth() : null),

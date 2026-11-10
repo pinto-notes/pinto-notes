@@ -1,4 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react"
+import { Plus } from "lucide-react"
+import { route } from "amber-router"
 import { Pills, PrimaryButton, Section, Title, Bar } from "@/components/kit"
 import { dueOn, GRADES, intervalOf, iso, level, next, plus, short, span, streak, useCards, type Card, type Grade } from "@/lib/cards"
 import { cn } from "@/lib/utils"
@@ -21,6 +23,22 @@ export default function Study() {
   const s = streak(studied)
 
   if (session) return <Studying session={session} setSession={setSession} cards={cards} grade={grade} streakNow={streak(studied)} />
+
+  // No cards yet: one clear first step, and no numbers about cards that don't exist ("Nothing
+  // due", "No streak yet" and an empty week said nothing). The app starts empty: sample cards
+  // would be someone else's biology in the person's deck (council round 3).
+  if (!cards.length) return (
+    <>
+      <Title title="Study" />
+      <Section className="max-w-xl">
+        <div className="px-6 py-10 text-center">
+          <p className="text-[1.0625rem] font-semibold">Make your first cards</p>
+          <p className="mt-1 text-muted-foreground">A question on one side, the answer on the other. Add them yourself, paste a list, or give your AI your notes and it makes them.</p>
+          <PrimaryButton className="mx-auto mt-5 max-w-xs" onClick={() => route("/cards")}><Plus /> Add a card</PrimaryButton>
+        </div>
+      </Section>
+    </>
+  )
 
   // Least known first: the lowest box, then the shortest interval.
   const start = () => setSession({ ids: dueHere.slice().sort((a, b) => (a.box || 1) - (b.box || 1) || intervalOf(a) - intervalOf(b)).map((c) => c.id), at: 0, shown: false, counts: { again: 0, hard: 0, good: 0, easy: 0 }, again: [] })
@@ -88,20 +106,35 @@ export default function Study() {
 }
 
 // The last 12 weeks, a square a day, darker for more cards (like GitHub's, and Anki's heatmap add-on).
+// Labelled so it can be read without guessing: each column is a week, with the month over its first
+// week; today has a ring; a line under it says what darker means. The streak over it is the run of
+// squares that ends today or yesterday (council round 3: "attractive but poorly explained").
 function Heatmap({ studied, today }: { studied: Record<string, number>; today: string }) {
   const end = new Date(today + "T12:00:00")
   const first = plus(today, -((end.getDay() + 6) % 7) - 7 * 11)
   const days = Array.from({ length: 84 }, (_, i) => plus(first, i))
   const top = Math.max(1, ...days.map((d) => studied[d] ?? 0))
   const total = days.filter((d) => (studied[d] ?? 0) > 0 && d <= today).length
+  const month = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-GB", { month: "short" })
+  // A month's name over the first week that starts in it (and over the first column).
+  const heads = Array.from({ length: 12 }, (_, w) => { const d = days[w * 7]; return w === 0 || month(d) !== month(days[(w - 1) * 7]) ? month(d) : "" })
   return (
-    <div role="img" aria-label={`Studied on ${total} of the last 12 weeks' days`}>
-      <div className="grid max-w-[264px] grid-flow-col grid-rows-7 gap-[3px]">
+    <div className="max-w-[264px]" role="img" aria-label={`Studied on ${total} of the last 12 weeks' days`}>
+      <div className="mb-1 grid grid-cols-12 gap-[3px]" aria-hidden="true">
+        {heads.map((h, w) => <span key={w} className="overflow-visible whitespace-nowrap text-[0.75rem] leading-none text-muted-foreground">{h}</span>)}
+      </div>
+      <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
         {days.map((d) => {
           const n = studied[d] ?? 0
-          return <span key={d} className={cn("aspect-square rounded-[3px]", d > today ? "bg-transparent" : n ? "bg-[var(--amber-accent)]" : "bg-muted")} style={n && d <= today ? { opacity: 0.35 + 0.65 * (n / top) } : undefined} />
+          return <span key={d} data-today={d === today || undefined} className={cn("aspect-square rounded-[3px]", d > today ? "bg-transparent" : n ? "bg-[var(--amber-accent)]" : "bg-muted",
+            d === today && "ring-[1.5px] ring-foreground ring-offset-1 ring-offset-[var(--card)]")} style={n && d <= today ? { opacity: 0.35 + 0.65 * (n / top) } : undefined} />
         })}
       </div>
+      <p className="mt-2 flex items-center gap-1.5 text-[0.75rem] text-muted-foreground" aria-hidden="true">
+        A square a day, today ringed. Fewer
+        {[0.35, 0.6, 0.8, 1].map((o) => <span key={o} className="size-2.5 rounded-[2px] bg-[var(--amber-accent)]" style={{ opacity: o }} />)}
+        more cards
+      </p>
     </div>
   )
 }

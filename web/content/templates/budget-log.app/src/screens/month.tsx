@@ -33,6 +33,8 @@ export default function Month() {
   const prevByNow = b.expenses.filter((e) => monthOf(e.date) === prev && Number(e.date.slice(8)) <= (current ? todayNum : 31)).reduce((t, e) => t + (Number(e.amount) || 0), 0)
   const diff = mo.spent - prevByNow
   const hasPrev = b.expenses.some((e) => monthOf(e.date) === prev)
+  // Any month among the six shown, other than the one open, with something spent in it.
+  const hasHistory = series.some((x) => x.m !== m && x.spent > 0)
 
   return (
     <>
@@ -82,7 +84,9 @@ export default function Month() {
         </div>
 
         <div>
-          <Section title="Last six months" footer={hasPrev ? undefined : "Bars fill in as the months go by. The line is your monthly budget."}>
+          {/* The months before this one, once there is one: a first month has no history to draw, and
+              five empty bars with a caption explaining them said nothing (council round 3). */}
+          {hasHistory && <Section title="Last six months">
             <div className="px-4 pb-3 pt-4">
               {!hasPrev && <div className="h-3" />}
               {hasPrev && (
@@ -109,7 +113,7 @@ export default function Month() {
                 {series.map((x) => <span key={x.m} className={cn("min-w-0 flex-1 text-center text-[0.75rem]", x.m === m ? "font-semibold text-foreground" : "text-muted-foreground")}>{monthName(x.m, false).slice(0, 3)}</span>)}
               </div>
             </div>
-          </Section>
+          </Section>}
 
           {current && b.bills.length > 0 && (
             <Section title="Bills this month" action={<TintButton className="-my-2 h-11 bg-transparent px-2 text-[0.9375rem]" onClick={() => route("/budget")}>Change</TintButton>}
