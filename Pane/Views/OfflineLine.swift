@@ -236,8 +236,8 @@ struct OfflinePopover: View {
             .padding(.top, 4)
         }
         .padding(16)
+        // No identifier on the whole: it would take the place of the button's and the result's own.
         .frame(width: Self.width, alignment: .leading)
-        .accessibilityIdentifier("sync.offline.popover")
     }
 }
 
