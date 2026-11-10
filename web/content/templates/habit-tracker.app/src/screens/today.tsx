@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils"
 
 // The app's main job: tick off today's habits in one tap, and see the week at a glance. Habits that
 // aren't for today (a weekday habit on Sunday, a weekly goal already met) wait under Not today.
-// From 700 px the week sits beside the list as a grid of every habit.
+// From 700 px the week sits beside the list as a grid of every habit, except between 900 and 1100 px,
+// where the sidebar leaves too little room for two columns (a habit's name was cut to "No …").
 export default function Today() {
   const hb = useHabits()
   const { habits, days, skips, from } = hb
@@ -44,7 +45,7 @@ export default function Today() {
   return (
     <>
       <Title subtitle={dateLine} title="Today" />
-      <div className="min-[700px]:grid min-[700px]:grid-cols-2 min-[1100px]:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] min-[700px]:items-start min-[700px]:gap-6">
+      <div className="min-[700px]:grid min-[700px]:grid-cols-2 min-[900px]:block min-[1100px]:grid min-[1100px]:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] min-[700px]:items-start min-[700px]:gap-6">
         <div>
           <Section>
             <div className="flex items-center gap-5 p-5">
@@ -65,15 +66,15 @@ export default function Today() {
               </div>
             </div>
           </Section>
-          <WeekGrid habits={habits} days={days} skips={skips} from={from} className="hidden min-[700px]:block" />
+          <WeekGrid habits={habits} days={days} skips={skips} from={from} className="hidden min-[700px]:block min-[900px]:hidden min-[1100px]:block" />
         </div>
         <div>
-          <Section title="Habits" footer={later.length ? undefined : "Choose a habit to see its month or change it."}>
+          <Section title="Habits" footer={later.length ? undefined : "Choose a habit to see or change it."}>
             {due.map(row)}
             {!due.length && <p className="px-4 py-5 text-center text-muted-foreground">Nothing is due today. Enjoy the day off.</p>}
           </Section>
           {later.length > 0 && (
-            <Section title="Not today" footer="Choose a habit to see its month or change it.">
+            <Section title="Not today" footer="Choose a habit to see or change it.">
               {later.map(row)}
             </Section>
           )}
@@ -90,7 +91,7 @@ function WeekGrid({ habits, days, skips, from, className }: { habits: Habit[]; d
   return (
     <Section title="This week" className={className}>
       <div className="px-4 py-3" role="img" aria-label="This week, every habit">
-        <div className="grid grid-cols-[minmax(0,1fr)_repeat(7,22px)] items-center gap-x-1.5 gap-y-2.5">
+        <div className="grid grid-cols-[minmax(0,1fr)_repeat(7,18px)] items-center gap-x-1 gap-y-2.5">
           <span />
           {LETTERS.map((l, i) => <span key={i} className={cn("text-center text-[0.75rem] font-semibold", iso(addDays(start, i)) === iso(now) ? "text-primary" : "text-muted-foreground")}>{l}</span>)}
           {habits.map((h) => (
@@ -110,7 +111,7 @@ function Dots({ habit: h, days, skips, start, now, from }: { habit: Habit; days:
       <span className="truncate text-[0.9375rem] font-medium">{h.name}</span>
       {LETTERS.map((_, i) => {
         const d = addDays(start, i), k = iso(d), v = amount(days, h, k), full = v >= h.target
-        return <span key={i} className={cn("mx-auto size-5 rounded-full",
+        return <span key={i} className={cn("mx-auto size-[18px] rounded-full",
           full ? "bg-primary" : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60"
             : v > 0 ? "bg-[var(--amber-accent-soft)]" : k < from ? "invisible" : k > iso(now) || !scheduled(h, d) ? "bg-muted/50" : "bg-muted",
           k === iso(now) && !full && "ring-[1.5px] ring-[var(--amber-accent)]")} />
@@ -144,7 +145,7 @@ function HabitRow({ habit: h, days, skips, from, set, onOpen }: { habit: Habit; 
           {line}
           {s > 0 && <span className="relative whitespace-nowrap"><span aria-hidden="true" className="absolute -left-2">{" · "}</span><span className="text-primary">{s}-{h.perWeek ? "week" : "day"} streak</span></span>}
         </p>
-        <span className="mt-2 flex gap-1.5 min-[700px]:hidden" aria-hidden="true">
+        <span className="mt-2 flex gap-1.5 min-[700px]:hidden min-[900px]:flex min-[1100px]:hidden" aria-hidden="true">
           {LETTERS.map((l, i) => {
             const d = addDays(start, i), k = iso(d), got = amount(days, h, k)
             const full = got >= h.target, part = got > 0 && !full

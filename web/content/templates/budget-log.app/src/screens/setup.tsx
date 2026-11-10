@@ -36,7 +36,7 @@ export default function Setup() {
   return (
     <div className="mx-auto max-w-xl">
       <Title title="Set your monthly budget" />
-      <p className="-mt-3 pb-4 text-muted-foreground">What you can spend on each a month. Change the names and amounts, and remove what you don't need.</p>
+      <p className="-mt-3 pb-4 text-muted-foreground text-balance">What you can spend on each a month. Change the names and amounts, and remove what you don't need.</p>
       {/* The currency sits over the amounts it belongs to, so the whole budget and its Start button
           fit a Mac note without scrolling. */}
       <Section title={lines.length ? "Suggestions" : undefined} action={

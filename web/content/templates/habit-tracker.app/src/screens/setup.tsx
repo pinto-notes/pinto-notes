@@ -29,7 +29,7 @@ export default function Setup() {
   return (
     <div className="mx-auto max-w-xl">
       <Title title="Pick your habits" />
-      <p className="-mt-3 pb-5 text-muted-foreground">Two or three small ones are plenty. Untick the rest, or select a name to change it.</p>
+      <p className="-mt-3 pb-5 text-muted-foreground text-balance">Two or three are plenty. Untick or rename the rest.</p>
       <Section title={picks.length ? "Suggestions" : undefined}>
         {picks.map((p) => (
           <Row key={p.key} className="py-2">
@@ -53,7 +53,7 @@ export default function Setup() {
       <PrimaryButton disabled={!chosen.length} onClick={() => start(chosen.map((p) => ({ ...p.habit, name: p.habit.name.trim() })))}>
         {chosen.length ? `Start with ${chosen.length} ${chosen.length === 1 ? "habit" : "habits"}` : "Pick a habit to start"}
       </PrimaryButton>
-      <p className="px-1 pt-3 text-center text-[0.8125rem] text-muted-foreground">Counting starts today. How often, goals and the order are under Habits.</p>
+      <p className="px-1 pt-3 text-center text-[0.8125rem] text-muted-foreground text-balance">Counting starts today. How often, goals and the order are under Habits.</p>
     </div>
   )
 }

@@ -24,7 +24,7 @@ To log a day, set days[date][habitId]: 1 for a yes/no habit, the count for a cou
 - Ticking a habit gives a small spring and a ring that fades (CSS, once, off with Reduce Motion). When everything due is done, the today line says "All done today" with a check in the ring. No confetti: it's a daily app.
 - Tapping a habit's name opens its page: streak, best run, this month's share, the month as a calendar, Skip today and Edit.
 - Month: a calendar per habit (two or three across on a wide note). A tap ticks a day, a second skips it, a third clears it.
-- From 700 px Today has two columns: the week card and a grid of every habit's week on the left, the list on the right.
+- From 700 px Today has two columns: the week card and a grid of every habit's week on the left, the list on the right. Between 900 and 1100 px it's one column again: the sidebar is there and two columns left a habit's name about 50 px ("No …").
 - Counted habits get minus and plus buttons, and the plus button's ring fills toward the goal, like Activity rings.
 - The person is in control without the AI: add, rename (the pencil opens an edit sheet), reorder and remove habits on the Habits tab, and tick, skip or clear any earlier day on Month or on the habit's page. Removing shows Undo in a bar at the top of the screen; its days stay in the data, so Undo (or adding it back with the same name) brings the history back.
 - Today's week strip is a picture, not buttons: 24 pt dots are too small to tap, so earlier days are changed on Month, where each day is a 44 pt target.
