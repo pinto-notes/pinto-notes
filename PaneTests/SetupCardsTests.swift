@@ -871,6 +871,7 @@ import Vision
         let row = L.menuTitle("Make with Claude", AIGlyph.menuPicture("Claude", dark: false))
         #expect(row.string.hasSuffix("Make with Claude") && row.containsAttachments(in: NSRange(location: 0, length: row.length)), "an AI named in the menu is an AI shown")
         #expect(src.contains("item.attributedTitle = Self.menuTitle(title, image)"))
+        #expect(src.contains("if Self.inExample() { view.window?.makeFirstResponder(nil) }\n        DispatchQueue.main.async {"), "the menu opens with the keys out of the example's app")
         // Pressed, a half of the split button keeps its place and size; only its fill darkens
         // (dipping, the two halves drew apart and a gap opened between them).
         let design = try SettingsHomeTests.source("Pane/Views/DesignSystem.swift")

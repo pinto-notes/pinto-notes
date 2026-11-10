@@ -1596,6 +1596,9 @@ struct TemplateLibraryView: View {
         }
         // On the next turn, once the arrow's own press is over: put up inside it, the menu
         // sometimes closed as it opened (a real click on the Air, 10 November 2026).
+        // (And with the keys out of the example's app: while it had them, after a click in it,
+        // the menu closed as it opened.)
+        if Self.inExample() { view.window?.makeFirstResponder(nil) }
         DispatchQueue.main.async {
             menu.popUp(positioning: nil, at: NSPoint(x: view.bounds.maxX - menu.size.width, y: view.bounds.maxY + 6), in: view)
             _ = actions
