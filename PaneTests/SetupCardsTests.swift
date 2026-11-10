@@ -644,8 +644,8 @@ import Vision
     /// pick with the accent under white words in the real window, about 2:1).
     @Test func thePickedKindIsNeutral() throws {
         let src = try library
-        // Apps is a format among topics: last, with a hairline before it.
-        #expect(src.contains("if kind == \"Apps\" {\n                    Rectangle().fill(Color.primary.opacity(0.14)).frame(width: 1, height: 14).padding(.horizontal, 4)"))
+        // Apps is a format among topics: last, set apart by a wider gap and no line.
+        #expect(src.contains(".padding(.leading, kind == \"Apps\" ? TemplateKinds.apart - 2 : 0)") && TemplateKinds.apart >= 8 && TemplateKinds.apart <= 12)
         #expect(src.contains("TemplateKinds(filter: $filter)") && !src.contains(".pickerStyle(.segmented)"))
         func kinds(_ dark: Bool) throws -> Pixels {
             let r = ImageRenderer(content: TemplateKinds(filter: .constant("Work")).padding(4).background(SetupCards.ground).environment(\.colorScheme, dark ? .dark : .light))
@@ -678,7 +678,7 @@ import Vision
         #expect(!L.narrow(size))
         let small = L.size(on: CGSize(width: 800, height: 560))
         #expect(!L.showsMore(small) && L.narrow(small))
-        #expect(L.window(for: small).height == small.height - L.topRow - 1 - L.exampleRow - L.frameInset(for: small))
+        #expect(L.window(for: small).height == small.height - L.topRow - L.exampleRow - L.frameInset(for: small))
         // A narrow sheet gives the words more of it, so the button keeps its whole name.
         #expect(L.stageWidth(for: small) == 396)
         let words = L.wordsWidth(for: small)
@@ -690,27 +690,69 @@ import Vision
         #expect(TemplateLibraryWords.asked(.chatgpt) == "What ChatGPT is asked" && TemplateLibraryWords.asked(.claude) == "What Claude is asked" && TemplateLibraryWords.asked(.other) == "What to ask your AI")
     }
 
-    /// The example is a framed picture of the template: rounded, a hairline around it, on a quiet
-    /// pane a shade off it, the same in light and dark (flush on the sheet it was white on white
-    /// in the light and a black slab in the dark, and an app's buttons read as the page's).
-    @Test func theExampleIsFramedTheSameInLightAndDark() throws {
+    /// The example is a picture of the template in a rounded panel on the sheet itself: the
+    /// notes' own ground (white, or black in the dark), with no line around it and no band behind
+    /// it. In the dark its black is a shade under the sheet's grey; in the light a very soft
+    /// shadow lifts it.
+    @Test func theExampleIsAPanelWithNoLineAroundIt() throws {
+        typealias L = TemplateLibraryView
         let src = try library
         let stage = try #require(src.range(of: "private func stage(_ e: TemplateCatalog.Entry) -> some View {"))
         let body = src[stage.lowerBound...].prefix(1800)
         #expect(body.contains("Text(TemplateLibraryWords.example(e))"))
-        #expect(body.contains(".clipShape(frame)\n                .overlay(frame.strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5))"))
-        #expect(body.contains(".padding(.horizontal, inset)") && body.contains(".background(Self.pane)"))
-        func grey(_ c: Color, dark: Bool) throws -> CGFloat {
-            var w: CGFloat = 0
-            NSAppearance(named: dark ? .darkAqua : .aqua)?.performAsCurrentDrawingAppearance {
-                w = NSColor(c).usingColorSpace(.sRGB)?.redComponent ?? -1
+        #expect(body.contains(".background(frameGround)\n                .clipShape(frame)") && !body.contains("strokeBorder") && !body.contains(".background(Self.pane)"))
+        #expect(body.contains(".shadow(color: .black.opacity(scheme == .dark ? 0 : Self.panelShadow.near), radius: 1.5, y: 0.5)"))
+        #expect(L.panelShadow.near <= 0.12 && L.panelShadow.far <= 0.1, "a very soft shadow")
+        // The words start a clear gap beside the panel, and "More like this" a clear space under it.
+        #expect(L.wordsGap >= 32 && L.wordsGap <= 40)
+        #expect(L.frameInset(for: L.size) + L.moreTop >= 28 && L.frameInset(for: L.size) + L.moreTop <= 32)
+        #expect(L.wordsWidth(for: L.size) == L.size.width - L.margin - L.window(for: L.size).width - L.wordsGap - L.margin)
+    }
+
+    /// No lines between the regions of the sheet (Emil, 10 November 2026: "many divider lines ...
+    /// makes it look cheap"): the gallery has none under its header, a page none under its top
+    /// row, between the example and the words, or over "More like this"; the recipe box none
+    /// between its list and the open recipe; the filter none before Apps; the prompt no rule.
+    /// Space and surface do it. The one Divider left is inside the arrow's menu, the system's.
+    @Test func noLinesBetweenTheSheetsRegions() throws {
+        typealias L = TemplateLibraryView
+        let src = try library
+        let view = try #require(src.range(of: "struct TemplateLibraryView: View {")), files = try #require(src.range(of: "@MainActor enum TemplateFiles {"))
+        let body = String(src[view.lowerBound..<files.lowerBound])
+        #expect(body.components(separatedBy: "Divider()").count == 2 && body.contains("if ais.contains(where: { $0 != ai && $0.asks }) { Divider() }"), "only the menu's own separator")
+        #expect(!body.contains("Rectangle().fill(Color.primary") && !body.contains(".separator"), "no drawn rule either")
+        #expect(!body.contains("lineWidth: 0.5))\n                .accessibilityLabel(\"\\(e.title), an example\")"), "no hairline around the example")
+        // Drawn, in both looks: where the lines were, there is only the sheet's ground.
+        for dark in [false, true] {
+            func pixels(_ open: TemplateCatalog.Entry?) throws -> Pixels {
+                let view = TemplateLibraryView(catalog: TemplateCatalog.shipped, ais: [.chatgpt], open: open, size: L.size)
+                    .environment(\.inSheet, true).frame(width: L.size.width, height: L.size.height).background(SetupCards.ground).environment(\.colorScheme, dark ? .dark : .light)
+                let r = ImageRenderer(content: view)
+                r.scale = 1
+                let cg = try #require(r.cgImage)
+                return try #require(Pixels(cg))
             }
-            return w
+            // A run of pixels all one colour, the ground's (a line's grey differs from it by more).
+            func plain(_ p: Pixels, x: Range<Int>, y: Range<Int>, _ what: String) {
+                let ground = p.rgb(at: y.lowerBound * p.width + x.lowerBound)
+                var off = 0
+                func far(_ a: UInt32, _ b: UInt32) -> Int { (0..<3).reduce(0) { $0 + abs(Int((a >> ($1 * 8)) & 255) - Int((b >> ($1 * 8)) & 255)) } }
+                for yy in y { for xx in x where far(p.rgb(at: yy * p.width + xx), ground) > 3 { off += 1 } }
+                #expect(off == 0, "\(dark ? "dark" : "light"): \(what): \(off) pixels off the ground")
+            }
+            let gallery = try pixels(nil)
+            // Under the header, in the gallery's left margin, from the subtitle down into the grid's margin.
+            plain(gallery, x: 4..<20, y: Int(L.topRow + L.subtitleRow) - 4..<Int(L.topRow + L.subtitleRow) + 10, "under the gallery's header")
+            let page = try pixels(try entry("reading-list"))
+            // Under the top row; between the panel and the words; over "More like this".
+            plain(page, x: 4..<20, y: Int(L.topRow) - 4..<Int(L.topRow) + 8, "under the page's top row")
+            plain(page, x: Int(L.size.width) - 20..<Int(L.size.width) - 4, y: Int(L.topRow) - 4..<Int(L.topRow) + 8, "under the top row, at the right")
+            let between = Int(L.margin + L.window(for: L.size).width) + 22
+            plain(page, x: between..<between + 8, y: Int(L.topRow) + 4..<Int(L.size.height - L.moreHeight) - 4, "between the example and the words")
+            // Clear of the panel's own soft shadow, which falls a little way into the margin.
+            plain(page, x: 2..<8, y: Int(L.size.height - L.moreHeight) - 6..<Int(L.size.height - L.moreHeight) + 6, "over More like this")
+            plain(page, x: Int(L.size.width) - 20..<Int(L.size.width) - 4, y: Int(L.size.height - L.moreHeight) - 6..<Int(L.size.height - L.moreHeight) + 6, "over More like this, at the right")
         }
-        // A shade off the frame (white, or black) and off the sheet, in both looks.
-        let light = try grey(TemplateLibraryView.pane, dark: false), dark = try grey(TemplateLibraryView.pane, dark: true)
-        #expect(light < 0.97 && light > 0.93, "light: \(light)")
-        #expect(dark > 0.12 && dark < 0.17, "dark: \(dark)")
     }
 
     /// Beside the stage, each thing once and in one order: the cover, the name under it and the
@@ -775,13 +817,12 @@ import Vision
         #expect(edges(rest) == edges(over) && edges(rest) == edges(pressed), "one shape at rest, under the pointer and pressed")
         func red(_ p: Pixels) -> Int { Int((p.rgb(at: (p.height / 2) * p.width + 40) >> 16) & 0xFF) }
         #expect(red(rest) - red(over) >= 14 && red(over) - red(pressed) >= 10, "rest \(red(rest)), hover \(red(over)), pressed \(red(pressed))")
-        // What your AI is asked: a quotation in ink beside a 2 pt rule, with no box: a filled
-        // box with a field's corners read as something to type in.
+        // What your AI is asked: in quotation marks, plain words in ink, with no box and no
+        // rule: a filled box with a field's corners read as something to type in.
         let asked = try #require(src.range(of: "private func asked(_ e: TemplateCatalog.Entry) -> some View {"))
         let quote = String(src[asked.lowerBound...].prefix(1100))
         #expect(quote.contains(".font(.system(size: PageType.small)).foregroundStyle(Color.ink)"))
-        #expect(quote.contains(".overlay(alignment: .leading) { RoundedRectangle(cornerRadius: 1).fill(Color.primary.opacity(Self.askRule)).frame(width: 2) }"))
-        #expect(!quote.contains(".background(") && !quote.contains("SetupCards.soft"), "no fill behind the prompt")
+        #expect(!quote.contains(".background(") && !quote.contains("SetupCards.soft") && !quote.contains(".overlay("), "no fill behind the prompt and no rule beside it")
         // With no AI connected, the way to get one is under Make's line; it opens Connect an AI.
         #expect(TemplateLibraryWords.connect == "Connect ChatGPT or Claude to have it filled in for you.")
         #expect(body.contains("if !ai.asks, let connect {\n                // No AI connected: the way to get one, quietly, under what Add does.\n                Button(TemplateLibraryWords.connect, action: connect)"))
@@ -1089,7 +1130,7 @@ import Vision
         #expect(weights == ["bold", "semibold", "regular"], "bold, semibold and regular: \(weights)")
         // Everything starts on the margin: the sheet's name, Back's chevron, the frame, the
         // words beside it and "More like this".
-        #expect(page.contains(".padding(.leading, Self.margin - 9)") && page.contains(".padding(.horizontal, inset)"))
+        #expect(page.contains(".padding(.leading, Self.margin - 9)") && page.contains(".padding(.leading, inset)"))
         #expect(src.contains("                .accessibilityIdentifier(\"templates.subtitle\")\n        }\n        .padding(.horizontal, Self.margin)"))
         #expect(TemplateFiles.stageCSS.contains("main > div:first-child { padding-left: 32px !important; padding-right: 32px !important; }"), "an app's own margin in the frame")
     }

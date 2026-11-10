@@ -454,10 +454,15 @@ struct TemplateLibraryView: View {
     /// sheet a little less, so the button keeps its whole name ("Make with Cha…" at 0.6).
     static func stageWidth(for size: CGSize) -> CGFloat { (size.width * (narrow(size) ? 0.55 : 0.6)).rounded() }
     /// "More like this", under the stage and the words: on a sheet tall enough for it.
-    static let moreHeight: CGFloat = 132
+    static let moreHeight: CGFloat = 134
+    /// The space over "More like this": the panel's own inset under it and this, 32 pt in all,
+    /// with no line (it's set off by space alone).
+    static let moreTop: CGFloat = 8
+    /// The clear gap between the example's panel and the words beside it.
+    static let wordsGap: CGFloat = 36
     static func showsMore(_ size: CGSize) -> Bool { size.height > 560 }
     /// The stage's height: what the top row and "More like this" leave.
-    static func stageHeight(for size: CGSize) -> CGFloat { size.height - topRow - 1 - (showsMore(size) ? moreHeight + 1 : 0) }
+    static func stageHeight(for size: CGSize) -> CGFloat { size.height - topRow - (showsMore(size) ? moreHeight : 0) }
     /// The "Example" label's row, over the frame. With the frame's inset under it, the frame on the
     /// full sheet is 576 by 428.5 pt: the shape an app's picture is drawn in (832 by 619 px).
     static let exampleRow: CGFloat = 41.5
@@ -504,7 +509,7 @@ struct TemplateLibraryView: View {
     /// The room a note's lines have in the frame: its width less the note's margins.
     static func lineRoom(for size: CGSize) -> CGFloat { window(for: size).width - notePadding * 2 }
     /// The room the words beside the stage have.
-    static func wordsWidth(for size: CGSize) -> CGFloat { size.width - stageWidth(for: size) - 1 - margin * 2 }
+    static func wordsWidth(for size: CGSize) -> CGFloat { size.width - (stageWidth(for: size) - frameInset(for: size)) - wordsGap - margin }
     /// The name's size on every page of a sheet: the largest of the steps at which the longest
     /// name takes one line, under its cover, at the words' full width.
     static func nameSize(for names: [String], room: CGFloat) -> CGFloat {
@@ -751,9 +756,10 @@ struct TemplateLibraryView: View {
     }
 
     private func gallery(_ shown: [TemplateCatalog.Entry]) -> some View {
+        // No line under the header: the covers start a margin under it, and going up under it
+        // they fade out (grid).
         VStack(spacing: 0) {
             header
-            Divider()
             if shown.isEmpty {
                 // Nothing matches: what was looked for, and the way back, where the covers were.
                 HStack(spacing: 12) {
@@ -882,6 +888,14 @@ struct TemplateLibraryView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        // Scrolled up under the header, the covers fade out over the grid's own top margin: no
+        // edge is drawn there, and at rest nothing is in the fade.
+        .mask {
+            VStack(spacing: 0) {
+                LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: Self.gridTop)
+                Rectangle()
+            }
+        }
         // The covers take the keys from Search when an arrow moves the ring onto one. No ring of
         // the system's around the grid: the ring on the cover is the cue.
         .focusable(true, interactions: .edit)
@@ -952,16 +966,16 @@ struct TemplateLibraryView: View {
             .padding(.leading, Self.margin - 9)
             .padding(.trailing, Self.margin)
             .frame(height: Self.topRow)
-            Divider()
+            // One surface, and no lines on it: the example in its panel, the words a clear gap
+            // beside it, "More like this" set off by the space over its heading (Emil, 10
+            // November 2026: "many divider lines ... makes it look cheap").
             HStack(spacing: 0) {
                 stage(e)
-                Divider()
                 words(e)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .frame(height: Self.stageHeight(for: size))
             if Self.showsMore(size) {
-                Divider()
                 more(e)
                     .frame(height: Self.moreHeight)
                     // A template with none like it (one the site adds later): the room stays.
@@ -971,20 +985,18 @@ struct TemplateLibraryView: View {
         .frame(width: size.width, height: size.height, alignment: .topLeading)
     }
 
-    /// What an example sits on in its frame: the notes' own ground, white, or black in the dark.
+    /// What an example sits on in its panel: the notes' own ground, white, or black in the dark,
+    /// so a note there is the note you get and an app's own cards show as they do in your notes.
     private var frameGround: Color { scheme == .dark ? .black : .white }
-    /// The pane around the frame: a quiet tint of the sheet, a shade off the frame in both looks,
-    /// so the example reads as a picture of the template and its buttons as the template's own
-    /// (council, 10 November 2026: flush on the sheet, white on white in the light and a black
-    /// slab in the dark, an app's "Add expense" read as the page's button).
-    static let pane = Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.145, alpha: 1) : NSColor(white: 0.955, alpha: 1) })
 
-    /// The stage: the template in use, large, in a frame (rounded, a hairline around it) on a
-    /// quiet pane, the same in light and dark, under a small label: "Example" (what Make adds is
-    /// empty, and your AI fills it in), and for an app, which is live there, that nothing you try
-    /// is kept. A note's lines keep their own margin in the frame and scroll in it when there are
-    /// more than fit, its foot fading while there's more under it; an app takes the frame's whole
-    /// width, with its own tabs at the foot, and scrolls as it does in your notes.
+    /// The stage: the template in use, large, in a rounded panel on the sheet itself, under a
+    /// small label: "Example" (what Make adds is empty, and your AI fills it in), and for an app,
+    /// which is live there, that nothing you try is kept. No band behind the panel and no line
+    /// around it: in the dark its black is a shade under the sheet's grey; in the light, white on
+    /// white, a very soft shadow lifts it. A note's lines keep their own margin in the panel and
+    /// scroll in it when there are more than fit, its foot fading while there's more under it; an
+    /// app takes the panel's whole width, with its own tabs at the foot, and scrolls as it does
+    /// in your notes.
     private func stage(_ e: TemplateCatalog.Entry) -> some View {
         let window = Self.window(for: size), inset = Self.frameInset(for: size)
         let frame = RoundedRectangle(cornerRadius: Self.frameRadius, style: .continuous)
@@ -1000,13 +1012,18 @@ struct TemplateLibraryView: View {
                 .frame(width: window.width, height: window.height, alignment: .topLeading)
                 .background(frameGround)
                 .clipShape(frame)
-                .overlay(frame.strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5))
+                // The light look's lift: a close soft edge and a wider, fainter one. None in the
+                // dark, where a shadow shows nothing and the panel is darker than the sheet.
+                .shadow(color: .black.opacity(scheme == .dark ? 0 : Self.panelShadow.near), radius: 1.5, y: 0.5)
+                .shadow(color: .black.opacity(scheme == .dark ? 0 : Self.panelShadow.far), radius: 14, y: 4)
                 .accessibilityLabel("\(e.title), an example")
         }
-        .padding(.horizontal, inset)
-        .frame(width: Self.stageWidth(for: size), height: Self.stageHeight(for: size), alignment: .topLeading)
-        .background(Self.pane)
+        .padding(.leading, inset)
+        .frame(width: Self.stageWidth(for: size) - inset, height: Self.stageHeight(for: size), alignment: .topLeading)
     }
+
+    /// The panel's shadow in the light: how dark its close edge and its wider fall are.
+    static let panelShadow = (near: 0.10, far: 0.07)
 
     /// The app itself when it is one, running on its sample; otherwise the filled-in note, drawn
     /// as the app draws notes.
@@ -1025,7 +1042,7 @@ struct TemplateLibraryView: View {
                     NotePreview(markdown: e.example, given: TemplateFiles.example(e, room: Self.listWidth - Self.notePadding * 2), whole: true,
                                 margin: Self.notePadding, tableSize: PageType.table, picked: TemplateFiles.openedName(e))
                         .frame(width: Self.listWidth, alignment: .topLeading)
-                    Divider()
+                    // No line between the two: the picked row says which one is open beside it.
                     NotePreview(markdown: e.opened ?? "", given: opened, whole: true, margin: Self.notePadding, tableSize: PageType.table)
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
@@ -1158,16 +1175,18 @@ struct TemplateLibraryView: View {
             Spacer(minLength: 0)
         }
         .frame(width: wide, alignment: .leading)
-        .padding(.horizontal, Self.margin)
-        .padding(.top, short ? 16 : 24)
+        .padding(.leading, Self.wordsGap)
+        .padding(.trailing, Self.margin)
+        // The cover's top level with the panel's (on a short sheet, with the label over it).
+        .padding(.top, short ? 16 : Self.exampleRow)
     }
 
-    /// What your AI is asked: a small label naming it, and the prompt under it as a quotation,
-    /// in ink beside a 2 pt rule. No box: in a filled box with a field's corners it read as
-    /// something to type in, and its grey words on the grey fill were hard to read in the dark
-    /// (council, 10 November 2026). Words, not a field: nothing here is typed in.
+    /// What your AI is asked: a small label naming it, and the prompt under it in quotation marks,
+    /// as plain words in ink. No box and no rule: in a filled box with a field's corners it read
+    /// as something to type in, and its grey words on the grey fill were hard to read in the dark
+    /// (council, 10 November 2026). Nothing here is typed in.
     private func asked(_ e: TemplateCatalog.Entry) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(TemplateLibraryWords.asked(ai)).font(.system(size: PageType.small, weight: .semibold)).foregroundStyle(Color.muted)
             Text("\u{201C}\(NoWidow.kept(TemplateCatalog.Entry.sendable(e.ask), phrases: true))\u{201D}")
                 .font(.system(size: PageType.small)).foregroundStyle(Color.ink)
@@ -1175,8 +1194,6 @@ struct TemplateLibraryView: View {
                 .lineLimit(5)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 12)
-                .overlay(alignment: .leading) { RoundedRectangle(cornerRadius: 1).fill(Color.primary.opacity(Self.askRule)).frame(width: 2) }
                 .accessibilityIdentifier("templates.ask")
         }
     }
@@ -1193,8 +1210,6 @@ struct TemplateLibraryView: View {
         return (c.lead, name.trimmingCharacters(in: .whitespaces) + "\u{2026}", c.rest)
     }
 
-    /// The rule beside the prompt: a quiet grey, never the accent (it isn't a thing to press).
-    static let askRule = 0.22
 
     /// What Make does, plainly, under the buttons, on one line: "Adds an empty note to (folder)
     /// Reading, then opens ChatGPT." The folder is Go to Note's tag: a small folder in the accent,
@@ -1329,7 +1344,7 @@ struct TemplateLibraryView: View {
             .padding(.leading, -8)
         }
         .padding(.leading, Self.margin)
-        .padding(.top, Self.gap)
+        .padding(.top, Self.moreTop)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
@@ -1364,18 +1379,17 @@ struct TemplateKinds: View {
     @Environment(\.colorScheme) private var scheme
 
     static let height: CGFloat = 28
+    /// The gap before Apps, where the others have 2.
+    static let apart: CGFloat = 10
     /// The raised pill under the picked kind: white on the light track, a lighter grey on the dark.
     static func pill(dark: Bool) -> Color { dark ? Color(white: 0.34) : .white }
 
     var body: some View {
         HStack(spacing: 2) {
             ForEach(TemplateCatalog.filters, id: \.self) { kind in
-                // Apps is a format among topics: a hairline sets it apart.
-                if kind == "Apps" {
-                    Rectangle().fill(Color.primary.opacity(0.14)).frame(width: 1, height: 14).padding(.horizontal, 4)
-                        .accessibilityHidden(true)
-                }
+                // Apps is a format among topics: a wider gap sets it apart, and no line.
                 Kind(name: TemplateCatalog.label(kind), on: filter == kind) { filter = kind }
+                    .padding(.leading, kind == "Apps" ? TemplateKinds.apart - 2 : 0)
                     .accessibilityIdentifier("templates.kind.\(TemplateCatalog.label(kind))")
             }
         }
