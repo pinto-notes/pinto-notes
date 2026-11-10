@@ -57,7 +57,7 @@ export default function History() {
                   <h2 className="text-[1.0625rem] font-semibold">{h.name}</h2>
                   <span className={cn("text-[0.9375rem] font-semibold tabular-nums", s.of ? "text-primary" : "text-muted-foreground")}>{s.of ? `${Math.round((s.got / s.of) * 100)}%` : "–"}</span>
                 </div>
-                <MonthGrid habit={h} days={days} skips={skips} first={first} onTap={(k) => cycle(h, k)} />
+                <MonthGrid habit={h} days={days} skips={skips} first={first} from={from} onTap={(k) => cycle(h, k)} />
                 <p className="mt-2 text-[0.875rem] text-muted-foreground tabular-nums">
                   {s.got} of {s.of} · now {streak(days, skips, h, now)} in a row · best {best(days, skips, h, now)}
                 </p>

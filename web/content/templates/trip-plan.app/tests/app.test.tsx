@@ -51,9 +51,23 @@ describe("Trip details", () => {
     await waitFor(() => expect(screen.getByTestId("countdown")).toHaveTextContent(/^3\s*days to go/))
   })
 
+  it("says the packing list is a starter until there's a trip, with no count for it", async () => {
+    await amber.store.set("trip", null)
+    await amber.store.set("past", [])
+    render(<App />)
+    await go("Packing")
+    expect(await screen.findByTestId("starter")).toHaveTextContent("A starter list. Change it to what you pack.")
+    expect(screen.queryByText(/of 2 packed/)).toBeNull()
+    expect(screen.queryByRole("progressbar", { name: "Packed" })).toBeNull()
+    // Packing something makes it yours: the count is back.
+    await userEvent.click(screen.getByRole("button", { name: "Passport" }))
+    expect(await screen.findByText("1 of 2 packed")).toBeInTheDocument()
+  })
+
   it("starts a trip from nothing", async () => {
     await amber.store.set("trip", null)
     render(<App />)
+    expect(await screen.findByText("Where are you going?")).toBeInTheDocument()
     await userEvent.click(await screen.findByRole("button", { name: "Plan a trip" }))
     await userEvent.type(await screen.findByLabelText("Where to"), "Rome")
     await pick("First day", day(10))

@@ -1,6 +1,5 @@
 {
  "values": {
-  "currency": "kr",
   "categories": [
    {
     "name": "Groceries",
@@ -346,6 +345,7 @@
     "amount": 600
    }
   ],
+  "currency": "kr",
   "started": "2026-06-01"
  },
  "collections": {}

@@ -68,12 +68,12 @@ export default function Today() {
           <WeekGrid habits={habits} days={days} skips={skips} from={from} className="hidden min-[700px]:block" />
         </div>
         <div>
-          <Section title="Habits" footer={later.length ? undefined : "Choose a habit for its month, skips and settings."}>
+          <Section title="Habits" footer={later.length ? undefined : "Choose a habit to see its month or change it."}>
             {due.map(row)}
             {!due.length && <p className="px-4 py-5 text-center text-muted-foreground">Nothing is due today. Enjoy the day off.</p>}
           </Section>
           {later.length > 0 && (
-            <Section title="Not today" footer="Choose a habit for its month, skips and settings.">
+            <Section title="Not today" footer="Choose a habit to see its month or change it.">
               {later.map(row)}
             </Section>
           )}
@@ -102,7 +102,8 @@ function WeekGrid({ habits, days, skips, from, className }: { habits: Habit[]; d
   )
 }
 
-// Days to come, days the habit isn't for and days before the tracker was started are faint.
+// Days to come and days the habit isn't for are faint. A day before the tracker was started has no
+// dot at all: there was nothing to do that day (council round 3).
 function Dots({ habit: h, days, skips, start, now, from }: { habit: Habit; days: Days; skips: Skips; start: Date; now: Date; from: string }) {
   return (
     <>
@@ -111,7 +112,7 @@ function Dots({ habit: h, days, skips, start, now, from }: { habit: Habit; days:
         const d = addDays(start, i), k = iso(d), v = amount(days, h, k), full = v >= h.target
         return <span key={i} className={cn("mx-auto size-5 rounded-full",
           full ? "bg-primary" : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60"
-            : v > 0 ? "bg-[var(--amber-accent-soft)]" : k > iso(now) || k < from || !scheduled(h, d) ? "bg-muted/50" : "bg-muted",
+            : v > 0 ? "bg-[var(--amber-accent-soft)]" : k < from ? "invisible" : k > iso(now) || !scheduled(h, d) ? "bg-muted/50" : "bg-muted",
           k === iso(now) && !full && "ring-[1.5px] ring-[var(--amber-accent)]")} />
       })}
     </>
@@ -136,9 +137,12 @@ function HabitRow({ habit: h, days, skips, from, set, onOpen }: { habit: Habit; 
     <Row className="py-3">
       <button type="button" aria-label={`Open ${h.name}`} onClick={onOpen} className="min-w-0 flex-1 text-left">
         <p className="flex items-center gap-1 text-[1.0625rem] font-semibold leading-tight">{h.name}<ChevronRight className="size-4 text-muted-foreground" /></p>
-        <p className="mt-0.5 text-[0.875rem] text-muted-foreground tabular-nums">
+        {/* The line and the streak wrap as two pieces, never mid-phrase ("streak" sat alone on a line:
+            council round 3). The dot between them hangs in the gap, so when the streak takes a line
+            of its own the dot falls outside the paragraph and is cut off, not left dangling. */}
+        <p className="mt-0.5 flex flex-wrap gap-x-3 overflow-hidden text-[0.875rem] text-muted-foreground tabular-nums">
           {line}
-          {s > 0 && <> · <span className="whitespace-nowrap text-primary">{s}-{h.perWeek ? "week" : "day"} streak</span></>}
+          {s > 0 && <span className="relative whitespace-nowrap"><span aria-hidden="true" className="absolute -left-2">{" · "}</span><span className="text-primary">{s}-{h.perWeek ? "week" : "day"} streak</span></span>}
         </p>
         <span className="mt-2 flex gap-1.5 min-[700px]:hidden" aria-hidden="true">
           {LETTERS.map((l, i) => {
@@ -148,7 +152,7 @@ function HabitRow({ habit: h, days, skips, from, set, onOpen }: { habit: Habit; 
               <span key={i} className={cn("grid size-6 place-items-center rounded-full text-[0.75rem] font-semibold",
                 full ? "bg-primary text-primary-foreground" : part ? "bg-[var(--amber-accent-soft)] text-primary"
                   : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60 text-muted-foreground"
-                  : !scheduled(h, d) || k < from ? "bg-muted/50 text-muted-foreground/60" : "bg-muted text-muted-foreground",
+                  : k < from ? "invisible" : !scheduled(h, d) ? "bg-muted/50 text-muted-foreground/60" : "bg-muted text-muted-foreground",
                 k === day && !full && "ring-[1.5px] ring-[var(--amber-accent)]")}>{l}</span>
             )
           })}

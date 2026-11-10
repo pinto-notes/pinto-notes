@@ -380,6 +380,17 @@ describe("First use", () => {
       : `Since ${addDays(today(), -1).toLocaleDateString("en-GB", { weekday: "long" })}`)
   })
 
+  it("draws no dots for the days before you started", async () => {
+    // Started today: every earlier day of this week has no dot, in the week grid and in the row.
+    await amber.store.set("started", day)
+    await amber.store.set("habits", [walk])
+    const { container } = render(<App />)
+    await screen.findByRole("button", { name: "Done: Walk" })
+    const before = (today().getDay() + 6) % 7
+    // The row's strip and the week grid each draw the week once.
+    await waitFor(() => expect(container.querySelectorAll("span.invisible")).toHaveLength(before * 2))
+  })
+
   it("skips Pick your habits once something is logged (a tracker an AI filled in)", async () => {
     await fresh([walk])
     await amber.store.set("days", { [day]: { walk: 1 } })

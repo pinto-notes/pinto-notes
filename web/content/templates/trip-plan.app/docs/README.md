@@ -13,6 +13,7 @@ data.json, all under "values" (the person's AI reads and edits it directly):
 - ids are any unique text ("b6", "p15").
 
 ## Decisions
+- First use: with no trip the Trip tab asks "Where are you going?" with one button, Plan a trip, and shows no countdown or counts. The packing list the app starts with (seven things most trips need) is labelled "A starter list. Change it to what you pack." and has no "0 of 7 packed" or bar until there is a trip or something is packed: it isn't the person's list yet.
 - The first screen answers "how long until I go, and what's still open": the countdown, then bookings paid and items packed, then the first day of the plan. During the trip the countdown becomes "Day 2 of 5" and the plan shows today.
 - Paid and packed are one-tap ticks, like Reminders. Packed items drop to the bottom of the list.
 - The person is in control without the AI: change the trip and its dates (Edit on the Trip tab), add, edit and delete days, bookings and packing items. Deleting shows Undo in a bar at the top of the screen.

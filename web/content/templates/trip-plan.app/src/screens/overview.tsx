@@ -12,8 +12,8 @@ export default function Overview() {
   const [editing, setEditing] = useState(false)
   if (!trip) return (
     <div className="mx-auto max-w-md py-10 text-center">
-      <p className="text-[1.0625rem] font-semibold">No trip yet</p>
-      <p className="mt-1 text-muted-foreground">Add where you're going and when, then the days, bookings and packing list. Or ask your AI to plan it.</p>
+      <p className="text-[1.0625rem] font-semibold">Where are you going?</p>
+      <p className="mt-1 text-muted-foreground">Add the place and the dates. The days, bookings and packing list come after. Or ask your AI to plan it.</p>
       {past.length > 0 && packing.length > 0 && <p className="mt-3 text-[0.9375rem] text-muted-foreground">Your packing list from {past[past.length - 1].name} is ready: {packing.length} things.</p>}
       <PrimaryButton className="mt-6" onClick={() => setEditing(true)}>Plan a trip</PrimaryButton>
       <TripSheet open={editing} onClose={() => setEditing(false)} />
