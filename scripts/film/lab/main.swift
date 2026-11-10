@@ -17,7 +17,7 @@ let perWeek = args.first { $0.hasPrefix("perweek=") }.flatMap { Double($0.dropFi
 // "me" is Emil's own month: 20 notes brought in, 15 made, 12 of those removed again, and a tracker
 // written in every day. "kb" is a knowledge base built for an AI: hundreds brought in and many made.
 let input = args.contains("me") ? FilmDemo.real(days: days, seed: seed, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true)
-    : args.contains("kb") ? FilmDemo.real(days: days, seed: seed, notesPerWeek: 22, imported: 240, removed: 8)
+    : args.contains("kb") ? FilmDemo.real(days: days, seed: seed, notesPerWeek: 22, imported: 240, removed: 8, linked: 0.6)
     : args.contains("real") || args.contains("realdaily")
     ? FilmDemo.real(days: days, seed: seed, notesPerWeek: perWeek, dailyNote: args.contains("realdaily"))
     : FilmDemo.notebook(days: days, seed: seed, light: args.contains("light"), heavy: args.contains("heavy") || lives, person: person, work: lives ? 8 : args.contains("busy") ? 3 : 1, daily: (style == "galaxy" || style == "dump") && !args.contains("mixed"))
@@ -103,6 +103,11 @@ case "galaxy":
     labels.workCount = { notes, edits in "\(notes) notes \u{00B7} \(edits) edits" }
     // (Nothing to read while it grows: the picture, the date and the count.)
     labels.captionsOn = false
+    // For a knowledge base the film opens on its claim, and the rest is the proof.
+    if args.contains("kb") {
+        labels.title = { "\($0.notes) notes in my \($0.period)" }
+        labels.subtitle = { s in s.ai.map { "\(s.aiNotes) of them written with \($0)" } ?? "\(s.edits) edits" }
+    }
     // The film says what the notebook turned out to be: something to post it with.
     let kind = [FilmForm.comet: "a comet", .nebula: "a nebula", .spiral: "a spiral galaxy"][form ?? script.form]!
     // (Only at the end: what it turned out to be is the film's last word, not its first.)

@@ -154,7 +154,7 @@ enum FilmDemo {
     /// `imported` notes are brought in on the first day (most are seldom opened again), `removed`
     /// of the notes made along the way are thrown out some days later, and `habit` is one note
     /// written in every day (a tracker).
-    static func real(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), notesPerWeek: Double = 1, dailyNote: Bool = false, ai: String? = "ChatGPT", imported: Int = 0, removed: Int = 0, habit: Bool = false) -> FilmInput {
+    static func real(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), notesPerWeek: Double = 1, dailyNote: Bool = false, ai: String? = "ChatGPT", imported: Int = 0, removed: Int = 0, habit: Bool = false, linked: Double = 0) -> FilmInput {
         var rng = seed &* 0x2545_F491_4F6C_DD1D | 1
         func rand() -> Double {
             rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
@@ -163,7 +163,7 @@ enum FilmDemo {
         let cal = Calendar(identifier: .gregorian)
         let firstDay = cal.startOfDay(for: now.addingTimeInterval(-Double(days - 1) * 86_400))
         let folders: [(String, Double)] = [("Work", 0.4), ("Ideas", 0.25), ("Home", 0.2), ("Reading", 0.15)]
-        struct Draft { var id: UUID; var folder: String; var created: Date; var edits: [FilmEdit]; var standing: Bool; var imported = false; var habit = false; var removed: Date? }
+        struct Draft { var id: UUID; var folder: String; var created: Date; var edits: [FilmEdit]; var standing: Bool; var imported = false; var habit = false; var removed: Date?; var links: [UUID] = [] }
         var notes: [Draft] = []
         var made: UInt64 = seed << 32
         func add(_ folder: String, at: Date, standing: Bool, imported: Bool = false) {
@@ -173,7 +173,14 @@ enum FilmDemo {
                 let x = Array(raw)
                 return UUID(uuid: (x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], 0x40, 0, 0x80, 1, 0, 0, 0, UInt8(seed & 0xFF)))
             }
-            notes.append(Draft(id: id, folder: folder, created: at, edits: [FilmEdit(at: at, ai: nil)], standing: standing, imported: imported))
+            // (In a knowledge base a note often links to one that's there already, mostly in its own folder.)
+            var links: [UUID] = []
+            if linked > 0, rand() < linked {
+                let near = notes.indices.filter { notes[$0].folder == folder }
+                let pool = !near.isEmpty && rand() < 0.8 ? near : Array(notes.indices)
+                if !pool.isEmpty { links.append(notes[pool[Int(rand() * Double(pool.count)) % pool.count]].id) }
+            }
+            notes.append(Draft(id: id, folder: folder, created: at, edits: [FilmEdit(at: at, ai: nil)], standing: standing, imported: imported, links: links))
         }
         func anyFolder() -> String {
             var r = rand()
@@ -228,6 +235,6 @@ enum FilmDemo {
             if at < now { notes[i].removed = at; notes[i].edits.removeAll { $0.at > at } }
         }
         for i in notes.indices { notes[i].edits.removeAll { $0.at > now }; notes[i].edits.sort { $0.at < $1.at } }
-        return FilmInput(notes: notes.map { FilmNote(id: $0.id, folder: $0.folder, created: $0.created, edits: $0.edits, links: [], removed: $0.removed, imported: $0.imported ? true : nil) }, now: now)
+        return FilmInput(notes: notes.map { FilmNote(id: $0.id, folder: $0.folder, created: $0.created, edits: $0.edits, links: $0.links, removed: $0.removed, imported: $0.imported ? true : nil) }, now: now)
     }
 }

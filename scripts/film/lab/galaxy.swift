@@ -265,7 +265,9 @@ final class GalaxyScene: FilmScene {
         let most_ = heat.max() ?? 0
         let going = min(1, most_ / 2.5) * (1 - lsmooth((t - growth + 0.5) / 0.5))
         heat = heat.map { most_ > 0 ? pow($0 / most_, 1.6) * going : 0 }
-        func tint(_ c: GR, _ j: Int) -> GR { c.mix(cream, 0.42 * heat[j]).mix(sky, 0.2 * going * (1 - heat[j])) }
+        // (Gentler on a big notebook, so a lit cloud never washes out the stars in it.)
+        let glowBy = 0.42 / (1 + Double(script.nodes.count) / 120)
+        func tint(_ c: GR, _ j: Int) -> GR { c.mix(cream, glowBy * heat[j]).mix(sky, 0.2 * going * (1 - heat[j])) }
         /// Set where stars are sized in the picture's own units (the nebula): how large a unit is drawn.
         var unit: Double?
         // Where every note is, by the kind of thing this is.
@@ -484,6 +486,25 @@ final class GalaxyScene: FilmScene {
         ctx.translateBy(x: -cam.on.x, y: -cam.on.y)
         let made = build()
         let where_ = made.at, labels = made.labels, zoom = made.zoom, heart = made.heart
+
+        // Links: where one note links to another, a stitched thread between their stars. Only real
+        // links, and only while both notes are there.
+        if !script.links.isEmpty {
+            ctx.saveGState()
+            ctx.setLineCap(.round)
+            ctx.setLineWidth(max(1.2, 1.6 * min(1.6, zoom)))
+            ctx.setLineDash(phase: 0, lengths: [5, 5])
+            for l in script.links where l.birth <= gt {
+                let a = script.nodes[l.a], b = script.nodes[l.b]
+                let on = lsmooth((gt - l.birth) / 0.5) * (1 - lsmooth((t - min(a.gone ?? .infinity, b.gone ?? .infinity)) / 0.3))
+                guard on > 0.01 else { continue }
+                ctx.setStrokeColor(cream.cg(0.5 * on))
+                ctx.move(to: where_[l.a])
+                ctx.addLine(to: where_[l.b])
+                ctx.strokePath()
+            }
+            ctx.restoreGState()
+        }
 
         // The work: a speck of paper for every time a note was written in, amber when it was you
         // and blue when it was your AI. It flies out from its note as it happens, and stays.
