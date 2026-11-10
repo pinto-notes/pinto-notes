@@ -6,7 +6,8 @@ let args = CommandLine.arguments
 let style = args.count > 1 ? args[1] : "town"
 let out = URL(fileURLWithPath: args.count > 2 ? args[2] : "lab.mp4")
 let seed = args.count > 3 ? UInt64(args[3]) ?? 7 : 7
-let input = FilmDemo.notebook(days: 35, seed: seed, light: args.contains("light"), heavy: args.contains("heavy"))
+let person = args.contains("p1") ? 1 : args.contains("p2") ? 2 : args.contains("p3") ? 3 : 0
+let input = FilmDemo.notebook(days: 35, seed: seed, light: args.contains("light"), heavy: args.contains("heavy"), person: person)
 let script = FilmScript(input, calendar: Calendar(identifier: .gregorian))
 var mark: CGImage?
 if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: "Pane/Resources/Assets.xcassets/MarkTight.imageset/mark-tight.png") as CFURL, nil) { mark = CGImageSourceCreateImageAtIndex(src, 0, nil) }
