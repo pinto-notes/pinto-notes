@@ -13,10 +13,10 @@
   "folder": "Travel",
   "note": "Trip plan\n\nStart in the app with where you're going and when, or ask your AI to plan the trip. The days, the bookings and what to pack live in the app; this note is for anything else you want to keep with it.\n\n## Ideas\nPlaces and things to remember that aren't in the plan yet.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Trip plan\". It is an app; its data is \"Trip plan.app/data.json\", beside the note. Read it with fetch before each change, and change it with edit. I'll tell you where I'm going, when, and what I like. Set values.trip (name, place, start, end as yyyy-mm-dd) and write values.days: one { date, title, items } per day with three to five realistic items, with travel time between places. Start items with a time (\"09:30 Tram 28\"). When I paste a booking confirmation, add { id, what, kind, date, time, ref, paid } to values.bookings (kind: flight, train, stay, food, activity, other). Add what the trip needs to values.packing as { id, text, group, packed: false }."
+    "default": "Use my Pinto Notes note \"Trip plan\". It is an app; its data is \"Trip plan.app/data.json\", beside the note. Read it with fetch before each change; change it with edit. If values.trip is set, I've named the trip in the app: keep it. If not, ask where and when I'm going and set values.trip (name, place, start, end as yyyy-mm-dd). Ask what I like, then write values.days: one { date, title, items } per day with three to five items, each starting with a time (\"09:30 Tram 28\"). When I paste a booking, add { id, what, kind, date, time, ref, paid } to values.bookings (kind: flight, train, stay, food, activity, other). Add what the trip needs to values.packing as { id, text, group, packed: false }."
   },
   "asks": [
-    "Ask where and when I'm going and what I enjoy, then plan the trip.",
+    "Ask where and when I'm going, unless the app already says, and what I enjoy, then plan the trip.",
     "Here's the hotel confirmation: …",
     "What do I still need to book?"
   ],
