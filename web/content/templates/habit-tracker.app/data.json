@@ -14,16 +14,17 @@
         "target": 1
       },
       {
-        "id": "no-phone-in-bed",
-        "name": "No phone in bed",
-        "detail": "Charges in the kitchen",
-        "target": 1
-      },
-      {
         "id": "water",
         "name": "Water",
         "target": 8,
         "unit": "glasses"
+      },
+      {
+        "id": "no-phone-in-bed",
+        "name": "No phone in bed",
+        "detail": "Charges in the kitchen",
+        "target": 1,
+        "pick": false
       }
     ],
     "days": {}

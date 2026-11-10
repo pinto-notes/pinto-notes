@@ -30,6 +30,9 @@ def write(slug: str, values: dict) -> None:
 
 def habits() -> None:
     v = start("habit-tracker")
+    # In use, all four are the person's habits: no suggestion marks ("pick" is the first screen's).
+    for h in v["habits"]:
+        h.pop("pick", None)
     days = {}
     for k in range(-20, -6):
         days[d(k)] = {"walk": 1, "read": 1, "water": 8} if k % 3 else {"walk": 1, "no-phone-in-bed": 1, "water": 6}

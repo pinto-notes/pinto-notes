@@ -2,15 +2,17 @@ import { useEffect } from "react"
 import { useStore, setSummary } from "@/lib/amber"
 
 // The app's data (data.json "values"), kept simple so the person's AI can read and edit it:
-//   habits: [{ id, name, detail, target, unit, days, perWeek }]
+//   habits: [{ id, name, detail, target, unit, days, perWeek, pick }]
 //     target 1 is a yes/no habit; more is a count (8 glasses).
 //     days: the weekdays it's for, 0 Monday to 6 Sunday ([0,2,4] is Mon, Wed, Fri). No days: every day.
 //     perWeek: a weekly goal instead (3 is any three days a week).
+//     pick: false, in a new tracker only: a suggestion that starts unticked on Pick your habits.
+//       Start never saves it.
 //   days:  { "2026-10-13": { "walk": 1, "water": 6 } }   how much of each habit was done that day
 //   skips: { "2026-10-13": ["walk"] }   days a habit was skipped on purpose: they keep the streak
 //   started: "2026-10-13"   the day the person started: nothing before it is due. A tracker with no
 //     started and nothing logged opens on "Pick your habits" (src/screens/setup.tsx).
-export type Habit = { id: string; name: string; detail?: string; target: number; unit?: string; days?: number[]; perWeek?: number }
+export type Habit = { id: string; name: string; detail?: string; target: number; unit?: string; days?: number[]; perWeek?: number; pick?: boolean }
 export type Days = Record<string, Record<string, number>>
 export type Skips = Record<string, string[]>
 
@@ -182,7 +184,7 @@ export function useHabits() {
     /** Picks the habits and starts counting from today. Ids are made from the names. */
     start: async (picked: Omit<Habit, "id">[]) => {
       const out: Habit[] = []
-      for (const h of picked) {
+      for (const { pick: _, ...h } of picked) {
         let id = slug(h.name), k = 2
         while (out.some((x) => x.id === id)) id = `${slug(h.name)}-${k++}`
         out.push({ ...h, id })

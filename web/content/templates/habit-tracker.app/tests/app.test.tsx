@@ -361,6 +361,29 @@ describe("First use", () => {
     expect(await screen.findAllByRole("link", { name: "Habits" })).not.toHaveLength(0)
   })
 
+  it("starts with three ticked and the fourth left as a suggestion you can tick", async () => {
+    const read = { id: "read", name: "Read", detail: "20 pages", target: 1 }
+    const phone = { id: "no-phone-in-bed", name: "No phone in bed", detail: "Charges in the kitchen", target: 1, pick: false }
+    await fresh([walk, read, water, phone])
+    render(<App />)
+    expect(await screen.findByText("Two or three are plenty. Tick the ones you want, or rename them.")).toBeInTheDocument()
+    expect(screen.getByRole("checkbox", { name: "Track Walk" })).toHaveAttribute("aria-checked", "true")
+    expect(screen.getByRole("checkbox", { name: "Track No phone in bed" })).toHaveAttribute("aria-checked", "false")
+    expect(screen.getByRole("button", { name: "Start with 3 habits" })).toBeEnabled()
+    // Ticking the fourth takes it along, and what's saved has no trace of the suggestion's mark.
+    await userEvent.click(screen.getByRole("checkbox", { name: "Track No phone in bed" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Start with 4 habits" }))
+    await waitFor(() => expect(values().started).toBe(day))
+    expect(values().habits).toEqual([walk, read, water, { id: "no-phone-in-bed", name: "No phone in bed", detail: "Charges in the kitchen", target: 1 }])
+  })
+
+  it("leaves an unticked suggestion out when you start", async () => {
+    await fresh([walk, { id: "no-phone-in-bed", name: "No phone in bed", target: 1, pick: false }])
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Start with 1 habit" }))
+    await waitFor(() => expect(values().habits).toEqual([walk]))
+  })
+
   it("can't start with nothing picked", async () => {
     await fresh([walk])
     render(<App />)

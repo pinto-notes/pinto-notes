@@ -54,7 +54,7 @@ export default function Month() {
               <p className="mt-2.5 text-[0.9375rem] text-muted-foreground tabular-nums" data-testid="month-line">
                 {fmt(mo.spent)} spent of {fmt(mo.budget)}
                 {mo.carried !== 0 && <> ({mo.carried > 0 ? `${fmt(mo.carried)} carried over` : `${fmt(-mo.carried)} over last month`})</>}
-                {current && daysLeft > 0 && <span data-testid="month-pace"> · {daysLeft} {daysLeft === 1 ? "day" : "days"} left{perDay > 0 && <>, about {fmt(Math.floor(perDay))} a day{toCome > 0 ? " after bills" : ""}</>}</span>}
+                {current && daysLeft > 0 && <span data-testid="month-pace"> · {daysLeft} {daysLeft === 1 ? "day" : "days"} left{perDay > 0 && <>, <span className="whitespace-nowrap">about {fmt(Math.floor(perDay))} a day</span>{toCome > 0 ? " after bills" : ""}</>}</span>}
               </p>
             </div>
           </Section>

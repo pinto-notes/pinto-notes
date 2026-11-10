@@ -44,7 +44,7 @@ export type Template = {
   /// public/templates/apps/ by scripts/template-apps.ts. The gallery offers an Apps filter
   /// (?category=apps), which the onboarding emails link to.
   app?: boolean;
-  /// The folder the app suggests for it.
+  /// The folder the app suggests for it, and the one the site's pictures show. No prompt names it.
   folder: string;
   /// The note itself, as Pinto Notes markdown. Its first line is the title.
   note: string;
@@ -143,9 +143,12 @@ export const appFiles = (slug: string) => ({
 /// The prompt's first step: the AI makes the note itself (create, which every installed app's
 /// MCP server has), so a template works without the app opening any link. An app template's note
 /// comes with its app and data: create fetches them from the site by the template's name.
+/// It names the note, never a folder: the note goes where the person says, or to the top of
+/// their notes, as the app's own Make adds a template to the folder the person is in. (It used to
+/// say "Habits/Habit tracker.md", and made a Habits folder nobody asked for.)
 export function createStep(t: Template): string {
-  if (t.app) return `First, look for a note called "${noteTitle(t)}" in my Pinto Notes with search. If there isn't one, make it with create { type: "app", path: "${t.folder}/${noteTitle(t)}.md", template: "${t.slug}" }: that adds the note with its app and the app's starting data.`;
-  return `First, look for a note called "${noteTitle(t)}" in my Pinto Notes with search. If there isn't one, make it with create at "${t.folder}/${noteTitle(t)}.md", using exactly the markdown at the end of this message, the <!-- pane-table --> line included (it gives the table's columns their types).`;
+  if (t.app) return `First, look for a note called "${noteTitle(t)}" in my Pinto Notes with search. If there isn't one, make it with create { type: "app", path: "${noteTitle(t)}.md", template: "${t.slug}" }, with a folder before the name if I've said where it goes: that adds the note with its app and the app's starting data.`;
+  return `First, look for a note called "${noteTitle(t)}" in my Pinto Notes with search. If there isn't one, make it with create at "${noteTitle(t)}.md", or inside a folder if I've said where it goes, using exactly the markdown at the end of this message, the <!-- pane-table --> line included (it gives the table's columns their types).`;
 }
 
 /// The template's markdown, fenced, for the end of the prompt.

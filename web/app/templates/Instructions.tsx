@@ -53,11 +53,11 @@ export function PromptLine({ variants }: { variants: Variant[] }) {
 
 /// On a template without an app, the prompt is the way in, said in one line: the copy button, what to
 /// say afterwards, and the full text folded away. No card around it.
-export default function Instructions({ title, folder, variants, asks }: { title: string; folder: string; variants: Variant[]; asks: string[] }) {
+export default function Instructions({ title, variants, asks }: { title: string; variants: Variant[]; asks: string[] }) {
   return (
     <section className={s.promptCompact} id="prompt" aria-label="The prompt">
       <p className={s.promptOne}>
-        Paste the prompt once into ChatGPT, Claude or Claude Code. It makes the <b>&ldquo;{title}&rdquo;</b> note in your {folder} folder, then keeps it.{" "}
+        Paste the prompt once into ChatGPT, Claude or Claude Code. It makes the <b>&ldquo;{title}&rdquo;</b> note, in the folder you name if you name one, then keeps it.{" "}
         <span className={s.promptWorks}>{WORKS}</span>
       </p>
       <PromptCopy variants={variants} className={s.secondary} />

@@ -7,13 +7,14 @@ import { cn } from "@/lib/utils"
 type Pick = { key: number; habit: Omit<Habit, "id">; on: boolean }
 
 // A new tracker's first screen: the person picks their habits before anything is counted. The
-// habits the tracker starts with are suggestions: untick one to leave it out, change its name, add
-// your own, then Start. Nothing here is a score: no ring, no "of 8" (council round 3: a new tracker
+// habits the tracker starts with are suggestions: three ticked and one not (the line over them says
+// two or three are plenty, so the button can't open on "Start with 4 habits"). Tick or untick one,
+// change its name, add your own, then Start. Nothing here is a score: no ring, no "of 8" (council round 3: a new tracker
 // opened on "0 of 8 since Monday" for four habits nobody had chosen). Everything can be changed
 // later under Habits.
 export default function Setup() {
   const { habits, start } = useHabits()
-  const [picks, setPicks] = useState<Pick[]>(() => habits.map(({ id: _, ...habit }, key) => ({ key, habit, on: true })))
+  const [picks, setPicks] = useState<Pick[]>(() => habits.map(({ id: _, pick, ...habit }, key) => ({ key, habit, on: pick !== false })))
   const [own, setOwn] = useState("")
   const chosen = picks.filter((p) => p.on && p.habit.name.trim())
   const change = (key: number, patch: Partial<Pick>) => setPicks(picks.map((p) => (p.key === key ? { ...p, ...patch } : p)))
@@ -29,7 +30,7 @@ export default function Setup() {
   return (
     <div className="mx-auto max-w-xl">
       <Title title="Pick your habits" />
-      <p className="-mt-3 pb-5 text-muted-foreground text-balance">Two or three are plenty. Untick or rename the rest.</p>
+      <p className="-mt-3 pb-5 text-muted-foreground text-balance">Two or three are plenty. Tick the ones you want, or rename them.</p>
       <Section title={picks.length ? "Suggestions" : undefined}>
         {picks.map((p) => (
           <Row key={p.key} className="py-2">

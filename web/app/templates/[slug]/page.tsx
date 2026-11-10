@@ -40,7 +40,7 @@ const steps = (t: Template) => APP_TEMPLATES.live
     ]
   : [
       { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, so it can write the note." },
-      { name: "Paste the prompt", text: `Copy the prompt for your AI and paste it into a chat. It creates the "${noteTitle(t)}" note${t.app ? " with its app" : ""} in your ${t.folder} folder, if you don't have it yet.` },
+      { name: "Paste the prompt", text: `Copy the prompt for your AI and paste it into a chat. It creates the "${noteTitle(t)}" note${t.app ? " with its app" : ""}, if you don't have it yet. Say which folder it goes in, or move it after.` },
       { name: "Talk to your AI", text: "Tell it what happened, in your own words. It fills in the note, and you see every change in Pinto Notes." },
     ];
 
@@ -144,7 +144,7 @@ export default async function Page({ params }: Props) {
 
       {seo && appSection}
 
-      {!APP_TEMPLATES.live && <Instructions title={noteTitle(t)} folder={t.folder} variants={vs} asks={t.asks} />}
+      {!APP_TEMPLATES.live && <Instructions title={noteTitle(t)} variants={vs} asks={t.asks} />}
 
       {t.app ? (seo ? null : appSection) : (
       <section className={s.section} aria-labelledby="result">

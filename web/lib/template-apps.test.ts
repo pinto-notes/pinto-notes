@@ -87,7 +87,8 @@ describe("templates with apps", () => {
     for (const t of apps) {
       for (const i of instructions(t)) {
         expect(i.prompt.startsWith(createStep(t)), t.slug).toBe(true);
-        expect(i.prompt).toContain(`create { type: "app", path: "${t.folder}/${t.title}.md", template: "${t.slug}" }`);
+        expect(i.prompt).toContain(`create { type: "app", path: "${t.title}.md", template: "${t.slug}" }`);
+        expect(i.prompt, t.slug).not.toContain(`${t.folder}/`);
         expect(markdownIn(i.prompt), t.slug).toBeNull();
       }
     }
