@@ -10,7 +10,7 @@ let person = args.contains("p1") ? 1 : args.contains("p2") ? 2 : args.contains("
 // "busy" is someone who writes in their notes three times as often; "super" lives in it: a big
 // month, written in eight times as often.
 let lives = args.contains("super")
-let input = FilmDemo.notebook(days: 35, seed: seed, light: args.contains("light"), heavy: args.contains("heavy") || lives, person: person, work: lives ? 8 : args.contains("busy") ? 3 : 1)
+let input = FilmDemo.notebook(days: 35, seed: seed, light: args.contains("light"), heavy: args.contains("heavy") || lives, person: person, work: lives ? 8 : args.contains("busy") ? 3 : 1, daily: style == "galaxy" && !args.contains("mixed"))
 // "long=17" tries another length for the biggest notebooks' films (seconds of growing).
 let longest = args.first { $0.hasPrefix("long=") }.flatMap { Double($0.dropFirst(5)) } ?? FilmScript.longGrowth
 let script = FilmScript(input, calendar: Calendar(identifier: .gregorian), longest: longest)
@@ -81,12 +81,14 @@ case "galaxy":
     labels.workCount = { notes, edits in "\(notes) notes \u{00B7} \(edits) edits" }
     // The film says what the notebook turned out to be: something to post it with.
     let kind = [FilmForm.comet: "a comet", .nebula: "a nebula", .spiral: "a spiral galaxy"][form ?? script.form]!
-    labels.title = { "My \($0.period) \($0.months == 1 ? "is" : "are") \(kind)" }
+    // (Only at the end: what it turned out to be is the film's last word, not its first.)
+    labels.endTitle = { "My \($0.period) \($0.months == 1 ? "is" : "are") \(kind)" }
     print("form: \(script.form.rawValue)\(form.map { " (shown as \($0.rawValue))" } ?? ""), \(script.nodes.count) notes, \(script.stats.folders) folders, \(script.work) edits, away \(script.stats.quietDays) days, wrote on \(script.stats.writingDays) of \(script.stats.days)")
     labels.scene = { script, names in GalaxyScene(script: script, names: names, seed: Int(seed), form: form) }
     // "tall" is the shape for stories and reels, 9:16, with room left for the app's own buttons.
     let canvas = args.contains("tall") ? FilmCanvas(height: 1920, top: 150, bottom: 190) : FilmCanvas.shared
-    try FilmVideo.write(FilmRenderer(script: script, labels: labels, canvas: canvas), to: out)
+    // It starts at the first note and never shows the finished thing before the end: that's the film's payoff.
+    try FilmVideo.write(FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .none), to: out)
 case "bench":
     let town = TownFilm(script: script)
     let frames = Array(stride(from: 40, to: 400, by: 12))

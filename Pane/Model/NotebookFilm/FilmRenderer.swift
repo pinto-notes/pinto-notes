@@ -112,6 +112,8 @@ final class FilmRenderer {
         var withAI: @Sendable (String) -> String = { "With \($0)" }
         /// Over the first second, so a still of the start says what it is, and on the end card.
         var title: @Sendable (FilmStats) -> String = { "My \($0.period)" }
+        /// The title on the end card when it says more than the opening's (what the month turned out to be).
+        var endTitle: (@Sendable (FilmStats) -> String)? = nil
         /// Under the title as it opens: what's in it, and where.
         var subtitle: @Sendable (FilmStats) -> String = { "\($0.notes == 1 ? "1 note" : "\($0.notes) notes") in Pinto Notes" }
         /// The end card's one line that's only yours: the folder you wrote in most (when folder
@@ -889,12 +891,12 @@ final class FilmRenderer {
         let line = highlight(s)
         if let line {
             // What's only yours is the headline, as large as fits; the title sits small above it.
-            text(labels.title(s), size: 36, weight: .medium, color: ink.cg(0.74 * outroIn), at: CGPoint(x: side, y: base + 270 - rise), in: ctx)
+            text((labels.endTitle ?? labels.title)(s), size: 36, weight: .medium, color: ink.cg(0.74 * outroIn), at: CGPoint(x: side, y: base + 270 - rise), in: ctx)
             let a = smooth((t - script.growth - 0.4) / 0.6)
             let fit = min(1, across / max(1, textWidth(line.text, size: 58, weight: .semibold)))
             text(line.text, size: max(38, (58 * fit).rounded(.down)), weight: .semibold, color: ink.cg(a), at: CGPoint(x: side, y: base + 204 - rise), in: ctx)
         } else {
-            text(labels.title(s), size: 60, weight: .semibold, color: ink.cg(outroIn), at: CGPoint(x: side, y: base + 256 - rise), in: ctx)
+            text((labels.endTitle ?? labels.title)(s), size: 60, weight: .semibold, color: ink.cg(outroIn), at: CGPoint(x: side, y: base + 256 - rise), in: ctx)
         }
         // (Under a headline about days in a row, edits rather than a second number of days.)
         var stats: [(String, String, RGB?)] = [("\(s.notes)", labels.statNotes, nil),

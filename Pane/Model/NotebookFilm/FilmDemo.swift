@@ -8,7 +8,9 @@ enum FilmDemo {
     /// days, no AI.
     /// `heavy` is a big month: twelve folders, some with long names, and about three times the notes.
     /// `work` multiplies how often notes are written in: 8 with `heavy` is someone who lives in it.
-    static func notebook(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), ai: String = "ChatGPT", light: Bool = false, heavy: Bool = false, person: Int = 0, work: Double = 1) -> FilmInput {
+    /// `daily` makes each day mostly about one folder, the way people work: on one thing one day
+    /// and a lot on something else another.
+    static func notebook(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), ai: String = "ChatGPT", light: Bool = false, heavy: Bool = false, person: Int = 0, work: Double = 1, daily: Bool = false) -> FilmInput {
         var rng = seed &* 0x2545_F491_4F6C_DD1D | 1
         func rand() -> Double {
             rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
@@ -86,9 +88,11 @@ enum FilmDemo {
                 for f in open { r -= f.1; if r <= 0 { return f.0 } }
                 return open[0].0
             }
+            let today: String? = daily ? folderPick() : nil
             let newNotes = (light ? Int(rand() * 3.2) + (d < 2 ? 2 : 0) : Int(rand() * (weekend ? 3 : 5)) + (d < 3 ? 3 : 0)) * (heavy ? 3 : 1)
             for _ in 0..<newNotes {
-                let f = folderPick()
+                var f = ""
+                if let today, rand() < 0.8 { f = today } else { f = folderPick() }
                 let at = day.addingTimeInterval(8 * 3600 + rand() * 13 * 3600)
                 var to: [Int] = []
                 // Most notes link to nothing.
@@ -106,12 +110,16 @@ enum FilmDemo {
                     var r = rand() * w.reduce(0, +)
                     for (k, x) in w.enumerated() { r -= x; if r <= 0 { i = k; break } }
                 }
+                if let today, rand() < 0.8 {
+                    let mine = notes.indices.filter { notes[$0].folder == today }
+                    if !mine.isEmpty { i = mine[mine.count - 1 - Int(pow(rand(), 2) * Double(mine.count)) % mine.count] }
+                }
                 let at = day.addingTimeInterval(8 * 3600 + rand() * 14 * 3600)
                 if at > notes[i].created { notes[i].edits.append(FilmEdit(at: at, ai: nil)) }
             }
             // A session with the AI: a burst of linked notes in one folder, and edits to old ones.
             if !light && d >= aiFromDay && rand() < aiChance {
-                let f = folderPick()
+                let f = today ?? folderPick()
                 var at = day.addingTimeInterval(19 * 3600 + rand() * 3 * 3600)
                 let anchor = hub(in: f)
                 var made: [Int] = []
@@ -122,7 +130,9 @@ enum FilmDemo {
                     made.append(add(f, at: at, ai: ai, linkTo: to))
                 }
                 for _ in 0..<Int(Double(3 + Int(rand() * 9)) * (1 + (work - 1) * 0.3)) {
-                    if let i = hub(in: pick(open).0) {
+                    var into = pick(open).0
+                    if let today, rand() < 0.75 { into = today }
+                    if let i = hub(in: into) {
                         at += 30 + rand() * 120
                         notes[i].edits.append(FilmEdit(at: at, ai: ai))
                     }
