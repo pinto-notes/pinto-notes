@@ -12,7 +12,7 @@ data.json, all under "values" (the person's AI reads and edits it directly):
   - box 1 to 5 follows the interval: 1 up to a day, 2 up to 3 days, 3 up to a week, 4 up to three weeks, 5 longer. It feeds the chart and is what an AI quizzing in chat can sort by.
   - A card from before 1.2.27 has box and seen but no interval: it's due GAP[box] days after seen (1, 2, 4, 8, 16) and is graded from there.
 - studied: { "yyyy-mm-dd": count } cards answered each day. Missing is fine.
-- Grading (next() in src/lib/cards.ts), like Anki's, simplified: Again: interval 1, ease -0.2. Hard: interval x1.2 (at least 1), ease -0.15. Good: interval x ease (a new card: 1 day). Easy: interval x ease x1.3 (a new card: 4 days), ease +0.15. All set seen to today and add one to studied[today]. An AI quizzing in chat should do the same.
+- Grading (next() in src/lib/cards.ts), like Anki's, simplified: Again: interval 1, ease -0.2. Hard: interval x1.2 (at least 1), ease -0.15. Good: interval x ease (a new card: 2 days; it was 1, and a new card's four buttons read "1d, 1d, 1d, 4d"). Easy: interval x ease x1.3 (a new card: 4 days), ease +0.15. All set seen to today and add one to studied[today]. An AI quizzing in chat should do the same.
 - ids are any unique text ("c21").
 
 ## Decisions
@@ -22,7 +22,7 @@ data.json, all under "values" (the person's AI reads and edits it directly):
 - The app starts with no cards. Three sample biology cards used to be in a new deck, due at once: someone else's questions in the person's deck (council round 3).
 - The calendar can be read without guessing: each column is a week with the month over its first week, today's square has a ring, and the lines beside it say a square is a day and darker is more cards (beside, not under: under made the card too tall for the template library's stage). The streak over it is the run of squares that ends today or yesterday.
 - The first screen says how many cards are due and has one big button, Study now, right under it. Topic pills under a "Topics" heading narrow it to one subject; they sit after the button so the picked topic never reads as a second button. The streak card has no heading: "6-day streak" says it.
-- A session asks the lowest box first, one card at a time: the question, Show answer, then Again, Hard, Good or Easy, each showing when the card comes back (1d, 8d, 2w): the thing Anki users say makes it feel right. Again asks the card once more at the end of the session. On a Mac, Space shows the answer and 1 to 4 grade. The answer fades in; there is no 3D flip.
+- A session asks the lowest box first, one card at a time: the question, Show answer, then Again, Hard, Good or Easy, each showing when the card comes back (1d, 8d, 2w; Again says "soon" when it will ask the card once more this session): the thing Anki users say makes it feel right. Again asks the card once more at the end of the session. On a Mac, Space shows the answer and 1 to 4 grade. The answer fades in; there is no 3D flip.
 - The streak is days in a row with a card studied; the calendar shows the last 12 weeks. Coming up shows how many cards fall due on each of the next seven days, so a pile-up is visible early.
 - Adding is fast: the Cards tab starts with the add form; Return in the answer adds the card and puts the cursor back in the question, keeping the topic. Paste many turns "question - answer" lines (also " | ", tab, ": ", or after a question mark) into cards, says how many it found, and has Undo. Search filters the list.
 - Two columns from 700 px on Study, from 900 px on Cards.

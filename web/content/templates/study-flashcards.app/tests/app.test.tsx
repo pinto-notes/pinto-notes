@@ -50,8 +50,8 @@ describe("Study", () => {
     expect(screen.queryByTestId("answer")).toBeNull()
     await userEvent.click(screen.getByRole("button", { name: "Show answer" }))
     await waitFor(() => expect(screen.getByTestId("answer")).toHaveTextContent("Energy the cell can use"))
-    // A new card: Good brings it back tomorrow, Easy in four days.
-    expect(screen.getByRole("button", { name: "Good, back in 1 day" })).toBeInTheDocument()
+    // A new card: Good brings it back in two days, Easy in four.
+    expect(screen.getByRole("button", { name: "Good, back in 2 days" })).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: "Easy, back in 4 days" }))
     await waitFor(() => expect(values().cards[1]).toEqual({ ...card("c2", "What is ATP for?", "Energy the cell can use", "Biology", 3, today), interval: 4, ease: 2.65 }))
 
@@ -227,13 +227,40 @@ describe("Spaced repetition", () => {
     expect(await screen.findByText("In 8 days")).toBeInTheDocument()
   })
 
+  it("gives a new card four different answers: soon, tomorrow, two days, four days", async () => {
+    await amber.store.set("cards", [card("c1", "Q one", "A one", "Biology")])
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Study now" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Show answer" }))
+    expect(await screen.findByRole("button", { name: "Again, once more this session, then back in 1 day" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Hard, back in 1 day" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Good, back in 2 days" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Easy, back in 4 days" })).toBeInTheDocument()
+    const shown = ["again", "hard", "good", "easy"].map((g) => screen.getByTestId(`when-${g}`).textContent)
+    expect(shown).toEqual(["soon", "1d", "2d", "4d"])
+    expect(new Set(shown).size).toBe(4)
+    await userEvent.click(screen.getByRole("button", { name: "Good, back in 2 days" }))
+    await waitFor(() => expect(values().cards[0]).toEqual({ ...card("c1", "Q one", "A one", "Biology", 2, today), interval: 2, ease: 2.5 }))
+  })
+
+  it("says tomorrow, not soon, the second time a card gets Again in one session", async () => {
+    await amber.store.set("cards", [card("c1", "Q one", "A one", "Biology")])
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Study now" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Show answer" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Again, once more this session, then back in 1 day" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Show answer" }))
+    expect(await screen.findByRole("button", { name: "Again, back in 1 day" })).toBeInTheDocument()
+    expect(screen.getByTestId("when-again")).toHaveTextContent("1d")
+  })
+
   it("asks a card again at the end of the session after Again", async () => {
     await amber.store.set("cards", [card("c1", "Q one", "A one", "Biology"), card("c2", "Q two", "A two", "Biology")])
     render(<App />)
     await userEvent.click(await screen.findByRole("button", { name: "Study now" }))
     await waitFor(() => expect(screen.getByTestId("question")).toHaveTextContent("Q one"))
     await userEvent.click(screen.getByRole("button", { name: "Show answer" }))
-    await userEvent.click(await screen.findByRole("button", { name: "Again, back in 1 day" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Again, once more this session, then back in 1 day" }))
     expect(await screen.findByText("2 of 3")).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: "Show answer" }))
     await userEvent.click(await screen.findByRole("button", { name: /^Good/ }))
@@ -263,7 +290,7 @@ describe("Spaced repetition", () => {
     await userEvent.keyboard(" ")
     await waitFor(() => expect(screen.getByTestId("answer")).toHaveTextContent("A one"))
     await userEvent.keyboard("3")
-    await waitFor(() => expect(values().cards[0].interval).toBe(1))
+    await waitFor(() => expect(values().cards[0].interval).toBe(2))
   })
 
   it("shows what's coming up tomorrow", async () => {

@@ -184,12 +184,15 @@ function Studying({ session, setSession, cards, grade, streakNow }: { session: S
           <div className="grid grid-cols-4 gap-2">
             {GRADES.map(({ grade: g, label }) => {
               const days = next(card, g).interval
+              // Again asks the card once more at the end of this session (the first time), and
+              // that is what its button says: "soon", not the day after it's due again.
+              const soon = g === "again" && !session.again.includes(card.id)
               return (
-                <button key={g} type="button" aria-label={`${label}, back in ${span(days)}`} onClick={() => answer(g)}
+                <button key={g} type="button" aria-label={soon ? `${label}, once more this session, then back in ${span(days)}` : `${label}, back in ${span(days)}`} onClick={() => answer(g)}
                   className={cn("flex h-14 flex-col items-center justify-center rounded-xl font-semibold active:opacity-80",
                     g === "good" ? "bg-primary text-primary-foreground" : g === "again" ? "bg-muted text-foreground" : "bg-[var(--amber-accent-soft)] text-link")}>
                   <span className="text-[1rem] leading-tight">{label}</span>
-                  <span className="text-[0.75rem] font-medium tabular-nums opacity-80">{short(days)}</span>
+                  <span className="text-[0.75rem] font-medium tabular-nums opacity-80" data-testid={`when-${g}`}>{soon ? "soon" : short(days)}</span>
                 </button>
               )
             })}

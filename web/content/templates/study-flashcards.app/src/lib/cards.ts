@@ -29,12 +29,14 @@ export const level = (c: Card) => (c.seen ? LEVELS[Math.min(5, Math.max(1, c.box
 export const newId = () => "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 
 /** What a grade does to a card: the next interval (days) and ease. Again and Hard ease off; Easy
- *  jumps ahead. A new card: Again or Hard tomorrow, Good tomorrow, Easy in four days. */
+ *  jumps ahead. A new card: Again or Hard tomorrow (Again is also asked once more this session),
+ *  Good in two days, Easy in four. Good used to be tomorrow too, and the four buttons read
+ *  "1d, 1d, 1d, 4d": three grades that did the same thing (council round 4). */
 export function next(c: Card, g: Grade): { interval: number; ease: number } {
   const i = c.seen ? intervalOf(c) : 0, e = c.ease ?? 2.5
   if (g === "again") return { interval: 1, ease: Math.max(1.3, e - 0.2) }
   if (g === "hard") return { interval: Math.max(1, Math.round(i * 1.2)), ease: Math.max(1.3, e - 0.15) }
-  if (g === "good") return { interval: i ? Math.max(i + 1, Math.round(i * e)) : 1, ease: e }
+  if (g === "good") return { interval: i ? Math.max(i + 1, Math.round(i * e)) : 2, ease: e }
   return { interval: i ? Math.max(i + 2, Math.round(i * e * 1.3)) : 4, ease: e + 0.15 }
 }
 
