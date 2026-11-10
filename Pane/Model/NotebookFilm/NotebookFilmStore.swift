@@ -27,7 +27,14 @@ final class NotebookFilmStore {
     var visible = false
     /// The film being shown.
     private(set) var script: FilmScript?
-    var look: FilmLook = .night
+    var look: FilmLook = .leaf
+    /// A look asked for by name (captures) stays; otherwise the film opens in the app's appearance.
+    private(set) var lookFixed = false
+    /// The film is about to come up in an app that's dark, or light: it opens in that one.
+    func follow(dark: Bool) {
+        guard !lookFixed else { return }
+        look = FilmLook.matching(dark: dark)
+    }
     /// Folder names over their clusters (on unless you turn them off); note titles never show.
     var folderNames = true
     /// The film as a movie file for the look and folder names chosen now, once it's made. Movies
@@ -161,7 +168,7 @@ final class NotebookFilmStore {
         rewatching = false
         // Captures: `-filmLook paper`.
         let args = ProcessInfo.processInfo.arguments
-        if let i = args.firstIndex(of: "-filmLook"), i + 1 < args.count, let l = FilmLook(rawValue: args[i + 1]) { look = l }
+        if let i = args.firstIndex(of: "-filmLook"), i + 1 < args.count, let l = FilmLook(rawValue: args[i + 1]) { look = l; lookFixed = true }
         if args.contains("-filmNoFolderNames") { folderNames = false }
         script = FilmScript(FilmDemo.notebook(now: .now, light: args.contains("-filmLight")))
         visible = true

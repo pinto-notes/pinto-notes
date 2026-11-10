@@ -43,15 +43,16 @@ struct NotebookFilmView: View {
                 // Your notebook as the month left it, soft behind the intro. It's the film's own
                 // first picture, so pressing Watch brings it into focus rather than cutting away.
                 // (An overlay, so the picture's size never changes the layout.)
-                Color.black
+                (pale && !dawn ? Self.cream : Color.black)
                     .overlay {
                         if let poster, backdrop {
                             Image(decorative: poster, scale: 1)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
                                 // The town's first morning is shown as it is; the others soft and dimmed.
-                                .blur(radius: phase == .intro && !dawn ? 2 : 0)
-                                .opacity(phase == .intro && !dawn ? 0.8 : 1)
+                                // (On the cream page faint, so the words in ink read over it.)
+                                .blur(radius: phase == .intro && !dawn ? (pale ? 3 : 2) : 0)
+                                .opacity(phase == .intro && !dawn ? (pale ? 0.38 : 0.8) : 1)
                                 .accessibilityHidden(true)
                         }
                     }
@@ -125,6 +126,9 @@ struct NotebookFilmView: View {
     /// The Town opens on its first morning, a pale sky: the intro's words are in ink over it, as
     /// on Pinto's own pages; the other looks keep the dark intro.
     private var dawn: Bool { store.look == .town }
+    /// A light look: what's laid over the film is in ink, not white.
+    private var pale: Bool { !store.look.dark || dawn }
+    static let cream = Color(red: 1, green: 0.957, blue: 0.902)
     /// The intro's picture of the notebook is still under everything (until the film first ends).
     @State private var backdrop = true
     /// The last frame in a look chosen on the share screen (the film itself shows until one is).
@@ -192,7 +196,7 @@ struct NotebookFilmView: View {
     private var intro: some View {
         ZStack {
             // A darker band behind the words (not over the town's morning sky).
-            if !dawn {
+            if !pale {
                 LinearGradient(colors: [.black.opacity(0), .black.opacity(0.62), .black.opacity(0)], startPoint: .top, endPoint: .bottom)
                     .ignoresSafeArea()
                     .accessibilityHidden(true)
@@ -204,13 +208,13 @@ struct NotebookFilmView: View {
                 Text("\(NotebookFilmStore.title(store.script?.stats))\nwith Pinto Notes")
                     .font(.system(size: 34, weight: .bold))
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(dawn ? Self.ink : .white)
+                    .foregroundStyle(pale ? Self.ink : .white)
                     .padding(.top, 18)
                     .accessibilityAddTraits(.isHeader)
                 Text(Self.teaser(store.script?.stats))
                     .font(.body)
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(dawn ? Self.ink.opacity(0.75) : .white.opacity(0.78))
+                    .foregroundStyle(pale ? Self.ink.opacity(0.75) : .white.opacity(0.78))
                     .padding(.top, 10)
                 Spacer()
                 Button(action: watch) {
@@ -219,13 +223,14 @@ struct NotebookFilmView: View {
                         .frame(maxWidth: .infinity, minHeight: 50)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.black)
-                .background(Capsule().fill(.white))
+                // (On the cream page the button is the site's own: ink, with the page's colour on it.)
+                .foregroundStyle(pale && !dawn ? Self.cream : .black)
+                .background(Capsule().fill(pale && !dawn ? Self.ink : .white))
                 .accessibilityIdentifier("notebookFilm.watch")
                 Button("Not now") { store.visible = false }
                     .buttonStyle(.plain)
                     .font(.body.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(pale && !dawn ? Self.ink.opacity(0.72) : .white.opacity(0.7))
                     .frame(minHeight: 44)
                     .padding(.top, 8)
                     .accessibilityIdentifier("notebookFilm.notNow")
@@ -233,7 +238,7 @@ struct NotebookFilmView: View {
                 if !store.rewatching {
                     Text("It stays in Settings, under Help.")
                         .font(.footnote)
-                        .foregroundStyle(.white.opacity(0.74))
+                        .foregroundStyle(pale && !dawn ? Self.ink.opacity(0.7) : .white.opacity(0.74))
                         .padding(.top, 2)
                 }
             }
@@ -312,8 +317,8 @@ struct NotebookFilmView: View {
             Spacer()
             // How far through, like a story, at the bottom.
             ZStack(alignment: .leading) {
-                Capsule().fill(.white.opacity(0.22))
-                Capsule().fill(.white).frame(width: max(3, (width - Metrics.side * 2) * playback.progress))
+                Capsule().fill((pale && !dawn ? Self.ink : .white).opacity(0.22))
+                Capsule().fill(pale && !dawn ? Self.ink : .white).frame(width: max(3, (width - Metrics.side * 2) * playback.progress))
             }
             .frame(height: 3)
             .padding(.bottom, 14)
@@ -714,6 +719,8 @@ extension View {
 private struct NotebookFilmSheet: ViewModifier {
     @Bindable var store: NotebookFilmStore
     @State private var shown = false
+    /// The appearance the app is in: the film opens in the look that matches.
+    @Environment(\.colorScheme) private var scheme
 
     func body(content: Content) -> some View {
         let binding = Binding(get: { shown }, set: { shown = $0; if !$0 { store.visible = false } })
@@ -737,6 +744,7 @@ private struct NotebookFilmSheet: ViewModifier {
         try? await Task.sleep(for: .seconds(store.rewatching ? 0.5 : 1.5))
         if ShareAsk.lastKeystroke > store.launched { store.postpone() }
         guard store.visible else { return }
+        store.follow(dark: scheme == .dark)
         shown = true
         store.didPresent()
     }
