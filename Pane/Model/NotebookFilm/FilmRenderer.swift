@@ -158,6 +158,9 @@ final class FilmRenderer {
         var notesCount: @Sendable (Int) -> String = { $0 == 1 ? "1 note" : "\($0) notes" }
         /// When set, the running count says the work too: notes so far, and times written in so far.
         var workCount: (@Sendable (Int, Int) -> String)? = nil
+        /// False leaves the lines out while it grows (what a light is, the month's moments): the
+        /// picture alone, with the date and the count.
+        var captionsOn = true
     }
 
     private var look: FilmLook { labels.look }
@@ -805,16 +808,18 @@ final class FilmRenderer {
         if running > 0 {
             let date = script.date(at: min(t, script.growth))
             text(dateFormatter.string(from: date), size: 40, weight: .medium, color: ink.cg(0.7 * running), at: CGPoint(x: side, y: base + 156), in: ctx)
-            var count = labels.notesCount(alive)
+            // (Notes removed by now aren't counted.)
+            let now = min(t, script.growth)
+            let there = alive - script.nodes.prefix(alive).reduce(0) { ($1.gone ?? .infinity) <= now ? $0 + 1 : $0 }
+            var count = labels.notesCount(there)
             if let both = labels.workCount {
-                let now = min(t, script.growth)
-                count = both(alive, script.nodes.reduce(0) { $0 + $1.edits.reduce(0) { $1 <= now ? $0 + 1 : $0 } })
+                count = both(there, script.nodes.reduce(0) { $0 + $1.edits.reduce(0) { $1 <= now ? $0 + 1 : $0 } })
             }
             text(count, size: 40, weight: .medium, color: ink.cg(0.7 * running), at: CGPoint(x: Double(width) - side, y: base + 156), align: 1, in: ctx)
         }
         // Under them, one line at a time (a line is gone before the next comes): what a light is,
         // then what's yours: the day you wrote most as it passes, and the folder you wrote in most.
-        if running > 0 {
+        if running > 0, labels.captionsOn {
             func ramp(_ a: Double, _ b: Double) -> Double { smooth((t - a) / (b - a)) }
             func shown(_ from: Double, _ until: Double) -> Double { ramp(from, from + 0.22) * (1 - ramp(until - 0.22, until)) }
             /// 1 while a line of your own holds the baseline, with room either side of it.

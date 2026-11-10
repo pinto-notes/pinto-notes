@@ -13,6 +13,10 @@ struct FilmNote: Sendable, Hashable, Codable {
     /// Oldest first.
     var edits: [FilmEdit]
     var links: [UUID]
+    /// When it was removed, if it was: a notebook grows and shrinks, and the film shows both.
+    var removed: Date? = nil
+    /// Brought in from somewhere else (it's older than your first day here): these arrive together.
+    var imported: Bool? = nil
 }
 
 struct FilmEdit: Sendable, Hashable, Codable {
@@ -30,7 +34,10 @@ struct FilmInput: Sendable, Codable {
 struct FilmStats: Equatable, Sendable {
     /// Days from your first note to now, counting both.
     var days: Int
+    /// The notes that are there now (ones removed along the way aren't counted).
     var notes: Int
+    /// Notes made and removed again.
+    var removed: Int
     /// Folders with notes in them (notes in no folder aren't one).
     var folders: Int
     var links: Int
@@ -66,8 +73,9 @@ struct FilmStats: Equatable, Sendable {
     init(_ input: FilmInput, calendar: Calendar = .current) {
         let notes = input.notes
         let first = notes.map(\.created).min() ?? input.now
+        removed = notes.filter { $0.removed != nil }.count
         days = (calendar.dateComponents([.day], from: calendar.startOfDay(for: first), to: calendar.startOfDay(for: input.now)).day ?? 0) + 1
-        self.notes = notes.count
+        self.notes = notes.count - removed
         folders = Set(notes.map(\.folder).filter { !$0.isEmpty }).count
         let ids = Set(notes.map(\.id))
         var pairs = Set<[UUID]>()
@@ -102,7 +110,7 @@ struct FilmStats: Equatable, Sendable {
         for n in notes { byFolder[n.folder, default: 0] += max(1, n.edits.count) }
         let top = byFolder.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }?.key
         topFolder = top?.isEmpty == false ? top : nil
-        topFolderNotes = notes.filter { $0.folder == top }.count
+        topFolderNotes = notes.filter { $0.folder == top && $0.removed == nil }.count
         var byDay: [Date: Int] = [:]
         for e in edits { byDay[calendar.startOfDay(for: e.at), default: 0] += 1 }
         let busiest = byDay.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }
@@ -199,6 +207,9 @@ struct FilmScript: Sendable {
         var edits: [Double]
         var aiEdits: [Bool]
         var bornByAI: Bool
+        /// When it's removed, if it is.
+        var gone: Double? = nil
+        var imported = false
     }
     struct Link: Sendable { var a: Int; var b: Int; var birth: Double }
 
@@ -246,7 +257,8 @@ struct FilmScript: Sendable {
         var activity = [Double](repeating: 0, count: dayCount)
         func day(_ d: Date) -> Int { min(dayCount - 1, max(0, calendar.dateComponents([.day], from: firstDay, to: calendar.startOfDay(for: d)).day ?? 0)) }
         for n in sorted {
-            activity[day(n.created)] += 2
+            // (What was brought in isn't a day's work: the day it arrived gets no more of the film for it.)
+            if n.imported != true { activity[day(n.created)] += 2 }
             for e in n.edits { activity[day(e.at)] += 1 }
         }
         let peak = max(1, activity.max() ?? 1)
@@ -289,19 +301,24 @@ struct FilmScript: Sendable {
             let edits = n.edits.sorted { $0.at < $1.at }
             let firstEdit = edits.first
             let bornByAI = firstEdit.map { $0.ai != nil && abs($0.at.timeIntervalSince(n.created)) < 600 } ?? false
-            nodes.append(Node(id: n.id, folder: f, birth: time(n.created), edits: edits.map { time($0.at) }, aiEdits: edits.map { $0.ai != nil }, bornByAI: bornByAI))
+            nodes.append(Node(id: n.id, folder: f, birth: time(n.created), edits: edits.map { time($0.at) }, aiEdits: edits.map { $0.ai != nil }, bornByAI: bornByAI,
+                              gone: n.removed.map { time($0) }, imported: n.imported == true))
         }
         // The first notes come one at a time, even when they were made within minutes of each
         // other: the film starts with one, then the next. (Later ones keep their order.)
         // After those, a day's notes still arrive one after another, never all in one frame.
         let gaps = [0.34, 0.28, 0.24, 0.2, 0.16, 0.12]
         let apart = min(0.05, growth * 0.5 / Double(max(1, nodes.count)))
+        // (What was brought in arrives together, in about a second, however much there is of it.)
+        let brought = Double(max(1, nodes.filter(\.imported).count))
         for k in nodes.indices.dropFirst() {
-            let least = k - 1 < gaps.count ? min(growth * 0.4, nodes[k - 1].birth + gaps[k - 1]) : min(growth - 0.05, nodes[k - 1].birth + apart)
+            let least = nodes[k].imported ? nodes[k - 1].birth + min(0.06, 1.0 / brought) : k - 1 < gaps.count ? min(growth * 0.4, nodes[k - 1].birth + gaps[k - 1]) : min(growth - 0.05, nodes[k - 1].birth + apart)
             guard nodes[k].birth < least else { continue }
             nodes[k].birth = least
             nodes[k].edits = nodes[k].edits.map { max($0, least) }
         }
+        // (Nothing leaves before it's been there long enough to be seen.)
+        for k in nodes.indices { if let g = nodes[k].gone { nodes[k].gone = min(growth, max(g, nodes[k].birth + 0.5)) } }
         var seen = Set<[Int]>()
         var links: [Link] = []
         for n in sorted {

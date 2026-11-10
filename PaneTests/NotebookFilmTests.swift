@@ -787,6 +787,29 @@ import Testing
         #expect(FilmScript(input, calendar: Self.cal).form == .nebula, "a few folders: a cloud for each")
     }
 
+    @Test func aNotebookGrowsAndShrinksAndWhatWasBroughtInArrivesTogether() {
+        // Someone who came with twenty notes, made about fifteen, threw twelve of those out again
+        // and writes in a tracker every day.
+        let input = FilmDemo.real(days: 35, now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true)
+        let script = FilmScript(input, calendar: Self.cal)
+        let gone = input.notes.filter { $0.removed != nil }.count
+        #expect(gone >= 8 && script.stats.removed == gone)
+        #expect(script.stats.notes == input.notes.count - gone, "what's been removed isn't counted")
+        // Each one that leaves has been there long enough to be seen, and leaves while the film runs.
+        for n in script.nodes { if let g = n.gone { #expect(g >= n.birth + 0.5 - 1e-9 && g <= script.growth) } }
+        #expect(script.nodes.filter { $0.gone != nil }.count == gone)
+        // What was brought in arrives together, in about a second, and day one isn't stretched for it.
+        let brought = script.nodes.filter(\.imported)
+        #expect(brought.count == 20 && (brought.map(\.birth).max() ?? 9) <= 1.3)
+        #expect(script.nodes.filter { !$0.imported && $0.birth > 1.5 }.count >= 8, "the month's own notes come after")
+        // The tracker is written in on every day they were there.
+        let most = input.notes.max { $0.edits.count < $1.edits.count }
+        #expect(most?.folder == "Habits" && (most?.edits.count ?? 0) >= 20)
+        // A film saved before notes could be removed still opens.
+        let old = try? JSONDecoder().decode(FilmNote.self, from: Data(#"{"id":"00000000-0000-4000-8000-000000000001","folder":"","created":0,"edits":[],"links":[]}"#.utf8))
+        #expect(old != nil && old?.removed == nil && old?.imported == nil)
+    }
+
     @Test func theFilmBeginsAtTheFirstNote() {
         // Not at the midnight before it: there's never a frame of an empty month with "0 notes".
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)

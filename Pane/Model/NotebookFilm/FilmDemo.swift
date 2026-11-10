@@ -151,7 +151,10 @@ enum FilmDemo {
     /// once a week, each one written in on up to every other day, and an edit is what the server
     /// keeps of that (a version or two for a day a note was worked in, never dozens).
     /// `dailyNote` adds someone's note for each day, written that day and seldom again.
-    static func real(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), notesPerWeek: Double = 1, dailyNote: Bool = false, ai: String? = "ChatGPT") -> FilmInput {
+    /// `imported` notes are brought in on the first day (most are seldom opened again), `removed`
+    /// of the notes made along the way are thrown out some days later, and `habit` is one note
+    /// written in every day (a tracker).
+    static func real(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), notesPerWeek: Double = 1, dailyNote: Bool = false, ai: String? = "ChatGPT", imported: Int = 0, removed: Int = 0, habit: Bool = false) -> FilmInput {
         var rng = seed &* 0x2545_F491_4F6C_DD1D | 1
         func rand() -> Double {
             rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
@@ -160,20 +163,31 @@ enum FilmDemo {
         let cal = Calendar(identifier: .gregorian)
         let firstDay = cal.startOfDay(for: now.addingTimeInterval(-Double(days - 1) * 86_400))
         let folders: [(String, Double)] = [("Work", 0.4), ("Ideas", 0.25), ("Home", 0.2), ("Reading", 0.15)]
-        struct Draft { var id: UUID; var folder: String; var created: Date; var edits: [FilmEdit]; var standing: Bool }
+        struct Draft { var id: UUID; var folder: String; var created: Date; var edits: [FilmEdit]; var standing: Bool; var imported = false; var habit = false; var removed: Date? }
         var notes: [Draft] = []
         var made: UInt64 = seed << 32
-        func add(_ folder: String, at: Date, standing: Bool) {
+        func add(_ folder: String, at: Date, standing: Bool, imported: Bool = false) {
             made += 1
             var b = made
             let id = withUnsafeBytes(of: &b) { raw -> UUID in
                 let x = Array(raw)
                 return UUID(uuid: (x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], 0x40, 0, 0x80, 1, 0, 0, 0, UInt8(seed & 0xFF)))
             }
-            notes.append(Draft(id: id, folder: folder, created: at, edits: [FilmEdit(at: at, ai: nil)], standing: standing))
+            notes.append(Draft(id: id, folder: folder, created: at, edits: [FilmEdit(at: at, ai: nil)], standing: standing, imported: imported))
         }
-        // (You begin by writing a couple.)
-        var owed = 2.0
+        func anyFolder() -> String {
+            var r = rand()
+            for x in folders { r -= x.1; if r <= 0 { return x.0 } }
+            return folders[0].0
+        }
+        // What you bring with you, all at once on the first morning.
+        for k in 0..<imported { add(anyFolder(), at: firstDay.addingTimeInterval(9 * 3600 + Double(k)), standing: true, imported: true) }
+        if habit {
+            add("Habits", at: firstDay.addingTimeInterval(9.5 * 3600), standing: false)
+            notes[notes.count - 1].habit = true
+        }
+        // (You begin by writing a couple, unless you came with notes.)
+        var owed = imported > 0 ? 0.6 : 2.0
         for d in 0..<days {
             let day = firstDay.addingTimeInterval(Double(d) * 86_400)
             let weekday = cal.component(.weekday, from: day)
@@ -182,7 +196,10 @@ enum FilmDemo {
             if d > 0, rand() < (weekday == 1 || weekday == 7 ? 0.5 : 0.1) { continue }
             let before = notes.count
             // What's there already: each standing note on up to every other day, a little less once it's old.
-            for i in 0..<before where rand() < (notes[i].standing ? (day.timeIntervalSince(notes[i].created) > 21 * 86_400 ? 0.3 : 0.45) : 0.03) {
+            for i in 0..<before where notes[i].removed.map({ $0 > day }) ?? true {
+                // (A tracker is written in every day you're there; what you brought with you, seldom.)
+                let chance = notes[i].habit ? 1 : notes[i].imported ? 0.07 : notes[i].standing ? (day.timeIntervalSince(notes[i].created) > 21 * 86_400 ? 0.3 : 0.45) : 0.03
+                guard d > 0, rand() < chance else { continue }
                 var at = day.addingTimeInterval(9 * 3600 + rand() * 9 * 3600)
                 let versions = 1 + (rand() < 0.35 ? 1 : 0) + (rand() < 0.1 ? 1 : 0)
                 // (Now and then your AI is the one writing in it.)
@@ -194,9 +211,7 @@ enum FilmDemo {
             }
             while owed + (rand() - 0.5) * 0.9 >= 1 {
                 owed -= 1
-                var r = rand(), f = folders[0].0
-                for x in folders { r -= x.1; if r <= 0 { f = x.0; break } }
-                add(f, at: day.addingTimeInterval(9 * 3600 + rand() * 11 * 3600), standing: true)
+                add(anyFolder(), at: day.addingTimeInterval(9 * 3600 + rand() * 11 * 3600), standing: true)
             }
             if dailyNote {
                 let at = day.addingTimeInterval(8 * 3600 + rand() * 3 * 3600)
@@ -205,7 +220,14 @@ enum FilmDemo {
             }
         }
         notes.removeAll { $0.created > now }
+        // Some of what was made along the way is thrown out a few days later.
+        var mine = notes.indices.filter { !notes[$0].imported && !notes[$0].habit }
+        for _ in 0..<min(removed, mine.count) {
+            let i = mine.remove(at: Int(rand() * Double(mine.count)) % mine.count)
+            let at = notes[i].created.addingTimeInterval((2 + rand() * 7) * 86_400)
+            if at < now { notes[i].removed = at; notes[i].edits.removeAll { $0.at > at } }
+        }
         for i in notes.indices { notes[i].edits.removeAll { $0.at > now }; notes[i].edits.sort { $0.at < $1.at } }
-        return FilmInput(notes: notes.map { FilmNote(id: $0.id, folder: $0.folder, created: $0.created, edits: $0.edits, links: []) }, now: now)
+        return FilmInput(notes: notes.map { FilmNote(id: $0.id, folder: $0.folder, created: $0.created, edits: $0.edits, links: [], removed: $0.removed, imported: $0.imported ? true : nil) }, now: now)
     }
 }
