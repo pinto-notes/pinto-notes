@@ -295,7 +295,11 @@ describe("Sharing", () => {
     await amber.store.set("days", [{ date: day(9), title: "Arrive", items: ["09:00 Tram 28"] }])
     render(<App />)
     await go("Days")
-    await userEvent.click((await screen.findAllByRole("button", { name: `Share ${new Date(day(9) + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}` }))[0])
+    // One day is shared from its own sheet; the screen itself has one Share, for the whole trip.
+    const name = new Date(day(9) + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
+    expect(await screen.findAllByRole("button", { name: /^Share / })).toHaveLength(1)
+    await userEvent.click((await screen.findAllByRole("button", { name: `Edit ${name}` }))[0])
+    await userEvent.click(await screen.findByRole("button", { name: `Share ${name}` }))
     await waitFor(() => expect(share).toHaveBeenCalled())
     const file = (share.mock.calls[0] as unknown[])[0] as { name: string; type: string; text: string }
     expect(file.name).toBe("Lisbon, day 1.txt")

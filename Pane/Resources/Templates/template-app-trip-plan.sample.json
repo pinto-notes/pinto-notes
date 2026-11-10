@@ -95,18 +95,6 @@
     "packed": true
    },
    {
-    "id": "p2",
-    "text": "Phone charger",
-    "group": "Tech",
-    "packed": false
-   },
-   {
-    "id": "p3",
-    "text": "Travel adapter",
-    "group": "Tech",
-    "packed": false
-   },
-   {
     "id": "p4",
     "text": "Travel insurance details",
     "group": "Documents",
@@ -119,9 +107,39 @@
     "packed": true
    },
    {
+    "id": "p8",
+    "text": "Rain jacket",
+    "group": "Clothes",
+    "packed": false
+   },
+   {
+    "id": "p9",
+    "text": "A warm layer",
+    "group": "Clothes",
+    "packed": false
+   },
+   {
     "id": "p6",
-    "text": "Toiletries",
+    "text": "Toothbrush",
     "group": "Toiletries",
+    "packed": true
+   },
+   {
+    "id": "p10",
+    "text": "Sunscreen",
+    "group": "Toiletries",
+    "packed": false
+   },
+   {
+    "id": "p2",
+    "text": "Phone charger",
+    "group": "Tech",
+    "packed": false
+   },
+   {
+    "id": "p3",
+    "text": "Travel adapter",
+    "group": "Tech",
     "packed": false
    },
    {
