@@ -830,6 +830,20 @@ import Vision
         #expect(root.contains("}, connect: { openPopup(.connectAI) }, close:"))
         // The menu's "Copy the prompt" is in the menu's ink: only an AI's mark carries colour.
         #expect(menu.contains("icon: { Self.menuSymbol(\"doc.on.doc\", dark: scheme == .dark) }"))
+        // A bitmap, not a symbol: no pixel of it is coloured in either look.
+        for dark in [false, true] {
+            let r = ImageRenderer(content: L.menuSymbol("doc.on.doc", dark: dark))
+            r.scale = 2
+            let cg = try #require(r.cgImage)
+            let p = try #require(Pixels(cg))
+            var coloured = 0
+            for i in 0..<(p.width * p.height) {
+                let c = p.rgb(at: i)
+                let rr = Int((c >> 16) & 255), g = Int((c >> 8) & 255), b = Int(c & 255)
+                if max(rr, g, b) - min(rr, g, b) > 24 { coloured += 1 }
+            }
+            #expect(coloured == 0, "\(dark ? "dark" : "light"): \(coloured) coloured pixels in the copy symbol")
+        }
         // One size and one line for every name, under its cover, at the words' full width: on the
         // full sheet the page's 28 pt; on the smallest, the largest size the longest name fits at.
         let titles = Self.all.map(\.title)
@@ -1143,7 +1157,7 @@ import Vision
         let sizes = Set(page.matches(of: /\.system\(size: ([A-Za-z.0-9]+)/).map { String($0.1) })
         #expect(sizes == ["name", "PageType.body", "PageType.small"], "\(sizes)")
         let weights = Set(page.matches(of: /weight: \.([a-z]+)/).map { String($0.1) })
-        #expect(weights == ["bold", "semibold", "regular"], "bold, semibold and regular: \(weights)")
+        #expect(weights == ["bold", "semibold"], "bold and semibold, and regular where none is said: \(weights)")
         // Everything starts on the margin: the sheet's name, Back's chevron, the frame, the
         // words beside it and "More like this".
         #expect(page.contains(".padding(.leading, Self.margin - 9)") && page.contains(".padding(.leading, inset)"))
@@ -1392,6 +1406,7 @@ import Vision
         let src = try library
         #expect(src.contains("ScrollView(.vertical) {\n            content()"))
         #expect(src.contains(".opacity(below.contains(e.slug) ? 1 : 0)"), "the fade shows only while there's more")
+        #expect(src.contains(".opacity(above.contains(e.slug) ? 1 : 0)"), "scrolled, the top fades too")
         #expect(src.components(separatedBy: "scrolls(e) {").count == 3, "a note, and a note with a sub-note open beside it")
         // In a scroll view (no height given) the blocks are as tall as they're placed: no room
         // kept under the last, none between a table's rows.

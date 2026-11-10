@@ -415,6 +415,8 @@ struct TemplateLibraryView: View {
     @FocusState private var keys: Keys?
     /// The examples with more under their frame's foot than shows: the foot fades while there is.
     @State private var below: Set<String> = []
+    /// The examples scrolled down from their top: the top fades while one is.
+    @State private var above: Set<String> = []
     /// Counts the moves, so one overtaken by the next stops where it is.
     @State private var move = 0
     /// The page being got ready: laid out and drawn out of sight, under what's showing, until its
@@ -1083,10 +1085,22 @@ struct TemplateLibraryView: View {
         .onScrollGeometryChange(for: Bool.self, of: { Self.more(content: $0.contentSize.height, offset: $0.contentOffset.y, room: $0.containerSize.height) }) { _, more in
             if more { below.insert(e.slug) } else { below.remove(e.slug) }
         }
+        .onScrollGeometryChange(for: Bool.self, of: { $0.contentOffset.y > 1 }) { _, scrolled in
+            if scrolled { above.insert(e.slug) } else { above.remove(e.slug) }
+        }
         .overlay(alignment: .bottom) {
             LinearGradient(colors: [frameGround.opacity(0), frameGround], startPoint: .top, endPoint: .bottom)
                 .frame(height: Self.footFade)
                 .opacity(below.contains(e.slug) ? 1 : 0)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        // Scrolled, its top fades the same way: a line the panel's top cuts is never a hard edge
+        // either (real scrolling on the Air, 10 November 2026: a table's header cut through).
+        .overlay(alignment: .top) {
+            LinearGradient(colors: [frameGround, frameGround.opacity(0)], startPoint: .top, endPoint: .bottom)
+                .frame(height: Self.footFade)
+                .opacity(above.contains(e.slug) ? 1 : 0)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
@@ -1281,14 +1295,20 @@ struct TemplateLibraryView: View {
         }
     }
 
-    /// A symbol for a menu row as a finished picture in the menu's ink: a template symbol there
-    /// takes the sheet's tint, and "Copy the prompt" drew in amber beside the AIs' marks.
-    static func menuSymbol(_ name: String, dark: Bool) -> Image {
-        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular).applying(.init(paletteColors: [dark ? .white : .black]))
-        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config) else { return Image(systemName: name) }
+    /// A symbol for a menu row as a finished picture in the menu's ink: a symbol there takes the
+    /// sheet's tint, whatever colours it's given, and "Copy the prompt" drew in amber beside the
+    /// AIs' marks (real menus on the Air, 10 November 2026). Drawn once for each look.
+    @MainActor static func menuSymbol(_ name: String, dark: Bool) -> Image {
+        let key = "\(name)-\(dark)"
+        if let made = menuSymbols[key] { return Image(nsImage: made) }
+        let renderer = ImageRenderer(content: Image(systemName: name).font(.system(size: PageType.body)).foregroundStyle(dark ? Color.white : Color.black).frame(width: 16, height: 16))
+        renderer.scale = 2
+        guard let image = renderer.nsImage else { return Image(systemName: name) }
         image.isTemplate = false
+        menuSymbols[key] = image
         return Image(nsImage: image)
     }
+    @MainActor private static var menuSymbols: [String: NSImage] = [:]
 
     /// "Make with ChatGPT" with ChatGPT's mark: an AI named is an AI shown.
     private func makeLabel(_ e: TemplateCatalog.Entry, _ ai: SetupCards.AI) -> some View {
