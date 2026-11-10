@@ -503,69 +503,82 @@ struct SetupTemplateCard: View {
     let pick: SetupCards.Pick
     /// Wider in the template library, where the cards share the row; the height keeps the shape.
     var width: CGFloat = size.width
-    /// The template library's look: the art alone, its name and line under it in the page's own
-    /// text colours, so every card reads the same (Emil, 2026-10-30: not dark words on some, light on others).
+    /// The template library's card: the art alone, filling a 4:3 card, and under it, on the
+    /// sheet's own ground, the name and one quiet line (council, 10 November 2026: the name on a
+    /// flat band of the cover's colour made each card a poster, two fifths of it empty).
     var captionBelow = false
-    /// The open one, ringed.
+    /// The cover the arrow keys are on, ringed.
     var selected = false
     /// Which of its words draw on the cover, each kept in its place when it doesn't: the
     /// caption-contrast test reads the cover behind them (SetupCardsTests).
     var words: Words = .both
-    /// A small tag in the cover's top corner ("App"): white on a dark pill, the same in light and
-    /// dark, so it reads on every cover's colour.
-    var tag: String?
+    /// The line under the art, where it isn't the pick's own (the library's: a few words, and
+    /// "App · " first for one with an app).
+    var line: String?
+    /// The pointer came onto the card, or left it (the library gets a template's page ready then).
+    var pointer: (Bool) -> Void = { _ in }
     let action: () -> Void
     @State private var hover = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.hoverPreview) private var preview
 
-    /// `name`: the template library's cover, the art and its name alone, the name at the cover's
-    /// foot where the caption's last line sat (Emil, 9 November 2026: less on each card).
-    enum Words { case both, title, none, name }
+    enum Words { case both, title, none }
 
     /// Under the pointer in dark mode: a light ring and the cover a touch brighter. A black shadow
     /// on a near-black sheet showed nothing (9 November 2026). Light mode keeps its shadow.
     static func hoverRing(dark: Bool, hover: Bool) -> Double { dark && hover ? 0.55 : 0 }
-    /// A cover in the library (`name`) stays where it is under the pointer: no lift and no
-    /// shadow, so its neighbours never seem to move; in light mode a quiet dark ring and the cover
-    /// a touch deeper, as dark mode's light ring and a touch brighter. The first run's gallery
-    /// keeps its lift.
-    static func lifts(_ words: Words) -> Bool { words != .name }
+    static func hoverBrightness(dark: Bool, hover: Bool) -> Double { dark && hover ? 0.05 : 0 }
+    /// A cover in the library stays where it is under the pointer: no lift and no shadow, so its
+    /// neighbours never seem to move; a quiet ring (dark in the light, light in the dark) and the
+    /// cover a touch deeper or brighter. The first run's gallery keeps its lift.
     static func quietRing(dark: Bool, hover: Bool) -> Double { hover ? (dark ? 0.55 : 0.28) : 0 }
     static func quietBrightness(dark: Bool, hover: Bool) -> Double { hover ? (dark ? 0.05 : -0.03) : 0 }
-    /// The tag's pill: black at this strength, under white words (7:1 or more on any cover).
-    static let tagGround: Double = 0.62
-    static func hoverBrightness(dark: Bool, hover: Bool) -> Double { dark && hover ? 0.05 : 0 }
 
     static let size = CGSize(width: 164, height: 228)
+    /// The library's art: 4:3, the cover's picture from its top (every cover keeps its subject
+    /// in its top two thirds; only plain ground at the foot is cut), the same in light and dark.
+    static func artHeight(_ width: CGFloat) -> CGFloat { (width * 0.75).rounded() }
+    /// The library's words under the art: the name, and one line.
+    static let nameSize: CGFloat = 14
+    /// How far the longest name may shrink to stay whole on its one line ("Study notes and
+    /// flashcards" is 6 pt too wide for a card beside a scroll bar).
+    static let nameShrink: CGFloat = 0.94
+    static let lineSize: CGFloat = 12.5
+    /// How wide the words under the art may be: the art's width less a hair each side.
+    static func wordsWidth(_ width: CGFloat) -> CGFloat { width - 4 }
 
     var body: some View {
         if captionBelow { below } else { onCover }
     }
 
     private var below: some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let dark = scheme == .dark
+        let over = hover || preview.contains("templates.\(pick.slug)")
         return Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
-                // The covers keep their subject in the top half: the art shows from its top edge,
-                // and only the plain ground at the foot is cut.
+            VStack(alignment: .leading, spacing: 8) {
                 Color(rgb: pick.ground)
-                    .frame(width: width, height: width * 0.8)
+                    .frame(width: width, height: Self.artHeight(width))
                     .overlay(alignment: .top) { pick.image.resizable().scaledToFill().frame(width: width, height: width) }
                     .clipShape(shape)
-                .overlay(shape.strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5))
-                .overlay {
-                    if selected { RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.paneAccent, lineWidth: 2.5).padding(-3) }
-                }
-                .shadow(color: .black.opacity(hover ? 0.22 : 0), radius: 12, y: 10)
-                .offset(y: hover && !reduceMotion ? -3 : 0)
+                    .brightness(Self.quietBrightness(dark: dark, hover: over))
+                    .overlay(shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
+                    .overlay(shape.strokeBorder((dark ? Color.white : Color.black).opacity(Self.quietRing(dark: dark, hover: over)), lineWidth: 1.5))
+                    .overlay {
+                        if selected { RoundedRectangle(cornerRadius: 15, style: .continuous).strokeBorder(Color.paneAccent, lineWidth: 2.5).padding(-3) }
+                    }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(pick.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.ink)
-                    Text(NoWidow.kept(pick.line)).font(.system(size: 12)).foregroundStyle(Color.muted)
-                        .lineLimit(2, reservesSpace: true)
-                        .balanced(NoWidow.kept(pick.line), font: .systemFont(ofSize: 12), width: width - 4)
+                    Text(pick.title).font(.system(size: Self.nameSize, weight: .semibold)).foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(Self.nameShrink)
+                        // One height for every name, the shrunk one too, so the lines under them are level.
+                        .frame(height: 18, alignment: .bottomLeading)
+                    Text(line ?? pick.line).font(.system(size: Self.lineSize)).foregroundStyle(Color.muted)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
-                .multilineTextAlignment(.leading)
+                .frame(width: Self.wordsWidth(width), alignment: .leading)
                 .padding(.horizontal, 2)
             }
             .frame(width: width, alignment: .leading)
@@ -575,8 +588,11 @@ struct SetupTemplateCard: View {
         // cover hard for the length of the press, which read as a flash on every pick (a 60 fps
         // recording on the Air, 9 November 2026).
         .buttonStyle(CardPress())
-        .onHover { h in withAnimation(.smooth(duration: 0.2)) { hover = h } }
-        .accessibilityLabel("\(pick.title). \(pick.line)")
+        .onHover { h in
+            withAnimation(.smooth(duration: 0.15)) { hover = h }
+            pointer(h)
+        }
+        .accessibilityLabel("\(pick.title). \(line ?? pick.line)")
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityIdentifier("templates.\(pick.slug)")
     }
@@ -604,13 +620,11 @@ struct SetupTemplateCard: View {
                     // The caption in the words' full colour: at 86% it measured 4.1:1 on Mood and
                     // energy's teal (council round 7). Every caption is 4.5:1 or more on the
                     // cover behind it (SetupCardsTests' everyCaptionReadsOnItsCover).
-                    if words != .name {
-                        Text(NoWidow.kept(pick.line))
-                            .font(.system(size: 11.5, weight: .medium))
-                            .fixedSize(horizontal: false, vertical: true)
-                            .balanced(NoWidow.kept(pick.line), font: .systemFont(ofSize: 11.5, weight: .medium), width: width - 28)
-                            .opacity(words == .both ? 1 : 0)
-                    }
+                    Text(NoWidow.kept(pick.line))
+                        .font(.system(size: 11.5, weight: .medium))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .balanced(NoWidow.kept(pick.line), font: .systemFont(ofSize: 11.5, weight: .medium), width: width - 28)
+                        .opacity(words == .both ? 1 : 0)
                 }
                 .foregroundStyle(ink)
                 .multilineTextAlignment(.leading)
@@ -618,24 +632,15 @@ struct SetupTemplateCard: View {
                 .padding(.bottom, 14)
             }
             .frame(width: width, height: width * Self.size.height / Self.size.width)
-            .overlay(alignment: .topTrailing) {
-                if let tag {
-                    Text(tag).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.white)
-                        .padding(.horizontal, 8).frame(height: 20)
-                        .background(Color.black.opacity(Self.tagGround), in: .capsule)
-                        .padding(10)
-                        .accessibilityHidden(true)
-                }
-            }
             .clipShape(shape)
             .overlay(shape.strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5))
             .overlay {
                 if selected { RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.paneAccent, lineWidth: 2.5).padding(-3) }
             }
-            .overlay(shape.strokeBorder((scheme == .dark ? Color.white : Color.black).opacity(Self.lifts(words) ? Self.hoverRing(dark: scheme == .dark, hover: hover) : Self.quietRing(dark: scheme == .dark, hover: hover)), lineWidth: 1.5))
-            .brightness(Self.lifts(words) ? Self.hoverBrightness(dark: scheme == .dark, hover: hover) : Self.quietBrightness(dark: scheme == .dark, hover: hover))
-            .shadow(color: .black.opacity(hover && Self.lifts(words) ? 0.28 : 0), radius: 14, y: 12)
-            .offset(y: hover && !reduceMotion && Self.lifts(words) ? -3 : 0)
+            .overlay(shape.strokeBorder(Color.white.opacity(Self.hoverRing(dark: scheme == .dark, hover: hover)), lineWidth: 1.5))
+            .brightness(Self.hoverBrightness(dark: scheme == .dark, hover: hover))
+            .shadow(color: .black.opacity(hover ? 0.28 : 0), radius: 14, y: 12)
+            .offset(y: hover && !reduceMotion ? -3 : 0)
             .contentShape(shape)
         }
         // The design system's card press, a small dip eased in: the plain style dimmed the whole
@@ -643,7 +648,7 @@ struct SetupTemplateCard: View {
         // recording on the Air, 9 November 2026).
         .buttonStyle(CardPress())
         .onHover { h in withAnimation(.smooth(duration: 0.2)) { hover = h } }
-        .accessibilityLabel(tag.map { "\(pick.title), \($0). \(pick.line)" } ?? "\(pick.title). \(pick.line)")
+        .accessibilityLabel("\(pick.title). \(pick.line)")
         .accessibilityIdentifier("setup.template.\(pick.slug)")
     }
 }

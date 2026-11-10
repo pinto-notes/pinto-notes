@@ -267,6 +267,12 @@ struct RootView: View {
             Task {
                 // A real-input check never opens the AI's page in a browser.
                 let note = await TemplateMaking.make(e, with: ai, context: context, account: backendForConnect?.userID, open: { if !Self.templatesStandIn { openURLForTemplates($0) } })
+                // No second sheet: the page just said what it is. The note opens with a line
+                // saying where it went.
+                if let note, let made = context.note(note) {
+                    FirstOpen.shared.fromLibrary(note, title: e.title, slug: e.slug, isApp: NotePageStore.shared[note] != nil,
+                                                 folder: made.folder?.name ?? "Notes")
+                }
                 withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
                 if let note { selection = [note] }
             }

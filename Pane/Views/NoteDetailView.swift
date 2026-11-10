@@ -266,7 +266,7 @@ struct NoteDetailView: View {
             .task(id: firstOpen?.note) {
                 guard let m = firstOpen, !m.full else { return }
                 try? await Task.sleep(for: .seconds(0.6))
-                notice("Added to your notes")
+                notice(m.line)
                 FirstOpen.shared.start(m)
             }
             .sheet(isPresented: $showAppInfo) {
@@ -446,7 +446,7 @@ struct NoteDetailView: View {
     private var undoProblem: some View {
         if let undoFailed {
             // Room for two lines: a notice is never squeezed into one.
-            Text(undoFailed)
+            NoticeText.text(undoFailed)
                 .font(.system(size: AIReceipt.text, weight: .semibold))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -458,7 +458,9 @@ struct NoteDetailView: View {
                 .overlay(RoundedRectangle(cornerRadius: AIReceipt.height / 2).strokeBorder(Color.line, lineWidth: 1))
                 .padding(.horizontal, 24)
                 #if os(macOS)
-                .padding(.bottom, 20)
+                // Over an app's own bar of screens at its foot, never on it ("Added to Habits"
+                // sat on the app's middle tab; real frames from the Air, 10 November 2026).
+                .padding(.bottom, showingPage ? Self.noticeOverAppBar : 20)
                 #else
                 .padding(.bottom, 64)
                 #endif
@@ -1116,6 +1118,9 @@ struct NoteDetailView: View {
             notice("This app didn't open, and there's no earlier version that works.")
         }
     }
+
+    /// A notice's distance from the foot while an app shows: clear of the app's bar of screens.
+    static let noticeOverAppBar: CGFloat = 76
 
     private func notice(_ text: String) {
         withAnimation(.smooth(duration: 0.25)) { undoFailed = text }

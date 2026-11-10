@@ -22,7 +22,15 @@ for slug in order:
         # What Make adds, as the site's /templates/<slug>.json has it: the note and its folder (an app
         # also its compiled project and starting data), so adding one needs no network.
         "note": t["note"], "folder": t["folder"],
+        # More like this: the templates for the same need, nearest first.
+        "related": t.get("related", []),
     })
+    # A sub-note the example files, whole (the demo's first), for the viewer to show open beside
+    # the note that lists it: a recipe box's index says a recipe is filed, the recipe is what you get.
+    opened = next((c["args"]["content"] for c in t.get("demo", []) if c.get("tool") == "create"
+                   and c["args"].get("path", "").startswith(f'{t["folder"]}/{t["title"]}/') and c["args"].get("content", "").count("\n") > 4), None)
+    if opened:
+        catalog[-1]["opened"] = opened
     if "--check" not in sys.argv:
         subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "80", "-Z", "360",
                         str(web / f"public/templates/covers/{slug}.webp"), "--out", str(out / f"template-cover-{slug}.jpg")],

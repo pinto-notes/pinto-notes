@@ -30,8 +30,23 @@ final class FirstOpen {
         var preview: Data?
         /// The full moment (the first time), or just "Added to your notes".
         var full: Bool
+        /// Made from the template library: the folder it went to, for the line that says so.
+        var folder: String?
+        /// The library opened a template you had already: the line says it was there.
+        var hadIt = false
         var id: UUID { note }
+
+        /// The one line a note shows when there's no sheet: where a template from the library
+        /// went ("Added to (folder) Reading"; "Already in (folder) Reading" for one you had), or
+        /// the plain "Added to your notes". `folderMark` stands where the folder's glyph draws.
+        var line: String {
+            guard let folder else { return "Added to your notes" }
+            return "\(hadIt ? "Already in" : "Added to") \(FirstOpen.folderMark)\(folder)"
+        }
     }
+
+    /// In a notice's words, where a folder's glyph goes (NoticeText draws it).
+    nonisolated static let folderMark = "\u{E000}"
 
     private(set) var pending: [UUID: Moment] = [:]
     @ObservationIgnored private let defaults: UserDefaults
@@ -57,6 +72,20 @@ final class FirstOpen {
         defaults.removeObject(forKey: Self.key(app: true))
         defaults.removeObject(forKey: Self.key(app: false))
         pending = [:]
+    }
+
+    /// Made from the template library: no sheet. The template's page has just said what it is,
+    /// what Make adds and what your AI is asked, and a second sheet saying it again made you
+    /// press twice (council, 10 November 2026). The note opens with a line saying where it went;
+    /// the first-time sheet stays for a template added from the website, and isn't used up here.
+    func fromLibrary(_ note: UUID, title: String, slug: String, isApp: Bool, folder: String) {
+        if var m = pending[note] {
+            m.full = false
+            m.folder = folder
+            pending[note] = m
+        } else {
+            pending[note] = Moment(note: note, isApp: isApp, title: title, description: nil, ask: nil, slug: slug, preview: nil, full: false, folder: folder, hadIt: true)
+        }
     }
 
     /// Start: seen, never shown again for that kind.
@@ -441,4 +470,17 @@ extension View {
             .animation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.5, bounce: 0.15).delay(0.08 * Double(i)), value: shown)
         #endif
     }
+}
+
+/// A notice's words, with a folder's glyph where `FirstOpen.folderMark` stands: "Added to
+/// (folder) Reading", the folder as Go to Note tags one (a small folder in the accent, then its name).
+enum NoticeText {
+    static func text(_ s: String) -> Text {
+        let parts = s.components(separatedBy: FirstOpen.folderMark)
+        guard parts.count == 2 else { return Text(s) }
+        return Text(parts[0]) + Text(Image(systemName: "folder")).foregroundStyle(Color.paneAccent) + Text("\u{2009}" + parts[1])
+    }
+
+    /// The words as VoiceOver and a test read them: without the mark.
+    static func plain(_ s: String) -> String { s.replacingOccurrences(of: FirstOpen.folderMark, with: "") }
 }

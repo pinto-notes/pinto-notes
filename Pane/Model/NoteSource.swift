@@ -447,9 +447,11 @@ final class NoteSourceModel {
 
     /// Adds the note. The second time for the same link, it asks first (`duplicate`) unless `again`.
     func add(context: ModelContext, again: Bool = false) {
-        guard case .ready(let d) = phase else { return }
+        guard case .ready(var d) = phase else { return }
         if !again, let n = ledger.existing(link, in: context) { duplicate = n.id; return }
         duplicate = nil
+        // A template's table that has only its header starts with one empty row (TemplateSkeleton).
+        if link.kind == .template, d.appProject == nil { d.body = TemplateSkeleton.withFirstRows(d.body) }
         let note = context.addNote(from: d, to: folder ?? context.suggestedFolder(for: d))
         ledger.record(link, note: note.id)
         // An app template: the note is the app from the start, with the template's data (both
@@ -478,5 +480,28 @@ final class NoteSourceCenter {
         guard let link = NoteSourceLink.parse(url) else { return false }
         pending = link
         return true
+    }
+}
+
+/// A template's note as it's added. A table that has only its header gets one empty row: in the
+/// editor a header alone drew as one small rounded bar ("Title Author Status Rating Why"), which
+/// read as a control, not as a table to fill in (council, 10 November 2026). The row is the
+/// first one you or your AI fill. An app's note is left as it is: its app reads it.
+nonisolated enum TemplateSkeleton {
+    static func withFirstRows(_ markdown: String) -> String {
+        var lines = markdown.components(separatedBy: "\n")
+        var i = 1
+        while i < lines.count {
+            let header = lines[i - 1].trimmingCharacters(in: .whitespaces), rule = lines[i].trimmingCharacters(in: .whitespaces)
+            let isRule = rule.hasPrefix("|") && rule.contains("-") && rule.allSatisfy { "|-: ".contains($0) }
+            let next = i + 1 < lines.count ? lines[i + 1].trimmingCharacters(in: .whitespaces) : ""
+            if isRule, header.hasPrefix("|"), !next.hasPrefix("|") {
+                let columns = max(1, rule.split(separator: "|", omittingEmptySubsequences: true).count)
+                lines.insert("|" + String(repeating: "  |", count: columns), at: i + 1)
+                i += 1
+            }
+            i += 1
+        }
+        return lines.joined(separator: "\n")
     }
 }

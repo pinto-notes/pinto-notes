@@ -36,6 +36,21 @@
     return kids
   }
 
+  // The row a heading sits in: the largest box around it that is no taller than a row (twice
+  // the heading, or 48 px), so a title and the button beside it are one row and the card under
+  // them isn't part of it.
+  function rowOf(el) {
+    const own = el.getBoundingClientRect()
+    const tall = Math.max(own.height * 2, 48)
+    let r = own
+    for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+      const pr = p.getBoundingClientRect()
+      if (pr.height > tall) break
+      r = pr
+    }
+    return r
+  }
+
   function reset() {
     for (const el of document.querySelectorAll(`[${HIDDEN}]`)) el.removeAttribute(HIDDEN)
     for (const el of clipped) { el.style.removeProperty("max-height"); el.style.removeProperty("overflow") }
@@ -105,7 +120,12 @@
       if (!moved) {
         const shown = blocks.filter((b) => !gone(b) && bottom(b) <= lineFor(b))
         for (const h of shown.filter((b) => b.heading)) {
-          const mates = shown.filter((b) => b.bottom > h.top && b.top < h.bottom && b.left < h.right + 480 && b.right > h.left - 480)
+          // What shares its row: the blocks beside it inside the row it sits in (the widest
+          // thing around it that is still one row tall), never a block in the column beside its
+          // own. Counted by distance (480 px either side), the other column's card was its mate,
+          // and a last heading on one side cut both columns (Study, 10 November 2026).
+          const span = rowOf(h.el)
+          const mates = shown.filter((b) => b.bottom > h.top && b.top < h.bottom && b.left >= span.left - 0.5 && b.right <= span.right + 0.5)
           const left = Math.min(...mates.map((b) => b.left)), right = Math.max(...mates.map((b) => b.right))
           if (shown.some((b) => !mates.includes(b) && b.top >= h.bottom - 0.5 && b.left < right - 0.5 && b.right > left + 0.5)) continue
           const top = Math.min(...mates.map((b) => b.top))

@@ -33,6 +33,23 @@
 # less than 20 GB free on the disk.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+# Whether a change touches the templates (they live in web/content/templates and ship in the app
+# too, as catalog.json): `scripts/prepush.sh --touches-templates <file> ...` prints yes or no
+# (scripts/prepush.test.ts). Each file is matched by itself. On 2026-11-09 the three patterns
+# were matched inside (( )), where zsh joins the list into one string first, so they only ever
+# matched the first file in the list: a change to all 23 templates ran no template test, with
+# no line saying so.
+touches_templates() {
+  local hits=(${(M)@:#web/content/templates/*} ${(M)@:#web/lib/template*} ${(M)@:#Pane/Resources/Templates/*})
+  (( ${#hits} ))
+}
+if [[ ${1:-} == --touches-templates ]]; then
+  shift
+  if touches_templates "$@"; then print yes; else print no; fi
+  exit 0
+fi
+
 [[ -n ${DEVELOPER_DIR:-} ]] || export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 CACHE=${PINTO_PREPUSH_CACHE:-$HOME/Library/Caches/pinto-prepush}
 CAP_GB=8
@@ -205,7 +222,7 @@ fi
 # The templates live in web/content/templates and ship in the app too (catalog.json): their site tests
 # take a second, so they run whenever a template or its code changed (a demo that no longer builds
 # its example went unnoticed for two rounds on 2026-11-09).
-if (( ${#${(M)changed:#web/content/templates/*}} + ${#${(M)changed:#web/lib/template*}} + ${#${(M)changed:#Pane/Resources/Templates/*}} )); then
+if touches_templates $changed; then
   if [[ -d web/node_modules ]]; then
     if ! (cd web && npx vitest run lib/templates.test.ts lib/template-catalog.test.ts lib/templates-site.test.ts lib/template-apps.test.ts lib/template-seo.test.ts > "$DD/web-templates.log" 2>&1); then
       tail -40 "$DD/web-templates.log"; print -- "✗ The site's template tests failed. Not ready to push."; exit 1
@@ -213,7 +230,7 @@ if (( ${#${(M)changed:#web/content/templates/*}} + ${#${(M)changed:#web/lib/temp
     python3 scripts/template-catalog.py --check || { print -- "✗ catalog.json is not what the templates make. Not ready to push."; exit 1; }
     print -- "✓ The site's template tests and the app's catalog"
   else
-    print -- "→ Template tests not run: no web/node_modules (cd web && npm ci)"
+    print -- "→ Template tests not run: no web/node_modules (cd web && pnpm install)"
   fi
 fi
 
