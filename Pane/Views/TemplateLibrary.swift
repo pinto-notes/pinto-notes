@@ -435,6 +435,9 @@ struct TemplateLibraryView: View {
     var connect: (() -> Void)? = nil
     /// Something is shown over the library (Connect an AI): its keys are that thing's.
     var covered = false
+    /// Esc while something is over the library: that thing goes (the library had the key and
+    /// did nothing with it: Connect stayed up; a real key on the Air, 10 November 2026).
+    var uncover: () -> Void = {}
     var close: () -> Void = {}
     /// Captures: the kind picked and what's typed in Search.
     @State var filter = "All"
@@ -725,7 +728,7 @@ struct TemplateLibraryView: View {
         // what it didn't use closed the whole sheet (real keys on the Air, 10 November 2026).
         // Esc inside the example leaves the example (the ring is on it then); again, it goes back.
         .onExitCommand {
-            guard !covered else { return }
+            guard !covered else { return uncover() }
             if open != nil, Self.inExample() { leaveExample() } else if open != nil { show(nil) } else { close() }
         }
         // On a page Return is Make, the page's default button; with the ring on another, that one.

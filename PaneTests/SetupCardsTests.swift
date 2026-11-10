@@ -914,7 +914,9 @@ import Vision
         // and the page is there, with Make naming the AI, when it closes.
         #expect(W.connect == "Connect your AI to have it filled in for you.")
         let root = try SettingsHomeTests.source("Pane/Views/RootView.swift")
-        #expect(root.contains("connect: { withAnimation(.snappy(duration: 0.2)) { connectingOverTemplates = true } }, covered: connectingOverTemplates,"))
+        #expect(root.contains("connect: { withAnimation(.snappy(duration: 0.2)) { connectingOverTemplates = true } }, covered: connectingOverTemplates, uncover: closeConnect,"))
+        // Esc while Connect is over the page closes Connect, and the page is still there.
+        #expect(src.contains("guard !covered else { return uncover() }"))
         #expect(root.contains("popupCard(.connectAI, done: closeConnect)") && root.contains("if templateAIs != nil { templateAIs = now }") && !root.contains("connect: { openPopup(.connectAI) }"))
         // One size for every name, beside its cover: on one line on the full sheet, on two at
         // most where the words are narrow. Every page keeps the same room for it.

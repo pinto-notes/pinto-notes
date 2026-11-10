@@ -324,7 +324,7 @@ struct RootView: View {
                     }
                     withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
                 }
-            }, connect: { withAnimation(.snappy(duration: 0.2)) { connectingOverTemplates = true } }, covered: connectingOverTemplates,
+            }, connect: { withAnimation(.snappy(duration: 0.2)) { connectingOverTemplates = true } }, covered: connectingOverTemplates, uncover: closeConnect,
                close: { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } })
             // Esc is the library's own: its x on the gallery, Back on a template's page.
             .allowsHitTesting(!connectingOverTemplates)
