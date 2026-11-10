@@ -5,7 +5,7 @@ Tick off a few small daily habits in one tap, and see the week and your streaks 
 **Read docs/ first.** It's this app's memory: what it's for, the shape of its data, the decisions made and why, and what's missing. Keep it current whenever you change the app.
 
 ## Screens
-- Pick your habits (src/screens/setup.tsx): a new tracker's first screen. The starting habits are suggestions to untick or rename, with a field for your own; Start writes the habits and the day counting starts. Nothing is counted before it.
+- Pick your habits (src/screens/setup.tsx): a new tracker's first screen. The starting habits are suggestions to tick, untick or rename (three start ticked), with a field for your own; Start writes the habits and the day counting starts. Nothing is counted before it.
 - Today (src/screens/today.tsx): this week's ring, then the habits due today with their tick (or a counter for habits with a goal, like water), streak and week, then those not for today. A habit's name opens its page (src/components/habit-sheet.tsx): streak, best, its month, Skip today, Edit.
 - Month (src/screens/history.tsx): a calendar per habit; tap a day to tick it, again to skip it, again to clear it.
 - Habits (src/screens/manage.tsx, src/components/habit-editor.tsx): add, rename, schedule (every day, some weekdays, or times a week), reorder and remove habits (with Undo).
