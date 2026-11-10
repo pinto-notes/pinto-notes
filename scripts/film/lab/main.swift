@@ -20,7 +20,7 @@ let input = args.contains("me") ? FilmDemo.real(days: days, seed: seed, notesPer
     : args.contains("kb") ? FilmDemo.real(days: days, seed: seed, notesPerWeek: 22, imported: 240, removed: 8, linked: 0.6)
     : args.contains("real") || args.contains("realdaily")
     ? FilmDemo.real(days: days, seed: seed, notesPerWeek: perWeek, dailyNote: args.contains("realdaily"))
-    : FilmDemo.notebook(days: days, seed: seed, light: args.contains("light"), heavy: args.contains("heavy") || lives, person: person, work: lives ? 8 : args.contains("busy") ? 3 : 1, daily: (style == "galaxy" || style == "dump") && !args.contains("mixed"))
+    : FilmDemo.notebook(days: days, seed: seed, light: args.contains("light"), heavy: args.contains("heavy") || lives, person: person, work: lives ? 8 : args.contains("busy") ? 3 : 1, daily: (style == "galaxy" || style == "dump" || style == "cards") && !args.contains("mixed"))
 // "long=17" tries another length for the biggest notebooks' films (seconds of growing).
 let longest = args.first { $0.hasPrefix("long=") }.flatMap { Double($0.dropFirst(5)) } ?? FilmScript.longGrowth
 let script = FilmScript(input, calendar: Calendar(identifier: .gregorian), longest: longest)
@@ -28,6 +28,10 @@ var mark: CGImage?
 if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: "Pane/Resources/Assets.xcassets/MarkTight.imageset/mark-tight.png") as CFURL, nil) { mark = CGImageSourceCreateImageAtIndex(src, 0, nil) }
 let start = Date()
 switch style {
+case "cards":
+    // The month as pictures to send to a friend, one true thing on each: OUT is a folder.
+    try RecapCards(input: input, script: script, seed: Int(seed), mark: mark).write(to: out)
+    exit(0)
 case "dump":
     // What's in the notebook, day by day, for drawing a timeline of it: {start, days, notes: [{folder, created, edits: [[day, ai]]}]}.
     let cal = Calendar(identifier: .gregorian)

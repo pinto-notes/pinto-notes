@@ -810,6 +810,28 @@ import Testing
         #expect(old != nil && old?.removed == nil && old?.imported == nil)
     }
 
+    @Test func itsOnlyOfferedToSomeoneWhosWrittenInIt() {
+        // Notes enough isn't use: forty notes brought in and never written in isn't a month of Pinto.
+        let d = Self.now
+        func at(_ daysAgo: Double) -> Date { d.addingTimeInterval(-daysAgo * 86_400) }
+        func ready(_ notes: [FilmNote]) -> Bool { FilmEligibility.isReady(FilmInput(notes: notes, now: d), calendar: Self.cal) }
+        func written(_ notes: [FilmNote]) -> Int { FilmStats(FilmInput(notes: notes, now: d), calendar: Self.cal).written }
+        var notes = (0..<40).map { _ in FilmNote(id: UUID(), folder: "Work", created: at(30), edits: [FilmEdit(at: at(30), ai: nil)], links: [], imported: true) }
+        #expect(written(notes) == 0 && !ready(notes))
+        // Written in on fifteen days, but only fifteen times: still thin.
+        for k in 0..<15 { notes[k].edits.append(FilmEdit(at: at(Double(k) + 0.5), ai: nil)) }
+        #expect(written(notes) == 15 && !ready(notes))
+        // What an AI wrote isn't your own use of it...
+        var withAI = notes
+        for k in 0..<25 { withAI[k % 15].edits.append(FilmEdit(at: at(Double(k % 15) + 0.4), ai: "ChatGPT")) }
+        #expect(written(withAI) == 15 && !ready(withAI))
+        // ...and forty times yourself is.
+        for k in 0..<25 { notes[k % 15].edits.append(FilmEdit(at: at(Double(k % 15) + 0.4), ai: nil)) }
+        #expect(written(notes) == FilmEligibility.minEdits && ready(notes))
+        // A note you made here counts from its first words.
+        #expect(written([FilmNote(id: UUID(), folder: "", created: at(3), edits: [FilmEdit(at: at(3), ai: nil)], links: [])]) == 1)
+    }
+
     @Test func theFilmBeginsAtTheFirstNote() {
         // Not at the midnight before it: there's never a frame of an empty month with "0 notes".
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)

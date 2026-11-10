@@ -55,6 +55,8 @@ struct FilmStats: Equatable, Sendable {
     var aiNotes: Int
     /// Every time you wrote in a note (the first time counts).
     var edits: Int
+    /// The same, without what you brought in arriving: how much you've written here yourself.
+    var written: Int
     /// The folder written in most (by edits), nil when that's notes in no folder.
     var topFolder: String?
     /// How many notes are in it.
@@ -106,13 +108,15 @@ struct FilmStats: Equatable, Sendable {
         aiShare = edits.isEmpty ? 0 : Double(byAI.values.reduce(0, +)) / Double(edits.count)
         aiNotes = notes.filter { $0.edits.contains { $0.ai != nil } }.count
         self.edits = edits.filter { $0.ai == nil }.count
+        self.written = notes.reduce(0) { $0 + $1.edits.dropFirst($1.imported == true ? 1 : 0).filter { $0.ai == nil }.count }
         var byFolder: [String: Int] = [:]
         for n in notes { byFolder[n.folder, default: 0] += max(1, n.edits.count) }
         let top = byFolder.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }?.key
         topFolder = top?.isEmpty == false ? top : nil
         topFolderNotes = notes.filter { $0.folder == top && $0.removed == nil }.count
         var byDay: [Date: Int] = [:]
-        for e in edits { byDay[calendar.startOfDay(for: e.at), default: 0] += 1 }
+        // (Notes you brought in arriving aren't a day's writing: the day you wrote most is one you wrote on.)
+        for n in notes { for e in n.edits.dropFirst(n.imported == true ? 1 : 0) { byDay[calendar.startOfDay(for: e.at), default: 0] += 1 } }
         let busiest = byDay.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }
         busiestDay = busiest?.key
         busiestDayEdits = busiest?.value ?? 0
@@ -134,6 +138,9 @@ enum FilmEligibility {
     /// Links don't count: most notes link to nothing, and the film's shape comes from folders.
     /// (Thirty: with fewer the film is a few lights on an empty stage.)
     static let minNotes = 30
+    /// Times you've written in a note yourself (what an AI wrote, and notes you brought in arriving,
+    /// don't count): notes enough isn't use.
+    static let minEdits = 40
 
     static func activeDays(_ input: FilmInput, calendar: Calendar = .current) -> Int {
         let since = calendar.date(byAdding: .day, value: -30, to: input.now) ?? input.now
@@ -146,7 +153,7 @@ enum FilmEligibility {
 
     static func isReady(_ input: FilmInput, calendar: Calendar = .current) -> Bool {
         let s = FilmStats(input, calendar: calendar)
-        return s.days >= minDays && s.days <= maxDays && s.activeDays >= minActiveDays && s.notes >= minNotes
+        return s.days >= minDays && s.days <= maxDays && s.activeDays >= minActiveDays && s.notes >= minNotes && s.written >= minEdits
     }
 }
 
