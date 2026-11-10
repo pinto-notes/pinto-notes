@@ -103,6 +103,8 @@ struct FilmCanvas: Sendable, Equatable {
 final class FilmRenderer {
     struct Labels: @unchecked Sendable {
         var look: FilmLook = .night
+        /// A scene of its own in place of the look's (the film lab tries new ones this way).
+        var scene: ((FilmScript, Bool) -> FilmScene)?
         /// The app's mark, drawn with its name in the corner the whole way through.
         var markImage: CGImage?
         /// The key. Amber: notes only the person sharing it wrote in. The AI's colour: notes it helped with.
@@ -220,10 +222,12 @@ final class FilmRenderer {
         self.opening = opening
         self.words = words
         self.canvas = canvas
+        if let make = labels.scene { scene = make(script, labels.folderNames) } else {
         switch labels.look {
         case .town: scene = TownScene(script: script, folderNames: labels.folderNames)
         case .holo, .holoLeaf: scene = HoloScene(script: script, folderNames: labels.folderNames, look: labels.look)
         case .night, .paper, .cream, .leaf: scene = nil
+        }
         }
         switch opening {
         case .full: frame = 0

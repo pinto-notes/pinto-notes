@@ -6,7 +6,7 @@ let args = CommandLine.arguments
 let style = args.count > 1 ? args[1] : "town"
 let out = URL(fileURLWithPath: args.count > 2 ? args[2] : "lab.mp4")
 let seed = args.count > 3 ? UInt64(args[3]) ?? 7 : 7
-let input = FilmDemo.notebook(days: 35, seed: seed, light: args.contains("light"))
+let input = FilmDemo.notebook(days: 35, seed: seed, light: args.contains("light"), heavy: args.contains("heavy"))
 let script = FilmScript(input, calendar: Calendar(identifier: .gregorian))
 var mark: CGImage?
 if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: "Pane/Resources/Assets.xcassets/MarkTight.imageset/mark-tight.png") as CFURL, nil) { mark = CGImageSourceCreateImageAtIndex(src, 0, nil) }
@@ -29,6 +29,24 @@ case "night", "paper", "apptown":
     labels.markImage = mark
     labels.look = style == "apptown" ? .town : FilmLook(rawValue: style) ?? .night
     labels.folderNames = !args.contains("nofolders")
+    try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
+case "pages", "rings", "leaf":
+    // New scenes tried through the app's own renderer (its words, opening and end card), in
+    // Pinto's cut paper: on the cream page, or with "dark" on leaf brown.
+    let dark = args.contains("dark")
+    var labels = FilmRenderer.Labels()
+    labels.locale = Locale(identifier: "en_US")
+    labels.markImage = mark
+    labels.look = dark ? .leaf : .cream
+    labels.folderNames = !args.contains("nofolders")
+    let cal = Calendar(identifier: .gregorian)
+    labels.scene = { script, names in
+        switch style {
+        case "pages": PagesScene(script: script, names: names, calendar: cal, dark: dark)
+        case "rings": RingsScene(script: script, names: names, calendar: cal, dark: dark)
+        default: LeafScene(script: script, names: names, calendar: cal, dark: dark)
+        }
+    }
     try FilmVideo.write(FilmRenderer(script: script, labels: labels), to: out)
 case "bench":
     let town = TownFilm(script: script)
