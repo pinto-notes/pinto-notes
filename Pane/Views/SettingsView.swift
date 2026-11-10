@@ -528,19 +528,27 @@ struct SyncStatusLabel: View {
         case .idle: Text("Waiting").foregroundStyle(.secondary)
         case .syncing: HStack(spacing: 6) { ProgressView().controlSize(.mini); Text("Syncing…") }
         case .synced(let d): Text("\(Self.syncing) · \(Self.when(d))").foregroundStyle(.secondary)
-        // No network isn't a problem to fix: said plainly. Refusals and the like stay orange.
-        case .offline(let why): Text(why).foregroundStyle(why == SyncEngine.describe(URLError(.notConnectedToInternet)) ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange))
+        // No network, or a server that's away, isn't a problem to fix: said plainly. Refusals and
+        // the like stay orange.
+        case .offline(let why): Text(why).foregroundStyle(Self.isCalm(why, reach: reach) ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange))
         }
+    }
+
+    /// Whether a sync's reason is only that the connection is away (plain), not something to fix (orange).
+    static func isCalm(_ why: String, reach: SyncEngine.Reach) -> Bool {
+        reach != .online || why == SyncEngine.describe(URLError(.notConnectedToInternet))
     }
 
     /// What the row says while the server can't be reached and nothing is being tried: that, and
     /// when it last synced. Nil while online, mid-sync, or when the status already says why.
     static func away(_ status: SyncEngine.Status, reach: SyncEngine.Reach) -> String? {
-        guard let lead = OfflineCopy.line(reach, waiting: false) else { return nil }
+        guard let lead = OfflineCopy.lead(reach) else { return nil }
         switch status {
         case .idle: return lead
         case .synced(let d): return "\(lead) \u{00B7} last synced \(d.formatted(date: .omitted, time: .shortened))"
-        case .syncing, .offline: return nil
+        // The reason a sync gave while the connection is away is the connection: said the calm way.
+        case .offline: return lead
+        case .syncing: return nil
         }
     }
 

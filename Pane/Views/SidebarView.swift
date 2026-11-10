@@ -26,6 +26,9 @@ struct AccountButton: View {
     let backend: Backend
     /// Captures: a second line with the email, when it is a real one (the alternative look).
     var email: String?
+    /// While sync is away: the status is the second line under your name, with a cloud beside the
+    /// name, and the whole row opens its popover (Settings is still at ⌘,).
+    var offline: (source: any OfflineSource, status: OfflineStatus)?
     @State private var profile = ProfileStore.shared
 
     static let avatar: CGFloat = 28
@@ -38,22 +41,45 @@ struct AccountButton: View {
     /// it opened AI Connections). ⌘, still reopens the last page.
     static func open(_ route: SettingsRoute = .shared) { route.open(.account) }
 
+    /// A click on the row: Settings at Account, or, while sync is away, what that means (the popover).
+    func activate(_ route: SettingsRoute = .shared) {
+        if let offline { offline.status.toggle() } else { Self.open(route) }
+    }
+
     var body: some View {
-        Button {
-            Self.open()
+        let away = offline.map { $0.status.spoken($0.source.reach) }
+        return Button {
+            activate()
         } label: {
             HStack(spacing: SidebarFoot.gap) {
                 AvatarView(photo: profile.shownPhoto, name: AccountName.isSet(profile.name) ? name : nil, size: Self.avatar)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(name)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        #if DEBUG
-                        .footProbe("sidebar.account.name")
-                        #endif
-                    if let email {
+                    HStack(spacing: 6) {
+                        Text(name)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            #if DEBUG
+                            .footProbe("sidebar.account.name")
+                            #endif
+                        if let away {
+                            // On your name's line, so the words under it have the row's whole width.
+                            Spacer(minLength: 0)
+                            OfflineCloud(reach: away)
+                                #if DEBUG
+                                .footProbe("sidebar.offline.cloud")
+                                #endif
+                        }
+                    }
+                    if let away {
+                        OfflineWords(reach: away)
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.muted)
+                            #if DEBUG
+                            .footProbe("sidebar.offline.title")
+                            #endif
+                    } else if let email {
                         Text(email)
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
@@ -70,8 +96,17 @@ struct AccountButton: View {
             .sidebarFootPill("sidebar.account")
         }
         .buttonStyle(.plain)
-        .help("Account settings")
-        .accessibilityLabel("\(name), Settings")
+        .popover(isPresented: Binding(get: { offline?.status.showing ?? false }, set: { now in
+            offline?.status.showing = now
+            if !now { offline?.status.closed() }
+        }), arrowEdge: .trailing) {
+            if let offline { OfflinePopover(source: offline.source, status: offline.status) }
+        }
+        .onChange(of: offline?.source.reach, initial: true) { _, now in
+            if let now { offline?.status.noticed(now) }
+        }
+        .help(away.map { OfflineCopy.title($0) } ?? "Account settings")
+        .accessibilityLabel(away.flatMap { OfflineCopy.line($0) }.map { "\(name). \($0). More about this" } ?? "\(name), Settings")
         .accessibilityIdentifier("sidebar.account")
         .task(id: backend.state) { await profile.bind(backend) }
     }
@@ -807,15 +842,22 @@ struct SidebarView: View {
                             .padding(.trailing, 10)
                             .padding(.bottom, 2)
                     }
-                    OfflineLine(sync: sync)
+                    // While sync is away the foot says so itself (`OfflineStatus`).
                     SidebarFoot(backend: backend, nested: nested, rows: true, imports: imports, sync: sync)
                 }
                 .padding(.top, 4)
                 .padding(.bottom, 8)
-                .animation(.easeOut(duration: 0.25), value: sync?.reach)
                 // The list's own ground under the foot too: outside the list it showed the window's
                 // glass, a tinted band under a theme's solid sidebar (Emil, 8 November 2026).
                 .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
+            } else if let backend, let standIn = Self.offlineStandIn {
+                // Real-input checks (`-uitest -demo -sidebarOffline offline`): the whole foot as it is
+                // while sync is away, in a demo run, which has no account and no sync.
+                SidebarFoot(backend: backend, nested: nested, rows: true, imports: imports, offline: standIn)
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
             } else if Self.demoRows {
                 // Real-input checks (`-uitest -demo -sidebarRows`): the foot's rows in a demo run,
                 // which has no account to show them under.
@@ -832,6 +874,14 @@ struct SidebarView: View {
     }
 
     #if os(macOS)
+    private static var offlineStandIn: (any OfflineSource)? {
+        #if DEBUG
+        OfflineStandIn.launched
+        #else
+        nil
+        #endif
+    }
+
     private static let demoRows: Bool = {
         let args = ProcessInfo.processInfo.arguments
         return args.contains("-uitest") && args.contains("-demo") && args.contains("-sidebarRows")

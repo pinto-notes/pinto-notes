@@ -371,21 +371,23 @@ extension NetworkFaults {
     }
 
     @Test func theOfflineLineSaysWhatsHappening() {
-        #expect(OfflineCopy.line(.online, waiting: true) == nil)
-        #expect(OfflineCopy.line(.offline, waiting: false) == "Offline")
-        #expect(OfflineCopy.line(.offline, waiting: true) == "Offline \u{00B7} changes sync later")
+        #expect(OfflineCopy.line(.online) == nil)
+        // The notes are safe, said first; the same words whether or not changes are waiting
+        // (how many is in the popover: OfflineCalmTests).
+        #expect(OfflineCopy.line(.offline, device: "Mac") == "Offline \u{00B7} saved on this Mac")
+        #expect(OfflineCopy.line(.unreachable, device: "iPhone") == "Sync paused \u{00B7} saved on this iPhone")
         // Settings › Account: offline since its last sync, the row says so and when that was,
         // not "Syncing to your iPhone and Mac · just now".
         let last = Date(timeIntervalSince1970: 1_790_000_000)
         let at = last.formatted(date: .omitted, time: .shortened)
         #expect(SyncStatusLabel.away(.synced(last), reach: .offline) == "Offline \u{00B7} last synced \(at)")
-        #expect(SyncStatusLabel.away(.synced(last), reach: .unreachable) == "Can\u{2019}t reach Pinto Notes \u{00B7} last synced \(at)")
+        #expect(SyncStatusLabel.away(.synced(last), reach: .unreachable) == "Sync paused \u{00B7} last synced \(at)")
         #expect(SyncStatusLabel.away(.idle, reach: .offline) == "Offline")
-        // Online, mid-sync, or with the reason already in the status: the row says what it did.
+        // Online or mid-sync the row says what it did.
         #expect(SyncStatusLabel.away(.synced(last), reach: .online) == nil)
         #expect(SyncStatusLabel.away(.syncing, reach: .offline) == nil)
-        #expect(SyncStatusLabel.away(.offline("You\u{2019}re offline"), reach: .offline) == nil)
-        #expect(OfflineCopy.line(.unreachable, waiting: true) == "Can\u{2019}t reach Pinto \u{00B7} syncs later")
+        // A sync that failed for the connection: the calm lead, not the error's own words.
+        #expect(SyncStatusLabel.away(.offline("You\u{2019}re offline"), reach: .offline) == "Offline")
         // With only the server away, nothing says "You're offline".
         #expect(!OfflineCopy.settings(.unreachable).contains("offline"))
         #expect(!OfflineCopy.needsNetwork("delete your account", reach: .unreachable).contains("offline"))

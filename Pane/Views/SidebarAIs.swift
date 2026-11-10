@@ -158,6 +158,9 @@ struct SidebarFoot: View {
     var imports: ImportActions?
     /// While it syncs, a small spinner at the account row's right end.
     var sync: SyncEngine? = nil
+    /// What the offline status reads: sync, unless a capture stands in for it.
+    var offline: (any OfflineSource)? = nil
+    @State private var status = OfflineStatus()
 
     /// The photo's column: each row's icon is centred in one as wide as the account's photo, and its
     /// words start where your name does, so the foot reads as one block (Emil, 8 November 2026:
@@ -177,15 +180,22 @@ struct SidebarFoot: View {
 
     var body: some View {
         let pill = SidebarStyle.rowPill(nested: nested)
+        let source: (any OfflineSource)? = offline ?? sync
+        // The server is away (or the popover is still open on what Try now found).
+        let away = source.map { status.shows($0.reach) } ?? false
         VStack(alignment: .leading, spacing: SidebarStyle.pillGap) {
             // What an AI last did, as the first row: in the foot itself, not a bar of its own over the
             // folders, whose edge showed a line on hover (Emil, 8 November 2026).
             if rows { SidebarAILine(); SidebarStudyRows(imports: imports) }
-            AccountButton(backend: backend)
-                // Syncing, said quietly where your account is (Emil, 8 November 2026).
+            // While sync is away the account row says so: a line under your name and a cloud beside it.
+            AccountButton(backend: backend, offline: away ? source.map { ($0, status) } : nil)
+                // Syncing, said quietly where your account is (Emil, 8 November 2026). Never while
+                // the server is away: a try against a dead connection isn't progress.
                 .overlay(alignment: .trailing) {
-                    SyncSpinner(syncing: sync?.status == .syncing)
-                        .padding(.trailing, Hover.sidebarReach().trailing + 8)
+                    if !away {
+                        SyncSpinner(syncing: OfflineCopy.spins(sync?.status ?? .idle, reach: sync?.reach ?? .online))
+                            .padding(.trailing, Hover.sidebarReach().trailing + 8)
+                    }
                 }
                 // A little apart from the rows above: you, not another thing to do (Emil, 8 November 2026).
                 .padding(.top, rows ? SidebarFoot.accountGap : 0)
