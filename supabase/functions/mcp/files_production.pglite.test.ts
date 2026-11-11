@@ -51,7 +51,7 @@ function client(pg: PGlite, token: string) {
   };
 }
 
-Deno.test("a client connecting now gets the file tools, their instructions, prompts and the apps guide; and so does one made read only before 29 October 2026", async () => {
+Deno.test("a client connecting now gets the file tools, their instructions, prompts and the apps guide; one made read only before 1.3 only reads", async () => {
   const pg = await schemaDB();
   const a = await account(pg);
   await note(pg, a, "Groceries\n\n- [ ] Milk\n");
@@ -79,11 +79,15 @@ Deno.test("a client connecting now gets the file tools, their instructions, prom
   assertStringIncludes(old.content[0].text, "search, list, fetch");
   await rpc("tools/call", { name: "no_such_tool", arguments: {} }).then(() => { throw new Error("no_such_tool answered"); }, (e) => assertStringIncludes(e.message, "Unknown tool"));
 
-  // can_write is no longer read: every connection reads and edits.
+  // A connection made read only before 1.3 stays read only: the file tools that read, and a
+  // write refused with what to do (11 November 2026; c1afa488 had let it edit).
   const before = client(pg, await connect(pg, a, false));
-  assertEquals((await before("tools/list")).tools.map((t: { name: string }) => t.name), FILE_TOOLS.map((t) => t.name));
+  assertEquals((await before("tools/list")).tools.map((t: { name: string }) => t.name),
+    FILE_TOOLS.filter((t) => t.annotations.readOnlyHint).map((t) => t.name));
   const wrote = await before("tools/call", { name: "write", arguments: { path: "New.md", content: "New" } });
-  assertEquals(wrote.isError, undefined, JSON.stringify(wrote));
+  assertEquals(wrote.isError, true, JSON.stringify(wrote));
+  assertStringIncludes(wrote.content[0].text, "This connection is read only");
+  assertStringIncludes((await before("tools/call", { name: "fetch", arguments: { id: "Groceries.md" } })).structuredContent.text, "- [x] Milk");
 });
 
 Deno.test("a locked note shows as \"Locked note\" and nothing else: never named, read, searched or changed", async () => {

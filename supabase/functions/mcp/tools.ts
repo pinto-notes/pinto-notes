@@ -20,8 +20,11 @@ import { appendText, applyEdits, coerce, findTables, fitLines, isTextType, mimeO
 
 /** session: the client's MCP session (its Mcp-Session-Id, or a hash of its token), for what it has read.
  *  timing: where a call's time went, sent back in the Server-Timing header. */
-export type ToolContext = { sql: Sql; userId: string; client: string; vault: Vault; session?: string; timing?: Record<string, number>; cold?: boolean };
+/** canWrite: false for a connection made read only before 1.3 (unset: reads and edits). */
+export type ToolContext = { sql: Sql; userId: string; client: string; canWrite?: boolean; vault: Vault; session?: string; timing?: Record<string, number>; cold?: boolean };
 export class ToolError extends Error {}
+/** What a read-only connection is told when it tries to change something. */
+export const READ_ONLY = "This connection is read only: it was set up that way, so it can read notes but not change them. To let it edit, remove it in Pinto Notes and connect again.";
 
 /** A result that is MCP content blocks (a file's text, an image, a PDF), sent as they are. */
 export class Content {
@@ -315,6 +318,7 @@ export async function runTool(name: string, args: Args, ctx: ToolContext): Promi
 /** One call of a tool from a tool set (the classic one above, or the file-like one in files_tools.ts). */
 export async function runIn(list: Tool[], impl: Record<string, (tx: Tx, a: Args, c: Call) => Promise<unknown>>, name: string, args: Args, ctx: ToolContext): Promise<unknown> {
   if (!list.some((t) => t.name === name)) throw new ToolError(`Unknown tool ${name}.`);
+  if (ctx.canWrite === false && list.some((t) => t.name === name && !t.annotations.readOnlyHint)) throw new ToolError(READ_ONLY);
   const claims = JSON.stringify({ sub: ctx.userId, role: "authenticated" });
   // Every call costs one from the account's MCP bucket (600, then 5 a second). Taken in its
   // own transaction so a call that fails still counts: failures are no free way to hammer.

@@ -1908,3 +1908,55 @@ Deno.test("a failed token insert leaves the code and the refresh token usable, a
   assertEquals(again.status, 200, JSON.stringify(again.body));
   assertEquals((await resolveAccessToken(sql, again.body.access_token, request("proxy", "")))?.user_id, c.me.id);
 });
+
+// MARK: Read-only connections from before 1.3
+
+/// Before 1.3 a person could connect an AI as read only (can_write = false). Every connection made
+/// since reads and edits; one made read only stays read only, with nothing in the database changed.
+const readsAndWrites = async (sql: Sql, auth: string) => {
+  const listed = (await (await rpc(sql, auth)).json()).result.tools as { name: string; annotations: { readOnlyHint: boolean } }[];
+  const made = await (await rpc(sql, auth, "", { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "create", arguments: { path: "Inbox/From the AI.md", content: "Hello" } } })).json();
+  const read = await (await rpc(sql, auth, "", { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "list", arguments: {} } })).json();
+  return { listed, made, read };
+};
+
+Deno.test("an old read-only connection reads but can't write; a new one writes", async () => {
+  const { sql, pg } = await db();
+  // A new connection: read and edit.
+  const fresh = await connect(sql, pg, "function");
+  const t = (await exchange(sql, "function", fresh.clientId, fresh.back.searchParams.get("code")!, fresh.verifier)).body;
+  assertEquals(t.scope, "notes:read notes:write");
+  const now = await readsAndWrites(sql, `Bearer ${t.access_token}`);
+  assert(now.listed.some((x) => x.name === "create"), "a new connection is offered the tools that change notes");
+  assert(!now.made.result.isError, `a new connection writes: ${JSON.stringify(now.made)}`);
+
+  // A connection made read only in 1.2: its row says so, and nothing rewrites it.
+  const old = await connect(sql, pg, "function");
+  await sql`update public.mcp_tokens set can_write = false where id = (select grant_id from public.oauth_requests where id = ${old.requestId})`;
+  const o = (await exchange(sql, "function", old.clientId, old.back.searchParams.get("code")!, old.verifier)).body;
+  assertEquals(o.scope, "notes:read", "its tokens say read only");
+  const then = await readsAndWrites(sql, `Bearer ${o.access_token}`);
+  assert(then.listed.length > 0 && then.listed.every((x) => x.annotations.readOnlyHint), `only the tools that read: ${then.listed.map((x) => x.name)}`);
+  assert(!then.read.result.isError, "it still reads");
+  assert(then.made.result.isError, "it can't write");
+  assertStringIncludes(JSON.stringify(then.made.result.content), "This connection is read only");
+  // Refreshing keeps it read only.
+  const r = await call(sql, request("function", "/token", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: o.refresh_token, client_id: old.clientId }).toString() }));
+  assertEquals((await r.json()).scope, "notes:read");
+  assertEquals((await sql`select can_write from public.mcp_tokens where id = (select grant_id from public.oauth_requests where id = ${old.requestId})` as { can_write: boolean }[])[0].can_write, false, "the row is unchanged");
+});
+
+Deno.test("a read-only pane_ token from before 1.3 stays read only too", async () => {
+  const { sql, pg } = await db();
+  const a = await account(pg);
+  const make = async (write: boolean) => {
+    const token = "pane_" + hex(32);
+    await app(pg, a.id, `select public.create_mcp_token('Claude Code', ${write}, $1, $2)`, [await sha256Hex(token), await wrap(a.dk, await tokenKey(token, "pane"), "pane", a.id)]);
+    return readsAndWrites(sql, `Bearer ${token}`);
+  };
+  const ro = await make(false);
+  assert(ro.listed.every((x) => x.annotations.readOnlyHint) && ro.made.result.isError && !ro.read.result.isError);
+  const rw = await make(true);
+  assert(rw.listed.some((x) => !x.annotations.readOnlyHint) && !rw.made.result.isError);
+});

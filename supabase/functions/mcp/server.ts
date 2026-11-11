@@ -75,14 +75,14 @@ function tokenFrom(req: Request): Presented | null {
   return m ? { token: m[1], oauth: false } : null;
 }
 
-type Caller = { user_id: string; token_id?: string; name: string; vault: Vault; ms?: Record<string, number> };
+type Caller = { user_id: string; token_id?: string; name: string; can_write: boolean; vault: Vault; ms?: Record<string, number> };
 
 /** The token's owner, with the data key its wrap holds; undefined when either is missing. */
 async function authenticate(sql: Sql, p: Presented, req: Request): Promise<Caller | undefined> {
   const t0 = performance.now();
   const who = p.oauth
     ? await resolveAccessToken(sql, p.token, req)
-    : (await sql<{ user_id: string; token_id: string; name: string; dk_wrap: string | null }[]>`
+    : (await sql<{ user_id: string; token_id: string; name: string; can_write: boolean; dk_wrap: string | null }[]>`
         select * from public.resolve_mcp_token(${p.token})`)[0];
   if (!who?.dk_wrap) return undefined;
   const t1 = performance.now();
@@ -96,7 +96,8 @@ async function authenticate(sql: Sql, p: Presented, req: Request): Promise<Calle
   // Vault.from wipes the raw key once it's imported.
   const t2 = performance.now();
   const vault = await Vault.from(dataKey, who.user_id);
-  return { user_id: who.user_id, token_id: who.token_id, name: who.name, vault, ms: { auth_lookup: t1 - t0, auth_unwrap: t2 - t1, auth_vault: performance.now() - t2 } };
+  // A connection made read only before 1.3 stays read only; every other one reads and edits.
+  return { user_id: who.user_id, token_id: who.token_id, name: who.name, can_write: who.can_write !== false, vault, ms: { auth_lookup: t1 - t0, auth_unwrap: t2 - t1, auth_vault: performance.now() - t2 } };
 }
 
 /** Only the MCP endpoint, the OAuth paths and the well-known files exist. Anything else is most
@@ -177,7 +178,7 @@ export async function handleRequest(req: Request, sql: Sql): Promise<Response> {
   const issued = !given && starts ? crypto.randomUUID() : null;
   const session = given && /^[\x21-\x7e]{1,100}$/.test(given) ? given : issued ?? `t:${await tokenHash(presented!.token)}`;
   // One vault for the whole HTTP request; it goes out of scope with it.
-  const ctx: ToolContext = { sql, userId: who.user_id, client: who.name, vault: who.vault, session, timing: { auth: authMs, ...who.ms, isolate_age: tAuth },
+  const ctx: ToolContext = { sql, userId: who.user_id, client: who.name, canWrite: who.can_write, vault: who.vault, session, timing: { auth: authMs, ...who.ms, isolate_age: tAuth },
     // Benchmarks on staging (AMBER_BENCH=1) may ask for a call without cached titles.
     cold: Deno.env.get("AMBER_BENCH") === "1" && req.headers.get("x-amber-cold") === "1" };
   const batch = Array.isArray(payload);
@@ -255,7 +256,8 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
       case "ping":
         return ok(id, {});
       case "tools/list":
-        return ok(id, { tools: servedTools() });
+        // A read-only connection (made before 1.3) is offered only the tools that read.
+        return ok(id, { tools: servedTools().filter((t) => ctx.canWrite !== false || t.annotations.readOnlyHint) });
       case "tools/call": {
         const name = String(msg.params?.name ?? "");
         if (!servedTools().some((t) => t.name === name)) {
@@ -263,7 +265,7 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
           // tool result that names today's tools, so the model switches. Directories count protocol
           // errors against the server's health, and the client did nothing wrong.
           if (everyClassicTool.some((t) => t.name === name)) {
-            const now = servedTools().map((t) => t.name).join(", ");
+            const now = servedTools().filter((t) => ctx.canWrite !== false || t.annotations.readOnlyHint).map((t) => t.name).join(", ");
             return ok(id, { content: [{ type: "text", text: `${name} is no longer one of this server's tools. Use these instead: ${now}. Start with search or list to find the note.` }], isError: true });
           }
           return { jsonrpc: "2.0", id, error: { code: -32602, message: `Unknown tool: ${name || "(none)"}` } };

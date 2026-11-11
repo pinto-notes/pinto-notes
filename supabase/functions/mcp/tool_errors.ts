@@ -24,6 +24,7 @@ const KINDS: [RegExp, string][] = [
   [/can't be opened with this connection's key/, "key_mismatch"],
   [/locked/, "locked"],
   [/Recently Deleted/, "in_trash"],
+  [/connection is read only/, "read_only"],
   [/still running|searched a lot/, "rate_limited"],
   [/No folder|Folder name/, "folder"],
   [/past the end|at or after start_line|must be a whole number/, "bad_range"],
