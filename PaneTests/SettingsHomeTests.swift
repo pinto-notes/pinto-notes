@@ -316,11 +316,9 @@ import Carbon.HIToolbox
         #expect(KeyboardShortcutsSettingsPage.footer.contains("App Shortcuts"))
     }
 
-    /// Signed out there's no setup guide to play (it starts from your name), so the button isn't
-    /// there to do nothing. Signed in it plays and closes Settings, so the guide is seen. Send
+    /// The setup guide plays and closes Settings, so the guide is seen. Send
     /// feedback with no mail app copies the address and says so under the button.
     @Test func helpsButtonsEachDoSomethingVisible() async throws {
-        #expect(!HelpPage.offersSetupGuide(signedIn: false) && HelpPage.offersSetupGuide(signedIn: true))
         var closed = 0
         let replays = NotificationCenter.default.notifications(named: .paneReplayOnboarding)
         let heard = Task { for await _ in replays { return true }; return false }

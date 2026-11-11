@@ -357,10 +357,6 @@ enum HelpCopy {
 /// Help and feedback's steps, shared by its page (HelpSettingsPage) and the Mac's Help menu.
 @MainActor
 enum HelpPage {
-    /// Signed out there's no setup guide to play (it starts from your name, and the app only
-    /// plays it for an account), so its button isn't there to do nothing.
-    static func offersSetupGuide(signedIn: Bool) -> Bool { signedIn }
-
     /// Plays the setup guide and closes Settings, which would otherwise cover it.
     static func playSetupGuide(close: () -> Void) {
         NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil)

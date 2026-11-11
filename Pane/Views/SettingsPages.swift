@@ -973,12 +973,12 @@ struct StorageSettingsPage: View {
 // MARK: Help and feedback
 
 /// Help and feedback: Emil, who makes Pinto Notes, at the top with a way to write to him and the
-/// answers; then the keyboard shortcuts and the setup guide; then one line on the project being open
+/// answers; then the keyboard shortcuts (Mac) or the version (iPhone); then one line on the project being open
 /// source, and the terms (Emil, 7 November 2026: breezier and friendlier).
 struct HelpSettingsPage: View {
-    /// The setup guide plays only for an account (it starts from your name).
+    /// Signed in or not; nothing on the page depends on it now the setup guide is gone from it.
     var signedIn: Bool
-    /// Closes Settings, so the setup guide shows.
+    /// Closes Settings.
     var close: () -> Void = {}
     /// Where the address goes when no mail app opens; tests keep the real clipboard out of it.
     var copy: @MainActor (String) -> Void = { HelpPage.toClipboard($0) }
@@ -987,11 +987,12 @@ struct HelpSettingsPage: View {
     @State private var noMail = false
 
     static let photo: CGFloat = 52
+    /// The setup guide is never a row here: on the Mac it's in the Help menu and found by Settings
+    /// search (Emil, 8 November 2026), and iPhone and iPad have no setup steps to show (Emil,
+    /// 28 October 2026), so its row did nothing (11 November 2026).
+    static let offersSetupGuide = false
 
     var body: some View {
-        #if os(iOS)
-        let guide = HelpPage.offersSetupGuide(signedIn: signedIn)
-        #endif
         SettingsPageForm {
             Section { greeting }
             #if os(macOS)
@@ -1000,7 +1001,6 @@ struct HelpSettingsPage: View {
                 SettingsSubPageRow(page: .shortcuts, id: "settings.openShortcuts", edge: .alone)
             }
             #else
-            if guide { Section { setupGuideRow(edge: .alone) } }
             Section {
                 LabeledContent("Version") {
                     Text(AboutSection.version).textSelection(.enabled).monospacedDigit()
@@ -1083,14 +1083,6 @@ struct HelpSettingsPage: View {
         .padding(.vertical, 6)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings.greeting")
-    }
-
-    private func setupGuideRow(edge: SettingsRowEdge) -> some View {
-        Button { HelpPage.playSetupGuide(close: close) } label: {
-            SettingsLinkRow(title: HelpCopy.setupGuide, symbol: "sparkles", trailing: "chevron.right")
-        }
-        .settingsRowLink(edge)
-        .accessibilityIdentifier("settings.setupGuide")
     }
 
     private func sendFeedback() {

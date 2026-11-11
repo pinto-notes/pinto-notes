@@ -308,19 +308,17 @@ final class OnboardingFlowUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["sidebar.connect"].firstMatch.exists, "stays closed")
     }
 
-    /// Settings › Help and feedback › Show Setup Guide plays the flow again, and leaving it changes nothing.
-    func testE_ReplayFromSettings() throws {
+    /// Settings › Help and feedback has no Show Setup Guide on iPhone: there are no setup steps to
+    /// show there (Emil, 11 November 2026: it did nothing).
+    func testE_NoSetupGuideInSettings() throws {
         launch()
         if app.textFields["signin.email"].waitForExistence(timeout: 8) { try signIn() }
         expectNotes("e0-notes")
-        // Back to the folder list if a note or a folder is open, then the account button.
         openSettings()
-        let guide = app.buttons["settings.setupGuide"]
         openSettingsPage("Help and feedback")
-        for _ in 0..<6 where !guide.exists { app.swipeUp() }
-        XCTAssertTrue(guide.waitForExistence(timeout: 10), "Show Setup Guide")
-        guide.tap()
-        expectStep("Welcome to Pinto Notes", "e1-replay-welcome")
+        XCTAssertTrue(app.descendants(matching: .any)["settings.feedback"].firstMatch.waitForExistence(timeout: 10))
+        for _ in 0..<3 { app.swipeUp() }
+        XCTAssertFalse(app.buttons["settings.setupGuide"].exists, "no Show Setup Guide")
     }
 }
 #endif
