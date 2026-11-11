@@ -11,15 +11,16 @@ import Testing
 
     static func alone() -> ShareState { ShareState(people: [.init(id: me, name: "Emil Wagman", isMe: true, role: "owner")]) }
 
-    /// No launch argument and no default: sharing with people is on in every build.
-    @Test func sharingWithPeopleIsOnForEveryone() {
+    /// No launch argument and no default: sharing with people is off in Mac 1.3 (it ships
+    /// without it), so the store never starts and nothing about it shows.
+    @Test func sharingWithPeopleIsOffInThisRelease() {
         let forced = CollabFeature.forced
         defer { CollabFeature.forced = forced }
         CollabFeature.forced = nil
         UserDefaults.standard.removeObject(forKey: "collabEnabled")
-        #expect(CollabFeature.released)
-        #expect(CollabFeature.isOn)
-        #expect(CollabStore.isOn)
+        #expect(!CollabFeature.released)
+        #expect(!CollabFeature.isOn)
+        #expect(!CollabStore.isOn)
     }
 
     /// The server can hold a copy of a standard account's key, so nothing about a shared note may

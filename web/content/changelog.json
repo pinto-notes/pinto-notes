@@ -1,7 +1,7 @@
 [
   {
     "version": "1.3",
-    "date": "2026-11-02",
+    "date": "2026-11-11",
     "title": "Tags, callouts and the / menu",
     "major": true,
     "highlights": [
@@ -14,23 +14,21 @@
       "Type / at the start of a line to add a title, list, table, code block, callout, divider, date or file",
       "Tags: write #work in a note to tag it. Tags in the sidebar lists them with counts, and #work/clients counts under #work",
       "Callouts and highlights: coloured boxes with an icon and a title, the same format as Obsidian, and ==text== to highlight",
-      "Dates show as Today, Tomorrow or a weekday, and on the Mac a click picks another day",
+      "Dates show as Today, Tomorrow or a weekday, and a click picks another day",
       "Fold a section under its heading, and add divider lines from Format",
-      "On iPad: folders, notes and the open note side by side",
-      "Tables are easier to edit: taller rows, add bars, bigger handles, and a Table panel on iPhone to add or delete rows and columns",
+      "Tables are easier to edit: taller rows, add bars and bigger handles",
       "Colour themes (Paper, Sepia, Slate, Forest, High contrast) and an accent colour, in Settings, General, Appearance",
       "Link to another note with [[Title]]. Each note lists what links to it, and renaming a note updates the links",
-      "Front matter and aliases survive import and export, and Export All Notes is on every device",
+      "Front matter and aliases survive import and export, and Export All Notes is in the File menu",
       "Links on a line of their own show as a compact row or a card with a picture",
       "Pictures fit the text's width, and can be small or a cover banner",
       "Code blocks look like blocks, with the language in the corner",
       "Notes use the full width, with Notes' heading weights and aligned list markers",
       "Security shows who can open your notes, and the recovery key appears only when you need one",
       "See every change an AI made across your notes",
-      "On iPhone: folders you can edit and reorder, a new Format panel, and Help and feedback in Settings",
-      "On Mac: Settings as a card, a cleaner sidebar and top bar, and back and forward between notes",
+      "Settings as a card, a cleaner sidebar and top bar, and back and forward between notes",
       "Shortcuts can create a note or add to one. Thanks to @sameer-dhande",
-      "On Mac: Go to Note (⌘O) suggests notes and commands before you type, and signing in is one card over your notes"
+      "Go to Note (⌘O) suggests notes and commands before you type, and signing in is one card over your notes"
     ]
   },
   {

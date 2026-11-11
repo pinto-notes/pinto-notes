@@ -2,10 +2,11 @@ import Foundation
 import Observation
 import SwiftUI
 
-/// Sharing a note with people: on for everyone signed in, on Mac and iPhone, since release 1.3.
-/// Nothing turns it on or off at launch; tests set `forced`.
+/// Sharing a note with people. Off for Mac 1.3 (Emil, 11 November 2026: it ships without it), so
+/// the shared-notes store never starts, Share offers only the web page, and note links don't
+/// join. Nothing turns it on or off at launch; tests set `forced`.
 enum CollabFeature {
-    static let released = true
+    static let released = false
     nonisolated(unsafe) static var forced: Bool?
     static var isOn: Bool { forced ?? released }
 }
