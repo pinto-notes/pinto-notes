@@ -556,16 +556,35 @@ struct SidebarView: View {
     private func selectList(_ files: (live: Int, trashed: Int, byFolder: [UUID: Int])) -> some View {
         // Behind a setup card the folders' own picks are ignored, as the notes list's are.
         let behind = behindSetupCard
+        #if os(macOS)
         return List(selection: Binding(get: { Self.selection(scope: scope, picked: picked) }, set: { new in
             guard !behind else { return }
-            #if os(macOS)
             // Dragging a folder keeps it shown, as in Notes: the list's own pick as the drag starts is ignored.
             guard Self.listPickCounts(during: NSApp.currentEvent?.type) else { return }
-            #endif
             let next = Self.picking(new, scope: scope)
             picked = next.picked
             if next.scope != scope { scope = next.scope }
-        })) {
+        })) { selectRows(files) }
+        #else
+        // One row at a time, as before ⌘ and ⇧ picked several on the Mac. Back empties the list's
+        // pick; with a set of picks that read as "⌘ on the last" and kept the folder, so a tap on
+        // it changed nothing and nothing opened, until Edit and Done drew the list again with the
+        // folder still picked (Emil, 11 November 2026: "I click edit, then click done, and that
+        // moves me into the folder"). Here Back leaves nothing picked.
+        return List(selection: Binding(get: { scope }, set: { new in if !behind { scope = new } })) { selectRows(files) }
+        #endif
+    }
+
+    /// Whether the folders' list takes several picks at once (⌘ and ⇧): the Mac only.
+    #if os(macOS)
+    static let picksSeveral = true
+    #else
+    static let picksSeveral = false
+    #endif
+
+    /// The rows of the folders' list.
+    @ViewBuilder
+    private func selectRows(_ files: (live: Int, trashed: Int, byFolder: [UUID: Int])) -> some View {
             Section {
                 // "All Notes" only earns its row once there's more than one folder, or a note in none.
                 if Self.showsAllNotes(folders: folders.count, context: context) {
@@ -654,7 +673,6 @@ struct SidebarView: View {
                 }
             }
             #endif
-        }
     }
 
     /// The app's name above, the menus, drops and the toolbar.

@@ -205,6 +205,7 @@
 		20F9AAA5F96E89614BDEE69F /* QuickOpen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 416CEA862AF8799FD1811FE6 /* QuickOpen.swift */; };
 		2115E581BE5B7D9165098EED /* PDFReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10362F143E1A97752A691989 /* PDFReader.swift */; };
 		2126B6954D09D7888E6BC7BA /* Updater.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBAD2D5CF280D4F4179CB2F7 /* Updater.swift */; };
+		214C950321EE5190F9BE7A60 /* PhoneFolderTapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6E4AB2E8D7AF9CAD1680B3C /* PhoneFolderTapTests.swift */; };
 		21B3A13060F5A1F99F01DAEF /* ApplePins.swift in Sources */ = {isa = PBXBuildFile; fileRef = 187BCDDD3155D5979CC60AC7 /* ApplePins.swift */; };
 		21DE1B041B3219E290CA9F69 /* chart.js in Resources */ = {isa = PBXBuildFile; fileRef = 6A6208FEEA0F5F12A1F9C829 /* chart.js */; };
 		220186D7BC3EBB94E910981F /* CollabTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E284C84E38F42AD8AB2327 /* CollabTransport.swift */; };
@@ -2035,6 +2036,7 @@
 		F63CE49D5ADFD8035C941B77 /* FileRowClickTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileRowClickTests.swift; sourceTree = "<group>"; };
 		F640AF3B161AEAD5FD260995 /* NoteLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteLock.swift; sourceTree = "<group>"; };
 		F66C9398AFFB4C2850E7BD3E /* NoteOpenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteOpenTests.swift; sourceTree = "<group>"; };
+		F6E4AB2E8D7AF9CAD1680B3C /* PhoneFolderTapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneFolderTapTests.swift; sourceTree = "<group>"; };
 		F7306680E0E335C07172C36F /* ChecklistLookTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistLookTests.swift; sourceTree = "<group>"; };
 		F743BED91F9AD58A3BFA6CCB /* LinkPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkPolicy.swift; sourceTree = "<group>"; };
 		F760CF7B8C66F8A3AD1A896E /* router.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = router.js; sourceTree = "<group>"; };
@@ -2571,6 +2573,7 @@
 				F3D229B736A8948C314A404B /* OwnUndoEditorTests.swift */,
 				31647BC8B35CBD0E08BADA01 /* PastedLinkTests.swift */,
 				451925FBA71291F8A2590004 /* PDFZoomTests.swift */,
+				F6E4AB2E8D7AF9CAD1680B3C /* PhoneFolderTapTests.swift */,
 				CAF5A2304A5BABB7DC001106 /* QuickOpenTests.swift */,
 				283475786FE6E925FD76C3FC /* QuietChromeTests.swift */,
 				1EE4B05B29C95279C1F45CE8 /* QuoteBarTests.swift */,
@@ -3978,6 +3981,7 @@
 				9222FC4398289FD861CBE09E /* PersonaEditorShots.swift in Sources */,
 				848229C4EE00EBF2AF14884F /* PersonaImportShots.swift in Sources */,
 				0B1A600BBD3B2646B0BB41BD /* PersonaR7Shots.swift in Sources */,
+				214C950321EE5190F9BE7A60 /* PhoneFolderTapTests.swift in Sources */,
 				F9B83CD17366693592CFBAB7 /* PhoneRenderTests.swift in Sources */,
 				E1AD63DF7A3F2CDD138899C0 /* PictureShots.swift in Sources */,
 				E7F9AC6237B382D411802FCF /* PictureSizeTests.swift in Sources */,
