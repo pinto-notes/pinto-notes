@@ -73,6 +73,7 @@ import { renderToStaticMarkup as html } from "react-dom/server";
 import Launch from "../app/blog/pinto-notes-for-iphone/page";
 import ChatGPTLaunch from "../app/blog/pinto-notes-in-chatgpt/page";
 import ImportLaunch from "../app/blog/import-your-notes/page";
+import SlashLaunch from "../app/blog/slash-menu/page";
 import { PostCard } from "./blog";
 import { BlogIndex } from "./BlogIndex";
 import { posts } from "./posts";
@@ -90,7 +91,7 @@ describe("an announcement", () => {
   });
 
   it("starts its body with words, never a second picture straight under the cover", () => {
-    for (const Page of [Launch, ChatGPTLaunch, ImportLaunch]) {
+    for (const Page of [Launch, ChatGPTLaunch, ImportLaunch, SlashLaunch]) {
       const body = doc(<Page />).querySelector("article h2")!.parentElement!;
       expect(["H2", "P"]).toContain(body.firstElementChild!.tagName);
     }
@@ -109,7 +110,7 @@ describe("an announcement", () => {
     for (const x of posts.filter((p) => !p.draft)) {
       expect(html(<PostCard post={x} />).includes(">Announcement<"), x.slug).toBe(Boolean(x.announcement));
     }
-    expect(posts.filter((p) => p.announcement).map((p) => p.slug)).toEqual(["pinto-notes-for-iphone", "pinto-notes-in-chatgpt", "import-your-notes"]);
+    expect(posts.filter((p) => p.announcement).map((p) => p.slug)).toEqual(["slash-menu", "pinto-notes-for-iphone", "pinto-notes-in-chatgpt", "import-your-notes"]);
     const index = new DOMParser().parseFromString(html(<BlogIndex category={null} page={1} />), "text/html");
     expect(index.body.textContent).not.toContain("Announcement");
   });
@@ -121,6 +122,7 @@ describe("an announcement", () => {
       "pinto-notes-for-iphone": "2026-11-06",
       "pinto-notes-in-chatgpt": "2026-10-28",
       "import-your-notes": "2026-10-13",
+      "slash-menu": "2026-11-11",
     });
   });
 });
