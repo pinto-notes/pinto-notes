@@ -138,13 +138,13 @@ enum FilmEligibility {
     /// show how the notebook grew; the yearly one is the next.
     static let maxDays = 92
     /// Days in the last 30 on which you wrote or edited something yourself (AI edits don't count).
-    static let minActiveDays = 12
+    /// (Emil, 11-11: the film for more people. Thresholds were 12 days, 30 notes and 40 edits.)
+    static let minActiveDays = 7
     /// Links don't count: most notes link to nothing, and the film's shape comes from folders.
-    /// (Thirty: with fewer the film is a few lights on an empty stage.)
-    static let minNotes = 30
+    static let minNotes = 10
     /// Times you've written in a note yourself (what an AI wrote, and notes you brought in arriving,
-    /// don't count): notes enough isn't use.
-    static let minEdits = 40
+    /// don't count): notes brought in on a few days, never written in, aren't use.
+    static let minEdits = 2
 
     static func activeDays(_ input: FilmInput, calendar: Calendar = .current) -> Int {
         let since = calendar.date(byAdding: .day, value: -30, to: input.now) ?? input.now

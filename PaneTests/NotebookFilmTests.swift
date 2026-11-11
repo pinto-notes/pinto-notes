@@ -465,12 +465,18 @@ import AVFoundation
     }
 
     @Test func aThinNotebookWaitsUntilItsWorthShowing() {
-        // A month in with 26 notes: not yet. The film is a few lights on an empty stage, so it
-        // waits until the notebook has grown, and then says how long that took.
-        let thin = FilmDemo.notebook(days: 35, now: Self.now, light: true)
-        #expect(thin.notes.count < FilmEligibility.minNotes)
-        #expect(!FilmEligibility.isReady(thin, calendar: Self.cal))
-        #expect(FilmEligibility.minNotes == 30)
+        // Offered to more people (Emil, 11-11): ten notes, written in on seven of the last 30 days,
+        // twice or more yourself. Nine notes is not yet.
+        #expect(FilmEligibility.minNotes == 10 && FilmEligibility.minActiveDays == 7 && FilmEligibility.minEdits == 2)
+        let now = Self.now
+        func ago(_ days: Double) -> Date { now.addingTimeInterval(-days * 86_400) }
+        var few = (0..<9).map { k in FilmNote(id: UUID(), folder: "Notes", created: ago(35 - Double(k)), edits: [FilmEdit(at: ago(Double(k) + 1), ai: nil)], links: []) }
+        #expect(!FilmEligibility.isReady(FilmInput(notes: few, now: now), calendar: Self.cal))
+        few.append(FilmNote(id: UUID(), folder: "Notes", created: ago(20), edits: [FilmEdit(at: ago(12), ai: nil)], links: []))
+        #expect(FilmEligibility.isReady(FilmInput(notes: few, now: now), calendar: Self.cal))
+        // Ten notes written in on only six days: not yet.
+        let sixDays = few.enumerated().map { k, n in var n = n; n.edits = [FilmEdit(at: ago(Double(k % 6) + 1), ai: nil)]; return n }
+        #expect(!FilmEligibility.isReady(FilmInput(notes: sixDays, now: now), calendar: Self.cal))
         // The same person seven weeks in, with notes enough: ready, as their first 2 months.
         let later = FilmDemo.notebook(days: 52, now: Self.now)
         #expect(later.notes.count >= FilmEligibility.minNotes)
@@ -807,22 +813,23 @@ import AVFoundation
     }
 
     @Test func itsOnlyOfferedToSomeoneWhosWrittenInIt() {
-        // Notes enough isn't use: forty notes brought in and never written in isn't a month of Pinto.
+        // Notes enough isn't use: forty notes brought in on eight days and never written in isn't
+        // a month of Pinto, nor is writing in one of them once.
         let d = Self.now
         func at(_ daysAgo: Double) -> Date { d.addingTimeInterval(-daysAgo * 86_400) }
         func ready(_ notes: [FilmNote]) -> Bool { FilmEligibility.isReady(FilmInput(notes: notes, now: d), calendar: Self.cal) }
         func written(_ notes: [FilmNote]) -> Int { FilmStats(FilmInput(notes: notes, now: d), calendar: Self.cal).written }
-        var notes = (0..<40).map { _ in FilmNote(id: UUID(), folder: "Work", created: at(30), edits: [FilmEdit(at: at(30), ai: nil)], links: [], imported: true) }
+        var notes = (0..<40).map { k in FilmNote(id: UUID(), folder: "Work", created: at(Double(k % 8) + 1), edits: [FilmEdit(at: at(Double(k % 8) + 1), ai: nil)], links: [], imported: true) }
+        notes[0].created = at(30)
         #expect(written(notes) == 0 && !ready(notes))
-        // Written in on fifteen days, but only fifteen times: still thin.
-        for k in 0..<15 { notes[k].edits.append(FilmEdit(at: at(Double(k) + 0.5), ai: nil)) }
-        #expect(written(notes) == 15 && !ready(notes))
+        notes[1].edits.append(FilmEdit(at: at(0.5), ai: nil))
+        #expect(written(notes) == 1 && !ready(notes))
         // What an AI wrote isn't your own use of it...
         var withAI = notes
-        for k in 0..<25 { withAI[k % 15].edits.append(FilmEdit(at: at(Double(k % 15) + 0.4), ai: "ChatGPT")) }
-        #expect(written(withAI) == 15 && !ready(withAI))
-        // ...and forty times yourself is.
-        for k in 0..<25 { notes[k % 15].edits.append(FilmEdit(at: at(Double(k % 15) + 0.4), ai: nil)) }
+        withAI[2].edits.append(FilmEdit(at: at(0.4), ai: "ChatGPT"))
+        #expect(written(withAI) == 1 && !ready(withAI))
+        // ...and twice yourself is.
+        notes[2].edits.append(FilmEdit(at: at(0.4), ai: nil))
         #expect(written(notes) == FilmEligibility.minEdits && ready(notes))
         // A note you made here counts from its first words.
         #expect(written([FilmNote(id: UUID(), folder: "", created: at(3), edits: [FilmEdit(at: at(3), ai: nil)], links: [])]) == 1)
