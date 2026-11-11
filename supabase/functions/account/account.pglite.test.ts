@@ -99,6 +99,8 @@ async function seed(pg: PGlite, me: string) {
     select $1, gen_random_uuid(), 'macos', 'added', false, k.key_id, repeat('5', 32), 'amb2.' || k.key_id || '.AAAA', repeat('4', 64) from public.account_keys k where k.user_id = $1`, [me]);
   await pg.query(`insert into public.connect_blocks (user_id, blocked_until) values ($1, now() - interval '1 day')`, [me]);
   await pg.query(`insert into public.connect_preapprovals (user_id, ai, ticket_hash) values ($1, 'Claude', md5(random()::text) || md5(random()::text))`, [me]);
+  // A day's AI use (ai_use_daily, 20261107170000_ai_use_daily.sql): goes with the account.
+  await pg.query(`insert into public.ai_use_daily (user_id, day, ai, category, outcome, count) values ($1, current_date, 'claude', 'read', 'ok', 3)`, [me]);
   await pg.query(`insert into public.pane_setup (user_id, imported_at) values ($1, now())`, [me]);
   await pg.query(`insert into public.pane_activity (user_id, day, kind, n) values ($1, current_date, 'ai_edit', 3) on conflict do nothing`, [me]);
   await pg.query(`insert into public.pane_tip_activity (user_id, day, tip, event, n) values ($1, current_date, 'shareLink', 'shown', 1)`, [me]);
