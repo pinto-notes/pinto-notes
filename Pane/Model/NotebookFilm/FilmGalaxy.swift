@@ -61,6 +61,15 @@ final class GalaxyScene: FilmScene {
     private var raw = false
     private var rawFit = Fit()
     private var path: (canvas: FilmCanvas, fits: [Fit])?
+    /// A folder's spiral arm: how much of it is there (0 to 1) and how wide it is.
+    /// Emil, 11-11: it came too early; it should mean so much is going on that it blends. So it
+    /// forms only once a folder is crowded: its notes, and every eight times they were written in
+    /// counted as one more. Until then they're loose stars on the spiral's path. It comes in at
+    /// half its width (never a thin line) and widens as there's more.
+    static func arm(notes: Double, edits: Int) -> (appear: Double, width: Double) {
+        let crowd = notes + Double(edits) / 8, from = 10.0, full = 30.0
+        return (filmSmooth((crowd - from) / 4), 0.5 + 0.5 * filmSmooth((crowd - from) / (full - from)))
+    }
     /// How the frame was last drawn: its scale, the point at its middle, and how far what's in it
     /// reached past the frame (in the picture's units; 0 when it all fitted).
     private(set) var shot = (zoom: 1.0, centre: CGPoint.zero, spill: 0.0)
@@ -453,21 +462,29 @@ final class GalaxyScene: FilmScene {
             for (j, g) in groups.enumerated() {
                 let got = alive(g.notes)
                 guard got > 0 else { continue }
+                let (appear, formed) = Self.arm(notes: got, edits: self.upTo(groupEdits[j], gt))
                 let upTo = reach(j) * min(1, (got + 0.6) / (Double(g.notes.count) + 0.4)) + 0.03
                 let w0 = wide * (0.7 + 0.3 * min(1, worked(j) / 4)), col = tint(clouds[2 + j % 2], j)
                 func band(_ part: Double, _ c: GR, lift: Double) {
                     var one: [CGPoint] = [], other: [CGPoint] = []
                     for k in 0...40 {
                         let s = upTo * Double(k) / 40
-                        let w = w0 * part * (1 - 0.35 * s) * sin(.pi * min(1, 0.12 + 0.88 * (1 - Double(k) / 40))) * min(1, got)
+                        let w = w0 * part * (1 - 0.35 * s) * sin(.pi * min(1, 0.12 + 0.88 * (1 - Double(k) / 40))) * min(1, got) * formed
                         one.append(scr(at(j, s, w))); other.append(scr(at(j, s, -w)))
                     }
                     paper(one + other.reversed(), c, lift: lift, in: ctx)
                 }
-                band(1, col, lift: 1)
-                // (A lighter strip down an arm that's been worked in a lot.)
-                let lit = show(worked(j), from: 2.2)
-                if lit > 0 { band(0.42 * lit, col.mix(cream, 0.26), lift: 0.4) }
+                if appear > 0.01 {
+                    ctx.saveGState()
+                    ctx.setAlpha(appear)
+                    ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+                    band(1, col, lift: 1)
+                    // (A lighter strip down an arm that's been worked in a lot.)
+                    let lit = show(worked(j), from: 2.2)
+                    if lit > 0 { band(0.42 * lit, col.mix(cream, 0.26), lift: 0.4) }
+                    ctx.endTransparencyLayer()
+                    ctx.restoreGState()
+                }
                 // (Its name a short step past the arm's tip, however far the arm winds.)
                 let step = 44 / zoom / hypot(full - core, wind * (core + (full - core) * upTo))
                 if names { labels.append((script.folders[g.folder], scr(at(j, upTo + step, 0)), filmSmooth((gt - born(g.notes) - 0.2) / 0.5), j)) }

@@ -928,6 +928,28 @@ import AVFoundation
         }
     }
 
+    @Test func aSpiralArmFormsOnlyWhereSoMuchIsGoingOnThatItBlends() {
+        // Emil, 11-11: the arms behind the stars came too early. In an ordinary month (a few
+        // notes a folder) they're loose stars; a busy folder gets its arm, and it comes in at half
+        // width, never as a thin line.
+        #expect(GalaxyScene.arm(notes: 3, edits: 33).appear == 0, "Ideas in a month: three notes")
+        #expect(GalaxyScene.arm(notes: 6, edits: 28).appear == 0, "Reading: six")
+        #expect(GalaxyScene.arm(notes: 1, edits: 40).appear == 0, "one tracker written in every day is one star, not an arm")
+        let work = GalaxyScene.arm(notes: 10, edits: 46)
+        #expect(work.appear == 1 && work.width >= 0.5 && work.width < 0.7, "the month's busiest folder: an arm, still narrow")
+        #expect(GalaxyScene.arm(notes: 71, edits: 180) == (1, 1), "a folder of seventy notes: the whole arm")
+        // It grows in step with what's added: one more edit never moves it in a jump. (A note
+        // arriving is already eased in over half a second.)
+        for notes in [4.0, 9.0, 20.0] {
+            var last = GalaxyScene.arm(notes: notes, edits: 0)
+            for k in 1...300 {
+                let now = GalaxyScene.arm(notes: notes, edits: k)
+                #expect(now.appear >= last.appear && now.appear - last.appear < 0.05 && now.width >= last.width)
+                last = now
+            }
+        }
+    }
+
     @Test func theSharedMovieCarriesTheSound() async throws {
         // The movie that's shared has the film's sound, as long as its picture.
         let quiet = FilmDemo.real(days: 30, now: Self.now, ai: nil)
