@@ -409,11 +409,11 @@ import AVFoundation
         #expect(s.topFolder == "Work")
         #expect(s.topFolderNotes == input.notes.filter { $0.folder == "Work" }.count)
         #expect(FilmRenderer.Labels().topFolder("Work", 27) == "Most written in Work \u{00B7} 27 notes")
-        #expect(FilmRenderer.Labels().topFolderCaption("Work", 22) == "I wrote most in Work \u{00B7} 22 notes")
-        #expect(FilmRenderer.Labels().daysCaption(25) == "I wrote on 25 days", "a month of one or two folders gets a line of its own too")
-        #expect(FilmRenderer.Labels().streakCaption(9) == "9 days in a row, my longest run")
+        #expect(FilmRenderer.Labels().topFolderCaption("Work", 22) == "You wrote most in Work \u{00B7} 22 notes")
+        #expect(FilmRenderer.Labels().daysCaption(25) == "You wrote on 25 days", "a month of one or two folders gets a line of its own too")
+        #expect(FilmRenderer.Labels().streakCaption(9) == "9 days in a row, your longest run")
         #expect(FilmRenderer.Labels().aiCaption("ChatGPT", 36) == "ChatGPT helped with 36 of them", "the AI always has a line of its own")
-        #expect(FilmRenderer.Labels().streakCard(9) == "My longest run: 9 days in a row", "the end card says something the film hasn't")
+        #expect(FilmRenderer.Labels().streakCard(9) == "Your longest run: 9 days in a row", "the end card says something the film hasn't")
         // The longest run of days written on, counted from the notes.
         let d = Self.now
         func note(_ days: [Int]) -> FilmNote { FilmNote(id: UUID(), folder: "", created: d.addingTimeInterval(Double(-days.max()!) * 86_400), edits: days.map { FilmEdit(at: d.addingTimeInterval(Double(-$0) * 86_400), ai: nil) }, links: []) }
@@ -421,7 +421,7 @@ import AVFoundation
         // Folder names off: the busiest day, which gives nothing away.
         #expect(s.busiestDayEdits > 0)
         #expect(FilmRenderer.Labels().busiestDay("October 19", 23) == "Busiest day: October 19 \u{00B7} 23 edits")
-        #expect(FilmRenderer.Labels().busiestCaption(33) == "My busiest day \u{00B7} 33 edits", "first person, like the title")
+        #expect(FilmRenderer.Labels().busiestCaption(33) == "Your busiest day \u{00B7} 33 edits", "first person, like the title")
         // And as the film passes that day it says so: the day has its own stretch of the film.
         let span = try! #require(script.span(ofDay: s.busiestDay!))
         #expect(span.start >= 0 && span.start + span.length <= script.growth + 0.001)
@@ -472,11 +472,11 @@ import AVFoundation
         #expect(later.notes.count >= FilmEligibility.minNotes)
         #expect(FilmEligibility.isReady(later, calendar: Self.cal))
         let s = FilmStats(later, calendar: Self.cal)
-        #expect(s.months == 2 && FilmRenderer.Labels().title(s) == "My first 2 months")
+        #expect(s.months == 2 && FilmRenderer.Labels().title(s) == "Your first 2 months")
         #expect(NotebookFilmStore.title(s) == "Your first 2 months" && HelpCopy.film(months: 2) == "Watch your first 2 months")
         // About a month is still "my first month".
         let month = FilmStats(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)
-        #expect(month.months == 1 && FilmRenderer.Labels().title(month) == "My first month" && HelpCopy.film(months: 1) == "Watch your first month")
+        #expect(month.months == 1 && FilmRenderer.Labels().title(month) == "Your first month" && HelpCopy.film(months: 1) == "Watch your first month")
         // Past three months the edit history is thinned: no first film then (the yearly one is next).
         #expect(!FilmEligibility.isReady(FilmDemo.notebook(days: 120, now: Self.now), calendar: Self.cal))
     }
@@ -720,7 +720,7 @@ import AVFoundation
         }
         let l = FilmRenderer.Labels()
         #expect(l.folderBegins("Thesis") == "A new folder: Thesis" && l.aiJoins("Claude") == "Claude joins in")
-        #expect(l.cameBack(14) == "One note I came back to 14 times" && l.quietReturn(6) == "Back after 6 quiet days")
+        #expect(l.cameBack(14) == "One note you came back to 14 times" && l.quietReturn(6) == "Back after 6 quiet days")
         // The days away are counted from the days you wrote on.
         let d = Self.now
         func note(_ days: [Int]) -> FilmNote { FilmNote(id: UUID(), folder: "", created: d.addingTimeInterval(Double(-days.max()!) * 86_400), edits: days.map { FilmEdit(at: d.addingTimeInterval(Double(-$0) * 86_400), ai: nil) }, links: []) }
@@ -832,11 +832,9 @@ import AVFoundation
         #expect(slides.slides().map(\.name) == ["start", "top-notes", "when", "play"])
         // It begins from what you set out with: here, the notes you brought.
         #expect(slides.slides()[0].spoken.hasPrefix("You brought in 20 notes on "))
-        // On screen it talks to you; the picture you send is in your own voice.
+        // It talks to you, all through (Emil, 11-11: "you", not "my", in all the text).
         #expect(slides.slides()[1].spoken.hasPrefix("Your top notes"))
-        #expect(slides.sent.slides()[0].spoken.hasPrefix("I brought in 20 notes on "))
-        #expect(slides.sent.slides()[1].spoken.hasPrefix("My top notes"))
-        #expect(FilmSlides.kind(startingAt: 22, me: true).0 == "I'm a night")
+        for slide in slides.slides() { #expect(!slide.spoken.contains("My ") && !slide.spoken.hasPrefix("I ") && !slide.spoken.contains(" I "), "\(slide.spoken)") }
         #expect(FilmSlides.cardLine(mine, script: script).hasPrefix("You brought 20 notes in on "))
         #expect(FilmSlides.story(mine, script: script).hasPrefix("From 20 notes brought in on "))
         // The top notes are the most written in, by name, none twice; a removed note isn't one.
@@ -853,10 +851,9 @@ import AVFoundation
         let named = FilmSlides(input: mine, script: script, mark: nil) { n in n.id == hidden ? nil : "Note" }
         #expect(!named.ranked.contains { $0.note.id == hidden })
         // Drawn for a phone it's the phone's shape, so it fills the screen and never sizes the layout
-        // around it (a picture that did pushed Next and Send off the bottom); sent, it's 9:16.
+        // around it (a picture that did pushed Next and Send off the bottom).
         slides.H = 2622.0 / 1206 * 1080
         #expect(slides.image(0, pixels: 1206).map { [$0.width, $0.height] } == [1206, 2622])
-        #expect(slides.sent.image(1, pixels: 1080).map { [$0.width, $0.height] } == [1080, 1920])
         #expect(slides.image(4, pixels: 1080) == nil)
         // With room left for the Share button under it, the top note's caption stays clear of the list.
         var phone = slides
@@ -915,7 +912,7 @@ import AVFoundation
         let store = NotebookFilmStore(defaults: UserDefaults(suiteName: "film-end-\(UUID().uuidString)")!, launched: Self.now, arguments: [],
                                       folder: FileManager.default.temporaryDirectory.appendingPathComponent("film-end-\(UUID().uuidString)"))
         let labels = store.labels(look: .town, folderNames: true)
-        #expect(labels.sound && labels.endTitle?(plain.stats).hasPrefix("My notebook is ") == true)
+        #expect(labels.sound && labels.endTitle?(plain.stats).hasPrefix("Your notebook is ") == true)
         // Its sound lasts as long as the film, and is never silent or clipped.
         let sound = FilmSound(script: bang).samples()
         #expect(abs(Double(sound.count / 2) / FilmSound.rate - (bang.growth + FilmScript.outro)) < 0.01)
@@ -1117,6 +1114,22 @@ import AVFoundation
             let late = scene.inspected.names.first { $0.name == "Late" }
             #expect(late != nil && late!.alpha > 0.95, "\(form): its name is all there (\(late?.alpha ?? -1))")
         }
+    }
+
+    @Test func everyWordOfTheFilmTalksToYouAndSharingIsTheVideo() {
+        // Emil, 11-11: "you", not "my", in all the text, the film you share included. And what
+        // you share is the video, and the button says so.
+        let store = Self.store(TestDefaults(), account: UUID(), source: FakeSource(), folder: Self.tempFolder())
+        let l = store.labels(look: .town, folderNames: true)
+        let s = FilmStats(FilmDemo.real(now: Self.now), calendar: Self.cal)
+        let lines = [l.you, l.title(s), l.endTitle?(s) ?? "", l.busiestCaption(4), l.topFolderCaption("Work", 9), l.streakCard(5),
+                     l.daysCaption(3), l.cameBack(7), l.streakCaption(5), store.shareTitle, store.fileName]
+        for line in lines {
+            let words = line.split { !$0.isLetter && $0 != "\u{2019}" && $0 != "'" }.map { $0.lowercased() }
+            #expect(!words.contains { ["i", "my", "me", "mine", "i\u{2019}m", "i'm"].contains($0) }, "\(line)")
+        }
+        #expect(l.endTitle?(s).hasPrefix("Your notebook is ") == true && l.you == "Just you")
+        #expect(NotebookFilmView.shareVideo == "Share video" && NotebookFilmView.saveVideo.hasPrefix("Save video"))
     }
 
     @Test func theRunningCountSaysOneNoteNotOneNotes() {

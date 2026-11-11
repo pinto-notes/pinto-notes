@@ -233,7 +233,7 @@ final class NotebookFilmStore {
 
     static func title(_ s: FilmStats?) -> String { "Your \(s?.period ?? "first month")" }
     /// What the film in hand is called when it's shared or saved.
-    var shareTitle: String { script.map { labels.title($0.stats) } ?? "My first month" }
+    var shareTitle: String { script.map { labels.title($0.stats) } ?? "Your first month" }
     var fileName: String { "Pinto Notes \u{2013} \(shareTitle.prefix(1).lowercased() + shareTitle.dropFirst()).mp4" }
 
     /// Makes the movies still missing: the one chosen now first, then the other looks with the
@@ -256,7 +256,7 @@ final class NotebookFilmStore {
                 let priority: TaskPriority = k == 0 && key == self?.movieKey ? .userInitiated : .utility
                 self?.makingKey = key
                 let dir = FileManager.default.temporaryDirectory.appendingPathComponent("NotebookFilm-\(UUID().uuidString)", isDirectory: true)
-                let url = dir.appendingPathComponent(await MainActor.run { self?.fileName } ?? "Pinto Notes \u{2013} my first month.mp4")
+                let url = dir.appendingPathComponent(await MainActor.run { self?.fileName } ?? "Pinto Notes \u{2013} your first month.mp4")
                 let work = Task.detached(priority: priority) { () async -> Bool in
                     do {
                         // Written under another name and renamed when it's whole.
@@ -304,8 +304,8 @@ final class NotebookFilmStore {
             l.sound = true
             l.workCount = FilmRenderer.Labels.notesAndEdits
             let kind = GalaxyScene.name(of: script?.form ?? .nebula)
-            // (Not "my first month": what it is, is the notebook.)
-            l.endTitle = { _ in "My notebook is \(kind)" }
+            // (Not "your first month": what it is, is the notebook.)
+            l.endTitle = { _ in "Your notebook is \(kind)" }
         }
         return l
     }

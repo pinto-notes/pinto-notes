@@ -109,10 +109,10 @@ final class FilmRenderer {
         /// The app's mark, drawn with its name in the corner the whole way through.
         var markImage: CGImage?
         /// The key. Amber: notes only the person sharing it wrote in. The AI's colour: notes it helped with.
-        var you = "Just me"
+        var you = "Just you"
         var withAI: @Sendable (String) -> String = { "With \($0)" }
         /// Over the first second, so a still of the start says what it is, and on the end card.
-        var title: @Sendable (FilmStats) -> String = { "My \($0.period)" }
+        var title: @Sendable (FilmStats) -> String = { "Your \($0.period)" }
         /// The title on the end card when it says more than the opening's (what the month turned out to be).
         var endTitle: (@Sendable (FilmStats) -> String)? = nil
         /// Under the title as it opens: what's in it, and where.
@@ -125,24 +125,24 @@ final class FilmRenderer {
         var captions = ["Each light is a note", "It grows each time it\u{2019}s edited"]
         /// A third, when the notebook has links.
         var linksCaption = "A line is a link between two notes"
-        /// As the film passes the day you wrote most (the date is beside it). First person, like
-        /// the title: it's the person sharing it who speaks.
-        var busiestCaption: @Sendable (Int) -> String = { "My busiest day \u{00B7} \($0 == 1 ? "1 edit" : "\($0) edits")" }
+        /// As the film passes the day you wrote most (the date is beside it). It talks to you, like
+        /// all its words (Emil, 11-11: "you", not "my", in all the text).
+        var busiestCaption: @Sendable (Int) -> String = { "Your busiest day \u{00B7} \($0 == 1 ? "1 edit" : "\($0) edits")" }
         /// Near the end, as the folder written in most has its moment (its count is on the end card).
-        var topFolderCaption: @Sendable (String, Int) -> String = { "I wrote most in \($0) \u{00B7} \($1 == 1 ? "1 note" : "\($1) notes")" }
+        var topFolderCaption: @Sendable (String, Int) -> String = { "You wrote most in \($0) \u{00B7} \($1 == 1 ? "1 note" : "\($1) notes")" }
         /// The AI's line, after the one that says what a house (or a light) is: "ChatGPT helped with 36 of them".
         var aiCaption: @Sendable (String, Int) -> String = { "\($0) helped with \($1) of them" }
         /// On the end card, when the film has already named the folder written in most.
-        var streakCard: @Sendable (Int) -> String = { "My longest run: \($0) days in a row" }
+        var streakCard: @Sendable (Int) -> String = { "Your longest run: \($0) days in a row" }
         /// The same moment in a month of one or two folders: how many days you wrote on.
-        var daysCaption: @Sendable (Int) -> String = { $0 == 1 ? "I wrote on 1 day" : "I wrote on \($0) days" }
+        var daysCaption: @Sendable (Int) -> String = { $0 == 1 ? "You wrote on 1 day" : "You wrote on \($0) days" }
         /// ...or, better, the most days running (the end card has the count of days).
         /// The month's story, as it happens.
         var folderBegins: @Sendable (String) -> String = { "A new folder: \($0)" }
         var aiJoins: @Sendable (String) -> String = { "\($0) joins in" }
-        var cameBack: @Sendable (Int) -> String = { "One note I came back to \($0) times" }
+        var cameBack: @Sendable (Int) -> String = { "One note you came back to \($0) times" }
         var quietReturn: @Sendable (Int) -> String = { "Back after \($0) quiet days" }
-        var streakCaption: @Sendable (Int) -> String = { "\($0) days in a row, my longest run" }
+        var streakCaption: @Sendable (Int) -> String = { "\($0) days in a row, your longest run" }
         /// The end card's third number when no AI wrote: "214 edits".
         var statEdits = "edits"
         /// Under the end card's numbers.

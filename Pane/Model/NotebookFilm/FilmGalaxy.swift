@@ -116,7 +116,7 @@ final class GalaxyScene: FilmScene {
     private func starSize(_ edits: Double) -> Double { min(24, 6 + 1.6 * edits.squareRoot()) }
     private func cloudSize(_ j: Int, _ notes: Double) -> Double { cells[j] * notes.squareRoot() + cells[j] * 1.3 + 14 }
 
-    /// What each is called: "My notebook is a comet".
+    /// What each is called: "Your notebook is a comet".
     static func name(of form: FilmForm) -> String {
         switch form { case .comet: "a comet"; case .nebula: "a nebula"; case .spiral: "a spiral galaxy" }
     }

@@ -4,8 +4,8 @@ import ImageIO
 
 // The month before its film, opened from a card (NotebookFilmStore.offered): where you started (the
 // notes you brought in, or your first one), two slides, each with one strong thing on it in its own
-// bold paper colour, then the film's own night sky with a play button. On screen it talks to you;
-// the picture you send is in your own voice ("I").
+// bold paper colour, then the film's own night sky with a play button. It talks to you, on screen
+// and in what you send (Emil, 11-11: "you", not "my", in all the text).
 // A slide is drawn from how long it's been on screen, so it unfolds as it comes in, and a picture of
 // it is the same drawing at its end.
 
@@ -20,8 +20,6 @@ struct FilmSlides: @unchecked Sendable {
     let W = 1080.0
     /// A note's name, when it may be shown; a note without one is left off the list.
     var title: @Sendable (FilmNote) -> String?
-    /// In your own voice, for the picture you send: "my top notes" rather than "your top notes".
-    var me = false
 
     /// A slide: how long it takes to come in, and its drawing at a time since it appeared.
     struct Slide: @unchecked Sendable {
@@ -40,13 +38,6 @@ struct FilmSlides: @unchecked Sendable {
         self.mark = mark
         let demo = FilmSlides.demoNames(input)
         self.title = title ?? { demo[$0.id] }
-    }
-
-    /// Sent as a picture: tall like a story, which a chat shows well too.
-    var sent: FilmSlides {
-        var s = self
-        s.H = 1920; s.top = 90; s.bottom = 90; s.me = true
-        return s
     }
 
     // MARK: What it says
@@ -75,9 +66,9 @@ struct FilmSlides: @unchecked Sendable {
         return (0..<24).max { window($0) < window($1) } ?? 0
     }
 
-    /// What your hours make you: "You're a night" over "owl" (with `me`, "I'm a night").
-    static func kind(startingAt start: Int, me: Bool = false) -> (String, String) {
-        let mid = (start + 1) % 24, who = me ? "I'm" : "You're"
+    /// What your hours make you: "You're a night" over "owl".
+    static func kind(startingAt start: Int) -> (String, String) {
+        let mid = (start + 1) % 24, who = "You're"
         switch mid {
         case 5..<9: return ("\(who) an early", "bird")
         case 9..<12: return ("\(who) a morning", "writer")
@@ -87,8 +78,6 @@ struct FilmSlides: @unchecked Sendable {
         }
     }
 
-    /// The words for you on screen, or for you to send (`me`).
-    private func voice(_ you: String, _ i: String) -> String { me ? i : you }
 
     static func hourName(_ h: Int) -> String {
         let h = (h % 24 + 24) % 24
@@ -204,12 +193,12 @@ struct FilmSlides: @unchecked Sendable {
         let top5 = ranked
         if let first = top5.first, first.note.edits.count >= 6 {
             let rows = top5.count
-            let spoken = voice("Your top notes: ", "My top notes: ") + top5.enumerated().map { "\($0.offset + 1), \($0.element.name), \($0.element.note.edits.count) times" }.joined(separator: "; ")
+            let spoken = "Your top notes: " + top5.enumerated().map { "\($0.offset + 1), \($0.element.name), \($0.element.note.edits.count) times" }.joined(separator: "; ")
             out.append(Slide(name: "top-notes", length: 1.0 + 0.12 * Double(max(0, rows - 2)) + 0.45, spoken: spoken) { ctx, t in
                 let p = palette(1)
                 ground(1, p, in: ctx)
-                say(voice("Your top notes", "My top notes"), 112, 0.8, p.ink.cg(), x: 66, y: H - top - 230, t: t, at: 0, in: ctx)
-                say(voice("the ones you kept coming back to", "the ones I kept coming back to"), 40, 0.2, p.ink.cg(0.72), y: H - top - 300, t: t, at: 0.12, in: ctx)
+                say("Your top notes", 112, 0.8, p.ink.cg(), x: 66, y: H - top - 230, t: t, at: 0, in: ctx)
+                say("the ones you kept coming back to", 40, 0.2, p.ink.cg(0.72), y: H - top - 300, t: t, at: 0.12, in: ctx)
                 let c = CGPoint(x: W / 2, y: topStar)
                 let n = first.note
                 let byAI = Double(n.edits.filter { $0.ai != nil }.count) / Double(n.edits.count)
@@ -243,7 +232,7 @@ struct FilmSlides: @unchecked Sendable {
         // When you write: the day as a paper dial, swept hour by hour, and what that makes you.
         let hours = byHour
         if hours.reduce(0, +) >= 20 {
-            let start = bestHours, kind = Self.kind(startingAt: start, me: me)
+            let start = bestHours, kind = Self.kind(startingAt: start)
             let dark = !(5..<17).contains((start + 1) % 24)
             var times: [(Double, Bool)] = []
             for n in input.notes { for e in n.edits.dropFirst(n.imported == true ? 1 : 0) where e.ai == nil {
@@ -311,7 +300,7 @@ struct FilmSlides: @unchecked Sendable {
             })
         }
         // Last, the film's own sky, waiting for you to press play.
-        // (The picture you send of it says what it is: "My month".)
+        // (The picture you send of it says what it is: "Your month".)
         let line = Self.story(input, script: script)
         out.append(Slide(name: "play", length: 1.0, light: true, spoken: "\(line). See your month: press play.") { ctx, t in
             let sky = GalaxyScene.skies[(seed / 3 + seed) % GalaxyScene.skies.count]
@@ -331,7 +320,7 @@ struct FilmSlides: @unchecked Sendable {
             let y = bottom + 120
             say(line, 40, 0.25, cream.cg(0.8), y: y, t: t, at: 0.3, in: ctx)
             say("month", 170, 0.8, cream.cg(), x: 66, y: y + 110, t: t, at: 0.15, in: ctx)
-            say(voice("See your", "See my"), 170, 0.8, cream.cg(), x: 66, y: y + 280, t: t, at: 0.05, in: ctx)
+            say("See your", 170, 0.8, cream.cg(), x: 66, y: y + 280, t: t, at: 0.05, in: ctx)
         })
         return out
     }
@@ -347,8 +336,8 @@ struct FilmSlides: @unchecked Sendable {
         let pile: [String?] = brought.isEmpty ? [first.flatMap(title)] : brought.prefix(7).map { title($0) }
         let count = brought.count
         let lines = count > 0
-            ? (voice("You brought in", "I brought in"), "\(count) notes", voice("on \(day). Here\u{2019}s what you did with them.", "on \(day). Here\u{2019}s what I did with them."))
-            : ("It started with", "one note", voice("on \(day). Here\u{2019}s what came of it.", "on \(day). Here\u{2019}s what came of it."))
+            ? ("You brought in", "\(count) notes", "on \(day). Here\u{2019}s what you did with them.")
+            : ("It started with", "one note", "on \(day). Here\u{2019}s what came of it.")
         return Slide(name: "start", length: 1.0 + 0.11 * Double(pile.count) + 0.4, spoken: "\(lines.0) \(lines.1) \(lines.2)") { ctx, t in
             let p = palette(0)
             ground(0, p, in: ctx)

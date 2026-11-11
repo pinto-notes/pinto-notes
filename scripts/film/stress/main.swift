@@ -10,9 +10,24 @@ import UniformTypeIdentifiers
 
 let args = CommandLine.arguments
 let out = URL(fileURLWithPath: args.count > 1 ? args[1] : "stress-out")
+try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+
+// "render" writes the movie the app shares, with its sound, for each notebook named by its
+// number in the report: to hear them. (`pinto-film-stress OUT render 15 5 4`)
+if args.count > 2, args[2] == "render" {
+    let every = Scenarios.extremes + Scenarios.random(500, seed: 2026)
+    for index in args.dropFirst(3).compactMap({ Int($0) }) {
+        let scenario = every[index]
+        let script = FilmScript(scenario.input, calendar: Calendar(identifier: .gregorian), bang: true)
+        let slug = scenario.name.lowercased().filter { $0.isLetter || $0.isNumber || $0 == " " }.split(separator: " ").prefix(6).joined(separator: "-")
+        let url = out.appendingPathComponent(String(format: "%03d-%@.mp4", index, slug))
+        try await FilmVideo.write(FilmRenderer(script: script, labels: labels(script, holder: Holder())), to: url)
+        print(url.path)
+    }
+    exit(0)
+}
 let shard = args.count > 2 ? Int(args[2])! : 0, shards = args.count > 3 ? Int(args[3])! : 1
 let randomCount = args.count > 4 ? Int(args[4])! : 200
-try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
 
 let all = Scenarios.extremes + Scenarios.random(randomCount, seed: 2026)
 let mine = all.enumerated().filter { $0.offset % shards == shard }
@@ -30,7 +45,7 @@ func labels(_ script: FilmScript, holder: Holder) -> FilmRenderer.Labels {
     l.sound = true
     l.workCount = FilmRenderer.Labels.notesAndEdits
     let kind = GalaxyScene.name(of: script.form)
-    l.endTitle = { _ in "My notebook is \(kind)" }
+    l.endTitle = { _ in "Your notebook is \(kind)" }
     return l
 }
 

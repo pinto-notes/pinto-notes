@@ -302,17 +302,6 @@ struct NotebookFilmView: View {
         show(slide - 1, screen: screen)
     }
 
-    /// Sends the slide on screen as a picture, tall like a story.
-    private func shareSlide() {
-        #if os(iOS)
-        guard let sent = slides?.sent, let image = sent.image(slide, pixels: 1080) else { return }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("Pinto Notes \u{2013} my month \(slide + 1).png")
-        guard let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else { return }
-        CGImageDestinationAddImage(dest, image, nil)
-        guard CGImageDestinationFinalize(dest) else { return }
-        sharing = SharedFile(url: url)
-        #endif
-    }
 
     /// On the last slide: the film's sky and its play button.
     private var atPlay: Bool { slideList.indices.contains(slide) && slideList[slide].name == "play" }
@@ -378,11 +367,18 @@ struct NotebookFilmView: View {
                     Spacer()
                     Spacer()
                 }
-                // One button: send this slide as a picture. Everything else is a tap.
+                // One button: share the video. What you share is always the film, never a slide
+                // (Emil, 11-11), so it says so. Everything else is a tap.
                 #if os(iOS)
                 if !atPlay {
-                    Button { shareSlide() } label: {
-                        Label("Share", systemImage: "square.and.arrow.up")
+                    Button(action: pressShare) {
+                        Group {
+                            if shareWaiting {
+                                Text("Preparing video\u{2026} \(Int(((store.making ?? 0) * 100).rounded()))%").monospacedDigit()
+                            } else {
+                                Label(Self.shareVideo, systemImage: "square.and.arrow.up")
+                            }
+                        }
                             .font(.body.weight(.semibold))
                             .foregroundStyle(light ? Color(red: 0.118, green: 0.106, blue: 0.294) : Self.cream)
                             .padding(.horizontal, 26)
@@ -391,8 +387,8 @@ struct NotebookFilmView: View {
                             .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Share this as a picture")
-                    .accessibilityIdentifier("notebookFilm.shareSlide")
+                    .accessibilityLabel("Share the video")
+                    .accessibilityIdentifier("notebookFilm.shareVideoEarly")
                     .padding(.bottom, 12)
                 }
                 #endif
@@ -634,7 +630,7 @@ struct NotebookFilmView: View {
                 shareButton
                 #if os(macOS)
                 Button { save() } label: {
-                    Text("Save\u{2026}")
+                    Text(Self.saveVideo)
                         .font(.body.weight(.semibold))
                         .frame(maxWidth: .infinity, minHeight: 50)
                 }
@@ -675,11 +671,11 @@ struct NotebookFilmView: View {
                     .progressViewStyle(.circular)
                     .controlSize(.small)
                     .tint(.black)
-                Text("Preparing\u{2026} \(Int(((store.making ?? 0) * 100).rounded()))%")
+                Text("Preparing video\u{2026} \(Int(((store.making ?? 0) * 100).rounded()))%")
                     .monospacedDigit()
             } else {
                 Image(systemName: "square.and.arrow.up")
-                Text("Share")
+                Text(Self.shareVideo)
             }
         }
         .font(.body.weight(.semibold))
@@ -688,6 +684,9 @@ struct NotebookFilmView: View {
         .background(Capsule().fill(.white))
         .contentShape(Capsule())
     }
+
+    /// What sharing shares is the film, and the buttons say so.
+    static let shareVideo = "Share video", saveVideo = "Save video\u{2026}"
 
     /// Pinto's ink, for words on a pale sky.
     static let ink = Color(red: 0.17, green: 0.12, blue: 0.11)

@@ -115,7 +115,7 @@ case "galaxy":
     // The film says what the notebook turned out to be: something to post it with.
     let kind = GalaxyScene.name(of: form ?? script.form)
     // (Only at the end: what it turned out to be is the film's last word, not its first.)
-    labels.endTitle = { _ in "My notebook is \(kind)" }
+    labels.endTitle = { _ in "Your notebook is \(kind)" }
     labels.openingTitle = false
     print("form: \(script.form.rawValue)\(form.map { " (shown as \($0.rawValue))" } ?? ""), \(script.nodes.count) notes, \(script.stats.folders) folders, \(script.work) edits, away \(script.stats.quietDays) days, wrote on \(script.stats.writingDays) of \(script.stats.days)")
     labels.scene = { script, names in GalaxyScene(script: script, names: names, seed: Int(seed), form: form) }
