@@ -732,16 +732,8 @@ struct SidebarView: View {
                     // Signed in, your photo is the way into Settings (your account comes first there).
                     if Self.signedIn(backend) {
                         let name = AccountName.shown(ProfileStore.shared.name)
-                        Button { showSettings = true } label: {
-                            AvatarView(photo: ProfileStore.shared.shownPhoto, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, size: Self.avatar)
-                                // The photo alone, no glass around it (Emil, 28 October 2026), still a finger's target.
-                                .frame(width: 44, height: 44)
-                                .contentShape(.circle)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Account, \(name). Opens Settings")
-                        .accessibilityIdentifier("sidebar.settings")
-                        .task(id: backend.state) { await ProfileStore.shared.bind(backend) }
+                        AccountPhotoButton(photo: ProfileStore.shared.shownPhoto, name: AccountName.isSet(ProfileStore.shared.name) ? name : nil, spoken: name) { showSettings = true }
+                            .task(id: backend.state) { await ProfileStore.shared.bind(backend) }
                     } else {
                         Button("Settings", systemImage: "gearshape") { showSettings = true }
                             .tint(.primary)
@@ -821,8 +813,6 @@ struct SidebarView: View {
         return capturesAccount
     }
 
-    /// The profile photo at the top right: big enough to tell whose it is, inside its 44 pt target.
-    static let avatar: CGFloat = 38
     #endif
 
     /// The folders screen's search on iPhone; while it has words, the notes it finds in place of
@@ -2461,3 +2451,31 @@ extension Notification.Name {
     /// Notes went to a folder: the note's page says so (the object is what to say).
     static let paneNotesMoved = Notification.Name("pane.notesMoved")
 }
+
+#if os(iOS)
+/// Your photo at the top left of the folders (iPhone): the way into Settings. The photo alone, no
+/// glass around it (Emil, 28 October 2026).
+struct AccountPhotoButton: View {
+    let photo: PImage?
+    let name: String?
+    /// The name VoiceOver reads.
+    let spoken: String
+    let open: () -> Void
+
+    /// As big as the bar's round glass buttons, filling the same 44 pt target, so its edge sits as
+    /// far from the screen's as theirs (Emil, 11 November 2026: a 38 pt photo in it sat 3 pt further
+    /// in and looked smaller).
+    static let photo: CGFloat = 44
+
+    var body: some View {
+        Button(action: open) {
+            AvatarView(photo: photo, name: name, size: Self.photo)
+                .frame(width: Self.photo, height: Self.photo)
+                .contentShape(.circle)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Account, \(spoken). Opens Settings")
+        .accessibilityIdentifier("sidebar.settings")
+    }
+}
+#endif

@@ -744,6 +744,7 @@
 		97BCA485122DB4D867E5EC96 /* AddDeviceSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C8C1097F11A537E7117D38F /* AddDeviceSnapshots.swift */; };
 		97D4197989F86B76C4FD2480 /* FormatPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 861593B83F34E79512C05D62 /* FormatPanel.swift */; };
 		97EDA879D7694FBEE56F05A1 /* CollabCryptoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06388D3FCFEAEAE87C8C2620 /* CollabCryptoTests.swift */; };
+		981FDF11DD9335C98988D0A0 /* PhoneAccountButtonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CF6606F1D134E0CC1E52660 /* PhoneAccountButtonTests.swift */; };
 		986926A2AAE1FACC1F354E98 /* template-app-study-flashcards-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 72B4CD916BB1B0DB9E81D934 /* template-app-study-flashcards-stage-narrow-dark.jpg */; };
 		9893835B09E30438192674E6 /* TestFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 775EAC727A32670CD0DB5CCC /* TestFiles.swift */; };
 		98B5CBEC278DB0014CA23630 /* template-app-habit-tracker-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 2A7B9A6437069D55101DDFDB /* template-app-habit-tracker-light.jpg */; };
@@ -1392,6 +1393,7 @@
 		2C439A81FB96E4DE1B754647 /* Dividers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dividers.swift; sourceTree = "<group>"; };
 		2C8C1097F11A537E7117D38F /* AddDeviceSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDeviceSnapshots.swift; sourceTree = "<group>"; };
 		2CC822E0A1ABBCCDB65B943A /* ShareExtensionUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionUITests.swift; sourceTree = "<group>"; };
+		2CF6606F1D134E0CC1E52660 /* PhoneAccountButtonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAccountButtonTests.swift; sourceTree = "<group>"; };
 		2D3882A212A64F6177633109 /* template-cover-home-maintenance.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-home-maintenance.jpg"; sourceTree = "<group>"; };
 		2D7294BFFF6A6FCC7F16EF89 /* CollabGallery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabGallery.swift; sourceTree = "<group>"; };
 		2DB493FBA680D589F52026E0 /* AIChangesCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChangesCopyTests.swift; sourceTree = "<group>"; };
@@ -2573,6 +2575,7 @@
 				F3D229B736A8948C314A404B /* OwnUndoEditorTests.swift */,
 				31647BC8B35CBD0E08BADA01 /* PastedLinkTests.swift */,
 				451925FBA71291F8A2590004 /* PDFZoomTests.swift */,
+				2CF6606F1D134E0CC1E52660 /* PhoneAccountButtonTests.swift */,
 				F6E4AB2E8D7AF9CAD1680B3C /* PhoneFolderTapTests.swift */,
 				CAF5A2304A5BABB7DC001106 /* QuickOpenTests.swift */,
 				283475786FE6E925FD76C3FC /* QuietChromeTests.swift */,
@@ -3981,6 +3984,7 @@
 				9222FC4398289FD861CBE09E /* PersonaEditorShots.swift in Sources */,
 				848229C4EE00EBF2AF14884F /* PersonaImportShots.swift in Sources */,
 				0B1A600BBD3B2646B0BB41BD /* PersonaR7Shots.swift in Sources */,
+				981FDF11DD9335C98988D0A0 /* PhoneAccountButtonTests.swift in Sources */,
 				214C950321EE5190F9BE7A60 /* PhoneFolderTapTests.swift in Sources */,
 				F9B83CD17366693592CFBAB7 /* PhoneRenderTests.swift in Sources */,
 				E1AD63DF7A3F2CDD138899C0 /* PictureShots.swift in Sources */,
