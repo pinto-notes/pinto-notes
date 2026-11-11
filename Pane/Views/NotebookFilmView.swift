@@ -249,7 +249,7 @@ struct NotebookFilmView: View {
         let u = 1080 / Double(screen.size.width)
         s.H = Double(screen.size.height) * u
         s.top = Double(screen.top) * u + 60
-        // (Room under the words for the Share button.)
+        // (Room under the words for the Next button.)
         s.bottom = Double(screen.bottom) * u + 70 + 64 * u
         return s
     }
@@ -367,31 +367,28 @@ struct NotebookFilmView: View {
                     Spacer()
                     Spacer()
                 }
-                // One button: share the video. What you share is always the film, never a slide
-                // (Emil, 11-11), so it says so. Everything else is a tap.
-                #if os(iOS)
-                if !atPlay {
-                    Button(action: pressShare) {
-                        Group {
-                            if shareWaiting {
-                                Text("Preparing video\u{2026} \(Int(((store.making ?? 0) * 100).rounded()))%").monospacedDigit()
-                            } else {
-                                Label(Self.shareVideo, systemImage: "square.and.arrow.up")
-                            }
+                // One button: Next. Tapping anywhere goes on too, but nothing said so (Emil, 11-11:
+                // "Why is there no forward button, or Next button"). Sharing waits for the end
+                // screen, after the film, and shares the video.
+                if let label = Self.slideButton(onPlaySlide: atPlay) {
+                    Button(action: nextSlide) {
+                        HStack(spacing: 6) {
+                            Text(label)
+                            Image(systemName: "chevron.right").font(.body.weight(.bold))
                         }
                             .font(.body.weight(.semibold))
                             .foregroundStyle(light ? Color(red: 0.118, green: 0.106, blue: 0.294) : Self.cream)
-                            .padding(.horizontal, 26)
+                            .padding(.horizontal, 30)
                             .frame(minHeight: 48)
                             .background(ink, in: Capsule())
                             .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Share the video")
-                    .accessibilityIdentifier("notebookFilm.shareVideoEarly")
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityLabel("Next")
+                    .accessibilityIdentifier("notebookFilm.next")
                     .padding(.bottom, 12)
                 }
-                #endif
             }
         }
         .accessibilityElement(children: .contain)
@@ -684,6 +681,10 @@ struct NotebookFilmView: View {
         .background(Capsule().fill(.white))
         .contentShape(Capsule())
     }
+
+    /// The slides' one button: Next, until the last, whose play button takes over. (Share is only
+    /// on the end screen, after the film.)
+    static func slideButton(onPlaySlide: Bool) -> String? { onPlaySlide ? nil : "Next" }
 
     /// What sharing shares is the film, and the buttons say so.
     static let shareVideo = "Share video", saveVideo = "Save video\u{2026}"

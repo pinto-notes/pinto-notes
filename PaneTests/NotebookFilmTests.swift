@@ -855,7 +855,7 @@ import AVFoundation
         slides.H = 2622.0 / 1206 * 1080
         #expect(slides.image(0, pixels: 1206).map { [$0.width, $0.height] } == [1206, 2622])
         #expect(slides.image(4, pixels: 1080) == nil)
-        // With room left for the Share button under it, the top note's caption stays clear of the list.
+        // With room left for the Next button under it, the top note's caption stays clear of the list.
         var phone = slides
         phone.bottom = 34 * 1080 / 402 + 70 + 64 * 1080 / 402
         #expect(phone.topStar - 460 - 20 > phone.bottom + 414)
@@ -1130,6 +1130,10 @@ import AVFoundation
         }
         #expect(l.endTitle?(s).hasPrefix("Your notebook is ") == true && l.you == "Just you")
         #expect(NotebookFilmView.shareVideo == "Share video" && NotebookFilmView.saveVideo.hasPrefix("Save video"))
+        // The slides before it have a Next button (and no Share: that's for after the film); the
+        // last one's play button takes its place.
+        #expect(NotebookFilmView.slideButton(onPlaySlide: false) == "Next")
+        #expect(NotebookFilmView.slideButton(onPlaySlide: true) == nil)
     }
 
     @Test func theRunningCountSaysOneNoteNotOneNotes() {
