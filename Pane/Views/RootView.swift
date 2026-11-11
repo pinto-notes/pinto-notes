@@ -744,6 +744,10 @@ struct RootView: View {
 
     private func rememberScope(_ new: Scope?) {
         if let new, let data = try? JSONEncoder().encode(new) { lastScopeData = data }
+        #if os(iOS)
+        // Back out of a folder on iPhone: the next launch opens the folders, as in Notes.
+        if new == nil, sizeClass == .compact { lastScopeData = PhoneLaunchSpot.folders }
+        #endif
     }
 
     private func noteChanged(from old: UUID?, to new: UUID?) {
@@ -755,6 +759,11 @@ struct RootView: View {
         if old != nil { NotificationCenter.default.post(name: .paneNoteClosed, object: nil) }
         discardIfEmpty(old)
         if let new { lastNote = new.uuidString }
+        #if os(iOS)
+        // Back out of a note on iPhone: the next launch opens the list it was in, not the note,
+        // as in Notes. Leaving the app with the note open changes nothing here, so it reopens.
+        if new == nil, sizeClass == .compact { lastNote = PhoneLaunchSpot.list }
+        #endif
         // A spare web view waiting to start waits on: starting one lands in the next open or Back.
         NotePageSandbox.navigationOccurred()
         #if os(iOS)
@@ -1121,6 +1130,10 @@ struct RootView: View {
         guard selectedNote == nil, !ProcessInfo.processInfo.arguments.contains("-uitest") else { return }
         // Settings › General › Open it when Pinto starts: the first window opens on today's note.
         if TodaysNoteLaunch.shared.take(TodaysNoteSettings.load()) { openTodaysNote(); return }
+        #if os(iOS)
+        // You went Back out of the note last time: the list (or the folders) opens, with no note.
+        if sizeClass == .compact, lastNote == PhoneLaunchSpot.list || scope == nil { return }
+        #endif
         // A file kept in a folder reopens like a note.
         if let id = UUID(uuidString: lastNote), let f = context.attachment(id), f.folderID != nil, f.deletedAt == nil, f.trashedAt == nil {
             selectedNote = id
@@ -1134,6 +1147,8 @@ struct RootView: View {
         // Captures: `-uitest -showFolders` stays on the folder list.
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-uitest"), args.contains("-showFolders") { return }
+        // You went Back out to the folders last time: they're where it opens.
+        if sizeClass == .compact, lastScopeData == PhoneLaunchSpot.folders { return }
         #endif
         if let s = try? JSONDecoder().decode(Scope.self, from: lastScopeData),
            !({ if case .folder(let id) = s { return context.folder(id) == nil } else { return false } }()) {
@@ -1142,6 +1157,19 @@ struct RootView: View {
             scope = .all
         }
     }
+}
+
+/// Where the iPhone opens after you went Back, as in Notes (Emil, 11 November 2026: "you always
+/// return to the latest note you were in. but I think that should be nullified if you
+/// intentionally left the note"). Back out of a note saves the list; Back out of a folder saves
+/// the folders; opening a note or a folder saves it again. Leaving the app inside a note (Home,
+/// another app, iOS ending it in the background) keeps the note, so it reopens. The iPad and the
+/// Mac keep their selection: with the list beside the note there's no Back to mean "leave".
+enum PhoneLaunchSpot {
+    /// The last note, after Back out of it: open the list, no note.
+    static let list = "list"
+    /// The last scope, after Back out of a folder: open the folder list.
+    static let folders = Data("folders".utf8)
 }
 
 /// What the note pane shows with several notes selected, as in Notes.

@@ -25,6 +25,8 @@ import UIKit
     #if os(iOS)
     /// A tap on a folder opens its notes, a tap on a note opens it, and Back goes back; All Notes too.
     @Test func aTapOnAFolderOpensIt() async throws {
+        await PhoneScreenTurn.take()
+        defer { PhoneScreenTurn.give() }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         Seed.ensureLibrary(c.mainContext, demo: false, welcome: false)
@@ -159,3 +161,16 @@ import UIKit
     }
     #endif
 }
+
+#if os(iOS)
+/// One hosted iPhone app at a time. Suites run side by side, and every launch reads and writes the
+/// same remembered folder and note, so two at once would open in each other's place.
+@MainActor enum PhoneScreenTurn {
+    private static var busy = false
+    static func take() async {
+        while busy { try? await Task.sleep(for: .milliseconds(50)) }
+        busy = true
+    }
+    static func give() { busy = false }
+}
+#endif

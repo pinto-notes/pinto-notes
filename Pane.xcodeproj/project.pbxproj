@@ -658,6 +658,7 @@
 		86110F1EAE53F12524BB1AEC /* OnboardingFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F5F913E4976210AB96D8D0 /* OnboardingFlowUITests.swift */; };
 		864098AF04B94A0FCD1273BC /* KeyCopyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21F840C976633C76FA3F16DD /* KeyCopyUITests.swift */; };
 		865EAA85CC975DA99FB4C9F1 /* SharedDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2E45AC3676FB940406D0F9 /* SharedDocument.swift */; };
+		8660F13B33A55F2F6F991594 /* PhoneLastNoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508C92C51D29FFF0A5BAC6E8 /* PhoneLastNoteTests.swift */; };
 		868F6A996132E08C51A95C5A /* SignedOutPrivacyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0835B2D8323645A8216DE37 /* SignedOutPrivacyTests.swift */; };
 		869B647A072CA82980DBAFC7 /* ConnectTerminalGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */; };
 		86BAE8BCEAB27D540BD83DCB /* NewNoteFocusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59FC61801B23E8E0B43198F9 /* NewNoteFocusTests.swift */; };
@@ -1521,6 +1522,7 @@
 		4FE40FD61B9675D2F55FBD83 /* AIReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIReview.swift; sourceTree = "<group>"; };
 		5065525FC29F25AE64A5EA51 /* SessionFault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionFault.swift; sourceTree = "<group>"; };
 		5080D778A1C103413519FD85 /* LinkForms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkForms.swift; sourceTree = "<group>"; };
+		508C92C51D29FFF0A5BAC6E8 /* PhoneLastNoteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneLastNoteTests.swift; sourceTree = "<group>"; };
 		508D7FDAAB7702C132913D85 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		50D9729365D09DFD5585A159 /* SidebarCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarCardTests.swift; sourceTree = "<group>"; };
 		511426CD6526438E90CD7B2D /* FormerSubNotesSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormerSubNotesSnapshots.swift; sourceTree = "<group>"; };
@@ -2584,6 +2586,7 @@
 				2CF6606F1D134E0CC1E52660 /* PhoneAccountButtonTests.swift */,
 				9322EF0405CA9AFF00EB17FA /* PhoneAppearanceSheetTests.swift */,
 				F6E4AB2E8D7AF9CAD1680B3C /* PhoneFolderTapTests.swift */,
+				508C92C51D29FFF0A5BAC6E8 /* PhoneLastNoteTests.swift */,
 				5B958B34D188D2BE722F0B73 /* PhoneSignOutTests.swift */,
 				CAF5A2304A5BABB7DC001106 /* QuickOpenTests.swift */,
 				283475786FE6E925FD76C3FC /* QuietChromeTests.swift */,
@@ -3996,6 +3999,7 @@
 				981FDF11DD9335C98988D0A0 /* PhoneAccountButtonTests.swift in Sources */,
 				EB1CF3DC1DCCA751C9F29704 /* PhoneAppearanceSheetTests.swift in Sources */,
 				214C950321EE5190F9BE7A60 /* PhoneFolderTapTests.swift in Sources */,
+				8660F13B33A55F2F6F991594 /* PhoneLastNoteTests.swift in Sources */,
 				F9B83CD17366693592CFBAB7 /* PhoneRenderTests.swift in Sources */,
 				6980AC696EEA281FC5DDE83E /* PhoneSignOutTests.swift in Sources */,
 				E1AD63DF7A3F2CDD138899C0 /* PictureShots.swift in Sources */,
