@@ -322,9 +322,9 @@ struct GeneralChoices {
     static func example(_ form: TodaysNoteSettings.Title, now: Date = .now) -> String { DailyNotes.title(for: now, as: form) }
 }
 
-/// Sign Out…: signing out alone, which keeps the notes on this device for next time, or signing
-/// out and removing them from it (`SignOutRemoval`). The second is only offered while something
-/// else can open the notes, and is refused while anything here hasn't synced.
+/// Sign Out…: signing out, which keeps the notes on this device for next time. On the Mac its alert
+/// can also remove them from it (`SignOutRemoval`), offered only while something else can open the
+/// notes and refused while anything here hasn't synced; on iPhone deleting the app removes them.
 struct SignOutButton: View {
     let backend: Backend
     let sync: SyncEngine?
@@ -338,14 +338,17 @@ struct SignOutButton: View {
     @State private var asking = false
     @State private var removing = false
     @State private var refusal: SignOutRemoval.Refusal?
+    /// Something on this device hadn't synced when Sign Out was pressed (iPhone's alert says so).
+    @State private var unsynced = false
 
     var body: some View {
-        let offer = SignOutRemoval.offer(crypto: crypto, devices: devices)
         Button(role: .destructive) {
             refusal = nil
             #if os(macOS)
-            askOnMac(offer)
+            askOnMac(SignOutRemoval.offer(crypto: crypto, devices: devices))
             #else
+            DebouncedSave.flushAll()
+            unsynced = AccountLibrary.hasUnsynced(context)
             asking = true
             #endif
         } label: {
@@ -360,24 +363,13 @@ struct SignOutButton: View {
         .signOutLook(compact: compact)
         .disabled(removing)
         .accessibilityIdentifier("settings.signOut")
-        // Settings closes once you're signed out.
-        .confirmationDialog(SignOutCopy.title, isPresented: $asking, titleVisibility: .visible) {
-            Button(SignOutCopy.signOut, role: .destructive) { Task { await backend.signOut() } }
-                .accessibilityIdentifier("settings.confirmSignOut")
-            if offer != .unavailable {
-                // At the largest text sizes the full title runs past the dialog's edge on iPhone; the
-                // message above it names the device.
-                Button(typeSize.isAccessibilitySize ? SignOutCopy.removeShort : SignOutCopy.remove(), role: .destructive) { Task { await remove() } }
-                    .disabled(offer == .needsRecoveryKey)
-                    .accessibilityIdentifier("settings.signOutAndRemove")
-            }
-            if offer == .needsRecoveryKey {
-                Button(SignOutCopy.saveRecoveryKey) { showSecurity() }
-                    .accessibilityIdentifier("settings.signOutRecoveryKey")
-            }
-        } message: {
-            Text(SignOutCopy.message(offer))
-        }
+        #if os(iOS)
+        // An alert, as Settings asks before signing out of an Apple Account: the question, a line
+        // only when something hasn't synced, Sign Out and Cancel (Emil, 11 November 2026: the
+        // popover with three buttons and four sentences was "absurd"). The notes stay on the
+        // iPhone; deleting the app removes them. Settings closes once you're signed out.
+        .modifier(PhoneSignOutAlert(asking: $asking, unsynced: unsynced) { Task { await backend.signOut() } })
+        #endif
         if let refusal {
             Label(SignOutCopy.refusal(refusal), systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
@@ -399,22 +391,6 @@ struct SignOutButton: View {
     }
     #endif
 
-    private func remove() async {
-        guard let account = backend.userID else { return }
-        removing = true
-        defer { removing = false }
-        do {
-            try await SignOutRemoval.live(backend: backend, sync: sync, context: context).run(account: account)
-        } catch {
-            refusal = error as? SignOutRemoval.Refusal ?? .offline
-        }
-    }
-
-    /// Security, where the recovery key is saved.
-    private func showSecurity() {
-        Self.showSecurity(route)
-    }
-
     static func showSecurity(_ route: SettingsRoute) {
         #if os(macOS)
         route.open(.security)
@@ -423,6 +399,25 @@ struct SignOutButton: View {
         #endif
     }
 }
+
+#if os(iOS)
+/// iPhone and iPad's question before signing out (`SignOutButton`).
+struct PhoneSignOutAlert: ViewModifier {
+    @Binding var asking: Bool
+    let unsynced: Bool
+    let signOut: () -> Void
+
+    func body(content: Content) -> some View {
+        content.alert(SignOutCopy.phoneTitle, isPresented: $asking) {
+            Button(SignOutCopy.signOut, role: .destructive, action: signOut)
+                .accessibilityIdentifier("settings.confirmSignOut")
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            if let line = SignOutCopy.phoneLine(unsynced: unsynced) { Text(line) }
+        }
+    }
+}
+#endif
 
 #if os(macOS)
 /// Sign Out… on the Mac, from Settings › Account and from the account menu at the foot of the

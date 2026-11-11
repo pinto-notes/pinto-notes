@@ -201,7 +201,6 @@ extension SignOutRemoval {
 
 /// The words of the sign-out dialog, by device ("Mac", "iPhone", "iPad").
 enum SignOutCopy {
-    static let title = "Sign out of Pinto Notes?"
     static let signOut = "Sign Out"
     static func remove(_ kind: String = InstallID.kind) -> String { "Sign Out and Remove Notes from This \(kind)" }
     static let removeShort = "Sign Out and Remove Notes"
@@ -219,6 +218,13 @@ enum SignOutCopy {
     }
 
     static let needsRecoveryKey = "Save your recovery key first, or your notes could not be opened again."
+
+    /// iPhone and iPad's alert: the Mac's question (`macAlert`), alone.
+    static let phoneTitle = "Sign out?"
+    /// Its one line, only when signing out leaves something behind: changes that haven't synced.
+    static func phoneLine(unsynced: Bool, kind: String = InstallID.kind) -> String? {
+        unsynced ? "Some changes on this \(kind) haven\u{2019}t synced yet." : nil
+    }
 
     /// The Mac's alert (Emil, 3 November 2026: three wide buttons, two red, and four sentences were
     /// "a total mess"): one question, one sentence, Sign Out and Cancel, and removing the notes as
