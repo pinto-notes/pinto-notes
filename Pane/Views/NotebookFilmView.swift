@@ -263,6 +263,7 @@ struct NotebookFilmView: View {
         var title: (@Sendable (FilmNote) -> String?)?
         if let known = names { title = { note in known[note.id] } }
         var s = FilmSlides(input: input, script: script, mark: NotebookFilmStore.mark, title: title)
+        s.you = FilmSlides.firstName(ProfileStore.shared.name)
         let u = 1080 / Double(screen.size.width)
         s.H = Double(screen.size.height) * u
         s.top = Double(screen.top) * u + 60
@@ -283,6 +284,8 @@ struct NotebookFilmView: View {
     /// size between frames.
     private func show(_ k: Int, screen: FilmPlayback.Screen) {
         guard let slides, slideList.indices.contains(k) else { return }
+        // (Each slide has its own sky; it shifts from the one on screen.)
+        let from = slideShown
         slide = k
         slideTask?.cancel()
         let list = slideList, length = list[k].length, still = reduceMotion
@@ -293,7 +296,7 @@ struct NotebookFilmView: View {
                 while !Task.isCancelled {
                     let t = (clock.now - began) / .seconds(1)
                     if t >= length { break }
-                    let image = await Self.draw(slides, k, at: t, pixels: moving, list)
+                    let image = await Self.draw(slides, k, at: t, pixels: moving, list, from: from)
                     guard !Task.isCancelled else { return }
                     #if QA
                     Self.dump(image, k, t)
@@ -324,8 +327,8 @@ struct NotebookFilmView: View {
     }
     #endif
 
-    private nonisolated static func draw(_ slides: FilmSlides, _ k: Int, at t: Double?, pixels: Int, _ list: [FilmSlides.Slide]) async -> CGImage? {
-        await Task.detached(priority: .userInitiated) { slides.image(k, at: t, pixels: pixels, slides: list) }.value
+    private nonisolated static func draw(_ slides: FilmSlides, _ k: Int, at t: Double?, pixels: Int, _ list: [FilmSlides.Slide], from: Int? = nil) async -> CGImage? {
+        await Task.detached(priority: .userInitiated) { slides.image(k, at: t, pixels: pixels, slides: list, from: from) }.value
     }
 
     private func nextSlide() {
@@ -342,12 +345,18 @@ struct NotebookFilmView: View {
     /// On the last slide: the film's sky and its play button.
     private var atPlay: Bool { slideList.indices.contains(slide) && slideList[slide].name == "play" }
 
+    private var filmSky: Color {
+        let c = store.script.map { GalaxyScene.sky($0) } ?? 0x15133A
+        return Color(red: Double(c >> 16 & 0xFF) / 255, green: Double(c >> 8 & 0xFF) / 255, blue: Double(c & 0xFF) / 255)
+    }
+
     private var slidesView: some View {
         let light = slideList.indices.contains(slide) ? slideList[slide].light : false
         let ink: Color = light ? Self.cream : Color(red: 0.118, green: 0.106, blue: 0.294)
         return ZStack {
-            // Drawn in the screen's own shape, behind everything, so it never sizes the controls.
-            Color(red: 1, green: 0.68, blue: 0.2)
+            // Drawn in the screen's own shape, behind everything, so it never sizes the controls. (Under
+            // the slides, the film's sky, the colour the card grows from.)
+            filmSky
                 .overlay {
                     if let slideFrame {
                         FrameLayer(image: slideFrame)

@@ -20,6 +20,11 @@ struct FilmSlides: @unchecked Sendable {
     let W = 1080.0
     /// A note's name, when it may be shown; a note without one is left off the list.
     var title: @Sendable (FilmNote) -> String?
+    /// Your first name, from your profile, to greet you by (none: it greets you without one).
+    var you: String?
+    /// Which first slide (being compared, 11-11): 0 the wall of what you brought, 1 hello in words,
+    /// 2 your notebook as a sheet, 3 the Pinto leaf.
+    var startLook = 1
 
     /// A slide: how long it takes to come in, and its drawing at a time since it appeared.
     struct Slide: @unchecked Sendable {
@@ -95,6 +100,11 @@ struct FilmSlides: @unchecked Sendable {
     }
 
 
+    /// What it greets you by: the first word of your profile's name, if it has one.
+    static func firstName(_ name: String?) -> String? {
+        name?.split(whereSeparator: \.isWhitespace).first.map(String.init)
+    }
+
     static func hourName(_ h: Int) -> String {
         let h = (h % 24 + 24) % 24
         return h == 0 ? "midnight" : h == 12 ? "noon" : h < 12 ? "\(h) am" : "\(h - 12) pm"
@@ -102,15 +112,28 @@ struct FilmSlides: @unchecked Sendable {
 
     // MARK: Paper
 
-    private struct Palette { var bg: C; var tones: [C]; var ink: C; var you: C; var ai: C }
+    private struct Palette {
+        var bg: C; var tones: [C]; var ink: C; var you: C; var ai: C
+        /// What's written on the cream paper (its own ink is light on a strong colour).
+        var paperInk: C { ink.r + ink.g + ink.b > 1.5 ? C(0x2B1406) : ink }
+    }
 
+    /// The film's own sky, the one its card and its first frame are.
+    /// Slide `k`'s sky (0 the welcome, 1 your top notes, 2 when you write, 3 play). The welcome and
+    /// play are the film's own sky (the card grows into the one, the film opens on the other); the two
+    /// between are two other skies, picked so no slide's is like the one before it (the violet and
+    /// the purple are too alike to tell apart).
+    private func skyColours(_ k: Int) -> (C, [C]) {
+        let sky = GalaxyScene.skies[Self.skyPath((seed / 3 + seed) % GalaxyScene.skies.count)[k]]
+        return (C(sky.0), sky.1.map { C($0) })
+    }
+
+    /// Every slide is set in the film's own night sky, each a different one of its skies, and they
+    /// shift from one to the next. (Emil, 11-11: the film is great, the slides' coloured paper
+    /// wasn't; "A, but make the background shift between slides".)
     private func palette(_ k: Int) -> Palette {
-        switch k {
-        case 0: return Palette(bg: C(0xFFAE34), tones: [C(0xFFBD55), C(0xFFCD7C), C(0xFFDEA6), C(0xFFEFD2)], ink: C(0x1E1B4B), you: C(0xFFF6E8), ai: C(0x2F6FD6))
-        // (Green, not beige: Emil, 11-11, "the beige background is pretty terrible", then "green is pretty good".)
-        case 1: return Palette(bg: C(0x168C5E), tones: [C(0x1E9A69), C(0x2AA977), C(0x45BB8A), C(0x7DD3A9)], ink: C(0xFFF6E8), you: C(0xFFC45A), ai: C(0xBFE0FF))
-        default: return Palette(bg: C(0x2A4BCB), tones: [C(0x3659D6), C(0x4A6EE0), C(0x6787E8), C(0x98B0F1)], ink: C(0xFFF6E8), you: C(0xFFC45A), ai: C(0xBFE0FF))
-        }
+        let (bg, tones) = skyColours(min(k, 3))
+        return Palette(bg: bg, tones: tones, ink: C(0xFFF4E6), you: C(0xFFC45A), ai: C(0xBFE0FF))
     }
 
     private var seed: Int { script.seed }
@@ -187,11 +210,23 @@ struct FilmSlides: @unchecked Sendable {
         ctx.restoreGState()
     }
 
+    private func stars(_ k: Int, _ p: Palette, in ctx: CGContext) {
+        for j in 0..<150 {
+            let q = CGPoint(x: filmHash(j, seed + 11 * k + 1) * W, y: filmHash(j, seed + 11 * k + 2) * H), r = 1.3 + 2.4 * pow(filmHash(j, seed + 3), 3)
+            ctx.setFillColor(p.ink.cg(0.2 + 0.45 * filmHash(j, seed + 4)))
+            ctx.fillEllipse(in: CGRect(x: q.x - r, y: q.y - r, width: r * 2, height: r * 2))
+        }
+    }
+
+    /// A slide's sky: its colour, two paper clouds, stars. The clouds are the same on every slide, so
+    /// going from one to the next only shifts their colour.
     private func ground(_ k: Int, _ p: Palette, in ctx: CGContext) {
         ctx.setFillColor(p.bg.cg()); ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
-        paper(blob(CGPoint(x: 260, y: H * 0.36), 700, 620, key: seed * 7 + k), p.bg.mix(p.tones[0], 0.6), lift: 1.8, in: ctx)
-        paper(blob(CGPoint(x: 860, y: H * 0.7), 560, 520, key: seed * 9 + k), p.bg.mix(p.tones[0], 0.95), lift: 1.5, in: ctx)
+        paper(blob(CGPoint(x: 260, y: H * 0.36), 700, 620, key: seed * 7), p.bg.mix(p.tones[0], 0.6), lift: 1.8, in: ctx)
+        paper(blob(CGPoint(x: 860, y: H * 0.7), 560, 520, key: seed * 9), p.bg.mix(p.tones[0], 0.95), lift: 1.5, in: ctx)
         ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
+        // (The play slide's stars twinkle in, so it draws its own.)
+        if k != 3 { stars(k, p, in: ctx) }
         if let mark { ctx.draw(mark, in: CGRect(x: 64, y: H - top - 70, width: 52, height: 52)) }
         FilmKit.text("Pinto Notes", 34, 0.45, p.ink.cg(0.92), at: CGPoint(x: 130, y: H - top - 56), in: ctx)
     }
@@ -309,15 +344,9 @@ struct FilmSlides: @unchecked Sendable {
         // Last, the film's own sky, waiting for you to press play.
         // (The picture you send of it says what it is: "Your month".)
         let line = Self.story(input, script: script)
-        let sky = GalaxyScene.skies[(seed / 3 + seed) % GalaxyScene.skies.count]
-        let bg = C(sky.0), tones = sky.1.map { C($0) }, cream = C(0xFFF4E6)
+        let cream = C(0xFFF4E6)
         out.append(Slide(name: "play", length: 1.0, light: true, spoken: "\(line). See your month: press play.", back: { ctx in
-            ctx.setFillColor(bg.cg()); ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
-            paper(blob(CGPoint(x: 330, y: H * 0.42), 660, 560, key: seed * 7 + 1), bg.mix(tones[0], 0.55), lift: 1.6, in: ctx)
-            paper(blob(CGPoint(x: 800, y: H * 0.66), 520, 420, key: seed * 7 + 2), bg.mix(tones[0], 0.9), lift: 1.4, in: ctx)
-            ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
-            if let mark { ctx.draw(mark, in: CGRect(x: 64, y: H - top - 70, width: 52, height: 52)) }
-            FilmKit.text("Pinto Notes", 34, 0.45, cream.cg(0.92), at: CGPoint(x: 130, y: H - top - 56), in: ctx)
+            ground(3, palette(3), in: ctx)
         }) { ctx, t in
             for j in 0..<150 {
                 let q = CGPoint(x: filmHash(j, seed + 1) * W, y: filmHash(j, seed + 2) * H), r = 1.3 + 2.4 * pow(filmHash(j, seed + 3), 3)
@@ -371,9 +400,84 @@ struct FilmSlides: @unchecked Sendable {
         return (size, rows)
     }
 
+    /// The first slide.
+    private func start() -> Slide {
+        switch startLook {
+        case 1, 2, 3: return welcome(startLook)
+        default: return wall()
+        }
+    }
+
+    /// The first slide as a welcome: you, by name, and your month with Pinto Notes. One thing on it.
+    private func welcome(_ look: Int) -> Slide {
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US"); f.calendar = cal; f.dateFormat = "MMMM d"
+        let day = f.string(from: script.start)
+        let count = input.notes.filter { $0.imported == true }.count
+        let began = count > 0 ? "It began on \(day) with \(count) notes." : "It began on \(day) with your first note."
+        let period = script.stats.period
+        // (With no name: "Hello", not "Hi,".)
+        let hi1 = you.map { "Hi \($0)" } ?? "Hello"
+        let (lo, hi) = band
+        let spoken: String
+        switch look {
+        case 1: spoken = "\(hi1), welcome to your \(period) with Pinto Notes. \(began)"
+        case 2: spoken = "\(hi1). Your \(period). \(began)"
+        default: spoken = "Welcome\(you.map { ", \($0)" } ?? ""). Your \(period) with Pinto Notes. \(began)"
+        }
+        return Slide(name: "start", length: 1.6, light: true, spoken: spoken, back: { ctx in ground(0, palette(0), in: ctx) }) { ctx, t in
+            let p = palette(0), ink = p.ink.cg(), y0 = bottom + 120, mid = (lo + hi) / 2
+            switch look {
+            case 1:
+                // Words only, in the middle of the page.
+                let c = (hi + y0 + 80) / 2
+                say("\(hi1),", 200, 0.8, ink, x: 66, y: c + 300, t: t, at: 0, in: ctx)
+                say("welcome to your", 110, 0.75, ink, x: 66, y: c + 60, t: t, at: 0.3, in: ctx)
+                say("\(period) with", 110, 0.75, ink, x: 66, y: c - 80, t: t, at: 0.4, in: ctx)
+                say("Pinto Notes.", 110, 0.75, ink, x: 66, y: c - 220, t: t, at: 0.5, in: ctx)
+                say(began, 44, 0.3, p.ink.cg(0.85), y: c - 340, t: t, at: 0.9, in: ctx)
+            case 2:
+                // Your notebook: one sheet of paper with your name on it.
+                let c = CGPoint(x: W / 2, y: mid - 40), e = filmBackOut((t - 0.05) / 0.5)
+                ctx.saveGState(); ctx.translateBy(x: c.x, y: c.y + (1 - filmSmooth((t - 0.05) / 0.42)) * 900); ctx.rotate(by: -0.05 * e)
+                card(you.map { "\($0)\u{2019}s notebook" } ?? "Your notebook", w: 640, h: 768, key: 0, p, in: ctx)
+                ctx.restoreGState()
+                say(hi1, 110, 0.75, ink, x: 66, y: y0 + 280, t: t, at: 0.35, in: ctx)
+                say("Your " + period, 170, 0.8, ink, x: 66, y: y0 + 110, t: t, at: 0.45, in: ctx)
+                say(began, 44, 0.3, p.ink.cg(0.85), y: y0, t: t, at: 0.9, in: ctx)
+            default:
+                // The Pinto leaf, in paper.
+                let c = CGPoint(x: W / 2, y: mid - 20), e = filmBackOut(t / 0.55)
+                sprite("leaf", side: 760, at: c, scale: 0.8 + 0.2 * e, alpha: filmSmooth(t / 0.3), in: ctx) { lc in
+                    lc.rotate(by: -0.7)
+                    let L = 680.0, R = 250.0
+                    let leaf = CGMutablePath()
+                    leaf.move(to: CGPoint(x: 0, y: L / 2))
+                    leaf.addQuadCurve(to: CGPoint(x: 0, y: -L / 2), control: CGPoint(x: R * 1.9, y: 40))
+                    leaf.addQuadCurve(to: CGPoint(x: 0, y: L / 2), control: CGPoint(x: -R * 1.9, y: -40))
+                    lc.saveGState()
+                    lc.setShadow(offset: CGSize(width: 0, height: -10), blur: 26, color: CGColor(gray: 0, alpha: 0.36))
+                    lc.addPath(leaf); lc.setFillColor(p.you.cg()); lc.fillPath()
+                    lc.restoreGState()
+                    // Its vein and stem.
+                    lc.setLineCap(.round); lc.setLineWidth(14); lc.setStrokeColor(p.bg.cg(0.55))
+                    lc.move(to: CGPoint(x: 0, y: L / 2 - 90)); lc.addLine(to: CGPoint(x: 0, y: -L / 2 - 50)); lc.strokePath()
+                    lc.setLineWidth(9)
+                    for k in 0..<3 {
+                        let y = L / 2 - 200 - Double(k) * 130
+                        lc.move(to: CGPoint(x: 0, y: y - 60)); lc.addLine(to: CGPoint(x: 130 - Double(k) * 20, y: y + 20)); lc.strokePath()
+                        lc.move(to: CGPoint(x: 0, y: y - 60)); lc.addLine(to: CGPoint(x: -130 + Double(k) * 20, y: y + 20)); lc.strokePath()
+                    }
+                }
+                say("Welcome\(you.map { ", \($0)" } ?? "")", 110, 0.75, ink, x: 66, y: y0 + 280, t: t, at: 0.3, in: ctx)
+                say("Your " + period, 170, 0.8, ink, x: 66, y: y0 + 110, t: t, at: 0.4, in: ctx)
+                say(began, 44, 0.3, p.ink.cg(0.85), y: y0, t: t, at: 0.9, in: ctx)
+            }
+        }
+    }
+
     /// Where you started: the notes you brought in, by name, landing as they're counted; or your
     /// first note on its own, a sheet of paper. What the rest of it is measured from.
-    private func start() -> Slide {
+    private func wall() -> Slide {
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US"); f.calendar = cal; f.dateFormat = "MMMM d"
         let day = f.string(from: script.start)
         let brought = input.notes.filter { $0.imported == true }.sorted { $0.created < $1.created }
@@ -386,7 +490,7 @@ struct FilmSlides: @unchecked Sendable {
         let names = brought.compactMap { title($0) }
         let wall = count > 0 && !names.isEmpty ? Self.wall(names, count: count, width: W - 132, height: hi - lo - 60) : nil
         let spoken = "\(lines.0) \(lines.1) \(lines.2)"
-        return Slide(name: "start", length: 2.0, spoken: spoken, back: { ctx in ground(0, palette(0), in: ctx) }) { ctx, t in
+        return Slide(name: "start", length: 2.0, light: true, spoken: spoken, back: { ctx in ground(0, palette(0), in: ctx) }) { ctx, t in
             let p = palette(0)
             let y0 = bottom + 120
             say(lines.0, 110, 0.75, p.ink.cg(), x: 66, y: y0 + 280, t: t, at: 0, in: ctx)
@@ -436,13 +540,13 @@ struct FilmSlides: @unchecked Sendable {
         var y = h / 2 - 96
         if let name {
             let size = min(54, 54 * (w - 110) / max(1, FilmKit.width(name, 54, 0.7)))
-            FilmKit.text(name, size, 0.7, p.ink.cg(), at: CGPoint(x: -w / 2 + 54, y: y), in: ctx)
+            FilmKit.text(name, size, 0.7, p.paperInk.cg(), at: CGPoint(x: -w / 2 + 54, y: y), in: ctx)
             y -= 90
         }
         for k in 0..<7 {
             let len = (w - 108) * (k == 6 ? 0.45 : 0.62 + 0.38 * filmHash(key * 13 + k, 71))
             ctx.addPath(CGPath(roundedRect: CGRect(x: -w / 2 + 54, y: y, width: len, height: 16), cornerWidth: 8, cornerHeight: 8, transform: nil))
-            ctx.setFillColor(p.ink.cg(0.13)); ctx.fillPath()
+            ctx.setFillColor(p.paperInk.cg(0.13)); ctx.fillPath()
             y -= 52
         }
     }
@@ -470,16 +574,33 @@ struct FilmSlides: @unchecked Sendable {
     }
 
     /// Slide `k`, `t` seconds after it appeared (its end when nil), `pixels` wide.
-    func image(_ k: Int, at t: Double? = nil, pixels: Int, slides all: [Slide]? = nil) -> CGImage? {
+    /// The four slides' skies, by their place in `GalaxyScene.skies`, for a film set in sky `f`.
+    static func skyPath(_ f: Int) -> [Int] {
+        let between = [[1, 2], [4, 3], [1, 4], [2, 1], [1, 2]][f]
+        return [f, between[0], between[1], f]
+    }
+
+    /// How long one slide's sky takes to become the next one's.
+    static let shift = 0.6
+
+    /// Slide `k` at `t` seconds since it appeared; `from` is the slide before it on screen, whose sky
+    /// it eases out of.
+    func image(_ k: Int, at t: Double? = nil, pixels: Int, slides all: [Slide]? = nil, from: Int? = nil) -> CGImage? {
         let all = all ?? slides()
         let height = Int((Double(pixels) * H / W).rounded()), scale = Double(pixels) / W
         guard all.indices.contains(k), let ctx = FilmRenderer.context(width: pixels, height: height) else { return nil }
-        if let back = all[k].back, let still = backs.image("\(k) \(all[k].name) \(pixels) \(H) \(top) \(bottom)", {
-            guard let b = FilmRenderer.context(width: pixels, height: height) else { return nil }
-            b.scaleBy(x: scale, y: scale); back(b)
-            return b.makeImage()
-        }) {
-            ctx.draw(still, in: CGRect(x: 0, y: 0, width: pixels, height: height))
+        func still(_ k: Int) -> CGImage? {
+            guard let back = all[k].back else { return nil }
+            return backs.image("\(k) \(all[k].name) \(pixels) \(H) \(top) \(bottom)") {
+                guard let b = FilmRenderer.context(width: pixels, height: height) else { return nil }
+                b.scaleBy(x: scale, y: scale); back(b)
+                return b.makeImage()
+            }
+        }
+        let box = CGRect(x: 0, y: 0, width: pixels, height: height)
+        if let s = still(k) { ctx.draw(s, in: box) }
+        if let t, let from, from != k, all.indices.contains(from), t < Self.shift, let s = still(from) {
+            ctx.saveGState(); ctx.setAlpha(1 - filmSmooth(t / Self.shift)); ctx.draw(s, in: box); ctx.restoreGState()
         }
         ctx.scaleBy(x: scale, y: scale)
         all[k].draw(ctx, t ?? all[k].length + 1)
