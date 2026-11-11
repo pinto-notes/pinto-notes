@@ -608,7 +608,7 @@ struct NotebookFilmView: View {
         }
         .frame(width: rect.width, height: rect.height)
         .clipShape(shape)
-        .overlay(shape.strokeBorder(.white.opacity(store.look == .night ? 0.14 * p : 0), lineWidth: 0.5))
+        .overlay(shape.strokeBorder(.white.opacity(store.look == .night || endStyle != .now ? 0.16 * p : 0), lineWidth: endStyle != .now ? 1 : 0.5))
         .contentShape(Rectangle())
         // Watching, a tap goes to the end, as a story does; on the share screen it plays again.
         .onTapGesture { if phase == .watching { playback.skipToEnd() } else { watch() } }
@@ -648,6 +648,22 @@ struct NotebookFilmView: View {
     /// The share screen round the film's card. It's laid out from the start (unseen) so the film
     /// knows where it will land.
     private var shareChrome: some View {
+        ZStack {
+            if endStyle != .now {
+                endBackdrop
+                    .opacity(controlsShown ? 1 : 0)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.5), value: controlsShown)
+            }
+            switch endStyle {
+            case .now: shareNow
+            case .card: endCard
+            case .reveal: endReveal
+            case .recap: endRecap
+            }
+        }
+    }
+
+    private var shareNow: some View {
         VStack(spacing: 0) {
             // Close is where it was while the film played (it never moves under a thumb).
             HStack {
@@ -683,6 +699,232 @@ struct NotebookFilmView: View {
         }
         .padding(.horizontal, Metrics.side)
         .padding(.bottom, Metrics.bottom)
+    }
+
+    // MARK: End screen options (Emil, 11-11: "a weak final screen"). `-filmEnd card|reveal|recap`
+    // shows one; without it, the screen as it was.
+
+    enum EndStyle: String { case now, card, reveal, recap }
+    private var endStyle: EndStyle {
+        let a = store.arguments
+        guard let i = a.firstIndex(of: "-filmEnd"), i + 1 < a.count else { return .now }
+        return EndStyle(rawValue: a[i + 1]) ?? .now
+    }
+
+    /// The film's sky, a shade darker so its card stands out, with the slides' clouds still floating.
+    private var endBackdrop: some View {
+        filmSky
+            .overlay(Color.black.opacity(0.32))
+            .overlay { floatingClouds.opacity(0.75) }
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+    }
+
+    private var watchAgainButton: some View {
+        Button(action: watch) {
+            Label("Watch again", systemImage: "play.fill")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14)
+                .frame(height: 36)
+                .background(Capsule().fill(.white.opacity(0.14)))
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .accessibilityIdentifier("notebookFilm.watchAgain")
+    }
+
+    private var endTopRow: some View {
+        HStack {
+            watchAgainButton.opacity(controlsShown ? 1 : 0)
+            Spacer()
+            closeButton
+        }
+        .padding(.top, FilmRow.top)
+    }
+
+    /// Where the film lands: the card it settles into is laid out here.
+    private var cardSlot: some View {
+        Color.clear
+            .aspectRatio(CGFloat(FilmScript.width) / CGFloat(FilmScript.height), contentMode: .fit)
+            .background(GeometryReader { c in
+                Color.clear.preference(key: CardRectKey.self, value: c.frame(in: .named("film")))
+            })
+            .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
+    }
+
+    /// Look and folder names, folded into one button: they're for the video you send, not the screen.
+    private var optionsMenu: some View {
+        Menu {
+            Picker("Look", selection: $store.look) {
+                ForEach(FilmLook.offered, id: \.self) { look in Text(look.name).tag(look) }
+            }
+            Section("Note titles and text are never in the film.") {
+                Toggle("Folder names", isOn: $store.folderNames)
+            }
+            #if os(macOS)
+            Button(Self.saveVideo) { save() }.disabled(store.movie == nil)
+            #endif
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 17, weight: .semibold))
+                .frame(width: 50, height: 50)
+                .background(Circle().fill(.white.opacity(0.14)))
+                .contentShape(Circle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .menuIndicator(.hidden)
+        .accessibilityLabel("Video options")
+        .accessibilityIdentifier("notebookFilm.options")
+    }
+
+    private var endButtons: some View {
+        HStack(spacing: 10) {
+            shareButton
+            optionsMenu
+        }
+    }
+
+    private func rising<V: View>(_ v: V, delay: Double = 0.3) -> some View {
+        v.opacity(controlsShown ? 1 : 0)
+            .offset(y: controlsShown ? 0 : 24)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.45).delay(delay), value: controlsShown)
+    }
+
+    /// A: the card, bigger, on the film's own sky, and one button to send it.
+    private var endCard: some View {
+        VStack(spacing: 0) {
+            endTopRow
+            Spacer(minLength: 8)
+            cardSlot
+            Spacer(minLength: 18)
+            rising(endButtons)
+        }
+        .padding(.horizontal, Metrics.side)
+        .padding(.bottom, Metrics.bottom)
+    }
+
+    /// What the notebook's shape says about how you wrote (FilmForm).
+    static func meaning(_ form: FilmForm) -> String {
+        switch form {
+        case .comet: "You wrote in bursts, with days away between them."
+        case .nebula: "Most of your writing went into a few folders, a cloud for each."
+        case .spiral: "You wrote across many folders, an arm for each."
+        }
+    }
+
+    /// B: what your notebook turned out to be, said big like the slides, over a smaller card.
+    private var endReveal: some View {
+        let form = store.script?.form ?? .nebula
+        return VStack(alignment: .leading, spacing: 0) {
+            endTopRow
+            rising(VStack(alignment: .leading, spacing: 4) {
+                Text("Your notebook is")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(Self.cream.opacity(0.85))
+                Text(GalaxyScene.name(of: form))
+                    .font(.system(size: 52, weight: .heavy))
+                    .foregroundStyle(Self.cream)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+                Text(Self.meaning(form))
+                    .font(.callout)
+                    .foregroundStyle(Self.cream.opacity(0.75))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 10), delay: 0.15)
+            Spacer(minLength: 14)
+            cardSlot
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 28)
+            Spacer(minLength: 18)
+            rising(endButtons)
+        }
+        .padding(.horizontal, Metrics.side)
+        .padding(.bottom, Metrics.bottom)
+    }
+
+    /// C: the month in tiles, the film one of them, like a year in review's last page.
+    private var endRecap: some View {
+        let s = store.script?.stats
+        let top = slides?.ranked.first?.name
+        let kind: (String, String)? = slides.flatMap { sl in sl.byHour.reduce(0, +) >= 20 ? FilmSlides.kind(startingAt: sl.bestHours) : nil }
+        return VStack(alignment: .leading, spacing: 12) {
+            endTopRow
+            Spacer(minLength: 0)
+            rising(Text(NotebookFilmStore.title(s))
+                .font(.system(size: 36, weight: .heavy))
+                .foregroundStyle(Self.cream)
+                .padding(.leading, 4), delay: 0.1)
+            HStack(alignment: .top, spacing: 10) {
+                // (The film's card is the biggest tile.)
+                cardSlot
+                    .containerRelativeFrame(.horizontal) { w, _ in (w - 2 * Metrics.side) * 0.57 }
+                VStack(spacing: 10) {
+                    if let top { rising(tile("Top note", top), delay: 0.2) }
+                    if let kind { rising(tile("When you write", Self.kindName(kind)), delay: 0.28) }
+                    rising(tile("Your notebook is", GalaxyScene.name(of: store.script?.form ?? .nebula)), delay: 0.36)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            // (The tiles beside the card share its height.)
+            .fixedSize(horizontal: false, vertical: true)
+            rising(HStack(spacing: 10) {
+                number(s?.notes ?? 0, "notes")
+                number(s?.writingDays ?? 0, "writing days")
+                if let ai = s?.ai { number(s?.aiNotes ?? 0, "with \(ai)", tint: Color(red: 0.75, green: 0.88, blue: 1)) }
+            }, delay: 0.44)
+            Spacer(minLength: 8)
+            Spacer(minLength: 0)
+            rising(endButtons, delay: 0.5)
+        }
+        .padding(.horizontal, Metrics.side)
+        .padding(.bottom, Metrics.bottom)
+    }
+
+    /// "You're a night" + "owl": "Night owl".
+    static func kindName(_ kind: (String, String)) -> String {
+        let words = kind.0.split(separator: " ").dropFirst(2).joined(separator: " ") + " " + kind.1
+        return words.prefix(1).uppercased() + words.dropFirst()
+    }
+
+    private func tile(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .font(.footnote)
+                .foregroundStyle(Self.cream.opacity(0.7))
+            Text(value)
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(Self.cream)
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.white.opacity(0.09)))
+    }
+
+    private func number(_ n: Int, _ label: String, tint: Color = .white) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("\(n)")
+                .font(.system(size: 34, weight: .heavy))
+                .foregroundStyle(tint == .white ? Self.cream : tint)
+                .monospacedDigit()
+            Text(label)
+                .font(.footnote)
+                .foregroundStyle(Self.cream.opacity(0.7))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.white.opacity(0.09)))
     }
 
     private func roundButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
