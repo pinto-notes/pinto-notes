@@ -9,6 +9,11 @@ import UIKit
 /// iPhone 1.3 (Emil, 11 November 2026): the photo at the top left of the folders sat further in
 /// from its edge than the buttons on the right sit from theirs, and was a little smaller than them.
 @MainActor @Suite struct PhoneAccountButtonTests {
+    /// A finger's target, and the size of the bar's round glass buttons.
+    @Test func thePhotoIsTheBarsButtonSize() {
+        #expect(SidebarStyle.phonePhoto == 44)
+    }
+
     #if os(iOS)
     /// The photo is as big as the bar's round buttons, and as far from the left edge as they are
     /// from the right.

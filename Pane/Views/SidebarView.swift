@@ -280,6 +280,10 @@ enum SidebarStyle {
     /// and everything shifted when the first came).
     static func edge(nested: Bool) -> CGFloat { 28.5 }
     static let headingInset: CGFloat = 15
+    /// iPhone: your photo at the top left of the folders. As big as the bar's round glass buttons,
+    /// filling the same 44 pt target, so its edge sits as far from the screen's as theirs (Emil,
+    /// 11 November 2026: a 38 pt photo in it sat 3 pt further in and looked smaller).
+    static let phonePhoto: CGFloat = 44
     static let trailingColumn: CGFloat = 16
     static let trailingInset: CGFloat = 7
     /// New Folder's plus on the Folders heading: its target, and the room to its right that puts
@@ -2462,10 +2466,7 @@ struct AccountPhotoButton: View {
     let spoken: String
     let open: () -> Void
 
-    /// As big as the bar's round glass buttons, filling the same 44 pt target, so its edge sits as
-    /// far from the screen's as theirs (Emil, 11 November 2026: a 38 pt photo in it sat 3 pt further
-    /// in and looked smaller).
-    static let photo: CGFloat = 44
+    static var photo: CGFloat { SidebarStyle.phonePhoto }
 
     var body: some View {
         Button(action: open) {

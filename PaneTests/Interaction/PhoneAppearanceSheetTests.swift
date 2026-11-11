@@ -3,12 +3,64 @@ import SwiftUI
 import Testing
 #if os(iOS)
 import UIKit
+#else
+import AppKit
 #endif
 @testable import Pane
 
 /// iPhone 1.3 (Emil, 11 November 2026): picking a theme on Appearance restyled the app behind the
 /// sheet, and not all of the sheet: the font menu's arrows kept the old accent until it opened again.
 @MainActor @Suite(.serialized) struct PhoneAppearanceSheetTests {
+    #if os(macOS)
+    /// The Mac's Appearance page takes a pick at once too: drawn just after picking Forest, it is the
+    /// page a fresh open draws in Forest.
+    @Test func theMacPageRestylesOnAPick() async throws {
+        let before = ThemeStore.shared.theme
+        defer { ThemeStore.shared.theme = before }
+        ThemeStore.shared.theme = .standard
+        let live = Self.host()
+        _ = try await Self.draw(live)
+        let standard = try await Self.draw(live)
+        ThemeStore.shared.theme = .forest
+        let picked = try await Self.draw(live)
+        let forest = try await Self.draw(Self.host())
+        let changed = Self.differing(standard, forest)
+        #expect(changed > 200, "Default and Forest draw the page alike (\(changed) pixels apart)")
+        let stale = Self.differing(picked, forest)
+        #expect(stale < 8, "\(stale) pixels of the open page still in Default after picking Forest")
+    }
+
+    static func host() -> NSHostingView<some View> {
+        let host = NSHostingView(rootView: AppearanceSettingsPage().followsTheme().environment(\.controlActiveState, .key))
+        host.appearance = NSAppearance(named: .aqua)
+        host.frame = CGRect(x: 0, y: 0, width: 640, height: 1100)
+        return host
+    }
+
+    static func draw(_ host: NSView) async throws -> [UInt8] {
+        host.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(600))
+        host.layoutSubtreeIfNeeded()
+        let rep = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(host.bounds.width), pixelsHigh: Int(host.bounds.height),
+                                                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 32))
+        rep.size = host.bounds.size
+        host.cacheDisplay(in: host.bounds, to: rep)
+        return Array(UnsafeBufferPointer(start: rep.bitmapData, count: rep.bytesPerRow * rep.pixelsHigh))
+    }
+    #endif
+
+    /// Pixels whose colour differs by more than a little.
+    static func differing(_ a: [UInt8], _ b: [UInt8]) -> Int {
+        guard a.count == b.count else { return Int.max }
+        var n = 0
+        for i in stride(from: 0, to: a.count, by: 4) {
+            let d = abs(Int(a[i]) - Int(b[i])) + abs(Int(a[i + 1]) - Int(b[i + 1])) + abs(Int(a[i + 2]) - Int(b[i + 2]))
+            if d > 24 { n += 1 }
+        }
+        return n
+    }
+
     #if os(iOS)
     /// The folders' screen as the app builds it: it isn't worked out again when the theme changes
     /// (`SidebarView` is `.equatable()`), and Settings is a sheet from it.
@@ -77,15 +129,5 @@ import UIKit
         return data
     }
 
-    /// Pixels whose colour differs by more than a little.
-    static func differing(_ a: [UInt8], _ b: [UInt8]) -> Int {
-        guard a.count == b.count else { return Int.max }
-        var n = 0
-        for i in stride(from: 0, to: a.count, by: 4) {
-            let d = abs(Int(a[i]) - Int(b[i])) + abs(Int(a[i + 1]) - Int(b[i + 1])) + abs(Int(a[i + 2]) - Int(b[i + 2]))
-            if d > 24 { n += 1 }
-        }
-        return n
-    }
     #endif
 }
