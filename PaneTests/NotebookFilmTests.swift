@@ -855,10 +855,10 @@ import AVFoundation
         slides.H = 2622.0 / 1206 * 1080
         #expect(slides.image(0, pixels: 1206).map { [$0.width, $0.height] } == [1206, 2622])
         #expect(slides.image(4, pixels: 1080) == nil)
-        // With room left for the Next button under it, the top note's caption stays clear of the list.
+        // With room left for the Next button under it, the picture stays over the words and under the mark.
         var phone = slides
         phone.bottom = 34 * 1080 / 402 + 70 + 64 * 1080 / 402
-        #expect(phone.topStar - 460 - 20 > phone.bottom + 414)
+        #expect(phone.band.0 > phone.bottom + 480 && phone.band.1 < phone.H - phone.top - 70)
         // A month with no names to show gets no list: the film's sky and its play button.
         let quiet = FilmDemo.real(days: 30, now: Self.now, ai: nil)
         let qs = FilmScript(quiet, calendar: Self.cal)
@@ -866,6 +866,32 @@ import AVFoundation
         #expect(few.first == "start" && few.last == "play" && !few.contains("top-notes"))
         #expect(FilmSlides(input: quiet, script: qs, mark: nil).slides()[0].spoken.hasPrefix("It started with one note on "))
         #expect(FilmSlides.cardLine(quiet, script: qs).hasPrefix("You wrote your first note on "))
+    }
+
+    @Test func whatYouBroughtInIsAWallOfItsNamesThatAlwaysFits() {
+        // Emil, 11-11: "the first slides could look better". The first is your notes by name.
+        let width = 948.0, height = 800.0
+        // A few: all of them, large, every row inside the page and the rows inside the space.
+        let few = (1...20).map { "Note number \($0)" }
+        let small = FilmSlides.wall(few, count: 20, width: width, height: height)
+        #expect(small.rows.flatMap { $0 }.map(\.0) == few)
+        func fits(_ w: (size: Double, rows: [[(String, Double)]])) -> Bool {
+            let gap = w.size * 0.34
+            return w.rows.allSatisfy { $0.map(\.1).reduce(0, +) + Double($0.count - 1) * gap <= width + 0.001 }
+                && Double(w.rows.count) * (w.size * 1.75 + gap) - gap <= height
+        }
+        #expect(fits(small))
+        // Hundreds, some without a name that may be shown: as many as fit, and the last slip counts
+        // the rest, so the slips and the count add up to every note brought in.
+        let many = (1...400).map { "A longer note title \($0)" }
+        let big = FilmSlides.wall(many, count: 450, width: width, height: height)
+        #expect(fits(big) && big.size < small.size)
+        let slips = big.rows.flatMap { $0 }.map(\.0)
+        let more = slips.last.flatMap { Int($0.dropFirst(2).prefix { $0.isNumber }) }
+        #expect(slips.last?.hasSuffix(" more") == true && more.map { $0 + slips.count - 1 } == 450)
+        // One name too long for a row has a row to itself, cut to the page.
+        let long = FilmSlides.wall([String(repeating: "Very long title ", count: 20)], count: 1, width: width, height: height)
+        #expect(long.rows.count == 1 && fits(long))
     }
 
     @Test func itOpensOnAnEmptySkyThenWhatYouBroughtArrivesAtOnce() {
