@@ -25,13 +25,20 @@ for p in $profiles; do
   t0=$(python3 -c "import time; print(time.time())")
   # From its card at the foot of the folders, opened a moment later as a tap would; the slides
   # turn every 3.2 s, the last one's play is pressed, then the film and the share screen.
-  xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm -filmCard -filmAutoOpen -showFolders -filmAutoCards $p >/dev/null
+  # (SHARE=1 also presses Share video on the share screen and waits for the share sheet with the movie.)
+  data=$(xcrun simctl get_app_container "$SIM" $APP data 2>/dev/null || true)
+  [[ -n $data ]] && rm -rf "$data"/tmp/NotebookFilm-* 2>/dev/null || true
+  xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm -filmCard -filmAutoOpen -showFolders -filmAutoCards $p ${SHARE:+-filmAutoShare} >/dev/null
   sleep 2.5; xcrun simctl io "$SIM" screenshot "$OUT/$name-card.png" >/dev/null 2>&1
   sleep 3.5
   for k in 1 2 3 4; do xcrun simctl io "$SIM" screenshot "$OUT/$name-slide-$k.png" >/dev/null 2>&1; sleep 3.2; done
   # (The film opens on an empty sky; FILM_WAIT is how long until late in it, SHARE_WAIT until the share screen.)
   sleep ${FILM_WAIT:-14}; xcrun simctl io "$SIM" screenshot "$OUT/$name-film-late.png" >/dev/null 2>&1
   sleep ${SHARE_WAIT:-9}; xcrun simctl io "$SIM" screenshot "$OUT/$name-share.png" >/dev/null 2>&1
+  if [[ -n ${SHARE:-} ]]; then
+    for i in {1..40}; do ls "$data"/tmp/NotebookFilm-*/Pinto*.mp4 >/dev/null 2>&1 && break; sleep 1; done
+    sleep 3; xcrun simctl io "$SIM" screenshot "$OUT/$name-share-sheet.png" >/dev/null 2>&1
+  fi
   sleep 1
   t1=$(python3 -c "import time; print(time.time())")
   kill -INT $rec; wait $rec || true
