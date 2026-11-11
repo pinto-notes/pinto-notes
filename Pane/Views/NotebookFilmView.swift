@@ -142,7 +142,7 @@ struct NotebookFilmView: View {
             if phase == .intro { playback.prepare(script: script, labels: store.labels, screen: screen.sized(for: store.look)) }
             setUpSlides(screen)
         }
-        .onDisappear { playback.stop(); store.stopMaking() }
+        .onDisappear { playback.stop(); music.stop(); store.stopMaking() }
         .onChange(of: playback.settling) { _, settling in if settling && phase == .watching { toShare() } }
         .onChange(of: store.look) { lookChanged() }
         .onChange(of: store.folderNames) { lookChanged() }
@@ -179,6 +179,7 @@ struct NotebookFilmView: View {
 
     private func watch() {
         guard let script = store.script, let screen else { return }
+        music.filmStarts()
         store.makeMovies()
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) {
             chosen = nil
@@ -243,6 +244,8 @@ struct NotebookFilmView: View {
     /// The sky's two paper clouds, drawn once, floating under the slides on their own.
     @State private var clouds: [CGImage] = []
     @State private var slideTask: Task<Void, Never>?
+    /// Light music under the slides (FilmSlideSound).
+    @State private var music = SlideMusic()
     @Environment(\.modelContext) private var modelContext
 
     /// The slides for this month in the shape of this screen, with your notes' names read here, on
@@ -285,6 +288,7 @@ struct NotebookFilmView: View {
         guard store.galaxy, phase == .intro, let made = makeSlides(screen) else { return }
         slides = made
         slideList = made.slides()
+        music.prepare(made, list: slideList)
         // The clouds first, so the first slide never shows without them. (Two thirds of the
         // screen's pixels: soft paper loses nothing by it.)
         let scale = Double(screen.pixels) * 2 / 3 / made.W, k = min(slide, max(0, slideList.count - 1))
@@ -304,6 +308,7 @@ struct NotebookFilmView: View {
         slide = k
         slideDone = false
         slideTask?.cancel()
+        music.slide(k, still: reduceMotion)
         let list = slideList, length = list[k].length, still = reduceMotion
         let full = screen.pixels, moving = full
         slideTask = Task {
@@ -960,7 +965,7 @@ final class FilmPlayback {
     /// it plays over whatever else is playing rather than stopping it. Never in test runs.
     @ObservationIgnored private var player: AVAudioPlayer?
     @ObservationIgnored private var soundEnd = 0.0
-    private nonisolated static let muted = (ProcessInfo.processInfo.arguments.contains("-uitest") || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil)
+    nonisolated static let muted = (ProcessInfo.processInfo.arguments.contains("-uitest") || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil)
         && !ProcessInfo.processInfo.arguments.contains("-filmSound")
 
     private func startSound(_ wav: Data, at time: Double) {
@@ -1261,4 +1266,87 @@ enum FilmRow {
     static let clear: CGFloat = 52
     /// From the right edge, past the close button's circle and a gap.
     static let closeClear: Double = 70
+}
+
+/// The slides' music (FilmSlideSound): the bed from the first slide, each slide's notes as its
+/// picture comes in (the last slide's faded on Next, so nothing piles up however fast you go), the
+/// bed's upper notes going on the play slide and its low D as the film, which opens on it, begins.
+/// Like the film's sound: the ringer switch silences it, it plays over whatever else is playing,
+/// and never in test runs. With Reduce Motion the pictures don't come in, and only the bed plays.
+@MainActor
+final class SlideMusic {
+    private var upper: AVAudioPlayer?, root: AVAudioPlayer?, cue: AVAudioPlayer?
+    private var made: (upper: Data, root: Data, cues: [Int: Data], play: Int?)?
+    private var making: Task<Void, Never>?
+    private var shown: Int?
+    /// How long the bed lasts (it goes over its last two seconds): longer than anyone spends on the slides.
+    nonisolated static let bedSeconds = 60.0
+
+    func prepare(_ slides: FilmSlides, list: [FilmSlides.Slide]) {
+        guard !FilmPlayback.muted, made == nil, making == nil else { return }
+        making = Task {
+            let ready = await Task.detached(priority: .userInitiated) { () -> (Data, Data, [Int: Data], Int?) in
+                var cues: [Int: Data] = [:]
+                for (k, sl) in list.enumerated() { if let c = FilmSlideSound.cue(sl, of: slides) { cues[k] = FilmSlideSound.wav(c) } }
+                return (FilmSlideSound.wav(FilmSlideSound.pad(seconds: Self.bedSeconds, root: false)),
+                        FilmSlideSound.wav(FilmSlideSound.pad(seconds: Self.bedSeconds, root: true)),
+                        cues, list.firstIndex { $0.name == "play" })
+            }.value
+            made = (ready.0, ready.1, ready.2, ready.3)
+            // (A slide that came up while it was being made: the bed now, its notes are past.)
+            if shown != nil { startBed() }
+        }
+    }
+
+    private func player(_ data: Data) -> AVAudioPlayer? {
+        #if os(iOS)
+        try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
+        try? AVAudioSession.sharedInstance().setActive(true)
+        #endif
+        guard let p = try? AVAudioPlayer(data: data) else { return nil }
+        p.prepareToPlay()
+        return p
+    }
+
+    private func startBed() {
+        guard let made, upper == nil else { return }
+        upper = player(made.upper); root = player(made.root)
+        upper?.play(); root?.play()
+    }
+
+    private static func fade(_ p: AVAudioPlayer?, over: Double, after: Double = 0) {
+        guard let p else { return }
+        Task {
+            if after > 0 { try? await Task.sleep(for: .seconds(after)) }
+            p.setVolume(0, fadeDuration: over)
+            try? await Task.sleep(for: .seconds(over + 0.05))
+            p.stop()
+        }
+    }
+
+    /// Slide `k` is coming in.
+    func slide(_ k: Int, still: Bool) {
+        shown = k
+        guard let made else { return }
+        startBed()
+        Self.fade(cue, over: 0.12)
+        cue = nil
+        if k == made.play { Self.fade(upper, over: 1.2); upper = nil }
+        guard !still, let data = made.cues[k], let p = player(data) else { return }
+        p.play()
+        cue = p
+    }
+
+    /// Play was pressed: the film's own sound takes over from the low D.
+    func filmStarts() {
+        Self.fade(cue, over: 0.12); cue = nil
+        Self.fade(upper, over: 0.6); upper = nil
+        Self.fade(root, over: 0.9, after: 0.2); root = nil
+    }
+
+    func stop() {
+        making?.cancel()
+        for p in [cue, upper, root] { p?.stop() }
+        cue = nil; upper = nil; root = nil
+    }
 }

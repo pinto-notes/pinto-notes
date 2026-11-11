@@ -557,6 +557,10 @@ final class GalaxyScene: FilmScene {
             // out the further along it they are, with its name at the branch's tip.)
             func branch(_ p: Int, _ u: Double) -> Double { (p % 2 == 1 ? 1 : -1) * wide * (1.1 + 1.5 * u) }
             var tips: [(group: Int, part: Int, s: Double, born: Double)] = []
+            // Each folder's star furthest along its arm so far: its name goes beside it until the
+            // arm has formed (Emil, 11-11: before, the names floated where the arms would end, away
+            // from any star, and it "looks broken").
+            var outmost = [(s: Double, at: CGPoint)?](repeating: nil, count: groups.count)
             for (j, g) in groups.enumerated() {
                 var k = 0
                 for (p, part) in parts[j].enumerated() {
@@ -568,6 +572,7 @@ final class GalaxyScene: FilmScene {
                         let off = p == 0 ? (filmHash(i, 15) - 0.5) * 2 * wide * (0.72 - 0.3 * s)
                             : branch(p, (Double(kk) + 0.5) / Double(part.notes.count)) + (filmHash(i, 15) - 0.5) * wide * 0.6
                         where_[i] = at(j, s, off)
+                        if p == 0, s >= (outmost[j]?.s ?? -1) { outmost[j] = (s, where_[i]) }
                         far = max(far, hypot(where_[i].x, where_[i].y) + 50)
                     }
                 }
@@ -623,7 +628,17 @@ final class GalaxyScene: FilmScene {
                 }
                 // (Its name a short step past the arm's tip, however far the arm winds.)
                 let step = 44 / zoom / hypot(full - core, wind * (core + (full - core) * upTo))
-                if names, j < Self.folderNamesMost { labels.append((script.folders[g.folder], scr(at(j, upTo + step, 0)), filmSmooth((t - born(g.notes) - 0.2) / 0.5), j, false)) }
+                if names, j < Self.folderNamesMost {
+                    // (Until the arm has formed, beside its outermost star, a step further out from the heart.)
+                    let tip = at(j, upTo + step, 0)
+                    var star = tip
+                    if let o = outmost[j]?.at {
+                        let d = max(1, hypot(o.x, o.y)), out = 46 / zoom
+                        star = CGPoint(x: o.x + o.x / d * out, y: o.y + o.y / d * out)
+                    }
+                    let place = CGPoint(x: star.x + (tip.x - star.x) * appear, y: star.y + (tip.y - star.y) * appear)
+                    labels.append((script.folders[g.folder], scr(place), filmSmooth((t - born(g.notes) - 0.2) / 0.5), j, false))
+                }
             }
             if names {
                 for tip in tips where tip.born <= gt && namedSubs.contains(parts[tip.group][tip.part].sub) {
@@ -634,11 +649,12 @@ final class GalaxyScene: FilmScene {
             // Its heart: rays behind it once there's work enough, a second ring of them for a lot.
             // (It starts small and grows with the work, like everything else here.)
             let r0 = 40 * size.squareRoot() * max(1, arms / 7).squareRoot() * zoom * (0.5 + 0.5 * min(1, work / 3))
-            let far2 = show(work, from: 4.5), near = show(work, from: 1.6)
+            // (A small sun from the start: a plain disc of paper there read as a lump, "broken".)
+            let far2 = show(work, from: 4.5), near = 0.82 + 0.18 * show(work, from: 1.6)
             if far2 > 0 { rays(mid, r0 * (2.3 + 0.2 * min(2, work - 4.5)) * far2, lean: lean, axis: axis, turn: -0.07 * t, points: 20, clouds[3], in: ctx) }
-            if near > 0 { rays(mid, r0 * (1.5 + 0.12 * min(4, work - 1.6)) * near, lean: lean, axis: axis, turn: 0.1 * t, points: 14, clouds[3].mix(peach, 0.55), in: ctx) }
+            rays(mid, r0 * (1.6 + 0.12 * max(0, min(4, work - 1.6))) * near, lean: lean, axis: axis, turn: 0.1 * t, points: 14, clouds[3].mix(peach, 0.55), in: ctx)
             paper(cloud(mid, r0, r0 * lean, turn: axis, key: seed * 7 + 5), peach, lift: 0.7, in: ctx)
-            if inner > 0 { paper(cloud(mid, r0 * 0.55 * inner, r0 * 0.55 * lean * inner, turn: axis, key: seed * 7 + 11), cream, lift: 0.4, in: ctx) }
+            paper(cloud(mid, r0 * 0.55 * max(0.6, inner), r0 * 0.55 * lean * max(0.6, inner), turn: axis, key: seed * 7 + 11), cream, lift: 0.4, in: ctx)
             for i in where_.indices { where_[i] = scr(where_[i]) }
 
         case .nebula:
@@ -752,7 +768,8 @@ final class GalaxyScene: FilmScene {
             for i in loose where script.nodes[i].birth <= gt { where_[i] = path(script.nodes[i].birth) }
             // Its head: sheets of paper, the lightest on top, larger and with rays as the work adds up.
             let big = 0.85 + 0.12 * min(6, work)
-            let far2 = show(work, from: 4.5), near = show(work, from: 1.6)
+            // (A small sun from the start: a plain disc of paper there read as a lump, "broken".)
+            let far2 = show(work, from: 4.5), near = 0.82 + 0.18 * show(work, from: 1.6)
             if far2 > 0 { rays(head, 62 * big * 1.75 * far2, lean: 1, axis: 0, turn: -0.07 * t, points: 20, clouds[2], in: ctx) }
             if near > 0 { rays(head, 62 * big * 1.32 * near, lean: 1, axis: 0, turn: 0.1 * t, points: 14, clouds[3].mix(peach, 0.3), in: ctx) }
             heart = head

@@ -1289,6 +1289,98 @@ import AVFoundation
         #expect(old != nil && old?.subfolder == nil)
     }
 
+    @Test func theSlidesMusicStaysSmallInAnyMonth() throws {
+        // Emil, 11-11, of the first pilot: the welcome's notes were "almost a bit annoyingly much",
+        // "the final tone is dragged on in each section", and "make sure it doesnt become absurd in
+        // any exterem scenario". The hardest months: hundreds of notes brought in, writing all day
+        // and night, a single first note.
+        let months = [
+            FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true),
+            FilmDemo.real(now: Self.now, notesPerWeek: 22, imported: 240, removed: 8, linked: 0.6),
+            FilmDemo.real(now: Self.now, notesPerWeek: 30, dailyNote: true, imported: 3, habit: true),
+            FilmDemo.real(now: Self.now),
+        ]
+        for input in months {
+            let slides = FilmSlides(input: input, script: FilmScript(input, calendar: Self.cal), mark: nil)
+            for slide in slides.slides() {
+                guard let cue = FilmSlideSound.cue(slide, of: slides) else { continue }
+                // Gone by the time you'd go on, and silent at its end.
+                #expect(cue.seconds <= slide.length + 0.6 + 0.01, "\(slide.name)'s sound ends with it")
+                let tail = Int(0.05 * FilmSlideSound.rate)
+                #expect(cue.left.suffix(tail).allSatisfy { abs($0) < 1e-4 }, "\(slide.name) has faded out")
+                // Never loud, however much the slide shows (-7 dBFS, as the pilot month at most).
+                #expect(cue.peak < 0.45, "\(slide.name) peaks at \(cue.peak)")
+                // And nothing rings on past the slide: by its end, what's left is a whisper.
+                let after = cue.left.dropFirst(Int(slide.length * FilmSlideSound.rate)).map(abs).max() ?? 0
+                #expect(after < 0.25 * cue.peak, "\(slide.name) is nearly quiet as it ends (\(after) of \(cue.peak))")
+            }
+            #expect(slides.welcomeStars <= 40)
+        }
+        // A welcome with forty stars still plays only a few notes.
+        let many = FilmDemo.real(now: Self.now, notesPerWeek: 22, imported: 240, removed: 8, linked: 0.6)
+        let slides = FilmSlides(input: many, script: FilmScript(many, calendar: Self.cal), mark: nil)
+        let start = try #require(slides.slides().first { $0.name == "start" })
+        let cue = try #require(FilmSlideSound.cue(start, of: slides))
+        // A note begins where the sound jumps (5 ms windows; a note's attack is 6 ms).
+        let w = Int(0.005 * FilmSlideSound.rate)
+        let level = stride(from: 0, to: cue.left.count - w, by: w).map { cue.left[$0..<$0 + w].map(abs).max() ?? 0 }
+        var onsets = 0, last = -100
+        for k in 1..<level.count where level[k] > 0.005 && level[k] > 1.5 * level[k - 1] && k - last > 10 { onsets += 1; last = k }
+        #expect(onsets <= FilmSlideSound.starNotes, "\(onsets) notes for \(slides.welcomeStars) stars")
+    }
+
+    @Test func theSlidesNotesComeAsTheirPicturesDo() throws {
+        // A note as each top-notes row lands and as the hand passes your hours: the sound is made
+        // from the same timings as the picture.
+        let input = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
+        let slides = FilmSlides(input: input, script: FilmScript(input, calendar: Self.cal), mark: nil)
+        let top = try #require(slides.slides().first { $0.name == "top-notes" })
+        let rows = slides.topRows
+        try #require(rows > 1)
+        let cue = try #require(FilmSlideSound.cue(top, of: slides))
+        func loudness(_ t: Double) -> Float {
+            let a = Int(t * FilmSlideSound.rate)
+            return cue.left[a..<a + Int(0.03 * FilmSlideSound.rate)].map(abs).max() ?? 0
+        }
+        for i in 0..<rows {
+            let at = FilmSlides.rowAppears(i, rows: rows)
+            #expect(loudness(at + 0.005) > 5 * loudness(max(0, at - 0.04)), "row \(i) is heard as it lands")
+        }
+        #expect(FilmSlideSound.cue(try #require(slides.slides().last), of: slides) == nil, "play has only the bed")
+    }
+
+    @Test func aSpiralsNamesSitBesideTheirStarsAndItsHeartIsASunFromTheStart() throws {
+        // Emil, 11-11, of a spiral before its arms had formed: "this looks broken". The names stood
+        // where the arms would end, away from any star, and its heart was a plain lump.
+        let input = FilmDemo.real(notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
+        let script = FilmScript(input, calendar: Self.cal, bang: true)
+        try #require(script.form == .spiral, "the month Emil saw is a spiral")
+        var scene: GalaxyScene?
+        var labels = FilmRenderer.Labels()
+        labels.look = .town
+        labels.scene = { s, names in let g = GalaxyScene(script: s, names: names, seed: s.seed); g.inspect = true; scene = g; return g }
+        labels.startsAtFirstNote = true
+        labels.openingTitle = false
+        let canvas = FilmCanvas.fitting(width: 402, height: 874, top: 114, bottom: 58)
+        let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .brief)
+        let ctx = FilmRenderer.context(width: 360, height: Int(360 * canvas.height / 1080))!
+        var frame = 0, worst = 0.0, worstName = ""
+        // Its first third, before any arm has formed (once one has, its name is at the arm's tip).
+        // (Before the fix the furthest was 147, Habits; after it, 52.)
+        while !renderer.isDone, frame < script.frameCount / 3 {
+            if frame % 6 == 0 {
+                renderer.drawNext(in: ctx)
+                let stars = scene?.inspected.stars ?? []
+                for n in scene?.inspected.names ?? [] where n.alpha > 0.5 && !n.small {
+                    let gap = stars.map { p in hypot(max(n.box.minX - p.x, 0, p.x - n.box.maxX), max(n.box.minY - p.y, 0, p.y - n.box.maxY)) }.min() ?? .infinity
+                    if gap > worst { worst = gap; worstName = "\(n.name) at frame \(frame)" }
+                }
+            } else { renderer.skip() }
+            frame += 1
+        }
+        #expect(worst < 70, "every name has a star beside it (furthest: \(Int(worst)) for \(worstName))")
+    }
+
     @Test func namesNeverLieOverOneAnotherHoweverManyFoldersThereAre() {
         // The stress lab, 11-11: forty folders round a phone's picture were a wall of slips, some
         // on others, and twenty folders brought in at once piled their names on the burst.
