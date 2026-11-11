@@ -1,4 +1,5 @@
 import CoreGraphics
+import os
 import simd
 import CoreText
 import Foundation
@@ -158,6 +159,10 @@ final class FilmRenderer {
         var notesCount: @Sendable (Int) -> String = { $0 == 1 ? "1 note" : "\($0) notes" }
         /// When set, the running count says the work too: notes so far, and times written in so far.
         var workCount: (@Sendable (Int, Int) -> String)? = nil
+        /// The count as the galaxy shows it: "1 note · 1 edit", "36 notes · 61 edits".
+        static let notesAndEdits: @Sendable (Int, Int) -> String = { notes, edits in
+            "\(notes == 1 ? "1 note" : "\(notes) notes") \u{00B7} \(edits == 1 ? "1 edit" : "\(edits) edits")"
+        }
         /// False leaves the lines out while it grows (what a light is, the month's moments): the
         /// picture alone, with the date and the count.
         var captionsOn = true
@@ -176,7 +181,18 @@ final class FilmRenderer {
         var r, g, b: Double
         init(_ r: Double, _ g: Double, _ b: Double) { self.r = r; self.g = g; self.b = b }
         func mix(_ o: RGB, _ t: Double) -> RGB { RGB(r + (o.r - r) * t, g + (o.g - g) * t, b + (o.b - b) * t) }
-        func cg(_ a: Double = 1) -> CGColor { CGColor(srgbRed: r, green: g, blue: b, alpha: a) }
+        /// Made once for each colour the picture can show (8 bits a channel, as it's drawn): a new
+        /// one for every star on every frame was a third of a big notebook's frame, most of it
+        /// looking up the colour profile each time (the stress lab, 11-11).
+        func cg(_ a: Double = 1) -> CGColor {
+            func q(_ v: Double) -> UInt32 { UInt32((min(1, max(0, v)) * 255).rounded()) }
+            let key = q(r) << 24 | q(g) << 16 | q(b) << 8 | q(a)
+            if let c = Self.made.withLock({ $0[key] }) { return c }
+            let c = CGColor(srgbRed: Double(key >> 24) / 255, green: Double(key >> 16 & 255) / 255, blue: Double(key >> 8 & 255) / 255, alpha: Double(key & 255) / 255)
+            Self.made.withLock { if $0.count > 30_000 { $0 = [:] }; $0[key] = c }
+            return c
+        }
+        private static let made = OSAllocatedUnfairLock(initialState: [UInt32: CGColor]())
     }
 
     let script: FilmScript
@@ -843,10 +859,10 @@ final class FilmRenderer {
                     guard namesTopFolder(s), let f = beat.folder else { continue }
                     // (Its count so far, like the notes beside it: its moment can come before the month is out.)
                     let soFar = script.nodes.reduce(0) { $1.folder == f && $1.birth <= t ? $0 + 1 : $0 }
-                    mine.append((beat.from, beat.until, labels.topFolderCaption(script.folders[f], max(1, soFar)), look.you))
+                    mine.append((beat.from, beat.until, fitting(script.folders[f], size: 48, weight: .semibold) { labels.topFolderCaption($0, max(1, soFar)) }, look.you))
                 case .folderBegins:
                     guard labels.folderNames, let f = beat.folder else { continue }
-                    mine.append((beat.from, beat.until, labels.folderBegins(script.folders[f]), look.you))
+                    mine.append((beat.from, beat.until, fitting(script.folders[f], size: 48, weight: .semibold, labels.folderBegins), look.you))
                 case .aiJoins:
                     guard let ai = s.ai else { continue }
                     mine.append((beat.from, beat.until, labels.aiJoins(ai), aiInk))
@@ -968,12 +984,28 @@ final class FilmRenderer {
         // Something the film hasn't just said: where it named the folder written in most, the
         // card has the longest run of days instead.
         if namesTopFolder(s), s.streak >= 3 { return (labels.streakCard(s.streak), true) }
-        if labels.folderNames, let f = s.topFolder { return (labels.topFolder(f, s.topFolderNotes), false) }
+        if labels.folderNames, let f = s.topFolder { return (fitting(f, size: 38, weight: .semibold) { labels.topFolder($0, s.topFolderNotes) }, false) }
         guard let d = s.busiestDay else { return nil }
         let f = DateFormatter()
         f.locale = labels.locale
         f.setLocalizedDateFormatFromTemplate("MMMM d")
         return (labels.busiestDay(f.string(from: d), s.busiestDayEdits), false)
+    }
+
+    /// A line with a folder's name in it, made to fit across the picture at `size` (the size it's
+    /// drawn at, or the least the headline shrinks to): a name too long for it is cut short with
+    /// an ellipsis, so the rest of the line, its count, always shows. (The stress lab, 11-11: "Most
+    /// written in Product research 2026 and beyond" ran off the edge of the end card.)
+    func fitting(_ name: String, size: Double, weight: FontWeight, _ make: (String) -> String) -> String {
+        let across = Double(width) - 2 * 72
+        guard textWidth(make(name), size: size, weight: weight) > across else { return make(name) }
+        var chars = Array(name)
+        while chars.count > 1 {
+            chars.removeLast()
+            let line = make(String(chars).trimmingCharacters(in: .whitespaces) + "\u{2026}")
+            if textWidth(line, size: size, weight: weight) <= across { return line }
+        }
+        return make("\u{2026}")
     }
 
     private func textWidth(_ s: String, size: Double, weight: FontWeight) -> Double {

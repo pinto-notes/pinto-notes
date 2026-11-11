@@ -302,7 +302,7 @@ final class NotebookFilmStore {
             // (The play screen before it has said what this is.)
             l.openingTitle = false
             l.sound = true
-            l.workCount = { notes, edits in "\(notes) notes \u{00B7} \(edits) edits" }
+            l.workCount = FilmRenderer.Labels.notesAndEdits
             let kind = GalaxyScene.name(of: script?.form ?? .nebula)
             // (Not "my first month": what it is, is the notebook.)
             l.endTitle = { _ in "My notebook is \(kind)" }

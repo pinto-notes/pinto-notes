@@ -1006,6 +1006,138 @@ import AVFoundation
         #expect(old != nil && old?.subfolder == nil)
     }
 
+    @Test func namesNeverLieOverOneAnotherHoweverManyFoldersThereAre() {
+        // The stress lab, 11-11: forty folders round a phone's picture were a wall of slips, some
+        // on others, and twenty folders brought in at once piled their names on the burst.
+        let d = Self.now
+        func note(_ k: Int, folder: String, daysAgo: Double, imported: Bool = false) -> FilmNote {
+            let made = d.addingTimeInterval(-daysAgo * 86_400)
+            return FilmNote(id: UUID(), folder: folder, created: made, edits: [FilmEdit(at: made, ai: nil), FilmEdit(at: made.addingTimeInterval(3600 * Double(1 + k % 5)), ai: nil)], links: [], imported: imported ? true : nil)
+        }
+        let forty = (0..<200).map { note($0, folder: "Folder \($0 % 40 + 1)", daysAgo: 34 - Double($0) * 0.17) }
+        let brought = (0..<600).map { note($0, folder: ["Health", "Taxes", "Travel", "Car", "Recipes", "Garden", "Books", "Music", "Money", "Family", "Thesis", "Running", "Journal", "Ideas", "Clients", "Meetings", "Reading", "Home", "Work", "Notes"][$0 % 20], daysAgo: 400, imported: true) }
+            + (0..<40).map { note($0, folder: "Work", daysAgo: 30 - Double($0) * 0.7) }
+        let canvas = FilmCanvas.fitting(width: 393, height: 852, top: 59, bottom: 34)
+        for (what, notes) in [("forty folders", forty), ("twenty brought in at once", brought)] {
+            let script = FilmScript(FilmInput(notes: notes, now: d), calendar: Self.cal, bang: true)
+            var scene: GalaxyScene?
+            var labels = FilmRenderer.Labels()
+            labels.look = .town
+            labels.scene = { s, names in let g = GalaxyScene(script: s, names: names, seed: s.seed); g.inspect = true; scene = g; return g }
+            labels.startsAtFirstNote = true
+            labels.openingTitle = false
+            let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .brief)
+            let ctx = FilmRenderer.context(width: 180, height: 390)!
+            var frame = 0, most = 0
+            while !renderer.isDone {
+                if frame % 3 == 0 {
+                    renderer.drawNext(in: ctx)
+                    let shown = scene?.inspected.names.filter { $0.alpha > 0.5 } ?? []
+                    most = max(most, shown.count)
+                    for a in shown.indices { for b in shown.indices where b > a {
+                        #expect(!shown[a].box.insetBy(dx: 2, dy: 2).intersects(shown[b].box.insetBy(dx: 2, dy: 2)), "\(what): \(shown[a].name) on \(shown[b].name) at frame \(frame)")
+                    } }
+                } else { renderer.skip() }
+                frame += 1
+            }
+            #expect(most <= GalaxyScene.namesMost, "\(what): the largest folders are named, not every one (\(most))")
+        }
+    }
+
+    @Test func aLongFolderNameIsCutShortNeverOffTheEdge() {
+        // The stress lab, 11-11: "Most written in Product research 2026 and beyond · 63 notes"
+        // ran off the end card. The name is cut short; the count always shows.
+        let d = Self.now
+        let long = "Product research 2026 and beyond, and everything after it"
+        let notes = (0..<63).map { k -> FilmNote in
+            // (Every third day, so the card's line is the folder, not a run of days.)
+            let made = d.addingTimeInterval(-Double(34 - (k % 12) * 3) * 86_400)
+            return FilmNote(id: UUID(), folder: k < 60 ? long : "Home", created: made, edits: [FilmEdit(at: made, ai: nil)], links: [])
+        }
+        let script = FilmScript(FilmInput(notes: notes, now: d), calendar: Self.cal, bang: true)
+        var labels = FilmRenderer.Labels()
+        labels.look = .town
+        labels.scene = { s, names in GalaxyScene(script: s, names: names, seed: s.seed) }
+        labels.startsAtFirstNote = true
+        labels.openingTitle = false
+        let canvas = FilmCanvas.fitting(width: 393, height: 852, top: 59, bottom: 34)
+        let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .brief)
+        let line = renderer.fitting(long, size: 38, weight: .semibold) { labels.topFolder($0, 60) }
+        #expect(line.hasPrefix("Most written in Product research") && line.contains("\u{2026}") && line.hasSuffix("60 notes"), "\(line)")
+        #expect(renderer.fitting("Work", size: 38, weight: .semibold) { labels.topFolder($0, 60) } == "Most written in Work \u{00B7} 60 notes")
+        // And on the card itself, nothing written reaches the picture's edge.
+        let ctx = FilmRenderer.context(width: 1080, height: Int(canvas.height))!
+        while renderer.frame < script.frameCount - 1 { renderer.skip() }
+        renderer.drawNext(in: ctx)
+        let p = ctx.data!.assumingMemoryBound(to: UInt8.self)
+        var ink = 0
+        for y in (ctx.height - Int(canvas.bottom + 250))..<ctx.height { for x in 1046..<1080 {
+            let k = y * ctx.bytesPerRow + x * 4
+            if 0.0722 * Double(p[k]) + 0.7152 * Double(p[k + 1]) + 0.2126 * Double(p[k + 2]) > 200 { ink += 1 }
+        } }
+        #expect(ink == 0, "\(ink) bright pixels at the right edge")
+    }
+
+    @Test func theFolderWrittenInMostIsOneThatsStillThere() {
+        // The stress lab, 11-11: a folder written in a lot and then thrown out was "most written
+        // in", with "0 notes".
+        let d = Self.now
+        func note(_ folder: String, edits: Int, removed: Bool) -> FilmNote {
+            let made = d.addingTimeInterval(-20 * 86_400)
+            return FilmNote(id: UUID(), folder: folder, created: made, edits: (0..<edits).map { FilmEdit(at: made.addingTimeInterval(Double($0) * 3600), ai: nil) }, links: [], removed: removed ? d.addingTimeInterval(-86_400) : nil)
+        }
+        let stats = FilmStats(FilmInput(notes: [note("Apartment hunt", edits: 30, removed: true), note("Apartment hunt", edits: 20, removed: true), note("Work", edits: 2, removed: false)], now: d), calendar: Self.cal)
+        #expect(stats.topFolder == "Work" && stats.topFolderNotes == 1)
+        let gone = FilmStats(FilmInput(notes: [note("Apartment hunt", edits: 30, removed: true)], now: d), calendar: Self.cal)
+        #expect(gone.topFolder == nil)
+    }
+
+    @Test func whatComesInAtTheVeryEndIsAllThereOnTheCard() {
+        // The stress lab, 11-11: a folder begun in the film's last second kept its name half faded
+        // on the card (and in the shared picture), and a note made then never quite came in.
+        let d = Self.now
+        var notes = (0..<30).map { k -> FilmNote in
+            let made = d.addingTimeInterval(-Double(34 - k) * 86_400)
+            return FilmNote(id: UUID(), folder: k % 2 == 0 ? "Work" : "Home", created: made, edits: [FilmEdit(at: made, ai: nil)], links: [])
+        }
+        notes.append(FilmNote(id: UUID(), folder: "Late", created: d.addingTimeInterval(-60), edits: [FilmEdit(at: d.addingTimeInterval(-60), ai: nil)], links: []))
+        let script = FilmScript(FilmInput(notes: notes, now: d), calendar: Self.cal, bang: true)
+        let canvas = FilmCanvas.fitting(width: 393, height: 852, top: 59, bottom: 34)
+        for form in [FilmForm.comet, .spiral, .nebula] {
+            let scene = GalaxyScene(script: script, names: true, seed: script.seed, form: form)
+            scene.inspect = true
+            var labels = FilmRenderer.Labels()
+            labels.look = .town
+            labels.scene = { _, _ in scene }
+            labels.startsAtFirstNote = true
+            labels.openingTitle = false
+            let renderer = FilmRenderer(script: script, labels: labels, canvas: canvas, opening: .brief)
+            while renderer.frame < script.frameCount - 1 { renderer.skip() }
+            renderer.drawNext(in: FilmRenderer.context(width: 180, height: 390)!)
+            let late = scene.inspected.names.first { $0.name == "Late" }
+            #expect(late != nil && late!.alpha > 0.95, "\(form): its name is all there (\(late?.alpha ?? -1))")
+        }
+    }
+
+    @Test func theRunningCountSaysOneNoteNotOneNotes() {
+        // The stress lab, 11-11: a film's first moments read "1 notes · 1 edits".
+        #expect(FilmRenderer.Labels.notesAndEdits(1, 1) == "1 note \u{00B7} 1 edit")
+        #expect(FilmRenderer.Labels.notesAndEdits(1, 4) == "1 note \u{00B7} 4 edits")
+        #expect(FilmRenderer.Labels.notesAndEdits(36, 61) == "36 notes \u{00B7} 61 edits")
+    }
+
+    @Test func aColourMadeOnceIsTheColourAskedFor() {
+        // (Colours are kept once made, at the 8 bits a channel the picture has: a big notebook
+        // made a new one for every star on every frame.)
+        for (r, g, b, a) in [(0.2, 0.4, 0.6, 0.5), (1.0, 0.0, 0.31, 1.0), (0.0, 0.0, 0.0, 0.0), (1.3, -0.2, 0.5, 0.99)] {
+            let c = FilmRenderer.RGB(r, g, b).cg(a)
+            let want = [r, g, b, a].map { min(1, max(0, $0)) }
+            #expect(c === FilmRenderer.RGB(r, g, b).cg(a), "made once")
+            #expect(zip(c.components ?? [], want).allSatisfy { abs($0 - $1) <= 0.5 / 255 + 1e-9 }, "\(c)")
+            #expect(c.colorSpace?.name == CGColorSpace.sRGB)
+        }
+    }
+
     @Test func theSharedMovieCarriesTheSound() async throws {
         // The movie that's shared has the film's sound, as long as its picture.
         let quiet = FilmDemo.real(days: 30, now: Self.now, ai: nil)

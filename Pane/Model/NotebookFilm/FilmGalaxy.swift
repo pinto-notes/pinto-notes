@@ -58,6 +58,11 @@ final class GalaxyScene: FilmScene {
     private func partSize(_ j: Int, _ notes: Double) -> Double { cells[j] * notes.squareRoot() + cells[j] * 0.7 + 6 }
     /// A name on its slip: a folder's, or a smaller one for a folder inside it.
     private typealias Label = (name: String, at: CGPoint, a: Double, group: Int, small: Bool)
+    /// How many names a picture holds. Forty folders' names round a phone's picture were a wall
+    /// of slips (the stress lab, 11-11), so only the largest folders are named, and the largest
+    /// folders inside them while there's room: the rest are stars without a name.
+    static let namesMost = 16, folderNamesMost = 12
+    private var namedSubs: Set<Int> = []
     /// Every time anything was written in, in order: for how much work there is at a moment.
     private let allEdits: [Double]
     private var groupEdits: [[Double]] = []
@@ -156,6 +161,8 @@ final class GalaxyScene: FilmScene {
             return [(-1, by[-1] ?? [])] + inside.map { ($0, by[$0]!) }
         }
         for list in parts { for (p, part) in list.enumerated() { for i in part.notes { partOf[i] = p } } }
+        let room = Self.namesMost - min(groups.count, Self.folderNamesMost)
+        namedSubs = Set(parts.prefix(Self.folderNamesMost).flatMap { $0.dropFirst() }.sorted { ($0.notes.count, -$0.sub) > ($1.notes.count, -$1.sub) }.prefix(max(0, room)).map(\.sub))
         // (For the nebula: a folder's own notes at the middle of its cloud, and a smaller cloud
         // around them for each folder inside it, kept apart by their sizes.)
         for j in groups.indices {
@@ -433,6 +440,12 @@ final class GalaxyScene: FilmScene {
     }
 
     private var placedNow: [CGPoint] = []
+    /// What a frame showed, for checking it (the stress lab, tests): where each star still there
+    /// was on screen, each name's slip and how clearly it showed, and where the sky can be seen
+    /// (below it the words, above it the mark). Kept only while `inspect` is on.
+    struct Seen { var stars: [CGPoint] = []; var names: [(name: String, box: CGRect, alpha: Double, small: Bool)] = []; var sky = CGRect.zero }
+    var inspect = false
+    private(set) var inspected = Seen()
     /// Where every note is at `t` (in the frame, before the camera's own move), without drawing it.
     func placed(at t: Double, canvas: FilmCanvas) -> [CGPoint] {
         _ = shot(at: t, canvas: canvas)
@@ -453,6 +466,9 @@ final class GalaxyScene: FilmScene {
     // MARK: Drawing
 
     func drawBehind(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {
+        // (What's growing stops at the end of the month; what's coming in finishes coming in on
+        // the film's own clock, so a note or a name that came in the last second is all there on
+        // the card, not stuck half faded. The stress lab, 11-11.)
         let H = canvas.height, gt = min(t, growth)
         let held: Fit? = raw || form == .comet ? nil : fit(gt, canvas)
         if !quiet { ctx.setFillColor(sky.cg()); ctx.fill(CGRect(x: 0, y: 0, width: W, height: H)) }
@@ -486,7 +502,7 @@ final class GalaxyScene: FilmScene {
         func there(_ i: Int) -> Double {
             let n = script.nodes[i]
             guard n.birth <= gt else { return 0 }
-            return filmSmooth((gt - n.birth) / 0.45) * (1 - filmSmooth((t - (n.gone ?? .infinity)) / 0.5))
+            return filmSmooth((t - n.birth) / 0.45) * (1 - filmSmooth((t - (n.gone ?? .infinity)) / 0.5))
         }
         func alive(_ notes: [Int]) -> Double { notes.reduce(0) { $0 + there($1) } }
         func born(_ notes: [Int]) -> Double { notes.first.map { script.nodes[$0].birth } ?? .infinity }
@@ -555,34 +571,41 @@ final class GalaxyScene: FilmScene {
                 let (appear, formed) = Self.arm(notes: got, edits: self.upTo(groupEdits[j], gt))
                 let upTo = reach(j) * min(1, (got + 0.6) / (Double(g.notes.count) + 0.4)) + 0.03
                 let w0 = wide * (0.7 + 0.3 * min(1, worked(j) / 4)), col = tint(clouds[2 + j % 2], j)
-                func band(_ part: Double, _ c: GR, lift: Double) {
+                func band(_ part: Double) -> [CGPoint] {
                     var one: [CGPoint] = [], other: [CGPoint] = []
                     for k in 0...40 {
                         let s = upTo * Double(k) / 40
                         let w = w0 * part * (1 - 0.35 * s) * sin(.pi * min(1, 0.12 + 0.88 * (1 - Double(k) / 40))) * min(1, got) * formed
                         one.append(scr(at(j, s, w))); other.append(scr(at(j, s, -w)))
                     }
-                    paper(one + other.reversed(), c, lift: lift, in: ctx)
+                    return one + other.reversed()
                 }
-                if appear > 0.01 {
-                    ctx.saveGState()
-                    ctx.setAlpha(appear)
-                    ctx.beginTransparencyLayer(auxiliaryInfo: nil)
-                    band(1, col, lift: 1)
+                if appear > 0.01, !quiet {
                     // (A lighter strip down an arm that's been worked in a lot.)
                     let lit = show(worked(j), from: 2.2)
-                    if lit > 0 { band(0.42 * lit, col.mix(cream, 0.26), lift: 0.4) }
-                    ctx.endTransparencyLayer()
+                    let whole = band(1), strip = lit > 0 ? band(0.42 * lit) : []
+                    // (While it comes in it fades as one piece, in a layer only as big as the arm
+                    // and its shade; once it's there it needs none.)
+                    let fading = appear < 0.995
+                    ctx.saveGState()
+                    if fading {
+                        let xs = whole.map(\.x), ys = whole.map(\.y)
+                        ctx.setAlpha(appear)
+                        ctx.beginTransparencyLayer(in: CGRect(x: xs.min()! - 40, y: ys.min()! - 40, width: xs.max()! - xs.min()! + 80, height: ys.max()! - ys.min()! + 80), auxiliaryInfo: nil)
+                    }
+                    paper(whole, col, lift: 1, in: ctx)
+                    paper(strip, col.mix(cream, 0.26), lift: 0.4, in: ctx)
+                    if fading { ctx.endTransparencyLayer() }
                     ctx.restoreGState()
                 }
                 // (Its name a short step past the arm's tip, however far the arm winds.)
                 let step = 44 / zoom / hypot(full - core, wind * (core + (full - core) * upTo))
-                if names { labels.append((script.folders[g.folder], scr(at(j, upTo + step, 0)), filmSmooth((gt - born(g.notes) - 0.2) / 0.5), j, false)) }
+                if names, j < Self.folderNamesMost { labels.append((script.folders[g.folder], scr(at(j, upTo + step, 0)), filmSmooth((t - born(g.notes) - 0.2) / 0.5), j, false)) }
             }
             if names {
-                for tip in tips where tip.born <= gt {
+                for tip in tips where tip.born <= gt && namedSubs.contains(parts[tip.group][tip.part].sub) {
                     let sub = parts[tip.group][tip.part].sub
-                    labels.append((script.subfolders[sub].name, scr(at(tip.group, tip.s, branch(tip.part, 1) + (tip.part % 2 == 1 ? 1 : -1) * 24)), filmSmooth((gt - tip.born - 0.2) / 0.5), tip.group, true))
+                    labels.append((script.subfolders[sub].name, scr(at(tip.group, tip.s, branch(tip.part, 1) + (tip.part % 2 == 1 ? 1 : -1) * 24)), filmSmooth((t - tip.born - 0.2) / 0.5), tip.group, true))
                 }
             }
             // Its heart: rays behind it once there's work enough, a second ring of them for a lot.
@@ -643,12 +666,12 @@ final class GalaxyScene: FilmScene {
                 let ic = scr(CGPoint(x: centres[j].x + partAt[j][0].x, y: centres[j].y + partAt[j][0].y))
                 if a > 0, inner > 0 { paper(cloud(ic, inner * 0.46 * a, inner * 0.42 * a, turn: filmHash(j, seed + 6) * 3, key: seed * 19 + j), base.mix(cream, 0.2), lift: 0.5, in: ctx) }
                 if b > 0, inner > 0 { paper(cloud(ic, inner * 0.25 * b, inner * 0.23 * b, turn: filmHash(j, seed + 7) * 3, key: seed * 23 + j), base.mix(cream, 0.42), lift: 0.4, in: ctx) }
-                if names { labels.append((script.folders[g.folder], CGPoint(x: c.x, y: c.y + r * 1.05 + 8), filmSmooth((gt - born(g.notes) - 0.2) / 0.5), j, false)) }
+                if names, j < Self.folderNamesMost { labels.append((script.folders[g.folder], CGPoint(x: c.x, y: c.y + r * 1.05 + 8), filmSmooth((t - born(g.notes) - 0.2) / 0.5), j, false)) }
                 // Each folder inside it: a smaller cloud of its own, lighter, with its name.
                 for (p, part) in parts[j].enumerated() where p > 0 && partNow[j][p] > 0 {
                     let cp = scr(CGPoint(x: centres[j].x + partAt[j][p].x, y: centres[j].y + partAt[j][p].y)), rp = partNow[j][p] * zoom
                     paper(cloud(cp, rp * 1.06, rp * 0.98, turn: filmHash(j * 7 + p, seed + 8) * 3, key: seed * 29 + j * 7 + p), base.mix(cream, 0.13), lift: 0.6, in: ctx)
-                    if names { labels.append((script.subfolders[part.sub].name, CGPoint(x: cp.x, y: cp.y + rp * 0.98 + 4), filmSmooth((gt - born(part.notes) - 0.2) / 0.5), j, true)) }
+                    if names, namedSubs.contains(part.sub) { labels.append((script.subfolders[part.sub].name, CGPoint(x: cp.x, y: cp.y + rp * 0.98 + 4), filmSmooth((t - born(part.notes) - 0.2) / 0.5), j, true)) }
                 }
                 for (p, part) in parts[j].enumerated() {
                     for (k, i) in part.notes.enumerated() where script.nodes[i].birth <= gt {
@@ -692,9 +715,9 @@ final class GalaxyScene: FilmScene {
                 }
                 paper(one + other.reversed(), tint(clouds[1 + j % 3], j), in: ctx)
                 // (Its name where the strand begins, on the side away from the others.)
-                if names {
+                if names, j < Self.folderNamesMost {
                     let end = strand(j, first), side: Double = Double(j) < Double(groups.count - 1) / 2 ? -1 : 1
-                    labels.append((script.folders[g.folder], CGPoint(x: end.x + across.x * side * 46 - dir.x * 20, y: end.y + across.y * side * 46 - dir.y * 20 - 20), filmSmooth((gt - first - 0.6) / 0.5), j, false))
+                    labels.append((script.folders[g.folder], CGPoint(x: end.x + across.x * side * 46 - dir.x * 20, y: end.y + across.y * side * 46 - dir.y * 20 - 20), filmSmooth((t - first - 0.6) / 0.5), j, false))
                 }
                 for i in g.notes where script.nodes[i].birth <= gt {
                     // (A folder inside it runs a little to one side of its strand.)
@@ -735,7 +758,7 @@ final class GalaxyScene: FilmScene {
             placedNow = made.at
             if finding {
                 found = [:]
-                for (k, b) in script.bangs.enumerated() {
+                for k in script.bangs.indices {
                     let mine = script.nodes.indices.filter { bangOf[$0] == k }.map { made.at[$0] }
                     guard !mine.isEmpty else { continue }
                     found[k] = CGPoint(x: mine.map(\.x).reduce(0, +) / Double(mine.count), y: mine.map(\.y).reduce(0, +) / Double(mine.count))
@@ -773,7 +796,7 @@ final class GalaxyScene: FilmScene {
         // you brought in will be (or one at its heart, when you brought nothing).
         let biggest = Double(script.bangs.map(\.count).max() ?? 1)
         func point(_ c: CGPoint, until: Double, size: Double, phase: Double) {
-            let gather = filmSmooth(gt / until), left = 1 - filmSmooth((gt - until) / 0.3)
+            let gather = filmSmooth(gt / until), left = 1 - filmSmooth((t - until) / 0.3)
             guard left > 0.01 else { return }
             let r = (2 + 8 * gather) * size * (1 + 0.12 * sin(9 * gt + phase))
             let glow = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cream.cg(0.5 * gather * left), cream.cg(0)] as CFArray, locations: [0, 1])!
@@ -856,7 +879,7 @@ final class GalaxyScene: FilmScene {
             for e in n.edits where e <= gt { done += 1; last = e }
             let pulse = t <= growth ? exp(-(gt - last) / 0.35) : 0.25 + 0.25 * sin(2.2 * t + Double(i)) + 0.9 * lit(where_[i])
             let r = (unit.map { starSize(done) * $0 } ?? min(30, 7 + 1.9 * done.squareRoot()) * u) * filmBackOut((gt - n.birth) / 0.35) * (1 + (unit == nil ? 0.4 : 0.22) * pulse)
-            let helped = filmSmooth((gt - aiFrom[i]) / 0.35)
+            let helped = filmSmooth((t - aiFrom[i]) / 0.35)
             var at = where_[i], size = r
             if let gone = n.gone, t >= gone {
                 // Removed: it leaves as a shooting star, away from the heart, and is gone.
@@ -888,16 +911,31 @@ final class GalaxyScene: FilmScene {
             let p = seen(l.at)
             return CGRect(x: min(W - 30 - w, max(30, p.x - w / 2)), y: p.y, width: w, height: l.small ? 31 : 40)
         }
-        for _ in 0..<40 {
+        // (Each pair moves the shorter way: side by side ones sideways, stacked ones up and down,
+        // and never off the side of the picture.)
+        for _ in 0..<120 {
             var moved = false
             for a in boxes.indices where labels[a].a > 0.02 { for b in boxes.indices where b > a && labels[b].a > 0.02 {
                 guard boxes[a].insetBy(dx: -8, dy: -5).intersects(boxes[b]) else { continue }
-                let over = (boxes[a].height + 10 - abs(boxes[a].midY - boxes[b].midY)) / 2 + 0.5
-                let up: Double = boxes[a].midY >= boxes[b].midY ? 1 : -1
-                boxes[a].origin.y += up * over; boxes[b].origin.y -= up * over
+                let overY = (boxes[a].height + boxes[b].height) / 2 + 10 - abs(boxes[a].midY - boxes[b].midY)
+                let overX = (boxes[a].width + boxes[b].width) / 2 + 16 - abs(boxes[a].midX - boxes[b].midX)
+                if overX < overY * 0.8 {
+                    let right: Double = boxes[a].midX >= boxes[b].midX ? 1 : -1
+                    func slide(_ k: Int, _ by: Double) { boxes[k].origin.x = min(W - 30 - boxes[k].width, max(30, boxes[k].minX + by)) }
+                    slide(a, right * (overX / 2 + 0.5)); slide(b, -right * (overX / 2 + 0.5))
+                } else {
+                    let up: Double = boxes[a].midY >= boxes[b].midY ? 1 : -1
+                    boxes[a].origin.y += up * (overY / 2 + 0.5); boxes[b].origin.y -= up * (overY / 2 + 0.5)
+                }
                 moved = true
             } }
             if !moved { break }
+        }
+        if inspect {
+            inspected = Seen()
+            inspected.sky = CGRect(x: 0, y: canvas.bottom + 250, width: W, height: H - canvas.top - 120 - (canvas.bottom + 250))
+            for (i, n) in script.nodes.enumerated() where n.birth <= gt && (n.gone.map { t < $0 } ?? true) { inspected.stars.append(seen(where_[i])) }
+            for (k, l) in labels.enumerated() { inspected.names.append((l.name, boxes[k], l.a * (1 - filmSmooth((boxes[k].maxY - (H - canvas.top - 160)) / 50)), l.small)) }
         }
         // (A name the camera has carried up under the mark and the key fades out there.)
         for (k, l) in labels.enumerated() { tag(l.name, at: CGPoint(x: boxes[k].midX, y: boxes[k].minY), alpha: l.a * (1 - filmSmooth((boxes[k].maxY - (H - canvas.top - 160)) / 50)), hot: l.small ? 0 : heat[l.group], small: l.small, in: ctx) }

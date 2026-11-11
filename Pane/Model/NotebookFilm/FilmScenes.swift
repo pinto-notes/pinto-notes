@@ -1,4 +1,5 @@
 import CoreGraphics
+import os
 import CoreText
 import Foundation
 
@@ -84,15 +85,28 @@ enum FilmKit {
         return ctx.makeImage()!
     }()
 
+    /// Fonts and how wide a name is, kept once made: every name on every frame made them afresh,
+    /// and with a lot of folders that was much of a frame's time (the stress lab, 11-11).
+    private struct Made: @unchecked Sendable { var fonts: [Double: CTFont] = [:], widths: [String: Double] = [:] }
+    private static let made = OSAllocatedUnfairLock(initialState: Made())
+
     private static func font(_ size: Double, _ weight: Double) -> CTFont {
+        let key = size * 1000 + weight
+        if let f = made.withLockUnchecked({ $0.fonts[key] }) { return f }
         let base = CTFontCreateUIFontForLanguage(.system, size, nil)!
         let desc = CTFontDescriptorCreateCopyWithAttributes(CTFontCopyFontDescriptor(base), [kCTFontTraitsAttribute: [kCTFontWeightTrait: weight]] as CFDictionary)
-        return CTFontCreateWithFontDescriptor(desc, size, nil)
+        let f = CTFontCreateWithFontDescriptor(desc, size, nil)
+        made.withLockUnchecked { $0.fonts[key] = f }
+        return f
     }
 
     static func width(_ s: String, _ size: Double, _ weight: Double = 0) -> Double {
+        let key = "\(size) \(weight) \(s)"
+        if let w = made.withLock({ $0.widths[key] }) { return w }
         let a = NSAttributedString(string: s, attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font(size, weight)])
-        return CTLineGetTypographicBounds(CTLineCreateWithAttributedString(a), nil, nil, nil)
+        let w = CTLineGetTypographicBounds(CTLineCreateWithAttributedString(a), nil, nil, nil)
+        made.withLock { if $0.widths.count > 4000 { $0.widths = [:] }; $0.widths[key] = w }
+        return w
     }
 
     @discardableResult

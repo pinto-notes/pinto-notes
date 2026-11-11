@@ -112,7 +112,9 @@ struct FilmStats: Equatable, Sendable {
         self.edits = edits.filter { $0.ai == nil }.count
         self.written = notes.reduce(0) { $0 + $1.edits.dropFirst($1.imported == true ? 1 : 0).filter { $0.ai == nil }.count }
         var byFolder: [String: Int] = [:]
-        for n in notes { byFolder[n.folder, default: 0] += max(1, n.edits.count) }
+        // (Only what's still there: a folder whose notes were all thrown out read "Most written in
+        // Apartment hunt · 0 notes" in the stress lab, 11-11.)
+        for n in notes where n.removed == nil { byFolder[n.folder, default: 0] += max(1, n.edits.count) }
         let top = byFolder.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }?.key
         topFolder = top?.isEmpty == false ? top : nil
         topFolderNotes = notes.filter { $0.folder == top && $0.removed == nil }.count
