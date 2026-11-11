@@ -78,8 +78,8 @@ export const SHOTS = {
 export const posts: Post[] = [
   {
     slug: "slash-menu",
-    title: "Type / to format your notes in Pinto Notes",
-    description: "Pinto Notes 1.3 for Mac adds a / menu: headings, checklists, callouts, tables, dividers, dates and links to other notes, all from the keyboard.",
+    title: "Type / to format your notes, like in Notion",
+    description: "Pinto Notes 1.3 for Mac adds a / menu like Notion's: headings, checklists, callouts, tables, dividers, dates and links to other notes, all from the keyboard.",
     excerpt: "Type / anywhere in a note, pick what you want and press Return. Callouts, tables, dates and links to your other notes, without reaching for the mouse.",
     category: "Building Pinto Notes",
     date: "2026-11-11",

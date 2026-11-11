@@ -2,13 +2,13 @@ import { PostPage, postMetadata } from "@/lib/PostPage";
 import { PostFigure } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("slash-menu", { title: "Type / to format your notes in Pinto Notes" });
+export const metadata = postMetadata("slash-menu", { title: "Type / to format your notes, like in Notion" });
 
 export default function Page() {
   return (
     <PostPage
       slug="slash-menu"
-      intro={<>Pinto Notes 1.3 for Mac adds a / menu. Type / anywhere in a note, pick what you want, and press Return. Your hands stay on the keyboard.</>}
+      intro={<>Pinto Notes 1.3 for Mac adds a / menu, the kind you know from Notion. Type / anywhere in a note, pick what you want, and press Return. Your hands stay on the keyboard.</>}
     >
       <h2>Type / and pick</h2>
       <p>
