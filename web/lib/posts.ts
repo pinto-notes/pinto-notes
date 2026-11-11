@@ -77,6 +77,19 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "slash-menu",
+    title: "Type / to format your notes, like in Notion",
+    description: "Pinto Notes 1.3 for Mac adds a / menu like Notion's: headings, checklists, callouts, tables, dividers, dates and links to other notes, all from the keyboard.",
+    excerpt: "Type / anywhere in a note, pick what you want and press Return. Callouts, tables, dates and links to your other notes, without reaching for the mouse.",
+    category: "Building Pinto Notes",
+    date: "2026-11-11",
+    updated: "2026-11-11",
+    image: { src: "/blog/launch/slash-menu-open.webp", alt: "A Kitchen redo note in Pinto Notes on a Mac with the / menu open, and /warn narrowing it to Warning Callout.", width: 1600, height: 1000, window: false },
+    thumb: cover("fog", "app-slash-menu", 1600, 1000, "A Kitchen redo note in Pinto Notes on a Mac with the / menu open under the caret"),
+    draft: false,
+    announcement: true,
+  },
+  {
     slug: "pinto-notes-for-iphone",
     title: "Introducing Pinto Notes for iPhone",
     description: "Pinto Notes for iPhone is out now on the App Store, free. Your Mac notes on your phone, and what your AI's changes look like there.",
