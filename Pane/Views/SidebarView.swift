@@ -370,7 +370,7 @@ struct SidebarView: View {
         .background(Color(Palette.foldersGround).ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                if let film, film.offered, !editingFolders {
+                if let film, film.cardShown, !editingFolders {
                     FilmCard(store: film)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
@@ -601,7 +601,7 @@ struct SidebarView: View {
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if let backend, case .signedIn = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
-                    if let film, film.offered {
+                    if let film, film.cardShown {
                         FilmCard(store: film)
                             .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarCardMetrics.padding)
                             .padding(.trailing, 10)

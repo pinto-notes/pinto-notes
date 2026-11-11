@@ -20,15 +20,15 @@ xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm >/dev/null; sle
 for p in $profiles; do
   name=${p#-film}; name=${name:l}
   xcrun simctl terminate "$SIM" $APP 2>/dev/null || true; sleep 1
-  xcrun simctl io "$SIM" recordVideo --codec=h264 --force "$OUT/$name-raw.mov" >/dev/null 2>&1 & rec=$!
+  xcrun simctl io "$SIM" recordVideo --codec=${CODEC:-h264} --force "$OUT/$name-raw.mov" >/dev/null 2>&1 & rec=$!
   sleep 5
   t0=$(python3 -c "import time; print(time.time())")
   # From its card at the foot of the folders, opened a moment later as a tap would; the slides
   # turn every 3.2 s, the last one's play is pressed, then the film and the share screen.
-  # (SHARE=1 also presses Share video on the share screen and waits for the share sheet with the movie.)
+  # (DUMP=1 keeps every slide frame the app drew. SHARE=1 also presses Share video on the share screen and waits for the share sheet with the movie.)
   data=$(xcrun simctl get_app_container "$SIM" $APP data 2>/dev/null || true)
-  [[ -n $data ]] && rm -rf "$data"/tmp/NotebookFilm-* 2>/dev/null || true
-  xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm -filmCard -filmAutoOpen -showFolders -filmAutoCards $p ${SHARE:+-filmAutoShare} >/dev/null
+  [[ -n $data ]] && rm -rf "$data"/tmp/NotebookFilm-* "$data"/tmp/FilmSlideFrames 2>/dev/null || true
+  xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm -filmCard -filmAutoOpen -showFolders -filmAutoCards $p ${SHARE:+-filmAutoShare} ${DUMP:+-filmDumpSlides} >/dev/null
   sleep 2.5; xcrun simctl io "$SIM" screenshot "$OUT/$name-card.png" >/dev/null 2>&1
   sleep 3.5
   for k in 1 2 3 4; do xcrun simctl io "$SIM" screenshot "$OUT/$name-slide-$k.png" >/dev/null 2>&1; sleep 3.2; done
@@ -46,6 +46,8 @@ for p in $profiles; do
   start=$(python3 -c "print(max(0, $raw - ($t1 - $t0) - 0.3))")
   ffmpeg -y -loglevel error -i "$OUT/$name-raw.mov" -ss $start -vf "scale=590:-2,format=yuv420p" -c:v libx264 -crf 20 -movflags +faststart "$OUT/$name.mp4"
   rm -f "$OUT/$name-raw.mov"
+  # (DUMP=1: every slide frame the app drew, as it drew it.)
+  [[ -n ${DUMP:-} && -d $data/tmp/FilmSlideFrames ]] && { rm -rf "$OUT/$name-frames"; cp -R "$data/tmp/FilmSlideFrames" "$OUT/$name-frames"; }
   ffmpeg -y -loglevel error -i "$OUT/$name.mp4" -vf "fps=1,scale=200:-1,tile=10x4" -frames:v 1 "$OUT/$name-1fps-sheet.png"
 done
 xcrun simctl terminate "$SIM" $APP 2>/dev/null || true

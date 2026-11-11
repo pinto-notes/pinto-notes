@@ -29,8 +29,24 @@ struct FilmSlides: @unchecked Sendable {
         var light = false
         /// What it says, for VoiceOver.
         var spoken = ""
+        /// What stays still under it (its paper, their shadows, the mark): drawn once at each size and
+        /// kept, so every frame can be full size and still quick (about 3 ms where it was 18).
+        var back: ((CGContext) -> Void)? = nil
         let draw: (CGContext, Double) -> Void
     }
+
+    /// The still parts of the slides, as drawn, by slide and size (shared by every copy).
+    final class Backs: @unchecked Sendable {
+        private let lock = NSLock()
+        private var images: [String: CGImage] = [:]
+        func image(_ key: String, _ make: () -> CGImage?) -> CGImage? {
+            lock.lock(); defer { lock.unlock() }
+            if let i = images[key] { return i }
+            let i = make(); images[key] = i
+            return i
+        }
+    }
+    let backs = Backs()
 
     init(input: FilmInput, script: FilmScript, mark: CGImage?, title: (@Sendable (FilmNote) -> String?)? = nil) {
         self.input = input
@@ -141,6 +157,26 @@ struct FilmSlides: @unchecked Sendable {
         FilmKit.text(s, size, weight, c, at: CGPoint(x: x, y: y - (1 - e) * 46), align: align, in: ctx)
         ctx.restoreGState()
     }
+    /// A shape with its shadow, drawn once (at this frame's resolution) and kept, then placed, scaled
+    /// and faded on each frame: a big soft shadow is the slowest thing to draw. `side` is the shape's
+    /// size around `.zero`, where `draw` draws it.
+    private func sprite(_ key: String, side: Double, at p: CGPoint, scale: Double, alpha: Double = 1, in ctx: CGContext, _ draw: (CGContext) -> Void) {
+        guard scale > 0.001, alpha > 0.001 else { return }
+        let res = ctx.ctm.a, box = side + 160
+        guard let image = backs.image("sprite \(key) \(side) \(res)", {
+            let n = Int((box * res).rounded(.up))
+            guard let c = FilmRenderer.context(width: n, height: n) else { return nil }
+            c.scaleBy(x: res, y: res); c.translateBy(x: box / 2, y: box / 2)
+            draw(c)
+            return c.makeImage()
+        }) else { return }
+        ctx.saveGState()
+        ctx.setAlpha(alpha)
+        ctx.translateBy(x: p.x, y: p.y); ctx.scaleBy(x: scale, y: scale)
+        ctx.draw(image, in: CGRect(x: -box / 2, y: -box / 2, width: box, height: box))
+        ctx.restoreGState()
+    }
+
     /// Draws scaled (and turned) about a point, faded by `alpha`.
     private func around(_ p: CGPoint, scale: Double, alpha: Double = 1, in ctx: CGContext, _ draw: () -> Void) {
         guard scale > 0.001, alpha > 0.001 else { return }
@@ -170,9 +206,9 @@ struct FilmSlides: @unchecked Sendable {
         if let first = top5.first, first.note.edits.count >= 6 {
             let rows = top5.count
             let spoken = "Your top notes: " + top5.enumerated().map { "\($0.offset + 1), \($0.element.name), \($0.element.note.edits.count) times" }.joined(separator: "; ")
-            out.append(Slide(name: "top-notes", length: 1.0 + 0.12 * Double(max(0, rows - 2)) + 0.45, light: true, spoken: spoken) { ctx, t in
+            out.append(Slide(name: "top-notes", length: 1.0 + 0.12 * Double(max(0, rows - 2)) + 0.45, light: true, spoken: spoken,
+                             back: { ctx in ground(1, palette(1), in: ctx) }) { ctx, t in
                 let p = palette(1)
-                ground(1, p, in: ctx)
                 // The five as strips of paper, each as long as how often you came back to it, the first
                 // in your colour; its name over it and the count at its end.
                 let most = Double(first.note.edits.count), (lo, hi) = band
@@ -209,12 +245,11 @@ struct FilmSlides: @unchecked Sendable {
         if hours.reduce(0, +) >= 20 {
             let start = bestHours, kind = Self.kind(startingAt: start)
             let dark = !(5..<17).contains((start + 1) % 24)
-            out.append(Slide(name: "when", length: 2.25, light: true, spoken: "\(kind.0) \(kind.1). Most of it between \(Self.hourName(start)) and \(Self.hourName(start + 3))") { ctx, t in
+            out.append(Slide(name: "when", length: 2.25, light: true, spoken: "\(kind.0) \(kind.1). Most of it between \(Self.hourName(start)) and \(Self.hourName(start + 3))", back: { ctx in ground(2, palette(2), in: ctx) }) { ctx, t in
                 let p = palette(2)
-                ground(2, p, in: ctx)
                 let c = CGPoint(x: W / 2, y: H * 0.6), R = 400.0
                 func angle(_ h: Double) -> Double { .pi / 2 - h / 24 * 2 * .pi }
-                around(c, scale: 0.7 + 0.3 * filmBackOut(t / 0.5), alpha: filmSmooth(t / 0.2), in: ctx) { circle(c, R, p.tones[1], lift: 1.6, in: ctx) }
+                sprite("dial", side: 2 * R, at: c, scale: 0.7 + 0.3 * filmBackOut(t / 0.5), alpha: filmSmooth(t / 0.2), in: ctx) { circle(.zero, R, p.tones[1], lift: 1.6, in: $0) }
                 let labelsIn = filmSmooth((t - 0.2) / 0.3)
                 if labelsIn > 0 {
                     ctx.saveGState(); ctx.setAlpha(labelsIn)
@@ -250,19 +285,19 @@ struct FilmSlides: @unchecked Sendable {
                     ctx.move(to: c); ctx.addLine(to: CGPoint(x: c.x + cos(a) * (R - 30), y: c.y + sin(a) * (R - 30))); ctx.strokePath()
                 }
                 // The sun or the moon in the middle.
-                around(c, scale: filmBackOut((t - 1.45) / 0.45), in: ctx) {
+                sprite(dark ? "moon" : "sun", side: 360, at: c, scale: filmBackOut((t - 1.45) / 0.45), in: ctx) { ctx in
                     if dark {
-                        circle(c, 110, C(0xFFF4E6), lift: 1, in: ctx)
-                        ctx.setFillColor(p.tones[1].cg()); ctx.fillEllipse(in: CGRect(x: c.x - 58, y: c.y - 80, width: 220, height: 220))
+                        circle(.zero, 110, C(0xFFF4E6), lift: 1, in: ctx)
+                        ctx.setFillColor(p.tones[1].cg()); ctx.fillEllipse(in: CGRect(x: -58, y: -80, width: 220, height: 220))
                     } else {
                         for k in 0..<12 {
                             let a = Double(k) * .pi / 6, w = 0.13
-                            ctx.move(to: CGPoint(x: c.x + cos(a - w) * 120, y: c.y + sin(a - w) * 120))
-                            ctx.addLine(to: CGPoint(x: c.x + cos(a) * 175, y: c.y + sin(a) * 175))
-                            ctx.addLine(to: CGPoint(x: c.x + cos(a + w) * 120, y: c.y + sin(a + w) * 120))
+                            ctx.move(to: CGPoint(x: cos(a - w) * 120, y: sin(a - w) * 120))
+                            ctx.addLine(to: CGPoint(x: cos(a) * 175, y: sin(a) * 175))
+                            ctx.addLine(to: CGPoint(x: cos(a + w) * 120, y: sin(a + w) * 120))
                             ctx.closePath(); ctx.setFillColor(p.you.cg()); ctx.fillPath()
                         }
-                        circle(c, 110, p.you, lift: 1, in: ctx)
+                        circle(.zero, 110, p.you, lift: 1, in: ctx)
                     }
                 }
                 let y = bottom + 120
@@ -274,21 +309,22 @@ struct FilmSlides: @unchecked Sendable {
         // Last, the film's own sky, waiting for you to press play.
         // (The picture you send of it says what it is: "Your month".)
         let line = Self.story(input, script: script)
-        out.append(Slide(name: "play", length: 1.0, light: true, spoken: "\(line). See your month: press play.") { ctx, t in
-            let sky = GalaxyScene.skies[(seed / 3 + seed) % GalaxyScene.skies.count]
-            let bg = C(sky.0), tones = sky.1.map { C($0) }, cream = C(0xFFF4E6)
+        let sky = GalaxyScene.skies[(seed / 3 + seed) % GalaxyScene.skies.count]
+        let bg = C(sky.0), tones = sky.1.map { C($0) }, cream = C(0xFFF4E6)
+        out.append(Slide(name: "play", length: 1.0, light: true, spoken: "\(line). See your month: press play.", back: { ctx in
             ctx.setFillColor(bg.cg()); ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
             paper(blob(CGPoint(x: 330, y: H * 0.42), 660, 560, key: seed * 7 + 1), bg.mix(tones[0], 0.55), lift: 1.6, in: ctx)
             paper(blob(CGPoint(x: 800, y: H * 0.66), 520, 420, key: seed * 7 + 2), bg.mix(tones[0], 0.9), lift: 1.4, in: ctx)
             ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
+            if let mark { ctx.draw(mark, in: CGRect(x: 64, y: H - top - 70, width: 52, height: 52)) }
+            FilmKit.text("Pinto Notes", 34, 0.45, cream.cg(0.92), at: CGPoint(x: 130, y: H - top - 56), in: ctx)
+        }) { ctx, t in
             for j in 0..<150 {
                 let q = CGPoint(x: filmHash(j, seed + 1) * W, y: filmHash(j, seed + 2) * H), r = 1.3 + 2.4 * pow(filmHash(j, seed + 3), 3)
                 ctx.setFillColor(cream.cg((0.2 + 0.45 * filmHash(j, seed + 4)) * filmSmooth((t - filmHash(j, 5) * 0.6) / 0.4)))
                 ctx.fillEllipse(in: CGRect(x: q.x - r, y: q.y - r, width: r * 2, height: r * 2))
             }
             // (The play button itself is the app's, over the middle of this.)
-            if let mark { ctx.draw(mark, in: CGRect(x: 64, y: H - top - 70, width: 52, height: 52)) }
-            FilmKit.text("Pinto Notes", 34, 0.45, cream.cg(0.92), at: CGPoint(x: 130, y: H - top - 56), in: ctx)
             let y = bottom + 120
             say(line, 40, 0.25, cream.cg(0.8), y: y, t: t, at: 0.3, in: ctx)
             say("month", 170, 0.8, cream.cg(), x: 66, y: y + 110, t: t, at: 0.15, in: ctx)
@@ -350,9 +386,8 @@ struct FilmSlides: @unchecked Sendable {
         let names = brought.compactMap { title($0) }
         let wall = count > 0 && !names.isEmpty ? Self.wall(names, count: count, width: W - 132, height: hi - lo - 60) : nil
         let spoken = "\(lines.0) \(lines.1) \(lines.2)"
-        return Slide(name: "start", length: 2.0, spoken: spoken) { ctx, t in
+        return Slide(name: "start", length: 2.0, spoken: spoken, back: { ctx in ground(0, palette(0), in: ctx) }) { ctx, t in
             let p = palette(0)
-            ground(0, p, in: ctx)
             let y0 = bottom + 120
             say(lines.0, 110, 0.75, p.ink.cg(), x: 66, y: y0 + 280, t: t, at: 0, in: ctx)
             say("O" + lines.2.dropFirst(), 44, 0.3, p.ink.cg(0.85), y: y0, t: t, at: 1.1, in: ctx)
@@ -437,10 +472,18 @@ struct FilmSlides: @unchecked Sendable {
     /// Slide `k`, `t` seconds after it appeared (its end when nil), `pixels` wide.
     func image(_ k: Int, at t: Double? = nil, pixels: Int, slides all: [Slide]? = nil) -> CGImage? {
         let all = all ?? slides()
-        guard all.indices.contains(k), let ctx = FilmRenderer.context(width: pixels, height: Int((Double(pixels) * H / W).rounded())) else { return nil }
-        ctx.scaleBy(x: Double(pixels) / W, y: Double(pixels) / W)
+        let height = Int((Double(pixels) * H / W).rounded()), scale = Double(pixels) / W
+        guard all.indices.contains(k), let ctx = FilmRenderer.context(width: pixels, height: height) else { return nil }
+        if let back = all[k].back, let still = backs.image("\(k) \(all[k].name) \(pixels) \(H) \(top) \(bottom)", {
+            guard let b = FilmRenderer.context(width: pixels, height: height) else { return nil }
+            b.scaleBy(x: scale, y: scale); back(b)
+            return b.makeImage()
+        }) {
+            ctx.draw(still, in: CGRect(x: 0, y: 0, width: pixels, height: height))
+        }
+        ctx.scaleBy(x: scale, y: scale)
         all[k].draw(ctx, t ?? all[k].length + 1)
-        return ctx.makeImage()
+        return FilmRenderer.plain(ctx.makeImage())
     }
 
     /// Made-up names for the demo's notes: the most written in get names first, so none repeats.

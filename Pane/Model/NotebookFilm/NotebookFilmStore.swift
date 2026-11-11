@@ -142,6 +142,15 @@ final class NotebookFilmStore {
         if !forced { script = nil; input = nil }
     }
 
+    /// Its card is in the sidebar: offered, or opened from it and still up, so the film has the card
+    /// to grow out of and go back into (the zoom), and it goes once the film is closed.
+    var cardShown: Bool { offered || (opened && visible) }
+
+    /// Its card's title: what it is and how long (Emil, 11-11: "your first month with Pinto Notes",
+    /// and different when it isn't a month).
+    var cardTitle: String { Self.cardTitle(script?.stats) }
+    static func cardTitle(_ s: FilmStats?) -> String { "Your \(s?.period ?? "first month") with Pinto Notes" }
+
     /// What its card says: what you set out with, and that it's ready.
     var offerLine: String? {
         guard let input, let script else { return nil }

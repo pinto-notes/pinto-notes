@@ -326,6 +326,19 @@ struct SidebarCardShell<Art: View>: View {
     }
 }
 
+/// The film's card as where the film grows from, when there's somewhere for it to grow into.
+private struct ZoomSource: ViewModifier {
+    let id: String
+    let `in`: Namespace.ID?
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if let ns = `in` { content.matchedTransitionSource(id: id, in: ns) } else { content }
+        #else
+        content
+        #endif
+    }
+}
+
 enum SidebarCardMetrics {
     #if os(macOS)
     static let title = Font.system(size: 12, weight: .semibold)
@@ -384,8 +397,11 @@ struct FilmCard: View {
     let store: NotebookFilmStore
     @State private var poster: CGImage?
 
-    static let title = "See your month"
-    static let button = "Play"
+    static let line = "Take a look back"
+    /// What the film grows out of as it opens.
+    static let zoomID = "filmCard"
+    @Environment(\.filmZoom) private var zoom
+    static let button = "Show"
     static let cream = Color(red: 1, green: 0.965, blue: 0.91)
     typealias Metrics = SidebarCardMetrics
 
@@ -399,15 +415,15 @@ struct FilmCard: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
-        let line = store.offerLine ?? ""
+        let title = store.cardTitle, line = Self.line
         Button { store.open() } label: {
             VStack(alignment: .leading, spacing: Metrics.gap) {
-                Text(Self.title).font(Metrics.filmTitle).foregroundStyle(Self.cream).lineLimit(1).minimumScaleFactor(0.8)
-                Text(line).font(Metrics.line).foregroundStyle(Self.cream.opacity(0.78)).lineLimit(3)
+                Text(title).font(Metrics.filmTitle).foregroundStyle(Self.cream).lineLimit(2).minimumScaleFactor(0.85)
                     .frame(maxWidth: Metrics.filmWords, alignment: .leading)
-                HStack(spacing: 5) {
-                    Image(systemName: "play.fill").font(Metrics.arrow)
+                Text(line).font(Metrics.line).foregroundStyle(Self.cream.opacity(0.78)).lineLimit(2)
+                HStack(spacing: 4) {
                     Text(Self.button)
+                    Image(systemName: "chevron.right").font(Metrics.arrow)
                 }
                 .font(Metrics.button)
                 .foregroundStyle(sky)
@@ -442,8 +458,8 @@ struct FilmCard: View {
         }
         .buttonStyle(CardPress())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(Self.title). \(line)")
-        .accessibilityHint("Plays it")
+        .accessibilityLabel("\(title). \(line)")
+        .accessibilityHint(Self.button)
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("sidebar.film.open")
         .overlay(alignment: .topTrailing) {
@@ -456,7 +472,7 @@ struct FilmCard: View {
             }
             .buttonStyle(.quietIcon)
             .padding(Metrics.closeInset)
-            .accessibilityLabel("Close \(Self.title)")
+            .accessibilityLabel("Close \(title)")
             .accessibilityHint("Hides this for good")
             .accessibilityIdentifier("sidebar.film.close")
             #if os(macOS)
@@ -465,6 +481,7 @@ struct FilmCard: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("sidebar.film")
+        .modifier(ZoomSource(id: Self.zoomID, in: zoom))
         .task(id: store.script?.seed) {
             guard let script = store.script else { return }
             let side = Int(Metrics.filmHeight * 1.75 * 3)

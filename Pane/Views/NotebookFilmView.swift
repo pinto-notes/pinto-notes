@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import ImageIO
 import os
 import SwiftData
 #if os(macOS)
@@ -39,6 +40,19 @@ struct NotebookFilmView: View {
     /// Like a year in review: an intro, the film once full screen, then the film to share.
     enum Phase { case intro, watching, share }
 
+    /// What's on screen. After play, the play slide stays until the film's first frame is up, and
+    /// under the film until the film has faded in over it (`filmCovers`), so its sky goes into the
+    /// film's sky. Before, the film came in over black, and on a busy phone the screen stayed black
+    /// for over a second; and two pictures cross-fading over black dim in the middle (11-11).
+    static func layers(_ phase: Phase, galaxy: Bool, filmUp: Bool, filmCovers: Bool = false) -> (slides: Bool, intro: Bool, stage: Bool) {
+        let waiting = galaxy && phase == .watching && !filmUp
+        let under = galaxy && phase == .watching && !filmCovers
+        return (galaxy && (phase == .intro || waiting || under), !galaxy && phase == .intro, phase != .intro && !waiting)
+    }
+
+    /// The film has faded in over the play slide, which can go.
+    @State private var filmCovers = false
+
     var body: some View {
         GeometryReader { g in
             ZStack {
@@ -66,13 +80,16 @@ struct NotebookFilmView: View {
                     .clipped()
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
-                if phase == .intro, store.galaxy {
-                    slidesView.transition(.opacity)
-                } else if phase == .intro {
-                    intro.transition(.opacity)
-                } else {
-                    stage(g).transition(.opacity)
-                }
+                let shown = Self.layers(phase, galaxy: store.galaxy, filmUp: playback.frame != nil, filmCovers: filmCovers)
+                if shown.slides { slidesView.transition(.opacity) }
+                if shown.intro { intro.transition(.opacity) }
+                if shown.stage { stage(g).transition(.opacity) }
+            }
+            // (The film's first frame fades in over the play slide, not a cut; then the slide goes.)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.45), value: playback.frame != nil)
+            .onChange(of: playback.frame != nil) { _, up in
+                guard up, !filmCovers else { return }
+                Task { try? await Task.sleep(for: .seconds(reduceMotion ? 0 : 0.6)); filmCovers = true }
             }
             .onAppear { measure(g) }
             .onChange(of: g.size) { measure(g) }
@@ -261,14 +278,15 @@ struct NotebookFilmView: View {
         show(min(slide, max(0, slideList.count - 1)), screen: screen)
     }
 
-    /// Plays slide `k` coming in: frames drawn off the main thread at 30 a second (smaller while it
-    /// moves), then its last frame at full size. With Reduce Motion, just the last frame.
+    /// Plays slide `k` coming in: frames drawn off the main thread at 30 a second, then its last
+    /// frame. With Reduce Motion, just the last frame. Every frame is full size, so nothing changes
+    /// size between frames.
     private func show(_ k: Int, screen: FilmPlayback.Screen) {
         guard let slides, slideList.indices.contains(k) else { return }
         slide = k
         slideTask?.cancel()
         let list = slideList, length = list[k].length, still = reduceMotion
-        let full = screen.pixels, moving = max(540, screen.pixels * 2 / 3)
+        let full = screen.pixels, moving = full
         slideTask = Task {
             if !still {
                 let clock = ContinuousClock(), began = clock.now
@@ -277,6 +295,9 @@ struct NotebookFilmView: View {
                     if t >= length { break }
                     let image = await Self.draw(slides, k, at: t, pixels: moving, list)
                     guard !Task.isCancelled else { return }
+                    #if QA
+                    Self.dump(image, k, t)
+                    #endif
                     slideFrame = image
                     slideShown = k
                     try? await clock.sleep(until: began + .seconds((t * 30).rounded(.down) / 30 + 1.0 / 30))
@@ -284,9 +305,24 @@ struct NotebookFilmView: View {
             }
             guard !Task.isCancelled else { return }
             let image = await Self.draw(slides, k, at: nil, pixels: full, list)
+            #if QA
+            Self.dump(image, k, 99)
+            #endif
             if !Task.isCancelled { slideFrame = image; slideShown = k }
         }
     }
+
+    #if QA
+    /// Captures: `-filmDumpSlides` keeps every slide frame drawn, to look for faults frame by frame.
+    private static func dump(_ image: CGImage?, _ k: Int, _ t: Double) {
+        guard let image, ProcessInfo.processInfo.arguments.contains("-filmDumpSlides") else { return }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("FilmSlideFrames")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent(String(format: "%d-%05.0f.png", k, t * 1000))
+        guard let d = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else { return }
+        CGImageDestinationAddImage(d, image, nil); CGImageDestinationFinalize(d)
+    }
+    #endif
 
     private nonisolated static func draw(_ slides: FilmSlides, _ k: Int, at t: Double?, pixels: Int, _ list: [FilmSlides.Slide]) async -> CGImage? {
         await Task.detached(priority: .userInitiated) { slides.image(k, at: t, pixels: pixels, slides: list) }.value
@@ -314,9 +350,9 @@ struct NotebookFilmView: View {
             Color(red: 1, green: 0.68, blue: 0.2)
                 .overlay {
                     if let slideFrame {
-                        Image(decorative: slideFrame, scale: 1)
-                            .resizable()
-                            .scaledToFill()
+                        FrameLayer(image: slideFrame)
+                            .accessibilityElement()
+                            .accessibilityAddTraits(.isImage)
                             .accessibilityLabel(slideList.indices.contains(slide) ? slideList[slide].spoken : "")
                     }
                 }
@@ -390,7 +426,10 @@ struct NotebookFilmView: View {
                     .padding(.bottom, 12)
                 }
             }
+            .opacity(phase == .intro ? 1 : 0)
         }
+        // (Play was pressed and the film is on its way: nothing here to press, and its words go.)
+        .allowsHitTesting(phase == .intro)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("notebookFilm.slides")
         // (VoiceOver: the slide reads itself; these move between them.)
@@ -957,6 +996,37 @@ private struct CardRectKey: PreferenceKey {
     }
 }
 
+/// A frame of the slides on a plain layer, its picture swapped with no animation, not a SwiftUI
+/// image re-laid out 30 times a second. (Emil, 11-11: "shadows flashing white" in a screen
+/// recording. The frames were right every time, and screenshots never showed it: the simulator's
+/// recorder adds glows along soft edges now and then, so check a fault there with screenshots.)
+struct FrameLayer {
+    let image: CGImage
+    fileprivate static func show(_ image: CGImage, on layer: CALayer) {
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        layer.contentsGravity = .resizeAspectFill
+        layer.masksToBounds = true
+        layer.contents = image
+        CATransaction.commit()
+    }
+}
+#if os(iOS)
+extension FrameLayer: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView { let v = UIView(); v.isUserInteractionEnabled = false; return v }
+    func updateUIView(_ v: UIView, context: Context) { Self.show(image, on: v.layer) }
+}
+#else
+extension FrameLayer: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { let v = NSView(); v.wantsLayer = true; return v }
+    func updateNSView(_ v: NSView, context: Context) { if let l = v.layer { Self.show(image, on: l) } }
+}
+#endif
+
+extension EnvironmentValues {
+    /// Where the film's card is, for the film to grow out of it (iPhone): set at the app's root.
+    @Entry var filmZoom: Namespace.ID?
+}
+
 extension View {
     /// The notebook film over this view when the store says so: full screen on iPhone, a sheet on the Mac.
     func notebookFilmSheet(_ store: NotebookFilmStore) -> some View {
@@ -970,6 +1040,9 @@ extension View {
 private struct NotebookFilmSheet: ViewModifier {
     @Bindable var store: NotebookFilmStore
     @State private var shown = false
+    /// The film grows out of its card and goes back into it (Emil, 11-11: the sheet sliding up
+    /// "I don't like").
+    @Namespace private var zoom
     /// The appearance the app is in: the film opens in the look that matches.
     @Environment(\.colorScheme) private var scheme
 
@@ -980,7 +1053,10 @@ private struct NotebookFilmSheet: ViewModifier {
         #if os(iOS)
         content
             .simultaneousGesture(touch, including: waiting ? .all : .subviews)
-            .fullScreenCover(isPresented: binding) { NotebookFilmView(store: store) }
+            .environment(\.filmZoom, zoom)
+            .fullScreenCover(isPresented: binding) {
+                NotebookFilmView(store: store).navigationTransition(.zoom(sourceID: FilmCard.zoomID, in: zoom))
+            }
             .task(id: store.visible) { await present() }
         #else
         content

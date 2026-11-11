@@ -132,6 +132,9 @@ final class GalaxyScene: FilmScene {
     /// The sky a film of this script is set in (its card is the same colour).
     static func sky(_ script: FilmScript) -> UInt32 { skies[(script.seed / 3 + script.seed) % skies.count].0 }
 
+    /// How far into the poster, from its left edge, it fades from the card's plain sky.
+    static let posterFade = 0.4
+
     /// Your galaxy as the month leaves it, square, on its sky, with no names: the picture on its card.
     static func poster(_ script: FilmScript, pixels: Int) -> CGImage? {
         let side = 1080.0
@@ -141,6 +144,11 @@ final class GalaxyScene: FilmScene {
                                   space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         ctx.scaleBy(x: Double(pixels) / side, y: Double(pixels) / side)
         GalaxyScene(script: script, names: false, seed: script.seed).drawBehind(script.growth + 2, canvas: canvas, in: ctx)
+        // Its left edge goes into the card's plain sky, so no seam shows where the picture starts.
+        // (Its clouds and speckle are a shade lighter than that sky: Emil's card, 11-11.)
+        let sky = GR(Self.sky(script))
+        let fade = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [sky.cg(1), sky.cg(0)] as CFArray, locations: [0, 1])!
+        ctx.drawLinearGradient(fade, start: .zero, end: CGPoint(x: side * Self.posterFade, y: 0), options: [])
         return ctx.makeImage()
     }
 

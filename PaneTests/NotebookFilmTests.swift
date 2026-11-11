@@ -245,14 +245,18 @@ import AVFoundation
         // It never comes up by itself: its card is offered, and it opens when you tap it.
         let next = Self.store(d, account: account, source: source, folder: folder)
         next.atLaunch(otherPrompt: false)
-        #expect(next.offered && !next.visible, "a card, not a screen over the notes")
+        #expect(next.offered && !next.visible && next.cardShown, "a card, not a screen over the notes")
         #expect(next.offerLine?.hasPrefix("You ") == true)
         #expect(next.script?.stats.ai == "ChatGPT")
         next.open()
         #expect(next.visible && !next.offered && next.asked)
+        // The card stays while the film is up, for it to grow out of and go back into (Emil, 11-11:
+        // the sheet sliding up "I don't like"), and goes when it's closed.
+        #expect(next.cardShown)
         next.didPresent()
         #expect(!FileManager.default.fileExists(atPath: next.preparedURL.path))
         next.visible = false
+        #expect(!next.cardShown)
 
         let after = Self.store(d, account: account, source: source, folder: folder)
         after.atLaunch(otherPrompt: false)
@@ -908,6 +912,55 @@ import AVFoundation
         #expect(long.rows.count == 1 && fits(long))
     }
 
+    @Test func aSlideFrameWithItsKeptPaperIsTheSameAsOneDrawnWhole() throws {
+        // Every slide frame is full size, quick because the still paper is drawn once and kept (11-11);
+        // a frame made that way must be the frame itself.
+        let mine = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
+        let slides = FilmSlides(input: mine, script: FilmScript(mine, calendar: Self.cal, bang: true), mark: nil)
+        let all = slides.slides(), px = 240, height = Int((Double(px) * slides.H / slides.W).rounded())
+        func bytes(_ i: CGImage) -> [UInt8] {
+            var b = [UInt8](repeating: 0, count: px * height * 4)
+            let c = CGContext(data: &b, width: px, height: height, bitsPerComponent: 8, bytesPerRow: px * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            c.draw(i, in: CGRect(x: 0, y: 0, width: px, height: height)); return b
+        }
+        // What's shown is a plain image with its pixels read out, not one still tied to its context.
+        let frame = try #require(slides.image(0, at: 0.5, pixels: px, slides: all))
+        #expect(frame.dataProvider?.data != nil && frame.width == px && frame.height == height)
+        for k in all.indices {
+            #expect(all[k].back != nil, "\(all[k].name) keeps its paper")
+            for t in [0.05, 0.6, 5.0] {
+                let kept = try #require(slides.image(k, at: t, pixels: px, slides: all))
+                let whole = try #require(FilmRenderer.context(width: px, height: height))
+                whole.scaleBy(x: Double(px) / slides.W, y: Double(px) / slides.W)
+                all[k].back?(whole); all[k].draw(whole, t)
+                let a = bytes(kept), b = bytes(try #require(whole.makeImage()))
+                let off = zip(a, b).reduce(0) { $0 + abs(Int($1.0) - Int($1.1)) }
+                #expect(Double(off) / Double(a.count) < 0.5, "\(all[k].name) at \(t): \(off)")
+            }
+        }
+    }
+
+    @Test func afterPlayThePlaySlideStaysUntilTheFilmsFirstFrameIsUp() {
+        // Emil, 11-11: the film came in over black for over a second after play.
+        let waiting = NotebookFilmView.layers(.watching, galaxy: true, filmUp: false)
+        #expect(waiting.slides && !waiting.stage && !waiting.intro, "the play slide, never black")
+        // The film fades in over the play slide, which stays under it till it's covered: two
+        // pictures fading against each other over black would dim in the middle.
+        let fading = NotebookFilmView.layers(.watching, galaxy: true, filmUp: true)
+        #expect(fading.slides && fading.stage)
+        let up = NotebookFilmView.layers(.watching, galaxy: true, filmUp: true, filmCovers: true)
+        #expect(!up.slides && up.stage)
+        let slides = NotebookFilmView.layers(.intro, galaxy: true, filmUp: false)
+        #expect(slides.slides && !slides.stage && !slides.intro)
+        // Watching again from the share screen: the film is already up.
+        let again = NotebookFilmView.layers(.share, galaxy: true, filmUp: true, filmCovers: true)
+        #expect(again.stage && !again.slides)
+        // The other looks keep their intro, then the film.
+        let other = NotebookFilmView.layers(.intro, galaxy: false, filmUp: false)
+        #expect(other.intro && !other.slides && !other.stage)
+        #expect(NotebookFilmView.layers(.watching, galaxy: false, filmUp: false).stage)
+    }
+
     @Test func itsCardShowsYourOwnGalaxyOnTheFilmsSky() throws {
         // Emil, 11-11: the card that opens it was "a bit boring". It's the film's sky now, with your
         // galaxy as the month leaves it, its edge the card's own colour so there's no seam.
@@ -922,6 +975,15 @@ import AVFoundation
         let want = [Int(sky >> 16 & 0xFF), Int(sky >> 8 & 0xFF), Int(sky & 0xFF)]
         let corner = px.prefix(3).map(Int.init)
         #expect(zip(corner, want).allSatisfy { abs($0 - $1) <= 12 }, "corner \(corner), sky \(want)")
+        // Its whole left edge is the card's plain sky: on the card, a seam showed where the picture
+        // began, its clouds a shade lighter than the sky beside them (Emil's screenshot, 11-11).
+        let seam = (0..<120).map { y in (0..<3).map { abs(Int(px[y * 480 + $0]) - want[$0]) }.max()! }.max()!
+        #expect(seam <= 3, "left edge off the sky by \(seam)")
+        // It says what it is and how long: a month, or more (Emil, 11-11).
+        #expect(NotebookFilmStore.cardTitle(script.stats) == "Your first month with Pinto Notes")
+        let longer = FilmScript(FilmDemo.real(days: 92, now: Self.now), calendar: Self.cal)
+        #expect(NotebookFilmStore.cardTitle(longer.stats) == "Your first 3 months with Pinto Notes")
+        #expect(FilmCard.line == "Take a look back" && FilmCard.button == "Show")
         // ...and stars in it: plenty of pixels far brighter than the sky.
         let bright = stride(from: 0, to: px.count, by: 4).filter { Int(px[$0]) + Int(px[$0 + 1]) + Int(px[$0 + 2]) > 420 }.count
         #expect(bright > 40, "\(bright) bright pixels")

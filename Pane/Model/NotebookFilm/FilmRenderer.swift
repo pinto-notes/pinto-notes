@@ -306,6 +306,14 @@ final class FilmRenderer {
         dateFormatter.setLocalizedDateFormatFromTemplate(labels.dateFormat)
     }
 
+    /// A drawing as a plain image, its pixels copied out of the context.
+    static func plain(_ image: CGImage?) -> CGImage? {
+        guard let image, let data = image.dataProvider?.data, let provider = CGDataProvider(data: data) else { return image }
+        return CGImage(width: image.width, height: image.height, bitsPerComponent: image.bitsPerComponent, bitsPerPixel: image.bitsPerPixel,
+                       bytesPerRow: image.bytesPerRow, space: image.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: image.bitmapInfo,
+                       provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+    }
+
     static func context(width: Int = FilmScript.width, height: Int = FilmScript.height, data: UnsafeMutableRawPointer? = nil, bytesPerRow: Int = 0) -> CGContext? {
         CGContext(data: data, width: width, height: height, bitsPerComponent: 8, bytesPerRow: bytesPerRow,
                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
