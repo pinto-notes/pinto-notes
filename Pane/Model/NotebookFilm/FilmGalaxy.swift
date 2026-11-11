@@ -53,6 +53,17 @@ final class GalaxyScene: FilmScene {
     private var groupEdits: [[Double]] = []
     /// While it's only being laid out (to know where the camera should look), nothing is drawn.
     private var quiet = false
+    /// What the picture has to hold, in its own units: how far the spiral reaches, or the box
+    /// around the nebula's clouds. Fitted afresh each frame, it jumped every time a note landed
+    /// further out, so the camera follows a path made from all of them ahead of time instead.
+    private struct Fit { var far = 0.0, lo = CGPoint.zero, hi = CGPoint.zero }
+    /// Set while that path is made: the fit as it is, not as the camera holds it.
+    private var raw = false
+    private var rawFit = Fit()
+    private var path: (canvas: FilmCanvas, fits: [Fit])?
+    /// How the frame was last drawn: its scale, the point at its middle, and how far what's in it
+    /// reached past the frame (in the picture's units; 0 when it all fitted).
+    private(set) var shot = (zoom: 1.0, centre: CGPoint.zero, spill: 0.0)
     /// In the nebula every note has room of its own: how far apart a folder's notes sit, by how
     /// large its stars will be, so no star lies on another and each one's specks stay its own.
     private var cells: [Double] = []
@@ -269,12 +280,95 @@ final class GalaxyScene: FilmScene {
         (1.14 - 0.14 * filmSmooth(min(t, growth) / growth), mid)
     }
 
+    /// The camera's path: the fit fifteen times a second, then eased. It looks ahead, so
+    /// it's already drawing back when a note lands further out, and it holds what was brought in
+    /// from the start, so the burst flies out into a frame that's ready for it.
+    private static let pathRate = 15.0
+    private func fits(_ canvas: FilmCanvas) -> [Fit] {
+        if let path, path.canvas == canvas { return path.fits }
+        let none = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        let settled = script.bangAt.map { min(growth, $0 + 1.2) } ?? 0
+        let n = Int((growth * Self.pathRate).rounded(.up)) + 1
+        quiet = true; raw = true
+        let measured = (0..<n).map { i -> Fit in
+            drawBehind(max(settled, min(growth, Double(i) / Self.pathRate)), canvas: canvas, in: none)
+            return rawFit
+        }
+        quiet = false; raw = false
+        // Ahead: the most it will have to hold in the next moment. Then eased, in proportion (a
+        // small sky doubling is as big a move as a large one doubling).
+        let ahead = Int(1.0 * Self.pathRate)
+        var wide = measured
+        for i in 0..<n {
+            let next = measured[i..<min(n, i + ahead + 1)]
+            wide[i].far = next.map(\.far).max()!
+            wide[i].lo = CGPoint(x: next.map(\.lo.x).min()!, y: next.map(\.lo.y).min()!)
+            wide[i].hi = CGPoint(x: next.map(\.hi.x).max()!, y: next.map(\.hi.y).max()!)
+        }
+        // Never faster than a fifth wider a second: a long way out begins early instead of in a rush.
+        let slowest = exp(-log(1.2) / Self.pathRate)
+        for i in stride(from: n - 2, through: 0, by: -1) {
+            wide[i].far = max(wide[i].far, wide[i + 1].far * slowest)
+            let c = CGPoint(x: (wide[i].lo.x + wide[i].hi.x) / 2, y: (wide[i].lo.y + wide[i].hi.y) / 2)
+            let hx = max((wide[i].hi.x - wide[i].lo.x) / 2, (wide[i + 1].hi.x - wide[i + 1].lo.x) / 2 * slowest)
+            let hy = max((wide[i].hi.y - wide[i].lo.y) / 2, (wide[i + 1].hi.y - wide[i + 1].lo.y) / 2 * slowest)
+            wide[i].lo = CGPoint(x: c.x - hx, y: c.y - hy); wide[i].hi = CGPoint(x: c.x + hx, y: c.y + hy)
+        }
+        let sigma = 0.6 * Self.pathRate, reach = Int(3 * sigma)
+        let weights = (-reach...reach).map { exp(-Double($0 * $0) / (2 * sigma * sigma)) }
+        let sum = weights.reduce(0, +)
+        let eased = (0..<n).map { i -> Fit in
+            var far = 0.0, mx = 0.0, my = 0.0, sx = 0.0, sy = 0.0
+            for (k, w) in zip(-reach...reach, weights) {
+                let g = wide[min(n - 1, max(0, i + k))], v = w / sum
+                far += log(max(1, g.far)) * v
+                mx += (g.lo.x + g.hi.x) / 2 * v; my += (g.lo.y + g.hi.y) / 2 * v
+                sx += log(max(1, (g.hi.x - g.lo.x) / 2)) * v; sy += log(max(1, (g.hi.y - g.lo.y) / 2)) * v
+            }
+            return Fit(far: exp(far), lo: CGPoint(x: mx - exp(sx), y: my - exp(sy)), hi: CGPoint(x: mx + exp(sx), y: my + exp(sy)))
+        }
+        path = (canvas, eased)
+        return eased
+    }
+    /// Where the camera's path is at `gt`, between its points on a smooth curve.
+    private func fit(_ gt: Double, _ canvas: FilmCanvas) -> Fit {
+        let list = fits(canvas)
+        let s = min(Double(list.count - 1), max(0, gt * Self.pathRate)), i = Int(s), x = s - Double(i)
+        func p(_ k: Int) -> Fit { list[min(list.count - 1, max(0, k))] }
+        func cr(_ a: Double, _ b: Double, _ c: Double, _ d: Double) -> Double {
+            0.5 * (2 * b + (c - a) * x + (2 * a - 5 * b + 4 * c - d) * x * x + (3 * b - a - 3 * c + d) * x * x * x)
+        }
+        let a = p(i - 1), b = p(i), c = p(i + 1), d = p(i + 2)
+        return Fit(far: cr(a.far, b.far, c.far, d.far),
+                   lo: CGPoint(x: cr(a.lo.x, b.lo.x, c.lo.x, d.lo.x), y: cr(a.lo.y, b.lo.y, c.lo.y, d.lo.y)),
+                   hi: CGPoint(x: cr(a.hi.x, b.hi.x, c.hi.x, d.hi.x), y: cr(a.hi.y, b.hi.y, c.hi.y, d.hi.y)))
+    }
+
+    /// The smallest of them, rounded off where one takes over from another, so the camera eases
+    /// into its closest instead of stopping there. (It only ever draws back a little further.)
+    private static func least(_ k: [Double]) -> Double {
+        let low = k.min()!
+        return low / pow(k.map { pow(low / $0, 6) }.reduce(0, +), 1.0 / 6)
+    }
+
+    /// The frame at `t` as the camera sees it (its scale and middle), without drawing it.
+    func shot(at t: Double, canvas: FilmCanvas) -> (zoom: Double, centre: CGPoint, spill: Double) {
+        let none = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        _ = fits(canvas)
+        quiet = true
+        drawBehind(t, canvas: canvas, in: none)
+        quiet = false
+        return shot
+    }
+
     // MARK: Drawing
 
     func drawBehind(_ t: Double, canvas: FilmCanvas, in ctx: CGContext) {
         let H = canvas.height, gt = min(t, growth)
-        ctx.setFillColor(sky.cg())
-        ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+        let held: Fit? = raw || form == .comet ? nil : fit(gt, canvas)
+        if !quiet { ctx.setFillColor(sky.cg()); ctx.fill(CGRect(x: 0, y: 0, width: W, height: H)) }
         let bottom = canvas.bottom + 330, top = H - canvas.top - 120
         let mid = CGPoint(x: W / 2, y: (bottom + top) / 2)
         let half = CGSize(width: (W - 120) / 2, height: (top - bottom) / 2)
@@ -344,7 +438,10 @@ final class GalaxyScene: FilmScene {
                 let r = 12 * (Double(k) + 0.5).squareRoot(), a = Double(k) * 2.399963 + spin
                 where_[i] = CGPoint(x: cos(a) * r, y: sin(a) * r * lean)
             }
-            zoom = min(2.5 / size, min(half.width, half.height) / far)
+            rawFit.far = far
+            if let held { far = held.far }
+            zoom = held == nil ? min(2.5 / size, min(half.width, half.height) / far) : Self.least([2.5 / size, min(half.width, half.height) / far])
+            shot.spill = max(0, rawFit.far * zoom - min(half.width, half.height))
             func scr(_ p: CGPoint) -> CGPoint { CGPoint(x: mid.x + p.x * zoom, y: mid.y + p.y * zoom) }
             // The disc it lies in: sheets of paper, more of them and lighter as the work adds up.
             let halo = show(work, from: 4)
@@ -399,9 +496,15 @@ final class GalaxyScene: FilmScene {
                 lo.x = min(lo.x, centres[j].x - radius[j] - 20); hi.x = max(hi.x, centres[j].x + radius[j] + 20)
                 lo.y = min(lo.y, centres[j].y - radius[j] - 20); hi.y = max(hi.y, centres[j].y + radius[j] + 60)
             }
-            zoom = min(3.4, half.width * 2 / (hi.x - lo.x), half.height * 2 / (hi.y - lo.y))
+            rawFit.lo = lo; rawFit.hi = hi
+            if let held { lo = held.lo; hi = held.hi }
+            let fits: [Double] = [3.4, half.width * 2 / (hi.x - lo.x), half.height * 2 / (hi.y - lo.y)]
+            zoom = held == nil ? fits.min()! : Self.least(fits)
             unit = zoom
             let c0 = CGPoint(x: (lo.x + hi.x) / 2, y: (lo.y + hi.y) / 2)
+            shot.centre = c0
+            shot.spill = max(0, (c0.x - rawFit.lo.x) * zoom - half.width, (rawFit.hi.x - c0.x) * zoom - half.width,
+                             (c0.y - rawFit.lo.y) * zoom - half.height, (rawFit.hi.y - c0.y) * zoom - half.height)
             func scr(_ p: CGPoint) -> CGPoint { CGPoint(x: mid.x + (p.x - c0.x) * zoom, y: mid.y + (p.y - c0.y) * zoom) }
             // (With a lot of work in it the clouds lie on one great sheet: it's become one thing.)
             let one = show(work, from: 3.2)
@@ -489,6 +592,10 @@ final class GalaxyScene: FilmScene {
             ctx.restoreGState()
         }
         func seen(_ p: CGPoint) -> CGPoint { CGPoint(x: mid.x + (p.x - cam.on.x) * cam.k, y: mid.y + (p.y - cam.on.y) * cam.k) }
+        if quiet {
+            shot.zoom = build().zoom * cam.k
+            return
+        }
         // Far clouds, two big sheets, and the small stars of the sky itself.
         through(0.25) {
             paper(cloud(CGPoint(x: mid.x - 190 + 14 * sin(0.2 * t), y: mid.y + 150), 620, 420, turn: 0.4, key: seed * 7 + 1), sky.mix(clouds[0], 0.55), lift: 1.6, in: ctx)
@@ -510,6 +617,7 @@ final class GalaxyScene: FilmScene {
         ctx.scaleBy(x: cam.k, y: cam.k)
         ctx.translateBy(x: -cam.on.x, y: -cam.on.y)
         let made = build()
+        shot.zoom = made.zoom * cam.k
         var where_ = made.at
         let labels = made.labels, zoom = made.zoom, heart = made.heart
 

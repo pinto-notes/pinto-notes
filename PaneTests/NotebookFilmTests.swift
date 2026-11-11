@@ -901,6 +901,33 @@ import AVFoundation
         #expect(peak > 0.5 && peak <= 0.9)
     }
 
+    @Test func theGalaxysCameraGlidesAndKeepsEverythingInTheFrame() {
+        // Emil, 11-11: "camera movement has always been a bit janky". The zoom was fitted afresh
+        // each frame, so it jumped whenever a note landed further out or a folder began: by up to
+        // a third in one frame. Now it follows a path that sees what's coming.
+        let canvas = FilmCanvas.fitting(width: 393, height: 852, top: 59, bottom: 34)
+        let people = [FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true),
+                      FilmDemo.real(now: Self.now, notesPerWeek: 22, imported: 240, removed: 8, linked: 0.6),
+                      FilmDemo.notebook(days: 35, now: Self.now, heavy: true), FilmDemo.real(now: Self.now)]
+        for input in people {
+            let script = FilmScript(input, calendar: Self.cal, bang: true)
+            for form in [FilmForm.spiral, .nebula] {
+                let scene = GalaxyScene(script: script, names: true, seed: script.seed, form: form)
+                let frames = Int((script.growth + FilmScript.outro) * Double(FilmScript.fps))
+                let shots = (0..<frames).map { scene.shot(at: Double($0) / Double(FilmScript.fps), canvas: canvas) }
+                let zoom = shots.map { log($0.zoom) }
+                let step = zip(zoom.dropFirst(), zoom).map { abs($0 - $1) }.max() ?? 0
+                let turn = (2..<frames).map { abs(zoom[$0] - 2 * zoom[$0 - 1] + zoom[$0 - 2]) }.max() ?? 0
+                let slide = zip(shots.dropFirst(), shots).map { hypot($0.centre.x - $1.centre.x, $0.centre.y - $1.centre.y) * $0.zoom }.max() ?? 0
+                #expect(step < 0.007, "\(form): never more than a little closer or further in a frame (\(step))")
+                #expect(turn < 0.002, "\(form): it eases into a move and out of it, never lurches (\(turn))")
+                #expect(slide < 4, "\(form): and never lurches sideways (\(slide))")
+                // (Easing never costs what's in it: everything stays in the frame, give or take its margin.)
+                #expect(shots.map(\.spill).max() ?? 0 < 30, "\(form): nothing leaves the frame")
+            }
+        }
+    }
+
     @Test func theSharedMovieCarriesTheSound() async throws {
         // The movie that's shared has the film's sound, as long as its picture.
         let quiet = FilmDemo.real(days: 30, now: Self.now, ai: nil)
