@@ -67,7 +67,22 @@ Deno.test("libraries: pasted copies, unpinned or unhashed npm entries, unknown n
   assertStringIncludes(libraryReport(`<script>new Chart(c, {})</script>`).join(), "doesn't declare it");
 });
 
-Deno.test("check_app and preview_app render a sample through the render service", async () => {
+// The render service needs Playwright's WebKit. CI's server job doesn't install it (installing it
+// would add a minute to every run), so there the test is reported as ignored, not failed; it runs
+// wherever WebKit is installed (`npx playwright install webkit`).
+const hasWebKit = [
+  Deno.env.get("PLAYWRIGHT_BROWSERS_PATH"),
+  `${Deno.env.get("HOME")}/.cache/ms-playwright`,
+  `${Deno.env.get("HOME")}/Library/Caches/ms-playwright`,
+].some((dir) => {
+  if (!dir) return false;
+  try {
+    for (const entry of Deno.readDirSync(dir)) if (entry.name.startsWith("webkit-")) return true;
+  } catch { /* no such folder */ }
+  return false;
+});
+
+Deno.test({ name: "check_app and preview_app render a sample through the render service", ignore: !hasWebKit }, async () => {
   Deno.env.set("RENDER_SECRET", "test-secret");
   const { handle } = await import("../../../scripts/page-render/server.ts");
   const { closeBrowser } = await import("../../../scripts/page-render/render.ts");
