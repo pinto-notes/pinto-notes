@@ -196,7 +196,12 @@ import AVFoundation
     final class FakeSource: FilmSource.Service, @unchecked Sendable {
         var rows: [FilmSource.Row] = []
         var reads = 0
+        /// The account's mark (profiles.notebook_film_seen_at), shared by its devices.
+        var seenOnAccount = false
+        var offline = false
         func rows(notes: [UUID]) async throws -> [FilmSource.Row] { reads += 1; return rows.filter { notes.contains($0.note_id) } }
+        func seen() async throws -> Bool { if offline { throw URLError(.notConnectedToInternet) }; return seenOnAccount }
+        func markSeen() async throws { if offline { throw URLError(.notConnectedToInternet) }; seenOnAccount = true }
     }
 
     /// A month of notes in a library, and the server's record of who wrote them.
@@ -262,7 +267,66 @@ import AVFoundation
         after.atLaunch(otherPrompt: false)
         await after.prepare(context: c.mainContext)
         #expect(!after.offered && !after.visible)
-        #expect(!FileManager.default.fileExists(atPath: after.preparedURL.path), "once per device")
+        #expect(!FileManager.default.fileExists(atPath: after.preparedURL.path), "never again here")
+    }
+
+    @Test func onceShownOnOneDeviceTheAccountsOtherDevicesDontOfferIt() async throws {
+        // Emil, 11-11: once per account, not per device.
+        let (c, source) = try Self.library(days: 35)
+        let account = UUID(), phone = TestDefaults(), mac = TestDefaults()
+        let phoneFolder = Self.tempFolder(), macFolder = Self.tempFolder()
+        ShareAsk.lastKeystroke = .distantPast
+        await Self.store(phone, account: account, source: source, folder: phoneFolder).prepare(context: c.mainContext)
+        await Self.store(mac, account: account, source: source, folder: macFolder).prepare(context: c.mainContext)
+
+        // The Mac offers its card; the phone opens the film first.
+        let onMac = Self.store(mac, account: account, source: source, folder: macFolder)
+        onMac.atLaunch(otherPrompt: false)
+        #expect(onMac.offered)
+        let onPhone = Self.store(phone, account: account, source: source, folder: phoneFolder)
+        onPhone.atLaunch(otherPrompt: false)
+        onPhone.open()
+        onPhone.didPresent()
+        for _ in 0..<100 where !source.seenOnAccount { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(source.seenOnAccount, "shown on the phone is shown on the account")
+
+        // Later in the same Mac launch: its card goes, and the film is kept there for Help.
+        await onMac.prepare(context: c.mainContext)
+        #expect(!onMac.offered && !onMac.cardShown && onMac.shown)
+        #expect(NotebookFilmStore.canRewatch(account, in: macFolder))
+        let macLater = Self.store(mac, account: account, source: source, folder: macFolder)
+        macLater.atLaunch(otherPrompt: false)
+        #expect(!macLater.offered, "never offered on the Mac again")
+
+        // A third device never gets it ready, and doesn't read the notes' history for it.
+        let reads = source.reads
+        let ipad = Self.store(TestDefaults(), account: account, source: source, folder: Self.tempFolder())
+        await ipad.prepare(context: c.mainContext)
+        #expect(ipad.shown && !FileManager.default.fileExists(atPath: ipad.preparedURL.path))
+        #expect(source.reads == reads)
+
+        // Another account is its own.
+        let someoneElse = Self.store(TestDefaults(), account: UUID(), source: FakeSource(), folder: Self.tempFolder())
+        #expect(!someoneElse.shown)
+    }
+
+    @Test func shownOfflineTheAccountHearsOnALaterLaunch() async throws {
+        let (c, source) = try Self.library(days: 35)
+        let d = TestDefaults(), account = UUID(), folder = Self.tempFolder()
+        ShareAsk.lastKeystroke = .distantPast
+        await Self.store(d, account: account, source: source, folder: folder).prepare(context: c.mainContext)
+        source.offline = true
+        let s = Self.store(d, account: account, source: source, folder: folder)
+        s.atLaunch(otherPrompt: false)
+        s.open()
+        s.didPresent()
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(!source.seenOnAccount)
+
+        source.offline = false
+        await Self.store(d, account: account, source: source, folder: folder).prepare(context: c.mainContext)
+        for _ in 0..<100 where !source.seenOnAccount { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(source.seenOnAccount)
     }
 
     @Test func openedFromItsCardNothingYouDoPutsItOff() async throws {

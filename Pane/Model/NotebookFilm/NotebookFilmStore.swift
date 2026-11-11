@@ -12,6 +12,10 @@ import UIKit
 /// this device from the notes here and who wrote them; titles show only on your screen, and only
 /// in the slides before the film.
 ///
+/// Once per account, not per device (Emil, 11-11): shown on one device, it's marked on the account
+/// (`profiles.notebook_film_seen_at`) and no other device offers it; a card already up elsewhere is
+/// taken back, and that device keeps the film for Help.
+///
 /// A launch on which the account is due only gets it ready (`prepare`: reads who wrote what and
 /// keeps what the film needs on this device). The next launch offers it (`atLaunch`), never during
 /// the first-run flow or beside another prompt. Once it's been opened (`didPresent`), or its card
@@ -83,8 +87,10 @@ final class NotebookFilmStore {
     }
 
     static func shownKey(_ account: UUID?) -> String { "notebookFilm.shown.\(account?.uuidString.lowercased() ?? "device")" }
+    /// The account has been told it was shown (a device that showed it offline tells it later).
+    static func toldKey(_ account: UUID?) -> String { "notebookFilm.told.\(account?.uuidString.lowercased() ?? "device")" }
 
-    /// It was shown on this device for this account.
+    /// It was shown for this account: on this device, or on another one (heard from the server).
     var shown: Bool { defaults.bool(forKey: Self.shownKey(account)) }
 
     /// What the next launch shows, kept on this device.
@@ -157,13 +163,30 @@ final class NotebookFilmStore {
         return FilmSlides.cardLine(input, script: script)
     }
 
-    /// It's on screen: it isn't offered on this device again, and it's kept to watch again.
+    /// It's on screen: it isn't offered again on any of the account's devices, and it's kept here to watch again.
     func didPresent() {
         offered = false
         guard !forced, !rewatching, !shown else { return }
         defaults.set(true, forKey: Self.shownKey(account))
+        keepPrepared()
+        tell()
+    }
+
+    /// The film got ready here is kept to watch again from Help.
+    private func keepPrepared() {
+        guard FileManager.default.fileExists(atPath: preparedURL.path) else { return }
         try? FileManager.default.removeItem(at: keptURL)
         try? FileManager.default.moveItem(at: preparedURL, to: keptURL)
+    }
+
+    /// Marks it shown on the account, once; offline, a later launch does it (`prepare`).
+    private func tell() {
+        guard let service, !defaults.bool(forKey: Self.toldKey(account)) else { return }
+        let key = Self.toldKey(account), defaults = defaults
+        Task {
+            guard (try? await service.markSeen()) != nil else { return }
+            defaults.set(true, forKey: key)
+        }
     }
 
     /// Something was touched or typed before it came up: not on this launch. It stays ready
@@ -193,8 +216,19 @@ final class NotebookFilmStore {
     func prepare(context: ModelContext, now: Date = .now) async {
         guard !forced, !prepareChecked, let service else { return }
         prepareChecked = true
-        guard !shown, !visible, !FileManager.default.fileExists(atPath: preparedURL.path),
-              FilmSource.mightBeReady(context, now: now) else { return }
+        if shown { tell(); return }
+        let ready = FileManager.default.fileExists(atPath: preparedURL.path)
+        guard ready || FilmSource.mightBeReady(context, now: now) else { return }
+        // Shown on another of the account's devices: not offered here. A card that's up goes
+        // (not a film you've opened), and the film got ready here is kept for Help.
+        if (try? await service.seen()) == true {
+            defaults.set(true, forKey: Self.shownKey(account))
+            defaults.set(true, forKey: Self.toldKey(account))
+            if offered && !visible { offered = false; script = nil; input = nil }
+            keepPrepared()
+            return
+        }
+        guard !visible, !ready else { return }
         let ids = ((try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? []).map(\.id)
         guard let rows = try? await service.rows(notes: ids) else { return }
         let input = FilmSource.notes(context, edits: FilmSource.edits(rows), now: now)

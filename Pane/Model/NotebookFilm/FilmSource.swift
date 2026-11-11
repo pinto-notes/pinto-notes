@@ -18,6 +18,10 @@ enum FilmSource {
     /// What the server holds for the notes: their versions, and their texts now.
     protocol Service: Sendable {
         func rows(notes: [UUID]) async throws -> [Row]
+        /// The film has been shown to this account, on any of its devices (profiles.notebook_film_seen_at).
+        func seen() async throws -> Bool
+        /// It has been shown here: no other device offers it.
+        func markSeen() async throws
     }
 
     /// Each note's edits, oldest first: one per version kept (history is thinned as it ages, so
@@ -68,6 +72,20 @@ enum FilmSource {
 
 struct SupabaseFilmSource: FilmSource.Service {
     let client: SupabaseClient
+
+    private struct Seen: Codable { var notebook_film_seen_at: Date? }
+    private struct Mark: Encodable { var user_id: UUID; var notebook_film_seen_at: Date }
+
+    func seen() async throws -> Bool {
+        guard let user = client.auth.currentUser?.id else { return false }
+        let rows: [Seen] = try await client.from("profiles").select("notebook_film_seen_at").eq("user_id", value: user).execute().value
+        return rows.first?.notebook_film_seen_at != nil
+    }
+
+    func markSeen() async throws {
+        guard let user = client.auth.currentUser?.id else { return }
+        try await client.from("profiles").upsert(Mark(user_id: user, notebook_film_seen_at: .now), onConflict: "user_id").execute()
+    }
 
     private struct Revision: Decodable {
         var note_id: UUID
