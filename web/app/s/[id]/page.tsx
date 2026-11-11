@@ -10,7 +10,7 @@ export const dynamic = "force-static";
 export const dynamicParams = true;
 export const metadata: Metadata = { title: "A shared note · Pinto Notes", robots: { index: false, follow: false } };
 
-export const NOTE_LINK_ID = /^[A-Za-z0-9_-]{22}$/;
+const NOTE_LINK_ID = /^[A-Za-z0-9_-]{22}$/;
 
 type Props = { params: Promise<{ id: string }> };
 
