@@ -1044,6 +1044,18 @@ import AVFoundation
         }
     }
 
+    @Test func theEndScreenSaysWhatYourNotebookIsAndWhatThatMeans() {
+        // Emil, 11-11: the end screen was "weak"; it now ends as the slides do, on what your notebook
+        // is, said big, and one plain line on what that means.
+        for form in FilmForm.allCases {
+            let name = GalaxyScene.name(of: form), line = NotebookFilmView.meaning(form)
+            #expect(name.hasPrefix("a "), "\(form) reads after \"Your notebook is\"")
+            #expect(line.hasSuffix(".") && line.first?.isUppercase == true && line.count < 80, "\(form): \(line)")
+            #expect(!line.contains("\u{2014}") && !line.contains("\u{2013}"))
+        }
+        #expect(Set(FilmForm.allCases.map(NotebookFilmView.meaning)).count == FilmForm.allCases.count)
+    }
+
     @Test func theSlidesTakeTheirTimeAndTheTopNotesCountDown() throws {
         // Emil, 11-11: "this animates too fast, we need to make sure that things last", and the top
         // notes should "show up more one by one": a countdown from the fifth to yours, then its name.
