@@ -88,29 +88,33 @@ struct FilmSound {
             }
         }
 
-        // The burst: a low boom, a breath of air, and what was brought in ringing out together.
-        if let at = bang {
-            add(at: at, length: 3.2, pan: 0, gain: 0.55) { t in
-                let f = 38 + 34 * exp(-t / 0.18)
+        // The bursts, one for each folder of what was brought in: a low boom (the largest the
+        // deepest and loudest, each after it a step higher), a breath of air, and that folder's
+        // notes ringing out.
+        let biggest = Double(script.bangs.map(\.count).max() ?? 1)
+        for (k, b) in script.bangs.enumerated() {
+            let at = b.at, share = (Double(b.count) / biggest).squareRoot(), low = 38 * pow(2, Double(k) * 2 / 12)
+            add(at: at, length: 2.6, pan: Double(k % 3 - 1) * 0.25, gain: 0.55 * (0.45 + 0.55 * share)) { t in
+                let f = low + 34 * exp(-t / 0.18)
                 let phase = 2 * .pi * f * t + 3 * (1 - exp(-t / 0.18))
                 // (Its overtones carry it on a phone's small speaker, which can't play the boom itself.)
-                return min(1, t / 0.006) * exp(-t / 0.75) * (sin(phase) + 0.4 * sin(2 * phase) * exp(-t / 0.3) + 0.25 * sin(3 * phase) * exp(-t / 0.2))
+                return min(1, t / 0.006) * exp(-t / 0.6) * (sin(phase) + 0.4 * sin(2 * phase) * exp(-t / 0.3) + 0.25 * sin(3 * phase) * exp(-t / 0.2))
             }
-            var noise: UInt64 = 0x9E37_79B9
-            var low = 0.0
-            add(at: at, length: 1.6, pan: 0, gain: 0.3) { t in
+            var noise: UInt64 = 0x9E37_79B9 &+ UInt64(k)
+            var air = 0.0
+            add(at: at, length: 1.2, pan: 0, gain: 0.22 * (0.5 + 0.5 * share)) { t in
                 noise = noise &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
                 let white = Double(Int64(bitPattern: noise >> 11) % 1_000_000) / 1_000_000
-                low += (0.04 + 0.3 * exp(-t / 0.08)) * (white - low)
-                return low * exp(-t / 0.32)
+                air += (0.04 + 0.3 * exp(-t / 0.08)) * (white - air)
+                return air * exp(-t / 0.26)
             }
-            let brought = nodes.indices.filter { nodes[$0].imported }
-            let rings = brought.count <= 24 ? brought : (0..<24).map { brought[$0 * brought.count / 24] }
-            for (k, i) in rings.enumerated() {
-                let t0 = at + 0.04 + 0.7 * filmHash(i, 81) * filmHash(i, 82)
-                pluck(t0, Self.pitch(nodes[i].folder * 2 + k % 3, octave: 1 + k % 2), gain: 0.07, pan: filmHash(i, 83) * 1.6 - 0.8, decay: 0.9)
+            let mine = nodes.indices.filter { nodes[$0].imported && nodes[$0].folder == b.folder }
+            let rings = mine.count <= 8 ? mine : (0..<8).map { mine[$0 * mine.count / 8] }
+            for (r, i) in rings.enumerated() {
+                let t0 = at + 0.04 + 0.4 * filmHash(i, 81) * filmHash(i, 82)
+                pluck(t0, Self.pitch(nodes[i].folder * 2 + r % 3, octave: 1 + r % 2), gain: 0.07, pan: filmHash(i, 83) * 1.6 - 0.8, decay: 0.9)
             }
-            for (k, f) in [587.33, 739.99, 880.0].enumerated() { pluck(at + 0.02 * Double(k), f, gain: 0.06, pan: Double(k - 1) * 0.5, decay: 1.6) }
+            for (j, d) in [0, 2, 4].enumerated() { pluck(at + 0.02 * Double(j), Self.pitch(k + d, octave: 1), gain: 0.05, pan: Double(j - 1) * 0.5, decay: 1.3) }
         }
 
         // Each note as it appears, and each one removed; never more than a few a second, so a big

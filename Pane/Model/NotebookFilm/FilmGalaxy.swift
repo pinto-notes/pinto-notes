@@ -70,6 +70,22 @@ final class GalaxyScene: FilmScene {
         let crowd = notes + Double(edits) / 8, from = 10.0, full = 30.0
         return (filmSmooth((crowd - from) / 4), 0.5 + 0.5 * filmSmooth((crowd - from) / (full - from)))
     }
+    /// Where each folder's burst is, in the frame (by folder): the middle of where what it brings
+    /// will be once it's settled, found by laying that moment out ahead of time.
+    private var bangCentres: (canvas: FilmCanvas, at: [Int: CGPoint])?
+    private var finding = false
+    private var found: [Int: CGPoint] = [:]
+    private func centres(_ canvas: FilmCanvas) -> [Int: CGPoint] {
+        if let bangCentres, bangCentres.canvas == canvas { return bangCentres.at }
+        guard let last = script.bangs.last else { return [:] }
+        let none = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        quiet = true; finding = true
+        drawBehind(min(growth, last.at + 1.2), canvas: canvas, in: none)
+        quiet = false; finding = false
+        bangCentres = (canvas, found)
+        return found
+    }
     /// How the frame was last drawn: its scale, the point at its middle, and how far what's in it
     /// reached past the frame (in the picture's units; 0 when it all fitted).
     private(set) var shot = (zoom: 1.0, centre: CGPoint.zero, spill: 0.0)
@@ -297,7 +313,7 @@ final class GalaxyScene: FilmScene {
         if let path, path.canvas == canvas { return path.fits }
         let none = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-        let settled = script.bangAt.map { min(growth, $0 + 1.2) } ?? 0
+        let settled = script.bangs.last.map { min(growth, $0.at + 1.2) } ?? 0
         let n = Int((growth * Self.pathRate).rounded(.up)) + 1
         quiet = true; raw = true
         let measured = (0..<n).map { i -> Fit in
@@ -610,9 +626,19 @@ final class GalaxyScene: FilmScene {
         }
         func seen(_ p: CGPoint) -> CGPoint { CGPoint(x: mid.x + (p.x - cam.on.x) * cam.k, y: mid.y + (p.y - cam.on.y) * cam.k) }
         if quiet {
-            shot.zoom = build().zoom * cam.k
+            let made = build()
+            shot.zoom = made.zoom * cam.k
+            if finding {
+                found = [:]
+                for b in script.bangs {
+                    let mine = script.nodes.indices.filter { script.nodes[$0].imported && script.nodes[$0].folder == b.folder }.map { made.at[$0] }
+                    guard !mine.isEmpty else { continue }
+                    found[b.folder] = CGPoint(x: mine.map(\.x).reduce(0, +) / Double(mine.count), y: mine.map(\.y).reduce(0, +) / Double(mine.count))
+                }
+            }
             return
         }
+        let bursts = centres(canvas)
         // Far clouds, two big sheets, and the small stars of the sky itself.
         through(0.25) {
             paper(cloud(CGPoint(x: mid.x - 190 + 14 * sin(0.2 * t), y: mid.y + 150), 620, 420, turn: 0.4, key: seed * 7 + 1), sky.mix(clouds[0], 0.55), lift: 1.6, in: ctx)
@@ -638,36 +664,39 @@ final class GalaxyScene: FilmScene {
         var where_ = made.at
         let labels = made.labels, zoom = made.zoom, heart = made.heart
 
-        // Before the month: an empty sky, and one faint point at its heart that slowly gathers.
-        if script.opening > 0 {
-            let until = script.bangAt ?? script.opening
-            let gather = filmSmooth(gt / until), left = 1 - filmSmooth((gt - until) / 0.35)
-            if left > 0.01 {
-                let r = (3 + 9 * gather) * (1 + 0.12 * sin(9 * gt))
-                let glow = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cream.cg(0.5 * gather * left), cream.cg(0)] as CFArray, locations: [0, 1])!
-                ctx.drawRadialGradient(glow, startCenter: heart, startRadius: 0, endCenter: heart, endRadius: r * 7, options: [])
-                ctx.setFillColor(cream.mix(GR(0xFFFFFF), 0.5).cg((0.35 + 0.6 * gather) * left))
-                ctx.fillEllipse(in: CGRect(x: heart.x - r, y: heart.y - r, width: r * 2, height: r * 2))
+        // Before the month: an empty sky, and a faint point gathering where each folder of what
+        // you brought in will be (or one at its heart, when you brought nothing).
+        let biggest = Double(script.bangs.map(\.count).max() ?? 1)
+        func point(_ c: CGPoint, until: Double, size: Double, phase: Double) {
+            let gather = filmSmooth(gt / until), left = 1 - filmSmooth((gt - until) / 0.3)
+            guard left > 0.01 else { return }
+            let r = (2 + 8 * gather) * size * (1 + 0.12 * sin(9 * gt + phase))
+            let glow = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cream.cg(0.5 * gather * left), cream.cg(0)] as CFArray, locations: [0, 1])!
+            ctx.drawRadialGradient(glow, startCenter: c, startRadius: 0, endCenter: c, endRadius: r * 7, options: [])
+            ctx.setFillColor(cream.mix(GR(0xFFFFFF), 0.5).cg((0.35 + 0.6 * gather) * left))
+            ctx.fillEllipse(in: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
+        }
+        if script.bangs.isEmpty {
+            if script.opening > 0 { point(heart, until: script.opening, size: 1, phase: 0) }
+        } else {
+            for (k, b) in script.bangs.enumerated() {
+                point(bursts[b.folder] ?? heart, until: b.at, size: 0.6 + 0.4 * (Double(b.count) / biggest).squareRoot(), phase: Double(k) * 2.1)
             }
         }
-        // Then what you brought in arrives all at once: it bursts out from that point and settles.
-        var burst: Double?
-        if let bang = script.bangAt, gt >= bang {
-            let s = gt - bang
-            burst = s
-            for (i, n) in script.nodes.enumerated() where n.imported && n.birth <= gt && gt < n.birth + 1.1 {
-                let x = min(1, (gt - n.birth) / 1.1), out = 1 - pow(1 - x, 3)
-                where_[i] = CGPoint(x: heart.x + (where_[i].x - heart.x) * out, y: heart.y + (where_[i].y - heart.y) * out)
-            }
-            if s < 1.4 {
-                // (A ring of paper light going out, and a glow that fades behind it.)
-                let x = s / 1.4, ring = 30 + 760 * (1 - pow(1 - x, 2.4))
-                let glow = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cream.cg(0.55 * (1 - x) * (1 - x)), cream.cg(0)] as CFArray, locations: [0, 1])!
-                ctx.drawRadialGradient(glow, startCenter: heart, startRadius: 0, endCenter: heart, endRadius: 80 + 380 * x, options: [])
-                ctx.setStrokeColor(cream.cg(0.7 * (1 - x)))
-                ctx.setLineWidth(2 + 10 * (1 - x))
-                ctx.strokeEllipse(in: CGRect(x: heart.x - ring, y: heart.y - ring, width: ring * 2, height: ring * 2))
-            }
+        // Then each bursts in turn: what that folder brings flies out from its point and settles
+        // there, under a ring of light going out and a glow that fades behind it.
+        for (i, n) in script.nodes.enumerated() where n.imported && !script.bangs.isEmpty && n.birth <= gt && gt < n.birth + 0.9 {
+            let from = bursts[n.folder] ?? heart, x = (gt - n.birth) / 0.9, out = 1 - pow(1 - x, 3)
+            where_[i] = CGPoint(x: from.x + (where_[i].x - from.x) * out, y: from.y + (where_[i].y - from.y) * out)
+        }
+        for b in script.bangs where gt >= b.at && gt < b.at + 1.1 {
+            let c = bursts[b.folder] ?? heart, x = (gt - b.at) / 1.1, reach = 70 + 16 * Double(b.count).squareRoot()
+            let ring = 16 + reach * (1 - pow(1 - x, 2.4))
+            let glow = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cream.cg(0.5 * (1 - x) * (1 - x)), cream.cg(0)] as CFArray, locations: [0, 1])!
+            ctx.drawRadialGradient(glow, startCenter: c, startRadius: 0, endCenter: c, endRadius: 40 + reach * 0.6 * x + 30, options: [])
+            ctx.setStrokeColor(cream.cg(0.65 * (1 - x)))
+            ctx.setLineWidth(1.5 + 6 * (1 - x))
+            ctx.strokeEllipse(in: CGRect(x: c.x - ring, y: c.y - ring, width: ring * 2, height: ring * 2))
         }
 
         // (Links between notes aren't drawn: across hundreds of notes they were a tangle.)
@@ -742,11 +771,6 @@ final class GalaxyScene: FilmScene {
             note(at, size, turn: filmHash(i, 21) * 1.5 + 0.25 * sin(0.8 * t + Double(i)), you.mix(ai, helped).mix(white, min(0.8, 0.35 * pulse)), edits: done, in: ctx)
         }
         ctx.restoreGState()
-        // (The moment it bursts, the whole sky lights a little, and dims again within a fifth of a second.)
-        if let s = burst, s < 0.6 {
-            ctx.setFillColor(cream.cg(0.22 * exp(-s / 0.14)))
-            ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
-        }
         // (When the camera is close, nothing bright lies under the mark and the key at the top.)
         let shade = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [sky.cg(0.9), sky.cg(0)] as CFArray, locations: [0, 1])!
         ctx.saveGState()

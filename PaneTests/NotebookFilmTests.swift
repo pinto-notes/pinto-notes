@@ -875,15 +875,30 @@ import AVFoundation
         let plain = FilmScript(mine, calendar: Self.cal)
         let bang = FilmScript(mine, calendar: Self.cal, bang: true)
         let lead = FilmScript.lead, hold = FilmScript.bangHold
-        #expect(bang.bangAt == lead && bang.opening == lead + hold)
-        #expect(abs(bang.growth - (plain.growth + lead + hold)) < 1e-9, "the month itself keeps its length")
-        // Nothing in the sky before it...
+        // Emil, 11-11: "maybe there should be multiple small big bangs". One for each folder of
+        // what was brought in, the largest first, all within the cascade.
+        let folders = Set(mine.notes.filter { $0.imported == true }.map(\.folder))
+        #expect(bang.bangs.count == folders.count && bang.bangs.count > 1)
+        #expect(bang.bangAt == lead && bang.bangs.map(\.count) == bang.bangs.map(\.count).sorted(by: >))
+        #expect(zip(bang.bangs, bang.bangs.dropFirst()).allSatisfy { $1.at > $0.at + 0.1 }, "one after another, never together")
+        let last = bang.bangs.last!.at
+        #expect(last <= lead + FilmScript.cascade + 1e-9 && abs(bang.opening - (last + hold)) < 1e-9)
+        #expect(abs(bang.growth - (plain.growth + bang.opening)) < 1e-9, "the month itself keeps its length")
+        // Nothing in the sky before the first...
         #expect(bang.nodes.allSatisfy { $0.birth >= lead - 1e-9 })
-        // ...then all twenty within a third of a second...
-        let brought = bang.nodes.filter(\.imported).map(\.birth)
-        #expect(brought.count == 20 && brought.allSatisfy { $0 <= lead + 0.3 + 1e-9 })
-        // ...and your own notes only once it has settled.
-        #expect(bang.nodes.filter { !$0.imported }.allSatisfy { $0.birth >= lead + hold - 1e-9 })
+        // ...then each folder's notes all within a third of a second of its own burst...
+        for b in bang.bangs {
+            let born = bang.nodes.filter { $0.imported && $0.folder == b.folder }.map(\.birth)
+            #expect(born.count == b.count && born.allSatisfy { $0 >= b.at - 1e-9 && $0 <= b.at + 0.3 + 1e-9 })
+        }
+        #expect(bang.nodes.filter(\.imported).count == 20 && bang.bangs.map(\.count).reduce(0, +) == 20)
+        // ...and your own notes only once the last has settled.
+        #expect(bang.nodes.filter { !$0.imported }.allSatisfy { $0.birth >= bang.opening - 1e-9 })
+        // (Notes still arrive in order, whatever order they were made in.)
+        #expect(zip(bang.nodes, bang.nodes.dropFirst()).allSatisfy { $0.birth <= $1.birth })
+        // A big knowledge base still takes no longer to arrive: four folders, at most the cascade.
+        let kb = FilmScript(FilmDemo.real(now: Self.now, notesPerWeek: 22, imported: 240, removed: 8, linked: 0.6), calendar: Self.cal, bang: true)
+        #expect(kb.bangs.count >= 3 && kb.opening <= lead + FilmScript.cascade + hold + 1e-9)
         // A notebook with nothing brought in still opens on the empty sky, and has no burst.
         let own = FilmScript(FilmDemo.real(days: 30, now: Self.now, ai: nil), calendar: Self.cal, bang: true)
         #expect(own.bangAt == nil && own.opening == lead && own.nodes.first.map { abs($0.birth - lead) < 1e-9 } == true)

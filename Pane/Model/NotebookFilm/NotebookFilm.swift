@@ -196,11 +196,18 @@ struct FilmScript: Sendable {
     /// Above this many notes the film leaves out the specks for each edit: the stars carry the work.
     static let speckLimit = 120
     static let fullGrowth = 14.0, thinGrowth = 9.0, longGrowth = 20.0, outro = 3.6
-    /// With `bang`: the sky stays empty this long, then what you brought in arrives all at once,
-    /// and your own notes follow once it has settled.
+    /// With `bang`: the sky stays empty this long, then what you brought in arrives, folder by
+    /// folder, and your own notes follow once the last has settled (`bangHold` after it).
     static let lead = 1.6, bangHold = 1.5
-    /// When what you brought in arrives (with `bang`, and only if you brought something).
-    let bangAt: Double?
+    /// The longest the folders' bursts take from the first to the last.
+    static let cascade = 1.2
+    /// What you brought in arriving: a small burst for each folder, where that folder will be, the
+    /// largest first. (Emil, 11-11: one burst from the middle flew everything across the sky into
+    /// clouds that were already there; "maybe there should be multiple small big bangs".)
+    struct Bang: Sendable { var folder: Int; var at: Double; var count: Int }
+    let bangs: [Bang]
+    /// When the first of them comes (with `bang`, and only if you brought something).
+    var bangAt: Double? { bangs.first?.at }
     /// How long the film is before the month itself starts: the empty sky and the arrival (0 without `bang`).
     let opening: Double
     /// How much there is in a full month's film, and in the longest one (notes and edits together).
@@ -264,12 +271,17 @@ struct FilmScript: Sendable {
         let span = Self.thinGrowth + (Self.fullGrowth - Self.thinGrowth) * fullness * fullness * (3 - 2 * fullness)
             + (max(Self.fullGrowth, longest) - Self.fullGrowth) * over * over * (3 - 2 * over)
         let brings = input.notes.contains { $0.imported == true }
-        let offset = bang ? Self.lead + (brings ? Self.bangHold : 0) : 0
-        bangAt = bang && brings ? Self.lead : nil
+        // (With `bang`, what was brought in comes first, folder by folder, the largest first.)
+        let broughtBy = Dictionary(grouping: input.notes.filter { $0.imported == true }, by: \.folder).mapValues(\.count)
+        let bangOrder = bang ? broughtBy.keys.sorted { (broughtBy[$0]!, $1) > (broughtBy[$1]!, $0) } : []
+        let gap = bangOrder.count > 1 ? min(0.4, Self.cascade / Double(bangOrder.count - 1)) : 0
+        let offset = bang ? Self.lead + (brings ? gap * Double(max(0, bangOrder.count - 1)) + Self.bangHold : 0) : 0
         opening = offset
         let growth = span + offset
         self.growth = growth
-        let sorted = input.notes.sorted { ($0.created, $0.id.uuidString) < ($1.created, $1.id.uuidString) }
+        let rank = Dictionary(uniqueKeysWithValues: bangOrder.enumerated().map { ($1, $0) })
+        func first(_ n: FilmNote) -> Int { n.imported == true ? rank[n.folder] ?? bangOrder.count : bangOrder.count }
+        let sorted = input.notes.sorted { (first($0), $0.created, $0.id.uuidString) < (first($1), $1.created, $1.id.uuidString) }
         let firstDay = calendar.startOfDay(for: sorted.first?.created ?? input.now)
         start = firstDay
         end = input.now
@@ -333,17 +345,22 @@ struct FilmScript: Sendable {
         let apart = min(0.05, growth * 0.5 / Double(max(1, nodes.count)))
         // (What was brought in arrives together, in about a second, however much there is of it.)
         let brought = Double(max(1, nodes.filter(\.imported).count))
-        // (With `bang`, all at once: within a third of a second, as the sky bursts.)
-        if let at = bangAt {
-            var j = 0.0
-            for k in nodes.indices where nodes[k].imported {
-                nodes[k].birth = at + 0.3 * j / brought
-                if !nodes[k].edits.isEmpty { nodes[k].edits[0] = nodes[k].birth }
-                j += 1
+        // (With `bang`, each folder's all at once, a moment after the one before: they're already
+        // in that order.)
+        var bangs: [Bang] = []
+        for (k, name) in bangOrder.enumerated() {
+            guard let f = folderIndex[name] else { continue }
+            let at = Self.lead + gap * Double(k), mine = nodes.indices.filter { nodes[$0].imported && nodes[$0].folder == f }
+            let spread = bangOrder.count > 1 ? min(0.25, gap * 0.9) : 0.3
+            for (j, i) in mine.enumerated() {
+                nodes[i].birth = at + spread * Double(j) / Double(mine.count)
+                if !nodes[i].edits.isEmpty { nodes[i].edits[0] = nodes[i].birth }
             }
+            bangs.append(Bang(folder: f, at: at, count: mine.count))
         }
+        self.bangs = bangs
         for k in nodes.indices.dropFirst() {
-            let least = nodes[k].imported && bangAt != nil ? nodes[k - 1].birth : nodes[k].imported ? nodes[k - 1].birth + min(0.06, 1.0 / brought) : k - 1 < gaps.count ? min(growth * 0.4, nodes[k - 1].birth + gaps[k - 1]) : min(growth - 0.05, nodes[k - 1].birth + apart)
+            let least = nodes[k].imported && !bangs.isEmpty ? nodes[k - 1].birth : nodes[k].imported ? nodes[k - 1].birth + min(0.06, 1.0 / brought) : k - 1 < gaps.count ? min(growth * 0.4, nodes[k - 1].birth + gaps[k - 1]) : min(growth - 0.05, nodes[k - 1].birth + apart)
             guard nodes[k].birth < least else { continue }
             nodes[k].birth = least
             nodes[k].edits = nodes[k].edits.map { max($0, least) }
