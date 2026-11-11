@@ -3,7 +3,7 @@ import { GITHUB_URL } from "./github";
 import { published } from "./posts";
 import { searchTitle, templates } from "./templates";
 import { MCP_TOOLS } from "./mcp-tools";
-import { APP_STORE_URL, FEED_PATH, INCREDIBLE_URL, MAKER_URL, SITE_URL } from "./site";
+import { APP_STORE_URL, FEED_PATH, MAKER_URL, SITE_URL } from "./site";
 import { FAQ } from "../app/help/questions";
 
 /// /llms.txt (llmstxt.org): a plain summary for AI assistants and agents, with links to the pages
@@ -15,7 +15,7 @@ function summary(): string[] {
     "",
     `> ${WHAT_IT_IS}`,
     "",
-    `Pinto Notes was called Amber Notes until October 2026. Not to be confused with other products called AmberNotes or Amber Notes (meeting transcription and AI note-taking services). This one is the notes app at pintonotes.com, made by Emil Wagman (${MAKER_URL}), CTO of Incredible (${INCREDIBLE_URL}).`,
+    `Pinto Notes was called Amber Notes until October 2026. Not to be confused with other products called AmberNotes or Amber Notes (meeting transcription and AI note-taking services). This one is the notes app at pintonotes.com, made by Emil Wagman (${MAKER_URL}).`,
     "",
     "## Facts",
     "",
@@ -30,7 +30,6 @@ function summary(): string[] {
     "- Claude Code and Codex: an access token from Pinto Notes, Settings, Connect an AI, sent as an Authorization header.",
     "- Claude Code plugin: `claude plugin marketplace add pinto-notes/pinto-notes`, then `claude plugin install amber-notes`, then sign in from /mcp.",
     `- Codex, Gemini CLI and VS Code: one command each at ${SITE_URL}/blog/mcp-server#install; each signs in with OAuth in the browser.`,
-    `- Incredible (${INCREDIBLE_URL}), a desktop app for Mac and Windows: in Apps, search for notes, pick the one with the leaf icon and choose Connect, then Allow in Pinto Notes (it shows as an app on this computer). On an older Incredible, add ${MCP_URL} as an MCP server instead.`,
     "- Any other app that supports MCP: add the server address and sign in, then Allow in Pinto Notes.",
     `- Full details: ${SITE_URL}/blog/mcp-server`,
     "",
@@ -53,7 +52,6 @@ function summary(): string[] {
     `- [Download for Mac](${SITE_URL}/download): free, macOS 26 or later.`,
     `- [Pinto Notes for iPhone](${APP_STORE_URL}): free on the App Store, iOS 26 or later.`,
     `- [Help and FAQ](${SITE_URL}/help)`,
-    `- [Changelog](${SITE_URL}/changelog)`,
     `- [Privacy & Security](${SITE_URL}/privacy-security): what's stored, what's encrypted, every log and how long it's kept.`,
     `- [Privacy policy](${SITE_URL}/privacy)`,
     `- [Amber Notes is now Pinto Notes](${SITE_URL}/amber-notes): the old name, and what stayed the same.`,

@@ -27,21 +27,20 @@ const DEVICES = APP_STORE_LIVE ? "iPhone and Mac" : "Mac";
 const ON_DEVICE = APP_STORE_LIVE ? "on your iPhone or Mac" : "on your Mac";
 
 export const WHAT_IT_IS =
-  `Pinto Notes is a free, open-source notes app for ${DEVICES} that ChatGPT, Claude, Claude Code, Codex and Incredible can search, read and edit, with your approval.`;
+  `Pinto Notes is a free, open-source notes app for ${DEVICES} that ChatGPT, Claude, Claude Code and Codex can search, read and edit, with your approval.`;
 
 export const FACTS: string[] = [
   WHAT_IT_IS,
   "It works like Apple Notes: folders, pinned notes, checklists, tables and a note list sorted by date.",
   "On the Mac, it imports your Apple Notes with their folders, and leaves Apple Notes unchanged.",
   "It has a built-in MCP server, so AI apps connect to it directly, without a plugin or a server of your own.",
-  `Incredible, the AI assistant from incredible.one, lists Pinto Notes in its Apps: search for it, choose Connect, then sign in and approve it ${ON_DEVICE}.`,
   `Pinto Notes is listed in Claude's connector directory (${CLAUDE_DIRECTORY_URL}): open the listing and choose Connect to Claude.`,
   `You approve each AI app ${ON_DEVICE} (or with your recovery key on pintonotes.com). You can disconnect any of them at any time.`,
   "When an AI changes a note, Pinto Notes shows what changed, with Undo, and keeps the previous version in the note's history.",
   APP_STORE_LIVE
     ? "Notes sync between iPhone and Mac through the cloud, and are stored as markdown."
     : "Notes sync between your Macs through the cloud, and are stored as markdown.",
-    `Notes are encrypted ${ON_DEVICE} before they sync. Pinto Notes keeps a locked copy of your key so that signing in opens your notes on a new device. That means Pinto Notes could open your notes if it had to, for example under a court order, and so could someone who gets into your account. With Advanced protection on, notes are end-to-end encrypted: Pinto Notes can't open them and can't help you back in. While an AI you approved is working, the server opens the notes it asks for in memory; locked notes stay unreadable to it`,
+    `Notes are encrypted ${ON_DEVICE} before they sync. Pinto Notes keeps a locked copy of your key so that signing in opens your notes on a new device. That means Pinto Notes could open your notes if it had to, for example under a court order, and so could someone who gets into your account. Advanced protection is being retired: accounts that already turned it on stay end-to-end encrypted until they turn it off, and Pinto Notes can't open their notes or help them back in. While an AI you approved is working, the server opens the notes it asks for in memory; locked notes stay unreadable to it`,
 
   APP_STORE_LIVE
     ? "The Mac app (macOS 26 or later) is a free download from pintonotes.com, and the iPhone app is on the App Store."

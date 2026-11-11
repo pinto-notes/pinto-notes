@@ -8,7 +8,8 @@ import s from "./post-parts.module.css";
 /// on it shows its first frame and waits for Play. The poster has the video's own size, so nothing
 /// moves when it starts.
 /// `bare` drops the tinted ground, for a capture of Apple's apps that sits on the page like a Capture.
-export function Loop({ src, poster, width, height, label, caption, bare = false }: { src: string; poster: string; width: number; height: number; label: string; caption?: string; bare?: boolean }) {
+/// `phone` puts an iPhone recording in a phone's dark rounded frame, on the page itself.
+export function Loop({ src, poster, width, height, label, caption, bare = false, phone = false }: { src: string; poster: string; width: number; height: number; label: string; caption?: string; bare?: boolean; phone?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
 
@@ -36,8 +37,8 @@ export function Loop({ src, poster, width, height, label, caption, bare = false 
 
   return (
     <figure className={s.loop}>
-      <div className={bare ? s.loopBare : s.loopStage}>
-        <div className={s.loopFrame} style={{ "--w": `${width / 2}px` } as React.CSSProperties}>
+      <div className={bare || phone ? s.loopBare : s.loopStage}>
+        <div className={s.loopFrame} data-phone={phone ? "" : undefined} style={{ "--w": `${width / 2}px` } as React.CSSProperties}>
           <video ref={ref} src={src} poster={poster} width={width} height={height} muted loop playsInline preload="none"
             aria-label={label} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
           <button type="button" className={s.loopToggle} onClick={toggle} aria-label={playing ? "Pause the clip" : "Play the clip"}>

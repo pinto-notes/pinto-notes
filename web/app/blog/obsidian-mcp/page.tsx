@@ -272,8 +272,8 @@ export default function Page() {
         built in, at <code>{MCP_URL}</code>. It&apos;s a different app, not an Obsidian plugin.
       </p>
       <ul>
-        <li>It works from ChatGPT, Claude on the web, desktop and iPhone, Claude Code, Codex and Incredible, and your Mac doesn&apos;t need to be on.</li>
-        <li>You approve each AI app in Pinto Notes, and can disconnect it at any time.</li>
+        <li>It works from ChatGPT, Claude on the web, desktop and iPhone, Claude Code and Codex, and your Mac doesn&apos;t need to be on.</li>
+        <li>You approve each AI app in Pinto Notes and choose Read Only, or Read and Edit.</li>
         <li>An AI can search, read, create and edit notes, tick checklist items, move and pin notes, and manage folders.</li>
         <li>When an AI changes a note, you see what changed, with Undo, and the previous version stays in the note&apos;s history.</li>
       </ul>
@@ -287,7 +287,7 @@ export default function Page() {
       </p>
       <p>
         The <a href="/blog/mcp-server">MCP server page</a> lists every Pinto Notes tool. For other notes apps with a server of their own, see{" "}
-        <a href="/blog/notes-apps-with-mcp">notes apps with an MCP server, compared</a>, and for the same question about Apple&apos;s
+        <a href="/blog/best-ai-notes-app">the best AI notes apps, compared</a>, and for the same question about Apple&apos;s
         app, <a href="/blog/apple-notes-api">Apple Notes has no API: what works instead</a>.
       </p>
     </PostPage>

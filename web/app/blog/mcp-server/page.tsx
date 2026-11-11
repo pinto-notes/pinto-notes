@@ -146,12 +146,12 @@ export default function Page() {
         <li>Claude: <a href={CLAUDE_DIRECTORY_URL} rel="noopener">Pinto Notes in Claude&apos;s connector directory</a>, then Connect to Claude.</li>
         <li><a href="/blog/connect-chatgpt-to-your-notes">Connect ChatGPT or Claude to your notes</a>: add the address as a custom app in ChatGPT, or as a custom connector in an older Claude app.</li>
         <li><a href="/blog/notes-in-claude-code-and-codex">Use your notes from Claude Code and Codex</a>: one command, or a few lines of config.</li>
-        <li><a href="#install">Gemini CLI, VS Code and Incredible</a>: the steps for each are above.</li>
+        <li><a href="#install">Gemini CLI and VS Code</a>: the steps for each are above.</li>
         <li>Anything else that speaks MCP: add the address and sign in when it asks.</li>
       </ul>
       <p>
-        Choosing a notes app for an agent? <a href="/blog/best-notes-app-for-ai-agents">The best notes app for AI agents</a> sets out the
-        criteria. Coming from Apple Notes? <a href="/blog/apple-notes-api">Apple Notes has no API</a> covers what works
+        Choosing a notes app for an agent? <a href="/blog/best-ai-notes-app">Best AI notes app in 2026</a> compares
+        seven. Coming from Apple Notes? <a href="/blog/apple-notes-api">Apple Notes has no API</a> covers what works
         on a Mac instead, and why none of it reaches your phone. <a href="/blog/obsidian-mcp">Obsidian MCP servers compared</a> does the
         same for Obsidian vaults.
       </p>

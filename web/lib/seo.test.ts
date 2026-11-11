@@ -12,7 +12,7 @@ import { REMOVED_POSTS } from "./removed-posts";
 import { SHELVES } from "./more-answers";
 import { FEATURED, FIRST_PAGE, FOLD, PER_PAGE, categories, categoryAnchor, categoryPath, morePosts, newestFirst, pageCount, pageOf, pagePath, posts, published } from "./posts";
 
-const INDEX_FOLDERS = ["page", "category", "feed.xml"];
+const INDEX_FOLDERS = ["answers", "page", "category", "feed.xml"];
 
 const postSource = (slug: string) => readFileSync(new URL(`../app/blog/${slug}/page.tsx`, import.meta.url), "utf8");
 
@@ -77,7 +77,7 @@ describe("search and AI crawlers", () => {
     const txt = llmsTxt();
     expect(txt.startsWith(`# Pinto Notes\n\n> ${WHAT_IT_IS}`)).toBe(true);
     expect(txt).toContain(MCP_URL);
-    expect(txt).toContain("Incredible");
+    expect(txt).not.toMatch(/incredible/i);
     expect(txt).toContain("https://emilwagman.com");
     for (const p of posts) expect(txt.includes(`/blog/${p.slug})`)).toBe(!p.draft);
     expect(llmsFullTxt()).toContain("`edit` (destructive)");
@@ -349,11 +349,20 @@ describe("share images", () => {
   });
 });
 
+/// Comparison posts that name other apps' iPad apps (which people search for), checked sentence by sentence instead.
+const COMPARES_IPAD_APPS = ["best-notes-app-for-mac", "best-ai-notes-app"];
+
 describe("site copy", () => {
   // Plain writing rules for the blog: no em dashes, and no device the app doesn't run on.
   const texts = [llmsFullTxt(), ...posts.map((p) => postSource(p.slug)), JSON.stringify(posts)];
   it("uses no em dashes", () => { for (const t of texts) expect(t).not.toContain("—"); });
-  it("names only the devices the app runs on", () => { for (const t of texts) expect(t).not.toMatch(/ipad/i); });
+  it("names only the devices the app runs on", () => {
+    for (const [i, t] of texts.entries()) {
+      // A comparison post may say which other apps run on iPad, but never put Pinto Notes on one.
+      if (COMPARES_IPAD_APPS.includes(posts[i - 1]?.slug)) for (const s of t.split(/(?<=[.!?])\s|\n/)) expect(s).not.toMatch(/Pinto Notes[^.]*ipad|ipad[^.]*Pinto Notes/i);
+      else expect(t).not.toMatch(/ipad/i);
+    }
+  });
 });
 
 describe("the posts removed on 14 October 2026", () => {

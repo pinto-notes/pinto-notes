@@ -14,10 +14,6 @@ const dataFiles = [...new Set(posts.flatMap((p) =>
   [...readFileSync(path.join(root, p), "utf8").matchAll(/from "@\/lib\/([\w/]+\/entries)"/g)].map(([, f]) => `./lib/${f}.ts`)))];
 
 describe("blog files in the server bundle", () => {
-  it("finds the tracker's data file among what posts import", () => {
-    expect(dataFiles).toContain("./lib/tracker/entries.ts");
-  });
-
   it("includes every post source and data file for the index and every route under /blog", () => {
     const includes = config.outputFileTracingIncludes ?? {};
     for (const route of ["/blog", "/blog/**"]) {

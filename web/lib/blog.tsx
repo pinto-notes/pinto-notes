@@ -5,6 +5,9 @@ import { AUTHOR, categoryAnchor, type Ground, type Post, type Shot, type Thumb }
 
 /// The blog's shared pieces: a capture in a Mac window, the desk it sits on, the byline and the card.
 
+/// The label on a launch: on its card, on the lead card and above its title.
+export const Announcement = () => <span className={b.announce}>Announcement</span>;
+
 export const longDate = (iso: string) =>
   new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
@@ -16,7 +19,7 @@ export function readingMinutes(slug: string): number {
   return Math.max(1, Math.round((words.length + dataWords(src)) / 220));
 }
 
-/// Words a page shows from a data file it imports (the AI feature tracker's rows live in lib/tracker/entries.ts),
+/// Words a page shows from a data file it imports (a lib/<name>/entries.ts),
 /// so a page that is mostly a table doesn't say "1 min read".
 function dataWords(src: string): number {
   let n = 0;
@@ -82,8 +85,9 @@ export function PostCard({ post, heading = "h2" }: { post: Post; heading?: "h2" 
     <a className={b.card} href={`/blog/${post.slug}`} data-category={categoryAnchor(post.category)}>
       <ThumbArt thumb={post.thumb} />
       <span className={b.cardText}>
+        {post.announcement && <Announcement />}
         <H className={b.cardTitle}>{post.title}</H>
-        <span className={b.minutes}>{readingMinutes(post.slug)} min read</span>
+        <span className={b.byline}><Avatar size={22} /><span>{AUTHOR.name}</span><span aria-hidden="true">·</span><time dateTime={post.date}>{longDate(post.date)}</time></span>
       </span>
     </a>
   );

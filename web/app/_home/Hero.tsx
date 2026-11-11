@@ -1,6 +1,7 @@
 "use client";
 
-import { APP_STORE_URL } from "@/lib/site";
+import { APP_STORE_URL, SITE_URL } from "@/lib/site";
+import { mailLink, sendLink } from "@/lib/platform";
 import { useEffect, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { Download } from "./Download";
@@ -55,6 +56,11 @@ export function Hero() {
           </a>
           {/* Off a Mac (an iPhone, Windows, Android): the iPhone button leads, the Mac download is a link under it. */}
           <a className={x.offMac} href="/download">Download for Mac</a>
+          {/* On Windows, Android or Linux: say plainly what it runs on, and offer the link for a device it runs on. */}
+          <p className={`${x.fine} ${x.offApple}`} data-off-apple>
+            Pinto Notes is for iPhone and Mac.{" "}
+            <a href={mailLink(SITE_URL)} onClick={(e) => sendLink(navigator, e, SITE_URL)}>Send myself the link</a>
+          </p>
         </div>
         <p className={`${x.fine} rise pi-apple pi-not-ios`} style={rise(3)}>Free for iPhone and Mac. Works with ChatGPT and Claude.</p>
       </div>

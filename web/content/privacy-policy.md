@@ -18,7 +18,7 @@ Last updated: 4 November 2026
 - A note you share as a web page can be read by anyone with its link, and by us, until you stop sharing.
 - A note you share with people is encrypted like your other notes. The people in it can read it, and their AI when they ask. Where we keep a copy of someone's key, we could open the notes shared with them too.
 - Your data is stored in the European Union (Frankfurt, Germany).
-- **Settings → Account** lets you export your notes, and **Settings → Delete Account** deletes your account and everything in it.
+- **Settings → Account → Export Your Notes…** saves all your notes as Markdown (on the Mac from version 1.3, it's **File → Export All Notes…**), and **Delete Account…** in **Settings → Account** deletes your account and everything in it.
 - We keep as few logs as we can, for as short a time as we can. The section on logs lists every one.
 
 ## Who we are
@@ -195,10 +195,10 @@ We don't use your data for advertising. The only emails about Pinto Notes we sen
 
 Nothing reaches an AI assistant unless you connect one. When you connect ChatGPT, Claude, Claude Code, Codex or another assistant:
 
-- You approve the connection on your iPhone or Mac. It can then read and edit your notes. When you start from a browser, the page shows a number and your device asks you to tap the same one. With no device nearby, you can approve on pintonotes.com with your recovery key, if you saved one.
+- You approve the connection on your iPhone or Mac. From version 1.3 it can then read and edit your notes; earlier versions ask you to choose **read only** or **read and edit**. When you start from a browser, the page shows a number and your device asks you to tap the same one. With no device nearby, you can approve on pintonotes.com with your recovery key, if you saved one.
 - Approving gives that connection a copy of your notes' key, locked with a key derived from that connection's access token. We keep only a hash of the token; the token itself arrives with each of the assistant's requests. During each request, our server unlocks your whole notes' key in memory, decrypts the notes the assistant asks for, encrypts any change it makes, and forgets the key when the request ends.
 - For those requests, the text the assistant reads or writes, and its access tokens, pass through our hosting providers Vercel and Supabase in readable form on their way. Neither stores your notes.
-- The assistant can read the notes it asks for and change them. Every change it makes keeps the previous version, so you can undo it.
+- The assistant can read the notes it asks for and change them (in versions before 1.3, only if you allowed editing). Every change it makes keeps the previous version, so you can undo it.
 - The notes the assistant reads, with their text and the files it opens, are sent to the company behind that assistant: OpenAI for ChatGPT and Codex, Anthropic for Claude and Claude Code, or the company that makes any other assistant you connect. That company handles them, and everything else you and the assistant exchange, under its own privacy policy. Notes it reads become part of your conversation with it.
 - You can disconnect any assistant at any time in **Settings → Connect an AI**. It loses access immediately, and its copy of your notes' key is deleted.
 - Locked notes are encrypted with your notes password, which our server never has, so an assistant sees only their titles. It can't read, search or change them.
@@ -297,7 +297,7 @@ Under the GDPR you can:
 - **access** your data and get a copy of it;
 - **correct** it (most of it you can edit directly in the app);
 - **delete** it, in the app with **Delete Account** or by asking us;
-- **take it with you:** **Settings → Account → Export Your Notes** makes a zip on your device with every note as Markdown in its folder, with its files. Your notes are encrypted on your devices, so the export is made there. Ask us for everything else we keep about you, and we'll send it as JSON;
+- **take it with you:** **Settings → Account → Export Your Notes** (on the Mac from version 1.3, **File → Export All Notes…**) makes a zip on your device with every note as Markdown in its folder, with its files. Your notes are encrypted on your devices, so the export is made there. Ask us for everything else we keep about you, and we'll send it as JSON;
 - **object** to processing based on legitimate interests, including the feature usage counts and the diagnostics and usage reports (which you can also turn off in Settings), or ask us to **restrict** it.
 
 Write to **hello@pintonotes.com**. We answer within one month. If you think we've handled your data wrongly, you can complain to the Swedish Authority for Privacy Protection (Integritetsskyddsmyndigheten, IMY) at imy.se, or to the data protection authority where you live.

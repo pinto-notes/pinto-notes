@@ -174,7 +174,7 @@ export default function Page() {
       <ul>
         <li>You use Claude only on your Mac and your notes have few checklists: the desktop extension.</li>
         <li>You&apos;re comfortable with a config file and want Claude to write to Apple Notes on your Mac: a community MCP server.</li>
-        <li>You want Claude to use your notes from your phone or the web, with a way to undo its changes: a notes app with its own MCP server. <a href="/blog/notes-apps-with-mcp">Notes apps with an MCP server, compared</a> lists them.</li>
+        <li>You want Claude to use your notes from your phone or the web, with a way to undo its changes: a notes app with its own MCP server. <a href="/blog/best-ai-notes-app">Best AI notes app in 2026</a> compares them.</li>
       </ul>
     </PostPage>
   );

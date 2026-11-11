@@ -177,3 +177,7 @@
 /* A cover (the topic's launch picture or a drawing of its apps) fills the whole picture, uncropped by
    the capture's frame, shadow and fade. */
 .thumb[data-art] img { inset: 0; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0; background: none; box-shadow: none; -webkit-mask-image: none; mask-image: none; }
+
+/* A launch's label, on its own page: quiet amber words over the title, no pill (Emil, 8 November
+   2026: the solid pill "sucks"). */
+.announce { justify-self: start; display: inline-block; color: var(--amber); font-size: 14px; line-height: 1.2; font-weight: 650; letter-spacing: 0; }

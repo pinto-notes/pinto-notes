@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import legal from "./legal.module.css";
 import p from "./post.module.css";
-import { Avatar, Figure, PostCard, longDate, readingMinutes } from "./blog";
+import l from "./launch.module.css";
+import DownloadLink from "@/app/DownloadLink";
+import { Announcement, Avatar, Figure, PostCard, longDate, readingMinutes } from "./blog";
 import { ClosingBand } from "./ClosingBand";
-import { AUTHOR, CATEGORY_COVERS, categoryPath, morePosts, post, type Category, type Post } from "./posts";
-import { MAKER_URL, SITE_URL, pageMetadata } from "./site";
-import { JsonLd, article, breadcrumbs, faqPage, incredible, maker, organization } from "./structured-data";
+import { AUTHOR, CATEGORY_COVERS, categoryPath, morePosts, post, published, type Category, type Post } from "./posts";
+import { APP_STORE_URL, MAKER_URL, SITE_URL, pageMetadata } from "./site";
+import { JsonLd, article, breadcrumbs, faqPage, maker, organization } from "./structured-data";
 
 type QA = { q: string; a: string[] };
 
@@ -92,11 +94,55 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
   const graph = [
     article({ title: x.title, description: x.description, path, date: x.date, updated: x.updated, image: x.image.src }),
     breadcrumbs([{ name: "Blog", path: "/blog" }, { name: x.category, path: categoryPath(x.category) }, { name: x.title, path }]),
-    organization, maker, incredible,
+    organization, maker,
   ];
   if (faq?.length) graph.push(faqPage(faq, path));
   const more = morePosts(slug, 3);
   const closing = CLOSING[x.category];
+
+  if (x.announcement) {
+    const c = x.thumb.art ? x.thumb : CATEGORY_COVERS[x.category];
+    const launches = published().filter((m) => m.announcement && m.slug !== x.slug).slice(0, 3);
+    return (
+      <div className={p.main}>
+        <JsonLd graph={graph} />
+        <article className={l.page}>
+          <header className={`${l.head} rise`} style={{ "--i": 0 } as React.CSSProperties}>
+            <time className={l.date} dateTime={x.date}>{longDate(x.date)}</time>
+            <h1 className={l.title}>{x.title}</h1>
+            <p className={l.deck}>{intro}</p>
+            <p className={l.by}><Avatar size={24} /><a href={MAKER_URL} rel="author">{AUTHOR.name}</a></p>
+          </header>
+          <div className={`${l.hero} rise-soft`} style={{ "--i": 1 } as React.CSSProperties}>
+            <img src={c.src} alt={c.alt} width={c.width} height={c.height} decoding="async" fetchPriority="high" />
+          </div>
+          <div className={`${legal.article} ${p.body} ${l.body} rise`} style={{ "--i": 2 } as React.CSSProperties}>
+            {hero}
+            {children}
+          </div>
+          <section className={l.get} aria-labelledby="get-it">
+            <img src="/mark-256.png" alt="" width={72} height={72} />
+            <h2 id="get-it" className={l.getTitle}>Get Pinto Notes</h2>
+            <div className={l.getButtons}>
+              <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it for iPhone</a>
+              <DownloadLink>Download for Mac</DownloadLink>
+            </div>
+            <p className={l.fine}>Free. Needs iOS 26 or macOS 26.</p>
+            <div className={l.share}><Share x={x} /></div>
+          </section>
+        </article>
+        {launches.length ? (
+          <section className={p.end} aria-labelledby="more-posts">
+            <div className={p.endHead}>
+              <h2 id="more-posts" className={p.sectionTitle}>More launches</h2>
+              <a className={p.allLink} href="/blog">All of them<ArrowGlyph /></a>
+            </div>
+            <ul className={p.more}>{launches.map((m) => <li key={m.slug}><PostCard post={m} heading="h3" /></li>)}</ul>
+          </section>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className={p.main}>
@@ -109,12 +155,13 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
               <li><a href={categoryPath(x.category)}>{x.category}</a></li>
             </ol>
           </nav>
+          {x.announcement && <Announcement />}
           <h1 className={p.title}>{x.title}</h1>
           <div className={p.byline}>
             <Avatar size={32} />
             <p>
               <a className={p.author} href={MAKER_URL} rel="author">{AUTHOR.name}</a>
-              <span className={p.meta}><time dateTime={x.date}>{longDate(x.date)}</time><span aria-hidden="true"> · </span>{minutes} min read</span>
+              <span className={p.meta}><time dateTime={x.date}>{longDate(x.date)}</time></span>
             </p>
             <Share x={x} />
           </div>

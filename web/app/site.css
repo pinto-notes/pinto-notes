@@ -338,6 +338,8 @@ html.fs-at-ground { background: var(--ground); }
 @media (prefers-reduced-motion: no-preference) {
   .rise { animation: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(90ms + var(--i, 0) * 55ms); }
   .rise-soft { animation: rise-soft 0.7s ease-out both; animation-delay: calc(90ms + var(--i, 0) * 55ms); }
+  /* Only on the first page: once you move around the site, pages just appear (SiteChrome.tsx). */
+  html[data-navigated] .rise, html[data-navigated] .rise-soft { animation: none; }
 }
 @keyframes rise { from { opacity: 0; filter: blur(9px); transform: translateY(12px) scale(0.985); } to { opacity: 1; filter: none; transform: none; } }
 @keyframes rise-soft { from { opacity: 0; filter: saturate(0.2) blur(4px); transform: translateY(10px); } to { opacity: 1; filter: none; transform: none; } }
@@ -345,9 +347,9 @@ html.fs-at-ground { background: var(--ground); }
 /* View transitions between pages: the page underneath fades out fast, the new one fades in
    (the background colour cross-fades with it); header and footer hold still and blend colours. */
 @media (prefers-reduced-motion: no-preference) {
-  ::view-transition-old(root) { animation: vt-out 160ms ease-in both; }
-  ::view-transition-new(root) { animation: vt-in 320ms ease-out both; }
-  ::view-transition-group(site-header), ::view-transition-group(site-footer) { animation-duration: 320ms; animation-timing-function: ease-in-out; }
+  ::view-transition-old(root) { animation: vt-out 90ms ease-in both; }
+  ::view-transition-new(root) { animation: vt-in 140ms ease-out both; }
+  ::view-transition-group(site-header), ::view-transition-group(site-footer) { animation-duration: 140ms; animation-timing-function: ease-in-out; }
 }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }

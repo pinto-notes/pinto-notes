@@ -23,8 +23,8 @@ describe("what the phone menu holds", () => {
 
   it("lists the desktop header's pages in its order, then GitHub with its stars", () => {
     const rows = menu().split('<nav class="site-sheet-rows" aria-label="Site menu">')[1].split("</nav>")[0];
-    expect(hrefs(rows)).toEqual(["/templates", "/blog", "/changelog", "/help", "https://github.com/pinto-notes/pinto-notes"]);
-    expect(text(rows)).toBe("TemplatesBlogChangelogHelpGitHub★ 7");
+    expect(hrefs(rows)).toEqual(["/templates", "/blog", "/help", "https://github.com/pinto-notes/pinto-notes"]);
+    expect(text(rows)).toBe("TemplatesBlogHelpGitHub★ 7");
     expect(rows).toContain('aria-label="GitHub, 7 stars"');
   });
 

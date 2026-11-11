@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { changelog } from "@/lib/changelog";
 import { postShots } from "@/lib/post-images";
-import { categories, categoryPath, newestFirst, pageCount, pageOf, pagePath, published } from "@/lib/posts";
+import { categories, categoryPath, isFeatured, newestFirst, pageCount, pageOf, pagePath, published } from "@/lib/posts";
 import { SITE_URL } from "@/lib/site";
 import { coverPath } from "@/lib/template-covers";
 import { templates } from "@/lib/templates";
@@ -22,16 +22,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
     page("/help", 0.7),
     // The index and each category, page by page: each page is its own canonical list of posts, and
     // its date is the newest change among the posts it shows.
-    ...[{ base: "/blog", posts: newestFirst() }, ...categories().map((c) => ({ base: categoryPath(c), posts: newestFirst().filter((p) => p.category === c) }))]
+    ...[{ base: "/blog", posts: newestFirst().filter(isFeatured) }, ...categories().map((c) => ({ base: categoryPath(c), posts: newestFirst().filter((p) => p.category === c) }))]
       .flatMap(({ base, posts }) => Array.from({ length: pageCount(posts) }, (_, i) => {
         const shown = pageOf(posts, i + 1);
         return page(pagePath(base, i + 1), base === "/blog" && i === 0 ? 0.7 : 0.5, shown.map((p) => p.updated).sort().at(-1));
       })),
+    // Every post written for search, as questions.
+    page("/blog/answers", 0.6, published().filter((p) => !isFeatured(p)).map((p) => p.updated).sort().at(-1)),
     ...published().map((p) => ({ ...page(`/blog/${p.slug}`, 0.8, p.updated), images: postShots(p.slug).map((s) => `${SITE_URL}${s.src}`) })),
     // The gallery shows every template's cover; the alt text describing each is on the page.
     { ...page("/templates", 0.8, templates().map((t) => t.updated).sort().at(-1)), images: templates().map((t) => `${SITE_URL}${coverPath(t.slug)}`) },
     ...templates().map((t) => page(`/templates/${t.slug}`, 0.7, t.updated)),
-    page("/changelog", 0.5, released),
     page("/privacy-security", 0.5),
     // What the app used to be called, for searches of the old name.
     page("/amber-notes", 0.3, "2026-10-08"),

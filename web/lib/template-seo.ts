@@ -21,8 +21,8 @@ export type TemplateSeo = {
   /// the app's docs/README.md.
   make: string[];
   faq: { q: string; a: string[] }[];
-  /// The how-to post for "make a <thing> with ChatGPT or Claude".
-  post: { slug: string; title: string };
+  /// The how-to post for "make a <thing> with ChatGPT or Claude", where there is one.
+  post?: { slug: string; title: string };
 };
 
 const IPHONE =
@@ -49,7 +49,6 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
       { q: "Does it remind me?", a: ["No. Apps in Pinto Notes can't send notifications yet, so the tracker doesn't nag you. Put a reminder in your calendar if you want one."] },
       { q: "Does it work on iPhone?", a: [IPHONE] },
     ],
-    post: { slug: "habit-tracker-with-chatgpt-or-claude", title: "How to make a habit tracker with ChatGPT or Claude" },
   },
   "budget-log": {
     h1: "Budget and expense tracker template",
@@ -90,7 +89,6 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
       { q: "Does it show maps or the weather?", a: ["No. There's no map, no weather and no cost per booking. The app has no network access unless you allow a site, and the template doesn't ask for one."] },
       { q: "Does it work on iPhone?", a: [IPHONE] },
     ],
-    post: { slug: "plan-a-trip-with-chatgpt-or-claude", title: "How to plan a trip with ChatGPT or Claude" },
   },
   "study-flashcards": {
     h1: "Flashcard maker and study app",
@@ -109,7 +107,6 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
       { q: "Can I type my answers?", a: ["No. You say to yourself whether you knew it, and tap Again, Hard, Good or Easy. There's no typed answer, multiple choice or picture on a card yet."] },
       { q: "Does it work on iPhone?", a: [IPHONE] },
     ],
-    post: { slug: "flashcards-with-chatgpt-or-claude", title: "How to make flashcards with ChatGPT or Claude" },
   },
 };
 

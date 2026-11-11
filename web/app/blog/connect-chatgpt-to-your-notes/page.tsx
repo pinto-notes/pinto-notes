@@ -14,9 +14,9 @@ export const metadata = postMetadata("connect-chatgpt-to-your-notes");
 // (developers.openai.com), the OpenAI community thread of 28 September 2026 and TechCrunch's DevDay report
 // of 29 September; it was not rechecked in a Plus account. Pinto Notes' side checked on main on 12 October:
 // Settings, AI is titled Connect an AI (SettingsView.swift, ConnectAI.swift); the guide's button is "Copy
-// Address and Open <AI>" (ConnectGuide.swift); the ask is "Allow ChatGPT to use your notes?" with Allow and Don't Allow
-// (read and edit, the only access since 29 October) (ConnectAI.swift, ConnectAsks.swift, NoteDetailView.swift); Add to
-// Claude Code (ConnectAI.swift); Disconnect (ConnectAI.swift); Version History (RootView.swift); the
+// Address and Open <AI>" (ConnectGuide.swift); the ask is "Allow ChatGPT to use your notes?" with Read and
+// edit or Read only and Don't Allow (ConnectAI.swift, ConnectAsks.swift, NoteDetailView.swift); Add to
+// Claude Code (ConnectAI.swift); Disconnect (ConnectAI.swift); Show Version History (RootView.swift); the
 // connect page's "No device with Pinto Notes? Use your recovery key" (web/app/connect/ConnectScreens.tsx).
 // 28 October 2026: the Pinto Notes plugin was published in ChatGPT's plugin directory; the ChatGPT steps now use it
 // (its page read first-hand that day). Mac 1.2.33 (28 Oct) replaced the in-app walk-through with one step, "Open Pinto Notes in
@@ -124,7 +124,6 @@ export default function Page() {
             <tr><th scope="row"><a href="#chatgpt">ChatGPT</a></th><td>Its plugin directory: Pinto Notes</td><td>Plans with plugins</td></tr>
             <tr><th scope="row"><a href="#claude">Claude</a></th><td>Its connector directory, or a custom connector</td><td>Every plan</td></tr>
             <tr><th scope="row"><a href="#claude-code">Claude Code and Codex</a></th><td>A command or a few lines of config, with an access token</td><td>Any</td></tr>
-            <tr><th scope="row"><a href="#incredible">Incredible</a></th><td>Apps, then Connect</td><td>Any</td></tr>
             <tr><th scope="row"><a href="#other">Other MCP apps</a></th><td>The server address, then sign in</td><td>Depends on the app</td></tr>
           </tbody>
         </table>
@@ -153,8 +152,8 @@ export default function Page() {
         </li>
         <li>
           <strong>Choose Allow in Pinto Notes</strong>
-          Pinto Notes on your Mac asks &ldquo;Allow ChatGPT to use your notes?&rdquo; Choose
-          Allow. ChatGPT can then read and edit your notes. If the page shows a number, type it in Pinto Notes first. The page takes you back to ChatGPT. If the app asks and you
+          Pinto Notes on your Mac asks &ldquo;Allow ChatGPT to use your notes?&rdquo; Pick Read and edit or Read only, and choose
+          Allow. If the page shows a number, type it in Pinto Notes first. The page takes you back to ChatGPT. If the app asks and you
           didn&apos;t start this, choose Don&apos;t Allow.
         </li>
         <li>
@@ -162,9 +161,10 @@ export default function Page() {
           Choose Try in chat, or start a new chat, add Pinto Notes from the tools menu, and ask &ldquo;Search my Pinto Notes and tell me what I wrote most recently.&rdquo;
         </li>
       </Steps>
-      <Figure shot={SHOTS.consent} caption="Nothing is shared until you choose Allow." />
+      <Figure shot={SHOTS.consent} caption="Nothing is shared until you choose Allow, and you pick Read and edit or Read only." />
       <p>
-        No Mac nearby? If you saved a recovery key, choose Use your recovery key on the page, enter it and choose Allow. The key is used on that page only and never sent
+        No Mac nearby? On the page, choose Use your recovery key. Enter your recovery key (Pinto Notes shows it in Settings,
+        Privacy &amp; Security), pick Read and edit or Read only, and choose Allow. The key is used on that page only and never sent
         to us, but approving on your device is safer, so use it when you can.
       </p>
       <p>OpenAI renamed some of these pages in 2026. If you see Connectors or Apps instead of Plugins, it&apos;s the same place.</p>
@@ -223,25 +223,6 @@ export default function Page() {
         <a href="/blog/notes-in-claude-code-and-codex">Using your notes from Claude Code and Codex</a> has the details.
       </p>
 
-      <h2 id="incredible">Incredible</h2>
-      <p>
-        <a href="https://incredible.one" rel="noopener">Incredible</a>, the AI assistant my company makes, is a desktop app, and Pinto
-        Notes is one of its apps.
-      </p>
-      <Steps>
-        <li><strong>Open Apps in Incredible and search for notes</strong>Choose Connect, and your browser opens Pinto Notes.</li>
-        <li>
-          <strong>Allow it in Pinto Notes</strong>
-          Pinto Notes asks to allow an app on this computer that calls itself &ldquo;incredible&rdquo;. A sign-in that returns to your
-          own computer can&apos;t prove which app is asking, so only allow it if you just chose Connect.
-        </li>
-        <li><strong>Back in Incredible, choose Let&apos;s go</strong></li>
-      </Steps>
-      <p>
-        On a Windows PC, you sign in on the page that opens and approve on your Mac, or use your recovery key if you saved one. On an older version of Incredible, where Pinto Notes isn&apos;t in Apps, choose Add it here at the bottom of Apps (or Add
-        another MCP server), paste <code>{MCP_URL}</code>, choose Continue, then Sign in. After you choose Allow, choose Add server.
-      </p>
-
       <h2 id="other">Other MCP apps</h2>
       <PostFigure src="/blog/news/mcp-docs-architecture-diagram" width={1920} height={750} maxWidth={760}
         alt="The MCP architecture diagram: AI apps on the left connect through MCP to data, development tools and productivity tools on the right."
@@ -266,13 +247,14 @@ export default function Page() {
         caption="When ChatGPT changes a note, the new lines are tinted and you can undo the change."
       />
       <ul>
-        <li>Nothing is shared until you choose Allow: in Pinto Notes on your Mac, or on pintonotes.com with your recovery key if you saved one.</li>
-        <li>When an assistant changes a note, Pinto Notes shows what changed, with Undo, and keeps the previous version in the note&apos;s history (File, Version History).</li>
+        <li>Nothing is shared until you choose Allow: in Pinto Notes on your Mac, or on pintonotes.com with your recovery key.</li>
+        <li>You choose Read only, or Read and edit, for each assistant.</li>
+        <li>When an assistant changes a note, Pinto Notes shows what changed, with Undo, and keeps the previous version in the note&apos;s history (File, Show Version History).</li>
         <li>Connect an AI lists everything that&apos;s connected. Choose Disconnect, and it loses access right away.</li>
       </ul>
       <p>
         ChatGPT says apps can come with elevated risk, and OpenAI&apos;s Developer mode guide spells it out: the model can make mistakes
-        on write actions, and a malicious server could try to take your data. That&apos;s why Pinto Notes asks you to allow each app, shows you what each change did, and keeps every earlier version.
+        on write actions, and a malicious server could try to take your data. That&apos;s why Pinto Notes asks you to allow each app, lets you pick Read only, and keeps every earlier version.
       </p>
 
       <h2 id="ask">Things to ask once it&apos;s connected</h2>

@@ -6,18 +6,18 @@ export type QA = { id: string; q: string; a: string[]; more?: { href: string; te
 
 export const FAQ: QA[] = [
   { id: "what", q: "What is Pinto Notes?", a: [
-    "Pinto Notes is a free, open-source notes app for iPhone and Mac that ChatGPT, Claude, Claude Code, Codex and Incredible can search, read and edit, with your approval. It works like Apple Notes, imports your Apple Notes on the Mac, and syncs between iPhone and Mac.",
+    "Pinto Notes is a free, open-source notes app for iPhone and Mac that ChatGPT, Claude, Claude Code and Codex can search, read and edit, with your approval. It works like Apple Notes, imports your Apple Notes on the Mac, and syncs between iPhone and Mac.",
   ], more: { href: "/", text: "See how it works" } },
   { id: "import", q: "How do I import my Apple Notes?", a: [
     "On your Mac, choose File → Import from Apple Notes. Import everything, or pick the notes you want. Folders, tables and pictures come along, checklists and pins too when Pinto Notes has Full Disk Access, and nothing in Apple Notes is changed.",
     "On iPhone, share a note from Apple Notes to Pinto Notes. Or import on your Mac, and everything shows up on your iPhone a second later.",
   ], more: { href: "/blog/move-from-apple-notes", text: "How to move from Apple Notes, step by step" } },
-  { id: "connect", q: "How do I connect ChatGPT, Claude, Claude Code, Codex or Incredible?", a: [
+  { id: "connect", q: "How do I connect ChatGPT, Claude, Claude Code or Codex?", a: [
     "Claude: Amber Notes is in Claude's connector directory. Open https://claude.ai/directory/amber-notes, choose Connect to Claude, then Allow in Pinto Notes. Do it once, on claude.ai or in the Claude desktop app, and Claude's phone apps can use it too.",
     "ChatGPT: in Pinto Notes, open Settings → Connect an AI, pick ChatGPT and follow the steps, on chatgpt.com, which is where OpenAI documents custom apps.",
     `Adding it yourself, or Claude doesn't show the listing? The address is ${MCP_URL}; in Claude, add it as a custom connector. ${OLD_MCP_URL_STAYS}`,
     "When ChatGPT or Claude asks for permission, sign in on the page that opens, then approve on your iPhone or Mac: type the number the page shows and choose Allow. No device nearby? If you saved a recovery key, you can use it on that page.",
-    "Claude Code gets a one-line command with a token of its own, and Codex a few lines for its config file. In Incredible, open Apps, search for notes, choose Connect, then approve it on your iPhone or Mac. On an older version of Incredible, add the address as an MCP server instead. Settings → Connect an AI → Incredible has the steps. Any other app that supports MCP connects with the address and a sign-in too.",
+    "Claude Code gets a one-line command with a token of its own, and Codex a few lines for its config file. Any other app that supports MCP connects with the address and a sign-in too.",
   ], more: { href: "/blog/connect-chatgpt-to-your-notes", text: "How to connect ChatGPT to your notes" } },
   { id: "ai-tools", q: "Can I use Pinto Notes in Gemini CLI or VS Code?", a: [
     `Yes. One command adds the address ${MCP_URL}, then you sign in to Pinto Notes in your browser the first time. Claude Code also has a plugin, and Codex takes one command too.`,
@@ -54,7 +54,7 @@ export const FAQ: QA[] = [
     "An app runs inside Pinto Notes and can't reach the internet unless you allow an address. What it saves is encrypted and synced like your notes.",
   ] }] : []),
   { id: "share", q: "How do I share a note as a web page, and stop sharing?", a: [
-    "Open the note and choose Share → Share Link…, then confirm. The link is copied, and anyone with it can read the note. To stop, choose Share → Stop Sharing, and the page is gone.",
+    "On a Mac, open the note, click Share in the toolbar and choose Create Link…, then confirm. On iPhone, tap More (…) → Share → Share Link…. The link is copied, and anyone with it can read the note. To stop, choose Share → Stop Sharing, and the page is gone.",
   ] },
   { id: "delete", q: "How do I delete my account?", a: [
     "Open Settings → Account and choose Delete Account…. Your account and all your notes are deleted, and this can't be undone.",

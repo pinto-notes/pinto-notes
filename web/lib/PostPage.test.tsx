@@ -67,3 +67,60 @@ describe("the image-led post format's parts", () => {
     expect(css).not.toMatch(/\.path kbd \{[^}]*monospace/);
   });
 });
+
+// Launches are labelled, so news reads as news (Emil, 7 November 2026).
+import { renderToStaticMarkup as html } from "react-dom/server";
+import Launch from "../app/blog/pinto-notes-for-iphone/page";
+import ChatGPTLaunch from "../app/blog/pinto-notes-in-chatgpt/page";
+import ImportLaunch from "../app/blog/import-your-notes/page";
+import { PostCard } from "./blog";
+import { BlogIndex } from "./BlogIndex";
+import { posts } from "./posts";
+
+describe("an announcement", () => {
+  it("opens like a launch post: the date, the title and the news, with no label or breadcrumb; a guide keeps its own header", () => {
+    const launch = doc(<Launch />);
+    const head = launch.querySelector("header")!;
+    expect(head.querySelector("time")?.getAttribute("datetime")).toBe("2026-11-06");
+    expect(head.querySelector("h1")?.textContent).toBe("Introducing Pinto Notes for iPhone");
+    expect(head.textContent).toContain("out now on the App Store");
+    expect(head.textContent).not.toContain("Announcement");
+    expect(head.querySelector("nav")).toBeNull();
+    expect(doc(<Post />).querySelector("header nav")).not.toBeNull();
+  });
+
+  it("starts its body with words, never a second picture straight under the cover", () => {
+    for (const Page of [Launch, ChatGPTLaunch, ImportLaunch]) {
+      const body = doc(<Page />).querySelector("article h2")!.parentElement!;
+      expect(["H2", "P"]).toContain(body.firstElementChild!.tagName);
+    }
+  });
+
+  it("ends with one place to get the app, inside the post: the App Store and the Mac download", () => {
+    const get = doc(<Launch />).querySelector("section[aria-labelledby='get-it']")!;
+    expect(get.querySelector("h2")?.textContent).toBe("Get Pinto Notes");
+    const links = [...get.querySelectorAll("a")].map((a) => a.getAttribute("href"));
+    expect(links.some((h) => h?.startsWith("https://apps.apple.com/"))).toBe(true);
+    expect(links.includes("/download/mac")).toBe(true);
+    expect(doc(<Launch />).querySelector("[data-closing-band]")).toBeNull();
+  });
+
+  it("carries the label on its card, but not on the front of the blog, where every post is one", () => {
+    for (const x of posts.filter((p) => !p.draft)) {
+      expect(html(<PostCard post={x} />).includes(">Announcement<"), x.slug).toBe(Boolean(x.announcement));
+    }
+    expect(posts.filter((p) => p.announcement).map((p) => p.slug)).toEqual(["pinto-notes-for-iphone", "pinto-notes-in-chatgpt", "import-your-notes"]);
+    const index = new DOMParser().parseFromString(html(<BlogIndex category={null} page={1} />), "text/html");
+    expect(index.body.textContent).not.toContain("Announcement");
+  });
+
+  it("dates each announcement on the day its feature shipped, never two on one day", () => {
+    const shown = posts.filter((p) => p.announcement && !p.draft);
+    expect(new Set(shown.map((p) => p.date)).size).toBe(shown.length);
+    expect(Object.fromEntries(shown.map((p) => [p.slug, p.date]))).toMatchObject({
+      "pinto-notes-for-iphone": "2026-11-06",
+      "pinto-notes-in-chatgpt": "2026-10-28",
+      "import-your-notes": "2026-10-13",
+    });
+  });
+});

@@ -1,7 +1,7 @@
 import { published, type Post } from "./posts";
 
-/// The blog's "More answers": every post that isn't featured, grouped by what a visitor came for, each
-/// asked the way a person would ask it. Every published post is in a shelf (lib/seo.test.ts checks).
+/// The blog's answers (/blog/answers): every post that isn't on the front of the blog, grouped by
+/// what a visitor came for, each asked the way a person would ask it. Every published post is in a shelf (lib/seo.test.ts checks).
 
 export type Shelf = { title: string; line: string; items: { slug: string; ask: string }[] };
 
@@ -23,45 +23,30 @@ export const SHELVES: Shelf[] = [
       { slug: "move-apple-notes-to-obsidian-notion-keep", ask: "Moving to Obsidian, Notion or Keep?" },
       { slug: "siri-ai-apple-notes", ask: "What can Siri AI do with my notes?" },
       { slug: "apple-notes-api", ask: "Is there an Apple Notes API?" },
+      { slug: "move-from-apple-notes", ask: "How do I move my Apple Notes to Pinto Notes?" },
     ],
   },
   {
     title: "Your AI and your notes",
     line: "So ChatGPT and Claude know what you know, without pasting it in every time.",
     items: [
-      { slug: "connect-chatgpt-to-your-notes", ask: "Can ChatGPT read my notes?" },
+      { slug: "connect-chatgpt-to-your-notes", ask: "How do I connect ChatGPT to my notes?" },
+      { slug: "notes-in-claude-code-and-codex", ask: "Can Claude Code and Codex use my notes?" },
+      { slug: "budget-tracker-with-chatgpt-or-claude", ask: "Can my AI keep a budget for me?" },
+      { slug: "encrypted-notes-app-for-ai", ask: "Can an encrypted notes app work with AI?" },
       { slug: "chatgpt-and-apple-notes", ask: "Can ChatGPT use Apple Notes?" },
       { slug: "claude-and-apple-notes", ask: "Can Claude use Apple Notes?" },
-      { slug: "claude-memory-vs-notes", ask: "Isn't Claude's memory enough?" },
-      { slug: "notes-in-claude-code-and-codex", ask: "Notes for Claude Code and Codex?" },
-      { slug: "notes-apps-with-mcp", ask: "Which notes apps work with AI?" },
-      { slug: "best-notes-app-for-ai-agents", ask: "What's the best notes app for AI agents?" },
       { slug: "obsidian-mcp", ask: "Can Claude use my Obsidian vault?" },
-      { slug: "mcp-server", ask: "What's an MCP server, in plain words?" },
-      { slug: "encrypted-notes-app-for-ai", ask: "Can an AI use encrypted notes?" },
-      { slug: "move-from-apple-notes", ask: "How do I bring my Apple Notes along?" },
-    ],
-  },
-  {
-    title: "Make something with your AI",
-    line: "Prompts to copy, and what it looks like when it works.",
-    items: [
-      { slug: "habit-tracker-with-chatgpt-or-claude", ask: "A habit tracker" },
-      { slug: "budget-tracker-with-chatgpt-or-claude", ask: "A budget that adds itself up" },
-      { slug: "plan-a-trip-with-chatgpt-or-claude", ask: "A trip plan" },
-      { slug: "flashcards-with-chatgpt-or-claude", ask: "Flashcards from your notes" },
-      { slug: "journal-with-chatgpt-or-claude", ask: "A daily journal" },
-    ],
-  },
-  {
-    title: "New in AI",
-    line: "What just came out, and whether it's worth your time.",
-    items: [
-      { slug: "new-ai-features", ask: "What's new in ChatGPT, Claude and Gemini?" },
-      { slug: "gpt-6-astra-use-cases", ask: "GPT-6 Astra: what's it good for?" },
-      { slug: "what-are-chatgpt-dots", ask: "What are ChatGPT dots?" },
-      { slug: "meta-muse-connectors", ask: "Which Meta Muse connectors to add?" },
       { slug: "connect-notes-to-grok", ask: "Connect your notes to Grok" },
+      { slug: "mcp-server", ask: "What can an AI do through the MCP server?" },
+    ],
+  },
+  {
+    title: "Notes apps, compared",
+    line: "Read on each maker's own pages, with the prices of the day.",
+    items: [
+      { slug: "best-ai-notes-app", ask: "What's the best AI notes app?" },
+      { slug: "best-notes-app-for-mac", ask: "What's the best notes app for Mac?" },
     ],
   },
 ];

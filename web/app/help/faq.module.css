@@ -49,3 +49,13 @@
 
 /* The questions in four groups, each under the page's small uppercase label. */
 .group { display: grid; gap: 4px; }
+
+/* "Did this answer it?" under each answer (Faq.tsx). */
+.rate { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 2px 44px 22px 4px; font-size: 15px; color: var(--muted); }
+.rate span { margin-right: 4px; }
+.rate button { font: inherit; font-weight: 600; color: var(--ink); background: var(--soft); border: 0; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.rate button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+@media (hover: hover) { .rate button:hover { background: color-mix(in srgb, var(--soft) 86%, var(--amber)); } }
+@media (prefers-reduced-motion: no-preference) { .rate button { transition: transform 0.12s ease-out, background-color 0.15s ease-out; } .rate button:active { transform: scale(0.96); } }
+/* .rated takes the answer paragraphs' size and margins (.a p). */
+.rated a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--amber); text-underline-offset: 3px; }

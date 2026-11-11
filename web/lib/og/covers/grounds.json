@@ -11,12 +11,6 @@
   "w": 1600,
   "h": 1000
  },
- "anthropic-claude-memory": {
-  "ground": "#eac9b6",
-  "ink": "dark",
-  "w": 880,
-  "h": 462
- },
  "anthropic-mcp": {
   "ground": "#da7959",
   "ink": "light",
@@ -28,6 +22,60 @@
   "ink": "dark",
   "w": 880,
   "h": 550
+ },
+ "app-budget-tracker-with-chatgpt-or-claude": {
+  "ground": "#c1642e",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
+ },
+ "app-connect-chatgpt-to-your-notes": {
+  "ground": "#89abb7",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
+ },
+ "app-encrypted-notes-app-for-ai": {
+  "ground": "#8b783a",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
+ },
+ "app-import-your-notes": {
+  "ground": "#84a5b0",
+  "ink": "dark",
+  "w": 1200,
+  "h": 750
+ },
+ "app-mcp-server": {
+  "ground": "#c1642e",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
+ },
+ "app-move-from-apple-notes": {
+  "ground": "#8b783a",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
+ },
+ "app-notes-in-claude-code-and-codex": {
+  "ground": "#63304c",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
+ },
+ "app-pinto-notes-for-iphone": {
+  "ground": "#88abb6",
+  "ink": "dark",
+  "w": 1200,
+  "h": 750
+ },
+ "app-pinto-notes-in-chatgpt": {
+  "ground": "#87a9b5",
+  "ink": "dark",
+  "w": 1200,
+  "h": 750
  },
  "apple-creator-studio": {
   "ground": "#020202",
@@ -53,11 +101,17 @@
   "w": 880,
   "h": 550
  },
- "best-for-agents": {
-  "ground": "#ede4d9",
+ "best-ai-notes-app": {
+  "ground": "#dec9f0",
   "ink": "dark",
-  "w": 880,
-  "h": 550
+  "w": 1600,
+  "h": 1000
+ },
+ "best-notes-app-for-mac": {
+  "ground": "#aebd91",
+  "ink": "dark",
+  "w": 1600,
+  "h": 1000
  },
  "budget": {
   "ground": "#fceecc",
@@ -70,18 +124,6 @@
   "ink": "dark",
   "w": 880,
   "h": 550
- },
- "chatgpt-chat-and-work-merged": {
-  "ground": "#e9ab84",
-  "ink": "dark",
-  "w": 1600,
-  "h": 1000
- },
- "chatgpt-chat-memory-full": {
-  "ground": "#fcda91",
-  "ink": "dark",
-  "w": 1600,
-  "h": 1000
  },
  "chatgpt-icloud": {
   "ground": "#f1e1c6",
@@ -113,18 +155,6 @@
   "w": 880,
   "h": 550
  },
- "claude-memory": {
-  "ground": "#f7e6dc",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "codex-usage-reset": {
-  "ground": "#fed3b4",
-  "ink": "dark",
-  "w": 1600,
-  "h": 1000
- },
  "connect-chatgpt": {
   "ground": "#e3f2ed",
   "ink": "dark",
@@ -143,44 +173,14 @@
   "w": 880,
   "h": 550
  },
- "flashcards": {
-  "ground": "#eee1f5",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "forgot-password": {
   "ground": "#f4e7d4",
   "ink": "dark",
   "w": 880,
   "h": 550
  },
- "gemini-4-carbon": {
-  "ground": "#1554a5",
-  "ink": "light",
-  "w": 1600,
-  "h": 1000
- },
- "gemini-notebooks": {
-  "ground": "#eaeceb",
-  "ink": "dark",
-  "w": 1600,
-  "h": 1000
- },
- "habit-tracker": {
-  "ground": "#ddeddf",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "ios-27": {
   "ground": "#fff3d0",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "journal": {
-  "ground": "#f4e2ce",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -196,12 +196,6 @@
   "ink": "dark",
   "w": 880,
   "h": 495
- },
- "meta-muse-connectors": {
-  "ground": "#e7effc",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
  },
  "move-apple-notes": {
   "ground": "#fbefd9",
@@ -283,12 +277,6 @@
  },
  "templates": {
   "ground": "#f7e7d0",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "trip": {
-  "ground": "#cde2f6",
   "ink": "dark",
   "w": 880,
   "h": 550

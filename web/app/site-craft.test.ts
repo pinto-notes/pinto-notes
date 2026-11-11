@@ -20,6 +20,22 @@ describe("the site's controls", () => {
     }
   });
 
+  it("moves between pages quickly: the entrance motion runs on the first page only, and a new page opens at the top", () => {
+    const site = css("site.css");
+    expect(site).toContain("html[data-navigated] .rise, html[data-navigated] .rise-soft { animation: none; }");
+    for (const [, ms] of site.matchAll(/::view-transition-(?:old|new)\(root\) \{ animation: vt-\w+ (\d+)ms/g)) expect(Number(ms)).toBeLessThanOrEqual(150);
+    const chrome = css("SiteChrome.tsx");
+    expect(chrome).toContain('setAttribute("data-navigated", "")');
+    expect(chrome).toMatch(/openAtTop\.current && !location\.hash\) window\.scrollTo\(0, 0\)/);
+  });
+
+  it("keeps a phone clip's Play button off the phone's screen", () => {
+    // Not on the status bar and not on the change pill at the foot of the screen: under the phone
+    // (the frame lets it out; the video rounds its own corners).
+    expect(css("../lib/post-parts.module.css")).toContain(".loopFrame[data-phone] { overflow: visible;");
+    expect(css("../lib/post-parts.module.css")).toContain(".loopFrame[data-phone] .loopToggle { top: calc(100% + 22px);");
+  });
+
   it("gives the header's links a hover fill and a press", () => {
     const site = css("site.css");
     expect(site).toMatch(/\.site-nav a:not\(\.site-cta\):hover \{ background: color-mix/);
@@ -79,18 +95,10 @@ describe("the site's controls", () => {
     expect(page).toContain("<ClosingBand");
   });
 
-  it("groups help's questions, leads each version of the changelog with its highlights, and opens privacy with the promises", () => {
+  it("groups help's questions and opens privacy with the promises", () => {
     const help = css("help/page.tsx");
     for (const g of ["Getting started", "Connecting an AI", "Your notes and account", "Sharing"]) expect(help).toContain(`title: "${g}"`);
     expect(help).not.toContain("WHAT_IT_IS");
-    const log = css("changelog/page.tsx");
-    // Emil, 14 October 2026: less per release, the rest and the patch releases under Read more, no pictures.
-    expect(log).toContain("w.highlights");
-    expect(log).toContain(">Read more<");
-    expect(log).toContain("w.patches");
-    expect(log).not.toMatch(/<img/);
-    expect(log).not.toMatch(/updates itself/);
-    expect(css("changelog/changelog.module.css")).toMatch(/\.more summary:focus \{ outline: none; \}/);
     const privacy = css("privacy-security/page.tsx");
     expect(privacy).toContain("f.short");
     // Every log stays on the page (a transparency promise), folded away at the end of the long text.
@@ -101,5 +109,13 @@ describe("the site's controls", () => {
 
   it("gives the connect pages' broken-link state a way forward", () => {
     for (const f of ["connect/page.tsx", "open/connect/page.tsx"]) expect(css(f), f).toContain('href="/open/connect-ai"');
+  });
+});
+
+describe("launch post header", () => {
+  it("keeps the intro under the title narrow and evenly wrapped, so centred lines don't look ragged", () => {
+    const deck = rule(css("../lib/launch.module.css"), ".deck");
+    expect(deck).toMatch(/text-wrap: balance/);
+    expect(Number(deck.match(/max-width: (\d+)em/)?.[1])).toBeLessThanOrEqual(30);
   });
 });

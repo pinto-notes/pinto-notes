@@ -14,7 +14,6 @@ const EXIT_MS = 150;
 export const MENU_PAGES: { href: string; label: string; icon: () => React.ReactElement; under?: boolean; also?: string }[] = [
   { href: "/templates", label: "Templates", icon: TemplatesIcon, under: true },
   { href: "/blog", label: "Blog", icon: BlogIcon, under: true },
-  { href: "/changelog", label: "Changelog", icon: ChangelogIcon },
   { href: "/help", label: "Help", icon: HelpIcon, also: "/support" },
 ];
 
@@ -126,9 +125,6 @@ function BlogIcon() {
   return <svg {...line}><path d="M4 20l1.1-4.6L16.4 4.1a2.2 2.2 0 0 1 3.1 0l.4.4a2.2 2.2 0 0 1 0 3.1L8.6 18.9 4 20z" /><path d="M14.4 6.1l3.5 3.5" /></svg>;
 }
 /// Releases down a line, newest first.
-function ChangelogIcon() {
-  return <svg {...line}><path d="M6 8.4v2.2M6 14.4v2.2" /><circle cx="6" cy="6" r="1.9" /><circle cx="6" cy="12.5" r="1.9" /><circle cx="6" cy="19" r="1.9" /><path d="M11.5 6h9M11.5 12.5h9M11.5 19h5.5" /></svg>;
-}
 /// A question.
 function HelpIcon() {
   return <svg {...line}><circle cx="12" cy="12" r="8.7" /><path d="M9.5 9.6a2.6 2.6 0 1 1 3.9 2.3c-.9.5-1.4 1-1.4 2" /><path d="M12 16.9v.1" /></svg>;

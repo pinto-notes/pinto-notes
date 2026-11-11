@@ -7,11 +7,12 @@ import Faq from "./Faq";
 import { FAQ } from "./questions";
 import { GITHUB_URL } from "@/lib/github";
 import { JsonLd, faqPage } from "@/lib/structured-data";
+import { HELP_EMAIL_EVENT } from "@/lib/help-events";
 
 export const dynamic = "force-static";
 export const metadata: Metadata = pageMetadata({
   title: "Help and FAQ · Pinto Notes",
-  description: "How to import your Apple Notes, connect ChatGPT, Claude, Claude Code, Codex or Incredible, sync your iPhone and Mac, share a note, and get help.",
+  description: "How to import your Apple Notes, connect ChatGPT, Claude, Claude Code or Codex, sync your iPhone and Mac, share a note, and get help.",
   path: "/help",
   image: { url: "/help/opengraph-image", alt: "Pinto Notes help: importing Apple Notes, connecting your AI, sync and sharing." },
 });
@@ -40,7 +41,7 @@ export default function Help() {
           <h1 className={`${styles.h2} rise`} style={{ "--i": 0 } as React.CSSProperties}>Help</h1>
           <p className={`${styles.lede} rise`} style={{ "--i": 1 } as React.CSSProperties}>Answers, and how to reach me.</p>
           <p className={`${f.reach} rise`} style={{ "--i": 1 } as React.CSSProperties}>
-            Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. More under <a href="#contact">Contact and your account</a>.
+            Email <a href={`mailto:${SUPPORT_EMAIL}`} data-event={HELP_EMAIL_EVENT}>{SUPPORT_EMAIL}</a>. More under <a href="#contact">Contact and your account</a>.
           </p>
         </div>
         {grouped.map((g, i) => (
@@ -77,7 +78,7 @@ export default function Help() {
         <div {...rise(7)}>
           <h2 className={f.h3}>Still stuck?</h2>
           <div className={f.contact}>
-            <a href={`mailto:${SUPPORT_EMAIL}`}>
+            <a href={`mailto:${SUPPORT_EMAIL}`} data-event={HELP_EMAIL_EVENT}>
               <strong>Write to me</strong>
               <span>{SUPPORT_EMAIL}. I read every email.</span>
             </a>

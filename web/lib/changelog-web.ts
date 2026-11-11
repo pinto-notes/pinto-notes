@@ -40,7 +40,6 @@ export const CHANGELOG_WEB: Record<string, WebRelease> = {
       { text: "Each device shows when an AI connects." },
       { text: "A notification when an AI asks to connect." },
       { text: "Export your notes as Markdown." },
-      { text: "Connect Incredible." },
       { text: "Import from Evernote, Google Keep and Markdown files." },
       { text: "One Import Notes button for every source." },
       { text: "Templates from pintonotes.com open in the app." },

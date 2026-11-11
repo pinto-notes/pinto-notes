@@ -1,0 +1,36 @@
+/* A launch post (an announcement): built like the launch posts of Things, Linear and Raycast (study,
+   8 November 2026, amber-launch/research/article-refs-2026-11-08). Everything sits on the page's
+   centre line: the date, the title, the news in one paragraph and the byline, then the cover wider
+   than the text, then the text at a readable measure with its pictures a little wider again, then
+   one place to get the app. No label, no breadcrumb and no share row at the top. */
+.page { width: 100%; display: grid; justify-items: center; gap: 48px; min-width: 0; }
+@media (max-width: 700px) { .page { gap: 32px; } }
+
+.head { width: 100%; max-width: 760px; display: grid; justify-items: center; gap: 18px; text-align: center; }
+.date { color: var(--muted); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.title { margin: 0; font-size: clamp(36px, 5vw, 58px); line-height: 1.04; font-weight: 800; letter-spacing: -0.035em; text-wrap: balance; }
+.deck { margin: 0; max-width: 30em; font-size: clamp(17px, 1.8vw, 20px); line-height: 1.5; color: var(--muted); text-wrap: balance; }
+.by { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.by img { border-radius: 50%; }
+.by a { color: var(--ink); font-weight: 600; text-decoration: none; }
+
+.hero { width: 100%; max-width: 1040px; }
+.hero img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 24px; }
+@media (max-width: 700px) { .hero img { border-radius: 16px; } }
+
+.body { width: 100%; max-width: 680px; }
+.body h2 { margin-top: 72px; }
+.body > :first-child { margin-top: 0; }
+
+/* The end of the post: where to get it, in the article, not in a band after it. */
+.get { width: 100%; max-width: 680px; display: grid; justify-items: center; gap: 14px; text-align: center; padding: 40px 24px; border-radius: 24px; background: var(--soft); }
+.get img { border-radius: 22%; }
+.getTitle { margin: 0; font-size: 26px; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em; }
+.getButtons { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 6px; }
+.getButtons a { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 20px; border-radius: 23px; font-weight: 650; font-size: 16px; text-decoration: none; }
+.getButtons a:first-child { background: var(--ink); color: var(--bg); }
+.getButtons a + a { background: var(--bg); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+@media (hover: hover) { .getButtons a:first-child:hover { opacity: 0.88; } .getButtons a + a:hover { background: color-mix(in srgb, var(--bg) 80%, var(--soft)); } }
+.getButtons a:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+.fine { margin: 0; color: var(--muted); font-size: 14px; }
+.share { display: flex; gap: 6px; margin-top: 4px; }

@@ -24,6 +24,7 @@ export default function SiteChrome({ stars, children }: { version: string | null
   const router = useRouter();
   const done = useRef<(() => void) | null>(null);
   const toList = useRef<"chips" | "pages" | null>(null);
+  const openAtTop = useRef(false);
   const site = themeFor(path) !== null;
 
   // Keep the theme in step with the page (also for back/forward), and finish a pending transition.
@@ -36,6 +37,10 @@ export default function SiteChrome({ stars, children }: { version: string | null
       const chips = document.querySelector("[data-blog-chips]");
       if (chips && chips.getBoundingClientRect().top < 84) window.scrollTo({ top: Math.max(0, chips.getBoundingClientRect().top + window.scrollY - 100) }); // under the header
     }
+    // A link to another page opens it at the top, like any web page (Next keeps the old scroll when
+    // the push runs inside a view transition). Back and forward keep the browser's own restore.
+    if (openAtTop.current && !location.hash) window.scrollTo(0, 0);
+    openAtTop.current = false;
     toList.current = null;
     done.current?.();
     done.current = null;
@@ -92,6 +97,10 @@ export default function SiteChrome({ stars, children }: { version: string | null
       const animate = !!doc.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (!animate && !list) return;
       e.preventDefault();
+      // After the first page, content arrives without the entrance motion (site.css), so moving
+      // between posts is a quick fade, not a fresh show each time.
+      document.documentElement.setAttribute("data-navigated", "");
+      openAtTop.current = !list;
       const arrive = () => new Promise<void>((resolve) => {
         done.current = resolve;
         router.push(href, list ? { scroll: false } : undefined);
@@ -130,7 +139,6 @@ export default function SiteChrome({ stars, children }: { version: string | null
         <nav className="site-nav" aria-label="Site">
           <a href="/templates" aria-current={path === "/templates" || path.startsWith("/templates/") ? "page" : undefined}>Templates</a>
           <a href="/blog" aria-current={path === "/blog" || path.startsWith("/blog/") ? "page" : undefined}>Blog</a>
-          <a href="/changelog" aria-current={current("/changelog")}>Changelog</a>
           <a href="/help" aria-current={path === "/help" || path === "/support" ? "page" : undefined}>Help</a>
           <a className="site-gh" href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="Pinto Notes on GitHub"><GitHubGlyph /></a>
           <DownloadLink className="site-cta pi-apple" aria-current={current("/download")}>
@@ -148,7 +156,7 @@ export default function SiteChrome({ stars, children }: { version: string | null
             <nav aria-label="More">
               <a href="/templates">Templates</a>
               <a href="/blog">Blog</a>
-              <a href="/changelog">Changelog</a>
+              <a href="/blog/answers">Answers</a>
               <a href="/privacy-security">Privacy & Security</a>
               <a href="/privacy">Privacy Policy</a>
               <a href="/terms">Terms</a>
@@ -165,7 +173,7 @@ export default function SiteChrome({ stars, children }: { version: string | null
               <a href={LINKEDIN_URL} target="_blank" rel="me noopener noreferrer" aria-label="Emil Wagman on LinkedIn"><LinkedInGlyph /></a>
             </div>
           </div>
-          <p className="site-credit">Made by <a className="site-maker" href={MAKER_URL} target="_blank" rel="me noopener">Emil Wagman</a>, CTO of <a className="site-maker" href="https://incredible.one" target="_blank" rel="noopener">Incredible</a>. Not affiliated with Apple, OpenAI or Anthropic.</p>
+          <p className="site-credit">Made by <a className="site-maker" href={MAKER_URL} target="_blank" rel="me noopener">Emil Wagman</a>. Not affiliated with Apple, OpenAI or Anthropic.</p>
         </div>
       </footer>
     </div>

@@ -211,4 +211,4 @@ scripts/setup.sh
 
 ## License
 
-[MIT](LICENSE). Made by Emil Wagman at [Incredible](https://incredible.one). Formerly Amber Notes.
+[MIT](LICENSE). Made by Emil Wagman.
