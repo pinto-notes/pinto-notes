@@ -91,7 +91,8 @@ struct FilmSlides: @unchecked Sendable {
     private func palette(_ k: Int) -> Palette {
         switch k {
         case 0: return Palette(bg: C(0xFFAE34), tones: [C(0xFFBD55), C(0xFFCD7C), C(0xFFDEA6), C(0xFFEFD2)], ink: C(0x1E1B4B), you: C(0xFFF6E8), ai: C(0x2F6FD6))
-        case 1: return Palette(bg: C(0xFFF0DC), tones: [C(0xF8E0BE), C(0xF1CE9E), C(0xE9BC80), C(0xE0A964)], ink: C(0x1E1B4B), you: C(0xF0901A), ai: C(0x2F6FD6))
+        // (Pink, not beige: Emil, 11-11, "the beige background is pretty terrible".)
+        case 1: return Palette(bg: C(0xFF8DB4), tones: [C(0xFF9DBF), C(0xFFAECB), C(0xFFC2D8), C(0xFFD8E6)], ink: C(0x1E1B4B), you: C(0x1E1B4B), ai: C(0x2F6FD6))
         default: return Palette(bg: C(0x2A4BCB), tones: [C(0x3659D6), C(0x4A6EE0), C(0x6787E8), C(0x98B0F1)], ink: C(0xFFF6E8), you: C(0xFFC45A), ai: C(0xBFE0FF))
         }
     }
@@ -192,7 +193,7 @@ struct FilmSlides: @unchecked Sendable {
                     ctx.saveGState()
                     ctx.setShadow(offset: CGSize(width: 0, height: -4), blur: 10, color: CGColor(gray: 0, alpha: 0.28))
                     ctx.addPath(CGPath(roundedRect: bar, cornerWidth: 12, cornerHeight: 12, transform: nil))
-                    ctx.setFillColor((i == 0 ? p.you : p.you.mix(p.bg, 0.42)).cg()); ctx.fillPath()
+                    ctx.setFillColor((i == 0 ? p.you : C(0xFFF6E8)).cg()); ctx.fillPath()
                     ctx.restoreGState()
                     FilmKit.text("\(n)", 44, 0.55, p.ink.cg(0.75), at: CGPoint(x: bar.maxX + 22, y: bar.minY + 12), in: ctx)
                     ctx.restoreGState()

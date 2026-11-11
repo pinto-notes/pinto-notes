@@ -868,7 +868,7 @@ import AVFoundation
         #expect(FilmSlides.cardLine(quiet, script: qs).hasPrefix("You wrote your first note on "))
     }
 
-    @Test func whatYouBroughtInIsAWallOfItsNamesThatAlwaysFits() {
+    @Test func theFirstSlidesAreStrongColoursAndTheWallOfNamesAlwaysFits() {
         // Emil, 11-11: "the first slides could look better". The first is your notes by name.
         let width = 948.0, height = 800.0
         // A few: all of them, large, every row inside the page and the rows inside the space.
@@ -889,6 +889,18 @@ import AVFoundation
         let slips = big.rows.flatMap { $0 }.map(\.0)
         let more = slips.last.flatMap { Int($0.dropFirst(2).prefix { $0.isNumber }) }
         #expect(slips.last?.hasSuffix(" more") == true && more.map { $0 + slips.count - 1 } == 450)
+        // Every slide is a strong colour, none washed out (Emil, 11-11: "the beige background is pretty
+        // terrible"): the corner of each is far from grey.
+        let mine = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
+        let slides = FilmSlides(input: mine, script: FilmScript(mine, calendar: Self.cal), mark: nil)
+        for k in 0..<3 {
+            guard let image = slides.image(k, pixels: 200), let corner = image.cropping(to: CGRect(x: 2, y: image.height - 4, width: 1, height: 1)) else { Issue.record("no slide \(k)"); continue }
+            var px = [UInt8](repeating: 0, count: 4)
+            let ctx = CGContext(data: &px, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            ctx.draw(corner, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+            let rgb = px.prefix(3).map(Double.init), saturation = (rgb.max()! - rgb.min()!) / max(1, rgb.max()!)
+            #expect(saturation > 0.4, "slide \(k + 1) is \(px.prefix(3))")
+        }
         // One name too long for a row has a row to itself, cut to the page.
         let long = FilmSlides.wall([String(repeating: "Very long title ", count: 20)], count: 1, width: width, height: height)
         #expect(long.rows.count == 1 && fits(long))
