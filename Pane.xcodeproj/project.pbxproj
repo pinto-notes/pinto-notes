@@ -884,6 +884,7 @@
 		F15F300B7F662D0F7B93BDE4 /* MarkdownStyler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F39A5C43FC5474BC9B28E4 /* MarkdownStyler.swift */; };
 		F19F9E2C8A1625B9C6CD25A9 /* OnboardingSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3290486DF1E77796E513D27 /* OnboardingSnapshots.swift */; };
 		F1C2942FAA33AFE6D43248BB /* InboxImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE38BE2414E2D6EFB432A70C /* InboxImport.swift */; };
+		F2556FE0AA68742C5CED9802 /* NotebookFilmMacShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = F668718136A896305D4BC4DC /* NotebookFilmMacShots.swift */; };
 		F25FA34F43518D77EB9C9120 /* EditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96BF2077E54147D5949A2E4B /* EditorController.swift */; };
 		F268AFF0792951EC79D09A9C /* SessionFault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5065525FC29F25AE64A5EA51 /* SessionFault.swift */; };
 		F2D39BC149CE23319FE4EF4A /* CollabMacShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C13E00C01A59783D2FD1B04 /* CollabMacShots.swift */; };
@@ -1566,6 +1567,7 @@
 		F4881CBBDA2B4B9FE0C12A94 /* EditorCaretTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorCaretTests.swift; sourceTree = "<group>"; };
 		F63CE49D5ADFD8035C941B77 /* FileRowClickTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileRowClickTests.swift; sourceTree = "<group>"; };
 		F640AF3B161AEAD5FD260995 /* NoteLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteLock.swift; sourceTree = "<group>"; };
+		F668718136A896305D4BC4DC /* NotebookFilmMacShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookFilmMacShots.swift; sourceTree = "<group>"; };
 		F66C9398AFFB4C2850E7BD3E /* NoteOpenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteOpenTests.swift; sourceTree = "<group>"; };
 		F7306680E0E335C07172C36F /* ChecklistLookTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistLookTests.swift; sourceTree = "<group>"; };
 		F743BED91F9AD58A3BFA6CCB /* LinkPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkPolicy.swift; sourceTree = "<group>"; };
@@ -2174,6 +2176,7 @@
 				8ECD0B12EBDDFDF91722F337 /* MarkdownImportTests.swift */,
 				44D4445CBE0C9888D0A78476 /* MenuBarTests.swift */,
 				5925707D930BD8F327B10B6E /* NoteBlockLookTests.swift */,
+				F668718136A896305D4BC4DC /* NotebookFilmMacShots.swift */,
 				70C81699767C1F45A63D1DD3 /* NotebookFilmTests.swift */,
 				9167656DA8E3D71E4E9CCB8B /* NoteDropTests.swift */,
 				D2C3828F02A46D62F6896F82 /* NoteExportTests.swift */,
@@ -3126,6 +3129,7 @@
 				5BB1A82995AEA7369C1475CE /* NoteSourceTests.swift in Sources */,
 				8AA54AFF68808ABC51884767 /* NoteSummaryTests.swift in Sources */,
 				C2A71FB2F756B5B3973ACB77 /* NoteUndoButtonTests.swift in Sources */,
+				F2556FE0AA68742C5CED9802 /* NotebookFilmMacShots.swift in Sources */,
 				4526CA32C7314397FE51A822 /* NotebookFilmTests.swift in Sources */,
 				F5B73F371B2B139D43A192FC /* OfflineHTMLTests.swift in Sources */,
 				8AECBE789B79F5B3D957A0EE /* OfflineTests.swift in Sources */,

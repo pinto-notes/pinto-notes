@@ -298,8 +298,10 @@ struct FilmSlides: @unchecked Sendable {
                 let p = palette(1)
                 // The five as strips of paper, each as long as how often you came back to it, the first
                 // in your colour; its name over it and the count at its end.
-                let most = Double(first.note.edits.count), (lo, hi) = band
-                let rowH = 144.0, gap = 30.0, x0 = 130.0, full = W - x0 - 66 - 110
+                let most = Double(first.note.edits.count), (lo, hi) = room
+                // (Closer together on a shorter screen, the Mac's sheet, so the last never touches the words.)
+                let fit = min(1, (hi - lo) / (Double(rows) * 144 + Double(rows - 1) * 30))
+                let rowH = 144.0 * fit, gap = 30.0 * fit, x0 = 130.0, full = W - x0 - 66 - 110
                 var y = (lo + hi) / 2 + (Double(rows) * rowH + Double(rows - 1) * gap) / 2
                 for (i, row) in top5.enumerated() {
                     defer { y -= rowH + gap }
@@ -335,18 +337,26 @@ struct FilmSlides: @unchecked Sendable {
             // (Slower, 11-11: the hand takes 2.4 s round the day, then the moon or sun, then the words.)
             out.append(Slide(name: "when", length: 4.3, light: true, spoken: "\(kind.0) \(kind.1). Most of it between \(Self.hourName(start)) and \(Self.hourName(start + 3))", back: { ctx in ground(2, palette(2), in: ctx) }) { ctx, t in
                 let p = palette(2)
-                let c = CGPoint(x: W / 2, y: H * 0.6), R = 400.0
+                // The dial in the room between the mark and the words, its hour names inside the
+                // edges: on the Mac's shorter sheet it's smaller (it ran into the words, and "noon" lay
+                // over them). Drawn at 400 and scaled; the hour names keep their size.
+                let (lo, hi) = room, c = CGPoint(x: W / 2, y: (lo + hi) / 2)
+                let shown = Self.dialRadius(room: hi - lo, width: W), k = shown / 400
                 func angle(_ h: Double) -> Double { .pi / 2 - h / 24 * 2 * .pi }
-                sprite("dial", side: 2 * R, at: c, scale: 0.7 + 0.3 * filmBackOut(t / 0.7), alpha: filmSmooth(t / 0.3), in: ctx) { circle(.zero, R, p.tones[1], lift: 1.6, in: $0) }
                 let labelsIn = filmSmooth((t - 0.35) / 0.45)
                 if labelsIn > 0 {
                     ctx.saveGState(); ctx.setAlpha(labelsIn)
                     for (h, label) in [(0, "midnight"), (6, "6 am"), (12, "noon"), (18, "6 pm")] {
-                        let a = angle(Double(h)), q = CGPoint(x: c.x + cos(a) * (R + 58), y: c.y + sin(a) * (R + 58) - 14)
+                        let a = angle(Double(h)), q = CGPoint(x: c.x + cos(a) * (shown + 58), y: c.y + sin(a) * (shown + 58) - 14)
                         FilmKit.text(label, 36, 0.4, p.ink.cg(0.75), at: q, align: h == 6 ? 0.25 : h == 18 ? 0.75 : 0.5, in: ctx)
                     }
                     ctx.restoreGState()
                 }
+                ctx.saveGState()
+                ctx.translateBy(x: c.x, y: c.y); ctx.scaleBy(x: k, y: k); ctx.translateBy(x: -c.x, y: -c.y)
+                defer { ctx.restoreGState() }
+                let R = 400.0
+                sprite("dial", side: 2 * R, at: c, scale: 0.7 + 0.3 * filmBackOut(t / 0.7), alpha: filmSmooth(t / 0.3), in: ctx) { circle(.zero, R, p.tones[1], lift: 1.6, in: $0) }
                 // Each hour of the day as a petal, as long as how much you wrote in it, opening as the hand
                 // passes; the three you write most in, in your colour.
                 let sweep = 24 * min(1, max(0, (t - 0.6) / 2.4))
@@ -388,6 +398,7 @@ struct FilmSlides: @unchecked Sendable {
                         circle(.zero, 110, p.you, lift: 1, in: ctx)
                     }
                 }
+                ctx.restoreGState(); ctx.saveGState()
                 let y = bottom + 120
                 say(kind.0, 110, 0.75, p.ink.cg(), x: 66, y: y + 280, t: t, at: 3.2, in: ctx)
                 say(kind.1, 170, 0.8, p.ink.cg(), x: 66, y: y + 110, t: t, at: 3.4, in: ctx)
@@ -417,6 +428,11 @@ struct FilmSlides: @unchecked Sendable {
 
     /// The space over the words, under the Pinto Notes mark, where each slide draws its picture.
     var band: (Double, Double) { (bottom + 600, H - top - 110) }
+    /// All the room a picture has: from just over the words' first line to just under the mark.
+    var room: (Double, Double) { (bottom + 560, H - top - 80) }
+    /// The when dial's radius in a room this tall: its hour names above and below it inside the
+    /// room, and "6 am" and "6 pm" inside the screen's edges.
+    static func dialRadius(room: Double, width: Double) -> Double { min(374, room / 2 - 80, width / 2 - 166) }
 
     /// The names of what you brought in as a wall of slips: as large as lets them all in, no larger
     /// than reads well, centred in rows `width` wide and no more of them than fit `height`. Past the

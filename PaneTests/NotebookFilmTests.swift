@@ -1025,6 +1025,25 @@ import AVFoundation
         #expect(long.rows.count == 1 && fits(long))
     }
 
+    @Test func theWhenDialAndTheTopNotesFitTheMacSheetAndThePhone() {
+        // On the Mac's 440 x 760 sheet the dial ran into "You're a night owl", "noon" lay over the
+        // words and "6 am" was cut by the edge (11-11). Its picture fits the room between the mark
+        // and the words on both, as the view lays them out (NotebookFilmView.makeSlides).
+        for (w, h, topIn, botIn) in [(402.0, 874.0, 62.0, 34.0), (440.0, 760.0, 0.0, 0.0)] {
+            let u = 1080 / w
+            var s = FilmSlides(input: FilmDemo.notebook(days: 35, now: Self.now), script: FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal), mark: nil)
+            s.H = h * u; s.top = (topIn + 52) * u + 60; s.bottom = (botIn + 24) * u + 70 + 64 * u
+            let (lo, hi) = s.room, middle = (lo + hi) / 2
+            let R = FilmSlides.dialRadius(room: hi - lo, width: s.W)
+            let wordsTop = s.bottom + 120 + 280 + 110 * 0.75
+            #expect(middle - R - 58 - 14 - 12 > wordsTop, "noon clears the words on a \(w) x \(h) screen")
+            #expect(middle + R + 58 + 30 < s.H - s.top + 60, "midnight is under the mark")
+            #expect(s.W / 2 + R + 58 + 0.75 * FilmKit.width("6 am", 36, 0.4) < s.W - 20, "6 am is inside the edge")
+            #expect(R >= 280, "still a big dial")
+            #expect(lo > wordsTop, "the top notes clear the words too")
+        }
+    }
+
     @Test func theSlidesTakeTheirTimeAndTheTopNotesCountDown() throws {
         // Emil, 11-11: "this animates too fast, we need to make sure that things last", and the top
         // notes should "show up more one by one": a countdown from the fifth to yours, then its name.

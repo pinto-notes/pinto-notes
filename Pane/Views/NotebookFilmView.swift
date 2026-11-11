@@ -112,7 +112,7 @@ struct NotebookFilmView: View {
             await refreshEnd()
             // Captures: `-filmAutoWatch` presses Watch after a moment on the intro, `-filmAutoShare`
             // presses Share a moment after the film ends.
-            let args = ProcessInfo.processInfo.arguments
+            let args = store.arguments
             if store.forced, args.contains("-filmAutoCards") {
                 // Captures: goes through the slides, one every few seconds, and on into the film.
                 while slideList.isEmpty { try? await Task.sleep(for: .milliseconds(100)) }
@@ -194,7 +194,7 @@ struct NotebookFilmView: View {
         backdrop = false
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.3)) { phase = .share }
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.45).delay(0.3)) { controlsShown = true }
-        if store.forced, ProcessInfo.processInfo.arguments.contains("-filmAutoShare") {
+        if store.forced, store.arguments.contains("-filmAutoShare") {
             Task { try? await Task.sleep(for: .seconds(2.5)); pressShare() }
         }
     }
@@ -907,7 +907,8 @@ final class FilmPlayback {
     /// it plays over whatever else is playing rather than stopping it. Never in test runs.
     @ObservationIgnored private var player: AVAudioPlayer?
     @ObservationIgnored private var soundEnd = 0.0
-    private nonisolated static let muted = ProcessInfo.processInfo.arguments.contains("-uitest") && !ProcessInfo.processInfo.arguments.contains("-filmSound")
+    private nonisolated static let muted = (ProcessInfo.processInfo.arguments.contains("-uitest") || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil)
+        && !ProcessInfo.processInfo.arguments.contains("-filmSound")
 
     private func startSound(_ wav: Data, at time: Double) {
         #if os(iOS)

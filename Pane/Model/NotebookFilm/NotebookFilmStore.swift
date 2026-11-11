@@ -72,6 +72,8 @@ final class NotebookFilmStore {
     @ObservationIgnored let defaults: UserDefaults
     @ObservationIgnored let launched: Date
     @ObservationIgnored let forced: Bool
+    /// The launch's arguments (captures), or a test's.
+    @ObservationIgnored let arguments: [String]
     @ObservationIgnored let folder: URL
 
     init(defaults: UserDefaults = .standard, launched: Date = .now, arguments: [String] = ProcessInfo.processInfo.arguments,
@@ -79,6 +81,7 @@ final class NotebookFilmStore {
         self.defaults = defaults
         self.launched = launched
         self.folder = folder
+        self.arguments = arguments
         forced = arguments.contains("-forceNotebookFilm")
     }
 
@@ -243,7 +246,7 @@ final class NotebookFilmStore {
         guard forced, !visible, !offered else { return }
         rewatching = false
         // Captures: `-filmLook paper`.
-        let args = ProcessInfo.processInfo.arguments
+        let args = arguments
         if let i = args.firstIndex(of: "-filmLook"), i + 1 < args.count, let l = FilmLook(rawValue: args[i + 1]) { look = l; lookFixed = true }
         if args.contains("-filmNoFolderNames") { folderNames = false }
         // Captures: `-filmMe` (came with notes, makes and removes some, a daily tracker), `-filmWeek`
