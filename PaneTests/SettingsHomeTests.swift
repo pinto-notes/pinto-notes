@@ -262,10 +262,15 @@ import Carbon.HIToolbox
     @Test func helpsLinksAreRealAndCurrent() throws {
         let site: [(URL, String)] = [(HelpCopy.supportPage, "help"), (WhatsNew.changelogURL, "changelog"), (Legal.terms, "terms"),
                                      (Legal.privacy, "privacy"), (PrivacyCopy.learnMoreURL, "privacy-security")]
+        let web = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "web")
+        // A page folded into another stays a link that works: the site sends it on (/changelog
+        // became the blog's announcements on 7 November 2026; What's New still links there).
+        let config = try String(contentsOf: web.appending(path: "next.config.ts"), encoding: .utf8)
         for (url, page) in site {
             #expect(url.absoluteString == "https://pintonotes.com/\(page)")
-            #expect(FileManager.default.fileExists(atPath: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-                .appending(path: "web/app/\(page)/page.tsx").path), "the site has /\(page)")
+            let served = FileManager.default.fileExists(atPath: web.appending(path: "app/\(page)/page.tsx").path)
+                || config.contains("{ source: \"/\(page)\", destination: ")
+            #expect(served, "the site has /\(page), or sends it on")
         }
         for link in AboutSection.links {
             #expect(link.url.absoluteString.hasPrefix("https://github.com/pinto-notes/pinto-notes"), "\(link.title)")
