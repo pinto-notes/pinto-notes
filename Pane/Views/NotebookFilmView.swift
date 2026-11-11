@@ -117,7 +117,9 @@ struct NotebookFilmView: View {
                 // Captures: goes through the slides, one every few seconds, and on into the film.
                 while slideList.isEmpty { try? await Task.sleep(for: .milliseconds(100)) }
                 while phase == .intro {
-                    try? await Task.sleep(for: .seconds(3.2))
+                    while !slideDone { try? await Task.sleep(for: .milliseconds(100)) }
+                    // (Held a moment once it has played, longer on play, so a capture sees it.)
+                    try? await Task.sleep(for: .seconds(atPlay ? 3.5 : 1.5))
                     nextSlide()
                 }
             } else if store.forced, args.contains("-filmAutoWatch") {
@@ -236,6 +238,8 @@ struct NotebookFilmView: View {
     @State private var slideFrame: CGImage?
     /// Which slide `slideFrame` is of: the play button waits for its own slide to be drawn.
     @State private var slideShown = -1
+    /// The slide on screen has played to its end: only then does Next show, and a tap goes on.
+    @State private var slideDone = false
     /// The sky's two paper clouds, drawn once, floating under the slides on their own.
     @State private var clouds: [CGImage] = []
     @State private var slideTask: Task<Void, Never>?
@@ -298,6 +302,7 @@ struct NotebookFilmView: View {
     private func show(_ k: Int, screen: FilmPlayback.Screen) {
         guard let slides, slideList.indices.contains(k) else { return }
         slide = k
+        slideDone = false
         slideTask?.cancel()
         let list = slideList, length = list[k].length, still = reduceMotion
         let full = screen.pixels, moving = full
@@ -318,12 +323,20 @@ struct NotebookFilmView: View {
                 }
             }
             guard !Task.isCancelled else { return }
-            let image = await Self.draw(slides, k, at: nil, pixels: full, list)
-            #if QA
-            Self.dump(image, k, 99)
-            #endif
-            if !Task.isCancelled { slideFrame = image; slideShown = k }
+            await settle(k)
         }
+    }
+
+    /// Slide `k` as it ends, and Next.
+    private func settle(_ k: Int) async {
+        guard let slides, let screen else { return }
+        let image = await Self.draw(slides, k, at: nil, pixels: screen.pixels, slideList)
+        #if QA
+        Self.dump(image, k, 99)
+        #endif
+        guard !Task.isCancelled, slide == k else { return }
+        slideFrame = image; slideShown = k
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.35)) { slideDone = true }
     }
 
     #if QA
@@ -342,7 +355,16 @@ struct NotebookFilmView: View {
         await Task.detached(priority: .userInitiated) { slides.image(k, at: t, pixels: pixels, slides: list) }.value
     }
 
+    /// A tap while a slide is still coming in finishes it (so nothing is skipped by a quick tap,
+    /// Emil, 11-11: "if we are too fast, people will not look through it"); once it has, goes on.
     private func nextSlide() {
+        guard !slideDone, slideList.indices.contains(slide) else { return goOn() }
+        slideTask?.cancel()
+        let k = slide
+        slideTask = Task { await settle(k) }
+    }
+
+    private func goOn() {
         guard let screen else { return }
         if slide + 1 < slideList.count { show(slide + 1, screen: screen) } else { slideTask?.cancel(); watch() }
     }
@@ -470,6 +492,9 @@ struct NotebookFilmView: View {
                     .accessibilityLabel("Next")
                     .accessibilityIdentifier("notebookFilm.next")
                     .padding(.bottom, 12)
+                    // (Once the slide has played: see `nextSlide`.)
+                    .opacity(slideDone ? 1 : 0)
+                    .allowsHitTesting(slideDone)
                 }
             }
             .opacity(phase == .intro ? 1 : 0)
@@ -479,7 +504,7 @@ struct NotebookFilmView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("notebookFilm.slides")
         // (VoiceOver: the slide reads itself; these move between them.)
-        .accessibilityAction(named: "Next") { nextSlide() }
+        .accessibilityAction(named: "Next") { goOn() }
         .accessibilityAction(named: "Back") { previousSlide() }
     }
 

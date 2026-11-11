@@ -954,6 +954,27 @@ import AVFoundation
         #expect(long.rows.count == 1 && fits(long))
     }
 
+    @Test func theSlidesTakeTheirTimeAndTheTopNotesCountDown() throws {
+        // Emil, 11-11: "this animates too fast, we need to make sure that things last", and the top
+        // notes should "show up more one by one": a countdown from the fifth to yours, then its name.
+        let mine = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
+        let slides = FilmSlides(input: mine, script: FilmScript(mine, calendar: Self.cal, bang: true), mark: nil)
+        let all = slides.slides()
+        let length = Dictionary(uniqueKeysWithValues: all.map { ($0.name, $0.length) })
+        #expect(length["start"]! >= 3 && length["top-notes"]! >= 4 && length["when"]! >= 4, "\(length)")
+        // Your top note is in gold: none of it until the others have come in, then all of it.
+        let k = try #require(all.firstIndex { $0.name == "top-notes" })
+        func gold(_ t: Double) throws -> Int {
+            let image = try #require(slides.image(k, at: t, pixels: 270, slides: all))
+            var px = [UInt8](repeating: 0, count: image.width * image.height * 4)
+            let ctx = CGContext(data: &px, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: image.width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+            return stride(from: 0, to: px.count, by: 4).filter { px[$0] > 230 && px[$0 + 1] > 170 && px[$0 + 1] < 215 && px[$0 + 2] < 120 }.count
+        }
+        #expect(try gold(1.5) == 0, "the fifth to the second come first")
+        #expect(try gold(length["top-notes"]! + 1) > 200)
+    }
+
     @Test func aSlideFrameWithItsKeptPaperIsTheSameAsOneDrawnWhole() throws {
         // Every slide frame is full size, quick because the still paper is drawn once and kept (11-11);
         // a frame made that way must be the frame itself.

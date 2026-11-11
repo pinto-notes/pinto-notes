@@ -31,7 +31,7 @@ for p in $profiles; do
   xcrun simctl launch "$SIM" $APP -uitest -demo -forceNotebookFilm -filmCard -filmAutoOpen -showFolders -filmAutoCards $p ${SHARE:+-filmAutoShare} ${DUMP:+-filmDumpSlides} >/dev/null
   sleep 2.5; xcrun simctl io "$SIM" screenshot "$OUT/$name-card.png" >/dev/null 2>&1
   sleep 3.5
-  for k in 1 2 3 4; do xcrun simctl io "$SIM" screenshot "$OUT/$name-slide-$k.png" >/dev/null 2>&1; sleep 3.2; done
+  for k in 1 2 3 4; do xcrun simctl io "$SIM" screenshot "$OUT/$name-slide-$k.png" >/dev/null 2>&1; sleep ${SLIDE_WAIT:-5.4}; done
   # (The film opens on an empty sky; FILM_WAIT is how long until late in it, SHARE_WAIT until the share screen.)
   sleep ${FILM_WAIT:-14}; xcrun simctl io "$SIM" screenshot "$OUT/$name-film-late.png" >/dev/null 2>&1
   sleep ${SHARE_WAIT:-9}; xcrun simctl io "$SIM" screenshot "$OUT/$name-share.png" >/dev/null 2>&1

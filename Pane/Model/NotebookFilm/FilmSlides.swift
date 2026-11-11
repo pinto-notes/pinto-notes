@@ -289,7 +289,11 @@ struct FilmSlides: @unchecked Sendable {
         if let first = top5.first, first.note.edits.count >= 6 {
             let rows = top5.count
             let spoken = "Your top notes: " + top5.enumerated().map { "\($0.offset + 1), \($0.element.name), \($0.element.note.edits.count) times" }.joined(separator: "; ")
-            out.append(Slide(name: "top-notes", length: 1.0 + 0.12 * Double(max(0, rows - 2)) + 0.45, light: true, spoken: spoken,
+            // A countdown: the fifth first, one at a time, up to yours in gold, then its name.
+            // (Emil, 11-11: it went by "too fast", "we need to make sure things last", "each one
+            // to show up more one by one".)
+            let step = 0.55, landed = 0.4 + step * Double(rows - 1) + 0.7
+            out.append(Slide(name: "top-notes", length: landed + 1.0, light: true, spoken: spoken,
                              back: { ctx in ground(1, palette(1), in: ctx) }) { ctx, t in
                 let p = palette(1)
                 // The five as strips of paper, each as long as how often you came back to it, the first
@@ -299,14 +303,14 @@ struct FilmSlides: @unchecked Sendable {
                 var y = (lo + hi) / 2 + (Double(rows) * rowH + Double(rows - 1) * gap) / 2
                 for (i, row) in top5.enumerated() {
                     defer { y -= rowH + gap }
-                    let at = 0.15 + 0.12 * Double(i), e = filmSmooth((t - at) / 0.4)
+                    let at = 0.4 + step * Double(rows - 1 - i), e = filmSmooth((t - at) / 0.4)
                     guard e > 0 else { continue }
                     let n = row.note.edits.count
                     ctx.saveGState(); ctx.setAlpha(e); ctx.translateBy(x: 0, y: -(1 - e) * 30)
                     FilmKit.text("\(i + 1)", 50, 0.8, p.ink.cg(0.45), at: CGPoint(x: 66, y: y - 46), in: ctx)
                     let fit = min(50, 50 * (W - x0 - 66) / max(1, FilmKit.width(row.name, 50, 0.6)))
                     FilmKit.text(row.name, fit, 0.6, p.ink.cg(), at: CGPoint(x: x0, y: y - 46), in: ctx)
-                    let grow = filmSmooth((t - at - 0.08) / 0.55)
+                    let grow = filmSmooth((t - at - 0.1) / 0.7)
                     let len = max(44, full * Double(n) / most) * grow
                     let bar = CGRect(x: x0, y: y - rowH, width: len, height: 56)
                     ctx.saveGState()
@@ -319,8 +323,8 @@ struct FilmSlides: @unchecked Sendable {
                 }
                 let y0 = bottom + 120
                 say("Your top note", 110, 0.75, p.ink.cg(), x: 66, y: y0 + 280, t: t, at: 0, in: ctx)
-                say(first.name, 170, 0.8, p.ink.cg(), x: 66, y: y0 + 110, t: t, at: 0.1, in: ctx)
-                say("\(first.note.edits.count) times \(months == 1 ? "this month" : "in \(months) months"), more than any other", 44, 0.3, p.ink.cg(0.85), y: y0, t: t, at: 0.75, in: ctx)
+                say(first.name, 170, 0.8, p.ink.cg(), x: 66, y: y0 + 110, t: t, at: landed, in: ctx)
+                say("\(first.note.edits.count) times \(months == 1 ? "this month" : "in \(months) months"), more than any other", 44, 0.3, p.ink.cg(0.85), y: y0, t: t, at: landed + 0.5, in: ctx)
             })
         }
         // When you write: the day as a paper dial, swept hour by hour, and what that makes you.
@@ -328,12 +332,13 @@ struct FilmSlides: @unchecked Sendable {
         if hours.reduce(0, +) >= 20 {
             let start = bestHours, kind = Self.kind(startingAt: start)
             let dark = !(5..<17).contains((start + 1) % 24)
-            out.append(Slide(name: "when", length: 2.25, light: true, spoken: "\(kind.0) \(kind.1). Most of it between \(Self.hourName(start)) and \(Self.hourName(start + 3))", back: { ctx in ground(2, palette(2), in: ctx) }) { ctx, t in
+            // (Slower, 11-11: the hand takes 2.4 s round the day, then the moon or sun, then the words.)
+            out.append(Slide(name: "when", length: 4.3, light: true, spoken: "\(kind.0) \(kind.1). Most of it between \(Self.hourName(start)) and \(Self.hourName(start + 3))", back: { ctx in ground(2, palette(2), in: ctx) }) { ctx, t in
                 let p = palette(2)
                 let c = CGPoint(x: W / 2, y: H * 0.6), R = 400.0
                 func angle(_ h: Double) -> Double { .pi / 2 - h / 24 * 2 * .pi }
-                sprite("dial", side: 2 * R, at: c, scale: 0.7 + 0.3 * filmBackOut(t / 0.5), alpha: filmSmooth(t / 0.2), in: ctx) { circle(.zero, R, p.tones[1], lift: 1.6, in: $0) }
-                let labelsIn = filmSmooth((t - 0.2) / 0.3)
+                sprite("dial", side: 2 * R, at: c, scale: 0.7 + 0.3 * filmBackOut(t / 0.7), alpha: filmSmooth(t / 0.3), in: ctx) { circle(.zero, R, p.tones[1], lift: 1.6, in: $0) }
+                let labelsIn = filmSmooth((t - 0.35) / 0.45)
                 if labelsIn > 0 {
                     ctx.saveGState(); ctx.setAlpha(labelsIn)
                     for (h, label) in [(0, "midnight"), (6, "6 am"), (12, "noon"), (18, "6 pm")] {
@@ -344,7 +349,7 @@ struct FilmSlides: @unchecked Sendable {
                 }
                 // Each hour of the day as a petal, as long as how much you wrote in it, opening as the hand
                 // passes; the three you write most in, in your colour.
-                let sweep = 24 * min(1, max(0, (t - 0.3) / 1.1))
+                let sweep = 24 * min(1, max(0, (t - 0.6) / 2.4))
                 let most = Double(max(1, hours.max() ?? 1)), r0 = 212.0, r1 = R - 36
                 ctx.saveGState()
                 ctx.setShadow(offset: CGSize(width: 0, height: -4), blur: 10, color: CGColor(gray: 0, alpha: 0.3))
@@ -368,7 +373,7 @@ struct FilmSlides: @unchecked Sendable {
                     ctx.move(to: c); ctx.addLine(to: CGPoint(x: c.x + cos(a) * (R - 30), y: c.y + sin(a) * (R - 30))); ctx.strokePath()
                 }
                 // The sun or the moon in the middle.
-                sprite(dark ? "moon" : "sun", side: 360, at: c, scale: filmBackOut((t - 1.45) / 0.45), in: ctx) { ctx in
+                sprite(dark ? "moon" : "sun", side: 360, at: c, scale: filmBackOut((t - 3.0) / 0.55), in: ctx) { ctx in
                     if dark {
                         circle(.zero, 110, C(0xFFF4E6), lift: 1, in: ctx)
                         ctx.setFillColor(p.tones[1].cg()); ctx.fillEllipse(in: CGRect(x: -58, y: -80, width: 220, height: 220))
@@ -384,9 +389,9 @@ struct FilmSlides: @unchecked Sendable {
                     }
                 }
                 let y = bottom + 120
-                say(kind.0, 110, 0.75, p.ink.cg(), x: 66, y: y + 280, t: t, at: 1.45, in: ctx)
-                say(kind.1, 170, 0.8, p.ink.cg(), x: 66, y: y + 110, t: t, at: 1.58, in: ctx)
-                say("Most of it between \(Self.hourName(start)) and \(Self.hourName(start + 3))", 40, 0.25, p.ink.cg(0.8), y: y, t: t, at: 1.75, in: ctx)
+                say(kind.0, 110, 0.75, p.ink.cg(), x: 66, y: y + 280, t: t, at: 3.2, in: ctx)
+                say(kind.1, 170, 0.8, p.ink.cg(), x: 66, y: y + 110, t: t, at: 3.4, in: ctx)
+                say("Most of it between \(Self.hourName(start)) and \(Self.hourName(start + 3))", 40, 0.25, p.ink.cg(0.8), y: y, t: t, at: 3.8, in: ctx)
             })
         }
         // Last, the film's own sky, waiting for you to press play.
@@ -472,7 +477,7 @@ struct FilmSlides: @unchecked Sendable {
         case 2, 4: spoken = "\(hi1). Your \(period). \(began)"
         default: spoken = "Welcome\(you.map { ", \($0)" } ?? ""). Your \(period) with Pinto Notes. \(began)"
         }
-        return Slide(name: "start", length: 1.6, light: true, spoken: spoken, back: { ctx in ground(0, palette(0), in: ctx) }) { ctx, t in
+        return Slide(name: "start", length: look == 4 ? 3.4 : 1.6, light: true, spoken: spoken, back: { ctx in ground(0, palette(0), in: ctx) }) { ctx, t in
             let p = palette(0), ink = p.ink.cg(), y0 = bottom + 120, mid = (lo + hi) / 2
             switch look {
             case 1:
@@ -488,7 +493,7 @@ struct FilmSlides: @unchecked Sendable {
                 let n = max(1, min(40, count)), c = CGPoint(x: W / 2, y: mid - 20)
                 let gold = p.you, cream = p.ink
                 for i in 0..<n {
-                    let at = 0.05 + 0.9 * Double(i) / Double(max(1, n)), grow = filmBackOut((t - at) / 0.35)
+                    let at = 0.7 + 1.8 * Double(i) / Double(max(1, n)), grow = filmBackOut((t - at) / 0.4)
                     guard grow > 0 else { continue }
                     let a = Double(i) * 2.39996 + filmHash(i, seed + 41) * 0.5
                     let d = 340 * (Double(i) / Double(n)).squareRoot() + filmHash(i, seed + 42) * 26
@@ -496,9 +501,10 @@ struct FilmSlides: @unchecked Sendable {
                     let r = (i == 0 ? 62 : 20 + 24 * filmHash(i, seed + 43)) * grow
                     paperStar(q, r, turn: filmHash(i, seed + 44) * 0.6 - 0.3, i == 0 || filmHash(i, seed + 45) < 0.7 ? gold : cream, in: ctx)
                 }
-                say(hi1, 110, 0.75, ink, x: 66, y: y0 + 280, t: t, at: 0.35, in: ctx)
-                say("Your " + period, 170, 0.8, ink, x: 66, y: y0 + 110, t: t, at: 0.45, in: ctx)
-                say(began, 44, 0.3, p.ink.cg(0.85), y: y0, t: t, at: 0.9, in: ctx)
+                // (Your name and your month first, then the stars, then what they are.)
+                say(hi1, 110, 0.75, ink, x: 66, y: y0 + 280, t: t, at: 0.1, in: ctx)
+                say("Your " + period, 170, 0.8, ink, x: 66, y: y0 + 110, t: t, at: 0.35, in: ctx)
+                say(began, 44, 0.3, p.ink.cg(0.85), y: y0, t: t, at: 2.7, in: ctx)
             case 2:
                 // Your notebook: one sheet of paper with your name on it.
                 let c = CGPoint(x: W / 2, y: mid - 40), e = filmBackOut((t - 0.05) / 0.5)
