@@ -17,6 +17,8 @@ struct FilmNote: Sendable, Hashable, Codable {
     var removed: Date? = nil
     /// Brought in from somewhere else (it's older than your first day here): these arrive together.
     var imported: Bool? = nil
+    /// The folder it's in inside its top folder, if it's in one (deeper ones count as that one).
+    var subfolder: String? = nil
 }
 
 struct FilmEdit: Sendable, Hashable, Codable {
@@ -204,7 +206,8 @@ struct FilmScript: Sendable {
     /// What you brought in arriving: a small burst for each folder, where that folder will be, the
     /// largest first. (Emil, 11-11: one burst from the middle flew everything across the sky into
     /// clouds that were already there; "maybe there should be multiple small big bangs".)
-    struct Bang: Sendable { var folder: Int; var at: Double; var count: Int }
+    /// (A subfolder has a burst of its own, `sub` an index into `subfolders`; -1 is the folder's own notes.)
+    struct Bang: Sendable { var folder: Int; var sub: Int = -1; var at: Double; var count: Int }
     let bangs: [Bang]
     /// When the first of them comes (with `bang`, and only if you brought something).
     var bangAt: Double? { bangs.first?.at }
@@ -233,7 +236,14 @@ struct FilmScript: Sendable {
         /// When it's removed, if it is.
         var gone: Double? = nil
         var imported = false
+        /// Its subfolder (an index into `subfolders`), -1 when it's right in its folder.
+        var sub = -1
     }
+    /// The folders inside folders: each with the folder it's in. One with fewer than
+    /// `subfolderLeast` notes is shown as part of its folder (a name for two stars was clutter).
+    struct Subfolder: Sendable { var folder: Int; var name: String }
+    static let subfolderLeast = 4
+    let subfolders: [Subfolder]
     struct Link: Sendable { var a: Int; var b: Int; var birth: Double }
 
     /// Something that happened in the month, which the film stops to tell: when, and what to look at.
@@ -272,15 +282,33 @@ struct FilmScript: Sendable {
             + (max(Self.fullGrowth, longest) - Self.fullGrowth) * over * over * (3 - 2 * over)
         let brings = input.notes.contains { $0.imported == true }
         // (With `bang`, what was brought in comes first, folder by folder, the largest first.)
-        let broughtBy = Dictionary(grouping: input.notes.filter { $0.imported == true }, by: \.folder).mapValues(\.count)
-        let bangOrder = bang ? broughtBy.keys.sorted { (broughtBy[$0]!, $1) > (broughtBy[$1]!, $0) } : []
-        let gap = bangOrder.count > 1 ? min(0.4, Self.cascade / Double(bangOrder.count - 1)) : 0
-        let offset = bang ? Self.lead + (brings ? gap * Double(max(0, bangOrder.count - 1)) + Self.bangHold : 0) : 0
+        let insideCount = Dictionary(grouping: input.notes.filter { !$0.folder.isEmpty && !($0.subfolder ?? "").isEmpty }) { $0.folder + "\u{1F}" + $0.subfolder! }.mapValues(\.count)
+        /// Its subfolder as the film shows it: nil when it's in none, or in one too small to show apart.
+        func inside(_ n: FilmNote) -> String? {
+            guard !n.folder.isEmpty, let name = n.subfolder, !name.isEmpty, insideCount[n.folder + "\u{1F}" + name, default: 0] >= Self.subfolderLeast else { return nil }
+            return name
+        }
+        // (A subfolder bursts on its own: Clients in Work is a group of its own, the rest of Work another.)
+        func group(_ n: FilmNote) -> String { n.folder + "\u{1F}" + (inside(n) ?? "") }
+        let broughtBy = Dictionary(grouping: input.notes.filter { $0.imported == true }, by: group).mapValues(\.count)
+        // Folder by folder, the one bringing most first, each followed closely by its subfolders
+        // (the largest first): a burst, then smaller ones popping beside it.
+        func top(_ key: String) -> String { String(key[..<key.firstIndex(of: "\u{1F}")!]) }
+        func inner(_ key: String) -> String { String(key[key.index(after: key.firstIndex(of: "\u{1F}")!)...]) }
+        let byTop = Dictionary(grouping: broughtBy.keys, by: top).mapValues { $0.map { broughtBy[$0]! }.reduce(0, +) }
+        let bangOrder = bang ? broughtBy.keys.sorted {
+            (byTop[top($0)]!, top($1), inner($0).isEmpty ? 1 : 0, broughtBy[$0]!, $1) > (byTop[top($1)]!, top($0), inner($1).isEmpty ? 1 : 0, broughtBy[$1]!, $0)
+        } : []
+        // (A step to the next folder, a shorter one to a subfolder; all of it within `cascade`.)
+        var steps = [0.0]
+        for (a, b) in zip(bangOrder, bangOrder.dropFirst()) { steps.append(steps.last! + (top(a) == top(b) ? 0.4 : 1)) }
+        let unit = steps.last! > 0 ? min(0.4, Self.cascade / steps.last!) : 0
+        let offset = bang ? Self.lead + (brings ? unit * steps.last! + Self.bangHold : 0) : 0
         opening = offset
         let growth = span + offset
         self.growth = growth
         let rank = Dictionary(uniqueKeysWithValues: bangOrder.enumerated().map { ($1, $0) })
-        func first(_ n: FilmNote) -> Int { n.imported == true ? rank[n.folder] ?? bangOrder.count : bangOrder.count }
+        func first(_ n: FilmNote) -> Int { n.imported == true ? rank[group(n)] ?? bangOrder.count : bangOrder.count }
         let sorted = input.notes.sorted { (first($0), $0.created, $0.id.uuidString) < (first($1), $1.created, $1.id.uuidString) }
         let firstDay = calendar.startOfDay(for: sorted.first?.created ?? input.now)
         start = firstDay
@@ -329,15 +357,23 @@ struct FilmScript: Sendable {
             let at = min(span, max(0, starts[k] + (starts[k + 1] - starts[k]) * f))
             return (at < 1e-9 ? 0 : at) + offset
         }
+        var subs: [Subfolder] = []
+        var subIndex: [String: Int] = [:]
         for n in sorted {
             let f = folderIndex[n.folder] ?? { folderNames.append(n.folder); folderIndex[n.folder] = folderNames.count - 1; return folderNames.count - 1 }()
+            var sub = -1
+            if let name = inside(n) {
+                let key = "\(f)/\(name)"
+                sub = subIndex[key] ?? { subs.append(Subfolder(folder: f, name: name)); subIndex[key] = subs.count - 1; return subs.count - 1 }()
+            }
             index[n.id] = nodes.count
             let edits = n.edits.sorted { $0.at < $1.at }
             let firstEdit = edits.first
             let bornByAI = firstEdit.map { $0.ai != nil && abs($0.at.timeIntervalSince(n.created)) < 600 } ?? false
             nodes.append(Node(id: n.id, folder: f, birth: time(n.created), edits: edits.map { time($0.at) }, aiEdits: edits.map { $0.ai != nil }, bornByAI: bornByAI,
-                              gone: n.removed.map { time($0) }, imported: n.imported == true))
+                              gone: n.removed.map { time($0) }, imported: n.imported == true, sub: sub))
         }
+        subfolders = subs
         // The first notes come one at a time, even when they were made within minutes of each
         // other: the film starts with one, then the next. (Later ones keep their order.)
         // After those, a day's notes still arrive one after another, never all in one frame.
@@ -349,14 +385,15 @@ struct FilmScript: Sendable {
         // in that order.)
         var bangs: [Bang] = []
         for (k, name) in bangOrder.enumerated() {
-            guard let f = folderIndex[name] else { continue }
-            let at = Self.lead + gap * Double(k), mine = nodes.indices.filter { nodes[$0].imported && nodes[$0].folder == f }
-            let spread = bangOrder.count > 1 ? min(0.25, gap * 0.9) : 0.3
+            guard let f = folderIndex[top(name)] else { continue }
+            let sub = inner(name).isEmpty ? -1 : subIndex["\(f)/\(inner(name))"] ?? -1
+            let at = Self.lead + unit * steps[k], mine = nodes.indices.filter { nodes[$0].imported && nodes[$0].folder == f && nodes[$0].sub == sub }
+            let spread = bangOrder.count > 1 ? min(0.25, unit * 0.9) : 0.3
             for (j, i) in mine.enumerated() {
                 nodes[i].birth = at + spread * Double(j) / Double(mine.count)
                 if !nodes[i].edits.isEmpty { nodes[i].edits[0] = nodes[i].birth }
             }
-            bangs.append(Bang(folder: f, at: at, count: mine.count))
+            bangs.append(Bang(folder: f, sub: sub, at: at, count: mine.count))
         }
         self.bangs = bangs
         for k in nodes.indices.dropFirst() {

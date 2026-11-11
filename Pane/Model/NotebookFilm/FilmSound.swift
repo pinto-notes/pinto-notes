@@ -108,7 +108,7 @@ struct FilmSound {
                 air += (0.04 + 0.3 * exp(-t / 0.08)) * (white - air)
                 return air * exp(-t / 0.26)
             }
-            let mine = nodes.indices.filter { nodes[$0].imported && nodes[$0].folder == b.folder }
+            let mine = nodes.indices.filter { nodes[$0].imported && nodes[$0].folder == b.folder && nodes[$0].sub == b.sub }
             let rings = mine.count <= 8 ? mine : (0..<8).map { mine[$0 * mine.count / 8] }
             for (r, i) in rings.enumerated() {
                 let t0 = at + 0.04 + 0.4 * filmHash(i, 81) * filmHash(i, 82)

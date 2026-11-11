@@ -153,8 +153,9 @@ enum FilmDemo {
     /// `dailyNote` adds someone's note for each day, written that day and seldom again.
     /// `imported` notes are brought in on the first day (most are seldom opened again), `removed`
     /// of the notes made along the way are thrown out some days later, and `habit` is one note
-    /// written in every day (a tracker).
-    static func real(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), notesPerWeek: Double = 1, dailyNote: Bool = false, ai: String? = "ChatGPT", imported: Int = 0, removed: Int = 0, habit: Bool = false, linked: Double = 0, evening: Bool = false) -> FilmInput {
+    /// written in every day (a tracker). With `subfolders`, some of Work, Reading and Home are in
+    /// folders of their own inside them.
+    static func real(days: Int = 35, seed: UInt64 = 7, now: Date = Date(timeIntervalSince1970: 1_794_000_000), notesPerWeek: Double = 1, dailyNote: Bool = false, ai: String? = "ChatGPT", imported: Int = 0, removed: Int = 0, habit: Bool = false, linked: Double = 0, evening: Bool = false, subfolders: Bool = true) -> FilmInput {
         var rng = seed &* 0x2545_F491_4F6C_DD1D | 1
         func rand() -> Double {
             rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
@@ -237,6 +238,18 @@ enum FilmDemo {
             if at < now { notes[i].removed = at; notes[i].edits.removeAll { $0.at > at } }
         }
         for i in notes.indices { notes[i].edits.removeAll { $0.at > now }; notes[i].edits.sort { $0.at < $1.at } }
-        return FilmInput(notes: notes.map { FilmNote(id: $0.id, folder: $0.folder, created: $0.created, edits: $0.edits, links: $0.links, removed: $0.removed, imported: $0.imported ? true : nil) }, now: now)
+        // Folders inside folders, as people keep them: some of Work is about clients and meetings,
+        // Reading is books and articles; Ideas is one heap. (Picked by place, so nothing else moves.)
+        let inside: [String: [(String, Double)]] = ["Work": [("Clients", 0.35), ("Meetings", 0.3)], "Reading": [("Books", 0.5), ("Articles", 0.3)], "Home": [("Recipes", 0.4)]]
+        func sub(_ i: Int) -> String? {
+            guard subfolders, let list = inside[notes[i].folder] else { return nil }
+            var r = filmHash(i, 91)
+            for (name, share) in list { r -= share; if r < 0 { return name } }
+            return nil
+        }
+        return FilmInput(notes: notes.indices.map { i in
+            let n = notes[i]
+            return FilmNote(id: n.id, folder: n.folder, created: n.created, edits: n.edits, links: n.links, removed: n.removed, imported: n.imported ? true : nil, subfolder: sub(i))
+        }, now: now)
     }
 }

@@ -34,7 +34,7 @@ enum FilmSource {
     }
 
     /// The notes here as the film sees them: live ones (not deleted, in the trash or locked), with
-    /// their top folder and the notes they link to (wiki links resolved as the app resolves them,
+    /// their top folder and the one inside it, and the notes they link to (wiki links resolved as the app resolves them,
     /// and links by id).
     nonisolated static func notes(_ context: ModelContext, edits: [UUID: [FilmEdit]], now: Date = .now) -> FilmInput {
         let read = WikiDirectory.read(using: context)
@@ -51,7 +51,8 @@ enum FilmSource {
             }
             var e = edits[n.id] ?? []
             if e.isEmpty { e = [FilmEdit(at: n.createdAt, ai: nil)] }
-            out.append(FilmNote(id: n.id, folder: from.first ?? "", created: min(n.createdAt, e.first?.at ?? n.createdAt), edits: e.filter { $0.at <= now }, links: links))
+            out.append(FilmNote(id: n.id, folder: from.first ?? "", created: min(n.createdAt, e.first?.at ?? n.createdAt), edits: e.filter { $0.at <= now }, links: links,
+                                subfolder: from.count > 1 ? from[1] : nil))
         }
         return FilmInput(notes: out, now: now)
     }

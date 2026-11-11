@@ -185,6 +185,8 @@ import AVFoundation
         #expect(input.notes.count == 2, "a locked note isn't in it")
         let plan = try #require(input.notes.first { $0.id == a.id })
         #expect(plan.folder == "Work", "notes gather by their top folder")
+        #expect(plan.subfolder == "Acme", "and the folder inside it comes along")
+        #expect(input.notes.first { $0.id == b.id }?.subfolder == nil)
         #expect(plan.links == [b.id], "a link to no note is left out")
         #expect(plan.edits.count == 1, "a note with no history yet counts as written once")
     }
@@ -876,10 +878,15 @@ import AVFoundation
         let bang = FilmScript(mine, calendar: Self.cal, bang: true)
         let lead = FilmScript.lead, hold = FilmScript.bangHold
         // Emil, 11-11: "maybe there should be multiple small big bangs". One for each folder of
-        // what was brought in, the largest first, all within the cascade.
-        let folders = Set(mine.notes.filter { $0.imported == true }.map(\.folder))
-        #expect(bang.bangs.count == folders.count && bang.bangs.count > 1)
-        #expect(bang.bangAt == lead && bang.bangs.map(\.count) == bang.bangs.map(\.count).sorted(by: >))
+        // what was brought in (and each subfolder big enough to show), the folder bringing most
+        // first, all within the cascade.
+        let groups = Set(bang.nodes.filter(\.imported).map { "\($0.folder)/\($0.sub)" })
+        #expect(bang.bangs.count == groups.count && bang.bangs.count > 1)
+        var total: [Int: Int] = [:]
+        for b in bang.bangs { total[b.folder, default: 0] += b.count }
+        var order: [Int] = []
+        for b in bang.bangs where !order.contains(b.folder) { order.append(b.folder) }
+        #expect(bang.bangAt == lead && order.map { total[$0]! } == order.map { total[$0]! }.sorted(by: >))
         #expect(zip(bang.bangs, bang.bangs.dropFirst()).allSatisfy { $1.at > $0.at + 0.1 }, "one after another, never together")
         let last = bang.bangs.last!.at
         #expect(last <= lead + FilmScript.cascade + 1e-9 && abs(bang.opening - (last + hold)) < 1e-9)
@@ -888,7 +895,7 @@ import AVFoundation
         #expect(bang.nodes.allSatisfy { $0.birth >= lead - 1e-9 })
         // ...then each folder's notes all within a third of a second of its own burst...
         for b in bang.bangs {
-            let born = bang.nodes.filter { $0.imported && $0.folder == b.folder }.map(\.birth)
+            let born = bang.nodes.filter { $0.imported && $0.folder == b.folder && $0.sub == b.sub }.map(\.birth)
             #expect(born.count == b.count && born.allSatisfy { $0 >= b.at - 1e-9 && $0 <= b.at + 0.3 + 1e-9 })
         }
         #expect(bang.nodes.filter(\.imported).count == 20 && bang.bangs.map(\.count).reduce(0, +) == 20)
@@ -963,6 +970,40 @@ import AVFoundation
                 last = now
             }
         }
+    }
+
+    @Test func foldersInsideFoldersAreTheirOwnCloudsAndBurstOnTheirOwn() {
+        // Emil, 11-11: "I also want sub folders".
+        let kb = FilmScript(FilmDemo.real(now: Self.now, notesPerWeek: 22, imported: 240, removed: 8, linked: 0.6), calendar: Self.cal, bang: true)
+        let names = Set(kb.subfolders.map { "\(kb.folders[$0.folder])/\($0.name)" })
+        #expect(names == ["Work/Clients", "Work/Meetings", "Home/Recipes", "Reading/Books", "Reading/Articles"])
+        // Each has a burst of its own, right after its folder's: never one from another folder between.
+        for (k, b) in kb.bangs.enumerated() where b.sub >= 0 {
+            #expect(kb.subfolders[b.sub].folder == b.folder && k > 0 && kb.bangs[k - 1].folder == b.folder)
+        }
+        #expect(kb.bangs.filter { $0.sub >= 0 }.count == names.count)
+        // A subfolder of two or three notes is shown as part of its folder: a name for two stars was clutter.
+        let month = FilmScript(FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true), calendar: Self.cal, bang: true)
+        for sub in month.subfolders.indices {
+            #expect(month.nodes.filter { $0.sub == sub }.count >= FilmScript.subfolderLeast)
+        }
+        #expect(month.subfolders.count < 5)
+        // In the nebula a subfolder's notes gather in a cloud of their own inside their folder's:
+        // all of them nearer their middle than any other note of that folder is.
+        let canvas = FilmCanvas.fitting(width: 393, height: 852, top: 59, bottom: 34)
+        let scene = GalaxyScene(script: kb, names: true, seed: kb.seed, form: .nebula)
+        let at = scene.placed(at: kb.growth, canvas: canvas)
+        for sub in kb.subfolders.indices {
+            let mine = kb.nodes.indices.filter { kb.nodes[$0].sub == sub && kb.nodes[$0].gone == nil }
+            let others = kb.nodes.indices.filter { kb.nodes[$0].folder == kb.subfolders[sub].folder && kb.nodes[$0].sub != sub && kb.nodes[$0].gone == nil }
+            let mid = CGPoint(x: mine.map { at[$0].x }.reduce(0, +) / Double(mine.count), y: mine.map { at[$0].y }.reduce(0, +) / Double(mine.count))
+            let reach = mine.map { hypot(at[$0].x - mid.x, at[$0].y - mid.y) }.max() ?? 0
+            let nearest = others.map { hypot(at[$0].x - mid.x, at[$0].y - mid.y) }.min() ?? .infinity
+            #expect(reach < nearest, "\(kb.subfolders[sub].name) is a cluster of its own")
+        }
+        // A film saved before subfolders still opens.
+        let old = try? JSONDecoder().decode(FilmNote.self, from: Data(#"{"id":"00000000-0000-4000-8000-000000000001","folder":"Work","created":0,"edits":[],"links":[]}"#.utf8))
+        #expect(old != nil && old?.subfolder == nil)
     }
 
     @Test func theSharedMovieCarriesTheSound() async throws {
