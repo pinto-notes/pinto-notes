@@ -344,6 +344,9 @@ enum SidebarCardMetrics {
     static let stackedThumb: CGFloat = 28
     /// Wide enough for the pictures beside the words.
     static let sideBySide: CGFloat = 300
+    static let filmTitle = Font.system(size: 15, weight: .bold)
+    static let filmHeight: CGFloat = 112
+    static let filmWords: CGFloat = 170
     #else
     static let title = Font.subheadline.weight(.semibold)
     static let line = Font.footnote
@@ -359,6 +362,9 @@ enum SidebarCardMetrics {
     static let thumb: CGFloat = 54
     static let stackedThumb: CGFloat = 40
     static let sideBySide: CGFloat = 320
+    static let filmTitle = Font.title3.weight(.bold)
+    static let filmHeight: CGFloat = 150
+    static let filmWords: CGFloat = 220
     #endif
 }
 
@@ -371,35 +377,99 @@ extension SidebarCard {
 }
 
 /// "See your month": the notebook film's card, after about a month of real use (NotebookFilmStore).
-/// Three paper tiles in the slides' colours; a tap opens it, the X puts it away (Help keeps it).
+/// A window onto the film: its night sky with your own galaxy as the month leaves it, and a play
+/// button (Emil, 11-11: the grey card with three icons was "a bit boring"). A tap anywhere opens
+/// it; the X puts it away (Help keeps it).
 struct FilmCard: View {
     let store: NotebookFilmStore
+    @State private var poster: CGImage?
 
     static let title = "See your month"
-    static let button = "Show me"
-    /// The slides' own colours: amber, cream and blue.
-    static let tiles: [(Color, Color, String)] = [
-        (Color(red: 1, green: 0.682, blue: 0.204), Color(red: 0.118, green: 0.106, blue: 0.294), "star.fill"),
-        (Color(red: 1, green: 0.941, blue: 0.863), Color(red: 0.941, green: 0.565, blue: 0.102), "list.number"),
-        (Color(red: 0.165, green: 0.294, blue: 0.796), Color(red: 1, green: 0.965, blue: 0.91), "moon.stars.fill"),
-    ]
+    static let button = "Play"
+    static let cream = Color(red: 1, green: 0.965, blue: 0.91)
+    typealias Metrics = SidebarCardMetrics
+
+    /// The galaxy is drawn off the main thread, once, as the card appears.
+    private struct Picture: @unchecked Sendable { let image: CGImage? }
+
+    private var sky: Color {
+        let c = store.script.map { GalaxyScene.sky($0) } ?? 0x15133A
+        return Color(red: Double(c >> 16 & 0xFF) / 255, green: Double(c >> 8 & 0xFF) / 255, blue: Double(c & 0xFF) / 255)
+    }
 
     var body: some View {
-        SidebarCardShell(id: "sidebar.film", title: Self.title, line: store.offerLine ?? "", button: Self.button,
-                         opensWeb: false, action: { store.open() }, onClose: { withAnimation(.easeOut(duration: 0.2)) { store.closeOffer() } }) { size in
-            ForEach(Array(Self.tiles.enumerated()), id: \.offset) { i, tile in
-                let shape = RoundedRectangle(cornerRadius: size * 0.2, style: .continuous)
-                Image(systemName: tile.2)
-                    .font(.system(size: size * 0.38, weight: .bold))
-                    .foregroundStyle(tile.1)
-                    .frame(width: size * 0.86, height: size * 0.86)
-                    .background(tile.0, in: shape)
-                    .overlay(shape.strokeBorder(Color.white.opacity(0.7), lineWidth: 1.5))
-                    .shadow(color: .black.opacity(0.18), radius: 3, y: 1.5)
-                    .rotationEffect(.degrees(Double(i - 1) * 9))
-                    .offset(x: CGFloat(i - 1) * size * 0.42, y: abs(CGFloat(i - 1)) * 3)
-                    .zIndex(i == 1 ? 1 : 0)
+        let shape = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
+        let line = store.offerLine ?? ""
+        Button { store.open() } label: {
+            VStack(alignment: .leading, spacing: Metrics.gap) {
+                Text(Self.title).font(Metrics.filmTitle).foregroundStyle(Self.cream).lineLimit(1).minimumScaleFactor(0.8)
+                Text(line).font(Metrics.line).foregroundStyle(Self.cream.opacity(0.78)).lineLimit(3)
+                    .frame(maxWidth: Metrics.filmWords, alignment: .leading)
+                HStack(spacing: 5) {
+                    Image(systemName: "play.fill").font(Metrics.arrow)
+                    Text(Self.button)
+                }
+                .font(Metrics.button)
+                .foregroundStyle(sky)
+                .padding(.horizontal, Metrics.padding)
+                .frame(height: Metrics.buttonHeight)
+                .background(Self.cream, in: Capsule())
+                .padding(.top, Metrics.gap + 2)
             }
+            .padding(Metrics.padding)
+            .padding(.trailing, Metrics.closeSize / 2)
+            .frame(maxWidth: .infinity, minHeight: Metrics.filmHeight, alignment: .leading)
+            .background {
+                // Your galaxy at the right, the sky deepening over it under the words.
+                GeometryReader { g in
+                    ZStack(alignment: .trailing) {
+                        sky
+                        if let poster {
+                            Image(decorative: poster, scale: 1).resizable().interpolation(.high)
+                                .frame(width: g.size.height * 1.75, height: g.size.height * 1.75)
+                                .offset(x: g.size.height * 0.28)
+                                .transition(.opacity)
+                        }
+                        LinearGradient(stops: [.init(color: sky, location: 0), .init(color: sky.opacity(0.8), location: 0.38), .init(color: sky.opacity(0), location: 0.62)],
+                                       startPoint: .leading, endPoint: .trailing)
+                    }
+                    .frame(width: g.size.width, height: g.size.height)
+                }
+            }
+            .clipShape(shape)
+            .hoverOverlay(shape, Color.white.opacity(0.06))
+            .contentShape(shape)
+        }
+        .buttonStyle(CardPress())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(Self.title). \(line)")
+        .accessibilityHint("Plays it")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("sidebar.film.open")
+        .overlay(alignment: .topTrailing) {
+            Button { withAnimation(.easeOut(duration: 0.2)) { store.closeOffer() } } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: Metrics.closeGlyph, weight: .semibold))
+                    .foregroundStyle(Self.cream.opacity(0.75))
+                    .frame(width: Metrics.closeSize, height: Metrics.closeSize)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.quietIcon)
+            .padding(Metrics.closeInset)
+            .accessibilityLabel("Close \(Self.title)")
+            .accessibilityHint("Hides this for good")
+            .accessibilityIdentifier("sidebar.film.close")
+            #if os(macOS)
+            .help("Close")
+            #endif
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("sidebar.film")
+        .task(id: store.script?.seed) {
+            guard let script = store.script else { return }
+            let side = Int(Metrics.filmHeight * 1.75 * 3)
+            let picture = await Task.detached(priority: .utility) { Picture(image: GalaxyScene.poster(script, pixels: side)) }.value
+            withAnimation(.easeOut(duration: 0.35)) { poster = picture.image }
         }
         .transition(.opacity)
     }

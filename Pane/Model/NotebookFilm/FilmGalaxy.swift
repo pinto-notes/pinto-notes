@@ -129,6 +129,21 @@ final class GalaxyScene: FilmScene {
         (0x1D0E33, [0x381A5C, 0x5A2A86, 0x8846A8, 0xC47BCB]),
     ]
 
+    /// The sky a film of this script is set in (its card is the same colour).
+    static func sky(_ script: FilmScript) -> UInt32 { skies[(script.seed / 3 + script.seed) % skies.count].0 }
+
+    /// Your galaxy as the month leaves it, square, on its sky, with no names: the picture on its card.
+    static func poster(_ script: FilmScript, pixels: Int) -> CGImage? {
+        let side = 1080.0
+        // (The scene keeps its galaxy between 330 over the bottom margin and 120 under the top one.)
+        let canvas = FilmCanvas(height: side, top: -120 + 50, bottom: -330 + 50)
+        guard let ctx = CGContext(data: nil, width: pixels, height: pixels, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.scaleBy(x: Double(pixels) / side, y: Double(pixels) / side)
+        GalaxyScene(script: script, names: false, seed: script.seed).drawBehind(script.growth + 2, canvas: canvas, in: ctx)
+        return ctx.makeImage()
+    }
+
     init(script: FilmScript, names: Bool, seed: Int, form: Form? = nil) {
         self.script = script
         self.names = names

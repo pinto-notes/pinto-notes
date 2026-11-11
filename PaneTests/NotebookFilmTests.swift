@@ -836,6 +836,8 @@ import AVFoundation
         #expect(slides.slides()[1].spoken.hasPrefix("Your top notes"))
         for slide in slides.slides() { #expect(!slide.spoken.contains("My ") && !slide.spoken.hasPrefix("I ") && !slide.spoken.contains(" I "), "\(slide.spoken)") }
         #expect(FilmSlides.cardLine(mine, script: script).hasPrefix("You brought 20 notes in on "))
+        // Its date never breaks over two lines.
+        #expect(FilmSlides.cardLine(mine, script: script).contains(/(January|February|March|April|May|June|July|August|September|October|November|December)\u{00A0}\d/))
         #expect(FilmSlides.story(mine, script: script).hasPrefix("From 20 notes brought in on "))
         // The top notes are the most written in, by name, none twice; a removed note isn't one.
         let ranked = slides.ranked
@@ -904,6 +906,25 @@ import AVFoundation
         // One name too long for a row has a row to itself, cut to the page.
         let long = FilmSlides.wall([String(repeating: "Very long title ", count: 20)], count: 1, width: width, height: height)
         #expect(long.rows.count == 1 && fits(long))
+    }
+
+    @Test func itsCardShowsYourOwnGalaxyOnTheFilmsSky() throws {
+        // Emil, 11-11: the card that opens it was "a bit boring". It's the film's sky now, with your
+        // galaxy as the month leaves it, its edge the card's own colour so there's no seam.
+        let mine = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
+        let script = FilmScript(mine, calendar: Self.cal, bang: true)
+        let image = try #require(GalaxyScene.poster(script, pixels: 120))
+        #expect(image.width == 120 && image.height == 120)
+        var px = [UInt8](repeating: 0, count: 120 * 120 * 4)
+        let ctx = CGContext(data: &px, width: 120, height: 120, bitsPerComponent: 8, bytesPerRow: 480, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: 120, height: 120))
+        let sky = GalaxyScene.sky(script)
+        let want = [Int(sky >> 16 & 0xFF), Int(sky >> 8 & 0xFF), Int(sky & 0xFF)]
+        let corner = px.prefix(3).map(Int.init)
+        #expect(zip(corner, want).allSatisfy { abs($0 - $1) <= 12 }, "corner \(corner), sky \(want)")
+        // ...and stars in it: plenty of pixels far brighter than the sky.
+        let bright = stride(from: 0, to: px.count, by: 4).filter { Int(px[$0]) + Int(px[$0 + 1]) + Int(px[$0 + 2]) > 420 }.count
+        #expect(bright > 40, "\(bright) bright pixels")
     }
 
     @Test func itOpensOnAnEmptySkyThenWhatYouBroughtArrivesAtOnce() {

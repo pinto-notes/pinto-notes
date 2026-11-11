@@ -91,8 +91,8 @@ struct FilmSlides: @unchecked Sendable {
     private func palette(_ k: Int) -> Palette {
         switch k {
         case 0: return Palette(bg: C(0xFFAE34), tones: [C(0xFFBD55), C(0xFFCD7C), C(0xFFDEA6), C(0xFFEFD2)], ink: C(0x1E1B4B), you: C(0xFFF6E8), ai: C(0x2F6FD6))
-        // (Pink, not beige: Emil, 11-11, "the beige background is pretty terrible".)
-        case 1: return Palette(bg: C(0xFF8DB4), tones: [C(0xFF9DBF), C(0xFFAECB), C(0xFFC2D8), C(0xFFD8E6)], ink: C(0x1E1B4B), you: C(0x1E1B4B), ai: C(0x2F6FD6))
+        // (Green, not beige: Emil, 11-11, "the beige background is pretty terrible", then "green is pretty good".)
+        case 1: return Palette(bg: C(0x168C5E), tones: [C(0x1E9A69), C(0x2AA977), C(0x45BB8A), C(0x7DD3A9)], ink: C(0xFFF6E8), you: C(0xFFC45A), ai: C(0xBFE0FF))
         default: return Palette(bg: C(0x2A4BCB), tones: [C(0x3659D6), C(0x4A6EE0), C(0x6787E8), C(0x98B0F1)], ink: C(0xFFF6E8), you: C(0xFFC45A), ai: C(0xBFE0FF))
         }
     }
@@ -170,7 +170,7 @@ struct FilmSlides: @unchecked Sendable {
         if let first = top5.first, first.note.edits.count >= 6 {
             let rows = top5.count
             let spoken = "Your top notes: " + top5.enumerated().map { "\($0.offset + 1), \($0.element.name), \($0.element.note.edits.count) times" }.joined(separator: "; ")
-            out.append(Slide(name: "top-notes", length: 1.0 + 0.12 * Double(max(0, rows - 2)) + 0.45, spoken: spoken) { ctx, t in
+            out.append(Slide(name: "top-notes", length: 1.0 + 0.12 * Double(max(0, rows - 2)) + 0.45, light: true, spoken: spoken) { ctx, t in
                 let p = palette(1)
                 ground(1, p, in: ctx)
                 // The five as strips of paper, each as long as how often you came back to it, the first
@@ -422,7 +422,8 @@ struct FilmSlides: @unchecked Sendable {
 
     /// The card that offers it: what you set out with, and what it became.
     static func cardLine(_ input: FilmInput, script: FilmScript) -> String {
-        let f = DateFormatter(); f.locale = Locale(identifier: "en_US"); f.dateFormat = "MMMM d"
+        // (The date on one line: "October" at a line's end and "8." on the next read badly.)
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US"); f.dateFormat = "MMMM\u{00A0}d"
         let brought = input.notes.filter { $0.imported == true }.count
         return brought > 0 ? "You brought \(brought) notes in on \(f.string(from: script.start)). Here\u{2019}s what you did with them."
             : "You wrote your first note on \(f.string(from: script.start)). Here\u{2019}s what came of it."
