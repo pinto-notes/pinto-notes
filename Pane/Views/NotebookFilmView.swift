@@ -171,7 +171,7 @@ struct NotebookFilmView: View {
     private func measure(_ g: GeometryProxy) {
         let insets = g.safeAreaInsets
         screen = FilmPlayback.Screen(size: CGSize(width: g.size.width, height: g.size.height + insets.top + insets.bottom),
-                                     top: insets.top + 52, bottom: insets.bottom + 24,
+                                     top: insets.top + FilmRow.clear, bottom: insets.bottom + 24,
                                      pixels: min(1206, Int(g.size.width * Metrics.displayScale)))
     }
 
@@ -236,6 +236,8 @@ struct NotebookFilmView: View {
     @State private var slideFrame: CGImage?
     /// Which slide `slideFrame` is of: the play button waits for its own slide to be drawn.
     @State private var slideShown = -1
+    /// The sky's two paper clouds, drawn once, floating under the slides on their own.
+    @State private var clouds: [CGImage] = []
     @State private var slideTask: Task<Void, Never>?
     @Environment(\.modelContext) private var modelContext
 
@@ -264,9 +266,12 @@ struct NotebookFilmView: View {
         if let known = names { title = { note in known[note.id] } }
         var s = FilmSlides(input: input, script: script, mark: NotebookFilmStore.mark, title: title)
         s.you = FilmSlides.firstName(ProfileStore.shared.name)
+        s.cloudsApart = true
         let u = 1080 / Double(screen.size.width)
         s.H = Double(screen.size.height) * u
         s.top = Double(screen.top) * u + 60
+        // The mark on the close button's row.
+        s.markMiddle = (Double(screen.top) - FilmRow.clear + FilmRow.middle) * u
         // (Room under the words for the Next button.)
         s.bottom = Double(screen.bottom) * u + 70 + 64 * u
         return s
@@ -276,7 +281,15 @@ struct NotebookFilmView: View {
         guard store.galaxy, phase == .intro, let made = makeSlides(screen) else { return }
         slides = made
         slideList = made.slides()
-        show(min(slide, max(0, slideList.count - 1)), screen: screen)
+        // The clouds first, so the first slide never shows without them. (Two thirds of the
+        // screen's pixels: soft paper loses nothing by it.)
+        let scale = Double(screen.pixels) * 2 / 3 / made.W, k = min(slide, max(0, slideList.count - 1))
+        Task {
+            let drawn = await Task.detached(priority: .userInitiated) { FilmSlides.clouds.indices.compactMap { made.cloudImage($0, scale: scale) } }.value
+            guard slides != nil else { return }
+            clouds = drawn
+            show(k, screen: screen)
+        }
     }
 
     /// Plays slide `k` coming in: frames drawn off the main thread at 30 a second, then its last
@@ -284,8 +297,6 @@ struct NotebookFilmView: View {
     /// size between frames.
     private func show(_ k: Int, screen: FilmPlayback.Screen) {
         guard let slides, slideList.indices.contains(k) else { return }
-        // (Each slide has its own sky; it shifts from the one on screen.)
-        let from = slideShown
         slide = k
         slideTask?.cancel()
         let list = slideList, length = list[k].length, still = reduceMotion
@@ -296,7 +307,7 @@ struct NotebookFilmView: View {
                 while !Task.isCancelled {
                     let t = (clock.now - began) / .seconds(1)
                     if t >= length { break }
-                    let image = await Self.draw(slides, k, at: t, pixels: moving, list, from: from)
+                    let image = await Self.draw(slides, k, at: t, pixels: moving, list)
                     guard !Task.isCancelled else { return }
                     #if QA
                     Self.dump(image, k, t)
@@ -327,8 +338,8 @@ struct NotebookFilmView: View {
     }
     #endif
 
-    private nonisolated static func draw(_ slides: FilmSlides, _ k: Int, at t: Double?, pixels: Int, _ list: [FilmSlides.Slide], from: Int? = nil) async -> CGImage? {
-        await Task.detached(priority: .userInitiated) { slides.image(k, at: t, pixels: pixels, slides: list, from: from) }.value
+    private nonisolated static func draw(_ slides: FilmSlides, _ k: Int, at t: Double?, pixels: Int, _ list: [FilmSlides.Slide]) async -> CGImage? {
+        await Task.detached(priority: .userInitiated) { slides.image(k, at: t, pixels: pixels, slides: list) }.value
     }
 
     private func nextSlide() {
@@ -350,6 +361,31 @@ struct NotebookFilmView: View {
         return Color(red: Double(c >> 16 & 0xFF) / 255, green: Double(c >> 8 & 0xFF) / 255, blue: Double(c & 0xFF) / 255)
     }
 
+    /// The sky's clouds, each slowly swaying on its own (`FilmSlides.float`), under every slide and
+    /// never stopping between them; still with Reduce Motion. Moved by the system, not redrawn.
+    @ViewBuilder private var floatingClouds: some View {
+        if let slides, !clouds.isEmpty {
+            GeometryReader { g in
+                let u = slides.W / max(1, Double(g.size.width))
+                TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { time in
+                    let clock = reduceMotion ? 0 : time.date.timeIntervalSinceReferenceDate
+                    ZStack(alignment: .topLeading) {
+                        ForEach(clouds.indices, id: \.self) { i in
+                            let place = slides.cloudPlace(i, at: clock), side = FilmSlides.cloudSide(i) / u
+                            Image(decorative: clouds[i], scale: 1)
+                                .resizable()
+                                .frame(width: side, height: side)
+                                .rotationEffect(.radians(-place.turn))
+                                .position(x: place.middle.x / u, y: Double(g.size.height) - place.middle.y / u)
+                        }
+                    }
+                }
+            }
+            .transition(.opacity)
+            .accessibilityHidden(true)
+        }
+    }
+
     private var slidesView: some View {
         let light = slideList.indices.contains(slide) ? slideList[slide].light : false
         let ink: Color = light ? Self.cream : Color(red: 0.118, green: 0.106, blue: 0.294)
@@ -357,6 +393,7 @@ struct NotebookFilmView: View {
             // Drawn in the screen's own shape, behind everything, so it never sizes the controls. (Under
             // the slides, the film's sky, the colour the card grows from.)
             filmSky
+                .overlay { floatingClouds }
                 .overlay {
                     if let slideFrame {
                         FrameLayer(image: slideFrame)
@@ -566,7 +603,7 @@ struct NotebookFilmView: View {
                 Spacer()
                 closeButton.opacity(phase == .watching ? 1 : 0)
             }
-            .padding(.top, Metrics.top)
+            .padding(.top, FilmRow.top)
             Spacer()
             // How far through, like a story, at the bottom.
             ZStack(alignment: .leading) {
@@ -605,7 +642,7 @@ struct NotebookFilmView: View {
                 Spacer()
                 closeButton
             }
-            .padding(.top, Metrics.top)
+            .padding(.top, FilmRow.top)
             Spacer(minLength: 10)
             Color.clear
                 .aspectRatio(CGFloat(FilmScript.width) / CGFloat(FilmScript.height), contentMode: .fit)
@@ -812,7 +849,14 @@ final class FilmPlayback {
         /// The film's shape `p` of the way from the screen to a card of `card` points.
         func canvas(_ p: Double, card: CGSize) -> FilmCanvas {
             let w = size.width + (card.width - size.width) * p, h = size.height + (card.height - size.height) * p
-            return .fitting(width: w, height: h, top: top * (1 - p), bottom: bottom * (1 - p))
+            var c = FilmCanvas.fitting(width: w, height: h, top: top * (1 - p), bottom: bottom * (1 - p))
+            // The mark and key on the close button's row (as a card, where they always were: the
+            // card is the shared film's own shape).
+            guard p < 1 else { return c }
+            let u = Double(FilmScript.width) / max(1, w)
+            c.row = (top - FilmRow.clear + FilmRow.middle) * u * (1 - p) + 84 * p
+            c.rowRight = max(0, FilmRow.closeClear * u - 64) * (1 - p)
+            return c
         }
     }
 
@@ -1124,3 +1168,18 @@ private final class MovieItem: NSObject, UIActivityItemSource {
     }
 }
 #endif
+
+/// The top row of the slides, the film and its share screen: the close button on the right, the
+/// mark (and the film's key) on the left, in line with it. (Emil, 11-11: "isn't it weird that the X
+/// is not at the very highest?" It sat on a row of its own, between the bar and the mark.)
+enum FilmRow {
+    /// The row's top, from the safe area's top: under the slides' bar (6 + 3 + 10), and in the
+    /// same place while the film plays and on the share screen, so the button never moves.
+    static let top: CGFloat = 19
+    /// Its middle (the button is 44 tall), where the mark sits.
+    static let middle: Double = Double(top) + 22
+    /// What the film keeps clear at the top, under the safe area.
+    static let clear: CGFloat = 52
+    /// From the right edge, past the close button's circle and a gap.
+    static let closeClear: Double = 70
+}

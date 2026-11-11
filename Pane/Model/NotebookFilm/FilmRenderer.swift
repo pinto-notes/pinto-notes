@@ -93,6 +93,10 @@ struct FilmCanvas: Sendable, Equatable {
     var height: Double = Double(FilmScript.height)
     var top: Double = 0
     var bottom: Double = 0
+    /// In the app, the middle of the row the close button is in, from the top: the mark and key go
+    /// on it (beside the button, `rowRight` kept clear for it) rather than under it. None in a video.
+    var row: Double? = nil
+    var rowRight: Double = 0
     static let shared = FilmCanvas()
     /// A view's own shape, `size` in points with its safe area insets.
     static func fitting(width: Double, height: Double, top: Double, bottom: Double) -> FilmCanvas {
@@ -798,9 +802,23 @@ final class FilmRenderer {
 
     /// The app's mark and name, top left, the whole way through: a picture taken from the middle
     /// still says where it's from.
+    /// Where the mark and key go: the baseline of their words and how far right they reach. On the
+    /// close button's row when the key fits beside the mark there, else the row under it.
+    private var topRow: (y: Double, right: Double) {
+        let under = (Double(height) - 96 - canvas.top, Double(width) - 64)
+        guard let row = canvas.row else { return under }
+        let mark = 64 + (labels.markImage == nil ? 0 : 62) + textWidth(labels.mark, size: 34, weight: .semibold)
+        var key = 0.0
+        if let name = script.stats.ai {
+            key = [labels.withAI(name), labels.you].reduce(0) { $0 + textWidth($1, size: 34, weight: .medium) + 34 + 26 } - 26
+        }
+        let right = Double(width) - 64 - canvas.rowRight
+        return right - key < mark + 40 ? under : (Double(height) - row - 12, right)
+    }
+
     private func drawMark(in ctx: CGContext) {
         var x = 64.0
-        let y = Double(height) - 96 - canvas.top
+        let y = topRow.y
         if let m = labels.markImage {
             let size = 48.0
             let rect = CGRect(x: x, y: y - 12, width: size, height: size)
@@ -955,13 +973,13 @@ final class FilmRenderer {
 
     /// The key, top right: who each colour is.
     private func drawKey(you: Double, ai: Double, in ctx: CGContext) {
-        let keyY = Double(height) - 96 - canvas.top
+        let (keyY, keyRight) = topRow
         // With no AI there's one colour and nothing to tell apart.
         guard let name = script.stats.ai else { return }
         // Deeper dots while the top is in dark ink on a pale sky.
         let pale = topInk.r + topInk.g + topInk.b < 1.5
         let keys: [(String, RGB, Double, Bool)] = [(labels.withAI(name), pale ? FilmLook.paper.ai : look.ai, ai, true), (labels.you, pale ? FilmLook.paper.you : look.you, you, false)]
-        var right = Double(width) - 64
+        var right = keyRight
         for (name, color, a, isAI) in keys where a > 0 {
             let w = textWidth(name, size: 34, weight: .medium)
             text(name, size: 34, weight: .medium, color: topInk.cg(0.86 * a), at: CGPoint(x: right - w, y: keyY), in: ctx)

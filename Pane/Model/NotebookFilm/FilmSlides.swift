@@ -17,14 +17,20 @@ struct FilmSlides: @unchecked Sendable {
     let mark: CGImage?
     /// The shape it's drawn in, for a width of 1080, and what the screen keeps at its top and bottom.
     var H = 2348.0, top = 150.0, bottom = 190.0
+    /// The middle of the mark, from the top (in the app, in line with the close button).
+    var markMiddle: Double?
+    /// The app draws the sky and its clouds itself, under the slides, so the clouds can float
+    /// (`cloudImage`, `float`): the slides then leave them out, clear where the sky shows.
+    var cloudsApart = false
     let W = 1080.0
     /// A note's name, when it may be shown; a note without one is left off the list.
     var title: @Sendable (FilmNote) -> String?
     /// Your first name, from your profile, to greet you by (none: it greets you without one).
     var you: String?
-    /// Which first slide (being compared, 11-11): 0 the wall of what you brought, 1 hello in words,
-    /// 2 your notebook as a sheet, 3 the Pinto leaf.
-    var startLook = 1
+    /// Which first slide: 4 (the one shown) your first notes as stars, over "Hi" and your name
+    /// (Emil, 11-11: words alone were "a bit too boring"); still here while it's settled, 0 the
+    /// wall of what you brought, 1 hello in words, 2 your notebook as a sheet, 3 the Pinto leaf.
+    var startLook = 4
 
     /// A slide: how long it takes to come in, and its drawing at a time since it appeared.
     struct Slide: @unchecked Sendable {
@@ -42,7 +48,8 @@ struct FilmSlides: @unchecked Sendable {
 
     /// The still parts of the slides, as drawn, by slide and size (shared by every copy).
     final class Backs: @unchecked Sendable {
-        private let lock = NSLock()
+        // (Recursive: a slide's kept back can itself keep a picture, its clouds' shadows.)
+        private let lock = NSRecursiveLock()
         private var images: [String: CGImage] = [:]
         func image(_ key: String, _ make: () -> CGImage?) -> CGImage? {
             lock.lock(); defer { lock.unlock() }
@@ -118,22 +125,13 @@ struct FilmSlides: @unchecked Sendable {
         var paperInk: C { ink.r + ink.g + ink.b > 1.5 ? C(0x2B1406) : ink }
     }
 
-    /// The film's own sky, the one its card and its first frame are.
-    /// Slide `k`'s sky (0 the welcome, 1 your top notes, 2 when you write, 3 play). The welcome and
-    /// play are the film's own sky (the card grows into the one, the film opens on the other); the two
-    /// between are two other skies, picked so no slide's is like the one before it (the violet and
-    /// the purple are too alike to tell apart).
-    private func skyColours(_ k: Int) -> (C, [C]) {
-        let sky = GalaxyScene.skies[Self.skyPath((seed / 3 + seed) % GalaxyScene.skies.count)[k]]
-        return (C(sky.0), sky.1.map { C($0) })
-    }
-
-    /// Every slide is set in the film's own night sky, each a different one of its skies, and they
-    /// shift from one to the next. (Emil, 11-11: the film is great, the slides' coloured paper
-    /// wasn't; "A, but make the background shift between slides".)
+    /// Every slide is set in the film's own night sky, the one its card is and the film opens on.
+    /// (Emil, 11-11: the film is great, the slides' coloured paper wasn't. A sky for each slide,
+    /// shifting between them, was tried and taken out: "I like that they subtly move, let's remove
+    /// the shifting between slides".)
     private func palette(_ k: Int) -> Palette {
-        let (bg, tones) = skyColours(min(k, 3))
-        return Palette(bg: bg, tones: tones, ink: C(0xFFF4E6), you: C(0xFFC45A), ai: C(0xBFE0FF))
+        let sky = GalaxyScene.skies[(seed / 3 + seed) % GalaxyScene.skies.count]
+        return Palette(bg: C(sky.0), tones: sky.1.map { C($0) }, ink: C(0xFFF4E6), you: C(0xFFC45A), ai: C(0xBFE0FF))
     }
 
     private var seed: Int { script.seed }
@@ -183,9 +181,9 @@ struct FilmSlides: @unchecked Sendable {
     /// A shape with its shadow, drawn once (at this frame's resolution) and kept, then placed, scaled
     /// and faded on each frame: a big soft shadow is the slowest thing to draw. `side` is the shape's
     /// size around `.zero`, where `draw` draws it.
-    private func sprite(_ key: String, side: Double, at p: CGPoint, scale: Double, alpha: Double = 1, in ctx: CGContext, _ draw: (CGContext) -> Void) {
+    private func sprite(_ key: String, side: Double, at p: CGPoint, scale: Double, alpha: Double = 1, res: Double? = nil, in ctx: CGContext, _ draw: (CGContext) -> Void) {
         guard scale > 0.001, alpha > 0.001 else { return }
-        let res = ctx.ctm.a, box = side + 160
+        let res = res ?? ctx.ctm.a, box = side + 160
         guard let image = backs.image("sprite \(key) \(side) \(res)", {
             let n = Int((box * res).rounded(.up))
             guard let c = FilmRenderer.context(width: n, height: n) else { return nil }
@@ -210,26 +208,76 @@ struct FilmSlides: @unchecked Sendable {
         ctx.restoreGState()
     }
 
-    private func stars(_ k: Int, _ p: Palette, in ctx: CGContext) {
+    private func stars(_ k: Int, _ p: Palette, alpha: Double = 1, in ctx: CGContext) {
         for j in 0..<150 {
             let q = CGPoint(x: filmHash(j, seed + 11 * k + 1) * W, y: filmHash(j, seed + 11 * k + 2) * H), r = 1.3 + 2.4 * pow(filmHash(j, seed + 3), 3)
-            ctx.setFillColor(p.ink.cg(0.2 + 0.45 * filmHash(j, seed + 4)))
+            ctx.setFillColor(p.ink.cg((0.2 + 0.45 * filmHash(j, seed + 4)) * alpha))
             ctx.fillEllipse(in: CGRect(x: q.x - r, y: q.y - r, width: r * 2, height: r * 2))
         }
     }
 
-    /// A slide's sky: its colour, two paper clouds, stars. The clouds are the same on every slide, so
-    /// going from one to the next only shifts their colour.
-    private func ground(_ k: Int, _ p: Palette, in ctx: CGContext) {
-        ctx.setFillColor(p.bg.cg()); ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
-        paper(blob(CGPoint(x: 260, y: H * 0.36), 700, 620, key: seed * 7), p.bg.mix(p.tones[0], 0.6), lift: 1.8, in: ctx)
-        paper(blob(CGPoint(x: 860, y: H * 0.7), 560, 520, key: seed * 9), p.bg.mix(p.tones[0], 0.95), lift: 1.5, in: ctx)
-        ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
-        // (The play slide's stars twinkle in, so it draws its own.)
-        if k != 3 { stars(k, p, in: ctx) }
-        if let mark { ctx.draw(mark, in: CGRect(x: 64, y: H - top - 70, width: 52, height: 52)) }
-        FilmKit.text("Pinto Notes", 34, 0.45, p.ink.cg(0.92), at: CGPoint(x: 130, y: H - top - 56), in: ctx)
+    /// The two paper clouds in the sky behind every slide: their middles (across, and up the page
+    /// as a share of it), sizes, how high they lift and how deep their colour is.
+    static let clouds: [(x: Double, y: Double, rx: Double, ry: Double, lift: Double, shade: Double)] = [
+        (260, 0.36, 700, 620, 1.8, 0.6), (860, 0.70, 560, 520, 1.5, 0.95),
+    ]
+
+    /// How far each cloud has floated at `clock` seconds: a slow sway of a few points and a hint of
+    /// a turn, each cloud on its own rhythm, so the sky is never quite still. (Emil, 11-11: "what if
+    /// they are always really subtly moving".)
+    static func float(_ i: Int, at clock: Double) -> (x: Double, y: Double, turn: Double) {
+        let k = Double(i), tau = 2 * Double.pi
+        return (14 * sin(tau * clock / (9.5 + 2.1 * k) + 1.3 * k),
+                11 * sin(tau * clock / (12.0 - 1.7 * k) + 0.6 + 2.2 * k),
+                0.006 * sin(tau * clock / (14.0 + 3 * k) + 0.9 * k))
     }
+
+    /// Cloud `i`'s middle (across, and up from the bottom) and turn, floated to `clock`.
+    func cloudPlace(_ i: Int, at clock: Double? = nil) -> (middle: CGPoint, turn: Double) {
+        let c = Self.clouds[i], f = clock.map { Self.float(i, at: $0) } ?? (x: 0, y: 0, turn: 0)
+        return (CGPoint(x: c.x + f.x, y: H * c.y + f.y), f.turn)
+    }
+
+    /// The square cloud `i`'s picture covers, around its middle: the cloud, its wobble and its shadow.
+    static func cloudSide(_ i: Int) -> Double { 2 * max(clouds[i].rx, clouds[i].ry) * 1.2 + 160 }
+
+    /// Cloud `i` with its shadow, around its middle, `scale` pixels to a unit: for the app to move
+    /// on its own, under the slides (`cloudsApart`).
+    func cloudImage(_ i: Int, scale: Double) -> CGImage? {
+        let side = Self.cloudSide(i), n = Int((side * scale).rounded(.up))
+        guard let c = FilmRenderer.context(width: n, height: n) else { return nil }
+        c.scaleBy(x: scale, y: scale); c.translateBy(x: side / 2, y: side / 2)
+        drawCloud(i, in: c)
+        return c.makeImage()
+    }
+
+    private func drawCloud(_ i: Int, in ctx: CGContext) {
+        let p = palette(0), c = Self.clouds[i]
+        paper(blob(.zero, c.rx, c.ry, key: seed * (i == 0 ? 7 : 9)), p.bg.mix(p.tones[0], c.shade), lift: c.lift, in: ctx)
+    }
+
+    /// The sky behind a slide: its colour and clouds (unless the app shows those itself, floating),
+    /// then its grain, stars and the mark.
+    private func sky(clock: Double? = nil, stars withStars: Bool = true, in ctx: CGContext) {
+        let p = palette(0)
+        if !cloudsApart {
+            ctx.setFillColor(p.bg.cg()); ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+            for i in Self.clouds.indices {
+                let (middle, turn) = cloudPlace(i, at: clock)
+                ctx.saveGState(); ctx.translateBy(x: middle.x, y: middle.y); ctx.rotate(by: turn)
+                drawCloud(i, in: ctx)
+                ctx.restoreGState()
+            }
+        }
+        ctx.draw(FilmKit.speckle, in: CGRect(x: 0, y: 0, width: 256, height: 256), byTiling: true)
+        // (The play slide's stars twinkle in, in the same places, so it draws its own.)
+        if withStars { stars(0, p, in: ctx) }
+        let m = H - (markMiddle ?? top + 44)
+        if let mark { ctx.draw(mark, in: CGRect(x: 64, y: m - 26, width: 52, height: 52)) }
+        FilmKit.text("Pinto Notes", 34, 0.45, p.ink.cg(0.92), at: CGPoint(x: 130, y: m - 12), in: ctx)
+    }
+
+    private func ground(_ k: Int, _ p: Palette, in ctx: CGContext) { sky(stars: k != 3, in: ctx) }
 
     // MARK: The slides
 
@@ -403,7 +451,7 @@ struct FilmSlides: @unchecked Sendable {
     /// The first slide.
     private func start() -> Slide {
         switch startLook {
-        case 1, 2, 3: return welcome(startLook)
+        case 1, 2, 3, 4: return welcome(startLook)
         default: return wall()
         }
     }
@@ -421,7 +469,7 @@ struct FilmSlides: @unchecked Sendable {
         let spoken: String
         switch look {
         case 1: spoken = "\(hi1), welcome to your \(period) with Pinto Notes. \(began)"
-        case 2: spoken = "\(hi1). Your \(period). \(began)"
+        case 2, 4: spoken = "\(hi1). Your \(period). \(began)"
         default: spoken = "Welcome\(you.map { ", \($0)" } ?? ""). Your \(period) with Pinto Notes. \(began)"
         }
         return Slide(name: "start", length: 1.6, light: true, spoken: spoken, back: { ctx in ground(0, palette(0), in: ctx) }) { ctx, t in
@@ -435,6 +483,22 @@ struct FilmSlides: @unchecked Sendable {
                 say("\(period) with", 110, 0.75, ink, x: 66, y: c - 80, t: t, at: 0.4, in: ctx)
                 say("Pinto Notes.", 110, 0.75, ink, x: 66, y: c - 220, t: t, at: 0.5, in: ctx)
                 say(began, 44, 0.3, p.ink.cg(0.85), y: c - 340, t: t, at: 0.9, in: ctx)
+            case 4:
+                // The notes you started with as stars, one by one, the first of your galaxy.
+                let n = max(1, min(40, count)), c = CGPoint(x: W / 2, y: mid - 20)
+                let gold = p.you, cream = p.ink
+                for i in 0..<n {
+                    let at = 0.05 + 0.9 * Double(i) / Double(max(1, n)), grow = filmBackOut((t - at) / 0.35)
+                    guard grow > 0 else { continue }
+                    let a = Double(i) * 2.39996 + filmHash(i, seed + 41) * 0.5
+                    let d = 340 * (Double(i) / Double(n)).squareRoot() + filmHash(i, seed + 42) * 26
+                    let q = CGPoint(x: c.x + cos(a) * d * 1.15, y: c.y + sin(a) * d * 0.9)
+                    let r = (i == 0 ? 62 : 20 + 24 * filmHash(i, seed + 43)) * grow
+                    paperStar(q, r, turn: filmHash(i, seed + 44) * 0.6 - 0.3, i == 0 || filmHash(i, seed + 45) < 0.7 ? gold : cream, in: ctx)
+                }
+                say(hi1, 110, 0.75, ink, x: 66, y: y0 + 280, t: t, at: 0.35, in: ctx)
+                say("Your " + period, 170, 0.8, ink, x: 66, y: y0 + 110, t: t, at: 0.45, in: ctx)
+                say(began, 44, 0.3, p.ink.cg(0.85), y: y0, t: t, at: 0.9, in: ctx)
             case 2:
                 // Your notebook: one sheet of paper with your name on it.
                 let c = CGPoint(x: W / 2, y: mid - 40), e = filmBackOut((t - 0.05) / 0.5)
@@ -529,6 +593,21 @@ struct FilmSlides: @unchecked Sendable {
         }
     }
 
+    /// A four-pointed star of paper with its shade, like the film's.
+    private func paperStar(_ p: CGPoint, _ r: Double, turn: Double, _ c: C, in ctx: CGContext) {
+        guard r > 0.5 else { return }
+        func shape(_ dy: Double) {
+            for k in 0..<8 {
+                let a = turn + .pi / 2 + Double(k) * .pi / 4, d = k % 2 == 0 ? r : r * 0.4
+                let q = CGPoint(x: p.x + cos(a) * d, y: p.y + sin(a) * d + dy)
+                if k == 0 { ctx.move(to: q) } else { ctx.addLine(to: q) }
+            }
+            ctx.closePath()
+        }
+        shape(-r * 0.12); ctx.setFillColor(CGColor(gray: 0, alpha: 0.4)); ctx.fillPath()
+        shape(0); ctx.setFillColor(c.cg()); ctx.fillPath()
+    }
+
     /// A note as a sheet of paper: its name, if it has one that may be shown, and lines of writing.
     private func card(_ name: String?, w: Double, h: Double, key: Int, _ p: Palette, in ctx: CGContext) {
         let r = CGRect(x: -w / 2, y: -h / 2, width: w, height: h)
@@ -574,34 +653,26 @@ struct FilmSlides: @unchecked Sendable {
     }
 
     /// Slide `k`, `t` seconds after it appeared (its end when nil), `pixels` wide.
-    /// The four slides' skies, by their place in `GalaxyScene.skies`, for a film set in sky `f`.
-    static func skyPath(_ f: Int) -> [Int] {
-        let between = [[1, 2], [4, 3], [1, 4], [2, 1], [1, 2]][f]
-        return [f, between[0], between[1], f]
-    }
-
-    /// How long one slide's sky takes to become the next one's.
-    static let shift = 0.6
-
-    /// Slide `k` at `t` seconds since it appeared; `from` is the slide before it on screen, whose sky
-    /// it eases out of.
-    func image(_ k: Int, at t: Double? = nil, pixels: Int, slides all: [Slide]? = nil, from: Int? = nil) -> CGImage? {
+    /// Slide `k` at `t` seconds since it appeared; with a `clock`, its clouds floated to it (in the
+    /// app they float on their own; this is for pictures of it).
+    func image(_ k: Int, at t: Double? = nil, pixels: Int, slides all: [Slide]? = nil, clock: Double? = nil) -> CGImage? {
         let all = all ?? slides()
         let height = Int((Double(pixels) * H / W).rounded()), scale = Double(pixels) / W
         guard all.indices.contains(k), let ctx = FilmRenderer.context(width: pixels, height: height) else { return nil }
         func still(_ k: Int) -> CGImage? {
             guard let back = all[k].back else { return nil }
-            return backs.image("\(k) \(all[k].name) \(pixels) \(H) \(top) \(bottom)") {
+            return backs.image("\(k) \(all[k].name) \(pixels) \(H) \(top) \(bottom) \(markMiddle ?? -1) \(cloudsApart)") {
                 guard let b = FilmRenderer.context(width: pixels, height: height) else { return nil }
                 b.scaleBy(x: scale, y: scale); back(b)
                 return b.makeImage()
             }
         }
         let box = CGRect(x: 0, y: 0, width: pixels, height: height)
-        if let s = still(k) { ctx.draw(s, in: box) }
-        if let t, let from, from != k, all.indices.contains(from), t < Self.shift, let s = still(from) {
-            ctx.saveGState(); ctx.setAlpha(1 - filmSmooth(t / Self.shift)); ctx.draw(s, in: box); ctx.restoreGState()
-        }
+        if let clock, !cloudsApart {
+            ctx.saveGState(); ctx.scaleBy(x: scale, y: scale)
+            sky(clock: clock, stars: all[k].name != "play", in: ctx)
+            ctx.restoreGState()
+        } else if let s = still(k) { ctx.draw(s, in: box) }
         ctx.scaleBy(x: scale, y: scale)
         all[k].draw(ctx, t ?? all[k].length + 1)
         return FilmRenderer.plain(ctx.makeImage())

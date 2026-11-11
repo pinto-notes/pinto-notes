@@ -836,11 +836,11 @@ import AVFoundation
         #expect(slides.slides().map(\.name) == ["start", "top-notes", "when", "play"])
         // It begins by welcoming you, by name when your profile has one (Emil, 11-11: "more welcoming
         // into Pinto Notes, acknowledging you"), and says where you started: the notes you brought.
-        #expect(slides.slides()[0].spoken.hasPrefix("Hello, welcome to your "))
+        #expect(slides.slides()[0].spoken.hasPrefix("Hello. Your "))
         #expect(slides.slides()[0].spoken.contains(" with 20 notes."))
         var emil = slides
         emil.you = FilmSlides.firstName("  Emil Wagman ")
-        #expect(emil.slides()[0].spoken.hasPrefix("Hi Emil, welcome to your "))
+        #expect(emil.slides()[0].spoken.hasPrefix("Hi Emil. Your "))
         #expect(FilmSlides.firstName("") == nil && FilmSlides.firstName(nil) == nil)
         // It talks to you, all through (Emil, 11-11: "you", not "my", in all the text).
         #expect(slides.slides()[1].spoken.hasPrefix("Your top notes"))
@@ -880,7 +880,7 @@ import AVFoundation
         #expect(FilmSlides.cardLine(quiet, script: qs).hasPrefix("You wrote your first note on "))
     }
 
-    @Test func theSlidesAreInTheFilmsSkiesShiftingAndTheWallOfNamesAlwaysFits() {
+    @Test func theSlidesAreInTheFilmsSkyWithFloatingCloudsAndTheWallOfNamesAlwaysFits() throws {
         // Emil, 11-11: "the first slides could look better". The first is your notes by name.
         let width = 948.0, height = 800.0
         // A few: all of them, large, every row inside the page and the rows inside the space.
@@ -901,51 +901,54 @@ import AVFoundation
         let slips = big.rows.flatMap { $0 }.map(\.0)
         let more = slips.last.flatMap { Int($0.dropFirst(2).prefix { $0.isNumber }) }
         #expect(slips.last?.hasSuffix(" more") == true && more.map { $0 + slips.count - 1 } == 450)
-        // Every slide is set in one of the film's night skies (Emil, 11-11: "video is great", the
-        // slides' coloured paper wasn't; "A, but make the background shift between slides"). The
-        // first is the film's own sky, the one the card grows from, and so is play, where the film
-        // opens; each slide's sky is clearly not the one before it.
+        // Every slide is set in the film's own night sky, the one its card is and the film opens on
+        // (Emil, 11-11: "video is great", the slides' coloured paper wasn't).
         let mine = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
         let script = FilmScript(mine, calendar: Self.cal)
-        let slides = FilmSlides(input: mine, script: script, mark: nil)
-        func corner(_ image: CGImage?) -> [Double] {
+        var slides = FilmSlides(input: mine, script: script, mark: nil)
+        func patch(_ image: CGImage?) -> [Double] {
             // The top right, clear of the clouds and the mark; a patch, so a star doesn't count.
             guard let image, let patch = image.cropping(to: CGRect(x: image.width - 8, y: 2, width: 6, height: 6)) else { return [] }
             var px = [UInt8](repeating: 0, count: 4)
             let ctx = CGContext(data: &px, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
             ctx.interpolationQuality = .medium
             ctx.draw(patch, in: CGRect(x: 0, y: 0, width: 1, height: 1))
-            return px.prefix(3).map(Double.init)
+            return px.map(Double.init)
         }
         func apart(_ a: [Double], _ b: [Double]) -> Double { zip(a, b).map { abs($0 - $1) }.reduce(0, +) }
         let film = GalaxyScene.sky(script), filmRGB = [film >> 16 & 0xFF, film >> 8 & 0xFF, film & 0xFF].map(Double.init)
-        let skies = GalaxyScene.skies.map { s in [s.0 >> 16 & 0xFF, s.0 >> 8 & 0xFF, s.0 & 0xFF].map(Double.init) }
-        let all = slides.slides(), seen = all.indices.map { corner(slides.image($0, pixels: 200, slides: all)) }
-        #expect(apart(seen[0], filmRGB) < 12, "the welcome is the card's sky: \(seen[0])")
-        #expect(apart(seen[all.count - 1], filmRGB) < 12, "play is the film's sky: \(seen[all.count - 1])")
-        // Which of the film's skies a picture is in.
-        func sky(_ c: [Double]) -> Int? { skies.indices.first { apart(skies[$0], c) < 10 } }
-        // The violet (4) and the purple (0) are too alike to tell apart, one after the other.
-        func shifts(_ a: Int?, _ b: Int?) -> Bool { a != nil && b != nil && a != b && Set([a!, b!]) != [0, 4] }
-        for k in seen.indices {
-            #expect(sky(seen[k]) != nil, "\(all[k].name) is in a night sky: \(seen[k])")
-            // Dark, so the cream words on it are easy to read.
-            #expect(seen[k].max()! < 90)
-            if k > 0 { #expect(shifts(sky(seen[k - 1]), sky(seen[k])), "\(all[k].name)'s sky shifts from the one before") }
+        let all = slides.slides()
+        for k in all.indices {
+            let seen = patch(slides.image(k, pixels: 200, slides: all))
+            #expect(apart(Array(seen.prefix(3)), filmRGB) < 12, "\(all[k].name) is in the film's sky: \(seen)")
         }
-        // Whichever sky a film has, its slides go through the skies without two alike in a row,
-        // starting and ending in its own.
-        for f in skies.indices {
-            let path = FilmSlides.skyPath(f)
-            #expect(path.count == 4 && path.first == f && path.last == f)
-            for k in path.indices.dropFirst() { #expect(shifts(path[k - 1], path[k]), "sky \(f): \(path)") }
+        // In the app the sky and its clouds are under the slides, floating on their own: a slide
+        // is then clear where the sky shows (only its grain), and each cloud is a picture of its own.
+        slides.cloudsApart = true
+        let clear = slides.slides()
+        for k in clear.indices { #expect(patch(slides.image(k, pixels: 200, slides: clear))[3] < 40, "\(clear[k].name) leaves the sky to the app") }
+        for i in FilmSlides.clouds.indices {
+            let cloud = try #require(slides.cloudImage(i, scale: 0.2))
+            #expect(abs(Double(cloud.width) - FilmSlides.cloudSide(i) * 0.2) <= 1)
+            #expect(patch(cloud)[3] == 0, "cloud \(i)'s corner is clear")
+            let middle = try #require(cloud.cropping(to: CGRect(x: cloud.width / 2 - 3, y: cloud.height / 2 - 3, width: 6, height: 6)))
+            #expect(patch(middle)[3] == 255, "cloud \(i) is paper in its middle")
         }
-        // Going to the next slide, its sky eases out of the last one's over a moment, no cut.
-        let first = corner(slides.image(1, at: 0.02, pixels: 200, slides: all, from: 0))
-        let mid = corner(slides.image(1, at: FilmSlides.shift / 2, pixels: 200, slides: all, from: 0))
-        let done = corner(slides.image(1, at: FilmSlides.shift + 0.05, pixels: 200, slides: all, from: 0))
-        #expect(apart(first, seen[0]) < 12 && apart(done, seen[1]) < 12)
-        #expect(apart(mid, seen[0]) > 6 && apart(mid, seen[1]) > 6, "half way it's between: \(mid)")
+        // They're always moving, really subtly (Emil, 11-11): a few points at most, a hint of a
+        // turn, each on its own rhythm, and they never drift away.
+        var moved = [0.0, 0.0]
+        for step in 0..<600 {
+            let clock = Double(step) * 0.1
+            for i in FilmSlides.clouds.indices {
+                let f = FilmSlides.float(i, at: clock)
+                #expect(abs(f.x) <= 14 && abs(f.y) <= 11 && abs(f.turn) <= 0.006)
+                moved[i] = max(moved[i], hypot(f.x - FilmSlides.float(i, at: 0).x, f.y - FilmSlides.float(i, at: 0).y))
+            }
+        }
+        #expect(moved.allSatisfy { $0 > 8 })
+        #expect(FilmSlides.float(0, at: 3) != FilmSlides.float(1, at: 3))
+        let rest = slides.cloudPlace(0), later = slides.cloudPlace(0, at: 1000)
+        #expect(hypot(rest.middle.x - later.middle.x, rest.middle.y - later.middle.y) <= 18)
         // One name too long for a row has a row to itself, cut to the page.
         let long = FilmSlides.wall([String(repeating: "Very long title ", count: 20)], count: 1, width: width, height: height)
         #expect(long.rows.count == 1 && fits(long))
