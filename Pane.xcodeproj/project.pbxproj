@@ -1107,6 +1107,7 @@
 		E92AC6AF1FE507EBE1778496 /* NotePageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B99DE5320A61F5F5F0A9B8 /* NotePageData.swift */; };
 		EA70BEDD2F3F4EC520FF466C /* BundleRenameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B2965B65AD833118261881C /* BundleRenameTests.swift */; };
 		EAB87CE00ACD15BD840A9B73 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3891EC4D2DC7BF10221F3CBC /* SettingsView.swift */; };
+		EB1CF3DC1DCCA751C9F29704 /* PhoneAppearanceSheetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9322EF0405CA9AFF00EB17FA /* PhoneAppearanceSheetTests.swift */; };
 		EB5DBD13FCC87D0E7DAC46A2 /* SlashCommandsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87B4EEF818EC0B538023629F /* SlashCommandsTests.swift */; };
 		EB72815EF0591089238CFB26 /* e2ee-vectors.json in Resources */ = {isa = PBXBuildFile; fileRef = D5DFD991B7F6D9071008215D /* e2ee-vectors.json */; };
 		EBA52C007B952E15C5C98BED /* AppPlace.swift in Sources */ = {isa = PBXBuildFile; fileRef = D66F73D19D6FC8E877D5EDCA /* AppPlace.swift */; };
@@ -1739,6 +1740,7 @@
 		92322EAC09047DABE673BD1B /* ConnectGuideSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectGuideSnapshots.swift; sourceTree = "<group>"; };
 		92BB88863C91D7FAF65921A2 /* PaneWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PaneWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		930FD737A522ABA46963C7E1 /* CollabStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabStore.swift; sourceTree = "<group>"; };
+		9322EF0405CA9AFF00EB17FA /* PhoneAppearanceSheetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAppearanceSheetTests.swift; sourceTree = "<group>"; };
 		9398F8788C42813890A2C14F /* template-cover-cornell-notes.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-cornell-notes.jpg"; sourceTree = "<group>"; };
 		93CB314330255850EA06044C /* SignInLayoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInLayoutUITests.swift; sourceTree = "<group>"; };
 		94729A90DC7CD498EE357536 /* template-cover-study-flashcards.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-study-flashcards.jpg"; sourceTree = "<group>"; };
@@ -2580,6 +2582,7 @@
 				31647BC8B35CBD0E08BADA01 /* PastedLinkTests.swift */,
 				451925FBA71291F8A2590004 /* PDFZoomTests.swift */,
 				2CF6606F1D134E0CC1E52660 /* PhoneAccountButtonTests.swift */,
+				9322EF0405CA9AFF00EB17FA /* PhoneAppearanceSheetTests.swift */,
 				F6E4AB2E8D7AF9CAD1680B3C /* PhoneFolderTapTests.swift */,
 				5B958B34D188D2BE722F0B73 /* PhoneSignOutTests.swift */,
 				CAF5A2304A5BABB7DC001106 /* QuickOpenTests.swift */,
@@ -3991,6 +3994,7 @@
 				848229C4EE00EBF2AF14884F /* PersonaImportShots.swift in Sources */,
 				0B1A600BBD3B2646B0BB41BD /* PersonaR7Shots.swift in Sources */,
 				981FDF11DD9335C98988D0A0 /* PhoneAccountButtonTests.swift in Sources */,
+				EB1CF3DC1DCCA751C9F29704 /* PhoneAppearanceSheetTests.swift in Sources */,
 				214C950321EE5190F9BE7A60 /* PhoneFolderTapTests.swift in Sources */,
 				F9B83CD17366693592CFBAB7 /* PhoneRenderTests.swift in Sources */,
 				6980AC696EEA281FC5DDE83E /* PhoneSignOutTests.swift in Sources */,

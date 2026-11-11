@@ -1156,6 +1156,11 @@ struct AppearanceSettingsPage: View {
                     ForEach(NoteFont.allCases) { Text($0.title).tag($0) }
                 }
                 .accessibilityIdentifier("settings.font")
+                #if os(iOS)
+                // Its arrows are UIKit's, tinted once: drawn again for a new theme, or they stayed in
+                // the old accent beside the new one (Emil, 11 November 2026).
+                .id(look.theme)
+                #endif
                 #if os(macOS)
                 // Persona council 11-04: note text from 13 to 24 pt, as Notes' and Books' View menus do it.
                 TextSizeRow()
