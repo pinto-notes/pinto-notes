@@ -10,6 +10,8 @@ struct NoteLabelChips: View {
     var limit = 3
     /// A tap on a chip (the bar): the tag's list.
     var open: ((String) -> Void)? = nil
+    /// A colour to show instead of the tag's own (New Tag's preview, before it's added).
+    var colour: TagColor? = nil
     private var colors: TagColors { .shared }
 
     var body: some View {
@@ -45,7 +47,7 @@ struct NoteLabelChips: View {
     }
 
     private func chip(_ name: String) -> some View {
-        let c = colors.color(for: name)
+        let c = colour ?? colors.color(for: name)
         return Text(name)
             .font(font)
             .foregroundStyle(Color(c.ink))

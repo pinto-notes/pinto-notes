@@ -45,26 +45,109 @@ struct NoteTagsMenu: View {
     }
 }
 
-/// New Tag…'s question: a name, then the tag goes on the notes it was asked for.
+/// New Tag…: a name and a colour (Emil, 12 November 2026: "I should be able to pick color
+/// here"), then the tag goes on the notes it was asked for. A sheet, not an alert: an alert holds
+/// only text fields and buttons. Until a colour is picked, it shows the one the name has.
 struct NewTagAlert: ViewModifier {
     @Binding var notes: [UUID]?
+
+    func body(content: Content) -> some View {
+        content.sheet(isPresented: Binding(get: { notes != nil }, set: { if !$0 { notes = nil } })) {
+            NewTagSheet(notes: notes ?? [], close: { notes = nil })
+        }
+    }
+}
+
+struct NewTagSheet: View {
+    let notes: [UUID]
+    let close: () -> Void
     @State private var name = ""
+    @State private var picked: TagColor?
+    @FocusState private var focused: Bool
     @Environment(\.modelContext) private var context
     @Environment(\.undoManager) private var undoManager
 
-    func body(content: Content) -> some View {
-        content.alert("New Tag", isPresented: Binding(get: { notes != nil }, set: { if !$0 { notes = nil } })) {
-            TextField("Needs review", text: $name)
-                .accessibilityIdentifier("newTag.name")
-            Button("Cancel", role: .cancel) { name = "" }
-            Button("Add") {
-                if let tag = NoteLabels.typedName(name), let ids = notes {
-                    context.setTag(tag, on: ids.compactMap { context.note($0) }, to: true, undo: undoManager)
+    /// The colour the new tag shows in: the one picked, else the one its name has (chosen before,
+    /// or from the name).
+    static func colour(for name: String, picked: TagColor?, in colors: TagColors) -> TagColor {
+        picked ?? colors.color(for: NoteLabels.typedName(name) ?? name)
+    }
+
+    /// Add: the tag on the notes and, when one was picked, its colour.
+    @MainActor static func add(_ typed: String, colour picked: TagColor?, to notes: [Note], in context: ModelContext, colors: TagColors, undo: UndoManager?) {
+        guard let tag = NoteLabels.typedName(typed) else { return }
+        if let picked { colors.set(picked, for: tag) }
+        context.setTag(tag, on: notes, to: true, undo: undo)
+    }
+
+    private var tag: String? { NoteLabels.typedName(name) }
+    private var shown: TagColor { Self.colour(for: name, picked: picked, in: .shared) }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 20) {
+                TextField("Needs review", text: $name)
+                    .focused($focused)
+                    .submitLabel(.done)
+                    .onSubmit(add)
+                    .padding(.horizontal, 14).padding(.vertical, 11)
+                    .background(Color.secondary.opacity(0.12), in: .rect(cornerRadius: 12))
+                    .accessibilityIdentifier("newTag.name")
+                HStack(spacing: 0) {
+                    ForEach(TagColor.allCases) { c in
+                        Button { picked = c } label: {
+                            Circle().fill(Color(tagColor: c))
+                                .frame(width: 26, height: 26)
+                                .padding(4)
+                                .overlay(Circle().strokeBorder(Color(tagColor: c), lineWidth: 2).opacity(shown == c ? 1 : 0))
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        #if os(macOS)
+                        .pointerStyle(.link)
+                        .help(c.title)
+                        #endif
+                        .frame(maxWidth: .infinity)
+                        .accessibilityLabel(c.title)
+                        .accessibilityAddTraits(shown == c ? .isSelected : [])
+                        .accessibilityIdentifier("newTag.color.\(c.rawValue)")
+                    }
                 }
-                name = ""
+                // How it will look on the note.
+                NoteLabelChips(labels: [tag ?? "Needs review"], colour: shown)
+                    .opacity(tag == nil ? 0.4 : 1)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityHidden(true)
+                Spacer(minLength: 0)
             }
-            .disabled(NoteLabels.typedName(name) == nil)
+            .padding(20)
+            .navigationTitle("New Tag")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: close)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add", action: add)
+                        .disabled(tag == nil)
+                        .accessibilityIdentifier("newTag.add")
+                }
+            }
         }
+        #if os(iOS)
+        .presentationDetents([.height(250)])
+        #else
+        .frame(width: 340, height: 220)
+        #endif
+        .onAppear { focused = true }
+    }
+
+    private func add() {
+        guard tag != nil else { return }
+        Self.add(name, colour: picked, to: notes.compactMap { context.note($0) }, in: context, colors: .shared, undo: undoManager)
+        close()
     }
 }
 

@@ -219,4 +219,25 @@ import AppKit
         #expect(NoteListView.tagTitle("Needs review") == "Needs review")
         #expect(NoteListView.tagTitle("work/clients") == "work/clients")
     }
+
+    @MainActor @Test func newTagPicksItsColour() throws {
+        let colors = TagColors(defaults: UserDefaults(suiteName: "TagColorsTests.\(UUID())")!)
+        // Before a pick: the colour the name has, and it follows the name as it's typed.
+        #expect(NewTagSheet.colour(for: "Needs review", picked: nil, in: colors) == .standard(for: "Needs review"))
+        #expect(NewTagSheet.colour(for: "Needs review", picked: .blue, in: colors) == .blue)
+        let container = try ModelContainer(for: Note.self, Folder.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let note = Note(body: "Plan\nFirst")
+        container.mainContext.insert(note)
+        NewTagSheet.add("  Needs review ", colour: .red, to: [note], in: container.mainContext, colors: colors, undo: nil)
+        #expect(NoteLabels.labels(in: note.frontMatter) == ["Needs review"])
+        #expect(colors.color(for: "needs review") == .red)
+        #expect(colors.isChosen("Needs review"))
+        // No pick: the tag keeps the colour its name gives it, and nothing is stored as chosen.
+        NewTagSheet.add("Waiting", colour: nil, to: [note], in: container.mainContext, colors: colors, undo: nil)
+        #expect(NoteLabels.labels(in: note.frontMatter) == ["Needs review", "Waiting"])
+        #expect(!colors.isChosen("Waiting"))
+        // A name with nothing in it adds nothing.
+        NewTagSheet.add("  ", colour: .red, to: [note], in: container.mainContext, colors: colors, undo: nil)
+        #expect(NoteLabels.labels(in: note.frontMatter).count == 2)
+    }
 }

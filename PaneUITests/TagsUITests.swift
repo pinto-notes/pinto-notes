@@ -67,14 +67,17 @@ final class TagsUITests: XCTestCase {
         shot("03-tags-menu-empty")
         newTag.tap()
 
-        // New Tag…: a name with a space is fine.
-        let field = app.alerts.textFields.firstMatch
+        // New Tag…: a name (a space is fine) and a colour.
+        let field = app.textFields["newTag.name"]
         XCTAssertTrue(field.waitForExistence(timeout: 3))
-        field.tap()
         dismissKeyboardTip()
         field.typeText("Needs review")
+        wait()
         shot("04-new-tag")
-        app.alerts.buttons["Add"].tap()
+        app.buttons["newTag.color.red"].tap()
+        wait()
+        shot("04b-new-tag-red")
+        app.buttons["newTag.add"].tap()
         wait()
 
         // The row shows it; the note shows it in its bar, and its text is as it was.
@@ -94,12 +97,10 @@ final class TagsUITests: XCTestCase {
         weekend.press(forDuration: 1.0)
         app.buttons["Tags"].firstMatch.tap()
         app.buttons["New Tag…"].firstMatch.tap()
-        let field2 = app.alerts.textFields.firstMatch
+        let field2 = app.textFields["newTag.name"]
         XCTAssertTrue(field2.waitForExistence(timeout: 3))
-        field2.tap()
-        dismissKeyboardTip()
         field2.typeText("Lisbon trip")
-        app.alerts.buttons["Add"].tap()
+        app.buttons["newTag.add"].tap()
         wait()
 
         // Another note: the menu offers the tags, not ticked.
@@ -121,14 +122,14 @@ final class TagsUITests: XCTestCase {
         wait()
         shot("07-sidebar-tags")
 
-        // Its long-press picks its colour.
+        // Its long-press changes its colour.
         tagRow.press(forDuration: 1.0)
-        let red = app.buttons["Red"].firstMatch
-        XCTAssertTrue(red.waitForExistence(timeout: 3), "the colours are offered")
+        let blue = app.buttons["Blue"].firstMatch
+        XCTAssertTrue(blue.waitForExistence(timeout: 3), "the colours are offered")
         shot("08-colour-menu")
-        red.tap()
+        blue.tap()
         wait()
-        shot("09-sidebar-red")
+        shot("09-sidebar-blue")
 
         // The tag's list, and the note in its new colour.
         tagRow.tap()
@@ -138,7 +139,7 @@ final class TagsUITests: XCTestCase {
         noteRow("Hotel booking").tap()
         XCTAssertTrue(app.textViews.firstMatch.waitForExistence(timeout: 5))
         wait()
-        shot("11-note-red-label")
+        shot("11-note-blue-label")
         wait(1.5)
         // Xcode keeps its screen recording of a run only when it fails: for a film of this flow,
         // PANE_KEEP_VIDEO ends it as one on purpose. Never set in CI or the local check.
