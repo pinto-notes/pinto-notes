@@ -28,6 +28,9 @@ export type Post = {
   /// A launch of something new in the app: labelled "Announcement" on its card and above its title
   /// (Emil, 7 November 2026: "right now it's honestly not that clear" that these are news).
   announcement?: true;
+  /// On the front of the blog without being a launch: original work about Pinto, such as the memory
+  /// study (Emil, 12 November 2026: "do that then", when asked whether to front it).
+  front?: true;
 };
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
@@ -136,9 +139,10 @@ export const posts: Post[] = [
     category: "Building Pinto Notes",
     date: "2026-11-12",
     updated: "2026-11-12",
-    image: { src: "/blog/memory-study/locomo-bars.webp", alt: "Bar chart: with Pinto, a new chat went from 18% to 82.5% right on LoCoMo, against 60.2% with saved facts and 71.9% with one notebook.", width: 1848, height: 740, window: false },
-    thumb: thumb("cream", "memory-study-card", 1280, 513, "Bar chart: no memory 18%, saved facts 60%, one notebook 72%, Pinto 82.5%"),
+    image: { src: "/blog/memory-study/locomo-types.webp", alt: "Grouped bar chart by question type. One fact: no memory 24, saved facts 66, one notebook 72, Pinto 89. Several facts: 13, 58, 67, 66. When: 3, 48, 80, 87. Inference: 29, 54, 52, 65.", width: 1848, height: 820, window: false },
+    thumb: cover("dusk", "memory-study", 1600, 1000, "Bar chart: no memory 18%, saved facts 60%, one notebook 72%, Pinto 82.5%"),
     draft: false,
+    front: true,
   },
   {
     slug: "best-ai-notes-app",
@@ -474,7 +478,7 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// The front of the blog: announcements only (Emil, 7 November 2026: "the Pinto Notes blog immediately
 /// became only for announcements"). Every other post answers a search; those live on /blog/answers,
 /// in the sitemap and in the posts that link to them, but not on /blog.
-export const FEATURED = posts.filter((p) => p.announcement && !p.draft).map((p) => p.slug);
+export const FEATURED = posts.filter((p) => (p.announcement || p.front) && !p.draft).map((p) => p.slug);
 export const isFeatured = (p: Post) => FEATURED.includes(p.slug);
 
 /// Posts per page on the index and on each category page.

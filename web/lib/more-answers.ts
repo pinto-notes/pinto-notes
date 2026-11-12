@@ -32,7 +32,6 @@ export const SHELVES: Shelf[] = [
     items: [
       { slug: "connect-chatgpt-to-your-notes", ask: "How do I connect ChatGPT to my notes?" },
       { slug: "notes-in-claude-code-and-codex", ask: "Can Claude Code and Codex use my notes?" },
-      { slug: "ai-memory-with-notes", ask: "Does my AI remember better with notes?" },
       { slug: "budget-tracker-with-chatgpt-or-claude", ask: "Can my AI keep a budget for me?" },
       { slug: "encrypted-notes-app-for-ai", ask: "Can an encrypted notes app work with AI?" },
       { slug: "chatgpt-and-apple-notes", ask: "Can ChatGPT use Apple Notes?" },
