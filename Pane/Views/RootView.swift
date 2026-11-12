@@ -871,6 +871,7 @@ struct RootView: View {
         }
         #endif
         withAnimation(.snappy(duration: 0.25)) {
+            Usage.trashed(notes)
             context.remove(notes, undo: undoManager) { back in selection = Set(back.map(\.id)) }
             selection = []
         }

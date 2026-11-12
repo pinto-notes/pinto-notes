@@ -75,6 +75,8 @@ enum TelemetryProperty: String, CaseIterable, Sendable {
     // The notebook film: why it was offered, and where it was closed.
     case place, form, days
     case activeDays = "active_days"
+    // An AI's change taken back (ai_change_undone), and coming back to the app (app_returned).
+    case change, after, away
 
     static let frameSlots: [TelemetryProperty] = [.frame0, .frame1, .frame2, .frame3, .frame4, .frame5, .frame6, .frame7]
 }
@@ -133,13 +135,14 @@ extension GateScreen {
 
 /// Which AI was connected, by where its approval went. Never the name it gave itself or its host.
 enum AIKind: String, TelemetryWord {
-    case claude, chatgpt, other
+    case claude, chatgpt, grok, other
 
     /// `verified`: ConnectTrust's name for a return address it knows, or nil.
     init(verified: String?) {
         switch verified {
         case "Claude", "Claude Code": self = .claude
         case "ChatGPT", "Codex": self = .chatgpt
+        case "Grok": self = .grok
         default: self = .other
         }
     }
@@ -292,7 +295,7 @@ enum CountBucket: String, TelemetryWord {
 /// Which AI a connect guide is for, never a name the AI gave itself.
 enum ConnectAIKind: String, TelemetryWord {
     // `incredible` stays so older reports still read; nothing sends it now.
-    case chatgpt, claude, codex, other, incredible
+    case chatgpt, claude, codex, grok, other, incredible
     case claudeCode = "claude_code"
 }
 
@@ -445,6 +448,7 @@ enum TelemetryWords {
         add(NoteFont.self); add(TodaysNoteSettings.Title.self)
         add(UsedFeature.self); add(ShareStep.self); add(StorageLevelWord.self)
         add(NotebookFilmStep.self); add(NotebookFilmPlace.self); add(FilmForm.self)
+        add(AIChangeWord.self); add(AIUndoHow.self); add(SinceBucket.self); add(AwayBucket.self)
         return words
     }()
 }
@@ -482,6 +486,12 @@ enum TelemetryEvent: Equatable, Sendable {
     case firstSync(milliseconds: Int)
     case aiConnected(AIKind)
     case firstAIEditSeen
+    /// The person took back what an AI did: Undo on the note, Undo in AI Changes, or deleting a
+    /// note an AI changed in the last week. `change`: what the AI did, when the app knows it.
+    case aiChangeUndone(AIUndoHow, change: AIChangeWord?, after: SinceBucket)
+    /// The app came back to the front after at least half an hour away, the same day (a new day
+    /// is an `app_opened`).
+    case appReturned(AwayBucket)
 
     // Funnels: where people get stuck, step by step.
     case onboardingStep(OnboardingStep, FunnelAction)
@@ -545,6 +555,7 @@ enum TelemetryEvent: Equatable, Sendable {
         case appOpened = "app_opened", signedIn = "signed_in", signedUp = "signed_up", keyReady = "key_ready"
         case gateShown = "gate_shown", firstNoteCreated = "first_note_created", firstSync = "first_sync"
         case aiConnected = "ai_connected", firstAIEditSeen = "first_ai_edit_seen"
+        case aiChangeUndone = "ai_change_undone", appReturned = "app_returned"
         case onboardingStep = "onboarding_step", importStep = "import_step", connectStep = "connect_step"
         case signInStep = "sign_in_step", linkDeviceStep = "link_device_step", notebookFilmStep = "notebook_film_step"
         case settingsState = "settings_state", settingChanged = "setting_changed", settingsPageOpened = "settings_page_opened"
@@ -569,6 +580,8 @@ enum TelemetryEvent: Equatable, Sendable {
         case .firstSync: .firstSync
         case .aiConnected: .aiConnected
         case .firstAIEditSeen: .firstAIEditSeen
+        case .aiChangeUndone: .aiChangeUndone
+        case .appReturned: .appReturned
         case .onboardingStep: .onboardingStep
         case .importStep: .importStep
         case .connectStep: .connectStep
@@ -615,6 +628,8 @@ enum TelemetryEvent: Equatable, Sendable {
         case .firstNoteCreated, .firstAIEditSeen: [:]
         case .firstSync(let ms): [.durationMS: .number(Self.rounded(ms))]
         case .aiConnected(let kind): [.kind: .word(kind)]
+        case .aiChangeUndone(let how, let change, let after): Self.word([.how: .word(how), .after: .word(after)], .change, change)
+        case .appReturned(let away): [.away: .word(away)]
         case .onboardingStep(let step, let action): [.step: .word(step), .action: .word(action)]
         case .importStep(let source, let step, let page, let count, let kind):
             Self.word(Self.word(Self.with([.source: .word(source), .step: .word(step)], .page, page.map { min(max($0, 1), 5) }), .count, count), .kind, kind)
@@ -705,6 +720,7 @@ enum TelemetryEvent: Equatable, Sendable {
     static let samples: [TelemetryEvent] = [
         .appOpened(launch: true, signedIn: true), .signedIn(.apple), .signedUp(.email), .keyReady(.recoveryKey, store: .keychain),
         .gateShown(.addDevice), .firstNoteCreated, .firstSync(milliseconds: 1234), .aiConnected(.claude), .firstAIEditSeen,
+        .aiChangeUndone(.changesList, change: .created, after: .under5m), .appReturned(.under2h),
         .onboardingStep(.bring, .skipped), .importStep(.appleNotes, .done, count: .upTo99), .connectStep(.chatgpt, .failed, kind: .network),
         .signInStep(.email, .failed, kind: .badCode), .linkDeviceStep(.newDevice, .codeShown),
         .settingsState([.appearance: .word(AppearanceMode.dark), .theme: .word(Theme.paper), .font: .word(NoteFont.serif),

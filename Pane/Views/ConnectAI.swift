@@ -1680,8 +1680,7 @@ struct ConnectAISection: View {
             switch self {
             case .chatgpt: .chatgpt
             case .claude: .claude
-            // Counted with the other apps: the funnel's payload has no Grok yet.
-            case .grok: .other
+            case .grok: .grok
             case .claudeCode: .claudeCode
             case .codex: .codex
             case .other: .other

@@ -397,7 +397,7 @@ struct NoteDetailView: View {
                 }
             }
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
-            .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { for n in notes { context.trash(n) } } }
+            .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { Usage.trashed(notes); for n in notes { context.trash(n) } } }
             .alert(SharedNoteLimits.filesTitle, isPresented: $refusingSharedFiles) {
                 Button("OK") {}
             } message: { Text(SharedNoteLimits.filesMessage) }
@@ -790,6 +790,7 @@ struct NoteDetailView: View {
         Task { @MainActor in
             do {
                 try await AIEdit.undo(r, on: note)
+                AIUndoUsage.undone(.undo, change: r.created ? .created : .edited, at: r.at)
             } catch {
                 // Couldn't reach the server: say so where the receipt was.
                 withAnimation(.smooth(duration: 0.25)) { undoFailed = (error as? LocalizedError)?.errorDescription ?? "Couldn't undo. Try again." }
@@ -1163,7 +1164,7 @@ struct NoteDetailView: View {
                         NotificationCenter.default.post(name: .paneDeleteNotes, object: Set([note.id]))
                         #else
                         let open = onOpenNote
-                        withAnimation(.snappy) { context.remove([note], undo: undoManager) { back in if let n = back.first { open(n.id, false) } } }
+                        withAnimation(.snappy) { Usage.trashed([note]); context.remove([note], undo: undoManager) { back in if let n = back.first { open(n.id, false) } } }
                         #endif
                     }
                 }

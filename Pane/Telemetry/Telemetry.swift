@@ -53,6 +53,8 @@ final class Telemetry: @unchecked Sendable {
     private var pendingAt = Date.distantFuture
     private var launchedAt: Date?
     private var openedDay: Int?
+    /// When the app last left the front (`app_returned`).
+    private var leftAt: Date?
 
     init() {}
 
@@ -261,12 +263,21 @@ final class Telemetry: @unchecked Sendable {
     /// The app came to the front: "app opened" once at launch, and once more for each new day
     /// (UTC) it's still running, so a Mac app left open for a week counts as used on each day.
     func becameActive(signedIn: Bool) {
-        let day = Int(now().timeIntervalSince1970 / 86400)
-        let launch: Bool? = lock.withLock {
-            defer { openedDay = day }
-            return openedDay == nil ? true : openedDay == day ? nil : false
+        let at = now()
+        let day = Int(at.timeIntervalSince1970 / 86400)
+        let (launch, left): (Bool?, Date?) = lock.withLock {
+            defer { openedDay = day; leftAt = nil }
+            return (openedDay == nil ? true : openedDay == day ? nil : false, leftAt)
         }
         if let launch { record(.appOpened(launch: launch, signedIn: signedIn)) }
+        // Back after a while the same day: an app left open (the Mac's, mostly) used again.
+        else if let left, let away = AwayBucket(seconds: at.timeIntervalSince(left)) { record(.appReturned(away)) }
+    }
+
+    /// The app left the front: when, for `app_returned`.
+    func left() {
+        let at = now()
+        lock.withLock { leftAt = at }
     }
 
     /// The app left the front (or is quitting): everything waiting goes out. The sync timings are

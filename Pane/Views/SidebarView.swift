@@ -1265,6 +1265,7 @@ struct SidebarView: View {
     private func startNewFolder(_ parent: Folder?) {
         #if os(macOS)
         guard let f = context.createUntitledFolder(parent: parent) else { folderLimitReached = true; return }
+        Usage.count(.folderCreated)
         scope = .folder(f.id)
         namingFolder = f.id
         #else
@@ -1286,6 +1287,7 @@ struct SidebarView: View {
             try? context.save()
         } else if let parent = newFolderParent {
             let f = context.createFolder(named: name, parent: parent)
+            Usage.count(.folderCreated)
             scope = .folder(f.id)
         }
     }
@@ -1371,6 +1373,7 @@ struct SidebarView: View {
 
     private func performDelete(_ f: Folder) {
         if scope == .folder(f.id) { scope = .all }
+        Usage.count(.folderDeleted)
         SidebarView.folderChange { context.trash(f) }
     }
 }
@@ -1633,6 +1636,7 @@ private struct TrashDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         lid.dropped { over = $0 }
         DropLoader.load(info.itemProviders(for: [.paneItem])) { [context, undo] items, _ in
+            Usage.trashed(items.filter { $0.kind == .note }.flatMap(\.ids).compactMap { context.note($0) })
             SidebarView.folderChange { context.trashDropped(items, undo: undo) }
         }
         return true

@@ -13,6 +13,74 @@ enum UsedFeature: String, TelemetryWord {
     case fromTemplate = "from_template", noteAppOpened = "note_app_opened", notePinned = "note_pinned"
     case noteLocked = "note_locked", sharePicture = "share_picture", menuBarNote = "menu_bar_note"
     case shortcutNote = "shortcut_note", importsStarted = "imports_started"
+    case notesTrashed = "notes_trashed", folderCreated = "folder_created", folderDeleted = "folder_deleted"
+}
+
+/// What an AI did that the person took back (`ai_change_undone`).
+enum AIChangeWord: String, TelemetryWord {
+    case created, edited, moved, deleted, recovered
+    case versionRestored = "version_restored"
+
+    init(_ kind: AIChange.Kind) {
+        switch kind {
+        case .edit: self = .edited
+        case .restore: self = .versionRestored
+        case .created: self = .created
+        case .moved: self = .moved
+        case .deleted: self = .deleted
+        case .restored: self = .recovered
+        }
+    }
+}
+
+/// How it was taken back.
+enum AIUndoHow: String, TelemetryWord {
+    /// Undo on the note, where the AI's change is marked.
+    case undo
+    /// Undo This Change in AI Changes.
+    case changesList = "changes_list"
+    /// The person deleted a note an AI had changed in the last week.
+    case deleted
+}
+
+/// How long after the AI's change.
+enum SinceBucket: String, TelemetryWord {
+    case under5m = "under_5m", under1h = "under_1h", under1d = "under_1d", under7d = "under_7d"
+
+    /// Nil past a week: by then it's no longer about what the AI did.
+    init?(seconds: TimeInterval) {
+        switch seconds {
+        case ..<300: self = .under5m
+        case ..<3600: self = .under1h
+        case ..<86400: self = .under1d
+        case ..<(7 * 86400): self = .under7d
+        default: return nil
+        }
+    }
+}
+
+/// How long the app was away before it came back to the front (`app_returned`).
+enum AwayBucket: String, TelemetryWord {
+    case under2h = "under_2h", under8h = "under_8h", over8h = "over_8h"
+
+    /// Nil under half an hour: a glance at another app isn't coming back.
+    init?(seconds: TimeInterval) {
+        switch seconds {
+        case ..<1800: return nil
+        case ..<7200: self = .under2h
+        case ..<28800: self = .under8h
+        default: self = .over8h
+        }
+    }
+}
+
+/// Taking back what an AI did, said where it happens.
+@MainActor
+enum AIUndoUsage {
+    static func undone(_ how: AIUndoHow, change: AIChangeWord?, at: Date, now: Date = .now) {
+        guard let after = SinceBucket(seconds: max(0, now.timeIntervalSince(at))) else { return }
+        Funnel.record(.aiChangeUndone(how, change: change, after: after))
+    }
 }
 
 /// How long something took to show, counted into ranges and sent as one event.
@@ -64,6 +132,17 @@ enum Usage {
     static func count(_ feature: UsedFeature) {
         tap?(feature)
         Telemetry.shared.used(feature)
+    }
+
+    /// The person deleted notes (Delete Note, ⌫, a shared note's delete): one `feature_used`, and for
+    /// each note an AI changed in the last week, an `ai_change_undone` saying how soon after.
+    @MainActor static func trashed(_ notes: [Note], now: Date = .now) {
+        let live = notes.filter { $0.trashedAt == nil && $0.deletedAt == nil }
+        guard !live.isEmpty else { return }
+        count(.notesTrashed)
+        for n in live where n.aiEditor != nil {
+            if let at = n.aiEditedAt { AIUndoUsage.undone(.deleted, change: nil, at: at, now: now) }
+        }
     }
 
     /// Typing in a note: one `feature_used` the first time each note is typed in, each launch.

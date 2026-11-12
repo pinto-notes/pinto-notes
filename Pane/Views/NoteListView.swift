@@ -1174,6 +1174,7 @@ struct NoteListView: View {
         let next: Set<UUID> = firstIndex.flatMap { i in rest.isEmpty ? nil : [rest[min(i, rest.count - 1)].id] } ?? []
         let choose = $selection
         withAnimation(.snappy(duration: 0.25)) {
+            Usage.trashed(notes)
             context.remove(notes, undo: undoManager, reopen: { back in selection = Set(back.map(\.id)) },
                            gone: touchedSelection ? { choose.wrappedValue = next } : nil)
             context.remove(files: files)
