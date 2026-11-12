@@ -124,7 +124,7 @@ import SwiftUI
         Self.arrive(n, body: "To-do\n\n- [ ] Call the bank\n- [ ] Call mom", by: "Claude")
         #expect(AIEdit.isUnseen(n))
         let r = try #require(AIEdit.markSeen(n))
-        #expect(r.by == "Claude" && r.lines == 1 && r.summary == "Claude changed 1 line")
+        #expect(r.by == "Claude" && r.lines == 1 && r.summary == "Claude added \u{201C}Call mom\u{201D}")
         #expect(r.previous == "To-do\n\n- [ ] Call the bank")
         #expect(!AIEdit.isUnseen(n))
         #expect(n.aiPrevious == nil)

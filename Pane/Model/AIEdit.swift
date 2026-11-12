@@ -59,6 +59,45 @@ enum AIEdit {
         arrived(note, previousBody: previousBody, previousEditAt: previousAt, quiet: false)
     }
 
+    /// An edit in words, when it's one plain thing: "ticked “Eggs”", "removed “Lemons”", "added
+    /// “Saffron”", "added a row to the table". Nil for anything else ("changed 3 lines" then).
+    nonisolated static func describe(previous: String, after: String) -> String? {
+        let a = previous.components(separatedBy: "\n"), b = after.components(separatedBy: "\n")
+        let blank = { (l: String) in l.trimmingCharacters(in: .whitespaces).isEmpty }
+        var removed: [String] = [], added: [String] = []
+        for change in b.difference(from: a).inferringMoves() {
+            switch change {
+            case .remove(_, let l, let moved): if moved == nil, !blank(l) { removed.append(l) }
+            case .insert(_, let l, let moved): if moved == nil, !blank(l) { added.append(l) }
+            }
+        }
+        func untick(_ l: String) -> String { l.replacingOccurrences(of: "[x]", with: "[ ]").replacingOccurrences(of: "[X]", with: "[ ]") }
+        func words(_ l: String) -> String {
+            var t = l
+            if let p = ListPrefix(line: t) { t = (t as NSString).substring(from: p.length) }
+            t = t.trimmingCharacters(in: CharacterSet(charactersIn: "#*_`= "))
+            return t.count > 28 ? String(t.prefix(27)).trimmingCharacters(in: .whitespaces) + "…" : t
+        }
+        if !added.isEmpty, removed.count == added.count, zip(removed, added).allSatisfy({ untick($0) == untick($1) && $0 != $1 }) {
+            let ticked = added.allSatisfy { $0.contains("[x]") || $0.contains("[X]") }
+            let unticked = added.allSatisfy { $0.contains("[ ]") }
+            guard ticked || unticked else { return nil }
+            let verb = ticked ? "ticked" : "unticked"
+            return added.count == 1 ? "\(verb) \u{201C}\(words(added[0]))\u{201D}" : "\(verb) \(added.count) items"
+        }
+        if added.isEmpty, !removed.isEmpty {
+            return removed.count == 1 ? "removed \u{201C}\(words(removed[0]))\u{201D}" : "removed \(removed.count) lines"
+        }
+        if removed.isEmpty, added.count == 1 {
+            if added[0].trimmingCharacters(in: .whitespaces).hasPrefix("|") { return "added a row to the table" }
+            return "added \u{201C}\(words(added[0]))\u{201D}"
+        }
+        if removed.isEmpty, added.count > 1, !added.contains(where: { $0.trimmingCharacters(in: .whitespaces).hasPrefix("|") }) {
+            return "added \(added.count) lines"
+        }
+        return nil
+    }
+
     /// You've opened it: the list marker goes. Returns what the receipt and tint need, once.
     static func markSeen(_ note: Note) -> Receipt? {
         guard isUnseen(note), let by = note.aiEditor, let at = note.aiEditedAt else { return nil }
@@ -245,6 +284,8 @@ enum AIEdit {
             if kind == .pageChanged { return "\(who) changed this note's app" }
             if created { return "\(who) wrote this note" }
             if edits > 1 { return "\(who) made \(edits) changes" }
+            // What it did, when that's one plain thing: "ChatGPT ticked “Eggs”", "removed “Lemons”".
+            if kind == .edit, let after, let what = AIEdit.describe(previous: previous, after: after) { return "\(who) \(what)" }
             return lines == 0 ? "Updated by \(who)" : "\(who) changed \(lines == 1 ? "1 line" : "\(lines) lines")"
         }
 

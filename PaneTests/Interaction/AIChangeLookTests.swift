@@ -99,31 +99,13 @@ import Testing
         #expect(await h.until(9) { !h.controller.isTinted }, "faded within a few seconds")
     }
 
-    /// An AI's edit writes itself in from the top: a later changed line is hidden at first, all of
-    /// it shows within a few seconds, and the note's text is the AI's the whole time (only the
-    /// drawing waits, so nothing is saved or synced twice).
-    @Test func anAIEditWritesItselfIn() async throws {
-        let h = await EditorHarness(Self.after, width: 640, focus: false)
-        defer { h.close() }
-        let tint = h.view.core.layoutDelegate.tint
-        let seconds = h.controller.writeChanges(from: Self.before, to: Self.after, by: "ChatGPT", color: .systemGreen)
-        #expect(seconds >= 0.5 && seconds <= 2.4, "\(seconds)")
-        let last = (h.text as NSString).range(of: "- I also build").location
-        #expect(tint.written(at: last) == 0, "the last changed line isn't written yet")
-        #expect(tint.revealed != nil)
-        #expect(await h.until(4) { tint.revealed == nil }, "all written")
-        #expect(tint.written(at: last) == nil)
-        #expect(h.text == Self.after, "the text was the AI's all along")
-        #expect(h.controller.isTinted, "and the tint rests a moment before it fades")
-    }
-
     /// The tint is in the AI's own colour, the one its caret has; a plain tint keeps the accent.
     /// The margin tick shows only with Differentiate Without Colour.
     @Test func theTintIsTheAIsColourAndNeedsNoTick() async throws {
         let h = await EditorHarness(Self.after, width: 640, focus: false)
         defer { h.close() }
         let tint = h.view.core.layoutDelegate.tint
-        h.controller.writeChanges(from: Self.before, to: Self.after, by: "ChatGPT", color: AIGlyph.caretColor("ChatGPT"))
+        h.controller.markChanges(from: Self.before, color: AIGlyph.caretColor("ChatGPT"))
         #expect(tint.color == AIGlyph.caretColor("ChatGPT"))
         h.controller.tintChanges(from: Self.before)
         #expect(tint.color == nil)
@@ -131,60 +113,72 @@ import Testing
         #expect(DecoratedLayoutFragment.showsTick == NSWorkspace.shared.accessibilityDisplayShouldDifferentiateWithoutColor)
     }
 
-    /// The editor hears of the edit before it has the text: nothing is hidden or written until
-    /// the text arrives, then it starts in the same pass, so the new lines never show whole first.
-    @Test func writingWaitsForTheTextAndStartsTheMomentItArrives() async throws {
-        let h = await EditorHarness(Self.before, width: 640, focus: false)
-        defer { h.close() }
-        let tint = h.view.core.layoutDelegate.tint
-        h.controller.writeChanges(from: Self.before, to: Self.after, by: "ChatGPT", color: .systemGreen)
-        #expect(tint.revealed == nil, "nothing to write yet")
-        h.view.syncExternal(Self.after)
-        #expect(tint.revealed != nil, "writing from the moment the text is in")
-        let last = (h.text as NSString).range(of: "- I also build").location
-        #expect(tint.written(at: last) == 0)
+    /// Inside a rewritten line only the new words are marked: a one-word fix lights one word.
+    @Test func aOneWordFixMarksOneWord() {
+        let old = "We land on Tuesday at 14:20 and walk to the hotel."
+        let new = "We land on Wednesday at 14:20 and walk to the hotel."
+        let marks = ChangeTint.changedWords(from: "Trip\n\n" + old, to: "Trip\n\n" + new)
+        let words = marks.map { (("Trip\n\n" + new) as NSString).substring(with: $0) }
+        #expect(words == ["Wednesday"], "\(words)")
     }
 
-    /// A note opened with an AI's edit waiting hides the new lines before the writing starts.
-    @Test func openingHidesTheNewLinesFirst() async throws {
+    /// New words next to each other are one mark, across the space between them.
+    @Test func neighbouringNewWordsAreOneMark() {
+        let words = ChangeTint.newWords(from: "Day 3: LX Factory", to: "Day 3: LX Factory and a late lunch")
+            .map { ("Day 3: LX Factory and a late lunch" as NSString).substring(with: $0) }
+        #expect(words == ["and a late lunch"], "\(words)")
+    }
+
+    /// A new line, a tick, and a line mostly rewritten are marked whole, from after the marker.
+    @Test func newLinesTicksAndRewritesAreMarkedWhole() {
+        let g = "Groceries\n\n- [ ] Oat milk\n- [ ] Eggs"
+        let added = g + "\n- [ ] Saffron"
+        #expect(ChangeTint.changedWords(from: g, to: added).map { (added as NSString).substring(with: $0) } == ["Saffron"])
+        let ticked = g.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs")
+        #expect(ChangeTint.changedWords(from: g, to: ticked).map { (ticked as NSString).substring(with: $0) } == ["Eggs"])
+        let rewritten = "Groceries\n\n- [ ] Something else entirely\n- [ ] Eggs"
+        #expect(ChangeTint.changedWords(from: g, to: rewritten).map { (rewritten as NSString).substring(with: $0) } == ["Something else entirely"])
+        let table = "Budget\n\n| Item | Cost |\n|---|---|\n| Hotel | 380 |"
+        #expect(ChangeTint.changedWords(from: table, to: table + "\n| Food | 150 |").isEmpty, "a table's grid isn't its text")
+    }
+
+    /// The receipt says what happened when it's one plain thing.
+    @Test func theReceiptSaysWhatHappened() {
+        let g = "Groceries\n\n- [ ] Oat milk\n- [ ] Lemons\n- [ ] Eggs"
+        #expect(AIEdit.describe(previous: g, after: g.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs")) == "ticked \u{201C}Eggs\u{201D}")
+        #expect(AIEdit.describe(previous: g, after: g.replacingOccurrences(of: "\n- [ ] Lemons", with: "")) == "removed \u{201C}Lemons\u{201D}")
+        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Saffron") == "added \u{201C}Saffron\u{201D}")
+        #expect(AIEdit.describe(previous: "B\n\n| a | b |\n|---|---|", after: "B\n\n| a | b |\n|---|---|\n| c | d |") == "added a row to the table")
+        #expect(AIEdit.describe(previous: Self.before, after: Self.after) == nil, "a rewrite: changed N lines")
+    }
+
+    /// The highlight is pulled across the words in about a third of a second, then drawn whole.
+    @Test func theMarkSweepsInThenRests() async throws {
         let h = await EditorHarness(Self.after, width: 640, focus: false)
         defer { h.close() }
         let tint = h.view.core.layoutDelegate.tint
-        h.controller.hideChanges(from: Self.before, to: Self.after)
-        let last = (h.text as NSString).range(of: "- I also build").location
-        #expect(tint.written(at: last) == 0)
-        #expect(!h.controller.isTinted, "hidden, not yet lit")
+        h.controller.markChanges(from: Self.before, color: .systemGreen)
+        let first = (h.text as NSString).range(of: "*Last").location
+        #expect(tint.sweep(at: first) < 1, "sweeping")
+        #expect(await h.until(2) { tint.sweepElapsed == nil })
+        #expect(tint.sweep(at: first) == 1)
+        #expect(h.controller.isTinted, "resting before the fade")
+        #expect(h.text == Self.after)
     }
 
-    /// Typing while it writes shows the whole edit at once and takes the caret away.
-    @Test func typingStopsTheWriting() async throws {
-        let h = await EditorHarness(Self.after, width: 640, focus: false)
+    /// A change below what you can see: the receipt can take you there.
+    @Test func aChangeOutOfViewIsFound() async throws {
+        let lines = (1...60).map { "- Book \($0)" }.joined(separator: "\n")
+        let before = "Reading\n\n" + lines, after = before + "\n- Book 61"
+        let h = await EditorHarness(after, width: 640, height: 400, focus: false)
         defer { h.close() }
-        let tint = h.view.core.layoutDelegate.tint
-        h.controller.writeChanges(from: Self.before, to: Self.after, by: "Claude", color: .systemOrange)
-        h.controller.clearTint()
-        #expect(tint.revealed == nil)
-    }
-
-    @Test func writingReadsTheChangedLinesInOrder() {
-        let order = [NSRange(location: 10, length: 5), NSRange(location: 30, length: 4)]
-        #expect(ChangeTint.offset(after: 0, in: order) == 10)
-        #expect(ChangeTint.offset(after: 4, in: order) == 14)
-        #expect(ChangeTint.offset(after: 5, in: order) == 30, "past the first, straight on to the next")
-        #expect(ChangeTint.offset(after: 9, in: order) == 34)
-        #expect(ChangeTint.writeDuration(characters: 40) == 0.5)
-        #expect(ChangeTint.writeDuration(characters: 30_000) == 2.4)
-    }
-
-    /// Halfway through the writing, for a look at it (AMBER_QA_SHOTS).
-    @Test(arguments: [false, true]) func pictureWhileWriting(dark: Bool) async throws {
-        let h = await EditorHarness(Self.after, width: 720, height: 620, dark: dark, focus: false)
-        defer { h.close() }
-        ChangeTint.slowMotion = 6
-        defer { ChangeTint.slowMotion = 1 }
-        let seconds = h.controller.writeChanges(from: Self.before, to: Self.after, by: "ChatGPT", color: AIGlyph.caretColor("ChatGPT"))
-        await h.settle(seconds * 6 * 0.55)
-        await h.snapshot("ai-change-writing\(dark ? "-dark" : "")")
+        h.view.scroll(.zero)
+        #expect(h.controller.changePlacement(from: before) == 1)
+        let r0 = h.view.firstChangeRect(from: before)
+        h.controller.showChange(from: before)
+        let r1 = h.view.firstChangeRect(from: before)
+        await h.settle(0.2)
+        #expect(h.controller.changePlacement(from: before) == 0, "r0 \(String(describing: r0)) r1 \(String(describing: r1)) r2 \(String(describing: h.view.firstChangeRect(from: before))) visible \(h.view.visibleRect), bounds \(h.view.bounds), clip \(h.scroll.contentView.bounds)")
     }
 
     /// Pictures of the resting mark, light and dark, for a look at it (AMBER_QA_SHOTS).

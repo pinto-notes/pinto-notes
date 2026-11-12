@@ -203,48 +203,87 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         return tint.removal(at: offset)
     }
 
-    /// Where lines were taken out: a short dashed line in the gap above this paragraph (below it
-    /// at the note's end), from where the text starts, in the change colour (persona r7: a
-    /// removed sentence left no mark in the note).
+    /// Where lines were taken out: a short solid line in the AI's colour, in the seam above this
+    /// paragraph (below it at the note's end), from where the text starts. It used to sit 11 pt
+    /// up, which in a checklist is on the line above (Emil's scenarios, 12 November 2026).
     func removalRect(_ gap: ChangeTint.Removal, at point: CGPoint) -> CGRect {
         let x = point.x + (textLineFragments.first?.typographicBounds.minX ?? 0)
         let width = min(Self.removalWidth, max(containerWidth - x, 0))
-        // Halfway across the space between paragraphs (about 22 pt at body size).
         let y = gap.below
-            ? point.y + (textLineFragments.last?.typographicBounds.maxY ?? layoutFragmentFrame.height) + 6
-            : point.y + (textLineFragments.first?.typographicBounds.minY ?? 0) - 11
+            ? point.y + (textLineFragments.last?.typographicBounds.maxY ?? layoutFragmentFrame.height) + 1
+            : point.y + (textLineFragments.first?.typographicBounds.minY ?? 0) - 3
         return CGRect(x: x, y: y - 1, width: width, height: 2)
     }
 
-    static let removalWidth: CGFloat = 96
+    static let removalWidth: CGFloat = 36
 
     /// The runs as one shape: each line rounded, and the space between two lines of the
     /// paragraph filled where they overlap, so a wrapped paragraph reads as one block like a text
     /// selection, not a stack of separate pills (Emil, 12 November 2026).
-    func changeShape(at point: CGPoint) -> CGPath {
-        let runs = changeRuns(at: point)
+    func changeShape(at point: CGPoint) -> CGPath { Self.shape(for: [changeRuns(at: point)]) }
+
+    /// Each group's runs rounded, and the space between two lines of one group filled where they
+    /// overlap, so a wrapped phrase reads as one block like a text selection.
+    static func shape(for groups: [[CGRect]]) -> CGPath {
         let path = CGMutablePath()
-        for r in runs { path.addRoundedRect(in: r, cornerWidth: Self.changeRadius, cornerHeight: Self.changeRadius) }
-        for (a, b) in zip(runs, runs.dropFirst()) {
-            let left = max(a.minX, b.minX), right = min(a.maxX, b.maxX)
-            guard right > left else { continue }
-            path.addRect(CGRect(x: left, y: a.midY, width: right - left, height: b.midY - a.midY))
+        for runs in groups {
+            for r in runs { path.addRoundedRect(in: r, cornerWidth: changeRadius, cornerHeight: changeRadius) }
+            for (a, b) in zip(runs, runs.dropFirst()) {
+                let left = max(a.minX, b.minX), right = min(a.maxX, b.maxX)
+                guard right > left, b.minY > a.minY else { continue }
+                path.addRect(CGRect(x: left, y: a.midY, width: right - left, height: b.midY - a.midY))
+            }
         }
         return path
     }
 
+    /// The groups of runs to tint: the AI's marked words, or the whole paragraph in version history
+    /// and captures.
+    func changeGroups(at point: CGPoint) -> [[CGRect]] {
+        if markedChanged || !ChangeHighlight.lines.isEmpty { return [changeRuns(at: point)] }
+        guard let (tint, offset) = tintAndOffset, let p = textElement as? NSTextParagraph else { return [] }
+        return tint.marks(in: NSRange(location: offset, length: p.attributedString.length))
+            .map { changeRuns(at: point, in: $0) }.filter { !$0.isEmpty }
+    }
+
+    /// The part of the runs the sweep has reached, in reading order: whole runs, then part of one.
+    static func swept(_ groups: [[CGRect]], _ progress: CGFloat) -> [CGRect] {
+        let runs = groups.flatMap { $0 }
+        var left = runs.reduce(0) { $0 + $1.width } * progress
+        var out: [CGRect] = []
+        for r in runs {
+            guard left > 0 else { break }
+            var c = r.insetBy(dx: 0, dy: -2)
+            c.size.width = min(r.width, left)
+            out.append(c)
+            left -= r.width
+        }
+        return out
+    }
+
     func changeRuns(at point: CGPoint) -> [CGRect] {
+        guard let p = textElement as? NSTextParagraph else { return [] }
+        let first = ListPrefix(line: p.attributedString.string).map(\.length) ?? 0
+        return changeRuns(at: point, in: NSRange(location: first, length: max(0, p.attributedString.length - first)))
+    }
+
+    /// The runs, one per laid-out line, around the words of `range` (counted from the paragraph's
+    /// start): spaces at the ends and the newline left out, the list marker never in.
+    func changeRuns(at point: CGPoint, in range: NSRange) -> [CGRect] {
         guard let p = textElement as? NSTextParagraph else { return [] }
         let whole = p.attributedString
         // The list marker ("- [ ] ") is drawn as the circle or bullet: the words start after it.
-        let first = ListPrefix(line: whole.string).map(\.length) ?? 0
+        let first = max(range.location, ListPrefix(line: whole.string).map(\.length) ?? 0)
+        let last = min(NSMaxRange(range), whole.length)
         let text = whole.string as NSString
         return textLineFragments.compactMap { line in
-            let range = line.characterRange
-            let from = max(range.location, first)
-            var end = range.upperBound
+            let lineRange = line.characterRange
+            var from = max(lineRange.location, first)
+            var end = min(lineRange.upperBound, last)
             while end > from, let c = UnicodeScalar(text.character(at: end - 1)),
                   CharacterSet.whitespacesAndNewlines.contains(c) { end -= 1 }
+            while from < end, let c = UnicodeScalar(text.character(at: from)),
+                  CharacterSet.whitespacesAndNewlines.contains(c) { from += 1 }
             guard end > from else { return nil }
             // The line's own letters' font, the largest on it: a heading's "# " or an italic's
             // "*" is hidden in a tiny font, and measured from it the highlight was a thin
@@ -257,6 +296,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             // line past a wrap measured the first line's characters and got a sliver (persona r7).
             let startX = line.locationForCharacter(at: from).x
             let endX = line.locationForCharacter(at: end).x
+            guard endX > startX else { return nil }
             let b = line.typographicBounds
             let baseline = b.minY + line.glyphOrigin.y
             return CGRect(x: point.x + b.minX + startX - Self.changePad.width,
@@ -264,6 +304,12 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
                           width: endX - startX + Self.changePad.width * 2,
                           height: font.ascender - font.descender + Self.changePad.height * 2)
         }
+    }
+
+    /// How far the AI tint's sweep has reached across this paragraph (1 drawn whole).
+    private var sweepProgress: CGFloat {
+        guard !markedChanged, ChangeHighlight.lines.isEmpty, let (tint, offset) = tintAndOffset else { return 1 }
+        return tint.sweep(at: offset)
     }
 
     /// The colour of the AI whose edit is marked, if known.
@@ -283,46 +329,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     /// Tests: the tick on or off whatever the setting.
     nonisolated(unsafe) static var tickOverride: Bool?
 
-    /// While an AI's edit writes itself in: how much of this paragraph is written, nil for all.
-    var writtenSoFar: Int? {
-        guard let (tint, offset) = tintAndOffset else { return nil }
-        return tint.written(at: offset)
-    }
-
-    /// The part of the paragraph written so far, as rectangles to clip its drawing to: whole lines
-    /// above the writing, the line it's on up to the letter, nothing below. Wide to the left, so
-    /// a list's dash or circle and the tick come with their line.
-    func writtenRects(_ shown: Int, at point: CGPoint) -> [CGRect] {
-        let far: CGFloat = 4000
-        var out: [CGRect] = []
-        for line in textLineFragments {
-            let range = line.characterRange
-            let b = line.typographicBounds
-            let top = point.y + b.minY - 4, height = b.height + 8
-            if range.upperBound <= shown {
-                out.append(CGRect(x: point.x - far, y: top, width: far * 2, height: height))
-            } else if range.location < shown {
-                // Down to its own letters only: the highlight's join to the next line stays hidden.
-                let x = point.x + b.minX + line.locationForCharacter(at: shown).x
-                let bottom = point.y + b.maxY - EditorMetrics.lineSpacing + 2
-                out.append(CGRect(x: point.x - far, y: top, width: x - (point.x - far), height: bottom - top))
-                break
-            } else { break }
-        }
-        return out
-    }
-
     override func draw(at point: CGPoint, in context: CGContext) {
-        // An AI's edit writing itself in: only what's written so far shows.
-        let written = writtenSoFar
-        if written == 0 { return }
-        if let written {
-            context.saveGState()
-            let rects = writtenRects(written, at: point)
-            if rects.isEmpty { context.restoreGState(); return }
-            context.clip(to: rects)
-        }
-        defer { if written != nil { context.restoreGState() } }
         let strength = highlight
         if strength > 0 {
             // A marker-pen highlight behind the changed words, each line its own rounded run
@@ -330,10 +337,15 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             // It hugs the text, starting a little before it, so a checklist circle stays clear.
             context.saveGState()
             let colors = Self.changeColors(strength, color: markColor)
-            let runs = changeRuns(at: point)
-            context.setFillColor(colors.tint)
-            context.addPath(changeShape(at: point))
-            context.fillPath(using: .winding)
+            let groups = changeGroups(at: point)
+            let sweep = sweepProgress
+            if sweep < 1 { context.clip(to: Self.swept(groups, sweep)) }
+            if sweep > 0 {
+                context.setFillColor(colors.tint)
+                context.addPath(Self.shape(for: groups))
+                context.fillPath(using: .winding)
+            }
+            let runs = groups.flatMap { $0 }
             if Self.showsTick, let tick = Self.tick(for: runs, textLeft: point.x - layoutFragmentFrame.minX) {
                 context.setFillColor(colors.bar)
                 context.addPath(CGPath(roundedRect: tick, cornerWidth: Self.tickWidth / 2, cornerHeight: Self.tickWidth / 2, transform: nil))
@@ -343,14 +355,10 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         }
         if let (gap, strength) = removalMark {
             context.saveGState()
-            context.setStrokeColor(Self.changeColors(strength, color: markColor).bar)
-            context.setLineWidth(1.5)
-            context.setLineCap(.round)
-            context.setLineDash(phase: 0, lengths: [4, 4])
+            context.setFillColor(Self.changeColors(strength, color: markColor).bar)
             let r = removalRect(gap, at: point)
-            context.move(to: CGPoint(x: r.minX, y: r.midY))
-            context.addLine(to: CGPoint(x: r.maxX, y: r.midY))
-            context.strokePath()
+            context.addPath(CGPath(roundedRect: r, cornerWidth: 1, cornerHeight: 1, transform: nil))
+            context.fillPath()
             context.restoreGState()
         }
         if let d = decoration {

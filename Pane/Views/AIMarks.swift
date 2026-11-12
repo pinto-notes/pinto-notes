@@ -199,6 +199,9 @@ struct AIReceipt: View {
     /// Review: each changed part in turn, kept or undone on its own (AIReviewCard). Only for an
     /// edit of the text, not a note the AI wrote.
     var review: (() -> Void)? = nil
+    /// The change is out of view: 1 below, -1 above. `show` scrolls to it.
+    var placement = 0
+    var show: (() -> Void)? = nil
     let undo: () -> Void
 
     /// Whether Review is offered for this receipt: an edit of the note's text, with the text from
@@ -232,6 +235,18 @@ struct AIReceipt: View {
                 // Whole, never "ChatGPT changed 3 li…": the capsule grows instead (council round 5).
                 .fixedSize(horizontal: true, vertical: false)
                 .foregroundStyle(.primary)
+            if let show, placement != 0, !compact {
+                Button(action: show) {
+                    Label("Show", systemImage: placement > 0 ? "arrow.down" : "arrow.up")
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.hoverLink)
+                .font(.system(size: Self.text, weight: .bold))
+                .foregroundStyle(.primary)
+                .padding(.leading, 4)
+                .accessibilityLabel(placement > 0 ? "Show the change below" : "Show the change above")
+                .accessibilityIdentifier("receipt.show")
+            }
             if receipt.kind != .heldBack {
                 // In the text colour, bolder than the words beside it: not the app's orange next to
                 // ChatGPT's green tint (Emil, 12 November 2026).

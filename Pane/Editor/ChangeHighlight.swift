@@ -51,112 +51,51 @@ final class ChangeTint: @unchecked Sendable {
     var redraw: ([NSRange]) -> Void = { _ in }
     private var run = 0
 
-    /// While an AI's edit writes itself in (`write`): the offset in the text up to which its
-    /// changed lines show; nil once all of it does.
-    private(set) var revealed: Int?
-    /// Where the writing is, for the AI's caret; nil when it's done (set by the text view).
-    var caret: (Int?) -> Void = { _ in }
-    /// Writing (or hiding) that waits for its text: the editor takes an AI's edit a moment after
-    /// the note screen hears of it, and the new lines must never show whole before they're written.
-    private var pending: (after: String, start: @MainActor () -> Void)?
-
-    /// The editor just took this text: start what was waiting for it, before it's drawn.
-    @MainActor func textArrived(_ text: String) {
-        guard let p = pending, p.after == text else { return }
-        pending = nil
-        p.start()
-    }
-
-    /// Runs `start` now if the editor holds `after`, else as soon as it does.
-    @MainActor func whenText(_ current: String, is after: String, _ start: @escaping @MainActor () -> Void) {
-        pending = nil
-        if current == after { start() } else { pending = (after, start) }
-    }
-
-    /// The changed lines hidden, nothing moving yet: a note opened with an AI's edit waiting, before
-    /// its writing starts (so its first frame doesn't show the new lines whole).
-    @MainActor func hide(from previous: String, to text: String) {
-        stop()
-        ranges = Self.paragraphRanges(changedFrom: previous, to: text)
-        removals = Self.removals(from: previous, to: text)
-        let order = ranges.sorted { $0.location < $1.location }
-        guard let first = order.first else { return }
-        revealed = first.location
-        redraw(order)
-    }
-
-    /// How long writing in the edit from `previous` to `text` takes.
-    static func writeDuration(from previous: String, to text: String) -> Double {
-        let total = paragraphRanges(changedFrom: previous, to: text).reduce(0) { $0 + $1.length }
-        return total == 0 ? 0 : writeDuration(characters: total)
-    }
-
-    /// The AI's own colour for the tint, matching its caret (Emil, 12 November 2026: "why would
-    /// it be amber if ChatGPT is green"); nil for the app's accent.
+    /// The words that changed, as ranges of the editor's text: inside a rewritten line only what's
+    /// new in it, a new line whole. A tick, or words only taken out, mark the line's words whole.
+    private(set) var marks: [NSRange] = []
+    /// The AI's own colour for the tint (ChatGPT green, Claude orange); nil for the app's accent.
     private(set) var color: PColor?
-    /// The AI's caret, as the welcome note's (WelcomeEditorPage).
-    static let writerID = UUID(uuidString: "00000000-0000-0000-0000-0000000000A2")!
+    /// Seconds since the marks started sweeping in, like a highlighter pulled across the words;
+    /// nil once every one is drawn whole (and with Reduce Motion, from the start).
+    private(set) var sweepElapsed: Double?
 
-    /// How much of the changed paragraph starting at `offset` is written yet, counted from its
-    /// start; nil when all of it is (or it isn't one of the changed ones).
-    func written(at offset: Int) -> Int? {
-        guard let revealed, let r = ranges.first(where: { $0.location == offset }), revealed < NSMaxRange(r) else { return nil }
-        return max(0, revealed - offset)
-    }
+    /// The sweep: each paragraph's highlight is pulled across its words in `sweepDuration`, a
+    /// paragraph a moment after the one above it, all done in about half a second.
+    static let sweepDuration = 0.32
+    static func sweepStagger(_ count: Int) -> Double { count > 1 ? min(0.05, 0.22 / Double(count - 1)) : 0 }
 
-    /// How long writing `characters` in takes: as fast as an AI streams, never long. A line is
-    /// about half a second; a whole note rewritten, under two and a half.
-    static func writeDuration(characters: Int) -> Double { min(2.4, max(0.5, Double(characters) / 1000)) }
-
-    /// The text offset `n` characters into these ranges, read one after another.
-    static func offset(after n: Int, in order: [NSRange]) -> Int {
-        var left = n
-        for r in order {
-            if left < r.length { return r.location + left }
-            left -= r.length
-        }
-        return order.last.map(NSMaxRange) ?? 0
-    }
-
-    /// An AI's edit, written in as the welcome note is (Emil, 12 November 2026: "I want
-    /// something nicer like that"): the changed lines appear letter by letter from the top, the
-    /// AI's caret where the writing is, the tint coming with the words; then it rests and fades
-    /// as `play` does. Only the drawing: the text is already the AI's, so saving, sync and Undo
-    /// see nothing of this. Returns how long the writing takes.
-    @MainActor @discardableResult func write(from previous: String, to text: String, color: PColor? = nil, hold: Double = 2.6) -> Double {
-        stop()
-        self.color = color
-        ranges = Self.paragraphRanges(changedFrom: previous, to: text)
-        removals = Self.removals(from: previous, to: text)
+    /// How far the sweep is through the changed paragraph starting at `offset`: 0 nothing yet,
+    /// 1 drawn whole.
+    func sweep(at offset: Int) -> CGFloat {
+        guard let elapsed = sweepElapsed else { return 1 }
         let order = ranges.sorted { $0.location < $1.location }
-        let total = order.reduce(0) { $0 + $1.length }
-        guard total > 0 else {
-            if !removals.isEmpty { light(hold: hold, untilCleared: false) }
-            return 0
+        guard let k = order.firstIndex(where: { $0.location == offset }) else { return 1 }
+        let t = (elapsed - Double(k) * Self.sweepStagger(order.count)) / Self.sweepDuration
+        let p = min(1, max(0, t))
+        return CGFloat(1 - pow(1 - p, 3))
+    }
+
+    /// The marked words in the paragraph `paragraph`, counted from its start.
+    func marks(in paragraph: NSRange) -> [NSRange] {
+        marks.compactMap { m in
+            let i = NSIntersectionRange(m, paragraph)
+            return i.length > 0 ? NSRange(location: i.location - paragraph.location, length: i.length) : nil
         }
-        let seconds = Self.writeDuration(characters: total)
-        revealed = order[0].location
-        redraw(order)
-        caret(revealed)
-        light(hold: hold + seconds, untilCleared: false)
-        let mine = run
-        Task { @MainActor in
-            let start = Date.now
-            var last = order[0].location
-            while true {
-                guard mine == run else { return }
-                let t = min(1, Date.now.timeIntervalSince(start) / (seconds * Self.slowMotion))
-                let at = Self.offset(after: Int((Double(total) * t).rounded()), in: order)
-                revealed = t >= 1 ? nil : at
-                let lo = min(last, at), hi = max(last, at)
-                redraw(order.filter { $0.location <= hi && NSMaxRange($0) >= lo })
-                caret(revealed)
-                last = at
-                if t >= 1 { return }
-                try? await Task.sleep(for: .seconds(1 / 60.0))
-            }
-        }
-        return seconds
+    }
+
+    /// Plays the sweep again over what's marked (Show, after scrolling to a change off screen).
+    @MainActor func replay(from previous: String, to text: String) {
+        play(from: previous, to: text, color: color)
+    }
+
+    /// Reduce Motion: no sweep, the marks fade in and out.
+    @MainActor static var reduceMotion: Bool {
+        #if os(iOS)
+        UIAccessibility.isReduceMotionEnabled
+        #else
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        #endif
     }
 
     /// Offscreen Mac recordings stretch time, so slow frame grabs still catch every step.
@@ -184,14 +123,33 @@ final class ChangeTint: @unchecked Sendable {
 
     /// Tints the paragraphs of `text` that `previous` didn't have, then fades them. `untilCleared`:
     /// the tint stays at rest until `stop()` instead of fading.
-    @MainActor func play(from previous: String, to text: String, hold: Double = 2.6, untilCleared: Bool = false) {
-        pending = nil
+    @MainActor func play(from previous: String, to text: String, color: PColor? = nil, hold: Double = 2.6, untilCleared: Bool = false) {
         stop()
-        color = nil
+        self.color = color
         ranges = Self.paragraphRanges(changedFrom: previous, to: text)
         removals = Self.removals(from: previous, to: text)
+        marks = Self.changedWords(from: previous, to: text)
         guard !ranges.isEmpty || !removals.isEmpty else { return }
+        if !Self.reduceMotion { startSweep() }
         light(hold: hold, untilCleared: untilCleared)
+    }
+
+    /// Pulls the highlight across the changed words, about 60 redraws a second.
+    @MainActor private func startSweep() {
+        let mine = run, lit = ranges
+        guard !lit.isEmpty else { return }
+        let total = Self.sweepDuration + Self.sweepStagger(lit.count) * Double(lit.count - 1)
+        sweepElapsed = 0
+        let start = Date.now
+        Task { @MainActor in
+            while mine == run {
+                let t = Date.now.timeIntervalSince(start) / Self.slowMotion
+                sweepElapsed = t >= total ? nil : t
+                redraw(lit)
+                if t >= total { return }
+                try? await Task.sleep(for: .seconds(1 / 60.0))
+            }
+        }
     }
 
     @MainActor private func light(hold: Double, untilCleared: Bool) {
@@ -207,6 +165,7 @@ final class ChangeTint: @unchecked Sendable {
             guard await animate(to: 0, over: 1.6, easeInOut, run: mine, lit: lit) else { return }
             ranges = []
             removals = []
+            marks = []
         }
     }
 
@@ -228,16 +187,14 @@ final class ChangeTint: @unchecked Sendable {
     /// Clears at once (you started typing, or undid the edit).
     @MainActor func stop() {
         run += 1
-        if revealed != nil {
-            revealed = nil
-            caret(nil)
-        }
+        sweepElapsed = nil
         guard strength > 0 || !drawn.isEmpty else { return }
         // Redraw while the lines are still known, so their old tint is painted over.
         strength = 0
         redraw(drawn)
         ranges = []
         removals = []
+        marks = []
     }
 
     /// Line numbers (0-based) of `new` that are added or rewritten compared with `old`. A line
@@ -298,6 +255,92 @@ final class ChangeTint: @unchecked Sendable {
             guard let k = b.lastIndex(where: { !blank($0) }), seen.insert(-1 - k).inserted else { return nil }
             return Removal(paragraph: paragraph(k), below: true)
         }
+    }
+
+    /// Which line of `old` each rewritten line of `new` took the place of (new index to old), by
+    /// walking the two texts together: a line taken out where one went in is the line it replaced.
+    static func replaced(from a: [String], to b: [String]) -> [Int: Int] {
+        let diff = b.difference(from: a).inferringMoves()
+        var removed = Set<Int>(), inserted = Set<Int>()
+        for change in diff {
+            switch change {
+            case .remove(let o, _, let moved): if moved == nil { removed.insert(o) }
+            case .insert(let o, _, let moved): if moved == nil { inserted.insert(o) }
+            }
+        }
+        var out: [Int: Int] = [:]
+        var i = 0, j = 0
+        while i < a.count || j < b.count {
+            let r = i < a.count && removed.contains(i), n = j < b.count && inserted.contains(j)
+            if r && n { out[j] = i; i += 1; j += 1 }
+            else if r { i += 1 }
+            else if n { j += 1 }
+            else { i += 1; j += 1 }
+        }
+        return out
+    }
+
+    /// Words, runs of spaces, and runs of anything else, with their UTF-16 ranges.
+    static func tokens(_ s: String) -> [(String, NSRange)] {
+        let ns = s as NSString
+        let re = try! NSRegularExpression(pattern: "[\\p{L}\\p{N}_'’]+|\\s+|[^\\p{L}\\p{N}\\s]+")
+        return re.matches(in: s, range: NSRange(location: 0, length: ns.length)).map { (ns.substring(with: $0.range), $0.range) }
+    }
+
+    /// Inside a line rewritten from `old` to `new`, the ranges of `new` that are new: whole
+    /// words, neighbours joined across a space, nothing past the list marker. Empty when the
+    /// change is only the marker (a tick) or only words taken out; the whole line when most of
+    /// it is new, which reads better than a patchwork.
+    static func newWords(from old: String, to new: String) -> [NSRange] {
+        let a = tokens(old), b = tokens(new)
+        let marker = ListPrefix(line: new).map(\.length) ?? 0
+        var inserted = Set<Int>()
+        for change in b.map(\.0).difference(from: a.map(\.0)) {
+            if case .insert(let o, _, _) = change { inserted.insert(o) }
+        }
+        var out: [NSRange] = []
+        var k = 0
+        while k < b.count {
+            guard inserted.contains(k) else { k += 1; continue }
+            var end = k
+            // Join across a single space or punctuation to the next new word.
+            while end + 1 < b.count, inserted.contains(end + 1) || (end + 2 < b.count && inserted.contains(end + 2)
+                    && b[end + 1].0.trimmingCharacters(in: .whitespaces).isEmpty) { end += 1 }
+            var lo = b[k].1.location, hi = NSMaxRange(b[end].1)
+            lo = max(lo, marker)
+            // No spaces at either end.
+            let ns = new as NSString
+            while lo < hi, CharacterSet.whitespaces.contains(UnicodeScalar(ns.character(at: lo)) ?? " ") { lo += 1 }
+            while hi > lo, CharacterSet.whitespaces.contains(UnicodeScalar(ns.character(at: hi - 1)) ?? " ") { hi -= 1 }
+            if hi > lo { out.append(NSRange(location: lo, length: hi - lo)) }
+            k = end + 1
+        }
+        let visible = max(1, (new as NSString).length - marker)
+        let marked = out.reduce(0) { $0 + $1.length }
+        if Double(marked) / Double(visible) > 0.6 { return [NSRange(location: marker, length: (new as NSString).length - marker)] }
+        return out
+    }
+
+    /// The words to mark in `new`, as ranges of it: in a rewritten line what's new in it, a new
+    /// line whole (from after its list marker), a tick or a line with words only taken out whole.
+    static func changedWords(from old: String, to new: String) -> [NSRange] {
+        let a = old.components(separatedBy: "\n"), b = new.components(separatedBy: "\n")
+        let changed = Set(changedLines(from: old, to: new))
+        let from = replaced(from: a, to: b)
+        var out: [NSRange] = []
+        var at = 0
+        for (j, line) in b.enumerated() {
+            let length = (line as NSString).length
+            // A table is drawn as a grid over its lines: nothing of its text to mark.
+            if changed.contains(j), !line.trimmingCharacters(in: .whitespaces).hasPrefix("|") {
+                let marker = ListPrefix(line: line).map(\.length) ?? 0
+                var words = from[j].map { newWords(from: a[$0], to: line) } ?? []
+                if words.isEmpty { words = [NSRange(location: marker, length: length - marker)] }
+                out += words.filter { $0.length > 0 }.map { NSRange(location: at + $0.location, length: $0.length) }
+            }
+            at += length + 1
+        }
+        return out
     }
 
     /// The paragraphs of `new` (as ranges in it, newline included) that `changedLines` finds.

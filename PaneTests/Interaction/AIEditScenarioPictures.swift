@@ -9,7 +9,7 @@ import Testing
 /// moment it lands, halfway through the writing, done). For judging the whole experience, not
 /// one picture. `AMBER_QA_SHOTS=/path scripts/qa-test.sh PaneTests/AIEditScenarioPictures`.
 @MainActor @Suite(.serialized) struct AIEditScenarioPictures {
-    enum Mode { case live, openedLater, typeMidway }
+    enum Mode { case live, openedLater, typeMidway, twoInARow }
 
     struct Scenario: CustomStringConvertible, Sendable {
         let id: String
@@ -41,7 +41,8 @@ import Testing
         Scenario(id: "08-table-row", before: table, after: table + "\n| Food | 150 |"),
         Scenario(id: "09-rename-title", before: groceries, after: groceries.replacingOccurrences(of: "Groceries", with: "Groceries for Saturday")),
         Scenario(id: "10-opened-later", before: AIChangeLookTests.before, after: AIChangeLookTests.after, mode: .openedLater),
-        Scenario(id: "11-typing-while-it-writes", before: AIChangeLookTests.before, after: AIChangeLookTests.after, mode: .typeMidway),
+        Scenario(id: "11-typing-right-away", before: AIChangeLookTests.before, after: AIChangeLookTests.after, mode: .typeMidway),
+        Scenario(id: "12-two-edits-in-a-row", before: groceries, after: groceries + "\n- [ ] Saffron", mode: .twoInARow),
     ]
 
     static func snap(_ view: NSView, _ name: String) {
@@ -65,31 +66,38 @@ import Testing
         ChangeTint.slowMotion = slow
         ChangeTint.holdForCapture = true
         defer { ChangeTint.slowMotion = 1; ChangeTint.holdForCapture = false; window.close() }
+        window.contentView = host
+        // The note from its top, title and all.
+        func top() { (controller.target as? PaneTextView)?.scroll(.zero) }
         if s.mode == .openedLater {
-            window.contentView = host
             try? await Task.sleep(for: .milliseconds(60))
-            Self.snap(host, "\(s.id)-a-lands")
+            top()
         } else {
-            window.contentView = host
             try? await Task.sleep(for: .seconds(1.2))
+            top()
             Self.snap(host, "\(s.id)-0-before")
             AIEditTests.arrive(note, body: s.after, by: s.by)
-            try? await Task.sleep(for: .milliseconds(60))
-            Self.snap(host, "\(s.id)-a-lands")
         }
-        let writing = ChangeTint.writeDuration(from: s.before, to: s.after) * slow
-        let start = Date.now.addingTimeInterval(-0.06)
-        try? await Task.sleep(for: .seconds(max(0, writing * 0.5 - Date.now.timeIntervalSince(start))))
-        Self.snap(host, "\(s.id)-b-writing")
+        // The edit is in the editor at once; the mark starts as it lands (0.15 s, slowed here).
+        try? await Task.sleep(for: .seconds(0.15 * slow + 0.05))
+        Self.snap(host, "\(s.id)-a-lands")
+        try? await Task.sleep(for: .seconds(0.12 * slow))
+        Self.snap(host, "\(s.id)-b-sweeping")
         if s.mode == .typeMidway, let view = controller.target as? PaneTextView {
             view.insertText("!", replacementRange: NSRange(location: (view.string as NSString).length, length: 0))
             try? await Task.sleep(for: .milliseconds(100))
             Self.snap(host, "\(s.id)-c-typed")
         }
-        try? await Task.sleep(for: .seconds(max(0, writing + 0.6 * slow + 0.4 - Date.now.timeIntervalSince(start))))
-        Self.snap(host, "\(s.id)-d-done")
+        if s.mode == .twoInARow {
+            try? await Task.sleep(for: .seconds(1.0 * slow))
+            AIEditTests.arrive(note, body: s.after.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs"), by: s.by)
+            try? await Task.sleep(for: .seconds(0.15 * slow + 0.12 * slow))
+            Self.snap(host, "\(s.id)-c-second")
+        }
+        try? await Task.sleep(for: .seconds(1.0 * slow))
+        Self.snap(host, "\(s.id)-d-resting")
         ChangeTint.holdForCapture = false
-        // After the rest and the fade (2.6 s and 1.6 s, slowed), and the receipt's few seconds.
+        // After the rest and the fade (2.6 s and 1.6 s, slowed); the receipt stays a little longer.
         try? await Task.sleep(for: .seconds((2.6 + 1.6) * slow + 0.5))
         Self.snap(host, "\(s.id)-e-after")
     }

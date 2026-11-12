@@ -1769,24 +1769,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
 
-    func hideChanges(from previous: String, to after: String) {
-        let tint = core.layoutDelegate.tint
-        tint.whenText(currentText, is: after) { tint.hide(from: previous, to: after) }
-    }
-
-    func writeChanges(from previous: String, to after: String, by name: String, color: PColor) -> Double {
-        let tint = core.layoutDelegate.tint
-        tint.caret = { [weak self] at in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                // Beside anyone else's in a shared note, never in place of them.
-                let others = (self.controller?.remoteCarets ?? []).filter { $0.id != ChangeTint.writerID }
-                let mine = at.map { RemoteCaret(id: ChangeTint.writerID, name: name, color: Color(color), range: NSRange(location: $0, length: 0)) }
-                self.showRemoteCarets(others + (mine.map { [$0] } ?? []))
-            }
-        }
-        tint.whenText(currentText, is: after) { tint.write(from: previous, to: after, color: color) }
-        return ChangeTint.writeDuration(from: previous, to: after)
+    func markChanges(from previous: String, color: PColor) {
+        core.layoutDelegate.tint.play(from: previous, to: currentText, color: color)
     }
 
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
@@ -1843,8 +1827,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // Until what you type next is saved, the note still holds this: not a change again.
         remember(new)
         replaceText(with: new)
-        // An AI's edit waiting for this text starts now, before it's drawn (ChangeTint.textArrived).
-        core.layoutDelegate.tint.textArrived(new)
     }
 
     func takeRestored(_ new: String) {
@@ -3378,24 +3360,49 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
 
-    func hideChanges(from previous: String, to after: String) {
-        let tint = core.layoutDelegate.tint
-        tint.whenText(currentText, is: after) { tint.hide(from: previous, to: after) }
+    func markChanges(from previous: String, color: PColor) {
+        core.layoutDelegate.tint.play(from: previous, to: currentText, color: color)
     }
 
-    func writeChanges(from previous: String, to after: String, by name: String, color: PColor) -> Double {
-        let tint = core.layoutDelegate.tint
-        tint.caret = { [weak self] at in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                // Beside anyone else's in a shared note, never in place of them.
-                let others = (self.controller?.remoteCarets ?? []).filter { $0.id != ChangeTint.writerID }
-                let mine = at.map { RemoteCaret(id: ChangeTint.writerID, name: name, color: Color(color), range: NSRange(location: $0, length: 0)) }
-                self.showRemoteCarets(others + (mine.map { [$0] } ?? []))
+    /// Where the first change from `previous` is: 1 below what you can see, -1 above, 0 in view.
+    func changePlacement(from previous: String) -> Int {
+        guard let rect = firstChangeRect(from: previous) else { return 0 }
+        let visible = visibleRect
+        if rect.minY > visible.maxY - 8 { return 1 }
+        if rect.maxY < visible.minY + 8 { return -1 }
+        return 0
+    }
+
+    /// Scrolls the first change from `previous` to a third of the way down, and marks it again.
+    func showChange(from previous: String) {
+        // TextKit estimates the height of text it hasn't laid out: measure, scroll, and measure again
+        // where it now is, until it holds still.
+        for _ in 0..<4 {
+            if let tlm = textLayoutManager {
+                tlm.ensureLayout(for: tlm.documentRange)
+                // The view grows to the laid-out text, so the scroll can reach the end of it.
+                let needed = tlm.usageBoundsForTextContainer.maxY + textContainerOrigin.y * 2
+                if frame.height < needed { setFrameSize(CGSize(width: frame.width, height: needed)) }
             }
+            guard let rect = firstChangeRect(from: previous) else { return }
+            let visible = visibleRect
+            let y = min(max(0, rect.minY - visible.height / 3), max(0, bounds.height - visible.height))
+            if abs(y - visible.minY) < 1 { break }
+            guard let scroller = enclosingScrollView else { scroll(CGPoint(x: visible.minX, y: y)); break }
+            let clip = scroller.contentView
+            clip.scroll(to: clip.convert(CGPoint(x: visible.minX, y: y), from: self))
+            scroller.reflectScrolledClipView(clip)
         }
-        tint.whenText(currentText, is: after) { tint.write(from: previous, to: after, color: color) }
-        return ChangeTint.writeDuration(from: previous, to: after)
+        core.layoutDelegate.tint.replay(from: previous, to: currentText)
+    }
+
+    func firstChangeRect(from previous: String) -> CGRect? {
+        let text = currentText
+        let first = ChangeTint.changedWords(from: previous, to: text).first
+            ?? ChangeTint.removals(from: previous, to: text).first?.paragraph
+            ?? ChangeTint.paragraphRanges(changedFrom: previous, to: text).first
+        guard let first else { return nil }
+        return remoteRangeRects(first).first ?? remoteCaretRect(at: first.location)
     }
 
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
@@ -3606,8 +3613,6 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Until what you type next is saved, the note still holds this: not a change again.
         remember(new)
         replaceText(with: new)
-        // An AI's edit waiting for this text starts now, before it's drawn (ChangeTint.textArrived).
-        core.layoutDelegate.tint.textArrived(new)
     }
 
     func takeRestored(_ new: String) {

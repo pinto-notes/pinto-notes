@@ -368,12 +368,12 @@ final class EditorController {
     /// An AI's edit landed on the open note: tint what it changed.
     /// `untilCleared`: it stays until you type, undo or leave, instead of fading on its own.
     func tintChanges(from previous: String, untilCleared: Bool = false) { target?.tintChanges(from: previous, untilCleared: untilCleared) }
-    /// An AI's edit written in, its caret where the writing is (ChangeTint.write). How long it takes.
-    @discardableResult func writeChanges(from previous: String, to after: String, by name: String, color: PColor) -> Double {
-        target?.writeChanges(from: previous, to: after, by: name, color: color) ?? 0
-    }
-    /// The lines an AI changed hidden until its writing starts.
-    func hideChanges(from previous: String, to after: String) { target?.hideChanges(from: previous, to: after) }
+    /// An AI's edit marked at once: the words it changed, swept in its colour, then faded.
+    func markChanges(from previous: String, color: PColor) { target?.markChanges(from: previous, color: color) }
+    /// Where an AI's first change is: 1 below the visible text, -1 above, 0 in view.
+    func changePlacement(from previous: String) -> Int { target?.changePlacement(from: previous) ?? 0 }
+    /// Scrolls to an AI's first change and marks it again.
+    func showChange(from previous: String) { target?.showChange(from: previous) }
     /// Whether any line is tinted right now.
     var isTinted: Bool { target?.isTinted ?? false }
     func clearTint() { target?.clearTint() }
@@ -1038,11 +1038,12 @@ protocol EditorTarget: TextHost {
     /// Tints the lines an AI just changed compared with `previous`, then fades them (with
     /// `untilCleared`, keeps them tinted until `clearTint` or typing).
     func tintChanges(from previous: String, untilCleared: Bool)
-    /// Writes an AI's edit in, its caret where the writing is, then tints and fades as above.
-    /// Returns how long the writing takes.
-    func writeChanges(from previous: String, to after: String, by name: String, color: PColor) -> Double
-    /// Hides the lines an AI changed, until `writeChanges` writes them in.
-    func hideChanges(from previous: String, to after: String)
+    /// Marks an AI's edit in its colour (the changed words swept in), then fades as above.
+    func markChanges(from previous: String, color: PColor)
+    /// Where the first change from `previous` is: 1 below what you can see, -1 above, 0 in view.
+    func changePlacement(from previous: String) -> Int
+    /// Scrolls to the first change from `previous` and marks it again.
+    func showChange(from previous: String)
     /// Whether any line is tinted right now.
     var isTinted: Bool { get }
     /// Clears that tint at once.
@@ -1104,11 +1105,9 @@ extension EditorTarget {
     func expandAllSections() {}
     /// Tints, then fades on its own.
     func tintChanges(from previous: String) { tintChanges(from: previous, untilCleared: false) }
-    func writeChanges(from previous: String, to after: String, by name: String, color: PColor) -> Double {
-        tintChanges(from: previous)
-        return 0
-    }
-    func hideChanges(from previous: String, to after: String) {}
+    func markChanges(from previous: String, color: PColor) { tintChanges(from: previous) }
+    func changePlacement(from previous: String) -> Int { 0 }
+    func showChange(from previous: String) {}
 }
 
 
