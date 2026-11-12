@@ -72,3 +72,38 @@ Deno.test("each failed expectation shows with its file:line and values, before t
   assertEquals(out.filter((l) => l.startsWith("↳ ///") || l.includes("export ")), []);
   assertEquals(out.at(-1), "** TEST FAILED **");
 });
+
+async function verdict(log: string, code: number): Promise<[string, number]> {
+  const file = await Deno.makeTempFile({ suffix: ".log" });
+  await Deno.writeTextFile(file, log);
+  const out = await new Deno.Command("zsh", { args: [script, "--verdict", file, String(code)] }).output();
+  await Deno.remove(file);
+  return [new TextDecoder().decode(out.stdout).trim(), out.code];
+}
+
+// The one line a run ends (and starts) with, which a grep for TEST, passed, failed or error keeps.
+Deno.test("a passing run says how many tests passed", async () => {
+  assertEquals(await verdict(passed, 0), ["RESULT: TEST PASSED, 66 tests passed", 0]);
+});
+
+Deno.test("a run where no test ran fails, though xcodebuild calls it a success", async () => {
+  const none = `◇ Test run started.\n✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.\n\n** TEST SUCCEEDED **\n`;
+  const [line, code] = await verdict(none, 0);
+  assertStringIncludes(line, "RESULT: TEST FAILED, no test ran");
+  assertEquals(code, 1);
+  assertEquals((await verdict("** TEST SUCCEEDED **\n", 0))[1], 1);
+});
+
+Deno.test("XCTest's count counts too", async () => {
+  assertEquals((await verdict("Executed 12 tests, with 0 failures (0 unexpected) in 1.2 seconds\n** TEST SUCCEEDED **\n", 0))[0], "RESULT: TEST PASSED, 12 tests passed");
+});
+
+Deno.test("a failing run says how many failed, and keeps its exit code", async () => {
+  const log = `✘ Test aSave() failed after 4.963 seconds with 1 issue.\n✘ Test run with 3 tests in 1 suite failed after 4.964 seconds with 1 issue.\n** TEST FAILED **\n`;
+  assertEquals(await verdict(log, 65), ["RESULT: TEST FAILED, 1 of 3 tests failed", 65]);
+});
+
+Deno.test("a compile error and a timeout say so", async () => {
+  assertEquals((await verdict("/x/Palette.swift:27:9: error: cannot find 'accnt' in scope\n** TEST FAILED **\n", 65))[0], "RESULT: BUILD FAILED, error: the compile errors are above");
+  assertStringIncludes((await verdict("◇ Test run started.\nTIMEOUT after 240s\n", 143))[0], "RESULT: TEST FAILED, timed out");
+});

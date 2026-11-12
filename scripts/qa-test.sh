@@ -23,7 +23,29 @@ summarize() {
   print -r -- "$log" | grep -E "PERF|timeout" | grep -vE "$summary|^\s*export " | head -10
   print -r -- "$log" | grep -E "$summary" | tail -2
 }
+# One line that says how the run went, printed first and last, so a `| head`, `| tail` or a grep for
+# TEST, passed, failed or error never hides it: 345 runs in two weeks to 2026-11-12 lost their result
+# that way and were often run again. A run where no test ran is a failure: a name that matches no
+# test is not an error to xcodebuild, and 32 such runs looked green while testing nothing.
+verdict() {  # log, exit code; prints the line and returns the run's real exit code
+  local log=$1 code=$2 ran failed
+  ran=$(grep -oE "Test run with [0-9]+ tests?" "$log" | grep -oE "[0-9]+" | awk '{s+=$1} END {print s+0}')
+  ran=$(( ran + $(grep -oE "Executed [0-9]+ tests?" "$log" | grep -oE "[0-9]+" | awk '{s+=$1} END {print s+0}') ))
+  failed=$(grep -E "✘ Test .* failed after" "$log" | grep -vc "Test run with")
+  if grep -q "^TIMEOUT after" "$log"; then
+    print -- "RESULT: TEST FAILED, timed out (LIMIT=<seconds> waits longer)"; return 1
+  elif (( code == 0 && ran == 0 )); then
+    print -- "RESULT: TEST FAILED, no test ran: the names given matched nothing (name a suite with arguments without its test)"; return 1
+  elif (( code == 0 )); then
+    print -- "RESULT: TEST PASSED, $ran tests passed"; return 0
+  elif (( ran == 0 )) && grep -qE "(^|: )error: " "$log"; then
+    print -- "RESULT: BUILD FAILED, error: the compile errors are above"; return $code
+  else
+    print -- "RESULT: TEST FAILED, $failed of $ran tests failed"; return $code
+  fi
+}
 if [[ ${1:-} == --summarize ]]; then summarize "$2"; exit 0; fi
+if [[ ${1:-} == --verdict ]]; then verdict "$2" "$3"; exit $?; fi
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 only=()
 if [[ ${1:-} == --smoke ]]; then
@@ -47,13 +69,17 @@ xcodebuild -project Pane.xcodeproj -scheme Pane -configuration $CONFIG -destinat
 pid=$!
 for i in $(seq 1 $LIMIT); do kill -0 $pid 2>/dev/null || break; sleep 1; done
 if kill -0 $pid 2>/dev/null; then
-  echo "TIMEOUT after ${LIMIT}s (LIMIT=<seconds> waits longer)"
+  echo "TIMEOUT after ${LIMIT}s (LIMIT=<seconds> waits longer)"; timedout=1
   # Only this run's own host app and xcodebuild.
   for h in $(pgrep -f "$PWD/$DD/Build/Products/$CONFIG/Pane.app/Contents/MacOS/Pane"); do kill $h; done
   kill $pid 2>/dev/null
 fi
 wait $pid 2>/dev/null; code=$?
+[[ -n ${timedout:-} ]] && print "TIMEOUT after ${LIMIT}s" >> "$log"
+line=$(verdict "$log" $code); code=$?
+print -- "$line"
 summarize "$log"
 cp "$log" $DD/last-test.log; rm -f "$log"
 echo "Full log: $DD/last-test.log"
+print -- "$line"
 exit $code
