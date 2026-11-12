@@ -452,7 +452,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         if let (gap, strength) = removalMark {
             context.saveGState()
             // Softer than the colour itself, like the highlights (council r5).
-            context.setFillColor(Self.changeColors(strength * 0.5, color: markColor).bar)
+            context.setFillColor(Self.changeColors(strength * 0.7, color: markColor).bar)
             let r = removalRect(gap, at: point)
             context.addPath(CGPath(roundedRect: r, cornerWidth: 1, cornerHeight: 1, transform: nil))
             context.fillPath()

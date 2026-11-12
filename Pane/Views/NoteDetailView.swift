@@ -645,18 +645,8 @@ struct NoteDetailView: View {
                 .onHover { receiptHovered = $0 }
                 #if os(macOS)
                 .padding(.bottom, 20)
-                // The note's words fade out under it, so the pill isn't read over half a line
-                // (council r3). Space, not a rule.
-                .background(alignment: .bottom) {
-                    LinearGradient(stops: [.init(color: Color.notePage.opacity(0), location: 0),
-                                           .init(color: Color.notePage.opacity(0.75), location: 0.55),
-                                           .init(color: Color.notePage.opacity(0.95), location: 1)], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 64)
-                        // The full width, low and soft: cut at the pill's sides it chopped lines
-                        // mid-word (council r5).
-                        .padding(.horizontal, -2000)
-                        .allowsHitTesting(false)
-                }
+                // No fade under it: each size of fade hid or cut the note's lines (council r3 to
+                // r6). The end of the note can scroll clear of it instead (MarkdownEditor showRoom).
                 #else
                 .padding(.bottom, 64)
                 #endif

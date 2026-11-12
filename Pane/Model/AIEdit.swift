@@ -142,7 +142,7 @@ enum AIEdit {
                 let was = gr[0].map { x[$0] }.joined(separator: " ").trimmingCharacters(in: trim)
                 let now = pr[0].map { y[$0] }.joined(separator: " ").trimmingCharacters(in: trim)
                 if !was.isEmpty, !now.isEmpty, was.count + now.count <= 26 {
-                    return "changed \u{201C}\(was)\u{201D} to \u{201C}\(now)\u{201D} and \(gr.count - 1) other word\(gr.count == 2 ? "" : "s")"
+                    return "changed \u{201C}\(was)\u{201D} to \u{201C}\(now)\u{201D} and made \(gr.count - 1) other change\(gr.count == 2 ? "" : "s")"
                 }
             }
             guard !gone.isEmpty, !put.isEmpty, gone.count <= 3, put.count <= 3, together(gone), together(put) else { return nil }
@@ -414,7 +414,9 @@ enum AIEdit {
                 let kept = after.components(separatedBy: "\n").filter { old.contains($0) }.count
                 let removedOrChanged = previous.components(separatedBy: "\n").count - kept
                 return removedOrChanged <= 0 ? "\(who) added \u{201C}\(section)\u{201D}"
-                    : "\(who) added \u{201C}\(section)\u{201D} and changed \(removedOrChanged == 1 ? "1 line" : "\(removedOrChanged) lines")"
+                    : removedOrChanged == 1 ? "\(who) added \u{201C}\(section)\u{201D} and changed 1 line"
+                    // More than a line besides: "changed 2 lines" undersold it (council r6).
+                    : "\(who) expanded the note and added \u{201C}\(section)\u{201D}"
             }
             // What it did, when that's one or two plain things: "ChatGPT ticked “Eggs”", "removed “Lemons”".
             if kind == .edit, let after, let what = AIEdit.describe(previous: previous, after: after) { return "\(who) \(what)" }

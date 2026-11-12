@@ -324,6 +324,14 @@ import Testing
         tint.stop()
     }
 
+    /// An old comma beside a changed word stays plain (council r6, scenario 19).
+    @Test func anOldCommaBesideANewWordStaysPlain() {
+        let old = "T\n\nLeave the bags, then take the train."
+        let new = "T\n\nLeave the bags at reception, then take the train."
+        let ns = new as NSString
+        #expect(ChangeTint.changedWords(from: old, to: new).map { ns.substring(with: $0) } == ["at reception"])
+    }
+
     /// A new section is named by its heading (council r5).
     @Test func aNewSectionIsNamedByItsHeading() {
         let p = "Trip\n\n## Day 1\n\nLisbon."

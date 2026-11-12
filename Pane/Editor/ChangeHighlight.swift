@@ -252,7 +252,7 @@ final class ChangeTint: @unchecked Sendable {
         // More to read, a longer rest: up to 3 s more for a rewrite (council r4).
         let read = Double(marks.reduce(0) { $0 + $1.length })
         // Capped so a big rewrite isn't a tinted page for long (council r5: 7 s was too much).
-        light(hold: hold + min(1.4, max(0, read - 40) / 120), untilCleared: untilCleared)
+        light(hold: hold + min(0.5, max(0, read - 40) / 200), untilCleared: untilCleared)
     }
 
     /// Pulls the highlight across the changed words, about 60 redraws a second.
@@ -560,6 +560,17 @@ final class ChangeTint: @unchecked Sendable {
                 words = words.map { w in
                     var start = w.location, end = NSMaxRange(w)
                     while end < hi, end < ns.length, punct(end) { end += 1 }
+                    // Punctuation the line already had before the same next word stays plain
+                    // ("bags, then" became "reception, then": the comma is old; council r6).
+                    let oldLine = from[j].map { a[$0] } ?? ""
+                    if end > NSMaxRange(w) {
+                        var n = end
+                        while n < ns.length, space(n) { n += 1 }
+                        var m = n
+                        while m < ns.length, !space(m) { m += 1 }
+                        let tail = ns.substring(with: NSRange(location: NSMaxRange(w), length: m - NSMaxRange(w)))
+                        if n == ns.length ? oldLine.hasSuffix(tail) : oldLine.contains(tail) { end = NSMaxRange(w) }
+                    }
                     // A new comma before the new words: "each, and a rain jacket".
                     var k = start
                     while k - 1 >= lo, k - 1 >= marker, space(k - 1) { k -= 1 }

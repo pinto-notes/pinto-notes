@@ -234,12 +234,12 @@ struct AIReceipt: View {
             // Two AIs made this change: both their marks, the latest in front (council r5).
             ZStack(alignment: .leading) {
                 if let other = receipt.earlierBy {
-                    AIGlyph(ai: other, size: compact ? 12 : 14).offset(x: compact ? 9 : 11).opacity(0.85)
+                    AIGlyph(ai: other, size: compact ? 12 : 14).offset(x: compact ? 16 : 19)
                 }
                 AIGlyph(ai: receipt.by, size: compact ? 12 : 14)
-                    .background(Circle().fill(Self.fill).padding(-1.5))
             }
-            .padding(.trailing, receipt.earlierBy == nil ? 0 : (compact ? 9 : 11))
+            // Side by side with a gap, not overlapping (council r6).
+            .padding(.trailing, receipt.earlierBy == nil ? 0 : (compact ? 16 : 19))
             Text(compact ? receipt.shortSummary : receipt.summary + (Self.age(receipt.at).map { " \u{00B7} \($0)" } ?? ""))
                 .font(.system(size: compact ? 13 : Self.text, weight: .medium))
                 .lineLimit(1)
