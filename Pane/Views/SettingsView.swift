@@ -322,9 +322,10 @@ struct GeneralChoices {
     static func example(_ form: TodaysNoteSettings.Title, now: Date = .now) -> String { DailyNotes.title(for: now, as: form) }
 }
 
-/// Sign Out…: signing out, which keeps the notes on this device for next time. On the Mac its alert
-/// can also remove them from it (`SignOutRemoval`), offered only while something else can open the
-/// notes and refused while anything here hasn't synced; on iPhone deleting the app removes them.
+/// Sign Out…: signing out, and this device's notes go with it (`SignOutRemoval`), as one Sign Out
+/// button in a centred alert on the Mac and on iPhone and iPad (Emil, 12 November 2026: removing is
+/// the default). When the notes can't go (something hasn't synced, no connection, the only copy of
+/// the key is here), the alert says why in a line and offers Sign Out and Keep Notes (`SignOutFlow`).
 struct SignOutButton: View {
     let backend: Backend
     let sync: SyncEngine?
@@ -335,21 +336,17 @@ struct SignOutButton: View {
     var compact = false
     @Environment(\.modelContext) private var context
     @Environment(\.dynamicTypeSize) private var typeSize
-    @State private var asking = false
-    @State private var removing = false
-    @State private var refusal: SignOutRemoval.Refusal?
-    /// Something on this device hadn't synced when Sign Out was pressed (iPhone's alert says so).
-    @State private var unsynced = false
+    @State private var flow: SignOutFlow?
 
     var body: some View {
+        let removing = flow?.removing == true
         Button(role: .destructive) {
-            refusal = nil
+            let flow = self.flow ?? SignOutFlow.live(backend: backend, sync: sync, context: context, crypto: crypto, devices: devices,
+                                                     showRecoveryKey: { [route] in SignOutButton.showSecurity(route) })
+            self.flow = flow
+            flow.start()
             #if os(macOS)
-            askOnMac(SignOutRemoval.offer(crypto: crypto, devices: devices))
-            #else
-            DebouncedSave.flushAll()
-            unsynced = AccountLibrary.hasUnsynced(context)
-            asking = true
+            MacSignOut.present(flow)
             #endif
         } label: {
             // Red at the end of the list on iPhone; ink on the Mac, over the red Delete Account….
@@ -364,31 +361,16 @@ struct SignOutButton: View {
         .disabled(removing)
         .accessibilityIdentifier("settings.signOut")
         #if os(iOS)
-        // An alert, as Settings asks before signing out of an Apple Account: the question, a line
-        // only when something hasn't synced, Sign Out and Cancel (Emil, 11 November 2026: the
-        // popover with three buttons and four sentences was "absurd"). The notes stay on the
-        // iPhone; deleting the app removes them. Settings closes once you're signed out.
-        .modifier(PhoneSignOutAlert(asking: $asking, unsynced: unsynced) { Task { await backend.signOut() } })
+        // An alert, as Settings asks before signing out of an Apple Account. Settings closes once
+        // you're signed out.
+        .modifier(PhoneSignOutAlert(flow: flow))
         #endif
-        if let refusal {
-            Label(SignOutCopy.refusal(refusal), systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-                .font(.callout)
-                .accessibilityIdentifier("settings.signOutRefused")
-        }
     }
 
     #if os(macOS)
     static var ink: Color { Color.ink }
     #else
     static var ink: Color { .red }
-    #endif
-
-    #if os(macOS)
-    private func askOnMac(_ offer: SignOutRemoval.Offer) {
-        MacSignOut.ask(offer: offer, backend: backend, sync: sync, context: context, route: route,
-                       removing: { removing = $0 }, refused: { refusal = $0 })
-    }
     #endif
 
     static func showSecurity(_ route: SettingsRoute) {
@@ -401,82 +383,81 @@ struct SignOutButton: View {
 }
 
 #if os(iOS)
-/// iPhone and iPad's question before signing out (`SignOutButton`).
+/// iPhone and iPad's sign-out alert (`SignOutButton`), as `SignOutFlow` asks it.
 struct PhoneSignOutAlert: ViewModifier {
-    @Binding var asking: Bool
-    let unsynced: Bool
-    let signOut: () -> Void
+    let flow: SignOutFlow?
 
     func body(content: Content) -> some View {
-        content.alert(SignOutCopy.phoneTitle, isPresented: $asking) {
-            Button(SignOutCopy.signOut, role: .destructive, action: signOut)
-                .accessibilityIdentifier("settings.confirmSignOut")
-            Button("Cancel", role: .cancel) {}
+        let ask = flow?.ask
+        // Every alert has Cancel, and each button answers the flow, which then asks nothing (or
+        // asks again after a refusal): the binding only reads.
+        content.alert(ask?.title ?? SignOutCopy.title, isPresented: Binding(get: { flow?.ask != nil }, set: { _ in })) {
+            ForEach(ask?.choices ?? [], id: \.self) { choice in
+                Button(SignOutCopy.title(choice), role: Self.role(choice)) { flow?.answer(choice) }
+                .accessibilityIdentifier(Self.id(choice))
+            }
         } message: {
-            if let line = SignOutCopy.phoneLine(unsynced: unsynced) { Text(line) }
+            if let line = ask?.line { Text(line) }
+        }
+    }
+
+    static func role(_ choice: SignOutAsk.Choice) -> ButtonRole? {
+        switch choice {
+        case .signOut, .keepNotes: .destructive
+        case .cancel: .cancel
+        case .saveRecoveryKey: nil
+        }
+    }
+
+    static func id(_ choice: SignOutAsk.Choice) -> String {
+        switch choice {
+        case .signOut: "settings.confirmSignOut"
+        case .keepNotes: "settings.signOutKeepNotes"
+        case .saveRecoveryKey: "settings.signOutSaveRecovery"
+        case .cancel: "settings.signOutCancel"
         }
     }
 }
 #endif
 
 #if os(macOS)
-/// Sign Out… on the Mac, from Settings › Account and from the account menu at the foot of the
-/// sidebar: one alert, Sign Out and Cancel, and a box to remove the notes from this Mac too
-/// (SignOutCopy.macAlert).
+/// Sign Out… on the Mac: the alert `SignOutFlow` asks, as an NSAlert on the window, asked again
+/// when a removal was refused.
 @MainActor
 enum MacSignOut {
-    static func ask(offer: SignOutRemoval.Offer, backend: Backend, sync: SyncEngine?, context: ModelContext,
-                    route: SettingsRoute = .shared, removing: @escaping (Bool) -> Void = { _ in },
-                    refused: ((SignOutRemoval.Refusal) -> Void)? = nil) {
-        let words = SignOutCopy.macAlert(offer)
+    /// The alert for `ask`: its buttons in the order of `ask.choices`, the first the default.
+    static func alert(_ ask: SignOutAsk) -> NSAlert {
         let alert = NSAlert()
-        alert.messageText = words.title
-        alert.informativeText = words.message
-        let signOut = alert.addButton(withTitle: SignOutCopy.signOut)
-        signOut.hasDestructiveAction = true
-        if let recovery = words.recoveryButton { alert.addButton(withTitle: recovery) }
-        alert.addButton(withTitle: "Cancel").keyEquivalent = "\u{1b}"
-        if let box = words.removeBox {
-            alert.showsSuppressionButton = true
-            alert.suppressionButton?.title = box
-            alert.suppressionButton?.state = .off
+        alert.messageText = ask.title
+        alert.informativeText = ask.line ?? ""
+        for choice in ask.choices {
+            let button = alert.addButton(withTitle: SignOutCopy.title(choice))
+            switch choice {
+            case .signOut, .keepNotes: button.hasDestructiveAction = true
+            case .cancel: button.keyEquivalent = "\u{1b}"
+            case .saveRecoveryKey: break
+            }
         }
+        return alert
+    }
+
+    /// The choice an alert's answer stands for.
+    static func choice(_ response: NSApplication.ModalResponse, in ask: SignOutAsk) -> SignOutAsk.Choice {
+        let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        return ask.choices.indices.contains(index) ? ask.choices[index] : .cancel
+    }
+
+    /// Shows what the flow asks, and what it asks next, until it asks nothing.
+    static func present(_ flow: SignOutFlow) {
+        guard let ask = flow.ask else { return }
+        let alert = alert(ask)
         let answer: (NSApplication.ModalResponse) -> Void = { response in
-            let removeToo = alert.suppressionButton?.state == .on && words.removeBox != nil
-            switch response {
-            case .alertFirstButtonReturn:
-                Task {
-                    if removeToo {
-                        await remove(backend: backend, sync: sync, context: context, removing: removing, refused: refused)
-                    } else {
-                        await backend.signOut()
-                    }
-                }
-            case .alertSecondButtonReturn where words.recoveryButton != nil: SignOutButton.showSecurity(route)
-            default: break
+            Task {
+                await flow.choose(choice(response, in: ask))
+                present(flow)
             }
         }
         if let window = NSApp.keyWindow { alert.beginSheetModal(for: window, completionHandler: answer) } else { answer(alert.runModal()) }
-    }
-
-    /// Signs out and removes the notes from this Mac; a refusal is said where it was asked, or in
-    /// an alert of its own when nothing there can show it (the account menu).
-    private static func remove(backend: Backend, sync: SyncEngine?, context: ModelContext,
-                               removing: (Bool) -> Void, refused: ((SignOutRemoval.Refusal) -> Void)?) async {
-        guard let account = backend.userID else { return }
-        removing(true)
-        defer { removing(false) }
-        do {
-            try await SignOutRemoval.live(backend: backend, sync: sync, context: context).run(account: account)
-        } catch {
-            let why = error as? SignOutRemoval.Refusal ?? .offline
-            if let refused { refused(why) } else {
-                let alert = NSAlert()
-                alert.messageText = "Couldn\u{2019}t remove your notes"
-                alert.informativeText = SignOutCopy.refusal(why)
-                alert.runModal()
-            }
-        }
     }
 }
 #endif

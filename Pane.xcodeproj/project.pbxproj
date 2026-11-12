@@ -552,6 +552,7 @@
 		702D254A2BA6152E5195D309 /* chart.js in Resources */ = {isa = PBXBuildFile; fileRef = 6A6208FEEA0F5F12A1F9C829 /* chart.js */; };
 		704FE59D2919C58AD52FA01B /* template-app-habit-tracker-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 97BDCCEA687FACCD9BE03538 /* template-app-habit-tracker-stage-narrow-dark.jpg */; };
 		7055FF7B1A3AAC5BD7603C3E /* ChecklistShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88F1B99F935635F64B00833B /* ChecklistShelf.swift */; };
+		705D8DCE130546DDAEFF8BF3 /* MacSignOutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A80D0C582DCA636068F6A22 /* MacSignOutTests.swift */; };
 		70B9072A9074709C3DE149FF /* template-cover-workout-log.jpg in Resources */ = {isa = PBXBuildFile; fileRef = E1F43E437956C5516C5FDD33 /* template-cover-workout-log.jpg */; };
 		70BDD1111E98AD13F92C5A04 /* template-app-habit-tracker.sample.json in Resources */ = {isa = PBXBuildFile; fileRef = 0EAF976EFD8B4852D7ACBE5D /* template-app-habit-tracker.sample.json */; };
 		70D6F22AE875D9975C01CF0A /* NoteExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2C3828F02A46D62F6896F82 /* NoteExportTests.swift */; };
@@ -1331,6 +1332,7 @@
 		19D80BDF04976B1F5E2449A1 /* preact.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = preact.js; sourceTree = "<group>"; };
 		19F18EFC180D18F05B904827 /* CollabScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabScript.swift; sourceTree = "<group>"; };
 		1A7835B48C799CF04F5FF31C /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		1A80D0C582DCA636068F6A22 /* MacSignOutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSignOutTests.swift; sourceTree = "<group>"; };
 		1ABEE5E0E13F4DD195A1FF52 /* NotePictureSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePictureSheet.swift; sourceTree = "<group>"; };
 		1B4A785E0E10C6BB3865280D /* CodeFileSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeFileSnapshots.swift; sourceTree = "<group>"; };
 		1B6942657FF41A9E90A2C2DA /* topojson.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = topojson.js; sourceTree = "<group>"; };
@@ -2569,6 +2571,7 @@
 				F7A576941F2C6D7485B6B16E /* ListHeaderBandTests.swift */,
 				005D993BB051DBCB7CB4CED0 /* LiveViewerTests.swift */,
 				D2A52B9764D19A95B517C4D8 /* LockedNotePageTests.swift */,
+				1A80D0C582DCA636068F6A22 /* MacSignOutTests.swift */,
 				0A15E4969D426B8BB8ADCE87 /* MenuLookTests.swift */,
 				B05E11F2F0BFF1B7B2F3AF2D /* MoveToPickerTests.swift */,
 				D82B1491DE222D4C7AFA3D82 /* MultiSelectTests.swift */,
@@ -3935,6 +3938,7 @@
 				99D089BCC3EFA6AEA578D1EB /* MacFirstSnapshots.swift in Sources */,
 				26EE93D54AFBE6911882492D /* MacLookSnapshots.swift in Sources */,
 				D046A5E225C5BFAA5AC02ADE /* MacRenderAuditTests.swift in Sources */,
+				705D8DCE130546DDAEFF8BF3 /* MacSignOutTests.swift in Sources */,
 				E4B766562642AAD7347C61F1 /* MacStoreShots.swift in Sources */,
 				364A03B667A51B2D5980B341 /* MacWindowChromeTests.swift in Sources */,
 				E853EF496274E5BFFF30826C /* MakeAppSheetTests.swift in Sources */,

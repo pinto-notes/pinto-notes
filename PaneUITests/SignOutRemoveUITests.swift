@@ -1,7 +1,7 @@
 #if os(iOS)
 import XCTest
 
-/// Sign Out and Remove Notes from This iPhone, in the simulator, against a backend that isn't
+/// Sign Out, which removes the notes from this iPhone (since 12 November 2026), in the simulator, against a backend that isn't
 /// production (staging or a local stack), with a throwaway account. Run one test at a time, in
 /// order; between them the caller looks at the app's container on disk:
 ///
@@ -9,8 +9,8 @@ import XCTest
 /// 2. The sign-out dialog, for its picture (PANE_SHOT names it: the caller sets the text size).
 /// 3. Sign out and remove: the sign-in screen comes back. On disk the library and files are gone.
 /// 4. Sign in again: the notes come back.
-/// 5. With the key on this iPhone only and no recovery key saved: the choice isn't offered, the
-///    dialog says why, and a button leads to the recovery key.
+/// 5. With the key on this iPhone only and no recovery key saved: the notes can't be removed, the
+///    alert says why, offers Sign Out and Keep Notes, and a button leads to the recovery key.
 ///
 /// Needs PANE_EMAIL and PANE_PASSWORD (TEST_RUNNER_ prefixed); PANE_SHOTS keeps the screenshots.
 final class SignOutRemoveUITests: XCTestCase {
@@ -120,8 +120,8 @@ final class SignOutRemoveUITests: XCTestCase {
         app.launch()
         dismissFirstRunSheets()
         openSignOutDialog()
-        let remove = app.buttons["Sign Out and Remove Notes from This iPhone"].firstMatch
-        XCTAssertTrue(remove.exists && remove.isEnabled, "offered")
+        let remove = app.buttons["settings.confirmSignOut"].firstMatch
+        XCTAssertTrue(remove.exists && remove.isEnabled, "Sign Out removes the notes")
         remove.tap()
         XCTAssertTrue(app.textFields["signin.email"].waitForExistence(timeout: 60), "signed out")
         Thread.sleep(forTimeInterval: 2)
@@ -149,11 +149,9 @@ final class SignOutRemoveUITests: XCTestCase {
         app.launch()
         dismissFirstRunSheets()
         openSignOutDialog()
-        // iOS leaves a disabled choice out of the dialog altogether, so the message says why it
-        // isn't there; the Mac shows it greyed.
-        let remove = app.buttons["Sign Out and Remove Notes from This iPhone"].firstMatch
-        XCTAssertFalse(remove.exists && remove.isEnabled, "not offered: nothing else holds the key")
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Save your recovery key first")).firstMatch.exists, "and the dialog says why")
+        XCTAssertFalse(app.buttons["settings.confirmSignOut"].firstMatch.exists, "no removing: nothing else holds the key")
+        XCTAssertTrue(app.buttons["Sign Out and Keep Notes"].firstMatch.exists, "signing out and keeping them is")
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Save your recovery key first")).firstMatch.exists, "and the alert says why")
         let save = app.buttons["Save a Recovery Key\u{2026}"].firstMatch
         XCTAssertTrue(save.exists)
         save.tap()

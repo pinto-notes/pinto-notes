@@ -38,24 +38,46 @@ import Testing
         }
     }
 
-    @Test func theDialogNamesTheDeviceAndSaysWhatHappensToTheKey() {
-        #expect(SignOutCopy.remove("Mac") == "Sign Out and Remove Notes from This Mac")
-        #expect(SignOutCopy.remove("iPhone") == "Sign Out and Remove Notes from This iPhone")
-        #expect(SignOutCopy.remove("iPad") == "Sign Out and Remove Notes from This iPad")
-        // At the largest text sizes, where the full title runs past the dialog's edge on iPhone.
-        #expect(SignOutCopy.removeShort == "Sign Out and Remove Notes")
-        #expect(SignOutCopy.message(.offered(keyStays: true), kind: "iPhone")
-                == "Your notes stay in your account and come back when you sign in again. They also stay on this iPhone unless you remove them. Your key stays in iCloud Keychain either way.")
-        #expect(SignOutCopy.message(.offered(keyStays: false), kind: "Mac")
-                == "Your notes stay in your account and come back when you sign in again. They also stay on this Mac unless you remove them. Removing them also removes your key from this Mac.")
-        #expect(SignOutCopy.message(.needsRecoveryKey, kind: "Mac")
-                == "Your notes stay in your account and on this Mac, and come back when you sign in again. They can\u{2019}t be removed from this Mac yet. Save your recovery key first, or your notes could not be opened again.")
-        #expect(SignOutCopy.message(.unavailable, kind: "iPad") == "Your notes stay in your account and on this iPad, and come back when you sign in again.")
-        #expect(SignOutCopy.refusal(.unsynced) == "Some changes haven\u{2019}t synced yet. Connect to the internet and try again.")
-        // Sentence case, and no dashes, in everything the dialog can say.
-        let all = [SignOutRemoval.Offer.offered(keyStays: true), .offered(keyStays: false), .needsRecoveryKey, .unavailable].map { SignOutCopy.message($0) }
-            + [SignOutRemoval.Refusal.unsynced, .offline, .needsRecoveryKey, .unavailable].map { SignOutCopy.refusal($0) }
-        for text in all { #expect(!text.contains("\u{2014}") && !text.contains("\u{2013}"), "\(text)") }
+    /// Sign Out removes the notes (12 November 2026): the alert says so in a line, and when they
+    /// can't go, says why in one short line.
+    @Test func theAlertSaysWhatSignOutDoesAndWhyItCant() {
+        #expect(SignOutCopy.removes(keyStays: true, kind: "iPhone") == "This removes your notes from this iPhone. They stay in your account.")
+        #expect(SignOutCopy.removes(keyStays: false, kind: "Mac") == "This removes your notes and key from this Mac. They stay in your account.")
+        #expect(SignOutCopy.why(.unsynced, unsynced: 2) == "2 changes haven\u{2019}t synced yet.")
+        #expect(SignOutCopy.why(.unsynced, unsynced: 1) == "1 change hasn\u{2019}t synced yet.")
+        #expect(SignOutCopy.why(.unsynced, unsynced: 0) == "Some changes haven\u{2019}t synced yet.", "only an app's page is waiting")
+        #expect(SignOutCopy.why(.offline, offline: true) == "You\u{2019}re offline.")
+        #expect(SignOutCopy.why(.offline, offline: false) == "Pinto Notes can\u{2019}t be reached.", "online, and the server didn't answer")
+        #expect(SignOutCopy.why(.needsRecoveryKey, kind: "Mac") == "This Mac holds the only copy of your key. Save your recovery key first.")
+        #expect(SignOutCopy.why(.unavailable, kind: "iPad") == "Your notes aren\u{2019}t open on this iPad, so they can\u{2019}t be removed.")
+        #expect(SignOutCopy.keepNotes == "Sign Out and Keep Notes")
+        // Sentence case, short, and no dashes, in everything the alert can say.
+        let refusals: [SignOutRemoval.Refusal] = [.unsynced, .offline, .needsRecoveryKey, .unavailable]
+        let all = [true, false].map { SignOutCopy.removes(keyStays: $0) } + refusals.map { SignOutCopy.why($0, unsynced: 3) }
+            + [SignOutCopy.title, SignOutCopy.refusedTitle]
+        for text in all {
+            #expect(!text.contains("\u{2014}") && !text.contains("\u{2013}"), "\(text)")
+            #expect(text.split(separator: ".").count <= 2, "at most two short sentences: \(text)")
+        }
+    }
+
+    /// One Sign Out button, which removes, whenever removing is safe; otherwise why, Sign Out and
+    /// Keep Notes, and the way to a recovery key when that's what's missing.
+    @Test func theButtonsByOfferAndByRefusal() {
+        #expect(SignOutAsk.first(.offered(keyStays: true)).choices == [.signOut, .cancel])
+        #expect(SignOutAsk.first(.offered(keyStays: false)).choices == [.signOut, .cancel])
+        #expect(SignOutAsk.first(.needsRecoveryKey).choices == [.keepNotes, .saveRecoveryKey, .cancel])
+        #expect(SignOutAsk.first(.unavailable).choices == [.keepNotes, .cancel])
+        for offer in [SignOutRemoval.Offer.offered(keyStays: true), .offered(keyStays: false), .needsRecoveryKey, .unavailable] {
+            #expect(SignOutAsk.first(offer).title == "Sign out?")
+        }
+        #expect(SignOutAsk.refused(.unsynced).choices == [.keepNotes, .cancel])
+        #expect(SignOutAsk.refused(.offline).choices == [.keepNotes, .cancel])
+        #expect(SignOutAsk.refused(.needsRecoveryKey).choices == [.keepNotes, .saveRecoveryKey, .cancel])
+        #expect(SignOutAsk.refused(.unavailable).choices == [.keepNotes, .cancel])
+        #expect(SignOutAsk.refused(.offline).title == "Couldn\u{2019}t remove your notes")
+        #expect([SignOutAsk.Choice.signOut, .keepNotes, .saveRecoveryKey, .cancel].map(SignOutCopy.title)
+                == ["Sign Out", "Sign Out and Keep Notes", "Save a Recovery Key\u{2026}", "Cancel"])
     }
 }
 
@@ -421,22 +443,128 @@ import Testing
         phone.crypto.signedOut()
     }
 
-    /// The Mac's sign-out: one question, one sentence, Sign Out and Cancel, and removing the notes
-    /// as a box to tick, never a second red button (Emil, 3 November 2026: "a total mess").
-    @Test func theMacAsksPlainly() {
-        let offered = SignOutCopy.macAlert(.offered(keyStays: false), kind: "Mac")
-        #expect(offered.title == "Sign out?")
-        #expect(offered.message == "Your notes stay in your account and come back when you sign in again.")
-        #expect(offered.removeBox == "Also remove my notes and key from this Mac")
-        #expect(offered.recoveryButton == nil)
-        #expect(SignOutCopy.macAlert(.offered(keyStays: true), kind: "Mac").removeBox == "Also remove my notes from this Mac", "an iCloud Keychain key stays where it is")
-        let needs = SignOutCopy.macAlert(.needsRecoveryKey, kind: "Mac")
-        #expect(needs.removeBox == nil && needs.recoveryButton == SignOutCopy.saveRecoveryKey, "nothing to tick until a recovery key is saved")
-        #expect(SignOutCopy.macAlert(.unavailable, kind: "Mac").removeBox == nil)
-        for offer in [SignOutRemoval.Offer.offered(keyStays: true), .offered(keyStays: false), .needsRecoveryKey, .unavailable] {
-            let a = SignOutCopy.macAlert(offer, kind: "Mac")
-            #expect(a.message.split(separator: ".").count <= 2, "at most two short sentences: \(a.message)")
-            #expect(!a.message.contains("\u{2014}"))
+    // MARK: The alert's buttons (SignOutFlow), on the Mac and on iPhone and iPad
+
+    /// What the flow's buttons did besides the removal.
+    @MainActor final class Pressed {
+        var kept = 0
+        var recoveryKey = 0
+    }
+
+    /// Sign Out… on this device, as the app wires it, with the rig's removal. `offline`: what the
+    /// network path says.
+    func flow(_ rig: Rig, offline: Bool = false) -> (SignOutFlow, Pressed) {
+        let pressed = Pressed()
+        let flow = SignOutFlow(kind: "Mac", offer: { SignOutRemoval.offer(crypto: rig.crypto, devices: rig.devices) },
+                               remove: { [user] in try await rig.removal.run(account: user) },
+                               keep: { pressed.kept += 1 }, showRecoveryKey: { pressed.recoveryKey += 1 },
+                               unsynced: { AccountLibrary.unsyncedCount(rig.context) }, offline: { offline })
+        return (flow, pressed)
+    }
+
+    /// A device whose Sign Out… finds `offer`, with one synced note. `rest`: other devices to sign out at the end.
+    func device(offering offer: SignOutRemoval.Offer) async throws -> (rig: Rig, rest: [Rig]) {
+        let rig: Rig
+        switch offer {
+        case .offered(keyStays: true): rig = try await device(syncs: true)
+        case .offered(keyStays: false):
+            rig = try await device(syncs: false)
+            try await rig.crypto.markRecoveryKeySaved()
+        case .needsRecoveryKey: rig = try await device(syncs: false)
+        case .unavailable:
+            rig = try await device(syncs: true)
+            rig.crypto.signedOut()
         }
+        rig.note("On the server", synced: true)
+        #expect(SignOutRemoval.offer(crypto: rig.crypto, devices: rig.devices) == offer)
+        return (rig, [])
+    }
+
+    /// A device whose Sign Out is offered and then refused for `refusal`. `meanwhile` runs between
+    /// the alert and the press.
+    func device(refusing why: SignOutRemoval.Refusal) async throws -> (rig: Rig, rest: [Rig], meanwhile: () -> Void) {
+        switch why {
+        case .unsynced:
+            let phone = try await device(syncs: true)
+            phone.note("On the server", synced: true)
+            phone.note("Typed on the train", synced: false)
+            phone.note("And on the platform", synced: false)
+            phone.reachable = false
+            return (phone, [], {})
+        case .offline:
+            let phone = try await device(syncs: true)
+            phone.note("On the server", synced: true)
+            phone.reachable = false
+            return (phone, [], {})
+        case .needsRecoveryKey:
+            // Two Macs that only have each other: one leaves, and the other's list is from before.
+            let a = try await device(syncs: false)
+            let b = try await device(syncs: false, adding: try #require(a.crypto.keyToHandOver))
+            await a.devices.refresh(a.crypto)
+            b.note("B's", synced: true)
+            #expect(await refusal(a) == nil)
+            return (b, [a], {})
+        case .unavailable:
+            // Signed out elsewhere while the alert was up: the key isn't open here any more.
+            let phone = try await device(syncs: true)
+            phone.note("On the server", synced: true)
+            return (phone, [], { phone.crypto.signedOut() })
+        }
+    }
+
+    @Test(arguments: [SignOutRemoval.Offer.offered(keyStays: true), .offered(keyStays: false), .needsRecoveryKey, .unavailable])
+    func theDefaultButtonRemovesWheneverItSafelyCan(_ offer: SignOutRemoval.Offer) async throws {
+        let (rig, rest) = try await device(offering: offer)
+        defer { ([rig] + rest).forEach { $0.crypto.signedOut() } }
+        let (flow, pressed) = flow(rig)
+        flow.start()
+        let ask = try #require(flow.ask)
+        #expect(ask == .first(offer, kind: "Mac"))
+        await flow.choose(try #require(ask.choices.first, "a default button"))
+        #expect(flow.ask == nil, "nothing more to ask")
+        if case .offered = offer {
+            #expect(rig.steps == ["push", "withdraw", "stopSync", "dropKey", "erase", "forget", "signOut", "erase"], "Sign Out removed the notes")
+            #expect(rig.notes == 0 && !rig.hasFiles && !rig.pending && pressed.kept == 0)
+        } else {
+            #expect(ask.choices.first == .keepNotes, "nothing removes, so the default keeps")
+            #expect(pressed.kept == 1 && rig.steps.isEmpty && rig.notes == 1 && rig.hasFiles && !rig.pending, "Keep Notes kept the library")
+        }
+    }
+
+    @Test func aRecoveryKeyIsOfferedWhenItsWhatsMissingAndCancelDoesNothing() async throws {
+        let (mac, _) = try await device(offering: .needsRecoveryKey)
+        defer { mac.crypto.signedOut() }
+        let (flow, pressed) = flow(mac)
+        flow.start()
+        await flow.choose(.saveRecoveryKey)
+        #expect(pressed.recoveryKey == 1 && flow.ask == nil)
+        flow.start()
+        await flow.choose(.cancel)
+        #expect(pressed.kept == 0 && mac.steps.isEmpty && mac.notes == 1 && mac.crypto.phase == .ready)
+    }
+
+    @Test(arguments: [SignOutRemoval.Refusal.unsynced, .offline, .needsRecoveryKey, .unavailable])
+    func aRefusedRemovalChangesNothingAndOffersToKeepTheNotes(_ refusal: SignOutRemoval.Refusal) async throws {
+        let (rig, rest, meanwhile) = try await device(refusing: refusal)
+        defer { ([rig] + rest).forEach { $0.crypto.signedOut() } }
+        let notes = rig.notes
+        let (flow, pressed) = flow(rig, offline: true)
+        flow.start()
+        #expect(flow.ask?.choices == [.signOut, .cancel], "it was offered")
+        meanwhile()
+        await flow.choose(.signOut)
+        let ask = try #require(flow.ask, "asked again")
+        #expect(ask == .refused(refusal, unsynced: refusal == .unsynced ? 2 : 0, offline: true, kind: "Mac"))
+        #expect(ask.choices.first == .keepNotes && ask.choices.last == .cancel)
+        if refusal == .unsynced { #expect(ask.line == "2 changes haven\u{2019}t synced yet.") }
+        if refusal == .offline { #expect(ask.line == "You\u{2019}re offline.") }
+        // Nothing on the device changed.
+        #expect(rig.notes == notes && rig.hasFiles && !rig.pending && rig.defaults.string(forKey: AccountLibrary.ownerKey) != nil)
+        #expect(!rig.steps.contains("erase") && !rig.steps.contains("dropKey") && !rig.steps.contains("signOut"))
+        if refusal != .unavailable { #expect(rig.crypto.phase == .ready, "the key is still open here") }
+        // Keep Notes: signed out, the library as it was.
+        await flow.choose(.keepNotes)
+        #expect(pressed.kept == 1 && flow.ask == nil)
+        #expect(rig.notes == notes && rig.hasFiles && !rig.pending)
     }
 }

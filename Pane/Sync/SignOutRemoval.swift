@@ -1,9 +1,11 @@
 import Foundation
 import SwiftData
 
-/// Sign Out and Remove Notes from This Mac: signing out, and this device's copy of the notes goes
-/// with it. Plain Sign Out keeps the library and the key here for next time; this one leaves
-/// nothing to read on the device, and nothing is lost by it:
+/// Sign Out, as the alert's one Sign Out button does it (Emil, 12 November 2026: removing is the
+/// default): signing out, and this device's copy of the notes goes with it. It leaves nothing to
+/// read on the device, and nothing is lost by it. When it can't be done, the alert says why and
+/// offers Sign Out and Keep Notes, which keeps the library and the key here for next time
+/// (`SignOutFlow`).
 ///
 ///   1. It's offered only while something else can open the notes (`offer`). The key in iCloud
 ///      Keychain is never deleted, since that would take it from every device; a key that lives on
@@ -199,65 +201,160 @@ extension SignOutRemoval {
     }
 }
 
-/// The words of the sign-out dialog, by device ("Mac", "iPhone", "iPad").
+/// The words of the sign-out alert, by device ("Mac", "iPhone", "iPad").
 enum SignOutCopy {
     static let signOut = "Sign Out"
-    static func remove(_ kind: String = InstallID.kind) -> String { "Sign Out and Remove Notes from This \(kind)" }
-    static let removeShort = "Sign Out and Remove Notes"
+    static let keepNotes = "Sign Out and Keep Notes"
+    static let cancel = "Cancel"
     static func removing(_ kind: String = InstallID.kind) -> String { "Removing notes from this \(kind)\u{2026}" }
     static let saveRecoveryKey = "Save a Recovery Key\u{2026}"
+    static let title = "Sign out?"
+    static let refusedTitle = "Couldn\u{2019}t remove your notes"
 
-    static func message(_ offer: SignOutRemoval.Offer, kind: String = InstallID.kind) -> String {
-        let stays = "Your notes stay in your account and come back when you sign in again. They also stay on this \(kind) unless you remove them."
-        switch offer {
-        case .offered(keyStays: true): return stays + " Your key stays in iCloud Keychain either way."
-        case .offered(keyStays: false): return stays + " Removing them also removes your key from this \(kind)."
-        case .needsRecoveryKey: return "Your notes stay in your account and on this \(kind), and come back when you sign in again. They can\u{2019}t be removed from this \(kind) yet. " + needsRecoveryKey
-        case .unavailable: return "Your notes stay in your account and on this \(kind), and come back when you sign in again."
+    static func title(_ choice: SignOutAsk.Choice) -> String {
+        switch choice {
+        case .signOut: signOut
+        case .keepNotes: keepNotes
+        case .saveRecoveryKey: saveRecoveryKey
+        case .cancel: cancel
         }
     }
 
-    static let needsRecoveryKey = "Save your recovery key first, or your notes could not be opened again."
-
-    /// iPhone and iPad's alert: the Mac's question (`macAlert`), alone.
-    static let phoneTitle = "Sign out?"
-    /// Its one line, only when signing out leaves something behind: changes that haven't synced.
-    static func phoneLine(unsynced: Bool, kind: String = InstallID.kind) -> String? {
-        unsynced ? "Some changes on this \(kind) haven\u{2019}t synced yet." : nil
+    /// What Sign Out does when it removes the notes.
+    static func removes(keyStays: Bool, kind: String = InstallID.kind) -> String {
+        keyStays ? "This removes your notes from this \(kind). They stay in your account."
+                 : "This removes your notes and key from this \(kind). They stay in your account."
     }
 
-    /// The Mac's alert (Emil, 3 November 2026: three wide buttons, two red, and four sentences were
-    /// "a total mess"): one question, one sentence, Sign Out and Cancel, and removing the notes as
-    /// a box to tick, as macOS asks when you sign out of an account.
-    struct MacAlert: Equatable {
-        let title: String
-        let message: String
-        /// The box under the message; nil when the notes can't be removed here.
-        let removeBox: String?
-        /// A button to save a recovery key first (the notes can't be removed until there is one).
-        let recoveryButton: String?
-    }
-
-    static func macAlert(_ offer: SignOutRemoval.Offer, kind: String = InstallID.kind) -> MacAlert {
-        let back = "Your notes stay in your account and come back when you sign in again."
-        switch offer {
-        case .offered(keyStays: true):
-            return MacAlert(title: "Sign out?", message: back, removeBox: "Also remove my notes from this \(kind)", recoveryButton: nil)
-        case .offered(keyStays: false):
-            return MacAlert(title: "Sign out?", message: back, removeBox: "Also remove my notes and key from this \(kind)", recoveryButton: nil)
-        case .needsRecoveryKey:
-            return MacAlert(title: "Sign out?", message: back + " To remove them from this \(kind) too, save a recovery key first.", removeBox: nil, recoveryButton: saveRecoveryKey)
-        case .unavailable:
-            return MacAlert(title: "Sign out?", message: back, removeBox: nil, recoveryButton: nil)
-        }
-    }
-
-    static func refusal(_ refusal: SignOutRemoval.Refusal, kind: String = InstallID.kind) -> String {
+    /// Why the notes can't be removed now, in one line. `unsynced`: how many changes are still
+    /// here (0 when only something else is, such as an app's page). `offline`: this device has no
+    /// network, rather than the server not answering.
+    static func why(_ refusal: SignOutRemoval.Refusal, unsynced: Int = 0, offline: Bool = false, kind: String = InstallID.kind) -> String {
         switch refusal {
-        case .unsynced: "Some changes haven\u{2019}t synced yet. Connect to the internet and try again."
-        case .offline: "Can\u{2019}t reach Pinto Notes. Connect to the internet and try again."
-        case .needsRecoveryKey: needsRecoveryKey
-        case .unavailable: "Open your notes on this \(kind) first."
+        case .unsynced:
+            switch unsynced {
+            case 0: "Some changes haven\u{2019}t synced yet."
+            case 1: "1 change hasn\u{2019}t synced yet."
+            default: "\(unsynced) changes haven\u{2019}t synced yet."
+            }
+        case .offline: offline ? "You\u{2019}re offline." : "Pinto Notes can\u{2019}t be reached."
+        case .needsRecoveryKey: "This \(kind) holds the only copy of your key. Save your recovery key first."
+        case .unavailable: "Your notes aren\u{2019}t open on this \(kind), so they can\u{2019}t be removed."
         }
+    }
+}
+
+/// The sign-out alert, on the Mac and on iPhone and iPad: a title, at most one line, and its
+/// buttons in order, the first the default.
+struct SignOutAsk: Equatable {
+    enum Choice: Equatable {
+        /// Signs out and removes this device's notes (`SignOutRemoval.run`).
+        case signOut
+        /// Signs out and leaves the notes and key here (`Backend.signOut`).
+        case keepNotes
+        case saveRecoveryKey
+        case cancel
+    }
+
+    let title: String
+    let line: String?
+    let choices: [Choice]
+
+    /// Asked when Sign Out… is pressed. Sign Out removes the notes whenever that's safe; when it
+    /// isn't, the line says why and Sign Out and Keep Notes is offered instead.
+    static func first(_ offer: SignOutRemoval.Offer, kind: String = InstallID.kind) -> SignOutAsk {
+        switch offer {
+        case .offered(let keyStays):
+            SignOutAsk(title: SignOutCopy.title, line: SignOutCopy.removes(keyStays: keyStays, kind: kind), choices: [.signOut, .cancel])
+        case .needsRecoveryKey:
+            SignOutAsk(title: SignOutCopy.title, line: SignOutCopy.why(.needsRecoveryKey, kind: kind), choices: [.keepNotes, .saveRecoveryKey, .cancel])
+        case .unavailable:
+            SignOutAsk(title: SignOutCopy.title, line: SignOutCopy.why(.unavailable, kind: kind), choices: [.keepNotes, .cancel])
+        }
+    }
+
+    /// Asked when Sign Out was refused. Nothing on the device changed, and it's still signed in.
+    static func refused(_ refusal: SignOutRemoval.Refusal, unsynced: Int = 0, offline: Bool = false, kind: String = InstallID.kind) -> SignOutAsk {
+        SignOutAsk(title: SignOutCopy.refusedTitle, line: SignOutCopy.why(refusal, unsynced: unsynced, offline: offline, kind: kind),
+                   choices: refusal == .needsRecoveryKey ? [.keepNotes, .saveRecoveryKey, .cancel] : [.keepNotes, .cancel])
+    }
+}
+
+/// Sign Out… from start to end: what the alert asks (`ask`, nil when nothing is asked), and what
+/// each of its buttons does. The views only show `ask` and hand back the button pressed.
+@MainActor @Observable final class SignOutFlow {
+    private(set) var ask: SignOutAsk?
+    private(set) var removing = false
+
+    let kind: String
+    private let offer: () -> SignOutRemoval.Offer
+    /// Signs out and removes the notes; throws a `Refusal` and changes nothing when it can't.
+    private let remove: () async throws -> Void
+    private let keep: () async -> Void
+    private let showRecoveryKey: () -> Void
+    private let unsynced: () -> Int
+    private let offline: () -> Bool
+
+    init(kind: String = InstallID.kind, offer: @escaping () -> SignOutRemoval.Offer, remove: @escaping () async throws -> Void,
+         keep: @escaping () async -> Void, showRecoveryKey: @escaping () -> Void, unsynced: @escaping () -> Int = { 0 }, offline: @escaping () -> Bool = { false }) {
+        self.kind = kind
+        self.offer = offer
+        self.remove = remove
+        self.keep = keep
+        self.showRecoveryKey = showRecoveryKey
+        self.unsynced = unsynced
+        self.offline = offline
+    }
+
+    /// Sign Out… was pressed.
+    func start() {
+        guard !removing else { return }
+        ask = .first(offer(), kind: kind)
+    }
+
+    /// A button was pressed in an alert that closes by itself (iPhone's): it's gone at once, and
+    /// what the button does follows.
+    func answer(_ choice: SignOutAsk.Choice) {
+        ask = nil
+        Task { await choose(choice) }
+    }
+
+    /// A button of the alert was pressed (or it was closed: `.cancel`).
+    func choose(_ choice: SignOutAsk.Choice) async {
+        ask = nil
+        switch choice {
+        case .signOut:
+            removing = true
+            defer { removing = false }
+            do {
+                try await remove()
+            } catch {
+                let why = error as? SignOutRemoval.Refusal ?? .offline
+                ask = .refused(why, unsynced: why == .unsynced ? unsynced() : 0, offline: offline(), kind: kind)
+            }
+        case .keepNotes: await keep()
+        case .saveRecoveryKey: showRecoveryKey()
+        case .cancel: break
+        }
+    }
+}
+
+extension SignOutFlow {
+    /// The app's own: this device's library, sync, key and session.
+    static func live(backend: Backend, sync: SyncEngine?, context: ModelContext, crypto: AccountCrypto = .shared, devices: KeyDevices = .shared,
+                     pages: NotePageStore = .shared, pageData: NotePageDataStore = .shared, showRecoveryKey: @escaping () -> Void) -> SignOutFlow {
+        SignOutFlow(
+            offer: { SignOutRemoval.offer(crypto: crypto, devices: devices) },
+            remove: {
+                guard let account = backend.userID else { throw SignOutRemoval.Refusal.unavailable }
+                try await SignOutRemoval.live(backend: backend, sync: sync, context: context, crypto: crypto, devices: devices, pages: pages, pageData: pageData).run(account: account)
+            },
+            keep: { await backend.signOut() },
+            showRecoveryKey: showRecoveryKey,
+            unsynced: {
+                DebouncedSave.flushAll()
+                return AccountLibrary.unsyncedCount(context) + pages.unpushed.count + pageData.dirty.count
+            },
+            offline: { sync?.reach == .offline })
     }
 }

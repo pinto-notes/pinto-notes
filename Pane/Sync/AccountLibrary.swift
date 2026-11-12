@@ -34,11 +34,14 @@ enum AccountLibrary {
     }
 
     /// Whether anything on this device hasn't reached the server yet.
-    static func hasUnsynced(_ context: ModelContext) -> Bool {
+    static func hasUnsynced(_ context: ModelContext) -> Bool { unsyncedCount(context) > 0 }
+
+    /// The notes, folders and files on this device that haven't reached the server.
+    static func unsyncedCount(_ context: ModelContext) -> Int {
         let notes = (try? context.fetchCount(FetchDescriptor<Note>(predicate: #Predicate { $0.dirty }))) ?? 0
         let folders = (try? context.fetchCount(FetchDescriptor<Folder>(predicate: #Predicate { $0.dirty }))) ?? 0
         let files = (try? context.fetchCount(FetchDescriptor<Attachment>(predicate: #Predicate { $0.dirty || !$0.uploaded }))) ?? 0
-        return notes + folders + files > 0
+        return notes + folders + files
     }
 
     /// This device was removed from the account's devices: its copy of the notes goes, with the
