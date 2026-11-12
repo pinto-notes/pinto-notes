@@ -132,6 +132,7 @@ final class NotebookFilmStore {
         script = FilmScript(input, bang: galaxy)
         rewatching = false
         offered = true
+        if let script { Funnel.record(.notebookFilmStep(.offered, why: NotebookFilmWhy(script.stats, form: script.form))) }
     }
 
     /// Its card was tapped: it comes up now.
@@ -141,12 +142,14 @@ final class NotebookFilmStore {
         opened = true
         rewatching = false
         visible = true
+        Funnel.record(.notebookFilmStep(.opened))
     }
 
     /// Its card was closed: not offered again, and kept for Help.
     func closeOffer() {
         guard offered else { return }
         offered = false
+        Funnel.record(.notebookFilmStep(.cardClosed))
         didPresent()
         if !forced { script = nil; input = nil }
     }
@@ -211,6 +214,7 @@ final class NotebookFilmStore {
         script = FilmScript(input, bang: galaxy)
         rewatching = true
         visible = true
+        Funnel.record(.notebookFilmStep(.rewatched))
     }
 
     /// Later in a launch, never showing anything: if the account is due, reads who wrote what and
@@ -238,6 +242,7 @@ final class NotebookFilmStore {
         guard FilmEligibility.isReady(input), let data = try? JSONEncoder().encode(input) else { return }
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try? data.write(to: preparedURL, options: .atomic)
+        Funnel.record(.notebookFilmStep(.ready, why: NotebookFilmWhy(FilmStats(input), form: nil)))
     }
 
     /// Dev: `-forceNotebookFilm`; captures: `-filmLook paper`, `-filmNoFolderNames`, `-filmLight`

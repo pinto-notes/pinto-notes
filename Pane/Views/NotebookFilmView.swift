@@ -142,7 +142,10 @@ struct NotebookFilmView: View {
             if phase == .intro { playback.prepare(script: script, labels: store.labels, screen: screen.sized(for: store.look)) }
             setUpSlides(screen)
         }
-        .onDisappear { playback.stop(); music.stop(); store.stopMaking() }
+        .onDisappear {
+            Funnel.record(.notebookFilmStep(.closed, page: max(1, furthest), place: phase == .intro ? .slides : phase == .watching ? .film : .end))
+            playback.stop(); music.stop(); store.stopMaking()
+        }
         .onChange(of: playback.settling) { _, settling in if settling && phase == .watching { toShare() } }
         .onChange(of: store.look) { lookChanged() }
         .onChange(of: store.folderNames) { lookChanged() }
@@ -179,6 +182,7 @@ struct NotebookFilmView: View {
 
     private func watch() {
         guard let script = store.script, let screen else { return }
+        Funnel.record(.notebookFilmStep(phase == .share ? .watchedAgain : .played))
         music.filmStarts()
         store.makeMovies()
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) {
@@ -193,6 +197,7 @@ struct NotebookFilmView: View {
     private func toShare() {
         // The film has covered the intro's picture since it began; it's not needed again.
         backdrop = false
+        if phase != .share { Funnel.record(.notebookFilmStep(.finished)) }
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.3)) { phase = .share }
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.45).delay(0.3)) { controlsShown = true }
         if store.forced, store.arguments.contains("-filmAutoShare") {
@@ -217,6 +222,7 @@ struct NotebookFilmView: View {
     }
 
     private func pressShare() {
+        Funnel.record(.notebookFilmStep(.shareTapped))
         if let movie = store.movie { openShare(movie) } else { shareWaiting = true; store.makeMovies() }
     }
 
@@ -246,6 +252,8 @@ struct NotebookFilmView: View {
     @State private var slideTask: Task<Void, Never>?
     /// Light music under the slides (FilmSlideSound).
     @State private var music = SlideMusic()
+    /// The furthest slide seen (1 is the first), for telemetry when the film's screen goes.
+    @State private var furthest = 0
     @Environment(\.modelContext) private var modelContext
 
     /// The slides for this month in the shape of this screen, with your notes' names read here, on
@@ -309,6 +317,8 @@ struct NotebookFilmView: View {
         slideDone = false
         slideTask?.cancel()
         music.slide(k, still: reduceMotion)
+        if k + 1 > furthest { Funnel.record(.notebookFilmStep(.slide, page: k + 1)) }
+        furthest = max(furthest, k + 1)
         let list = slideList, length = list[k].length, still = reduceMotion
         let full = screen.pixels, moving = full
         slideTask = Task {
@@ -814,12 +824,13 @@ struct NotebookFilmView: View {
     @ViewBuilder private var shareButton: some View {
         if let movie = store.movie, !shareWaiting {
             #if os(iOS)
-            Button { openShare(movie) } label: { shareLabel(waiting: false) }
+            Button { Funnel.record(.notebookFilmStep(.shareTapped)); openShare(movie) } label: { shareLabel(waiting: false) }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("notebookFilm.share")
             #else
             ShareLink(item: movie, preview: SharePreview(store.shareTitle, image: Image("MarkTight"))) { shareLabel(waiting: false) }
                 .buttonStyle(.plain)
+                .simultaneousGesture(TapGesture().onEnded { Funnel.record(.notebookFilmStep(.shareTapped)) })
                 .accessibilityIdentifier("notebookFilm.share")
             #endif
         } else {
@@ -886,6 +897,7 @@ struct NotebookFilmView: View {
         do {
             try? FileManager.default.removeItem(at: to)
             try FileManager.default.copyItem(at: movie, to: to)
+            Funnel.record(.notebookFilmStep(.saved))
         } catch {
             saveFailed = true
         }
@@ -1268,31 +1280,28 @@ enum FilmRow {
     static let closeClear: Double = 70
 }
 
-/// The slides' music (FilmSlideSound): the bed from the first slide, each slide's notes as its
-/// picture comes in (the last slide's faded on Next, so nothing piles up however fast you go), the
-/// bed going as the play slide comes up.
-/// Like the film's sound: the ringer switch silences it, it plays over whatever else is playing,
-/// and never in test runs. With Reduce Motion the pictures don't come in, and only the bed plays.
+/// The slides' music (FilmSlideSound): each slide's notes as its picture comes in, and nothing
+/// under them (Emil, 11-12, of a soft bed against none: "B is clearly best"). Next fades the last
+/// slide's notes, so nothing piles up however fast you go. Like the film's sound: the ringer switch
+/// silences it, it plays over whatever else is playing, and never in test runs. With Reduce Motion
+/// the pictures don't come in, and neither do their notes.
 @MainActor
 final class SlideMusic {
-    private var bed: AVAudioPlayer?, cue: AVAudioPlayer?
-    private var made: (bed: Data, cues: [Int: Data], play: Int?)?
+    private var cue: AVAudioPlayer?
+    private var cues: [Int: Data]?
     private var making: Task<Void, Never>?
-    private var shown: Int?
-    /// How long the bed lasts (it goes over its last two seconds): longer than anyone spends on the slides.
-    nonisolated static let bedSeconds = 60.0
+
+    /// What each slide plays, by its place in `list`: only the slides with notes.
+    nonisolated static func sounds(_ slides: FilmSlides, list: [FilmSlides.Slide]) -> [Int: Data] {
+        var out: [Int: Data] = [:]
+        for (k, sl) in list.enumerated() { if let c = FilmSlideSound.cue(sl, of: slides) { out[k] = FilmSlideSound.wav(c) } }
+        return out
+    }
 
     func prepare(_ slides: FilmSlides, list: [FilmSlides.Slide]) {
-        guard !FilmPlayback.muted, made == nil, making == nil else { return }
+        guard !FilmPlayback.muted, cues == nil, making == nil else { return }
         making = Task {
-            let ready = await Task.detached(priority: .userInitiated) { () -> (Data, [Int: Data], Int?) in
-                var cues: [Int: Data] = [:]
-                for (k, sl) in list.enumerated() { if let c = FilmSlideSound.cue(sl, of: slides) { cues[k] = FilmSlideSound.wav(c) } }
-                return (FilmSlideSound.wav(FilmSlideSound.pad(seconds: Self.bedSeconds)), cues, list.firstIndex { $0.name == "play" })
-            }.value
-            made = (ready.0, ready.1, ready.2)
-            // (A slide that came up while it was being made: the bed now, its notes are past.)
-            if shown != nil { startBed() }
+            cues = await Task.detached(priority: .userInitiated) { Self.sounds(slides, list: list) }.value
         }
     }
 
@@ -1304,12 +1313,6 @@ final class SlideMusic {
         guard let p = try? AVAudioPlayer(data: data) else { return nil }
         p.prepareToPlay()
         return p
-    }
-
-    private func startBed() {
-        guard let made, bed == nil, shown != made.play else { return }
-        bed = player(made.bed)
-        bed?.play()
     }
 
     private static func fade(_ p: AVAudioPlayer?, over: Double, after: Double = 0) {
@@ -1324,13 +1327,9 @@ final class SlideMusic {
 
     /// Slide `k` is coming in.
     func slide(_ k: Int, still: Bool) {
-        shown = k
-        guard let made else { return }
-        startBed()
         Self.fade(cue, over: 0.12)
         cue = nil
-        if k == made.play { Self.fade(bed, over: 1.2); bed = nil }
-        guard !still, let data = made.cues[k], let p = player(data) else { return }
+        guard !still, let data = cues?[k], let p = player(data) else { return }
         p.play()
         cue = p
     }
@@ -1338,12 +1337,10 @@ final class SlideMusic {
     /// Play was pressed: the film's own sound takes over.
     func filmStarts() {
         Self.fade(cue, over: 0.12); cue = nil
-        Self.fade(bed, over: 0.6); bed = nil
     }
 
     func stop() {
         making?.cancel()
-        for p in [cue, bed] { p?.stop() }
-        cue = nil; bed = nil
+        cue?.stop(); cue = nil
     }
 }

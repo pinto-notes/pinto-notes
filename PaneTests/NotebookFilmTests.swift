@@ -270,6 +270,33 @@ import AVFoundation
         #expect(!FileManager.default.fileExists(atPath: after.preparedURL.path), "never again here")
     }
 
+    @Test func theFilmSaysWhoItWasOfferedToAndWhetherTheyOpenedIt() async throws {
+        // Emil, 11-12: "do we have any telemetry on who gets this? why did they get it, how far they
+        // clicked through it, how often they ignored opening it, and whether or not they clicked share".
+        let (c, source) = try Self.library(days: 35)
+        let d = TestDefaults(), account = UUID(), folder = Self.tempFolder()
+        ShareAsk.lastKeystroke = .distantPast
+        let steps = FunnelSteps()
+        await steps.watch { await Self.store(d, account: account, source: source, folder: folder).prepare(context: c.mainContext) }
+        let ready = try #require(steps.events.first)
+        guard case .notebookFilmStep(.ready, _, _, let why?) = ready else { Issue.record("ready, with why: \(ready)"); return }
+        #expect(why.days >= FilmEligibility.minDays && why.activeDays >= FilmEligibility.minActiveDays && why.notes != nil)
+
+        // A card not opened is offered again at the next launch: each `offered` without an `opened` is one ignored.
+        for _ in 0..<2 {
+            let s = Self.store(d, account: account, source: source, folder: folder)
+            steps.watch { s.atLaunch(otherPrompt: false) }
+        }
+        let offers = steps.events.filter { if case .notebookFilmStep(.offered, _, _, let why?) = $0 { why.form != nil } else { false } }
+        #expect(offers.count == 2, "offered, with the form, at each launch")
+        let last = Self.store(d, account: account, source: source, folder: folder)
+        steps.watch { last.atLaunch(otherPrompt: false); last.open() }
+        #expect(steps.count(.notebookFilmStep(.opened)) == 1)
+        // What it can carry is only numbers and closed words.
+        let props = TelemetryEvent.notebookFilmStep(.closed, page: 40, place: .film).properties
+        #expect(props[.page] == .number(8) && props[.place] == .word(NotebookFilmPlace.film))
+    }
+
     @Test func onceShownOnOneDeviceTheAccountsOtherDevicesDontOfferIt() async throws {
         // Emil, 11-11: once per account, not per device.
         let (c, source) = try Self.library(days: 35)
@@ -1329,15 +1356,22 @@ import AVFoundation
         #expect(onsets <= FilmSlideSound.starNotes, "\(onsets) notes for \(slides.welcomeStars) stars")
     }
 
-    @Test func theSlidesBedHasNoBassAndStaysUnderTheNotes() throws {
-        // Emil, 11-12: "its a bassy note that plays basically the whole time, until the video".
-        // The bed is the chord's high notes only, and well under each slide's own notes.
-        #expect(FilmSlideSound.bedNotes.allSatisfy { $0.f > 250 }, "nothing low under the slides")
-        let bed = FilmSlideSound.pad(seconds: 10)
+    @MainActor @Test func nothingPlaysUnderTheSlidesButTheirOwnNotes() throws {
+        // Emil, 11-12: the bed under the slides was "a bassy note that plays basically the whole
+        // time, until the video", and with none, "B is clearly best". Only slides with notes have a
+        // sound, the play slide has none, and each is silent once its notes have played.
         let input = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
         let slides = FilmSlides(input: input, script: FilmScript(input, calendar: Self.cal), mark: nil)
-        let loudest = slides.slides().compactMap { FilmSlideSound.cue($0, of: slides)?.peak }.max() ?? 0
-        #expect(bed.peak < 0.35 * loudest, "the bed (\(bed.peak)) is at least 9 dB under the notes (\(loudest))")
+        let list = slides.slides()
+        let sounds = SlideMusic.sounds(slides, list: list)
+        #expect(Set(sounds.keys) == Set(list.indices.filter { FilmSlideSound.cue(list[$0], of: slides) != nil }))
+        #expect(sounds[list.count - 1] == nil, "the play slide is quiet until the film")
+        for (k, data) in sounds {
+            // The WAV's last 0.3 s: silence.
+            let tail = data.suffix(Int(0.3 * FilmSlideSound.rate) * 4)
+            let loudest = stride(from: tail.startIndex, to: tail.endIndex - 1, by: 2).map { abs(Int(Int16(littleEndian: Int16(tail[$0]) | Int16(tail[$0 + 1]) << 8))) }.max() ?? 0
+            #expect(loudest < 40, "\(list[k].name) ends in silence")
+        }
     }
 
     @Test func theSlidesNotesComeAsTheirPicturesDo() throws {
@@ -1357,7 +1391,7 @@ import AVFoundation
             let at = FilmSlides.rowAppears(i, rows: rows)
             #expect(loudness(at + 0.005) > 5 * loudness(max(0, at - 0.04)), "row \(i) is heard as it lands")
         }
-        #expect(FilmSlideSound.cue(try #require(slides.slides().last), of: slides) == nil, "play has only the bed")
+        #expect(FilmSlideSound.cue(try #require(slides.slides().last), of: slides) == nil, "play is quiet")
     }
 
     @Test func aSpiralsNamesSitBesideTheirStarsAndItsHeartIsASunFromTheStart() throws {
