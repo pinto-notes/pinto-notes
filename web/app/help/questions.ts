@@ -53,8 +53,13 @@ export const FAQ: QA[] = [
     "The note then opens as the app: a habit tracker you tick, a budget that adds up. Ask your AI to change it whenever you like. More (•••) → App Info… has the version before and Remove App, and the note itself is never deleted.",
     "An app runs inside Pinto Notes and can't reach the internet unless you allow an address. What it saves is encrypted and synced like your notes.",
   ] }] : []),
+  { id: "collaborate", q: "How do I share a note so we can both edit it?", a: [
+    "On a Mac, open the note, click Share in the toolbar, choose Collaborate and then Invite People…. On iPhone, tap More (…) → Share → Collaborate… → Invite People….",
+    "Send the link to the people you want. They open it in Pinto Notes, signed in, and see your changes as you type. Choose whether people with the link can edit or only view, and remove anyone from the same place.",
+  ] },
   { id: "share", q: "How do I share a note as a web page, and stop sharing?", a: [
-    "On a Mac, open the note, click Share in the toolbar and choose Create Link…, then confirm. On iPhone, tap More (…) → Share → Share Link…. The link is copied, and anyone with it can read the note. To stop, choose Share → Stop Sharing, and the page is gone.",
+    "On a Mac, click Share, choose Web Page and then Publish Web Page…. On iPhone, tap More (…) → Share → Share Link…. The link is copied, and anyone with it can read the note. It updates as you write.",
+    "To stop, choose Stop Publishing on the Mac, or Stop Sharing on iPhone, and the page is gone.",
   ] },
   { id: "delete", q: "How do I delete my account?", a: [
     "Open Settings → Account and choose Delete Account…. Your account and all your notes are deleted, and this can't be undone.",
