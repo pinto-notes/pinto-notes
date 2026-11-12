@@ -216,6 +216,10 @@ Durations are rounded to 10 ms.
 
 ## What has to be true in public before a build sends
 
+The privacy policy names the kinds of data, not each event (Emil, 12 November 2026). A new event that
+fits a kind there (errors, crashes and hangs, usage, speed) changes only this file. A new kind of data,
+a new place it goes, or a weaker promise changes the policy too, and Emil reads it before it goes live.
+
 The privacy policy (`web/content/privacy-policy.md`, "Diagnostics and usage from the apps"), the
 Privacy & Security page and the README describe this for versions after 1.2. The App Store
 privacy label for the first build that sends is in `pinto-internal/appstore/app-privacy-answers.md`, and
