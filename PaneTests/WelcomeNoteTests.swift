@@ -110,6 +110,133 @@ import UIKit
         #expect(WelcomeNote.ticked.isEmpty, "used once")
     }
 
+    // MARK: The Mac and an import (Emil, 12 November 2026)
+
+    /// A new account's library as the first sync seeds it (no notes, one folder), in memory.
+    private static func library() throws -> ModelContainer {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        Seed.ensureLibrary(c.mainContext, demo: false, welcome: false)
+        return c
+    }
+
+    /// A Markdown import of two notes, through the import every source shares (ImportKind.run),
+    /// ended as the import sheets end it.
+    @discardableResult
+    private static func importNotes(into context: ModelContext, account: UUID, defaults: UserDefaults, device: WelcomeNote.Device = .mac) async throws -> Bool {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "welcome-import-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        // Titles of their own each time: an import skips notes an earlier one brought.
+        let n = UUID().uuidString.prefix(6)
+        try "# Trip to Porto \(n)\n\nFlights on Friday.\n".write(to: dir.appending(path: "Trip to Porto \(n).md"), atomically: true, encoding: .utf8)
+        try "# Groceries \(n)\n\n- [ ] Milk\n".write(to: dir.appending(path: "Groceries \(n).md"), atomically: true, encoding: .utf8)
+        let summary = await ImportKind.markdown.run([MarkdownImporter.inspect(dir)], into: .perSource, context: context,
+                                                    progress: { _, _ in }, shouldStop: { false })
+        #expect(summary.notes == 2)
+        return WelcomeNote.importFinished(imported: summary.notes, context: context, account: account, defaults: defaults, device: device)
+    }
+
+    private static func live(_ context: ModelContext) -> [Note] {
+        ((try? context.fetch(FetchDescriptor<Note>())) ?? []).filter { $0.deletedAt == nil && $0.trashedAt == nil }
+    }
+
+    /// The first sync on a Mac whose library already holds imported notes: no welcome note over
+    /// them, and the claim is remembered, so it isn't written later either.
+    @Test func noWelcomeNoteOverAMacLibraryThatHoldsImportedNotes() async throws {
+        let (me, defaults) = account()
+        let c = try Self.library()
+        let context = c.mainContext
+        try await Self.importNotes(into: context, account: me, defaults: defaults)
+        #expect(WelcomeNote.libraryHoldsNotes(context))
+        var asked = 0
+        let write: (String) -> UUID? = { context.createNote(in: .all, body: $0).id }
+        let id = await WelcomeNote.settle(account: me, defaults: defaults, device: .mac, holdsNotes: { WelcomeNote.libraryHoldsNotes(context) },
+                                          claim: { asked += 1; return true }, write: write)
+        #expect(id == nil)
+        #expect(asked == 1 && defaults.bool(forKey: WelcomeNote.askedKey(me)), "the claim is still asked and remembered")
+        #expect(!Self.live(context).contains { $0.title == WelcomeNote.title }, "no welcome note")
+        #expect(Self.live(context).count == 2)
+        _ = await WelcomeNote.settle(account: me, defaults: defaults, device: .mac, holdsNotes: { false }, claim: { asked += 1; return true }, write: write)
+        #expect(asked == 1 && !Self.live(context).contains { $0.title == WelcomeNote.title }, "not written later")
+    }
+
+    /// The seeded library alone (or Pinto's own seeded notes) isn't "notes already here".
+    @Test func aSeededMacLibraryStillGetsTheWelcomeNote() async throws {
+        let (me, defaults) = account()
+        let c = try Self.library()
+        let context = c.mainContext
+        #expect(!WelcomeNote.libraryHoldsNotes(context))
+        context.createNote(in: .all, body: Seed.welcome)
+        #expect(!WelcomeNote.libraryHoldsNotes(context), "the old seeded note doesn't count")
+        let gone = context.createNote(in: .all, body: "Deleted\n")
+        context.trash(gone)
+        #expect(!WelcomeNote.libraryHoldsNotes(context), "nor does one in Recently Deleted")
+        let id = await WelcomeNote.settle(account: me, defaults: defaults, device: .mac, holdsNotes: { WelcomeNote.libraryHoldsNotes(context) },
+                                          claim: { true }, write: { context.createNote(in: .all, body: $0).id })
+        let note = try #require(id.flatMap(context.note))
+        #expect(note.body == WelcomeNote.body(for: .mac))
+        #expect(defaults.string(forKey: WelcomeNote.noteKey(me)) == note.id.uuidString, "kept, for an import to find")
+    }
+
+    /// The welcome note written before the import (Emil's: 10:23, before his Apple Notes came
+    /// over) goes to Recently Deleted when the import finishes, recoverable, when it's untouched:
+    /// a tick and trailing whitespace don't count as touching it.
+    @Test func anUntouchedWelcomeNoteGoesToRecentlyDeletedWhenAnImportFinishes() async throws {
+        let (me, defaults) = account()
+        let c = try Self.library()
+        let context = c.mainContext
+        let id = await WelcomeNote.settle(account: me, defaults: defaults, device: .mac, holdsNotes: { WelcomeNote.libraryHoldsNotes(context) },
+                                          claim: { true }, write: { context.createNote(in: .all, body: $0).id })
+        let note = try #require(id.flatMap(context.note))
+        note.body = WelcomeNote.body(for: .mac, ticked: [1]) + "  \n\n"
+        let went1 = try await Self.importNotes(into: context, account: me, defaults: defaults)
+        #expect(went1)
+        #expect(note.trashedAt != nil && note.deletedAt == nil, "in Recently Deleted, not gone")
+        #expect(ModelContext.lists(.trash, note) == true)
+        #expect(defaults.string(forKey: WelcomeNote.noteKey(me)) == nil)
+        // Restored by hand, a later import leaves it.
+        context.restore(note)
+        let went2 = try await Self.importNotes(into: context, account: me, defaults: defaults)
+        #expect(!went2)
+        #expect(note.trashedAt == nil)
+    }
+
+    /// Edited at all, it's the person's note now: an import leaves it. So does an import that
+    /// brought nothing.
+    @Test func anEditedWelcomeNoteStaysAfterAnImport() async throws {
+        let (me, defaults) = account()
+        let c = try Self.library()
+        let context = c.mainContext
+        let id = await WelcomeNote.settle(account: me, defaults: defaults, device: .mac, claim: { true },
+                                          write: { context.createNote(in: .all, body: $0).id })
+        let note = try #require(id.flatMap(context.note))
+        #expect(!WelcomeNote.importFinished(imported: 0, context: context, account: me, defaults: defaults, device: .mac), "nothing came in")
+        #expect(note.trashedAt == nil)
+        note.body += "- [ ] Buy milk\n"
+        #expect(!WelcomeNote.isUntouched(note.body, for: .mac))
+        let went3 = try await Self.importNotes(into: context, account: me, defaults: defaults)
+        #expect(!went3)
+        #expect(note.trashedAt == nil && note.deletedAt == nil)
+        #expect(WelcomeNote.isUntouched(WelcomeNote.body(for: .mac, ticked: [0, 2]), for: .mac))
+        #expect(!WelcomeNote.isUntouched(WelcomeNote.body(for: .mac).replacingOccurrences(of: "notebook.", with: "notebook!"), for: .mac))
+    }
+
+    /// The iPhone is as it was: its note is written whatever the library holds (its welcome showed
+    /// it being written), and an import leaves it.
+    @Test func theIPhoneStillWritesItsNoteAndAnImportLeavesIt() async throws {
+        let (me, defaults) = account()
+        let c = try Self.library()
+        let context = c.mainContext
+        context.createNote(in: .all, body: "Already here\n")
+        let id = await WelcomeNote.settle(account: me, defaults: defaults, device: .iPhone, holdsNotes: { WelcomeNote.libraryHoldsNotes(context) },
+                                          claim: { true }, write: { context.createNote(in: .all, body: $0).id })
+        let note = try #require(id.flatMap(context.note))
+        #expect(note.body == WelcomeNote.body(for: .iPhone))
+        let went4 = try await Self.importNotes(into: context, account: me, defaults: defaults, device: .iPhone)
+        #expect(!went4)
+        #expect(note.trashedAt == nil)
+    }
+
     // MARK: The iPhone's hand-off
 
     /// A new account: the welcome becomes the note in the editor (Emil, 28 October 2026: "why

@@ -633,6 +633,7 @@ struct ImportSheet: View {
                                      shouldStop: { stopRequested })
         phase = .finished(summary)
         ImportFunnel.finished(kind.funnelSource, summary)
+        WelcomeNote.importFinished(imported: summary.notes, context: context)
         EvernoteInbox.clear()
         onImported(summary.noteIDs)
     }

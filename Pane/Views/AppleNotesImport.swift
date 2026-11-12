@@ -1319,6 +1319,7 @@ struct AppleNotesImportView: View {
             progress = (done, total)
         }
         AppleNotesFunnel.finished(summary)
+        WelcomeNote.importFinished(imported: summary.noteIDs.count, context: context)
         onSummary(summary)
         onImported(summary.noteIDs)
         progress = nil

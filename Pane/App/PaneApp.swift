@@ -954,12 +954,13 @@ final class AppSession {
     }
 
     /// The account's Welcome note, if this device is the one to write it (WelcomeNote): once per
-    /// account, never for an account from before. Its to-do already asks for the Mac, so the Mac
-    /// card stays away for it.
+    /// account, never for an account from before, and on the Mac never over notes already here
+    /// (an import got there first). Its to-do already asks for the Mac, so the Mac card stays away
+    /// for it. That card only shows on iPhone and iPad, so a Mac that skips the note changes no card.
     private func writeWelcomeNote(_ user: UUID) async {
         guard let client = backend.client else { return }
         let context = self.context
-        let id = await WelcomeNote.settle(account: user, claim: {
+        let id = await WelcomeNote.settle(account: user, holdsNotes: { WelcomeNote.libraryHoldsNotes(context) }, claim: {
             let won: Bool = try await client.rpc("claim_welcome_note").execute().value
             return won
         }, write: { body in
