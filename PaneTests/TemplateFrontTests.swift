@@ -380,6 +380,42 @@ import Testing
         return try #require(Pixels(one))
     }
 
+    /// The field's ends are round, in light and dark: no short line stands off either end (a
+    /// stroked Capsule drew its ends flatter than the filled one, a 28 pt line at each end, Emil's
+    /// review of 12 November 2026). Read at the window's own scale: each column from an end
+    /// inwards has at least as much of the field in it as the one before.
+    @Test func theFieldsEndsAreRound() async throws {
+        #expect(try frontSource.contains(".background(SettingsInk.group, in: Self.fieldShape)\n        .overlay(Self.fieldShape.strokeBorder(SettingsInk.hairline, lineWidth: 0.5))"))
+        let size = TemplateLibraryView.size
+        for dark in [false, true] {
+            let (ax, _) = try await Self.drawn(nil, size: size, dark: dark)
+            defer { ax.close() }
+            let field = try #require(ax.find("templates.search"))
+            let host = try #require(ax.window.contentView)
+            let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+            host.cacheDisplay(in: host.bounds, to: rep)
+            let s = rep.pixelsWide / Int(size.width)
+            let top = (NSScreen.screens.first?.frame.maxY ?? 0) - ax.window.frame.maxY
+            let mid = Int((field.frame.midY - top) * CGFloat(s))
+            let rows = (mid - 40 * s)..<(mid + 40 * s)
+            let ground = try #require(rep.colorAt(x: 4, y: 4))
+            func tall(_ x: Int) -> Int {
+                rows.filter { y in
+                    guard let c = rep.colorAt(x: x, y: y) else { return false }
+                    return abs(c.redComponent - ground.redComponent) + abs(c.greenComponent - ground.greenComponent) + abs(c.blueComponent - ground.blueComponent) > 0.03
+                }.count
+            }
+            // The field is centred: its ends are near (width - column) / 2 from each side.
+            let edge = Int((size.width - TemplateFrontPage.column) / 2) * s
+            let left = try #require(((edge - 6 * s)..<(edge + 6 * s)).first { tall($0) > 0 }, "the field's left end")
+            let right = try #require(((rep.pixelsWide - edge - 6 * s)..<(rep.pixelsWide - edge + 6 * s)).reversed().first { tall($0) > 0 }, "the field's right end")
+            for (name, x, inward) in [("left", left, 1), ("right", right, -1)] {
+                let a = tall(x), b = tall(x + inward), c = tall(x + 2 * inward)
+                #expect(a <= b && b <= c && a < 26 * s / 2, "\(dark ? "dark" : "light"), \(name) end: \(a), \(b), \(c) px tall from the end in")
+            }
+        }
+    }
+
     /// One margin frames the front page, on the full sheet and the smallest: its outermost things
     /// are that far from the left and right edges, alike, and the close x that far from the top.
     @Test func oneMarginFramesTheFrontPage() async throws {

@@ -277,6 +277,8 @@ struct TemplateFrontPage: View {
     /// The field's height, and the widest the field and the question's column get.
     static let fieldHeight: CGFloat = 52
     static let column: CGFloat = 640
+    /// The field's shape, filled and outlined.
+    static let fieldShape = Capsule(style: .circular)
     /// Room over the question, under the bar; between the question and the field, close; and air
     /// between the field and the first shelf's heading (which brings its own shelfGap).
     static func overQuestion(_ size: CGSize) -> CGFloat { small(size) ? 20 : 48 }
@@ -485,8 +487,10 @@ struct TemplateFrontPage: View {
         .padding(.leading, 18)
         .padding(.trailing, 12)
         .frame(height: Self.fieldHeight)
-        .background(SettingsInk.group, in: Capsule())
-        .overlay(Capsule().strokeBorder(SettingsInk.hairline, lineWidth: 0.5))
+        // One shape for the fill and its hairline: a stroked Capsule drew its ends flatter than the
+        // filled one, a short line standing off each end of the field (12 November 2026).
+        .background(SettingsInk.group, in: Self.fieldShape)
+        .overlay(Self.fieldShape.strokeBorder(SettingsInk.hairline, lineWidth: 0.5))
     }
 
     /// The shelves under the field, at their own sizes.
