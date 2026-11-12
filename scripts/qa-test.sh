@@ -25,6 +25,7 @@ summarize() {
 }
 if [[ ${1:-} == --summarize ]]; then summarize "$2"; exit 0; fi
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+runargs=("$@")   # as asked for, before --smoke is taken off (scripts/dev-time/record.sh)
 only=()
 if [[ ${1:-} == --smoke ]]; then
   shift
@@ -37,6 +38,7 @@ for t in "$@"; do only+=(-only-testing:$t); done
 LIMIT=${LIMIT:-240}
 DD=${DD:-build/ddqa}
 log=$(mktemp)
+started=$(date +%s)
 CONFIG=${CONFIG:-Debug}
 # CONFIG=Release measures optimised code (what people run); testability keeps @testable working.
 # scripts/setup.sh builds the app with these same settings into build/ddqa, so a test run after it reuses that build.
@@ -56,4 +58,5 @@ wait $pid 2>/dev/null; code=$?
 summarize "$log"
 cp "$log" $DD/last-test.log; rm -f "$log"
 echo "Full log: $DD/last-test.log"
+scripts/dev-time/record.sh qa-test $started $code 0 $runargs   # scripts/dev-time: what ran and how long
 exit $code
