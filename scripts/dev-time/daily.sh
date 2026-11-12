@@ -26,5 +26,5 @@ new = not os.path.exists(f) or os.path.getsize(f) == 0
 lines = [] if new else [l for l in open(f).read().splitlines()[1:] if not l.startswith(day + ",")]
 with open(f, "w") as out:
     out.write(",".join(row) + "\n")
-    for l in lines: out.write(l + "\n")
-    out.write(",".join(str(v) for v in row.values()) + "\n")' "$day" "$log/trend.csv"
+    lines.append(",".join(str(v) for v in row.values()))
+    for l in sorted(lines): out.write(l + "\n")' "$day" "$log/trend.csv"
