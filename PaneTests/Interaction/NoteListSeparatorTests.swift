@@ -208,5 +208,24 @@ import Testing
             try #require(out.representation(using: .png, properties: [:])).write(to: dir.appending(path: "notes-list-\(dark ? "dark" : "light").png"))
         }
     }
+
+    /// The line's grey laid over the list's ground: black in dark mode, white in light.
+    private func onGround(_ color: NSColor, dark: Bool) -> CGFloat {
+        var level: CGFloat = 0
+        NSAppearance(named: dark ? .darkAqua : .aqua)!.performAsCurrentDrawingAppearance {
+            let c = color.usingColorSpace(.sRGB)!
+            level = c.redComponent * c.alphaComponent + (dark ? 0 : 1) * (1 - c.alphaComponent)
+        }
+        return level
+    }
+
+    /// On the pure black list the system separator (10% white) all but vanished (Emil,
+    /// 12 November 2026: "I can barely see divider lines at all").
+    @Test func theLinesShowOnTheBlackList() {
+        #expect(onGround(RowHairline.color, dark: true) >= 0.24)
+        #expect(onGround(RowHairline.color, dark: true) > onGround(.separatorColor, dark: true) * 2)
+        let light = onGround(RowHairline.color, dark: false)
+        #expect(light <= 0.88 && light >= 0.78)
+    }
 }
 #endif

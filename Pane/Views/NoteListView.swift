@@ -1987,20 +1987,20 @@ enum RowMetrics {
 }
 
 /// The notes list's hairlines, as Apple Notes draws them (Emil, 12 November 2026: "some line
-/// separations between notes would be good"): one pixel in the system's separator colour, under
+/// separations between notes would be good"): one pixel of quiet grey, under
 /// every row but a section's last, and under each heading on the Mac. Never next to a row the list
 /// fills (the selection, the open note beside it, the hover on the Mac): the fill isn't cut by a
 /// line. Decided by the row's place and the selection only; no row measures anything.
 struct RowHairline: View {
     @Environment(\.displayScale) private var scale
 
+    /// The system separator is 10% white, which on the pure black list all but vanished (Emil,
+    /// 12 November 2026: "I can barely see divider lines at all"). The same grey as a note's divider.
+    static let color: PColor = Palette.pair(0x000000, 0.16, 0xFFFFFF, 0.26)
+
     var body: some View {
         Rectangle()
-            #if os(macOS)
-            .fill(Color(nsColor: .separatorColor))
-            #else
-            .fill(Color(uiColor: .separator))
-            #endif
+            .fill(Color(Self.color))
             .frame(height: 1 / scale)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
