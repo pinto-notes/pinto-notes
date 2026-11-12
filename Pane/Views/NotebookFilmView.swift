@@ -1270,13 +1270,13 @@ enum FilmRow {
 
 /// The slides' music (FilmSlideSound): the bed from the first slide, each slide's notes as its
 /// picture comes in (the last slide's faded on Next, so nothing piles up however fast you go), the
-/// bed's upper notes going on the play slide and its low D as the film, which opens on it, begins.
+/// bed going as the play slide comes up.
 /// Like the film's sound: the ringer switch silences it, it plays over whatever else is playing,
 /// and never in test runs. With Reduce Motion the pictures don't come in, and only the bed plays.
 @MainActor
 final class SlideMusic {
-    private var upper: AVAudioPlayer?, root: AVAudioPlayer?, cue: AVAudioPlayer?
-    private var made: (upper: Data, root: Data, cues: [Int: Data], play: Int?)?
+    private var bed: AVAudioPlayer?, cue: AVAudioPlayer?
+    private var made: (bed: Data, cues: [Int: Data], play: Int?)?
     private var making: Task<Void, Never>?
     private var shown: Int?
     /// How long the bed lasts (it goes over its last two seconds): longer than anyone spends on the slides.
@@ -1285,14 +1285,12 @@ final class SlideMusic {
     func prepare(_ slides: FilmSlides, list: [FilmSlides.Slide]) {
         guard !FilmPlayback.muted, made == nil, making == nil else { return }
         making = Task {
-            let ready = await Task.detached(priority: .userInitiated) { () -> (Data, Data, [Int: Data], Int?) in
+            let ready = await Task.detached(priority: .userInitiated) { () -> (Data, [Int: Data], Int?) in
                 var cues: [Int: Data] = [:]
                 for (k, sl) in list.enumerated() { if let c = FilmSlideSound.cue(sl, of: slides) { cues[k] = FilmSlideSound.wav(c) } }
-                return (FilmSlideSound.wav(FilmSlideSound.pad(seconds: Self.bedSeconds, root: false)),
-                        FilmSlideSound.wav(FilmSlideSound.pad(seconds: Self.bedSeconds, root: true)),
-                        cues, list.firstIndex { $0.name == "play" })
+                return (FilmSlideSound.wav(FilmSlideSound.pad(seconds: Self.bedSeconds)), cues, list.firstIndex { $0.name == "play" })
             }.value
-            made = (ready.0, ready.1, ready.2, ready.3)
+            made = (ready.0, ready.1, ready.2)
             // (A slide that came up while it was being made: the bed now, its notes are past.)
             if shown != nil { startBed() }
         }
@@ -1309,9 +1307,9 @@ final class SlideMusic {
     }
 
     private func startBed() {
-        guard let made, upper == nil else { return }
-        upper = player(made.upper); root = player(made.root)
-        upper?.play(); root?.play()
+        guard let made, bed == nil, shown != made.play else { return }
+        bed = player(made.bed)
+        bed?.play()
     }
 
     private static func fade(_ p: AVAudioPlayer?, over: Double, after: Double = 0) {
@@ -1331,22 +1329,21 @@ final class SlideMusic {
         startBed()
         Self.fade(cue, over: 0.12)
         cue = nil
-        if k == made.play { Self.fade(upper, over: 1.2); upper = nil }
+        if k == made.play { Self.fade(bed, over: 1.2); bed = nil }
         guard !still, let data = made.cues[k], let p = player(data) else { return }
         p.play()
         cue = p
     }
 
-    /// Play was pressed: the film's own sound takes over from the low D.
+    /// Play was pressed: the film's own sound takes over.
     func filmStarts() {
         Self.fade(cue, over: 0.12); cue = nil
-        Self.fade(upper, over: 0.6); upper = nil
-        Self.fade(root, over: 0.9, after: 0.2); root = nil
+        Self.fade(bed, over: 0.6); bed = nil
     }
 
     func stop() {
         making?.cancel()
-        for p in [cue, upper, root] { p?.stop() }
-        cue = nil; upper = nil; root = nil
+        for p in [cue, bed] { p?.stop() }
+        cue = nil; bed = nil
     }
 }

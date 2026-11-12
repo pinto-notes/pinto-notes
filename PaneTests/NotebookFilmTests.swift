@@ -1329,6 +1329,17 @@ import AVFoundation
         #expect(onsets <= FilmSlideSound.starNotes, "\(onsets) notes for \(slides.welcomeStars) stars")
     }
 
+    @Test func theSlidesBedHasNoBassAndStaysUnderTheNotes() throws {
+        // Emil, 11-12: "its a bassy note that plays basically the whole time, until the video".
+        // The bed is the chord's high notes only, and well under each slide's own notes.
+        #expect(FilmSlideSound.bedNotes.allSatisfy { $0.f > 250 }, "nothing low under the slides")
+        let bed = FilmSlideSound.pad(seconds: 10)
+        let input = FilmDemo.real(now: Self.now, notesPerWeek: 3.4, imported: 20, removed: 12, habit: true, evening: true)
+        let slides = FilmSlides(input: input, script: FilmScript(input, calendar: Self.cal), mark: nil)
+        let loudest = slides.slides().compactMap { FilmSlideSound.cue($0, of: slides)?.peak }.max() ?? 0
+        #expect(bed.peak < 0.35 * loudest, "the bed (\(bed.peak)) is at least 9 dB under the notes (\(loudest))")
+    }
+
     @Test func theSlidesNotesComeAsTheirPicturesDo() throws {
         // A note as each top-notes row lands and as the hand passes your hours: the sound is made
         // from the same timings as the picture.

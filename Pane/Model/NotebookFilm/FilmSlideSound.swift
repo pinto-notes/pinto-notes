@@ -3,7 +3,7 @@ import Foundation
 // Light music under the slides before the film (Emil, 11-11: "some light music, to get you into
 // the mood"), made like the film's own sound (FilmSound), from what each slide shows: a bed of the
 // film's chord under them all, and a few soft notes as each slide's picture comes in. In the film's
-// key, and ending on the low D the film opens on, so the film takes over without a seam.
+// key, so the film takes over without a change of key.
 //
 // Kept small whatever the month (Emil, 11-11: the welcome's twenty notes were "almost a bit
 // annoyingly much", and "the final tone is dragged on in each section"): a slide's notes are few
@@ -69,27 +69,26 @@ enum FilmSlideSound {
         var peak: Float { max(left.map(abs).max() ?? 0, right.map(abs).max() ?? 0) }
     }
 
-    /// The bed under all the slides: the film's chord, low, slow and quiet. It comes in over its
-    /// first seconds and goes over its last two; the app fades it sooner, as play is pressed: the
-    /// upper notes (`root` false) as the play slide comes up, the low D (`root` true) as the film,
-    /// which opens on it, has begun.
-    static func pad(seconds: Double, root: Bool) -> Track {
+    /// The bed under the slides: the high notes of the film's chord, slow and soft, with no bass
+    /// (Emil, 11-12: the low D under it all was "a bassy note that plays basically the whole time").
+    /// It comes in over its first seconds and goes over its last two; the app fades it sooner, as
+    /// the play slide comes up.
+    static let bedNotes: [(f: Double, pan: Double, gain: Double)] = [(293.66, 0.35, 0.6), (369.99, -0.2, 0.45), (440.0, 0.25, 0.35)]
+    static func pad(seconds: Double) -> Track {
         var t = Track(seconds: seconds)
-        let chord: [(Double, Double, Double)] = [(146.83, 0.0, 1.0), (220.0, -0.4, 0.7), (293.66, 0.35, 0.6), (369.99, -0.2, 0.45), (440.0, 0.25, 0.35)]
-        for (j, (f, pan, g)) in chord.enumerated() where (j == 0) == root {
-            t.add(at: 0, length: seconds, pan: pan, gain: 0.026 * g) { s in
+        for (j, n) in bedNotes.enumerated() {
+            t.add(at: 0, length: seconds, pan: n.pan, gain: 0.013 * n.gain) { s in
                 let swell = filmSmooth(s / 2.5) * (1 - filmSmooth((s - (seconds - 2)) / 2))
                 let wobble = 1 + 0.07 * sin(2 * .pi * (0.11 + 0.04 * Double(j)) * s)
-                let w: Double = 2 * .pi * f * s
-                let tone: Double = sin(w) + 0.45 * sin(w * 1.0023 + Double(j)) + 0.1 * sin(2 * w)
-                return swell * wobble * tone
+                let w: Double = 2 * .pi * n.f * s
+                return swell * wobble * (sin(w) + 0.45 * sin(w * 1.0023 + Double(j)))
             }
         }
         return t
     }
 
-    /// What plays as `slide` comes in, from its first frame: nil for a slide with none (play, whose
-    /// sound is the pad thinning to the film's low D). It has ended by the time the slide has.
+    /// What plays as `slide` comes in, from its first frame: nil for a slide with none (play, where
+    /// the bed goes). It has ended by the time the slide has.
     static func cue(_ slide: FilmSlides.Slide, of slides: FilmSlides) -> Track? {
         switch slide.name {
         case "start" where slides.startLook == 4:
