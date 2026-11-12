@@ -104,7 +104,7 @@ The iPhone and Mac apps report on themselves, so we find out when something is b
 
 - **errors:** that a step failed and its error code, such as a save to the Keychain that was refused, a sync that keeps failing, or a sign-in that didn't work;
 - **crashes and hangs,** from Apple's own diagnostics: the kind of crash and where in our code it happened, as numbers;
-- **a few events:** that the app was opened, that you signed in or signed up and how (Apple, Google or email), which screen you saw while a new device was getting your key, your first note and first sync, that an AI was connected (Claude, ChatGPT or other; never its name or address), and the first time you opened a note an AI had changed;
+- **a few events:** that the app was opened, that you signed in or signed up and how (Apple, Google or email), which screen you saw while a new device was getting your key, your first note and first sync, that you came back to the app after half an hour or more away, that an AI was connected (Claude, ChatGPT, Grok or other; never its name or address), the first time you opened a note an AI had changed, and when you undo or delete something an AI did, with roughly how soon after (such as within an hour);
 - **speed:** how long the app took to open and to sync, and roughly how many notes you have (as a range such as 11 to 100, never the number).
 
 With each: the app's version, whether it's the App Store app or the Mac download, the kind of device (such as iPhone or Mac), the system version, and your account's identifier, so we can tell that one account keeps hitting the same problem. Before you sign in, a random identifier is used instead, made new each time the app starts and never stored on your device.
