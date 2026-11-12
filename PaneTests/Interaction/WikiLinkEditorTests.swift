@@ -34,6 +34,23 @@ import Testing
         return (0..<length).allSatisfy { ((h.view.textStorage!.attribute(.font, at: r.location + offset + $0, effectiveRange: nil) as? NSFont)?.pointSize ?? 99) < 1 }
     }
 
+    /// A note opens with the scope of the note before it and gets its own a moment later. Without
+    /// a wiki link nothing in it depends on the scope, so the text isn't styled again: that second
+    /// pass was half of opening a note after a delete or in another folder (Emil, 12 November 2026).
+    /// With a link, the new scope still restyles it.
+    @Test func aNewScopeRestylesOnlyANoteWithWikiLinks() async {
+        for (text, restyles) in [("Plain\n" + String(repeating: "- [ ] An item with **bold**\n", count: 50), false), (Self.text, true)] {
+            let h = await EditorHarness(text, focus: false)
+            defer { h.close() }
+            h.view.setWiki(Self.scope(1))
+            var edits = 0
+            let watch = NotificationCenter.default.addObserver(forName: NSTextStorage.didProcessEditingNotification, object: h.view.textStorage, queue: nil) { _ in edits += 1 }
+            defer { NotificationCenter.default.removeObserver(watch) }
+            h.view.setWiki(Self.scope(2))
+            #expect((edits > 0) == restyles, "\(restyles ? "a note with links" : "a note without") was styled \(edits) times")
+        }
+    }
+
     @Test func linksShowAsLinksWithTheirSyntaxHidden() async {
         let h = await EditorHarness(Self.text, focus: false)
         defer { h.close() }

@@ -1255,7 +1255,7 @@ struct NoteDetailView: View {
     private func chrome(_ content: some View) -> some View {
         // Counted here, once per body: a statement in the body itself is more than the
         // compiler can type-check in time.
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("NoteDetailView", context: context)
         #endif
         return content
@@ -1842,7 +1842,7 @@ private struct NoteEditorText: View {
     let onChange: (String) -> Void
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("NoteEditorText", context: note.modelContext)
         #endif
         // A locked note that isn't open has no text to give the editor; its pane shows the lock.
@@ -2088,12 +2088,12 @@ struct NoteToolbarStage<Pane: View>: View {
     var openScope: (Scope) -> Void = { _ in }
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
-    #if DEBUG
+    #if DEBUG || QA
     @Environment(\.modelContext) private var context
     #endif
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("NoteToolbarStage", context: context)
         #endif
         let parts = $parts

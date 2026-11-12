@@ -97,7 +97,7 @@ struct SettingsCard: View {
     @State private var parent: CGSize?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.settingsInWindow) private var inWindow
-    #if DEBUG
+    #if DEBUG || QA
     @Environment(\.modelContext) private var context
     #endif
 
@@ -169,7 +169,7 @@ struct SettingsCard: View {
     private var current: SettingsPage { place.first ?? Self.first(available) }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("SettingsCard", context: context)
         #endif
         Group {

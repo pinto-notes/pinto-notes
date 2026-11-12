@@ -864,7 +864,7 @@ private struct RecoveryKeyItem: Identifiable {
 /// Face ID, Touch ID or the device passcode (`deviceOwnerAuthentication`).
 enum DeviceOwner {
     @MainActor static func authenticate(reason: String) async -> Bool {
-        #if DEBUG
+        #if DEBUG || QA
         // UI tests run on a simulator with no passcode and no account (its key store is in memory):
         // nothing is asked there. Release builds always ask.
         if ProcessInfo.processInfo.arguments.contains("-uitest") { return true }
@@ -886,7 +886,7 @@ enum DeviceOwner {
     /// The same question, telling a Cancel from a failure, for buttons that should say when
     /// nothing happened.
     @MainActor static func confirm(reason: String) async -> Outcome {
-        #if DEBUG
+        #if DEBUG || QA
         if ProcessInfo.processInfo.arguments.contains("-uitest") || ProcessInfo.processInfo.arguments.contains("-ownerConfirmed") { return .confirmed }
         #endif
         let context = LAContext()

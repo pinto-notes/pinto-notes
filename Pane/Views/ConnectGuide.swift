@@ -217,7 +217,7 @@ final class ConnectWatch {
         }
     }
 
-    #if DEBUG
+    #if DEBUG || QA
     /// Captures: pretend it just worked.
     func pretendConnected() { approvedHere = true }
     #endif

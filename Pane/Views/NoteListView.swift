@@ -234,7 +234,7 @@ struct NoteListView: View {
     }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("NoteListView", context: context)
         #endif
         // Worked out once per update and handed down: the list asks many times.
@@ -259,7 +259,7 @@ struct NoteListView: View {
     /// each time the list is worked out: fetching and sorting every folder was part of every
     /// update of the list (every note opened), for menus nobody had asked for.
     private var foldersByName: [Folder] {
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("NoteListView.foldersByName")
         #endif
         return context.allFolders().sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
@@ -358,7 +358,7 @@ struct NoteListView: View {
             // Icons in the label colour, as in Notes, not the app's accent (Delete keeps its red).
             menu(for: ids, folders: foldersByName).tint(.primary)
         }
-        #if DEBUG
+        #if DEBUG || QA
         .transaction { RenderProbe.noteListTransaction?(context, visible.map(\.id), $0) }
         #endif
         // Only the list animates an untouched note going away. The destination editor opens
@@ -376,7 +376,7 @@ struct NoteListView: View {
         })
         .id(ListIdentity(scope: scope, library: library.wholesale))
         #if os(macOS)
-        .modifier(OpensTopNote(scope: scope, top: visible.first?.id, selection: $selection))
+        .modifier(OpensTopNote(scope: scope, top: visible.first?.id, lists: { id in visible.contains { $0.id == id } }, selection: $selection))
         #endif
         #endif
         #if os(iOS)
@@ -1173,12 +1173,22 @@ struct NoteListView: View {
         let rest = ordered.filter { !ids.contains($0.id) }
         let next: Set<UUID> = firstIndex.flatMap { i in rest.isEmpty ? nil : [rest[min(i, rest.count - 1)].id] } ?? []
         let choose = $selection
+        // The row slides out; the next note opens at once, as in Notes. Inside the animation the
+        // note side cross-faded too, and the next note showed a quarter of a second late (Emil,
+        // 12 November 2026: "it feels like it takes a second before it gets deleted").
+        if touchedSelection { withTransaction(Self.immediate) { selection = next } }
         withAnimation(.snappy(duration: 0.25)) {
             context.remove(notes, undo: undoManager, reopen: { back in selection = Set(back.map(\.id)) },
                            gone: touchedSelection ? { choose.wrappedValue = next } : nil)
             context.remove(files: files)
-            if touchedSelection { selection = next }
         }
+    }
+
+    /// A change shown on the next frame, with no animation.
+    static var immediate: Transaction {
+        var t = Transaction()
+        t.disablesAnimations = true
+        return t
     }
 }
 
@@ -1972,7 +1982,7 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
     }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("NoteListItem")
         #endif
         if let note = entry.note(in: context) {
@@ -2074,7 +2084,7 @@ struct NoteRow: View {
     private var folderLine: Bool { showFolder && note.folder != nil }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("NoteRow", context: note.modelContext)
         #endif
         let title = note.title
@@ -2487,13 +2497,17 @@ enum SearchLines {
 private struct OpensTopNote: ViewModifier {
     let scope: Scope
     let top: UUID?
+    /// Whether a note is in this folder's list.
+    let lists: (UUID) -> Bool
     @Binding var selection: Set<UUID>
 
     func body(content: Content) -> some View {
         content.onChange(of: scope) { _, _ in
-            DispatchQueue.main.async {
-                if selection.isEmpty, let top { selection = [top] }
-            }
+            // In the same update as the folder: the list and its top note show together. A turn
+            // later, the note side was emptied first and built again for the top note, a frame
+            // or two after the list (Emil, 12 November 2026: "switching between folders is not
+            // fast enough"). A note still open that this list shows stays open, as before.
+            if let top, !selection.contains(where: lists) { selection = [top] }
         }
     }
 }

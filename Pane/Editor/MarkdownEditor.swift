@@ -1,5 +1,5 @@
 import SwiftUI
-#if DEBUG && os(macOS)
+#if (DEBUG || QA) && os(macOS)
 import SwiftData
 #endif
 import os
@@ -338,6 +338,10 @@ final class EditorCore {
     func setWiki(_ wiki: WikiScope?, storage: NSTextStorage, selection: NSRange?) {
         guard styler.wiki != wiki else { return }
         styler.wiki = wiki
+        // Only a wiki link's look depends on the scope. A note that opens gets its scope a moment
+        // after its editor is made, and restyling the whole note then styled it twice: half of
+        // opening a note after a delete or in another folder (Emil, 12 November 2026).
+        guard storage.string.contains("[[") else { return }
         needsFull = true
         restyle(storage, selection: selection, force: true)
     }
@@ -2408,7 +2412,7 @@ private struct PlatformEditor: NSViewRepresentable {
         scroll.autohidesScrollers = true
         scroll.scrollerStyle = .overlay
         let view = PaneTextView(frame: .zero)
-        #if DEBUG && os(macOS)
+        #if (DEBUG || QA) && os(macOS)
         view.renderContext = context.environment.modelContext
         #endif
         view.core.styler.firstLineIsTitle = titleLine
@@ -2534,7 +2538,7 @@ final class NoteScrollView: NSScrollView {
 }
 
 final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
-    #if DEBUG
+    #if DEBUG || QA
     weak var renderContext: ModelContext?
     #endif
     let core = EditorCore()
@@ -2603,7 +2607,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         operation.run()
     }
 
-    #if DEBUG
+    #if DEBUG || QA
     var renderedCardKeys: Set<String> { Set(cardHosts.keys) }
     #endif
     private var cardLayoutQueued = false
@@ -2859,7 +2863,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     func layoutCards(animated: Bool = true) {
         cardLayoutQueued = false
         queuedCardAnimation = true
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("PaneTextView.layoutCards", context: renderContext)
         #endif
         guard let storage = textStorage else { return }
@@ -2879,7 +2883,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             if case .grid(_, let request, _) = item.content { wantsFocus = request != nil } else { wantsFocus = false }
             guard cardHosts[item.key] != nil || wantsFocus || item.frame.intersects(viewport) else { continue }
             let host = cardHosts[item.key] ?? {
-                #if DEBUG
+                #if DEBUG || QA
                 RenderProbe.count("CardHost.created", context: renderContext)
                 #endif
                 let h: NSHostingView<AnyView>

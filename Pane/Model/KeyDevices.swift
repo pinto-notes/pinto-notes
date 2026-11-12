@@ -152,7 +152,7 @@ final class KeyDevices {
     /// The list was read at least once for this account.
     private(set) var loaded = false
 
-    #if DEBUG
+    #if DEBUG || QA
     /// Captures: the account's other devices as known, without a server.
     func showForPreview(others: [KeyDevice]) {
         self.others = others

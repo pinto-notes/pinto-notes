@@ -13,7 +13,7 @@ struct FormatBar: View {
     static let inset: CGFloat = 2
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("FormatBar")
         #endif
         GlassEffectContainer(spacing: 10) {

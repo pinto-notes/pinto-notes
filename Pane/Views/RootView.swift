@@ -115,7 +115,7 @@ struct RootView: View {
     private var shownNote: UUID? { shown.count == 1 ? shown.first : nil }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("RootView", context: context)
         #endif
         #if os(macOS)

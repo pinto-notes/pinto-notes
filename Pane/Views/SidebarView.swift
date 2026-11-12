@@ -60,14 +60,14 @@ struct AccountButton: View {
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                             .truncationMode(.tail)
-                            #if DEBUG
+                            #if DEBUG || QA
                             .footProbe("sidebar.account.name")
                             #endif
                         if let away {
                             // On your name's line, so the words under it have the row's whole width.
                             Spacer(minLength: 0)
                             OfflineCloud(reach: away)
-                                #if DEBUG
+                                #if DEBUG || QA
                                 .footProbe("sidebar.offline.cloud")
                                 #endif
                         }
@@ -76,7 +76,7 @@ struct AccountButton: View {
                         OfflineWords(reach: away)
                             .font(.system(size: 11))
                             .foregroundStyle(Color.muted)
-                            #if DEBUG
+                            #if DEBUG || QA
                             .footProbe("sidebar.offline.title")
                             #endif
                     } else if let email {
@@ -512,7 +512,7 @@ struct SidebarView: View {
     private var roots: [Folder] { folders.filter { $0.parent == nil || $0.parent?.deletedAt != nil } }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("SidebarView", context: context)
         #endif
         let files = self.files
@@ -898,7 +898,7 @@ struct SidebarView: View {
 
     #if os(macOS)
     private static var offlineStandIn: (any OfflineSource)? {
-        #if DEBUG
+        #if DEBUG || QA
         OfflineStandIn.launched
         #else
         nil
@@ -1254,6 +1254,7 @@ struct SidebarView: View {
     /// Rename: on the Mac the name is typed in the folder's row, as in Notes; on iPhone in an alert.
     private func startRename(_ f: Folder) {
         #if os(macOS)
+        NameKeyHold.start()
         namingFolder = f.id
         #else
         nameDraft = f.name; renaming = f
@@ -1265,7 +1266,9 @@ struct SidebarView: View {
     private func startNewFolder(_ parent: Folder?) {
         #if os(macOS)
         guard let f = context.createUntitledFolder(parent: parent) else { folderLimitReached = true; return }
-        scope = .folder(f.id)
+        // Its name first, then its list: the field takes the keys before the list is built for
+        // the new folder, and the keys typed meanwhile go into the name (NameKeyHold).
+        NameKeyHold.start { scope = .folder(f.id) }
         namingFolder = f.id
         #else
         nameDraft = ""; newFolderParent = .some(parent)
@@ -1539,7 +1542,7 @@ private struct CountedRow: View {
     }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("CountedRow")
         #endif
         let selected = selection == (trash ? .trash : .all)
@@ -1914,7 +1917,7 @@ private struct FolderTree: View {
     @Binding var naming: UUID?
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("FolderTree")
         #endif
         Group {

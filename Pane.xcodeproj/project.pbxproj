@@ -1004,6 +1004,7 @@
 		CD5F81695729F895C84862CD /* DESIGN.md in Resources */ = {isa = PBXBuildFile; fileRef = 8E78DBA0FBCED25898B7607F /* DESIGN.md */; };
 		CD71F1E4803FE64FB4C22727 /* DogfoodTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D735696D027A23734B8C6C30 /* DogfoodTests.swift */; };
 		CDB3416573535BFCAD1C622E /* DebouncedSave.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301899D6EDE0A22460BBE357 /* DebouncedSave.swift */; };
+		CE16C65BDC42308E7DDEB2F0 /* ActionSpeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25D9D1F15495FE305C31DC0 /* ActionSpeedTests.swift */; };
 		CE1DB02087AE2B23511AF3ED /* libraries.json in Resources */ = {isa = PBXBuildFile; fileRef = 31EE3E7E16D9DA7C161252EE /* libraries.json */; };
 		CE83A43DEE7F67D56C93CA98 /* RichPaste.swift in Sources */ = {isa = PBXBuildFile; fileRef = 550E4D52A7E05ECB1417CCD0 /* RichPaste.swift */; };
 		CE968367B330EB7E3E5C6101 /* LinkStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90D1AB85C70555A16131836E /* LinkStateTests.swift */; };
@@ -1835,6 +1836,7 @@
 		A027634B929FE900803A6537 /* FileExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExport.swift; sourceTree = "<group>"; };
 		A04D4C7ECCFFFBE26FE0E55A /* OnboardingArtFilm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingArtFilm.swift; sourceTree = "<group>"; };
 		A0C267659519178984827810 /* ZipTimes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipTimes.swift; sourceTree = "<group>"; };
+		A25D9D1F15495FE305C31DC0 /* ActionSpeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionSpeedTests.swift; sourceTree = "<group>"; };
 		A2B368A33CBCE4C0634FF8A2 /* KeyProtectionAsk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyProtectionAsk.swift; sourceTree = "<group>"; };
 		A40FBDDB40A6791A4C81086B /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		A44218A9E5FBE7C82E8F7C95 /* AIChangesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChangesView.swift; sourceTree = "<group>"; };
@@ -2595,6 +2597,7 @@
 			isa = PBXGroup;
 			children = (
 				595E5A8C83080CCBC79192C4 /* AccountRowTests.swift */,
+				A25D9D1F15495FE305C31DC0 /* ActionSpeedTests.swift */,
 				E48D4DC70CFF4C0F49C9A457 /* AdvancedProtectionHiddenTests.swift */,
 				15190FE695CC65B9B6F8E540 /* AIChangesTests.swift */,
 				78F1BFA8CE1F0A571BE42C4A /* AIChangeTickTests.swift */,
@@ -3823,6 +3826,7 @@
 				13CDDDB6F9095142D93803C3 /* AccountLibraryTests.swift in Sources */,
 				CD069E0B419F22A6BA9B5093 /* AccountRowTests.swift in Sources */,
 				99D859E0B79454748AE31CBB /* AccountSwitchTests.swift in Sources */,
+				CE16C65BDC42308E7DDEB2F0 /* ActionSpeedTests.swift in Sources */,
 				144364F1DE25F2E94CE07A30 /* AddDeviceLiveTests.swift in Sources */,
 				97BCA485122DB4D867E5EC96 /* AddDeviceSnapshots.swift in Sources */,
 				F99A3DE164DE43C54A5BE075 /* AddDeviceTests.swift in Sources */,

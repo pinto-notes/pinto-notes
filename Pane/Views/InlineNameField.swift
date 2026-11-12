@@ -60,6 +60,8 @@ struct InlineNameField: NSViewRepresentable {
             guard let window else { return }
             window.makeFirstResponder(self)
             currentEditor()?.selectAll(nil)
+            // The keys typed while the field was on its way go into it now, in order.
+            NameKeyHold.release(to: window)
         }
     }
 
@@ -110,6 +112,54 @@ struct InlineNameField: NSViewRepresentable {
             }
             return nil
         }
+    }
+}
+/// The keys typed between New Folder (or Rename) and its field taking them. The field is put in its
+/// row and focused a turn later, and the keys typed before that went to the folder list, which
+/// beeped and dropped them (Emil, 12 November 2026: "I go to type, hear a sound indicating I can't
+/// type"). They're held here and sent again once the field has the keys. Keys with ⌘ go through
+/// as they are, and after a second whatever is held is let go, so a key is never lost.
+@MainActor enum NameKeyHold {
+    private static var monitor: Any?
+    private static var held: [NSEvent] = []
+    private static var then: [() -> Void] = []
+    private static var generation = 0
+
+    /// From now until the field has the keys. `then` runs once it has them (or the wait is over).
+    static func start(then next: (() -> Void)? = nil) {
+        if monitor == nil {
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { event in
+                // Monitors run on the main thread.
+                guard !event.modifierFlags.contains(.command) else { return event }
+                nonisolated(unsafe) let key = event
+                MainActor.assumeIsolated { hold(key) }
+                return nil
+            }
+        }
+        if let next { then.append(next) }
+        generation &+= 1
+        let mine = generation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { if generation == mine, holding || !then.isEmpty { release() } }
+    }
+
+    /// Whether keys are being held.
+    static var holding: Bool { monitor != nil }
+
+    /// A key typed while the field is on its way (what the monitor does with each one).
+    static func hold(_ event: NSEvent) { held.append(event) }
+
+    /// The field has the keys: the held ones go to `window`, whose first responder is the field.
+    /// Without a window (the wait ran out) they go back into the app's queue, as they came.
+    static func release(to window: NSWindow? = nil) {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        let keys = held, next = then
+        held = []
+        then = []
+        for e in keys {
+            if let window { window.sendEvent(e) } else { NSApp.postEvent(e, atStart: false) }
+        }
+        next.forEach { $0() }
     }
 }
 #endif
