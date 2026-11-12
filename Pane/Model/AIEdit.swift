@@ -411,13 +411,14 @@ enum AIEdit {
             // A new heading names the change: "added “Day 2”", "added “Work and projects” and
             // changed 4 lines" (council r5: "changed 6 lines" said nothing).
             if kind == .edit, let after, let section = AIEdit.newHeading(previous: previous, after: after) {
-                let old = Set(previous.components(separatedBy: "\n"))
-                let kept = after.components(separatedBy: "\n").filter { old.contains($0) }.count
-                let removedOrChanged = previous.components(separatedBy: "\n").count - kept
+                // Lines with words in them that didn't survive as they were: rewritten or removed.
+                let now = Set(after.components(separatedBy: "\n"))
+                let removedOrChanged = previous.components(separatedBy: "\n")
+                    .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty && !now.contains($0) }.count
                 return removedOrChanged <= 0 ? "\(who) added \u{201C}\(section)\u{201D}"
                     : removedOrChanged == 1 ? "\(who) added \u{201C}\(section)\u{201D} and changed 1 line"
                     // More than a line besides: "changed 2 lines" undersold it (council r6).
-                    : "\(who) expanded the note and added \u{201C}\(section)\u{201D}"
+                    : "\(who) rewrote \(removedOrChanged) lines and added \u{201C}\(section)\u{201D}"
             }
             // What it did, when that's one or two plain things: "ChatGPT ticked “Eggs”", "removed “Lemons”".
             if kind == .edit, let after, let what = AIEdit.describe(previous: previous, after: after) { return "\(who) \(what)" }

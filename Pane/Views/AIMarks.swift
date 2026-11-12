@@ -265,7 +265,8 @@ struct AIReceipt: View {
                 // ChatGPT's green tint (Emil, 12 November 2026).
                 // "Undo" for one change or several, as Notes does; the width doesn't change
                 // mid-session (council r6). VoiceOver hears what it takes back (undoLabel).
-                Button("Undo", action: undo)
+                // Two AIs' edits: say both go (council r7).
+                Button(receipt.earlierBy == nil ? "Undo" : "Undo both", action: undo)
                     .buttonStyle(.hoverLink)
                     .font(.system(size: compact ? 13 : Self.text, weight: .bold))
                     .foregroundStyle(.primary)

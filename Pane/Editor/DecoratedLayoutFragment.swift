@@ -55,7 +55,8 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         let dark = (pr * 0.299 + pg * 0.587 + pb * 0.114) < 0.5
         // An AI's own colour (green, blue) is darker than amber and needs more to show; too little
         // and Claude's orange reads as a brown stain (council r1, r2).
-        let onDark: CGFloat = color == nil ? 0.7 : 1.15
+        // Round 5 halved it and it nearly vanished on black (council r7): as strong as the table's tint.
+        let onDark: CGFloat = color == nil ? 0.7 : 1.6
         return (mix(Self.tintAmount * (dark ? onDark : 1) * strength), mix(min(1, strength)))
     }
 
@@ -421,7 +422,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
                 // A tick: a soft disc in the AI's colour round the box, which pops as yours does,
                 // and the struck-through words stay plain (council r1).
                 // The disc carries the AI's colour now the box keeps the app's (council r4): clear on a dark page too.
-                context.setFillColor(Self.changeColors(strength * (Self.pageIsDark ? 1.15 : 0.6), color: markColor).tint)
+                context.setFillColor(Self.changeColors(strength * (Self.pageIsDark ? 1.0 : 0.6), color: markColor).tint)
                 context.fillEllipse(in: halo)
             } else {
                 let sweep = sweepProgress

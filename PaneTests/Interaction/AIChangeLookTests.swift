@@ -283,7 +283,7 @@ import Testing
         let a = AIEdit.Receipt(noteID: id, by: "ChatGPT", at: .now, previous: g, after: one, lines: 1)
         let b = AIEdit.Receipt(noteID: id, by: "Claude", at: .now, previous: one, after: two, lines: 1).continuing(a)
         #expect(b.previous == g, "Undo takes both")
-        #expect(b.earlierBy == "ChatGPT", "both glyphs in the pill")
+        #expect(b.earlierBy == "ChatGPT", "both glyphs in the pill, and Undo both")
         #expect(b.edits == 2)
         #expect(b.summary == "Claude ticked \u{201C}Eggs\u{201D} \u{00B7} ChatGPT added \u{201C}Saffron\u{201D}")
         // The marks, as the editor plays them: Claude's from the start, ChatGPT's kept.
@@ -340,8 +340,11 @@ import Testing
         #expect(ChangeTint.changedWords(from: old, to: new).map { ns.substring(with: $0) } == ["at reception"])
     }
 
-    /// A new section is named by its heading (council r5).
+    /// A new section is named by its heading; with lines rewritten besides, they're counted (council r5, r7).
     @Test func aNewSectionIsNamedByItsHeading() {
+        let q = "Me\n\nOne.\n\nTwo.\n\nThree."
+        let w = AIEdit.Receipt(noteID: UUID(), by: "ChatGPT", at: .now, previous: q, after: "Me\n\nOne more.\n\nTwo more.\n\nThree more.\n\n## Work\n\nPinto.", lines: 5)
+        #expect(w.summary == "ChatGPT rewrote 3 lines and added \u{201C}Work\u{201D}")
         let p = "Trip\n\n## Day 1\n\nLisbon."
         let r = AIEdit.Receipt(noteID: UUID(), by: "Claude", at: .now, previous: p, after: p + "\n\n## Day 2\n\nSintra by train.", lines: 2)
         #expect(r.summary == "Claude added \u{201C}Day 2\u{201D}")
