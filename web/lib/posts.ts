@@ -129,6 +129,18 @@ export const posts: Post[] = [
     announcement: true,
   },
   {
+    slug: "ai-memory-with-notes",
+    title: "Does your AI remember better with notes? I tested it",
+    description: "1,540 questions about months of past chats, asked in a new chat. Claude with no memory: 18% right. With Pinto Notes connected: 82.5%. Method, limits and code.",
+    excerpt: "In a new chat, Claude got 18% of questions about past chats right. With its notes in Pinto, 82.5%. The test, the limits, and the code to run it yourself.",
+    category: "Building Pinto Notes",
+    date: "2026-11-12",
+    updated: "2026-11-12",
+    image: { src: "/blog/memory-study/locomo-bars.webp", alt: "Bar chart: with Pinto, a new chat went from 18% to 82.5% right on LoCoMo, against 60.2% with saved facts and 71.9% with one notebook.", width: 1848, height: 740, window: false },
+    thumb: thumb("cream", "memory-study-card", 1280, 513, "Bar chart: no memory 18%, saved facts 60%, one notebook 72%, Pinto 82.5%"),
+    draft: false,
+  },
+  {
     slug: "best-ai-notes-app",
     title: "Best AI notes app in 2026: 7 apps compared",
     description: "Pinto Notes, Notion, Mem, Evernote, Apple Notes, Reflect and Obsidian, compared on what the AI does, what it costs, and whether ChatGPT can use your notes.",
