@@ -139,7 +139,7 @@ struct FileRow: View {
 
     var body: some View {
         let large = typeSize.isAccessibilitySize
-        let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: 8))
+        let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: RowMetrics.detailGap))
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: RowMetrics.spacing) {
                 Text(file.filename)
@@ -150,7 +150,7 @@ struct FileRow: View {
                 detail {
                     Text(DateBucket.rowDate(NoteRow.shownDate(of: file, byCreation: datedByCreation)))
                         .monospacedDigit()
-                        .foregroundStyle(Color.ink.opacity(0.85))
+                        .foregroundStyle(Color.ink)
                     Text(file.listDetail)
                         .monospacedDigit()
                         .foregroundStyle(Color.muted)

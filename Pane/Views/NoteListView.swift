@@ -325,25 +325,29 @@ struct NoteListView: View {
             // Without files the notes go straight in, in the order they're kept in.
             if let noteSections {
                 ForEach(noteSections, id: \.0) { section in
-                    dateSection(section) { noteRow($0) }
+                    dateSection(section) { noteRow($0, next: $1) }
                 }
             } else if let mixedSections {
                 ForEach(mixedSections, id: \.0) { section in
-                    dateSection(section) { item in
+                    dateSection(section) { item, next in
                         switch item {
                         case .note(let entry):
-                            noteRow(entry)
+                            noteRow(entry, next: next)
                         case .file(let file):
                             FileListRow(file: file, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
                                         remove: { remove([file.id]) })
                                 .tag(file.id)
-                                .hoverRow(file.filename, reach: Hover.noteRowReach, selected: Self.quiet(selection, file.id))
+                                .hoverRow(file.filename, reach: Hover.noteRowReach, selected: Self.quiet(selection, file.id), line: file.id)
+                                #if os(macOS)
+                                .modifier(RowLine(shown: lineBelow(file.id, next: next), id: file.id, next: next))
+                                #endif
                                 .quietSelection()
                                 #if os(iOS)
                                 .contextMenu { menu(for: file, folders: foldersByName) }
                                 .listRowBackground(stacked ? Color(besideNote && openNotes?.ids.contains(file.id) == true ? Palette.openNoteRow : Palette.row) : nil)
+                                .modifier(RowLine(shown: lineBelow(file.id, next: next), system: stacked && !besideNote))
                                 #else
-                                .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
+                                .listRowSeparator(.hidden)
                                 #endif
                         }
                     }
@@ -699,12 +703,12 @@ struct NoteListView: View {
     #endif
 
     /// One date's notes (and files), collapsible, under its heading.
-    private func dateSection<Item: Identifiable, Row: View>(_ section: (String, [Item]), @ViewBuilder row: @escaping (Item) -> Row) -> some View {
+    private func dateSection<Item: Identifiable, Row: View>(_ section: (String, [Item]), @ViewBuilder row: @escaping (Item, Item.ID?) -> Row) -> some View {
         Section(isExpanded: Binding(
             get: { !collapsed.contains(section.0) },
             set: { open in withAnimation(.snappy(duration: 0.22)) { if open { collapsed.remove(section.0) } else { collapsed.insert(section.0) } } }
         )) {
-            ForEach(section.1) { row($0) }
+            ForEach(Neighbours(items: section.1)) { row($0.item, $0.next) }
         } header: {
             // A list sorted by title, or with grouping off, has no heading over its notes.
             if section.0 != DateBucket.unheaded {
@@ -732,13 +736,21 @@ struct NoteListView: View {
                     .textCase(nil)
                     .padding(.top, NoteListView.headingTop)
                     .padding(.bottom, NoteListView.headingBottom)
+                    // A hairline under it, the rows' cards' width, as in Notes (Emil, 12 November 2026).
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(alignment: .bottom) {
+                        RowHairline()
+                            .padding(.leading, NoteListView.headingLineLeading)
+                            .padding(.trailing, NoteListView.headingLineTrailing)
+                            .offset(y: NoteListView.headingLineDrop)
+                    }
                 #endif
             }
         }
         #if os(iOS)
         .headerProminence(stacked ? .increased : .standard)
         #else
-        // No rule under a heading, in every look; spacing does the work (Emil, 6 November 2026).
+        // The heading draws its own hairline; the list's would run edge to edge.
         .listSectionSeparator(.hidden)
         #endif
     }
@@ -747,6 +759,14 @@ struct NoteListView: View {
     /// Notes' are (13.5 pt down, 17 in from the column's edge, matched by their pixels).
     static let headingTop: CGFloat = 6.5
     static let headingBottom: CGFloat = 6.5
+    #if os(macOS)
+    /// Where the heading's hairline runs: from the rows' cards' left edge to their right edge (the
+    /// heading's content is 6 pt inside them), on the heading row's bottom edge (the list keeps
+    /// 4 pt under its content). Checked in NoteListSeparatorTests.
+    static let headingLineLeading: CGFloat = -Hover.noteRowReach.leading
+    static let headingLineTrailing: CGFloat = -Hover.noteRowReach.trailing
+    static let headingLineDrop: CGFloat = Hover.noteRowReach.bottom
+    #endif
 
     #if os(macOS)
     /// How far the folder's name rises into the bar beside the sidebar: its middle level with
@@ -775,11 +795,13 @@ struct NoteListView: View {
     /// it reads only plain values, and the row is one equatable view, so a row whose values are
     /// the same isn't worked out again (with 20,000 notes, every row's hover and menu were, half
     /// a second for each change shown).
-    private func noteRow(_ entry: NoteEntry) -> some View {
+    private func noteRow(_ entry: NoteEntry, next: UUID?) -> some View {
         let id = entry.id
+        let line = lineBelow(id, next: next)
         return NoteListItem(entry: entry, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
                             dragWith: dragOthers(for: id), selectedCount: selection.count, quiet: Self.quiet(selection, id),
                             top: RowMetrics.top(folderLine: (scope == .all || !search.isEmpty) && entry.folderID != nil) + RowMetrics.calmAir,
+                            line: line, next: next,
                             togglePin: { note in withAnimation(.snappy) { context.togglePin(note) } },
                             remove: { note in remove(note) }) { note in
             #if os(iOS)
@@ -798,10 +820,28 @@ struct NoteListView: View {
         // A little more room either side inside the card (Emil, 28 October 2026); the hairline
         // between rows starts with the text.
         .listRowInsets(.horizontal, RowMetrics.sideInset)
+        .modifier(RowLine(shown: line, system: stacked && !besideNote))
         #endif
         #if os(macOS)
-        // C and D: no hairlines between rows.
-        .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
+        // The row draws its own hairline (RowLine), so it can leave the selection's fill uncut.
+        .listRowSeparator(.hidden)
+        #endif
+    }
+
+    /// Whether a row has a hairline under it: not a section's last row, and neither it nor the row
+    /// under it filled by the list (RowHairline).
+    private func lineBelow(_ id: UUID, next: UUID?) -> Bool {
+        guard let next else { return false }
+        return !filled(id) && !filled(next)
+    }
+
+    /// A row the list draws a fill on: on the Mac the selection; beside the note on iPhone and
+    /// iPad, the open note.
+    private func filled(_ id: UUID) -> Bool {
+        #if os(macOS)
+        selection.contains(id)
+        #else
+        besideNote && editMode != .active ? openNotes?.ids.contains(id) == true : false
         #endif
     }
 
@@ -1901,6 +1941,9 @@ struct NoteDragPreview: View {
 enum RowMetrics {
     /// iPhone: the room either side of a row's text inside its card.
     static let sideInset: CGFloat = 20
+    /// The room between a row's date and its preview, with no dot between them, as in Apple Notes
+    /// (Emil, 12 November 2026: "remove that · between date and description").
+    static let detailGap: CGFloat = 8
     #if os(macOS)
     // Against Apple Notes on macOS 26 (owner, 2026-10-12: "a bit less overwhelming"): the second
     // line a size smaller than the title. The rows are Apple's, read through Accessibility in a
@@ -1943,6 +1986,95 @@ enum RowMetrics {
     #endif
 }
 
+/// The notes list's hairlines, as Apple Notes draws them (Emil, 12 November 2026: "some line
+/// separations between notes would be good"): one pixel in the system's separator colour, under
+/// every row but a section's last, and under each heading on the Mac. Never next to a row the list
+/// fills (the selection, the open note beside it, the hover on the Mac): the fill isn't cut by a
+/// line. Decided by the row's place and the selection only; no row measures anything.
+struct RowHairline: View {
+    @Environment(\.displayScale) private var scale
+
+    var body: some View {
+        Rectangle()
+            #if os(macOS)
+            .fill(Color(nsColor: .separatorColor))
+            #else
+            .fill(Color(uiColor: .separator))
+            #endif
+            .frame(height: 1 / scale)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A section's rows, each with the id of the row under it (nil for the last): what decides its
+/// hairline. Read in place, so nothing is copied for a list of 10,000 notes.
+struct Neighbours<Item: Identifiable>: RandomAccessCollection {
+    struct Row: Identifiable {
+        let item: Item
+        let next: Item.ID?
+        var id: Item.ID { item.id }
+    }
+    let items: [Item]
+    var startIndex: Int { items.startIndex }
+    var endIndex: Int { items.endIndex }
+    subscript(i: Int) -> Row { Row(item: items[i], next: i + 1 < items.endIndex ? items[i + 1].id : nil) }
+}
+
+#if os(macOS)
+/// The row under the pointer, for the hairlines on either side of its fill. Only the hairlines
+/// read it, each its own small view: a hover redraws them and nothing else.
+@MainActor @Observable final class RowLineHover {
+    static let shared = RowLineHover()
+    private(set) var row: UUID?
+
+    func set(_ id: UUID, _ over: Bool) {
+        if over { if row != id { row = id } } else if row == id { row = nil }
+    }
+}
+
+/// A Mac row's hairline: on the row's bottom edge (the list keeps 4 pt under a row's content,
+/// where the fill reaches), from the text's start to the card's right edge.
+struct RowLine: ViewModifier {
+    let shown: Bool
+    let id: UUID
+    let next: UUID?
+
+    func body(content: Content) -> some View {
+        content.overlay(alignment: .bottom) {
+            if shown, let next { Line(id: id, next: next) }
+        }
+    }
+
+    private struct Line: View {
+        let id: UUID
+        let next: UUID
+
+        var body: some View {
+            let over = RowLineHover.shared.row
+            if over != id && over != next {
+                RowHairline()
+                    .padding(.leading, RowMetrics.leading)
+                    .padding(.trailing, -Hover.noteRowReach.trailing)
+                    .offset(y: Hover.noteRowReach.bottom)
+            }
+        }
+    }
+}
+#else
+/// iPhone and iPad: the system's hairline under a row, hidden where the list draws a row's fill
+/// itself (the open note beside the list). A list one screen at a time keeps the system's own,
+/// which already leaves out the lines next to its selection.
+struct RowLine: ViewModifier {
+    let shown: Bool
+    let system: Bool
+
+    func body(content: Content) -> some View {
+        if system { content } else { content.listRowSeparator(shown ? .visible : .hidden, edges: .bottom) }
+    }
+}
+#endif
+
 /// A note's row as the list holds it: the row, its hover and its menu. Equal values mean an
 /// unchanged row. The note's model is looked up here, where the row is drawn: SwiftUI builds the
 /// list's rows for every note whenever the list changes, and only the rows on screen draw.
@@ -1957,6 +2089,9 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
     let quiet: Bool
     /// The room above the title's line, where the ••• lines up.
     let top: CGFloat
+    /// A hairline under the row (RowHairline), and the row under it, whose hover hides it.
+    let line: Bool
+    let next: UUID?
     let togglePin: (Note) -> Void
     let remove: (Note) -> Void
     @ViewBuilder let menu: (Note) -> Menu
@@ -1968,7 +2103,7 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
     static func == (a: NoteListItem, b: NoteListItem) -> Bool {
         a.entry.pid == b.entry.pid && a.entry.same(as: b.entry) && a.query == b.query && a.showFolder == b.showFolder
             && a.datedByCreation == b.datedByCreation && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount)
-            && a.quiet == b.quiet && a.top == b.top
+            && a.quiet == b.quiet && a.top == b.top && a.line == b.line && a.next == b.next
     }
 
     var body: some View {
@@ -1991,6 +2126,9 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
                 .modifier(NoteRowHover(note: note, selected: quiet, top: top, pointer: { [note] over in NotePreload.pointer(over, on: note) }) {
                     menu(note)
                 })
+                #if os(macOS)
+                .modifier(RowLine(shown: line, id: entry.id, next: next))
+                #endif
                 .quietSelection()
                 #if os(iOS)
                 // Long-press: the note itself as a tall card, its menu under it (Apple Notes).
@@ -2082,8 +2220,7 @@ struct NoteRow: View {
         let shared = sync?.liveShares[note.id] != nil && !note.isLocked && note.trashedAt == nil
         // At the accessibility text sizes the row stacks and wraps instead of truncating.
         let large = typeSize.isAccessibilitySize
-        let calm = DesignLook.calmList && !large
-        let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: calm ? 5 : 8))
+        let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: RowMetrics.detailGap))
         let ai = AIEdit.isUnseen(note) ? note.aiEditor : nil
         // The room before the title: a lock, the unseen AI dot, shared or a pin, one at a time.
         let status = NoteRowStatus.of(note, aiUnseen: ai != nil, pinnedHeading: pinnedHeading)
@@ -2126,17 +2263,16 @@ struct NoteRow: View {
                                 .accessibilityHidden(true)
                                 .accessibilityIdentifier("note.shared")
                         }
+                        // In the text's own colour, the preview after it in the muted one, as in Notes.
                         Text(DateBucket.rowDate(Self.shownDate(of: note, byCreation: datedByCreation)))
                             .monospacedDigit()
-                            .foregroundStyle(ink.opacity(0.85))
+                            .foregroundStyle(ink)
                     }
                     // Never wrapped or cut: the preview gives way first ("10:10 A / M" beside a
                     // picture, 11-01).
                     .lineLimit(1)
                     .fixedSize()
                     .accessibilityIdentifier("note.date")
-                    // C and D: "date · preview", one quiet line under the title.
-                    if calm { Text("·").foregroundStyle(muted).accessibilityHidden(true) }
                     if note.isLocked {
                         // Like Notes: the date and "Locked", nothing of the text. The lock is
                         // before the title (NoteRowStatus). VoiceOver hears it once, in the value.
@@ -2236,7 +2372,7 @@ private struct NoteRowHover<Items: View>: ViewModifier {
 
     func body(content: Content) -> some View {
         // The pill fills the row from edge to edge, as Apple Notes' does.
-        HoverRowReader(id: note.title, reach: Hover.noteRowReach, selected: selected, card: DesignLook.calmList, pointer: pointer) { hovering in
+        HoverRowReader(id: note.title, reach: Hover.noteRowReach, selected: selected, card: DesignLook.calmList, line: note.id, pointer: pointer) { hovering in
             content
                 #if os(macOS)
                 // Always the row's top right corner, on the title's line, whatever the row holds
