@@ -70,12 +70,22 @@ final class ChangeTint: @unchecked Sendable {
     /// 1 drawn whole.
     func sweep(at offset: Int) -> CGFloat {
         guard let elapsed = sweepElapsed else { return 1 }
-        let order = ranges.sorted { $0.location < $1.location }
+        if settled.contains(where: { NSLocationInRange(offset, $0) }) { return 1 }
+        let order = ranges.filter { r in !settled.contains { NSLocationInRange(r.location, $0) } }.sorted { $0.location < $1.location }
         guard let k = order.firstIndex(where: { $0.location == offset }) else { return 1 }
         let t = (elapsed - Double(k) * Self.sweepStagger(order.count)) / Self.sweepDuration
         let p = min(1, max(0, t))
         return CGFloat(1 - pow(1 - p, 3))
     }
+
+    /// Paragraphs already marked when a later edit lands: they stay drawn whole, only the new
+    /// change sweeps in (council r3: Saffron's mark shrank and swept in again).
+    private(set) var settled: [NSRange] = []
+    /// Whether the mark has reached full strength once: until then a ticked box is in the AI's
+    /// colour outright, so it doesn't start orange (council r3).
+    private(set) var peaked = false
+    /// How much of the AI's colour a ticked box takes.
+    var tickBlend: CGFloat { peaked ? min(1, strength) : (strength > 0 ? 1 : 0) }
 
     /// The marked words in the paragraph `paragraph`, counted from its start.
     /// Most of the text is marked: drawn lighter.
@@ -186,12 +196,29 @@ final class ChangeTint: @unchecked Sendable {
     /// Tints the paragraphs of `text` that `previous` didn't have, then fades them. `untilCleared`:
     /// the tint stays at rest until `stop()` instead of fading.
     @MainActor func play(from previous: String, to text: String, color: PColor? = nil, hold: Double = 2.6, untilCleared: Bool = false) {
+        // The lit marks in `text`'s terms: already moved there (the editor followed the text), or
+        // moved through the one edit from what they were marks of.
+        var lit: (marks: [NSRange], carried: [(range: NSRange, color: PColor?)], drawn: [NSRange])?
+        if strength > 0, let base = shown {
+            if base == text {
+                lit = (marks, carried, drawn)
+            } else if let e = TextDiff.edit(from: base, to: text) {
+                func m(_ r: NSRange) -> NSRange? { Self.moved(r, through: e) }
+                lit = (marks.compactMap(m), carried.compactMap { c in m(c.range).map { ($0, c.color) } }, drawn.compactMap(m))
+            }
+        }
         // Another AI's edit right on top of this one: its marks stay, in its colour.
         var keep: [(range: NSRange, color: PColor?)] = []
-        if strength > 0, let base = shown, base == previous, color != self.color, let e = TextDiff.edit(from: base, to: text) {
-            keep = (carried + marks.map { ($0, self.color) }).compactMap { c in Self.moved(c.range, through: e).map { ($0, c.color) } }
+        if let lit, color != self.color, previous != from {
+            keep = lit.carried + lit.marks.map { ($0, self.color) }
         }
+        // A later edit while this one is marked: what's marked stays as it is.
+        let still = lit?.drawn ?? [], prior = lit == nil ? 0 : strength, wasPeaked = lit != nil && peaked
         stop()
+        settled = still
+        from = previous
+        strength = prior
+        peaked = wasPeaked
         self.color = color
         shown = text
         ticks = Self.tickedLines(from: previous, to: text)
@@ -234,8 +261,12 @@ final class ChangeTint: @unchecked Sendable {
         let easeOut: @Sendable (Double) -> Double = { 1 - pow(1 - $0, 3) }
         let easeInOut: @Sendable (Double) -> Double = { $0 < 0.5 ? 4 * $0 * $0 * $0 : 1 - pow(-2 * $0 + 2, 3) / 2 }
         Task { @MainActor in
-            guard await animate(to: 1.5, over: 0.3, easeOut, run: mine, lit: lit),
-                  await animate(to: 1, over: 0.5, easeInOut, run: mine, lit: lit) else { return }
+            // A later edit on a lit mark: no second pop, the new words' sweep is their arrival.
+            if strength == 0 {
+                guard await animate(to: 1.5, over: 0.3, easeOut, run: mine, lit: lit) else { return }
+            }
+            peaked = true
+            guard await animate(to: 1, over: 0.5, easeInOut, run: mine, lit: lit) else { return }
             if untilCleared { return }
             let waiting = Date.now
             while let seen = inView, !seen(), mine == run, Date.now.timeIntervalSince(waiting) < Self.waitsInView {
@@ -274,19 +305,14 @@ final class ChangeTint: @unchecked Sendable {
 
     /// The text the marks are ranges of, to follow your typing while they fade.
     private var shown: String?
+    /// The text the current mark is a change from: the same again is the same change re-marked,
+    /// not a second AI's edit on top.
+    private var from: String?
 
     /// You typed: the marks move with the text and fade out in a third of a second, rather than
     /// cutting out (council r1). Anything else clears at once.
     @MainActor func typed(_ now: String) {
-        guard strength > 0, !drawn.isEmpty, let base = shown, let e = TextDiff.edit(from: base, to: now) else { stop(); return }
-        func moved(_ r: NSRange) -> NSRange? { Self.moved(r, through: e) }
-        redraw(drawn)
-        ranges = ranges.compactMap(moved)
-        marks = marks.compactMap(moved)
-        removals = removals.compactMap { g in moved(g.paragraph).map { Removal(paragraph: $0, below: g.below) } }
-        ticks = ticks.compactMap { moved(NSRange(location: $0, length: 1))?.location }
-        carried = carried.compactMap { c in moved(c.range).map { ($0, c.color) } }
-        shown = now
+        guard follow(now) else { stop(); return }
         sweepElapsed = nil
         inView = nil
         guard !fading else { redraw(drawn); return }
@@ -301,12 +327,33 @@ final class ChangeTint: @unchecked Sendable {
     }
     private var fading = false
 
+    /// The text changed from elsewhere (a sync, an AI's next edit): the marks move with it and
+    /// carry on as they were, so a later edit's mark can build on them (council r3: Saffron's
+    /// mark was wiped and swept in again). False when there's nothing lit to move.
+    @MainActor @discardableResult func follow(_ now: String) -> Bool {
+        guard strength > 0, !drawn.isEmpty, let base = shown else { return false }
+        guard base != now else { return true }
+        guard let e = TextDiff.edit(from: base, to: now) else { return false }
+        func moved(_ r: NSRange) -> NSRange? { Self.moved(r, through: e) }
+        redraw(drawn)
+        ranges = ranges.compactMap(moved)
+        marks = marks.compactMap(moved)
+        removals = removals.compactMap { g in moved(g.paragraph).map { Removal(paragraph: $0, below: g.below) } }
+        ticks = ticks.compactMap { moved(NSRange(location: $0, length: 1))?.location }
+        carried = carried.compactMap { c in moved(c.range).map { ($0, c.color) } }
+        settled = settled.compactMap(moved)
+        shown = now
+        return true
+    }
+
     /// Clears at once (you started typing, or undid the edit).
     @MainActor func stop() {
         run += 1
         sweepElapsed = nil
         inView = nil
         fading = false
+        settled = []
+        peaked = false
         guard strength > 0 || !drawn.isEmpty else { return }
         // Redraw while the lines are still known, so their old tint is painted over.
         strength = 0

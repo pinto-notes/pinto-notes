@@ -514,7 +514,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             // as the mark fades (council r2: an orange box in a green ring fought).
             var fill: CGColor?
             if checked, let ai = markColor, let (tint, offset) = tintAndOffset, tint.ticked(at: offset) {
-                fill = Self.blend(PColor.paneAccent, ai, min(1, tint.strength))
+                fill = Self.blend(PColor.paneAccent, ai, tint.tickBlend)
             }
             Self.drawCheckbox(checked: checked, in: checkboxRect(d).offsetBy(dx: o.x, dy: o.y), ctx: ctx, fill: fill)
 

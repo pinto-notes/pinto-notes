@@ -285,9 +285,12 @@ struct AIReceipt: View {
         // The shadow on the capsule alone, not on the words and buttons (it drew faint lines at
         // the ends, council r1).
         .background {
-            // A soft lift drawn as a blurred capsule (a layer shadow left 1 px stubs past the ends,
-            // council r2), a little stronger so the pill reads apart from text under it.
-            Capsule().fill(Color.black.opacity(0.12)).blur(radius: 7).offset(y: 3)
+            // A soft lift as rings of faint capsules, each a little wider and lower: no edge
+            // anywhere (council r2: layer shadow left stubs; r3: a blur drew as a grey band).
+            ForEach(1...7, id: \.self) { i in
+                Capsule().fill(Color.black.opacity(0.016))
+                    .padding(-CGFloat(i)).offset(y: 1 + CGFloat(i) * 0.6)
+            }
             Capsule().fill(Self.fill)
         }
         .overlay(Capsule().strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5))

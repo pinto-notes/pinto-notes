@@ -745,15 +745,27 @@ struct NoteDetailView: View {
         // changed are marked in its colour in the same frame as they appear, swept in, then fade
         // on their own (Emil, 12 November 2026: "it should be instant, that is how we design it").
         controller.markChanges(from: r.previous, to: r.after ?? note.body, color: AIGlyph.caretColor(r.by))
-        Task { @MainActor in
-            // The receipt once the editor has the text (and a later edit hasn't taken over).
-            try? await Task.sleep(for: .seconds(0.15 * slow))
-            guard landingReceipt == r else { return }
+        // A receipt already up takes the new words in the same frame as the text, in place:
+        // no lag, no growing from one side (council r3).
+        let inPlace = receipt != nil && note.id == r.noteID
+        if inPlace {
             landingReceipt = nil
-            guard note.id == r.noteID else { return }
             receiptPlacement = controller.changePlacement(from: r.previous)
-            withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
-            PaneTips.aiEditLanded()
+            var still = Transaction()
+            still.disablesAnimations = true
+            withTransaction(still) { receipt = r }
+        }
+        Task { @MainActor in
+            if !inPlace {
+                // The receipt once the editor has the text (and a later edit hasn't taken over).
+                try? await Task.sleep(for: .seconds(0.15 * slow))
+                guard landingReceipt == r else { return }
+                landingReceipt = nil
+                guard note.id == r.noteID else { return }
+                receiptPlacement = controller.changePlacement(from: r.previous)
+                withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
+                PaneTips.aiEditLanded()
+            }
             // The receipt and its Undo go a little after the tint, unless the pointer is on it.
             // Show goes once the change is in view, however it got there (council r2).
             let until = Date.now.addingTimeInterval(AIReceipt.stays * slow)

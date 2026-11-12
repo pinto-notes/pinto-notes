@@ -1879,7 +1879,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     private func replaceText(with new: String) {
         guard new != text, markedTextRange == nil, let edit = TextDiff.edit(from: text, to: new) else { return }
-        core.layoutDelegate.tint.stop()
+        if !core.layoutDelegate.tint.follow(new) { core.layoutDelegate.tint.stop() }
         // Only what changed is replaced, so your caret, selection and scroll stay put.
         let keep = selectedRange
         let offset = contentOffset
@@ -3698,7 +3698,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     private func replaceText(with new: String) {
         guard new != string, !hasMarkedText(), let storage = textStorage,
               let edit = TextDiff.edit(from: string, to: new) else { return }
-        core.layoutDelegate.tint.stop()
+        // The mark moves with the text: an AI's next edit builds on it (council r3).
+        if !core.layoutDelegate.tint.follow(new) { core.layoutDelegate.tint.stop() }
         // Only what changed is replaced, so your caret, selection and scroll stay put.
         let keep = selectedRange()
         storage.replaceCharacters(in: edit.range, with: edit.replacement)

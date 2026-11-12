@@ -207,6 +207,39 @@ import Testing
         tint.stop()
     }
 
+    /// A later edit from the same AI while the first is marked: the first mark stays drawn whole
+    /// and lit, only the new change sweeps, and a ticked box is in the AI's colour from its first
+    /// frame (council r3: Saffron swept in again; the box went orange, green, orange).
+    @Test func aLaterEditDoesNotReplayTheFirst() async {
+        let tint = ChangeTint()
+        let g = "Groceries\n\n- [ ] Eggs\n- [ ] Bread"
+        let one = g + "\n- [ ] Saffron"
+        let two = one.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs")
+        tint.play(from: g, to: one, color: .systemGreen)
+        try? await Task.sleep(for: .seconds(0.9))
+        let lit = tint.strength
+        tint.play(from: g, to: two, color: .systemGreen)
+        let ns = two as NSString
+        #expect(tint.strength == lit, "no dip, no second pop")
+        #expect(tint.sweep(at: ns.range(of: "- [ ] Saffron").location) == 1, "Saffron stays whole")
+        #expect(tint.sweep(at: ns.range(of: "- [x] Eggs").location) < 1, "the tick sweeps in")
+        #expect(tint.tickBlend == 1, "the box is the AI's colour at once")
+        tint.stop()
+        // As in the editor: the text arrives first and the marks follow it, then the mark plays.
+        tint.play(from: g, to: one, color: .systemGreen)
+        try? await Task.sleep(for: .seconds(0.9))
+        #expect(tint.follow(two))
+        tint.play(from: g, to: two, color: .systemGreen)
+        #expect(tint.strength == lit)
+        #expect(tint.sweep(at: ns.range(of: "- [ ] Saffron").location) == 1, "Saffron stays whole after the editor moved it")
+        tint.stop()
+        // A first tick, from nothing: the AI's colour from the first frame too.
+        tint.play(from: g, to: g.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs"), color: .systemGreen)
+        try? await Task.sleep(for: .seconds(0.05))
+        #expect(tint.tickBlend == 1)
+        tint.stop()
+    }
+
     /// Three edits in a row are counted, never described as one change that didn't happen (council r2).
     @Test func threeEditsAreCounted() {
         let g = "Groceries\n\n- [ ] Eggs\n- [ ] Bread"
