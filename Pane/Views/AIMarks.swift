@@ -237,7 +237,6 @@ struct AIReceipt: View {
                 .foregroundStyle(.primary)
                 // A second edit's words replace the first's at once, never drawn over them (council r1).
                 .contentTransition(.identity)
-                .animation(nil, value: receipt)
             if let show, placement != 0, !compact {
                 Button(action: show) {
                     Label("Show", systemImage: placement > 0 ? "arrow.down" : "arrow.up")
@@ -285,8 +284,16 @@ struct AIReceipt: View {
         // A solid fill: the material greyed the words and showed at the ends (council r1).
         // The shadow on the capsule alone, not on the words and buttons (it drew faint lines at
         // the ends, council r1).
-        .background(Capsule().fill(Self.fill).shadow(color: .black.opacity(0.08), radius: 8, y: 3))
+        .background {
+            // A soft lift drawn as a blurred capsule (a layer shadow left 1 px stubs past the ends,
+            // council r2), a little stronger so the pill reads apart from text under it.
+            Capsule().fill(Color.black.opacity(0.12)).blur(radius: 7).offset(y: 3)
+            Capsule().fill(Self.fill)
+        }
         .overlay(Capsule().strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5))
+        // A new edit's words, mark and width arrive in one step: no frame where the longer words
+        // run over Undo (council r2).
+        .animation(nil, value: receipt)
         .accessibilityElement(children: .contain)
     }
 

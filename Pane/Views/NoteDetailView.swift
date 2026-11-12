@@ -755,7 +755,14 @@ struct NoteDetailView: View {
             withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
             PaneTips.aiEditLanded()
             // The receipt and its Undo go a little after the tint, unless the pointer is on it.
-            try? await Task.sleep(for: .seconds(AIReceipt.stays * slow))
+            // Show goes once the change is in view, however it got there (council r2).
+            let until = Date.now.addingTimeInterval(AIReceipt.stays * slow)
+            while Date.now < until {
+                try? await Task.sleep(for: .seconds(0.25))
+                if receiptPlacement != 0, receipt == r, controller.changePlacement(from: r.previous) == 0 {
+                    withAnimation(.smooth(duration: 0.2)) { receiptPlacement = 0 }
+                }
+            }
             while receiptHovered || ChangeTint.holdForCapture { try? await Task.sleep(for: .seconds(0.3)) }
             guard receipt == r, review == nil else { return }
             withAnimation(.easeOut(duration: 0.3)) { receipt = nil }

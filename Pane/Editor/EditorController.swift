@@ -385,8 +385,12 @@ final class EditorController {
         aiCellColor = color
         aiCells = cells
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds((0.8 + 2.6) * ChangeTint.slowMotion))
-            while ChangeTint.holdForCapture, mine == aiCellsRun { try? await Task.sleep(for: .seconds(0.1)) }
+            // Fade with the text's mark, which rests until the change is seen.
+            try? await Task.sleep(for: .seconds(0.8))
+            let cap = Date.now.addingTimeInterval(60)
+            while mine == aiCellsRun, Date.now < cap, ChangeTint.holdForCapture || isTinted {
+                try? await Task.sleep(for: .seconds(0.1))
+            }
             guard mine == aiCellsRun else { return }
             aiCells = [:]
         }

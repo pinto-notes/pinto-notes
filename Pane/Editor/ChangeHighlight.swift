@@ -78,6 +78,29 @@ final class ChangeTint: @unchecked Sendable {
     }
 
     /// The marked words in the paragraph `paragraph`, counted from its start.
+    /// Most of the text is marked: drawn lighter.
+    private(set) var heavy = false
+
+    /// Marks of an earlier AI's edit still showing when another AI's lands, each in its own
+    /// AI's colour (council r2: Claude's tick wiped ChatGPT's Saffron).
+    private(set) var carried: [(range: NSRange, color: PColor?)] = []
+    func carried(in paragraph: NSRange) -> [(NSRange, PColor?)] {
+        carried.compactMap { m in
+            let i = NSIntersectionRange(m.range, paragraph)
+            return i.length > 0 ? (NSRange(location: i.location - paragraph.location, length: i.length), m.color) : nil
+        }
+    }
+
+    /// `r` after the text changed by `e`: moved along, grown or shrunk when the change is inside
+    /// it, nil when the change crosses its edge.
+    static func moved(_ r: NSRange, through e: TextDiff.Edit) -> NSRange? {
+        let delta = (e.replacement as NSString).length - e.range.length
+        if NSMaxRange(e.range) <= r.location { return NSRange(location: r.location + delta, length: r.length) }
+        if e.range.location >= NSMaxRange(r) { return r }
+        guard e.range.location >= r.location, NSMaxRange(e.range) <= NSMaxRange(r) else { return nil }
+        return NSRange(location: r.location, length: max(0, r.length + delta))
+    }
+
     func marks(in paragraph: NSRange) -> [NSRange] {
         marks.compactMap { m in
             let i = NSIntersectionRange(m, paragraph)
@@ -163,6 +186,11 @@ final class ChangeTint: @unchecked Sendable {
     /// Tints the paragraphs of `text` that `previous` didn't have, then fades them. `untilCleared`:
     /// the tint stays at rest until `stop()` instead of fading.
     @MainActor func play(from previous: String, to text: String, color: PColor? = nil, hold: Double = 2.6, untilCleared: Bool = false) {
+        // Another AI's edit right on top of this one: its marks stay, in its colour.
+        var keep: [(range: NSRange, color: PColor?)] = []
+        if strength > 0, let base = shown, base == previous, color != self.color, let e = TextDiff.edit(from: base, to: text) {
+            keep = (carried + marks.map { ($0, self.color) }).compactMap { c in Self.moved(c.range, through: e).map { ($0, c.color) } }
+        }
         stop()
         self.color = color
         shown = text
@@ -170,6 +198,14 @@ final class ChangeTint: @unchecked Sendable {
         ranges = Self.paragraphRanges(changedFrom: previous, to: text)
         removals = Self.removals(from: previous, to: text)
         marks = Self.changedWords(from: previous, to: text)
+        // Most of the note new: a lighter mark, so the page isn't one block of colour (council r2).
+        heavy = Double(marks.reduce(0) { $0 + $1.length }) > Double((text as NSString).length) * 0.35
+        carried = keep
+        if !keep.isEmpty {
+            let ns = text as NSString
+            let held = keep.map { ns.paragraphRange(for: NSRange(location: min($0.range.location, ns.length), length: 0)) }
+            ranges = Array(Set((ranges + held).map { [$0.location, $0.length] })).map { NSRange(location: $0[0], length: $0[1]) }.sorted { $0.location < $1.location }
+        }
         guard !ranges.isEmpty || !removals.isEmpty else { return }
         if !Self.reduceMotion { startSweep() }
         light(hold: hold, untilCleared: untilCleared)
@@ -205,7 +241,14 @@ final class ChangeTint: @unchecked Sendable {
             while let seen = inView, !seen(), mine == run, Date.now.timeIntervalSince(waiting) < Self.waitsInView {
                 try? await Task.sleep(for: .seconds(0.2))
             }
-            try? await Task.sleep(for: .seconds(hold * Self.slowMotion))
+            // The rest in small steps, so captures can speed it up mid-way (slowMotion back to 1).
+            var rested = 0.0, last = Date.now
+            while rested < hold, mine == run {
+                try? await Task.sleep(for: .seconds(0.05))
+                // By the clock: a sleep in the background can run long.
+                rested += Date.now.timeIntervalSince(last) / Self.slowMotion
+                last = .now
+            }
             while Self.holdForCapture, mine == run { try? await Task.sleep(for: .seconds(0.1)) }
             guard await animate(to: 0, over: 1.6, easeInOut, run: mine, lit: lit) else { return }
             ranges = []
@@ -236,19 +279,13 @@ final class ChangeTint: @unchecked Sendable {
     /// cutting out (council r1). Anything else clears at once.
     @MainActor func typed(_ now: String) {
         guard strength > 0, !drawn.isEmpty, let base = shown, let e = TextDiff.edit(from: base, to: now) else { stop(); return }
-        let delta = (e.replacement as NSString).length - e.range.length
-        func moved(_ r: NSRange) -> NSRange? {
-            if NSMaxRange(e.range) <= r.location { return NSRange(location: r.location + delta, length: r.length) }
-            if e.range.location >= NSMaxRange(r) { return r }
-            // Inside it: it grows or shrinks; across its edge: it goes.
-            guard e.range.location >= r.location, NSMaxRange(e.range) <= NSMaxRange(r) else { return nil }
-            return NSRange(location: r.location, length: max(0, r.length + delta))
-        }
+        func moved(_ r: NSRange) -> NSRange? { Self.moved(r, through: e) }
         redraw(drawn)
         ranges = ranges.compactMap(moved)
         marks = marks.compactMap(moved)
         removals = removals.compactMap { g in moved(g.paragraph).map { Removal(paragraph: $0, below: g.below) } }
         ticks = ticks.compactMap { moved(NSRange(location: $0, length: 1))?.location }
+        carried = carried.compactMap { c in moved(c.range).map { ($0, c.color) } }
         shown = now
         sweepElapsed = nil
         inView = nil
@@ -278,6 +315,7 @@ final class ChangeTint: @unchecked Sendable {
         removals = []
         marks = []
         ticks = []
+        carried = []
     }
 
     /// Line numbers (0-based) of `new` that are added or rewritten compared with `old`. A line

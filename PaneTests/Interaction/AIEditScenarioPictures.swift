@@ -75,34 +75,42 @@ import Testing
         try? rep.representation(using: .png, properties: [:])?.write(to: dir.appending(path: "\(name).png"))
     }
 
-    @Test(arguments: all, looks) func scenario(_ s: Scenario, look: String) async throws {
+    /// One scenario in every look at once (side by side, offscreen), so a round's pictures take
+    /// half the time. Only the sweep is slowed; the rest and the fade play at real speed.
+    @Test(arguments: all) func scenario(_ s: Scenario) async throws {
         guard ProcessInfo.processInfo.environment["AMBER_QA_SHOTS"] != nil else { return }
         // `AMBER_QA_ONLY=03,13` shoots just those.
         if let only = ProcessInfo.processInfo.environment["AMBER_QA_ONLY"], !only.split(separator: ",").contains(where: { s.id.hasPrefix($0) }) { return }
+        struct Shot { let look: String; let note: Note; let controller: EditorController; let window: NSWindow; let host: NSView }
         let c = try AIChangesTests.container()
-        let note = c.mainContext.createNote(in: .all, body: s.before)
-        if s.mode == .openedLater { AIEditTests.arrive(note, body: s.after, by: s.by) }
-        let controller = EditorController()
-        let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: s.width, height: 560), styleMask: [.borderless], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        window.appearance = NSAppearance(named: look == "dark" ? .darkAqua : .aqua)
-        let host = NSHostingView(rootView: NavigationStack { NoteDetailView(note: note, controller: controller, onNewNote: {}) }.modelContainer(c))
+        var shots: [Shot] = []
+        for (i, look) in Self.looks.enumerated() {
+            let note = c.mainContext.createNote(in: .all, body: s.before)
+            if s.mode == .openedLater { AIEditTests.arrive(note, body: s.after, by: s.by, at: .now.addingTimeInterval(-20 * 60)) }
+            let controller = EditorController()
+            let window = NSWindow(contentRect: NSRect(x: -20000 + CGFloat(i) * 1200, y: -20000, width: s.width, height: 560), styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.appearance = NSAppearance(named: look == "dark" ? .darkAqua : .aqua)
+            let host = NSHostingView(rootView: NavigationStack { NoteDetailView(note: note, controller: controller, onNewNote: {}) }.modelContainer(c))
+            window.contentView = host
+            shots.append(Shot(look: look, note: note, controller: controller, window: window, host: host))
+        }
         let slow = s.mode == .realTime ? 1.0 : 4.0
         ChangeTint.slowMotion = slow
         ChangeTint.holdForCapture = s.mode != .realTime
-        defer { ChangeTint.slowMotion = 1; ChangeTint.holdForCapture = false; window.close() }
-        window.contentView = host
-        let id = "\(look)-\(s.id)"
+        defer { ChangeTint.slowMotion = 1; ChangeTint.holdForCapture = false; shots.forEach { $0.window.close() } }
+        func snap(_ frame: String) { for x in shots { Self.snap(x.host, "\(x.look)-\(s.id)-\(frame)") } }
+        func arrive(_ body: String, by: String) { for x in shots { AIEditTests.arrive(x.note, body: body, by: by) } }
         // The note from its top, title and all.
-        func top() { (controller.target as? PaneTextView)?.scroll(.zero) }
+        func top() { for x in shots { (x.controller.target as? PaneTextView)?.scroll(.zero) } }
         if s.mode == .openedLater {
             try? await Task.sleep(for: .milliseconds(60))
             top()
         } else {
             try? await Task.sleep(for: .seconds(1.2))
             top()
-            Self.snap(host, "\(id)-0-before")
-            AIEditTests.arrive(note, body: s.after, by: s.by)
+            snap("0-before")
+            arrive(s.after, by: s.by)
         }
         if s.mode == .realTime {
             // Real seconds after it lands, nothing held: how the whole thing plays.
@@ -110,46 +118,55 @@ import Testing
             for t in [0.1, 0.2, 0.3, 0.6, 1.5, 2.9, 3.5, 4.5, 5.5, 7.0] {
                 let wait = t - Date.now.timeIntervalSince(start)
                 if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
-                Self.snap(host, "\(id)-t-\(String(format: "%04.1f", t))s")
+                snap("t-\(String(format: "%04.1f", t))s")
             }
             return
         }
         // The edit is in the editor at once; the mark starts as it lands (0.15 s, slowed here).
         try? await Task.sleep(for: .seconds(0.15 * slow + 0.05))
-        Self.snap(host, "\(id)-a-lands")
+        snap("a-lands")
         try? await Task.sleep(for: .seconds(0.12 * slow))
-        Self.snap(host, "\(id)-b-sweeping")
-        if s.mode == .typeMidway, let view = controller.target as? PaneTextView {
-            view.insertText("!", replacementRange: NSRange(location: (view.string as NSString).length, length: 0))
+        snap("b-sweeping")
+        if s.mode == .typeMidway {
+            for x in shots {
+                guard let view = x.controller.target as? PaneTextView else { continue }
+                view.insertText("!", replacementRange: NSRange(location: (view.string as NSString).length, length: 0))
+            }
             try? await Task.sleep(for: .milliseconds(100))
-            Self.snap(host, "\(id)-c-typed")
+            snap("c-typed")
         }
-        if s.mode == .twoInARow {
-            try? await Task.sleep(for: .seconds(1.0 * slow))
-            AIEditTests.arrive(note, body: s.after.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs"), by: s.by)
-            try? await Task.sleep(for: .seconds(0.15 * slow + 0.12 * slow))
-            Self.snap(host, "\(id)-c-second")
+        // Later edits land at real speed: the pill's change from one to the next, every 50 ms.
+        let laters: [(String, String)] = s.mode == .twoInARow
+            ? [(s.after.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs"), s.by)] : s.then
+        if !laters.isEmpty { ChangeTint.slowMotion = 1 }
+        for (n, (body, by)) in laters.enumerated() {
+            try? await Task.sleep(for: .seconds(1.0))
+            arrive(body, by: by)
+            for k in 0..<8 {
+                try? await Task.sleep(for: .milliseconds(50))
+                snap("c\(n + 1)-next\(k)")
+            }
         }
-        for (n, (body, by)) in s.then.enumerated() {
-            try? await Task.sleep(for: .seconds(1.0 * slow))
-            AIEditTests.arrive(note, body: body, by: by)
-            try? await Task.sleep(for: .seconds(0.15 * slow + 0.12 * slow))
-            Self.snap(host, "\(id)-c\(n + 1)-next")
-        }
-        try? await Task.sleep(for: .seconds(1.0 * slow))
-        Self.snap(host, "\(id)-d-resting")
+        try? await Task.sleep(for: .seconds(1.0))
+        snap("d-resting")
         if s.mode == .showClicked {
             // What Show does: the change scrolled into view and marked again.
-            controller.showChange(from: s.before)
-            try? await Task.sleep(for: .seconds(0.2 * slow))
-            Self.snap(host, "\(id)-d2-shown")
-            try? await Task.sleep(for: .seconds(1.0 * slow))
-            Self.snap(host, "\(id)-d3-rested")
+            for x in shots { x.controller.showChange(from: s.before) }
+            try? await Task.sleep(for: .seconds(0.5))
+            snap("d2-shown")
+            try? await Task.sleep(for: .seconds(1.0))
+            snap("d3-rested")
         }
+        // The rest of the rest and the fade, at real speed.
+        ChangeTint.slowMotion = 1
         ChangeTint.holdForCapture = false
-        // After the rest and the fade (2.6 s and 1.6 s, slowed); the receipt stays a little longer.
-        try? await Task.sleep(for: .seconds((2.6 + 1.6) * slow + 0.5))
-        Self.snap(host, "\(id)-e-after")
+        // Wait for the fade to finish (an off-screen change stays lit by design).
+        let end = Date.now.addingTimeInterval(12)
+        while Date.now < end, shots.contains(where: { $0.controller.isTinted }) {
+            try? await Task.sleep(for: .seconds(0.1))
+        }
+        try? await Task.sleep(for: .seconds(0.3))
+        snap("e-after")
     }
 }
 #endif

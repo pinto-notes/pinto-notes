@@ -186,19 +186,54 @@ import Testing
         #expect(tint.marks.isEmpty && tint.strength == 0, "then gone")
     }
 
+    /// A second AI's edit on top of the first: the first one's marks stay, in its colour (council r2).
+    @Test func anotherAIsEditKeepsTheFirstOnesMarks() async {
+        let tint = ChangeTint()
+        let g = "Groceries\n\n- [ ] Eggs"
+        let one = g + "\n- [ ] Saffron"
+        let two = "Groceries\n\n- [ ] Milk\n- [ ] Eggs\n- [ ] Saffron"
+        let green = AIGlyph.caretColor("ChatGPT"), orange = AIGlyph.caretColor("Claude")
+        tint.play(from: g, to: one, color: green)
+        try? await Task.sleep(for: .seconds(0.9))
+        tint.play(from: one, to: two, color: orange)
+        let ns = two as NSString
+        #expect(tint.marks.map { ns.substring(with: $0) } == ["Milk"])
+        #expect(tint.carried.map { ns.substring(with: $0.range) } == ["Saffron"], "moved down a line, still marked")
+        #expect(tint.carried.first?.color == green)
+        #expect(tint.ranges.contains { NSLocationInRange(ns.range(of: "Saffron").location, $0) }, "its line is drawn")
+        // The same AI again is one change, not a carried one.
+        tint.play(from: one, to: two, color: green)
+        #expect(tint.carried.isEmpty)
+        tint.stop()
+    }
+
+    /// Three edits in a row are counted, never described as one change that didn't happen (council r2).
+    @Test func threeEditsAreCounted() {
+        let g = "Groceries\n\n- [ ] Eggs\n- [ ] Bread"
+        var r = AIEdit.Receipt(noteID: UUID(), by: "ChatGPT", at: .now, previous: g,
+                               after: "Groceries\n\n- [x] Eggs\n- [ ] Saffron", lines: 2)
+        r.edits = 3
+        #expect(r.summary == "ChatGPT made 3 changes")
+    }
+
     /// The receipt says what happened when it's one plain thing.
     @Test func theReceiptSaysWhatHappened() {
         let g = "Groceries\n\n- [ ] Oat milk\n- [ ] Lemons\n- [ ] Eggs"
         #expect(AIEdit.describe(previous: g, after: g.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs")) == "ticked \u{201C}Eggs\u{201D}")
         #expect(AIEdit.describe(previous: g, after: g.replacingOccurrences(of: "\n- [ ] Lemons", with: "")) == "removed \u{201C}Lemons\u{201D}")
         #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Saffron") == "added \u{201C}Saffron\u{201D}")
-        #expect(AIEdit.describe(previous: "B\n\n| a | b |\n|---|---|", after: "B\n\n| a | b |\n|---|---|\n| c | d |") == "added a row to the table")
+        #expect(AIEdit.describe(previous: "B\n\n| a | b |\n|---|---|", after: "B\n\n| a | b |\n|---|---|\n| c | d |") == "added \u{201C}c\u{201D} to the table")
         #expect(AIEdit.describe(previous: Self.before, after: Self.after) == nil, "a rewrite: changed N lines")
         // A swapped word and a renamed title say so (council r1), and quotes stay short.
         let trip = "Trip\n\nWe land on Tuesday at 14:20."
         #expect(AIEdit.describe(previous: trip, after: trip.replacingOccurrences(of: "Tuesday", with: "Wednesday")) == "changed \u{201C}Tuesday\u{201D} to \u{201C}Wednesday\u{201D}")
         #expect(AIEdit.describe(previous: g, after: g.replacingOccurrences(of: "Groceries", with: "Groceries for Saturday")) == "renamed the note")
-        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Book 31: added by ChatGPT today") == "added \u{201C}Book 31: added by…\u{201D}")
+        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Book 31: added by ChatGPT today") == "added \u{201C}Book 31: added by ChatGPT today\u{201D}")
+        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Smoked paprika from the market on Rua do Bonjardim") == "added \u{201C}Smoked paprika from the market…\u{201D}")
+        // Words added to a line, or taken out of it, are named (council r2: "changed 1 line").
+        let pack = "Trip\n\nPack light: one bag each."
+        #expect(AIEdit.describe(previous: pack, after: "Trip\n\nPack light: one bag each, and a rain jacket.") == "added \u{201C}and a rain jacket\u{201D}")
+        #expect(AIEdit.describe(previous: pack, after: "Trip\n\nPack light: one bag.") == "removed \u{201C}each\u{201D}")
         // Two edits in a row say both when they're short.
         #expect(AIEdit.describe(previous: g, after: (g + "\n- [ ] Saffron").replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs"))
                 == "added \u{201C}Saffron\u{201D} and ticked \u{201C}Eggs\u{201D}")
@@ -236,6 +271,20 @@ import Testing
         let t = "B\n\n| Item | Cost |\n|---|---|\n| Flights | 240 |"
         #expect(GridTable.changedCells(from: t, to: t + "\n| Food | 150 |") == [0: [GridCell(row: 2, column: 0), GridCell(row: 2, column: 1)]])
         #expect(GridTable.changedCells(from: t, to: t.replacingOccurrences(of: "240", with: "260")) == [0: [GridCell(row: 1, column: 1)]])
+    }
+
+    /// A new table row's cells fade together with the text's mark, not on a timer of their own.
+    @Test func tableCellsFadeWithTheMark() async throws {
+        let t = "B\n\n| Item | Cost |\n|---|---|\n| Flights | 240 |"
+        let after = t + "\n| Food | 150 |"
+        let h = await EditorHarness(after, width: 640, focus: false)
+        defer { h.close() }
+        h.controller.markChanges(from: t, to: after, color: .systemGreen)
+        h.controller.markTableCells(from: t, to: after, color: .systemGreen)
+        #expect(!h.controller.aiCells.isEmpty)
+        try? await Task.sleep(for: .seconds(1.5))
+        if h.controller.isTinted { #expect(!h.controller.aiCells.isEmpty, "kept while the mark rests") }
+        #expect(await h.until(12) { !h.controller.isTinted && h.controller.aiCells.isEmpty }, "gone with the mark")
     }
 
     /// A change below what you can see: the receipt can take you there.

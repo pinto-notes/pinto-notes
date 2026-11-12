@@ -43,9 +43,23 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         // On a dark page the same share of amber reads as mud brown: less of it there.
         let dark = (pr * 0.299 + pg * 0.587 + pb * 0.114) < 0.5
         // An AI's own colour (green, blue) is darker than amber and needs more to show; too little
-        // and Claude's orange reads as a brown stain (council r1).
-        let onDark: CGFloat = color == nil ? 0.7 : 1.75
+        // and Claude's orange reads as a brown stain (council r1, r2).
+        let onDark: CGFloat = color == nil ? 0.7 : 2.1
         return (mix(Self.tintAmount * (dark ? onDark : 1) * strength), mix(min(1, strength)))
+    }
+
+    /// `a` moved `t` of the way to `b` (both resolved for the current look).
+    static func blend(_ a: PColor, _ b: PColor, _ t: CGFloat) -> CGColor {
+        #if os(iOS)
+        let x = a.resolvedColor(with: .current), y = b.resolvedColor(with: .current)
+        #else
+        let x = a.usingColorSpace(.sRGB) ?? a, y = b.usingColorSpace(.sRGB) ?? b
+        #endif
+        var (r1, g1, b1, a1) = (CGFloat(0), CGFloat(0), CGFloat(0), CGFloat(0))
+        var (r2, g2, b2, a2) = (CGFloat(0), CGFloat(0), CGFloat(0), CGFloat(0))
+        x.getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+        y.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+        return PColor(red: r1 + (r2 - r1) * t, green: g1 + (g2 - g1) * t, blue: b1 + (b2 - b1) * t, alpha: 1).cgColor
     }
 
     /// Where this paragraph starts in the text, and the editor's tint for AI changes.
@@ -156,9 +170,9 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         #endif
     }
 
-    static func drawCheckbox(checked: Bool, in rect: CGRect, ctx: CGContext) {
+    static func drawCheckbox(checked: Bool, in rect: CGRect, ctx: CGContext, fill: CGColor? = nil) {
         if checked {
-            ctx.setFillColor(PColor.paneAccent.cgColor)
+            ctx.setFillColor(fill ?? PColor.paneAccent.cgColor)
             ctx.fillEllipse(in: rect)
             let s = rect.width
             // The tick of SF Symbols' checkmark.circle.fill: short arm, long arm, round caps.
@@ -213,30 +227,26 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     func removalRect(_ gap: ChangeTint.Removal, at point: CGPoint) -> CGRect {
         let line = gap.below ? textLineFragments.last : textLineFragments.first
         var x = point.x + (line?.typographicBounds.minX ?? 0)
-        var font = PFont.systemFont(ofSize: EditorMetrics.body)
         if let p = textElement as? NSTextParagraph, let line {
             let marker = ListPrefix(line: p.attributedString.string).map(\.length) ?? 0
-            if marker > 0, marker < p.attributedString.length {
-                x += line.locationForCharacter(at: marker).x
-                if let f = p.attributedString.attribute(.font, at: marker, effectiveRange: nil) as? PFont { font = f }
-            }
+            if marker > 0, marker < p.attributedString.length { x += line.locationForCharacter(at: marker).x }
         }
         let width = min(Self.removalWidth, max(containerWidth - x, 0))
         let y: CGFloat
         if gap.below || line == nil {
             // Under the last line's letters, a descender's depth down.
             let b = line?.typographicBounds ?? CGRect(x: 0, y: 0, width: 0, height: layoutFragmentFrame.height)
-            y = point.y + b.minY + (line?.glyphOrigin.y ?? b.height) - font.descender + 2
+            y = point.y + b.maxY + 4
         } else if let line {
-            // The line above's letters end just over this fragment's top, and this line's capitals
-            // start about 9 pt below it: a couple of points down is halfway (measured in the
-            // scenario pictures; deriving it from the glyph origin put it a line too low).
-            y = point.y + line.typographicBounds.minY + 2
+            // The line above's letters end a little over this fragment's top and this line's
+            // capitals start below it: the top is the middle of the seam (council r2: 2 pt down
+            // read as an overline, 3 pt up as an underline of the line above).
+            y = point.y + line.typographicBounds.minY - 0.5
         } else { y = point.y }
         return CGRect(x: x, y: y - 1, width: width, height: 2)
     }
 
-    static let removalWidth: CGFloat = 36
+    static let removalWidth: CGFloat = 24
 
     /// The runs as one shape: each line rounded, and the space between two lines of the
     /// paragraph filled where they overlap, so a wrapped paragraph reads as one block like a text
@@ -377,7 +387,18 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             // (Emil, 4 November 2026: the full-width block with a bar "looks pretty cheap").
             // It hugs the text, starting a little before it, so a checklist circle stays clear.
             context.saveGState()
-            let colors = Self.changeColors(strength, color: markColor)
+            let heavy = tintAndOffset?.0.heavy == true && !markedChanged
+            let colors = Self.changeColors(strength * (heavy ? 0.6 : 1), color: markColor)
+            // An earlier AI's marks, whole, each in its own colour.
+            if !markedChanged, let (tint, offset) = tintAndOffset, let p = textElement as? NSTextParagraph {
+                for (r, c) in tint.carried(in: NSRange(location: offset, length: p.attributedString.length)) {
+                    let runs = changeRuns(at: point, in: r)
+                    guard !runs.isEmpty else { continue }
+                    context.setFillColor(Self.changeColors(strength, color: c).tint)
+                    context.addPath(Self.shape(for: [runs]))
+                    context.fillPath(using: .winding)
+                }
+            }
             let groups = tickHalo(at: point) == nil ? changeGroups(at: point) : []
             if let halo = tickHalo(at: point) {
                 // A tick: a soft disc in the AI's colour round the box, which pops as yours does,
@@ -489,7 +510,13 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             ctx.fill(CGRect(x: c.x - w / 2, y: c.y - t / 2, width: w, height: t))
 
         case .checkbox(let checked):
-            Self.drawCheckbox(checked: checked, in: checkboxRect(d).offsetBy(dx: o.x, dy: o.y), ctx: ctx)
+            // An AI's tick: the box in that AI's colour while it's marked, settling to the accent
+            // as the mark fades (council r2: an orange box in a green ring fought).
+            var fill: CGColor?
+            if checked, let ai = markColor, let (tint, offset) = tintAndOffset, tint.ticked(at: offset) {
+                fill = Self.blend(PColor.paneAccent, ai, min(1, tint.strength))
+            }
+            Self.drawCheckbox(checked: checked, in: checkboxRect(d).offsetBy(dx: o.x, dy: o.y), ctx: ctx, fill: fill)
 
         case .quote:
             let bar = quoteBarRect().offsetBy(dx: o.x, dy: o.y)

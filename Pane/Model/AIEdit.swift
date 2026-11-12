@@ -79,10 +79,11 @@ enum AIEdit {
             t = t.trimmingCharacters(in: CharacterSet(charactersIn: "#*_`= "))
             return short(t)
         }
-        // Short enough that the pill never covers much of the note (council r1): cut at a word.
+        // Short enough that the pill never covers much of the note (council r1), whole when it fits
+        // (council r2: "Book 31: added by…" for 25 letters): cut at a word.
         func short(_ t: String) -> String {
-            guard t.count > 24 else { return t }
-            let head = String(t.prefix(23))
+            guard t.count > 32 else { return t }
+            let head = String(t.prefix(31))
             let cut = head.lastIndex(of: " ").map { String(head[..<$0]) } ?? head
             return cut.trimmingCharacters(in: CharacterSet(charactersIn: " ,.;:")) + "…"
         }
@@ -99,6 +100,22 @@ enum AIEdit {
                 }
             }
             let together = { (i: [Int]) in i.sorted() == Array((i.min() ?? 0)...(i.max() ?? 0)) }
+            // Words only added to the line, or only taken out ("each." to "each, and a rain jacket.").
+            let bare = { (w: String) in w.trimmingCharacters(in: .punctuationCharacters) }
+            let bx = x.map(bare), by = y.map(bare)
+            func sub(_ small: [String], of big: [String]) -> [Int]? {
+                var i = 0, extra: [Int] = []
+                for (j, w) in big.enumerated() { if i < small.count, small[i] == w { i += 1 } else { extra.append(j) } }
+                return i == small.count ? extra : nil
+            }
+            if let more = sub(bx, of: by), !more.isEmpty, together(more) {
+                let words = more.map { by[$0] }.joined(separator: " ")
+                if words.count <= 30 { return "added \u{201C}\(words)\u{201D}" }
+            }
+            if let less = sub(by, of: bx), !less.isEmpty, together(less) {
+                let words = less.map { bx[$0] }.joined(separator: " ")
+                if words.count <= 30 { return "removed \u{201C}\(words)\u{201D}" }
+            }
             guard !gone.isEmpty, !put.isEmpty, gone.count <= 3, put.count <= 3, together(gone), together(put) else { return nil }
             let trim = CharacterSet.punctuationCharacters.union(.whitespaces)
             let was = gone.sorted().map { x[$0] }.joined(separator: " ").trimmingCharacters(in: trim)
@@ -130,7 +147,13 @@ enum AIEdit {
         } else if !removed.isEmpty {
             parts.append(removed.count == 1 ? "removed \u{201C}\(words(removed[0]))\u{201D}" : "removed \(removed.count) lines")
         } else if added.count == 1 {
-            parts.append(row(added[0]) ? "added a row to the table" : "added \u{201C}\(words(added[0]))\u{201D}")
+            if row(added[0]) {
+                // Named by its first cell: added “Food” to the table.
+                let first = added[0].split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty }
+                parts.append(first.map { "added \u{201C}\(short($0))\u{201D} to the table" } ?? "added a row to the table")
+            } else {
+                parts.append("added \u{201C}\(words(added[0]))\u{201D}")
+            }
         } else if added.count > 1 {
             guard !added.contains(where: row) else { return nil }
             parts.append("added \(added.count) lines")
@@ -326,6 +349,8 @@ enum AIEdit {
             if kind == .pageMade { return "\(who) made this note an app" }
             if kind == .pageChanged { return "\(who) changed this note's app" }
             if created { return "\(who) wrote this note" }
+            // Three or more edits in a row: a count, never one invented change (council r2).
+            if edits > 2 { return "\(who) made \(edits) changes" }
             // What it did, when that's one or two plain things: "ChatGPT ticked “Eggs”", "removed “Lemons”".
             if kind == .edit, let after, let what = AIEdit.describe(previous: previous, after: after) { return "\(who) \(what)" }
             if edits > 1 { return "\(who) made \(edits) changes" }

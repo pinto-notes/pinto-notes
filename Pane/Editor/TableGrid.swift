@@ -577,6 +577,7 @@ struct TableGridView: View {
     /// Edges with more columns past them (see GridOverflow).
     @State private var overflow = GridOverflow()
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.colorScheme) private var colorScheme
     @FocusState private var focus: GridCell?
     /// Set when the keyboard (not a click) moves between cells: the caret goes to
     /// the end of the cell's text instead of selecting all of it.
@@ -882,9 +883,11 @@ struct TableGridView: View {
     private func aiCellsTint(widths: [CGFloat]) -> some View {
         let cells = controller?.aiCells[table.index] ?? []
         let color = controller?.aiCellColor.map { Color($0) } ?? Color.paneAccent
+        // Stronger on a dark page, where 24% all but vanished (council r2).
+        let fill: Color = color.opacity(colorScheme == .dark ? 0.45 : 0.24)
         ZStack(alignment: .topLeading) {
-            ForEach(Array(cells).filter { $0.row < draft.rows.count && $0.column < widths.count }, id: \.self) { c in
-                Rectangle().fill(color.opacity(0.24))
+            ForEach(Array(cells).filter { $0.row < draft.rows.count && $0.column < widths.count }, id: \.self) { (c: GridCell) in
+                Rectangle().fill(fill)
                     .frame(width: widths[c.column], height: GridMetrics.row)
                     .offset(x: widths[..<c.column].reduce(0, +), y: CGFloat(c.row) * GridMetrics.row)
             }
