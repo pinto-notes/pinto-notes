@@ -2633,7 +2633,12 @@ struct ListEdgeLine: NSViewRepresentable {
                 clip.postsBoundsChangedNotifications = true
                 let watch = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip, queue: .main) { [weak table, weak scroll] _ in
                     MainActor.assumeIsolated {
-                        guard let table, let scroll else { return }
+                        // Not a table on its way out: SwiftUI takes a list's table out of its clip
+                        // view when the list goes, the clip moves as it lets go, and pinning then
+                        // built a heading's row for a list whose notes were gone (a crash in
+                        // NoteEntry.note, seen between tests, 12 November 2026).
+                        guard let table, let scroll, table.window != nil, scroll.documentView === table,
+                              table.enclosingScrollView === scroll else { return }
                         ListEdgeLine.pin(table, in: scroll)
                     }
                 }
@@ -2683,6 +2688,16 @@ struct ListEdgeLine: NSViewRepresentable {
         swap(#selector(NSView.viewDidMoveToWindow), #selector(NSTableView.pane_viewDidMoveToWindow))
         swap(#selector(NSTableView.tile), #selector(NSTableView.pane_tile))
     }()
+
+    /// Whether `point` (in the table's superview, its clip view) is on a part of the list scrolled
+    /// up under the window's bar: behind the folder's name, its count and the frosted band. The
+    /// bar is over it there, so it's no place to press a row (RowPressSlop). The sidebar's list
+    /// keeps its own behaviour.
+    static func underBar(_ table: NSTableView, _ point: NSPoint) -> Bool {
+        guard table.style != .sourceList, let clip = table.superview as? NSClipView, let scroll = table.enclosingScrollView,
+              scroll.contentInsets.top > 0 else { return false }
+        return point.y < clip.bounds.minY + scroll.contentInsets.top
+    }
 
     /// Swaps NSTableView's `original` with `hooked`. A method NSTableView only inherits is first
     /// given to NSTableView itself, so the superclass's stays as it is.
