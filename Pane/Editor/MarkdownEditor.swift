@@ -1769,6 +1769,20 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
 
+    func writeChanges(from previous: String, by name: String, color: PColor) -> Double {
+        let tint = core.layoutDelegate.tint
+        tint.caret = { [weak self] at in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                // Beside anyone else's in a shared note, never in place of them.
+                let others = (self.controller?.remoteCarets ?? []).filter { $0.id != ChangeTint.writerID }
+                let mine = at.map { RemoteCaret(id: ChangeTint.writerID, name: name, color: Color(color), range: NSRange(location: $0, length: 0)) }
+                self.showRemoteCarets(others + (mine.map { [$0] } ?? []))
+            }
+        }
+        return tint.write(from: previous, to: currentText)
+    }
+
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
 
     func clearTint() { core.layoutDelegate.tint.stop() }
@@ -3354,6 +3368,20 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// An AI's edit just landed: tint the lines it changed compared with `previous`.
     func tintChanges(from previous: String, untilCleared: Bool) {
         core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
+    }
+
+    func writeChanges(from previous: String, by name: String, color: PColor) -> Double {
+        let tint = core.layoutDelegate.tint
+        tint.caret = { [weak self] at in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                // Beside anyone else's in a shared note, never in place of them.
+                let others = (self.controller?.remoteCarets ?? []).filter { $0.id != ChangeTint.writerID }
+                let mine = at.map { RemoteCaret(id: ChangeTint.writerID, name: name, color: Color(color), range: NSRange(location: $0, length: 0)) }
+                self.showRemoteCarets(others + (mine.map { [$0] } ?? []))
+            }
+        }
+        return tint.write(from: previous, to: currentText)
     }
 
     var isTinted: Bool { core.layoutDelegate.tint.isLit }

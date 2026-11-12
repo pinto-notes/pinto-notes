@@ -262,7 +262,46 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         }
     }
 
+    /// While an AI's edit writes itself in: how much of this paragraph is written, nil for all.
+    var writtenSoFar: Int? {
+        guard let (tint, offset) = tintAndOffset else { return nil }
+        return tint.written(at: offset)
+    }
+
+    /// The part of the paragraph written so far, as rectangles to clip its drawing to: whole lines
+    /// above the writing, the line it's on up to the letter, nothing below. Wide to the left, so
+    /// a list's dash or circle and the tick come with their line.
+    func writtenRects(_ shown: Int, at point: CGPoint) -> [CGRect] {
+        let far: CGFloat = 4000
+        var out: [CGRect] = []
+        for line in textLineFragments {
+            let range = line.characterRange
+            let b = line.typographicBounds
+            let top = point.y + b.minY - 4, height = b.height + 8
+            if range.upperBound <= shown {
+                out.append(CGRect(x: point.x - far, y: top, width: far * 2, height: height))
+            } else if range.location < shown {
+                // Down to its own letters only: the highlight's join to the next line stays hidden.
+                let x = point.x + b.minX + line.locationForCharacter(at: shown).x
+                let bottom = point.y + b.maxY - EditorMetrics.lineSpacing + 2
+                out.append(CGRect(x: point.x - far, y: top, width: x - (point.x - far), height: bottom - top))
+                break
+            } else { break }
+        }
+        return out
+    }
+
     override func draw(at point: CGPoint, in context: CGContext) {
+        // An AI's edit writing itself in: only what's written so far shows.
+        let written = writtenSoFar
+        if written == 0 { return }
+        if let written {
+            context.saveGState()
+            let rects = writtenRects(written, at: point)
+            if rects.isEmpty { context.restoreGState(); return }
+            context.clip(to: rects)
+        }
+        defer { if written != nil { context.restoreGState() } }
         let strength = highlight
         if strength > 0 {
             // A marker-pen highlight behind the changed words, each line its own rounded run

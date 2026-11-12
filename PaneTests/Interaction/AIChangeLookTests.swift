@@ -97,6 +97,55 @@ import Testing
         #expect(await h.until(9) { !h.controller.isTinted }, "faded within a few seconds")
     }
 
+    /// An AI's edit writes itself in from the top: a later changed line is hidden at first, all of
+    /// it shows within a few seconds, and the note's text is the AI's the whole time (only the
+    /// drawing waits, so nothing is saved or synced twice).
+    @Test func anAIEditWritesItselfIn() async throws {
+        let h = await EditorHarness(Self.after, width: 640, focus: false)
+        defer { h.close() }
+        let tint = h.view.core.layoutDelegate.tint
+        let seconds = h.controller.writeChanges(from: Self.before, by: "ChatGPT", color: .systemGreen)
+        #expect(seconds >= 0.5 && seconds <= 2.4, "\(seconds)")
+        let last = (h.text as NSString).range(of: "- I also build").location
+        #expect(tint.written(at: last) == 0, "the last changed line isn't written yet")
+        #expect(tint.revealed != nil)
+        #expect(await h.until(4) { tint.revealed == nil }, "all written")
+        #expect(tint.written(at: last) == nil)
+        #expect(h.text == Self.after, "the text was the AI's all along")
+        #expect(h.controller.isTinted, "and the tint rests a moment before it fades")
+    }
+
+    /// Typing while it writes shows the whole edit at once and takes the caret away.
+    @Test func typingStopsTheWriting() async throws {
+        let h = await EditorHarness(Self.after, width: 640, focus: false)
+        defer { h.close() }
+        let tint = h.view.core.layoutDelegate.tint
+        h.controller.writeChanges(from: Self.before, by: "Claude", color: .systemOrange)
+        h.controller.clearTint()
+        #expect(tint.revealed == nil)
+    }
+
+    @Test func writingReadsTheChangedLinesInOrder() {
+        let order = [NSRange(location: 10, length: 5), NSRange(location: 30, length: 4)]
+        #expect(ChangeTint.offset(after: 0, in: order) == 10)
+        #expect(ChangeTint.offset(after: 4, in: order) == 14)
+        #expect(ChangeTint.offset(after: 5, in: order) == 30, "past the first, straight on to the next")
+        #expect(ChangeTint.offset(after: 9, in: order) == 34)
+        #expect(ChangeTint.writeDuration(characters: 40) == 0.5)
+        #expect(ChangeTint.writeDuration(characters: 30_000) == 2.4)
+    }
+
+    /// Halfway through the writing, for a look at it (AMBER_QA_SHOTS).
+    @Test(arguments: [false, true]) func pictureWhileWriting(dark: Bool) async throws {
+        let h = await EditorHarness(Self.after, width: 720, height: 620, dark: dark, focus: false)
+        defer { h.close() }
+        ChangeTint.slowMotion = 6
+        defer { ChangeTint.slowMotion = 1 }
+        let seconds = h.controller.writeChanges(from: Self.before, by: "ChatGPT", color: AIGlyph.caretColor("ChatGPT"))
+        await h.settle(seconds * 6 * 0.55)
+        await h.snapshot("ai-change-writing\(dark ? "-dark" : "")")
+    }
+
     /// Pictures of the resting mark, light and dark, for a look at it (AMBER_QA_SHOTS).
     @Test(arguments: [false, true]) func picture(dark: Bool) async throws {
         let h = await EditorHarness(Self.after, width: 720, height: 620, dark: dark, focus: false)

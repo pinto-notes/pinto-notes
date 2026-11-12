@@ -72,6 +72,17 @@ struct AIGlyph: View {
         }
     }
 
+    /// The AI's caret and name flag while its edit writes itself in: its brand colour, as on the
+    /// welcome note (ChatGPT green, Claude orange); the app's amber for any other.
+    static func caretColor(_ ai: String) -> PColor {
+        switch ai {
+        case "ChatGPT", "Codex": PColor(red: 0.063, green: 0.639, blue: 0.498, alpha: 1)
+        case "Claude", "Claude Code": PColor(red: 0.851, green: 0.467, blue: 0.341, alpha: 1)
+        case "Gemini": PColor(red: 0.259, green: 0.522, blue: 0.957, alpha: 1)
+        default: Palette.amber
+        }
+    }
+
     static func color(_ ai: String) -> Color {
         switch ai {
         case "Claude", "Claude Code": Color(red: 0.851, green: 0.467, blue: 0.341)

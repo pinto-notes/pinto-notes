@@ -738,13 +738,19 @@ struct NoteDetailView: View {
             guard landingReceipt == r else { return } // a later edit took it over
             landingReceipt = nil
             guard note.id == r.noteID else { return }
-            // The tint shows what changed, then fades on its own (Emil, 12 November 2026: it
-            // stayed until you typed or left the note, and that was annoying).
-            controller.tintChanges(from: r.previous)
+            // The AI writes its change in, letter by letter with its caret, as on the welcome
+            // note; the tint then fades on its own (Emil, 12 November 2026: it stayed until you
+            // typed or left the note).
+            var writing = 0.0
+            if reduceMotion {
+                controller.tintChanges(from: r.previous)
+            } else {
+                writing = controller.writeChanges(from: r.previous, by: SidebarAICopy.shown(r.by), color: AIGlyph.caretColor(r.by))
+            }
             withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
             PaneTips.aiEditLanded()
             // The receipt and its Undo go a little after the tint, unless the pointer is on it.
-            try? await Task.sleep(for: .seconds(AIReceipt.stays * slow))
+            try? await Task.sleep(for: .seconds((writing + AIReceipt.stays) * slow))
             while receiptHovered || ChangeTint.holdForCapture { try? await Task.sleep(for: .seconds(0.3)) }
             guard receipt == r, review == nil else { return }
             withAnimation(.easeOut(duration: 0.3)) { receipt = nil }

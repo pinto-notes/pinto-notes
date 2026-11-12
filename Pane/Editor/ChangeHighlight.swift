@@ -46,6 +46,75 @@ final class ChangeTint: @unchecked Sendable {
     var redraw: ([NSRange]) -> Void = { _ in }
     private var run = 0
 
+    /// While an AI's edit writes itself in (`write`): the offset in the text up to which its
+    /// changed lines show; nil once all of it does.
+    private(set) var revealed: Int?
+    /// Where the writing is, for the AI's caret; nil when it's done (set by the text view).
+    var caret: (Int?) -> Void = { _ in }
+    /// The AI's caret, as the welcome note's (WelcomeEditorPage).
+    static let writerID = UUID(uuidString: "00000000-0000-0000-0000-0000000000A2")!
+
+    /// How much of the changed paragraph starting at `offset` is written yet, counted from its
+    /// start; nil when all of it is (or it isn't one of the changed ones).
+    func written(at offset: Int) -> Int? {
+        guard let revealed, let r = ranges.first(where: { $0.location == offset }), revealed < NSMaxRange(r) else { return nil }
+        return max(0, revealed - offset)
+    }
+
+    /// How long writing `characters` in takes: as fast as an AI streams, never long. A line is
+    /// about half a second; a whole note rewritten, under two and a half.
+    static func writeDuration(characters: Int) -> Double { min(2.4, max(0.5, Double(characters) / 1000)) }
+
+    /// The text offset `n` characters into these ranges, read one after another.
+    static func offset(after n: Int, in order: [NSRange]) -> Int {
+        var left = n
+        for r in order {
+            if left < r.length { return r.location + left }
+            left -= r.length
+        }
+        return order.last.map(NSMaxRange) ?? 0
+    }
+
+    /// An AI's edit, written in as the welcome note is (Emil, 12 November 2026: "I want
+    /// something nicer like that"): the changed lines appear letter by letter from the top, the
+    /// AI's caret where the writing is, the tint coming with the words; then it rests and fades
+    /// as `play` does. Only the drawing: the text is already the AI's, so saving, sync and Undo
+    /// see nothing of this. Returns how long the writing takes.
+    @MainActor @discardableResult func write(from previous: String, to text: String, hold: Double = 2.6) -> Double {
+        stop()
+        ranges = Self.paragraphRanges(changedFrom: previous, to: text)
+        removals = Self.removals(from: previous, to: text)
+        let order = ranges.sorted { $0.location < $1.location }
+        let total = order.reduce(0) { $0 + $1.length }
+        guard total > 0 else {
+            if !removals.isEmpty { light(hold: hold, untilCleared: false) }
+            return 0
+        }
+        let seconds = Self.writeDuration(characters: total)
+        revealed = order[0].location
+        redraw(order)
+        caret(revealed)
+        light(hold: hold + seconds, untilCleared: false)
+        let mine = run
+        Task { @MainActor in
+            let start = Date.now
+            var last = order[0].location
+            while true {
+                guard mine == run else { return }
+                let t = min(1, Date.now.timeIntervalSince(start) / (seconds * Self.slowMotion))
+                let at = Self.offset(after: Int((Double(total) * t).rounded()), in: order)
+                revealed = t >= 1 ? nil : at
+                let lo = min(last, at), hi = max(last, at)
+                redraw(order.filter { $0.location <= hi && NSMaxRange($0) >= lo })
+                caret(revealed)
+                last = at
+                if t >= 1 { return }
+                try? await Task.sleep(for: .seconds(1 / 60.0))
+            }
+        }
+        return seconds
+    }
+
     /// Offscreen Mac recordings stretch time, so slow frame grabs still catch every step.
     nonisolated(unsafe) static var slowMotion: Double = 1
     /// Captures: the tint and the receipt stay at rest until `Capture.clearAIMarks` is posted.
@@ -113,6 +182,10 @@ final class ChangeTint: @unchecked Sendable {
     /// Clears at once (you started typing, or undid the edit).
     @MainActor func stop() {
         run += 1
+        if revealed != nil {
+            revealed = nil
+            caret(nil)
+        }
         guard strength > 0 || !drawn.isEmpty else { return }
         // Redraw while the lines are still known, so their old tint is painted over.
         strength = 0

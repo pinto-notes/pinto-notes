@@ -368,6 +368,10 @@ final class EditorController {
     /// An AI's edit landed on the open note: tint what it changed.
     /// `untilCleared`: it stays until you type, undo or leave, instead of fading on its own.
     func tintChanges(from previous: String, untilCleared: Bool = false) { target?.tintChanges(from: previous, untilCleared: untilCleared) }
+    /// An AI's edit written in, its caret where the writing is (ChangeTint.write). How long it takes.
+    @discardableResult func writeChanges(from previous: String, by name: String, color: PColor) -> Double {
+        target?.writeChanges(from: previous, by: name, color: color) ?? 0
+    }
     /// Whether any line is tinted right now.
     var isTinted: Bool { target?.isTinted ?? false }
     func clearTint() { target?.clearTint() }
@@ -1032,6 +1036,9 @@ protocol EditorTarget: TextHost {
     /// Tints the lines an AI just changed compared with `previous`, then fades them (with
     /// `untilCleared`, keeps them tinted until `clearTint` or typing).
     func tintChanges(from previous: String, untilCleared: Bool)
+    /// Writes an AI's edit in, its caret where the writing is, then tints and fades as above.
+    /// Returns how long the writing takes.
+    func writeChanges(from previous: String, by name: String, color: PColor) -> Double
     /// Whether any line is tinted right now.
     var isTinted: Bool { get }
     /// Clears that tint at once.
@@ -1093,6 +1100,10 @@ extension EditorTarget {
     func expandAllSections() {}
     /// Tints, then fades on its own.
     func tintChanges(from previous: String) { tintChanges(from: previous, untilCleared: false) }
+    func writeChanges(from previous: String, by name: String, color: PColor) -> Double {
+        tintChanges(from: previous)
+        return 0
+    }
 }
 
 
