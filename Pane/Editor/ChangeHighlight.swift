@@ -1,5 +1,10 @@
 import CoreGraphics
 import Foundation
+#if os(iOS)
+import UIKit
+#else
+import AppKit
+#endif
 
 /// Lines named for App Store captures, tinted as if an AI had just changed them:
 /// `-uitest -highlight "Saffron|Chorizo"` (their text, without the list marker).
@@ -51,6 +56,9 @@ final class ChangeTint: @unchecked Sendable {
     private(set) var revealed: Int?
     /// Where the writing is, for the AI's caret; nil when it's done (set by the text view).
     var caret: (Int?) -> Void = { _ in }
+    /// The AI's own colour for the tint, matching its caret (Emil, 12 November 2026: "why would
+    /// it be amber if ChatGPT is green"); nil for the app's accent.
+    private(set) var color: PColor?
     /// The AI's caret, as the welcome note's (WelcomeEditorPage).
     static let writerID = UUID(uuidString: "00000000-0000-0000-0000-0000000000A2")!
 
@@ -80,8 +88,9 @@ final class ChangeTint: @unchecked Sendable {
     /// AI's caret where the writing is, the tint coming with the words; then it rests and fades
     /// as `play` does. Only the drawing: the text is already the AI's, so saving, sync and Undo
     /// see nothing of this. Returns how long the writing takes.
-    @MainActor @discardableResult func write(from previous: String, to text: String, hold: Double = 2.6) -> Double {
+    @MainActor @discardableResult func write(from previous: String, to text: String, color: PColor? = nil, hold: Double = 2.6) -> Double {
         stop()
+        self.color = color
         ranges = Self.paragraphRanges(changedFrom: previous, to: text)
         removals = Self.removals(from: previous, to: text)
         let order = ranges.sorted { $0.location < $1.location }
@@ -142,6 +151,7 @@ final class ChangeTint: @unchecked Sendable {
     /// the tint stays at rest until `stop()` instead of fading.
     @MainActor func play(from previous: String, to text: String, hold: Double = 2.6, untilCleared: Bool = false) {
         stop()
+        color = nil
         ranges = Self.paragraphRanges(changedFrom: previous, to: text)
         removals = Self.removals(from: previous, to: text)
         guard !ranges.isEmpty || !removals.isEmpty else { return }

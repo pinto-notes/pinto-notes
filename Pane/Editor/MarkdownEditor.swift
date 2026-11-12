@@ -1780,7 +1780,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
                 self.showRemoteCarets(others + (mine.map { [$0] } ?? []))
             }
         }
-        return tint.write(from: previous, to: currentText)
+        return tint.write(from: previous, to: currentText, color: color)
     }
 
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
@@ -3381,7 +3381,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 self.showRemoteCarets(others + (mine.map { [$0] } ?? []))
             }
         }
-        return tint.write(from: previous, to: currentText)
+        return tint.write(from: previous, to: currentText, color: color)
     }
 
     var isTinted: Bool { core.layoutDelegate.tint.isLit }

@@ -25,13 +25,15 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     /// How much amber the changed lines take over the page.
     nonisolated(unsafe) static var tintAmount: CGFloat = 0.24
 
-    private static func changeColors(_ strength: CGFloat) -> (tint: CGColor, bar: CGColor) {
+    /// `color`: the AI's own, while its edit is marked (ChangeTint.color); else the app's accent.
+    private static func changeColors(_ strength: CGFloat, color: PColor? = nil) -> (tint: CGColor, bar: CGColor) {
+        let base = color ?? PColor.paneAccent
         #if os(iOS)
         let page = PColor.panePage.resolvedColor(with: .current)
-        let accent = PColor.paneAccent.resolvedColor(with: .current)
+        let accent = base.resolvedColor(with: .current)
         #else
         let page = PColor.panePage.usingColorSpace(.sRGB) ?? .white
-        let accent = PColor.paneAccent.usingColorSpace(.sRGB) ?? PColor.paneAccent
+        let accent = base.usingColorSpace(.sRGB) ?? base
         #endif
         var (pr, pg, pb, pa) = (CGFloat(0), CGFloat(0), CGFloat(0), CGFloat(0))
         var (ar, ag, ab, aa) = (CGFloat(0), CGFloat(0), CGFloat(0), CGFloat(0))
@@ -40,7 +42,9 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         func mix(_ t: CGFloat) -> CGColor { PColor(red: pr + (ar - pr) * t, green: pg + (ag - pg) * t, blue: pb + (ab - pb) * t, alpha: 1).cgColor }
         // On a dark page the same share of amber reads as mud brown: less of it there.
         let dark = (pr * 0.299 + pg * 0.587 + pb * 0.114) < 0.5
-        return (mix(Self.tintAmount * (dark ? 0.7 : 1) * strength), mix(min(1, strength)))
+        // An AI's own colour (green, blue) is darker than amber and needs more to show.
+        let onDark: CGFloat = color == nil ? 0.7 : 1.3
+        return (mix(Self.tintAmount * (dark ? onDark : 1) * strength), mix(min(1, strength)))
     }
 
     /// Where this paragraph starts in the text, and the editor's tint for AI changes.
@@ -262,6 +266,23 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         }
     }
 
+    /// The colour of the AI whose edit is marked, if known.
+    private var markColor: PColor? { markedChanged ? nil : tintAndOffset?.0.color }
+
+    /// The tick in the margin only for people who asked for more than colour (Differentiate
+    /// Without Colour): the highlight alone marks the change (Emil, 12 November 2026: "why both
+    /// lines and marker").
+    static var showsTick: Bool {
+        if let forced = tickOverride { return forced }
+        #if os(iOS)
+        return UIAccessibility.shouldDifferentiateWithoutColor
+        #else
+        return NSWorkspace.shared.accessibilityDisplayShouldDifferentiateWithoutColor
+        #endif
+    }
+    /// Tests: the tick on or off whatever the setting.
+    nonisolated(unsafe) static var tickOverride: Bool?
+
     /// While an AI's edit writes itself in: how much of this paragraph is written, nil for all.
     var writtenSoFar: Int? {
         guard let (tint, offset) = tintAndOffset else { return nil }
@@ -308,12 +329,12 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             // (Emil, 4 November 2026: the full-width block with a bar "looks pretty cheap").
             // It hugs the text, starting a little before it, so a checklist circle stays clear.
             context.saveGState()
-            let colors = Self.changeColors(strength)
+            let colors = Self.changeColors(strength, color: markColor)
             let runs = changeRuns(at: point)
             context.setFillColor(colors.tint)
             context.addPath(changeShape(at: point))
             context.fillPath(using: .winding)
-            if let tick = Self.tick(for: runs, textLeft: point.x - layoutFragmentFrame.minX) {
+            if Self.showsTick, let tick = Self.tick(for: runs, textLeft: point.x - layoutFragmentFrame.minX) {
                 context.setFillColor(colors.bar)
                 context.addPath(CGPath(roundedRect: tick, cornerWidth: Self.tickWidth / 2, cornerHeight: Self.tickWidth / 2, transform: nil))
                 context.fillPath()
@@ -322,7 +343,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         }
         if let (gap, strength) = removalMark {
             context.saveGState()
-            context.setStrokeColor(Self.changeColors(strength).bar)
+            context.setStrokeColor(Self.changeColors(strength, color: markColor).bar)
             context.setLineWidth(1.5)
             context.setLineCap(.round)
             context.setLineDash(phase: 0, lengths: [4, 4])

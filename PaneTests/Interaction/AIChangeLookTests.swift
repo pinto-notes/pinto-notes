@@ -115,6 +115,20 @@ import Testing
         #expect(h.controller.isTinted, "and the tint rests a moment before it fades")
     }
 
+    /// The tint is in the AI's own colour, the one its caret has; a plain tint keeps the accent.
+    /// The margin tick shows only with Differentiate Without Colour.
+    @Test func theTintIsTheAIsColourAndNeedsNoTick() async throws {
+        let h = await EditorHarness(Self.after, width: 640, focus: false)
+        defer { h.close() }
+        let tint = h.view.core.layoutDelegate.tint
+        h.controller.writeChanges(from: Self.before, by: "ChatGPT", color: AIGlyph.caretColor("ChatGPT"))
+        #expect(tint.color == AIGlyph.caretColor("ChatGPT"))
+        h.controller.tintChanges(from: Self.before)
+        #expect(tint.color == nil)
+        DecoratedLayoutFragment.tickOverride = nil
+        #expect(DecoratedLayoutFragment.showsTick == NSWorkspace.shared.accessibilityDisplayShouldDifferentiateWithoutColor)
+    }
+
     /// Typing while it writes shows the whole edit at once and takes the caret away.
     @Test func typingStopsTheWriting() async throws {
         let h = await EditorHarness(Self.after, width: 640, focus: false)
