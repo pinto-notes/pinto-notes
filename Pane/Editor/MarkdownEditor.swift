@@ -42,20 +42,13 @@ struct MarkdownEditor: View {
     /// iPhone: opens with the date in view (the welcome note, and the note it becomes). Other notes
     /// open at their title, the date just above the top (DateFold).
     var dateShown = false
-    /// What sits under the note's last line and scrolls with it: the notes that link here.
-    var foot: NoteLinks? = nil
     /// The note whose collapsed sections this device keeps (HeadingFolds); nil keeps them only while open.
     var foldsID: UUID? = nil
     let onChange: (String) -> Void
 
     var body: some View {
-        PlatformEditor(initialText: initialText, header: header, controller: controller, autofocus: autofocus, identifier: identifier, titleLine: titleLine, followsInitialText: followsInitialText, dateShown: dateShown, foot: foot, foldsID: foldsID, onChange: onChange)
+        PlatformEditor(initialText: initialText, header: header, controller: controller, autofocus: autofocus, identifier: identifier, titleLine: titleLine, followsInitialText: followsInitialText, dateShown: dateShown, foldsID: foldsID, onChange: onChange)
     }
-}
-
-/// How far under the last line the note's foot (its links) starts.
-enum EditorFoot {
-    static let gap: CGFloat = 36
 }
 
 /// Behaviour shared by the UIKit and AppKit text views.
@@ -789,7 +782,6 @@ private struct PlatformEditor: UIViewRepresentable {
     let titleLine: Bool
     let followsInitialText: Bool
     let dateShown: Bool
-    let foot: NoteLinks?
     let foldsID: UUID?
     let onChange: (String) -> Void
 
@@ -806,7 +798,6 @@ private struct PlatformEditor: UIViewRepresentable {
         view.controller = controller
         view.core.resolveAttachment = { [weak controller] id in controller?.resolveAttachment(id) }
         view.inputAccessoryView = FormatBarHost(controller: controller) { [weak view] in view?.resignFirstResponder() }
-        view.setFoot(foot)
         if autofocus { DispatchQueue.main.async { view.becomeFirstResponder() } }
         // A note's editor, made for the note just tapped: on screen once this pass is drawn.
         DispatchQueue.main.async { NoteOpenSpeed.drawn() }
@@ -827,7 +818,6 @@ private struct PlatformEditor: UIViewRepresentable {
         // Read here so a change to it lays the text out again.
         _ = controller.bottomReserve
         view.showRemoteCarets(controller.remoteCarets)
-        view.setFoot(foot)
         view.setNeedsLayout()
     }
 }
@@ -982,8 +972,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // The whole width, as on the Mac: no reading column (Emil, 31 October 2026).
         let side: CGFloat = 20
         let hasDate = !(headerLabel.text ?? "").isEmpty
-        let foot = footHeight
-        let inset = UIEdgeInsets(top: hasDate ? 44 : 14, left: side, bottom: 120 + (controller?.bottomReserve ?? 0) + (foot > 0 ? EditorFoot.gap + foot : 0), right: side)
+        let inset = UIEdgeInsets(top: hasDate ? 44 : 14, left: side, bottom: 120 + (controller?.bottomReserve ?? 0), right: side)
         if textContainerInset != inset { textContainerInset = inset }
         headerLabel.frame = CGRect(x: 0, y: DateFold.labelTop, width: bounds.width, height: DateFold.labelHeight)
         foldDate(hasDate)
@@ -992,50 +981,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
                          storage: textStorage, selection: editingSelection)
         layoutCards()
         layoutRemoteCarets()
-        placeFoot()
-    }
-
-    // MARK: The note's foot
-
-    private var footHost: UIHostingController<NoteLinksSection>?
-    private weak var footModel: NoteLinks?
-
-    /// The foot's height, 0 when it shows nothing.
-    var footHeight: CGFloat { (footModel?.height ?? 0) > 0.5 ? footModel!.height : 0 }
-    /// Where the foot is (tests).
-    var footFrame: CGRect? { footHost?.view.frame }
-
-    func setFoot(_ model: NoteLinks?) {
-        guard model !== footModel else { return }
-        footHost?.view.removeFromSuperview()
-        footHost = nil
-        footModel = model
-        if let model {
-            let h = UIHostingController(rootView: NoteLinksSection(model: model))
-            h.view.backgroundColor = .clear
-            h.sizingOptions = []
-            addSubview(h.view)
-            footHost = h
-            model.changed = { [weak self] in self?.setNeedsLayout() }
-        }
-        setNeedsLayout()
-    }
-
-    /// The foot's frame: lined up with the text, which starts the line fragment's padding inside
-    /// the inset (the Mac's editor has no padding, the iPhone's does).
-    static func footFrame(inset: UIEdgeInsets, padding: CGFloat, width: CGFloat, y: CGFloat, height: CGFloat) -> CGRect {
-        CGRect(x: inset.left + padding, y: y, width: max(0, width - inset.left - inset.right - 2 * padding), height: height)
-    }
-
-    /// Under the last line, across the text's width.
-    private func placeFoot() {
-        guard let host = footHost, let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return }
-        // Lazy TextKit 2 layout: see the Mac's placeFoot.
-        if (footModel?.height ?? 0) > 0.5 { tlm.ensureLayout(for: tcm.documentRange) }
-        let used = tlm.usageBoundsForTextContainer.maxY
-        let frame = Self.footFrame(inset: textContainerInset, padding: textContainer.lineFragmentPadding, width: bounds.width,
-                                   y: textContainerInset.top + used + EditorFoot.gap, height: max(footModel?.height ?? 0, 1))
-        if host.view.frame != frame { host.view.frame = frame }
     }
 
     // MARK: Other people's carets (collaboration prototype)
@@ -2397,7 +2342,6 @@ private struct PlatformEditor: NSViewRepresentable {
     let titleLine: Bool
     let followsInitialText: Bool
     let dateShown: Bool
-    let foot: NoteLinks?
     let foldsID: UUID?
     let onChange: (String) -> Void
 
@@ -2421,7 +2365,6 @@ private struct PlatformEditor: NSViewRepresentable {
         view.core.resolveAttachment = { [weak controller] id in controller?.resolveAttachment(id) }
         controller.target = view
         scroll.documentView = view
-        view.setFoot(foot)
         if autofocus { view.focusWhenShown() }
         // Format › Untick All for this note, not the one before (after this update, not in it).
         DispatchQueue.main.async { [weak controller, weak view] in
@@ -2446,7 +2389,6 @@ private struct PlatformEditor: NSViewRepresentable {
         if view.allowsUndo != (controller.ownUndo == nil) { view.allowsUndo = controller.ownUndo == nil }
         // Recently Deleted and Can view: shown, selectable to copy, never changed.
         if view.isEditable == controller.readOnly { view.isEditable = !controller.readOnly }
-        view.setFoot(foot)
     }
 }
 
@@ -2685,8 +2627,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     private var textSizeObserver: NSObjectProtocol?
     private var noteFontObserver: NSObjectProtocol?
 
-    /// View › Bigger or Smaller: every line restyled at the new size, the cards and foot moved to
-    /// where the text now is. The caret and scroll stay where they were.
+    /// View › Bigger or Smaller: every line restyled at the new size, the cards moved to where the
+    /// text now is. The caret and scroll stay where they were.
     func textSizeChanged() {
         guard let storage = textStorage else { return }
         core.styler.bodySize = EditorMetrics.body
@@ -2694,7 +2636,6 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         typingAttributes = core.typingAttributes(string, at: selectedRange().location)
         if let tlm = textLayoutManager { tlm.invalidateLayout(for: tlm.documentRange) }
         setInsets(width: frame.width)
-        placeFoot()
         // Cards draw their text at the size they were given: forget it, so each table and card
         // gets its content again at the new size.
         cardContent.removeAll()
@@ -2764,7 +2705,6 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Like Notes on the Mac: a slim margin and text that uses the full width. The date sits
         // centred above the title, folded out of view until you scroll up (see `fold`).
         setInsets(width: newSize.width)
-        placeFoot()
         sizePictures()
         foldDate()
         // Straight to their new places: while the width changes (the sidebar sliding, the window
@@ -2782,72 +2722,18 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     private func setInsets(width: CGFloat) {
-        // The foot's room goes under the text: the inset is the same above and below, so it's
-        // half of it each side and the text is drawn that much higher (`textContainerOrigin`).
         if DesignLook.readingPage {
             let side = Self.textSide(width: width)
-            let inset = NSSize(width: side, height: (headerLabel.stringValue.isEmpty ? Self.bareTop : Self.textTop) + footExtra / 2)
+            let inset = NSSize(width: side, height: headerLabel.stringValue.isEmpty ? Self.bareTop : Self.textTop)
             if textContainerInset != inset { textContainerInset = inset }
             headerLabel.alignment = .center
             headerLabel.frame = NSRect(x: side, y: Self.dateTop, width: max(0, width - side * 2), height: 16)
         } else {
-            let inset = NSSize(width: 20, height: (headerLabel.stringValue.isEmpty ? 14 : 44) + footExtra / 2)
+            let inset = NSSize(width: 20, height: headerLabel.stringValue.isEmpty ? 14 : 44)
             if textContainerInset != inset { textContainerInset = inset }
             headerLabel.alignment = .center
             headerLabel.frame = NSRect(x: 0, y: 14, width: width, height: 16)
         }
-    }
-
-    // MARK: The note's foot
-
-    private var footHost: NSHostingView<NoteLinksSection>?
-    private weak var footModel: NoteLinks?
-    /// The room the foot takes under the text, its gap included.
-    private var footExtra: CGFloat = 0
-    /// Where the foot is (tests).
-    var footFrame: CGRect? { footHost?.frame }
-
-    override var textContainerOrigin: NSPoint {
-        let o = super.textContainerOrigin
-        return NSPoint(x: o.x, y: o.y - footExtra / 2)
-    }
-
-    func setFoot(_ model: NoteLinks?) {
-        guard model !== footModel else { return }
-        footHost?.removeFromSuperview()
-        footHost = nil
-        footModel = model
-        if let model {
-            let h = NSHostingView(rootView: NoteLinksSection(model: model))
-            h.sizingOptions = []
-            addSubview(h)
-            footHost = h
-            model.changed = { [weak self] in self?.footChanged() }
-        }
-        footChanged()
-    }
-
-    private func footChanged() {
-        let h = footModel?.height ?? 0
-        let extra = h > 0.5 ? EditorFoot.gap + h : 0
-        if extra != footExtra {
-            footExtra = extra
-            setInsets(width: frame.width)
-        }
-        placeFoot()
-    }
-
-    /// Under the last line, across the text's width.
-    func placeFoot() {
-        guard let host = footHost, let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return }
-        // TextKit 2 lays out lazily: until the whole note has been laid out, the used height is
-        // only the first lines', and the foot sat under the title (Lisbon on the Air, 11-04). The
-        // foot shows only for a note with links or mentions, so only those pay for the layout.
-        if (footModel?.height ?? 0) > 0.5 { tlm.ensureLayout(for: tcm.documentRange) }
-        let o = textContainerOrigin
-        let used = tlm.usageBoundsForTextContainer.maxY
-        let frame = NSRect(x: o.x, y: o.y + used + EditorFoot.gap, width: max(0, bounds.width - o.x * 2), height: max(footModel?.height ?? 0, 1))
-        if host.frame != frame { host.frame = frame }
     }
 
     /// What each live view last showed, so one whose content is the same isn't given it again.
@@ -3319,8 +3205,6 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.onChange(string)
         controller?.typingChanged(text: string, selection: editingSelection)
         layoutWikiSuggestions()
-        // A line more or less moves the foot even when the view keeps its height, once it's laid out.
-        DispatchQueue.main.async { [weak self] in self?.placeFoot() }
     }
 
     /// The last body we reported or received, to tell outside edits from our own.

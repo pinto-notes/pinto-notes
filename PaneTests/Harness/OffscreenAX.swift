@@ -80,6 +80,19 @@ import SwiftUI
         return root.flatMap { search($0, 0) }.map(Element.init)
     }
 
+    /// Everything the window says (each element's label, value and title), top to bottom.
+    func texts() -> [String] {
+        var out: [String] = []
+        func walk(_ e: AXUIElement, _ depth: Int) {
+            let t = Element(ax: e).text
+            if !t.isEmpty { out.append(t) }
+            guard depth < 40 else { return }
+            for k in Element.children(e) { walk(k, depth + 1) }
+        }
+        if let root { walk(root, 0) }
+        return out
+    }
+
     /// Every identifier in the window, top to bottom as the tree has them.
     func ids() -> [String] {
         var out: [String] = []

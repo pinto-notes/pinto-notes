@@ -167,6 +167,36 @@ import Testing
         h.view.setWiki(Self.scope())
         await h.snapshot("wiki-links-dark")
     }
+
+    /// `[[Lisbon#` offers Lisbon's headings; Return takes one and closes the link.
+    @Test func typingAHashOffersTheNotesHeadings() async throws {
+        let h = await EditorHarness("Plan\n")
+        defer { h.close() }
+        h.controller.suggestTitles = { _ in ["Lisbon"] }
+        h.controller.suggestHeadings = { target, typed in
+            target == "Lisbon" ? WikiDirectory.headingSuggestions(typed, in: "Lisbon\n## Food\n## Plan\n## Places") : []
+        }
+        await h.select((h.text as NSString).length)
+        await h.type("Eat at [[Lisbon#")
+        #expect(h.controller.wikiSuggestions == ["Food", "Plan", "Places"])
+        #expect(h.controller.wikiHeadings)
+        await h.type("pl")
+        #expect(h.controller.wikiSuggestions == ["Plan", "Places"])
+        #expect(h.view.subviews.contains { $0 is NSHostingView<WikiSuggestionList> })
+        await h.snapshot("wiki-heading-suggestions-light")
+        await h.press(EditorHarness.down)
+        await h.press(EditorHarness.returnKey)
+        #expect(h.text == "Plan\nEat at [[Lisbon#Places]]")
+        #expect(h.controller.wikiSuggestions.isEmpty && !h.controller.wikiHeadings)
+
+        // Inside a link that's closed already: the brackets aren't doubled.
+        await h.type(" and [[Lisbon#]]")
+        await h.select((h.text as NSString).length - 2)
+        await h.type("F")
+        #expect(h.controller.wikiSuggestions == ["Food"])
+        await h.press(EditorHarness.returnKey)
+        #expect(h.text == "Plan\nEat at [[Lisbon#Places]] and [[Lisbon#Food]]")
+    }
 }
 
 @Suite struct WikiTypingQueryTests {

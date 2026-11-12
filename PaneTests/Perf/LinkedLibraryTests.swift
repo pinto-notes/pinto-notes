@@ -6,9 +6,9 @@ import Testing
 @testable import Pane
 
 /// A heavily linked library of 20,000 notes on disk, opened cold: a hub note that 2,000 notes link
-/// to and that itself links to 300, every other note linking two more. What opening the hub's
-/// foot costs on the main thread, what typing in it costs a keystroke and a save, and how long the
-/// mentions search takes off the main thread.
+/// to and that itself links to 300, every other note linking two more. What the hub's Linked From
+/// (its ••• menu) costs on the main thread as the menu is made, and what typing in it costs a
+/// keystroke and a save.
 @MainActor @Suite(.serialized) struct LinkedLibraryTests {
     nonisolated static let count = 20_000
     nonisolated static let linkers = 2_000
@@ -34,8 +34,7 @@ import Testing
         ctx.insert(hub)
         for i in 0..<Self.count {
             let toHub = i % (Self.count / Self.linkers) == 0 ? "\nBack to the [[Hub]] for the rest.\n" : ""
-            let mention = i % 400 == 1 ? "\nThe hub has it all.\n" : ""
-            let n = Note(body: "Note \(i)\n\nSome text for note \(i), with **bold** and [[Note \((i * 7) % Self.count)]] and [[Note \((i * 11) % Self.count)]].\n\(toHub)\(mention)\nA last line.\n",
+            let n = Note(body: "Note \(i)\n\nSome text for note \(i), with **bold** and [[Note \((i * 7) % Self.count)]] and [[Note \((i * 11) % Self.count)]].\n\(toHub)\nA last line.\n",
                          folder: folders[i % folders.count])
             n.updatedAt = Date().addingTimeInterval(Double(-i * 60))
             n.dirty = false
@@ -62,9 +61,9 @@ import Testing
         try #require(try ctx.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.body.starts(with: "Hub\n") })).first)
     }
 
-    /// Opening the hub: its foot (2,000 linking notes, 20 with their lines) costs next to nothing
-    /// on the main thread once the link index is in; the mentions search runs off it.
-    @Test(.timeLimit(.minutes(4))) func openingTheHubsFoot() async throws {
+    /// The hub's Linked From (2,000 linking notes, the newest 50 listed) costs next to nothing on
+    /// the main thread once the link index is in.
+    @Test(.timeLimit(.minutes(4))) func theHubsLinkedFrom() async throws {
         let c = try await open()
         let ctx = c.mainContext
         let hub = try hub(ctx)
@@ -74,24 +73,14 @@ import Testing
         perf("the link index, read off the main thread", ms(ContinuousClock.now - start))
         let clock = ContinuousClock()
         var samples: [Double] = []
-        var found: (notes: [LinkingNote], total: Int) = ([], 0)
+        var found: (notes: [Note], total: Int) = ([], 0)
         for _ in 0..<5 {
-            samples.append(ms(clock.measure {
-                let back = ctx.backlinkIDs(to: hub)
-                found = ctx.linkingNotes(back, to: hub)
-            }))
+            samples.append(ms(clock.measure { found = LinkedFromMenu.notes(linkingTo: hub, in: ctx) }))
         }
-        perf("the hub's Linked from, on the main thread (median)", PerfTiming.median(samples))
+        perf("the hub's Linked From, on the main thread (median)", PerfTiming.median(samples))
         #expect(found.total == Self.linkers)
-        #expect(found.notes.count == NoteLinks.firstLinked && found.notes.allSatisfy { $0.lines.first?.text == "Back to the Hub for the rest." })
-        #expect(PerfTiming.median(samples) < 100 * PerfBudget.slack, "opening a note linked from 2,000 doesn't hold the main thread")
-
-        let names = Mentions.names(title: hub.title, frontMatter: nil)
-        let id = hub.id
-        let t = clock.now
-        let mentions = await Task.detached { Mentions.search(names, excluding: id, container: c) }.value
-        perf("the hub's unlinked mentions, off the main thread", ms(clock.now - t))
-        #expect(mentions.notes.count == Self.count / 400)
+        #expect(found.notes.count == LinkedFromMenu.shown && found.notes.allSatisfy { $0.body.contains("Back to the [[Hub]]") })
+        #expect(PerfTiming.median(samples) < 100 * PerfBudget.slack, "a note linked from 2,000 doesn't hold the main thread")
     }
 
     /// Typing in the hub (300 links in it, 2,000 linking to it): a keystroke in the editor and the
@@ -103,9 +92,7 @@ import Testing
         let start = ContinuousClock.now
         _ = WikiDirectory.scope(for: hub, in: ctx)
         while WikiDirectory.linking(ctx) == nil, ContinuousClock.now - start < .seconds(60) { try await Task.sleep(for: .milliseconds(5)) }
-        let links = NoteLinks()
-        links.refresh(ctx.backlinkIDs(to: hub), note: hub, context: ctx)
-        // The same note in the editor without the library's links or the foot, for comparison.
+        // The same note in the editor without the library's links, for comparison.
         let bare = await EditorHarness(hub.body, focus: true)
         await bare.select(NSMaxRange((bare.text as NSString).range(of: "Everything links here")))
         await PerfTiming.quietMainQueue()
@@ -119,12 +106,10 @@ import Testing
             await bare.settle(0.01)
         }
         bare.close()
-        perf("a keystroke in the same note, without links resolved or the foot (median)", PerfTiming.median(bareKeys))
+        perf("a keystroke in the same note, without links resolved (median)", PerfTiming.median(bareKeys))
         let h = await EditorHarness(hub.body, focus: true)
         defer { h.close() }
         h.view.setWiki(WikiDirectory.scope(for: hub, in: ctx))
-        h.view.setFoot(links)
-        _ = await h.until { links.height > 0 }
         await h.select(NSMaxRange((h.text as NSString).range(of: "Everything links here")))
         await PerfTiming.quietMainQueue()
         let clock = ContinuousClock()
@@ -139,31 +124,20 @@ import Testing
             await h.settle(0.01)
             saves.append(ms(clock.measure {
                 // What the note screen does as the editor writes the note: the save (which keeps
-                // the link index, WikiDirectory.take) and its check after it, which looks again
-                // only when the save could have changed what links here.
+                // the link index, WikiDirectory.take) and the editor's link colours after it.
                 hub.body = h.text
                 hub.touch()
                 try? ctx.save()
                 _ = WikiDirectory.scope(for: hub, in: ctx)
-                links.findMentions(hub, context: ctx, delay: .seconds(0.8), force: false)
             }))
         }
-        await PerfTiming.quietMainQueue()
-        // A title or folder changed somewhere: Linked from is looked for again.
-        var refreshes: [Double] = []
-        for _ in 0..<5 {
-            refreshes.append(ms(clock.measure { links.refresh(ctx.backlinkIDs(to: hub), note: hub, context: ctx) }))
-        }
-        perf("Linked from looked for again (median)", PerfTiming.median(refreshes))
         perf("a keystroke in the hub (median)", PerfTiming.median(keys))
-        perf("a save of the hub, with its foot (median)", PerfTiming.median(saves))
-        #expect(links.linkedTotal == Self.linkers)
+        perf("a save of the hub (median)", PerfTiming.median(saves))
         #expect(h.text.contains("Everything links hereand more"))
-        // The editor's own cost for a note of 300 links is the same with the foot under it.
-        #expect(PerfTiming.median(keys) < PerfTiming.median(bareKeys) * 1.3 + 2, "the foot and the library's links add next to nothing to a keystroke")
+        // The editor's own cost for a note of 300 links is the same as without them resolved.
+        #expect(PerfTiming.median(keys) < PerfTiming.median(bareKeys) * 1.3 + 2, "the library's links add next to nothing to a keystroke")
         #expect(PerfTiming.median(keys) < 33 * PerfBudget.slack, "a keystroke within two frames in a Debug build")
         #expect(PerfTiming.median(saves) < 16 * PerfBudget.slack, "the save while typing does no more than before")
-        #expect(PerfTiming.median(refreshes) < 50 * PerfBudget.slack)
     }
 }
 #endif
