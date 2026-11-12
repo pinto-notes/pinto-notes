@@ -115,7 +115,7 @@ struct TagColorMenu: View {
     }
 }
 
-private extension Image {
+extension Image {
     init(nsOrUIImage image: PImage) {
         #if os(macOS)
         self.init(nsImage: image)

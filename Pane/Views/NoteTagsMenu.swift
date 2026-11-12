@@ -12,6 +12,10 @@ struct NoteTagsMenu: View {
     let onNew: () -> Void
     @Environment(\.modelContext) private var context
     @Environment(\.undoManager) private var undoManager
+    private var colors: TagColors { .shared }
+
+    /// The dot beside a tag in the menu: the colour its labels and its sidebar row have.
+    @MainActor static func colour(of tag: String, in colors: TagColors) -> TagColor { colors.color(for: tag) }
 
     /// The notes a tag menu can change: their text is here to write (not locked, not shared, not
     /// in Recently Deleted).
@@ -31,7 +35,12 @@ struct NoteTagsMenu: View {
                 Toggle(isOn: Binding(get: { has }, set: { on in
                     context.setTag(entry.name, on: notes, to: on, undo: undoManager)
                 })) {
-                    Text(entry.name)
+                    // Each tag with its colour's dot, as the sidebar lists it.
+                    Label {
+                        Text(entry.name)
+                    } icon: {
+                        Image(nsOrUIImage: TagColorMenu.dot(Self.colour(of: entry.name, in: colors)))
+                    }
                 }
                 .accessibilityIdentifier("row.tag.\(entry.name)")
             }

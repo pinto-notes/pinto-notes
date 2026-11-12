@@ -240,4 +240,11 @@ import AppKit
         NewTagSheet.add("  ", colour: .red, to: [note], in: container.mainContext, colors: colors, undo: nil)
         #expect(NoteLabels.labels(in: note.frontMatter).count == 2)
     }
+
+    @MainActor @Test func theNoteMenuShowsEachTagsColour() {
+        let colors = TagColors(defaults: UserDefaults(suiteName: "TagColorsTests.\(UUID())")!)
+        #expect(NoteTagsMenu.colour(of: "Needs review", in: colors) == .standard(for: "Needs review"))
+        colors.set(.red, for: "Needs review")
+        #expect(NoteTagsMenu.colour(of: "needs review", in: colors) == .red)
+    }
 }
