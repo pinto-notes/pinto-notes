@@ -260,6 +260,15 @@ import Testing
         #expect(ChangeTint.removals(from: g, to: g.replacingOccurrences(of: "Bread", with: "Bread rolls")).isEmpty)
     }
 
+    /// A word's punctuation is marked with it, and a long rewrite sweeps in fast (council r3).
+    @Test func punctuationGoesWithItsWordAndRewritesSweepFast() {
+        let old = "Trip\n\nWe go to Malmö, then home."
+        let new = "Trip\n\nWe go to Jönköping, then home."
+        let ns = new as NSString
+        #expect(ChangeTint.changedWords(from: old, to: new).map { ns.substring(with: $0) } == ["Jönköping,"])
+        #expect(ChangeTint.sweepStagger(8) * 7 + ChangeTint.sweepDuration <= 0.55)
+    }
+
     /// Three edits in a row are counted, never described as one change that didn't happen (council r2).
     @Test func threeEditsAreCounted() {
         let g = "Groceries\n\n- [ ] Eggs\n- [ ] Bread"
@@ -291,8 +300,8 @@ import Testing
         let trip = "Trip\n\nWe land on Tuesday at 14:20."
         #expect(AIEdit.describe(previous: trip, after: trip.replacingOccurrences(of: "Tuesday", with: "Wednesday")) == "changed \u{201C}Tuesday\u{201D} to \u{201C}Wednesday\u{201D}")
         #expect(AIEdit.describe(previous: g, after: g.replacingOccurrences(of: "Groceries", with: "Groceries for Saturday")) == "renamed the note")
-        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Book 31: added by ChatGPT today") == "added \u{201C}Book 31: added by ChatGPT today\u{201D}")
-        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Smoked paprika from the market on Rua do Bonjardim") == "added \u{201C}Smoked paprika from the market…\u{201D}")
+        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Book 31: added by ChatGPT today") == "added \u{201C}Book 31: added by\u{2026}\u{201D}")
+        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Smoked paprika from the market on Rua do Bonjardim") == "added \u{201C}Smoked paprika from the…\u{201D}")
         // Words added to a line, or taken out of it, are named (council r2: "changed 1 line").
         let pack = "Trip\n\nPack light: one bag each."
         #expect(AIEdit.describe(previous: pack, after: "Trip\n\nPack light: one bag each, and a rain jacket.") == "added \u{201C}and a rain jacket\u{201D}")

@@ -82,8 +82,8 @@ enum AIEdit {
         // Short enough that the pill never covers much of the note (council r1), whole when it fits
         // (council r2: "Book 31: added by…" for 25 letters): cut at a word.
         func short(_ t: String) -> String {
-            guard t.count > 32 else { return t }
-            let head = String(t.prefix(31))
+            guard t.count > 26 else { return t }
+            let head = String(t.prefix(25))
             let cut = head.lastIndex(of: " ").map { String(head[..<$0]) } ?? head
             return cut.trimmingCharacters(in: CharacterSet(charactersIn: " ,.;:")) + "…"
         }

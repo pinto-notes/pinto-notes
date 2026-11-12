@@ -59,6 +59,7 @@ import Testing
                  after: paragraph.replacingOccurrences(of: "drop the bags, then walk along the river", with: "leave the bags at reception, then walk along the Douro")),
         Scenario(id: "20-narrow-window", before: paragraph, after: paragraph.replacingOccurrences(of: "Tuesday", with: "Wednesday"), width: 500),
         Scenario(id: "21-long-added-line", before: groceries, after: groceries + "\n- [ ] Smoked paprika from the market on Rua do Bonjardim"),
+        Scenario(id: "22-rewrite-real-time", before: AIChangeLookTests.before, after: AIChangeLookTests.after, mode: .realTime),
     ]
 
     /// Which looks to shoot: `AMBER_QA_LOOKS=light,dark` (both by default).

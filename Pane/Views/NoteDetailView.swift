@@ -769,7 +769,7 @@ struct NoteDetailView: View {
         Task { @MainActor in
             if !inPlace {
                 // The receipt once the editor has the text (and a later edit hasn't taken over).
-                try? await Task.sleep(for: .seconds(0.15 * slow))
+                try? await Task.sleep(for: .seconds(0.05 * slow))
                 guard landingReceipt == r else { return }
                 landingReceipt = nil
                 guard note.id == r.noteID else { return }

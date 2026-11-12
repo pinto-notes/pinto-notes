@@ -61,8 +61,9 @@ import Testing
         #expect(marked.removalMark == nil, "gone once cleared")
     }
 
-    /// In a checklist the seam mark starts where the words do, not under the circle (council r1).
-    @Test func inAChecklistTheMarkStartsAtTheWords() async throws {
+    /// The seam mark sits in the margin left of the checkbox, out of the text column, so it
+    /// can't read as an underline (council r3; r1 had it under the circle, r3 under the words).
+    @Test func inAChecklistTheMarkSitsInTheMargin() async throws {
         let old = "Groceries\n\n- [ ] Oat milk\n- [ ] Lemons\n- [ ] Eggs"
         let new = "Groceries\n\n- [ ] Oat milk\n- [ ] Eggs"
         let h = await EditorHarness(new, focus: false)
@@ -77,8 +78,12 @@ import Testing
         let marked = try #require(layout.textLayoutFragment(for: loc) as? DecoratedLayoutFragment)
         let (gap, _) = try #require(marked.removalMark)
         let line = try #require(marked.textLineFragments.first)
-        let words = line.typographicBounds.minX + line.locationForCharacter(at: 6).x
-        #expect(abs(marked.removalRect(gap, at: .zero).minX - words) < 1, "starts at “Eggs”")
+        let rect = marked.removalRect(gap, at: .zero)
+        let d = try #require(marked.decoration)
+        #expect(rect.maxX <= marked.checkboxRect(d).minX, "left of the circle, clear of the words")
+        #expect(rect.width <= 12)
+        #expect(marked.renderingSurfaceBounds.contains(rect), "drawn, not clipped")
+        _ = line
         h.view.core.layoutDelegate.tint.stop()
     }
     #endif

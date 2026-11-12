@@ -64,7 +64,8 @@ final class ChangeTint: @unchecked Sendable {
     /// paragraph a moment after the one above it, all done in about half a second.
     static let sweepDuration = 0.32
     // In reading order, one line after another (council r1: six lines at once looked like a progress bar).
-    static func sweepStagger(_ count: Int) -> Double { count > 1 ? min(0.08, 0.5 / Double(count - 1)) : 0 }
+    // Every line in within about half a second, 30 ms apart at most (council r3: a rewrite took 1.3 s).
+    static func sweepStagger(_ count: Int) -> Double { count > 1 ? min(0.03, 0.2 / Double(count - 1)) : 0 }
 
     /// How far the sweep is through the changed paragraph starting at `offset`: 0 nothing yet,
     /// 1 drawn whole.
@@ -531,6 +532,13 @@ final class ChangeTint: @unchecked Sendable {
                 let marker = ListPrefix(line: line).map(\.length) ?? 0
                 var words = from[j].map { newWords(from: a[$0], to: line) } ?? []
                 if words.isEmpty { words = [NSRange(location: marker, length: length - marker)] }
+                // A word's punctuation goes with it: no comma or full stop left out (council r3).
+                let ns = line as NSString, stops = CharacterSet(charactersIn: ",.;:!?)\u{201D}\u{2019}\"'")
+                words = words.map { w in
+                    var end = NSMaxRange(w)
+                    while end < ns.length, let u = Unicode.Scalar(ns.character(at: end)), stops.contains(u) { end += 1 }
+                    return NSRange(location: w.location, length: end - w.location)
+                }
                 out += words.filter { $0.length > 0 }.map { NSRange(location: at + $0.location, length: $0.length) }
             }
             at += length + 1

@@ -213,7 +213,8 @@ struct AIReceipt: View {
 
     static func transition(reduceMotion: Bool) -> AnyTransition {
         guard slides(reduceMotion: reduceMotion) else { return .opacity }
-        return .asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: 0.96, anchor: .bottom)),
+        // Solid from its first frame: fading in, the note's words showed through it (council r3).
+        return .asymmetric(insertion: .move(edge: .bottom).combined(with: .scale(scale: 0.96, anchor: .bottom)),
                            removal: .opacity.combined(with: .offset(y: 6)))
     }
 
@@ -252,7 +253,8 @@ struct AIReceipt: View {
             if receipt.kind != .heldBack {
                 // In the text colour, bolder than the words beside it: not the app's orange next to
                 // ChatGPT's green tint (Emil, 12 November 2026).
-                Button("Undo", action: undo)
+                // Several edits: Undo takes them all, and says so (council r3).
+                Button(receipt.edits > 1 ? "Undo all" : "Undo", action: undo)
                     .buttonStyle(.hoverLink)
                     .font(.system(size: compact ? 13 : Self.text, weight: .bold))
                     .foregroundStyle(.primary)
