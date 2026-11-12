@@ -6,6 +6,7 @@ import TipKit
 import UniformTypeIdentifiers
 
 struct NoteDetailView: View {
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
     @Environment(\.modelContext) private var context
     @Environment(\.undoManager) private var undoManager
     @Environment(SyncEngine.self) private var sync: SyncEngine?
@@ -1564,7 +1565,7 @@ struct NoteDetailView: View {
                     .transition(.opacity)
             }
             .sharedBackgroundVisibility(.hidden)
-        } else if !note.isLocked, !trashed, !NoteLabels.labels(in: note.frontMatter).isEmpty {
+        } else if tagsOn, !note.isLocked, !trashed, !NoteLabels.labels(in: note.frontMatter).isEmpty {
             // The note's labels in the middle of the bar, where nothing else is: a tap shows the
             // tag's notes.
             ToolbarItem(placement: .principal) {
@@ -2095,6 +2096,7 @@ struct NoteToolbarStage<Pane: View>: View {
     var openScope: (Scope) -> Void = { _ in }
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
     #if DEBUG
     @Environment(\.modelContext) private var context
     #endif
@@ -2142,7 +2144,7 @@ struct NoteToolbarStage<Pane: View>: View {
                             .hidden(!showsItems)
                     }
                     // The note's labels, beside where it is: a click shows the tag's notes.
-                    if let place, !NoteLabels.labels(in: place.frontMatter).isEmpty {
+                    if tagsOn, let place, !NoteLabels.labels(in: place.frontMatter).isEmpty {
                         ToolbarItem {
                             NoteLabelChips(labels: NoteLabels.labels(in: place.frontMatter)) { controller.openTag($0) }
                                 .padding(.leading, 4)

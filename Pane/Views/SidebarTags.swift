@@ -46,6 +46,7 @@ private struct TagRow: View {
     let tag: Tags.Entry
     @Binding var selection: Scope?
     private var colors: TagColors { .shared }
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
 
     var body: some View {
         let selected: Bool = if case .tag(let name)? = selection { name.lowercased() == tag.name.lowercased() } else { false }
@@ -56,19 +57,23 @@ private struct TagRow: View {
                     .foregroundStyle(.secondary)
             }
         } icon: {
-            // The tag's colour, as Finder shows its tags.
-            Image(systemName: "circle.fill")
-                .font(.system(size: 9))
-                .foregroundStyle(Color(tagColor: colors.color(for: tag.name)))
-                .frame(width: SidebarStyle.tagDotWidth)
-                .accessibilityHidden(true)
+            // The tag's colour, as Finder shows its tags (with Tags on, Experiments).
+            if tagsOn {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(Color(tagColor: colors.color(for: tag.name)))
+                    .frame(width: SidebarStyle.tagDotWidth)
+                    .accessibilityHidden(true)
+            } else {
+                SidebarIcon(name: "number", selected: selected)
+            }
         }
         .sidebarRowLabel()
         .rowAccessibility("Tag " + tag.name, count: tag.count)
         .hoverRow("tag." + tag.name, reach: Hover.sidebarReach(), selected: selected)
         .quietSelection()
         .tag(Scope.tag(tag.name))
-        .contextMenu { TagColorMenu(tag: tag.name) }
+        .contextMenu { if tagsOn { TagColorMenu(tag: tag.name) } }
         .accessibilityIdentifier("tag.\(tag.name)")
     }
 }

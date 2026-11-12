@@ -37,8 +37,16 @@ final class TagIndex {
         entries(in: context).first { $0.name.lowercased() == tag.lowercased() }?.name ?? tag
     }
 
+    @ObservationIgnored private var experimentObserver: NSObjectProtocol?
+
     private func start(_ context: ModelContext) {
         self.context = context
+        // Tags on or off (Experiments): labels count, or don't, from now.
+        if experimentObserver == nil {
+            experimentObserver = NotificationCenter.default.addObserver(forName: Experiments.didChange, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { if let self, let c = self.context { self.load(c) } }
+            }
+        }
         if ((try? context.fetchCount(FetchDescriptor<Note>())) ?? 0) > LibraryNotes.readHere { loadElsewhere(context.container) } else { load(context) }
         if let observer { NotificationCenter.default.removeObserver(observer) }
         observer = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: context, queue: nil) { [weak self] n in
@@ -53,7 +61,7 @@ final class TagIndex {
     /// written in its text. None for a note in Recently Deleted.
     nonisolated private static func tags(of note: Note) -> [String] {
         guard note.getValue(forKey: \.deletedAt) == nil, note.getValue(forKey: \.trashedAt) == nil else { return [] }
-        let labels = NoteLabels.labels(in: note.getValue(forKey: \.frontMatter))
+        let labels = Experiments.isOn(.tags) ? NoteLabels.labels(in: note.getValue(forKey: \.frontMatter)) : []
         let body = note.getValue(forKey: \.body)
         let written = body.contains("#") ? Tags.names(in: body) : []
         guard !labels.isEmpty else { return written }
@@ -124,7 +132,8 @@ extension Tags {
             let found = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.body.localizedStandardContains(needle) }))) ?? []
             out.formUnion(found.filter { has(tag, in: $0.getValue(forKey: \.body)) }.map(\.persistentModelID))
         }
-        // Labels: only notes with front matter have any, a few in most libraries.
+        // Labels: only notes with front matter have any, a few in most libraries. None with Tags off.
+        guard Experiments.isOn(.tags) else { return out }
         let withProps = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.frontMatter != nil }))) ?? []
         for n in withProps where NoteLabels.labels(in: n.getValue(forKey: \.frontMatter)).contains(where: { matches($0, tag) }) {
             out.insert(n.persistentModelID)

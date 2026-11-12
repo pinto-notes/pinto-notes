@@ -26,6 +26,7 @@ struct NoteListView: View {
     @State private var lockRequest: ListLockRequest?
     /// New Tag… from a note's Tags menu: the notes it's for, while its question is up.
     @State private var newTagFor: [UUID]?
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
     /// The library's tags, for a note's Tags menu.
     @Environment(TagIndex.self) private var tagIndex: TagIndex?
     @Environment(\.openWindow) private var openWindow
@@ -841,7 +842,7 @@ struct NoteListView: View {
     /// A note's long-press menu (NoteRowMenu): Share, Move and Delete in a row, then the rest.
     @ViewBuilder
     private func rowMenu(for note: Note) -> some View {
-        let groups = NoteRowMenu.groups(locked: note.isLocked, trashed: note.trashedAt != nil, shared: note.isShared)
+        let groups = NoteRowMenu.groups(locked: note.isLocked, trashed: note.trashedAt != nil, shared: note.isShared, tags: tagsOn)
         ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
             if i == 0 && note.trashedAt == nil {
                 ControlGroup { ForEach(group, id: \.self) { rowItem($0, note) } }
@@ -1040,7 +1041,7 @@ struct NoteListView: View {
                 Menu("Move \(notes.count) Notes to", systemImage: "folder") {
                     FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { _ = context.move(notes, to: f, undo: undoManager) } }
                 }
-                if !NoteTagsMenu.taggable(notes).isEmpty { tagsMenu(NoteTagsMenu.taggable(notes)) }
+                if tagsOn, !NoteTagsMenu.taggable(notes).isEmpty { tagsMenu(NoteTagsMenu.taggable(notes)) }
                 Divider()
                 DestructiveMenuButton("Delete \(notes.count) Notes", systemImage: "trash") { remove(ids) }
             }
@@ -1050,7 +1051,7 @@ struct NoteListView: View {
     /// A note's right-click menu and its ••• on the Mac (NoteRowMenu.macGroups), in groups.
     @ViewBuilder
     private func menu(for note: Note, folders: [Folder]) -> some View {
-        let groups = NoteRowMenu.macGroups(locked: note.isLocked, trashed: note.trashedAt != nil, shared: note.isShared)
+        let groups = NoteRowMenu.macGroups(locked: note.isLocked, trashed: note.trashedAt != nil, shared: note.isShared, tags: tagsOn)
         ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
             if i > 0 { Divider() }
             ForEach(group, id: \.self) { macItem($0, note, folders: folders) }
@@ -2081,6 +2082,7 @@ struct NoteRow: View {
     /// The row sits under the list's Pinned heading, which says it's pinned: no pin before its
     /// title (NoteRowStatus). Search on the folders screen has no heading, so its pinned rows show one.
     var pinnedHeading = false
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
 
     /// The date the row shows: the one the list is sorted by, which is the date edited unless
     /// the list is sorted by date created.
@@ -2112,7 +2114,7 @@ struct NoteRow: View {
         let app = NoteAppMark.has(note)
         let picture = Self.picture(of: note)
         let found = self.found
-        let labels = NoteLabels.labels(in: note.frontMatter)
+        let labels = tagsOn ? NoteLabels.labels(in: note.frontMatter) : []
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: RowMetrics.spacing) {
                 HStack(spacing: 5) {

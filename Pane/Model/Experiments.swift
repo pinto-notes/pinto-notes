@@ -1,0 +1,50 @@
+import Foundation
+
+/// Features to try before they're settled (Emil, 12 November 2026: "I want an experimental page in
+/// settings where you can turn on and off stuff ... because I'm not sure I will want this in the
+/// end"). Each is off until turned on in Settings › Experimental, on this device. Turned off, the
+/// feature is out of sight; what it stored stays, so turning it on again brings it back as it was.
+enum Experiment: String, CaseIterable, Identifiable {
+    /// Labels on notes from their right-click, in colours, and the colours of #tags.
+    case tags
+
+    var id: String { rawValue }
+    /// Its switch's UserDefaults key (also an `-experiment.tags YES` launch argument for tests).
+    var key: String { "experiment." + rawValue }
+
+    var title: String {
+        switch self {
+        case .tags: "Tags"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .tags: "Put coloured labels on notes from their right-click. Tags show their colours in notes and the sidebar."
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .tags: "tag"
+        }
+    }
+}
+
+enum Experiments {
+    /// Posted when a switch changes: open notes draw their tags again, the sidebar counts again.
+    static let didChange = Notification.Name("pane.experiments.didChange")
+
+    /// Whether `experiment` is on, from any thread (the editor's styling asks off the main actor).
+    nonisolated static func isOn(_ experiment: Experiment, defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: experiment.key)
+    }
+
+    @MainActor static func set(_ experiment: Experiment, _ on: Bool, defaults: UserDefaults = .standard) {
+        guard isOn(experiment, defaults: defaults) != on else { return }
+        defaults.set(on, forKey: experiment.key)
+        NotificationCenter.default.post(name: didChange, object: nil)
+        // Open notes draw their tags again.
+        NotificationCenter.default.post(name: TagColors.didChange, object: nil)
+    }
+}

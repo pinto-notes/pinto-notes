@@ -11,6 +11,9 @@ import AppKit
 /// Tags as coloured labels: each tag's colour (its own, or one chosen and kept for the account),
 /// the label in the note, and tags added and taken out from a note's right-click.
 @Suite struct TagColorsTests {
+    /// Tags is an experiment (Experiments): these check it turned on.
+    init() { UserDefaults.standard.set(true, forKey: Experiment.tags.key) }
+
     // MARK: Colours
 
     @Test func eachTagHasItsOwnColourEverywhere() {
@@ -246,5 +249,20 @@ import AppKit
         #expect(NoteTagsMenu.colour(of: "Needs review", in: colors) == .standard(for: "Needs review"))
         colors.set(.red, for: "Needs review")
         #expect(NoteTagsMenu.colour(of: "needs review", in: colors) == .red)
+    }
+
+    @MainActor @Test func tagsIsAnExperimentOffUntilTurnedOn() {
+        let defaults = UserDefaults(suiteName: "TagColorsTests.\(UUID())")!
+        #expect(!Experiments.isOn(.tags, defaults: defaults), "off until turned on")
+        Experiments.set(.tags, true, defaults: defaults)
+        #expect(Experiments.isOn(.tags, defaults: defaults))
+        // Off: no Tags in a note's menus, on the Mac or iPhone.
+        #expect(!NoteRowMenu.macGroups(locked: false, trashed: false, tags: false).joined().contains(.tags))
+        #expect(!NoteRowMenu.groups(locked: false, trashed: false, tags: false).joined().contains(.tags))
+        #expect(NoteRowMenu.groups(locked: false, trashed: false, tags: false) == [[.share, .move, .delete], [.pin, .lock, .duplicate]])
+        // Its page is in Settings, last, signed in or not.
+        #expect(SettingsPage.groups.last == [.experimental])
+        #expect(SettingsPage.available(signedIn: false, hasClient: false).contains(.experimental))
+        #expect(SettingsPage.experimental.title == "Experimental")
     }
 }

@@ -521,7 +521,8 @@ struct MarkdownStyler {
             if storage.attribute(.strikethroughStyle, at: r.location, effectiveRange: nil) == nil {
                 // A label in the tag's colour (TagColors), drawn behind it by DecoratedLayoutFragment.
                 // While it's being typed it's plain accent text: its name, and so its colour, isn't settled.
-                if writing {
+                // With Tags off (Experiments) every tag is accent text, as before it.
+                if writing || !Experiments.isOn(.tags) {
                     storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: r)
                 } else {
                     let color = TagColors.current(for: tag.name)

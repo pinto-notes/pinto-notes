@@ -11,20 +11,22 @@ enum NoteRowMenu {
     /// and Version History, as in the note's own ••• menu (NoteMoreMenu); then Delete on its own.
     /// A locked note's text isn't here to send, copy or look back through.
     /// A shared note can't be locked, as in Notes, and as the note's own ••• already says (NoteMoreMenu).
-    static func macGroups(locked: Bool, trashed: Bool, shared: Bool = false) -> [[Item]] {
+    /// `tags`: Tags is offered only while its experiment is on (Experiments).
+    static func macGroups(locked: Bool, trashed: Bool, shared: Bool = false, tags: Bool = true) -> [[Item]] {
         if trashed { return [[.recover, .delete]] }
         if locked { return [[.openInNewWindow], [.pin, .removeLock], [.move], [.delete]] }
         // Tags beside Move to: both sort the note (Emil, 12 November 2026). Not for a shared note:
         // its text goes through collaboration, not here.
-        return [[.openInNewWindow], shared ? [.pin] : [.pin, .lock], [.duplicate], [.share], shared ? [.move, .history] : [.move, .tags, .history], [.delete]]
+        return [[.openInNewWindow], shared ? [.pin] : [.pin, .lock], [.duplicate], [.share], shared || !tags ? [.move, .history] : [.move, .tags, .history], [.delete]]
     }
 
     /// The first group is the row of three. A locked note's text isn't here to send or copy, so it
     /// has no Share and no Duplicate. In Recently Deleted a note can only come back or go for good.
-    static func groups(locked: Bool, trashed: Bool, shared: Bool = false) -> [[Item]] {
+    static func groups(locked: Bool, trashed: Bool, shared: Bool = false, tags: Bool = true) -> [[Item]] {
         if trashed { return [[.recover, .delete]] }
         if locked { return [[.move, .delete], [.pin, .removeLock]] }
-        return shared ? [[.share, .move, .delete], [.pin, .duplicate]] : [[.share, .move, .delete], [.pin, .lock, .duplicate], [.tags]]
+        if shared { return [[.share, .move, .delete], [.pin, .duplicate]] }
+        return tags ? [[.share, .move, .delete], [.pin, .lock, .duplicate], [.tags]] : [[.share, .move, .delete], [.pin, .lock, .duplicate]]
     }
 }
 
