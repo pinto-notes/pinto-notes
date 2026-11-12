@@ -251,6 +251,9 @@ import Testing
         let r1 = h.view.firstChangeRect(from: before)
         await h.settle(0.2)
         #expect(h.controller.changePlacement(from: before) == 0, "r0 \(String(describing: r0)) r1 \(String(describing: r1)) r2 \(String(describing: h.view.firstChangeRect(from: before))) visible \(h.view.visibleRect), bounds \(h.view.bounds), clip \(h.scroll.contentView.bounds)")
+        // The last line comes up clear of the bottom, where the receipt sits.
+        let r2 = try #require(h.view.firstChangeRect(from: before))
+        #expect(r2.maxY < h.view.visibleRect.maxY - 100, "\(r2) in \(h.view.visibleRect)")
     }
 
     /// Pictures of the resting mark, light and dark, for a look at it (AMBER_QA_SHOTS).

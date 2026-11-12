@@ -228,11 +228,10 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             let b = line?.typographicBounds ?? CGRect(x: 0, y: 0, width: 0, height: layoutFragmentFrame.height)
             y = point.y + b.minY + (line?.glyphOrigin.y ?? b.height) - font.descender + 2
         } else if let line {
-            // The line above ends a descender below its baseline, at this fragment's top; this
-            // line's capitals start at baseline minus cap height. Halfway between.
-            let top = line.typographicBounds.minY
-            let capTop = top + line.glyphOrigin.y - font.capHeight
-            y = point.y + (top + font.descender + capTop) / 2
+            // The line above's letters end just over this fragment's top, and this line's capitals
+            // start about 9 pt below it: a couple of points down is halfway (measured in the
+            // scenario pictures; deriving it from the glyph origin put it a line too low).
+            y = point.y + line.typographicBounds.minY + 2
         } else { y = point.y }
         return CGRect(x: x, y: y - 1, width: width, height: 2)
     }

@@ -2781,6 +2781,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
         // A short note still scrolls past its date: never shorter than the view plus the fold.
         var newSize = newSize
+        // Show lifted a change at the end clear of the receipt: the room under it stays until you type.
+        newSize.height = max(newSize.height, showRoom)
         if DesignLook.readingPage, hasDate, let scroll = enclosingScrollView {
             let view = scroll.contentView.bounds.height - scroll.contentInsets.top - scroll.contentInsets.bottom
             newSize.height = max(newSize.height, view + Self.fold)
@@ -3334,6 +3336,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         guard !hasMarkedText() else { return }
         takeWhatArrivedWhileComposing()
         core.layoutDelegate.tint.typed(string)
+        showRoom = 0
         // Rows still sliding would cover the new text.
         core.endSlides()
         core.restyle(textStorage!, selection: editingSelection, force: true)
@@ -3418,6 +3421,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     /// Scrolls the first change from `previous` to a third of the way down, and marks it again.
+    /// The height Show grew the text to, so the change can sit above the receipt (0 when not).
+    private var showRoom: CGFloat = 0
+
     func showChange(from previous: String) {
         // TextKit estimates the height of text it hasn't laid out: measure, scroll, and measure again
         // where it now is, until it holds still.
@@ -3430,6 +3436,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             }
             guard let rect = firstChangeRect(from: previous) else { return }
             let visible = visibleRect
+            // Room under a change at the very end, so it scrolls up clear of the receipt rather
+            // than staying under it at the bottom edge (council r2 pictures).
+            showRoom = max(showRoom, rect.maxY + visible.height * 2 / 3)
+            if frame.height < showRoom { setFrameSize(CGSize(width: frame.width, height: showRoom)) }
             let y = min(max(0, rect.minY - visible.height / 3), max(0, bounds.height - visible.height))
             if abs(y - visible.minY) < 1 { break }
             guard let scroller = enclosingScrollView else { scroll(CGPoint(x: visible.minX, y: y)); break }
