@@ -68,6 +68,9 @@ import Testing
     }()
 
     static func snap(_ view: NSView, _ name: String) {
+        // What a real window does every frame: SwiftUI views (the table grid) take their changes.
+        view.window?.layoutIfNeeded()
+        view.window?.displayIfNeeded()
         guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
         view.cacheDisplay(in: view.bounds, to: rep)
         let dir = EditorHarness.shotsDirectory.appending(path: "scenarios")
@@ -167,6 +170,7 @@ import Testing
         }
         try? await Task.sleep(for: .seconds(0.3))
         snap("e-after")
+        #expect(shots.allSatisfy { $0.controller.aiCells.isEmpty }, "table cells cleared by e-after")
     }
 }
 #endif

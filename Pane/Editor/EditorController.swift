@@ -374,6 +374,8 @@ final class EditorController {
     /// The table cells an AI just changed, by table, while they're marked (TableGridView).
     var aiCells: [Int: Set<GridCell>] = [:]
     var aiCellColor: PColor?
+    /// How strongly the cells are tinted, 1 to 0 as they fade, on the text mark's clock.
+    var aiCellsStrength: Double = 1
     @ObservationIgnored private var aiCellsRun = 0
 
     /// Marks the cells an AI changed for as long as the text's mark rests, then lets them fade.
@@ -383,16 +385,20 @@ final class EditorController {
         guard !cells.isEmpty else { aiCells = [:]; return }
         let mine = aiCellsRun
         aiCellColor = color
+        aiCellsStrength = 1
         aiCells = cells
         Task { @MainActor in
-            // Fade with the text's mark, which rests until the change is seen.
-            try? await Task.sleep(for: .seconds(0.8))
+            // The cells fade with the text's mark, at its strength, frame by frame (a SwiftUI
+            // animation here stalled in captures, council r3). The mark rests until it's seen.
+            try? await Task.sleep(for: .seconds(0.4))
             let cap = Date.now.addingTimeInterval(60)
             while mine == aiCellsRun, Date.now < cap, ChangeTint.holdForCapture || isTinted {
-                try? await Task.sleep(for: .seconds(0.1))
+                aiCellsStrength = min(1, max(0, Double(target?.tintStrength ?? 0)))
+                try? await Task.sleep(for: .seconds(1 / 30.0))
             }
             guard mine == aiCellsRun else { return }
             aiCells = [:]
+            aiCellsStrength = 1
         }
     }
     /// Where an AI's first change is: 1 below the visible text, -1 above, 0 in view.
@@ -1067,6 +1073,8 @@ protocol EditorTarget: TextHost {
     /// Tints the lines an AI just changed compared with `previous`, then fades them (with
     /// `untilCleared`, keeps them tinted until `clearTint` or typing).
     func tintChanges(from previous: String, untilCleared: Bool)
+    /// How strongly the text's mark is drawn now (0 when there's none).
+    var tintStrength: CGFloat { get }
     /// Marks an AI's edit in its colour (the changed words swept in), then fades as above.
     func markChanges(from previous: String, to after: String, color: PColor)
     /// Where the first change from `previous` is: 1 below what you can see, -1 above, 0 in view.
@@ -1114,6 +1122,7 @@ protocol EditorTarget: TextHost {
 }
 
 extension EditorTarget {
+    var tintStrength: CGFloat { 0 }
     func applyStep(_ edit: TextEdit, named name: String) { apply(edit) }
     func applyMove(_ edit: TextEdit, named name: String) { apply(edit) }
     func tablePanelChanged(shown: Bool) {}

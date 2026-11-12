@@ -884,7 +884,8 @@ struct TableGridView: View {
         let cells = controller?.aiCells[table.index] ?? []
         let color = controller?.aiCellColor.map { Color($0) } ?? Color.paneAccent
         // Stronger on a dark page, where 24% all but vanished (council r2).
-        let fill: Color = color.opacity(colorScheme == .dark ? 0.45 : 0.24)
+        let strength = controller?.aiCellsStrength ?? 1
+        let fill: Color = color.opacity((colorScheme == .dark ? 0.45 : 0.24) * strength)
         ZStack(alignment: .topLeading) {
             ForEach(Array(cells).filter { $0.row < draft.rows.count && $0.column < widths.count }, id: \.self) { (c: GridCell) in
                 Rectangle().fill(fill)
@@ -894,7 +895,6 @@ struct TableGridView: View {
         }
         .frame(width: widths.reduce(0, +), height: CGFloat(draft.rows.count) * GridMetrics.row, alignment: .topLeading)
         .clipShape(RoundedRectangle(cornerRadius: GridLook.radius, style: .continuous))
-        .animation(.easeOut(duration: cells.isEmpty ? 1.6 * ChangeTint.slowMotion : 0.25 * ChangeTint.slowMotion), value: cells)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

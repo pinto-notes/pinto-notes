@@ -213,7 +213,11 @@ final class ChangeTint: @unchecked Sendable {
             keep = lit.carried + lit.marks.map { ($0, self.color) }
         }
         // A later edit while this one is marked: what's marked stays as it is.
-        let still = lit?.drawn ?? [], prior = lit == nil ? 0 : strength, wasPeaked = lit != nil && peaked
+        // By line, found from the marked words too: a deletion next to a line can cross its edge
+        // and lose the line's range, never its words (council r3: Saffron swept in again in 16).
+        let ns = text as NSString
+        func line(_ r: NSRange) -> NSRange { ns.paragraphRange(for: NSRange(location: min(r.location, ns.length), length: 0)) }
+        let still = lit.map { $0.drawn + $0.marks.map(line) + $0.carried.map { line($0.range) } } ?? [], prior = lit == nil ? 0 : strength, wasPeaked = lit != nil && peaked
         stop()
         settled = still
         from = previous
@@ -380,6 +384,15 @@ final class ChangeTint: @unchecked Sendable {
     /// Where non-blank lines of `old` were taken out with nothing written in their place: each
     /// gap as the paragraph of `new` under it (or over it, when the note's end went). A rewrite
     /// is tinted, and a line that only moved is neither.
+    /// Whether two lines have a word in common, list markers and checkboxes aside.
+    static func shareAWord(_ x: String, _ y: String) -> Bool {
+        func words(_ s: String) -> Set<String> {
+            let bare = s.replacingOccurrences(of: #"^\s*([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?"#, with: "", options: .regularExpression)
+            return Set(bare.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init))
+        }
+        return !words(x).isDisjoint(with: words(y))
+    }
+
     static func removals(from old: String, to new: String) -> [Removal] {
         let a = old.components(separatedBy: "\n"), b = new.components(separatedBy: "\n")
         let diff = b.difference(from: a).inferringMoves()
@@ -400,9 +413,15 @@ final class ChangeTint: @unchecked Sendable {
         var gaps = Set<Int>()
         var i = 0, j = 0
         while i < a.count || j < b.count {
-            if i < a.count, removed.contains(i) {
+            if i < a.count, removed.contains(i), j < b.count, inserted.contains(j), Self.shareAWord(a[i], b[j]) {
+                // This line rewritten in place (a tick, a word changed): the two pair up.
+                i += 1; j += 1
+            } else if i < a.count, removed.contains(i) {
                 // Nothing written at this spot: a removal, not a rewrite.
-                if real.contains(i), !written.contains(j), !(j > 0 && written.contains(j - 1)) { gaps.insert(j) }
+                // A line written there counts as this one rewritten only if they share a word
+                // (council r3: Bread gone and Saffron added in its place showed no removal).
+                func rewrite(_ k: Int) -> Bool { k >= 0 && k < b.count && written.contains(k) && Self.shareAWord(a[i], b[k]) }
+                if real.contains(i), !rewrite(j), !rewrite(j - 1) { gaps.insert(j) }
                 i += 1
             } else if j < b.count, inserted.contains(j) { j += 1 }
             else { i += 1; j += 1 }

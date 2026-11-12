@@ -233,11 +233,31 @@ import Testing
         #expect(tint.strength == lit)
         #expect(tint.sweep(at: ns.range(of: "- [ ] Saffron").location) == 1, "Saffron stays whole after the editor moved it")
         tint.stop()
+        // Then a line above it deleted: Saffron moves up and still doesn't sweep again.
+        let three = two.replacingOccurrences(of: "- [ ] Bread\n", with: "")
+        tint.play(from: g, to: two, color: .systemGreen)
+        try? await Task.sleep(for: .seconds(0.9))
+        tint.follow(three)
+        tint.play(from: g, to: three, color: .systemGreen)
+        let n3 = three as NSString
+        #expect(tint.sweep(at: n3.range(of: "- [ ] Saffron").location) == 1, "Saffron stays whole after a deletion above it")
+        tint.stop()
         // A first tick, from nothing: the AI's colour from the first frame too.
         tint.play(from: g, to: g.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs"), color: .systemGreen)
         try? await Task.sleep(for: .seconds(0.05))
         #expect(tint.tickBlend == 1)
         tint.stop()
+    }
+
+    /// A line removed where another, unrelated one was added is still shown as removed (council r3, 16).
+    @Test func aRemovedLineNextToANewOneIsShown() {
+        let g = "Groceries\n\n- [ ] Oat milk\n- [ ] Eggs\n- [ ] Bread"
+        let now = "Groceries\n\n- [ ] Oat milk\n- [x] Eggs\n- [ ] Saffron"
+        let gaps = ChangeTint.removals(from: g, to: now)
+        let ns = now as NSString
+        #expect(gaps.map(\.paragraph.location) == [ns.range(of: "- [ ] Saffron").location], "between Eggs and Saffron, where Bread was")
+        // A real rewrite of the line isn't a removal.
+        #expect(ChangeTint.removals(from: g, to: g.replacingOccurrences(of: "Bread", with: "Bread rolls")).isEmpty)
     }
 
     /// Three edits in a row are counted, never described as one change that didn't happen (council r2).

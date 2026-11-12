@@ -1793,6 +1793,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
+    var tintStrength: CGFloat { core.layoutDelegate.tint.strength }
 
     func clearTint() { core.layoutDelegate.tint.stop() }
 
@@ -3460,6 +3461,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
+    var tintStrength: CGFloat { core.layoutDelegate.tint.strength }
 
     func clearTint() { core.layoutDelegate.tint.stop() }
 
