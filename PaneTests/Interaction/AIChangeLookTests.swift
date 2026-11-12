@@ -8,7 +8,7 @@ import Testing
 /// highlight came out as a thin underline with a dot for a tick. Lines of one paragraph join into
 /// one shape, and the ticks of changed paragraphs next to each other run as one line.
 @MainActor @Suite(.serialized) struct AIChangeLookTests {
-    static let before = """
+    nonisolated static let before = """
     # About me
 
     *Last refreshed: 1 October 2026.*
@@ -18,7 +18,7 @@ import Testing
     - I started programming at 11.
     """
 
-    static let after = """
+    nonisolated static let after = """
     # About me
 
     *Last refreshed: 12 November 2026. This is enduring context, not a daily status report.*
