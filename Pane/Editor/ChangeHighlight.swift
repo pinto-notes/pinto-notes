@@ -543,15 +543,31 @@ final class ChangeTint: @unchecked Sendable {
                 let marker = ListPrefix(line: line).map(\.length) ?? 0
                 var words = from[j].map { newWords(from: a[$0], to: line) } ?? []
                 if words.isEmpty { words = [NSRange(location: marker, length: length - marker)] }
-                // A word's punctuation goes with it: no comma or full stop left out (council r3).
-                let ns = line as NSString, stops = CharacterSet(charactersIn: ",.;:!?)\u{201D}\u{2019}\"'")
+                // Punctuation is marked when it's new and left plain when it was there before: only
+                // what lies between the line's unchanged start and end counts (council r3, r5).
+                let ns = line as NSString, stops = CharacterSet(charactersIn: ",.;:!?()\u{201C}\u{201D}\u{2018}\u{2019}\"'\u{2026}")
+                var lo = 0, hi = ns.length
+                if let o = from[j] {
+                    let old = a[o] as NSString
+                    while lo < min(old.length, ns.length), old.character(at: lo) == ns.character(at: lo) { lo += 1 }
+                    var k = 0
+                    while k < min(old.length, ns.length) - lo, old.character(at: old.length - 1 - k) == ns.character(at: ns.length - 1 - k) { k += 1 }
+                    hi = ns.length - k
+                }
+                func punct(_ i: Int) -> Bool { Unicode.Scalar(ns.character(at: i)).map(stops.contains) ?? false }
+                func space(_ i: Int) -> Bool { ns.character(at: i) == 32 }
                 words = words.map { w in
-                    var end = NSMaxRange(w)
-                    while end < ns.length, let u = Unicode.Scalar(ns.character(at: end)), stops.contains(u) { end += 1 }
-                    // Only when the word with that punctuation is new (council r4: an old comma was marked).
-                    let old = from[j].map { a[$0] } ?? ""
-                    if end > NSMaxRange(w), old.contains(ns.substring(with: NSRange(location: w.location, length: end - w.location))) { return w }
-                    return NSRange(location: w.location, length: end - w.location)
+                    var start = w.location, end = NSMaxRange(w)
+                    while end < hi, end < ns.length, punct(end) { end += 1 }
+                    // A new comma before the new words: "each, and a rain jacket".
+                    var k = start
+                    while k - 1 >= lo, k - 1 >= marker, space(k - 1) { k -= 1 }
+                    if k - 1 >= lo, k - 1 >= marker, punct(k - 1) {
+                        k -= 1
+                        while k - 1 >= lo, k - 1 >= marker, punct(k - 1) { k -= 1 }
+                        start = k
+                    }
+                    return NSRange(location: start, length: end - start)
                 }
                 out += words.filter { $0.length > 0 }.map { NSRange(location: at + $0.location, length: $0.length) }
             }

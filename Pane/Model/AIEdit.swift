@@ -132,7 +132,7 @@ enum AIEdit {
                 let was = gr[0].map { x[$0] }.joined(separator: " ").trimmingCharacters(in: trim)
                 let now = pr[0].map { y[$0] }.joined(separator: " ").trimmingCharacters(in: trim)
                 if !was.isEmpty, !now.isEmpty, was.count + now.count <= 26 {
-                    return "changed \u{201C}\(was)\u{201D} to \u{201C}\(now)\u{201D} and \(gr.count - 1) more"
+                    return "changed \u{201C}\(was)\u{201D} to \u{201C}\(now)\u{201D} and \(gr.count - 1) other word\(gr.count == 2 ? "" : "s")"
                 }
             }
             guard !gone.isEmpty, !put.isEmpty, gone.count <= 3, put.count <= 3, together(gone), together(put) else { return nil }
@@ -389,7 +389,8 @@ enum AIEdit {
             // With the latest one named: "ChatGPT removed “Bread” · 3 changes" (council r3).
             if edits > 2 {
                 if let latestPrevious, let after, let what = AIEdit.describe(previous: latestPrevious, after: after) {
-                    return "\(who) \(what) and \(edits - 1) more"
+                    // "and 2 more" read as more of the same (council r5).
+                    return "\(who) \(what) and made \(edits - 1) other change\(edits == 2 ? "" : "s")"
                 }
                 return "\(who) made \(edits) changes"
             }

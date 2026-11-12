@@ -119,7 +119,7 @@ import Testing
         if s.mode == .realTime {
             // Real seconds after it lands, nothing held: how the whole thing plays.
             let start = Date.now
-            for t in [0.1, 0.2, 0.3, 0.6, 1.5, 2.9, 3.5, 4.5, 5.5, 7.0] {
+            for t in [0.1, 0.2, 0.3, 0.6, 1.5, 2.9, 3.5, 4.5, 5.5, 7.0, 8.0, 9.0, 10.0] {
                 let wait = t - Date.now.timeIntervalSince(start)
                 if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
                 snap("t-\(String(format: "%04.1f", t))s")

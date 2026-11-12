@@ -79,7 +79,7 @@ struct AIGlyph: View {
         case "ChatGPT", "Codex": PColor(red: 0.063, green: 0.639, blue: 0.498, alpha: 1)
         case "Claude", "Claude Code": PColor(red: 0.851, green: 0.467, blue: 0.341, alpha: 1)
         // Lighter and bluer-green than Google blue: that read as a text selection (council r4).
-        case "Gemini": PColor(red: 0.12, green: 0.62, blue: 0.90, alpha: 1)
+        case "Gemini": PColor(red: 0.30, green: 0.68, blue: 0.84, alpha: 1)
         default: Palette.amber
         }
     }
@@ -88,7 +88,7 @@ struct AIGlyph: View {
         switch ai {
         case "Claude", "Claude Code": Color(red: 0.851, green: 0.467, blue: 0.341)
         case "VS Code": Color(red: 0, green: 0.478, blue: 0.8) // #007ACC
-        case "Gemini": Color(red: 0.12, green: 0.62, blue: 0.90)
+        case "Gemini": Color(red: 0.30, green: 0.68, blue: 0.84)
         default: .primary
         }
     }

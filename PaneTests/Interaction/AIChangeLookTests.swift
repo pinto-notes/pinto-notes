@@ -265,7 +265,11 @@ import Testing
         let old = "Trip\n\nWe go to Malmö, then home."
         let new = "Trip\n\nWe go to Jönköping, then home."
         let ns = new as NSString
-        #expect(ChangeTint.changedWords(from: old, to: new).map { ns.substring(with: $0) } == ["Jönköping,"])
+        #expect(ChangeTint.changedWords(from: old, to: new).map { ns.substring(with: $0) } == ["Jönköping"], "the comma was there before")
+        let g0 = "Trip\n\nPack light: one bag each."
+        let g1 = "Trip\n\nPack light: one bag each, and a rain jacket."
+        let n1 = g1 as NSString
+        #expect(ChangeTint.changedWords(from: g0, to: g1).map { n1.substring(with: $0) } == [", and a rain jacket"], "the new comma in, the old full stop out")
         #expect(ChangeTint.sweepStagger(8) * 7 + ChangeTint.sweepDuration <= 0.55)
     }
 
@@ -335,7 +339,7 @@ import Testing
         let b = AIEdit.Receipt(noteID: id, by: "ChatGPT", at: .now, previous: one, after: two, lines: 1).continuing(a)
         let c = AIEdit.Receipt(noteID: id, by: "ChatGPT", at: .now, previous: two, after: three, lines: 1).continuing(b)
         #expect(c.edits == 3)
-        #expect(c.summary == "ChatGPT removed \u{201C}Bread\u{201D} and 2 more")
+        #expect(c.summary == "ChatGPT removed \u{201C}Bread\u{201D} and made 2 other changes")
     }
 
     /// The receipt says what happened when it's one plain thing.

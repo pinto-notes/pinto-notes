@@ -81,7 +81,7 @@ import Testing
         let rect = marked.removalRect(gap, at: .zero)
         let d = try #require(marked.decoration)
         let box = marked.checkboxRect(d)
-        #expect(abs(rect.midX - box.midX) < 1, "in the circles' column")
+        #expect(rect.maxX <= box.minX, "left of the circle")
         #expect(rect.maxX < line.typographicBounds.minX + line.locationForCharacter(at: 6).x, "clear of the words")
         #expect(rect.width <= box.width + 6)
         #expect(marked.renderingSurfaceBounds.contains(rect), "drawn, not clipped")

@@ -789,6 +789,10 @@ struct NoteDetailView: View {
                     withAnimation(.smooth(duration: 0.2)) { receiptPlacement = 0 }
                 }
             }
+            // Undo stays as long as the change is marked, and a moment after (council r5: a long
+            // rewrite's pill went while it was still marked).
+            while receipt == r, controller.isTinted { try? await Task.sleep(for: .seconds(0.25)) }
+            try? await Task.sleep(for: .seconds(0.6))
             while receiptHovered || ChangeTint.holdForCapture { try? await Task.sleep(for: .seconds(0.3)) }
             guard receipt == r, review == nil else { return }
             withAnimation(.easeOut(duration: 0.3)) { receipt = nil }

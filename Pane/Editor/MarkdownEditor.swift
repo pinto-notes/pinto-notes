@@ -3392,6 +3392,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             guard let self else { return }
             tint.play(from: previous, to: after, color: color)
             tint.inView = { [weak self] in (self?.changePlacement(from: previous) ?? 0) == 0 }
+            // Room under the last line while the receipt is up, so the end of the note can scroll
+            // clear of it (council r5). It goes when you type.
+            if let tlm = self.textLayoutManager {
+                self.showRoom = max(self.showRoom, tlm.usageBoundsForTextContainer.maxY + self.textContainerOrigin.y * 2 + 72)
+                if self.frame.height < self.showRoom { self.setFrameSize(CGSize(width: self.frame.width, height: self.showRoom)) }
+            }
             self.controller?.markTableCells(from: previous, to: after, color: color)
             self.popTicks(ChangeTint.tickedLines(from: previous, to: after))
         }

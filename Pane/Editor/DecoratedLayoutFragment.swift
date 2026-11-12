@@ -244,12 +244,10 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         let left = point.x + (line?.typographicBounds.minX ?? 0)
         var width = Self.removalWidth
         var x = left - Self.removalGap - width
-        // In a checklist, in the circles' column, in the gap between two of them (council r4).
-        if let d = decoration, case .checkbox = d.kind {
-            let box = checkboxRect(d)
-            width = box.width + 4
-            x = point.x + box.midX - width / 2
-        }
+        // Left of a checklist's circles too: in their column it read as a cap or an underline
+        // on the circle next to it (council r5).
+        if let d = decoration, case .checkbox = d.kind { x = point.x + checkboxRect(d).minX - Self.removalGap - width }
+        _ = width
         let y: CGFloat
         if gap.below || line == nil {
             // Under the last line's letters, a descender's depth down.
@@ -264,7 +262,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         return CGRect(x: x, y: y - 1.25, width: width, height: 2.5)
     }
 
-    static let removalWidth: CGFloat = 13
+    static let removalWidth: CGFloat = 14
     static let removalGap: CGFloat = 5
 
     /// The runs as one shape: each line rounded, and the space between two lines of the
@@ -444,7 +442,8 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         }
         if let (gap, strength) = removalMark {
             context.saveGState()
-            context.setFillColor(Self.changeColors(strength, color: markColor).bar)
+            // Softer than the colour itself, like the highlights (council r5).
+            context.setFillColor(Self.changeColors(strength * 0.6, color: markColor).bar)
             let r = removalRect(gap, at: point)
             context.addPath(CGPath(roundedRect: r, cornerWidth: 1, cornerHeight: 1, transform: nil))
             context.fillPath()
