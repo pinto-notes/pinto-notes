@@ -66,6 +66,8 @@ if [[ ${#only[@]} -eq 0 ]]; then
   for t in ${(f)"$(python3 scripts/ci/select-tests.py --map PaneTests)"}; do only+=(-only-testing:$t); done
   LIMIT=${LIMIT:-2400}
 fi
+# A whole test target (a name with no suite) also gets the long limit.
+for t in $only; do [[ $t != */* ]] && LIMIT=${LIMIT:-2400}; done
 if [[ -n ${dry:-} ]]; then print -l -- $only; exit 0; fi
 LIMIT=${LIMIT:-240}
 DD=${DD:-build/ddqa}
