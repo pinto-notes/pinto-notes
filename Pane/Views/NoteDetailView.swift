@@ -762,13 +762,6 @@ struct NoteDetailView: View {
         }
     }
 
-    /// You started typing: what the AI changed is yours now, so its marking goes, quietly.
-    private func editedSinceAIEdit() {
-        guard let r = receipt, r.staysUntilEdited else { return }
-        withAnimation(.easeOut(duration: 0.2)) { receipt = nil }
-        controller.clearTint()
-    }
-
     /// A shared note you can only view keeps an AI's change: Undo says so, where the receipt is,
     /// and the marking stays.
     private func refusedAsViewOnly() -> Bool {
@@ -1365,7 +1358,12 @@ struct NoteDetailView: View {
         // Recently Deleted is read-only: nothing typed or ticked there is kept.
         guard !trashed else { return }
         Usage.edited(note.id)
-        if receipt != nil { editedSinceAIEdit() }
+        // Typing after an AI's edit: its marks fade (the editor). On the Mac the receipt stays its
+        // few seconds, so Undo can still take the AI's change out of what you wrote (council r1);
+        // on the iPhone its place is your own Undo now.
+        #if os(iOS)
+        if let r = receipt, r.staysUntilEdited { withAnimation(.easeOut(duration: 0.2)) { receipt = nil } }
+        #endif
         // A shared note's text lives in its document; the note follows it (CollabStore).
         if let collab {
             if !collab.isViewOnly { collab.local(text, selection: controller.target?.currentSelection) }

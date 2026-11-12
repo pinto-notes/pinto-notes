@@ -89,7 +89,7 @@ import AppKit
         // The receipt says its whole line ("ChatGPT changed 3 li…" in round 5).
         let marks = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appending(path: "Pane/Views/AIMarks.swift"), encoding: .utf8)
-        let receipt = try #require(marks.range(of: "Text(compact ? receipt.shortSummary : receipt.summary)").map { String(marks[$0.lowerBound...].prefix(400)) })
+        let receipt = try #require(marks.range(of: "Text(compact ? receipt.shortSummary : receipt.summary").map { String(marks[$0.lowerBound...].prefix(400)) })
         #expect(receipt.contains(".fixedSize(horizontal: true, vertical: false)"))
     }
     #endif
@@ -156,6 +156,8 @@ import AppKit
         #expect(h.view.isTinted)
         await h.caret(after: "late lunch")
         await h.type("!")
+        // It fades in a third of a second rather than cutting out (council r1).
+        await h.settle(0.5)
         #expect(!h.view.isTinted, "typing makes it yours")
     }
 

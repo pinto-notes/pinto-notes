@@ -91,7 +91,7 @@ import SwiftUI
         #expect(r.withPartsUndone(in: after) == nil, "both parts still there")
         #expect(r.withPartsUndone(in: previous) == nil, "both gone: that's isUndone")
         let left = try #require(r.withPartsUndone(in: "Plan\n- [ ] Dates: May\n- Lunch\n- [x] Train"))
-        #expect(left.lines == 1 && left.summary == "Sara's Claude changed 1 line")
+        #expect(left.lines == 1 && left.summary == "Sara's Claude added \u{201C}May\u{201D}", "\(left.summary)")
         #expect(left.after == "Plan\n- [ ] Dates: May\n- Lunch\n- [x] Train")
         #expect(left.previous == previous)
         #expect(left.partlyUndoneLine == "One of Sara's Claude\u{2019}s changes was undone")

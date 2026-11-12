@@ -52,11 +52,34 @@ import Testing
         #expect(strength > 0)
         #expect(tint.strength(at: train) == 0, "and not tinted: it didn't change")
         let rect = marked.removalRect(gap, at: .zero)
-        #expect(rect.maxY <= 0 + 1, "in the gap above the line: \(rect)")
+        let line = try #require(marked.textLineFragments.first)
+        let capTop = line.typographicBounds.minY + line.glyphOrigin.y - NSFont.systemFont(ofSize: EditorMetrics.body).capHeight
+        #expect(rect.maxY < capTop && rect.minY > line.typographicBounds.minY - 6, "in the seam above the line's letters: \(rect), caps at \(capTop)")
         #expect(try fragment(0).removalMark == nil)
         await h.snapshot("removal-mark")
         tint.stop()
         #expect(marked.removalMark == nil, "gone once cleared")
+    }
+
+    /// In a checklist the seam mark starts where the words do, not under the circle (council r1).
+    @Test func inAChecklistTheMarkStartsAtTheWords() async throws {
+        let old = "Groceries\n\n- [ ] Oat milk\n- [ ] Lemons\n- [ ] Eggs"
+        let new = "Groceries\n\n- [ ] Oat milk\n- [ ] Eggs"
+        let h = await EditorHarness(new, focus: false)
+        defer { h.close() }
+        h.view.tintChanges(from: old, untilCleared: true)
+        await h.settle(0.9)
+        let eggs = (h.text as NSString).range(of: "- [ ] Eggs").location
+        let layout = try #require(h.view.textLayoutManager)
+        let content = try #require(layout.textContentManager)
+        let loc = try #require(content.location(content.documentRange.location, offsetBy: eggs))
+        layout.ensureLayout(for: NSTextRange(location: loc))
+        let marked = try #require(layout.textLayoutFragment(for: loc) as? DecoratedLayoutFragment)
+        let (gap, _) = try #require(marked.removalMark)
+        let line = try #require(marked.textLineFragments.first)
+        let words = line.typographicBounds.minX + line.locationForCharacter(at: 6).x
+        #expect(abs(marked.removalRect(gap, at: .zero).minX - words) < 1, "starts at “Eggs”")
+        h.view.core.layoutDelegate.tint.stop()
     }
     #endif
 }

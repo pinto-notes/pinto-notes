@@ -63,7 +63,8 @@ final class ChangeTint: @unchecked Sendable {
     /// The sweep: each paragraph's highlight is pulled across its words in `sweepDuration`, a
     /// paragraph a moment after the one above it, all done in about half a second.
     static let sweepDuration = 0.32
-    static func sweepStagger(_ count: Int) -> Double { count > 1 ? min(0.05, 0.22 / Double(count - 1)) : 0 }
+    // In reading order, one line after another (council r1: six lines at once looked like a progress bar).
+    static func sweepStagger(_ count: Int) -> Double { count > 1 ? min(0.08, 0.5 / Double(count - 1)) : 0 }
 
     /// How far the sweep is through the changed paragraph starting at `offset`: 0 nothing yet,
     /// 1 drawn whole.
@@ -87,6 +88,10 @@ final class ChangeTint: @unchecked Sendable {
     /// A mark waiting for its text: the note screen hears of an AI's edit about when the editor
     /// takes it, and the mark must start in the same frame as the words, not a beat after.
     private var pending: (after: String, start: @MainActor () -> Void)?
+    /// Whether the change is in view. Its rest starts only once it is, so a change below the
+    /// fold is still marked when you get to it (council r1); after `waitsInView` it fades anyway.
+    var inView: (@MainActor () -> Bool)?
+    static let waitsInView: Double = 60
 
     /// The editor just took this text: start what was waiting for it, before it's drawn.
     @MainActor func textArrived(_ text: String) {
@@ -138,6 +143,11 @@ final class ChangeTint: @unchecked Sendable {
         return ranges.contains { NSLocationInRange(offset, $0) } ? strength : 0
     }
 
+    /// Items an AI ticked (where each line starts): the mark is a halo round the box, not a fill
+    /// behind the struck-through words (council r1).
+    private(set) var ticks: [Int] = []
+    func ticked(at offset: Int) -> Bool { strength > 0 && ticks.contains(offset) }
+
     /// Whether any line is tinted right now.
     var isLit: Bool { strength > 0 && !drawn.isEmpty }
 
@@ -155,6 +165,8 @@ final class ChangeTint: @unchecked Sendable {
     @MainActor func play(from previous: String, to text: String, color: PColor? = nil, hold: Double = 2.6, untilCleared: Bool = false) {
         stop()
         self.color = color
+        shown = text
+        ticks = Self.tickedLines(from: previous, to: text)
         ranges = Self.paragraphRanges(changedFrom: previous, to: text)
         removals = Self.removals(from: previous, to: text)
         marks = Self.changedWords(from: previous, to: text)
@@ -189,6 +201,10 @@ final class ChangeTint: @unchecked Sendable {
             guard await animate(to: 1.5, over: 0.3, easeOut, run: mine, lit: lit),
                   await animate(to: 1, over: 0.5, easeInOut, run: mine, lit: lit) else { return }
             if untilCleared { return }
+            let waiting = Date.now
+            while let seen = inView, !seen(), mine == run, Date.now.timeIntervalSince(waiting) < Self.waitsInView {
+                try? await Task.sleep(for: .seconds(0.2))
+            }
             try? await Task.sleep(for: .seconds(hold * Self.slowMotion))
             while Self.holdForCapture, mine == run { try? await Task.sleep(for: .seconds(0.1)) }
             guard await animate(to: 0, over: 1.6, easeInOut, run: mine, lit: lit) else { return }
@@ -213,10 +229,47 @@ final class ChangeTint: @unchecked Sendable {
         }
     }
 
+    /// The text the marks are ranges of, to follow your typing while they fade.
+    private var shown: String?
+
+    /// You typed: the marks move with the text and fade out in a third of a second, rather than
+    /// cutting out (council r1). Anything else clears at once.
+    @MainActor func typed(_ now: String) {
+        guard strength > 0, !drawn.isEmpty, let base = shown, let e = TextDiff.edit(from: base, to: now) else { stop(); return }
+        let delta = (e.replacement as NSString).length - e.range.length
+        func moved(_ r: NSRange) -> NSRange? {
+            if NSMaxRange(e.range) <= r.location { return NSRange(location: r.location + delta, length: r.length) }
+            if e.range.location >= NSMaxRange(r) { return r }
+            // Inside it: it grows or shrinks; across its edge: it goes.
+            guard e.range.location >= r.location, NSMaxRange(e.range) <= NSMaxRange(r) else { return nil }
+            return NSRange(location: r.location, length: max(0, r.length + delta))
+        }
+        redraw(drawn)
+        ranges = ranges.compactMap(moved)
+        marks = marks.compactMap(moved)
+        removals = removals.compactMap { g in moved(g.paragraph).map { Removal(paragraph: $0, below: g.below) } }
+        ticks = ticks.compactMap { moved(NSRange(location: $0, length: 1))?.location }
+        shown = now
+        sweepElapsed = nil
+        inView = nil
+        guard !fading else { redraw(drawn); return }
+        fading = true
+        run += 1
+        let mine = run, lit = drawn
+        Task { @MainActor in
+            defer { if mine == run { fading = false } }
+            guard await animate(to: 0, over: 0.3, { 1 - pow(1 - $0, 2) }, run: mine, lit: lit) else { return }
+            stop()
+        }
+    }
+    private var fading = false
+
     /// Clears at once (you started typing, or undid the edit).
     @MainActor func stop() {
         run += 1
         sweepElapsed = nil
+        inView = nil
+        fading = false
         guard strength > 0 || !drawn.isEmpty else { return }
         // Redraw while the lines are still known, so their old tint is painted over.
         strength = 0
@@ -224,6 +277,7 @@ final class ChangeTint: @unchecked Sendable {
         ranges = []
         removals = []
         marks = []
+        ticks = []
     }
 
     /// Line numbers (0-based) of `new` that are added or rewritten compared with `old`. A line
@@ -318,8 +372,8 @@ final class ChangeTint: @unchecked Sendable {
 
     /// Inside a line rewritten from `old` to `new`, the ranges of `new` that are new: whole
     /// words, neighbours joined across a space, nothing past the list marker. Empty when the
-    /// change is only the marker (a tick) or only words taken out; the whole line when most of
-    /// it is new, which reads better than a patchwork.
+    /// change is only the marker (a tick) or only words taken out; the whole line when none of
+    /// its words were kept.
     static func newWords(from old: String, to new: String) -> [NSRange] {
         let a = tokens(old), b = tokens(new)
         let marker = ListPrefix(line: new).map(\.length) ?? 0
@@ -337,16 +391,22 @@ final class ChangeTint: @unchecked Sendable {
                     && b[end + 1].0.trimmingCharacters(in: .whitespaces).isEmpty) { end += 1 }
             var lo = b[k].1.location, hi = NSMaxRange(b[end].1)
             lo = max(lo, marker)
-            // No spaces at either end.
+            // No spaces at either end, and no stray punctuation leading into the words.
             let ns = new as NSString
+            let lead = CharacterSet.whitespaces.union(CharacterSet(charactersIn: ",.;:"))
+            if ns.substring(with: NSRange(location: lo, length: hi - lo)).rangeOfCharacter(from: .alphanumerics) != nil {
+                while lo < hi, lead.contains(UnicodeScalar(ns.character(at: lo)) ?? " ") { lo += 1 }
+            }
             while lo < hi, CharacterSet.whitespaces.contains(UnicodeScalar(ns.character(at: lo)) ?? " ") { lo += 1 }
             while hi > lo, CharacterSet.whitespaces.contains(UnicodeScalar(ns.character(at: hi - 1)) ?? " ") { hi -= 1 }
             if hi > lo { out.append(NSRange(location: lo, length: hi - lo)) }
             k = end + 1
         }
-        let visible = max(1, (new as NSString).length - marker)
-        let marked = out.reduce(0) { $0 + $1.length }
-        if Double(marked) / Double(visible) > 0.6 { return [NSRange(location: marker, length: (new as NSString).length - marker)] }
+        // Every word new: the line whole. Otherwise only the new words, so a sentence added to a
+        // kept one leaves the kept words plain.
+        let keptWord = b.indices.contains { !inserted.contains($0) && b[$0].1.location >= marker
+            && b[$0].0.rangeOfCharacter(from: .alphanumerics) != nil }
+        if !out.isEmpty, !keptWord { return [NSRange(location: marker, length: (new as NSString).length - marker)] }
         return out
     }
 

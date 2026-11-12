@@ -748,9 +748,11 @@ struct TableGridView: View {
                 // The strip the row handles sit in.
                 Color.clear.frame(width: GridMetrics.handle)
                 grid(widths: widths)
+                    // Behind the words and inside the rounded corners (council r1: it spilled past them
+                    // and dulled the text).
+                    .background(alignment: .topLeading) { aiCellsTint(widths: widths) }
                     .overlay(alignment: .topLeading) { panelCross(widths: widths) }
                     .overlay(alignment: .topLeading) { pickedTint(widths: widths) }
-                    .overlay(alignment: .topLeading) { aiCellsTint(widths: widths) }
             }
         }
         // Each handle is a small grip with a target as big as a fingertip around it. A tap
@@ -887,6 +889,8 @@ struct TableGridView: View {
                     .offset(x: widths[..<c.column].reduce(0, +), y: CGFloat(c.row) * GridMetrics.row)
             }
         }
+        .frame(width: widths.reduce(0, +), height: CGFloat(draft.rows.count) * GridMetrics.row, alignment: .topLeading)
+        .clipShape(RoundedRectangle(cornerRadius: GridLook.radius, style: .continuous))
         .animation(.easeOut(duration: cells.isEmpty ? 1.6 * ChangeTint.slowMotion : 0.25 * ChangeTint.slowMotion), value: cells)
         .allowsHitTesting(false)
         .accessibilityHidden(true)

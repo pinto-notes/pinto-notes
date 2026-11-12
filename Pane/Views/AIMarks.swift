@@ -229,12 +229,15 @@ struct AIReceipt: View {
     var body: some View {
         HStack(spacing: compact ? 7 : 9) {
             AIGlyph(ai: receipt.by, size: compact ? 12 : 14)
-            Text(compact ? receipt.shortSummary : receipt.summary)
+            Text(compact ? receipt.shortSummary : receipt.summary + (Self.age(receipt.at).map { " \u{00B7} \($0)" } ?? ""))
                 .font(.system(size: compact ? 13 : Self.text, weight: .medium))
                 .lineLimit(1)
                 // Whole, never "ChatGPT changed 3 li…": the capsule grows instead (council round 5).
                 .fixedSize(horizontal: true, vertical: false)
                 .foregroundStyle(.primary)
+                // A second edit's words replace the first's at once, never drawn over them (council r1).
+                .contentTransition(.identity)
+                .animation(nil, value: receipt)
             if let show, placement != 0, !compact {
                 Button(action: show) {
                     Label("Show", systemImage: placement > 0 ? "arrow.down" : "arrow.up")
@@ -279,11 +282,30 @@ struct AIReceipt: View {
         .padding(.leading, compact ? 10 : 12)
         .padding(.trailing, compact ? 12 : 14)
         .frame(height: compact ? 30 : Self.height)
-        .background(.regularMaterial, in: .capsule)
+        // A solid fill: the material greyed the words and showed at the ends (council r1).
+        .background(Capsule().fill(Self.fill))
         .overlay(Capsule().strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.14), radius: 10, y: 4)
+        .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
         .accessibilityElement(children: .contain)
     }
+
+    /// How long ago, for an edit you only see later ("2 h ago"); nil for one that just happened.
+    static func age(_ at: Date, now: Date = .now) -> String? {
+        let s = now.timeIntervalSince(at)
+        guard s >= 120 else { return nil }
+        if s < 3600 { return "\(Int(s / 60)) min ago" }
+        if s < 86400 { return "\(Int(s / 3600)) h ago" }
+        let days = Int(s / 86400)
+        return days == 1 ? "yesterday" : "\(days) days ago"
+    }
+
+    #if os(macOS)
+    static let fill = Color(nsColor: NSColor(name: nil) { a in
+        a.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.17, alpha: 1) : .white
+    })
+    #else
+    static let fill = Color(uiColor: UIColor { t in t.userInterfaceStyle == .dark ? UIColor(white: 0.17, alpha: 1) : .white })
+    #endif
 
     /// Just the summary and Undo: AI Changes is in the sidebar and the menu.
     static let quiet = true

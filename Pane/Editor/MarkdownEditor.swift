@@ -1720,7 +1720,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         guard markedTextRange == nil else { return }
         takeWhatArrivedWhileComposing()
         recordTyping()
-        core.layoutDelegate.tint.stop()
+        core.layoutDelegate.tint.typed(text)
         // Rows still sliding would cover the new text.
         core.endSlides()
         core.restyle(textStorage, selection: editingSelection, force: true)
@@ -3333,7 +3333,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     func textDidChange(_ notification: Notification) {
         guard !hasMarkedText() else { return }
         takeWhatArrivedWhileComposing()
-        core.layoutDelegate.tint.stop()
+        core.layoutDelegate.tint.typed(string)
         // Rows still sliding would cover the new text.
         core.endSlides()
         core.restyle(textStorage!, selection: editingSelection, force: true)
@@ -3387,6 +3387,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         tint.whenText(currentText, is: after) { [weak self] in
             guard let self else { return }
             tint.play(from: previous, to: after, color: color)
+            tint.inView = { [weak self] in (self?.changePlacement(from: previous) ?? 0) == 0 }
             self.controller?.markTableCells(from: previous, to: after, color: color)
             self.popTicks(ChangeTint.tickedLines(from: previous, to: after))
         }

@@ -129,6 +129,18 @@ import Testing
         #expect(words == ["and a late lunch"], "\(words)")
     }
 
+    /// Words kept in a rewritten line stay plain, even when most of the line is new (council r1).
+    @Test func keptWordsStayPlainInALongerLine() {
+        func marked(_ old: String, _ new: String) -> [String] {
+            // Whether the full stop is in the mark doesn't matter.
+            ChangeTint.newWords(from: old, to: new).map { (new as NSString).substring(with: $0).trimmingCharacters(in: .punctuationCharacters) }
+        }
+        #expect(marked("- Swedish, based in Jönköping.", "- Swedish, based in Jönköping, with plans to move to Stockholm.")
+            == ["with plans to move to Stockholm"])
+        #expect(marked("Last refreshed: 1 October 2026.", "Last refreshed: 12 November 2026. This is enduring context.")
+            == ["12 November", "This is enduring context"])
+    }
+
     /// A new line, a tick, and a line mostly rewritten are marked whole, from after the marker.
     @Test func newLinesTicksAndRewritesAreMarkedWhole() {
         let g = "Groceries\n\n- [ ] Oat milk\n- [ ] Eggs"
@@ -142,6 +154,31 @@ import Testing
         #expect(ChangeTint.changedWords(from: table, to: table + "\n| Food | 150 |").isEmpty, "a table's grid isn't its text")
     }
 
+    /// An edit you only see later says how long ago it was; one that just happened doesn't.
+    @Test func aLaterEditSaysWhen() {
+        let now = Date.now
+        #expect(AIReceipt.age(now.addingTimeInterval(-30), now: now) == nil)
+        #expect(AIReceipt.age(now.addingTimeInterval(-600), now: now) == "10 min ago")
+        #expect(AIReceipt.age(now.addingTimeInterval(-7300), now: now) == "2 h ago")
+        #expect(AIReceipt.age(now.addingTimeInterval(-90000), now: now) == "yesterday")
+    }
+
+    /// Typing right after an AI's edit: the marks follow the text and fade in a third of a
+    /// second, not cut out (council r1).
+    @Test func typingFadesTheMarksAndTheyFollowTheText() async {
+        let tint = ChangeTint()
+        let old = "Trip\n\nWe land on Tuesday."
+        let new = "Trip\n\nWe land on Wednesday."
+        tint.play(from: old, to: new, color: nil)
+        try? await Task.sleep(for: .seconds(0.9))
+        let before = tint.marks
+        tint.typed("Hi " + new)
+        #expect(tint.marks == before.map { NSRange(location: $0.location + 3, length: $0.length) }, "moved with the text")
+        #expect(tint.strength > 0, "still fading")
+        try? await Task.sleep(for: .seconds(0.5))
+        #expect(tint.marks.isEmpty && tint.strength == 0, "then gone")
+    }
+
     /// The receipt says what happened when it's one plain thing.
     @Test func theReceiptSaysWhatHappened() {
         let g = "Groceries\n\n- [ ] Oat milk\n- [ ] Lemons\n- [ ] Eggs"
@@ -150,6 +187,14 @@ import Testing
         #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Saffron") == "added \u{201C}Saffron\u{201D}")
         #expect(AIEdit.describe(previous: "B\n\n| a | b |\n|---|---|", after: "B\n\n| a | b |\n|---|---|\n| c | d |") == "added a row to the table")
         #expect(AIEdit.describe(previous: Self.before, after: Self.after) == nil, "a rewrite: changed N lines")
+        // A swapped word and a renamed title say so (council r1), and quotes stay short.
+        let trip = "Trip\n\nWe land on Tuesday at 14:20."
+        #expect(AIEdit.describe(previous: trip, after: trip.replacingOccurrences(of: "Tuesday", with: "Wednesday")) == "changed \u{201C}Tuesday\u{201D} to \u{201C}Wednesday\u{201D}")
+        #expect(AIEdit.describe(previous: g, after: g.replacingOccurrences(of: "Groceries", with: "Groceries for Saturday")) == "renamed the note")
+        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Book 31: added by ChatGPT today") == "added \u{201C}Book 31: added by…\u{201D}")
+        // Two edits in a row say both when they're short.
+        #expect(AIEdit.describe(previous: g, after: (g + "\n- [ ] Saffron").replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs"))
+                == "added \u{201C}Saffron\u{201D} and ticked \u{201C}Eggs\u{201D}")
     }
 
     /// The highlight is pulled across the words in about a third of a second, then drawn whole.

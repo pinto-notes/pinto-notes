@@ -42,8 +42,9 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         func mix(_ t: CGFloat) -> CGColor { PColor(red: pr + (ar - pr) * t, green: pg + (ag - pg) * t, blue: pb + (ab - pb) * t, alpha: 1).cgColor }
         // On a dark page the same share of amber reads as mud brown: less of it there.
         let dark = (pr * 0.299 + pg * 0.587 + pb * 0.114) < 0.5
-        // An AI's own colour (green, blue) is darker than amber and needs more to show.
-        let onDark: CGFloat = color == nil ? 0.7 : 1.3
+        // An AI's own colour (green, blue) is darker than amber and needs more to show; too little
+        // and Claude's orange reads as a brown stain (council r1).
+        let onDark: CGFloat = color == nil ? 0.7 : 1.75
         return (mix(Self.tintAmount * (dark ? onDark : 1) * strength), mix(min(1, strength)))
     }
 
@@ -181,7 +182,8 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     static let changeLead: CGFloat = 12
     static let changeBar: CGFloat = 3
     /// The highlight's padding around the words, and its corners.
-    static let changePad = CGSize(width: 4, height: 1)
+    // Two points each side: the spaces either side of a marked word stay clear (council r1).
+    static let changePad = CGSize(width: 2, height: 1)
     /// The tick in the margin beside changed lines: 2 pt wide, 8 pt left of the text, as tall as
     /// the changed lines. So the change isn't marked by colour alone, and a long note can be
     /// scanned down its edge (round 14 of the UI council: the marker lost the old margin bar).
@@ -206,12 +208,32 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     /// Where lines were taken out: a short solid line in the AI's colour, in the seam above this
     /// paragraph (below it at the note's end), from where the text starts. It used to sit 11 pt
     /// up, which in a checklist is on the line above (Emil's scenarios, 12 November 2026).
+    /// Council r1: it read as an underline of the line above, starting under the checkbox. Now it
+    /// starts where the words do and sits halfway between the line above and this one's letters.
     func removalRect(_ gap: ChangeTint.Removal, at point: CGPoint) -> CGRect {
-        let x = point.x + (textLineFragments.first?.typographicBounds.minX ?? 0)
+        let line = gap.below ? textLineFragments.last : textLineFragments.first
+        var x = point.x + (line?.typographicBounds.minX ?? 0)
+        var font = PFont.systemFont(ofSize: EditorMetrics.body)
+        if let p = textElement as? NSTextParagraph, let line {
+            let marker = ListPrefix(line: p.attributedString.string).map(\.length) ?? 0
+            if marker > 0, marker < p.attributedString.length {
+                x += line.locationForCharacter(at: marker).x
+                if let f = p.attributedString.attribute(.font, at: marker, effectiveRange: nil) as? PFont { font = f }
+            }
+        }
         let width = min(Self.removalWidth, max(containerWidth - x, 0))
-        let y = gap.below
-            ? point.y + (textLineFragments.last?.typographicBounds.maxY ?? layoutFragmentFrame.height) + 1
-            : point.y + (textLineFragments.first?.typographicBounds.minY ?? 0) - 3
+        let y: CGFloat
+        if gap.below || line == nil {
+            // Under the last line's letters, a descender's depth down.
+            let b = line?.typographicBounds ?? CGRect(x: 0, y: 0, width: 0, height: layoutFragmentFrame.height)
+            y = point.y + b.minY + (line?.glyphOrigin.y ?? b.height) - font.descender + 2
+        } else if let line {
+            // The line above ends a descender below its baseline, at this fragment's top; this
+            // line's capitals start at baseline minus cap height. Halfway between.
+            let top = line.typographicBounds.minY
+            let capTop = top + line.glyphOrigin.y - font.capHeight
+            y = point.y + (top + font.descender + capTop) / 2
+        } else { y = point.y }
         return CGRect(x: x, y: y - 1, width: width, height: 2)
     }
 
@@ -292,6 +314,16 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             whole.enumerateAttribute(.font, in: NSRange(location: from, length: end - from)) { value, _, _ in
                 if let f = value as? PFont, f.pointSize > largest { largest = f.pointSize; font = f }
             }
+            // Hidden syntax ("# ", "*") at either end is not where the words start: the mark keeps
+            // to the text's left edge (council r1: headings and italics started 8 pt early).
+            func hidden(_ i: Int) -> Bool {
+                let c = text.character(at: i)
+                guard let u = UnicodeScalar(c), CharacterSet(charactersIn: "#*_~`= ").contains(u) else { return false }
+                return ((whole.attribute(.font, at: i, effectiveRange: nil) as? PFont)?.pointSize ?? largest) < largest * 0.5
+            }
+            while from < end, hidden(from) { from += 1 }
+            while end > from, hidden(end - 1) { end -= 1 }
+            guard end > from else { return nil }
             // The paragraph's own indices, as for date chips: counted from the line's start, every
             // line past a wrap measured the first line's characters and got a sliver (persona r7).
             let startX = line.locationForCharacter(at: from).x
@@ -311,6 +343,16 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         guard !markedChanged, ChangeHighlight.lines.isEmpty, let (tint, offset) = tintAndOffset else { return 1 }
         return tint.sweep(at: offset)
     }
+
+    /// Round an item an AI ticked: a disc a little larger than the box, in this fragment's drawing
+    /// coordinates. Nil for any other line.
+    func tickHalo(at point: CGPoint) -> CGRect? {
+        guard !markedChanged, let (tint, offset) = tintAndOffset, tint.ticked(at: offset),
+              let d = decoration, case .checkbox = d.kind else { return nil }
+        let box = checkboxRect(d)
+        return box.insetBy(dx: -Self.haloPad, dy: -Self.haloPad).offsetBy(dx: point.x, dy: point.y)
+    }
+    static let haloPad: CGFloat = 5
 
     /// The colour of the AI whose edit is marked, if known.
     private var markColor: PColor? { markedChanged ? nil : tintAndOffset?.0.color }
@@ -337,13 +379,20 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             // It hugs the text, starting a little before it, so a checklist circle stays clear.
             context.saveGState()
             let colors = Self.changeColors(strength, color: markColor)
-            let groups = changeGroups(at: point)
-            let sweep = sweepProgress
-            if sweep < 1 { context.clip(to: Self.swept(groups, sweep)) }
-            if sweep > 0 {
+            let groups = tickHalo(at: point) == nil ? changeGroups(at: point) : []
+            if let halo = tickHalo(at: point) {
+                // A tick: a soft disc in the AI's colour round the box, which pops as yours does,
+                // and the struck-through words stay plain (council r1).
                 context.setFillColor(colors.tint)
-                context.addPath(Self.shape(for: groups))
-                context.fillPath(using: .winding)
+                context.fillEllipse(in: halo)
+            } else {
+                let sweep = sweepProgress
+                if sweep < 1 { context.clip(to: Self.swept(groups, sweep)) }
+                if sweep > 0 {
+                    context.setFillColor(colors.tint)
+                    context.addPath(Self.shape(for: groups))
+                    context.fillPath(using: .winding)
+                }
             }
             let runs = groups.flatMap { $0 }
             if Self.showsTick, let tick = Self.tick(for: runs, textLeft: point.x - layoutFragmentFrame.minX) {
