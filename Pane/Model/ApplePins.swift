@@ -12,15 +12,21 @@ enum ApplePins {
         case unreadable
     }
 
+    /// In the person's own home folder. A sandboxed build's home is its container, so the home is
+    /// taken from the account, the folder the App Store build's read-only exception is relative to
+    /// (`temporary-exception.files.home-relative-path.read-only`, Pane-mac-appstore.entitlements).
     static var store: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: "Library/Group Containers/group.com.apple.notes/NoteStore.sqlite")
+        realHome.appending(path: "Library/Group Containers/group.com.apple.notes/NoteStore.sqlite")
     }
 
-    /// Sandboxed builds can't reach another app's container at all, so the option is hidden there.
-    static var isAvailable: Bool { ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] == nil }
+    static var realHome: URL {
+        if let pw = getpwuid(getuid()), let dir = pw.pointee.pw_dir { return URL(fileURLWithPath: String(cString: dir), isDirectory: true) }
+        return FileManager.default.homeDirectoryForCurrentUser
+    }
 
-    /// Whether the database can be opened right now (i.e. Full Disk Access is granted).
+    /// Whether the database can be opened right now (i.e. Full Disk Access is granted). Each try
+    /// is also what puts Pinto Notes in System Settings' Full Disk Access list: macOS lists an app
+    /// there only once it has been refused.
     static func hasAccess(at url: URL = store) -> Bool {
         guard let h = try? FileHandle(forReadingFrom: url) else { return false }
         try? h.close()

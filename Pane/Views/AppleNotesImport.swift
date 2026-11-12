@@ -238,11 +238,22 @@ struct AppleNotesImportView: View {
     @State private var progress: (done: Int, total: Int)?
     /// The notes already here, by title and date.
     @State private var existing: Set<String> = []
-    /// Notes' own database can be read (Full Disk Access is on): checklists and pins come over too.
-    @State private var storeAccess = true
-    @State private var explainingChecklists = false
-    /// Captures: the sheet as it is on a Mac where Notes' database can't be read.
+    /// Captures: the sheet as it is on a Mac where Notes' database can't be read (its last page
+    /// offers the ticks and pins).
     nonisolated(unsafe) static var demoWithoutAccess = false
+    /// After an import without Notes' database: bringing its ticks and pins over (AppleNotesFollowUp).
+    @State private var followUpStep: FollowUpStep?
+    enum FollowUpStep: Equatable {
+        /// Why Pinto Notes asks for Full Disk Access, and the button to System Settings.
+        case explain
+        /// System Settings is open; back here with access on, the ticks and pins come over.
+        case waiting(stillOff: Bool)
+        case applied(AppleNotesFollowUp.Outcome)
+    }
+    /// Opens System Settings (tests never do).
+    nonisolated(unsafe) static var openSettings: @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) }
+    /// Captures: what the confirmation says.
+    nonisolated(unsafe) static var demoOutcome = AppleNotesFollowUp.Outcome(checklistItems: 31, ticked: 14, checklistNotes: 6, pinned: 3)
     /// Captures: the made-up library with two locked notes in it.
     nonisolated(unsafe) static var demoLocked = false
     /// Set when some notes couldn't be read: the sheet stays to say which.
@@ -261,7 +272,7 @@ struct AppleNotesImportView: View {
     @State private var finished: AppleNotesImportSummary?
     /// Captures: the sheet at a given page without importing (`guided`).
     nonisolated(unsafe) static var demoPage: DemoPage?
-    enum DemoPage { case importing, finished, choosing, reading }
+    enum DemoPage { case importing, finished, choosing, reading, offer, explain, waiting, applied }
 
     private var shown: [AppleNote] {
         query.isEmpty ? notes : notes.filter { n in n.name.localizedStandardContains(query) || listing.destination(of: n).contains { $0.localizedStandardContains(query) } }
@@ -356,10 +367,11 @@ struct AppleNotesImportView: View {
             await load()
         }
         .onDisappear { if !imported { AppleNotesFunnel.cancelled() } }
-        // Coming back from System Settings: look again.
+        // Back from System Settings with Full Disk Access on: the ticks and pins come over.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            if !AppleNotesBridge.isDemo, ApplePins.isAvailable { storeAccess = ApplePins.hasAccess() }
+            if case .waiting = followUpStep { Task { await bringTicksAndPins(returning: true) } }
         }
+        .onDisappear { AppleNotesFollowUpCenter.shared.sheetWaiting = false }
         // Captures: the import half done, without reading anything.
         .onReceive(NotificationCenter.default.publisher(for: Capture.importHalfway)) { _ in
             guard AppleNotesBridge.isDemo else { return }
@@ -389,7 +401,24 @@ struct AppleNotesImportView: View {
     }
 
     /// Which page of the guide look shows.
-    private var pageKey: Int { finished != nil || Self.demoPage == .finished ? 2 : progress != nil || Self.demoPage == .importing ? 1 : choosingNotes || Self.demoPage == .choosing ? 3 : loading || Self.demoPage == .reading ? 4 : 0 }
+    private var pageKey: Int {
+        switch followUpStep ?? Self.demoFollowUp {
+        case .explain: return 5
+        case .waiting: return 6
+        case .applied: return 7
+        case nil: break
+        }
+        return finished != nil || Self.demoPage == .finished || Self.demoPage == .offer ? 2 : progress != nil || Self.demoPage == .importing ? 1 : choosingNotes || Self.demoPage == .choosing ? 3 : loading || Self.demoPage == .reading ? 4 : 0
+    }
+
+    private static var demoFollowUp: FollowUpStep? {
+        switch demoPage {
+        case .explain: .explain
+        case .waiting: .waiting(stillOff: false)
+        case .applied: .applied(demoOutcome)
+        default: nil
+        }
+    }
 
     private var guidePage: some View {
         ZStack {
@@ -399,6 +428,9 @@ struct AppleNotesImportView: View {
                 case 1: importingPage
                 case 3: chooseNotesPage
                 case 4: readingPage
+                case 5: explainPage
+                case 6: waitingPage
+                case 7: appliedPage((followUpStep ?? Self.demoFollowUp).flatMap { if case .applied(let o) = $0 { o } else { nil } } ?? .init())
                 default: choosePage
                 }
             }
@@ -633,7 +665,6 @@ struct AppleNotesImportView: View {
             .clipShape(shape)
             .padding(.top, 14)
             HStack(spacing: 14) {
-                if !storeAccess { checklistNote }
                 Spacer(minLength: 0)
                 Button(Self.importTitle(picked: picked.count, new: newCount, all: Self.readable(notes), locale: locale)) {
                     Task { await runImport() }
@@ -824,21 +855,19 @@ struct AppleNotesImportView: View {
 
     /// Under the folders, before Import: what won't come over as it is (persona council 11-04).
     private var staysLine: String? {
-        loading || failure != nil ? nil : Self.staysLine(locked: notes.filter(\.locked).map(\.name), checklists: !storeAccess, locale: locale)
+        loading || failure != nil ? nil : Self.staysLine(locked: notes.filter(\.locked).map(\.name), locale: locale)
     }
 
     /// "Bank details and Codes are locked, so they can't come over. Unlock them in Apple Notes
-    /// first, or copy them over yourself." Named, with what to do (Emil, 4 November 2026). The way
-    /// to keep checklists is under Choose Notes, off the one-press path; this only says it.
-    static func staysLine(locked: [String], checklists: Bool, locale: Locale) -> String? {
-        var said: [String] = []
-        if let names = lockedNames(locked, locale: locale) {
-            said.append(locked.count == 1
-                ? "\(names) is locked, so it can\u{2019}t come over. Unlock it in Apple Notes first, or copy it over yourself."
-                : "\(names) are locked, so they can\u{2019}t come over. Unlock them in Apple Notes first, or copy them over yourself.")
-        }
-        if checklists { said.append("Checklists may come in as plain lists.") }
-        return said.isEmpty ? nil : said.joined(separator: " ")
+    /// first, or copy them over yourself." Named, with what to do (Emil, 4 November 2026).
+    /// Checklists aren't mentioned before the import any more: without Notes' database the last
+    /// page says they came as plain lists and offers to bring the ticks and pins over (Emil,
+    /// 12 November 2026: one button, nothing to set up first).
+    static func staysLine(locked: [String], locale: Locale) -> String? {
+        guard let names = lockedNames(locked, locale: locale) else { return nil }
+        return locked.count == 1
+            ? "\(names) is locked, so it can\u{2019}t come over. Unlock it in Apple Notes first, or copy it over yourself."
+            : "\(names) are locked, so they can\u{2019}t come over. Unlock them in Apple Notes first, or copy them over yourself."
     }
 
     /// "Bank details", "Bank details and Codes", "Bank details, Codes, Passport and 4 more".
@@ -891,6 +920,7 @@ struct AppleNotesImportView: View {
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 400)
+            if offersTicksAndPins { ticksAndPinsOffer.padding(.top, 18) }
             Spacer(minLength: 0)
             Button { dismiss() } label: { Text(importDoneTitle).frame(maxWidth: .infinity) }
                 .buttonStyle(.amberProminent(.regular, wide: true))
@@ -902,6 +932,145 @@ struct AppleNotesImportView: View {
     }
 
     static let successLine = "Your folders came over as they were."
+
+    // MARK: Ticks and pins, afterwards
+
+    /// The import ran without Notes' database and brought notes it can find there again.
+    private var offersTicksAndPins: Bool {
+        Self.demoPage == .offer || (Self.demoPage == .finished && Self.demoWithoutAccess) || !(finished?.followUp.isEmpty ?? true)
+    }
+
+    static let plainListsLine = "Checklists came in as plain lists, and pins were skipped."
+    static let offerTitle = "Bring over ticks and pins"
+    /// Why Full Disk Access, in two sentences: what is read, and that the copy goes.
+    static let fullDiskAccessWhy = "Apple Notes keeps ticks and pins in a database that only apps with Full Disk Access can open. Pinto Notes reads just which items are ticked and which notes are pinned, from a copy it deletes straight after."
+    static let turnOnLine = "In Full Disk Access, turn on Pinto Notes, then come back here. The ticks and pins come over by themselves."
+    static let turnOnHelp = "Not in the list? Press + below it and choose Pinto Notes in Applications. If macOS offers to quit and reopen Pinto Notes, choose Quit & Reopen."
+    static let stillOffLine = "Full Disk Access is still off for Pinto Notes."
+    static let appliedLine = "Your imported notes now have them, as in Apple Notes."
+
+    /// Said plainly on the last page, with the one way to bring them over too.
+    private var ticksAndPinsOffer: some View {
+        VStack(spacing: 4) {
+            Text(Self.plainListsLine)
+                .font(.system(size: 13))
+                .foregroundStyle(Color.muted)
+                .multilineTextAlignment(.center)
+                .accessibilityIdentifier("import.plainLists")
+            Button(Self.offerTitle) { followUpStep = .explain }
+                .buttonStyle(.hoverLink)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.tint)
+                .accessibilityIdentifier("import.ticksAndPins")
+        }
+        .frame(maxWidth: 400)
+    }
+
+    private func followUpPage(title: String, @ViewBuilder lines: () -> some View, primary: String, primaryID: String,
+                              primaryAction: @escaping () -> Void, quiet: String?, quietAction: @escaping () -> Void = {}, done: Bool = false) -> some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            ZStack(alignment: .bottomTrailing) {
+                ImportSourceIcon(origin: .appleNotes, size: 76)
+                if done {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 28))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, Color(Palette.amberButton))
+                        .background(Circle().fill(Color(Palette.sheetGround)).padding(-3))
+                        .offset(x: 8, y: 6)
+                }
+            }
+            .padding(.bottom, 22)
+            Text(title)
+                .font(.display(26))
+                .tracking(Palette.tracking(26))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 10)
+            VStack(spacing: 10) { lines() }
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 410)
+            Spacer(minLength: 0)
+            Button(action: primaryAction) { Text(primary).frame(maxWidth: .infinity) }
+                .buttonStyle(.amberProminent(.regular, wide: true))
+                .keyboardShortcut(.defaultAction)
+                .frame(maxWidth: 320)
+                .accessibilityIdentifier(primaryID)
+            if let quiet {
+                Button(quiet, action: quietAction)
+                    .buttonStyle(.hoverLink)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.muted)
+                    .frame(height: 34)
+                    .padding(.top, 6)
+                    .accessibilityIdentifier("import.notNow")
+            } else {
+                Text(" ").frame(height: 34).padding(.top, 6).hidden()
+            }
+        }
+    }
+
+    /// Why Pinto Notes asks, before System Settings opens.
+    private var explainPage: some View {
+        followUpPage(title: Self.offerTitle, lines: {
+            Text(Self.fullDiskAccessWhy).font(.system(size: 15)).foregroundStyle(Color.muted)
+                .accessibilityIdentifier("import.fullDiskAccessWhy")
+        }, primary: "Open System Settings", primaryID: "import.openFullDiskAccess", primaryAction: openFullDiskAccess,
+           quiet: "Not now") { followUpStep = nil }
+    }
+
+    /// System Settings is open: what to do there, and what happens back here.
+    private var waitingPage: some View {
+        let stillOff = followUpStep == .waiting(stillOff: true)
+        return followUpPage(title: "Turn on Pinto Notes", lines: {
+            Text(Self.turnOnLine).font(.system(size: 15)).foregroundStyle(Color.muted)
+            if stillOff {
+                Text(Self.stillOffLine).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.ink)
+                    .accessibilityIdentifier("import.stillOff")
+            }
+            Text(Self.turnOnHelp).font(.system(size: 12)).foregroundStyle(Color.muted)
+        }, primary: "Open System Settings", primaryID: "import.openFullDiskAccess", primaryAction: openFullDiskAccess,
+           quiet: "Not now") { dismiss() }
+    }
+
+    /// The ticks and pins came over.
+    private func appliedPage(_ outcome: AppleNotesFollowUp.Outcome) -> some View {
+        followUpPage(title: outcome.line(locale: locale), lines: {
+            Text(outcome.unreadable ? "Your notes stay as they came in." : Self.appliedLine).font(.system(size: 15)).foregroundStyle(Color.muted)
+            if let left = outcome.leftLine(locale: locale) {
+                Text(left).font(.system(size: 13)).foregroundStyle(Color.muted)
+            }
+        }, primary: importDoneTitle, primaryID: "import.done", primaryAction: { dismiss() }, quiet: nil, done: !outcome.unreadable)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("import.applied")
+    }
+
+    /// Keeps the notes waiting for their ticks and pins, tries the database once (so macOS lists
+    /// Pinto Notes under Full Disk Access), and opens that list, unless access is already on.
+    private func openFullDiskAccess() {
+        let center = AppleNotesFollowUpCenter.shared
+        if followUpStep == .explain { center.ask(finished?.followUp ?? []) }
+        center.sheetWaiting = true
+        followUpStep = .waiting(stillOff: false)
+        guard !AppleNotesBridge.isDemo else { return }
+        Task {
+            await bringTicksAndPins(returning: false)
+            if case .waiting = followUpStep { Self.openSettings(ApplePins.settingsURL) }
+        }
+    }
+
+    /// Brings the ticks and pins over when Notes' database can be read now.
+    private func bringTicksAndPins(returning: Bool) async {
+        let center = AppleNotesFollowUpCenter.shared
+        if let outcome = await center.applyIfReady(in: context) ?? (center.isWaiting ? nil : center.outcome) {
+            center.sheetWaiting = false
+            followUpStep = .applied(outcome)
+        } else if returning {
+            followUpStep = .waiting(stillOff: true)
+        }
+    }
 
     /// The success page's line, and the locked notes that stayed, as the first page said they would.
     static func successLine(locked: [String], leftOut: Int = 0, locale: Locale) -> String {
@@ -1001,12 +1170,6 @@ struct AppleNotesImportView: View {
                     .padding(.bottom, 8)
                 }
                 .disabled(progress != nil)
-                // The one place the checklist question is answered: off the one-press path.
-                if !storeAccess {
-                    HStack { checklistNote; Spacer() }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                }
                 }
             }
         }
@@ -1204,39 +1367,6 @@ struct AppleNotesImportView: View {
         .padding(.vertical, 14)
     }
 
-    /// What AppleScript can't tell us, said once and never asked for: a checklist is only a
-    /// checklist, and a pin a pin, in Notes' database and in its own export. The line is there
-    /// only when the database can't be read.
-    private var checklistNote: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text("Checklists may come in as plain lists.")
-            Button("How to keep them") { explainingChecklists = true }
-                .buttonStyle(.hoverLink)
-                .foregroundStyle(.tint)
-                .accessibilityIdentifier("import.checklists")
-                .popover(isPresented: $explainingChecklists, arrowEdge: .top) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Keeping checklists and pins").font(.headline)
-                        Text("Checklists and pinned notes come over exactly when Pinto Notes has Full Disk Access. Without it, checklists arrive as bullet lists.")
-                        Button("Open Settings") { NSWorkspace.shared.open(ApplePins.settingsURL) }
-                            .accessibilityIdentifier("import.fullDiskAccess")
-                        Text("Or, instead of this import, export from Notes as Markdown and import that folder. Not both: notes brought in both ways come twice.")
-                            .padding(.top, 4)
-                        Text("1. In Apple Notes, select the notes and choose File, Export as, Markdown.\n2. Here, choose File, Import Markdown or Text, and pick that folder.")
-                            .foregroundStyle(Color.muted)
-                    }
-                    .font(.callout)
-                    .foregroundStyle(Color.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(width: 330, alignment: .leading)
-                    .padding(16)
-                }
-        }
-        .font(.footnote)
-        .foregroundStyle(Color.muted)
-        .fixedSize(horizontal: false, vertical: true)
-    }
-
     /// After an import that left something behind: what came, and each note that didn't, with why.
     private func unreadList(_ summary: AppleNotesImportSummary) -> some View {
         ScrollView {
@@ -1265,6 +1395,21 @@ struct AppleNotesImportView: View {
                 }
                 Text("Import again any time: notes that are already here are skipped.")
                     .font(.footnote).foregroundStyle(Color.muted).padding(.top, 4)
+                if !summary.followUp.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(Self.plainListsLine).font(.footnote).foregroundStyle(Color.muted)
+                        Button(Self.offerTitle) {
+                            finished = summary
+                            unread = nil
+                            followUpStep = .explain
+                        }
+                        .buttonStyle(.hoverLink)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.tint)
+                        .accessibilityIdentifier("import.ticksAndPins")
+                    }
+                    .padding(.top, 4)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
@@ -1284,11 +1429,9 @@ struct AppleNotesImportView: View {
             // As a real import starts: everything that can come is ticked, Archive too.
             picked = listing.pickedAtFirst(keys: [])
             existing = []
-            storeAccess = !Self.demoWithoutAccess
             loading = false
             return
         }
-        storeAccess = !ApplePins.isAvailable || ApplePins.hasAccess()
         do {
             listing = try await Task.detached { try AppleNotesBridge.list() }.value
             AppleNotesFunnel.read(.success(listing))

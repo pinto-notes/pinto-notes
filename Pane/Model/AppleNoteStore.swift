@@ -5,11 +5,13 @@ import SQLite3
 /// What Apple Notes' own database knows and its AppleScript doesn't say: which list items are
 /// checklist items and whether they're ticked, which lists are numbered, and which notes are pinned.
 ///
-/// Only apps with Full Disk Access may open the database. The import never asks for that: it reads
-/// this when access is already there and imports from AppleScript alone when it isn't.
+/// Only apps with Full Disk Access may open the database. The import never asks for that first: it
+/// reads this when access is already there, imports from AppleScript alone when it isn't, and then
+/// offers to bring the ticks and pins over afterwards (AppleNotesFollowUp).
 ///
 /// It copies the database (with its -wal/-shm journal) to a private temporary folder, opens the
-/// copy read-only and deletes it when closed. Not available in the sandboxed App Store build.
+/// copy read-only and deletes it when closed. The sandboxed App Store build reaches it through a
+/// read-only exception for Notes' group container, and still only with Full Disk Access on.
 final class AppleNoteStore {
     private var db: OpaquePointer?
     private let dir: URL

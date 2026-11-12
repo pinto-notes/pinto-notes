@@ -16,6 +16,11 @@
 	<true/>
 	<key>com.apple.security.temporary-exception.apple-events</key>
 	<array><string>com.apple.Notes</string></array>
+	<!-- Checklist ticks and pins from an Apple Notes import: Notes keeps them only in its own
+	     database. Read-only, and still only once the person turns on Full Disk Access
+	     (AppleNoteStore copies the database, reads it and deletes the copy). -->
+	<key>com.apple.security.temporary-exception.files.home-relative-path.read-only</key>
+	<array><string>/Library/Group Containers/group.com.apple.notes/</string></array>
 	<key>com.apple.security.print</key>
 	<true/>
 	<!-- What a note that is an app can ask for (each asks the person first). -->

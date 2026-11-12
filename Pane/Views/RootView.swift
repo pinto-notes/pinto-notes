@@ -799,6 +799,13 @@ struct RootView: View {
     }
     #endif
 
+    #if os(macOS)
+    /// Only while something waits, and not while the import sheet says it itself.
+    private func appleNotesFollowUp() async {
+        if let line = await AppleNotesFollowUpCenter.shared.windowLine(in: context) { importLine = line }
+    }
+    #endif
+
     private func imports(_ content: some View) -> some View {
         content
             #if os(macOS)
@@ -821,6 +828,12 @@ struct RootView: View {
             }
             .animation(.easeOut(duration: 0.25), value: importLine)
             .animation(.easeOut(duration: 0.25), value: showImport)
+            // Ticks and pins asked for after an Apple Notes import, once Full Disk Access is on:
+            // at launch (macOS may quit and reopen the app for it) and on coming back to it.
+            .task { await appleNotesFollowUp() }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                Task { await appleNotesFollowUp() }
+            }
             #endif
             .sheet(item: $importing, onDismiss: EvernoteInbox.clear) { kind in
                 ImportFlow(kind: kind, files: importFiles) { ids in

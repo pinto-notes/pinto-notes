@@ -712,14 +712,15 @@ import Testing
         #expect(!page.contains("\"Cancel\"") && !page.contains("Show Folders"), "Choose notes has Back and ×, no Cancel or Show Folders")
     }
 
-    /// Persona council 11-04: the first page says what stays behind before Import (locked notes,
-    /// and checklists when Notes' database can't be read), and the last page says it again.
+    /// Persona council 11-04: the first page says what stays behind before Import (locked notes),
+    /// and the last page says it again. Checklists are said only afterwards, with the way to bring
+    /// their ticks over (AppleNotesFollowUpTests), not before the one button (Emil, 12 November 2026).
     @Test func thePagesSayWhatStaysInAppleNotes() {
         let en = Locale(identifier: "en_US")
-        #expect(AppleNotesImportView.staysLine(locked: [], checklists: false, locale: en) == nil, "nothing stays: nothing said")
-        #expect(AppleNotesImportView.staysLine(locked: ["Bank details"], checklists: false, locale: en) == "\u{201C}Bank details\u{201D} is locked, so it can\u{2019}t come over. Unlock it in Apple Notes first, or copy it over yourself.")
+        #expect(AppleNotesImportView.staysLine(locked: [], locale: en) == nil, "nothing stays: nothing said")
+        #expect(AppleNotesImportView.staysLine(locked: ["Bank details"], locale: en) == "\u{201C}Bank details\u{201D} is locked, so it can\u{2019}t come over. Unlock it in Apple Notes first, or copy it over yourself.")
         let many = ["A", "B", "C"] + Array(repeating: "D", count: 1_201)
-        #expect(AppleNotesImportView.staysLine(locked: many, checklists: true, locale: en) == "\u{201C}A\u{201D}, \u{201C}B\u{201D}, \u{201C}C\u{201D} and 1,201 more are locked, so they can\u{2019}t come over. Unlock them in Apple Notes first, or copy them over yourself. Checklists may come in as plain lists.")
+        #expect(AppleNotesImportView.staysLine(locked: many, locale: en) == "\u{201C}A\u{201D}, \u{201C}B\u{201D}, \u{201C}C\u{201D} and 1,201 more are locked, so they can\u{2019}t come over. Unlock them in Apple Notes first, or copy them over yourself.")
         #expect(AppleNotesImportView.successLine(locked: [], locale: en) == "Your folders came over as they were.")
         // Notes left unticked stayed behind, and the line says so.
         #expect(AppleNotesImportView.successLine(locked: [], leftOut: 1, locale: en) == "Your folders came over as they were. The note you left unticked stayed in Apple Notes.")

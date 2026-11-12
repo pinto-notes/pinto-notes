@@ -122,6 +122,9 @@ struct AppleNotesImportSummary: Equatable, Sendable {
     var picturesLeftOut = 0
     /// Notes' own database was read too: checklists and pins came over as they are.
     var readStore = false
+    /// Without the database: each note that came in with its row there, so its checklists and pin
+    /// can be put on it later (AppleNotesFollowUp), when the person turns Full Disk Access on.
+    var followUp: [AppleNotesFollowUp.Item] = []
 }
 
 extension AppleNotesImportSummary {
@@ -155,7 +158,7 @@ extension AppleNotesImportSummary {
 
 /// Copies picked Apple Notes in. Text comes from AppleScript (`body`, as HTML); what that HTML
 /// can't say (checklists, ticks, numbered lists after dashed ones, pins) comes from Notes'
-/// database when this app may already read it.
+/// database when this app may already read it, and otherwise afterwards (AppleNotesFollowUp).
 @MainActor
 struct AppleNotesImporter {
     let context: ModelContext
@@ -164,7 +167,10 @@ struct AppleNotesImporter {
     /// The plain text of the note with this AppleScript id, asked for only when its HTML may have
     /// left a line break out (`needsPlainText`).
     var plainText: @Sendable (String) throws -> String = { try AppleNotesBridge.plainText(of: $0) }
-    var openStore: @Sendable () -> AppleNoteStore? = { ApplePins.isAvailable ? try? AppleNoteStore.open().get() : nil }
+    /// Tried in every build: each try is also what lists Pinto Notes under Full Disk Access.
+    var openStore: @Sendable () -> AppleNoteStore? = { AppleNotesImporter.storeOpener() }
+    /// Tests stand in for Notes' database here, so none ever reads the Mac's own.
+    nonisolated(unsafe) static var storeOpener: @Sendable () -> AppleNoteStore? = { try? AppleNoteStore.open().get() }
 
     /// `listing` says where each note's folder goes (accounts, nesting); without one, a note goes
     /// by its own path.
@@ -233,6 +239,9 @@ struct AppleNotesImporter {
                              pinned: key.map { store?.pinned.contains($0) == true } ?? false) else {
                 summary.notImported.append(.init(name: n.name, why: AppleNotesImportSummary.tooLongWhy))
                 continue
+            }
+            if store == nil, let key, let id = writer.summary.noteIDs.last {
+                summary.followUp.append(.init(note: id, key: key, fingerprint: AppleNotesFollowUp.fingerprint(md + "\n")))
             }
             summary.pictures += files.count
         }
