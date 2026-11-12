@@ -13,6 +13,7 @@
 //   screenshots <platform>     replaces the iPhone or Mac screenshot sets with the package's files;
 //                              with --ipad <dir> (in the package, or absolute) the iPad set too
 //   review <platform>          App Review contact, demo account, notes (recovery key filled in), video attachment
+//   attach <platform>          attaches --video to the App Review detail, nothing else
 //   build <platform> <build>   selects a build for the version
 //   submit <platform> <build>  selects the build, adds the version to a review submission and SUBMITS it.
 //                              Needs --apply and --submit-for-review, and for ios --ipad <dir>.
@@ -194,7 +195,7 @@ async function state() {
   say(`App "${app.attributes.name}" ${app.attributes.bundleId}, content rights ${app.attributes.contentRightsDeclaration}`);
   for (const v of await versions()) {
     const a = v.attributes;
-    say(`\n${a.platform} ${a.versionString}: ${a.appStoreState}, release ${a.releaseType}, copyright "${a.copyright}", build ${v.relationships?.build?.data?.id ?? "none"}`);
+    say(`\n${a.platform} ${a.versionString}: ${a.appStoreState}, release ${a.releaseType}, copyright "${a.copyright}", build ${v.relationships?.build?.data?.id ? ((await get(`/v1/appStoreVersions/${v.id}/build`)).data?.attributes?.version ?? "?") : "none"}`);
     for (const l of (await get(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data as J[]) {
       const la = l.attributes;
       say(`  ${la.locale}: description ${brief(la.description)}, keywords ${brief(la.keywords)}, promotional ${brief(la.promotionalText)}, what's new ${brief(la.whatsNew)}, ${la.supportUrl}, ${la.marketingUrl}`);
@@ -209,7 +210,7 @@ async function state() {
     if (!rd?.data) { say("  review detail: none"); continue; }
     const ra = rd.data.attributes;
     say("  review detail: " + Object.entries(ra).map(([k, x]) => `${k} ${x == null || x === "" ? "empty" : typeof x === "boolean" ? x : `set (${String(x).length})`}`).join(", "));
-    say(`    notes contain "[RECOVERY KEY]": ${String(ra.notes ?? "").includes("[RECOVERY KEY]")}; mention "Amber Notes 1.1.2" or old text: ${!String(ra.notes ?? "").startsWith("Pinto Notes 1.2")}`);
+    say(`    notes contain "[RECOVERY KEY]": ${String(ra.notes ?? "").includes("[RECOVERY KEY]")}; written for ${a.versionString}: ${String(ra.notes ?? "").startsWith(`Pinto Notes ${a.versionString}`)}`);
     for (const at of rd.included ?? []) say(`    attachment ${at.attributes.fileName}, ${at.attributes.fileSize} bytes, ${at.attributes.assetDeliveryState?.state}`);
   }
   say("\nReview submissions");
@@ -455,7 +456,12 @@ async function review(platform: string) {
     if (a.notes !== notes || a.demoAccountName !== demo.email || a.demoAccountPassword !== demo.password) throw new Error("the review detail read back differs from what was sent");
   } else say(`  the notes would be ${notes.length} characters with the key filled in`);
 
-  // The screen recording, attached once (same name and size counts as the same file).
+  await attachVideo(platform, rd);
+}
+
+/** The screen recording, attached once (same name and size counts as the same file). */
+async function attachVideo(platform: string, rd?: J) {
+  if (!rd) { const v = await versionOf(platform); mustBeEditable(v); rd = await get(`/v1/appStoreVersions/${v.id}/appStoreReviewDetail?include=appStoreReviewAttachments`).catch(() => ({ data: null })); }
   if (!VIDEO) { say("  no --video given: attachment not checked"); return; }
   const name = VIDEO.split("/").pop()!;
   const size = (await Deno.stat(VIDEO)).size;
@@ -495,11 +501,22 @@ async function submit(platform: string, number: string) {
   // The page must be complete before anything is submitted.
   const problems: string[] = [];
   const loc = await localization(v.id);
+  const sets = (await get(`/v1/appStoreVersionLocalizations/${loc.id}/appScreenshotSets?include=appScreenshots&limit=50`)).data as J[];
+  const setsFull = await get(`/v1/appStoreVersionLocalizations/${loc.id}/appScreenshotSets?include=appScreenshots&limit=50`);
+  if (!loc.attributes.description) problems.push("no description (run: texts)");
+  if (!PKG) {
+    // No package: the listing was set some other way, so check what is live instead of comparing files.
+    const needed = platform === "IOS" ? ["APP_IPHONE_67", "APP_IPAD_PRO_3GEN_129"] : ["APP_DESKTOP"];
+    for (const type of needed) if (!sets.some((s) => s.attributes.screenshotDisplayType === type)) problems.push(`no ${type} screenshots`);
+    for (const s of sets) {
+      const live = (s.relationships?.appScreenshots?.data ?? []).map((d: J) => (setsFull.included ?? []).find((i: J) => i.id === d.id)?.attributes);
+      if (!live.length || live.some((x: J) => x?.assetDeliveryState?.state !== "COMPLETE")) problems.push(`the ${s.attributes.screenshotDisplayType} screenshots are empty or still processing`);
+    }
+  }
+  if (PKG) {
   const want = await metadata(platform);
   if (loc.attributes.description !== want.description) problems.push("the description is not the package's (run: texts)");
-  const sets = (await get(`/v1/appStoreVersionLocalizations/${loc.id}/appScreenshotSets?include=appScreenshots&limit=50`)).data as J[];
   if (platform === "IOS" && !IPAD) problems.push("pass --ipad <dir>, so the iPad screenshots are checked against the new set");
-  const setsFull = await get(`/v1/appStoreVersionLocalizations/${loc.id}/appScreenshotSets?include=appScreenshots&limit=50`);
   for (const [type, dir] of SHOTS[platform].sets) {
     const { files, sums } = await shotFiles(dir);
     const ids = (sets.find((s) => s.attributes.screenshotDisplayType === type)?.relationships?.appScreenshots?.data ?? []).map((d: J) => d.id) as string[];
@@ -507,9 +524,10 @@ async function submit(platform: string, number: string) {
     if (live.length !== files.length || live.some((x, i) => x?.fileName !== files[i] || x?.sourceFileChecksum !== sums[i] || x?.assetDeliveryState?.state !== "COMPLETE")) problems.push(`the ${type} screenshots are not the files of ${dir} (run: screenshots)`);
   }
   for (const type of SHOTS[platform].remove) if (sets.some((s) => s.attributes.screenshotDisplayType === type)) problems.push(`the old ${type} set is still there (run: screenshots)`);
+  }
   const rd = await get(`/v1/appStoreVersions/${v.id}/appStoreReviewDetail?include=appStoreReviewAttachments`).catch(() => ({ data: null }));
   const notes: string = rd.data?.attributes?.notes ?? "";
-  if (!notes.startsWith("Pinto Notes 1.2") || /\[[A-Z ]+\]/.test(notes)) problems.push("the review notes are old or hold a placeholder (run: review)");
+  if (!notes.includes(`Pinto Notes ${v.attributes.versionString}`) || /\[[A-Z ]+\]/.test(notes)) problems.push("the review notes are old or hold a placeholder (run: review)");
   if (!rd.data?.attributes?.demoAccountRequired || !rd.data?.attributes?.demoAccountName) problems.push("no demo account (run: review)");
   if (!(rd.included ?? []).some((x: J) => x.attributes.assetDeliveryState?.state === "COMPLETE")) problems.push("no review attachment (run: review --video …)");
   if (v.attributes.releaseType !== "MANUAL") problems.push("release is not manual (run: version)");
@@ -538,9 +556,10 @@ try {
   else if (step === "texts") await texts(platformOf(arg1));
   else if (step === "screenshots") await screenshots(platformOf(arg1));
   else if (step === "review") await review(platformOf(arg1));
+  else if (step === "attach") await attachVideo(platformOf(arg1));
   else if (step === "build" && arg2) await selectBuild(platformOf(arg1), arg2);
   else if (step === "submit" && arg2) await submit(platformOf(arg1), arg2);
-  else say("usage: asc-submit.ts state | backup | unsubmit <ios|mac> | version <ios|mac> <v> | appinfo | texts <ios|mac> | screenshots <ios|mac> | review <ios|mac> | build <ios|mac> <build> | submit <ios|mac> <build>   [--apply] [--package <dir>] [--video <file>]");
+  else say("usage: asc-submit.ts state | backup | unsubmit <ios|mac> | version <ios|mac> <v> | appinfo | texts <ios|mac> | screenshots <ios|mac> | review <ios|mac> | attach <ios|mac> --video <file> | build <ios|mac> <build> | submit <ios|mac> <build>   [--apply] [--package <dir>] [--video <file>]");
   if (!APPLY && step && step !== "state") say("(dry run: nothing was changed; add --apply)");
 } catch (e) {
   say(`✗ ${step}: ${(e as Error).message}`);
