@@ -431,6 +431,8 @@ struct SidebarView: View {
     @Environment(\.importActions) private var imports
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
+    /// The notebook film's card, while it's offered: above the others, in their place.
+    @Environment(NotebookFilmStore.self) private var film: NotebookFilmStore?
 
     /// All Notes and Recently Deleted, counted by the store (unsaved changes included), as the list
     /// shows them.
@@ -533,7 +535,11 @@ struct SidebarView: View {
         .background { if stacked { Color(Palette.foldersGround).ignoresSafeArea() } }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                if let card = sidebarCard, card != .mac, !editingFolders {
+                if let film, film.cardShown, !editingFolders {
+                    FilmCard(store: film)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                } else if let card = sidebarCard, card != .mac, !editingFolders {
                     cardView(card)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
@@ -847,7 +853,12 @@ struct SidebarView: View {
             content
             if let backend, case .signedIn = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
-                    if let card = sidebarCard {
+                    if let film, film.cardShown {
+                        FilmCard(store: film)
+                            .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarCardMetrics.padding)
+                            .padding(.trailing, 10)
+                            .padding(.bottom, 2)
+                    } else if let card = sidebarCard {
                         // Its words start on the rows' icons' line, like the title and the account.
                         cardView(card)
                             .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarCardMetrics.padding)

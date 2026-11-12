@@ -112,7 +112,7 @@ targets:
         NSAppleEventsUsageDescription: Pinto Notes reads the Apple Notes you choose to import. It never changes them.
         NSFaceIDUsageDescription: Pinto Notes uses Face ID to open your locked notes, show your recovery key, approve AI connections and add a device.
         NSCameraUsageDescription: Pinto Notes uses the camera to scan the code on a device you add.
-        NSPhotoLibraryAddUsageDescription: Pinto Notes saves a picture to your photo library when you choose Save Image in the share sheet.
+        NSPhotoLibraryAddUsageDescription: Pinto Notes saves pictures and videos to your photo library when you choose Save Image or Save Video in the share sheet.
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: dev.emilwagman.pane.item
             UTTypeDescription: Pane item

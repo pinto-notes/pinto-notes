@@ -117,7 +117,7 @@ struct SettingsView: View {
             #endif
         case .appearance: AppearanceSettingsPage()
         case .storage: StorageSettingsPage(backend: backend)
-        case .help: HelpSettingsPage(signedIn: isSignedIn, close: closeSettings)
+        case .help: HelpSettingsPage(signedIn: isSignedIn, film: NotebookFilmStore.canRewatch(backend.userID), filmMonths: NotebookFilmStore.keptMonths(backend.userID), close: closeSettings)
         case .security:
             if isSignedIn, crypto.isReady {
                 // Two rows: Encryption, one level down, and Diagnostics (Emil, 7 November 2026).

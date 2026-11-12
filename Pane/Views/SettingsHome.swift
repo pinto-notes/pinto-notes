@@ -325,6 +325,9 @@ enum HelpCopy {
             ?? AttributedString("Pinto Notes is open source on GitHub.")
     }
     static let openSourcePlain = "Pinto Notes is open source. See the code or help build it on GitHub."
+    static let film = "Watch your first month"
+    static func film(months: Int) -> String { months <= 1 ? film : "Watch your first \(months) months" }
+    static let filmFooter = "The short film of how your notes grew, to watch again or share."
     static let trademarks = "Evernote is a trademark of Bending Spoons US Inc., used under license. Bear is a trademark of Shiny Frog Ltd. Other names and icons belong to their owners."
     /// Said under Send feedback when no mail app took the message.
     static let noMailApp = "No mail app opened, so the address is copied: \(email)."
@@ -360,6 +363,12 @@ enum HelpPage {
     /// Plays the setup guide and closes Settings, which would otherwise cover it.
     static func playSetupGuide(close: () -> Void) {
         NotificationCenter.default.post(name: .paneReplayOnboarding, object: nil)
+        close()
+    }
+
+    /// Shows the notebook film and closes Settings, which would otherwise cover it.
+    static func playFilm(close: () -> Void) {
+        NotificationCenter.default.post(name: .paneWatchNotebookFilm, object: nil)
         close()
     }
 

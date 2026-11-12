@@ -978,6 +978,10 @@ struct StorageSettingsPage: View {
 struct HelpSettingsPage: View {
     /// Signed in or not; nothing on the page depends on it now the setup guide is gone from it.
     var signedIn: Bool
+    /// The notebook film has been shown on this device and is kept: Help shows it again.
+    var film = false
+    /// How many months that film covers, for its name here.
+    var filmMonths = 1
     /// Closes Settings.
     var close: () -> Void = {}
     /// Where the address goes when no mail app opens; tests keep the real clipboard out of it.
@@ -995,6 +999,14 @@ struct HelpSettingsPage: View {
     var body: some View {
         SettingsPageForm {
             Section { greeting }
+            if film {
+                Section {
+                    Button(HelpCopy.film(months: filmMonths)) { HelpPage.playFilm(close: close) }
+                        .accessibilityIdentifier("settings.notebookFilm")
+                } footer: {
+                    Text(HelpCopy.filmFooter)
+                }
+            }
             #if os(macOS)
             // The setup guide is in the Help menu only (Emil, 8 November 2026).
             Section {
