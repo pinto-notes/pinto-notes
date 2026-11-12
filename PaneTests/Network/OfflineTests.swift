@@ -406,7 +406,7 @@ extension NetworkFaults {
 
         #expect(engine.reach == away)
         #expect(engine.problem == nil, "nothing to fix is shown: \(engine.problem ?? "")")
-        #expect(!OfflineCopy.spins(engine.status, reach: engine.reach), "no spinner against a connection that's away")
+        #expect(!OfflineCopy.spins(engine.status == .syncing, reach: engine.reach), "no spinner against a connection that's away")
         #expect(SyncStatusLabel.away(engine.status, reach: engine.reach) == OfflineCopy.lead(away), "Settings says it calmly")
         // All of it is here.
         #expect(made.folder?.id == trip.id && kept.isPinned && old.trashedAt != nil && trip.parent?.id == home.id && trip.name == "Trip 2026")

@@ -36,6 +36,16 @@ final class SyncEngine {
     enum Reach: Equatable { case online, offline, unreachable }
 
     private(set) var status: Status = .idle
+    /// A sync worth showing is running: every pull except the backup polls (while realtime isn't
+    /// delivering, and the minute's safety net), which run on their own and nearly always find
+    /// nothing. The account row's spinner reads this, not `status`, and it's written only when it
+    /// changes. A poll used to set `status` twice and, when it took over 0.7 s, faded the spinner
+    /// in and out (release gate, 11 November 2026: 1,550 layouts in 20 s of idle).
+    private(set) var showsSyncing = false
+    /// The run now going is a backup poll that nobody else asked to join (`showsSyncing` stays).
+    private var polling = false
+    /// Someone other than a backup poll asked for a sync while a run was going.
+    private var askedAgain = false
     /// Bumped by every `stop`: work that began before it and resumes after takes nothing in.
     private(set) var generation = 0
     /// What the last sync found (see `Reach`); `reach` adds what the network path says.
@@ -99,14 +109,17 @@ final class SyncEngine {
     /// The account the local library belongs to.
 
     private var cursorKey: String { "syncCursor.\(backend.userID?.uuidString ?? "none")" }
+    /// Written only when it moves: every write to the defaults tells each window's `@AppStorage`,
+    /// and the whole window laid out again after every pull that found nothing (release gate,
+    /// 11 November 2026).
     private var cursor: Date {
         get { defaults.object(forKey: cursorKey) as? Date ?? .distantPast }
-        set { defaults.set(newValue, forKey: cursorKey) }
+        set { if newValue != cursor { defaults.set(newValue, forKey: cursorKey) } }
     }
     /// The note pages' own cursor (pull).
     private var pagesCursor: Date {
         get { defaults.object(forKey: cursorKey + ".pages") as? Date ?? .distantPast }
-        set { defaults.set(newValue, forKey: cursorKey + ".pages") }
+        set { if newValue != pagesCursor { defaults.set(newValue, forKey: cursorKey + ".pages") } }
     }
     private func forgetCursors() {
         defaults.removeObject(forKey: cursorKey)
@@ -152,6 +165,9 @@ final class SyncEngine {
         }
     }
 
+    /// A backup poll: a full sync that doesn't show as one (`showsSyncing`).
+    private func poll() async { await sync(pulling: true, quietly: true) }
+
     /// Something changed here: push it soon, at most every `pushInterval`, first one at once.
     func localChanged() {
         guard backend.client != nil, case .signedIn = backend.state, Wire.sealer != nil else { return }
@@ -174,24 +190,33 @@ final class SyncEngine {
     /// A full run pushes then pulls; `pulling: false` only pushes (your own typing).
     /// Asked for while a run is going, it runs again straight after that one, and returns
     /// once that follow-up is done: when it returns, what you asked for has happened.
-    func sync(pulling: Bool = true) async {
+    func sync(pulling: Bool = true) async { await sync(pulling: pulling, quietly: false) }
+
+    /// `quietly`: a backup poll. Its runs don't show as syncing, nor a follow-up only polls asked for.
+    private func sync(pulling: Bool, quietly: Bool) async {
         // Nothing moves until the account's key is open here.
         guard let client = backend.client, case .signedIn = backend.state, Wire.sealer != nil else { return }
         if running {
             if pulling { again = true } else { pushAgain = true }
+            if !quietly { askedAgain = true }
             await withCheckedContinuation { waiting.append($0) }
             return
         }
         running = true
+        polling = quietly
+        askedAgain = false
         var pulling = pulling
         while true {
             await run(client, pulling: pulling)
             if again { again = false; pushAgain = false; pulling = true }
             else if pushAgain { pushAgain = false; pulling = false }
             else { break }
+            polling = !askedAgain
+            askedAgain = false
             // Signed out meanwhile: nothing more goes up.
             guard case .signedIn = backend.state else { again = false; pushAgain = false; break }
         }
+        polling = false
         running = false
         let done = waiting
         waiting = []
@@ -239,6 +264,8 @@ final class SyncEngine {
         resetOldLibraryIfNeeded()
         adoptKeyIfChanged(sealer.keyID)
         if pulling { status = .syncing }
+        if pulling, !polling, !showsSyncing { showsSyncing = true }
+        defer { if showsSyncing { showsSyncing = false } }
         let began = Date.now
         do {
             let slowedDown = try await push(client, sealer: sealer, gen: gen)
@@ -376,7 +403,7 @@ final class SyncEngine {
         realtimeTasks.append(Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60))
-                if self?.path.isUp == true { self?.schedule(after: 0) }
+                if self?.path.isUp == true { await self?.poll() }
             }
         })
     }
@@ -467,12 +494,14 @@ final class SyncEngine {
     /// the new key, so nothing it holds is lost.
     private func adoptKeyIfChanged(_ keyID: String) {
         guard let uid = backend.userID else { return }
+        // Written only when they change, as this runs before every sync: each write to the
+        // defaults lays out every window's `@AppStorage` views again (see `cursor`).
         let known = defaults.string(forKey: Self.keyIDKey(uid))
-        defaults.set(keyID, forKey: Self.keyIDKey(uid))
+        if known != keyID { defaults.set(keyID, forKey: Self.keyIDKey(uid)) }
         // Start fresh was done on this device: the server is empty whatever key id this device
         // remembers (or doesn't: one that never finished a sync with its key remembers none).
         let startedFreshHere = defaults.bool(forKey: Self.uploadAgainKey(uid))
-        defaults.removeObject(forKey: Self.uploadAgainKey(uid))
+        if defaults.object(forKey: Self.uploadAgainKey(uid)) != nil { defaults.removeObject(forKey: Self.uploadAgainKey(uid)) }
         guard startedFreshHere || (known != nil && known != keyID) else { return }
         DebouncedSave.flushAll()
         let n = Self.markAllForUpload(context)
@@ -637,7 +666,7 @@ final class SyncEngine {
                 let quiet = Date.now.timeIntervalSince(self.lastChange) > poll.slowAfter
                 try? await Task.sleep(for: quiet ? poll.slow : poll.fast)
                 guard !Task.isCancelled else { return }
-                await self.sync()
+                await self.poll()
             }
         }
     }
@@ -1437,6 +1466,13 @@ final class SyncEngine {
         for r in folderRows where !r.unreadable || skipUnreadable(r.id, "A folder") {
             let f = byID[r.id] ?? { let f = Folder(name: r.name); f.id = r.id; context.insert(f); byID[r.id] = f; return f }()
             if f.dirty && f.serverVersion > 0 { continue }
+            // A row this device has already, as it is (the cursor's overlap brings the newest rows
+            // back on every pull): writing it again saved the library on every backup poll, and the
+            // note list and sidebar laid out again each time (release gate, 11 November 2026).
+            if Self.holds(f, r) {
+                if let s = r.server_updated_at, s > newest { newest = s }
+                continue
+            }
             appliedFolders.append(r)
             f.name = r.name
             f.sortIndex = r.sort_index
@@ -1480,6 +1516,11 @@ final class SyncEngine {
             // first seen just now: a new Attachment starts as "new here" too, and skipping it left
             // every file from another device without its folder, never marked as on the server.
             guard known == nil || halfApplied.contains(r.id) || !a.dirty || a.uploaded else { continue }
+            // Already here as the row says (see `holds` for folders).
+            if known != nil, !halfApplied.contains(r.id), Self.holds(a, r) {
+                if let s = r.server_updated_at, s > newest { newest = s }
+                continue
+            }
             // New to this device, or new bytes: something an open note may be waiting to show.
             if known == nil || !a.uploaded || r.content_version != a.contentVersion { filesApplied = true }
             // Renamed elsewhere (another device, the AI): this device's copy follows.
@@ -1568,6 +1609,20 @@ final class SyncEngine {
     }
 
     struct MissingStamp: Error {}
+
+    /// The folder is already what the server's row says, so taking the row in changes nothing.
+    static func holds(_ f: Folder, _ r: FolderDTO) -> Bool {
+        !f.dirty && f.serverVersion == 1 && f.name == r.name && f.sortIndex == r.sort_index
+            && f.createdAt == r.created_at && f.updatedAt == r.updated_at && f.deletedAt == r.deleted_at
+            && f.parent?.id == r.parent_id
+    }
+
+    /// The file is on the server and already what its row says.
+    static func holds(_ a: Attachment, _ r: AttachmentDTO) -> Bool {
+        !a.dirty && a.uploaded && a.filename == r.filename && a.contentType == r.content_type && a.size == r.size
+            && a.createdAt == r.created_at && a.deletedAt == r.deleted_at && a.folderID == r.folder_id
+            && a.trashedAt == r.trashed_at && a.contentVersion == r.content_version && a.modifiedAt == r.updated_at
+    }
 
     /// Every row of `table` changed since `stamp`, handed to `each` a page at a time, in
     /// (server_updated_at, id) order. Each page starts after the last row of the one before, not at

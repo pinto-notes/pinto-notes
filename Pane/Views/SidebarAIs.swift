@@ -193,7 +193,7 @@ struct SidebarFoot: View {
                 // the server is away: a try against a dead connection isn't progress.
                 .overlay(alignment: .trailing) {
                     if !away {
-                        SyncSpinner(syncing: OfflineCopy.spins(sync?.status ?? .idle, reach: sync?.reach ?? .online))
+                        SyncSpinner(syncing: OfflineCopy.spins(sync?.showsSyncing ?? false, reach: sync?.reach ?? .online))
                             .padding(.trailing, Hover.sidebarReach().trailing + 8)
                     }
                 }

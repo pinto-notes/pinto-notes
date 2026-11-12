@@ -83,12 +83,12 @@ import Testing
     /// The spinner by your name turns for a sync that is getting through, never for a try against
     /// a connection that's away.
     @Test func noSpinnerWhileTheServerIsAway() {
-        #expect(OfflineCopy.spins(.syncing, reach: .online))
-        #expect(!OfflineCopy.spins(.syncing, reach: .unreachable))
-        #expect(!OfflineCopy.spins(.syncing, reach: .offline))
-        #expect(!OfflineCopy.spins(.idle, reach: .online) && !OfflineCopy.spins(.synced(.now), reach: .online))
+        #expect(OfflineCopy.spins(true, reach: .online))
+        #expect(!OfflineCopy.spins(true, reach: .unreachable))
+        #expect(!OfflineCopy.spins(true, reach: .offline))
+        #expect(!OfflineCopy.spins(false, reach: .online))
         let foot = (try? String(contentsOfFile: Self.source("Pane/Views/SidebarAIs.swift"), encoding: .utf8)) ?? ""
-        #expect(foot.contains("SyncSpinner(syncing: OfflineCopy.spins("), "the foot's spinner asks OfflineCopy.spins")
+        #expect(foot.contains("SyncSpinner(syncing: OfflineCopy.spins(sync?.showsSyncing"), "the foot's spinner asks OfflineCopy.spins, of a sync worth showing")
         #expect(!foot.contains("SyncSpinner(syncing: sync?.status == .syncing)"))
     }
 

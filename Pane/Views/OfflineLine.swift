@@ -33,8 +33,8 @@ enum OfflineCopy {
 
     /// Whether the small spinner by your account turns. Only for a sync that is getting through: a
     /// try against a connection that's away isn't progress, and a spinner beside "can't reach" looked
-    /// like trouble.
-    static func spins(_ status: SyncEngine.Status, reach: SyncEngine.Reach) -> Bool { status == .syncing && reach == .online }
+    /// like trouble. `syncing`: a sync worth showing runs (`SyncEngine.showsSyncing`, not a backup poll).
+    static func spins(_ syncing: Bool, reach: SyncEngine.Reach) -> Bool { syncing && reach == .online }
 
     // MARK: The popover the status opens
 

@@ -191,6 +191,47 @@ extension NetworkFaults {
         await a.engine.stop()
     }
 
+    /// A pull that brings back only what this device has already (the cursor's overlap returns the
+    /// newest rows every time) saves nothing and writes no setting: each write laid out the notes
+    /// window again after every backup poll (release gate, 11 November 2026). What changed
+    /// elsewhere still comes down.
+    @Test func aPullOfRowsAlreadyHereWritesNothing() async throws {
+        let a = try device()
+        let folder = a.context.createFolder(named: "Trips")
+        let file = try attach("bytes", named: "plan.txt", to: a.context)
+        file.folderID = folder.id
+        defer { removeLocalCopy(file) }
+        await a.engine.sync()
+        let suite = "PaneTests.pull.\(UUID().uuidString)"
+        let settings = try #require(UserDefaults(suiteName: suite))
+        defer { settings.removePersistentDomain(forName: suite) }
+        let b = try device(defaults: settings)
+        await b.engine.sync()
+        await b.engine.sync()
+        #expect(b.context.attachment(file.id)?.folderID == folder.id)
+
+        var saves = 0, writes = 0
+        let saved = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: nil, queue: nil) { _ in saves += 1 }
+        let written = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: settings, queue: nil) { _ in writes += 1 }
+        defer { NotificationCenter.default.removeObserver(saved); NotificationCenter.default.removeObserver(written) }
+        let before = StubSupabase.requests.count
+        await b.engine.sync()
+        let asked = StubSupabase.requests.dropFirst(before)
+        #expect(asked.contains { $0.hasPrefix("GET /rest/v1/folders?") } && asked.contains { $0.hasPrefix("GET /rest/v1/attachments?") })
+        #expect(StubSupabase.rows("folders").count == 1 && StubSupabase.rows("attachments").count == 1)
+        #expect(saves == 0, "nothing new came down, nothing saved")
+        #expect(writes == 0, "the cursor didn't move, so it isn't written")
+
+        folder.name = "Trips 2026"
+        folder.updatedAt = .now
+        folder.dirty = true
+        await a.engine.sync()
+        await b.engine.sync()
+        #expect(b.context.folder(folder.id)?.name == "Trips 2026", "a change elsewhere still comes down")
+        await a.engine.stop()
+        await b.engine.stop()
+    }
+
     /// A file put in a folder on one device shows in that folder on another: the row is applied in
     /// full the first time a device sees it (its folder, that it's on the server), and that device
     /// never sends it back as its own.
@@ -1088,7 +1129,8 @@ extension NetworkFaults {
 
     @Test func disconnectFromANoticeRevokesTheGrant() async throws {
         let grant = UUID()
-        StubSupabase.insert("mcp_tokens", ["id": grant.uuidString.lowercased(), "name": "Claude", "kind": "oauth", "redirect_host": "claude.ai"])
+        StubSupabase.insert("mcp_tokens", ["id": grant.uuidString.lowercased(), "name": "Claude", "kind": "oauth", "redirect_host": "claude.ai",
+                                            "created_at": Date.now.ISO8601Format()])
         let notices = AccountNotices(client: StubSupabase.client(), user: user, defaults: MemoryDefaults(), approvedHere: { nil }, announce: { _ in })
         try await notices.disconnect(AccountNotice(id: 1, kind: .aiConnected, grant_id: grant, created_at: .now))
         let revoked = try #require(StubSupabase.requests.first { $0.hasPrefix("PATCH /rest/v1/mcp_tokens") })
