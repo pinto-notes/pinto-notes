@@ -1049,6 +1049,19 @@ final class AppSession {
         // The notebook film is only got ready here, for the next launch to offer as a card.
         await notebookFilm.prepare(context: context)
         await InstallID.report(client)
+        #if os(macOS)
+        // The Mac download says once (twice at most) that Pinto Notes is now in the Mac App Store,
+        // when the site says so and nothing else asks on this launch. App Store builds never do.
+        if MacStoreMove.isDirectBuild {
+            let otherPrompt = onboarding.holdsAsks() || shareAsk.visible || heardFrom.visible || notebookFilm.visible
+                || notebookFilm.offered || (notices?.shownThisLaunch ?? false) || notices?.current != nil
+            Task { @MainActor in
+                await MacStoreMove.atLaunch(otherPrompt: otherPrompt,
+                                            present: { await MacStoreMove.presentAlert() },
+                                            open: { NSWorkspace.shared.open($0) })
+            }
+        }
+        #endif
     }
 
 }

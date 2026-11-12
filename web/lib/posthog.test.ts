@@ -125,6 +125,14 @@ describe("website PostHog", () => {
     expect(clickEvent(link("https://github.com/x", { target: "_blank" }), here)?.leaves).toBe(false);
   });
 
+  it("names a click on the Mac App Store apart from the iPhone App Store, without its query", () => {
+    const mac = clickEvent(link("https://apps.apple.com/app/id6817253103?platform=mac", { target: "_blank" }), here);
+    expect(mac).toEqual({ event: "mac_app_store_clicked", properties: { path: here.pathname, destination: "https://apps.apple.com/app/id6817253103" }, leaves: false });
+    expect(clickEvent(link("https://apps.apple.com/app/id6817253103?platform=iphone"), here)?.event).toBe("outbound_app_store_clicked");
+    // The direct download still counts as one.
+    expect(clickEvent(link("/download/mac"), here)?.event).toBe("download_mac_clicked");
+  });
+
   it("leaves other links alone", () => {
     for (const href of ["/blog", "#top", "mailto:hi@ambernotes.app", "https://x.com/EmilWagman", "https://notgithub.com/"]) {
       expect(clickEvent(link(href), here), href).toBeNull();

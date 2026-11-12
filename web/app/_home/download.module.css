@@ -8,5 +8,11 @@
 .primary:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
 @media (hover: hover) { .primary:hover { background: color-mix(in srgb, var(--cta-bg) 86%, var(--amber)); } }
 @media (prefers-reduced-motion: no-preference) { .primary { transition: transform 0.12s ease-out, background-color 0.15s ease-out; } .primary:active { transform: scale(0.97); } }
+/* Apple's badge keeps a quarter of its height clear all round; the direct download is a small link under it. */
+.mac { display: grid; justify-items: inherit; gap: 12px; }
+.badge { display: block; padding: 13px; margin: -13px; border-radius: 12px; }
+.badge:focus-visible, .direct:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+.direct { color: var(--muted); font-size: 14.5px; font-weight: 600; text-underline-offset: 3px; }
+@media (hover: hover) { .direct:hover { color: var(--ink); } }
 .ctaQuiet { margin: 0; color: var(--muted); font-size: 14.5px; font-weight: 600; }
 

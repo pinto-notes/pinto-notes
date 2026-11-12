@@ -40,7 +40,7 @@ export function ClosingBand({ title, text, primary, secondary, actions, fine = B
         <div className={`${c.ctas} ${primary || actions ? "" : "pi-apple pi-not-ios"}`.trim()}>
           {actions ?? <>{primary
             ? <a className={c.primary} href={primary.href} {...ext(primary)}>{primary.label}</a>
-            : <DownloadLink className={c.primary}>Download for Mac</DownloadLink>}
+            : <DownloadLink className={c.primary}>Get it on the Mac App Store</DownloadLink>}
           {second && <a className={c.secondary} href={second.href} {...ext(second)}>{second.label}</a>}</>}
         </div>
         {!primary && !actions && <PlatformNote place="band" />}

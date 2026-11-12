@@ -24,21 +24,21 @@ describe("a post's call to action", () => {
     }
   });
 
-  it("downloads on a Mac, and the click counts as the call to action and as a download from the post", () => {
+  it("goes to the Mac App Store on a Mac, and the click counts as the call to action and as a store click from the post", () => {
     const tag = links(render()).find((t) => attr(t, "data-cta-action") === "download_mac")!;
-    expect(tag).toContain('href="/download/mac"');
+    expect(tag).toContain('href="https://apps.apple.com/app/id6817253103?platform=mac"');
     expect(tag).toMatch(/class="[^"]*pi-apple pi-not-ios/);
     const el = { tagName: "A", getAttribute: (n: string) => attr(tag, n) };
     const sent = clickEvents(el, new URL("https://pintonotes.com/blog/apple-notes-api"));
-    expect(sent.map((e) => [e.event, e.properties.path])).toEqual([["blog_cta_clicked", "/blog/apple-notes-api"], ["download_mac_clicked", "/blog/apple-notes-api"]]);
+    expect(sent.map((e) => [e.event, e.properties.path])).toEqual([["blog_cta_clicked", "/blog/apple-notes-api"], ["mac_app_store_clicked", "/blog/apple-notes-api"]]);
   });
 
   it("tells an iPhone the app is coming until it's on the App Store, and offers the link to the post", () => {
     const html = render();
     expect(html).toContain("The iPhone app is coming to the App Store soon.");
     expect(html).toContain("body=https%3A%2F%2Fpintonotes.com%2Fblog%2Fapple-notes-api");
-    expect(html).not.toContain("apps.apple.com");
-    expect(render(true)).toContain("apps.apple.com");
+    expect(html).not.toMatch(/apps\.apple\.com\/app\/id\d+"/);
+    expect(render(true)).toMatch(/apps\.apple\.com\/app\/id\d+"/);
     expect(render(true)).not.toContain("coming to the App Store");
   });
 });

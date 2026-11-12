@@ -275,9 +275,15 @@ export function clickEvent(el: { tagName: string; getAttribute(name: string): st
     return null;
   }
   if (to.protocol !== "https:" && to.protocol !== "http:") return null;
+  const leaves = el.getAttribute("target") !== "_blank";
+  // The Mac App Store (the Mac button, lib/site.ts MAC_APP_STORE_URL): its own event, the one a
+  // landing-page-to-Mac funnel ends on now, apart from the iPhone App Store's.
+  if (to.hostname === "apps.apple.com" && to.searchParams.get("platform") === "mac") {
+    return { event: "mac_app_store_clicked", properties: { path, destination: to.origin + to.pathname }, leaves };
+  }
   const match = OUTBOUND.find(([, host]) => host.test(to.hostname));
   if (!match) return null;
-  return { event: match[0], properties: { path, destination: to.origin + to.pathname }, leaves: el.getAttribute("target") !== "_blank" };
+  return { event: match[0], properties: { path, destination: to.origin + to.pathname }, leaves };
 }
 
 /// A click on a blog post's call to action (lib/PostCta.tsx), named by the attributes the post puts

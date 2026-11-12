@@ -99,4 +99,4 @@ All of it is in `pinto-internal/evidence/website-posthog.md`.
 - `blog_cta_clicked` (with `slug`, `position` and `action`) for the call to action.
 - `blog_copy_clicked` for a `Keep` copy.
 - `blog_helper_used` for a chooser answer.
-- `download_mac_clicked`, with the page's `path`, for a download.
+- `mac_app_store_clicked`, with the page's `path`, for the Mac button (the Mac App Store), and `download_mac_clicked` for a direct download.

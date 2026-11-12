@@ -32,15 +32,16 @@ describe("what Windows, Android and Linux see in place of Download for Mac", () 
 
   it("links to the App Store only once the app is there", () => {
     for (const place of ["hero", "band", "download"] as const) {
-      expect(other(render(place)), place).not.toContain("apps.apple.com");
+      expect(other(render(place)), place).not.toContain('href="https://apps.apple.com/app/id6817253103"');
       expect(other(render(place, true)), place).toContain('<a class="pi-link" href="https://apps.apple.com/app/id6817253103" target="_blank" rel="noopener noreferrer">See it on the App Store</a>');
     }
   });
 
-  it("keeps the Mac download one step away: the download page from the home page, the file from the download page", () => {
+  it("keeps the Mac one step away: the download page from the home page, the Mac App Store from the download page", () => {
     expect(other(render("hero"))).toContain('<a class="pi-link" href="/download">Download for Mac</a>');
     expect(other(render("band"))).toContain('<a class="pi-link" href="/download">Download for Mac</a>');
-    expect(render("download")).toContain('<a class="pi-link" href="/download/mac" download="">Download for Mac</a>');
+    expect(render("download")).toContain('<a class="pi-link" href="https://apps.apple.com/app/id6817253103?platform=mac" target="_blank" rel="noopener noreferrer">Get it on the Mac App Store</a>');
+    expect(render("download")).not.toContain("/download/mac");
   });
 
   it("is a quiet link to the download page in the header", () => {

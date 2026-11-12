@@ -25,6 +25,9 @@ export const MAKER_GITHUB = "https://github.com/emilwagman";
 export const APP_STORE_LIVE = true;
 export const APP_STORE_ID = "6817253103";
 export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}`;
+/// The same record's Mac page (one app record for iPhone and Mac): where every Mac button goes. Apple's
+/// own pages link a universal app's Mac listing with `?platform=mac`.
+export const MAC_APP_STORE_URL = `${APP_STORE_URL}?platform=mac`;
 
 /// The app release that opens template and shared-note links (ambernotes.app/open/template/… and
 /// /open/copy/…). Until it's in the App Store, the site doesn't offer "Use this template" or "Use this

@@ -1,4 +1,4 @@
-import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
+import { APP_STORE_LIVE, APP_STORE_URL, MAC_APP_STORE_URL } from "@/lib/site";
 import { Card, Mark, ui } from "@/lib/ui";
 import OpenApp from "./OpenApp";
 import s from "./open.module.css";
@@ -34,7 +34,7 @@ export default function PlaceCard({ href, title, lede, steps, links, art }: {
         <ol className={`${s.steps} ${s.whenFallback}`}>{steps.map((st, i) => <li key={i}>{st}</li>)}</ol>
         <div className={`${s.stack} ${s.whenFallback}`}>
           <a className={ui.primary} href={href}>Open in Pinto Notes</a>
-          <a className={`${ui.secondary} place-get-mac`} href="/download/mac">Download for Mac</a>
+          <a className={`${ui.secondary} place-get-mac`} href={MAC_APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it on the Mac App Store</a>
           {APP_STORE_LIVE
             ? <a className={ui.secondary} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it for iPhone</a>
             : <p className={s.soon}>iPhone app: coming soon</p>}

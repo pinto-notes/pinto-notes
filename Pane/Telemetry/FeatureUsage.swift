@@ -43,6 +43,12 @@ enum ShareStep: String, TelemetryWord {
     case inviteSent = "invite_sent", inviteOpened = "invite_opened", inviteAccepted = "invite_accepted", left, removed
 }
 
+/// The Mac download's "Pinto Notes is now in the Mac App Store" (MacStoreMove): shown, Open the
+/// App Store, Not Now.
+enum MacStoreStep: String, TelemetryWord {
+    case shown, openStore = "open_store", notNow = "not_now"
+}
+
 /// The account's storage, as the warning in the list says it (StorageUsage.Level).
 enum StorageLevelWord: String, TelemetryWord {
     case fine, almostFull = "almost_full", full

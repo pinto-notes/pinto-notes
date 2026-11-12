@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Metadata } from "next";
 import { APP_STORE_URL, pageMetadata } from "@/lib/site";
-import { MAC_DOWNLOAD_PATH } from "@/lib/downloads";
+import { DirectDownloadLink, MacAppStoreBadge } from "../DownloadLink";
 import { latestVersion } from "@/lib/changelog";
 import { JsonLd, app, breadcrumbs, maker, organization } from "@/lib/structured-data";
 import PlatformNote from "../PlatformNote";
@@ -40,27 +40,26 @@ export default function Download() {
       <section className={styles.hero}>
         <img className={`${styles.icon} rise`} style={r(0)} src="/mark-256.png" alt="" width={128} height={128} />
         <h1 className={`${styles.title} rise`} style={r(1)}>Download Pinto Notes</h1>
-        {release ? (
-          <>
-            <p className={`${styles.meta} rise pi-not-ios`} style={r(2)}>
-              Version {release.version} · {size} · {date}
-            </p>
-            <div className="pi pi-ios">
-              <a className={`${styles.button} rise`} style={r(3)} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer"><Apple /> Download for iPhone</a>
-            </div>
-            <a className={`${styles.button} rise pi-apple pi-not-ios`} style={r(3)} href={MAC_DOWNLOAD_PATH} download={release.file} data-hero-download="">
-              <Apple /> Download for Mac
-            </a>
-            <PlatformNote place="download" className="rise" style={r(3)} />
-            <p className={`${styles.req} pi pi-ios`}>Free · Requires iOS 26 or later</p>
-            <p className={`${styles.req} rise pi-not-ios`} style={r(4)}>Free · Requires macOS {macos} or later · <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it for iPhone</a></p>
-          </>
-        ) : (
-          <p className={`${styles.meta} rise`} style={r(2)}>The first Mac release is on its way.</p>
+        {/* The direct download's version, size and date (the App Store's is the same build). */}
+        {release && (
+          <p className={`${styles.meta} rise pi-not-ios`} style={r(2)}>
+            Version {release.version} · {size} · {date}
+          </p>
         )}
+        <div className="pi pi-ios">
+          <a className={`${styles.button} rise`} style={r(3)} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer"><Apple /> Download for iPhone</a>
+        </div>
+        {/* A Mac: the Mac App Store, and the download itself a small link under it. */}
+        <div className={`${styles.mac} rise pi-apple pi-not-ios`} style={r(3)}>
+          <MacAppStoreBadge className={styles.badge} height={56} data-hero-download="" />
+          {release && <DirectDownloadLink className={styles.direct} />}
+        </div>
+        <PlatformNote place="download" className="rise" style={r(3)} />
+        <p className={`${styles.req} pi pi-ios`}>Free · Requires iOS 26 or later</p>
+        <p className={`${styles.req} rise pi-not-ios`} style={r(4)}>Free · Requires macOS {macos} or later · <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it for iPhone</a></p>
       </section>
 
-      <section className={`${styles.steps} pi-not-ios`} aria-label="How to install">
+      <section className={`${styles.steps} pi-not-ios`} aria-label="How to install the direct download">
         <div className={`${styles.step} rise`} style={r(5)}>
           <div className={styles.art} aria-hidden="true">
             <div className={styles.dmg}><span>DMG</span></div>

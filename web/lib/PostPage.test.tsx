@@ -97,12 +97,12 @@ describe("an announcement", () => {
     }
   });
 
-  it("ends with one place to get the app, inside the post: the App Store and the Mac download", () => {
+  it("ends with one place to get the app, inside the post: the App Store and the Mac App Store", () => {
     const get = doc(<Launch />).querySelector("section[aria-labelledby='get-it']")!;
     expect(get.querySelector("h2")?.textContent).toBe("Get Pinto Notes");
     const links = [...get.querySelectorAll("a")].map((a) => a.getAttribute("href"));
-    expect(links.some((h) => h?.startsWith("https://apps.apple.com/"))).toBe(true);
-    expect(links.includes("/download/mac")).toBe(true);
+    expect(links.includes("https://apps.apple.com/app/id6817253103")).toBe(true);
+    expect(links.includes("https://apps.apple.com/app/id6817253103?platform=mac")).toBe(true);
     expect(doc(<Launch />).querySelector("[data-closing-band]")).toBeNull();
   });
 

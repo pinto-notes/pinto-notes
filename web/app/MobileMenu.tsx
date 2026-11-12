@@ -92,7 +92,7 @@ export default function MobileMenu({ path, stars: built, appStoreLive = APP_STOR
             {/* A Mac, or a platform we can't tell: the download, as on the home page. */}
             <div className="site-sheet-for pi-apple pi-not-ios">
               {appStoreLive && <a className="site-sheet-cta" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer"><AppleGlyph /> Get it for iPhone</a>}
-              <DownloadLink className={appStoreLive ? "site-sheet-cta site-sheet-cta-quiet" : "site-sheet-cta"}><AppleGlyph /> Download for Mac</DownloadLink>
+              <DownloadLink className={appStoreLive ? "site-sheet-cta site-sheet-cta-quiet" : "site-sheet-cta"}><AppleGlyph /> Get it on the Mac App Store</DownloadLink>
               {!appStoreLive && <p>iPhone · coming soon</p>}
             </div>
             {/* An iPhone: the iPhone app, or where it stands; the Mac download is a page away, not a file. */}

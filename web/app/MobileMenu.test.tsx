@@ -44,16 +44,18 @@ describe("what the phone menu holds", () => {
     expect(current("/")).toEqual([]);
   });
 
-  it("ends with the Mac download where that's some use, as the home page does", () => {
-    expect(text(part(menu(), "pi-apple pi-not-ios"))).toBe(" Download for MaciPhone · coming soon");
-    expect(part(menu(), "pi-apple pi-not-ios")).toContain('href="/download/mac" download="Pinto-Notes.dmg"');
-    expect(text(part(menu(true), "pi-apple pi-not-ios"))).toBe(" Get it for iPhone Download for Mac");
+  it("ends with the Mac App Store where that's some use, as the home page does", () => {
+    expect(text(part(menu(), "pi-apple pi-not-ios"))).toBe(" Get it on the Mac App StoreiPhone · coming soon");
+    expect(part(menu(), "pi-apple pi-not-ios")).toContain('href="https://apps.apple.com/app/id6817253103?platform=mac" target="_blank"');
+    expect(part(menu(), "pi-apple pi-not-ios")).not.toContain("/download/mac");
+    expect(text(part(menu(true), "pi-apple pi-not-ios"))).toBe(" Get it for iPhone Get it on the Mac App Store");
   });
 
   it("tells an iPhone where the iPhone app stands, and links the App Store only once it's there", () => {
     expect(text(part(menu(), "site-sheet-ios"))).toBe("Pinto Notes for iPhone is coming to the App Store soon.Download for Mac");
     expect(hrefs(part(menu(), "site-sheet-ios"))).toEqual(["/download"]);
-    expect(menu()).not.toContain("apps.apple.com");
+    // The iPhone App Store only once it's there (the Mac button goes to the Mac App Store either way).
+    expect(menu()).not.toMatch(/apps\.apple\.com\/app\/id\d+"/);
     expect(hrefs(part(menu(true), "site-sheet-ios"))).toEqual(["https://apps.apple.com/app/id6817253103", "/download"]);
     // The Mac app is a line under the button there, not a second button.
     expect(part(menu(true), "site-sheet-ios")).toContain('class="site-sheet-maclink" href="/download">Download for Mac</a>');

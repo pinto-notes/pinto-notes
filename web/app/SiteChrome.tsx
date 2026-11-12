@@ -142,7 +142,7 @@ export default function SiteChrome({ stars, children }: { version: string | null
           <a href="/help" aria-current={path === "/help" || path === "/support" ? "page" : undefined}>Help</a>
           <a className="site-gh" href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="Pinto Notes on GitHub"><GitHubGlyph /></a>
           <DownloadLink className="site-cta pi-apple" aria-current={current("/download")}>
-            <AppleGlyph /> <span className="site-cta-long">Download for Mac</span><span className="site-cta-short">Download</span>
+            <AppleGlyph /> <span className="site-cta-long">Get it on the Mac App Store</span><span className="site-cta-short">Mac App Store</span>
           </DownloadLink>
           <PlatformNote place="header" />
         </nav>

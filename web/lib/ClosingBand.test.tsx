@@ -10,10 +10,10 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/help", useRouter: () =>
 const doc = (el: React.ReactElement) => new DOMParser().parseFromString(`<!doctype html><body>${renderToStaticMarkup(el)}</body>`, "text/html");
 
 describe("the closing band", () => {
-  it("has one title, the Mac download, and one line of fine print", () => {
+  it("has one title, the Mac App Store, and one line of fine print", () => {
     const d = doc(<ClosingBand title="Same notes, new name." />);
     expect(d.querySelectorAll("h2").length).toBe(1);
-    expect(d.querySelector('a[href="/download/mac"]')?.textContent).toBe("Download for Mac");
+    expect(d.querySelector('a[href="https://apps.apple.com/app/id6817253103?platform=mac"]')?.textContent).toBe("Get it on the Mac App Store");
     const fine = [...d.querySelectorAll("p")].filter((p) => p.textContent === BAND_FINE);
     expect(fine.length).toBe(1);
   });
@@ -26,7 +26,7 @@ describe("the closing band", () => {
 
   it("takes a page's own primary in place of the download", () => {
     const d = doc(<ClosingBand title="Still stuck?" primary={{ href: "mailto:hello@pintonotes.com", label: "Email me" }} fine={null} />);
-    expect(d.querySelector('a[href="/download/mac"]')).toBeNull();
+    expect(d.querySelector('a[href="https://apps.apple.com/app/id6817253103?platform=mac"]')).toBeNull();
     expect(d.querySelector('a[href^="mailto:"]')?.textContent).toBe("Email me");
   });
 

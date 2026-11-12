@@ -1,10 +1,9 @@
 "use client";
 
-import { MAC_DOWNLOAD_PATH } from "@/lib/downloads";
 import { mailLink, sendLink } from "@/lib/platform";
-import { APP_STORE_LIVE, APP_STORE_URL, SITE_URL } from "@/lib/site";
+import { APP_STORE_LIVE, APP_STORE_URL, MAC_APP_STORE_URL, SITE_URL } from "@/lib/site";
 
-/// What a visitor who can't use "Download for Mac" sees in its place. On Windows, Android or Linux:
+/// What a visitor who can't use the Mac App Store button sees in its place. On Windows, Android or Linux:
 /// that Pinto Notes is for iPhone and Mac, and one useful thing to do about it, which is to send
 /// themselves the link for a device it runs on. Nothing here says or hints that another platform
 /// is coming, and nothing is counted or stored. On an iPhone or iPad: where the iPhone app stands.
@@ -29,7 +28,7 @@ export default function PlatformNote({ place, className = "", style, appStoreLiv
         <p className="pi-links">
           {appStoreLive && <a className="pi-link" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">See it on the App Store</a>}
           {place === "download"
-            ? <a className="pi-link" href={MAC_DOWNLOAD_PATH} download>Download for Mac</a>
+            ? <a className="pi-link" href={MAC_APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it on the Mac App Store</a>
             : <a className="pi-link" href="/download">Download for Mac</a>}
         </p>
       </div>

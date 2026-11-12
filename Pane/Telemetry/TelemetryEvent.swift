@@ -443,7 +443,7 @@ enum TelemetryWords {
         add(ConnectAIKind.self); add(ConnectFunnelStep.self); add(SignInStep.self); add(LinkRole.self); add(LinkStep.self)
         add(SettingName.self); add(TodayFolderWord.self); add(SettingsPageWord.self); add(AppearanceMode.self); add(Theme.self)
         add(NoteFont.self); add(TodaysNoteSettings.Title.self)
-        add(UsedFeature.self); add(ShareStep.self); add(StorageLevelWord.self)
+        add(UsedFeature.self); add(ShareStep.self); add(StorageLevelWord.self); add(MacStoreStep.self)
         add(NotebookFilmStep.self); add(NotebookFilmPlace.self); add(FilmForm.self)
         return words
     }()
@@ -515,6 +515,8 @@ enum TelemetryEvent: Equatable, Sendable {
 
     // Shared notes and storage.
     case shareStep(ShareStep)
+    /// The Mac download says Pinto Notes is in the Mac App Store (MacStoreMove).
+    case macAppStoreStep(MacStoreStep)
     /// The storage level changed (StorageLevelWatch).
     case storageLevel(StorageLevelWord)
 
@@ -549,7 +551,7 @@ enum TelemetryEvent: Equatable, Sendable {
         case signInStep = "sign_in_step", linkDeviceStep = "link_device_step", notebookFilmStep = "notebook_film_step"
         case settingsState = "settings_state", settingChanged = "setting_changed", settingsPageOpened = "settings_page_opened"
         case featureUsed = "feature_used", aiDisconnected = "ai_disconnected", signedOut = "signed_out", accountDeleted = "account_deleted"
-        case shareStep = "share_step", storageLevel = "storage_level"
+        case shareStep = "share_step", storageLevel = "storage_level", macAppStoreStep = "mac_app_store_step"
         case noteOpenedSpeed = "note_opened_speed", searchSpeed = "search_speed"
         case keychainFailed = "keychain_failed", keyStartup = "key_startup", syncFailed = "sync_failed"
         case uploadRefused = "upload_refused", rowUnreadable = "row_unreadable", fileDownloadFailed = "file_download_failed"
@@ -582,6 +584,7 @@ enum TelemetryEvent: Equatable, Sendable {
         case .signedOut: .signedOut
         case .accountDeleted: .accountDeleted
         case .shareStep: .shareStep
+        case .macAppStoreStep: .macAppStoreStep
         case .storageLevel: .storageLevel
         case .noteOpenedSpeed: .noteOpenedSpeed
         case .searchSpeed: .searchSpeed
@@ -628,6 +631,7 @@ enum TelemetryEvent: Equatable, Sendable {
         case .aiDisconnected(let kind): [.kind: .word(kind)]
         case .signedOut, .accountDeleted: [:]
         case .shareStep(let step): [.step: .word(step)]
+        case .macAppStoreStep(let step): [.step: .word(step)]
         case .storageLevel(let level): [.level: .word(level)]
         case .noteOpenedSpeed(let t), .searchSpeed(let t):
             [.under100ms: .number(t.under100ms), .under250ms: .number(t.under250ms), .under1s: .number(t.under1s), .over1s: .number(t.over1s)]
@@ -713,7 +717,7 @@ enum TelemetryEvent: Equatable, Sendable {
                         .quickNoteShortcut: .flag(false), .openAtLogin: .flag(false)]),
         .settingChanged(.theme, .word(Theme.sepia)), .settingsPageOpened(.general),
         .featureUsed(.checklistTicked), .aiDisconnected(.chatgpt), .signedOut, .accountDeleted,
-        .shareStep(.inviteAccepted), .storageLevel(.almostFull),
+        .shareStep(.inviteAccepted), .storageLevel(.almostFull), .macAppStoreStep(.openStore),
         .noteOpenedSpeed(SpeedTimings(under100ms: 30, under250ms: 12, under1s: 6, over1s: 2)), .searchSpeed(SpeedTimings(under100ms: 4)),
         .notebookFilmStep(.offered, why: NotebookFilmWhy(form: .spiral, notes: .upTo99, days: 35, activeDays: 12)), .notebookFilmStep(.closed, page: 3, place: .slides),
         .keychainFailed(item: .keySynced, operation: .save, status: -34018),

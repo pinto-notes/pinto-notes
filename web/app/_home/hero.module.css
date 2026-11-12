@@ -11,7 +11,7 @@
 /* "you and your AI": the site's marker, low behind the words, never split. */
 .mark { white-space: nowrap; background: linear-gradient(transparent 62%, var(--mark) 62%, var(--mark) 92%, transparent 92%); }
 .lede { margin: -10px 0 0; max-width: 30em; font-size: clamp(19px, 1.5vw, 23px); line-height: 1.4; color: #4a3826; }
-.ctas { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.ctas { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px; }
 .ctas > div { margin: 0; }
 .iphone { display: inline-flex; align-items: center; gap: 9px; min-height: 50px; padding: 0 24px; border-radius: 14px; font-size: 16px; font-weight: 700; color: #2a1a0c;
   background: #f3e4d0; text-decoration: none; transition: background-color 0.15s; }

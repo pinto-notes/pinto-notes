@@ -10,11 +10,12 @@ describe("the places the onboarding emails open", () => {
     ["connect-ai", ConnectAI, "Connect an AI", "/blog/connect-chatgpt-to-your-notes"],
     ["import", Import, "Import from Apple Notes", "/blog/move-from-apple-notes"],
     ["history", History, "Version History", null],
-  ] as const)("/open/%s tries the app, then says how by hand, with Open in Pinto Notes and the download", (place, Page, step, guide) => {
+  ] as const)("/open/%s tries the app, then says how by hand, with Open in Pinto Notes and the Mac App Store", (place, Page, step, guide) => {
     const html = renderToStaticMarkup(<Page />);
     expect(html).toContain(`href="pintonotes://${place}"`);
     expect(html).toContain("Open in Pinto Notes");
-    expect(html).toContain('href="/download/mac"');
+    expect(html).toContain('href="https://apps.apple.com/app/id6817253103?platform=mac"');
+    expect(html).not.toContain('href="/download/mac"');
     expect(html).toContain(step);
     if (guide) expect(html).toContain(`href="${guide}"`);
   });

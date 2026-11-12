@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
+import { APP_STORE_LIVE, APP_STORE_URL, MAC_APP_STORE_URL } from "@/lib/site";
 import { Card, Mark, ui } from "@/lib/ui";
 import { appURL } from "@/lib/app-scheme";
 import { tryApp } from "../../open/try-app";
@@ -61,7 +61,7 @@ export default function NoteLink({ id }: { id: string }) {
         </ol>
         <div className={`${s.stack} ${s.whenFallback}`}>
           {href && <a className={ui.primary} href={href}>Open in Pinto Notes</a>}
-          <a className={ui.secondary} href="/download/mac">Download for Mac</a>
+          <a className={ui.secondary} href={MAC_APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it on the Mac App Store</a>
           {APP_STORE_LIVE
             ? <a className={ui.secondary} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">Get it for iPhone</a>
             : <p className={s.soon}>iPhone app: coming soon</p>}
