@@ -1,0 +1,110 @@
+#if os(macOS)
+import AppKit
+import Testing
+@testable import Pane
+
+/// How an AI's edit of a whole note looks (Emil, 12 November 2026: "make it look nicer"). A
+/// heading or an italic line was measured in the hidden markdown marker's tiny font, so its
+/// highlight came out as a thin underline with a dot for a tick. Lines of one paragraph join into
+/// one shape, and the ticks of changed paragraphs next to each other run as one line.
+@MainActor @Suite(.serialized) struct AIChangeLookTests {
+    static let before = """
+    # About me
+
+    *Last refreshed: 1 October 2026.*
+
+    ## Who I am
+    - Swedish, based in Jönköping.
+    - I started programming at 11.
+    """
+
+    static let after = """
+    # About me
+
+    *Last refreshed: 12 November 2026. This is enduring context, not a daily status report.*
+
+    ## Who I am
+    - Swedish, based in Jönköping, with plans to move to Stockholm. I generally prefer speaking and reading English, although Swedish is my native language.
+    - I started programming at 11 and became interested in AI around 14. I studied AI Engineering at Jönköping University.
+    - I care deeply about ambitious work, scientific and technical understanding, autonomy, creativity, and building things that matter.
+
+    ## Work and projects
+    - I also build **Pinto Notes**, a notes app with AI integration.
+    """
+
+    func fragment(_ h: EditorHarness, at needle: String) throws -> DecoratedLayoutFragment {
+        let layout = try #require(h.view.textLayoutManager)
+        let content = try #require(layout.textContentManager)
+        let offset = (h.text as NSString).range(of: needle).location
+        let loc = try #require(content.location(content.documentRange.location, offsetBy: offset))
+        layout.ensureLayout(for: content.documentRange)
+        return try #require(layout.textLayoutFragment(for: loc) as? DecoratedLayoutFragment)
+    }
+
+    /// A heading's and an italic line's highlight is as tall as their letters, not a sliver.
+    @Test func headingsAndItalicLinesGetAFullHighlight() async throws {
+        let h = await EditorHarness(Self.after, width: 640, focus: false)
+        defer { h.close() }
+        for needle in ["About me", "Who I am", "Last refreshed"] {
+            let runs = try fragment(h, at: needle).changeRuns(at: .zero)
+            let run = try #require(runs.first, "\(needle)")
+            #expect(run.height > 16, "\(needle): \(runs)")
+        }
+        let title = try fragment(h, at: "About me").changeRuns(at: .zero)
+        let body = try fragment(h, at: "Swedish").changeRuns(at: .zero)
+        #expect(title[0].height > body[0].height, "the title's highlight is taller than a body line's: \(title) \(body)")
+    }
+
+    /// The lines of one wrapped paragraph meet: no stripe of page between them.
+    @Test func wrappedLinesJoinIntoOneShape() async throws {
+        let h = await EditorHarness(Self.after, width: 420, focus: false)
+        defer { h.close() }
+        let shape = try fragment(h, at: "Swedish").changeShape(at: .zero)
+        let runs = try fragment(h, at: "Swedish").changeRuns(at: .zero)
+        #expect(runs.count >= 2)
+        for (a, b) in zip(runs, runs.dropFirst()) {
+            let seam = CGPoint(x: (max(a.minX, b.minX) + min(a.maxX, b.maxX)) / 2, y: (a.maxY + b.minY) / 2)
+            #expect(shape.contains(seam), "between \(a) and \(b)")
+        }
+    }
+
+    /// The sidebar doesn't repeat an AI's change to the note you have open; it's back once it closes.
+    @Test func sidebarLeavesOutTheOpenNotesChange() {
+        let open = OpenNoteIDs()
+        let c = AIChange(id: "c", kind: .created, noteID: UUID(), ai: "ChatGPT", at: .now)
+        #expect(SidebarAICopy.showsChange(c, connected: ["ChatGPT"], open: open))
+        open.opened(c.noteID)
+        open.opened(c.noteID) // in a second window too
+        #expect(!SidebarAICopy.showsChange(c, connected: ["ChatGPT"], open: open))
+        open.closed(c.noteID)
+        #expect(!SidebarAICopy.showsChange(c, connected: ["ChatGPT"], open: open), "still open in the other window")
+        open.closed(c.noteID)
+        #expect(SidebarAICopy.showsChange(c, connected: ["ChatGPT"], open: open))
+    }
+
+    /// The receipt offers Undo only, and goes on its own a few seconds after the tint fades.
+    @Test func receiptIsUndoOnlyAndLeaves() {
+        #expect(!AIReceipt.offersReview)
+        #expect(AIReceipt.stays > 3 && AIReceipt.stays <= 10)
+    }
+
+    /// The tint of an AI's edit fades by itself, without typing or leaving the note.
+    @Test func aiTintFadesOnItsOwn() async throws {
+        let h = await EditorHarness(Self.after, width: 640, focus: false)
+        defer { h.close() }
+        h.controller.tintChanges(from: Self.before)
+        #expect(await h.until(1) { h.controller.isTinted })
+        #expect(await h.until(9) { !h.controller.isTinted }, "faded within a few seconds")
+    }
+
+    /// Pictures of the resting mark, light and dark, for a look at it (AMBER_QA_SHOTS).
+    @Test(arguments: [false, true]) func picture(dark: Bool) async throws {
+        let h = await EditorHarness(Self.after, width: 720, height: 620, dark: dark, focus: false)
+        defer { h.close() }
+        h.controller.tintChanges(from: Self.before, untilCleared: true)
+        await h.settle(1.2)
+        let name = "ai-change-look\(dark ? "-dark" : "")\(ProcessInfo.processInfo.environment["AI_LOOK_SUFFIX"] ?? "")"
+        await h.snapshot(name)
+    }
+}
+#endif

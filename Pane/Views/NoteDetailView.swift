@@ -45,6 +45,8 @@ struct NoteDetailView: View {
     @State private var pageFieldFocused = false
     /// A receipt waiting for the field to let go.
     @State private var heldReceipt: AIEdit.Receipt?
+    /// The pointer is on the receipt: it stays while you reach for Undo.
+    @State private var receiptHovered = false
     @State private var undoFailed: String?
     /// For Undo of a page an AI made: the page before it (nil: none).
     @State private var undoPage: NotePageStore.Page?
@@ -164,6 +166,13 @@ struct NoteDetailView: View {
             .onDisappear {
                 saver.flush()
                 followRename()
+                OpenNoteIDs.shared.closed(note.id)
+            }
+            // The sidebar leaves out an AI's change to a note that's open (SidebarAILine).
+            .onAppear { OpenNoteIDs.shared.opened(note.id) }
+            .onChange(of: note.id) { old, new in
+                OpenNoteIDs.shared.closed(old)
+                OpenNoteIDs.shared.opened(new)
             }
             .confirmationDialog(missingNote.map { "Create \u{201C}\($0)\u{201D}?" } ?? "", isPresented: Binding(get: { missingNote != nil }, set: { if !$0 { missingNote = nil } }), titleVisibility: .visible) {
                 Button("Create Note") { if let name = missingNote { createLinkedNote(name) } }
@@ -391,7 +400,7 @@ struct NoteDetailView: View {
                         reviewResult = left.partlyUndoneLine(by: collab?.onlyOtherName)
                         Task { @MainActor in
                             try? await Task.sleep(for: .seconds(0.15))
-                            if self.receipt == left { controller.tintChanges(from: left.previous, untilCleared: true) }
+                            if self.receipt == left { controller.tintChanges(from: left.previous) }
                         }
                     }
                 }
@@ -612,7 +621,7 @@ struct NoteDetailView: View {
             #if os(iOS)
             // A shared note's too: its review takes parts out of the document, for everyone
             // (persona council round 7, bug 16).
-            if inBar, !showingPage, AIReceipt.reviews(receipt) {
+            if inBar, !showingPage, AIReceipt.reviews(receipt), AIReceipt.offersReview {
                 // What the AI changed, one tap away (Emil, 4 November 2026: Review Changes inside
                 // the Undo menu was hidden and unclear). Undo stays in the bar.
                 AIChangeButton(receipt: receipt) { startReview(receipt) }
@@ -623,7 +632,8 @@ struct NoteDetailView: View {
             #endif
             if !inBar {
                 AIReceipt(receipt: receipt, seeAll: Self.seesAllChanges(receipt) ? { AIChangesCenter.shared.show(ai: receipt.by) } : nil,
-                          review: AIReceipt.reviews(receipt) ? { startReview(receipt) } : nil) { undo(receipt) }
+                          review: AIReceipt.offersReview && AIReceipt.reviews(receipt) ? { startReview(receipt) } : nil) { undo(receipt) }
+                .onHover { receiptHovered = $0 }
                 #if os(macOS)
                 .padding(.bottom, 20)
                 #else
@@ -711,8 +721,8 @@ struct NoteDetailView: View {
     }
 
     /// An AI's edit you haven't seen: tint what it changed and offer Undo. Opening the note counts
-    /// as seeing it, so the list's dot goes; the tint and Undo stay while you read, and go quietly
-    /// once you start typing, undo it or leave the note (`staysUntilEdited`).
+    /// as seeing it, so the list's dot goes; the tint fades after a few seconds and the receipt
+    /// soon after (`AIReceipt.stays`), or at once when you start typing, undo it or leave the note.
     private func showAIEdit() {
         guard let seen = AIEdit.markSeen(note) else { return }
         // The earlier one may not be on screen yet: a sync lands an AI's edits a moment apart, inside
@@ -728,9 +738,16 @@ struct NoteDetailView: View {
             guard landingReceipt == r else { return } // a later edit took it over
             landingReceipt = nil
             guard note.id == r.noteID else { return }
-            controller.tintChanges(from: r.previous, untilCleared: r.staysUntilEdited)
+            // The tint shows what changed, then fades on its own (Emil, 12 November 2026: it
+            // stayed until you typed or left the note, and that was annoying).
+            controller.tintChanges(from: r.previous)
             withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
             PaneTips.aiEditLanded()
+            // The receipt and its Undo go a little after the tint, unless the pointer is on it.
+            try? await Task.sleep(for: .seconds(AIReceipt.stays * slow))
+            while receiptHovered || ChangeTint.holdForCapture { try? await Task.sleep(for: .seconds(0.3)) }
+            guard receipt == r, review == nil else { return }
+            withAnimation(.easeOut(duration: 0.3)) { receipt = nil }
         }
     }
 

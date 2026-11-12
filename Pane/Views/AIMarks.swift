@@ -203,55 +203,62 @@ struct AIReceipt: View {
                            removal: .opacity.combined(with: .offset(y: 6)))
     }
 
+    /// Review isn't offered from the receipt (Emil, 12 November 2026: "I can see the changes"):
+    /// the tint shows them, and Undo takes them all back.
+    static let offersReview = false
+    /// Seconds the receipt stays after it lands, a little past the tint's fade.
+    static let stays: Double = 6
+
+    /// A quiet glass capsule in the system's colours, like a Mac or iPhone notice: the AI's mark,
+    /// what it did in the text colour, and Undo in the accent (Emil, 12 November 2026: the amber
+    /// capsule with amber words and three links was "super ugly").
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: compact ? 7 : 9) {
             AIGlyph(ai: receipt.by, size: compact ? 12 : 14)
             Text(compact ? receipt.shortSummary : receipt.summary)
-                .font(.system(size: compact ? 13 : Self.text, weight: .semibold))
+                .font(.system(size: compact ? 13 : Self.text, weight: .medium))
                 .lineLimit(1)
                 // Whole, never "ChatGPT changed 3 li…": the capsule grows instead (council round 5).
                 .fixedSize(horizontal: true, vertical: false)
-                .foregroundStyle(Color.amberInk)
+                .foregroundStyle(.primary)
             if receipt.kind != .heldBack {
-            Divider().frame(height: 14)
-            Button("Undo", action: undo)
-                .buttonStyle(.hoverLink)
-                .font(.system(size: compact ? 13 : Self.text, weight: .semibold))
-                .foregroundStyle(Color.amberInk)
-                .contentShape(.rect)
-                .accessibilityHint("Puts the note back the way it was before \(receipt.who)'s edit")
+                Button("Undo", action: undo)
+                    .buttonStyle(.hoverLink)
+                    .font(.system(size: compact ? 13 : Self.text, weight: .semibold))
+                    .foregroundStyle(Color.paneAccent)
+                    .padding(.leading, compact ? 2 : 4)
+                    .contentShape(.rect)
+                    .accessibilityHint("Puts the note back the way it was before \(receipt.who)'s edit")
             }
             if let review, Self.reviews(receipt), !compact {
-                Divider().frame(height: 14)
                 Button("Review", action: review)
                     .buttonStyle(.hoverLink)
                     .font(.system(size: Self.text, weight: .semibold))
-                    .foregroundStyle(Color.amberInk)
+                    .foregroundStyle(Color.paneAccent)
                     .contentShape(.rect)
                     .accessibilityHint("Goes through each part \(receipt.who) changed, to keep or undo it")
                     .accessibilityIdentifier("receipt.review")
             }
-            // Undo and Review are enough beside each other; Review leads on to the rest (round 21: three
-            // equal links in a small strip). Only where there's no Review, the way to all of them.
-            if let seeAll, receipt.kind == .edit, !compact, review == nil {
-                Divider().frame(height: 14)
+            if let seeAll, receipt.kind == .edit, !compact, review == nil, !Self.quiet {
                 Button("See all changes", action: seeAll)
                     .buttonStyle(.hoverLink)
                     .font(.system(size: Self.text, weight: .semibold))
-                    .foregroundStyle(Color.amberInk)
+                    .foregroundStyle(Color.paneAccent)
                     .contentShape(.rect)
                     .accessibilityIdentifier("receipt.seeAll")
             }
         }
-        .padding(.horizontal, compact ? 11 : 14)
-        .frame(height: compact ? 32 : Self.height)
-        .background(Color.amberSoft, in: .capsule)
-        // A solid edge: the amber of the fill, a step deeper (nothing see-through).
-        .overlay(Capsule().strokeBorder(Color(light: Color(red: 0.96, green: 0.86, blue: 0.70), dark: Color(red: 0.36, green: 0.27, blue: 0.12)), lineWidth: 1))
-        .shadow(color: Color(red: 0.24, green: 0.12, blue: 0.02).opacity(0.12), radius: 12, y: 6)
-        .shadow(color: Color(red: 0.24, green: 0.12, blue: 0.02).opacity(0.08), radius: 2, y: 1)
+        .padding(.leading, compact ? 10 : 12)
+        .padding(.trailing, compact ? 12 : 14)
+        .frame(height: compact ? 30 : Self.height)
+        .background(.regularMaterial, in: .capsule)
+        .overlay(Capsule().strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.14), radius: 10, y: 4)
         .accessibilityElement(children: .contain)
     }
+
+    /// Just the summary and Undo: AI Changes is in the sidebar and the menu.
+    static let quiet = true
 
     #if os(macOS)
     static let text: CGFloat = 12

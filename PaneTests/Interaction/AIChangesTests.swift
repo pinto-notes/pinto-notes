@@ -159,9 +159,10 @@ import AppKit
         #expect(!h.view.isTinted, "typing makes it yours")
     }
 
-    /// The note as the app shows it: opened with an AI's edit waiting, the tint is there and stays;
-    /// your first keystroke takes it away; opened again, nothing is marked.
-    @Test func theOpenNoteKeepsTheMarkUntilYouType() async throws {
+    /// The note as the app shows it: opened with an AI's edit waiting, the tint is there, then
+    /// fades on its own while you read (Emil, 12 November 2026: it stayed until you typed, and that
+    /// was annoying); opened again, nothing is marked.
+    @Test func theOpenNoteMarksTheChangeThenLetsItGo() async throws {
         let c = try Self.container()
         let note = Self.aiEdited(c)
         func open() -> (NSWindow, EditorController) {
@@ -176,11 +177,7 @@ import AppKit
         #expect(controller.isTinted, "what the AI changed is marked")
         #expect(!AIEdit.isUnseen(note), "and the list's mark is gone")
         try? await Task.sleep(for: .seconds(6))
-        #expect(controller.isTinted, "still marked while you read")
-        let view = try #require(controller.target as? PaneTextView)
-        view.insertText("!", replacementRange: NSRange(location: (view.string as NSString).length, length: 0))
-        try? await Task.sleep(for: .seconds(0.3))
-        #expect(!controller.isTinted, "typing clears it")
+        #expect(!controller.isTinted, "gone by itself, without typing")
         window.close()
 
         let (again, second) = open()

@@ -38,7 +38,9 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         page.getRed(&pr, green: &pg, blue: &pb, alpha: &pa)
         accent.getRed(&ar, green: &ag, blue: &ab, alpha: &aa)
         func mix(_ t: CGFloat) -> CGColor { PColor(red: pr + (ar - pr) * t, green: pg + (ag - pg) * t, blue: pb + (ab - pb) * t, alpha: 1).cgColor }
-        return (mix(Self.tintAmount * strength), mix(min(1, strength)))
+        // On a dark page the same share of amber reads as mud brown: less of it there.
+        let dark = (pr * 0.299 + pg * 0.587 + pb * 0.114) < 0.5
+        return (mix(Self.tintAmount * (dark ? 0.7 : 1) * strength), mix(min(1, strength)))
     }
 
     /// Where this paragraph starts in the text, and the editor's tint for AI changes.
@@ -212,13 +214,26 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
 
     static let removalWidth: CGFloat = 96
 
+    /// The runs as one shape: each line rounded, and the space between two lines of the
+    /// paragraph filled where they overlap, so a wrapped paragraph reads as one block like a text
+    /// selection, not a stack of separate pills (Emil, 12 November 2026).
+    func changeShape(at point: CGPoint) -> CGPath {
+        let runs = changeRuns(at: point)
+        let path = CGMutablePath()
+        for r in runs { path.addRoundedRect(in: r, cornerWidth: Self.changeRadius, cornerHeight: Self.changeRadius) }
+        for (a, b) in zip(runs, runs.dropFirst()) {
+            let left = max(a.minX, b.minX), right = min(a.maxX, b.maxX)
+            guard right > left else { continue }
+            path.addRect(CGRect(x: left, y: a.midY, width: right - left, height: b.midY - a.midY))
+        }
+        return path
+    }
+
     func changeRuns(at point: CGPoint) -> [CGRect] {
         guard let p = textElement as? NSTextParagraph else { return [] }
         let whole = p.attributedString
         // The list marker ("- [ ] ") is drawn as the circle or bullet: the words start after it.
         let first = ListPrefix(line: whole.string).map(\.length) ?? 0
-        let font = (whole.length > 0 ? whole.attribute(.font, at: max(0, min(first, whole.length - 1)), effectiveRange: nil) as? PFont : nil)
-            ?? PFont.systemFont(ofSize: EditorMetrics.body)
         let text = whole.string as NSString
         return textLineFragments.compactMap { line in
             let range = line.characterRange
@@ -227,6 +242,13 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             while end > from, let c = UnicodeScalar(text.character(at: end - 1)),
                   CharacterSet.whitespacesAndNewlines.contains(c) { end -= 1 }
             guard end > from else { return nil }
+            // The line's own letters' font, the largest on it: a heading's "# " or an italic's
+            // "*" is hidden in a tiny font, and measured from it the highlight was a thin
+            // underline (Emil, 12 November 2026).
+            var font = PFont.systemFont(ofSize: EditorMetrics.body), largest: CGFloat = 0
+            whole.enumerateAttribute(.font, in: NSRange(location: from, length: end - from)) { value, _, _ in
+                if let f = value as? PFont, f.pointSize > largest { largest = f.pointSize; font = f }
+            }
             // The paragraph's own indices, as for date chips: counted from the line's start, every
             // line past a wrap measured the first line's characters and got a sliver (persona r7).
             let startX = line.locationForCharacter(at: from).x
@@ -250,10 +272,8 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             let colors = Self.changeColors(strength)
             let runs = changeRuns(at: point)
             context.setFillColor(colors.tint)
-            for rect in runs {
-                context.addPath(CGPath(roundedRect: rect, cornerWidth: Self.changeRadius, cornerHeight: Self.changeRadius, transform: nil))
-            }
-            context.fillPath()
+            context.addPath(changeShape(at: point))
+            context.fillPath(using: .winding)
             if let tick = Self.tick(for: runs, textLeft: point.x - layoutFragmentFrame.minX) {
                 context.setFillColor(colors.bar)
                 context.addPath(CGPath(roundedRect: tick, cornerWidth: Self.tickWidth / 2, cornerHeight: Self.tickWidth / 2, transform: nil))
