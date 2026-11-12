@@ -92,6 +92,10 @@ final class NotebookFilmStore {
     static func shownKey(_ account: UUID?) -> String { "notebookFilm.shown.\(account?.uuidString.lowercased() ?? "device")" }
     /// The account has been told it was shown (a device that showed it offline tells it later).
     static func toldKey(_ account: UUID?) -> String { "notebookFilm.told.\(account?.uuidString.lowercased() ?? "device")" }
+    /// When this device last read the account's history for the film. An account that wasn't ready
+    /// is read again a day later, not on every launch.
+    static func checkedKey(_ account: UUID?) -> String { "notebookFilm.checked.\(account?.uuidString.lowercased() ?? "device")" }
+    static let recheckAfter: TimeInterval = 86_400
 
     /// It was shown for this account: on this device, or on another one (heard from the server).
     var shown: Bool { defaults.bool(forKey: Self.shownKey(account)) }
@@ -226,6 +230,8 @@ final class NotebookFilmStore {
         if shown { tell(); return }
         let ready = FileManager.default.fileExists(atPath: preparedURL.path)
         guard ready || FilmSource.mightBeReady(context, now: now) else { return }
+        if !ready, let last = defaults.object(forKey: Self.checkedKey(account)) as? Date, now.timeIntervalSince(last) < Self.recheckAfter { return }
+        if !ready { defaults.set(now, forKey: Self.checkedKey(account)) }
         // Shown on another of the account's devices: not offered here. A card that's up goes
         // (not a film you've opened), and the film got ready here is kept for Help.
         if (try? await service.seen()) == true {

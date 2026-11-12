@@ -416,6 +416,40 @@ import AVFoundation
         #expect(!FileManager.default.fileExists(atPath: s.preparedURL.path))
     }
 
+    /// A notebook past the film's size isn't read from the server at all (release gate, 12 November
+    /// 2026: a 20,000-note account spent 18% CPU idle and hundreds of requests on it every launch).
+    @Test func aHugeNotebookIsNeverReadFromTheServer() async throws {
+        let (c, source) = try Self.library(days: 35)
+        let ctx = c.mainContext
+        let folder = Folder(name: "Brought in")
+        ctx.insert(folder)
+        for k in 0..<FilmEligibility.maxNotes {
+            let n = Note(body: "Imported \(k)", folder: folder)
+            n.createdAt = .now.addingTimeInterval(-30 * 86_400)
+            ctx.insert(n)
+        }
+        try ctx.save()
+        let s = Self.store(TestDefaults(), account: UUID(), source: source, folder: Self.tempFolder())
+        await s.prepare(context: ctx)
+        #expect(source.reads == 0)
+        #expect(!FileManager.default.fileExists(atPath: s.preparedURL.path))
+    }
+
+    /// An account that could be ready but isn't is read once a day, not on every launch.
+    @Test func aNotebookThatWasntReadyIsReadAgainADayLater() async throws {
+        let (c, source) = try Self.library(days: 35)
+        // Every edit an AI's: nothing you wrote yourself, so not ready.
+        source.rows = source.rows.map { .init(note_id: $0.note_id, at: $0.at, source: "mcp", client: "ChatGPT") }
+        let d = TestDefaults(), account = UUID(), folder = Self.tempFolder(), now = Date.now
+        await Self.store(d, account: account, source: source, folder: folder).prepare(context: c.mainContext, now: now)
+        #expect(source.reads == 1)
+        #expect(!FileManager.default.fileExists(atPath: folder.appendingPathComponent("ready-\(account.uuidString.lowercased()).json").path), "not ready")
+        await Self.store(d, account: account, source: source, folder: folder).prepare(context: c.mainContext, now: now.addingTimeInterval(3_600))
+        #expect(source.reads == 1, "the next launch the same day reads nothing")
+        await Self.store(d, account: account, source: source, folder: folder).prepare(context: c.mainContext, now: now.addingTimeInterval(25 * 3_600))
+        #expect(source.reads == 2, "a day later it looks again")
+    }
+
     @Test func theOpeningIsGoneBeforeTheFirstDayBegins() {
         // It opens on the finished notebook, which draws back and is gone: the two never show at once.
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)

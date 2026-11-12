@@ -62,9 +62,14 @@ enum FilmSource {
     }
 
     /// Quick, on this device only: could the account be ready? Saves the server reads when it can't.
+    /// Counts and reads one note, never the whole library.
     nonisolated static func mightBeReady(_ context: ModelContext, now: Date = .now) -> Bool {
-        let notes = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? []
-        guard notes.count >= FilmEligibility.minNotes, let first = notes.map(\.createdAt).min() else { return false }
+        let live = #Predicate<Note> { $0.deletedAt == nil && $0.trashedAt == nil }
+        let count = (try? context.fetchCount(FetchDescriptor<Note>(predicate: live))) ?? 0
+        guard count >= FilmEligibility.minNotes, count <= FilmEligibility.maxNotes else { return false }
+        var oldest = FetchDescriptor<Note>(predicate: live, sortBy: [SortDescriptor(\.createdAt)])
+        oldest.fetchLimit = 1
+        guard let first = (try? context.fetch(oldest))?.first?.createdAt else { return false }
         let age = now.timeIntervalSince(first)
         return age >= Double(FilmEligibility.minDays - 1) * 86_400 && age <= Double(FilmEligibility.maxDays + 1) * 86_400
     }
