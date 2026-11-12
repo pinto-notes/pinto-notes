@@ -2026,7 +2026,10 @@ private struct FolderTree: View {
         // Safari: they land in this folder.
         .onDrop(of: FolderDrop.types, delegate: FolderDrop(over: { targeted($0, folder.id) }) { providers in
             drops.lifted(folder.id)
+            let dropped = DropSpeed.start()
             DropLoader.load(providers) { items, urls in
+                DropSpeed.step("loaded", since: dropped)
+                defer { DropSpeed.step("moved", since: dropped); DispatchQueue.main.async { DropSpeed.step("next turn", since: dropped) } }
                 var moved = false
                 for item in items {
                     switch item.kind {

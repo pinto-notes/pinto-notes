@@ -27,7 +27,7 @@ enum AccountLibrary {
         // `trash`, which only moves a folder to Recently Deleted and marks it to go up: the old
         // account's folders stayed and were pushed into the next account, and back into their own.)
         context.wipeLocalLibrary(files: files)
-        memoryKeys.forEach { defaults.removeObject(forKey: $0) }
+        LaunchSpot.forget(memoryKeys); memoryKeys.forEach { defaults.removeObject(forKey: $0) }
         // The sync cursor was keyed with either spelling of the old id.
         for key in ["syncCursor.\(previous)", "syncCursor.\(previous.uppercased())"] { defaults.removeObject(forKey: key); defaults.removeObject(forKey: key + ".pages") }
         return true
@@ -48,7 +48,7 @@ enum AccountLibrary {
     /// memory of where sync was, so signing in again starts from an empty library.
     static func erase(context: ModelContext, defaults: UserDefaults = .standard, files: URL? = nil) {
         context.wipeLocalLibrary(files: files)
-        memoryKeys.forEach { defaults.removeObject(forKey: $0) }
+        LaunchSpot.forget(memoryKeys); memoryKeys.forEach { defaults.removeObject(forKey: $0) }
         if let owner = defaults.string(forKey: ownerKey) {
             for key in ["syncCursor.\(owner)", "syncCursor.\(owner.uppercased())"] { defaults.removeObject(forKey: key); defaults.removeObject(forKey: key + ".pages") }
         }

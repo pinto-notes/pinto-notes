@@ -2,6 +2,7 @@ import QuickLook
 import QuickLookThumbnailing
 import SwiftData
 import SwiftUI
+import os
 import UniformTypeIdentifiers
 #if os(macOS)
 import Quartz
@@ -63,6 +64,21 @@ enum ListItem: Identifiable, DatedListItem {
 }
 
 /// What a drop carries: items from inside the app, and file or folder URLs from outside it.
+/// How long a drop on a folder takes, from the button's release (the drop) to what was dragged
+/// read, the move done and the next turn of the run loop, in the system log (category "speed"):
+/// `log stream --predicate 'subsystem == "dev.emilwagman.pane" AND category == "speed"'`
+/// (Emil, 12 November 2026: "it feels like the entire app freezes when I drag and drop a note").
+enum DropSpeed {
+    private static let log = Logger(subsystem: "dev.emilwagman.pane", category: "speed")
+
+    static func start() -> TimeInterval { ProcessInfo.processInfo.systemUptime }
+
+    static func step(_ what: StaticString, since start: TimeInterval) {
+        let ms = Int((ProcessInfo.processInfo.systemUptime - start) * 1000)
+        log.notice("drop on a folder: \(what, privacy: .public) after \(ms, privacy: .public) ms")
+    }
+}
+
 enum DropLoader {
     @MainActor
     static func load(_ providers: [NSItemProvider], then handle: @escaping @MainActor ([PaneDragItem], [URL]) -> Void) {
