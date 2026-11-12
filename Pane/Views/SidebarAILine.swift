@@ -89,8 +89,13 @@ enum SidebarAICopy {
 extension SidebarAICopy {
     /// Not while its note is open: the note itself shows the change (Emil, 12 November 2026:
     /// "if I have the note open I don't see why I need to see this").
-    @MainActor static func showsChange(_ c: AIChange, connected: [String]?, open: OpenNoteIDs, now: Date = .now) -> Bool {
-        !open.contains(c.noteID) && showsChange(c, connected: connected, now: now)
+    /// Nor once you've seen it on the note: it watched itself being written there, so the
+    /// sidebar has nothing to add. `seenAt`: when you last saw an AI's edit of that note.
+    @MainActor static func showsChange(_ c: AIChange, connected: [String]?, open: OpenNoteIDs, seenAt: Date? = nil, now: Date = .now) -> Bool {
+        guard !open.contains(c.noteID) else { return false }
+        // The note's own time for the edit and the change log's can differ by a moment.
+        if let seenAt, seenAt >= c.at.addingTimeInterval(-60) { return false }
+        return showsChange(c, connected: connected, now: now)
     }
 }
 
@@ -106,7 +111,7 @@ struct SidebarAILine: View {
     var body: some View {
         // A stack, not a Group: with no row it is still there, so the task below still runs.
         VStack(spacing: 0) {
-            if let last, SidebarAICopy.showsChange(last, connected: ConnectedAIs.shared.knownNames, open: OpenNoteIDs.shared) {
+            if let last, SidebarAICopy.showsChange(last, connected: ConnectedAIs.shared.knownNames, open: OpenNoteIDs.shared, seenAt: context.note(last.noteID)?.aiSeenAt) {
                 let title = Self.title(last, context: context)
                 row(ai: last.ai, line: SidebarAICopy.line(last, title: title), label: SidebarAICopy.accessibility(last, title: title)) {
                     TimelineView(.periodic(from: .now, by: 60)) { t in

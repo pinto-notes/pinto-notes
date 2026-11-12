@@ -221,7 +221,7 @@ struct AIReceipt: View {
     static let stays: Double = 6
 
     /// A quiet glass capsule in the system's colours, like a Mac or iPhone notice: the AI's mark,
-    /// what it did in the text colour, and Undo in the accent (Emil, 12 November 2026: the amber
+    /// what it did in the text colour, and Undo in bold (Emil, 12 November 2026: the amber
     /// capsule with amber words and three links was "super ugly").
     var body: some View {
         HStack(spacing: compact ? 7 : 9) {
@@ -233,10 +233,12 @@ struct AIReceipt: View {
                 .fixedSize(horizontal: true, vertical: false)
                 .foregroundStyle(.primary)
             if receipt.kind != .heldBack {
+                // In the text colour, bolder than the words beside it: not the app's orange next to
+                // ChatGPT's green tint (Emil, 12 November 2026).
                 Button("Undo", action: undo)
                     .buttonStyle(.hoverLink)
-                    .font(.system(size: compact ? 13 : Self.text, weight: .semibold))
-                    .foregroundStyle(Color.paneAccent)
+                    .font(.system(size: compact ? 13 : Self.text, weight: .bold))
+                    .foregroundStyle(.primary)
                     .padding(.leading, compact ? 2 : 4)
                     .contentShape(.rect)
                     .accessibilityHint("Puts the note back the way it was before \(receipt.who)'s edit")

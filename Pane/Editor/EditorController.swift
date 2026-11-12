@@ -369,9 +369,11 @@ final class EditorController {
     /// `untilCleared`: it stays until you type, undo or leave, instead of fading on its own.
     func tintChanges(from previous: String, untilCleared: Bool = false) { target?.tintChanges(from: previous, untilCleared: untilCleared) }
     /// An AI's edit written in, its caret where the writing is (ChangeTint.write). How long it takes.
-    @discardableResult func writeChanges(from previous: String, by name: String, color: PColor) -> Double {
-        target?.writeChanges(from: previous, by: name, color: color) ?? 0
+    @discardableResult func writeChanges(from previous: String, to after: String, by name: String, color: PColor) -> Double {
+        target?.writeChanges(from: previous, to: after, by: name, color: color) ?? 0
     }
+    /// The lines an AI changed hidden until its writing starts.
+    func hideChanges(from previous: String, to after: String) { target?.hideChanges(from: previous, to: after) }
     /// Whether any line is tinted right now.
     var isTinted: Bool { target?.isTinted ?? false }
     func clearTint() { target?.clearTint() }
@@ -1038,7 +1040,9 @@ protocol EditorTarget: TextHost {
     func tintChanges(from previous: String, untilCleared: Bool)
     /// Writes an AI's edit in, its caret where the writing is, then tints and fades as above.
     /// Returns how long the writing takes.
-    func writeChanges(from previous: String, by name: String, color: PColor) -> Double
+    func writeChanges(from previous: String, to after: String, by name: String, color: PColor) -> Double
+    /// Hides the lines an AI changed, until `writeChanges` writes them in.
+    func hideChanges(from previous: String, to after: String)
     /// Whether any line is tinted right now.
     var isTinted: Bool { get }
     /// Clears that tint at once.
@@ -1100,10 +1104,11 @@ extension EditorTarget {
     func expandAllSections() {}
     /// Tints, then fades on its own.
     func tintChanges(from previous: String) { tintChanges(from: previous, untilCleared: false) }
-    func writeChanges(from previous: String, by name: String, color: PColor) -> Double {
+    func writeChanges(from previous: String, to after: String, by name: String, color: PColor) -> Double {
         tintChanges(from: previous)
         return 0
     }
+    func hideChanges(from previous: String, to after: String) {}
 }
 
 

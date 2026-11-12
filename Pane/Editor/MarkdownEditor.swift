@@ -1769,7 +1769,12 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
 
-    func writeChanges(from previous: String, by name: String, color: PColor) -> Double {
+    func hideChanges(from previous: String, to after: String) {
+        let tint = core.layoutDelegate.tint
+        tint.whenText(currentText, is: after) { tint.hide(from: previous, to: after) }
+    }
+
+    func writeChanges(from previous: String, to after: String, by name: String, color: PColor) -> Double {
         let tint = core.layoutDelegate.tint
         tint.caret = { [weak self] at in
             MainActor.assumeIsolated {
@@ -1780,7 +1785,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
                 self.showRemoteCarets(others + (mine.map { [$0] } ?? []))
             }
         }
-        return tint.write(from: previous, to: currentText, color: color)
+        tint.whenText(currentText, is: after) { tint.write(from: previous, to: after, color: color) }
+        return ChangeTint.writeDuration(from: previous, to: after)
     }
 
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
@@ -1837,6 +1843,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // Until what you type next is saved, the note still holds this: not a change again.
         remember(new)
         replaceText(with: new)
+        // An AI's edit waiting for this text starts now, before it's drawn (ChangeTint.textArrived).
+        core.layoutDelegate.tint.textArrived(new)
     }
 
     func takeRestored(_ new: String) {
@@ -3370,7 +3378,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
 
-    func writeChanges(from previous: String, by name: String, color: PColor) -> Double {
+    func hideChanges(from previous: String, to after: String) {
+        let tint = core.layoutDelegate.tint
+        tint.whenText(currentText, is: after) { tint.hide(from: previous, to: after) }
+    }
+
+    func writeChanges(from previous: String, to after: String, by name: String, color: PColor) -> Double {
         let tint = core.layoutDelegate.tint
         tint.caret = { [weak self] at in
             MainActor.assumeIsolated {
@@ -3381,7 +3394,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 self.showRemoteCarets(others + (mine.map { [$0] } ?? []))
             }
         }
-        return tint.write(from: previous, to: currentText, color: color)
+        tint.whenText(currentText, is: after) { tint.write(from: previous, to: after, color: color) }
+        return ChangeTint.writeDuration(from: previous, to: after)
     }
 
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
@@ -3592,6 +3606,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Until what you type next is saved, the note still holds this: not a change again.
         remember(new)
         replaceText(with: new)
+        // An AI's edit waiting for this text starts now, before it's drawn (ChangeTint.textArrived).
+        core.layoutDelegate.tint.textArrived(new)
     }
 
     func takeRestored(_ new: String) {

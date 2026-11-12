@@ -56,6 +56,41 @@ final class ChangeTint: @unchecked Sendable {
     private(set) var revealed: Int?
     /// Where the writing is, for the AI's caret; nil when it's done (set by the text view).
     var caret: (Int?) -> Void = { _ in }
+    /// Writing (or hiding) that waits for its text: the editor takes an AI's edit a moment after
+    /// the note screen hears of it, and the new lines must never show whole before they're written.
+    private var pending: (after: String, start: @MainActor () -> Void)?
+
+    /// The editor just took this text: start what was waiting for it, before it's drawn.
+    @MainActor func textArrived(_ text: String) {
+        guard let p = pending, p.after == text else { return }
+        pending = nil
+        p.start()
+    }
+
+    /// Runs `start` now if the editor holds `after`, else as soon as it does.
+    @MainActor func whenText(_ current: String, is after: String, _ start: @escaping @MainActor () -> Void) {
+        pending = nil
+        if current == after { start() } else { pending = (after, start) }
+    }
+
+    /// The changed lines hidden, nothing moving yet: a note opened with an AI's edit waiting, before
+    /// its writing starts (so its first frame doesn't show the new lines whole).
+    @MainActor func hide(from previous: String, to text: String) {
+        stop()
+        ranges = Self.paragraphRanges(changedFrom: previous, to: text)
+        removals = Self.removals(from: previous, to: text)
+        let order = ranges.sorted { $0.location < $1.location }
+        guard let first = order.first else { return }
+        revealed = first.location
+        redraw(order)
+    }
+
+    /// How long writing in the edit from `previous` to `text` takes.
+    static func writeDuration(from previous: String, to text: String) -> Double {
+        let total = paragraphRanges(changedFrom: previous, to: text).reduce(0) { $0 + $1.length }
+        return total == 0 ? 0 : writeDuration(characters: total)
+    }
+
     /// The AI's own colour for the tint, matching its caret (Emil, 12 November 2026: "why would
     /// it be amber if ChatGPT is green"); nil for the app's accent.
     private(set) var color: PColor?
@@ -150,6 +185,7 @@ final class ChangeTint: @unchecked Sendable {
     /// Tints the paragraphs of `text` that `previous` didn't have, then fades them. `untilCleared`:
     /// the tint stays at rest until `stop()` instead of fading.
     @MainActor func play(from previous: String, to text: String, hold: Double = 2.6, untilCleared: Bool = false) {
+        pending = nil
         stop()
         color = nil
         ranges = Self.paragraphRanges(changedFrom: previous, to: text)

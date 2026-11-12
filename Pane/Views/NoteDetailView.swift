@@ -169,10 +169,14 @@ struct NoteDetailView: View {
                 OpenNoteIDs.shared.closed(note.id)
             }
             // The sidebar leaves out an AI's change to a note that's open (SidebarAILine).
-            .onAppear { OpenNoteIDs.shared.opened(note.id) }
+            .onAppear {
+                OpenNoteIDs.shared.opened(note.id)
+                hideUnseenAIEdit()
+            }
             .onChange(of: note.id) { old, new in
                 OpenNoteIDs.shared.closed(old)
                 OpenNoteIDs.shared.opened(new)
+                hideUnseenAIEdit()
             }
             .confirmationDialog(missingNote.map { "Create \u{201C}\($0)\u{201D}?" } ?? "", isPresented: Binding(get: { missingNote != nil }, set: { if !$0 { missingNote = nil } }), titleVisibility: .visible) {
                 Button("Create Note") { if let name = missingNote { createLinkedNote(name) } }
@@ -732,33 +736,43 @@ struct NoteDetailView: View {
         Telemetry.shared.record(.firstAIEditSeen)
         try? context.save()
         let slow = ChangeTint.slowMotion
+        // The AI writes its change in, letter by letter with its caret, as on the welcome note;
+        // the tint then fades on its own (Emil, 12 November 2026: it stayed until you typed or
+        // left the note). Started now, not after a wait: the editor starts it the moment it takes
+        // the AI's text, so the new lines never show whole first.
+        let writing = reduceMotion ? 0 : controller.writeChanges(from: r.previous, to: r.after ?? note.body,
+                                                                  by: SidebarAICopy.shown(r.by), color: AIGlyph.caretColor(r.by))
         Task { @MainActor in
             // Let the editor take the new text first.
             try? await Task.sleep(for: .seconds(0.15 * slow))
             guard landingReceipt == r else { return } // a later edit took it over
+            guard note.id == r.noteID else { landingReceipt = nil; return }
+            if reduceMotion { controller.tintChanges(from: r.previous) }
+            // The receipt once the AI has finished writing, as a message comes after the typing.
+            try? await Task.sleep(for: .seconds(max(0, writing - 0.15) * slow))
+            guard landingReceipt == r, note.id == r.noteID else { return }
             landingReceipt = nil
-            guard note.id == r.noteID else { return }
-            // The AI writes its change in, letter by letter with its caret, as on the welcome
-            // note; the tint then fades on its own (Emil, 12 November 2026: it stayed until you
-            // typed or left the note).
-            var writing = 0.0
-            if reduceMotion {
-                controller.tintChanges(from: r.previous)
-            } else {
-                writing = controller.writeChanges(from: r.previous, by: SidebarAICopy.shown(r.by), color: AIGlyph.caretColor(r.by))
-            }
             withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
             PaneTips.aiEditLanded()
             // The receipt and its Undo go a little after the tint, unless the pointer is on it.
-            try? await Task.sleep(for: .seconds((writing + AIReceipt.stays) * slow))
+            try? await Task.sleep(for: .seconds(AIReceipt.stays * slow))
             while receiptHovered || ChangeTint.holdForCapture { try? await Task.sleep(for: .seconds(0.3)) }
             guard receipt == r, review == nil else { return }
             withAnimation(.easeOut(duration: 0.3)) { receipt = nil }
         }
     }
 
+    /// Opening a note with an AI's edit waiting: its new lines are hidden from the first frame,
+    /// before the open (a moment later) writes them in, so they don't show whole and then vanish.
+    private func hideUnseenAIEdit() {
+        guard !reduceMotion, AIEdit.isUnseen(note), let previous = note.aiPrevious, previous != note.body else { return }
+        controller.hideChanges(from: previous, to: note.body)
+    }
+
     /// You started typing: what the AI changed is yours now, so its marking goes, quietly.
     private func editedSinceAIEdit() {
+        // Typing while it writes: all of it shows at once; the receipt still comes, with Undo.
+        if landingReceipt != nil { controller.clearTint() }
         guard let r = receipt, r.staysUntilEdited else { return }
         withAnimation(.easeOut(duration: 0.2)) { receipt = nil }
         controller.clearTint()

@@ -80,6 +80,8 @@ import Testing
         #expect(!SidebarAICopy.showsChange(c, connected: ["ChatGPT"], open: open), "still open in the other window")
         open.closed(c.noteID)
         #expect(SidebarAICopy.showsChange(c, connected: ["ChatGPT"], open: open))
+        #expect(!SidebarAICopy.showsChange(c, connected: ["ChatGPT"], open: open, seenAt: c.at), "seen on the note: not back")
+        #expect(SidebarAICopy.showsChange(c, connected: ["ChatGPT"], open: open, seenAt: c.at.addingTimeInterval(-3600)), "a later change, not seen yet")
     }
 
     /// The receipt offers Undo only, and goes on its own a few seconds after the tint fades.
@@ -104,7 +106,7 @@ import Testing
         let h = await EditorHarness(Self.after, width: 640, focus: false)
         defer { h.close() }
         let tint = h.view.core.layoutDelegate.tint
-        let seconds = h.controller.writeChanges(from: Self.before, by: "ChatGPT", color: .systemGreen)
+        let seconds = h.controller.writeChanges(from: Self.before, to: Self.after, by: "ChatGPT", color: .systemGreen)
         #expect(seconds >= 0.5 && seconds <= 2.4, "\(seconds)")
         let last = (h.text as NSString).range(of: "- I also build").location
         #expect(tint.written(at: last) == 0, "the last changed line isn't written yet")
@@ -121,7 +123,7 @@ import Testing
         let h = await EditorHarness(Self.after, width: 640, focus: false)
         defer { h.close() }
         let tint = h.view.core.layoutDelegate.tint
-        h.controller.writeChanges(from: Self.before, by: "ChatGPT", color: AIGlyph.caretColor("ChatGPT"))
+        h.controller.writeChanges(from: Self.before, to: Self.after, by: "ChatGPT", color: AIGlyph.caretColor("ChatGPT"))
         #expect(tint.color == AIGlyph.caretColor("ChatGPT"))
         h.controller.tintChanges(from: Self.before)
         #expect(tint.color == nil)
@@ -129,12 +131,37 @@ import Testing
         #expect(DecoratedLayoutFragment.showsTick == NSWorkspace.shared.accessibilityDisplayShouldDifferentiateWithoutColor)
     }
 
+    /// The editor hears of the edit before it has the text: nothing is hidden or written until
+    /// the text arrives, then it starts in the same pass, so the new lines never show whole first.
+    @Test func writingWaitsForTheTextAndStartsTheMomentItArrives() async throws {
+        let h = await EditorHarness(Self.before, width: 640, focus: false)
+        defer { h.close() }
+        let tint = h.view.core.layoutDelegate.tint
+        h.controller.writeChanges(from: Self.before, to: Self.after, by: "ChatGPT", color: .systemGreen)
+        #expect(tint.revealed == nil, "nothing to write yet")
+        h.view.syncExternal(Self.after)
+        #expect(tint.revealed != nil, "writing from the moment the text is in")
+        let last = (h.text as NSString).range(of: "- I also build").location
+        #expect(tint.written(at: last) == 0)
+    }
+
+    /// A note opened with an AI's edit waiting hides the new lines before the writing starts.
+    @Test func openingHidesTheNewLinesFirst() async throws {
+        let h = await EditorHarness(Self.after, width: 640, focus: false)
+        defer { h.close() }
+        let tint = h.view.core.layoutDelegate.tint
+        h.controller.hideChanges(from: Self.before, to: Self.after)
+        let last = (h.text as NSString).range(of: "- I also build").location
+        #expect(tint.written(at: last) == 0)
+        #expect(!h.controller.isTinted, "hidden, not yet lit")
+    }
+
     /// Typing while it writes shows the whole edit at once and takes the caret away.
     @Test func typingStopsTheWriting() async throws {
         let h = await EditorHarness(Self.after, width: 640, focus: false)
         defer { h.close() }
         let tint = h.view.core.layoutDelegate.tint
-        h.controller.writeChanges(from: Self.before, by: "Claude", color: .systemOrange)
+        h.controller.writeChanges(from: Self.before, to: Self.after, by: "Claude", color: .systemOrange)
         h.controller.clearTint()
         #expect(tint.revealed == nil)
     }
@@ -155,7 +182,7 @@ import Testing
         defer { h.close() }
         ChangeTint.slowMotion = 6
         defer { ChangeTint.slowMotion = 1 }
-        let seconds = h.controller.writeChanges(from: Self.before, by: "ChatGPT", color: AIGlyph.caretColor("ChatGPT"))
+        let seconds = h.controller.writeChanges(from: Self.before, to: Self.after, by: "ChatGPT", color: AIGlyph.caretColor("ChatGPT"))
         await h.settle(seconds * 6 * 0.55)
         await h.snapshot("ai-change-writing\(dark ? "-dark" : "")")
     }
