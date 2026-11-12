@@ -422,7 +422,10 @@ struct FilmCard: View {
         let shape: RoundedRectangle = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
         let title: String = store.cardTitle, line: String = Self.line
         Button { store.open() } label: {
-            label(title: title, line: line, shape: shape)
+            label(title: title, line: line)
+                .clipShape(shape)
+                .hoverOverlay(shape, Color.white.opacity(0.06))
+                .contentShape(shape)
         }
         .buttonStyle(CardPress())
         .accessibilityElement(children: .ignore)
@@ -446,7 +449,7 @@ struct FilmCard: View {
     }
 
     /// The card's face (apart, so the compiler can check the body in time).
-    private func label(title: String, line: String, shape: RoundedRectangle) -> some View {
+    private func label(title: String, line: String) -> some View {
         VStack(alignment: .leading, spacing: Metrics.gap) {
             Text(title).font(Metrics.filmTitle).foregroundStyle(Self.cream).lineLimit(2).minimumScaleFactor(0.85)
                 .frame(maxWidth: Metrics.filmWords, alignment: .leading)
@@ -468,9 +471,6 @@ struct FilmCard: View {
         .background {
             skyBackground
         }
-        .clipShape(shape)
-        .hoverOverlay(shape, Color.white.opacity(0.06))
-        .contentShape(shape)
     }
 
     /// Your galaxy at the right, the sky deepening over it under the words.
