@@ -804,7 +804,6 @@ struct PageAddress: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 8)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.hoverLink)
