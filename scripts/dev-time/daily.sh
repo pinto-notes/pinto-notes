@@ -2,12 +2,13 @@
 # Yesterday's dev-time report, once a day (launchd, see install.sh):
 #   $PINTO_INTERNAL/evidence/dev-time/<date>.md  the report (private: it is read from agents' sessions)
 #   $PINTO_DEV_LOG/trend.csv                      one line a day, to see whether a change made us faster
+#   daily.sh <midnight epoch>                     the day before that midnight instead
 # Runs from the copy install.sh puts in ~/.local/share/pinto-dev-time, so no checkout has to stay put.
 set -uo pipefail
 here=${0:A:h}
 log=${PINTO_DEV_LOG:-$HOME/Library/Logs/pinto-dev}
 internal=${PINTO_INTERNAL:-$HOME/Documents/Development/PintoNotes-internal}
-end=$(date -j -f "%Y-%m-%d %H:%M:%S" "$(date +%Y-%m-%d) 00:00:00" +%s)   # midnight today
+end=${1:-$(date -j -f "%Y-%m-%d %H:%M:%S" "$(date +%Y-%m-%d) 00:00:00" +%s)}   # midnight today, or the epoch given (to fill in past days)
 day=$(date -j -r $((end - 43200)) +%Y-%m-%d)
 mkdir -p "$internal/evidence/dev-time" "$log"
 nice -n 15 python3 -I "$here/dev-time.py" --days 1 --until $end > "$internal/evidence/dev-time/$day.md"
