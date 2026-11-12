@@ -4,6 +4,10 @@
 #   scripts/qa-test.sh --smoke     the tests CI runs for every change (smoke-tests.txt, always-tests.txt), a first check
 #   scripts/qa-test.sh             every unit and interaction test: 20 to 30 minutes
 #   scripts/qa-test.sh --summarize LOG   what a run prints, from its log (scripts/qa-test.test.ts)
+#   scripts/qa-test.sh --only NAME ...   the -only-testing arguments a run with these names makes
+# The tests are four targets (PaneTests, PaneInteractionTests, PaneHIGTests, PaneSystemTests; see
+# project.yml). A name is given the old way, PaneTests/Suite[/test()], and runs in the target that
+# holds the suite now (scripts/ci/select-tests.py --map); Target/Suite works too.
 # The test host runs without a window or Dock icon (see PaneApp.isUnitTestHost).
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -48,14 +52,21 @@ if [[ ${1:-} == --summarize ]]; then summarize "$2"; exit 0; fi
 if [[ ${1:-} == --verdict ]]; then verdict "$2" "$3"; exit $?; fi
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 only=()
+[[ ${1:-} == --only ]] && { dry=1; shift; }
 if [[ ${1:-} == --smoke ]]; then
   shift
   # As CI names them (a suite nested in another, such as NetworkFaults, needs its full path).
   only=(${(f)"$(python3 scripts/ci/select-tests.py /dev/null 2>/dev/null | grep '^-only-testing:')"})
 fi
-for t in "$@"; do only+=(-only-testing:$t); done
+# Each name in the target that holds its suite. A name that matches no suite is passed as it is:
+# nothing runs, and the run fails with "no test ran".
+(( $# )) && for t in ${(f)"$(python3 scripts/ci/select-tests.py --map "$@")"}; do only+=(-only-testing:$t); done
 # The whole suite gets the time it needs; a named run keeps the short limit, so a hang shows quickly.
-[[ ${#only[@]} -eq 0 ]] && { only=(-only-testing:PaneTests); LIMIT=${LIMIT:-2400}; }
+if [[ ${#only[@]} -eq 0 ]]; then
+  for t in ${(f)"$(python3 scripts/ci/select-tests.py --map PaneTests)"}; do only+=(-only-testing:$t); done
+  LIMIT=${LIMIT:-2400}
+fi
+if [[ -n ${dry:-} ]]; then print -l -- $only; exit 0; fi
 LIMIT=${LIMIT:-240}
 DD=${DD:-build/ddqa}
 log=$(mktemp)

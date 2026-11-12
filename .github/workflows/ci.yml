@@ -191,9 +191,9 @@ jobs:
     runs-on: xcode-27
     timeout-minutes: 45
     env:
-      # The suites that time things or count bodies (PaneTests/Perf), run after the others.
-      PERF_ONLY: -only-testing:PaneTests/EditorPerfTests -only-testing:PaneTests/AppPerfTests -only-testing:PaneTests/ScanPerfTests -only-testing:PaneTests/WindowUpdateTests -only-testing:PaneTests/NoteOpenTests -only-testing:PaneTests/ListPiecesPerfTests
-      PERF_SKIP: -skip-testing:PaneTests/EditorPerfTests -skip-testing:PaneTests/AppPerfTests -skip-testing:PaneTests/ScanPerfTests -skip-testing:PaneTests/WindowUpdateTests -skip-testing:PaneTests/NoteOpenTests -skip-testing:PaneTests/ListPiecesPerfTests
+      # The suites that time things or count bodies (PaneTests/Perf, in PaneSystemTests), run after the others.
+      PERF_ONLY: -only-testing:PaneSystemTests/EditorPerfTests -only-testing:PaneSystemTests/AppPerfTests -only-testing:PaneSystemTests/ScanPerfTests -only-testing:PaneSystemTests/WindowUpdateTests -only-testing:PaneSystemTests/NoteOpenTests -only-testing:PaneSystemTests/ListPiecesPerfTests
+      PERF_SKIP: -skip-testing:PaneSystemTests/EditorPerfTests -skip-testing:PaneSystemTests/AppPerfTests -skip-testing:PaneSystemTests/ScanPerfTests -skip-testing:PaneSystemTests/WindowUpdateTests -skip-testing:PaneSystemTests/NoteOpenTests -skip-testing:PaneSystemTests/ListPiecesPerfTests
       XC_FLAGS: ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH=${{ github.workspace }}/build/cas
     steps:
       # The schedule runs on the default branch (main): the nightly tests dev, where the work is.
@@ -234,21 +234,21 @@ jobs:
         id: unit
         continue-on-error: true
         env:
-          # Runners are several times slower than a developer's Mac; see PaneTests/Perf/PerfBudget.swift.
+          # Runners are several times slower than a developer's Mac; see PaneTests/Shared/PerfBudget.swift.
           TEST_RUNNER_PANE_PERF_SLACK: "4"
           # Snapshot tests that draw windows (ImageViewerSnapshots) run here only, never on a developer's Mac.
           TEST_RUNNER_PANE_SNAPSHOTS: "1"
         run: |
           set -o pipefail
           xcodebuild test-without-building -project Pane.xcodeproj -scheme Pane -destination 'platform=macOS' \
-            -only-testing:PaneTests $PERF_SKIP -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult $XC_FLAGS \
+            -only-testing:PaneTests -only-testing:PaneInteractionTests -only-testing:PaneHIGTests -only-testing:PaneSystemTests $PERF_SKIP -derivedDataPath build/ci -resultBundlePath build/ci-tests.xcresult $XC_FLAGS \
             | scripts/ci/show-tests.sh build/ci-test.log
           # test-without-building says TEST EXECUTE SUCCEEDED.
       - name: Timing and render-count tests
         id: timing
         continue-on-error: true
         env:
-          # Runners are several times slower than a developer's Mac; see PaneTests/Perf/PerfBudget.swift.
+          # Runners are several times slower than a developer's Mac; see PaneTests/Shared/PerfBudget.swift.
           TEST_RUNNER_PANE_PERF_SLACK: "4"
         run: |
           set -o pipefail

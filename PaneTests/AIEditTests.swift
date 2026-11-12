@@ -44,19 +44,7 @@ import SwiftUI
     }
 }
 
-@MainActor @Suite struct AIEditTests {
-    /// A note on its own; nothing here needs a store.
-    static func note(_ body: String) -> Note { Note(body: body) }
-
-    /// What the sync engine does with a row that carries an AI's edit.
-    static func arrive(_ n: Note, body: String, by ai: String = "ChatGPT", at: Date = .now, quiet: Bool = false) {
-        let old = n.body, oldAt = n.aiEditedAt
-        n.body = body
-        n.aiEditor = ai
-        n.aiEditedAt = at
-        AIEdit.arrived(n, previousBody: old, previousEditAt: oldAt, quiet: quiet)
-    }
-
+extension AIEditTests {
     @Test func addedAndTickedLinesCountMovedAndBlankDont() {
         let old = "Groceries\n\n- [ ] Oat milk\n- [ ] Lemons\n- [x] Eggs"
         let new = "Groceries\n\n- [ ] Saffron\n- [ ] Oat milk\n\n- [x] Eggs\n- [x] Lemons"

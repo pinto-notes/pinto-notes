@@ -8,10 +8,7 @@ import AppKit
 
 /// The Allow sheet an AI's connect request opens, as the import guides look: one icon, a bold
 /// title, grey text, the access choice in plain sight, one filled Allow and a quiet Don't Allow.
-@MainActor @Suite struct AllowSheetTests {
-    static let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")
-    static let glama = ConnectRequest(id: UUID(), client_name: "glama", redirect_host: "glama.ai",
-                                      redirect_uri: "https://glama.ai/oauth/callback", claimed_name: "glama", loopback: false)
+extension AllowSheetTests {
     static let claude = ConnectRequest(id: UUID(), client_name: "Claude", redirect_host: "claude.ai",
                                        redirect_uri: "https://claude.ai/api/mcp/auth_callback", loopback: false)
 
