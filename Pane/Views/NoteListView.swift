@@ -24,6 +24,10 @@ struct NoteListView: View {
     #endif
     /// Lock Note or Remove Lock from a note's long-press or right-click menu (ListLockFlow).
     @State private var lockRequest: ListLockRequest?
+    /// New Tag… from a note's Tags menu: the notes it's for, while its question is up.
+    @State private var newTagFor: [UUID]?
+    /// The library's tags, for a note's Tags menu.
+    @Environment(TagIndex.self) private var tagIndex: TagIndex?
     @Environment(\.openWindow) private var openWindow
     @Environment(\.undoManager) private var undoManager
     #if os(macOS)
@@ -370,6 +374,7 @@ struct NoteListView: View {
         // stays the same list: a new one took the keys away from the search field.
         // A new list starts at its top: it shows the open note's row again.
         .modifier(ListLockFlow(request: $lockRequest))
+        .modifier(NewTagAlert(notes: $newTagFor))
         .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil) { id in
             (noteSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }
                 ?? mixedSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }).map { leadingRows + $0 }
@@ -394,6 +399,7 @@ struct NoteListView: View {
             }
         }
         .modifier(ListLockFlow(request: $lockRequest))
+        .modifier(NewTagAlert(notes: $newTagFor))
         // Offline: a quiet line over the bottom bar (the Mac says it in the sidebar).
         .safeAreaInset(edge: .bottom, spacing: 0) { OfflineLine(sync: sync).animation(.easeOut(duration: 0.25), value: sync?.reach) }
         #endif
@@ -872,6 +878,8 @@ struct NoteListView: View {
         case .recover:
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
                 .accessibilityIdentifier("row.recover")
+        case .tags:
+            tagsMenu([note])
         case .openInNewWindow, .history:
             // The Mac's (NoteRowMenu.macGroups).
             EmptyView()
@@ -1028,6 +1036,7 @@ struct NoteListView: View {
                 Menu("Move \(notes.count) Notes to", systemImage: "folder") {
                     FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { _ = context.move(notes, to: f, undo: undoManager) } }
                 }
+                if !NoteTagsMenu.taggable(notes).isEmpty { tagsMenu(NoteTagsMenu.taggable(notes)) }
                 Divider()
                 DestructiveMenuButton("Delete \(notes.count) Notes", systemImage: "trash") { remove(ids) }
             }
@@ -1080,8 +1089,17 @@ struct NoteListView: View {
             .accessibilityIdentifier("row.history")
         case .recover:
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
+        case .tags:
+            tagsMenu([note])
         case .delete:
             deleteButton(note)
+        }
+    }
+
+    /// Tags for the notes: each library tag to tick, and New Tag….
+    private func tagsMenu(_ notes: [Note]) -> some View {
+        NoteTagsMenu(notes: notes, entries: tagIndex?.entries(in: context) ?? []) {
+            newTagFor = notes.map(\.id)
         }
     }
 

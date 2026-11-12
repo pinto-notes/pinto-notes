@@ -1,0 +1,186 @@
+import Foundation
+import SwiftData
+import Testing
+#if os(iOS)
+import UIKit
+#else
+import AppKit
+#endif
+@testable import Pane
+
+/// Tags as coloured labels: each tag's colour (its own, or one chosen and kept for the account),
+/// the label in the note, and tags added and taken out from a note's right-click.
+@Suite struct TagColorsTests {
+    // MARK: Colours
+
+    @Test func eachTagHasItsOwnColourEverywhere() {
+        // From the name alone, the same on every launch and device, in any case.
+        #expect(TagColor.standard(for: "needs-review") == TagColor.standard(for: "Needs-Review"))
+        #expect(TagColor.standard(for: "work") != .gray)
+        // Spread over the bright colours, not all one.
+        let names = ["work", "home", "needs-review", "ideas", "later", "reading", "urgent", "family", "travel", "money"]
+        #expect(Set(names.map(TagColor.standard(for:))).count >= 4)
+    }
+
+    @MainActor @Test func aChosenColourIsKeptAndCanGoBack() {
+        let defaults = UserDefaults(suiteName: "TagColorsTests.\(UUID())")!
+        let colors = TagColors(defaults: defaults)
+        let own = TagColor.standard(for: "needs-review")
+        #expect(colors.color(for: "needs-review") == own)
+        let other: TagColor = own == .red ? .blue : .red
+        colors.set(other, for: "Needs-Review")
+        #expect(colors.color(for: "needs-review") == other)
+        #expect(colors.isChosen("NEEDS-REVIEW"))
+        colors.set(nil, for: "needs-review")
+        #expect(colors.color(for: "needs-review") == own)
+        #expect(!colors.isChosen("needs-review"))
+    }
+
+    @Test func storedAsJSONByLowerCaseName() {
+        let map: [String: TagColor] = ["needs-review": .red, "work/clients": .blue]
+        #expect(TagColors.decode(TagColors.encode(map)) == map)
+        #expect(TagColors.decode(nil).isEmpty)
+        #expect(TagColors.decode("not json").isEmpty)
+        // A colour a newer build knows and this one doesn't is skipped, not the whole list.
+        #expect(TagColors.decode(#"{"a":"red","b":"teal"}"#) == ["a": .red])
+    }
+
+    @Test func aChoiceMadeHereWinsOnlyForItsTag() {
+        // Another device chose green for work; this one chose red for later and took home's away.
+        let server: [String: TagColor] = ["work": .green, "home": .blue]
+        let merged = TagColors.merge(server: server, pending: ["later": "red", "home": ""])
+        #expect(merged == ["work": .green, "later": .red])
+    }
+
+    @Test func theBoxIsTheAccountsOwn() {
+        let a = UUID(), b = UUID()
+        #expect(TagColors.sealContext(a) != TagColors.sealContext(b))
+        #expect(TagColors.sealContext(a).hasPrefix("tagcolors:"))
+        #expect(TagColors.sealContext(a) != E2EE.body(a), "never a note's context")
+    }
+
+    // MARK: The label in the note
+
+    @MainActor @Test func aTagIsALabelInItsColour() {
+        let text = "Plan\n\nAsk Sam #needs-review today\n\n`#code` stays code"
+        let storage = NSTextStorage(string: text)
+        _ = MarkdownStyler().apply(to: storage, active: NSRange(location: NSNotFound, length: 0))
+        let ns = text as NSString
+        let tag = ns.range(of: "#needs-review")
+        let color = TagColors.current(for: "needs-review")
+        #expect(storage.attribute(.paneTag, at: tag.location, effectiveRange: nil) as? TagColor == color)
+        #expect(storage.attribute(.paneTag, at: NSMaxRange(tag) - 1, effectiveRange: nil) as? TagColor == color)
+        #expect((storage.attribute(.foregroundColor, at: tag.location, effectiveRange: nil) as? PColor) == color.ink)
+        // The text is the tag as written, and still opens its list.
+        #expect(storage.string == text)
+        #expect(storage.attribute(.link, at: tag.location, effectiveRange: nil) != nil)
+        // Not the words around it, and not in code.
+        #expect(storage.attribute(.paneTag, at: tag.location - 1, effectiveRange: nil) == nil)
+        #expect(storage.attribute(.paneTag, at: ns.range(of: "#code").location, effectiveRange: nil) == nil)
+    }
+
+    @MainActor @Test func aTagBeingTypedIsNotALabelYet() {
+        let text = "Plan\n\nAsk Sam #needs-rev"
+        let storage = NSTextStorage(string: text)
+        _ = MarkdownStyler().apply(to: storage, active: NSRange(location: (text as NSString).length, length: 0))
+        let tag = (text as NSString).range(of: "#needs-rev")
+        #expect(storage.attribute(.paneTag, at: tag.location, effectiveRange: nil) == nil)
+        #expect((storage.attribute(.foregroundColor, at: tag.location, effectiveRange: nil) as? PColor) == PColor.paneLinkText)
+    }
+
+    @MainActor @Test func aTickedItemsTagStaysMuted() {
+        let text = "Plan\n\n- [x] Sent #needs-review"
+        let storage = NSTextStorage(string: text)
+        _ = MarkdownStyler().apply(to: storage, active: NSRange(location: NSNotFound, length: 0))
+        let tag = (text as NSString).range(of: "#needs-review")
+        #expect(storage.attribute(.paneTag, at: tag.location, effectiveRange: nil) == nil)
+    }
+
+    // MARK: Adding and removing from the menu
+
+    @Test func aNewTagsNameIsWhatATagCanHold() {
+        #expect(Tags.typedName("Needs review") == "Needs-review")
+        #expect(Tags.typedName("  #work/clients ") == "work/clients")
+        #expect(Tags.typedName("to read!") == "to-read")
+        #expect(Tags.typedName("2026") == nil, "all digits isn't a tag")
+        #expect(Tags.typedName("   ") == nil)
+        #expect(Tags.typedName("#") == nil)
+    }
+
+    @Test func addingGoesOnTheTagLineUnderTheTitle() {
+        // No tag line yet: one is made right under the title.
+        #expect(Tags.adding("needs-review", to: "Plan\nFirst line\nSecond") == "Plan\n#needs-review\nFirst line\nSecond")
+        // One there: the tag goes at its end.
+        #expect(Tags.adding("later", to: "Plan\n#needs-review\nFirst line") == "Plan\n#needs-review #later\nFirst line")
+        // Only the title.
+        #expect(Tags.adding("later", to: "Plan") == "Plan\n#later")
+        #expect(Tags.adding("later", to: "Plan\n") == "Plan\n#later")
+        // An empty note.
+        #expect(Tags.adding("later", to: "") == "#later")
+        // A line under the title with words and a tag isn't the tag line.
+        #expect(Tags.adding("later", to: "Plan\nCall #home soon") == "Plan\n#later\nCall #home soon")
+        // Every way the result is written, it's found as the tag.
+        #expect(Tags.hasExactly("needs-review", in: Tags.adding("needs-review", to: "Plan\nText")))
+    }
+
+    @Test func addingATagTheNoteHasChangesNothing() {
+        let text = "Plan\nCall Sam #Needs-Review"
+        #expect(Tags.adding("needs-review", to: text) == text)
+        // A nested tag isn't the tag itself.
+        #expect(Tags.adding("work", to: "Plan\n#work/clients") == "Plan\n#work/clients #work")
+    }
+
+    @Test func removingTakesTheTagOutWhereverItIs() {
+        #expect(Tags.removing("needs-review", from: "Plan\n#needs-review\nFirst line") == "Plan\nFirst line")
+        #expect(Tags.removing("later", from: "Plan\n#needs-review #later\nText") == "Plan\n#needs-review\nText")
+        #expect(Tags.removing("needs-review", from: "Plan\n#needs-review #later\nText") == "Plan\n#later\nText")
+        #expect(Tags.removing("home", from: "Plan\nCall #home soon") == "Plan\nCall soon")
+        #expect(Tags.removing("home", from: "Plan\n#home") == "Plan")
+        #expect(Tags.removing("Home", from: "Plan\n#home and #HOME\nEnd") == "Plan\nand\nEnd")
+        // Nested tags under it stay; text without it is unchanged.
+        #expect(Tags.removing("work", from: "Plan\n#work #work/clients") == "Plan\n#work/clients")
+        #expect(Tags.removing("work", from: "Plan\nNothing") == "Plan\nNothing")
+        // Not what's in code.
+        #expect(Tags.removing("work", from: "Plan\n`#work` here") == "Plan\n`#work` here")
+    }
+
+    @Test func addThenRemoveGivesTheNoteBack() {
+        for text in ["Plan\nFirst line\nSecond", "Plan", "Plan\n#a\nBody", "Plan\nCall #home soon\n"] {
+            #expect(Tags.removing("zz-tag", from: Tags.adding("zz-tag", to: text)) == text)
+        }
+    }
+
+    @MainActor @Test func theMenuTagsNotesAndUndoTakesItBack() throws {
+        let container = try ModelContainer(for: Note.self, Folder.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = container.mainContext
+        let a = Note(body: "Plan\nFirst"), b = Note(body: "Trip\n#needs-review\nPack")
+        let locked = Note(body: "Secret")
+        locked.lockedBody = "sealed"
+        [a, b, locked].forEach(context.insert)
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        undo.beginUndoGrouping()
+        context.setTag("needs-review", on: [a, b, locked], to: true, undo: undo)
+        undo.endUndoGrouping()
+        #expect(a.body == "Plan\n#needs-review\nFirst")
+        #expect(b.body == "Trip\n#needs-review\nPack", "it had it already")
+        #expect(locked.body == "Secret", "a locked note's text isn't here to change")
+        #expect(a.dirty, "it syncs")
+        undo.undo()
+        #expect(a.body == "Plan\nFirst")
+        #expect(b.body == "Trip\n#needs-review\nPack")
+
+        context.setTag("needs-review", on: [a, b], to: false, undo: nil)
+        #expect(b.body == "Trip\nPack")
+    }
+
+    @Test func theRightClickHasTags() {
+        #expect(NoteRowMenu.macGroups(locked: false, trashed: false).joined().contains(.tags))
+        #expect(NoteRowMenu.groups(locked: false, trashed: false).joined().contains(.tags))
+        // Not where the note's text can't be written here.
+        for (locked, trashed, shared) in [(true, false, false), (false, true, false), (false, false, true)] {
+            #expect(!NoteRowMenu.macGroups(locked: locked, trashed: trashed, shared: shared).joined().contains(.tags))
+            #expect(!NoteRowMenu.groups(locked: locked, trashed: trashed, shared: shared).joined().contains(.tags))
+        }
+    }
+}

@@ -501,7 +501,7 @@ struct MarkdownStyler {
         }
     }
 
-    /// Tags (`#work`, `#work/clients`) show in the accent colour, as in Notes and Obsidian; the text
+    /// Tags (`#work`, `#work/clients`) show as a label in the tag's colour (TagColors); the text
     /// stays as written, since it's the tag's name. Clicking one shows every note with it
     /// (LinkPolicy's `.tag`). Not in code, links or the title. While the caret is in one, it's being
     /// written: no link then, so a click there places the caret. A ticked item keeps its muted look.
@@ -517,10 +517,17 @@ struct MarkdownStyler {
             if storage.attribute(.link, at: r.location, effectiveRange: nil) != nil { continue }
             if NSLocationInRange(r.location, titleLine), (storage.attribute(.font, at: r.location, effectiveRange: nil) as? PFont) == Self.titleFont { continue }
             if (storage.attribute(.foregroundColor, at: r.location, effectiveRange: nil) as? PColor) == PColor.clear { continue }
-            if storage.attribute(.strikethroughStyle, at: r.location, effectiveRange: nil) == nil {
-                storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: r)
-            }
             let writing = selection.location != NSNotFound && selection.location > r.location && selection.location <= NSMaxRange(r)
+            if storage.attribute(.strikethroughStyle, at: r.location, effectiveRange: nil) == nil {
+                // A label in the tag's colour (TagColors), drawn behind it by DecoratedLayoutFragment.
+                // While it's being typed it's plain accent text: its name, and so its colour, isn't settled.
+                if writing {
+                    storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: r)
+                } else {
+                    let color = TagColors.current(for: tag.name)
+                    storage.addAttributes([.foregroundColor: color.ink, .paneTag: color], range: r)
+                }
+            }
             if !writing, let url = LinkPolicy.tagURL(tag.name) { storage.addAttribute(.link, value: url, range: r) }
         }
     }

@@ -486,6 +486,7 @@ struct RootView: View {
                     NoteListView(scope: s, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty, showsResults: $listSearching)
                         .equatable()
                         .environment(library)
+                        .environment(tags)
                         .environment(openNotes)
                         .phoneScreen()
                 }
@@ -504,6 +505,8 @@ struct RootView: View {
                 .equatable()
                 .environment(library)
                 .environment(tags)
+                // The account's tag colours (sealed in its profile), on every sign-in.
+                .task(id: backendForConnect?.state) { if let b = backendForConnect { await TagColors.shared.bind(b) } }
                 #if os(macOS)
                 // The sidebar hides with its own button, first beside the window's buttons as in
                 // Notes, and with View › Hide Sidebar (⌃⌘S) (Emil, 11-04: with only the menu and
@@ -524,6 +527,7 @@ struct RootView: View {
             NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty, showsResults: $listSearching)
                 .equatable()
                 .environment(library)
+                .environment(tags)
                 #if os(macOS)
                 .environment(\.listSidebarHidden, visibility != .all)
                 // Never narrower than the window's buttons, the sidebar's New Folder, Today and Search,

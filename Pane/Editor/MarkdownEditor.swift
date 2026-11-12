@@ -971,6 +971,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         NotificationCenter.default.addObserver(self, selector: #selector(textSizeChanged), name: UIContentSizeCategory.didChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(textSizeChanged), name: UIAccessibility.boldTextStatusDidChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(textSizeChanged), name: NoteFont.didChange, object: nil)
+        // A tag's colour changed: its labels are drawn again.
+        NotificationCenter.default.addObserver(self, selector: #selector(textSizeChanged), name: TagColors.didChange, object: nil)
     }
 
     func setHeader(_ s: String) {
@@ -2662,6 +2664,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 MainActor.assumeIsolated { self?.textSizeChanged() }
             }
         }
+        if tagColorsObserver == nil {
+            // A tag's colour changed (TagColors): its labels are drawn again.
+            tagColorsObserver = NotificationCenter.default.addObserver(forName: TagColors.didChange, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.textSizeChanged() }
+            }
+        }
         if noteFontObserver == nil {
             // Settings › Appearance › Font: every line restyled in the new face, as for the size.
             noteFontObserver = NotificationCenter.default.addObserver(forName: NoteFont.didChange, object: nil, queue: .main) { [weak self] _ in
@@ -2684,6 +2692,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     private var textSizeObserver: NSObjectProtocol?
     private var noteFontObserver: NSObjectProtocol?
+    private var tagColorsObserver: NSObjectProtocol?
 
     /// View › Bigger or Smaller: every line restyled at the new size, the cards and foot moved to
     /// where the text now is. The caret and scroll stay where they were.

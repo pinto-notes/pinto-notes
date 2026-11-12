@@ -45,6 +45,7 @@ struct SidebarTags: View {
 private struct TagRow: View {
     let tag: Tags.Entry
     @Binding var selection: Scope?
+    private var colors: TagColors { .shared }
 
     var body: some View {
         let selected: Bool = if case .tag(let name)? = selection { name.lowercased() == tag.name.lowercased() } else { false }
@@ -55,13 +56,71 @@ private struct TagRow: View {
                     .foregroundStyle(.secondary)
             }
         } icon: {
-            SidebarIcon(name: "number", selected: selected)
+            // The tag's colour, as Finder shows its tags.
+            Image(systemName: "circle.fill")
+                .font(.system(size: 9))
+                .foregroundStyle(Color(tagColor: colors.color(for: tag.name)))
+                .frame(width: SidebarStyle.tagDotWidth)
+                .accessibilityHidden(true)
         }
         .sidebarRowLabel()
         .rowAccessibility("Tag " + tag.name, count: tag.count)
         .hoverRow("tag." + tag.name, reach: Hover.sidebarReach(), selected: selected)
         .quietSelection()
         .tag(Scope.tag(tag.name))
+        .contextMenu { TagColorMenu(tag: tag.name) }
         .accessibilityIdentifier("tag.\(tag.name)")
+    }
+}
+
+/// A tag's colours to choose from, as Finder offers them: each with its dot, the one it has ticked.
+struct TagColorMenu: View {
+    let tag: String
+    private var colors: TagColors { .shared }
+
+    var body: some View {
+        // An inline picker: the menu ticks the colour the tag has.
+        Picker("Colour", selection: Binding(get: { colors.color(for: tag) }, set: { colors.set($0, for: tag) })) {
+            ForEach(TagColor.allCases) { c in
+                Label {
+                    Text(c.title)
+                } icon: {
+                    Image(nsOrUIImage: TagColorMenu.dot(c))
+                }
+                .tag(c)
+                .accessibilityIdentifier("tag.color.\(c.rawValue)")
+            }
+        }
+        .pickerStyle(.inline)
+    }
+
+    /// A coloured dot as a plain picture: menus draw SF Symbols in one colour, so a symbol would
+    /// lose the tag's.
+    static func dot(_ c: TagColor) -> PImage {
+        let size = CGSize(width: 12, height: 12)
+        #if os(macOS)
+        let image = NSImage(size: size, flipped: false) { rect in
+            c.dot.setFill()
+            NSBezierPath(ovalIn: rect.insetBy(dx: 1, dy: 1)).fill()
+            return true
+        }
+        image.isTemplate = false
+        return image
+        #else
+        return UIGraphicsImageRenderer(size: size).image { _ in
+            c.dot.setFill()
+            UIBezierPath(ovalIn: CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)).fill()
+        }.withRenderingMode(.alwaysOriginal)
+        #endif
+    }
+}
+
+private extension Image {
+    init(nsOrUIImage image: PImage) {
+        #if os(macOS)
+        self.init(nsImage: image)
+        #else
+        self.init(uiImage: image)
+        #endif
     }
 }

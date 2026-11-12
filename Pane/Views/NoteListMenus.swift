@@ -4,7 +4,7 @@ import SwiftUI
 /// A note's long-press menu in the iPhone list, as in Apple Notes (iOS 26): Share, Move and
 /// Delete across the top, then Pin, Lock and Duplicate. Pinto has no other note actions there.
 enum NoteRowMenu {
-    enum Item: Hashable { case openInNewWindow, share, move, history, delete, pin, lock, removeLock, duplicate, recover }
+    enum Item: Hashable { case openInNewWindow, share, move, tags, history, delete, pin, lock, removeLock, duplicate, recover }
 
     /// The Mac's right-click on a note's row (and the row's •••), grouped as Apple Notes groups it
     /// (Emil, 2 November 2026): Open Note in New Window; Pin and Lock; Duplicate; Share; Move to
@@ -14,7 +14,9 @@ enum NoteRowMenu {
     static func macGroups(locked: Bool, trashed: Bool, shared: Bool = false) -> [[Item]] {
         if trashed { return [[.recover, .delete]] }
         if locked { return [[.openInNewWindow], [.pin, .removeLock], [.move], [.delete]] }
-        return [[.openInNewWindow], shared ? [.pin] : [.pin, .lock], [.duplicate], [.share], [.move, .history], [.delete]]
+        // Tags beside Move to: both sort the note (Emil, 12 November 2026). Not for a shared note:
+        // its text goes through collaboration, not here.
+        return [[.openInNewWindow], shared ? [.pin] : [.pin, .lock], [.duplicate], [.share], shared ? [.move, .history] : [.move, .tags, .history], [.delete]]
     }
 
     /// The first group is the row of three. A locked note's text isn't here to send or copy, so it
@@ -22,7 +24,7 @@ enum NoteRowMenu {
     static func groups(locked: Bool, trashed: Bool, shared: Bool = false) -> [[Item]] {
         if trashed { return [[.recover, .delete]] }
         if locked { return [[.move, .delete], [.pin, .removeLock]] }
-        return [[.share, .move, .delete], shared ? [.pin, .duplicate] : [.pin, .lock, .duplicate]]
+        return shared ? [[.share, .move, .delete], [.pin, .duplicate]] : [[.share, .move, .delete], [.pin, .lock, .duplicate], [.tags]]
     }
 }
 

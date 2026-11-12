@@ -77,7 +77,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     override var renderingSurfaceBounds: CGRect {
         // A heading's chevron sits in the margin (HeadingFolds).
         let base = super.renderingSurfaceBounds.union(foldSurface)
-        guard decoration != nil || highlighted || hasDates else { return base }
+        guard decoration != nil || highlighted || hasDates || hasTagLabels else { return base }
         let left = -layoutFragmentFrame.minX
         let lead = highlighted ? Self.changeLead : 4
         return base.union(CGRect(x: left - lead, y: -14, width: containerWidth + lead + 4, height: layoutFragmentFrame.height + 28))
@@ -276,6 +276,11 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         if let d = decoration {
             context.saveGState()
             drawDecoration(d, at: point, in: context)
+            context.restoreGState()
+        }
+        if hasTagLabels {
+            context.saveGState()
+            drawTagLabels(at: point, in: context)
             context.restoreGState()
         }
         if hasHighlights {
