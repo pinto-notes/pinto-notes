@@ -79,9 +79,34 @@ enum DropSpeed {
     }
 }
 
+/// A drag's items, read from the drag itself when the drop happens. Loading them through their
+/// item providers took about 300 ms on the Air, with the note and its drag image still on screen
+/// after the drop (Emil, 12 November 2026: "it looks like the whole app is just frozen"). Read
+/// here, the note moved 7 ms after the drop. Anything else in the drop (a file from Finder) still
+/// loads through its provider.
+@MainActor
+enum DragNow {
+    /// The items of a drop that carries only notes, folders and files of this app; nil otherwise.
+    static func items(_ providers: [NSItemProvider]) -> [PaneDragItem]? {
+        #if os(macOS)
+        let type = UTType.paneItem.identifier
+        guard !providers.isEmpty, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(type) }) else { return nil }
+        let items = (NSPasteboard(name: .drag).pasteboardItems ?? []).compactMap { $0.data(forType: NSPasteboard.PasteboardType(type)) }
+            .compactMap { try? JSONDecoder().decode(PaneDragItem.self, from: $0) }
+        return items.count == providers.count ? items : nil
+        #else
+        return nil
+        #endif
+    }
+}
+
 enum DropLoader {
     @MainActor
     static func load(_ providers: [NSItemProvider], then handle: @escaping @MainActor ([PaneDragItem], [URL]) -> Void) {
+        if let items = DragNow.items(providers) {
+            handle(items, [])
+            return
+        }
         let group = DispatchGroup()
         final class Box: @unchecked Sendable { var items: [PaneDragItem] = []; var urls: [URL] = []; let lock = NSLock() }
         let box = Box()

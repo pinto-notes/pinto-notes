@@ -3,6 +3,7 @@ import AppKit
 import SwiftData
 import SwiftUI
 import Testing
+import UniformTypeIdentifiers
 @testable import Pane
 
 /// Everyday actions are done the moment you do them: delete, switching folders, New Folder, moving
@@ -296,6 +297,34 @@ import Testing
         let median = times.sorted()[times.count / 2]
         #expect(median < 100 * PerfBudget.slack, "the row goes after \(Int(median)) ms")
     }
+    /// A note dropped on a folder moves in the drop, not a turn or more later: its items are read
+    /// from the drag itself. Loaded through their providers they took about 300 ms on the Air, with
+    /// the note still in the list after the drop (Emil, 12 November 2026: "it looks like the whole
+    /// app is just frozen"). A drop from outside the app, a file, still loads through its provider.
+    @Test func aDropReadsTheDragAtOnce() throws {
+        let note = PaneDragItem(kind: .note, id: UUID(), others: [UUID()])
+        let data = try JSONEncoder().encode(note)
+        let drag = NSPasteboard(name: .drag)
+        drag.clearContents()
+        let item = NSPasteboardItem()
+        item.setData(data, forType: NSPasteboard.PasteboardType(UTType.paneItem.identifier))
+        drag.writeObjects([item])
+        let provider = NSItemProvider()
+        provider.registerDataRepresentation(forTypeIdentifier: UTType.paneItem.identifier, visibility: .ownProcess) { done in
+            done(data, nil)
+            return nil
+        }
+        var got: [PaneDragItem]?
+        DropLoader.load([provider]) { items, _ in got = items }
+        #expect(got?.map(\.ids) == [note.ids], "handled in the drop itself, with every note of the drag")
+
+        let file = NSItemProvider(contentsOf: URL(fileURLWithPath: "/System/Library/CoreServices/SystemVersion.plist"))!
+        var fileHandled = false
+        DropLoader.load([file]) { _, _ in fileHandled = true }
+        #expect(!fileHandled, "a file still loads through its provider")
+        drag.clearContents()
+    }
+
     /// Typing straight after New Folder names the folder: no key is lost to the row before its
     /// field has the keys (Emil, 12 November 2026: "I go to type, hear a sound indicating I can't
     /// type"). The keys are handed to the hold the way its key monitor hands them, before the
