@@ -90,7 +90,11 @@ enum AIEdit {
         // One line changed in place: the title renamed, or a word or two swapped for others.
         func inPlace(_ old: String, _ new: String) -> String? {
             let first = { (lines: [String]) in lines.first { !blank($0) } }
-            if first(a) == old, first(b) == new { return "renamed the note" }
+            if first(a) == old, first(b) == new {
+                // The new name, when it's short enough to say (council r4).
+                let name = new.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespaces))
+                return name.isEmpty || name.count > 26 ? "renamed the note" : "renamed the note \u{201C}\(name)\u{201D}"
+            }
             let x = old.split(separator: " ").map(String.init), y = new.split(separator: " ").map(String.init)
             var gone: [Int] = [], put: [Int] = []
             for change in y.difference(from: x) {
@@ -115,6 +119,21 @@ enum AIEdit {
             if let less = sub(by, of: bx), !less.isEmpty, together(less) {
                 let words = less.map { bx[$0] }.joined(separator: " ")
                 if words.count <= 30 { return "removed \u{201C}\(words)\u{201D}" }
+            }
+            // Words swapped in a few places: the first, and how many more (council r4: "changed 1 line").
+            func runs(_ i: [Int]) -> [[Int]] {
+                i.sorted().reduce(into: [[Int]]()) { out, k in
+                    if let last = out.last?.last, last == k - 1 { out[out.count - 1].append(k) } else { out.append([k]) }
+                }
+            }
+            let gr = runs(gone), pr = runs(put)
+            if gr.count > 1, gr.count == pr.count, gr.allSatisfy({ $0.count <= 3 }), pr.allSatisfy({ $0.count <= 3 }) {
+                let trim = CharacterSet.punctuationCharacters.union(.whitespaces)
+                let was = gr[0].map { x[$0] }.joined(separator: " ").trimmingCharacters(in: trim)
+                let now = pr[0].map { y[$0] }.joined(separator: " ").trimmingCharacters(in: trim)
+                if !was.isEmpty, !now.isEmpty, was.count + now.count <= 26 {
+                    return "changed \u{201C}\(was)\u{201D} to \u{201C}\(now)\u{201D} and \(gr.count - 1) more"
+                }
             }
             guard !gone.isEmpty, !put.isEmpty, gone.count <= 3, put.count <= 3, together(gone), together(put) else { return nil }
             let trim = CharacterSet.punctuationCharacters.union(.whitespaces)
@@ -370,7 +389,7 @@ enum AIEdit {
             // With the latest one named: "ChatGPT removed “Bread” · 3 changes" (council r3).
             if edits > 2 {
                 if let latestPrevious, let after, let what = AIEdit.describe(previous: latestPrevious, after: after) {
-                    return "\(who) \(what) · \(edits) changes"
+                    return "\(who) \(what) and \(edits - 1) more"
                 }
                 return "\(who) made \(edits) changes"
             }

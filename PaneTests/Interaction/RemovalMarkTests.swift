@@ -80,8 +80,10 @@ import Testing
         let line = try #require(marked.textLineFragments.first)
         let rect = marked.removalRect(gap, at: .zero)
         let d = try #require(marked.decoration)
-        #expect(rect.maxX <= marked.checkboxRect(d).minX, "left of the circle, clear of the words")
-        #expect(rect.width <= 16)
+        let box = marked.checkboxRect(d)
+        #expect(abs(rect.midX - box.midX) < 1, "in the circles' column")
+        #expect(rect.maxX < line.typographicBounds.minX + line.locationForCharacter(at: 6).x, "clear of the words")
+        #expect(rect.width <= box.width + 6)
         #expect(marked.renderingSurfaceBounds.contains(rect), "drawn, not clipped")
         _ = line
         h.view.core.layoutDelegate.tint.stop()

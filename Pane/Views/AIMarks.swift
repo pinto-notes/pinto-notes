@@ -78,7 +78,8 @@ struct AIGlyph: View {
         switch ai {
         case "ChatGPT", "Codex": PColor(red: 0.063, green: 0.639, blue: 0.498, alpha: 1)
         case "Claude", "Claude Code": PColor(red: 0.851, green: 0.467, blue: 0.341, alpha: 1)
-        case "Gemini": PColor(red: 0.259, green: 0.522, blue: 0.957, alpha: 1)
+        // Lighter and bluer-green than Google blue: that read as a text selection (council r4).
+        case "Gemini": PColor(red: 0.12, green: 0.62, blue: 0.90, alpha: 1)
         default: Palette.amber
         }
     }
@@ -87,7 +88,7 @@ struct AIGlyph: View {
         switch ai {
         case "Claude", "Claude Code": Color(red: 0.851, green: 0.467, blue: 0.341)
         case "VS Code": Color(red: 0, green: 0.478, blue: 0.8) // #007ACC
-        case "Gemini": Color(red: 0.259, green: 0.522, blue: 0.957) // #4285F4, Google blue
+        case "Gemini": Color(red: 0.12, green: 0.62, blue: 0.90)
         default: .primary
         }
     }
@@ -214,7 +215,8 @@ struct AIReceipt: View {
     static func transition(reduceMotion: Bool) -> AnyTransition {
         guard slides(reduceMotion: reduceMotion) else { return .opacity }
         // Solid from its first frame: fading in, the note's words showed through it (council r3).
-        return .asymmetric(insertion: .move(edge: .bottom).combined(with: .scale(scale: 0.96, anchor: .bottom)),
+        // A short rise, on screen the whole way (council r4: cut by the window's edge).
+        return .asymmetric(insertion: .offset(y: 14).combined(with: .scale(scale: 0.96, anchor: .bottom)),
                            removal: .opacity.combined(with: .offset(y: 6)))
     }
 

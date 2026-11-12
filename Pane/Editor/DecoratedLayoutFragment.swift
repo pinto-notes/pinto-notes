@@ -55,7 +55,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         let dark = (pr * 0.299 + pg * 0.587 + pb * 0.114) < 0.5
         // An AI's own colour (green, blue) is darker than amber and needs more to show; too little
         // and Claude's orange reads as a brown stain (council r1, r2).
-        let onDark: CGFloat = color == nil ? 0.7 : 2.1
+        let onDark: CGFloat = color == nil ? 0.7 : 1.15
         return (mix(Self.tintAmount * (dark ? onDark : 1) * strength), mix(min(1, strength)))
     }
 
@@ -241,10 +241,15 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         let line = gap.below ? textLineFragments.last : textLineFragments.first
         // In the margin left of the line, out of the text column, so it can't read as an
         // underline of the words above (council r3, both judges).
-        var left = point.x + (line?.typographicBounds.minX ?? 0)
-        if let d = decoration, case .checkbox = d.kind { left = min(left, point.x + checkboxRect(d).minX) }
-        let width = Self.removalWidth
-        let x = left - Self.removalGap - width
+        let left = point.x + (line?.typographicBounds.minX ?? 0)
+        var width = Self.removalWidth
+        var x = left - Self.removalGap - width
+        // In a checklist, in the circles' column, in the gap between two of them (council r4).
+        if let d = decoration, case .checkbox = d.kind {
+            let box = checkboxRect(d)
+            width = box.width + 4
+            x = point.x + box.midX - width / 2
+        }
         let y: CGFloat
         if gap.below || line == nil {
             // Under the last line's letters, a descender's depth down.
@@ -417,8 +422,8 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             if let halo = tickHalo(at: point) {
                 // A tick: a soft disc in the AI's colour round the box, which pops as yours does,
                 // and the struck-through words stay plain (council r1).
-                // Lighter on a dark page, where the full tint went murky round the box (council r3).
-                context.setFillColor(Self.pageIsDark ? Self.changeColors(strength * 0.55, color: markColor).tint : colors.tint)
+                // The disc carries the AI's colour now the box keeps the app's (council r4): clear on a dark page too.
+                context.setFillColor(Self.pageIsDark ? Self.changeColors(strength * 1.3, color: markColor).tint : colors.tint)
                 context.fillEllipse(in: halo)
             } else {
                 let sweep = sweepProgress
@@ -525,12 +530,9 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             ctx.fill(CGRect(x: c.x - w / 2, y: c.y - t / 2, width: w, height: t))
 
         case .checkbox(let checked):
-            // An AI's tick: the box in that AI's colour while it's marked, settling to the accent
-            // as the mark fades (council r2: an orange box in a green ring fought).
-            var fill: CGColor?
-            if checked, let ai = markColor, let (tint, offset) = tintAndOffset, tint.ticked(at: offset) {
-                fill = Self.blend(PColor.paneAccent, ai, tint.tickBlend)
-            }
+            // An AI's tick: the box in the app's colour from the first frame, the AI's colour only
+            // in the disc round it, so nothing changes colour as it fades (council r4, both).
+            let fill: CGColor? = nil
             Self.drawCheckbox(checked: checked, in: checkboxRect(d).offsetBy(dx: o.x, dy: o.y), ctx: ctx, fill: fill)
 
         case .quote:

@@ -174,7 +174,14 @@ final class ChangeTint: @unchecked Sendable {
     /// How strongly to tint the paragraph starting at `offset`: 0 for not at all.
     func strength(at offset: Int) -> CGFloat {
         guard strength > 0 else { return 0 }
-        return ranges.contains { NSLocationInRange(offset, $0) } ? strength : 0
+        guard ranges.contains(where: { NSLocationInRange(offset, $0) }) else { return 0 }
+        // An earlier change still marked steps back to about half as a new one sweeps in, so
+        // the one that just landed reads as new (council r4).
+        if settled.contains(where: { NSLocationInRange(offset, $0) }) {
+            let p = sweepElapsed.map { min(1, $0 / Self.sweepDuration) } ?? 1
+            return strength * (1 - 0.45 * CGFloat(p))
+        }
+        return strength
     }
 
     /// Items an AI ticked (where each line starts): the mark is a halo round the box, not a fill
@@ -541,6 +548,9 @@ final class ChangeTint: @unchecked Sendable {
                 words = words.map { w in
                     var end = NSMaxRange(w)
                     while end < ns.length, let u = Unicode.Scalar(ns.character(at: end)), stops.contains(u) { end += 1 }
+                    // Only when the word with that punctuation is new (council r4: an old comma was marked).
+                    let old = from[j].map { a[$0] } ?? ""
+                    if end > NSMaxRange(w), old.contains(ns.substring(with: NSRange(location: w.location, length: end - w.location))) { return w }
                     return NSRange(location: w.location, length: end - w.location)
                 }
                 out += words.filter { $0.length > 0 }.map { NSRange(location: at + $0.location, length: $0.length) }

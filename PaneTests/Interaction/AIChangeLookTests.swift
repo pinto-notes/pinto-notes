@@ -294,6 +294,31 @@ import Testing
         tint.stop()
     }
 
+    /// Council r4: a rename says the new name; words swapped in a few places name the first;
+    /// an old comma next to a new word isn't marked; an earlier mark steps back as a new one lands.
+    @Test func roundFourWordingAndMarks() async {
+        #expect(AIEdit.describe(previous: "Trip\n\nDay 1", after: "Porto trip\n\nDay 1") == "renamed the note \u{201C}Porto trip\u{201D}")
+        let p = "Notes\n\nDrop the keys at reception, then take the train at nine."
+        let q = "Notes\n\nLeave the keys at the desk, then take the bus at nine."
+        #expect(AIEdit.describe(previous: p, after: q)?.hasPrefix("changed \u{201C}Drop\u{201D} to \u{201C}Leave\u{201D} and ") == true)
+        let old = "T\n\nMeet at reception, then lunch."
+        let new = "T\n\nMeet at the front reception, then lunch."
+        let ns = new as NSString
+        #expect(ChangeTint.changedWords(from: old, to: new).map { ns.substring(with: $0) }.allSatisfy { !$0.hasSuffix(",") })
+        let tint = ChangeTint()
+        let g = "G\n\n- [ ] Eggs\n- [ ] Bread"
+        let one = g + "\n- [ ] Saffron"
+        let two = one.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs")
+        tint.play(from: g, to: one, color: .systemGreen)
+        try? await Task.sleep(for: .seconds(0.9))
+        tint.follow(two)
+        tint.play(from: g, to: two, color: .systemGreen)
+        try? await Task.sleep(for: .seconds(0.5))
+        let n2 = two as NSString
+        #expect(tint.strength(at: n2.range(of: "- [ ] Saffron").location) < tint.strength(at: n2.range(of: "- [x] Eggs").location) * 0.7)
+        tint.stop()
+    }
+
     /// Three edits in a row are counted, never described as one change that didn't happen (council r2).
     @Test func threeEditsAreCounted() {
         let g = "Groceries\n\n- [ ] Eggs\n- [ ] Bread"
@@ -310,7 +335,7 @@ import Testing
         let b = AIEdit.Receipt(noteID: id, by: "ChatGPT", at: .now, previous: one, after: two, lines: 1).continuing(a)
         let c = AIEdit.Receipt(noteID: id, by: "ChatGPT", at: .now, previous: two, after: three, lines: 1).continuing(b)
         #expect(c.edits == 3)
-        #expect(c.summary == "ChatGPT removed \u{201C}Bread\u{201D} \u{00B7} 3 changes")
+        #expect(c.summary == "ChatGPT removed \u{201C}Bread\u{201D} and 2 more")
     }
 
     /// The receipt says what happened when it's one plain thing.
@@ -324,7 +349,7 @@ import Testing
         // A swapped word and a renamed title say so (council r1), and quotes stay short.
         let trip = "Trip\n\nWe land on Tuesday at 14:20."
         #expect(AIEdit.describe(previous: trip, after: trip.replacingOccurrences(of: "Tuesday", with: "Wednesday")) == "changed \u{201C}Tuesday\u{201D} to \u{201C}Wednesday\u{201D}")
-        #expect(AIEdit.describe(previous: g, after: g.replacingOccurrences(of: "Groceries", with: "Groceries for Saturday")) == "renamed the note")
+        #expect(AIEdit.describe(previous: g, after: g.replacingOccurrences(of: "Groceries", with: "Groceries for Saturday")) == "renamed the note \u{201C}Groceries for Saturday\u{201D}")
         #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Book 31: added by ChatGPT today") == "added \u{201C}Book 31: added by\u{2026}\u{201D}")
         #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Smoked paprika from the market on Rua do Bonjardim") == "added \u{201C}Smoked paprika from the…\u{201D}")
         // Words added to a line, or taken out of it, are named (council r2: "changed 1 line").
