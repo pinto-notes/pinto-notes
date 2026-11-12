@@ -79,7 +79,7 @@ struct AIGlyph: View {
         case "ChatGPT", "Codex": PColor(red: 0.063, green: 0.639, blue: 0.498, alpha: 1)
         case "Claude", "Claude Code": PColor(red: 0.851, green: 0.467, blue: 0.341, alpha: 1)
         // Lighter and bluer-green than Google blue: that read as a text selection (council r4).
-        case "Gemini": PColor(red: 0.30, green: 0.68, blue: 0.84, alpha: 1)
+        case "Gemini": PColor(red: 0.16, green: 0.66, blue: 0.92, alpha: 1)
         default: Palette.amber
         }
     }
@@ -88,7 +88,7 @@ struct AIGlyph: View {
         switch ai {
         case "Claude", "Claude Code": Color(red: 0.851, green: 0.467, blue: 0.341)
         case "VS Code": Color(red: 0, green: 0.478, blue: 0.8) // #007ACC
-        case "Gemini": Color(red: 0.30, green: 0.68, blue: 0.84)
+        case "Gemini": Color(red: 0.16, green: 0.66, blue: 0.92)
         default: .primary
         }
     }
@@ -263,8 +263,9 @@ struct AIReceipt: View {
             if receipt.kind != .heldBack {
                 // In the text colour, bolder than the words beside it: not the app's orange next to
                 // ChatGPT's green tint (Emil, 12 November 2026).
-                // Several edits: Undo takes them all, and says so (council r3).
-                Button(receipt.edits > 1 ? "Undo all" : "Undo", action: undo)
+                // "Undo" for one change or several, as Notes does; the width doesn't change
+                // mid-session (council r6). VoiceOver hears what it takes back (undoLabel).
+                Button("Undo", action: undo)
                     .buttonStyle(.hoverLink)
                     .font(.system(size: compact ? 13 : Self.text, weight: .bold))
                     .foregroundStyle(.primary)

@@ -421,7 +421,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
                 // A tick: a soft disc in the AI's colour round the box, which pops as yours does,
                 // and the struck-through words stay plain (council r1).
                 // The disc carries the AI's colour now the box keeps the app's (council r4): clear on a dark page too.
-                context.setFillColor(Self.changeColors(strength * (Self.pageIsDark ? 0.8 : 0.6), color: markColor).tint)
+                context.setFillColor(Self.changeColors(strength * (Self.pageIsDark ? 1.15 : 0.6), color: markColor).tint)
                 context.fillEllipse(in: halo)
             } else {
                 let sweep = sweepProgress

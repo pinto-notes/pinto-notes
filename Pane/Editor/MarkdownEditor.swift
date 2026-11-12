@@ -3445,9 +3445,11 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             let visible = visibleRect
             // Room under a change at the very end, so it scrolls up clear of the receipt rather
             // than staying under it at the bottom edge (council r2 pictures).
-            showRoom = max(showRoom, rect.maxY + visible.height * 2 / 3)
+            // About 40% up from the bottom, its neighbours above it: a third of the way down left
+            // the page mostly empty under a change at the end (council r6).
+            showRoom = max(showRoom, rect.maxY + visible.height * 0.4)
             if frame.height < showRoom { setFrameSize(CGSize(width: frame.width, height: showRoom)) }
-            let y = min(max(0, rect.minY - visible.height / 3), max(0, bounds.height - visible.height))
+            let y = min(max(0, rect.minY - visible.height * 0.6), max(0, bounds.height - visible.height))
             if abs(y - visible.minY) < 1 { break }
             guard let scroller = enclosingScrollView else { scroll(CGPoint(x: visible.minX, y: y)); break }
             let clip = scroller.contentView

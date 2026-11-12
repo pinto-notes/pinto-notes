@@ -324,6 +324,14 @@ import Testing
         tint.stop()
     }
 
+    /// Two changed words with one kept word between them are one mark (council r6, 22).
+    @Test func onePlainWordBetweenChangesJoinsThem() {
+        let old = "T\n\nWe fly on Monday morning."
+        let new = "T\n\nWe drive on Tuesday morning."
+        let ns = new as NSString
+        #expect(ChangeTint.changedWords(from: old, to: new).map { ns.substring(with: $0) } == ["drive on Tuesday"])
+    }
+
     /// An old comma beside a changed word stays plain (council r6, scenario 19).
     @Test func anOldCommaBesideANewWordStaysPlain() {
         let old = "T\n\nLeave the bags, then take the train."
@@ -370,8 +378,8 @@ import Testing
         let trip = "Trip\n\nWe land on Tuesday at 14:20."
         #expect(AIEdit.describe(previous: trip, after: trip.replacingOccurrences(of: "Tuesday", with: "Wednesday")) == "changed \u{201C}Tuesday\u{201D} to \u{201C}Wednesday\u{201D}")
         #expect(AIEdit.describe(previous: g, after: g.replacingOccurrences(of: "Groceries", with: "Groceries for Saturday")) == "renamed the note to \u{201C}Groceries for Saturday\u{201D}")
-        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Book 31: added by ChatGPT today") == "added \u{201C}Book 31: added by\u{2026}\u{201D}")
-        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Smoked paprika from the market on Rua do Bonjardim") == "added \u{201C}Smoked paprika from the…\u{201D}")
+        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Book 31: added by ChatGPT today") == "added \u{201C}Book 31: added by ChatGPT\u{2026}\u{201D}")
+        #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Smoked paprika from the market on Rua do Bonjardim") == "added \u{201C}Smoked paprika from the market…\u{201D}")
         // Words added to a line, or taken out of it, are named (council r2: "changed 1 line").
         let pack = "Trip\n\nPack light: one bag each."
         #expect(AIEdit.describe(previous: pack, after: "Trip\n\nPack light: one bag each, and a rain jacket.") == "added \u{201C}and a rain jacket\u{201D}")

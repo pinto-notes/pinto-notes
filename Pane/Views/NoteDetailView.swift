@@ -643,6 +643,8 @@ struct NoteDetailView: View {
                               withAnimation(.smooth(duration: 0.2)) { receiptPlacement = 0 }
                           }) { undo(receipt) }
                 .onHover { receiptHovered = $0 }
+                // Fades as one piece: text and capsule together, never bare words over the note (council r6).
+                .compositingGroup()
                 #if os(macOS)
                 .padding(.bottom, 20)
                 // No fade under it: each size of fade hid or cut the note's lines (council r3 to

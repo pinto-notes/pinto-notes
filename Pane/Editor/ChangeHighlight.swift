@@ -574,13 +574,35 @@ final class ChangeTint: @unchecked Sendable {
                     // A new comma before the new words: "each, and a rain jacket".
                     var k = start
                     while k - 1 >= lo, k - 1 >= marker, space(k - 1) { k -= 1 }
-                    if k - 1 >= lo, k - 1 >= marker, punct(k - 1) {
+                    // ...unless the word before already had it ("2026. This": the full stop is old).
+                    var p0 = k - 1
+                    while p0 - 1 >= 0, punct(p0 - 1) { p0 -= 1 }
+                    var b0 = p0
+                    while b0 - 1 >= 0, !space(b0 - 1) { b0 -= 1 }
+                    let before = k - 1 >= 0 ? ns.substring(with: NSRange(location: b0, length: k - b0)).trimmingCharacters(in: .whitespaces) : ""
+                    let oldHadIt = !before.isEmpty && (from[j].map { a[$0] } ?? "").contains(before)
+                    if !oldHadIt, k - 1 >= lo, k - 1 >= marker, punct(k - 1) {
                         k -= 1
                         while k - 1 >= lo, k - 1 >= marker, punct(k - 1) { k -= 1 }
                         start = k
                     }
                     return NSRange(location: start, length: end - start)
                 }
+                // Two pieces with one unchanged word between them read as one change: one mark
+                // (council r6: "12 November [2026]. This…" in two bits).
+                words.sort { $0.location < $1.location }
+                var joined: [NSRange] = []
+                for w in words {
+                    if let last = joined.last {
+                        let gap = ns.substring(with: NSRange(location: NSMaxRange(last), length: max(0, w.location - NSMaxRange(last))))
+                        if gap.split(separator: " ").count <= 1, !gap.contains("\n") {
+                            joined[joined.count - 1] = NSUnionRange(last, w)
+                            continue
+                        }
+                    }
+                    joined.append(w)
+                }
+                words = joined
                 out += words.filter { $0.length > 0 }.map { NSRange(location: at + $0.location, length: $0.length) }
             }
             at += length + 1

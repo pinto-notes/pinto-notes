@@ -64,7 +64,7 @@ enum AIEdit {
         let old = Set(previous.components(separatedBy: "\n"))
         for line in after.components(separatedBy: "\n") where line.hasPrefix("#") && !old.contains(line) {
             let name = line.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespaces))
-            if !name.isEmpty, name.count <= 26 { return name }
+            if !name.isEmpty, name.count <= 30 { return name }
         }
         return nil
     }
@@ -92,8 +92,9 @@ enum AIEdit {
         // Short enough that the pill never covers much of the note (council r1), whole when it fits
         // (council r2: "Book 31: added by…" for 25 letters): cut at a word.
         func short(_ t: String) -> String {
-            guard t.count > 26 else { return t }
-            let head = String(t.prefix(25))
+            // One rule everywhere: about 30 letters, cut on a word (council r6).
+            guard t.count > 30 else { return t }
+            let head = String(t.prefix(31))
             let cut = head.lastIndex(of: " ").map { String(head[..<$0]) } ?? head
             return cut.trimmingCharacters(in: CharacterSet(charactersIn: " ,.;:")) + "…"
         }
@@ -103,7 +104,7 @@ enum AIEdit {
             if first(a) == old, first(b) == new {
                 // The new name, when it's short enough to say (council r4).
                 let name = new.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespaces))
-                return name.isEmpty || name.count > 26 ? "renamed the note" : "renamed the note to \u{201C}\(name)\u{201D}"
+                return name.isEmpty || name.count > 30 ? "renamed the note" : "renamed the note to \u{201C}\(name)\u{201D}"
             }
             let x = old.split(separator: " ").map(String.init), y = new.split(separator: " ").map(String.init)
             var gone: [Int] = [], put: [Int] = []
