@@ -283,9 +283,10 @@ struct AIReceipt: View {
         .padding(.trailing, compact ? 12 : 14)
         .frame(height: compact ? 30 : Self.height)
         // A solid fill: the material greyed the words and showed at the ends (council r1).
-        .background(Capsule().fill(Self.fill))
+        // The shadow on the capsule alone, not on the words and buttons (it drew faint lines at
+        // the ends, council r1).
+        .background(Capsule().fill(Self.fill).shadow(color: .black.opacity(0.08), radius: 8, y: 3))
         .overlay(Capsule().strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
         .accessibilityElement(children: .contain)
     }
 

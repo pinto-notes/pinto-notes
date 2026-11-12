@@ -77,6 +77,8 @@ import Testing
 
     @Test(arguments: all, looks) func scenario(_ s: Scenario, look: String) async throws {
         guard ProcessInfo.processInfo.environment["AMBER_QA_SHOTS"] != nil else { return }
+        // `AMBER_QA_ONLY=03,13` shoots just those.
+        if let only = ProcessInfo.processInfo.environment["AMBER_QA_ONLY"], !only.split(separator: ",").contains(where: { s.id.hasPrefix($0) }) { return }
         let c = try AIChangesTests.container()
         let note = c.mainContext.createNote(in: .all, body: s.before)
         if s.mode == .openedLater { AIEditTests.arrive(note, body: s.after, by: s.by) }

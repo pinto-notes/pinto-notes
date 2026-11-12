@@ -394,6 +394,8 @@ final class ChangeTint: @unchecked Sendable {
             // No spaces at either end, and no stray punctuation leading into the words.
             let ns = new as NSString
             let lead = CharacterSet.whitespaces.union(CharacterSet(charactersIn: ",.;:"))
+            // A change only inside the list marker (a tick) leaves nothing here.
+            guard hi > lo else { k = end + 1; continue }
             if ns.substring(with: NSRange(location: lo, length: hi - lo)).rangeOfCharacter(from: .alphanumerics) != nil {
                 while lo < hi, lead.contains(UnicodeScalar(ns.character(at: lo)) ?? " ") { lo += 1 }
             }

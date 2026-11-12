@@ -141,6 +141,13 @@ import Testing
             == ["12 November", "This is enduring context"])
     }
 
+    /// A tick changes only the marker: no words of the line are new, and nothing out of range
+    /// (round 2's pictures: an exception here dropped the mark and the receipt).
+    @Test func aTickHasNoNewWords() {
+        #expect(ChangeTint.newWords(from: "- [ ] Eggs", to: "- [x] Eggs").isEmpty)
+        #expect(ChangeTint.newWords(from: "- [ ] Eggs", to: "- [x] Eggs, free range") .map { ("- [x] Eggs, free range" as NSString).substring(with: $0) } == ["free range"])
+    }
+
     /// A new line, a tick, and a line mostly rewritten are marked whole, from after the marker.
     @Test func newLinesTicksAndRewritesAreMarkedWhole() {
         let g = "Groceries\n\n- [ ] Oat milk\n- [ ] Eggs"
