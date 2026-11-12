@@ -15,12 +15,17 @@ import Testing
         let window: NSWindow
         let container: ModelContainer
         let backend: Backend
+        let setup: SetupStore
         /// Settings' own window, as PaneApp's scene shows it (settingsWindow()), offscreen.
         private(set) var settings: NSWindow?
         /// Settings' parts as laid out in that window (settingsProbe).
         var settingsFrames: [String: CGRect] = [:]
 
-        init(nested: Bool = false, foldersLater: Bool = false, behindCard: Bool = false, rows: Bool = false) async throws {
+        /// Where the foot's setup rows keep which have left: this host's own.
+        let setupDefaults: UserDefaults
+
+        init(nested: Bool = false, foldersLater: Bool = false, behindCard: Bool = false, rows: Bool = false,
+             progress: SetupProgress = SetupProgress(connected: true, dismissed: true), account: UUID = UUID(), defaults: UserDefaults? = nil) async throws {
             container = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
             let ctx = container.mainContext
             if !foldersLater {
@@ -32,14 +37,19 @@ import Testing
                 ctx.move(ctx.createFolder(named: "Acme"), into: work)
             }
             try ctx.save()
-            let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com", userID: UUID())
+            let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com", userID: account)
             self.backend = backend
             ProfileStore.shared.showForPreview(name: "Emil Wagman", photo: nil)
+            let setup = SetupStore(progress: progress)
+            self.setup = setup
+            let setupDefaults = defaults ?? UserDefaults(suiteName: "account-row-\(UUID())")!
+            self.setupDefaults = setupDefaults
             let notes = RootView()
                 .environment(backend)
                 .environment(SyncEngine(backend: backend, context: ctx))
-                .environment(SetupStore(progress: SetupProgress(connected: true, dismissed: true)))
+                .environment(setup)
                 .environment(\.sidebarStudy, rows ? SidebarStudy() : nil)
+                .environment(\.sidebarSetupDefaults, setupDefaults)
             // `behindCard`: as the first run shows it, under a setup card (AppGate.notesBehind).
             let view = Group {
                 if behindCard {
@@ -286,7 +296,8 @@ import Testing
         HoverProbe.enabled = true
         FootProbe.frames = [:]
         defer { HoverProbe.enabled = false; HoverProbe.reset(); FootProbe.frames = [:] }
-        let host = try await Host(nested: nested, rows: true)
+        // A new account, nothing connected or imported yet: all three setup rows.
+        let host = try await Host(nested: nested, rows: true, progress: SetupProgress())
         defer { host.close() }
         let (sidebar, cell) = try host.sidebarAndNotesRow()
         let reach = Hover.sidebarReach()

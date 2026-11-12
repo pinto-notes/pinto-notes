@@ -28,6 +28,8 @@ struct SidebarActionRow: View {
     let symbol: String
     let id: String
     var action: () -> Void = {}
+    /// Hides the row for good: its right-click menu and its accessibility action (nil: neither).
+    var remove: (() -> Void)? = nil
 
     var body: some View {
         Button(action: action) {
@@ -45,6 +47,12 @@ struct SidebarActionRow: View {
         .buttonStyle(.plain)
         // The pill above is its hover: a second one here drew two fills (Emil, 3 November 2026).
         .accessibilityIdentifier(id)
+        .contextMenu {
+            if let remove { Button(SidebarSetupRow.removeTitle, systemImage: "minus.circle", action: remove) }
+        }
+        .accessibilityActions {
+            if let remove { Button(SidebarSetupRow.removeTitle, action: remove) }
+        }
     }
 }
 
@@ -124,25 +132,71 @@ struct SidebarFootLabel<Title: View, Icon: View>: View {
     }
 }
 
-/// The study's rows at the foot of the sidebar, most used first: the templates, your AIs (the
-/// sheet lists the connected ones and connects more), and importing more notes.
+/// The setup rows at the foot of the sidebar, most used first: the templates, your AIs (the
+/// sheet lists the connected ones and connects more), and importing more notes. Each leaves once
+/// its job is done or you remove it (SidebarSetup), and never comes back; with none left this
+/// draws nothing and takes no room.
 struct SidebarStudyRows: View {
     var imports: ImportActions?
+    /// The signed-in account. Nil (a demo run's real-input checks, captures) shows every row.
+    var account: UUID? = nil
+    /// When the account was made, as the server says.
+    var accountCreated: Date? = nil
+    @Environment(SetupStore.self) private var setupStore: SetupStore?
+    @Environment(\.modelContext) private var context
+    @Environment(\.appearsActive) private var appearsActive
+    @Environment(\.sidebarSetupDefaults) private var defaults
+    /// The rows still here; nil until worked out (then none show for an account, so none blink).
+    @State private var shown: [SidebarSetupRow]?
+
+    private var setup: SidebarSetup? { account.map { SidebarSetup(defaults: defaults, account: $0) } }
+
+    /// What can change the answer: the server's marks, the AI connections, the window coming forward.
+    private struct Inputs: Equatable {
+        var account: UUID?
+        var progress: SetupProgress?
+        var connected: [String]?
+        var active: Bool
+    }
 
     var body: some View {
+        let rows = shown ?? (account == nil ? SidebarSetupRow.allCases : [])
         VStack(alignment: .leading, spacing: SidebarStyle.pillGap) {
-            SidebarActionRow(title: SidebarAIWords.templates, symbol: "square.grid.2x2", id: "sidebar.templates") {
-                NotificationCenter.default.post(name: .paneTemplates, object: nil)
-            }
-            SidebarActionRow(title: SidebarAIWords.connect, symbol: "sparkles", id: "sidebar.connectAI") {
-                NotificationCenter.default.post(name: .paneConnectAI, object: nil)
-            }
-            SidebarActionRow(title: SidebarAIWords.importNotes, symbol: "square.and.arrow.down", id: "sidebar.import") {
-                // The choice of where from, not Apple Notes' import straight away (Emil, 2 November 2026).
-                NotificationCenter.default.post(name: .paneImportNotes, object: nil)
+            ForEach(rows, id: \.self) { row in
+                SidebarActionRow(title: row.title, symbol: row.symbol, id: row.id, action: {
+                    NotificationCenter.default.post(name: row.opens, object: nil)
+                }, remove: setup.map { setup in { remove(row, setup) } })
+                .transition(.opacity)
             }
         }
+        // The gap under the rows is theirs, so with none left the account sits where they were.
+        .padding(.bottom, rows.isEmpty ? 0 : SidebarStyle.pillGap)
+        .preference(key: SidebarFootAbove.self, value: !rows.isEmpty)
+        .onChange(of: Inputs(account: account, progress: setupStore?.progress, connected: ConnectedAIs.shared.knownNames, active: appearsActive),
+                  initial: true) { update() }
     }
+
+    private func update() {
+        guard let setup else { shown = nil; return }
+        let facts = SidebarSetup.facts(progress: setupStore?.progress, connected: ConnectedAIs.shared.knownNames,
+                                       ledger: NoteSourceLedger(defaults: defaults, account: account), context: context,
+                                       accountCreated: accountCreated, setup: setup)
+        let now = setup.shown(facts)
+        guard now != shown else { return }
+        if shown == nil { shown = now } else { withAnimation(.easeOut(duration: 0.2)) { shown = now } }
+    }
+
+    private func remove(_ row: SidebarSetupRow, _ setup: SidebarSetup) {
+        setup.remove(row)
+        withAnimation(.easeOut(duration: 0.2)) { shown = (shown ?? []).filter { $0 != row } }
+    }
+}
+
+/// Something is drawn above the account in the foot (the AI's last change, a setup row): only
+/// then is the account set a little apart from it.
+struct SidebarFootAbove: PreferenceKey {
+    static let defaultValue = false
+    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
 }
 
 /// The foot of the Mac sidebar: the study's rows (when on), then you. One view for the app and
@@ -161,6 +215,8 @@ struct SidebarFoot: View {
     /// What the offline status reads: sync, unless a capture stands in for it.
     var offline: (any OfflineSource)? = nil
     @State private var status = OfflineStatus()
+    /// The AI's line or a setup row is drawn above the account.
+    @State private var above = false
 
     /// The photo's column: each row's icon is centred in one as wide as the account's photo, and its
     /// words start where your name does, so the foot reads as one block (Emil, 8 November 2026:
@@ -183,10 +239,12 @@ struct SidebarFoot: View {
         let source: (any OfflineSource)? = offline ?? sync
         // The server is away (or the popover is still open on what Try now found).
         let away = source.map { status.shows($0.reach) } ?? false
-        VStack(alignment: .leading, spacing: SidebarStyle.pillGap) {
+        // Each part above the account brings its own gap under it, so a part with nothing to show
+        // (no change this week, every setup row gone) leaves no room behind (Emil, 12 November 2026).
+        VStack(alignment: .leading, spacing: 0) {
             // What an AI last did, as the first row: in the foot itself, not a bar of its own over the
             // folders, whose edge showed a line on hover (Emil, 8 November 2026).
-            if rows { SidebarAILine(); SidebarStudyRows(imports: imports) }
+            if rows { SidebarAILine(); SidebarStudyRows(imports: imports, account: backend.userID, accountCreated: backend.accountCreated) }
             // While sync is away the account row says so: a line under your name and a cloud beside it.
             AccountButton(backend: backend, offline: away ? source.map { ($0, status) } : nil)
                 // Syncing, said quietly where your account is (Emil, 8 November 2026). Never while
@@ -198,8 +256,9 @@ struct SidebarFoot: View {
                     }
                 }
                 // A little apart from the rows above: you, not another thing to do (Emil, 8 November 2026).
-                .padding(.top, rows ? SidebarFoot.accountGap : 0)
+                .padding(.top, rows && above ? SidebarFoot.accountGap : 0)
         }
+        .onPreferenceChange(SidebarFootAbove.self) { above = $0 }
         .padding(.leading, pill.leading)
         // As far in on the right as on the left: the folder list keeps room on its right for the
         // scroll bar, the foot has none (Emil, 8 November 2026).

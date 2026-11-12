@@ -1428,6 +1428,9 @@ struct PaneCommands: Commands {
                 .disabled(newNote == nil)
             Button("New App…") { NewApp.shared.open() }
                 .disabled(newNote == nil || !NoteApps.enabled)
+            // The Templates library, wherever its sidebar row has gone (Emil, 12 November 2026).
+            Button(AppMenuWords.newFromTemplate) { NotificationCenter.default.post(name: .paneTemplates, object: nil) }
+                .disabled(newNote == nil)
             // ⌘T: Obsidian has no key for it and Pinto has no Font menu; ⌥⌘T is Table, ⇧⌘T Title.
             Button("Today\u{2019}s Note") { todaysNote?.open() }
                 .keyboardShortcut("t")
@@ -1509,7 +1512,7 @@ struct PaneCommands: Commands {
             Button("Connect an AI\u{2026}") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
             Divider()
             // One item in File, the sources inside: six of them crowded it (round 17).
-            Menu("Import Notes") {
+            Menu(AppMenuWords.importNotes) {
                 Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
                     .disabled(importNotes == nil)
                 ForEach(ImportKind.listed) { kind in

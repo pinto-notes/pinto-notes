@@ -255,6 +255,7 @@ import Testing
             .background(Color(nsColor: .windowBackgroundColor))
             .environment(\.sidebarStudy, SidebarStudy())
             .environment(\.hoverPreview, hovered)
+            .environment(\.sidebarSetupDefaults, UserDefaults(suiteName: "offline-calm-\(UUID())")!)
             .environment(backend)
             .modelContainer(try container())
         let host = NSHostingView(rootView: AnyView(view))
