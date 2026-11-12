@@ -269,6 +269,31 @@ import Testing
         #expect(ChangeTint.sweepStagger(8) * 7 + ChangeTint.sweepDuration <= 0.55)
     }
 
+    /// A second AI's edit right after the first: the pill names both, Undo takes both, and the
+    /// first one's words keep its colour (council r3, r4).
+    @Test func twoAIsAreBothNamed() async {
+        let g = "Groceries\n\n- [ ] Eggs\n- [ ] Bread"
+        let one = g + "\n- [ ] Saffron"
+        let two = one.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs")
+        let id = UUID()
+        let a = AIEdit.Receipt(noteID: id, by: "ChatGPT", at: .now, previous: g, after: one, lines: 1)
+        let b = AIEdit.Receipt(noteID: id, by: "Claude", at: .now, previous: one, after: two, lines: 1).continuing(a)
+        #expect(b.previous == g, "Undo takes both")
+        #expect(b.edits == 2)
+        #expect(b.summary == "Claude ticked \u{201C}Eggs\u{201D} \u{00B7} ChatGPT added \u{201C}Saffron\u{201D}")
+        // The marks, as the editor plays them: Claude's from the start, ChatGPT's kept.
+        let tint = ChangeTint()
+        let green = AIGlyph.caretColor("ChatGPT"), orange = AIGlyph.caretColor("Claude")
+        tint.play(from: g, to: one, color: green)
+        try? await Task.sleep(for: .seconds(0.9))
+        tint.follow(two)
+        tint.play(from: g, to: two, color: orange)
+        let ns = two as NSString
+        #expect(tint.carried.map { ns.substring(with: $0.range) } == ["Saffron"])
+        #expect(!tint.marks.contains { ns.substring(with: $0).contains("Saffron") }, "not orange too")
+        tint.stop()
+    }
+
     /// Three edits in a row are counted, never described as one change that didn't happen (council r2).
     @Test func threeEditsAreCounted() {
         let g = "Groceries\n\n- [ ] Eggs\n- [ ] Bread"

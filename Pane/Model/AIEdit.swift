@@ -270,6 +270,10 @@ enum AIEdit {
         var edits = 1
         /// The text before the latest of those edits, to say what it did (council r3).
         var latestPrevious: String? = nil
+        /// Another AI's edit just before this one, as its own pill said it.
+        var earlierLine: String? = nil
+        /// More than one AI's edits in this change.
+        var mixed = false
 
         enum Kind: Equatable { case edit, pageEdit, dataEdit, pageMade, pageChanged, reverted, heldBack }
 
@@ -326,7 +330,7 @@ enum AIEdit {
         /// all marked, and Undo takes all three back (round 17: it said 1 line, the last one).
         /// `earlier`: the receipt still on the note, if any. Typing between them keeps them apart.
         func continuing(_ earlier: Receipt?) -> Receipt {
-            guard let earlier, earlier.noteID == noteID, earlier.by == by, earlier.person == person,
+            guard let earlier, earlier.noteID == noteID, earlier.person == person,
                   earlier.kind == .edit, kind == .edit, !earlier.created, !created, earlier.after == previous,
                   abs(at.timeIntervalSince(earlier.at)) < Self.sameChangeWindow, let after else { return self }
             var both = self
@@ -335,6 +339,11 @@ enum AIEdit {
             both.previousVersion = earlier.previousVersion
             both.lines = AIReview.lineCount(previous: earlier.previous, after: after)
             both.edits = earlier.edits + 1
+            // Another AI's edit on top: the pill names both, and Undo takes both (council r3, r4).
+            if earlier.by != by || earlier.earlierLine != nil {
+                both.earlierLine = earlier.earlierLine == nil && earlier.edits == 1 ? earlier.summary : nil
+                both.mixed = true
+            }
             return both
         }
 
@@ -353,6 +362,11 @@ enum AIEdit {
             if kind == .pageChanged { return "\(who) changed this note's app" }
             if created { return "\(who) wrote this note" }
             // Three or more edits in a row: a count, never one invented change (council r2).
+            // Two AIs: "Claude ticked “Eggs” · ChatGPT added “Saffron”".
+            if let earlierLine, let latestPrevious, let after, let what = AIEdit.describe(previous: latestPrevious, after: after) {
+                return "\(who) \(what) \u{00B7} \(earlierLine)"
+            }
+            if mixed { return "\(edits) changes by \(who) and others" }
             // With the latest one named: "ChatGPT removed “Bread” · 3 changes" (council r3).
             if edits > 2 {
                 if let latestPrevious, let after, let what = AIEdit.describe(previous: latestPrevious, after: after) {

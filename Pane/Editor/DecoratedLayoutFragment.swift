@@ -256,10 +256,10 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             // read as an overline, 3 pt up as an underline of the line above).
             y = point.y + line.typographicBounds.minY - 0.5
         } else { y = point.y }
-        return CGRect(x: x, y: y - 1, width: width, height: 2)
+        return CGRect(x: x, y: y - 1.25, width: width, height: 2.5)
     }
 
-    static let removalWidth: CGFloat = 10
+    static let removalWidth: CGFloat = 13
     static let removalGap: CGFloat = 5
 
     /// The runs as one shape: each line rounded, and the space between two lines of the

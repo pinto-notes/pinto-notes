@@ -81,7 +81,7 @@ import Testing
         let rect = marked.removalRect(gap, at: .zero)
         let d = try #require(marked.decoration)
         #expect(rect.maxX <= marked.checkboxRect(d).minX, "left of the circle, clear of the words")
-        #expect(rect.width <= 12)
+        #expect(rect.width <= 16)
         #expect(marked.renderingSurfaceBounds.contains(rect), "drawn, not clipped")
         _ = line
         h.view.core.layoutDelegate.tint.stop()

@@ -649,11 +649,14 @@ struct NoteDetailView: View {
                 // (council r3). Space, not a rule.
                 .background(alignment: .bottom) {
                     LinearGradient(stops: [.init(color: Color.notePage.opacity(0), location: 0),
-                                           .init(color: Color.notePage.opacity(0.9), location: 0.5),
+                                           .init(color: Color.notePage.opacity(0.85), location: 0.6),
                                            .init(color: Color.notePage, location: 1)], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 110)
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, -2000)
+                        .frame(height: 76)
+                        // Just round the pill, not the whole width (council r4).
+                        .padding(.horizontal, -48)
+                        .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.12),
+                                                     .init(color: .black, location: 0.88), .init(color: .clear, location: 1)],
+                                             startPoint: .leading, endPoint: .trailing))
                         .allowsHitTesting(false)
                 }
                 #else

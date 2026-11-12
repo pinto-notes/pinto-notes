@@ -210,7 +210,7 @@ final class ChangeTint: @unchecked Sendable {
         }
         // Another AI's edit right on top of this one: its marks stay, in its colour.
         var keep: [(range: NSRange, color: PColor?)] = []
-        if let lit, color != self.color, previous != from {
+        if let lit, color != self.color, text != madeFor {
             keep = lit.carried + lit.marks.map { ($0, self.color) }
         }
         // A later edit while this one is marked: what's marked stays as it is.
@@ -221,7 +221,7 @@ final class ChangeTint: @unchecked Sendable {
         let still = lit.map { $0.drawn + $0.marks.map(line) + $0.carried.map { line($0.range) } } ?? [], prior = lit == nil ? 0 : strength, wasPeaked = lit != nil && peaked
         stop()
         settled = still
-        from = previous
+        madeFor = text
         strength = prior
         peaked = wasPeaked
         self.color = color
@@ -230,6 +230,8 @@ final class ChangeTint: @unchecked Sendable {
         ranges = Self.paragraphRanges(changedFrom: previous, to: text)
         removals = Self.removals(from: previous, to: text)
         marks = Self.changedWords(from: previous, to: text)
+        // Words an earlier AI's mark already holds stay in its colour, not this one's.
+        if !keep.isEmpty { marks = marks.filter { m in !keep.contains { NSIntersectionRange($0.range, m).length > 0 } } }
         // Most of the note new: a lighter mark, so the page isn't one block of colour (council r2).
         heavy = Double(marks.reduce(0) { $0 + $1.length }) > Double((text as NSString).length) * 0.35
         carried = keep
@@ -240,7 +242,9 @@ final class ChangeTint: @unchecked Sendable {
         }
         guard !ranges.isEmpty || !removals.isEmpty else { return }
         if !Self.reduceMotion { startSweep() }
-        light(hold: hold, untilCleared: untilCleared)
+        // More to read, a longer rest: up to 3 s more for a rewrite (council r4).
+        let read = Double(marks.reduce(0) { $0 + $1.length })
+        light(hold: hold + min(3, max(0, read - 40) / 80), untilCleared: untilCleared)
     }
 
     /// Pulls the highlight across the changed words, about 60 redraws a second.
@@ -310,9 +314,9 @@ final class ChangeTint: @unchecked Sendable {
 
     /// The text the marks are ranges of, to follow your typing while they fade.
     private var shown: String?
-    /// The text the current mark is a change from: the same again is the same change re-marked,
+    /// The text the current mark was made for: the same again is the same change re-marked,
     /// not a second AI's edit on top.
-    private var from: String?
+    private var madeFor: String?
 
     /// You typed: the marks move with the text and fade out in a third of a second, rather than
     /// cutting out (council r1). Anything else clears at once.
