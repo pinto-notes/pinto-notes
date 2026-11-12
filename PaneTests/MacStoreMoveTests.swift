@@ -1,8 +1,10 @@
+#if os(macOS)
 import AppKit
 import Foundation
 import Testing
 @testable import Pane
 
+/// Mac only, as the view it tests.
 /// "Pinto Notes is now in the Mac App Store": only the Mac download says it, only once the site
 /// says the store version is live, at most twice per Mac, and its buttons do what they say.
 @MainActor @Suite(.serialized) struct MacStoreMoveTests {
@@ -127,3 +129,4 @@ import Testing
         #expect(MacStoreStep.allCases.map(\.rawValue) == ["shown", "open_store", "not_now"])
     }
 }
+#endif
