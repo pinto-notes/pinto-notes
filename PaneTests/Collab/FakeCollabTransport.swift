@@ -31,6 +31,16 @@ final class FakeCollabServer {
 
     func role(_ note: UUID, _ user: UUID) -> String? { members[note]?[user]?.role }
 
+    /// Why each person's access ended (note_access_ended): what collab_access_ended answers once
+    /// they're out. `answersWhy` false: a server from before it kept any.
+    var ended: [UUID: [UUID: Collab.AccessEnded]] = [:]
+    var answersWhy = true
+
+    func ends(_ note: UUID, for user: UUID, _ reason: Collab.AccessEnded.Reason) {
+        let by = reason == .left ? nil : owners[note].flatMap { names[$0] }
+        ended[note, default: [:]][user] = Collab.AccessEnded(reason: reason, by_name: by)
+    }
+
     func share(_ note: UUID, owner: UUID) {
         epochs[note] = 1
         owners[note] = owner
@@ -43,6 +53,7 @@ final class FakeCollabServer {
 
     /// Removes someone and moves the note to a new key, as collab_remove does.
     func remove(_ user: UUID, from note: UUID) {
+        if members[note]?[user] != nil { ends(note, for: user, .removed) }
         members[note]?[user] = nil
         let epoch = (epochs[note] ?? 1) + 1
         epochs[note] = epoch
@@ -208,6 +219,13 @@ final class FakeCollabTransport: CollabTransport {
         try call("leave")
         guard server.role(note, me) != "owner" else { throw Collab.Failure.notOwner }
         server.members[note]?[me] = nil
+        server.ends(note, for: me, .left)
+    }
+
+    func accessEnded(note: UUID) async throws -> Collab.AccessEnded? {
+        try call("accessEnded")
+        guard server.answersWhy, server.role(note, me) == nil else { return nil }
+        return server.ended[note]?[me]
     }
 
     /// What collab_unshare was sent: the owner's text, sealed under their data key.
@@ -218,6 +236,7 @@ final class FakeCollabTransport: CollabTransport {
         guard server.role(note, me) == "owner" else { throw Collab.Failure.notOwner }
         // collab_unshare's guard: text behind the document is refused.
         guard !server.updates(of: note).contains(where: { $0.id > upto }) else { throw Collab.Failure.server("The note changed meanwhile. Try again.") }
+        for m in server.members[note]?.keys.map({ $0 }) ?? [] where m != me { server.ends(note, for: m, .unshared) }
         server.members[note] = nil
         unshared[note] = body
     }

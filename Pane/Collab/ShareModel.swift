@@ -237,7 +237,7 @@ extension CollabStore: ShareBackend {
         }
         let shared: UUID? = opened.note_id
         let inLibrary = (try? context?.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID == shared && $0.deletedAt == nil })))?.isEmpty == false
-        let already = sessions.values.contains { $0.noteID == opened.note_id } || inLibrary
+        let already = openNote(forShared: opened.note_id) != nil || inLibrary
         return JoinPreview(title: title.flatMap { $0.isEmpty ? nil : $0 }, owner: opened.owner_name, canEdit: opened.role == "editor", alreadyIn: already)
     }
 
@@ -251,9 +251,12 @@ extension CollabStore: ShareBackend {
             joinProblem = "This link was turned off or changed. Ask for a new one."
             return false
         }
-        // Already in the note on this device (your own link, or one you joined before): open it.
-        if sessions[opened.note_id] != nil {
-            NoteOpener.shared.open(opened.note_id)
+        // Already in the note on this device (your own link, or one you joined before): open it,
+        // with no second join. Sessions are listed by the note's id in your library, which for
+        // someone else's note isn't the shared note's id (SharedNotes.noteID): looking it up by the
+        // shared id found nothing, and every reopened link sent another join.
+        if let open = openNote(forShared: opened.note_id) {
+            NoteOpener.shared.open(open)
             return true
         }
         do {
@@ -292,6 +295,12 @@ extension CollabStore: ShareBackend {
     nonisolated static func isDropped(_ error: Error) -> Bool {
         let e = error as NSError
         return e.domain == NSURLErrorDomain && transientURLErrors.contains(e.code)
+    }
+
+    /// Your note for a shared note whose document is open here: yours (its id is the shared note's),
+    /// or your pointer to someone else's.
+    func openNote(forShared shared: UUID) -> UUID? {
+        sessions.first { $0.value.noteID == shared && !$0.value.isClosed }?.key
     }
 
     /// What to say when a link couldn't be read: the connection, or the link itself.

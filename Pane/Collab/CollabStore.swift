@@ -97,9 +97,10 @@ final class CollabStore {
     /// Signed in with the notes open: the account's store, once per account.
     static func attach(client: SupabaseClient, account: UUID, context: ModelContext) async {
         guard isOn, AccountCrypto.shared.isReady else { return }
-        if let s = shared, s.me == account { return }
+        if let s = shared, s.me == account, s.keyID == AccountCrypto.shared.keyID { return }
         detach()
         let store = live(client: client, account: account, name: { myName(account: account) })
+        store.keyID = AccountCrypto.shared.keyID
         store.context = context
         shared = store
         // The library is there now (made with the context); shared notes open from their copies
@@ -114,6 +115,24 @@ final class CollabStore {
     /// goes out, so a name the profile learns later is the one people see.
     static func myName(account: UUID, bound: String? = ProfileStore.shared.name, defaults: UserDefaults = .standard) -> String {
         bound ?? ProfileStore.cachedName(for: account, defaults: defaults) ?? "Someone"
+    }
+
+    /// The data key this store started with (AccountCrypto.keyID): every note key here is sealed
+    /// under it.
+    @ObservationIgnored var keyID: String?
+
+    /// The key check's answer, each time it changes. Sharing starts before the check (shared notes
+    /// open from this device's copies at once), and used to stop only at sign-out: a check that
+    /// found the key replaced, or no longer here, left it running on the old one. It stops when
+    /// the key isn't ready, and starts again with a key that isn't the one it started with.
+    /// Returns whether it stopped.
+    @discardableResult
+    static func keyChanged(ready: Bool, keyID: String?) -> Bool {
+        guard let s = shared else { return false }
+        guard !ready || (s.keyID != nil && s.keyID != keyID) else { return false }
+        log.notice("sharing stops: the account's key \(ready ? "changed" : "isn't ready", privacy: .public)")
+        detach()
+        return true
     }
 
     /// Signed out: everything open closes, and nothing of the account stays in memory.
@@ -319,6 +338,8 @@ final class CollabStore {
     /// library mirrors its text into the note and follows its key.
     private func opened(_ session: CollabSession, note: Note) {
         sessions[note.id] = session
+        // In it again (a link opened after a removal): its window may stay open.
+        removedFrom.remove(note.id)
         session.onMembersChanged = { [weak self] in Task { await self?.checkMemberships() } }
         // A shared note's document just opened: anything the widget or share sheet left for it goes in.
         Task { @MainActor [weak self] in

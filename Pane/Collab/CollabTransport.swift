@@ -44,6 +44,10 @@ protocol CollabTransport: AnyObject {
     /// `upto`: the newest change the text holds; the server refuses when a newer one exists, so
     /// text that's behind the document never replaces it.
     func unshare(note: UUID, body: String, head: String, upto: Int64) async throws
+    /// Why your access to a note ended, once it has (`collab_access_ended`,
+    /// 20261112120000_collab_access_ended.sql): nil while you're in it, or when the server
+    /// recorded nothing (an ending from before it did, or a server without it).
+    func accessEnded(note: UUID) async throws -> Collab.AccessEnded?
     /// The note's sealed title and preview (`amb3h`), for lists.
     func updateHead(note: UUID, head: String) async throws
 
@@ -78,6 +82,10 @@ protocol CollabTransport: AnyObject {
 
     /// Joins the note's channel (members only). Events arrive on the main actor until `close()`.
     func join(note: UUID, onEvent: @escaping @MainActor (Collab.Event) -> Void) async throws -> CollabChannel
+}
+
+extension CollabTransport {
+    func accessEnded(note: UUID) async throws -> Collab.AccessEnded? { nil }
 }
 
 /// An open note's live channel.
@@ -146,6 +154,15 @@ enum Collab {
     struct Pull: Decodable, Sendable {
         let snapshot: Snapshot?
         let updates: [Update]
+    }
+
+    /// Why your access to a note ended: the owner removed you, stopped sharing it (or deleted it),
+    /// or you left it yourself, on this device or another. `by_name`: who did it, as their profile
+    /// names them now.
+    struct AccessEnded: Decodable, Sendable, Equatable {
+        enum Reason: String, Decodable, Sendable { case removed, unshared, left }
+        let reason: Reason
+        var by_name: String? = nil
     }
 
     struct Wrap: Encodable, Sendable {
