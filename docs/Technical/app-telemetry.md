@@ -277,6 +277,9 @@ select ai, count(*) as connected, count(first_tool_at) as used,
 from public.ai_first_use where connected_at > '2026-11-13' group by ai;
 ```
 
+A folder an AI makes is marked on its row (`folders.ai_made`), as a note an AI makes is
+(`ai_editor`), so the apps can say when the person deletes it (`ai_change_undone`).
+
 The minutes, the stamps and the view are kept, read and deleted as the day counts are.
 
 AI retention, accounts using an AI on day 7 and day 30 after their first connection:

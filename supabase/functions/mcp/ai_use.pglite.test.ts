@@ -309,6 +309,11 @@ Deno.test("each call is also kept by the minute, with what it made; the connecti
       { ai: "claude", category: "read", outcome: "ok", count: 1 },
       { ai: "claude", category: "search", outcome: "ok", count: 1 },
     ]);
+    // The folders it made say an AI made them; one the app makes doesn't.
+    const made = await sql<{ ai_made: boolean }[]>`select ai_made from public.folders where user_id = ${a.id}`;
+    assertEquals(made.map((r) => r.ai_made), [true, true]);
+    const [col] = await sql<{ d: string }[]>`select column_default as d from information_schema.columns where table_name = 'folders' and column_name = 'ai_made'`;
+    assertEquals(col.d, "false", "a folder the app makes isn't marked");
     // The first-use view: connected, then used.
     const [f] = await sql<{ ai: string; first_tool_at: Date | null }[]>`select ai, first_tool_at from public.ai_first_use where user_id = ${a.id}`;
     assertEquals(f.ai, "claude");

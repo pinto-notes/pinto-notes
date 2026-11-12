@@ -48,6 +48,11 @@ create index if not exists ai_use_minutes_minute on public.ai_use_minutes (minut
 alter table public.ai_use_minutes enable row level security;
 revoke all on public.ai_use_minutes from public, anon, authenticated;
 
+-- A folder an AI made (the MCP server's create): the apps read it, so deleting it can say an AI's
+-- change was taken back (app_returned and ai_change_undone, docs/Technical/app-telemetry.md). A
+-- note an AI makes says so already (ai_editor).
+alter table public.folders add column if not exists ai_made boolean not null default false;
+
 -- When a connection first and last made a tool call (not initialize or tools/list).
 alter table public.mcp_tokens add column if not exists first_tool_at timestamptz;
 alter table public.mcp_tokens add column if not exists last_tool_at timestamptz;
