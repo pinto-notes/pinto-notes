@@ -1,5 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, PostFigure } from "@/lib/PostParts";
+import { Answer } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("ai-memory-with-notes", { title: "Does your AI remember better with notes?" });
@@ -101,9 +101,6 @@ export default function Page() {
       </p>
 
       <h2 id="dates">Dates are where a list of facts falls short</h2>
-      <PostFigure src="/blog/memory-study/locomo-types" width={1848} height={820} maxWidth={860}
-        alt="Grouped bar chart by question type. One fact: no memory 24, saved facts 66, one notebook 72, Pinto 89. Several facts: 13, 58, 67, 66. When: 3, 48, 80, 87. Inference: 29, 54, 52, 65."
-        caption="Share answered right, by question type. Dates: Pinto 87%, saved facts 48%." />
       <p>
         A one-line fact like &ldquo;Sam started a pottery class&rdquo; usually loses the date. A note per chat keeps it, because the
         date is in the note&apos;s title. So on &ldquo;when did this happen&rdquo; questions, saved facts got 48% and Pinto 87%.
@@ -120,8 +117,8 @@ export default function Page() {
       </p>
       <p>
         It also kept a lot. With no limit, it wrote 8,000 to 24,000 words per pair of friends, often more than the chats themselves.
-        Part of the gain comes from that. In return it read only what it needed: about 10,000 tokens per question, close to the
-        single notebook.
+        Part of the gain comes from that. The logs don&apos;t record how much of its notes it read for each answer, so I make no
+        claim about that.
       </p>
 
       <h2 id="limits">What this doesn&apos;t show</h2>

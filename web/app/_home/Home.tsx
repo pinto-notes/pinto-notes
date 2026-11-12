@@ -73,6 +73,10 @@ export function Home() {
             alt="A cut-paper scene of a woman in a café by the water in Stockholm in the morning, coffee on the table, looking at her phone."
             me="Make me something to split the Lisbon trip with Leo." aiName="Claude" aiGlyph="claude" ai="Done. It's in Lisbon trip. Add a cost and it splits it." />
         </div>
+        {/* The memory study (Emil, 12 November 2026): the one measured claim behind these stories. */}
+        <div className={d.centerHead}>
+          <p className={d.lede}>How much does an AI remember with notes? We measured it: in a new chat, 18% right without them, 82.5% with Pinto. <a className={d.inline} href="/blog/ai-memory-with-notes">Read the study</a></p>
+        </div>
       </section>
 
       <section className={d.wait} aria-labelledby="wait">

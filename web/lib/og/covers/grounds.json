@@ -197,11 +197,11 @@
   "w": 880,
   "h": 550
  },
- "memory-study-card": {
-  "ground": "#fbfbfb",
-  "ink": "dark",
-  "w": 1280,
-  "h": 513
+ "memory-study": {
+  "ground": "#602f4a",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
  },
  "meta-muse-apps": {
   "ground": "#ebebed",
