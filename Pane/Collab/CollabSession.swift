@@ -174,6 +174,13 @@ final class CollabSession {
     /// A change from the server that didn't open here: no snapshot until it does (a snapshot
     /// without it would let the server drop it for everyone).
     @ObservationIgnored private var missing = false
+    /// Changes Automerge holds back until a change they build on arrives. A saved document leaves
+    /// them out, so they're kept here and in the stored tail, and while there are any no snapshot
+    /// goes up: something this device doesn't have yet comes before them, and a snapshot past it
+    /// would let the server drop it for everyone (collab-fixes-r7b).
+    @ObservationIgnored private var heldBack: [(bytes: Data, hash: CollabText.ChangeHash)] = []
+    /// Some change here waits for one it builds on (`heldBack`).
+    var holdsChangesBack: Bool { !heldBack.isEmpty }
     @ObservationIgnored private var mySelection: NSRange?
     @ObservationIgnored private var typingAt = Date.distantPast
     @ObservationIgnored private var presenceTask: Task<Void, Never>?
@@ -215,7 +222,10 @@ final class CollabSession {
         try CollabText.absorb(record.saved, into: doc)
         if !record.tail.isEmpty { try doc.applyEncodedChanges(encoded: record.tail) }
         guard case .Object(let body, .Text)? = try doc.get(obj: .ROOT, key: "body") else { throw CollabCrypto.Failure.malformed }
-        return CollabSession(record: record, keys: keys, doc: doc, body: body, transport: transport, me: me, name: name)
+        let s = CollabSession(record: record, keys: keys, doc: doc, body: body, transport: transport, me: me, name: name)
+        // Held back when the app last ran: still waiting for what they build on.
+        s.hold(CollabText.changes(in: record.tail) ?? [])
+        return s
     }
 
     /// The document as the server has it, for a device that has none yet: the newest snapshot,
@@ -239,15 +249,22 @@ final class CollabSession {
             last = max(last, u.id)
         }
         guard case .Object(let body, .Text)? = try doc.get(obj: .ROOT, key: "body") else { throw CollabCrypto.Failure.malformed }
+        var held: [(bytes: Data, hash: CollabText.ChangeHash)] = []
+        for u in pull.updates {
+            guard let k = keys[u.epoch], let change = try? CollabCrypto.open(.update, u.ct, nk: k, note: record.id, extra: u.author_id.uuidString) else { continue }
+            held += (CollabText.changes(in: change) ?? []).filter { doc.change(hash: $0.hash) == nil }
+        }
         record.saved = doc.save()
-        record.tail = Data()
-        record.tailChanges = 0
+        // What the saved document leaves out (held back) stays in the tail.
+        record.tail = held.reduce(Data()) { $0 + $1.bytes }
+        record.tailChanges = held.count
         record.cursor = last
         record.snapshotUpto = pull.snapshot?.upto ?? 0
         record.sinceSnapshot = pull.updates.count
         CollabScript.trace("document loaded from the server: \(pull.updates.count) changes up to \(last), \(pull.updates.filter { $0.client != nil }.count) by an AI")
         let s = CollabSession(record: record, keys: keys, doc: doc, body: body, transport: transport, me: me, name: name)
         s.applied = Set(pull.updates.map(\.id))
+        s.hold(held)
         return s
     }
 
@@ -301,6 +318,28 @@ final class CollabSession {
         role = r
         record.role = r
         saveSoon()
+    }
+
+    /// Another session made for this note's record that isn't kept (SharedLibrary.open): its
+    /// document merges into this one (Automerge merges are safe in any order) and it closes without
+    /// writing to the record, which this one stores from now on.
+    func takeIn(_ other: CollabSession) {
+        guard other !== self else { return }
+        other.closed = true
+        other.pulling?.cancel()
+        guard !isClosed else { return }
+        try? doc.merge(other: other.doc)
+        for h in other.heldBack { try? doc.applyEncodedChanges(encoded: h.bytes) }
+        hold(other.heldBack)
+        applied.formUnion(other.applied)
+        for (e, k) in other.keys where keys[e] == nil { keys[e] = k }
+        if other.epoch > epoch, keys[other.epoch] != nil { epoch = other.epoch }
+        record.saved = doc.save()
+        record.tail = heldBack.reduce(Data()) { $0 + $1.bytes }
+        record.tailChanges = heldBack.count
+        textChanged()
+        saveSoon()
+        catchUp()
     }
 
     /// For good: the session stops, before its storage is deleted.
@@ -440,6 +479,7 @@ final class CollabSession {
             if let k = keys[s.epoch], let saved = try? CollabCrypto.open(.snapshot, s.ct, nk: k, note: noteID, extra: String(s.upto)) {
                 if (try? CollabText.absorb(saved, into: doc)) != nil {
                     keep(saved)
+                    hold([])
                     changed = true
                     CollabScript.trace("snapshot up to \(s.upto) taken by catch-up")
                 }
@@ -550,6 +590,8 @@ final class CollabSession {
             let change = try CollabCrypto.open(.update, u.ct, nk: k, note: noteID, extra: u.author_id.uuidString)
             let heads = u.client == nil ? nil : doc.heads()
             try CollabText.absorb(change, into: doc)
+            // Before it's kept: keeping can compact, which keeps only what's known to be held back.
+            hold(CollabText.changes(in: change) ?? [])
             keep(change)
             // An AI's change that didn't go in: Automerge holds it back for one it builds on.
             if let heads, doc.heads() == heads { hold(u, change) }
@@ -881,8 +923,19 @@ final class CollabSession {
     func compact() {
         guard !isClosed, record.tailChanges > 0 else { return }
         record.saved = doc.save()
-        record.tail = Data()
-        record.tailChanges = 0
+        // A saved document leaves out what Automerge holds back: those stay in the tail.
+        hold([])
+        record.tail = heldBack.reduce(Data()) { $0 + $1.bytes }
+        record.tailChanges = heldBack.count
+    }
+
+    /// Notes which of `changes` Automerge held back, and lets go of held ones that went in since.
+    private func hold(_ changes: [(bytes: Data, hash: CollabText.ChangeHash)]) {
+        heldBack.removeAll { doc.change(hash: $0.hash) != nil }
+        for c in changes where doc.change(hash: c.hash) == nil && !heldBack.contains(where: { $0.hash == c.hash }) {
+            heldBack.append(c)
+            CollabScript.trace("a change held back for one it builds on that isn't here yet")
+        }
     }
 
     /// Stored a moment after the last change, as the editor saves a note: once per pause in
@@ -919,7 +972,7 @@ final class CollabSession {
     func writeSnapshot() async {
         guard !isClosed, record.canEdit else { return }
         await catchUp().value
-        guard !isClosed, !missing, record.pending.isEmpty else { retrySnapshotLater(); return }
+        guard !isClosed, !missing, heldBack.isEmpty, record.pending.isEmpty else { retrySnapshotLater(); return }
         let upto = record.cursor
         guard let ct = try? sealedSnapshot(upto: upto), ct.utf8.count <= Self.maxSnapshot else {
             log.error("a snapshot is over the server's limit and can't go up")

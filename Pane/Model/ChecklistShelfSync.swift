@@ -32,7 +32,7 @@ extension ModelContext {
     /// Writes each waiting tick into its note, as a tick in the editor would: ticked items sink
     /// below the open ones. A tick for a note that's gone, locked or deleted is dropped.
     @discardableResult
-    func applyChecklistTicks(library: SharedLibrary? = CollabStore.shared?.library) -> [Note] {
+    func applyChecklistTicks(library: SharedLibrary? = CollabStore.shared?.library, notices: NoteNotices = .shared) -> [Note] {
         let ticks = ChecklistShelf.ticks()
         guard !ticks.isEmpty else { return [] }
         var changed: [Note] = []
@@ -40,9 +40,11 @@ extension ModelContext {
         var waiting: Set<UUID> = []
         for t in ticks {
             guard let n = note(t.note), n.deletedAt == nil, n.trashedAt == nil, !n.isLocked else { continue }
-            // A shared note's tick goes into its document (NoteWrites); Can view drops it.
+            // A shared note's tick goes into its document (NoteWrites). Can view can't take it: the
+            // note, which the tick opened, says so.
             let outcome = NoteWrites.change(n, library: library) { Checklist.setting(t.done, index: t.index, text: t.text, in: $0) ?? $0 }
             if outcome == .notReady { waiting.insert(t.id) }
+            if outcome == .viewOnly { notices.post(NoteWrites.viewOnlyMessage, for: n.id) }
             if outcome == .changed, !changed.contains(where: { $0.id == n.id }) { changed.append(n) }
         }
         if !changed.isEmpty { try? save() }
