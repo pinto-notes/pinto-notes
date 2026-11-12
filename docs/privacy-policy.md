@@ -93,7 +93,7 @@ This policy covers the Pinto Notes apps for iPhone and Mac, the service that let
 
 We count how features are used on our own server to improve the app. We never share or sell it. That means:
 
-- how many notes an AI connection changed on each day;
+- what your AI connections do and when, to the minute: how many times each one read, searched, made, changed or moved something, whether it was a note, a folder, an app or a file, and whether it worked. Never what it read or wrote, or the names of your notes;
 - which steps of the first-run setup you've completed;
 - if you answer it, how you heard about Pinto Notes: the choice you tap, and any words you add under Something else. We only look at it added up across accounts;
 - a random identifier for each installation of the app and its platform (iPhone or Mac), to count how many devices an account uses. It isn't linked to your device's hardware or advertising identifiers.
@@ -277,7 +277,7 @@ In our own database we keep a log of each time our copy of your notes' key was s
 - **Files** you add stay until you delete them or your account.
 - **Your account** is kept until you delete it. **Settings → Delete Account** removes your account, notes, files, profile photo, versions, AI connections, share links, notes password settings, usage counts, the record of emails we sent you, sign-in records and reports about your shared pages straight away.
 - **Notes shared with people:** a note's encrypted changes until a newer snapshot covers them; the note until its owner deletes it or their account; your place in it until you leave, are removed, start fresh or delete your account.
-- **Usage counts** (AI changes per day, days of use, tips, app installations): 12 months.
+- **Usage counts** (AI use, days of use, tips, app installations): 12 months.
 - **Diagnostics and usage from the apps:** at PostHog for as long as its plan keeps events (at least a month), or until you ask us to delete them. Deleting your account stops new reports and drops the ones still waiting on your device; it doesn't remove the ones PostHog already holds, so write to us to have those deleted.
 - **The record of emails we sent you,** of links you clicked in them and of unsubscribing: until you delete your account.
 - **Sign-in records:** 30 days. **Rate-limit hashes:** 2 hours. **Unfinished AI sign-ins and expired access tokens:** a day after they expire.

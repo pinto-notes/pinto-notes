@@ -228,7 +228,8 @@ the `account` server function would need to ask PostHog for it with a private ke
 ## AI use on the server
 
 The apps can't see what a connected AI does, so the MCP server counts it
-(`supabase/functions/mcp/ai_use.ts`, migration `20261107170000_ai_use_daily.sql`). It sends
+(`supabase/functions/mcp/ai_use.ts`, migrations `20261107170000_ai_use_daily.sql` and
+`20261112210000_ai_use_timeline.sql`). It sends
 nothing to PostHog: the edge functions have no PostHog key, and the counts stay in the database.
 
 `public.ai_use_daily` holds one row per account, UTC day, kind of AI, kind of tool and outcome,
@@ -238,7 +239,7 @@ with a count. Nothing else: no tool arguments, no note or file, no connection na
 |---|---|
 | `user_id` | The account (rows go when it is deleted) |
 | `day` | The UTC day |
-| `ai` | `claude`, `chatgpt`, `other`: for a sign-in, the host its approval went to (only that AI receives it there: `claude.ai`, `claude.com`; `chatgpt.com`, `chat.openai.com`, `platform.openai.com`); for an access token, the guide that made it (`Claude Code` is `claude`, `Codex` is `chatgpt`). Never the name a client gives itself |
+| `ai` | `claude`, `chatgpt`, `grok`, `gemini`, `local`, `other`: for a sign-in, the host its approval went to (only that AI receives it there: `claude.ai`, `claude.com`; `chatgpt.com`, `chat.openai.com`, `platform.openai.com`; `grok.com`; Gemini's `oauth-redirect.googleusercontent.com`); `local` when it went back to the person's own computer (`127.0.0.1`, `localhost`: a desktop app or editor); for an access token, the guide that made it (`Claude Code` is `claude`, `Codex` is `chatgpt`). Never the name a client gives itself |
 | `category` | `read`, `search`, `edit`, `create`, `delete_move`, `other` (every tool is sorted by hand in `TOOL_CATEGORY`; a tool without one fails `ai_use.pglite.test.ts`) |
 | `outcome` | `ok`, or `failed` (the tool answered with an error) |
 | `count` | How many calls |
@@ -254,6 +255,29 @@ with a count. Nothing else: no tool arguments, no note or file, no connection na
 - **Kept:** 365 days (`ai_use_forget`, daily from pg_cron as `amber-forget-ai-use`).
 - **Daily active AI accounts:** the view `public.ai_use_active_daily` (`day`, `ai`, `accounts`,
   `calls`; successful calls only).
+
+`public.ai_use_minutes` holds the same calls by the UTC minute, so an AI's work can be put next to
+what the person did in the app (PostHog's events carry the same account id). Its columns are those
+of `ai_use_daily` with `minute` for `day`, and one more:
+
+| Column | Values |
+|---|---|
+| `item` | What the call worked on, from the tool and the shape of its path only (`itemOf`): `note`, `folder`, `app`, `file`, `none` (search, list). The path is never kept |
+
+Each connection (`mcp_tokens`) also keeps `first_tool_at` and `last_tool_at`: its first and last
+tool call. `last_used_at` moves on every request, `tools/list` included, so it says when an AI
+loaded the tools, not when it did something. The view `public.ai_first_use` gives each
+connection's kind, when it was made, and `until_first_use` (null: never used).
+
+Connected and never used, by kind of AI:
+
+```sql
+select ai, count(*) as connected, count(first_tool_at) as used,
+  percentile_cont(0.5) within group (order by extract(epoch from until_first_use) / 3600) as median_hours
+from public.ai_first_use where connected_at > '2026-11-13' group by ai;
+```
+
+The minutes, the stamps and the view are kept, read and deleted as the day counts are.
 
 AI retention, accounts using an AI on day 7 and day 30 after their first connection:
 

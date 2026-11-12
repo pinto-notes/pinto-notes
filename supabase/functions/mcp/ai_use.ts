@@ -31,12 +31,47 @@ export const TOOL_CATEGORY: Readonly<Record<string, UseCategory>> = {
 
 export const categoryOf = (tool: string): UseCategory => TOOL_CATEGORY[tool] ?? "other";
 
+export type UseItem = "note" | "folder" | "app" | "file" | "none";
+
+/** The classic tools say what they work on by their name. */
+const TOOL_ITEM: Readonly<Record<string, UseItem>> = {
+  create_note: "note", create_sub_note: "note", read_note: "note", edit_note: "note", append_to_note: "note",
+  replace_note_body: "note", set_checklist_item: "note", move_note: "note", pin_note: "note", delete_note: "note",
+  restore_note: "note", note_history: "note", restore_revision: "note", add_checklist_items: "note",
+  update_checklist_items: "note", read_table: "note", log_table_row: "note", delete_table_row: "note",
+  add_table_rows: "note", update_table_rows: "note", delete_table_rows: "note", edit_table_columns: "note",
+  set_note_page: "note", edit_note_page: "note", get_note_page: "note",
+  list_folders: "folder", create_folder: "folder", rename_folder: "folder", delete_folder: "folder",
+  list_files: "file", get_file: "file",
+  get_page_data: "app", query_app_data: "app", update_page_data: "app", create_app: "app", list_app_files: "app",
+  read_app_file: "app", write_app_file: "app", edit_app_file: "app", delete_app_file: "app", move_app_file: "app",
+  check_app: "app", preview_app: "app", try_app: "app", run_app_tests: "app", see_app: "app",
+};
+
+/** What kind of item a call works on: a note, a folder, an app or a file, from the tool and the
+ *  shape of its path only. The path itself is never kept. */
+export function itemOf(tool: string, args: Record<string, unknown>): UseItem {
+  if (tool in TOOL_ITEM) return TOOL_ITEM[tool];
+  if (tool === "create") {
+    const type = args.type;
+    if (type === "folder" || type === "app") return type;
+    if (type === undefined && typeof args.path === "string" && args.path.endsWith("/")) return "folder";
+    return "note";
+  }
+  const path = typeof args.path === "string" ? args.path : typeof args.id === "string" ? args.id : null;
+  if (path === null || ["search", "list"].includes(tool)) return "none";
+  if (/\.app(\/|$)/i.test(path)) return "app";
+  if (path.endsWith("/")) return "folder";
+  if (/\.md$/i.test(path) || !/\.[A-Za-z0-9]{1,8}$/.test(path)) return "note";
+  return "file";
+}
+
 /** The tool calls of one HTTP request, counted as they finish and written once at its end. */
 export class UseTally {
   private counts = new Map<string, number>();
 
-  add(tool: string, ok: boolean) {
-    const key = `${categoryOf(tool)}|${ok ? "ok" : "failed"}`;
+  add(tool: string, ok: boolean, item: UseItem = "none") {
+    const key = `${categoryOf(tool)}|${item}|${ok ? "ok" : "failed"}`;
     this.counts.set(key, (this.counts.get(key) ?? 0) + 1);
   }
 
@@ -48,8 +83,8 @@ export class UseTally {
     if (!grantId || this.isEmpty) return;
     try {
       for (const [key, n] of this.counts) {
-        const [category, outcome] = key.split("|");
-        await sql`select public.count_ai_use(${grantId}::uuid, ${category}, ${outcome === "failed"}, ${n})`;
+        const [category, item, outcome] = key.split("|");
+        await sql`select public.count_ai_use(${grantId}::uuid, ${category}, ${item}, ${outcome === "failed"}, ${n})`;
       }
     } catch (e) {
       log("ai_use_failed", errorKind(e));
