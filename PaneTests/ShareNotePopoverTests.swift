@@ -16,7 +16,7 @@ import Testing
     @Test func theLineSaysWhatTheChosenWayDoes() {
         let fresh = ShareWays.line(.link, shared: false)
         #expect(fresh.contains("anyone with the link can read") && fresh.contains("until you stop publishing"))
-        #expect(ShareWays.line(.link, shared: true).contains("as you make them"))
+        #expect(ShareWays.line(.link, shared: true) == "Anyone with the link can read it. It updates as you write.")
         #expect(ShareWays.line(.link, shared: true, trashed: true).contains("Recently Deleted"))
         #expect(ShareWays.line(.copy, shared: false).contains("as it is now"))
         for way in ShareWays.ways(collaborating: false) {
@@ -25,6 +25,18 @@ import Testing
                 #expect(!line.contains("collaborat") && !line.contains("together") && !line.contains("edit"))
             }
         }
+    }
+
+    /// A published page shows little (Emil, 12 November 2026: "too much"): the address opens the
+    /// page, then Copy Link and a quiet Stop Publishing. No Open Web Page row, no divider.
+    @Test func aPublishedPageShowsLittle() throws {
+        let source = try SettingsHomeTests.source("Pane/Views/ShareNotePopover.swift")
+        let published = try #require(source.range(of: "// Published: the address")).lowerBound
+        let rows = String(source[published..<source.range(of: "@ViewBuilder private var copyRows")!.lowerBound])
+        #expect(rows.contains("PageAddress(url: url)"))
+        #expect(rows.contains("primary(\"Copy Link\""))
+        #expect(rows.contains(".buttonStyle(.quiet)") && rows.contains("Stop Publishing"))
+        #expect(!rows.contains("Open Web Page") && !rows.contains("Divider()"))
     }
 
     /// Picture is one of the ways, last; a link that can't be made isn't offered.

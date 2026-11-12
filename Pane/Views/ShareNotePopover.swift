@@ -54,7 +54,7 @@ enum ShareWays {
         case .people: ShareCopy.privacy
         case .link where sharedWithPeople && !trashed: SharedNoteLimits.pageLine
         case .link where trashed: "The page is down while this note is in Recently Deleted."
-        case .link where shared: "Anyone with the link can read this page. Your changes appear on it as you make them."
+        case .link where shared: "Anyone with the link can read it. It updates as you write."
         case .link: "A page anyone with the link can read. It keeps up with your changes until you stop publishing."
         case .copy: "Sends the note as it is now. Later changes aren't sent."
         case .picture: "A picture of the note, to post or send."
@@ -167,29 +167,21 @@ struct ShareNotePopover: View {
             // One filled button per tab, the tab's main action, as Collaborate has.
             primary("Publish Web Page…", "globe", id: "share.create", busy: store.state.isWorking) { close(); _ = store.requestShare() }
         } else {
+            // Published: the address (click it to open the page), Copy Link, and a quiet Stop
+            // Publishing. No separate Open row or divider (Emil, 12 November 2026: "too much").
             if let url = store.url {
-                // The address in a field, as a link is shown to be copied: not grey code (council,
-                // 8 November 2026). Selectable; Copy Link copies all of it.
-                Text(url.absoluteString.replacingOccurrences(of: "https://", with: ""))
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.ink)
-                    .textSelection(.enabled)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .padding(.horizontal, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    // Plain selectable words: neither a field to type in nor a disabled one (council).
+                PageAddress(url: url) { close(); NSWorkspace.shared.open(url) }
                     .padding(.horizontal, 8)
                     .padding(.top, 6)
                     .padding(.bottom, 10)
             }
             primary("Copy Link", "link", id: "share.copy") { close(); Task { await store.shareAndCopy() } }
-                .padding(.bottom, 6)
-            if let url = store.url {
-                row("Open Web Page", "safari", id: "share.open") { NSWorkspace.shared.open(url) }
+            Button { close(); Task { await store.stopSharing() } } label: {
+                Text("Stop Publishing").foregroundStyle(.red)
             }
-            Divider().padding(.horizontal, 8).padding(.vertical, 4)
-            row("Stop Publishing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } }
+            .buttonStyle(.quiet)
+            .padding(.top, 6)
+            .accessibilityIdentifier("share.stop")
         }
     }
 
@@ -797,4 +789,29 @@ struct CollaborateRows: View {
         }
     }
 }
+
+/// A published page's address in the Share popover: plain words, underlined on hover, that open
+/// the page. Copy Link sits under it, so it isn't a field to select from.
+struct PageAddress: View {
+    let url: URL
+    let open: () -> Void
+
+    var body: some View {
+        Button(action: open) {
+            Text(url.absoluteString.replacingOccurrences(of: "https://", with: ""))
+                .font(.system(size: 13))
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.hoverLink)
+        .help("Open Web Page")
+        .accessibilityLabel("Open Web Page")
+        .accessibilityIdentifier("share.open")
+    }
+}
+
 #endif

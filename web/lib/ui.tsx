@@ -11,11 +11,12 @@ export function Shell({ children, className }: { children: React.ReactNode; clas
   return <div className={cx(s.shell, className)}>{children}</div>;
 }
 
-/// The quiet top bar: the logo, and at most one thing to do at its right end.
-export function TopBar({ href = "/", children }: { href?: string; children?: React.ReactNode }) {
+/// The quiet top bar: the logo, and at most one thing to do at its right end. `rowClassName` narrows
+/// the row to a page's own column (a shared note lines its bar up with the note).
+export function TopBar({ href = "/", rowClassName, children }: { href?: string; rowClassName?: string; children?: React.ReactNode }) {
   return (
     <header className={s.bar}>
-      <div className={s.barRow}>
+      <div className={cx(s.barRow, rowClassName)}>
         <a href={href} className={s.brand} aria-label="Pinto Notes">
           <img src="/mark-256.png" alt="" width={28} height={28} />
           <span>Pinto Notes</span>

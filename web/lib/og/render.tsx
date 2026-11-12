@@ -186,3 +186,36 @@ export function renderPostCard({ cover, title, kind }: { cover: string; title: s
     },
   );
 }
+
+/// A shared note's share card (app/og/n): the note as a sheet of paper on the cream ground, its title
+/// and its first lines, under the app's name. Drawn on each request, since a note changes and can stop
+/// being shared at any time.
+export function renderNoteCard({ title, body }: { title: string; body: string }) {
+  const t = THEMES.cream;
+  const mark = dataUrl(path.join(process.cwd(), "public", "mark.png"), "image/png");
+  const heading = title.trim() || "Untitled note";
+  const short = heading.length > 70 ? heading.slice(0, 69).trimEnd() + "…" : heading;
+  const titleSize = short.length > 44 ? 50 : short.length > 24 ? 60 : 70;
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: t.bg, padding: "52px 72px 0", fontFamily: "Inter" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <img src={mark} width={52} height={52} style={{ borderRadius: 12, boxShadow: "0 2px 6px rgba(60,30,5,0.18)" }} />
+          <div style={{ fontSize: 28, fontWeight: 800, color: t.ink, letterSpacing: -0.5 }}>Pinto Notes</div>
+        </div>
+        {/* The note itself: a white sheet that runs off the bottom edge, so it reads as a page, not a box. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 22, marginTop: 40, flexGrow: 1, background: "#ffffff", borderRadius: "28px 28px 0 0", padding: "52px 60px 0", boxShadow: `0 24px 60px -24px ${t.shadow}, 0 0 0 1px rgba(60,20,0,0.06)` }}>
+          <div style={{ display: "flex", fontSize: titleSize, fontWeight: 800, lineHeight: 1.06, letterSpacing: -titleSize * 0.035, color: "#1d1d1f" }}>{short}</div>
+          {body && <div style={{ display: "flex", fontSize: 30, lineHeight: 1.42, fontWeight: 600, color: "#6e6e73", maxHeight: 30 * 1.42 * 3, overflow: "hidden" }}>{body}</div>}
+        </div>
+      </div>
+    ),
+    {
+      ...size,
+      fonts: [
+        { name: "Inter", data: file("Inter-SemiBold.ttf"), weight: 600, style: "normal" },
+        { name: "Inter", data: file("Inter-ExtraBold.ttf"), weight: 800, style: "normal" },
+      ],
+    },
+  );
+}
