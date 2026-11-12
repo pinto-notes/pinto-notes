@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import SwiftData
 import Testing
@@ -442,6 +443,50 @@ private func props(_ e: [String: Any]?) -> [String: Any] { e?["properties"] as? 
         }
         #expect(steps.events == [.aiChangeUndone(.undo, change: .edited, after: .under5m),
                                  .aiChangeUndone(.changesList, change: .created, after: .under1d)])
+    }
+
+    @Test func deletingAFolderAnAIMadeThisWeekSaysSoOnce() throws {
+        let d = TestDefaults()
+        let now = Date()
+        let made = UUID(), old = UUID(), mine = UUID()
+        AIMadeFolders.mark(made, at: now.addingTimeInterval(-7 * 60), now: now, defaults: d, isOn: true)
+        AIMadeFolders.mark(old, at: now.addingTimeInterval(-8 * 86400), now: now, defaults: d, isOn: true)
+        let steps = FunnelSteps()
+        steps.watch {
+            AIUndoUsage.folderDeleted(made, now: now, defaults: d)
+            AIUndoUsage.folderDeleted(made, now: now, defaults: d)
+            AIUndoUsage.folderDeleted(old, now: now, defaults: d)
+            AIUndoUsage.folderDeleted(mine, now: now, defaults: d)
+        }
+        #expect(steps.events == [.aiChangeUndone(.deleted, change: .created, after: .under1h)])
+        // Off, nothing is kept.
+        let off = TestDefaults()
+        AIMadeFolders.mark(made, at: now, now: now, defaults: off, isOn: false)
+        #expect(off.object(forKey: AIMadeFolders.key) == nil)
+    }
+
+    @Test func aFolderRowSaysWhetherAnAIMadeItAndTheAppNeverSendsThat() throws {
+        let id = UUID().uuidString.lowercased()
+        func row(_ extra: String) throws -> FolderDTO {
+            let json = #"{"id":"\#(id)","parent_id":null,"sort_index":1,"created_at":"2026-11-12T12:53:13.251+00:00","updated_at":"2026-11-12T12:53:13.251+00:00","deleted_at":null\#(extra)}"#
+            let dec = JSONDecoder()
+            dec.dateDecodingStrategy = .custom { d in
+                let s = try d.singleValueContainer().decode(String.self)
+                let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                return f.date(from: s) ?? .distantPast
+            }
+            return try dec.decode(FolderDTO.self, from: Data(json.utf8))
+        }
+        #expect(try row(#","ai_made":true"#).ai_made)
+        #expect(try row(#","ai_made":false"#).ai_made == false)
+        #expect(try row("").ai_made == false, "a server from before the column")
+        var r = try row(#","ai_made":true"#)
+        r.name = "Plans"
+        let sent = try Wire.$testSealer.withValue(Sealer(key: .init(size: .bits256), user: UUID())) {
+            String(decoding: try JSONEncoder().encode(r), as: UTF8.self)
+        }
+        #expect(sent.contains("name_ct"))
+        #expect(!sent.contains("ai_made"))
     }
 
     @Test func deletingNotesCountsOnceAndSaysSoForANoteAnAIChanged() throws {

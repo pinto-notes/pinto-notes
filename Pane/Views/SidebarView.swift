@@ -1374,6 +1374,7 @@ struct SidebarView: View {
     private func performDelete(_ f: Folder) {
         if scope == .folder(f.id) { scope = .all }
         Usage.count(.folderDeleted)
+        AIUndoUsage.folderDeleted(f.id)
         SidebarView.folderChange { context.trash(f) }
     }
 }

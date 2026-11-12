@@ -1464,6 +1464,7 @@ final class SyncEngine {
         var byID = Dictionary(uniqueKeysWithValues: context.allFoldersIncludingDeleted().map { ($0.id, $0) })
         var appliedFolders: [FolderDTO] = []
         for r in folderRows where !r.unreadable || skipUnreadable(r.id, "A folder") {
+            if r.ai_made, r.deleted_at == nil { AIMadeFolders.mark(r.id, at: r.created_at) }
             let f = byID[r.id] ?? { let f = Folder(name: r.name); f.id = r.id; context.insert(f); byID[r.id] = f; return f }()
             if f.dirty && f.serverVersion > 0 { continue }
             // A row this device has already, as it is (the cursor's overlap brings the newest rows
@@ -1911,6 +1912,8 @@ struct FolderDTO: Codable, PagedRow {
     var server_stamp: String? = nil
     /// Doesn't open with this device's key: never applied.
     var unreadable = false
+    /// An AI made it (the MCP server's create). Read only: the app never sends it.
+    var ai_made = false
 
     init(_ f: Folder) {
         id = f.id
@@ -1922,7 +1925,7 @@ struct FolderDTO: Codable, PagedRow {
         deleted_at = f.deletedAt
     }
 
-    enum CodingKeys: String, CodingKey { case id, name_ct, parent_id, sort_index, created_at, updated_at, deleted_at, server_updated_at }
+    enum CodingKeys: String, CodingKey { case id, name_ct, parent_id, sort_index, created_at, updated_at, deleted_at, server_updated_at, ai_made }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -1934,6 +1937,7 @@ struct FolderDTO: Codable, PagedRow {
         deleted_at = try c.decodeIfPresent(Date.self, forKey: .deleted_at)
         server_updated_at = try c.decodeIfPresent(Date.self, forKey: .server_updated_at)
         server_stamp = try? c.decodeIfPresent(String.self, forKey: .server_updated_at)
+        ai_made = (try? c.decodeIfPresent(Bool.self, forKey: .ai_made)) ?? false
         if let box = try c.decodeIfPresent(String.self, forKey: .name_ct), let n = Wire.sealer?.open(box, context: E2EE.folder(id)) {
             name = n
         } else {

@@ -96,7 +96,7 @@ final class Telemetry: @unchecked Sendable {
         get { lock.withLock { consents } }
         set {
             let defaults = lock.withLock { self.defaults }
-            if !newValue { defaults.removeObject(forKey: Self.settingsSnapshotKey) }
+            if !newValue { defaults.removeObject(forKey: Self.settingsSnapshotKey); defaults.removeObject(forKey: AIMadeFolders.key) }
             defaults.set(newValue, forKey: Self.consentKey)
             if !newValue { lock.withLock { empty() } }
         }
@@ -144,6 +144,7 @@ final class Telemetry: @unchecked Sendable {
     private func startOver() {
         launchID = UUID().uuidString.lowercased()
         defaults.removeObject(forKey: Self.onceKey)
+        defaults.removeObject(forKey: AIMadeFolders.key)
     }
 
     private func empty() {

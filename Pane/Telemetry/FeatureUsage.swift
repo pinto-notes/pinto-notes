@@ -74,9 +74,39 @@ enum AwayBucket: String, TelemetryWord {
     }
 }
 
+/// Folders an AI made in the last week (the server marks them, `folders.ai_made`), so deleting one
+/// can say so. Only the folder's id and when it was made are kept here, at most 200, and only while
+/// Share diagnostics and usage is on; turning it off or signing out forgets them.
+enum AIMadeFolders {
+    static let key = "telemetry.aiFolders"
+    static let week: TimeInterval = 7 * 86400
+
+    static func mark(_ id: UUID, at: Date, now: Date = .now, defaults: UserDefaults = .standard, isOn: Bool = Telemetry.shared.isOn) {
+        guard isOn, now.timeIntervalSince(at) < week else { return }
+        var kept = (defaults.dictionary(forKey: key) as? [String: Double] ?? [:])
+            .filter { now.timeIntervalSince1970 - $0.value < week }
+        guard kept[id.uuidString] == nil else { return }
+        kept[id.uuidString] = at.timeIntervalSince1970
+        if kept.count > 200 { kept = Dictionary(uniqueKeysWithValues: kept.sorted { $0.value > $1.value }.prefix(200).map { ($0.key, $0.value) }) }
+        defaults.set(kept, forKey: key)
+    }
+
+    /// When the AI made it, if it did, and forgets it: a folder is deleted once.
+    static func takeMade(_ id: UUID, defaults: UserDefaults = .standard) -> Date? {
+        guard var kept = defaults.dictionary(forKey: key) as? [String: Double], let at = kept.removeValue(forKey: id.uuidString) else { return nil }
+        defaults.set(kept, forKey: key)
+        return Date(timeIntervalSince1970: at)
+    }
+}
+
 /// Taking back what an AI did, said where it happens.
 @MainActor
 enum AIUndoUsage {
+    /// The person deleted a folder: if an AI made it this week, that's taking back what it did.
+    static func folderDeleted(_ id: UUID, now: Date = .now, defaults: UserDefaults = .standard) {
+        if let at = AIMadeFolders.takeMade(id, defaults: defaults) { undone(.deleted, change: .created, at: at, now: now) }
+    }
+
     static func undone(_ how: AIUndoHow, change: AIChangeWord?, at: Date, now: Date = .now) {
         guard let after = SinceBucket(seconds: max(0, now.timeIntervalSince(at))) else { return }
         Funnel.record(.aiChangeUndone(how, change: change, after: after))
