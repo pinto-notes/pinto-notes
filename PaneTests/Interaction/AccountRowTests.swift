@@ -21,11 +21,14 @@ import Testing
         /// Settings' parts as laid out in that window (settingsProbe).
         var settingsFrames: [String: CGRect] = [:]
 
-        /// Where the foot's setup rows keep which have left: this host's own.
+        /// Where the foot's notice keeps whether it has gone: this host's own.
         let setupDefaults: UserDefaults
 
+        /// `created`: the account's sign-up date; nil (unknown) shows no notice. `onboarding`: the
+        /// first-run flow, when one is up.
         init(nested: Bool = false, foldersLater: Bool = false, behindCard: Bool = false, rows: Bool = false,
-             progress: SetupProgress = SetupProgress(connected: true, dismissed: true), account: UUID = UUID(), defaults: UserDefaults? = nil) async throws {
+             progress: SetupProgress = SetupProgress(connected: true, dismissed: true), account: UUID = UUID(), defaults: UserDefaults? = nil,
+             created: Date? = nil, onboarding: OnboardingStore? = nil) async throws {
             container = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
             let ctx = container.mainContext
             if !foldersLater {
@@ -37,7 +40,7 @@ import Testing
                 ctx.move(ctx.createFolder(named: "Acme"), into: work)
             }
             try ctx.save()
-            let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com", userID: account)
+            let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com", userID: account, created: created)
             self.backend = backend
             ProfileStore.shared.showForPreview(name: "Emil Wagman", photo: nil)
             let setup = SetupStore(progress: progress)
@@ -48,6 +51,7 @@ import Testing
                 .environment(backend)
                 .environment(SyncEngine(backend: backend, context: ctx))
                 .environment(setup)
+                .environment(onboarding)
                 .environment(\.sidebarStudy, rows ? SidebarStudy() : nil)
                 .environment(\.sidebarSetupDefaults, setupDefaults)
             // `behindCard`: as the first run shows it, under a setup card (AppGate.notesBehind).
@@ -288,15 +292,15 @@ import Testing
     }
 
     /// Measured in the real window, not worked out: the account's highlight as far in on the left as
-    /// a folder row's pill and about as far in on the right, and Templates, Connect an AI and Import
-    /// with their pills (so their icons and names) where a folder row's are. Came back once
+    /// a folder row's pill and about as far in on the right, and Templates
+    /// with its pill (so their icons and names) where a folder row's are. Came back once
     /// (2026-11-02): the shots' own copy of the foot kept the old padding.
     @Test(arguments: [false, true])
     func theFootLinesUpWithTheFolderRowsInTheWindow(nested: Bool) async throws {
         HoverProbe.enabled = true
         FootProbe.frames = [:]
         defer { HoverProbe.enabled = false; HoverProbe.reset(); FootProbe.frames = [:] }
-        // A new account, nothing connected or imported yet: all three setup rows.
+        // A new account, nothing connected or imported yet: Templates (the notice waits for a known sign-up date).
         let host = try await Host(nested: nested, rows: true, progress: SetupProgress())
         defer { host.close() }
         let (sidebar, cell) = try host.sidebarAndNotesRow()
@@ -314,15 +318,15 @@ import Testing
         #expect(abs(account.minX + reach.leading - row.minX) < 0.5, "the photo starts where the folder icon does")
         #expect(abs(account.height - (AccountButton.avatar + reach.top + reach.bottom)) < 0.5, "a folder pill's reach around the photo: \(account.height)")
         // A gap between the rows and you (Emil, 8 November 2026).
-        let lastRow = try #require(FootProbe.frames["sidebar.import"])
-        #expect(account.minY - lastRow.maxY >= SidebarFoot.accountGap, "the account sits \(account.minY - lastRow.maxY) pt under Import notes")
+        let lastRow = try #require(FootProbe.frames["sidebar.templates"])
+        #expect(account.minY - lastRow.maxY >= SidebarFoot.accountGap, "the account sits \(account.minY - lastRow.maxY) pt under Templates")
         // Their words start where your name does (Emil, 8 November 2026).
         let name = try #require(FootProbe.frames["sidebar.account.name"], "your name is in the window")
-        for id in ["sidebar.templates", "sidebar.connectAI", "sidebar.import"] {
+        for id in ["sidebar.templates"] {
             let words = try #require(FootProbe.frames["\(id).title"], "\(id)'s words are in the window")
             #expect(abs(words.minX - name.minX) < 0.5, "\(id)'s words start at \(words.minX), your name at \(name.minX)")
         }
-        for id in ["sidebar.templates", "sidebar.connectAI", "sidebar.import"] {
+        for id in ["sidebar.templates"] {
             let r = try #require(FootProbe.frames[id], "\(id) is in the window")
             #expect(abs(r.minX - account.minX) < 0.5 && abs(r.maxX - account.maxX) < 0.5, "\(id)'s pill \(r) spans the account's \(account)")
             #expect(abs(r.height - (32 - SidebarStyle.pillGap)) < 0.5, "\(id) is a folder pill's height: \(r.height)")

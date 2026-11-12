@@ -335,7 +335,7 @@ import Testing
         let footEnd = try #require(sidebar.range(of: "private func withDialogs(")).lowerBound
         #expect(sidebar[footed..<footEnd].contains(".background(Color(Palette.sidebarWarmth).ignoresSafeArea())"), "the foot shares the list's ground")
         let foot = try SettingsHomeTests.source("Pane/Views/SidebarAIs.swift")
-        #expect(foot.contains("if rows { SidebarAILine(); SidebarStudyRows(imports: imports, account: backend.userID"), "first in the foot")
+        #expect(foot.contains("SetupNoticeCard(account: backend.userID, accountCreated: backend.accountCreated)\n                SidebarAILine()\n                SidebarStudyRows(imports: imports)"), "first in the foot, under the new account's notice")
         // Only connected, nothing done: no row (Emil, 8 November 2026: "Grok connected" read as a notification).
         let line = try SettingsHomeTests.source("Pane/Views/SidebarAILine.swift")
         #expect(!line.contains("SidebarAICopy.connected(ConnectedAIs"), "no \"X connected\" row")

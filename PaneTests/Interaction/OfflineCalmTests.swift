@@ -142,7 +142,7 @@ import Testing
         #expect(abs(cloud.midY - name.midY) < 2 && cloud.minX >= name.maxX, "the cloud is beside your name: \(cloud) by \(name)")
         let before = try #require(plain["sidebar.account"]), foot = try #require(frames["sidebar.foot"]), footBefore = try #require(plain["sidebar.foot"])
         #expect(abs(account.height - before.height) < 0.5 && abs(foot.height - footBefore.height) < 0.5, "nothing moves when it shows: \(foot.height) against \(footBefore.height)")
-        for id in ["sidebar.templates", "sidebar.connectAI", "sidebar.import"] {
+        for id in ["sidebar.templates"] {
             #expect(frames[id] == plain[id], "\(id) stays where it was")
         }
     }

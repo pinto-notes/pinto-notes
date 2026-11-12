@@ -209,10 +209,11 @@ final class Backend {
     }
 
     /// Tests: a client (on a stubbed network) that counts as signed in, as `userID` when given.
-    init(testClient: SupabaseClient, email: String, userID: UUID? = nil) {
+    init(testClient: SupabaseClient, email: String, userID: UUID? = nil, created: Date? = nil) {
         client = testClient
         state = .signedIn(email: email)
         self.userID = userID
+        accountCreated = created
     }
 
     /// Tests: a client (on a stubbed network) whose stored session decides the state, as at launch.
@@ -304,7 +305,8 @@ final class Backend {
     }
 
     /// For screenshots and previews only: shows the signed-in screens without a session.
-    func showSignedInForPreview(email: String, account: UUID? = nil) {
+    func showSignedInForPreview(email: String, account: UUID? = nil, created: Date? = nil) {
+        if let created { accountCreated = created }
         if let account { userID = account }
         state = .signedIn(email: email)
     }

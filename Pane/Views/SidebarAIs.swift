@@ -28,8 +28,6 @@ struct SidebarActionRow: View {
     let symbol: String
     let id: String
     var action: () -> Void = {}
-    /// Hides the row for good: its right-click menu and its accessibility action (nil: neither).
-    var remove: (() -> Void)? = nil
 
     var body: some View {
         Button(action: action) {
@@ -47,12 +45,6 @@ struct SidebarActionRow: View {
         .buttonStyle(.plain)
         // The pill above is its hover: a second one here drew two fills (Emil, 3 November 2026).
         .accessibilityIdentifier(id)
-        .contextMenu {
-            if let remove { Button(SidebarSetupRow.removeTitle, systemImage: "minus.circle", action: remove) }
-        }
-        .accessibilityActions {
-            if let remove { Button(SidebarSetupRow.removeTitle, action: remove) }
-        }
     }
 }
 
@@ -132,71 +124,153 @@ struct SidebarFootLabel<Title: View, Icon: View>: View {
     }
 }
 
-/// The setup rows at the foot of the sidebar, most used first: the templates, your AIs (the
-/// sheet lists the connected ones and connects more), and importing more notes. Each leaves once
-/// its job is done or you remove it (SidebarSetup), and never comes back; with none left this
-/// draws nothing and takes no room.
+/// Templates, a row at the foot of the sidebar for good (Emil, 12 November 2026: "maybe we
+/// should keep templates there"). Connect an AI and Import notes are in Settings, said once by
+/// the notice above (SetupNoticeCard).
 struct SidebarStudyRows: View {
     var imports: ImportActions?
-    /// The signed-in account. Nil (a demo run's real-input checks, captures) shows every row.
-    var account: UUID? = nil
+
+    var body: some View {
+        let row = SidebarSetupRow.templates
+        SidebarActionRow(title: row.title, symbol: row.symbol, id: row.id) {
+            NotificationCenter.default.post(name: row.opens, object: nil)
+        }
+        // The gap between the rows and you, as it was with three of them.
+        .padding(.bottom, SidebarStyle.pillGap)
+    }
+}
+
+/// The notice a new account sees once, at the top of the foot: that Settings connects more AIs
+/// (and imports notes, until it has). A quiet card in the sidebar's own grey, its words on the
+/// rows' icons' line; Open Settings takes you to AI Connections, the × closes it, and either puts
+/// it away for good, as two weeks after the first note do (SetupNotice).
+struct SetupNoticeCard: View {
+    /// The signed-in account. Nil (a demo run, captures without one): no notice.
+    var account: UUID?
     /// When the account was made, as the server says.
-    var accountCreated: Date? = nil
+    var accountCreated: Date?
     @Environment(SetupStore.self) private var setupStore: SetupStore?
+    @Environment(OnboardingStore.self) private var onboarding: OnboardingStore?
     @Environment(\.modelContext) private var context
     @Environment(\.appearsActive) private var appearsActive
     @Environment(\.sidebarSetupDefaults) private var defaults
-    /// The rows still here; nil until worked out (then none show for an account, so none blink).
-    @State private var shown: [SidebarSetupRow]?
+    @State private var line: String?
 
-    private var setup: SidebarSetup? { account.map { SidebarSetup(defaults: defaults, account: $0) } }
+    typealias Metrics = SidebarCardMetrics
+    static let id = "sidebar.notice"
+    static let font = Font.system(size: 12)
 
-    /// What can change the answer: the server's marks, the AI connections, the window coming forward.
+    private var notice: SetupNotice? { account.map { SetupNotice(defaults: defaults, account: $0) } }
+
+    /// What can change the answer: the server's marks, the first-run flow, the window coming forward.
     private struct Inputs: Equatable {
         var account: UUID?
         var progress: SetupProgress?
-        var connected: [String]?
+        var onboarding: Bool
         var active: Bool
     }
 
     var body: some View {
-        let rows = shown ?? (account == nil ? SidebarSetupRow.allCases : [])
-        VStack(alignment: .leading, spacing: SidebarStyle.pillGap) {
-            ForEach(rows, id: \.self) { row in
-                SidebarActionRow(title: row.title, symbol: row.symbol, id: row.id, action: {
-                    NotificationCenter.default.post(name: row.opens, object: nil)
-                }, remove: setup.map { setup in { remove(row, setup) } })
-                .transition(.opacity)
-            }
+        // A stack, not a Group: with no notice it is still there, so the check below still runs.
+        VStack(spacing: 0) {
+            if let line { card(line).transition(.opacity) }
         }
-        // The gap under the rows is theirs, so with none left the account sits where they were.
-        .padding(.bottom, rows.isEmpty ? 0 : SidebarStyle.pillGap)
-        .preference(key: SidebarFootAbove.self, value: !rows.isEmpty)
-        .onChange(of: Inputs(account: account, progress: setupStore?.progress, connected: ConnectedAIs.shared.knownNames, active: appearsActive),
+        .onChange(of: Inputs(account: account, progress: setupStore?.progress, onboarding: onboarding?.active ?? false, active: appearsActive),
                   initial: true) { update() }
+        .onReceive(NotificationCenter.default.publisher(for: Self.closed)) { _ in update() }
+        #if DEBUG
+        .onChange(of: line, initial: true) { if HoverProbe.enabled { FootProbe.notice = line } }
+        #endif
+    }
+
+    private func card(_ line: String) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
+        return VStack(alignment: .leading, spacing: 6) {
+            // At most four lines, never fixed to its full height: a fixed line asked for its
+            // smallest size in a narrow sidebar sets the window's smallest height (see SidebarCardShell).
+            Text(line)
+                .font(Self.font)
+                .foregroundStyle(Color.muted)
+                .lineLimit(4)
+                .accessibilityIdentifier("\(Self.id).text")
+                #if DEBUG
+                .footProbe("\(Self.id).text")
+                #endif
+            Button(action: openSettings) {
+                HStack(spacing: 3) {
+                    Text(SetupNoticeWords.open)
+                    Image(systemName: "chevron.right").font(Metrics.arrow)
+                }
+                .font(Metrics.button)
+                .foregroundStyle(Color.amberInk)
+                .frame(minHeight: Metrics.buttonHeight)
+            }
+            .buttonStyle(.hoverText)
+            .accessibilityHint("Opens Settings at \(SettingsNames.ai)")
+            .accessibilityIdentifier("\(Self.id).open")
+        }
+        // The words start where the rows' icons do; the × keeps its corner.
+        .padding(.leading, Hover.sidebarReach().leading)
+        .padding(.trailing, Metrics.closeSize + Metrics.closeInset)
+        .padding(.top, Metrics.padding)
+        .padding(.bottom, Metrics.padding - 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(Palette.rowPillHover), in: shape)
+        .overlay(alignment: .topTrailing) {
+            Button(action: close) {
+                Image(systemName: "xmark")
+                    .font(.system(size: Metrics.closeGlyph, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: Metrics.closeSize, height: Metrics.closeSize)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.quietIcon)
+            .padding(Metrics.closeInset)
+            .accessibilityLabel("Close")
+            .accessibilityHint("Hides this for good")
+            .accessibilityIdentifier("\(Self.id).close")
+            .help("Close")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(Self.id)
+        #if DEBUG
+        .footProbe(Self.id)
+        #endif
+        // Its gap under it is its own: gone, it leaves no room behind.
+        .padding(.bottom, SidebarFoot.accountGap)
     }
 
     private func update() {
-        guard let setup else { shown = nil; return }
-        let facts = SidebarSetup.facts(progress: setupStore?.progress, connected: ConnectedAIs.shared.knownNames,
-                                       ledger: NoteSourceLedger(defaults: defaults, account: account), context: context,
-                                       accountCreated: accountCreated, setup: setup)
-        let now = setup.shown(facts)
-        guard now != shown else { return }
-        if shown == nil { shown = now } else { withAnimation(.easeOut(duration: 0.2)) { shown = now } }
+        guard let notice else { line = nil; return }
+        let facts = SetupNotice.facts(progress: setupStore?.progress, context: context, accountCreated: accountCreated, notice: notice)
+        let now = notice.line(facts, onboarding: onboarding?.active ?? false)
+        guard now != line else { return }
+        withAnimation(.easeOut(duration: 0.2)) { line = now }
     }
 
-    private func remove(_ row: SidebarSetupRow, _ setup: SidebarSetup) {
-        setup.remove(row)
-        withAnimation(.easeOut(duration: 0.2)) { shown = (shown ?? []).filter { $0 != row } }
+    private func close() {
+        guard let notice else { return }
+        withAnimation(.easeOut(duration: 0.2)) { line = nil }
+        Self.press(.close, notice)
     }
-}
 
-/// Something is drawn above the account in the foot (the AI's last change, a setup row): only
-/// then is the account set a little apart from it.
-struct SidebarFootAbove: PreferenceKey {
-    static let defaultValue = false
-    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
+    private func openSettings() {
+        guard let notice else { return }
+        withAnimation(.easeOut(duration: 0.2)) { line = nil }
+        Self.press(.open, notice)
+    }
+
+    enum Press { case open, close }
+
+    /// What each button does: the notice goes for good (every window's card hears it), and Open
+    /// Settings opens AI Connections.
+    static func press(_ button: Press, _ notice: SetupNotice) {
+        notice.close()
+        NotificationCenter.default.post(name: closed, object: nil)
+        if button == .open { SettingsRoute.shared.open(.ai) }
+    }
+
+    static let closed = Notification.Name("pane.setupNoticeClosed")
 }
 
 /// The foot of the Mac sidebar: the study's rows (when on), then you. One view for the app and
@@ -215,8 +289,6 @@ struct SidebarFoot: View {
     /// What the offline status reads: sync, unless a capture stands in for it.
     var offline: (any OfflineSource)? = nil
     @State private var status = OfflineStatus()
-    /// The AI's line or a setup row is drawn above the account.
-    @State private var above = false
 
     /// The photo's column: each row's icon is centred in one as wide as the account's photo, and its
     /// words start where your name does, so the foot reads as one block (Emil, 8 November 2026:
@@ -239,12 +311,16 @@ struct SidebarFoot: View {
         let source: (any OfflineSource)? = offline ?? sync
         // The server is away (or the popover is still open on what Try now found).
         let away = source.map { status.shows($0.reach) } ?? false
-        // Each part above the account brings its own gap under it, so a part with nothing to show
-        // (no change this week, every setup row gone) leaves no room behind (Emil, 12 November 2026).
+        // Each part above Templates brings its own gap under it, so a part with nothing to show
+        // (no change this week, the notice gone) leaves no room behind (Emil, 12 November 2026).
         VStack(alignment: .leading, spacing: 0) {
-            // What an AI last did, as the first row: in the foot itself, not a bar of its own over the
-            // folders, whose edge showed a line on hover (Emil, 8 November 2026).
-            if rows { SidebarAILine(); SidebarStudyRows(imports: imports, account: backend.userID, accountCreated: backend.accountCreated) }
+            // The new account's notice first, then what an AI last did: in the foot itself, not a bar
+            // of its own over the folders, whose edge showed a line on hover (Emil, 8 November 2026).
+            if rows {
+                SetupNoticeCard(account: backend.userID, accountCreated: backend.accountCreated)
+                SidebarAILine()
+                SidebarStudyRows(imports: imports)
+            }
             // While sync is away the account row says so: a line under your name and a cloud beside it.
             AccountButton(backend: backend, offline: away ? source.map { ($0, status) } : nil)
                 // Syncing, said quietly where your account is (Emil, 8 November 2026). Never while
@@ -256,9 +332,8 @@ struct SidebarFoot: View {
                     }
                 }
                 // A little apart from the rows above: you, not another thing to do (Emil, 8 November 2026).
-                .padding(.top, rows && above ? SidebarFoot.accountGap : 0)
+                .padding(.top, rows ? SidebarFoot.accountGap : 0)
         }
-        .onPreferenceChange(SidebarFootAbove.self) { above = $0 }
         .padding(.leading, pill.leading)
         // As far in on the right as on the left: the folder list keeps room on its right for the
         // scroll bar, the foot has none (Emil, 8 November 2026).
@@ -276,6 +351,8 @@ struct SidebarFoot: View {
 @MainActor
 enum FootProbe {
     static var frames: [String: CGRect] = [:]
+    /// What the new account's notice says, while it shows.
+    static var notice: String?
 }
 
 extension View {

@@ -211,6 +211,7 @@ enum SettingsIndex {
         e("Today\u{2019}s note title", .todaysNote, "settings.today.title", also: ["Daily note title", "Date format"]),
         e("Today\u{2019}s note template", .todaysNote, "settings.today.template", also: ["Template", "Daily note template"]),
         e("Open today\u{2019}s note when Pinto starts", .todaysNote, "settings.today.launch", also: ["Open on launch", "Daily note"]),
+        e(GeneralCopy.importNotes, .general, "settings.importNotes", also: ["Import", "Import notes", "Apple Notes", "Obsidian", "Notion", "Bear", "Evernote"]),
         e("Ticked items move to the bottom", .general, "settings.notes.ticked", also: ["Checklist", "Sort checked items", "Ticked"]),
         e("Share diagnostics and usage", .security, "settings.diagnostics"),
         e("Light or dark mode", .appearance, "settings.mode.system"), e("Theme", .appearance, "settings.theme.default"),
