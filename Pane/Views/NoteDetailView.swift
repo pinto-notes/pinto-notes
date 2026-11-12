@@ -1564,6 +1564,13 @@ struct NoteDetailView: View {
                     .transition(.opacity)
             }
             .sharedBackgroundVisibility(.hidden)
+        } else if !note.isLocked, !trashed, !NoteLabels.labels(in: note.frontMatter).isEmpty {
+            // The note's labels in the middle of the bar, where nothing else is: a tap shows the
+            // tag's notes.
+            ToolbarItem(placement: .principal) {
+                NoteLabelChips(labels: NoteLabels.labels(in: note.frontMatter), limit: 2) { controller.openTag($0) }
+            }
+            .sharedBackgroundVisibility(.hidden)
         }
         // Undo, a round button of its own just left of Share and More (Emil, 29 October 2026): it
         // comes once you change the note and goes when there's nothing left since it opened.
@@ -2133,6 +2140,15 @@ struct NoteToolbarStage<Pane: View>: View {
                         ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, open: openScope) }
                             .sharedBackgroundVisibility(.hidden)
                             .hidden(!showsItems)
+                    }
+                    // The note's labels, beside where it is: a click shows the tag's notes.
+                    if let place, !NoteLabels.labels(in: place.frontMatter).isEmpty {
+                        ToolbarItem {
+                            NoteLabelChips(labels: NoteLabels.labels(in: place.frontMatter)) { controller.openTag($0) }
+                                .padding(.leading, 4)
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                        .hidden(!showsItems)
                     }
                     if let said = self.parts?.said {
                         ToolbarItem {

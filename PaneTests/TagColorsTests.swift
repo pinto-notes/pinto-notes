@@ -96,82 +96,97 @@ import AppKit
         #expect(storage.attribute(.paneTag, at: tag.location, effectiveRange: nil) == nil)
     }
 
-    // MARK: Adding and removing from the menu
+    // MARK: Labels from the menu
 
-    @Test func aNewTagsNameIsWhatATagCanHold() {
-        #expect(Tags.typedName("Needs review") == "Needs-review")
-        #expect(Tags.typedName("  #work/clients ") == "work/clients")
-        #expect(Tags.typedName("to read!") == "to-read")
-        #expect(Tags.typedName("2026") == nil, "all digits isn't a tag")
-        #expect(Tags.typedName("   ") == nil)
-        #expect(Tags.typedName("#") == nil)
+    @Test func aLabelsNameKeepsItsSpaces() {
+        #expect(NoteLabels.typedName("  Needs   review ") == "Needs review")
+        #expect(NoteLabels.typedName("#Later") == "Later")
+        #expect(NoteLabels.typedName("2026") == "2026", "a label can be a number")
+        #expect(NoteLabels.typedName("   ") == nil)
+        #expect(NoteLabels.typedName("#") == nil)
+        #expect(NoteLabels.typedName("!!!") == nil)
     }
 
-    @Test func addingGoesOnTheTagLineUnderTheTitle() {
-        // No tag line yet: one is made right under the title.
-        #expect(Tags.adding("needs-review", to: "Plan\nFirst line\nSecond") == "Plan\n#needs-review\nFirst line\nSecond")
-        // One there: the tag goes at its end.
-        #expect(Tags.adding("later", to: "Plan\n#needs-review\nFirst line") == "Plan\n#needs-review #later\nFirst line")
-        // Only the title.
-        #expect(Tags.adding("later", to: "Plan") == "Plan\n#later")
-        #expect(Tags.adding("later", to: "Plan\n") == "Plan\n#later")
-        // An empty note.
-        #expect(Tags.adding("later", to: "") == "#later")
-        // A line under the title with words and a tag isn't the tag line.
-        #expect(Tags.adding("later", to: "Plan\nCall #home soon") == "Plan\n#later\nCall #home soon")
-        // Every way the result is written, it's found as the tag.
-        #expect(Tags.hasExactly("needs-review", in: Tags.adding("needs-review", to: "Plan\nText")))
+    @Test func labelsLiveInTheFrontMatterAsTags() {
+        let fm = NoteLabels.setting(["Needs review", "Later"], in: nil)
+        #expect(fm == "tags:\n  - Needs review\n  - Later")
+        #expect(NoteLabels.labels(in: fm) == ["Needs review", "Later"])
+        // Other keys stay as they were; an old tags list is replaced.
+        let imported = "source: https://example.com\ntags:\n  - old\naliases: [Acme]"
+        let set = NoteLabels.setting(["Needs review"], in: imported)
+        #expect(set == "source: https://example.com\naliases: [Acme]\ntags:\n  - Needs review")
+        #expect(NoteLabels.labels(in: set) == ["Needs review"])
+        #expect(WikiLinks.aliases(inFrontMatter: set) == ["Acme"])
+        // None left: no tags key; nothing else either: no front matter.
+        #expect(NoteLabels.setting([], in: set) == "source: https://example.com\naliases: [Acme]")
+        #expect(NoteLabels.setting([], in: fm) == nil)
+        // Obsidian's ways of writing them are read too.
+        #expect(NoteLabels.labels(in: "tags: [work, \"Needs review\"]") == ["work", "Needs review"])
+        #expect(NoteLabels.labels(in: "tags: #work #home") == ["work", "home"])
+        #expect(NoteLabels.labels(in: "title: Plan") == [])
+        // Quoted when YAML would misread it.
+        #expect(NoteLabels.labels(in: NoteLabels.setting(["a: b", "#x"], in: nil)) == ["a: b", "x"])
     }
 
-    @Test func addingATagTheNoteHasChangesNothing() {
-        let text = "Plan\nCall Sam #Needs-Review"
-        #expect(Tags.adding("needs-review", to: text) == text)
-        // A nested tag isn't the tag itself.
-        #expect(Tags.adding("work", to: "Plan\n#work/clients") == "Plan\n#work/clients #work")
-    }
-
-    @Test func removingTakesTheTagOutWhereverItIs() {
+    @Test func removingTakesAWrittenTagOutWhereverItIs() {
         #expect(Tags.removing("needs-review", from: "Plan\n#needs-review\nFirst line") == "Plan\nFirst line")
         #expect(Tags.removing("later", from: "Plan\n#needs-review #later\nText") == "Plan\n#needs-review\nText")
-        #expect(Tags.removing("needs-review", from: "Plan\n#needs-review #later\nText") == "Plan\n#later\nText")
         #expect(Tags.removing("home", from: "Plan\nCall #home soon") == "Plan\nCall soon")
         #expect(Tags.removing("home", from: "Plan\n#home") == "Plan")
         #expect(Tags.removing("Home", from: "Plan\n#home and #HOME\nEnd") == "Plan\nand\nEnd")
-        // Nested tags under it stay; text without it is unchanged.
         #expect(Tags.removing("work", from: "Plan\n#work #work/clients") == "Plan\n#work/clients")
-        #expect(Tags.removing("work", from: "Plan\nNothing") == "Plan\nNothing")
-        // Not what's in code.
         #expect(Tags.removing("work", from: "Plan\n`#work` here") == "Plan\n`#work` here")
     }
 
-    @Test func addThenRemoveGivesTheNoteBack() {
-        for text in ["Plan\nFirst line\nSecond", "Plan", "Plan\n#a\nBody", "Plan\nCall #home soon\n"] {
-            #expect(Tags.removing("zz-tag", from: Tags.adding("zz-tag", to: text)) == text)
-        }
-    }
-
-    @MainActor @Test func theMenuTagsNotesAndUndoTakesItBack() throws {
+    @MainActor @Test func theMenuLabelsNotesAndUndoTakesItBack() throws {
         let container = try ModelContainer(for: Note.self, Folder.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let context = container.mainContext
-        let a = Note(body: "Plan\nFirst"), b = Note(body: "Trip\n#needs-review\nPack")
+        let a = Note(body: "Plan\nFirst"), b = Note(body: "Trip\nPack #later")
+        b.frontMatter = "source: Bear"
         let locked = Note(body: "Secret")
         locked.lockedBody = "sealed"
         [a, b, locked].forEach(context.insert)
+        let dated = a.updatedAt
         let undo = UndoManager()
         undo.groupsByEvent = false
         undo.beginUndoGrouping()
-        context.setTag("needs-review", on: [a, b, locked], to: true, undo: undo)
+        context.setTag("Needs review", on: [a, b, locked], to: true, undo: undo)
         undo.endUndoGrouping()
-        #expect(a.body == "Plan\n#needs-review\nFirst")
-        #expect(b.body == "Trip\n#needs-review\nPack", "it had it already")
-        #expect(locked.body == "Secret", "a locked note's text isn't here to change")
-        #expect(a.dirty, "it syncs")
-        undo.undo()
+        // A label, not text: the notes say what they said.
         #expect(a.body == "Plan\nFirst")
-        #expect(b.body == "Trip\n#needs-review\nPack")
+        #expect(NoteLabels.labels(in: a.frontMatter) == ["Needs review"])
+        #expect(NoteLabels.labels(in: b.frontMatter) == ["Needs review"])
+        #expect(b.frontMatter?.hasPrefix("source: Bear") == true)
+        #expect(locked.frontMatter == nil, "a locked note isn't changed here")
+        #expect(a.dirty, "it syncs")
+        #expect(abs(a.updatedAt.timeIntervalSince(dated)) < 1, "it keeps its place in the list")
+        undo.undo()
+        #expect(a.frontMatter == nil)
+        #expect(b.frontMatter == "source: Bear")
 
-        context.setTag("needs-review", on: [a, b], to: false, undo: nil)
+        // A tag written in the text counts: it's ticked, and taking it off takes it out of the text.
+        #expect(NoteTagsMenu.has("later", b))
+        context.setTag("later", on: [b], to: true, undo: nil)
+        #expect(NoteLabels.labels(in: b.frontMatter).isEmpty, "it has it already")
+        context.setTag("later", on: [b], to: false, undo: nil)
         #expect(b.body == "Trip\nPack")
+    }
+
+    @MainActor @Test func aLabelIsATagInTheSidebarAndItsList() throws {
+        let container = try ModelContainer(for: Note.self, Folder.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = container.mainContext
+        let a = Note(body: "Plan\nFirst"), b = Note(body: "Trip\n#work/clients here")
+        a.frontMatter = NoteLabels.setting(["Needs review", "work"], in: nil)
+        [a, b].forEach(context.insert)
+        try context.save()
+        let index = TagIndex()
+        let entries = index.entries(in: context)
+        #expect(entries.map(\.name) == ["Needs review", "work", "work/clients"])
+        #expect(entries.first { $0.name == "work" }?.count == 2, "a label and a written tag nested under it")
+        #expect(Tags.noteIDs(tagged: "Needs review", in: context) == [a.persistentModelID])
+        #expect(Tags.noteIDs(tagged: "work", in: context) == [a.persistentModelID, b.persistentModelID])
+        // Typing # never offers one with a space: it couldn't be written.
+        #expect(!index.suggestions("ne", in: context).contains("Needs review"))
     }
 
     @Test func theListPreviewsTheTextNotTheTagLine() {

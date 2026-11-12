@@ -300,7 +300,7 @@ enum NoteText {
                 continue
             }
             inTable = false
-            // The line of tags under a title (Tags.adding) isn't what the note says: the list
+            // A line of only tags under a title (#work #later) isn't what the note says: the list
             // previews the line after it, and the tags show in the note as labels.
             if title != nil, trimmed.hasPrefix("#"), Tags.isTagsOnly(trimmed) { continue }
             // An embedded file (Obsidian's "![[greenhouse.png]]") is a picture, not words: the list

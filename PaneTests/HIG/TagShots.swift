@@ -43,6 +43,12 @@ import Testing
         }
         let n = c.mainContext.createNote(in: .all, body: note)
         n.updatedAt = .now.addingTimeInterval(600)
+        // Labels from the right-click (NoteLabels): on the open note and two others in the list.
+        n.frontMatter = NoteLabels.setting(["Needs review", "Q2"], in: nil)
+        let all = (try? c.mainContext.fetch(FetchDescriptor<Note>())) ?? []
+        for (title, labels) in [("Launch checklist", ["Needs review"]), ("Q3 planning", ["Waiting on Theo"])] {
+            all.first { $0.title == title }?.frontMatter = NoteLabels.setting(labels, in: nil)
+        }
         try c.mainContext.save()
         return c
     }

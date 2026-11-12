@@ -2108,6 +2108,7 @@ struct NoteRow: View {
         let app = NoteAppMark.has(note)
         let picture = Self.picture(of: note)
         let found = self.found
+        let labels = NoteLabels.labels(in: note.frontMatter)
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: RowMetrics.spacing) {
                 HStack(spacing: 5) {
@@ -2193,6 +2194,12 @@ struct NoteRow: View {
                         }
                     }
                     .font(RowMetrics.detail)
+                }
+                // The note's labels, from its right-click (NoteLabels): a line of their own, only
+                // on notes that have some.
+                if !labels.isEmpty {
+                    NoteLabelChips(labels: labels, compact: true)
+                        .padding(.top, 2)
                 }
                 if folderLine, let f = note.folder {
                     HStack(spacing: DesignLook.calmList ? 4 : 5) {

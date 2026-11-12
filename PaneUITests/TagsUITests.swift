@@ -1,10 +1,10 @@
 #if os(iOS)
 import XCTest
 
-/// Tags from a note's long-press, on the demo library (Emil, 12 November 2026: "just right click a
-/// note, and then I have it there as an option"): New Tag… adds one, the note shows it as a coloured
-/// label, the Folders list has it under Tags, its long-press picks its colour, and the next note's
-/// menu offers it ticked or not. PANE_SHOTS (TEST_RUNNER_ prefixed) keeps the pictures; PANE_PACE
+/// Labels from a note's long-press, on the demo library (Emil, 12 November 2026: "I just want to
+/// right click a note and basically mark it with a label"): New Tag… puts one on the note, its row
+/// and its bar show it in colour, the Folders list has it under Tags, its long-press picks its
+/// colour, and the next note's menu offers it. PANE_SHOTS (TEST_RUNNER_ prefixed) keeps the pictures; PANE_PACE
 /// slows each step down for a recording.
 final class TagsUITests: XCTestCase {
     var app: XCUIApplication!
@@ -77,13 +77,16 @@ final class TagsUITests: XCTestCase {
         app.alerts.buttons["Add"].tap()
         wait()
 
-        // The note has it, as a label under its title.
-        weekend.tap()
-        let label = app.textViews.firstMatch
-        XCTAssertTrue(label.waitForExistence(timeout: 5))
-        XCTAssertTrue((label.value as? String ?? "").contains("#Needs-review"), "the tag is in the note")
+        // The row shows it; the note shows it in its bar, and its text is as it was.
         wait()
-        shot("05-note-with-label")
+        shot("05-row-with-label")
+        weekend.tap()
+        let text = app.textViews.firstMatch
+        XCTAssertTrue(text.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["label.Needs review"].firstMatch.waitForExistence(timeout: 5), "the label is in the note's bar")
+        XCTAssertFalse((text.value as? String ?? "").contains("#"), "the note's text is untouched")
+        wait()
+        shot("05b-note-with-label")
 
         // A second tag on the same note, from the menu again.
         backButton.tap()
@@ -104,7 +107,7 @@ final class TagsUITests: XCTestCase {
         XCTAssertTrue(packing.waitForExistence(timeout: 5))
         packing.press(forDuration: 1.0)
         app.buttons["Tags"].firstMatch.tap()
-        let offered = app.buttons["Needs-review"].firstMatch
+        let offered = app.buttons["Needs review"].firstMatch
         XCTAssertTrue(offered.waitForExistence(timeout: 3), "the library's tags are offered")
         shot("06-tags-menu-offered")
         offered.tap()
@@ -112,7 +115,7 @@ final class TagsUITests: XCTestCase {
 
         // The Folders list: Tags, each with its colour and count.
         backToFolders()
-        let tagRow = row("tag.Needs-review")
+        let tagRow = row("tag.Needs review")
         app.swipeUp()
         XCTAssertTrue(tagRow.waitForExistence(timeout: 5), "the tag is in the sidebar")
         wait()

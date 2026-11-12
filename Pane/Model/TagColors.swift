@@ -238,45 +238,6 @@ extension Tags {
         find(in: text).contains { $0.name.lowercased() == tag.lowercased() }
     }
 
-    /// A name typed for a new tag, as it's written after the `#`: spaces become dashes ("Needs
-    /// review" is `#Needs-review`), a leading `#` and characters a tag can't hold go. Nil when
-    /// nothing usable is left (a tag needs a letter or `_`).
-    static func typedName(_ typed: String) -> String? {
-        var s = typed.trimmingCharacters(in: .whitespacesAndNewlines)
-        while s.hasPrefix("#") { s.removeFirst() }
-        let dashed = s.split(whereSeparator: \.isWhitespace).joined(separator: "-")
-        let kept = dashed.unicodeScalars.filter { c in
-            CharacterSet.letters.contains(c) || CharacterSet.decimalDigits.contains(c) || CharacterSet.nonBaseCharacters.contains(c) || c == "_" || c == "-" || c == "/"
-        }
-        var name = String(String.UnicodeScalarView(kept))
-        while name.hasSuffix("/") || name.hasSuffix("-") { name.removeLast() }
-        while name.hasPrefix("/") || name.hasPrefix("-") { name.removeFirst() }
-        guard name.contains(where: { $0.isLetter || $0 == "_" }) else { return nil }
-        return name
-    }
-
-    /// The note's text with `tag` added, as the tags picked from a note's menu are: on the line of
-    /// tags under the title, made when there isn't one yet. Unchanged when it has the tag already.
-    static func adding(_ tag: String, to text: String) -> String {
-        guard !hasExactly(tag, in: text) else { return text }
-        let ns = text as NSString
-        let written = "#" + tag
-        // An empty note: the tag is all there is.
-        guard let title = titleLine(ns) else { return text + written }
-        let afterTitle = NSMaxRange(title)
-        if afterTitle < ns.length {
-            let next = ns.lineRange(for: NSRange(location: afterTitle, length: 0))
-            let content = contentRange(of: next, in: ns)
-            if content.length > 0, isTagsOnly(ns.substring(with: content)) {
-                return ns.replacingCharacters(in: NSRange(location: NSMaxRange(content), length: 0), with: " " + written)
-            }
-            return ns.replacingCharacters(in: NSRange(location: afterTitle, length: 0), with: written + "\n")
-        }
-        // The title is the last line.
-        let ends = text.hasSuffix("\n") || text.hasSuffix("\r")
-        return text + (ends ? "" : "\n") + written
-    }
-
     /// The note's text without `tag` (exactly that one, in any case; tags nested under it stay),
     /// wherever it's written. A line left with nothing on it goes too.
     static func removing(_ tag: String, from text: String) -> String {
@@ -308,22 +269,6 @@ extension Tags {
         }
         if !text.hasSuffix("\n"), out.hasSuffix("\n") { out.removeLast() }
         return out
-    }
-
-    /// The note's first line with anything on it: its title.
-    private static func titleLine(_ ns: NSString) -> NSRange? {
-        var found: NSRange?
-        ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: [.byLines, .substringNotRequired]) { _, line, enclosing, stop in
-            if !ns.substring(with: line).trimmingCharacters(in: .whitespaces).isEmpty { found = enclosing; stop.pointee = true }
-        }
-        return found
-    }
-
-    /// A line without its line break.
-    private static func contentRange(of line: NSRange, in ns: NSString) -> NSRange {
-        var end = NSMaxRange(line)
-        while end > line.location, let c = Unicode.Scalar(ns.character(at: end - 1)), CharacterSet.newlines.contains(c) { end -= 1 }
-        return NSRange(location: line.location, length: end - line.location)
     }
 
     /// Whether a line holds tags and nothing else.
