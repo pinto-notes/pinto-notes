@@ -27,8 +27,10 @@ enum TagColor: String, CaseIterable, Codable, Identifiable {
     /// The colour a tag has until one is chosen: one of the bright ones, from its name (FNV-1a,
     /// not `hashValue`, which changes with each launch).
     static func standard(for tag: String) -> TagColor {
+        // A nested tag takes its outermost tag's colour: #work/clients is #work's.
+        let root = tag.split(separator: "/").first.map(String.init) ?? tag
         var h: UInt64 = 0xcbf2_9ce4_8422_2325
-        for b in tag.lowercased().utf8 { h = (h ^ UInt64(b)) &* 0x100_0000_01b3 }
+        for b in root.lowercased().utf8 { h = (h ^ UInt64(b)) &* 0x100_0000_01b3 }
         let bright = allCases.filter { $0 != .gray }
         return bright[Int(h % UInt64(bright.count))]
     }
@@ -103,7 +105,17 @@ final class TagColors {
 
     /// The colour `tag` shows in, for the editor.
     nonisolated static func current(for tag: String) -> TagColor {
-        snapshot[tag.lowercased()] ?? .standard(for: tag)
+        lookup(tag, in: snapshot)
+    }
+
+    /// A chosen colour for the tag, else for the tag it's nested under, else its own.
+    nonisolated static func lookup(_ tag: String, in map: [String: TagColor]) -> TagColor {
+        var parts = tag.lowercased().split(separator: "/").map(String.init)
+        while !parts.isEmpty {
+            if let c = map[parts.joined(separator: "/")] { return c }
+            parts.removeLast()
+        }
+        return .standard(for: tag)
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -118,7 +130,7 @@ final class TagColors {
 
     /// The colour `tag` shows in.
     func color(for tag: String) -> TagColor {
-        chosen[tag.lowercased()] ?? .standard(for: tag)
+        Self.lookup(tag, in: chosen)
     }
 
     /// Whether `tag` has a colour someone chose, not the one from its name.
@@ -315,7 +327,7 @@ extension Tags {
     }
 
     /// Whether a line holds tags and nothing else.
-    private static func isTagsOnly(_ line: String) -> Bool {
+    static func isTagsOnly(_ line: String) -> Bool {
         let words = line.split(whereSeparator: \.isWhitespace)
         guard !words.isEmpty else { return false }
         return words.allSatisfy { w in

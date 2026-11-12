@@ -300,6 +300,9 @@ enum NoteText {
                 continue
             }
             inTable = false
+            // The line of tags under a title (Tags.adding) isn't what the note says: the list
+            // previews the line after it, and the tags show in the note as labels.
+            if title != nil, trimmed.hasPrefix("#"), Tags.isTagsOnly(trimmed) { continue }
             // An embedded file (Obsidian's "![[greenhouse.png]]") is a picture, not words: the list
             // showed "!greenhouse.png" (round 7 captures). It's left out, as Notes leaves a photo out.
             // An import turns it into a picture link ("![plot.png](pane-file:...)"), and the list read

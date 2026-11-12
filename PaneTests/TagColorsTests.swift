@@ -174,6 +174,22 @@ import AppKit
         #expect(b.body == "Trip\nPack")
     }
 
+    @Test func theListPreviewsTheTextNotTheTagLine() {
+        #expect(NoteText.head(of: "Hotel booking\n#Needs-review #Lisbon-trip\nMemmo Príncipe Real") == ("Hotel booking", "Memmo Príncipe Real"))
+        // Only tags, nothing else yet: no preview, as for a note with only a title.
+        #expect(NoteText.head(of: "Hotel booking\n#Needs-review").preview == nil)
+        // A line with words and a tag is still what the note says.
+        #expect(NoteText.head(of: "Plan\nCall Sam #home").preview?.contains("Call Sam") == true)
+        // A heading isn't a tag line.
+        #expect(NoteText.head(of: "Plan\n# Big idea\nText").preview != nil)
+    }
+
+    @Test func aNestedTagTakesItsParentsColour() {
+        #expect(TagColor.standard(for: "work/clients") == TagColor.standard(for: "work"))
+        #expect(TagColors.lookup("work/clients", in: ["work": .purple]) == .purple)
+        #expect(TagColors.lookup("work/clients", in: ["work": .purple, "work/clients": .green]) == .green)
+    }
+
     @Test func theRightClickHasTags() {
         #expect(NoteRowMenu.macGroups(locked: false, trashed: false).joined().contains(.tags))
         #expect(NoteRowMenu.groups(locked: false, trashed: false).joined().contains(.tags))

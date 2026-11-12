@@ -526,6 +526,12 @@ struct MarkdownStyler {
                 } else {
                     let color = TagColors.current(for: tag.name)
                     storage.addAttributes([.foregroundColor: color.ink, .paneTag: color], range: r)
+                    // Room around the label (TagLabel): after the tag, and before it when a word
+                    // or space is there, so it never touches what's beside it.
+                    storage.addAttribute(.kern, value: TagLabel.room, range: NSRange(location: NSMaxRange(r) - 1, length: 1))
+                    if r.location > 0, ns.character(at: r.location - 1) != 0x0A {
+                        storage.addAttribute(.kern, value: TagLabel.room, range: NSRange(location: r.location - 1, length: 1))
+                    }
                 }
             }
             if !writing, let url = LinkPolicy.tagURL(tag.name) { storage.addAttribute(.link, value: url, range: r) }

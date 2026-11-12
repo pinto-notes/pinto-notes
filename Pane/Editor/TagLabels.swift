@@ -11,6 +11,14 @@ extension NSAttributedString.Key {
     static let paneTag = NSAttributedString.Key("pane.tag")
 }
 
+/// The room a label takes around its text: its padding, made in the line with kerning (on the
+/// character before the tag and on the tag's last one), so the label never touches the words or
+/// the label beside it.
+enum TagLabel {
+    static let padding: CGFloat = 3
+    static let room: CGFloat = 5
+}
+
 extension DecoratedLayoutFragment {
     /// Whether the paragraph has a tag shown as a label.
     var hasTagLabels: Bool {
@@ -36,12 +44,14 @@ extension DecoratedLayoutFragment {
                 let span = NSIntersectionRange(line.characterRange, r)
                 guard span.length > 0 else { continue }
                 let x0 = line.typographicBounds.minX + line.locationForCharacter(at: span.location).x
+                // The room after the tag (kerning on its last character) isn't in this position: the
+                // label ends its padding past the last letter, inside that room.
                 let x1 = line.typographicBounds.minX + line.locationForCharacter(at: NSMaxRange(span)).x
                 guard x1 > x0 else { continue }
                 let baseline = line.typographicBounds.minY + line.glyphOrigin.y
                 let top = baseline - font.ascender
                 let bottom = baseline - font.descender
-                out.append((CGRect(x: x0 - 4, y: top, width: x1 - x0 + 8, height: bottom - top), color))
+                out.append((CGRect(x: x0 - TagLabel.padding, y: top, width: x1 - x0 + TagLabel.padding * 2, height: bottom - top), color))
             }
         }
         return out
