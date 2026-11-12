@@ -369,14 +369,39 @@ final class EditorController {
     /// `untilCleared`: it stays until you type, undo or leave, instead of fading on its own.
     func tintChanges(from previous: String, untilCleared: Bool = false) { target?.tintChanges(from: previous, untilCleared: untilCleared) }
     /// An AI's edit marked at once: the words it changed, swept in its colour, then faded.
-    func markChanges(from previous: String, color: PColor) { target?.markChanges(from: previous, color: color) }
+    func markChanges(from previous: String, to after: String, color: PColor) { target?.markChanges(from: previous, to: after, color: color) }
+
+    /// The table cells an AI just changed, by table, while they're marked (TableGridView).
+    var aiCells: [Int: Set<GridCell>] = [:]
+    var aiCellColor: PColor?
+    @ObservationIgnored private var aiCellsRun = 0
+
+    /// Marks the cells an AI changed for as long as the text's mark rests, then lets them fade.
+    func markTableCells(from previous: String, to after: String, color: PColor) {
+        aiCellsRun += 1
+        let cells = GridTable.changedCells(from: previous, to: after)
+        guard !cells.isEmpty else { aiCells = [:]; return }
+        let mine = aiCellsRun
+        aiCellColor = color
+        aiCells = cells
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds((0.8 + 2.6) * ChangeTint.slowMotion))
+            while ChangeTint.holdForCapture, mine == aiCellsRun { try? await Task.sleep(for: .seconds(0.1)) }
+            guard mine == aiCellsRun else { return }
+            aiCells = [:]
+        }
+    }
     /// Where an AI's first change is: 1 below the visible text, -1 above, 0 in view.
     func changePlacement(from previous: String) -> Int { target?.changePlacement(from: previous) ?? 0 }
     /// Scrolls to an AI's first change and marks it again.
     func showChange(from previous: String) { target?.showChange(from: previous) }
     /// Whether any line is tinted right now.
     var isTinted: Bool { target?.isTinted ?? false }
-    func clearTint() { target?.clearTint() }
+    func clearTint() {
+        target?.clearTint()
+        aiCellsRun += 1
+        if !aiCells.isEmpty { aiCells = [:] }
+    }
     /// A restored version of the open note (see `EditorTarget.takeRestored`).
     func takeRestored(_ text: String) { target?.takeRestored(text) }
 
@@ -1039,7 +1064,7 @@ protocol EditorTarget: TextHost {
     /// `untilCleared`, keeps them tinted until `clearTint` or typing).
     func tintChanges(from previous: String, untilCleared: Bool)
     /// Marks an AI's edit in its colour (the changed words swept in), then fades as above.
-    func markChanges(from previous: String, color: PColor)
+    func markChanges(from previous: String, to after: String, color: PColor)
     /// Where the first change from `previous` is: 1 below what you can see, -1 above, 0 in view.
     func changePlacement(from previous: String) -> Int
     /// Scrolls to the first change from `previous` and marks it again.
@@ -1105,7 +1130,7 @@ extension EditorTarget {
     func expandAllSections() {}
     /// Tints, then fades on its own.
     func tintChanges(from previous: String) { tintChanges(from: previous, untilCleared: false) }
-    func markChanges(from previous: String, color: PColor) { tintChanges(from: previous) }
+    func markChanges(from previous: String, to after: String, color: PColor) { tintChanges(from: previous) }
     func changePlacement(from previous: String) -> Int { 0 }
     func showChange(from previous: String) {}
 }

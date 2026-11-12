@@ -84,6 +84,35 @@ final class ChangeTint: @unchecked Sendable {
         }
     }
 
+    /// A mark waiting for its text: the note screen hears of an AI's edit about when the editor
+    /// takes it, and the mark must start in the same frame as the words, not a beat after.
+    private var pending: (after: String, start: @MainActor () -> Void)?
+
+    /// The editor just took this text: start what was waiting for it, before it's drawn.
+    @MainActor func textArrived(_ text: String) {
+        guard let p = pending, p.after == text else { return }
+        pending = nil
+        p.start()
+    }
+
+    /// Runs `start` now if the editor holds `after`, else the moment it does.
+    @MainActor func whenText(_ current: String, is after: String, _ start: @escaping @MainActor () -> Void) {
+        pending = nil
+        if current == after { start() } else { pending = (after, start) }
+    }
+
+    /// Where items were ticked from `old` to `new`: the start (UTF-16) of each such line in `new`.
+    static func tickedLines(from old: String, to new: String) -> [Int] {
+        let a = old.components(separatedBy: "\n"), b = new.components(separatedBy: "\n")
+        let from = replaced(from: a, to: b)
+        var out: [Int] = [], at = 0
+        for (j, line) in b.enumerated() {
+            if let i = from[j], a[i].replacingOccurrences(of: "[ ]", with: "[x]") == line, line.contains("[x]") { out.append(at) }
+            at += (line as NSString).length + 1
+        }
+        return out
+    }
+
     /// Plays the sweep again over what's marked (Show, after scrolling to a change off screen).
     @MainActor func replay(from previous: String, to text: String) {
         play(from: previous, to: text, color: color)

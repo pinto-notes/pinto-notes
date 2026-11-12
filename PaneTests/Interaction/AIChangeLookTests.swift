@@ -105,7 +105,7 @@ import Testing
         let h = await EditorHarness(Self.after, width: 640, focus: false)
         defer { h.close() }
         let tint = h.view.core.layoutDelegate.tint
-        h.controller.markChanges(from: Self.before, color: AIGlyph.caretColor("ChatGPT"))
+        h.controller.markChanges(from: Self.before, to: Self.after, color: AIGlyph.caretColor("ChatGPT"))
         #expect(tint.color == AIGlyph.caretColor("ChatGPT"))
         h.controller.tintChanges(from: Self.before)
         #expect(tint.color == nil)
@@ -157,13 +157,33 @@ import Testing
         let h = await EditorHarness(Self.after, width: 640, focus: false)
         defer { h.close() }
         let tint = h.view.core.layoutDelegate.tint
-        h.controller.markChanges(from: Self.before, color: .systemGreen)
+        h.controller.markChanges(from: Self.before, to: Self.after, color: .systemGreen)
         let first = (h.text as NSString).range(of: "*Last").location
         #expect(tint.sweep(at: first) < 1, "sweeping")
         #expect(await h.until(2) { tint.sweepElapsed == nil })
         #expect(tint.sweep(at: first) == 1)
         #expect(h.controller.isTinted, "resting before the fade")
         #expect(h.text == Self.after)
+    }
+
+    /// The mark waits for the text and starts the moment the editor takes it, in the same pass.
+    @Test func theMarkStartsWithTheText() async throws {
+        let h = await EditorHarness(Self.before, width: 640, focus: false)
+        defer { h.close() }
+        let tint = h.view.core.layoutDelegate.tint
+        h.controller.markChanges(from: Self.before, to: Self.after, color: .systemGreen)
+        #expect(tint.marks.isEmpty, "nothing to mark yet")
+        h.view.syncExternal(Self.after)
+        #expect(!tint.marks.isEmpty, "marked as the text lands")
+    }
+
+    /// A tick an AI made, and the table cells it changed.
+    @Test func ticksAndTableCellsAreFound() {
+        let g = "G\n\n- [ ] Oat milk\n- [ ] Eggs"
+        #expect(ChangeTint.tickedLines(from: g, to: g.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs")) == [(g as NSString).range(of: "- [ ] Eggs").location])
+        let t = "B\n\n| Item | Cost |\n|---|---|\n| Flights | 240 |"
+        #expect(GridTable.changedCells(from: t, to: t + "\n| Food | 150 |") == [0: [GridCell(row: 2, column: 0), GridCell(row: 2, column: 1)]])
+        #expect(GridTable.changedCells(from: t, to: t.replacingOccurrences(of: "240", with: "260")) == [0: [GridCell(row: 1, column: 1)]])
     }
 
     /// A change below what you can see: the receipt can take you there.

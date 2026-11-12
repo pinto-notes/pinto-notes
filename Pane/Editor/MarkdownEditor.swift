@@ -1769,8 +1769,27 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
 
-    func markChanges(from previous: String, color: PColor) {
-        core.layoutDelegate.tint.play(from: previous, to: currentText, color: color)
+    func markChanges(from previous: String, to after: String, color: PColor) {
+        let tint = core.layoutDelegate.tint
+        // In the same frame as the words: now if the text is in, else the moment it arrives.
+        tint.whenText(currentText, is: after) { [weak self] in
+            guard let self else { return }
+            tint.play(from: previous, to: after, color: color)
+            self.controller?.markTableCells(from: previous, to: after, color: color)
+            self.popTicks(ChangeTint.tickedLines(from: previous, to: after))
+        }
+    }
+
+    /// An AI's tick gets the pop yours does, once the line is laid out again.
+    private func popTicks(_ lines: [Int]) {
+        guard !lines.isEmpty else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            for line in lines {
+                guard let r = self.core.checkboxRect(line: line, layout: self.textLayoutManager) else { continue }
+                CheckPop.play(in: self.layer, rect: r.offsetBy(dx: self.textContainerInset.left, dy: self.textContainerInset.top))
+            }
+        }
     }
 
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
@@ -1827,6 +1846,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // Until what you type next is saved, the note still holds this: not a change again.
         remember(new)
         replaceText(with: new)
+        // An AI's mark waiting for this text starts now, in the same frame (ChangeTint.textArrived).
+        core.layoutDelegate.tint.textArrived(new)
     }
 
     func takeRestored(_ new: String) {
@@ -3360,8 +3381,30 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
 
-    func markChanges(from previous: String, color: PColor) {
-        core.layoutDelegate.tint.play(from: previous, to: currentText, color: color)
+    func markChanges(from previous: String, to after: String, color: PColor) {
+        let tint = core.layoutDelegate.tint
+        // In the same frame as the words: now if the text is in, else the moment it arrives.
+        tint.whenText(currentText, is: after) { [weak self] in
+            guard let self else { return }
+            tint.play(from: previous, to: after, color: color)
+            self.controller?.markTableCells(from: previous, to: after, color: color)
+            self.popTicks(ChangeTint.tickedLines(from: previous, to: after))
+        }
+    }
+
+    /// An AI's tick gets the pop yours does, once the line is laid out again.
+    private func popTicks(_ lines: [Int]) {
+        guard !lines.isEmpty else { return }
+        Task { @MainActor [weak self] in
+            guard let self, let host = self.layer else { return }
+            let origin = self.textContainerOrigin
+            for line in lines {
+                guard let r = self.core.checkboxRect(line: line, layout: self.textLayoutManager) else { continue }
+                self.effectiveAppearance.performAsCurrentDrawingAppearance {
+                    CheckPop.play(in: host, rect: r.offsetBy(dx: origin.x, dy: origin.y))
+                }
+            }
+        }
     }
 
     /// Where the first change from `previous` is: 1 below what you can see, -1 above, 0 in view.
@@ -3613,6 +3656,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Until what you type next is saved, the note still holds this: not a change again.
         remember(new)
         replaceText(with: new)
+        // An AI's mark waiting for this text starts now, in the same frame (ChangeTint.textArrived).
+        core.layoutDelegate.tint.textArrived(new)
     }
 
     func takeRestored(_ new: String) {

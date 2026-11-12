@@ -741,16 +741,16 @@ struct NoteDetailView: View {
         Telemetry.shared.record(.firstAIEditSeen)
         try? context.save()
         let slow = ChangeTint.slowMotion
+        // An AI's edit lands whole, in one go (it's one call, nothing is typed): the words it
+        // changed are marked in its colour in the same frame as they appear, swept in, then fade
+        // on their own (Emil, 12 November 2026: "it should be instant, that is how we design it").
+        controller.markChanges(from: r.previous, to: r.after ?? note.body, color: AIGlyph.caretColor(r.by))
         Task { @MainActor in
-            // Let the editor take the new text first.
+            // The receipt once the editor has the text (and a later edit hasn't taken over).
             try? await Task.sleep(for: .seconds(0.15 * slow))
-            guard landingReceipt == r else { return } // a later edit took it over
+            guard landingReceipt == r else { return }
             landingReceipt = nil
             guard note.id == r.noteID else { return }
-            // An AI's edit lands whole, in one go (it's one call, nothing is typed): the words it
-            // changed are marked at once in its colour, swept in, then fade on their own (Emil,
-            // 12 November 2026: "it should be instant, that is how we design it").
-            controller.markChanges(from: r.previous, color: AIGlyph.caretColor(r.by))
             receiptPlacement = controller.changePlacement(from: r.previous)
             withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
             PaneTips.aiEditLanded()

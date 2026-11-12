@@ -23,6 +23,32 @@ struct GridTable: Equatable {
         return types[column]
     }
 
+    /// The cells an AI's edit changed, by table: a new row whole, a rewritten row only the cells
+    /// that differ. Tables are matched by their place in the note.
+    static func changedCells(from old: String, to new: String) -> [Int: Set<GridCell>] {
+        let a = find(in: old), b = find(in: new)
+        var out: [Int: Set<GridCell>] = [:]
+        for t in b {
+            let before = t.index < a.count ? a[t.index].rows : []
+            let key = { (r: [String]) in r.joined(separator: "\u{1F}") }
+            let rowsA = before.map(key), rowsB = t.rows.map(key)
+            var inserted = Set<Int>()
+            for change in rowsB.difference(from: rowsA) { if case .insert(let o, _, _) = change { inserted.insert(o) } }
+            let from = ChangeTint.replaced(from: rowsA, to: rowsB)
+            var cells = Set<GridCell>()
+            for r in inserted.sorted() {
+                let row = t.rows[r]
+                if let o = from[r] {
+                    for c in row.indices where c >= before[o].count || before[o][c] != row[c] { cells.insert(GridCell(row: r, column: c)) }
+                } else {
+                    for c in 0..<max(row.count, t.columns) { cells.insert(GridCell(row: r, column: c)) }
+                }
+            }
+            if !cells.isEmpty { out[t.index] = cells }
+        }
+        return out
+    }
+
     /// All tables in the text (code blocks excluded), typed or plain.
     static func find(in text: String) -> [GridTable] {
         let ns = text as NSString
@@ -724,6 +750,7 @@ struct TableGridView: View {
                 grid(widths: widths)
                     .overlay(alignment: .topLeading) { panelCross(widths: widths) }
                     .overlay(alignment: .topLeading) { pickedTint(widths: widths) }
+                    .overlay(alignment: .topLeading) { aiCellsTint(widths: widths) }
             }
         }
         // Each handle is a small grip with a target as big as a fingertip around it. A tap
@@ -845,6 +872,24 @@ struct TableGridView: View {
             .accessibilityIdentifier("grid.cross")
             .accessibilityValue("row \(c.row), column \(c.column)")
         }
+    }
+
+    /// The cells an AI just changed, in its colour, as its words in the text are: in at once,
+    /// resting, then fading with them (EditorController.markTableCells).
+    @ViewBuilder
+    private func aiCellsTint(widths: [CGFloat]) -> some View {
+        let cells = controller?.aiCells[table.index] ?? []
+        let color = controller?.aiCellColor.map { Color($0) } ?? Color.paneAccent
+        ZStack(alignment: .topLeading) {
+            ForEach(Array(cells).filter { $0.row < draft.rows.count && $0.column < widths.count }, id: \.self) { c in
+                Rectangle().fill(color.opacity(0.24))
+                    .frame(width: widths[c.column], height: GridMetrics.row)
+                    .offset(x: widths[..<c.column].reduce(0, +), y: CGFloat(c.row) * GridMetrics.row)
+            }
+        }
+        .animation(.easeOut(duration: cells.isEmpty ? 1.6 * ChangeTint.slowMotion : 0.25 * ChangeTint.slowMotion), value: cells)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     /// The picked row or column, tinted like selected text.
