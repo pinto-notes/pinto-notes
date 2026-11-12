@@ -477,6 +477,7 @@ struct NotebookFilmView: View {
                             .offset(x: 3)
                             .frame(width: 88, height: 88)
                             .background(Self.cream, in: Circle())
+                            .hoverOverlay(Circle(), .hoverDarken)
                             .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
                             .contentShape(Circle())
                     }
@@ -500,6 +501,7 @@ struct NotebookFilmView: View {
                             .padding(.horizontal, 30)
                             .frame(minHeight: 48)
                             .background(ink, in: Capsule())
+                            .hoverOverlay(Capsule(), light ? .hoverDarken : .hoverLighten)
                             .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -556,9 +558,10 @@ struct NotebookFilmView: View {
                 // (On the cream page the button is the site's own: ink, with the page's colour on it.)
                 .foregroundStyle(pale && !dawn ? Self.cream : .black)
                 .background(Capsule().fill(pale && !dawn ? Self.ink : .white))
+                .hoverOverlay(Capsule(), pale && !dawn ? .hoverLighten : .hoverDarken)
                 .accessibilityIdentifier("notebookFilm.watch")
                 Button("Not now") { store.visible = false }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.hoverText)
                     .font(.body.weight(.medium))
                     .foregroundStyle(pale && !dawn ? Self.ink.opacity(0.72) : .white.opacity(0.7))
                     .frame(minHeight: 44)
@@ -690,6 +693,7 @@ struct NotebookFilmView: View {
                 .padding(.horizontal, 14)
                 .frame(height: 36)
                 .background(Capsule().fill(.white.opacity(0.14)))
+                .hoverOverlay(Capsule(), .hoverLighten)
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
         }
@@ -734,6 +738,7 @@ struct NotebookFilmView: View {
                 .font(.system(size: 17, weight: .semibold))
                 .frame(width: 50, height: 50)
                 .background(Circle().fill(.white.opacity(0.14)))
+                .hoverOverlay(Circle(), .hoverLighten)
                 .contentShape(Circle())
         }
         .menuStyle(.button)
@@ -809,6 +814,7 @@ struct NotebookFilmView: View {
         .foregroundStyle(.white)
         // Dark enough to show on a pale sky, with an edge that shows on a dark one.
         .background(Circle().fill(.black.opacity(0.42)).overlay(Circle().strokeBorder(.white.opacity(0.16), lineWidth: 1)))
+        .hoverOverlay(Circle(), .hoverLighten)
         .frame(minWidth: 44, minHeight: 44)
         .contentShape(Rectangle())
         .accessibilityLabel(label)
@@ -830,12 +836,14 @@ struct NotebookFilmView: View {
             #else
             ShareLink(item: movie, preview: SharePreview(store.shareTitle, image: Image("MarkTight"))) { shareLabel(waiting: false) }
                 .buttonStyle(.plain)
+                .hoverOverlay(Capsule(), .hoverDarken)
                 .simultaneousGesture(TapGesture().onEnded { Funnel.record(.notebookFilmStep(.shareTapped)) })
                 .accessibilityIdentifier("notebookFilm.share")
             #endif
         } else {
             Button(action: pressShare) { shareLabel(waiting: shareWaiting) }
                 .buttonStyle(.plain)
+                .hoverOverlay(Capsule(), .hoverDarken)
                 .accessibilityIdentifier("notebookFilm.share")
         }
     }
