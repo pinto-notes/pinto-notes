@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import SwiftData
 import SwiftUI
@@ -114,8 +115,14 @@ extension ModelContext {
         return f
     }
 
-    /// "Shared with me" (SharedNotes.sharedWithMe): its name, sorted ahead of every folder of yours.
-    static func isSharedWithMe(_ f: Folder) -> Bool { f.sortIndex < 0 && f.name == "Shared with me" }
+    /// "Shared with me" (SharedNotes.sharedWithMe): by its id when the account's key is open here (the
+    /// id comes from it), else by its name and its place ahead of every folder of yours. The name
+    /// and place alone were lost when iPhone's Edit renumbered the folders from 1, and new notes
+    /// in All Notes went into it again.
+    static func isSharedWithMe(_ f: Folder, dataKey: SymmetricKey? = AccountCrypto.shared.dataKey) -> Bool {
+        if let dataKey, f.id == SharedNotes.sharedWithMeID(dataKey: dataKey) { return true }
+        return f.sortIndex < 0 && f.name == SharedNotes.sharedWithMeName
+    }
 
     @discardableResult
     func createNote(in scope: Scope, body: String = "") -> Note {
@@ -484,7 +491,9 @@ extension ModelContext {
     /// (`defaultFolder`), and it can't be moved, as in Notes. The order is the folders'
     /// `sortIndex`, which syncs; only the folders whose index changes are marked for sync.
     func reorder(_ folder: Folder, to index: Int) {
-        var row = siblings(of: folder)
+        // Shared with me isn't one of your folders: it keeps its place ahead of them (sortIndex -1),
+        // and the first of yours stays where new notes go.
+        var row = siblings(of: folder).filter { !Self.isSharedWithMe($0) }
         guard let from = row.firstIndex(where: { $0.id == folder.id }) else { return }
         let pinned = folder.parent == nil ? 1 : 0
         guard from >= pinned else { return }
