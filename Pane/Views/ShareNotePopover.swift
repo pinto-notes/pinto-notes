@@ -630,11 +630,13 @@ struct CollaborateRows: View {
                     let opens = !p.isMe && p.safetyCode != nil
                     let row = HStack(spacing: 5) {
                         PersonRow(person: p, removing: share.working == .remove(p.id), size: 24)
-                        // A pop-up, as Anyone with the link is: a chevron read as navigation
-                        // (council, 8 November 2026). Rows without one keep its room, so every
-                        // role lines up.
-                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
+                        // More actions on this person (Check Safety Code, and Remove for the
+                        // owner), not a role picker: up-down arrows beside "Can view" read as
+                        // changing it, which only Join by Link does (Emil, 12 November 2026).
+                        // Rows without one keep its room, so every role lines up.
+                        Image(systemName: "ellipsis").font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(Color.muted)
+                            .frame(width: 12)
                             .opacity(opens ? 1 : 0)
                     }
                     .font(.system(size: 13))

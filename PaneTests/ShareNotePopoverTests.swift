@@ -39,6 +39,17 @@ import Testing
         #expect(!rows.contains("Open Web Page") && !rows.contains("Divider()"))
     }
 
+    /// A person's row offers more actions (an ellipsis), not a role pop-up: the role beside it can't
+    /// be changed there (Emil, 12 November 2026).
+    @Test func aPersonsRowOffersActionsNotARolePicker() throws {
+        let source = try SettingsHomeTests.source("Pane/Views/ShareNotePopover.swift")
+        let start = try #require(source.range(of: "@ViewBuilder private var people")).lowerBound
+        let end = try #require(source.range(of: "if share.isOwner, let why = share.notYet")).lowerBound
+        let people = String(source[start..<end])
+        #expect(people.contains("Image(systemName: \"ellipsis\")"))
+        #expect(!people.contains("chevron.up.chevron.down"))
+    }
+
     /// Picture is one of the ways, last; a link that can't be made isn't offered.
     @Test func pictureIsOneOfTheWays() throws {
         #expect(ShareWays.ways(collaborating: true, picture: true) == [.people, .copy, .link, .picture])
