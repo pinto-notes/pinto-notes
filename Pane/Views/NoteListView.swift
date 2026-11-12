@@ -233,9 +233,13 @@ struct NoteListView: View {
         case .all: "All Notes"
         case .trash: "Recently Deleted"
         case .folder(let id): context.folder(id)?.name ?? "Notes"
-        case .tag(let name): "#" + name
+        case .tag(let name): Self.tagTitle(name)
         }
     }
+
+    /// A tag's list is titled as the sidebar lists it: its name, without a `#` (a label such as
+    /// "Needs review" was never written with one).
+    static func tagTitle(_ name: String) -> String { name }
 
     var body: some View {
         #if DEBUG

@@ -35,7 +35,14 @@ struct NoteLabelChips: View {
         .accessibilityIdentifier("note.labels")
     }
 
-    private var font: Font { .system(size: compact ? TextSize.interface(11) : 12, weight: .medium) }
+    private var font: Font {
+        #if os(macOS)
+        .system(size: compact ? TextSize.interface(11) : 12, weight: .medium)
+        #else
+        // iPhone follows the reader's text size, as the row's other lines do.
+        compact ? .caption.weight(.medium) : .footnote.weight(.medium)
+        #endif
+    }
 
     private func chip(_ name: String) -> some View {
         let c = colors.color(for: name)

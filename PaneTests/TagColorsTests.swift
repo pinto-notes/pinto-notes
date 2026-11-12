@@ -214,4 +214,9 @@ import AppKit
             #expect(!NoteRowMenu.groups(locked: locked, trashed: trashed, shared: shared).joined().contains(.tags))
         }
     }
+
+    @Test func aTagsListIsTitledWithoutAHash() {
+        #expect(NoteListView.tagTitle("Needs review") == "Needs review")
+        #expect(NoteListView.tagTitle("work/clients") == "work/clients")
+    }
 }
