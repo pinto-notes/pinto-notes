@@ -749,6 +749,7 @@ extension SettingsHomeTests {
         #expect(!privacy.contains("Turn on Advanced protection"), "the court order row offers nothing a standard account can't see")
     }
 
+
     #if os(macOS)
     /// Signed out, ⌘, opens Settings over the sign-in card (a sheet), not nothing (council round 7).
     @Test func settingsOpensOverTheSignInCard() {
