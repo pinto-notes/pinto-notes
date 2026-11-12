@@ -252,17 +252,17 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         if gap.below || line == nil {
             // Under the last line's letters, a descender's depth down.
             let b = line?.typographicBounds ?? CGRect(x: 0, y: 0, width: 0, height: layoutFragmentFrame.height)
-            y = point.y + b.maxY + 4
+            y = point.y + b.maxY + 6
         } else if let line {
             // The line above's letters end a little over this fragment's top and this line's
             // capitals start below it: the top is the middle of the seam (council r2: 2 pt down
             // read as an overline, 3 pt up as an underline of the line above).
-            y = point.y + line.typographicBounds.minY - 0.5
+            y = point.y + line.typographicBounds.minY - 2
         } else { y = point.y }
         return CGRect(x: x, y: y - 1.25, width: width, height: 2.5)
     }
 
-    static let removalWidth: CGFloat = 14
+    static let removalWidth: CGFloat = 11
     static let removalGap: CGFloat = 5
 
     /// The runs as one shape: each line rounded, and the space between two lines of the
@@ -421,11 +421,20 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
                 // A tick: a soft disc in the AI's colour round the box, which pops as yours does,
                 // and the struck-through words stay plain (council r1).
                 // The disc carries the AI's colour now the box keeps the app's (council r4): clear on a dark page too.
-                context.setFillColor(Self.pageIsDark ? Self.changeColors(strength * 1.3, color: markColor).tint : colors.tint)
+                context.setFillColor(Self.changeColors(strength * (Self.pageIsDark ? 0.8 : 0.6), color: markColor).tint)
                 context.fillEllipse(in: halo)
             } else {
                 let sweep = sweepProgress
-                if sweep < 1 { context.clip(to: Self.swept(groups, sweep)) }
+                if sweep < 1 {
+                    // The leading edge rounded like the mark's own ends (council r5: it was square).
+                    let path = CGMutablePath()
+                    for r in Self.swept(groups, sweep) {
+                        let radius = min(r.height / 2, r.width / 2, 6)
+                        path.addRoundedRect(in: r, cornerWidth: radius, cornerHeight: radius)
+                    }
+                    context.addPath(path)
+                    context.clip()
+                }
                 if sweep > 0 {
                     context.setFillColor(colors.tint)
                     context.addPath(Self.shape(for: groups))
@@ -443,7 +452,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         if let (gap, strength) = removalMark {
             context.saveGState()
             // Softer than the colour itself, like the highlights (council r5).
-            context.setFillColor(Self.changeColors(strength * 0.6, color: markColor).bar)
+            context.setFillColor(Self.changeColors(strength * 0.5, color: markColor).bar)
             let r = removalRect(gap, at: point)
             context.addPath(CGPath(roundedRect: r, cornerWidth: 1, cornerHeight: 1, transform: nil))
             context.fillPath()

@@ -283,6 +283,7 @@ import Testing
         let a = AIEdit.Receipt(noteID: id, by: "ChatGPT", at: .now, previous: g, after: one, lines: 1)
         let b = AIEdit.Receipt(noteID: id, by: "Claude", at: .now, previous: one, after: two, lines: 1).continuing(a)
         #expect(b.previous == g, "Undo takes both")
+        #expect(b.earlierBy == "ChatGPT", "both glyphs in the pill")
         #expect(b.edits == 2)
         #expect(b.summary == "Claude ticked \u{201C}Eggs\u{201D} \u{00B7} ChatGPT added \u{201C}Saffron\u{201D}")
         // The marks, as the editor plays them: Claude's from the start, ChatGPT's kept.
@@ -301,7 +302,7 @@ import Testing
     /// Council r4: a rename says the new name; words swapped in a few places name the first;
     /// an old comma next to a new word isn't marked; an earlier mark steps back as a new one lands.
     @Test func roundFourWordingAndMarks() async {
-        #expect(AIEdit.describe(previous: "Trip\n\nDay 1", after: "Porto trip\n\nDay 1") == "renamed the note \u{201C}Porto trip\u{201D}")
+        #expect(AIEdit.describe(previous: "Trip\n\nDay 1", after: "Porto trip\n\nDay 1") == "renamed the note to \u{201C}Porto trip\u{201D}")
         let p = "Notes\n\nDrop the keys at reception, then take the train at nine."
         let q = "Notes\n\nLeave the keys at the desk, then take the bus at nine."
         #expect(AIEdit.describe(previous: p, after: q)?.hasPrefix("changed \u{201C}Drop\u{201D} to \u{201C}Leave\u{201D} and ") == true)
@@ -321,6 +322,13 @@ import Testing
         let n2 = two as NSString
         #expect(tint.strength(at: n2.range(of: "- [ ] Saffron").location) < tint.strength(at: n2.range(of: "- [x] Eggs").location) * 0.7)
         tint.stop()
+    }
+
+    /// A new section is named by its heading (council r5).
+    @Test func aNewSectionIsNamedByItsHeading() {
+        let p = "Trip\n\n## Day 1\n\nLisbon."
+        let r = AIEdit.Receipt(noteID: UUID(), by: "Claude", at: .now, previous: p, after: p + "\n\n## Day 2\n\nSintra by train.", lines: 2)
+        #expect(r.summary == "Claude added \u{201C}Day 2\u{201D}")
     }
 
     /// Three edits in a row are counted, never described as one change that didn't happen (council r2).
@@ -353,7 +361,7 @@ import Testing
         // A swapped word and a renamed title say so (council r1), and quotes stay short.
         let trip = "Trip\n\nWe land on Tuesday at 14:20."
         #expect(AIEdit.describe(previous: trip, after: trip.replacingOccurrences(of: "Tuesday", with: "Wednesday")) == "changed \u{201C}Tuesday\u{201D} to \u{201C}Wednesday\u{201D}")
-        #expect(AIEdit.describe(previous: g, after: g.replacingOccurrences(of: "Groceries", with: "Groceries for Saturday")) == "renamed the note \u{201C}Groceries for Saturday\u{201D}")
+        #expect(AIEdit.describe(previous: g, after: g.replacingOccurrences(of: "Groceries", with: "Groceries for Saturday")) == "renamed the note to \u{201C}Groceries for Saturday\u{201D}")
         #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Book 31: added by ChatGPT today") == "added \u{201C}Book 31: added by\u{2026}\u{201D}")
         #expect(AIEdit.describe(previous: g, after: g + "\n- [ ] Smoked paprika from the market on Rua do Bonjardim") == "added \u{201C}Smoked paprika from the…\u{201D}")
         // Words added to a line, or taken out of it, are named (council r2: "changed 1 line").

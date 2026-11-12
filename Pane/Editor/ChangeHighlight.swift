@@ -251,7 +251,8 @@ final class ChangeTint: @unchecked Sendable {
         if !Self.reduceMotion { startSweep() }
         // More to read, a longer rest: up to 3 s more for a rewrite (council r4).
         let read = Double(marks.reduce(0) { $0 + $1.length })
-        light(hold: hold + min(3, max(0, read - 40) / 80), untilCleared: untilCleared)
+        // Capped so a big rewrite isn't a tinted page for long (council r5: 7 s was too much).
+        light(hold: hold + min(1.4, max(0, read - 40) / 120), untilCleared: untilCleared)
     }
 
     /// Pulls the highlight across the changed words, about 60 redraws a second.

@@ -59,6 +59,16 @@ enum AIEdit {
         arrived(note, previousBody: previousBody, previousEditAt: previousAt, quiet: false)
     }
 
+    /// The first heading in `after` that `previous` didn't have, short enough to name.
+    nonisolated static func newHeading(previous: String, after: String) -> String? {
+        let old = Set(previous.components(separatedBy: "\n"))
+        for line in after.components(separatedBy: "\n") where line.hasPrefix("#") && !old.contains(line) {
+            let name = line.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespaces))
+            if !name.isEmpty, name.count <= 26 { return name }
+        }
+        return nil
+    }
+
     /// An edit in words, when it's one or two plain things: "ticked “Eggs”", "removed “Lemons”", "added
     /// “Saffron”", "changed “Tuesday” to “Wednesday”", "renamed the note", "added a row to the
     /// table". Nil for anything else ("changed 3 lines" then).
@@ -93,7 +103,7 @@ enum AIEdit {
             if first(a) == old, first(b) == new {
                 // The new name, when it's short enough to say (council r4).
                 let name = new.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespaces))
-                return name.isEmpty || name.count > 26 ? "renamed the note" : "renamed the note \u{201C}\(name)\u{201D}"
+                return name.isEmpty || name.count > 26 ? "renamed the note" : "renamed the note to \u{201C}\(name)\u{201D}"
             }
             let x = old.split(separator: " ").map(String.init), y = new.split(separator: " ").map(String.init)
             var gone: [Int] = [], put: [Int] = []
@@ -293,6 +303,8 @@ enum AIEdit {
         var earlierLine: String? = nil
         /// More than one AI's edits in this change.
         var mixed = false
+        /// The other AI, when two made this change (its glyph shows beside this one's).
+        var earlierBy: String? = nil
 
         enum Kind: Equatable { case edit, pageEdit, dataEdit, pageMade, pageChanged, reverted, heldBack }
 
@@ -361,6 +373,7 @@ enum AIEdit {
             // Another AI's edit on top: the pill names both, and Undo takes both (council r3, r4).
             if earlier.by != by || earlier.earlierLine != nil {
                 both.earlierLine = earlier.earlierLine == nil && earlier.edits == 1 ? earlier.summary : nil
+                both.earlierBy = earlier.by != by ? earlier.by : earlier.earlierBy
                 both.mixed = true
             }
             return both
@@ -393,6 +406,15 @@ enum AIEdit {
                     return "\(who) \(what) and made \(edits - 1) other change\(edits == 2 ? "" : "s")"
                 }
                 return "\(who) made \(edits) changes"
+            }
+            // A new heading names the change: "added “Day 2”", "added “Work and projects” and
+            // changed 4 lines" (council r5: "changed 6 lines" said nothing).
+            if kind == .edit, let after, let section = AIEdit.newHeading(previous: previous, after: after) {
+                let old = Set(previous.components(separatedBy: "\n"))
+                let kept = after.components(separatedBy: "\n").filter { old.contains($0) }.count
+                let removedOrChanged = previous.components(separatedBy: "\n").count - kept
+                return removedOrChanged <= 0 ? "\(who) added \u{201C}\(section)\u{201D}"
+                    : "\(who) added \u{201C}\(section)\u{201D} and changed \(removedOrChanged == 1 ? "1 line" : "\(removedOrChanged) lines")"
             }
             // What it did, when that's one or two plain things: "ChatGPT ticked “Eggs”", "removed “Lemons”".
             if kind == .edit, let after, let what = AIEdit.describe(previous: previous, after: after) { return "\(who) \(what)" }

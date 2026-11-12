@@ -649,14 +649,12 @@ struct NoteDetailView: View {
                 // (council r3). Space, not a rule.
                 .background(alignment: .bottom) {
                     LinearGradient(stops: [.init(color: Color.notePage.opacity(0), location: 0),
-                                           .init(color: Color.notePage.opacity(0.85), location: 0.6),
-                                           .init(color: Color.notePage, location: 1)], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 76)
-                        // Just round the pill, not the whole width (council r4).
-                        .padding(.horizontal, -48)
-                        .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.12),
-                                                     .init(color: .black, location: 0.88), .init(color: .clear, location: 1)],
-                                             startPoint: .leading, endPoint: .trailing))
+                                           .init(color: Color.notePage.opacity(0.75), location: 0.55),
+                                           .init(color: Color.notePage.opacity(0.95), location: 1)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 64)
+                        // The full width, low and soft: cut at the pill's sides it chopped lines
+                        // mid-word (council r5).
+                        .padding(.horizontal, -2000)
                         .allowsHitTesting(false)
                 }
                 #else
