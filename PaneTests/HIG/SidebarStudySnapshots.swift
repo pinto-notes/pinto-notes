@@ -278,23 +278,17 @@ import Testing
         }
     }
 
-    /// The app carries every template of the website, and the kinds and search narrow them.
+    /// The app carries every template of the website: the front page has each, and Search finds them.
     @Test func theLibraryHasEveryTemplate() {
         let c = TemplateCatalog.shipped
         #expect(c.entries.count >= 23)
-        #expect(c.shown(filter: "All", query: "").count == c.entries.count)
-        let apps = c.shown(filter: "Apps", query: "").allSatisfy(\.app)
-        let work = c.shown(filter: "Work", query: "").allSatisfy { $0.category == "Work" }
-        let found = c.shown(filter: "All", query: "trip").map(\.slug)
+        #expect(TemplateFront.shipped.order(for: c).count == c.entries.count)
+        let found = TemplateAsk.answers("trip", in: c.entries).map(\.entry.slug)
         let covers = c.entries.filter { Bundle.main.url(forResource: "template-cover-\($0.slug)", withExtension: "jpg") == nil }.map(\.slug)
-        #expect(apps && work)
         #expect(found.contains("trip-plan"))
         #expect(covers.isEmpty)
         #expect(SetupCards.prompt(c.entries[0].pick).hasPrefix("In Pinto Notes, use my Habit tracker note."))
         // In use: every template has its filled-in note, and every app its picture.
-        // The cards fill the row: five across 1000 pt, none narrower than the gallery's.
-        let w = TemplateLibraryView.cardWidth(row: 992, gap: 16)
-        #expect(w >= SetupTemplateCard.size.width && 5 * w + 4 * 16 <= 992 && 5 * w + 4 * 16 > 992 - 5)
         let bare = c.entries.filter { $0.example.isEmpty || ($0.app && $0.appPicture(dark: false) == nil) }.map(\.slug)
         #expect(bare.isEmpty)
     }

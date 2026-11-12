@@ -30,6 +30,16 @@ import SwiftUI
 
     func close() { window.orderOut(nil); window.close() }
 
+    /// The element with this identifier once it's there, settling between looks (with other
+    /// tests' windows in, a view can take longer than one settle to build its tree).
+    func waiting(for id: String, tries: Int = 20, until: (Element) -> Bool = { _ in true }) async -> Element? {
+        for _ in 0..<tries {
+            if let e = find(id), until(e) { return e }
+            await settle()
+        }
+        return find(id).flatMap { until($0) ? $0 : nil }
+    }
+
     func settle(_ ms: Int = 400) async {
         for _ in 0..<4 {
             window.contentView?.layoutSubtreeIfNeeded()
@@ -78,6 +88,18 @@ import SwiftUI
             return nil
         }
         return root.flatMap { search($0, 0) }.map(Element.init)
+    }
+
+    /// Every element in the window with this role (AXScrollArea, AXButton…).
+    func elements(role: String) -> [Element] {
+        var out: [Element] = []
+        func walk(_ e: AXUIElement, _ depth: Int) {
+            if Element.string(e, kAXRoleAttribute) == role { out.append(Element(ax: e)) }
+            guard depth < 40 else { return }
+            for k in Element.children(e) { walk(k, depth + 1) }
+        }
+        if let root { walk(root, 0) }
+        return out
     }
 
     /// Every identifier in the window, top to bottom as the tree has them.

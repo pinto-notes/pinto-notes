@@ -296,15 +296,14 @@ struct RootView: View {
                 if templateAIs != nil { templateAIs = now }
             }
         }
-        return ZStack {
-            TemplateLibraryView(ais: ais, folder: target?.name ?? TemplateMaking.firstFolder,
-                                have: { TemplateMaking.have($0, context: context, account: account) }, make: { e, ai in
+        // What Make does. `prompt`: the front page's ask, with the words typed in Search.
+        let run: (TemplateCatalog.Entry, SetupCards.AI, String?) -> Void = { e, ai, prompt in
                 Task {
                     let before = (selection, scope)
                     let had = TemplateMaking.have(e, context: context, account: account) != nil
                     // A real-input check never opens the AI's page in a browser.
                     let note = await TemplateMaking.make(e, with: ai, context: context, account: account,
-                                                         into: target.map { .existing($0.id) } ?? .new(TemplateMaking.firstFolder), reach: reach,
+                                                         into: target.map { .existing($0.id) } ?? .new(TemplateMaking.firstFolder), reach: reach, prompt: prompt,
                                                          open: { if !Self.templatesStandIn { openURLForTemplates($0) } })
                     // No second sheet: the page just said what it is. The note opens with a line
                     // saying where it went, and Undo beside it.
@@ -324,6 +323,24 @@ struct RootView: View {
                     }
                     withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
                 }
+        }
+        return ZStack {
+            TemplateLibraryView(ais: ais, folder: target?.name ?? TemplateMaking.firstFolder,
+                                have: { TemplateMaking.have($0, context: context, account: account) }, make: { e, ai in run(e, ai, nil) },
+                                makeAsking: { e, ai, prompt in run(e, ai, prompt) }, makeBlank: { words, ai in
+                // No template for the words (the front page's Search): a new note named
+                // from them, where New Note would put it, with Undo beside "Added to" as for Make.
+                let before = (selection, scope)
+                guard let note = TemplateAsk.makeBlank(words, with: ai, context: context, into: target.map { .existing($0.id) } ?? .new(TemplateMaking.firstFolder),
+                                                       reach: reach, open: { if !Self.templatesStandIn { openURLForTemplates($0) } }), let made = context.note(note) else { return }
+                FirstOpen.shared.fromLibrary(note, title: made.title, slug: "blank", isApp: false, folder: made.folder?.name ?? "Notes", hadIt: false,
+                                             waitingFor: ai.asks && reach != .online ? ai.name : nil, undo: {
+                    if let n = context.note(note), n.trashedAt == nil { context.trash(n) }
+                    selection = before.0
+                    scope = before.1
+                })
+                selection = [note]
+                withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
             }, connect: { withAnimation(.snappy(duration: 0.2)) { connectingOverTemplates = true } }, covered: connectingOverTemplates, uncover: closeConnect,
                close: { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } })
             // Esc is the library's own: its x on the gallery, Back on a template's page.
