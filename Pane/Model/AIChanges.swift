@@ -600,6 +600,7 @@ final class AIChangesModel {
             let t = edit ? try await texts(for: c) : (before: nil, after: note.body)
             try await AIChangeUndo.undo(c, note: note, before: t.before, after: t.after, history: history, anyway: anyway)
             undone.insert(c.id)
+            AIUndoUsage.undone(.changesList, change: AIChangeWord(c.kind), at: c.at)
         } catch AIChangeUndoError.editedSince {
             conflict = c
         } catch let e as AIChangeUndoError {

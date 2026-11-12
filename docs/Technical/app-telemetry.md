@@ -74,9 +74,11 @@ This is enforced by the types, not by care at each call:
 | `gate_shown` | A screen between signing in and the notes was shown (once a launch for each) | `screen`: `welcome`, `add_device`, `no_device`, `waiting`, `recovery`, `start_fresh`, `unreachable`, `accountGone` (the account was deleted on the server), `checking`, `held` (waiting out the hold after a password reset), `before_fetch` (before the key comes from the copy the server keeps: sign in again, or say yes first) |
 | `first_note_created` | The first note made with New Note on this install | |
 | `first_sync` | The first sync that finished on this install | `duration_ms` |
-| `ai_connected` | An AI connection was approved, or a token was made for one | `kind`: `claude`, `chatgpt`, `other` |
+| `ai_connected` | An AI connection was approved, or a token was made for one | `kind`: `claude`, `chatgpt`, `grok`, `other` |
 | `first_ai_edit_seen` | The first time a note an AI changed was opened on this install | |
-| `ai_disconnected` | The person disconnected an AI connection here (not the app tidying away tokens that were never used) | `kind`: `claude`, `chatgpt`, `other`, by the mark the list shows (where its approval went, or the guide that made its token) |
+| `ai_change_undone` | The person took back what an AI did, within a week of it | `how`: `undo` (Undo on the note, where the AI's change is marked), `changes_list` (Undo This Change in AI Changes), `deleted` (the person deleted a note an AI had changed, or a folder an AI made: the server marks those, and the app keeps the ids of the past week's, at most 200, only while Share diagnostics and usage is on); `change`, what the AI did (not with `deleted`): `created`, `edited`, `version_restored`, `moved`, `deleted`, `recovered` (brought back from Recently Deleted); `after`, how soon: `under_5m`, `under_1h`, `under_1d`, `under_7d` |
+| `app_returned` | The app came back to the front after at least 30 minutes away, the same UTC day (a new day is an `app_opened`) | `away`: `under_2h`, `under_8h`, `over_8h` |
+| `ai_disconnected` | The person disconnected an AI connection here (not the app tidying away tokens that were never used) | `kind`: `claude`, `chatgpt`, `grok`, `other`, by the mark the list shows (where its approval went, or the guide that made its token) |
 | `signed_out` | Signed out on this device, or the session ended. Sent under the account's id, before it goes | |
 | `account_deleted` | Delete Account worked. Sent under the account's id, after the waiting events are dropped and before the id goes; best effort (unsent, it goes at the next launch) | |
 
@@ -91,7 +93,7 @@ than once (a person goes back, or tries again); each is sent when it happens.
 |---|---|---|
 | `onboarding_step` | A first-run screen is shown or left | `step`: `welcome`, `name`, `bring`, `connect`, `try_it`, `done`; `action`: `shown`, `continued`, `skipped`, `back` |
 | `import_step` | An import moves on a step | `source`: `apple_notes`, `evernote`, `keep`, `obsidian`, `bear`, `markdown`, `notion`; `step`: `opened`, `guide_page` (with `page`, 1 to 5), `already_have_file`, `file_found_automatically`, `wrong_file`, `permission_denied`, `nothing_found`, `second_account`, `importing`, `done` (with `count`: `1-9`, `10-99`, `100-999`, `1000+`), `failed` (with `kind`), `cancelled` |
-| `connect_step` | Connecting an AI moves on a step | `ai`: `chatgpt`, `claude`, `claude_code`, `codex`, `other`, `incredible`; `step`: `opened`, `started`, `waiting`, `connected`, `failed` (with `kind`), `gave_up` (the sheet closed while waiting) |
+| `connect_step` | Connecting an AI moves on a step | `ai`: `chatgpt`, `claude`, `claude_code`, `codex`, `grok`, `other`, `incredible`; `step`: `opened`, `started`, `waiting`, `connected`, `failed` (with `kind`), `gave_up` (the sheet closed while waiting) |
 | `sign_in_step` | Signing in moves on a step | `step`: `shown`, `method_chosen`, `browser_opened`, `code_sent`, `code_entered`, `password_shown`, `succeeded`, `failed` (with `kind`, as `sign_in_failed`), `cancelled`; `method` once one is chosen |
 | `link_device_step` | Adding a device moves on a step | `role`: `new_device`, `existing_device`; `step`: `shown`, `code_shown`, `scanned`, `typed`, `approved`, `done`, `failed` (with `kind`), `gave_up` |
 | `notebook_film_step` | The notebook film moves on a step | `step`: `ready` (the account qualified and the film was got ready for the next launch), `offered` (its card is in the sidebar as the app opens; again at each launch until it's opened or closed), `opened` (from the card), `card_closed`, `rewatched` (from Help), `slide` (the first time each comes up, with `page`, 1 to 8), `played`, `watched_again`, `finished` (the film reached its end screen), `share_tapped`, `saved` (Mac: Save video), `closed` (with `place`: `slides`, `film` or `end`, and `page`: the furthest slide seen). With `ready` and `offered`, why it was offered: `form` (`comet`, `nebula`, `spiral`; not on `ready`), `count` (notes, as on `import_step`), `days` (since the first note) and `active_days` (days written on in the last 30). |
@@ -161,6 +163,9 @@ PostHog's funnels and retention as it is): never what was typed, searched, linke
 | `menu_bar_note` | A note is saved from the menu bar (Mac) |
 | `shortcut_note` | The quick note shortcut is pressed (Mac) |
 | `imports_started` | An import starts bringing notes in |
+| `notes_trashed` | Notes are deleted by the person (Delete Note, ⌫, dragged to Recently Deleted, a shared note's delete): once for each delete, however many notes |
+| `folder_created` | A folder is made with New Folder (not by an import or sync) |
+| `folder_deleted` | A folder is deleted in the sidebar |
 
 Nothing about feature use is kept on the device. The first 1.3 builds counted it there and sent
 a daily `usage_day`; the app removes those counts (`telemetry.usage`, `telemetry.usageDay`,

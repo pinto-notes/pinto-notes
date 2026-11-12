@@ -127,6 +127,7 @@ extension ConnectAIKind {
         case "Claude": self = .claude
         case "Claude Code": self = .claudeCode
         case "Codex": self = .codex
+        case "Grok": self = .grok
         default: self = .other
         }
     }
