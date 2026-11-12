@@ -268,6 +268,8 @@ enum AIEdit {
         var person: String? = nil
         /// How many of the AI's edits this is, in a row. They can come to fewer lines than edits.
         var edits = 1
+        /// The text before the latest of those edits, to say what it did (council r3).
+        var latestPrevious: String? = nil
 
         enum Kind: Equatable { case edit, pageEdit, dataEdit, pageMade, pageChanged, reverted, heldBack }
 
@@ -328,6 +330,7 @@ enum AIEdit {
                   earlier.kind == .edit, kind == .edit, !earlier.created, !created, earlier.after == previous,
                   abs(at.timeIntervalSince(earlier.at)) < Self.sameChangeWindow, let after else { return self }
             var both = self
+            both.latestPrevious = previous
             both.previous = earlier.previous
             both.previousVersion = earlier.previousVersion
             both.lines = AIReview.lineCount(previous: earlier.previous, after: after)
@@ -350,7 +353,13 @@ enum AIEdit {
             if kind == .pageChanged { return "\(who) changed this note's app" }
             if created { return "\(who) wrote this note" }
             // Three or more edits in a row: a count, never one invented change (council r2).
-            if edits > 2 { return "\(who) made \(edits) changes" }
+            // With the latest one named: "ChatGPT removed “Bread” · 3 changes" (council r3).
+            if edits > 2 {
+                if let latestPrevious, let after, let what = AIEdit.describe(previous: latestPrevious, after: after) {
+                    return "\(who) \(what) · \(edits) changes"
+                }
+                return "\(who) made \(edits) changes"
+            }
             // What it did, when that's one or two plain things: "ChatGPT ticked “Eggs”", "removed “Lemons”".
             if kind == .edit, let after, let what = AIEdit.describe(previous: previous, after: after) { return "\(who) \(what)" }
             if edits > 1 { return "\(who) made \(edits) changes" }

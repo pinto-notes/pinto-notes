@@ -267,6 +267,16 @@ import Testing
                                after: "Groceries\n\n- [x] Eggs\n- [ ] Saffron", lines: 2)
         r.edits = 3
         #expect(r.summary == "ChatGPT made 3 changes")
+        // Built by continuing: the latest edit is named with the count (council r3).
+        let one = g + "\n- [ ] Saffron"
+        let two = one.replacingOccurrences(of: "- [ ] Eggs", with: "- [x] Eggs")
+        let three = two.replacingOccurrences(of: "\n- [ ] Bread", with: "")
+        let id = UUID()
+        let a = AIEdit.Receipt(noteID: id, by: "ChatGPT", at: .now, previous: g, after: one, lines: 1)
+        let b = AIEdit.Receipt(noteID: id, by: "ChatGPT", at: .now, previous: one, after: two, lines: 1).continuing(a)
+        let c = AIEdit.Receipt(noteID: id, by: "ChatGPT", at: .now, previous: two, after: three, lines: 1).continuing(b)
+        #expect(c.edits == 3)
+        #expect(c.summary == "ChatGPT removed \u{201C}Bread\u{201D} \u{00B7} 3 changes")
     }
 
     /// The receipt says what happened when it's one plain thing.

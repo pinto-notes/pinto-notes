@@ -287,8 +287,8 @@ struct AIReceipt: View {
         .background {
             // A soft lift as rings of faint capsules, each a little wider and lower: no edge
             // anywhere (council r2: layer shadow left stubs; r3: a blur drew as a grey band).
-            ForEach(1...7, id: \.self) { i in
-                Capsule().fill(Color.black.opacity(0.016))
+            ForEach(1...5, id: \.self) { i in
+                Capsule().fill(Color.black.opacity(0.012))
                     .padding(-CGFloat(i)).offset(y: 1 + CGFloat(i) * 0.6)
             }
             Capsule().fill(Self.fill)

@@ -645,6 +645,17 @@ struct NoteDetailView: View {
                 .onHover { receiptHovered = $0 }
                 #if os(macOS)
                 .padding(.bottom, 20)
+                // The note's words fade out under it, so the pill isn't read over half a line
+                // (council r3). Space, not a rule.
+                .background(alignment: .bottom) {
+                    LinearGradient(stops: [.init(color: Color.notePage.opacity(0), location: 0),
+                                           .init(color: Color.notePage.opacity(0.9), location: 0.5),
+                                           .init(color: Color.notePage, location: 1)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 110)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, -2000)
+                        .allowsHitTesting(false)
+                }
                 #else
                 .padding(.bottom, 64)
                 #endif
