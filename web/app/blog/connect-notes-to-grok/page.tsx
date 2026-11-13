@@ -1,4 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostCta } from "@/lib/PostCta";
 import { Answer, Keep, PostFigure, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
 
@@ -52,6 +53,10 @@ export default function Page() {
             when asked. Grok finds the server&apos;s tools and can use them in any chat. The server has to be on the public internet. In
             Grok Build, the terminal agent, the same thing is one command: <code>grok mcp add --transport http</code> with a name and the address.
           </p>
+          {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
+          <PostCta slug="connect-notes-to-grok" position="answer" title="A notes app with the server built in.">
+            <p>Pinto Notes has an MCP server address you paste into Grok, and works like Apple Notes on iPhone and Mac.</p>
+          </PostCta>
         </Answer>
       }
       hero={<PostFigure priority src="/blog/news/xai-grok-gmail-connector" width={1600} height={900} maxWidth={800}

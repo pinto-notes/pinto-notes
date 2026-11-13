@@ -1,4 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostCta } from "@/lib/PostCta";
 import { Answer, Capture, PostFigure, Steps } from "@/lib/PostParts";
 import { APPLE_NOTES_TEMPLATES } from "@/lib/apple-notes-templates";
 import { TemplatePicker } from "@/lib/TemplatePicker";
@@ -40,6 +41,10 @@ export default function Page() {
             (File, Duplicate Note) or copy it into a new note on iPhone. On macOS 27, the templates below paste in with Edit, Paste as
             Markdown, headings and checklists included.
           </p>
+          {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
+          <PostCta slug="apple-notes-templates" position="answer" title="Templates, built in.">
+            <p>Pinto Notes works like Apple Notes and comes with a free template library, including a habit tracker that keeps your streaks for you. Your Apple Notes come over in one import.</p>
+          </PostCta>
         </Answer>
       }
       hero={<Capture priority src="/blog/macos27/notes-templates-window" width={1538} height={984} maxWidth={760}

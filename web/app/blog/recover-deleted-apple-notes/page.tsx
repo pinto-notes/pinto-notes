@@ -68,7 +68,9 @@ export default function Page() {
       <h2 id="within-30-days">Within 30 days: Recently Deleted</h2>
       <p>
         A deleted note moves to Recently Deleted on all your devices and on iCloud.com, and stays there for 30 days. The folder only shows
-        up when it has something in it. The first time you delete a note on a Mac, Notes says so itself:
+        up when it has something in it. If the note isn&apos;t there and you never deleted it, but it&apos;s missing on just one device, it
+        usually hasn&apos;t synced: see <a href="/blog/apple-notes-not-syncing">Apple Notes not syncing between iPhone and Mac</a>. The first
+        time you delete a note on a Mac, Notes says so itself:
       </p>
       <Capture src="/blog/macos27/notes27-first-delete-30-days-dialog" width={1336} height={880} maxWidth={560}
         alt="Apple Notes on macOS 27: Deleted notes are moved to the Recently Deleted folder. You can recover or remove from Recently Deleted within 30 days. OK."
