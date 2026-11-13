@@ -59,4 +59,27 @@ import AppKit
         #expect(!s.isEnabled(.divider))
         #expect(FormatState().isEnabled(.divider))
     }
+
+    #if os(macOS)
+    /// The line's grey once laid over the page: black in dark mode, white in light.
+    private func onPage(_ color: NSColor, dark: Bool) -> CGFloat {
+        var level: CGFloat = 0
+        NSAppearance(named: dark ? .darkAqua : .aqua)!.performAsCurrentDrawingAppearance {
+            let c = color.usingColorSpace(.sRGB)!
+            let ground: CGFloat = dark ? 0 : 1
+            level = c.redComponent * c.alphaComponent + ground * (1 - c.alphaComponent)
+        }
+        return level
+    }
+
+    /// On the pure black page the system separator (10% white) left the line all but invisible
+    /// (Emil, 12 November 2026). It reads at least a quarter of the way to white, and stays a quiet
+    /// grey in light mode.
+    @Test func theLineShowsOnTheBlackPage() {
+        #expect(onPage(.paneRule, dark: true) >= 0.24)
+        #expect(onPage(.paneRule, dark: true) > onPage(.separatorColor, dark: true) * 2)
+        let light = onPage(.paneRule, dark: false)
+        #expect(light <= 0.88 && light >= 0.78)
+    }
+    #endif
 }

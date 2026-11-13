@@ -404,7 +404,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             // With the caret on it the dashes show, and the line starts after them instead of
             // running through them.
             let start = editing ? (textLineFragments.first.map { $0.typographicBounds.width } ?? 0) + 8 : 0
-            ctx.setFillColor(PColor.paneSeparator.cgColor)
+            ctx.setFillColor(PColor.paneRule.cgColor)
             // Level with the dashes, halfway up the lowercase letters, in both states: the line
             // box's middle sat above them, so the line ran higher than the "---" before it
             // (Emil, 8 November 2026).

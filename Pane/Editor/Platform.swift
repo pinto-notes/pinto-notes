@@ -57,6 +57,13 @@ extension PColor {
 #endif
 
 extension PColor {
+    /// A divider line in a note (and the notes list's hairlines). The system separator is 10% white,
+    /// which on the pure black page all but vanished (Emil, 12 November 2026: "I can barely see
+    /// divider lines at all"). Light keeps about the separator's weight.
+    static var paneRule: PColor { Palette.pair(0x000000, 0.16, 0xFFFFFF, 0.26) }
+}
+
+extension PColor {
     /// An empty checklist circle: a step darker than Notes' systemGray3 (council round 1, 11-04: the
     /// ring read 1.7:1 on white, under the 3:1 a control needs), still lighter than secondary text.
     static var paneCheckRing: PColor {
