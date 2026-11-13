@@ -290,7 +290,6 @@ struct WelcomeEmailForm: View {
             .foregroundStyle(Color.muted)
             .lineLimit(1)
             .truncationMode(.middle)
-            .privateBlur(model.flow.email, revealsOnTap: true)
             .accessibilityIdentifier("signin.lockedEmail")
     }
 
