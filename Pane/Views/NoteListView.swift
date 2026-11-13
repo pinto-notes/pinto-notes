@@ -1308,6 +1308,7 @@ struct NoteListView: View {
         // 12 November 2026: "it feels like it takes a second before it gets deleted").
         if touchedSelection { withTransaction(Self.immediate) { selection = next } }
         withAnimation(.snappy(duration: 0.25)) {
+            Usage.trashed(notes)
             context.remove(notes, undo: undoManager, reopen: { back in selection = Set(back.map(\.id)) },
                            gone: touchedSelection ? { choose.wrappedValue = next } : nil)
             context.remove(files: files)

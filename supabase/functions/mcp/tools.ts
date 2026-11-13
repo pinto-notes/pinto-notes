@@ -627,8 +627,8 @@ export async function findFolder(tx: Tx, v: Vault, ref: string, create: boolean)
       checkFolderName(part);
       const id = crypto.randomUUID();
       const [row] = await tx<{ id: string; parent_id: string | null; sort_index: number }[]>`
-        insert into public.folders (id, name_ct, parent_id, sort_index)
-        values (${id}, ${await v.sealFolder(id, part)}, ${parentId}, ${Date.now() / 1000})
+        insert into public.folders (id, name_ct, parent_id, sort_index, ai_made)
+        values (${id}, ${await v.sealFolder(id, part)}, ${parentId}, ${Date.now() / 1000}, true)
         returning id, parent_id, sort_index`;
       next = { ...row, sort_index: Number(row.sort_index), name: part };
       all.push(next);

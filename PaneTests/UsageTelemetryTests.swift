@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import SwiftData
 import Testing
@@ -278,7 +279,8 @@ private func props(_ e: [String: Any]?) -> [String: Any] { e?["properties"] as? 
         #expect(ConnectRevoke.disconnected([row("Claude Code", nil, nil)]) == .aiDisconnected(.claude))
         #expect(ConnectRevoke.disconnected([row("Codex", "token", nil)]) == .aiDisconnected(.chatgpt))
         #expect(ConnectRevoke.disconnected([row("Claude", "oauth", "claude.example.net")]) == .aiDisconnected(.other), "a name is never enough")
-        #expect(ConnectRevoke.disconnected([row("Grok", "oauth", "grok.com")]) == .aiDisconnected(.other))
+        #expect(ConnectRevoke.disconnected([row("Grok", "oauth", "grok.com")]) == .aiDisconnected(.grok))
+        #expect(ConnectRevoke.disconnected([row("Grok", "oauth", "grok.example.net")]) == .aiDisconnected(.other), "a name is never enough")
         #expect(ConnectRevoke.disconnected([]) == nil, "not this account's, or gone already")
     }
 }
@@ -368,4 +370,140 @@ private func props(_ e: [String: Any]?) -> [String: Any] { e?["properties"] as? 
         #expect(used.count(.checklistTicked) == 1, "ticking counts, unticking doesn't")
     }
     #endif
+}
+
+/// Coming back to an app left open, taking back what an AI did, and every kind of AI.
+@Suite struct ReturnAndUndoTelemetryTests {
+    @Test func comingBackAfterHalfAnHourIsSaidTheSameDayOnly() {
+        let clock = Clock()
+        let (t, _) = telemetry(clock: clock)
+        t.becameActive(signedIn: true)
+        t.left()
+        clock.now += 10 * 60
+        t.becameActive(signedIn: true)
+        #expect(events(t, "app_returned").isEmpty, "ten minutes away isn't coming back")
+        t.left()
+        clock.now += 45 * 60
+        t.becameActive(signedIn: true)
+        t.left()
+        clock.now += 3 * 3600
+        t.becameActive(signedIn: true)
+        #expect(events(t, "app_returned").map { props($0)["away"] as? String } == ["under_2h", "under_8h"])
+        // Brought to the front again without leaving: nothing.
+        clock.now += 3600
+        t.becameActive(signedIn: true)
+        #expect(events(t, "app_returned").count == 2)
+        // A new day is an app_opened, not a return.
+        t.left()
+        clock.now += 86400
+        t.becameActive(signedIn: true)
+        #expect(events(t, "app_returned").count == 2)
+        #expect(events(t, "app_opened").count == 2)
+    }
+
+    @Test func theRangesEdges() {
+        #expect(AwayBucket(seconds: 1799) == nil)
+        #expect(AwayBucket(seconds: 1800) == .under2h)
+        #expect(AwayBucket(seconds: 7200) == .under8h)
+        #expect(AwayBucket(seconds: 28800) == .over8h)
+        #expect(SinceBucket(seconds: 299) == .under5m)
+        #expect(SinceBucket(seconds: 300) == .under1h)
+        #expect(SinceBucket(seconds: 3600) == .under1d)
+        #expect(SinceBucket(seconds: 86400) == .under7d)
+        #expect(SinceBucket(seconds: 7 * 86400) == nil, "past a week it isn't about the AI")
+    }
+
+    @Test func whatTheAIDidHasAWordForEachKindOfChange() {
+        let words = [AIChange.Kind.edit, .restore, .created, .moved, .deleted, .restored].map { AIChangeWord($0).rawValue }
+        #expect(words == ["edited", "version_restored", "created", "moved", "deleted", "recovered"])
+    }
+
+    @Test func everyAIThatSignsInWhereOnlyItCanHasAKindOfItsOwn() {
+        #expect(AIKind(verified: "Claude") == .claude)
+        #expect(AIKind(verified: "ChatGPT") == .chatgpt)
+        #expect(AIKind(verified: "Grok") == .grok)
+        #expect(AIKind(verified: nil) == .other)
+        #expect(ConnectAIKind(guideName: "Grok") == .grok)
+        #expect(ConnectAIKind(guideName: "Something") == .other)
+    }
+}
+
+@MainActor @Suite(.serialized) struct AIUndoWiringTests {
+    private func library() throws -> ModelContext {
+        ModelContext(try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+    }
+
+    @Test func undoingAnAIsChangeSaysWhatItWasAndHowSoon() {
+        let steps = FunnelSteps()
+        let now = Date()
+        steps.watch {
+            AIUndoUsage.undone(.undo, change: .edited, at: now.addingTimeInterval(-60), now: now)
+            AIUndoUsage.undone(.changesList, change: .created, at: now.addingTimeInterval(-2 * 3600), now: now)
+            AIUndoUsage.undone(.changesList, change: .moved, at: now.addingTimeInterval(-30 * 86400), now: now)
+        }
+        #expect(steps.events == [.aiChangeUndone(.undo, change: .edited, after: .under5m),
+                                 .aiChangeUndone(.changesList, change: .created, after: .under1d)])
+    }
+
+    @Test func deletingAFolderAnAIMadeThisWeekSaysSoOnce() throws {
+        let d = TestDefaults()
+        let now = Date()
+        let made = UUID(), old = UUID(), mine = UUID()
+        AIMadeFolders.mark(made, at: now.addingTimeInterval(-7 * 60), now: now, defaults: d, isOn: true)
+        AIMadeFolders.mark(old, at: now.addingTimeInterval(-8 * 86400), now: now, defaults: d, isOn: true)
+        let steps = FunnelSteps()
+        steps.watch {
+            AIUndoUsage.folderDeleted(made, now: now, defaults: d)
+            AIUndoUsage.folderDeleted(made, now: now, defaults: d)
+            AIUndoUsage.folderDeleted(old, now: now, defaults: d)
+            AIUndoUsage.folderDeleted(mine, now: now, defaults: d)
+        }
+        #expect(steps.events == [.aiChangeUndone(.deleted, change: .created, after: .under1h)])
+        // Off, nothing is kept.
+        let off = TestDefaults()
+        AIMadeFolders.mark(made, at: now, now: now, defaults: off, isOn: false)
+        #expect(off.object(forKey: AIMadeFolders.key) == nil)
+    }
+
+    @Test func aFolderRowSaysWhetherAnAIMadeItAndTheAppNeverSendsThat() throws {
+        let id = UUID().uuidString.lowercased()
+        func row(_ extra: String) throws -> FolderDTO {
+            let json = #"{"id":"\#(id)","parent_id":null,"sort_index":1,"created_at":"2026-11-12T12:53:13.251+00:00","updated_at":"2026-11-12T12:53:13.251+00:00","deleted_at":null\#(extra)}"#
+            let dec = JSONDecoder()
+            dec.dateDecodingStrategy = .custom { d in
+                let s = try d.singleValueContainer().decode(String.self)
+                let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                return f.date(from: s) ?? .distantPast
+            }
+            return try dec.decode(FolderDTO.self, from: Data(json.utf8))
+        }
+        #expect(try row(#","ai_made":true"#).ai_made)
+        #expect(try row(#","ai_made":false"#).ai_made == false)
+        #expect(try row("").ai_made == false, "a server from before the column")
+        var r = try row(#","ai_made":true"#)
+        r.name = "Plans"
+        let sent = try Wire.$testSealer.withValue(Sealer(key: .init(size: .bits256), user: UUID())) {
+            String(decoding: try JSONEncoder().encode(r), as: UTF8.self)
+        }
+        #expect(sent.contains("name_ct"))
+        #expect(!sent.contains("ai_made"))
+    }
+
+    @Test func deletingNotesCountsOnceAndSaysSoForANoteAnAIChanged() throws {
+        let c = try library()
+        let mine = c.createNote(in: .all, body: "Mine\n\nshopping")
+        let theirs = c.createNote(in: .all, body: "Plan\n\nfrom the AI")
+        theirs.aiEditor = "Claude"
+        theirs.aiEditedAt = Date().addingTimeInterval(-120)
+        defer { theirs.aiEditor = nil; theirs.aiEditedAt = nil }
+        let used = UsedFeatures()
+        let steps = FunnelSteps()
+        used.watch { steps.watch { Usage.trashed([mine, theirs]) } }
+        #expect(used.count(.notesTrashed) == 1, "one delete, however many notes")
+        #expect(steps.events == [.aiChangeUndone(.deleted, change: nil, after: .under5m)])
+        // Nothing to delete: nothing said.
+        c.trash(mine)
+        used.watch { Usage.trashed([mine]) }
+        #expect(used.count(.notesTrashed) == 1)
+    }
 }

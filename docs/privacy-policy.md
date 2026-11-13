@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 11 November 2026
+Last updated: 12 November 2026
 
 ## The short version
 
@@ -93,23 +93,23 @@ This policy covers the Pinto Notes apps for iPhone and Mac, the service that let
 
 We count how features are used on our own server to improve the app. We never share or sell it. That means:
 
-- how many notes an AI connection changed on each day;
+- what your AI connections do and when: whether each one read, searched, made, changed or moved a note, a folder, an app or a file, and whether it worked. Never what it read or wrote, or the names of your notes;
 - which steps of the first-run setup you've completed;
 - if you answer it, how you heard about Pinto Notes: the choice you tap, and any words you add under Something else. We only look at it added up across accounts;
 - a random identifier for each installation of the app and its platform (iPhone or Mac), to count how many devices an account uses. It isn't linked to your device's hardware or advertising identifiers.
 
 **Diagnostics and usage from the apps**
 
-The iPhone and Mac apps report on themselves, so we find out when something is broken instead of waiting for someone to write to us. This started with the App Store version 1.2 and the Mac download 1.2.3. Earlier versions send none of this. They send:
+The iPhone and Mac apps report on themselves, so we find out when something is broken instead of waiting for someone to write to us, and learn where people get stuck. This started with the App Store version 1.2 and the Mac download 1.2.3. Earlier versions send none of this. They send:
 
-- **errors:** that a step failed and its error code, such as a save to the Keychain that was refused, a sync that keeps failing, or a sign-in that didn't work;
+- **errors:** that a step failed and its error code, such as a sync that keeps failing or a sign-in that didn't work;
 - **crashes and hangs,** from Apple's own diagnostics: the kind of crash and where in our code it happened, as numbers;
-- **a few events:** that the app was opened, that you signed in or signed up and how (Apple, Google or email), which screen you saw while a new device was getting your key, your first note and first sync, that an AI was connected (Claude, ChatGPT or other; never its name or address), and the first time you opened a note an AI had changed;
-- **speed:** how long the app took to open and to sync, and roughly how many notes you have (as a range such as 11 to 100, never the number).
+- **usage:** which features are used and when, such as opening the app, signing in and how, connecting an AI and which kind (such as Claude or ChatGPT, never the connection's name or address), or undoing something an AI did;
+- **speed:** how long things take, such as opening the app or a note, syncing or searching, and roughly how many notes you have (as a range such as 11 to 100, never the number).
 
 With each: the app's version, whether it's the App Store app or the Mac download, the kind of device (such as iPhone or Mac), the system version, and your account's identifier, so we can tell that one account keeps hitting the same problem. Before you sign in, a random identifier is used instead, made new each time the app starts and never stored on your device.
 
-They never send your notes, titles, folder or file names, what you search for, anything an AI wrote, your email address, your recovery key or any other key, or your device's name. An event can only hold numbers, yes or no, and words from a fixed list. The full list of events is in the open at [github.com/pinto-notes/pinto-notes](https://github.com/pinto-notes/pinto-notes/blob/main/docs/Technical/app-telemetry.md).
+They never send your notes, titles, folder or file names, what you search for, anything an AI wrote, your email address, your recovery key or any other key, or your device's name. An event can only hold numbers, yes or no, and words from a fixed list. Every report and what it holds is listed in the open at [github.com/pinto-notes/pinto-notes](https://github.com/pinto-notes/pinto-notes/blob/main/docs/Technical/app-telemetry.md). New ones are added there, and only of the kinds above.
 
 The reports go to PostHog, hosted in Frankfurt, Germany (EU). PostHog keeps no profile of you, works out no location from them, and records no screens. They are on unless you turn them off: **Settings → General → Share diagnostics and usage** turns all of it off, and nothing is kept or sent while it's off. The app says so under the sign-in form. Like every request, a report reaches PostHog from your IP address; PostHog is set not to keep it.
 
@@ -122,8 +122,9 @@ The reports go to PostHog, hosted in Frankfurt, Germany (EU). PostHog keeps no p
 
 **Visits to the website**
 
-- **Page views,** with Vercel Web Analytics: which page was viewed, the site you came from, and your country, browser and type of device. It uses no cookies and stores nothing on your device, and it doesn't identify you or follow you to other sites. Vercel tells visits apart for a day with a hash it doesn't store. Shared notes, the connect pages and report pages are never counted, and page addresses are counted without anything after them, such as a code in a link.
-- **Clicks and scrolling,** with PostHog, hosted in Frankfurt, Germany (EU): which pages were viewed, which links and buttons were clicked on them (such as Download for Mac, Use template, or a link to the App Store or GitHub), how far down each page you scrolled, the site you came from, and your browser and type of device. On the home, download, templates, blog, help, changelog and Privacy & Security pages it also notes where on the page each click landed, and clicks that did nothing or were repeated on one spot, so we can see which parts of a page people try to use. These are added up across all visitors into a map of each page. Unless you accept cookies, it uses no cookies and stores nothing on your device. Like Vercel, it then tells visits apart for a day: PostHog's servers make a one-way hash of your IP address and browser details together with a random value that changes every day and that PostHog deletes once that day's visits are counted. The next day gives a different hash, so visits on different days can't be linked. If you choose Accept on the website's cookie banner, PostHog instead keeps a random identifier in a cookie on pintonotes.com for up to a year, so your visits on different days count as the same visitor. That lets us see, for example, that someone who read a blog post came back a week later and downloaded the app. The identifier is random and isn't linked to your name, email address or account. You can change your answer at any time with Cookie settings at the bottom of every page, and choosing Reject deletes the cookie. Either way, it keeps no profile of you, records no keystrokes, and is set not to keep your IP address. If you choose Accept, PostHog also records your visit as a session replay: what each public page showed you, how far you scrolled, and where the pointer moved and clicked, so we can see where a page loses people. Everything typed into a field is masked in your browser before anything is sent, and so is text in any part of a page marked private; console logs, network requests and canvas drawings aren't recorded. A replay is never made on shared notes, the connect pages, password reset, account or report pages, or the links that open the app, and never if you reject, don't answer the banner, or your browser sends Do Not Track or Global Privacy Control. Choosing Reject stops a recording at once. Without Accept, no visit is recorded or replayed. It never runs on shared notes, the connect pages, report pages or the links that open the app, page addresses are sent without anything after them, and it doesn't run at all if your browser sends Do Not Track or Global Privacy Control.
+- **Page views,** with Vercel Web Analytics: which page was viewed, the site you came from, and your country, browser and type of device. It uses no cookies, stores nothing on your device, and doesn't identify you or follow you to other sites. Shared notes, the connect pages and report pages are never counted.
+- **Clicks and scrolling,** with PostHog, hosted in Frankfurt, Germany (EU): which links and buttons were clicked and where on the page each click landed, how far down each page you scrolled, the site you came from, and your browser and type of device. These are added up across all visitors. Unless you accept cookies, it stores nothing on your device and tells visits apart for one day only, with a one-way hash of your IP address and browser that can't be matched to another day. If you choose Accept on the cookie banner, PostHog keeps a random identifier in a cookie for up to a year, so your visits on different days count as one visitor. It isn't linked to your name, email address or account. If you choose Accept, PostHog also records your visit as a session replay: what each public page showed you, how far you scrolled, and where the pointer moved and clicked. Everything typed into a field is masked in your browser before anything is sent. You can change your answer at any time with Cookie settings at the bottom of every page: Reject deletes the cookie and stops a recording at once. Without Accept, no visit is recorded or replayed.
+- **Where PostHog never runs:** on shared notes, the connect pages, report pages or the links that open the app, and not at all if your browser sends Do Not Track or Global Privacy Control. Replays are also never made on password reset or account pages. Page addresses are sent without anything after them, such as a code in a link. It keeps no profile of you, records no keystrokes, and is set not to keep your IP address.
 - **Mac downloads,** as one total per day: the date and a number. Nothing about who downloaded, not even a network address. Updates the Mac app installs itself aren't counted.
 - None of this touches your notes or your computer, and none of it is linked to your account.
 
@@ -277,7 +278,7 @@ In our own database we keep a log of each time our copy of your notes' key was s
 - **Files** you add stay until you delete them or your account.
 - **Your account** is kept until you delete it. **Settings → Delete Account** removes your account, notes, files, profile photo, versions, AI connections, share links, notes password settings, usage counts, the record of emails we sent you, sign-in records and reports about your shared pages straight away.
 - **Notes shared with people:** a note's encrypted changes until a newer snapshot covers them; the note until its owner deletes it or their account; your place in it until you leave, are removed, start fresh or delete your account.
-- **Usage counts** (AI changes per day, days of use, tips, app installations): 12 months.
+- **Usage counts** on our server: 12 months.
 - **Diagnostics and usage from the apps:** at PostHog for as long as its plan keeps events (at least a month), or until you ask us to delete them. Deleting your account stops new reports and drops the ones still waiting on your device; it doesn't remove the ones PostHog already holds, so write to us to have those deleted.
 - **The record of emails we sent you,** of links you clicked in them and of unsubscribing: until you delete your account.
 - **Sign-in records:** 30 days. **Rate-limit hashes:** 2 hours. **Unfinished AI sign-ins and expired access tokens:** a day after they expire.

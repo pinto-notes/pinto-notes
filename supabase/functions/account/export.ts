@@ -53,7 +53,7 @@ export async function collect(sql: Sql, uid: string, now = new Date()): Promise<
     select id, size, created_at from public.attachments
     where user_id = ${uid} and deleted_at is null order by created_at`;
   const connections = await sql<Row[]>`
-    select name, kind, can_write, client_id, redirect_host, created_at, last_used_at, revoked_at
+    select name, kind, can_write, client_id, redirect_host, created_at, last_used_at, first_tool_at, last_tool_at, revoked_at
     from public.mcp_tokens where user_id = ${uid} order by created_at`;
   const shares = await sql<Row[]>`
     select slug, note_id, include_subnotes, created_at, revoked_at, title, body, published_at from public.note_shares where user_id = ${uid} order by created_at`;

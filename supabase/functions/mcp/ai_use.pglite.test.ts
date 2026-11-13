@@ -10,7 +10,7 @@ import type { Sql } from "npm:postgres@3.4.5";
 import { type Bytes, keyIdOf, newDataKey, recoveryKEK, tokenKey, Vault, verifierOf, wrap } from "../_shared/e2ee.ts";
 import { schemaDB, sqlFor, stubs } from "./pglite.ts";
 import { previewOf, titleOf } from "./notes.ts";
-import { TOOL_CATEGORY } from "./ai_use.ts";
+import { itemOf, TOOL_CATEGORY } from "./ai_use.ts";
 import { tools as classicTools } from "./tools.ts";
 import { FILE_TOOLS } from "./files_tools.ts";
 
@@ -222,7 +222,8 @@ Deno.test("a sign-in's kind is where its approval went; rows go with the account
     const a = await person(sql);
     const kinds: Record<string, string> = {
       "claude.ai": "claude", "claude.com": "claude", "chatgpt.com": "chatgpt", "chat.openai.com": "chatgpt",
-      "platform.openai.com": "chatgpt", "grok.com": "other", "localhost": "other", "claude.ai.example.net": "other",
+      "platform.openai.com": "chatgpt", "grok.com": "grok", "oauth-redirect.googleusercontent.com": "gemini",
+      "127.0.0.1": "local", "localhost": "local", "glama.ai": "other", "grok.com.example.net": "other", "claude.ai.example.net": "other",
     };
     for (const [host, ai] of Object.entries(kinds)) {
       // The name a client gives itself never decides: every one here calls itself Claude.
@@ -242,10 +243,114 @@ Deno.test("a sign-in's kind is where its approval went; rows go with the account
     assertEquals(days, [364]);
     // The daily active view: one account, counted once under each kind it used.
     const active = await sql<{ ai: string; accounts: number }[]>`select ai, accounts from public.ai_use_active_daily where day = (now() at time zone 'utc')::date order by ai`;
-    assertEquals(active.map((r) => [r.ai, Number(r.accounts)]), [["chatgpt", 1], ["claude", 1], ["other", 1]]);
+    assertEquals(active.map((r) => [r.ai, Number(r.accounts)]), [["chatgpt", 1], ["claude", 1], ["gemini", 1], ["grok", 1], ["local", 1], ["other", 1]]);
     // Deleting the account deletes its counts.
     await sql`delete from auth.users where id = ${a.id}`;
     assertEquals(await rows(sql), []);
+  } finally {
+    await done();
+  }
+});
+
+type Minute = { ai: string; category: string; item: string; outcome: string; count: number };
+const minutes = async (sql: Sql, user: string): Promise<Minute[]> =>
+  (await sql<(Minute & { recent: boolean })[]>`select ai, category, item, outcome, count, minute > now() - interval '2 minutes' as recent
+     from public.ai_use_minutes where user_id = ${user} order by category, item, outcome`)
+    .map((r) => { assert(r.recent, "counted under this minute"); return { ai: r.ai, category: r.category, item: r.item, outcome: r.outcome, count: Number(r.count) }; });
+
+Deno.test("what a call works on is told by the tool and the shape of its path only", () => {
+  assertEquals(itemOf("create", { path: "Work/Acme.md", content: "x" }), "note");
+  assertEquals(itemOf("create", { path: "Work/Clients/" }), "folder");
+  assertEquals(itemOf("create", { type: "folder", path: "Work" }), "folder");
+  assertEquals(itemOf("create", { type: "app", path: "Habits.md" }), "app");
+  assertEquals(itemOf("fetch", { id: "Work/Acme.md" }), "note");
+  assertEquals(itemOf("fetch", { id: "Work/Acme" }), "note");
+  assertEquals(itemOf("write", { path: "To read/Paper.pdf" }), "file");
+  assertEquals(itemOf("edit", { path: "Work/Habits.app/src/App.tsx" }), "app");
+  assertEquals(itemOf("delete", { path: "Archive/" }), "folder");
+  assertEquals(itemOf("search", { query: "milk" }), "none");
+  assertEquals(itemOf("list", {}), "none");
+  assertEquals(itemOf("create_folder", {}), "folder");
+  assertEquals(itemOf("create_note", {}), "note");
+  const served = new Set([...FILE_TOOLS, ...classicTools].map((t) => t.name));
+  for (const t of served) assert(["note", "folder", "app", "file", "none"].includes(itemOf(t, {})), t);
+});
+
+Deno.test("each call is also kept by the minute, with what it made; the connection knows its first and last call", async () => {
+  const { sql, done } = await database();
+  try {
+    const a = await person(sql);
+    await note(sql, a, "Groceries\n\n- [ ] Milk");
+    const token = await connect(sql, a, "Claude Code");
+    const stamps = async () => (await sql<{ first_tool_at: Date | null; last_tool_at: Date | null; last_used_at: Date | null }[]>`
+      select first_tool_at, last_tool_at, last_used_at from public.mcp_tokens where user_id = ${a.id}`)[0];
+    // Loading the tools is not use: last_used_at moves, the tool stamps don't.
+    await post(sql, `Bearer ${token}`, { jsonrpc: "2.0", id: 1, method: "tools/list" });
+    let s = await stamps();
+    assert(s.last_used_at);
+    assertEquals([s.first_tool_at, s.last_tool_at], [null, null]);
+    await post(sql, `Bearer ${token}`, [call("search", { query: "milk" }), call("fetch", { id: "Groceries.md" }), call("create", { path: "Plans/Week/" })]);
+    s = await stamps();
+    assert(s.first_tool_at && s.last_tool_at);
+    const first = s.first_tool_at.getTime();
+    await post(sql, `Bearer ${token}`, call("create", { path: "Plans/Monday.md", content: "Monday\n\nGym" }));
+    s = await stamps();
+    assertEquals(s.first_tool_at!.getTime(), first, "the first call stays the first");
+    assert(s.last_tool_at!.getTime() >= first);
+    assertEquals(await minutes(sql, a.id), [
+      { ai: "claude", category: "create", item: "folder", outcome: "ok", count: 1 },
+      { ai: "claude", category: "create", item: "note", outcome: "ok", count: 1 },
+      { ai: "claude", category: "read", item: "note", outcome: "ok", count: 1 },
+      { ai: "claude", category: "search", item: "none", outcome: "ok", count: 1 },
+    ]);
+    // The day's counts are as before.
+    assertEquals(await rows(sql, a.id), [
+      { ai: "claude", category: "create", outcome: "ok", count: 2 },
+      { ai: "claude", category: "read", outcome: "ok", count: 1 },
+      { ai: "claude", category: "search", outcome: "ok", count: 1 },
+    ]);
+    // The folders it made say an AI made them; one the app makes doesn't.
+    const made = await sql<{ ai_made: boolean }[]>`select ai_made from public.folders where user_id = ${a.id}`;
+    assertEquals(made.map((r) => r.ai_made), [true, true]);
+    const [col] = await sql<{ d: string }[]>`select column_default as d from information_schema.columns where table_name = 'folders' and column_name = 'ai_made'`;
+    assertEquals(col.d, "false", "a folder the app makes isn't marked");
+    // The first-use view: connected, then used.
+    const [f] = await sql<{ ai: string; first_tool_at: Date | null }[]>`select ai, first_tool_at from public.ai_first_use where user_id = ${a.id}`;
+    assertEquals(f.ai, "claude");
+    assert(f.first_tool_at);
+    // Nothing but kinds and counts: no names, paths or text.
+    const kept = JSON.stringify(await sql`select * from public.ai_use_minutes`);
+    for (const t of ["Groceries", "milk", "Plans", "Week", "Monday", "Gym", "Claude Code", token]) assert(!kept.includes(t), t);
+  } finally {
+    await done();
+  }
+});
+
+Deno.test("every kind of AI is counted by the minute, and nobody but the service role can read or add to it", async () => {
+  const { sql, done } = await database();
+  try {
+    const a = await person(sql);
+    const hosts = ["claude.ai", "chatgpt.com", "grok.com", "oauth-redirect.googleusercontent.com", "127.0.0.1", "glama.ai"];
+    for (const host of hosts) {
+      const [g] = await sql<{ id: string }[]>`insert into public.mcp_tokens (user_id, name, token_hash, kind, redirect_host)
+        values (${a.id}, 'Claude', ${"oauth:" + crypto.randomUUID()}, 'oauth', ${host}) returning id`;
+      await sql`select public.count_ai_use(${g.id}::uuid, 'read', 'note', false, 1)`;
+    }
+    const kinds = (await sql<{ ai: string }[]>`select distinct ai from public.ai_use_minutes where user_id = ${a.id} order by ai`).map((r) => r.ai);
+    assertEquals(kinds, ["chatgpt", "claude", "gemini", "grok", "local", "other"]);
+    const firsts = await sql<{ ai: string }[]>`select ai from public.ai_first_use where user_id = ${a.id} and first_tool_at is not null`;
+    assertEquals(firsts.length, hosts.length);
+    const [g] = await sql<{ id: string }[]>`select id from public.mcp_tokens where user_id = ${a.id} limit 1`;
+    await assertRejects(() => asUser(sql, a.id, (tx) => tx`select * from public.ai_use_minutes`));
+    await assertRejects(() => asUser(sql, a.id, (tx) => tx`select * from public.ai_first_use`));
+    await assertRejects(() => asUser(sql, a.id, (tx) => tx`select public.count_ai_use(${g.id}::uuid, 'edit', 'note', false, 1)`));
+    // Kept 365 days, and gone with the account.
+    await sql`insert into public.ai_use_minutes (user_id, minute, ai, category, item, outcome, count) values
+      (${a.id}, now() - interval '366 days', 'claude', 'edit', 'note', 'ok', 1)`;
+    await sql`select public.ai_use_forget()`;
+    assertEquals((await sql`select 1 from public.ai_use_minutes where minute < now() - interval '365 days'`).length, 0);
+    await sql`delete from auth.users where id = ${a.id}`;
+    assertEquals((await sql`select 1 from public.ai_use_minutes`).length, 0);
   } finally {
     await done();
   }
