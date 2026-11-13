@@ -23,6 +23,27 @@ enum QuickWords {
     static func found(_ n: Int) -> String { n == 0 ? "No notes found." : n == 1 ? "Found 1 note." : "Found \(n) notes." }
 }
 
+/// The words privacy mode says, in the app, the widget and Control Centre (PrivacyMode).
+enum PrivacyWords {
+    static let menuTitle = "Privacy Mode"
+    static let name = "Privacy mode"
+    static let hidden = "Hidden"
+    static let hiddenLine = "Privacy mode is on."
+    static let turnOff = "Turn off privacy mode"
+    static let help = "Privacy mode is on, so your notes are blurred. Click to turn it off."
+    static let settingsFooter = "Blurs your notes and their titles, except the line you\u{2019}re writing on. Point at a line to read it."
+    static let settingsFooterPhone = "Blurs your notes and their titles, except the line you\u{2019}re writing on. Touch a line to read it."
+    static let whenSharedTitle = "When your screen is shared"
+    static let whenSharedFooter = "Privacy mode turns on while your screen is shared or recorded, and off again when it stops."
+    static let coverTitle = "Your screen is being shared"
+    static let coverQuestion = "Hide your notes?"
+    static let hide = "Hide notes"
+    static let show = "Show notes"
+    static let remember = "Remember this"
+    static let controlKind = "PrivacyModeControl"
+    static let controlLine = "Blurs your notes in Pinto Notes."
+}
+
 /// Links into the app: `pintonotes://note/<id>` opens a note, `pintonotes://new` a new one.
 enum QuickLink: Equatable, Sendable {
     case note(UUID)
@@ -63,3 +84,26 @@ struct NewNoteIntent: AppIntent {
         return .result()
     }
 }
+
+/// Privacy mode from Control Centre (PrivacyModeControl): on or off, as you set it there. It
+/// lands in the App Group, which the app takes up when it comes forward; run in the app, at once.
+struct SetPrivacyModeIntent: SetValueIntent {
+    static let title: LocalizedStringResource = "Privacy Mode"
+    static let description = IntentDescription("Blurs your notes in Pinto Notes, or shows them again.")
+
+    @Parameter(title: "Privacy mode") var value: Bool
+
+    init() {}
+
+    @MainActor func perform() async throws -> some IntentResult {
+        var p = ChecklistShelf.privacy()
+        p.manual = value
+        p.hidden = value
+        ChecklistShelf.savePrivacy(p)
+        #if !WIDGET_EXTENSION
+        PrivacyMode.shared.setManual(value)
+        #endif
+        return .result()
+    }
+}
+
