@@ -155,7 +155,7 @@ export default function Page() {
       <h2 id="amber-notes">The gap Recently Deleted doesn&apos;t cover</h2>
       <p>
         Recently Deleted only helps when the whole note is gone. If you, or an app, change a note and remove the part you needed, Apple Notes
-        has nothing to go back to: it keeps no version history.
+        has nothing to go back to: it keeps <a href="/blog/apple-notes-version-history">no version history</a>.
       </p>
       <p>
         That&apos;s one of the things I built into Pinto Notes, the notes app for iPhone and Mac I make. Deleted notes stay in Recently

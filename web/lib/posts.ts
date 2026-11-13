@@ -277,6 +277,18 @@ export const posts: Post[] = [
     draft: false,
   },
   {
+    slug: "apple-notes-version-history",
+    title: "Does Apple Notes have version history? No. What to do",
+    description: "Apple Notes keeps no earlier versions of a note. What Undo, shared notes and backups can still get back, and notes apps that keep every version.",
+    excerpt: "Changed a note and lost the part you needed? Apple Notes has no version history. What can still bring it back, and what to use instead.",
+    category: "Apple Notes",
+    date: "2026-11-13",
+    updated: "2026-11-13",
+    image: SHOTS.history,
+    thumb: cover("orchid", "version-history", 1600, 1000, "Three stacked note pages and a clock with an arrow turning back"),
+    draft: false,
+  },
+  {
     slug: "back-up-apple-notes",
     title: "How to back up Apple Notes",
     description: "iCloud syncs Apple Notes but keeps no old copies. How to back up every note to files on your Mac, and what iPhone backups and Time Machine cover.",

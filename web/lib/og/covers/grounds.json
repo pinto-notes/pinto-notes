@@ -293,6 +293,12 @@
   "w": 880,
   "h": 550
  },
+ "version-history": {
+  "ground": "#e6f0df",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "xai-grok-bot": {
   "ground": "#fe6b09",
   "ink": "light",
