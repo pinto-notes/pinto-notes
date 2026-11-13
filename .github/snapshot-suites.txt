@@ -1,17 +1,18 @@
-# Snapshot suites the "snapshots" label runs on a pull request (one per line). Each writes PNGs
+# Snapshot suites the "snapshots" label runs on a pull request (one per line), as Target/Suite
+# (scripts/ci/select-tests.py --map PaneTests/Suite names the target). Each writes PNGs
 # to $AMBER_HIG_SHOTS offscreen, or has the workflow's watcher capture its window; the run keeps
 # them as an artifact.
-PaneTests/HoverSnapshots
-PaneTests/ChromeSnapshots
-PaneTests/HeardFromSnapshots
-PaneTests/PasswordFieldSnapshots
+PaneHIGTests/HoverSnapshots
+PaneHIGTests/ChromeSnapshots
+PaneHIGTests/HeardFromSnapshots
+PaneHIGTests/PasswordFieldSnapshots
 PaneTests/KeyGateCardSnapshotTests
 # Window-server captures gated on AMBER_DEMO_FRAMES (#257): never run on a developer's Mac.
-PaneTests/TipSnapshots
-PaneTests/AIEditSnapshots
-PaneTests/MacStoreShots
-PaneTests/WarmGreySnapshots
-PaneTests/TopBarShots
-PaneTests/LinkCardShots
-PaneTests/PictureShots
-PaneTests/TableShots
+PaneHIGTests/TipSnapshots
+PaneHIGTests/AIEditSnapshots
+PaneHIGTests/MacStoreShots
+PaneHIGTests/WarmGreySnapshots
+PaneHIGTests/TopBarShots
+PaneHIGTests/LinkCardShots
+PaneHIGTests/PictureShots
+PaneHIGTests/TableShots

@@ -53,14 +53,14 @@ enum Hover {
     /// A selected row, like Notes: a quiet neutral fill under an icon and name in the accent. A
     /// hovered row is the same pill, fainter (`row`).
     static var selected: AnyShapeStyle {
-        #if DEBUG
+        #if DEBUG || QA
         if tintedSelection { return AnyShapeStyle(.tint.opacity(0.16)) }
         #endif
         return AnyShapeStyle(Color(Palette.rowPill))
     }
     /// A hovered row's pill: the selection's, fainter. Plain, never vibrant (see `Palette.rowPill`).
     static var rowHover: AnyShapeStyle { AnyShapeStyle(Color(Palette.rowPillHover)) }
-    #if DEBUG
+    #if DEBUG || QA
     /// Captures only: the alternative look, a fill in the accent.
     nonisolated(unsafe) static var tintedSelection = false
     #endif
@@ -152,7 +152,7 @@ struct HoverRowReader<Content: View>: View {
     var body: some View {
         #if os(macOS)
         let on = hovering || preview.contains("*") || (!id.isEmpty && preview.contains(id))
-        #if DEBUG
+        #if DEBUG || QA
         // Here rather than on appear: a test's window is never shown.
         let _ = HoverProbe.register(id) { [self] in hovering = $0 }
         #endif
@@ -170,7 +170,7 @@ struct HoverRowReader<Content: View>: View {
                         .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
                 }
             }
-            #if DEBUG
+            #if DEBUG || QA
             .onChange(of: hovering) { HoverProbe.rowChanges += 1 }
             #endif
         #else
@@ -275,7 +275,7 @@ private struct HoverOverlay<S: InsettableShape>: ViewModifier {
     }
 }
 
-#if DEBUG
+#if DEBUG || QA
 /// Tests: sets a named row's hover the way the pointer does, and counts hover changes.
 @MainActor
 enum HoverProbe {

@@ -82,7 +82,8 @@ struct RootView: View {
     @State private var pendingSharedDelete: [Note]?
     /// Files the import sheet opens with (shared, opened from Files, dropped on the app).
     @State private var importFiles: [URL] = []
-    @AppStorage("lastScope") private var lastScopeData: Data = Data()
+    /// The folder you were in, for the next launch (LaunchSpot).
+    private var lastScopeData: Data { LaunchSpot.value(forKey: "lastScope") as? Data ?? Data() }
     /// Files that weren't added (a kind the app can't show, or over 100 MB), said once.
     @State private var refusal: FileRefusal?
     #if os(macOS)
@@ -102,7 +103,8 @@ struct RootView: View {
     #endif
     @Environment(SetupStore.self) private var setupStore: SetupStore?
     @Environment(Backend.self) private var backendForConnect: Backend?
-    @AppStorage("lastNote") private var lastNote: String = ""
+    /// The note you were on, for the next launch (LaunchSpot).
+    private var lastNote: String { LaunchSpot.value(forKey: "lastNote") as? String ?? "" }
 
     /// The single open note, when exactly one is selected.
     private var selectedNote: UUID? {
@@ -115,7 +117,7 @@ struct RootView: View {
     private var shownNote: UUID? { shown.count == 1 ? shown.first : nil }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("RootView", context: context)
         #endif
         #if os(macOS)
@@ -123,7 +125,13 @@ struct RootView: View {
         // it still went to 621 and cut the note off).
         let split = split.frame(minWidth: WindowFrameMemory.minimum.width)
         #endif
-        return popups(imports(lifecycle(split)).newAppSheet())
+        return alerts(sceneValues(popups(imports(lifecycle(split)).newAppSheet())))
+    }
+
+    /// The window's values for the menus and commands (apart, so the compiler can check the
+    /// body in time).
+    private func sceneValues(_ content: some View) -> some View {
+        content
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
             .onAppear { Telemetry.shared.notesShown() }
             .focusedSceneValue(\.newNoteAction, newNoteCommand)
@@ -145,6 +153,11 @@ struct RootView: View {
             .background(ListWidthKeeper(probe: listWidth))
             .onChange(of: visibility) { old, new in listWidth.changed(from: old, to: new) }
             #endif
+    }
+
+    /// Refusals, shared deletes and lost shares, said over the window.
+    private func alerts(_ content: some View) -> some View {
+        content
             .sharedDeleteConfirmation($pendingSharedDelete) { removeNow($0) }
             .onReceive(NotificationCenter.default.publisher(for: FileRefusal.notification)) { n in refusal = n.object as? FileRefusal }
             .alert(refusal?.title ?? "", isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } })) {
@@ -743,10 +756,10 @@ struct RootView: View {
     }
 
     private func rememberScope(_ new: Scope?) {
-        if let new, let data = try? JSONEncoder().encode(new) { lastScopeData = data }
+        if let new, let data = try? JSONEncoder().encode(new) { LaunchSpot.set(data, forKey: "lastScope") }
         #if os(iOS)
         // Back out of a folder on iPhone: the next launch opens the folders, as in Notes.
-        if new == nil, sizeClass == .compact { lastScopeData = PhoneLaunchSpot.folders }
+        if new == nil, sizeClass == .compact { LaunchSpot.set(PhoneLaunchSpot.folders, forKey: "lastScope") }
         #endif
     }
 
@@ -758,11 +771,11 @@ struct RootView: View {
         if new != nil { NoteOpenSpeed.tapped(at: Self.eventTime()) }
         if old != nil { NotificationCenter.default.post(name: .paneNoteClosed, object: nil) }
         discardIfEmpty(old)
-        if let new { lastNote = new.uuidString }
+        if let new { LaunchSpot.set(new.uuidString, forKey: "lastNote") }
         #if os(iOS)
         // Back out of a note on iPhone: the next launch opens the list it was in, not the note,
         // as in Notes. Leaving the app with the note open changes nothing here, so it reopens.
-        if new == nil, sizeClass == .compact { lastNote = PhoneLaunchSpot.list }
+        if new == nil, sizeClass == .compact { LaunchSpot.set(PhoneLaunchSpot.list, forKey: "lastNote") }
         #endif
         // A spare web view waiting to start waits on: starting one lands in the next open or Back.
         NotePageSandbox.navigationOccurred()
@@ -1172,6 +1185,54 @@ enum PhoneLaunchSpot {
     static let folders = Data("folders".utf8)
 }
 
+/// Where you were (the last folder and note), kept for the next launch. Written half a second
+/// after a switch on the Mac, not in it: as @AppStorage, each folder switch wrote two defaults in the click's
+/// own update, and every view that reads a default was updated with it, about a tenth of the
+/// switch (Emil, 12 November 2026: "switching between folders is not fast enough").
+@MainActor
+enum LaunchSpot {
+    private static var pending: [String: Any] = [:]
+    private static var scheduled = false
+    private static var watching = false
+
+    static func set(_ value: Any, forKey key: String) {
+        #if os(iOS)
+        // iOS can end the app in the background without a word: written at once there.
+        UserDefaults.standard.set(value, forKey: key)
+        #else
+        pending[key] = value
+        watchForQuit()
+        guard !scheduled else { return }
+        scheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { flush() }
+        #endif
+    }
+
+    /// The value waiting to be written, or the one written.
+    static func value(forKey key: String) -> Any? { pending[key] ?? UserDefaults.standard.object(forKey: key) }
+
+    static func flush() {
+        scheduled = false
+        let values = pending
+        pending = [:]
+        for (key, value) in values { UserDefaults.standard.set(value, forKey: key) }
+    }
+
+    /// Another account's library: what was waiting goes, with what was written (AccountLibrary).
+    static func forget(_ keys: [String]) { keys.forEach { pending.removeValue(forKey: $0) } }
+
+    #if os(macOS)
+    /// Quitting or closing a window writes what's waiting at once.
+    private static func watchForQuit() {
+        guard !watching else { return }
+        watching = true
+        for name in [NSApplication.willTerminateNotification, NSWindow.willCloseNotification] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in MainActor.assumeIsolated { flush() } }
+        }
+    }
+    #endif
+}
+
 /// What the note pane shows with several notes selected, as in Notes.
 struct MultipleSelectionView: View {
     let count: Int
@@ -1282,7 +1343,7 @@ struct EmptyDetailView: View {
 /// `importActions` as changed on every pass of RootView (iPhone, 2026-11-02: both worked out again
 /// on every note opened, ios-render-audit-2026-11-02.md). The closures now live in one box the
 /// window keeps, and the value handed down is only that box: the same bits on every pass.
-struct ImportActions: Equatable {
+struct ImportActions: CustomEquatable {
     @MainActor final class Box {
         var appleNotes: () -> Void = {}
         var from: (ImportKind) -> Void = { _ in }
@@ -1300,7 +1361,7 @@ struct ImportActions: Equatable {
         self.box = box
     }
 
-    static func == (a: ImportActions, b: ImportActions) -> Bool { a.box === b.box }
+    static func isEqual(_ a: ImportActions, _ b: ImportActions) -> Bool { a.box === b.box }
 }
 
 extension EnvironmentValues {
@@ -1809,12 +1870,12 @@ struct ListWidthKeeper: NSViewRepresentable {
 
 #if os(macOS)
 /// The sidebar button's action, and whether the sidebar shows now.
-struct ToggleSidebarAction: Equatable {
+struct ToggleSidebarAction: CustomEquatable {
     let shown: Bool
     let run: () -> Void
     func callAsFunction() { run() }
     var title: String { shown ? "Hide Sidebar" : "Show Sidebar" }
-    static func == (a: Self, b: Self) -> Bool { a.shown == b.shown }
+    static func isEqual(_ a: Self, _ b: Self) -> Bool { a.shown == b.shown }
 }
 
 extension EnvironmentValues {

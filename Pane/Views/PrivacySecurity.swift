@@ -148,7 +148,7 @@ extension AccountCrypto {
 
 /// What Settings › Security shows, read from the account: everything that can open your notes, in
 /// the groups the page draws. Pure, so tests check it without drawing a thing.
-struct SecurityContent: Equatable {
+struct SecurityContent: CustomEquatable {
     /// The AI whose mark a connection shows: its own, or the one its name says (round 20: a
     /// connected Claude and ChatGPT with a key beside them).
     static func aiMark(_ mark: String?, title: String) -> String? {
@@ -213,7 +213,7 @@ struct SecurityContent: Equatable {
         return out
     }
 
-    static func == (a: Self, b: Self) -> Bool { a.openers == b.openers && a.recovery == b.recovery && a.showsProtection == b.showsProtection && a.serverCopy == b.serverCopy }
+    static func isEqual(_ a: Self, _ b: Self) -> Bool { a.openers == b.openers && a.recovery == b.recovery && a.showsProtection == b.showsProtection && a.serverCopy == b.serverCopy }
 
     init(serverCopy: Bool, protection: KeyProtection?, recoverySaved: Bool, backedUp: Bool, others: [KeyDevice],
          connections: [Connection], platform: String = InstallID.platform, now: Date = .now) {
@@ -864,7 +864,7 @@ private struct RecoveryKeyItem: Identifiable {
 /// Face ID, Touch ID or the device passcode (`deviceOwnerAuthentication`).
 enum DeviceOwner {
     @MainActor static func authenticate(reason: String) async -> Bool {
-        #if DEBUG
+        #if DEBUG || QA
         // UI tests run on a simulator with no passcode and no account (its key store is in memory):
         // nothing is asked there. Release builds always ask.
         if ProcessInfo.processInfo.arguments.contains("-uitest") { return true }
@@ -886,7 +886,7 @@ enum DeviceOwner {
     /// The same question, telling a Cancel from a failure, for buttons that should say when
     /// nothing happened.
     @MainActor static func confirm(reason: String) async -> Outcome {
-        #if DEBUG
+        #if DEBUG || QA
         if ProcessInfo.processInfo.arguments.contains("-uitest") || ProcessInfo.processInfo.arguments.contains("-ownerConfirmed") { return .confirmed }
         #endif
         let context = LAContext()

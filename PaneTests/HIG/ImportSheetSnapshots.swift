@@ -158,7 +158,7 @@ import UIKit
     #if os(iOS)
     /// On an iPhone simulator (no Simulator window needed):
     /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-    /// -only-testing:PaneTests/ImportSheetSnapshots CODE_SIGNING_ALLOWED=NO`.
+    /// -only-testing:PaneHIGTests/ImportSheetSnapshots CODE_SIGNING_ALLOWED=NO`.
     @Test func iPhoneSheet() async throws {
         guard let dir = Self.dir else { return }
         let c = try Self.container()

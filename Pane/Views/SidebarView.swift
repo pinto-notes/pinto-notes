@@ -60,14 +60,14 @@ struct AccountButton: View {
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                             .truncationMode(.tail)
-                            #if DEBUG
+                            #if DEBUG || QA
                             .footProbe("sidebar.account.name")
                             #endif
                         if let away {
                             // On your name's line, so the words under it have the row's whole width.
                             Spacer(minLength: 0)
                             OfflineCloud(reach: away)
-                                #if DEBUG
+                                #if DEBUG || QA
                                 .footProbe("sidebar.offline.cloud")
                                 #endif
                         }
@@ -76,7 +76,7 @@ struct AccountButton: View {
                         OfflineWords(reach: away)
                             .font(.system(size: 11))
                             .foregroundStyle(Color.muted)
-                            #if DEBUG
+                            #if DEBUG || QA
                             .footProbe("sidebar.offline.title")
                             #endif
                     } else if let email {
@@ -512,7 +512,7 @@ struct SidebarView: View {
     private var roots: [Folder] { folders.filter { $0.parent == nil || $0.parent?.deletedAt != nil } }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("SidebarView", context: context)
         #endif
         let files = self.files
@@ -898,7 +898,7 @@ struct SidebarView: View {
 
     #if os(macOS)
     private static var offlineStandIn: (any OfflineSource)? {
-        #if DEBUG
+        #if DEBUG || QA
         OfflineStandIn.launched
         #else
         nil
@@ -1254,6 +1254,7 @@ struct SidebarView: View {
     /// Rename: on the Mac the name is typed in the folder's row, as in Notes; on iPhone in an alert.
     private func startRename(_ f: Folder) {
         #if os(macOS)
+        NameKeyHold.start()
         namingFolder = f.id
         #else
         nameDraft = f.name; renaming = f
@@ -1265,7 +1266,9 @@ struct SidebarView: View {
     private func startNewFolder(_ parent: Folder?) {
         #if os(macOS)
         guard let f = context.createUntitledFolder(parent: parent) else { folderLimitReached = true; return }
-        scope = .folder(f.id)
+        // Its name first, then its list: the field takes the keys before the list is built for
+        // the new folder, and the keys typed meanwhile go into the name (NameKeyHold).
+        NameKeyHold.start { scope = .folder(f.id) }
         namingFolder = f.id
         #else
         nameDraft = ""; newFolderParent = .some(parent)
@@ -1539,7 +1542,7 @@ private struct CountedRow: View {
     }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("CountedRow")
         #endif
         let selected = selection == (trash ? .trash : .all)
@@ -1864,8 +1867,8 @@ extension View {
 /// then every folder row. Nothing it is given changes what it shows: the selection reaches it
 /// through its binding, the folders and counts through its queries, and the action is the same
 /// action. So two of them are always equal.
-extension SidebarView: @MainActor Equatable {
-    static func == (a: SidebarView, b: SidebarView) -> Bool { true }
+extension SidebarView: @MainActor CustomEquatable {
+    static func isEqual(_ a: SidebarView, _ b: SidebarView) -> Bool { true }
 }
 
 /// A folder row with its sub-folders; accepts dropped notes and folders. Not an equatable view:
@@ -1914,7 +1917,7 @@ private struct FolderTree: View {
     @Binding var naming: UUID?
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("FolderTree")
         #endif
         Group {
@@ -2023,7 +2026,10 @@ private struct FolderTree: View {
         // Safari: they land in this folder.
         .onDrop(of: FolderDrop.types, delegate: FolderDrop(over: { targeted($0, folder.id) }) { providers in
             drops.lifted(folder.id)
+            let dropped = DropSpeed.start()
             DropLoader.load(providers) { items, urls in
+                DropSpeed.step("loaded", since: dropped)
+                defer { DropSpeed.step("moved", since: dropped); DispatchQueue.main.async { DropSpeed.step("next turn", since: dropped) } }
                 var moved = false
                 for item in items {
                     switch item.kind {
@@ -2144,8 +2150,8 @@ enum FolderAction: String, CaseIterable, Identifiable {
 /// it reads itself), the files, the selection, the drop. Not for the sidebar's actions, made new
 /// on every pass but doing the same things: as inputs they worked every folder row out again with
 /// each pass (180 rows against 72 for three saves).
-extension FolderTree: @MainActor Equatable {
-    static func == (a: FolderTree, b: FolderTree) -> Bool {
+extension FolderTree: @MainActor CustomEquatable {
+    static func isEqual(_ a: FolderTree, _ b: FolderTree) -> Bool {
         a.folder.id == b.folder.id && a.files == b.files && a.selection == b.selection
             && a.notesID == b.notesID && a.depth == b.depth && a.picked == b.picked
     }

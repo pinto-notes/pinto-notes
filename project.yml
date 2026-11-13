@@ -35,6 +35,22 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: complete
+targetTemplates:
+  # What every unit test target is: hosted by the app on the Mac and on iPhone, and loading
+  # PaneTestsLoaded (PaneTests/Harness/ClosedWindows.swift) as it starts.
+  PaneTestBundle:
+    type: bundle.unit-test
+    supportedDestinations: [iOS, macOS]
+    info:
+      path: PaneTests/Info/${target_name}.plist
+      properties:
+        NSPrincipalClass: ${target_name}.PaneTestsLoaded
+    dependencies:
+      - target: Pane
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        "TEST_HOST[sdk=macosx*]": "$(BUILT_PRODUCTS_DIR)/Pane.app/Contents/MacOS/Pane"
 targets:
   Pane:
     type: application
@@ -282,17 +298,16 @@ targets:
         SKIP_INSTALL: YES
         # QuickIntents: New Note runs in the app; the extension's copy only names it.
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WIDGET_EXTENSION
+  # The unit and interaction tests are four test targets, one per group of folders under PaneTests:
+  # after a test edit only its own target's module is compiled again, a quarter to a half of what
+  # one target of every test took (scripts/ci/select-tests.py maps PaneTests/Suite names to them).
+  # Each target compiles PaneTests/Harness and PaneTests/Shared too: the helpers the others use.
+  # Test targets can't import each other, so a helper another folder needs goes in Shared.
   PaneTests:
-    type: bundle.unit-test
-    supportedDestinations: [iOS, macOS]
-    # PaneTestsLoaded (PaneTests/Harness/ClosedWindows.swift).
-    info:
-      path: PaneTests/Info.generated.plist
-      properties:
-        NSPrincipalClass: PaneTests.PaneTestsLoaded
+    templates: [PaneTestBundle]
     sources:
       - path: PaneTests
-        excludes: [Fixtures]
+        excludes: [Fixtures, Info, Interaction, HIG, Network, Collab, Perf]
       - path: PaneTests/Fixtures
         excludes: [Markdown, Keep]
         buildPhase: resources
@@ -371,12 +386,63 @@ targets:
       # The design rules, for AmberButtonTests (the button sizes and radii in code are the file's).
       - path: docs/DESIGN.md
         buildPhase: resources
-    dependencies:
-      - target: Pane
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: YES
-        "TEST_HOST[sdk=macosx*]": "$(BUILT_PRODUCTS_DIR)/Pane.app/Contents/MacOS/Pane"
+  # The editor and the app driven offscreen: typing, lists, tables, selection, menus.
+  PaneInteractionTests:
+    templates: [PaneTestBundle]
+    sources:
+      - PaneTests/Interaction
+      - PaneTests/Harness
+      - PaneTests/Shared
+      # The flat fixtures (LayoutHangTests reads hang-2026.txt).
+      - path: PaneTests/Fixtures
+        excludes: [Markdown, Keep]
+        buildPhase: resources
+      # The app's code, read by MenuLookTests, SidebarPillTests and others (TestFiles.swift).
+      - path: Pane/Views
+        type: folder
+        buildPhase: resources
+      - path: Pane/App
+        type: folder
+        buildPhase: resources
+      - path: Pane/Model
+        type: folder
+        buildPhase: resources
+      - path: Pane/Editor
+        type: folder
+        buildPhase: resources
+      - path: Pane/Sync
+        type: folder
+        buildPhase: resources
+  # The design pass: snapshots and shots of every screen, written only when asked for.
+  PaneHIGTests:
+    templates: [PaneTestBundle]
+    sources:
+      - PaneTests/HIG
+      - PaneTests/Harness
+      - PaneTests/Shared
+      # habit-tracker.json, for the note page shots (NoteSourceTests.habitTrackerFixture).
+      - path: PaneTests/Fixtures
+        excludes: [Markdown, Keep]
+        buildPhase: resources
+  # Sync against a stub server, shared notes, and the suites that time things.
+  PaneSystemTests:
+    templates: [PaneTestBundle]
+    sources:
+      - PaneTests/Network
+      - PaneTests/Collab
+      - PaneTests/Perf
+      - PaneTests/Harness
+      - PaneTests/Shared
+      # The imports' fixtures, synced in ImportSyncTests.
+      - path: PaneTests/Fixtures
+        excludes: [Markdown, Keep]
+        buildPhase: resources
+      - path: PaneTests/Fixtures/Markdown
+        type: folder
+        buildPhase: resources
+      - path: PaneTests/Fixtures/Keep
+        type: folder
+        buildPhase: resources
   PaneUITests:
     type: bundle.ui-testing
     supportedDestinations: [iOS, macOS]
@@ -401,4 +467,4 @@ schemes:
       targets:
         Pane: all
     test:
-      targets: [PaneTests, PaneUITests]
+      targets: [PaneTests, PaneInteractionTests, PaneHIGTests, PaneSystemTests, PaneUITests]

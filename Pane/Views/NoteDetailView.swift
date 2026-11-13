@@ -1255,7 +1255,7 @@ struct NoteDetailView: View {
     private func chrome(_ content: some View) -> some View {
         // Counted here, once per body: a statement in the body itself is more than the
         // compiler can type-check in time.
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("NoteDetailView", context: context)
         #endif
         return content
@@ -1842,7 +1842,7 @@ private struct NoteEditorText: View {
     let onChange: (String) -> Void
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("NoteEditorText", context: note.modelContext)
         #endif
         // A locked note that isn't open has no text to give the editor; its pane shows the lock.
@@ -2036,7 +2036,7 @@ private struct HostAskAlert: ViewModifier {
 /// without it). So the pane only makes its items, where their state is, and hands them up.
 /// `NoteToolbarStage` stands in the detail column for as long as a note is open and shows them
 /// in a toolbar that stays: the items are brought up to date in place, like any other view.
-struct NoteToolbarParts: Equatable, @unchecked Sendable {
+struct NoteToolbarParts: CustomEquatable, @unchecked Sendable {
     /// The writing controls belong to the persistent stage. Only Attach opens this pane's UI.
     var writingDisabled: Bool
     /// A line the pane has to say while an app shows ("Added to (folder) Habits"): in the bar,
@@ -2052,7 +2052,7 @@ struct NoteToolbarParts: Equatable, @unchecked Sendable {
     /// Views can't be compared: each time the pane works its items out, they count as new.
     let made = NoteToolbarParts.next()
 
-    static func == (a: NoteToolbarParts, b: NoteToolbarParts) -> Bool { a.made == b.made }
+    static func isEqual(_ a: NoteToolbarParts, _ b: NoteToolbarParts) -> Bool { a.made == b.made }
 
     nonisolated(unsafe) private static var count = 0
     private static func next() -> Int {
@@ -2088,12 +2088,12 @@ struct NoteToolbarStage<Pane: View>: View {
     var openScope: (Scope) -> Void = { _ in }
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
-    #if DEBUG
+    #if DEBUG || QA
     @Environment(\.modelContext) private var context
     #endif
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("NoteToolbarStage", context: context)
         #endif
         let parts = $parts

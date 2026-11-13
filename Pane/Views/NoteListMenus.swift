@@ -105,7 +105,7 @@ struct NotePreviewCard: View {
     }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("NotePreviewCard", context: note.modelContext)
         #endif
         VStack(alignment: .leading, spacing: 10) {

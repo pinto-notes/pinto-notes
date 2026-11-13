@@ -497,7 +497,7 @@ struct QuickOpenPanel: View {
     /// Finds notes by their text, off the main thread (`QuickOpen.textHits`). Nil: titles only.
     let searchText: (@Sendable (String) async -> [QuickOpen.TextHit])?
 
-    #if DEBUG
+    #if DEBUG || QA
     @Environment(\.modelContext) private var context
     #endif
     @State private var query: String
@@ -652,7 +652,7 @@ struct QuickOpenPanel: View {
     }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("QuickOpenPanel", context: context)
         #endif
         let rows = rows

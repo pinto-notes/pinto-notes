@@ -190,7 +190,7 @@ import Testing
         drops.land(a)
         #expect(drops.landings[a] == 2 && drops.landings[b] == nil, "each drop bounces only its own row")
         let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
-        #expect(sidebar.contains("drops.lifted(folder.id)\n            DropLoader.load(providers)"), "lit before the dropped item is read")
+        #expect(sidebar.contains("drops.lifted(folder.id)\n            let dropped = DropSpeed.start()\n            DropLoader.load(providers)"), "lit before the dropped item is read")
         // The wait between the lift and the drop keeps the row lit, and the drop's own time replaces it.
         drops.lifted(b)
         #expect(drops.lit(b) && !drops.lit(a), "lit from the lift")

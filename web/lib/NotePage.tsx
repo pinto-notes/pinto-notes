@@ -20,22 +20,8 @@ function edited(iso: string): string {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 }
 
-/// The one mention of the app on someone's shared note: after the note, never over it.
-function GetAmberNotes() {
-  return (
-    <aside className={s.get} aria-label="About Pinto Notes">
-      <img src="/mark-256.png" alt="" width={44} height={44} />
-      <p>
-        <strong>Shared from Pinto Notes</strong>
-        <span>A notes app for iPhone and Mac that ChatGPT and Claude can read and edit.</span>
-      </p>
-      <a className={ui.secondary} href="/">Get Pinto Notes</a>
-    </aside>
-  );
-}
-
-/// A shared note: the page is the note, as in the app. The bar holds only the logo and "Use this note";
-/// who shared it sits under the title.
+/// A shared note: the page is the note, as in the app. The bar holds only the logo and "Use this note",
+/// lined up with the note; who shared it sits under the title. No pitch for the app: the logo says enough.
 export function NotePage({ slug, note, files, page, sealed = false, editHref = null }: {
   slug: string; note: SharedNote; files: Record<string, SharedFile>;
   /** The note's page, shown above its text (sealed links, prototype). */
@@ -77,7 +63,7 @@ export function NotePage({ slug, note, files, page, sealed = false, editHref = n
 
   return (
     <Shell className={s.plain}>
-      <TopBar href={sealed ? "/" : `/n/${slug}`}>{use}</TopBar>
+      <TopBar href={sealed ? "/" : `/n/${slug}`} rowClassName={s.noteBar}>{use}</TopBar>
       <main className={s.plainMain}>
         {parent}
         {page ? (
@@ -100,7 +86,6 @@ export function NotePage({ slug, note, files, page, sealed = false, editHref = n
         {page}
         <article className="note" dangerouslySetInnerHTML={{ __html: html }} />
         {subnotes}
-        <GetAmberNotes />
       </main>
       {!sealed && (
         <footer className={s.foot}>

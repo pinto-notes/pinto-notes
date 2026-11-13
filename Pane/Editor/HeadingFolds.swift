@@ -415,6 +415,16 @@ final class FoldState {
 /// the caret can't land in them. TextKit 2's own way to hide paragraphs, on iPhone and Mac.
 final class FoldingContentDelegate: NSObject, NSTextContentStorageDelegate {
     func textContentManager(_ textContentManager: NSTextContentManager, shouldEnumerate textElement: NSTextElement, options: NSTextContentManager.EnumerationOptions) -> Bool {
+        // Read in the storage, at the paragraph's start. A paragraph's `attributedString` is a copy
+        // of its text made when it's asked for, and TextKit asks this about every paragraph of the
+        // note, on screen or not, as it works out the note's height: copying each was about a
+        // tenth of opening a note of 200 lines (Emil, 13 November 2026: "speed of actions").
+        if let storage = textContentManager as? NSTextContentStorage, let text = storage.textStorage,
+           let start = textElement.elementRange?.location {
+            let at = storage.offset(from: storage.documentRange.location, to: start)
+            guard at >= 0, at < text.length else { return true }
+            return text.attribute(.paneFolded, at: at, effectiveRange: nil) == nil
+        }
         guard let p = textElement as? NSTextParagraph, p.attributedString.length > 0 else { return true }
         return p.attributedString.attribute(.paneFolded, at: 0, effectiveRange: nil) == nil
     }

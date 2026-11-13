@@ -1775,11 +1775,11 @@ struct ConnectAIPage: View {
 
     /// A row of the list: an AI there is to connect (with its connection, once connected), or a
     /// connection no AI in the list made (an app on this computer, Claude Code, an access token).
-    struct Row: Identifiable, Equatable {
+    struct Row: Identifiable, CustomEquatable {
         var guide: Guide?
         var connection: Connection?
         var id: String { connection.map { $0.id.uuidString } ?? guide?.rawValue ?? "" }
-        static func == (a: Row, b: Row) -> Bool { a.guide == b.guide && a.connection?.id == b.connection?.id }
+        static func isEqual(_ a: Row, _ b: Row) -> Bool { a.guide == b.guide && a.connection?.id == b.connection?.id }
     }
 
     @State private var ai: SetupCards.AI = .chatgpt

@@ -29,3 +29,19 @@ Deno.test("a change with no template in it doesn't", async () => {
   assertEquals(await touches(["Pane/Views/TemplateLibrary.swift", "web/lib/other.ts", "web/content/blog/post.md"]), "no");
   assertEquals(await touches([]), "no");
 });
+
+// --tests runs the suites of the touched test files by the names select-tests.py gives them: since
+// the tests are four targets (project.yml), each name says its target.
+async function suitesOf(...files: string[]): Promise<string[]> {
+  const select = new URL("./ci/select-tests.py", import.meta.url).pathname;
+  const out = await new Deno.Command("python3", { args: [select, "--suites-of", ...files] }).output();
+  return new TextDecoder().decode(out.stdout).split("\n").filter((l) => l !== "");
+}
+
+Deno.test("a touched test file's suites are named in their own target", async () => {
+  assertEquals(await suitesOf("PaneTests/AmberButtonTests.swift"), ["PaneTests/AmberButtonTests.swift\tPaneTests/AmberButtonTests"]);
+  assertEquals(await suitesOf("PaneTests/HIG/ChromeSnapshots.swift"), ["PaneTests/HIG/ChromeSnapshots.swift\tPaneHIGTests/ChromeSnapshots"]);
+  assertEquals(await suitesOf("PaneTests/Network/SyncFaultTests.swift"), ["PaneTests/Network/SyncFaultTests.swift\tPaneSystemTests/NetworkFaults/SyncFaultTests"]);
+  const [line] = await suitesOf("PaneTests/Interaction/ChecklistInteractionTests.swift");
+  assertEquals(line.split("\t")[1].split(" ")[0], "PaneInteractionTests/ChecklistInteractionTests");
+});

@@ -1,5 +1,5 @@
 import SwiftUI
-#if DEBUG && os(macOS)
+#if (DEBUG || QA) && os(macOS)
 import SwiftData
 #endif
 import os
@@ -287,7 +287,7 @@ final class EditorCore {
         if region == nil, ns.length > Self.progressiveThreshold {
             // A long note: style the top now and the rest a chunk at a time,
             // so it opens at once. The active line is styled with the top.
-            region = chunk(ns, structure: structure, from: 0, including: line)
+            region = chunk(ns, structure: structure, from: 0, size: Self.firstChunk, including: line)
             unstyledFrom = NSMaxRange(region!)
             styling = storage
             scheduleChunk()
@@ -338,6 +338,10 @@ final class EditorCore {
     func setWiki(_ wiki: WikiScope?, storage: NSTextStorage, selection: NSRange?) {
         guard styler.wiki != wiki else { return }
         styler.wiki = wiki
+        // Only a wiki link's look depends on the scope. A note that opens gets its scope a moment
+        // after its editor is made, and restyling the whole note then styled it twice: half of
+        // opening a note after a delete or in another folder (Emil, 12 November 2026).
+        guard storage.string.contains("[[") else { return }
         needsFull = true
         restyle(storage, selection: selection, force: true)
     }
@@ -391,8 +395,12 @@ final class EditorCore {
 
     // MARK: Progressive styling
 
-    /// Notes longer than this open with their top styled first.
-    static let progressiveThreshold = 24_000
+    /// Notes longer than this open with their top styled first: about a tall window of text, then
+    /// the rest a chunk at a time on the turns after. From 24,000 and a first chunk of 16,000: a
+    /// note of 200 checklist lines (12,500 characters) was styled whole before it showed, about a
+    /// quarter of opening it (Emil, 13 November 2026: "speed of actions and navigation").
+    static let progressiveThreshold = 8_000
+    private static let firstChunk = 6_000
     private static let chunkSize = 16_000
     /// Everything from here on hasn't been styled yet (Int.max: all styled).
     private(set) var unstyledFrom = Int.max
@@ -401,8 +409,8 @@ final class EditorCore {
 
     /// Whole lines from `from`, about one chunk long, never cutting a code block
     /// or table, and reaching at least to the end of `including`.
-    private func chunk(_ ns: NSString, structure: NoteStructure, from: Int, including: NSRange) -> NSRange {
-        var end = min(ns.length, from + Self.chunkSize)
+    private func chunk(_ ns: NSString, structure: NoteStructure, from: Int, size: Int = chunkSize, including: NSRange) -> NSRange {
+        var end = min(ns.length, from + size)
         if including.location != NSNotFound { end = max(end, min(ns.length, NSMaxRange(including))) }
         end = end < ns.length ? NSMaxRange(ns.lineRange(for: NSRange(location: end, length: 0))) : ns.length
         var r = NSRange(location: from, length: end - from)
@@ -2408,7 +2416,7 @@ private struct PlatformEditor: NSViewRepresentable {
         scroll.autohidesScrollers = true
         scroll.scrollerStyle = .overlay
         let view = PaneTextView(frame: .zero)
-        #if DEBUG && os(macOS)
+        #if (DEBUG || QA) && os(macOS)
         view.renderContext = context.environment.modelContext
         #endif
         view.core.styler.firstLineIsTitle = titleLine
@@ -2534,7 +2542,7 @@ final class NoteScrollView: NSScrollView {
 }
 
 final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
-    #if DEBUG
+    #if DEBUG || QA
     weak var renderContext: ModelContext?
     #endif
     let core = EditorCore()
@@ -2603,7 +2611,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         operation.run()
     }
 
-    #if DEBUG
+    #if DEBUG || QA
     var renderedCardKeys: Set<String> { Set(cardHosts.keys) }
     #endif
     private var cardLayoutQueued = false
@@ -2859,7 +2867,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     func layoutCards(animated: Bool = true) {
         cardLayoutQueued = false
         queuedCardAnimation = true
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("PaneTextView.layoutCards", context: renderContext)
         #endif
         guard let storage = textStorage else { return }
@@ -2879,7 +2887,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             if case .grid(_, let request, _) = item.content { wantsFocus = request != nil } else { wantsFocus = false }
             guard cardHosts[item.key] != nil || wantsFocus || item.frame.intersects(viewport) else { continue }
             let host = cardHosts[item.key] ?? {
-                #if DEBUG
+                #if DEBUG || QA
                 RenderProbe.count("CardHost.created", context: renderContext)
                 #endif
                 let h: NSHostingView<AnyView>

@@ -253,7 +253,7 @@ struct OfflineCloud: View {
     }
 }
 
-#if DEBUG
+#if DEBUG || QA
 /// Captures and real-input checks: a status with no account behind it. `-sidebarOffline offline`
 /// (or `unreachable`) in a demo run shows the foot as it is while sync is away; Try now takes a
 /// moment and then finds it still away, or back with `-sidebarOfflineReturns`.

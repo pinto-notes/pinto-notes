@@ -56,7 +56,7 @@ final class NoteOpener {
 
     func open(_ id: UUID) {
         // A window opened fresh restores this note; one already open reveals it.
-        UserDefaults.standard.set(id.uuidString, forKey: "lastNote")
+        LaunchSpot.set(id.uuidString, forKey: "lastNote"); LaunchSpot.flush()
         request = id
     }
 

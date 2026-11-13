@@ -10,7 +10,7 @@ import UIKit
 /// Offscreen; runs only when AMBER_HIG_SHOTS is set. Mac:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh "PaneTests/ImportGuideSnapshots"`; iPhone:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=…'
-/// -only-testing:PaneTests/ImportGuideSnapshots CODE_SIGNING_ALLOWED=NO`.
+/// -only-testing:PaneHIGTests/ImportGuideSnapshots CODE_SIGNING_ALLOWED=NO`.
 @MainActor @Suite(.serialized) struct ImportGuideSnapshots {
     static var dir: URL? { ProcessInfo.processInfo.environment["AMBER_HIG_SHOTS"].map { URL(fileURLWithPath: $0) } }
 

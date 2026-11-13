@@ -2,6 +2,7 @@ import QuickLook
 import QuickLookThumbnailing
 import SwiftData
 import SwiftUI
+import os
 import UniformTypeIdentifiers
 #if os(macOS)
 import Quartz
@@ -63,9 +64,49 @@ enum ListItem: Identifiable, DatedListItem {
 }
 
 /// What a drop carries: items from inside the app, and file or folder URLs from outside it.
+/// How long a drop on a folder takes, from the button's release (the drop) to what was dragged
+/// read, the move done and the next turn of the run loop, in the system log (category "speed"):
+/// `log stream --predicate 'subsystem == "dev.emilwagman.pane" AND category == "speed"'`
+/// (Emil, 12 November 2026: "it feels like the entire app freezes when I drag and drop a note").
+enum DropSpeed {
+    private static let log = Logger(subsystem: "dev.emilwagman.pane", category: "speed")
+
+    static func start() -> TimeInterval { ProcessInfo.processInfo.systemUptime }
+
+    static func step(_ what: StaticString, since start: TimeInterval) {
+        let ms = Int((ProcessInfo.processInfo.systemUptime - start) * 1000)
+        log.notice("drop on a folder: \(what, privacy: .public) after \(ms, privacy: .public) ms")
+    }
+}
+
+/// A drag's items, read from the drag itself when the drop happens. Loading them through their
+/// item providers took about 300 ms on the Air, with the note and its drag image still on screen
+/// after the drop (Emil, 12 November 2026: "it looks like the whole app is just frozen"). Read
+/// here, the note moved 7 ms after the drop. Anything else in the drop (a file from Finder) still
+/// loads through its provider.
+@MainActor
+enum DragNow {
+    /// The items of a drop that carries only notes, folders and files of this app; nil otherwise.
+    static func items(_ providers: [NSItemProvider]) -> [PaneDragItem]? {
+        #if os(macOS)
+        let type = UTType.paneItem.identifier
+        guard !providers.isEmpty, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(type) }) else { return nil }
+        let items = (NSPasteboard(name: .drag).pasteboardItems ?? []).compactMap { $0.data(forType: NSPasteboard.PasteboardType(type)) }
+            .compactMap { try? JSONDecoder().decode(PaneDragItem.self, from: $0) }
+        return items.count == providers.count ? items : nil
+        #else
+        return nil
+        #endif
+    }
+}
+
 enum DropLoader {
     @MainActor
     static func load(_ providers: [NSItemProvider], then handle: @escaping @MainActor ([PaneDragItem], [URL]) -> Void) {
+        if let items = DragNow.items(providers) {
+            handle(items, [])
+            return
+        }
         let group = DispatchGroup()
         final class Box: @unchecked Sendable { var items: [PaneDragItem] = []; var urls: [URL] = []; let lock = NSLock() }
         let box = Box()

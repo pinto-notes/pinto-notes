@@ -9,7 +9,7 @@ import UIKit
 
 /// Every account's first note (WelcomeNote): its words per device, written once, by one device,
 /// never for an account from before; and the iPhone's hand-off after a sign-in from it.
-@MainActor @Suite(.serialized) struct WelcomeNoteTests {
+extension WelcomeNoteTests {
     /// The title is the note's first line (the editor's title), "Get started" its small ### label.
     /// On iPhone only ChatGPT connects for now.
     @Test func theIPhoneNoteSendsYouToTheMac() {
@@ -221,13 +221,6 @@ import UIKit
         #expect(WelcomeNoteView.wayInShown == before + 1, "played to the end")
         #expect(steps > 60 && carets > 60, "sampled \(steps) steps, \(carets) carets")
         #expect(problems.isEmpty, "\(problems.prefix(5))")
-    }
-
-
-    static func textView(in view: UIView) -> PaneTextView? {
-        if let tv = view as? PaneTextView { return tv }
-        for v in view.subviews { if let tv = textView(in: v) { return tv } }
-        return nil
     }
 
     static func window(_ view: some View) throws -> UIWindow {

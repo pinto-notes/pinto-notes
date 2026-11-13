@@ -55,6 +55,39 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "7AB98510D91EC6D2D6772950"
+               BuildableName = "PaneInteractionTests.xctest"
+               BlueprintName = "PaneInteractionTests"
+               ReferencedContainer = "container:Pane.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "B7F7348A4AAB202D98FD9BAA"
+               BuildableName = "PaneHIGTests.xctest"
+               BlueprintName = "PaneHIGTests"
+               ReferencedContainer = "container:Pane.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "67FADEB7B9A7A840F07483B4"
+               BuildableName = "PaneSystemTests.xctest"
+               BlueprintName = "PaneSystemTests"
+               ReferencedContainer = "container:Pane.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "BC7E18DA4F36717AE7E68E54"
                BuildableName = "PaneUITests.xctest"
                BlueprintName = "PaneUITests"

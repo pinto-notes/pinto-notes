@@ -33,10 +33,10 @@ extension EnvironmentValues {
 
 /// Navigation uses this card's State storage, so an earlier callback reads the current path.
 /// Comparing the closure itself rebuilt the unchanged page on every search-field edit.
-struct OpenSettingsPage: Equatable {
+struct OpenSettingsPage: CustomEquatable {
     var open: (SettingsPage) -> Void
     func callAsFunction(_ place: SettingsPage) { open(place) }
-    static func == (a: Self, b: Self) -> Bool { true }
+    static func isEqual(_ a: Self, _ b: Self) -> Bool { true }
 }
 
 extension EnvironmentValues {
@@ -97,7 +97,7 @@ struct SettingsCard: View {
     @State private var parent: CGSize?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.settingsInWindow) private var inWindow
-    #if DEBUG
+    #if DEBUG || QA
     @Environment(\.modelContext) private var context
     #endif
 
@@ -169,7 +169,7 @@ struct SettingsCard: View {
     private var current: SettingsPage { place.first ?? Self.first(available) }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("SettingsCard", context: context)
         #endif
         Group {

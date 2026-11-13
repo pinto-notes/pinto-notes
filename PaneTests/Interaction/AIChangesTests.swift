@@ -12,21 +12,7 @@ import AppKit
 /// See what your AI changed in a note, and undo it in one tap (Emil, 29 October 2026). The list
 /// marks the note until you open it; inside, the lines the AI changed stay tinted and Undo stays
 /// offered while you read, and both go quietly once you type, undo or leave the note.
-@MainActor @Suite(.serialized) struct AIChangesTests {
-    static let before = "Lisbon, 4 days in May\n\n- [ ] Day 1: Alfama and the castle\n- [ ] Day 2: Belém and the tile museum\n- [ ] Day 3: LX Factory"
-    static let after = "Lisbon, 4 days in May\n\n- [ ] Day 1: Alfama and the castle\n- [ ] Day 2: Belém and the tile museum\n- [ ] Day 3: Sintra, Pena Palace first\n- [ ] Day 4: LX Factory and a late lunch"
-
-    /// A note this device had, then an AI's edit synced onto it, as the sync engine records it.
-    static func aiEdited(_ c: ModelContainer, by ai: String = "ChatGPT") -> Note {
-        let note = c.mainContext.createNote(in: .all, body: before)
-        AIEditTests.arrive(note, body: after, by: ai)
-        return note
-    }
-
-    static func container() throws -> ModelContainer {
-        try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-    }
-
+extension AIChangesTests {
     @Test func aConnectedAIShowsItsMark() {
         #expect(SecurityContent.aiMark("Claude", title: "My helper") == "Claude")
         #expect(SecurityContent.aiMark(nil, title: "ChatGPT") == "ChatGPT", "by its name")

@@ -1,5 +1,10 @@
 import Foundation
 import Testing
+#if canImport(AppKit)
+import AppKit
+#else
+import UIKit
+#endif
 @testable import Pane
 
 /// Collapsible sections (HeadingFolds): which lines a heading hides, and how its state follows edits.
@@ -167,5 +172,36 @@ import Testing
         s2.expandAll()
         s2.update(t2, code: [])
         #expect(FoldStore.load(id).isEmpty)
+    }
+
+    /// A paragraph that counts how often its text is copied out (`attributedString`).
+    final class CountingParagraph: NSTextParagraph {
+        nonisolated(unsafe) static var copies = 0
+        override var attributedString: NSAttributedString { Self.copies += 1; return super.attributedString }
+    }
+
+    /// TextKit asks whether to show each paragraph, on screen or not, as it works out a note's
+    /// height. The answer is read in the storage: the paragraph's own text isn't copied out for it
+    /// (about a tenth of opening a note of 200 lines, 13 November 2026).
+    @Test func hiddenLinesAreFoundWithoutCopyingEachParagraph() throws {
+        let text = NSMutableAttributedString(string: "Plan\n# A\nhidden\nshown")
+        text.addAttribute(.paneFolded, value: true, range: NSRange(location: 9, length: 7))
+        // As in the editor: the content storage over the text view's text storage.
+        let storage = NSTextContentStorage()
+        let backing = NSTextStorage(attributedString: text)
+        storage.textStorage = backing
+        let delegate = FoldingContentDelegate()
+        func paragraph(_ from: Int, _ length: Int) throws -> CountingParagraph {
+            let p = CountingParagraph(attributedString: text.attributedSubstring(from: NSRange(location: from, length: length)))
+            let start = try #require(storage.location(storage.documentRange.location, offsetBy: from))
+            p.elementRange = NSTextRange(location: start, end: storage.location(start, offsetBy: length))
+            return p
+        }
+        CountingParagraph.copies = 0
+        #expect(delegate.textContentManager(storage, shouldEnumerate: try paragraph(0, 5), options: []))
+        #expect(delegate.textContentManager(storage, shouldEnumerate: try paragraph(5, 4), options: []))
+        #expect(!delegate.textContentManager(storage, shouldEnumerate: try paragraph(9, 7), options: []), "a folded line is hidden")
+        #expect(delegate.textContentManager(storage, shouldEnumerate: try paragraph(16, 5), options: []))
+        #expect(CountingParagraph.copies == 0)
     }
 }

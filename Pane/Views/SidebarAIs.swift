@@ -33,7 +33,7 @@ struct SidebarActionRow: View {
         Button(action: action) {
             SidebarFootLabel {
                 Text(title).foregroundStyle(Color.muted)
-                    #if DEBUG
+                    #if DEBUG || QA
                     .footProbe("\(id).title")
                     #endif
             } icon: {
@@ -204,14 +204,14 @@ struct SidebarFoot: View {
         // As far in on the right as on the left: the folder list keeps room on its right for the
         // scroll bar, the foot has none (Emil, 8 November 2026).
         .padding(.trailing, pill.leading)
-        #if DEBUG
+        #if DEBUG || QA
         .footProbe("sidebar.foot")
         #endif
     }
 }
 #endif
 
-#if DEBUG
+#if DEBUG || QA
 /// Tests: where the foot and its pills were laid out (in the sidebar's own space), while
 /// `HoverProbe` is on. An offscreen window has no accessibility tree to read them from.
 @MainActor
@@ -236,7 +236,7 @@ extension View {
         let r = Hover.sidebarReach()
         let pill = padding(EdgeInsets(top: r.top, leading: r.leading, bottom: r.bottom, trailing: r.trailing))
             .hoverRow(id, reach: EdgeInsets())
-        #if DEBUG
+        #if DEBUG || QA
         return pill.footProbe(id)
         #else
         return pill

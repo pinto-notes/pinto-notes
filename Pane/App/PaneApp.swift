@@ -472,7 +472,7 @@ extension View {
 /// (`-windowProbe`, or any DEBUG build): "window card {{x, y}, {w, h}} -> {{x, y}, {w, h}}".
 enum WindowProbe {
     static let enabled: Bool = {
-        #if DEBUG
+        #if DEBUG || QA
         true
         #else
         ProcessInfo.processInfo.arguments.contains("-windowProbe")
@@ -593,13 +593,13 @@ extension View {
     func popupSheet(_ name: String) -> some View {
         environment(\.inSheet, true)
             .presentationBackground(SetupCards.ground)
-            #if DEBUG
+            #if DEBUG || QA
             .onChange(of: name, initial: true) { SheetProbe.last = name }
             #endif
     }
 }
 
-#if DEBUG
+#if DEBUG || QA
 /// The popup sheet that showed last, for tests: their windows never go on a screen there.
 @MainActor enum SheetProbe {
     static var last: String?

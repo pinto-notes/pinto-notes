@@ -753,12 +753,12 @@ struct OutgoingLinks: Equatable, Sendable {
 
 /// What the editor needs to colour wiki links: the library's titles, seen from the open note's
 /// folder. Equal while neither changes, so the editor restyles only when they do.
-struct WikiScope: Equatable {
+struct WikiScope: CustomEquatable {
     var index: WikiIndex
     var from: [String]
     var generation: Int
 
     func resolves(_ target: String) -> Bool { index.resolve(target, from: from) != nil }
 
-    static func == (a: WikiScope, b: WikiScope) -> Bool { a.generation == b.generation && a.from == b.from }
+    static func isEqual(_ a: WikiScope, _ b: WikiScope) -> Bool { a.generation == b.generation && a.from == b.from }
 }
