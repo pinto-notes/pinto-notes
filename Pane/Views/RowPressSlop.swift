@@ -174,8 +174,8 @@ enum RowPressSlop {
 /// its chip far to the left of the pointer (Emil, 13 November 2026). SwiftUI's rows start their
 /// drags their own way: on the Air neither `NSView.beginDraggingSession` nor the table's
 /// `draggingSession(_:willBeginAt:)` ran. Every session sets where it starts as the drag begins,
-/// and there its items' frames are read from the pointer (tried on the Air: a frame centred on
-/// zero put the chip's middle on the pointer). Only SwiftUI's drags are moved: text dragged out
+/// and there its items' frames are read across from the pointer (tried on the Air: an x of zero
+/// is the pointer). Only SwiftUI's drags are moved: text dragged out
 /// of a note keeps its place, as in every Mac text view.
 @MainActor
 enum DragUnderPointer {
@@ -198,30 +198,32 @@ enum DragUnderPointer {
 
     /// Every item of a session that's beginning, onto the pointer.
     nonisolated static func center(_ session: NSDraggingSession) {
-        // KVC reads the source without naming AppKit's private accessor.
+        // KVC reads the source and the image's offset without naming AppKit's private accessors.
         guard moves(from: session.value(forKey: "source")) else { return }
+        let below = (session.value(forKey: "draggingImageOffset") as? NSValue)?.pointValue.y
         session.enumerateDraggingItems(options: [], for: nil, classes: [NSPasteboardItem.self], searchOptions: [:]) { item, _, _ in
-            center(item)
+            center(item, bottomFromPointer: below)
         }
     }
 
-    /// The item cut to what it draws (SwiftUI's is the row's width, the chip at its left), with
-    /// the middle of that on the pointer.
-    nonisolated static func center(_ item: NSDraggingItem) {
+    /// The middle of what the item draws onto the pointer. SwiftUI's item is the row, with the chip
+    /// in its middle, and stays where the row was against the pointer. Across, the item's x is read
+    /// from the pointer. Up and down AppKit keeps the item where it is and ignores a y set here (on
+    /// the Air, five values drew the chip in the same place); the session's image offset says how
+    /// far the item's bottom is from the pointer (-58 pressed near a row's top, 1 near its
+    /// bottom), so the chip moves inside the item by the difference.
+    nonisolated static func center(_ item: NSDraggingItem, bottomFromPointer below: CGFloat?) {
         let parts = item.imageComponents ?? []
         let drawn = parts.reduce(NSRect.null) { $0.union($1.frame) }
         guard !drawn.isNull, !drawn.isEmpty else {
-            item.draggingFrame = centered(item.draggingFrame, on: .zero)
+            item.draggingFrame.origin.x = -item.draggingFrame.width / 2
             return
         }
-        for part in parts { part.frame = part.frame.offsetBy(dx: -drawn.minX, dy: -drawn.minY) }
+        item.draggingFrame.origin.x = -drawn.midX
+        guard let below else { return }
+        let up = -below - drawn.midY
+        for part in parts { part.frame.origin.y += up }
         item.imageComponentsProvider = { parts }
-        item.draggingFrame = centered(NSRect(origin: .zero, size: drawn.size), on: .zero)
-    }
-
-    /// `frame`, the same size, with its middle on `point`.
-    nonisolated static func centered(_ frame: NSRect, on point: NSPoint) -> NSRect {
-        NSRect(x: point.x - frame.width / 2, y: point.y - frame.height / 2, width: frame.width, height: frame.height)
     }
 }
 

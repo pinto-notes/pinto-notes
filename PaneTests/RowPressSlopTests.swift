@@ -18,27 +18,28 @@ import Testing
     }
 
     /// A dragged note's chip sits on the pointer, wherever on the row the press began (Emil,
-    /// 13 November 2026: grabbed at the row's right end, it trailed far off to the left). As a
-    /// session begins, AppKit reads its items' frames from the pointer: zero is the pointer.
+    /// 13 November 2026: grabbed at the row's right end, it trailed far off to the left; pressed
+    /// near a row's top or bottom, it hung below or above the pointer). The numbers are a real
+    /// drag's, logged on the Air: SwiftUI's item is the row, the chip in its middle.
     @Test func aDragRidesOnThePointer() throws {
-        #expect(DragUnderPointer.centered(NSRect(x: 0, y: 0, width: 200, height: 30), on: NSPoint(x: 400, y: 50))
-                == NSRect(x: 300, y: 35, width: 200, height: 30))
-        // SwiftUI's item is the row's width, the chip drawn at its left: the chip is what's centred.
-        let row = NSDraggingItem(pasteboardWriter: "row" as NSString)
-        row.setDraggingFrame(NSRect(x: -261, y: 1077, width: 272, height: 65), contents: nil)
-        let drawn = NSDraggingImageComponent(key: .icon)
-        drawn.frame = NSRect(x: 71.25, y: 18.5, width: 129.5, height: 28)
-        row.imageComponentsProvider = { [drawn] }
-        DragUnderPointer.center(row)
-        let part = try #require(row.imageComponents?.first)
-        let shown = part.frame.offsetBy(dx: row.draggingFrame.minX, dy: row.draggingFrame.minY)
-        #expect(abs(shown.midX) < 0.01 && abs(shown.midY) < 0.01, "the chip's middle on the pointer: \(shown)")
-        #expect(shown.size == NSSize(width: 129.5, height: 28))
-        // An item that draws nothing yet keeps its size, centred.
+        for below: CGFloat in [-58, -31, 1] {
+            let row = NSDraggingItem(pasteboardWriter: "row" as NSString)
+            row.setDraggingFrame(NSRect(x: -261, y: 1077, width: 272, height: 65), contents: nil)
+            let drawn = NSDraggingImageComponent(key: .icon)
+            drawn.frame = NSRect(x: 71.25, y: 18.5, width: 129.5, height: 28)
+            row.imageComponentsProvider = { [drawn] }
+            DragUnderPointer.center(row, bottomFromPointer: below)
+            let part = try #require(row.imageComponents?.first)
+            // Across: the item's x is from the pointer. Up and down: from the item's bottom, which is `below` from the pointer.
+            let across = row.draggingFrame.minX + part.frame.midX, up = below + part.frame.midY
+            #expect(abs(across) < 0.01 && abs(up) < 0.01, "pressed \(below) from the row's bottom: the chip's middle is \(across), \(up) from the pointer")
+            #expect(part.frame.size == NSSize(width: 129.5, height: 28))
+        }
+        // An item that draws nothing yet: its own middle, across.
         let plain = NSDraggingItem(pasteboardWriter: "plain" as NSString)
         plain.draggingFrame = NSRect(x: 40, y: 40, width: 160, height: 30)
-        DragUnderPointer.center(plain)
-        #expect(plain.draggingFrame == NSRect(x: -80, y: -15, width: 160, height: 30))
+        DragUnderPointer.center(plain, bottomFromPointer: nil)
+        #expect(plain.draggingFrame == NSRect(x: -80, y: 40, width: 160, height: 30))
         // SwiftUI's drags move; a text view's drag doesn't.
         #expect(!DragUnderPointer.moves(from: NSTextView()) && !DragUnderPointer.moves(from: nil))
         #expect(DragUnderPointer.moves(from: NSHostingView(rootView: Text("row"))))
