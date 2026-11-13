@@ -371,11 +371,13 @@ import Testing
     @Test func theOpenSourceLinksGoToGitHub() {
         #expect(ShareAsk.url(for: .starredGitHub)?.absoluteString == "https://github.com/pinto-notes/pinto-notes")
         #expect(ShareAsk.url(for: .dismissed) == nil)
-        #expect(AboutSection.links.map(\.title) == ["Report an issue", "Contribute", "Star on GitHub"])
+        // Help and feedback: the project, then how to help (one form per page, 7 November 2026).
+        // Reporting an issue went up with the ways to reach us, and the Mac's Help menu.
+        #expect(AboutSection.links.map(\.title) == ["Pinto Notes on GitHub", "Contribute"])
         #expect(AboutSection.links.map(\.url.absoluteString) == [
-            "https://github.com/pinto-notes/pinto-notes/issues/new/choose",
-            "https://github.com/pinto-notes/pinto-notes/blob/main/CONTRIBUTING.md",
             "https://github.com/pinto-notes/pinto-notes",
+            "https://github.com/pinto-notes/pinto-notes/blob/main/CONTRIBUTING.md",
         ])
+        #expect(ShareAsk.newIssue.absoluteString == "https://github.com/pinto-notes/pinto-notes/issues/new/choose")
     }
 }

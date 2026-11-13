@@ -272,7 +272,7 @@ extension WelcomeNoteTests {
 
     // MARK: The AI's first edit
 
-    /// The receipt the open note shows ("Claude changed 1 line", Undo) comes on the Welcome note's
+    /// The receipt the open note shows ("Claude added “Buy milk”", Undo) comes on the Welcome note's
     /// first AI edit like any other note's: the app writing the note doesn't count as an AI's edit.
     @Test func theFirstAIEditOfTheWelcomeNoteGetsItsReceipt() throws {
         let note = Note(body: WelcomeNote.body(for: .iPhone))
@@ -286,7 +286,8 @@ extension WelcomeNoteTests {
         AIEdit.arrived(note, previousBody: old, previousEditAt: oldAt, quiet: false)
         #expect(AIEdit.isUnseen(note))
         let receipt = try #require(AIEdit.markSeen(note))
-        #expect(receipt.summary == "Claude changed 1 line")
+        // Named by what it did, as every AI edit's receipt is since the AI edit mark (bc759c5a).
+        #expect(receipt.summary == "Claude added \u{201C}Buy milk\u{201D}")
         #expect(!receipt.created, "it changed the note, it didn't write it")
     }
 

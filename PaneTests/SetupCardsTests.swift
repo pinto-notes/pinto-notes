@@ -253,10 +253,15 @@ import Vision
     /// Templates opens in the app on the Mac: the sidebar's row and card, and the setup gallery's link.
     @Test func templatesOpenInTheApp() throws {
         let views = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views")
-        for file in ["SidebarAIs.swift", "SidebarCards.swift", "SetupCards.swift"] {
+        for file in ["SidebarCards.swift", "SetupCards.swift"] {
             let src = try String(contentsOf: views.appending(path: file), encoding: .utf8)
             #expect(src.contains("post(name: .paneTemplates"), "\(file)")
         }
+        // The sidebar's Templates row posts what its row opens (SidebarSetupRow, since the foot's
+        // rows became one Templates row and a notice: 12 November 2026).
+        let foot = try String(contentsOf: views.appending(path: "SidebarAIs.swift"), encoding: .utf8)
+        #expect(foot.contains("SidebarSetupRow.templates") && foot.contains("post(name: row.opens"))
+        #expect(SidebarSetupRow.templates.opens == .paneTemplates)
         #expect(TemplatesCard.opensWeb == false)
         let root = try String(contentsOf: views.appending(path: "RootView.swift"), encoding: .utf8)
         #expect(root.contains("publisher(for: .paneTemplates)") && root.contains("TemplateLibraryView(ais: ais"))
