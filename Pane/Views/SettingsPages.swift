@@ -1703,8 +1703,7 @@ struct AIPhoneRow: View {
                 .accessibilityIdentifier("connect.swipeDisconnect")
         }
         .contextMenu {
-            Button(role: .destructive, action: disconnect) { Label("Disconnect\u{2026}", systemImage: "xmark.circle") }
-                .destructiveTint()
+            DestructiveMenuButton("Disconnect\u{2026}", systemImage: "xmark.circle", action: disconnect)
                 .accessibilityIdentifier("connect.menuDisconnect")
         }
         .disabled(working)
