@@ -377,6 +377,8 @@ struct NoteListView: View {
         .id(ListIdentity(scope: scope, library: library.wholesale))
         #if os(macOS)
         .modifier(OpensTopNote(scope: scope, top: visible.first?.id, selection: $selection))
+        // Privacy mode: the titles show while the pointer is over the list or the keys move through it.
+        .modifier(RevealsTitles())
         #endif
         #endif
         #if os(iOS)
@@ -1984,7 +1986,7 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
             // Its own equatable view: when one note changes, the others' rows (and their
             // drag and swipe setup) are left alone instead of rebuilt.
             ListRow(note: note, query: query, showFolder: showFolder, datedByCreation: datedByCreation,
-                    dragWith: dragWith, selectedCount: selectedCount, togglePin: { togglePin(note) }, remove: { remove(note) })
+                    dragWith: dragWith, selectedCount: selectedCount, open: quiet, togglePin: { togglePin(note) }, remove: { remove(note) })
                 .equatable()
                 #if os(macOS)
                 // Under the pointer the row's ••• appears at its right, with the same menu as a
@@ -2020,17 +2022,19 @@ private struct ListRow: View, @MainActor Equatable {
     /// The rest of the selection, when this row is part of a multi-selection.
     let dragWith: [UUID]?
     let selectedCount: Int
+    /// The open note's row (the Mac's selection): its title shows in privacy mode.
+    var open = false
     let togglePin: () -> Void
     let remove: () -> Void
 
     static func == (a: ListRow, b: ListRow) -> Bool {
         a.note === b.note && a.query == b.query && a.showFolder == b.showFolder && a.datedByCreation == b.datedByCreation
-            && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount)
+            && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount) && a.open == b.open
     }
 
     var body: some View {
         // Every pinned note in the list is under its Pinned heading, which says so: no pin before the title.
-        NoteRow(note: note, query: query, showFolder: showFolder, datedByCreation: datedByCreation, pinnedHeading: true)
+        NoteRow(note: note, query: query, showFolder: showFolder, datedByCreation: datedByCreation, pinnedHeading: true, open: open)
             // The row's full width, so the ••• over it sits at the row's right edge, not at the end
             // of a short title (Emil, 2 November 2026). Before the drag, so the whole row drags.
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -2064,6 +2068,8 @@ struct NoteRow: View {
     /// The row sits under the list's Pinned heading, which says it's pinned: no pin before its
     /// title (NoteRowStatus). Search on the folders screen has no heading, so its pinned rows show one.
     var pinnedHeading = false
+    /// The open note's row: its title shows while privacy mode blurs the others (Mac).
+    var open = false
 
     /// The date the row shows: the one the list is sorted by, which is the date edited unless
     /// the list is sorted by date created.
@@ -2072,6 +2078,8 @@ struct NoteRow: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.sidebarStudy) private var study
+    @Environment(\.listTitleReveal) private var reveal
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var ink: Color { .ink }
     private var muted: Color { .muted }
 
@@ -2095,6 +2103,7 @@ struct NoteRow: View {
         let app = NoteAppMark.has(note)
         let picture = Self.picture(of: note)
         let found = self.found
+        let titleBlurred = ListTitleReveal.blurs(privacyOn: PrivacyMode.shared.isOn, open: open, revealed: reveal?.shown ?? false)
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: RowMetrics.spacing) {
                 HStack(spacing: 5) {
@@ -2103,6 +2112,9 @@ struct NoteRow: View {
                         .tracking(DesignLook.isCandidate ? -0.15 : 0)
                         .foregroundStyle(ink)
                         .lineLimit(large ? 3 : 1)
+                        // Privacy mode on the Mac: blurred until you point at the list (ListTitleReveal).
+                        .blur(radius: titleBlurred ? PreviewBlur.radius : 0)
+                        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: titleBlurred)
                     if app {
                         AppMarkView(size: RowMetrics.markSize)
                             .accessibilityIdentifier("note.app")

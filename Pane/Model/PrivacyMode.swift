@@ -7,8 +7,9 @@ import WidgetKit
 
 // Privacy mode (Emil, 13 November 2026): the previews under each title in the note list blurred,
 // so a shared screen, a recording or someone beside you doesn't read every note at a glance.
-// Titles and the note you have open stay as they are: you have to be able to work (Emil, the
-// same day, after an earlier build blurred the editor too). It
+// The note you have open stays as it is: you have to be able to work (Emil, the same day, after
+// an earlier build blurred the editor too). On the Mac the list's titles blur too, and show while
+// you point at the list (ListTitleReveal); the open note's title always shows. It
 // turns itself on when your screen is shared, after asking (the cover, PrivacyCover), and off
 // again when the sharing stops; turned on by hand, it stays on until you turn it off.
 

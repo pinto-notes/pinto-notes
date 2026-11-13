@@ -176,3 +176,81 @@ struct PrivacyModeSection: View {
         #endif
     }
 }
+
+// MARK: Titles in the Mac's list
+
+/// The Mac's note list while privacy mode is on: its titles are blurred until you point anywhere
+/// at the list, or move through it with the arrow keys while it has the keys (Emil, 13 November
+/// 2026). They blur again a moment after the pointer leaves, so brushing past on the way to the
+/// toolbar doesn't flicker. The open note's title always shows. One for each list.
+@MainActor @Observable final class ListTitleReveal {
+    /// How long the titles stay sharp after the pointer leaves (or the keys move on).
+    static let delay: Duration = .milliseconds(300)
+
+    /// The titles show now.
+    private(set) var shown = false
+    private var over = false
+    private var navigating = false
+    @ObservationIgnored private let delay: Duration
+    @ObservationIgnored private var pending: Task<Void, Never>?
+
+    init(delay: Duration = ListTitleReveal.delay) { self.delay = delay }
+
+    /// The pointer came over the list, or left it.
+    func pointer(_ inside: Bool) { over = inside; update() }
+    /// An arrow key moved the selection while the list had the keys.
+    func navigated() { navigating = true; update() }
+    /// The list got or lost the keys; losing them ends moving through it.
+    func focus(_ focused: Bool) { if !focused { navigating = false; update() } }
+
+    private func update() {
+        pending?.cancel()
+        pending = nil
+        if over || navigating {
+            shown = true
+        } else if shown {
+            pending = Task { [weak self, delay] in
+                try? await Task.sleep(for: delay)
+                guard !Task.isCancelled else { return }
+                self?.shown = false
+            }
+        }
+    }
+
+    /// Whether a row's title is blurred: on the Mac, with privacy mode on, unless it's the open
+    /// note's or the list shows its titles. The iPhone's titles never are.
+    nonisolated static func blurs(privacyOn: Bool, open: Bool, revealed: Bool) -> Bool {
+        #if os(macOS)
+        privacyOn && !open && !revealed
+        #else
+        false
+        #endif
+    }
+}
+
+extension EnvironmentValues {
+    /// The list's title reveal (ListTitleReveal); nil outside a list, where titles blur while privacy mode is on.
+    @Entry var listTitleReveal: ListTitleReveal? = nil
+}
+
+#if os(macOS)
+/// Gives a list its title reveal: one hover region for the whole list, and its arrow keys.
+struct RevealsTitles: ViewModifier {
+    @State private var reveal = ListTitleReveal()
+    @FocusState private var focused: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.listTitleReveal, reveal)
+            .onHover { reveal.pointer($0) }
+            // Arrow keys move the list's selection; moving through the list shows its titles while
+            // it keeps the keys. Ignored, so the list still moves.
+            .onKeyPress(keys: [.upArrow, .downArrow, .pageUp, .pageDown, .home, .end], phases: .down) { _ in
+                reveal.navigated()
+                return .ignored
+            }
+            .focused($focused)
+            .onChange(of: focused) { _, now in reveal.focus(now) }
+    }
+}
+#endif

@@ -46,11 +46,12 @@ import AppKit
     }
 
     /// Rows as the list draws them, without the List (ImageRenderer draws no AppKit table).
-    static func rows(_ notes: [Note]) -> some View {
+    static func rows(_ notes: [Note], open: UUID? = nil, reveal: ListTitleReveal? = nil) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            ForEach(notes) { NoteRow(note: $0).padding(.horizontal, 8); Divider().padding(.leading, 18) }
+            ForEach(notes) { NoteRow(note: $0, open: $0.id == open).padding(.horizontal, 8); Divider().padding(.leading, 18) }
             Spacer(minLength: 0)
         }
+        .environment(\.listTitleReveal, reveal)
         .background(Color(Palette.listGround))
     }
 
@@ -83,7 +84,13 @@ import AppKit
 
         // SwiftUI's blur and materials only show through ImageRenderer offscreen (cacheDisplay leaves them out).
         let (c, notes) = try Self.library()
-        try Self.render(Self.rows(notes).modelContainer(c).frame(width: 320, height: 300), dark: dark, to: dir.appending(path: "mac-list-\(mode).png"))
+        // The list with the pointer away from it (titles blurred but the open note's), and over it.
+        let away = ListTitleReveal(), over = ListTitleReveal()
+        over.pointer(true)
+        try Self.render(Self.rows(notes, open: notes[1].id, reveal: away).modelContainer(c).frame(width: 320, height: 300), dark: dark,
+                        to: dir.appending(path: "mac-list-away-\(mode).png"))
+        try Self.render(Self.rows(notes, open: notes[1].id, reveal: over).modelContainer(c).frame(width: 320, height: 300), dark: dark,
+                        to: dir.appending(path: "mac-list-over-\(mode).png"))
         // The menu bar panel's rows (ImageRenderer draws neither its field nor its scroll view).
         let menuRows = VStack(alignment: .leading, spacing: 2) {
             ForEach(notes) { MenuBarPanel.rowText($0).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8).padding(.vertical, 5) }

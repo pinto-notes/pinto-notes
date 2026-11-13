@@ -82,12 +82,15 @@ import Testing
         await ax.settle()
         let row = try #require(ax.find("note.Salary talk"))
         #expect(row.text.contains("Ask for the raise"), "off: the preview shows: \(row.text)")
-        let off = try Self.rowInk(note, c)
+        // The pointer over the list: its titles show (the next test has them away from it).
+        let over = ListTitleReveal()
+        over.pointer(true)
+        let off = try Self.rowInk(note, c, reveal: over)
         PrivacyMode.shared.setManual(true)
         await ax.settle()
         let blurred = try #require(ax.find("note.Salary talk"))
         #expect(blurred.text.contains("Salary talk") && blurred.text.contains("Ask for the raise"), "VoiceOver reads the row: \(blurred.text)")
-        let on = try Self.rowInk(note, c)
+        let on = try Self.rowInk(note, c, reveal: over)
         print("privacy-list: size off \(off.size) on \(on.size); title ink off \(off.title) on \(on.title); preview ink off \(off.preview) on \(on.preview); total ink off \(off.previewInk) on \(on.previewInk)")
         #expect(on.size == off.size, "the row keeps its size: \(off.size) then \(on.size)")
         #expect(on.title < 0.35 && abs(on.title - off.title) < 0.02, "the title is drawn sharp: off \(off.title), on \(on.title)")
@@ -106,10 +109,55 @@ import Testing
         #expect(try SettingsHomeTests.source("Pane/Views/MenuBarPanel.swift").contains(".lineLimit(1)\n                .previewBlur()"))
     }
 
+    /// The Mac's titles in privacy mode (Emil, 13 November 2026): blurred while the pointer is
+    /// away from the list, sharp while it's over the list or the keys move through it, the open
+    /// note's always sharp; the row never changes size, and VoiceOver reads the title.
+    @Test func titlesBlurAwayFromTheListAndShowOverIt() async throws {
+        Self.reset()
+        defer { Self.reset() }
+        let (c, note) = try Self.library()
+        let reveal = ListTitleReveal(delay: .milliseconds(300))
+        let sharp = try Self.rowInk(note, c, reveal: reveal)
+        PrivacyMode.shared.setManual(true)
+        let away = try Self.rowInk(note, c, reveal: reveal)
+        let open = try Self.rowInk(note, c, open: true, reveal: reveal)
+        reveal.pointer(true)
+        let over = try Self.rowInk(note, c, reveal: reveal)
+        reveal.pointer(false)
+        let leaving = try Self.rowInk(note, c, reveal: reveal)
+        try? await Task.sleep(for: .milliseconds(600))
+        let gone = try Self.rowInk(note, c, reveal: reveal)
+        reveal.navigated()
+        let keys = try Self.rowInk(note, c, reveal: reveal)
+        print("privacy-titles: off \(sharp.title), away \(away.title), open \(open.title), over \(over.title), leaving \(leaving.title), gone \(gone.title), keys \(keys.title)")
+        #expect(away.title > sharp.title + 0.25, "away from the list the title is blurred: \(sharp.title) then \(away.title)")
+        #expect(open.title < 0.35, "the open note's title always shows: \(open.title)")
+        #expect(over.title < 0.35, "over the list the titles show: \(over.title)")
+        #expect(leaving.title < 0.35, "just after leaving they still show (the delay): \(leaving.title)")
+        #expect(gone.title > sharp.title + 0.25, "after the delay they blur again: \(gone.title)")
+        #expect(keys.title < 0.35, "moving through the list with the keys shows them: \(keys.title)")
+        #expect(Set([sharp.size, away.size, open.size, over.size, keys.size]).count == 1, "the row keeps its size")
+        #expect(over.preview > 0.9 && keys.preview > 0.9, "previews stay blurred while the titles show: \(over.preview)")
+
+        // VoiceOver reads the title, blurred or not.
+        let ax = OffscreenAX(NoteRow(note: note).environment(\.listTitleReveal, ListTitleReveal()).modelContainer(c).frame(width: 320), size: CGSize(width: 320, height: 80))
+        defer { ax.close() }
+        await ax.settle()
+        #expect(try #require(ax.find("note.Salary talk")).text.contains("Salary talk"))
+
+        // One hover region for the whole list, and its arrow keys: on the List, not on each row.
+        let list = try SettingsHomeTests.source("Pane/Views/NoteListView.swift")
+        #expect(list.contains(".modifier(RevealsTitles())"))
+        let views = try SettingsHomeTests.source("Pane/Views/PrivacyViews.swift")
+        #expect(views.contains(".onHover { reveal.pointer($0) }") && views.contains(".onKeyPress(keys: [.upArrow, .downArrow"))
+    }
+
     /// The row as the list draws it: its size, and the darkest pixel of the title (the top half)
     /// and of the preview (the bottom half, past the date).
-    static func rowInk(_ note: Note, _ c: ModelContainer) throws -> (size: CGSize, title: CGFloat, preview: CGFloat, previewInk: CGFloat) {
-        let r = ImageRenderer(content: NoteRow(note: note).modelContainer(c).frame(width: 320).environment(\.colorScheme, .light))
+    static func rowInk(_ note: Note, _ c: ModelContainer, open: Bool = false, reveal: ListTitleReveal? = nil) throws
+        -> (size: CGSize, title: CGFloat, preview: CGFloat, previewInk: CGFloat) {
+        let r = ImageRenderer(content: NoteRow(note: note, open: open).environment(\.listTitleReveal, reveal).modelContainer(c)
+            .frame(width: 320).environment(\.colorScheme, .light))
         r.scale = 2
         let rep = NSBitmapImageRep(cgImage: try #require(r.cgImage))
         let w = rep.pixelsWide, h = rep.pixelsHigh

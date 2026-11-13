@@ -229,6 +229,44 @@ final class Heard<T>: @unchecked Sendable {
         #expect(ChecklistShelf.privacy() == .init(hidden: true, manual: true))
     }
 
+    /// Which titles blur: on the Mac, with privacy mode on, all but the open note's, until the
+    /// list shows them. The iPhone's never do.
+    @Test func whichTitlesBlur() {
+        #if os(macOS)
+        #expect(ListTitleReveal.blurs(privacyOn: true, open: false, revealed: false))
+        #else
+        #expect(!ListTitleReveal.blurs(privacyOn: true, open: false, revealed: false), "the iPhone's titles stay sharp")
+        #endif
+        #expect(!ListTitleReveal.blurs(privacyOn: true, open: true, revealed: false), "the open note's title shows")
+        #expect(!ListTitleReveal.blurs(privacyOn: true, open: false, revealed: true), "over the list, titles show")
+        #expect(!ListTitleReveal.blurs(privacyOn: false, open: false, revealed: false), "off: nothing blurs")
+    }
+
+    /// Pointer over the list: titles at once. Away: a moment later, unless it comes back first.
+    /// The arrow keys while the list has the keys: titles, until it loses them.
+    @Test func theRevealWaitsBeforeBlurringAgain() async {
+        let r = ListTitleReveal(delay: .milliseconds(200))
+        #expect(!r.shown)
+        r.pointer(true)
+        #expect(r.shown)
+        r.pointer(false)
+        #expect(r.shown, "not at once: brushing past doesn't flicker")
+        try? await Task.sleep(for: .milliseconds(80))
+        r.pointer(true)
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(r.shown, "came back in time: still shown")
+        r.pointer(false)
+        try? await Task.sleep(for: .milliseconds(400))
+        #expect(!r.shown, "after the delay: blurred")
+        r.navigated()
+        #expect(r.shown, "the keys show them")
+        r.focus(true)
+        #expect(r.shown)
+        r.focus(false)
+        try? await Task.sleep(for: .milliseconds(400))
+        #expect(!r.shown, "the list lost the keys: blurred again")
+    }
+
     /// Previews stay unreadable under the blur: at 4 whole sentences could be read in the
     /// pictures (13 November 2026), so it can't drift back below 8.
     @Test func thePreviewBlurIsStrongEnoughThatPreviewsCantBeRead() {
@@ -246,7 +284,8 @@ final class Heard<T>: @unchecked Sendable {
         #expect(PrivacyWords.coverTitle == "Your screen is being shared")
         #expect(PrivacyWords.coverQuestion == "Blur note previews?")
         #expect(PrivacyWords.hide == "Blur previews" && PrivacyWords.show == "Show previews")
-        #expect(PrivacyWords.settingsFooter == "Blurs the previews under each title in the note list. Titles and the note you have open still show.")
+        #expect(PrivacyWords.settingsFooter == "Blurs note previews, and note titles until you point at the list. The note you have open still shows.")
+        #expect(PrivacyWords.settingsFooterPhone == "Blurs the previews under each title in the note list. Titles and the note you have open still show.")
         for w in all { #expect(!w.contains("Hidden") && !w.contains("Hides") && !w.contains("hidden"), "it blurs, it doesn't hide: \(w)") }
     }
 
