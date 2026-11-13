@@ -37,21 +37,53 @@ import AppKit
         #expect(Set(CreateKind.allCases.map(\.identifier)) == ["list.newNote", "list.newCanvas", "list.newApp"])
     }
 
-    /// Each button makes its own kind: New Note runs the window's New Note, New Canvas asks the
-    /// window for a canvas (it makes and opens it: CanvasTests, and the window test below), New App
-    /// opens its sheet.
+    /// Each button makes its own kind: New Note runs the window's New Note, New Canvas and New App
+    /// ask the window for a canvas or an app's start page (it makes and opens them: the window
+    /// tests below). Two windows hearing one ask make one.
     @Test func eachButtonAsksForItsOwnKind() {
         var notes = 0
-        let asks = NewCanvas.shared.asks
+        let canvases = NewCanvas.shared.asks, apps = NewApp.shared.asks
         CreateKind.note.run { notes += 1 }
-        #expect(notes == 1 && NewCanvas.shared.asks == asks && !NewApp.shared.showing)
+        #expect(notes == 1 && NewCanvas.shared.asks == canvases && NewApp.shared.asks == apps)
         CreateKind.canvas.run { notes += 1 }
         #expect(notes == 1)
-        #expect(NewCanvas.shared.asks == asks + (NoteApps.enabled ? 1 : 0))
+        #expect(NewCanvas.shared.asks == canvases + (NoteApps.enabled ? 1 : 0))
         _ = NewCanvas.shared.claim()
         CreateKind.app.run { notes += 1 }
-        #expect(notes == 1 && NewApp.shared.showing == NoteApps.enabled)
-        NewApp.shared.showing = false
+        #expect(notes == 1 && NewApp.shared.asks == apps + (NoteApps.enabled ? 1 : 0))
+        #expect(NewApp.shared.claim() == NoteApps.enabled)
+        #expect(!NewApp.shared.claim(), "a second window doesn't make a second start")
+    }
+
+    // MARK: New App's start
+
+    static func starts() -> AppStart { AppStart(defaults: UserDefaults(suiteName: "CreateButtonsTests.\(UUID())")!) }
+
+    /// New App makes a note titled "New app" at once, marked as a start: the note pane shows the
+    /// start page until it is an app. Another start beside it is "New app 2", so an AI can tell
+    /// them apart. Left untouched it goes; handed to an AI it stays, waiting.
+    @Test func newAppMakesAStartNote() throws {
+        let c = try Self.empty()
+        let ctx = c.mainContext
+        let suite = "CreateButtonsTests.\(UUID())"
+        let start = AppStart(defaults: UserDefaults(suiteName: suite)!)
+        let pages = NotePageStore(file: nil)
+        let a = AppStart.make(in: .all, context: ctx, start: start)
+        #expect(a.title == "New app" && a.folder != nil)
+        #expect(start.shows(a.id, pages: pages) && start.untouched(a.id, pages: pages))
+        let b = AppStart.make(in: .all, context: ctx, start: start)
+        #expect(b.title == "New app 2")
+        start.wait(b.id, for: "ChatGPT")
+        #expect(start.shows(b.id, pages: pages) && !start.untouched(b.id, pages: pages), "waiting for its AI: kept")
+        #expect(start.waitingFor(b.id) == "ChatGPT")
+        // The AI's app arrives: the page is the app now.
+        pages.setHere(b.id, .init(html: "<!doctype html><p>Water</p>", by: "ChatGPT", at: .now))
+        #expect(!start.shows(b.id, pages: pages))
+        // Remembered on this device across launches.
+        let again = AppStart(defaults: UserDefaults(suiteName: suite)!)
+        #expect(again.untouched(a.id, pages: pages) && again.waitingFor(b.id) == "ChatGPT")
+        start.finish(a.id)
+        #expect(!start.shows(a.id, pages: pages))
     }
 
     // MARK: New App's ready-made apps
@@ -66,43 +98,32 @@ import AppKit
         }
     }
 
-    /// A press makes a working app note at once, from the bundle: the note, its app (a valid
-    /// project) and its starting data, in the folder shown. The source is the bundle only, so it
-    /// works with no network at all, and no AI is asked.
-    @Test func pickingATemplateMakesAWorkingAppNoteWithNoNetwork() async throws {
+    /// A press makes the start note itself a working app, in place, from the bundle: its text, its
+    /// app (a valid project) and its starting data. No new note, and the source is the bundle only,
+    /// so it works with no network at all, and no AI is asked.
+    @Test func pickingATemplateMakesTheStartTheAppWithNoNetwork() async throws {
         let c = try Self.empty()
         let ctx = c.mainContext
         let work = ctx.createFolder(named: "Work")
+        let start = Self.starts()
+        let pages = NotePageStore(file: nil), data = NotePageDataStore(file: nil)
         for t in AppTemplates.shipped {
             // The source answers from the bundle, for any link: no request is made.
             let d = try await AppTemplates.Bundled(template: t, bundle: .main).draft(for: NoteSourceLink(kind: .template, slug: t.slug))
             #expect(d.appProject != nil && d.appData != nil)
-            let folder = AppTemplates.folder(in: ctx, scope: .folder(work.id))
-            #expect(folder == .existing(work.id), "New App puts it in the folder shown")
-            let id = try #require(await AppTemplates.make(t, into: folder, context: ctx), "\(t.slug) made")
-            let note = try #require(ctx.note(id))
-            #expect(note.folder?.id == work.id)
+            let note = AppStart.make(in: .folder(work.id), context: ctx, start: start)
+            let count = try ctx.fetchCount(FetchDescriptor<Note>())
+            #expect(AppTemplates.apply(t, to: note, context: ctx, pages: pages, data: data, start: start))
+            #expect(try ctx.fetchCount(FetchDescriptor<Note>()) == count, "\(t.slug): the same note, no new one")
+            #expect(note.folder?.id == work.id, "where it was made")
             #expect(note.title == t.title)
-            let page = try #require(NotePageStore.shared[id], "\(t.slug) is an app from the start")
+            let page = try #require(pages[note.id], "\(t.slug) is an app now")
             let project = try #require(NotePageProject.parse(page.html))
             #expect(project.problem == nil, "\(t.slug)'s app opens")
-            #expect(!NotePageDataStore.shared.doc(id).isEmpty, "\(t.slug) starts with its data")
-            #expect(NoteAppMark.has(note), "the list marks it as an app")
+            #expect(!data.doc(note.id).isEmpty, "\(t.slug) starts with its data")
+            #expect(NoteAppMark.has(note, in: pages), "the list marks it as an app")
+            #expect(!start.shows(note.id, pages: pages), "the start page is gone: the note is the app")
         }
-        // A second of the same is a second note, not the first opened again.
-        let t = try #require(AppTemplates.shipped.first)
-        let a = await AppTemplates.make(t, into: .existing(work.id), context: ctx)
-        let b = await AppTemplates.make(t, into: .existing(work.id), context: ctx)
-        #expect(a != nil && b != nil && a != b)
-    }
-
-    @Test func withAllNotesItGoesInTheFirstFolderOrANewNotesFolder() throws {
-        let c = try Self.empty()
-        let ctx = c.mainContext
-        #expect(AppTemplates.folder(in: ctx, scope: .all) == .new("Notes"))
-        let first = ctx.createFolder(named: "Personal")
-        #expect(AppTemplates.folder(in: ctx, scope: .all) == .existing(first.id))
-        #expect(AppTemplates.folder(in: ctx, scope: nil) == .existing(first.id))
     }
 
     // MARK: An empty library
@@ -140,6 +161,13 @@ import AppKit
     // MARK: In the window
 
     static let size = CGSize(width: 1469, height: 920)
+
+    /// A busy machine takes a moment to open what was made: up to 3 seconds.
+    static func waitUntilOpen(_ id: UUID, in w: NSWindow) async {
+        for _ in 0..<30 where UserDefaults.standard.string(forKey: "lastNote") != id.uuidString {
+            await MacWindowChromeTests.settle(w, 1)
+        }
+    }
 
     /// `id` anywhere in the window, its toolbar included (MacEmptyDetailTests looks in the content only).
     static func find(_ id: String, in w: NSWindow) async -> NSObject? {
@@ -183,6 +211,7 @@ import AppKit
                 #expect(made.count == before + 1, "a new canvas")
                 let newest = try #require(made.max { $0.createdAt < $1.createdAt })
                 #expect(CanvasNote.has(newest), "it is a canvas")
+                await Self.waitUntilOpen(newest.id, in: w)
                 #expect(UserDefaults.standard.string(forKey: "lastNote") == newest.id.uuidString, "and it is open")
                 // New Note: a note, open, with the cursor in it.
                 let note = try #require(await Self.find("list.newNote", in: w))
@@ -191,13 +220,20 @@ import AppKit
                 #expect(try live().count == before + 2, "a new note")
                 let editor = try #require(w.contentView.flatMap { MacWindowChromeTests.find(PaneTextView.self, in: $0) }, "and it's open")
                 #expect(editor.string.isEmpty)
-                // New App: its sheet.
+                // New App: a "New app" note, open on its start page in the note pane (not a sheet).
                 let app = try #require(await Self.find("list.newApp", in: w))
                 _ = app.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
-                await MacWindowChromeTests.settle(w, 2)
-                #expect(NewApp.shared.showing, "New App opens its sheet")
-                NewApp.shared.showing = false
-                await MacWindowChromeTests.settle(w, 4)
+                await MacWindowChromeTests.settle(w, 8)
+                // The untouched new note before it goes, as an empty note does; the start is there.
+                #expect(try live().count == before + 2, "a new app note, and the empty note left behind is gone")
+                let started = try #require(try live().max { $0.createdAt < $1.createdAt })
+                defer { AppStart.shared.finish(started.id) }
+                #expect(started.title == "New app" && AppStart.shared.shows(started.id))
+                await Self.waitUntilOpen(started.id, in: w)
+                let open = UserDefaults.standard.string(forKey: "lastNote").flatMap(UUID.init(uuidString:)).flatMap { ctx.note($0) }
+                let startTitles = try live().filter { AppStart.shared.starts[$0.id] != nil }.map(\.title)
+                #expect(open?.id == started.id, "and it is open (open: \(open?.title ?? "none"), deleted \(open?.deletedAt != nil), starts \(startTitles))")
+                #expect(await Self.find("newApp.page", in: w) != nil, "on its start page")
             }
         }
     }
@@ -252,40 +288,66 @@ import AppKit
         }
     }
 
-    /// New App: title, line, the four ready-made apps, "Or describe it" and one orange button.
-    @Test func theNewAppSheet() async throws {
+    /// New App's start page, in the window: the four ready-made apps and "Or describe it". A
+    /// template turns the same note into the app in place; a start left untouched goes away when
+    /// another note opens. Pictures, light and dark, with ChatGPT connected and with none.
+    @Test func theNewAppPage() async throws {
         defer { MakeAppSheet.stateForPictures = nil }
-        for state in ["chatgpt", "three", "none"] {
-            for dark in [false, true] {
-                MakeAppSheet.stateForPictures = state
-                let host = NSHostingView(rootView: MakeAppSheet(newApp: ()).modelContainer(try Self.empty()).environment(\.controlActiveState, .key).fixedSize())
-                host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-                let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 800, height: 700), styleMask: [.borderless], backing: .buffered, defer: false)
-                window.isReleasedWhenClosed = false
-                window.contentView = host
-                defer { window.close() }
-                host.frame = CGRect(origin: .zero, size: host.fittingSize)
-                try await Task.sleep(for: .milliseconds(500))
-                host.frame = CGRect(origin: .zero, size: host.fittingSize)
-                host.layoutSubtreeIfNeeded()
-                #expect(host.fittingSize.width == 760)
-                #expect(host.fittingSize.height < (state == "none" ? 720 : 600), "\(state) is \(host.fittingSize.height) pt tall")
-                if state == "chatgpt" {
-                    let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
-                    NSApp.accessibilitySetValue(true, forAttribute: enhanced)
-                    defer { NSApp.accessibilitySetValue(false, forAttribute: enhanced) }
-                    try await Task.sleep(for: .milliseconds(300))
-                    for t in AppTemplates.shipped {
-                        #expect(MacEmptyDetailTests.element("newApp.template.\(t.slug)", in: host) != nil, "\(t.slug) card")
+        let c = try AppSnapshotTests.container()
+        let ctx = c.mainContext
+        func live() throws -> [Note] { try ctx.fetch(FetchDescriptor<Note>()).filter { $0.trashedAt == nil && $0.deletedAt == nil } }
+        let note = AppStart.make(in: .all, context: ctx)
+        defer { AppStart.shared.finish(note.id) }
+        try ctx.save()
+        try await AppSnapshotTests.withLastNote(c, "New app") {
+            for state in ["chatgpt", "none"] {
+                for dark in [false, true] {
+                    MakeAppSheet.stateForPictures = state
+                    let w = MacWindowChromeTests.window(c, size: Self.size)
+                    w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                    defer { w.close() }
+                    await MacWindowChromeTests.settle(w)
+                    #expect(await Self.find("newApp.page", in: w) != nil, "the start page is in the note pane")
+                    if let dir = Self.dir {
+                        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                        try #require(try MacEmptyDetailTests.picture(w).representation(using: .png, properties: [:])).write(to: dir.appending(path: "create-mac-newapp-page-\(state)-\(dark ? "dark" : "light").png"))
                     }
-                    #expect(MacEmptyDetailTests.element("newApp.templates", in: host) == nil, "no link to the website")
                 }
-                guard let dir = Self.dir else { continue }
-                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-                host.cacheDisplay(in: host.bounds, to: rep)
-                try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "create-mac-newapp-\(state)-\(dark ? "dark" : "light").png"))
             }
+            MakeAppSheet.stateForPictures = "chatgpt"
+            let w = MacWindowChromeTests.window(c, size: Self.size)
+            w.appearance = NSAppearance(named: .aqua)
+            defer { w.close() }
+            await MacWindowChromeTests.settle(w)
+            for t in AppTemplates.shipped {
+                #expect(await Self.find("newApp.template.\(t.slug)", in: w) != nil, "\(t.slug) card")
+            }
+            #expect(await Self.find("newApp.templates", in: w) == nil, "no link to the website")
+            // A template: the same note becomes the app, where it is, still open.
+            let count = try live().count
+            let card = try #require(await Self.find("newApp.template.habit-tracker", in: w))
+            _ = card.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
+            await MacWindowChromeTests.settle(w, 10)
+            #expect(try live().count == count, "no new note")
+            #expect(note.title == "Habit tracker" && NotePageStore.shared[note.id] != nil, "the start is the app now")
+            #expect(!AppStart.shared.shows(note.id))
+            #expect(UserDefaults.standard.string(forKey: "lastNote") == note.id.uuidString, "still open, no jump")
+            #expect(MacEmptyDetailTests.element("newApp.page", in: try #require(w.contentView)) == nil, "the start page has gone")
+            if let dir = Self.dir {
+                try #require(try MacEmptyDetailTests.picture(w).representation(using: .png, properties: [:])).write(to: dir.appending(path: "create-mac-newapp-made-light.png"))
+            }
+            // Another start, left untouched for a note: it goes, as an empty new note does.
+            let app = try #require(await Self.find("list.newApp", in: w))
+            _ = app.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
+            await MacWindowChromeTests.settle(w, 8)
+            let started = try #require(try live().first { AppStart.shared.shows($0.id) }, "a second start")
+            #expect(try live().count == count + 1)
+            let newNote = try #require(await Self.find("list.newNote", in: w))
+            _ = newNote.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
+            await MacWindowChromeTests.settle(w, 10)
+            #expect(ctx.note(started.id).map { $0.deletedAt != nil } ?? true, "the untouched start is gone")
+            #expect(AppStart.shared.starts[started.id] == nil)
+            #expect(try live().count == count + 1, "and the new note is there")
         }
     }
     #endif
@@ -308,8 +370,15 @@ import AppKit
         try await ListLayoutSnapshots.shoot(emptyList, "create-empty", dark: dark, wait: 1.5)
         MakeAppSheet.stateForPictures = "chatgpt"
         defer { MakeAppSheet.stateForPictures = nil }
-        let sheet = Color(Palette.listGround).ignoresSafeArea().sheet(isPresented: .constant(true)) { MakeAppSheet(newApp: ()).modelContainer(empty) }
-        try await ListLayoutSnapshots.shoot(sheet, "create-newapp", dark: dark, wait: 1.5)
+        let start = AppStart.make(in: .all, context: empty.mainContext)
+        defer { AppStart.shared.finish(start.id) }
+        let page = NavigationStack {
+            Color.clear.navigationDestination(isPresented: .constant(true)) {
+                MakeAppSheet(start: start.id, title: start.title).navigationTitle("").navigationBarTitleDisplayMode(.inline)
+            }
+        }
+        .modelContainer(empty)
+        try await ListLayoutSnapshots.shoot(page, "create-newapp", dark: dark, wait: 1.5)
     }
     #endif
 }

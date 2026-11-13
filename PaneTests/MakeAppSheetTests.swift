@@ -72,11 +72,13 @@ import Testing
         #expect(MakeAppSheet.patience == .seconds(180), "about three minutes before it says what to check")
     }
 
-    /// New App asks the AI to make the note too, so nothing is made here before the app arrives.
-    @Test func newAppAsksTheAIToMakeTheNoteAndItsApp() {
-        let p = MakeAnApp.newAppPrompt("  a water tracker.  ")
-        #expect(p.hasPrefix("In Pinto Notes, make me a new note that is an app: a water tracker. Make it with create (type app"))
-        #expect(p.contains("see_app") && !p.contains(".."))
+    /// New App's page hands the AI the note it made ("New app"): the AI makes that note the app
+    /// and names it, so the page turns into the app in place.
+    @Test func newAppAsksTheAIToMakeItsNoteTheApp() {
+        let p = MakeAnApp.startPrompt(title: "New app 2", idea: "  a water tracker.  ")
+        #expect(p.hasPrefix("In Pinto Notes, make my note \u{201C}New app 2\u{201D} an app: a water tracker. Start its app with create (type app)"))
+        #expect(p.contains("short title") && p.contains("see_app") && !p.contains(".."))
+        #expect(MakeAppSheet.afterHandOver("ChatGPT", page: true).hasSuffix("This page turns into the app when it\u{2019}s here."))
         #expect(MakeAnApp.newAppTitle == "New app")
         #expect(MakeAnApp.opensWith("ChatGPT") == "Opens ChatGPT with this typed in. The app appears here when it\u{2019}s built.")
         // The tip is a feature of its own, so its "shown" mark travels with the account.
@@ -89,7 +91,7 @@ import Testing
     @Test func thePromptsNameOnlyTheFileTools() {
         let fileTools: Set<String> = ["search", "list", "fetch", "create", "edit", "write", "move", "delete", "history", "restore", "pin", "see_app"]
         let prompts = [
-            MakeAnApp.newAppPrompt("a water tracker"),
+            MakeAnApp.startPrompt(title: "New app", idea: "a water tracker"),
             MakeAnApp.prompt(title: "Habits", body: Capture.habitNote()),
             MakeAnApp.prompt(title: "Thoughts", body: "Thoughts\n\nNothing to track."),
         ]
@@ -157,23 +159,6 @@ import Testing
         }
         // The sketch for each kind of note, with that note's own title.
         guard let dir else { return }
-        // New App, with and without an AI connected, light and dark.
-        for state in ["chatgpt", "none", "both"] {
-            for dark in [false, true] {
-                MakeAppSheet.stateForPictures = state
-                let host = NSHostingView(rootView: MakeAppSheet(newApp: ()).environment(\.controlActiveState, .key).fixedSize())
-                host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-                host.frame = CGRect(origin: .zero, size: host.fittingSize)
-                host.layoutSubtreeIfNeeded()
-                try await Task.sleep(for: .milliseconds(400))
-                host.frame = CGRect(origin: .zero, size: host.fittingSize)
-                host.layoutSubtreeIfNeeded()
-                #expect(host.fittingSize.width == 760 && host.fittingSize.height < (state == "none" ? 720 : 560), "new app \(state) is \(host.fittingSize.height) pt tall")
-                let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-                host.cacheDisplay(in: host.bounds, to: rep)
-                try #require(rep.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: dir).appending(path: "new-app-mac-\(state)-\(dark ? "dark" : "light").png"))
-            }
-        }
         for (name, note) in [("budget", ("October budget", Capture.budgetNote)), ("checklist", ("Packing", "Packing\n- [ ] a\n- [ ] b\n- [ ] c")), ("cards", ("People", "People\n\n| Name | Role |\n|---|---|\n| Sara | Sales |"))] {
             let host = try await host(state: "chatgpt", sketch: true, dark: false, note: note)
             let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))

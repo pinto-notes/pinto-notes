@@ -191,7 +191,8 @@ struct FirstOneView: View {
 /// One template in New App: the app's picture, its name and a few words. One press makes it.
 struct AppTemplateCard: View {
     let template: AppTemplate
-    var width: CGFloat
+    /// Nil: as wide as its grid column.
+    var width: CGFloat? = nil
     let make: () -> Void
     @Environment(\.colorScheme) private var scheme
 
@@ -199,7 +200,8 @@ struct AppTemplateCard: View {
         Button(action: make) {
             VStack(alignment: .leading, spacing: 8) {
                 Color.clear
-                    .frame(width: width, height: (width * 0.72).rounded())
+                    .aspectRatio(1 / 0.72, contentMode: .fit)
+                    .frame(width: width)
                     .overlay {
                         if let url = template.picture(dark: scheme == .dark) { Self.image(url)?.resizable().scaledToFill() }
                     }
@@ -219,6 +221,7 @@ struct AppTemplateCard: View {
                 .padding(.horizontal, 2)
             }
             .frame(width: width, alignment: .leading)
+            .frame(maxWidth: width == nil ? .infinity : nil, alignment: .leading)
             .contentShape(.rect(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.tile(radius: 12))

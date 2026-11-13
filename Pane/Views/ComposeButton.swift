@@ -48,30 +48,27 @@ struct TodayButton: View {
     }
 }
 
-/// Asks the window to show New App (its button beside New Note, File › New App…, ⌃⌘N).
+/// Asks the window for New App's start page (its button beside New Note, File › New App…, ⌃⌘N):
+/// a new note that opens on the start page (AppStart), as New Canvas opens a new canvas.
 @MainActor @Observable
 final class NewApp {
     static let shared = NewApp()
-    var showing = false
+    /// Counts up per ask; the window makes one start per change.
+    var asks = 0
 
-    func open() {
+    @ObservationIgnored private var taken = 0
+
+    func ask() {
         guard NoteApps.enabled else { return }
         FeatureUse.mark(.newApp)
-        showing = true
+        asks += 1
     }
-}
 
-extension View {
-    /// New App over this view, when asked. `scope` is where a template's app goes: the folder shown.
-    func newAppSheet(scope: Scope?) -> some View { modifier(NewAppSheetHost(scope: scope)) }
-}
-
-private struct NewAppSheetHost: ViewModifier {
-    let scope: Scope?
-    @Bindable private var request = NewApp.shared
-
-    func body(content: Content) -> some View {
-        content.sheet(isPresented: $request.showing) { MakeAppSheet(newApp: (), scope: scope) }
+    /// One window makes it, however many are open: the first to claim the ask.
+    func claim() -> Bool {
+        guard taken < asks else { return false }
+        taken = asks
+        return true
     }
 }
 

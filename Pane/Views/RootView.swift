@@ -123,7 +123,7 @@ struct RootView: View {
         // it still went to 621 and cut the note off).
         let split = split.frame(minWidth: WindowFrameMemory.minimum.width)
         #endif
-        return popups(imports(lifecycle(split)).newAppSheet(scope: scope))
+        return popups(imports(lifecycle(split)))
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
             .onAppear { Telemetry.shared.notesShown() }
             .focusedSceneValue(\.newNoteAction, newNoteCommand)
@@ -675,6 +675,7 @@ struct RootView: View {
             // New Note from Control Centre, the Lock Screen, the Action button or Siri.
             .onChange(of: NoteOpener.shared.newNoteAsked) { _, asked in if asked { openAskedFromOutside() } }
             .onChange(of: NewCanvas.shared.asks) { _, _ in newCanvas() }
+            .onChange(of: NewApp.shared.asks) { _, _ in newApp() }
             // From the onboarding emails: ambernotes.app/open/import and /open/history.
             .onChange(of: AppPlaceCenter.shared.pending, initial: true) { _, place in openPlace(place) }
             .modifier(AIChangesPresenter())
@@ -889,13 +890,16 @@ struct RootView: View {
             // their glass without rebuilding the controls when a note opens again.
             let note = shownNote.flatMap { context.note($0) }.flatMap { $0.deletedAt == nil ? $0 : nil }
             NoteToolbarStage(showsItems: note != nil,
-                             showsWriting: note.map { ($0.isLocked || NoteApps.page($0.id) == nil) && $0.trashedAt == nil } ?? false,
+                             showsWriting: note.map { ($0.isLocked || NoteApps.page($0.id) == nil) && $0.trashedAt == nil && !AppStart.shared.shows($0.id) } ?? false,
                              history: historyActions, controller: editor, place: note,
                              openScope: { s in
                                  scope = s
                                  if visibility == .detailOnly { visibility = .doubleColumn }
                              }) {
-                if let note {
+                if let note, AppStart.shared.shows(note.id) {
+                    // New App's start page, in the note's place, until it is an app.
+                    MakeAppSheet(start: note.id, title: note.title).id(note.id)
+                } else if let note {
                     NoteDetailView(note: note, controller: editor, autofocus: justCreated == note.id, onNewNote: newNote) { target, edit in
                         if edit { justCreated = target }
                         selectedNote = target
@@ -907,7 +911,13 @@ struct RootView: View {
             }
         }
         #else
-        if let id = shownNote, let note = context.note(id), note.deletedAt == nil {
+        if let id = shownNote, let note = context.note(id), note.deletedAt == nil, AppStart.shared.shows(id) {
+            // New App's start page, pushed like any note, until it is an app.
+            MakeAppSheet(start: id, title: note.title)
+                .id(id)
+                .navigationTitle("")
+                .navigationBarTitleDisplayMode(.inline)
+        } else if let id = shownNote, let note = context.note(id), note.deletedAt == nil {
             NoteDetailView(note: note, controller: editor, autofocus: justCreated == id, onNewNote: newNote) { target, edit in
                 if edit { justCreated = target }
                 trail.followed(from: selectedNote, to: target)
@@ -991,6 +1001,19 @@ struct RootView: View {
         selectedNote = note.id
     }
 
+    /// New App: a note titled "New app" in the folder you're in, open at once on its start page
+    /// (AppStart), as New Canvas opens a canvas.
+    private func newApp() {
+        guard !behindSetupCard, NewApp.shared.claim() else { return }
+        let target: Scope = scope == .trash ? .all : (scope ?? .all)
+        if scope == .trash { scope = .all }
+        let note = AppStart.make(in: target, context: context)
+        #if os(iOS)
+        if scope == nil { scope = Scope.opening(note) }
+        #endif
+        selectedNote = note.id
+    }
+
     /// Whether New Note opens this note instead of making another: an untouched empty note that is
     /// in a folder you can see. A blank note without a live folder is in no list, and New Note
     /// reusing it made nothing at all (Emil, 3 November 2026, with every folder deleted).
@@ -1041,20 +1064,24 @@ struct RootView: View {
 
     /// Leaving a blank note deletes it, like Apple Notes.
     private func discardIfEmpty(_ id: UUID?) {
+        // New App's start, left untouched, goes as an empty new note does (AppStart).
         guard let id, id != selectedNote, let n = context.note(id), n.deletedAt == nil,
-              n.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+              n.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || AppStart.shared.untouched(id) else { return }
+        let start = AppStart.shared.untouched(id)
         #if os(macOS)
         // Let the destination's first frame commit before saving and diffing the list. A main
         // queue block can run before that commit; a run-loop timer follows it.
         let timer = Timer(timeInterval: 0.001, repeats: false) { _ in
             MainActor.assumeIsolated {
                 guard id != selectedNote, let note = context.note(id), note.deletedAt == nil,
-                      note.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                      note.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (start && AppStart.shared.untouched(id)) else { return }
+                AppStart.shared.finish(id)
                 library.discardEmpty(note, in: context)
             }
         }
         RunLoop.main.add(timer, forMode: .common)
         #else
+        AppStart.shared.finish(id)
         context.purge(n)
         #endif
     }
@@ -1453,7 +1480,7 @@ struct PaneCommands: Commands {
                 Button(CreateKind.canvas.menuTitle) { NewCanvas.shared.ask() }
                     .keyboardShortcut(Self.shortcut(.canvas))
                     .disabled(newNote == nil)
-                Button(CreateKind.app.menuTitle) { NewApp.shared.open() }
+                Button(CreateKind.app.menuTitle) { NewApp.shared.ask() }
                     .keyboardShortcut(Self.shortcut(.app))
                     .disabled(newNote == nil)
             }
