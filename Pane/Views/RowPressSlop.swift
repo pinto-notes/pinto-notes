@@ -159,7 +159,11 @@ enum RowPressSlop {
             if let table = view as? NSTableView {
                 let p = table.convert(event.locationInWindow, from: nil)
                 let row = table.row(at: p)
-                return table.visibleRect.contains(p) && row >= 0 ? (table, row) : nil
+                // Not under the window's bar: the list scrolls on under the folder's name and its
+                // band, and a press there opened the note behind it (Emil, 12 November 2026:
+                // "clicking up here should not make you click on the note behind it").
+                guard table.visibleRect.contains(p), row >= 0, !ListEdgeLine.underBar(table, table.convert(p, to: table.superview)) else { return nil }
+                return (table, row)
             }
             for sub in view.subviews where !sub.isHidden {
                 if let hit = found(in: sub) { return hit }
