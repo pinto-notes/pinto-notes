@@ -43,7 +43,10 @@ enum CreateKind: String, CaseIterable, Identifiable {
         switch self {
         case .note: "square.and.pencil"
         case .canvas: CanvasNote.symbol
-        case .app: NoteAppMark.symbol
+        // A verb, not the apps' grid: the grid read as "show all", not "make an app" (Emil,
+        // 13 November 2026: "the app icon sucks"). A new app starts from a template or a wish to
+        // your AI. Apps in the list keep the grid (NoteAppMark).
+        case .app: "wand.and.sparkles"
         }
     }
 

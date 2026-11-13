@@ -25,17 +25,19 @@ struct CanvasOverlay: View {
                 #endif
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    ZStack(alignment: .bottom) {
-                        CanvasDock(canvas: canvas)
-                        #if os(macOS)
-                        HStack {
-                            Spacer(minLength: 0)
-                            CanvasZoom(canvas: canvas)
-                        }
-                        .padding(.trailing, 16)
-                        #endif
+                    #if os(macOS)
+                    // The tools are in the window's toolbar, where a note's are (Emil, 13 November
+                    // 2026: "why can't it be at the top like it is for notes"). The zoom stays here.
+                    HStack {
+                        Spacer(minLength: 0)
+                        CanvasZoom(canvas: canvas)
                     }
+                    .padding(.trailing, 16)
                     .padding(.bottom, CanvasDock.margin)
+                    #else
+                    CanvasDock(canvas: canvas)
+                        .padding(.bottom, CanvasDock.margin)
+                    #endif
                 }
             }
         }
@@ -76,8 +78,7 @@ struct CanvasDock: View {
             #endif
         }
         .padding(6)
-        .background(Color.card, in: Capsule())
-        .raised(in: Capsule())
+        .glassEffect(.regular, in: .capsule)
         .animation(motion, value: canvas.state.tool)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Drawing tools")
@@ -300,8 +301,7 @@ struct CanvasSelectionBar: View {
                 menuButton("More", symbol: "ellipsis", id: "canvas.bar.more") { CanvasMoreItems(canvas: canvas) }
             }
             .padding(4)
-            .background(Color.card, in: Capsule())
-            .raised(in: Capsule())
+            .glassEffect(.regular, in: .capsule)
         }
         .fixedSize()
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
@@ -362,8 +362,7 @@ struct CanvasSelectionBar: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(Color.card, in: Capsule())
-        .raised(in: Capsule())
+        .glassEffect(.regular, in: .capsule)
         .accessibilityIdentifier("canvas.tray")
     }
 
@@ -600,5 +599,113 @@ struct CanvasEdgePeek<Content: View>: View {
 /// Non-generic home for the peek's picture switch.
 enum CanvasEdgePeekFlag {
     nonisolated(unsafe) static var startShown = false
+}
+#endif
+
+#if os(macOS)
+// MARK: In the window's toolbar (Mac)
+
+/// The canvas's tools as the note's toolbar items: the same glass group and buttons as a text
+/// note's Aa, Checklist and Table, the picked tool in the accent (as the Table menu shows a table).
+/// The shapes share one button, the last shape picked, the rest in its menu, as Freeform does.
+struct CanvasToolbarTools: View {
+    let canvas: CanvasController
+
+    static let tools: [CanvasTool] = [.selection, .hand, .freedraw, .arrow, .text, .eraser]
+
+    var body: some View {
+        let current = canvas.state.tool
+        Group {
+            tool(.selection, current)
+            tool(.hand, current)
+            tool(.freedraw, current)
+            shapes(current)
+            tool(.arrow, current)
+            tool(.text, current)
+            tool(.eraser, current)
+        }
+        .disabled(!canvas.connected)
+    }
+
+    private func tool(_ t: CanvasTool, _ current: CanvasTool) -> some View {
+        Button { canvas.pick(t) } label: {
+            Label(t.title, systemImage: t.symbol).foregroundStyle(t == current ? Color.amberInk : Color.primary)
+        }
+        .help(t.help)
+        .accessibilityAddTraits(t == current ? .isSelected : [])
+        .accessibilityIdentifier("canvas.tool.\(t.rawValue)")
+    }
+
+    private func shapes(_ current: CanvasTool) -> some View {
+        let picked = CanvasTool.shapes.contains(current)
+        let shown = picked ? current : CanvasToolbarTools.lastShape
+        return Menu {
+            ForEach(CanvasTool.shapes) { t in
+                Button(t.help, systemImage: t.symbol) { CanvasToolbarTools.lastShape = t; canvas.pick(t) }
+            }
+        } label: {
+            Label("Shapes", systemImage: shown.symbol).foregroundStyle(picked ? Color.amberInk : Color.primary)
+        } primaryAction: {
+            canvas.pick(shown)
+        }
+        .menuIndicator(.hidden)
+        .help("\(shown.help), more shapes on a long press")
+        .accessibilityAddTraits(picked ? .isSelected : [])
+        .accessibilityIdentifier("canvas.tool.shapes")
+    }
+
+    /// The shape the button draws when pressed: the last one picked from its menu.
+    nonisolated(unsafe) static var lastShape: CanvasTool = .rectangle
+}
+
+/// A canvas's name, in the toolbar after where it is: click it to rename, Return or a click away
+/// keeps it, Escape puts it back. A canvas has no text for a title line, so this is where it's
+/// named (Emil, 13 November 2026: "there is no way to name the canvas").
+struct CanvasTitleField: View {
+    let note: Note
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        // Sized to what's typed, from a hidden copy of it.
+        Text(text.isEmpty ? CanvasNote.title : text)
+            .font(.system(size: 13, weight: .semibold))
+            .lineLimit(1)
+            .padding(.horizontal, 6)
+            .hidden()
+            .frame(minWidth: 60, maxWidth: 280)
+            .overlay {
+                TextField(CanvasNote.title, text: $text)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13, weight: .semibold))
+                    .padding(.horizontal, 6)
+                    .focused($focused)
+                    .onSubmit { commit() }
+                    .onExitCommand { text = note.title; focused = false }
+            }
+            .frame(height: 24)
+            .background(focused ? Color.primary.opacity(0.07) : .clear, in: .rect(cornerRadius: 6))
+            .onAppear { text = note.title }
+            .onChange(of: note.id) { _, _ in text = note.title }
+            .onChange(of: note.title) { _, t in if !focused { text = t } }
+            .onChange(of: focused) { _, now in if !now { commit() } }
+            .help("Rename")
+            .accessibilityLabel("Canvas name")
+            .accessibilityIdentifier("canvas.title")
+    }
+
+    private func commit() {
+        if let t = Self.renamed(note, to: text) { text = t } else { text = note.title }
+    }
+
+    /// Renames a canvas: its text is its title, one line. Nil when there's nothing to change.
+    @MainActor @discardableResult
+    static func renamed(_ note: Note, to typed: String) -> String? {
+        let t = typed.components(separatedBy: .newlines).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty, t != note.title, !note.isLocked else { return nil }
+        note.body = t
+        note.touch()
+        return t
+    }
 }
 #endif

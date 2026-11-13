@@ -27,8 +27,8 @@ struct RootView: View {
     @State private var sidebarFit = SidebarFit()
     /// Waits for the window's width to hold still before the sidebar acts on it.
     @State private var sidebarFitWait: Task<Void, Never>?
-    /// A canvas folds both columns away while it's open (CanvasFocus).
-    @State private var canvasFocus = CanvasFocus()
+    /// Full Screen: the open note has the window until you leave it (FullScreen).
+    @State private var canvasFocus = FullScreen()
     /// The note list slid in over a focused canvas, from the window's left edge.
     @State private var peeking = CanvasEdgePeekFlag.startShown
     /// The sidebar step, kept per window (SidebarToggle.next).
@@ -407,7 +407,7 @@ struct RootView: View {
         }
         .onChange(of: visibility) { _, new in
             sidebarFit.changed(to: new)
-            if !canvasFocus.applying { storedStep = SidebarToggle.name(canvasFocus.isFocused ? (canvasFocus.before ?? new) : new) }
+            if !canvasFocus.applying { storedStep = SidebarToggle.name(canvasFocus.before ?? new) }
             if new != .detailOnly { peeking = false }
             // Two columns has no folders column: anything that shows it shows the list instead.
             if layout == .twoColumns, new == .all { DispatchQueue.main.async { visibility = .doubleColumn } }
@@ -420,14 +420,13 @@ struct RootView: View {
         }
         // Settings › Experimental › Layout takes effect at once.
         .onChange(of: layoutName) { old, _ in layoutChanged(from: ColumnsLayout(rawValue: old) ?? .today) }
-        // A canvas opens with both columns folded away; a text note after it puts them back
-        // (Emil, 13 November 2026: "the folders and the list take too much room").
+        // A canvas opens with the columns as they are: the sidebar button folds them away
+        // (Emil, 13 November 2026: it going full screen by itself was unwelcome).
         .onChange(of: shownNote, initial: true) { _, id in
             let canvas = id.flatMap { context.note($0) }.map { CanvasNote.has($0) } ?? false
             writingFocus.opened(id)
             if canvas, writingFocus.isFocused { _ = writingFocus.escape() }
-            if let v = canvasFocus.opened(id, isCanvas: canvas, visibility: visibility) { setColumns(v, focus: true) }
-            peeking = CanvasEdgePeekFlag.startShown && (canvasFocus.isFocused || writingFocus.isFocused)
+            peeking = CanvasEdgePeekFlag.startShown && writingFocus.isFocused
         }
         // The list column shows its own title; no window title in the bar.
         .toolbar(removing: .title)
@@ -924,6 +923,7 @@ struct RootView: View {
             // their glass without rebuilding the controls when a note opens again.
             let note = shownNote.flatMap { context.note($0) }.flatMap { $0.deletedAt == nil ? $0 : nil }
             let focused = canvasFocused
+            let fullScreen = FullScreenAction(on: focused) { focused ? leaveCanvasFocus() : enterFullScreen() }
             NoteToolbarStage(showsItems: note != nil,
                              showsWriting: note.map { ($0.isLocked || NoteApps.page($0.id) == nil) && $0.trashedAt == nil && !AppStart.shared.shows($0.id) } ?? false,
                              history: historyActions, controller: editor, place: note,
@@ -932,6 +932,7 @@ struct RootView: View {
                                  if visibility == .detailOnly { visibility = .doubleColumn }
                              },
                              focusBack: focused ? { leaveCanvasFocus() } : nil,
+                             fullScreen: note == nil ? nil : fullScreen,
                              showColumns: visibility == .detailOnly && !focused ? sidebarStep : nil) {
                 if let note, AppStart.shared.shows(note.id) {
                     // New App's start page, in the note's place, until it is an app.
@@ -998,8 +999,8 @@ struct RootView: View {
     }
 
     #if os(macOS)
-    /// A canvas has the window now (CanvasFocus).
-    private var canvasFocused: Bool { canvasFocus.isFocused && visibility == .detailOnly }
+    /// The open note has the window (FullScreen).
+    private var canvasFocused: Bool { canvasFocus.isOn && visibility == .detailOnly }
 
     /// The sidebar button and View › Hide Sidebar: folders, list and note; list and note; the note.
     /// Two columns: list and note; the note.
@@ -1024,7 +1025,7 @@ struct RootView: View {
 
     /// A keystroke in the open text note: in Writing focus, the first one folds the columns away.
     private func typedInNote() {
-        guard layout == .writingFocus, !canvasFocus.isFocused,
+        guard layout == .writingFocus, !canvasFocus.isOn,
               let v = writingFocus.typed(in: shownNote, visibility: visibility) else { return }
         setColumns(v, focus: true)
         peeking = CanvasEdgePeekFlag.startShown
@@ -1045,9 +1046,19 @@ struct RootView: View {
         if old == .twoColumns, layout != .twoColumns, visibility == .doubleColumn { setColumns(.all, focus: false) }
     }
 
-    /// The back control on a focused canvas: the columns as they were, the canvas still open.
+    /// Full Screen's button, ⇧⌘F, or Notes on the left: the columns as they were, the note still open.
     private func leaveCanvasFocus() {
-        setColumns(canvasFocus.leave(), focus: true)
+        if let v = canvasFocus.leave() { setColumns(v, focus: true) }
+    }
+
+    /// Full Screen: the folders and the list fold away; only you enter it (Emil, 13 November 2026:
+    /// a canvas going full screen by itself was unwelcome, a button for it "would be nice").
+    private func enterFullScreen() {
+        _ = writingFocus.escape()
+        if let v = canvasFocus.enter(from: visibility) {
+            setColumns(v, focus: true)
+            peeking = CanvasEdgePeekFlag.startShown
+        }
     }
 
     private func setColumns(_ v: NavigationSplitViewVisibility, focus: Bool) {
@@ -1886,24 +1897,16 @@ private struct NoteFirstStyle: ViewModifier {
 #if os(macOS)
 /// View › Hide Sidebar / Show Sidebar for the notes window's split view.
 enum SidebarToggle {
-    /// What the next step does, named for it: hide the folders, then the list, then show both.
+    /// What the next step does, named for it.
     static func title(_ v: NavigationSplitViewVisibility?) -> String {
-        switch v {
-        case nil, .all?: "Hide Sidebar"
-        case .doubleColumn?: "Hide Note List"
-        default: "Show Sidebar"
-        }
+        v == nil || v == .all ? "Hide Sidebar" : "Show Sidebar"
     }
     static func animation(reduceMotion: Bool) -> Animation? { reduceMotion ? nil : .snappy(duration: 0.3) }
 
-    /// Three steps, for every note (Emil, 13 November 2026): folders, list and note; list and
-    /// note; the note alone; then all three again.
+    /// The folders, in one click and back in one, as in Notes (Emil, 13 November 2026: stepping
+    /// through three states meant closing the sidebar twice). The note alone is Full Screen.
     static func next(_ v: NavigationSplitViewVisibility) -> NavigationSplitViewVisibility {
-        switch v {
-        case .all: .doubleColumn
-        case .doubleColumn: .detailOnly
-        default: .all
-        }
+        v == .all ? .doubleColumn : .all
     }
 
     /// For the window's memory (SceneStorage).
@@ -1930,43 +1933,40 @@ extension FocusedValues {
     }
 }
 
-/// A canvas folds the folders and the list away while it's open, so the drawing has the window
-/// (Emil, 13 November 2026). A text note opened after it puts the columns back as they were.
-/// The back control (or the sidebar button) brings them back on the canvas; that canvas then stays
-/// with the columns until another canvas opens.
-struct CanvasFocus: Equatable {
-    /// The columns to put back, while a canvas has folded them away.
+/// Full Screen (Emil, 13 November 2026): the open note, app or canvas has the window, the folders
+/// and the list folded away (the list slides in from the left edge), until you leave it. Only you
+/// enter it. Opening another note from the list stays in it; the sidebar button leaves it.
+struct FullScreen: Equatable {
+    /// The columns to put back.
     private(set) var before: NavigationSplitViewVisibility?
-    /// The canvas open now.
-    private(set) var canvas: UUID?
     /// The change being made is this one's, not yours.
     var applying = false
 
-    var isFocused: Bool { canvas != nil && before != nil }
+    var isOn: Bool { before != nil }
 
-    /// The open note changed: the columns to show now, or nil to leave them.
-    mutating func opened(_ id: UUID?, isCanvas: Bool, visibility v: NavigationSplitViewVisibility) -> NavigationSplitViewVisibility? {
-        if isCanvas, let id {
-            guard canvas != id else { return nil }
-            canvas = id
-            if before == nil { before = v }
-            return v == .detailOnly ? nil : .detailOnly
-        }
-        canvas = nil
-        guard let b = before else { return nil }
-        before = nil
-        return b == v ? nil : b
+    /// The columns to show now, or nil when it's on already.
+    mutating func enter(from v: NavigationSplitViewVisibility) -> NavigationSplitViewVisibility? {
+        guard before == nil else { return nil }
+        before = v == .detailOnly ? .all : v
+        return .detailOnly
     }
 
-    /// Back to the notes, staying on the canvas: the columns as they were (all three if they were folded already).
-    mutating func leave() -> NavigationSplitViewVisibility {
-        let b = before ?? .all
-        before = nil
-        return b == .detailOnly ? .all : b
+    /// The columns as they were, or nil when it wasn't on.
+    mutating func leave() -> NavigationSplitViewVisibility? {
+        defer { before = nil }
+        return before
     }
 
-    /// You changed the columns yourself: they're yours, nothing is put back later.
+    /// You changed the columns yourself: they're yours, nothing is put back.
     mutating func userChanged() { before = nil }
+}
+
+/// The toolbar's Full Screen button.
+struct FullScreenAction {
+    let on: Bool
+    let run: () -> Void
+    var title: String { on ? "Exit Full Screen" : "Full Screen" }
+    var symbol: String { on ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right" }
 }
 
 private struct SidebarVisibilityKey: FocusedValueKey {
@@ -2157,7 +2157,7 @@ struct ToggleSidebarAction: Equatable {
 extension EnvironmentValues {
     @Entry var toggleSidebar: ToggleSidebarAction? = nil
     @Entry var listSidebarHidden = false
-    /// A canvas has the window (CanvasFocus): the folders' and the list's toolbar items step away.
+    /// A canvas has the window (FullScreen): the folders' and the list's toolbar items step away.
     @Entry var columnsToolbarHidden = false
     /// The notes list: the window's sidebar is hidden, so its buttons sit beside the list's.
 }

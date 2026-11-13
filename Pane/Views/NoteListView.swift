@@ -663,7 +663,7 @@ struct NoteListView: View {
             // made the bar rebuild mid-slide, and its buttons faded in from the wrong place. One
             // item, so one island like the note's own: as a group of two items macOS drew them
             // sometimes apart and sometimes together (Emil, 6 November 2026).
-            // Not while a canvas has the window, nor from the list peeking in over it (CanvasFocus):
+            // Not while a canvas has the window, nor from the list peeking in over it (FullScreen):
             // hidden items still took their room, and pushed the note's share and ••• to the middle.
             if let pickScope, !columnsToolbarHidden {
                 ToolbarItem(placement: .navigation) { ListFolderMenu(scope: scope, title: title, pick: pickScope) }

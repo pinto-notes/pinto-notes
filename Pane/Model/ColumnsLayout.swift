@@ -3,7 +3,7 @@ import SwiftUI
 /// How the Mac's notes window lays out its columns: an experiment with four options to live with
 /// (Emil, 13 November 2026: the folders and the list take too much room for text notes too; "try
 /// different ideas and see which ones win"). Settings › Experimental, on this device. Today's
-/// layout until another is picked; a canvas folds the columns away in every option (CanvasFocus).
+/// layout until another is picked; Full Screen folds the columns away in every option (FullScreen).
 enum ColumnsLayout: String, CaseIterable, Identifiable {
     /// As before: folders, list and note, and the sidebar button's three steps.
     case today

@@ -1359,7 +1359,8 @@ struct NoteDetailView: View {
                 if !askTargets.isEmpty { askButton }
                 if !trashed { shareMenu }
                 moreMenu
-            }))
+            }),
+            canvas: showingCanvas && !trashed ? canvasControls : nil)
     }
     #endif
 
@@ -2097,6 +2098,8 @@ struct NoteToolbarParts: Equatable, @unchecked Sendable {
     var people: AnyView?
     /// Share and More.
     var sharing: AnyView
+    /// A canvas shows: its tools take the writing tools' place (CanvasToolbarTools).
+    var canvas: CanvasController? = nil
     /// Views can't be compared: each time the pane works its items out, they count as new.
     let made = NoteToolbarParts.next()
 
@@ -2134,9 +2137,11 @@ struct NoteToolbarStage<Pane: View>: View {
     var place: Note? = nil
     /// A breadcrumb's folder, shown in the list.
     var openScope: (Scope) -> Void = { _ in }
-    /// A canvas has the window (CanvasFocus): only a back control to the notes and the note's
+    /// A canvas has the window (FullScreen): only a back control to the notes and the note's
     /// title on the left, share and ••• on the right.
     var focusBack: (() -> Void)? = nil
+    /// Full Screen, on and off (FullScreen).
+    var fullScreen: FullScreenAction? = nil
     /// Only the note shows: the sidebar button, to bring the columns back (SidebarToggle.next).
     var showColumns: ToggleSidebarAction? = nil
     @ViewBuilder let pane: Pane
@@ -2171,13 +2176,17 @@ struct NoteToolbarStage<Pane: View>: View {
                     .hidden(!showsItems)
                     if let place {
                         ToolbarItem(placement: .navigation) {
-                            Text(place.title)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(Color.muted)
-                                .lineLimit(1)
-                                .fixedSize()
-                                .accessibilityAddTraits(.isHeader)
-                                .accessibilityIdentifier("canvas.title")
+                            if self.parts?.canvas != nil {
+                                CanvasTitleField(note: place)
+                            } else {
+                                Text(place.title)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(Color.muted)
+                                    .lineLimit(1)
+                                    .fixedSize()
+                                    .accessibilityAddTraits(.isHeader)
+                                    .accessibilityIdentifier("note.focusTitle")
+                            }
                         }
                         .sharedBackgroundVisibility(.hidden)
                         .hidden(!showsItems)
@@ -2215,6 +2224,11 @@ struct NoteToolbarStage<Pane: View>: View {
                         ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, open: openScope) }
                             .sharedBackgroundVisibility(.hidden)
                             .hidden(!showsItems)
+                        if self.parts?.canvas != nil {
+                            ToolbarItem { CanvasTitleField(note: place) }
+                                .sharedBackgroundVisibility(.hidden)
+                                .hidden(!showsItems)
+                        }
                     }
                     if let said = self.parts?.said {
                         ToolbarItem {
@@ -2271,10 +2285,24 @@ struct NoteToolbarStage<Pane: View>: View {
                         .disabled(!showsItems || !showsWriting || shown.writingDisabled)
                     }
                     .hidden(!showsItems || !showsWriting)
+                    if let canvas = shown.canvas {
+                        ToolbarItemGroup { CanvasToolbarTools(canvas: canvas).disabled(!showsItems) }
+                            .hidden(!showsItems)
+                    }
                     if let people = shown.people {
                         ToolbarItem { people.disabled(!showsItems) }.hidden(!showsItems)
                     }
-                    ToolbarItemGroup { shown.sharing.disabled(!showsItems) }.hidden(!showsItems)
+                    ToolbarItemGroup {
+                        if let fullScreen {
+                            Button(fullScreen.title, systemImage: fullScreen.symbol, action: fullScreen.run)
+                                .help(fullScreen.title + " (\u{21E7}\u{2318}F)")
+                                .keyboardShortcut("f", modifiers: [.command, .shift])
+                                .disabled(!showsItems)
+                                .accessibilityIdentifier("note.fullScreen")
+                        }
+                        shown.sharing.disabled(!showsItems)
+                    }
+                    .hidden(!showsItems)
                 }
             }
     }

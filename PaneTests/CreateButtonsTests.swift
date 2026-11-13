@@ -29,11 +29,17 @@ import AppKit
         #expect(CreateKind.app.menuTitle == "New App\u{2026}")
         #expect(CreateKind.allCases.map(\.keys) == ["\u{2318}N", "\u{2325}\u{2318}N", "\u{2303}\u{2318}N"])
         #expect(CreateKind.canvas.help == "New Canvas (\u{2325}\u{2318}N)")
-        // Three different pictures, and the canvas's is no pencil or scribble beside compose's.
+        // Three different pictures, each its own outline: compose's boxed pencil, a bare scribble
+        // (no box, no pencil), and a wand for New App (no grid: it read as "show all", 11-13).
         #expect(Set(CreateKind.allCases.map(\.symbol)).count == 3)
-        #expect(!CanvasNote.symbol.contains("pencil") && !CanvasNote.symbol.contains("scribble"))
+        #expect(!CanvasNote.symbol.contains("pencil") && !CanvasNote.symbol.contains("square"))
+        #expect(!CreateKind.app.symbol.contains("square") && !CreateKind.app.symbol.contains("grid"))
+        #if os(macOS)
+        for kind in CreateKind.allCases {
+            #expect(NSImage(systemSymbolName: kind.symbol, accessibilityDescription: nil) != nil, "\(kind.symbol) exists")
+        }
+        #endif
         #expect(CreateKind.canvas.symbol == CanvasNote.symbol, "the list marks a canvas with the button's glyph")
-        #expect(CreateKind.app.symbol == NoteAppMark.symbol)
         #expect(Set(CreateKind.allCases.map(\.identifier)) == ["list.newNote", "list.newCanvas", "list.newApp"])
     }
 

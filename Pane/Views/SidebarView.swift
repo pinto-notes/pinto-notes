@@ -804,7 +804,7 @@ struct SidebarView: View {
             // the menu and keys it looked like it couldn't hide). A fourth button here sent Search
             // to the overflow menu, so New Folder is on the Folders heading (and File, ⇧⌘N).
             // Its own view reads the toggle, so a toggle doesn't work the folders out again.
-            // None of them while a canvas has the window (CanvasFocus): back, title, share and ••• only.
+            // None of them while a canvas has the window (FullScreen): back, title, share and ••• only.
             ToolbarItem { SidebarToggleButton().buttonStyle(.barIcon) }
             .sharedBackgroundVisibility(.hidden)
             .hidden(columnsToolbarHidden)

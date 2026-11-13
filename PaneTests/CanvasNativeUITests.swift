@@ -278,27 +278,32 @@ import UIKit
 
     // MARK: Focus and the sidebar steps
 
-    @Test func aCanvasFoldsTheColumnsAwayAndATextNotePutsThemBack() {
-        var f = CanvasFocus()
-        let canvas = UUID(), other = UUID(), text = UUID()
-        #expect(f.opened(text, isCanvas: false, visibility: .all) == nil, "a text note leaves the columns")
-        #expect(f.opened(canvas, isCanvas: true, visibility: .all) == .detailOnly)
-        #expect(f.isFocused)
-        #expect(f.opened(other, isCanvas: true, visibility: .detailOnly) == nil, "canvas to canvas: still folded")
-        #expect(f.opened(text, isCanvas: false, visibility: .detailOnly) == .all, "a text note: back as they were")
-        #expect(!f.isFocused)
-        // From list and note, back to list and note.
-        #expect(f.opened(canvas, isCanvas: true, visibility: .doubleColumn) == .detailOnly)
-        #expect(f.opened(text, isCanvas: false, visibility: .detailOnly) == .doubleColumn)
-        // The back control: the columns come back and the canvas stays open with them.
-        _ = f.opened(canvas, isCanvas: true, visibility: .all)
+    /// Full Screen is yours to enter: it folds the columns and puts them back as they were.
+    @Test func fullScreenPutsTheColumnsBackAsTheyWere() {
+        var f = FullScreen()
+        #expect(f.leave() == nil, "not on: nothing to put back")
+        #expect(f.enter(from: .all) == .detailOnly)
+        #expect(f.isOn)
+        #expect(f.enter(from: .detailOnly) == nil, "on already")
         #expect(f.leave() == .all)
-        #expect(!f.isFocused)
-        #expect(f.opened(text, isCanvas: false, visibility: .all) == nil)
-        // Changed by hand while on a canvas: yours, not put back.
-        _ = f.opened(canvas, isCanvas: true, visibility: .all)
+        #expect(!f.isOn)
+        #expect(f.enter(from: .doubleColumn) == .detailOnly)
+        #expect(f.leave() == .doubleColumn, "list and note, as they were")
+        _ = f.enter(from: .all)
         f.userChanged()
-        #expect(f.opened(text, isCanvas: false, visibility: .doubleColumn) == nil)
+        #expect(!f.isOn && f.leave() == nil, "the sidebar button takes over")
+    }
+
+    /// Naming a canvas: one line, trimmed; empty or unchanged leaves it (13 November 2026).
+    @Test func aCanvasIsRenamedFromItsTitleField() throws {
+        let c = try AppSnapshotTests.container()
+        let note = CanvasNote.make(in: .all, context: c.mainContext)
+        #expect(note.title == CanvasNote.title)
+        #expect(CanvasTitleField.renamed(note, to: "  Launch plan\nv2 ") == "Launch plan v2")
+        #expect(note.body == "Launch plan v2" && note.dirty)
+        #expect(CanvasTitleField.renamed(note, to: "   ") == nil, "empty keeps the name")
+        #expect(CanvasTitleField.renamed(note, to: "Launch plan v2") == nil, "unchanged: nothing to save")
+        #expect(note.title == "Launch plan v2")
     }
 
     static func canvasLibrary() throws -> ModelContainer {
@@ -317,33 +322,21 @@ import UIKit
         return controller.splitViewItems.prefix(2).map(\.isCollapsed)
     }
 
-    @Test func openingACanvasShowsOnlyTheCanvasAndATextNoteBringsTheColumnsBack() async throws {
+    /// A canvas opens with the columns as they are (Emil, 13 November 2026: it went full screen
+    /// by itself). The sidebar button hides the folders in one click, as in Notes; Full Screen
+    /// folds both and puts them back.
+    @Test func aCanvasKeepsTheColumnsUntilYouGoFullScreen() async throws {
         let c = try Self.canvasLibrary()
         try await AppSnapshotTests.withLastNote(c, "Publishing flow") {
             let w = MacWindowChromeTests.window(c, size: CGSize(width: 1280, height: 800))
             defer { w.close() }
             await MacWindowChromeTests.settle(w, 20)
-            #expect(try Self.collapsed(w) == [true, true], "the canvas has the window")
-            // Back in the toolbar, and the title, quiet.
-            let back = await MacEmptyDetailTests.waitForElement("canvas.back", in: w)
-            let direct = MacEmptyDetailTests.element("canvas.back", in: w)
-            #expect(back != nil || direct != nil, "the back control to the notes")
-            // Another note from the list: a text note puts the columns back.
-            let groceries = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Groceries" })
-            NoteOpener.shared.request = groceries.id
-            defer { NoteOpener.shared.request = nil }
-            await MacWindowChromeTests.settle(w, 20)
-            #expect(try Self.collapsed(w) == [false, false], "the text note has its columns again")
-        }
-    }
-
-    @Test func theSidebarButtonStepsThroughThreeStates() async throws {
-        let c = try AppSnapshotTests.container()
-        try await AppSnapshotTests.withLastNote(c, "Groceries") {
-            let w = MacWindowChromeTests.window(c, size: CGSize(width: 1280, height: 800))
-            defer { w.close() }
-            await MacWindowChromeTests.settle(w)
-            #expect(try Self.collapsed(w) == [false, false])
+            #expect(try Self.collapsed(w) == [false, false], "the canvas leaves the columns open")
+            // The tools are in the window's toolbar, where a note's are, and its name beside where it is.
+            for id in ["canvas.tool.selection", "canvas.tool.freedraw", "canvas.tool.shapes", "canvas.title", "note.fullScreen"] {
+                let found = await MacEmptyDetailTests.waitForElement(id, in: w)
+                #expect(found != nil || MacEmptyDetailTests.element(id, in: w) != nil, "\(id) in the toolbar")
+            }
             @MainActor func press(_ id: String) async throws {
                 let found = await MacEmptyDetailTests.waitForElement(id, in: w)
                 let direct = MacEmptyDetailTests.element(id, in: w)
@@ -352,11 +345,11 @@ import UIKit
                 await MacWindowChromeTests.settle(w, 12)
             }
             try await press("sidebar.toggle")
-            #expect(try Self.collapsed(w) == [true, false], "list and note")
-            try await press("sidebar.toggle")
-            #expect(try Self.collapsed(w) == [true, true], "the note alone")
-            try await press("note.showColumns")
-            #expect(try Self.collapsed(w) == [false, false], "and all three again")
+            #expect(try Self.collapsed(w) == [true, false], "one click: the folders")
+            try await press("note.fullScreen")
+            #expect(try Self.collapsed(w) == [true, true], "Full Screen: the canvas alone")
+            try await press("note.fullScreen")
+            #expect(try Self.collapsed(w) == [true, false], "and back as they were")
         }
     }
     #endif

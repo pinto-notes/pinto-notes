@@ -26,13 +26,14 @@ import Testing
     }
 
     /// The sidebar item names what it will do (it read "Show Sidebar" both ways on the Air, 11-04),
-    /// and steps through three states (11-13): all three columns, list and note, the note alone.
+    /// and hides the folders in one click, as in Notes (11-13: no closing it twice; the note
+    /// alone is Full Screen).
     @Test func theSidebarItemNamesItsState() {
         #expect(SidebarToggle.title(.all) == "Hide Sidebar")
-        #expect(SidebarToggle.title(.doubleColumn) == "Hide Note List")
+        #expect(SidebarToggle.title(.doubleColumn) == "Show Sidebar")
         #expect(SidebarToggle.title(.detailOnly) == "Show Sidebar")
-        #expect(SidebarToggle.next(.all) == .doubleColumn)
-        #expect(SidebarToggle.next(.doubleColumn) == .detailOnly)
+        #expect(SidebarToggle.next(.all) == .doubleColumn, "one click hides the folders")
+        #expect(SidebarToggle.next(.doubleColumn) == .all, "one click shows them")
         #expect(SidebarToggle.next(.detailOnly) == .all)
         for v in [NavigationSplitViewVisibility.all, .doubleColumn, .detailOnly] {
             #expect(SidebarToggle.visibility(named: SidebarToggle.name(v)) == v, "the window remembers the step")
