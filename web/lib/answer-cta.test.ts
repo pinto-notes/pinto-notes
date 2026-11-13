@@ -10,6 +10,8 @@ const B1 = [
   "move-apple-notes-to-obsidian-notion-keep", "export-apple-notes-to-markdown", "notes-in-claude-code-and-codex", "obsidian-mcp",
   "move-from-apple-notes",
 ];
+// Posts written or changed after B1 started carry the same card, outside the experiment.
+const LATER = ["apple-notes-version-history", "apple-notes-budget-template", "ai-memory-with-notes"];
 const CONTROL = ["apple-notes-not-syncing", "forgot-apple-notes-password", "move-apple-notes-to-icloud", "recover-deleted-apple-notes"];
 
 const source = (slug: string) => readFileSync(join(process.cwd(), "app", "blog", slug, "page.tsx"), "utf8");
@@ -22,6 +24,13 @@ describe("the download in a post's short answer", () => {
       const answer = /<Answer[\s\S]*?<\/Answer>/.exec(src)?.[0];
       // move-from-apple-notes has no answer box; its card follows "Before you start".
       if (answer) expect(answer, slug).toContain("<PostCta");
+    }
+  });
+
+  it("is in the answer of the posts written since, and of the memory study", () => {
+    for (const slug of LATER) {
+      const answer = /<Answer[\s\S]*?<\/Answer>/.exec(source(slug))?.[0] ?? "";
+      expect(answer, slug).toContain(`<PostCta slug="${slug}" position="answer"`);
     }
   });
 

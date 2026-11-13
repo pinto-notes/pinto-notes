@@ -1,3 +1,5 @@
+import { NoteMoment } from "@/lib/NoteMoment";
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer } from "@/lib/PostParts";
 
@@ -44,10 +46,16 @@ export default function Page() {
           { href: "#run-it", label: "Run it yourself" },
         ]}>
           <p>
-            In a new chat, Claude Haiku answered 18% of 1,540 questions about past chats right. With a list of saved facts, 60%. With
-            one notebook it kept itself, 72%. With Pinto Notes connected, 82.5%. Pasting every old chat in got 85.4%, which no chat app
-            lets you do. The biggest gap was dates: 48% with saved facts, 87% with Pinto.
+            In a new chat, Claude answered 18% of questions about months of past chats right. With Pinto Notes connected, 82.5%.
           </p>
+          <p>
+            Memory here means what the AI wrote down after each chat and could look up in the next one: nothing, a short list of saved
+            facts, one notebook, or its own notes in Pinto Notes. Every number is below.
+          </p>
+          {/* 13 Nov 2026 (Emil: "sounds good"): the download where readers are, as in experiment B1. */}
+          <PostCta slug="ai-memory-with-notes" position="answer" title="Want your AI to remember?">
+            <p>Pinto Notes works like Apple Notes, and ChatGPT and Claude can keep their notes in it, where you can read and fix them.</p>
+          </PostCta>
         </Answer>
       }
       faq={FAQ}
@@ -111,6 +119,21 @@ export default function Page() {
       </p>
 
       <h2 id="what-it-wrote">What the AI kept in Pinto</h2>
+      <NoteMoment
+        me="Remember this chat in Pinto Notes for next time."
+        reply="Saved. I added today's news to Sam's note and kept a note of this chat."
+        ai="Claude"
+        glyph="claude"
+        title="Sam"
+        kind="bullet"
+        lines={[
+          { text: "Nurse, works nights" },
+          { text: "Sister Mia moved to Berlin in April" },
+          { text: "Started a pottery class on 12 May", by: true },
+          { text: "Wants to go to Lisbon in October", by: true },
+        ]}
+        caption="An example made up for this page, in the shape the AI chose in the test: a note per person, with dates. The test's own notes stay out, because its data can't be reused commercially."
+      />
       <p>
         Across the 10 conversations, Haiku made 275 notes, edited them 937 times, and ran 600 searches and 6,671 fetches. It settled
         on a note for each person and a dated note for each chat, the way you might set up a notebook by hand.
