@@ -1496,10 +1496,13 @@ struct NoteDetailView: View {
         let sync = self.sync
         controller.resolveAttachment = { id in context.attachment(id) }
         controller.sharePicture = { sharePicture() }
-        controller.pickCover = { [$pickingCover, $pickingCoverPhoto] source in
+        controller.pickCover = { [$pickingCover, $pickingCoverPhoto, controller] source in
             switch source {
             case .photos: $pickingCoverPhoto.wrappedValue = true
             case .file: $pickingCover.wrappedValue = true
+            case .pattern(let p):
+                // Drawn to a picture and kept like any other cover.
+                if let url = p.render(), let file = context.addAttachments([url]).first { controller.setCover(file) }
             }
         }
         controller.canSharePicture = { [note] in !note.isLocked && note.trashedAt == nil }
@@ -1669,6 +1672,8 @@ struct NoteDetailView: View {
                 Menu(hasCover ? "Change Cover" : "Add Cover", systemImage: "photo.artframe") {
                     Button("Choose from Photos…", systemImage: "photo.on.rectangle") { pickingCoverPhoto = true }
                     Button("Choose File…", systemImage: "folder") { pickingCover = true }
+                    Divider()
+                    ForEach(CoverPattern.allCases) { p in Button(p.title) { controller.pickCover(.pattern(p)) } }
                 }
                 .accessibilityIdentifier("attach.cover")
                 Button("Add Icon", systemImage: "face.smiling") { controller.addIcon() }

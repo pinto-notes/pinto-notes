@@ -120,4 +120,25 @@ import Testing
         ImageSizes.column = 400; ImageSizes.viewHeight = 900
         #expect(ImageSizes.size(for: e).height == 125)
     }
+
+    /// The picker's icon goes in front of the title, replaces the one there, and Remove takes it
+    /// away with its space; the cover line under the title stays.
+    @Test func pickingAnIconSetsReplacesAndRemovesIt() {
+        let text = "Green curry\n" + line + "\nThai basil."
+        let one = NoteCover.settingIcon("🍛", in: text)
+        #expect(one == "🍛 Green curry\n" + line + "\nThai basil.")
+        #expect(NoteCover.icon(of: one) == "🍛")
+        let two = NoteCover.settingIcon("🥘", in: one)
+        #expect(two == "🥘 Green curry\n" + line + "\nThai basil.")
+        #expect(NoteCover.settingIcon(nil, in: two) == text)
+        #expect(NoteCover.icon(of: text) == nil)
+    }
+
+    /// Search finds emojis by their names, every word typed.
+    @Test func iconSearchFindsByName() {
+        #expect(IconEmoji.search("curry").contains("🍛"))
+        #expect(IconEmoji.search("lemon").contains("🍋"))
+        #expect(IconEmoji.search("zzzz nothing").isEmpty)
+        #expect(IconEmoji.groups[0].emojis.contains("🍝"), "food first")
+    }
 }

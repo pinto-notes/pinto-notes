@@ -246,7 +246,7 @@ final class EditorCore {
             let embedView = EmbedView(embed: e, controller: controller, selected: isSelected, select: select, remove: remove, rewrite: rewrite)
             // The cover's banner shows Change Cover and Remove under the pointer.
             let shown = e.range == cover?.range && controller?.readOnly != true
-                ? AnyView(CoverHover(content: embedView, pickCover: { [weak controller] in controller?.pickCover($0) }, remove: { [weak controller] in controller?.removeCover() }))
+                ? AnyView(CoverHover(content: embedView, change: { [weak controller] in controller?.changeCover() }, remove: { [weak controller] in controller?.removeCover() }))
                 : AnyView(embedView)
             out.append((e.key, f, shown,
                         .embed(e, controller: controller.map(ObjectIdentifier.init), resolved: resolved(e), selected: isSelected)))
@@ -2717,6 +2717,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     private var textSizeObserver: NSObjectProtocol?
     private var noteFontObserver: NSObjectProtocol?
     private var experimentsObserver: NSObjectProtocol?
+    private var iconPopover: NSPopover?
+    private var coverPopover: NSPopover?
 
     /// View › Bigger or Smaller: every line restyled at the new size, the cards and foot moved to
     /// where the text now is. The caret and scroll stay where they were.
@@ -4259,7 +4261,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let frame = CGRect(x: title.maxX + 14, y: title.midY - TitleActions.height / 2, width: width, height: TitleActions.height)
         let view = TitleActions(icon: needsIcon, cover: needsCover,
                                 addIcon: { [weak self] in self?.hideTitleActions(); self?.controller?.addIcon() },
-                                pickCover: { [weak self] in self?.hideTitleActions(); self?.controller?.pickCover($0) })
+                                addCover: { [weak self] in self?.presentCoverPicker(fromTitle: true) })
         if let host = titleActionsHost {
             host.rootView = view
             host.frame = frame
@@ -4270,6 +4272,49 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             addSubview(host)
             titleActionsHost = host
         }
+    }
+
+    /// The icon picker, by the title's start (IconPicker): picking closes it.
+    func presentIconPicker() {
+        guard let controller, let title = titleLineRect() else { return }
+        hideTitleActions()
+        iconPopover?.close()
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentSize = IconPicker.size
+        popover.contentViewController = NSHostingController(rootView: IconPicker(current: NoteCover.icon(of: string)) { [weak self, weak popover, weak controller] icon in
+            controller?.setIcon(icon)
+            popover?.close()
+            self?.window?.makeFirstResponder(self)
+        })
+        let anchor = CGRect(x: title.minX, y: title.minY, width: min(title.width, 60), height: title.height)
+        popover.show(relativeTo: anchor, of: self, preferredEdge: .maxY)
+        iconPopover = popover
+    }
+
+    /// The cover picker (CoverPicker): under Add Cover by the title, or under the banner's Change
+    /// Cover. Picking closes it.
+    func presentCoverPicker(fromTitle: Bool) {
+        guard let controller, let title = titleLineRect() else { return }
+        let anchor: CGRect
+        if fromTitle, let buttons = titleActionsFrame {
+            anchor = CGRect(x: buttons.maxX - 90, y: buttons.minY, width: 90, height: buttons.height)
+        } else {
+            // The banner's bottom right corner, where Change Cover sits.
+            let right = bounds.width - textContainerInset.width - (textContainer?.lineFragmentPadding ?? 0)
+            anchor = CGRect(x: right - 120, y: title.minY - NoteCover.gap - 40, width: 100, height: 30)
+        }
+        hideTitleActions()
+        coverPopover?.close()
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentSize = CoverPicker.size
+        popover.contentViewController = NSHostingController(rootView: CoverPicker { [weak popover, weak controller] source in
+            popover?.close()
+            controller?.pickCover(source)
+        })
+        popover.show(relativeTo: anchor, of: self, preferredEdge: .maxY)
+        coverPopover = popover
     }
 
     /// Add Icon and Add Cover are showing (tests).

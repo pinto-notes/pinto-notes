@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import ImageIO
 import SwiftUI
 import Testing
 @testable import Pane
@@ -68,7 +69,7 @@ extension FolderGalleryTests {
     /// A card without a picture shows the note's own lines, as they read.
     @Test func aCardWithoutAPictureShowsTheNotesLines() {
         let body = "Shopping list\n\n![x.jpg|cover](pane-file:1)\n- [ ] Oat milk\n- [x] Lemons\n## Later\nBasil"
-        #expect(GalleryFace.firstLines(of: body) == "Oat milk\nLemons\nLater\nBasil")
+        #expect(GalleryFace.firstLines(of: body) == "○  Oat milk\n✓  Lemons\nLater\nBasil")
     }
 }
 
@@ -84,3 +85,30 @@ extension FolderGalleryTests {
     }
 }
 #endif
+
+extension FolderGalleryTests {
+    /// Every ready-made cover draws to a wide picture that can be kept as a cover.
+    @Test func readyMadeCoversDrawToPictures() throws {
+        for p in CoverPattern.allCases {
+            let url = try #require(p.render(), "\(p.title)")
+            let src = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
+            let props = try #require(CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any])
+            #expect(props[kCGImagePropertyPixelWidth] as? Int == Int(CoverPattern.pixels.width))
+            #expect(url.lastPathComponent == "\(p.title).png")
+            try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        }
+    }
+
+    /// A photo decoded once is drawn at once the next time the cards show.
+    @Test func galleryPhotosAreKeptOnceDecoded() async throws {
+        let images = GalleryImages()
+        let dir = FileManager.default.temporaryDirectory.appending(path: "gallery-\(UUID())")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = try #require(CoverPattern.sea.render())
+        let id = UUID()
+        #expect(images.cached(id) == nil)
+        #expect(await images.load(id, url) != nil)
+        #expect(images.cached(id) != nil)
+    }
+}

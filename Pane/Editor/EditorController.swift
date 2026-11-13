@@ -171,21 +171,42 @@ final class EditorController {
         perform { text, sel in NoteCover.edit(from: text, to: NoteCover.setting(line, in: text, moving: range), selection: sel) }
     }
 
-    /// Asks for a picture to be the cover (the note's screen shows Photos or the file picker).
+    /// Asks for a picture to be the cover (the note's screen shows Photos or the file picker, or
+    /// keeps a ready-made one).
     @ObservationIgnored var pickCover: (CoverSource) -> Void = { _ in }
+
+    /// Change Cover on the banner: the cover picker by it (Mac), or the photo library.
+    func changeCover() {
+        #if os(macOS)
+        if let view = target as? PaneTextView { view.presentCoverPicker(fromTitle: false); return }
+        #endif
+        pickCover(.photos)
+    }
 
     /// Icons a new one starts from, like Notion's random pick; the emoji panel opens to change it.
     static let startIcons = ["🍋", "🌿", "📒", "✨", "🌻", "🍓", "🪴", "📚", "☕️", "🍊", "🌙", "🎈"]
 
-    /// Add Icon: an emoji in front of the title, selected, and the emoji panel to swap it.
+    /// Add Icon: on the Mac the icon picker opens by the title (IconPicker), and the icon goes in
+    /// once one is picked; on iPhone an emoji goes in front of the title, selected, to swap it.
     func addIcon() {
+        #if os(macOS)
+        if let view = target as? PaneTextView { view.presentIconPicker(); return }
+        #endif
         let icon = Self.startIcons.randomElement()!
         perform { text, _ in NoteCover.iconEdit(icon, in: text) }
         openEmojiPanel()
     }
 
-    /// The icon selected and the emoji panel open, to pick another.
+    /// Puts `icon` in front of the title, in place of the one it had; nil takes it away.
+    func setIcon(_ icon: String?) {
+        perform { text, sel in NoteCover.edit(from: text, to: NoteCover.settingIcon(icon, in: text), selection: sel) }
+    }
+
+    /// The icon picker again (Mac), or the icon selected with the emoji panel open, to pick another.
     func changeIcon() {
+        #if os(macOS)
+        if let view = target as? PaneTextView { view.presentIconPicker(); return }
+        #endif
         guard let t = target else { return }
         let ns = t.currentText as NSString
         let at = MarkdownStyler.titleLocation(ns)

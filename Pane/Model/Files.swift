@@ -352,6 +352,25 @@ enum NoteCover {
         return TextEdit(range: NSRange(location: at, length: 0), replacement: icon + " ", caret: at, selection: NSRange(location: at, length: length))
     }
 
+    /// The note's text with `icon` in front of its title in place of the one it had; nil takes
+    /// the icon (and its space) away.
+    static func settingIcon(_ icon: String?, in text: String) -> String {
+        let ns = text as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        let old = at <= ns.length ? (iconLength(ns.substring(from: at)) ?? 0) : 0
+        let new = icon.map { $0 + " " } ?? ""
+        if text.isEmpty { return new.isEmpty ? text : new + "New Note" }
+        return ns.replacingCharacters(in: NSRange(location: at, length: old), with: new)
+    }
+
+    /// The icon a title starts with, if it has one.
+    static func icon(of text: String) -> String? {
+        let ns = text as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        guard at < ns.length, iconLength(ns.substring(from: at)) != nil else { return nil }
+        return ns.substring(from: at).first.map(String.init)
+    }
+
     /// The length (UTF-16) of the emoji a title starts with, and the space after it: the icon.
     static func iconLength(_ title: String) -> Int? {
         guard let first = title.first, isEmoji(first) else { return nil }
