@@ -14,8 +14,10 @@ enum Experiment: String, CaseIterable, Identifiable {
     case tags
 
     var id: String { rawValue }
-    /// Its switch's UserDefaults key (also an `-experiment.covers YES` launch argument for tests).
-    var key: String { "experiment." + rawValue }
+    /// Its switch's UserDefaults key (also an `-experimentCovers YES` launch argument for tests).
+    /// No dot in it: an @AppStorage key with a dot made its view draw again on every write to
+    /// UserDefaults (the window, the note and every list row, as each note opened: 13 November 2026).
+    var key: String { "experiment" + rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
 
     var title: String {
         switch self {

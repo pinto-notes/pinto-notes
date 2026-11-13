@@ -86,11 +86,10 @@ import Testing
         return try #require(out.representation(using: .png, properties: [:]))
     }
 
-    @Test func states() async throws {
+    /// Tags is an experiment (Experiments): on for the pictures, as it was after.
+    @Test(.experiment(.tags)) func states() async throws {
         guard let dir = ProcessInfo.processInfo.environment["PANE_TAG_SHOTS"].map({ URL(fileURLWithPath: $0) }) else { return }
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        // Tags is an experiment (Experiments): on for the pictures.
-        UserDefaults.standard.set(true, forKey: Experiment.tags.key)
         let c = try Self.library()
         let note = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Acme kickoff" })
         for dark in [false, true] {

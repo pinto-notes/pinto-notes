@@ -7,7 +7,8 @@ import Testing
 
 /// The MenuLookTests suite's declaration, and the helpers of it that tests in other test targets use
 /// (a test target can't see another's code). Its tests are in PaneTests/Interaction/MenuLookTests.swift.
-@MainActor @Suite(.serialized) struct MenuLookTests {
+/// Tags off, as it ships: the right-click has no Tags item (Experiments).
+@MainActor @Suite(.serialized, .experiment(.tags, on: false)) struct MenuLookTests {
     static func titleColor(_ item: NSMenuItem?) -> NSColor? {
         guard let a = item?.attributedTitle, a.length > 0 else { return nil }
         return a.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor

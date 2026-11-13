@@ -15,7 +15,7 @@ final class TagsUITests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         // Tags is an experiment (Settings › Experimental): on for this run.
-        app.launchArguments = ["-uitest", "-demo", "-showFolders", "-experiment.tags", "YES"]
+        app.launchArguments = ["-uitest", "-demo", "-showFolders", "-experimentTags", "YES"]
         app.launch()
         XCTAssertTrue(folderList.waitForExistence(timeout: 8))
     }

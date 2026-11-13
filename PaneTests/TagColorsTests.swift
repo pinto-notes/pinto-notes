@@ -10,10 +10,8 @@ import AppKit
 
 /// Tags as coloured labels: each tag's colour (its own, or one chosen and kept for the account),
 /// the label in the note, and tags added and taken out from a note's right-click.
-@Suite struct TagColorsTests {
-    /// Tags is an experiment (Experiments): these check it turned on.
-    init() { UserDefaults.standard.set(true, forKey: Experiment.tags.key) }
-
+/// Tags is an experiment (Experiments): these check it turned on, and put it back after.
+@Suite(.experiment(.tags)) struct TagColorsTests {
     // MARK: Colours
 
     @Test func eachTagHasItsOwnColourEverywhere() {
