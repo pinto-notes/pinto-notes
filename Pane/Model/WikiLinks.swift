@@ -367,7 +367,12 @@ enum WikiDirectory {
     private static weak var cachedContext: ModelContext?
     private static var observer: NSObjectProtocol?
     /// Goes up each time a title or folder changes.
-    private(set) static var generation = 0 { didSet { LinkChanges.shared.bump() } }
+    private(set) static var generation = 0 { didSet { if !quiet { LinkChanges.shared.bump() } } }
+    /// While a read `ready` asked for goes in: whoever asked gets it then, so Linked From isn't
+    /// told. Telling it made two libraries open at once (two windows' contexts) ask in turn for
+    /// ever, each read telling the other's menu to ask again (WindowMinHeightTests hung, 13
+    /// November 2026).
+    private static var quiet = false
     private static var lastSignature: [String] = []
 
     /// Where each note that links to others links, by its id: what Linked From is worked out
@@ -432,6 +437,8 @@ enum WikiDirectory {
     private static func install(_ read: (entries: [WikiIndex.Entry], outgoing: LinkGraph, paths: [UUID: [String]]), announce: Bool = true) {
         guard let context = reading else { return }
         reading = nil
+        quiet = !announce
+        defer { quiet = false }
         if cached == nil || cachedContext !== context {
             cached = WikiIndex(read.entries)
             cachedContext = context
@@ -441,7 +448,7 @@ enum WikiDirectory {
         outgoing = read.outgoing
         outgoingContext = context
         folderPaths = read.paths
-        LinkChanges.shared.bump()
+        if announce { LinkChanges.shared.bump() }
         // What was saved while it was read is read again from the context, which has it.
         let again = savedWhileReading
         savedWhileReading = []

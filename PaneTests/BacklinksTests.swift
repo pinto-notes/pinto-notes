@@ -92,6 +92,25 @@ import Testing
         #expect(LinkedFromMenu.more(3) == "3 More")
     }
 
+    /// Asking for Linked From reads the links there and then, and tells no other menu: two
+    /// libraries open at once (each window's own context) asked in turn for ever, each read
+    /// telling the other's menu to ask again (WindowMinHeightTests hung, 13 November 2026).
+    @Test func askingForLinkedFromTellsNoOtherMenu() throws {
+        let a = try Self.container(), b = try Self.container()
+        let one = a.mainContext.createNote(in: .all, body: "Lisbon\nTiles")
+        _ = a.mainContext.createNote(in: .all, body: "Trip\nSee [[Lisbon]]")
+        let two = b.mainContext.createNote(in: .all, body: "Porto\nBridges")
+        try a.mainContext.save()
+        try b.mainContext.save()
+        WikiDirectory.invalidate()
+        let version = LinkChanges.shared.version
+        for _ in 0..<3 {
+            #expect(LinkedFromMenu.notes(linkingTo: one, in: a.mainContext).total == 1)
+            #expect(LinkedFromMenu.notes(linkingTo: two, in: b.mainContext).total == 0)
+        }
+        #expect(LinkChanges.shared.version == version, "a read asked for is the asker's; the other menu isn't made again")
+    }
+
     /// The link index finds the notes that link by a name without resolving every link: kept as
     /// each note's links change, a link's whole target counted too (a title with a slash).
     @Test func theLinkGraphFollowsEachNote() {
