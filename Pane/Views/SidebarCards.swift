@@ -257,7 +257,7 @@ struct SidebarCardShell<Art: View>: View {
     /// The whole card is one button: a click anywhere opens what its link line says. The close
     /// button in the corner is its own button, on top, so a click there only closes.
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
+        let shape: RoundedRectangle = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
         let label = content
             .padding(.leading, Metrics.padding)
             .padding(.top, Metrics.padding)
@@ -277,24 +277,29 @@ struct SidebarCardShell<Art: View>: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("\(id).open")
         .overlay(alignment: .topTrailing) {
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: Metrics.closeGlyph, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: Metrics.closeSize, height: Metrics.closeSize)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.quietIcon)
-            .padding(Metrics.closeInset)
-            .accessibilityLabel("Close \(title)")
-            .accessibilityHint("Hides this for good")
-            .accessibilityIdentifier("\(id).close")
-            #if os(macOS)
-            .help("Close")
-            #endif
+            closeButton
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(id)
+    }
+
+    /// The X in the corner (apart, so the compiler can check the body in time).
+    private var closeButton: some View {
+        Button(action: onClose) {
+            Image(systemName: "xmark")
+                .font(.system(size: Metrics.closeGlyph, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: Metrics.closeSize, height: Metrics.closeSize)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.quietIcon)
+        .padding(Metrics.closeInset)
+        .accessibilityLabel("Close \(title)")
+        .accessibilityHint("Hides this for good")
+        .accessibilityIdentifier("\(id).close")
+        #if os(macOS)
+        .help("Close")
+        #endif
     }
 
     private var content: some View {
@@ -414,47 +419,13 @@ struct FilmCard: View {
     }
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
-        let title = store.cardTitle, line = Self.line
+        let shape: RoundedRectangle = RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous)
+        let title: String = store.cardTitle, line: String = Self.line
         Button { store.open() } label: {
-            VStack(alignment: .leading, spacing: Metrics.gap) {
-                Text(title).font(Metrics.filmTitle).foregroundStyle(Self.cream).lineLimit(2).minimumScaleFactor(0.85)
-                    .frame(maxWidth: Metrics.filmWords, alignment: .leading)
-                Text(line).font(Metrics.line).foregroundStyle(Self.cream.opacity(0.78)).lineLimit(2)
-                HStack(spacing: 4) {
-                    Text(Self.button)
-                    Image(systemName: "chevron.right").font(Metrics.arrow)
-                }
-                .font(Metrics.button)
-                .foregroundStyle(sky)
-                .padding(.horizontal, Metrics.padding)
-                .frame(height: Metrics.buttonHeight)
-                .background(Self.cream, in: Capsule())
-                .padding(.top, Metrics.gap + 2)
-            }
-            .padding(Metrics.padding)
-            .padding(.trailing, Metrics.closeSize / 2)
-            .frame(maxWidth: .infinity, minHeight: Metrics.filmHeight, alignment: .leading)
-            .background {
-                // Your galaxy at the right, the sky deepening over it under the words.
-                GeometryReader { g in
-                    ZStack(alignment: .trailing) {
-                        sky
-                        if let poster {
-                            Image(decorative: poster, scale: 1).resizable().interpolation(.high)
-                                .frame(width: g.size.height * 1.75, height: g.size.height * 1.75)
-                                .offset(x: g.size.height * 0.28)
-                                .transition(.opacity)
-                        }
-                        LinearGradient(stops: [.init(color: sky, location: 0), .init(color: sky.opacity(0.8), location: 0.38), .init(color: sky.opacity(0), location: 0.62)],
-                                       startPoint: .leading, endPoint: .trailing)
-                    }
-                    .frame(width: g.size.width, height: g.size.height)
-                }
-            }
-            .clipShape(shape)
-            .hoverOverlay(shape, Color.white.opacity(0.06))
-            .contentShape(shape)
+            label(title: title, line: line)
+                .clipShape(shape)
+                .hoverOverlay(shape, Color.white.opacity(0.06))
+                .contentShape(shape)
         }
         .buttonStyle(CardPress())
         .accessibilityElement(children: .ignore)
@@ -463,21 +434,7 @@ struct FilmCard: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("sidebar.film.open")
         .overlay(alignment: .topTrailing) {
-            Button { withAnimation(.easeOut(duration: 0.2)) { store.closeOffer() } } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: Metrics.closeGlyph, weight: .semibold))
-                    .foregroundStyle(Self.cream.opacity(0.75))
-                    .frame(width: Metrics.closeSize, height: Metrics.closeSize)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.quietIcon)
-            .padding(Metrics.closeInset)
-            .accessibilityLabel("Close \(title)")
-            .accessibilityHint("Hides this for good")
-            .accessibilityIdentifier("sidebar.film.close")
-            #if os(macOS)
-            .help("Close")
-            #endif
+            closeButton(title: title)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("sidebar.film")
@@ -489,5 +446,66 @@ struct FilmCard: View {
             withAnimation(.easeOut(duration: 0.35)) { poster = picture.image }
         }
         .transition(.opacity)
+    }
+
+    /// The card's face (apart, so the compiler can check the body in time).
+    private func label(title: String, line: String) -> some View {
+        VStack(alignment: .leading, spacing: Metrics.gap) {
+            Text(title).font(Metrics.filmTitle).foregroundStyle(Self.cream).lineLimit(2).minimumScaleFactor(0.85)
+                .frame(maxWidth: Metrics.filmWords, alignment: .leading)
+            Text(line).font(Metrics.line).foregroundStyle(Self.cream.opacity(0.78)).lineLimit(2)
+            HStack(spacing: 4) {
+                Text(Self.button)
+                Image(systemName: "chevron.right").font(Metrics.arrow)
+            }
+            .font(Metrics.button)
+            .foregroundStyle(sky)
+            .padding(.horizontal, Metrics.padding)
+            .frame(height: Metrics.buttonHeight)
+            .background(Self.cream, in: Capsule())
+            .padding(.top, Metrics.gap + 2)
+        }
+        .padding(Metrics.padding)
+        .padding(.trailing, Metrics.closeSize / 2)
+        .frame(maxWidth: .infinity, minHeight: Metrics.filmHeight, alignment: .leading)
+        .background {
+            skyBackground
+        }
+    }
+
+    /// Your galaxy at the right, the sky deepening over it under the words.
+    private var skyBackground: some View {
+        GeometryReader { (g: GeometryProxy) in
+            ZStack(alignment: .trailing) {
+                sky
+                if let poster {
+                    Image(decorative: poster, scale: 1).resizable().interpolation(.high)
+                        .frame(width: g.size.height * 1.75, height: g.size.height * 1.75)
+                        .offset(x: g.size.height * 0.28)
+                        .transition(.opacity)
+                }
+                LinearGradient(stops: [.init(color: sky, location: 0), .init(color: sky.opacity(0.8), location: 0.38), .init(color: sky.opacity(0), location: 0.62)],
+                               startPoint: .leading, endPoint: .trailing)
+            }
+            .frame(width: g.size.width, height: g.size.height)
+        }
+    }
+
+    private func closeButton(title: String) -> some View {
+        Button { withAnimation(.easeOut(duration: 0.2)) { store.closeOffer() } } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: Metrics.closeGlyph, weight: .semibold))
+                .foregroundStyle(Self.cream.opacity(0.75))
+                .frame(width: Metrics.closeSize, height: Metrics.closeSize)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.quietIcon)
+        .padding(Metrics.closeInset)
+        .accessibilityLabel("Close \(title)")
+        .accessibilityHint("Hides this for good")
+        .accessibilityIdentifier("sidebar.film.close")
+        #if os(macOS)
+        .help("Close")
+        #endif
     }
 }

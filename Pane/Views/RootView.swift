@@ -123,7 +123,13 @@ struct RootView: View {
         // it still went to 621 and cut the note off).
         let split = split.frame(minWidth: WindowFrameMemory.minimum.width)
         #endif
-        return popups(imports(lifecycle(split)).newAppSheet())
+        return alerts(sceneValues(popups(imports(lifecycle(split)).newAppSheet())))
+    }
+
+    /// The window's values for the menus and commands (apart, so the compiler can check the
+    /// body in time).
+    private func sceneValues(_ content: some View) -> some View {
+        content
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
             .onAppear { Telemetry.shared.notesShown() }
             .focusedSceneValue(\.newNoteAction, newNoteCommand)
@@ -145,6 +151,11 @@ struct RootView: View {
             .background(ListWidthKeeper(probe: listWidth))
             .onChange(of: visibility) { old, new in listWidth.changed(from: old, to: new) }
             #endif
+    }
+
+    /// Refusals, shared deletes and lost shares, said over the window.
+    private func alerts(_ content: some View) -> some View {
+        content
             .sharedDeleteConfirmation($pendingSharedDelete) { removeNow($0) }
             .onReceive(NotificationCenter.default.publisher(for: FileRefusal.notification)) { n in refusal = n.object as? FileRefusal }
             .alert(refusal?.title ?? "", isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } })) {

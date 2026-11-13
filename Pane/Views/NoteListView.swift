@@ -265,21 +265,25 @@ struct NoteListView: View {
         return context.allFolders().sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
+    /// The list and everything on it, put together in steps. As one expression it took 14 s to
+    /// type-check, paid on every build after an edit here (12 November 2026). Each step adds the
+    /// same modifiers, in the same order, so the views and their identity are as they were.
     private func list(_ scopedNotes: [NoteEntry], _ visible: [NoteEntry], _ scopedFiles: [Attachment], _ visibleFiles: [Attachment]) -> some View {
-        let noteSections = visibleFiles.isEmpty ? withTopHits(DateBucket.sections(ordered: visible, by: order)) : nil
-        let mixedSections = visibleFiles.isEmpty ? nil : withTopHits(DateBucket.sections(ordered: ListEntry.merged(notes: visible, files: visibleFiles, by: order), by: order))
-        let collapsed = self.collapsed
+        let noteSections: [(String, [NoteEntry])]? = visibleFiles.isEmpty ? withTopHits(DateBucket.sections(ordered: visible, by: order)) : nil
+        let mixedSections: [(String, [ListEntry])]? = visibleFiles.isEmpty ? nil : withTopHits(DateBucket.sections(ordered: ListEntry.merged(notes: visible, files: visibleFiles, by: order), by: order))
+        let collapsed: Set<String> = self.collapsed
         // The rows above the first section (the asks below), for finding a note's row in the table.
-        let leadingRows = (scope != .trash && search.isEmpty && connectCenter.waiting().first != nil ? 1 : 0)
-            + (scope != .trash && search.isEmpty && (storage.usage.map { $0.level != .fine } ?? false) ? 1 : 0)
+        let waitingRow: Int = scope != .trash && search.isEmpty && connectCenter.waiting().first != nil ? 1 : 0
+        let storageRow: Int = scope != .trash && search.isEmpty && (storage.usage.map { $0.level != .fine } ?? false) ? 1 : 0
+        let leadingRows: Int = waitingRow + storageRow
         #if os(macOS)
         // The list's own changes are told apart from code's in the click log (RowClickLog).
         // Behind a setup card a click on the card could still reach a row (SwiftUI hands it past
         // every layer, Emil, 2 November 2026): the list's own picks are ignored there.
-        let behind = behindSetupCard
-        let listSelection = Binding(get: { selection }, set: { new in
+        let behind: Bool = behindSetupCard
+        let listSelection: Binding<Set<UUID>> = Binding(get: { selection }, set: { (new: Set<UUID>) in
             guard !behind else { return }
-            let kept = PressSelect.selection(from: selection, asking: new, byKey: NSApp.currentEvent?.type == .keyDown)
+            let kept: Set<UUID> = PressSelect.selection(from: selection, asking: new, byKey: NSApp.currentEvent?.type == .keyDown)
             RowClickLog.listSet(selection, kept); selection = kept
         })
         #else
@@ -287,74 +291,120 @@ struct NoteListView: View {
         // no highlight of its own (a cold grey, or dark ink on the accent); the rows draw the open
         // note in a warm grey (Palette.openNoteRow). Picking a row still opens it; selecting
         // several while editing keeps the list's own.
-        let listSelection = besideNote && editMode != .active
+        let listSelection: Binding<Set<UUID>> = besideNote && editMode != .active
             ? Binding(get: { Set<UUID>() }, set: { selection = $0 })
             : $selection
         #endif
-        return List(selection: listSelection) {
-            // An ask to connect an AI whose sheet was closed without an answer: always a way back.
-            if scope != .trash, search.isEmpty, let ask = connectCenter.waiting().first {
-                #if os(iOS)
-                Section {
-                    ConnectWaitingRow(ask: ask).selectionDisabled()
-                }
-                .listRowBackground(stacked ? Color(Palette.row) : nil)
-                #else
-                ConnectWaitingRow(ask: ask)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 10, trailing: 10))
-                    .listRowSeparator(.hidden)
-                    .selectionDisabled()
-                #endif
-            }
-            if scope != .trash, search.isEmpty, let usage = storage.usage, usage.level != .fine {
-                #if os(iOS)
-                Section { StorageWarningRow(usage: usage, open: openStorage).selectionDisabled() }
-                    .listRowBackground(stacked ? Color(Palette.row) : nil)
-                #else
-                StorageWarningRow(usage: usage, open: openStorage)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 10, trailing: 10))
-                    .listRowSeparator(.hidden)
-                    .selectionDisabled()
-                #endif
-            }
-            #if os(iOS)
-            if listTipDue && scope != .trash && search.isEmpty {
-                listTip
-            }
-            #endif
-            // Without files the notes go straight in, in the order they're kept in.
-            if let noteSections {
-                ForEach(noteSections, id: \.0) { section in
-                    dateSection(section) { noteRow($0) }
-                }
-            } else if let mixedSections {
-                ForEach(mixedSections, id: \.0) { section in
-                    dateSection(section) { item in
-                        switch item {
-                        case .note(let entry):
-                            noteRow(entry)
-                        case .file(let file):
-                            FileListRow(file: file, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
-                                        remove: { remove([file.id]) })
-                                .tag(file.id)
-                                .hoverRow(file.filename, reach: Hover.noteRowReach, selected: Self.quiet(selection, file.id))
-                                .quietSelection()
-                                #if os(iOS)
-                                .contextMenu { menu(for: file, folders: foldersByName) }
-                                .listRowBackground(stacked ? Color(besideNote && openNotes?.ids.contains(file.id) == true ? Palette.openNoteRow : Palette.row) : nil)
-                                #else
-                                .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
-                                #endif
-                        }
-                    }
-                }
-            }
-
+        let rows = List(selection: listSelection) {
+            listRows(noteSections, mixedSections)
         }
+        let framed = listFrame(rows, visible: visible, noteSections: noteSections, mixedSections: mixedSections, collapsed: collapsed, leadingRows: leadingRows)
+        let watched = listWatchers(framed, visible: visible, visibleFiles: visibleFiles)
+        let searched = listSearchAndTitle(watched, scopedNotes: scopedNotes, scopedFiles: scopedFiles)
+        let asking = listSheets(searched)
+        return asking.toolbar {
+            listToolbar(scopedNotes: scopedNotes, scopedFiles: scopedFiles)
+        }
+    }
+
+    /// What the List holds: the asks at its top, then the sections of notes (and files).
+    @ViewBuilder
+    private func listRows(_ noteSections: [(String, [NoteEntry])]?, _ mixedSections: [(String, [ListEntry])]?) -> some View {
+        // An ask to connect an AI whose sheet was closed without an answer: always a way back.
+        if scope != .trash, search.isEmpty, let ask = connectCenter.waiting().first {
+            connectWaitingRow(ask)
+        }
+        if scope != .trash, search.isEmpty, let usage = storage.usage, usage.level != .fine {
+            storageWarningRow(usage)
+        }
+        #if os(iOS)
+        if listTipDue && scope != .trash && search.isEmpty {
+            listTip
+        }
+        #endif
+        // Without files the notes go straight in, in the order they're kept in.
+        if let noteSections {
+            ForEach(noteSections, id: \.0) { (section: (String, [NoteEntry])) in
+                dateSection(section) { noteRow($0) }
+            }
+        } else if let mixedSections {
+            ForEach(mixedSections, id: \.0) { (section: (String, [ListEntry])) in
+                dateSection(section) { (item: ListEntry) in
+                    listItemRow(item)
+                }
+            }
+        }
+
+    }
+
+    @ViewBuilder
+    private func connectWaitingRow(_ ask: ConnectAsk) -> some View {
+        #if os(iOS)
+        Section {
+            ConnectWaitingRow(ask: ask).selectionDisabled()
+        }
+        .listRowBackground(stacked ? Color(Palette.row) : nil)
+        #else
+        ConnectWaitingRow(ask: ask)
+            .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 10, trailing: 10))
+            .listRowSeparator(.hidden)
+            .selectionDisabled()
+        #endif
+    }
+
+    @ViewBuilder
+    private func storageWarningRow(_ usage: StorageUsage) -> some View {
+        #if os(iOS)
+        Section { StorageWarningRow(usage: usage, open: openStorage).selectionDisabled() }
+            .listRowBackground(stacked ? Color(Palette.row) : nil)
+        #else
+        StorageWarningRow(usage: usage, open: openStorage)
+            .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 10, trailing: 10))
+            .listRowSeparator(.hidden)
+            .selectionDisabled()
+        #endif
+    }
+
+    /// A row of a list that has files too: a note's row, or a file's.
+    @ViewBuilder
+    private func listItemRow(_ item: ListEntry) -> some View {
+        switch item {
+        case .note(let entry):
+            noteRow(entry)
+        case .file(let file):
+            fileRow(file)
+        }
+    }
+
+    private func fileRow(_ file: Attachment) -> some View {
+        FileListRow(file: file, query: search, showFolder: scope == .all || !search.isEmpty, datedByCreation: order.showsCreationDates,
+                    remove: { remove([file.id]) })
+            .tag(file.id)
+            .hoverRow(file.filename, reach: Hover.noteRowReach, selected: Self.quiet(selection, file.id))
+            .quietSelection()
+            #if os(iOS)
+            .contextMenu { menu(for: file, folders: foldersByName) }
+            .listRowBackground(stacked ? Color(besideNote && openNotes?.ids.contains(file.id) == true ? Palette.openNoteRow : Palette.row) : nil)
+            #else
+            .listRowSeparator(DesignLook.calmList ? .hidden : .automatic)
+            #endif
+    }
+
+    /// The list's menus, identity, style and ground.
+    private func listFrame<Content: View>(_ content: Content, visible: [NoteEntry], noteSections: [(String, [NoteEntry])]?,
+                                          mixedSections: [(String, [ListEntry])]?, collapsed: Set<String>, leadingRows: Int) -> some View {
+        #if os(macOS)
+        let rowOf: (UUID) -> Int? = { (id: UUID) -> Int? in
+            let row: Int? = noteSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }
+                ?? mixedSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }
+            return row.map { leadingRows + $0 }
+        }
+        #endif
+        return content
         #if os(macOS)
         // Right-click acts on the whole selection when the row is part of it, like Notes. On
         // iPhone each row has its own long-press menu, with the note as its preview (noteRow).
-        .contextMenu(forSelectionType: UUID.self) { ids in
+        .contextMenu(forSelectionType: UUID.self) { (ids: Set<UUID>) in
             // Icons in the label colour, as in Notes, not the app's accent (Delete keeps its red).
             menu(for: ids, folders: foldersByName).tint(.primary)
         }
@@ -370,10 +420,7 @@ struct NoteListView: View {
         // stays the same list: a new one took the keys away from the search field.
         // A new list starts at its top: it shows the open note's row again.
         .modifier(ListLockFlow(request: $lockRequest))
-        .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil) { id in
-            (noteSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }
-                ?? mixedSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }).map { leadingRows + $0 }
-        })
+        .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil, row: rowOf))
         .id(ListIdentity(scope: scope, library: library.wholesale))
         #if os(macOS)
         .modifier(OpensTopNote(scope: scope, top: visible.first?.id, selection: $selection))
@@ -408,10 +455,16 @@ struct NoteListView: View {
         .modifier(ListEdgeQuiet(list: ListIdentity(scope: scope, library: library.wholesale)))
         .modifier(FollowsTextSize())
         #endif
+    }
+
+    /// The empty state, what the list tells the window, its tasks and the drop of files.
+    private func listWatchers<Content: View>(_ content: Content, visible: [NoteEntry], visibleFiles: [Attachment]) -> some View {
+        let empty: Bool = visible.isEmpty && visibleFiles.isEmpty && !library.isLoading && !behindSetupCard
+        return content
         .overlay {
-            if visible.isEmpty && visibleFiles.isEmpty && !library.isLoading && !behindSetupCard { emptyState }
+            if empty { emptyState }
         }
-        .onChange(of: visible.isEmpty && visibleFiles.isEmpty && !library.isLoading && !behindSetupCard, initial: true) { _, now in
+        .onChange(of: empty, initial: true) { _, now in
             if showsEmpty.wrappedValue != now { showsEmpty.wrappedValue = now }
         }
         .onChange(of: !search.isEmpty, initial: true) { _, now in
@@ -451,13 +504,18 @@ struct NoteListView: View {
                     .allowsHitTesting(false)
             }
         }
-        .dropDestination(for: URL.self) { urls, _ in
-            let made = context.importFiles(urls, into: scope == .trash ? .all : scope)
+        .dropDestination(for: URL.self) { (urls: [URL], _) -> Bool in
+            let made: [UUID] = context.importFiles(urls, into: scope == .trash ? .all : scope)
             if let first = made.first { selection = [first] }
             return !made.isEmpty
-        } isTargeted: { t in
+        } isTargeted: { (t: Bool) in
             withAnimation(.easeOut(duration: 0.15)) { fileDropTargeted = t }
         }
+    }
+
+    /// Search (the system's field on iPhone, the list's own on the Mac) and the title.
+    private func listSearchAndTitle<Content: View>(_ content: Content, scopedNotes: [NoteEntry], scopedFiles: [Attachment]) -> some View {
+        content
         #if os(iOS)
         // iOS 26 Notes and Mail: a full search field in the bottom bar, beside compose. As a
         // column (iPad, iPhone Duo open) at the column's top instead, as iPad does by itself:
@@ -466,43 +524,13 @@ struct NoteListView: View {
                                off: BarSearchField.drawn(besideNote: besideNote)))
         #else
         .safeAreaInset(edge: .top, spacing: 0) {
-            if !searching {
-                // Level with More and New Note beside the sidebar. With the sidebar hidden the
-                // window's buttons take that row, and a row of its own made the band too tall, so
-                // it fades with the slide (Emil, 7 November 2026).
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
-                    Text(Self.macCount(notes: scopedNotes.count, files: scopedFiles.count, results: searchResults, trash: scope == .trash))
-                        .font(.system(size: 11)).foregroundStyle(Color.muted).monospacedDigit()
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 20)
-                .padding(.trailing, Self.islandRoom)
-                .padding(.top, 4)
-                .padding(.bottom, 6)
-                .opacity(behindSetupCard ? 0.35 : 1)
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityIdentifier("list.folderName")
-                .offset(y: Self.nameLift)
-                .frame(height: 0, alignment: .top)
-                .opacity(listSidebarHidden ? 0 : 1)
-                .accessibilityHidden(listSidebarHidden)
-                .animation(Self.nameFade(hidden: listSidebarHidden, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion), value: listSidebarHidden)
-            }
-            if searching {
-                ListSearchField(text: typedSearch, focus: searchFocus) { searching = false }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 6)
-                    .padding(.bottom, 8)
-                    .background(Color(stacked ? Palette.listGround : Palette.page))
-            }
+            listHeader(scopedNotes: scopedNotes, scopedFiles: scopedFiles)
         }
         // "Show all notes with …" from Go to Note (⌘O) carries the text to search for.
-        .onReceive(NotificationCenter.default.publisher(for: .paneDeleteNotes)) { n in
+        .onReceive(NotificationCenter.default.publisher(for: .paneDeleteNotes)) { (n: Notification) in
             if let ids = n.object as? Set<UUID> { performRemove(ids) }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .paneSearchNotes)) { n in
+        .onReceive(NotificationCenter.default.publisher(for: .paneSearchNotes)) { (n: Notification) in
             if let text = n.object as? String { search = text }
             searching = true
             searchFocus += 1
@@ -528,6 +556,55 @@ struct NoteListView: View {
         #if os(macOS)
         .navigationSubtitle("")
         #endif
+    }
+
+    #if os(macOS)
+    /// Over the list: the folder's name and count, or the search field while searching.
+    @ViewBuilder
+    private func listHeader(scopedNotes: [NoteEntry], scopedFiles: [Attachment]) -> some View {
+        if !searching {
+            // Level with More and New Note beside the sidebar. With the sidebar hidden the
+            // window's buttons take that row, and a row of its own made the band too tall, so
+            // it fades with the slide (Emil, 7 November 2026).
+            listName(scopedNotes: scopedNotes, scopedFiles: scopedFiles)
+        }
+        if searching {
+            ListSearchField(text: typedSearch, focus: searchFocus) { searching = false }
+                .padding(.horizontal, 12)
+                .padding(.top, 6)
+                .padding(.bottom, 8)
+                .background(Color(stacked ? Palette.listGround : Palette.page))
+        }
+    }
+
+    private func listName(scopedNotes: [NoteEntry], scopedFiles: [Attachment]) -> some View {
+        let count: String = Self.macCount(notes: scopedNotes.count, files: scopedFiles.count, results: searchResults, trash: scope == .trash)
+        let fade: Animation? = Self.nameFade(hidden: listSidebarHidden, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+        return VStack(alignment: .leading, spacing: 1) {
+            Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Color.ink).lineLimit(1)
+            Text(count)
+                .font(.system(size: 11)).foregroundStyle(Color.muted).monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, 20)
+        .padding(.trailing, Self.islandRoom)
+        .padding(.top, 4)
+        .padding(.bottom, 6)
+        .opacity(behindSetupCard ? 0.35 : 1)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+        .accessibilityIdentifier("list.folderName")
+        .offset(y: Self.nameLift)
+        .frame(height: 0, alignment: .top)
+        .opacity(listSidebarHidden ? 0 : 1)
+        .accessibilityHidden(listSidebarHidden)
+        .animation(fade, value: listSidebarHidden)
+    }
+    #endif
+
+    /// Import, adding and renaming files, the delete confirmations and the keys.
+    private func listSheets<Content: View>(_ content: Content) -> some View {
+        content
         #if os(macOS)
         .sheet(isPresented: $choosingImport) {
             ImportChoiceSheet { origin in
@@ -542,7 +619,7 @@ struct NoteListView: View {
             }
         }
         #endif
-        .fileImporter(isPresented: $addingFiles, allowedContentTypes: FileKinds.contentTypes, allowsMultipleSelection: true) { result in
+        .fileImporter(isPresented: $addingFiles, allowedContentTypes: FileKinds.contentTypes, allowsMultipleSelection: true) { (result: Result<[URL], Error>) in
             guard case .success(let urls) = result else { return }
             let made = context.addFiles(urls, to: context.folderForFiles(scope))
             if let first = made.first { selection = [first.id] }
@@ -582,94 +659,103 @@ struct NoteListView: View {
         #endif
         // Opened from the search: the note goes to the first line that holds it.
         .modifier(SearchJump.OnSelect(selection: selection, search: search))
-        .toolbar {
-            #if os(iOS)
-            // Back on the left, the title in the middle, ••• on the right; new note beside Search at
-            // the bottom (Emil, 29 October 2026). Select Notes in ••• (or a two-finger swipe) starts
-            // selecting, as in Notes; Recently Deleted has Edit instead of •••. While selecting, a
-            // checkmark ends it, where ••• or Edit was.
-            if editMode.isEditing {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done", systemImage: "checkmark") { endEditing() }
-                        .labelStyle(.iconOnly)
-                        .fontWeight(.semibold)
-                        .tint(.primary)
-                        .accessibilityIdentifier("list.done")
-                }
-            } else if scope == .trash {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Edit") { startSelecting() }
-                        .tint(.primary)
-                        .disabled(scopedNotes.isEmpty && scopedFiles.isEmpty)
-                        .accessibilityIdentifier("list.edit")
-                }
-            } else {
-                // The list's own menu, in Notes' order (ListMoreMenu).
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        ForEach(ListMoreMenu.groups(asks: askSubject != nil && !ConnectedAIs.shared.targets.isEmpty), id: \.self) { group in
-                            Section {
-                                ForEach(group, id: \.self) { moreItem($0, empty: scopedNotes.isEmpty && scopedFiles.isEmpty) }
-                            }
-                        }
-                    } label: {
-                        Label("More", systemImage: "ellipsis")
-                    }
-                    .tint(.primary)
-                    .accessibilityIdentifier("list.more")
-                    .askAIPopover($asking, subject: askSubject ?? .all, recent: askRecent)
-                }
-            }
-            if editMode.isEditing {
-                // Recently Deleted, as in Notes: Move All and Delete All with nothing selected,
-                // Move and Delete once something is. Elsewhere Move and Delete act on the selection.
-                let trash = scope == .trash
-                let titles = trash ? TrashEditBar.titles(selected: selection.count) : ("Move", selection.isEmpty ? "Delete" : "Delete (\(selection.count))")
-                let all = Set(scopedNotes.map(\.id)).union(scopedFiles.map(\.id))
-                let targets = trash && selection.isEmpty ? all : selection
-                ToolbarItem(placement: .bottomBar) {
-                    Button(titles.0) { moving = targets }
-                        .disabled(targets.isEmpty)
-                        // Never amber: the label colour, and Delete in the system red, as in Notes.
-                        .tint(.primary)
-                        .accessibilityIdentifier("list.moveSelected")
-                }
-                ToolbarSpacer(.flexible, placement: .bottomBar)
-                ToolbarItem(placement: .bottomBar) {
-                    // Out of Recently Deleted is for good: it asks first (remove).
-                    Button(titles.1, role: .destructive) {
-                        remove(targets)
-                        if !trash { endEditing() }
-                    }
-                    .disabled(targets.isEmpty)
-                    .tint(.red)
-                    .accessibilityIdentifier("list.deleteSelected")
-                }
-            } else {
-                // Search and New Note, as on the folders screen (SearchComposeBar). Recently Deleted
-                // holds no new notes: the note it made went elsewhere.
-                SearchComposeBar(newNote: onNewNote, hidesCompose: scope == .trash, tip: true, search: $search)
-            }
-            #else
-            // One layout with the sidebar shown or hidden: anything that changed with the sidebar
-            // made the bar rebuild mid-slide, and its buttons faded in from the wrong place. One
-            // item, so one island like the note's own: as a group of two items macOS drew them
-            // sometimes apart and sometimes together (Emil, 6 November 2026).
-            ToolbarSpacer(.flexible)
-            ToolbarItem {
-                HStack(spacing: 0) {
-                    listMore
-                    // Compose sits with the list it adds to, as on the iPhone (Emil, 10-29). Not in
-                    // Recently Deleted, which holds no new notes, like Notes.
-                    if scope != .trash {
-                        ListCompose(selected: selection.count == 1 ? selection.first : nil, newNote: onNewNote)
-                    }
-                }
-                .labelStyle(.iconOnly)
-            }
-            #endif
-        }
     }
+
+    @ToolbarContentBuilder
+    private func listToolbar(scopedNotes: [NoteEntry], scopedFiles: [Attachment]) -> some ToolbarContent {
+        #if os(iOS)
+        // Back on the left, the title in the middle, ••• on the right; new note beside Search at
+        // the bottom (Emil, 29 October 2026). Select Notes in ••• (or a two-finger swipe) starts
+        // selecting, as in Notes; Recently Deleted has Edit instead of •••. While selecting, a
+        // checkmark ends it, where ••• or Edit was.
+        if editMode.isEditing {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Done", systemImage: "checkmark") { endEditing() }
+                    .labelStyle(.iconOnly)
+                    .fontWeight(.semibold)
+                    .tint(.primary)
+                    .accessibilityIdentifier("list.done")
+            }
+        } else if scope == .trash {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Edit") { startSelecting() }
+                    .tint(.primary)
+                    .disabled(scopedNotes.isEmpty && scopedFiles.isEmpty)
+                    .accessibilityIdentifier("list.edit")
+            }
+        } else {
+            // The list's own menu, in Notes' order (ListMoreMenu).
+            ToolbarItem(placement: .topBarTrailing) {
+                listMoreMenu(empty: scopedNotes.isEmpty && scopedFiles.isEmpty)
+            }
+        }
+        if editMode.isEditing {
+            // Recently Deleted, as in Notes: Move All and Delete All with nothing selected,
+            // Move and Delete once something is. Elsewhere Move and Delete act on the selection.
+            let trash: Bool = scope == .trash
+            let titles: (String, String) = trash ? TrashEditBar.titles(selected: selection.count) : ("Move", selection.isEmpty ? "Delete" : "Delete (\(selection.count))")
+            let all: Set<UUID> = Set(scopedNotes.map(\.id)).union(scopedFiles.map(\.id))
+            let targets: Set<UUID> = trash && selection.isEmpty ? all : selection
+            ToolbarItem(placement: .bottomBar) {
+                Button(titles.0) { moving = targets }
+                    .disabled(targets.isEmpty)
+                    // Never amber: the label colour, and Delete in the system red, as in Notes.
+                    .tint(.primary)
+                    .accessibilityIdentifier("list.moveSelected")
+            }
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+            ToolbarItem(placement: .bottomBar) {
+                // Out of Recently Deleted is for good: it asks first (remove).
+                Button(titles.1, role: .destructive) {
+                    remove(targets)
+                    if !trash { endEditing() }
+                }
+                .disabled(targets.isEmpty)
+                .tint(.red)
+                .accessibilityIdentifier("list.deleteSelected")
+            }
+        } else {
+            // Search and New Note, as on the folders screen (SearchComposeBar). Recently Deleted
+            // holds no new notes: the note it made went elsewhere.
+            SearchComposeBar(newNote: onNewNote, hidesCompose: scope == .trash, tip: true, search: $search)
+        }
+        #else
+        // One layout with the sidebar shown or hidden: anything that changed with the sidebar
+        // made the bar rebuild mid-slide, and its buttons faded in from the wrong place. One
+        // item, so one island like the note's own: as a group of two items macOS drew them
+        // sometimes apart and sometimes together (Emil, 6 November 2026).
+        ToolbarSpacer(.flexible)
+        ToolbarItem {
+            HStack(spacing: 0) {
+                listMore
+                // Compose sits with the list it adds to, as on the iPhone (Emil, 10-29). Not in
+                // Recently Deleted, which holds no new notes, like Notes.
+                if scope != .trash {
+                    ListCompose(selected: selection.count == 1 ? selection.first : nil, newNote: onNewNote)
+                }
+            }
+            .labelStyle(.iconOnly)
+        }
+        #endif
+    }
+
+    #if os(iOS)
+    /// The iPhone list's ••• menu.
+    private func listMoreMenu(empty: Bool) -> some View {
+        Menu {
+            ForEach(ListMoreMenu.groups(asks: askSubject != nil && !ConnectedAIs.shared.targets.isEmpty), id: \.self) { group in
+                Section {
+                    ForEach(group, id: \.self) { moreItem($0, empty: empty) }
+                }
+            }
+        } label: {
+            Label("More", systemImage: "ellipsis")
+        }
+        .tint(.primary)
+        .accessibilityIdentifier("list.more")
+        .askAIPopover($asking, subject: askSubject ?? .all, recent: askRecent)
+    }
+    #endif
 
     #if os(macOS)
     private var listMore: some View {
