@@ -1704,6 +1704,7 @@ struct AIPhoneRow: View {
         }
         .contextMenu {
             Button(role: .destructive, action: disconnect) { Label("Disconnect\u{2026}", systemImage: "xmark.circle") }
+                .destructiveTint()
                 .accessibilityIdentifier("connect.menuDisconnect")
         }
         .disabled(working)

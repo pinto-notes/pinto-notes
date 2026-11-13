@@ -19,7 +19,7 @@ struct NoteLabelChips: View {
             ForEach(labels.prefix(limit), id: \.self) { name in
                 if let open {
                     Button { open(name) } label: { chip(name) }
-                        .buttonStyle(LabelChipButtonStyle())
+                        .buttonStyle(.labelChip)
                         .help("Show the notes tagged \(name)")
                 } else {
                     chip(name)
@@ -57,28 +57,5 @@ struct NoteLabelChips: View {
             .fixedSize()
             .accessibilityLabel("Tag " + name)
             .accessibilityIdentifier("label.\(name)")
-    }
-}
-
-/// A chip that opens its tag: a touch darker under the pointer and when pressed, with the link
-/// pointer, as every clickable has a hover.
-private struct LabelChipButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        LabelChipButton(configuration: configuration)
-    }
-}
-
-private struct LabelChipButton: View {
-    let configuration: ButtonStyleConfiguration
-    @State private var hovering = false
-
-    var body: some View {
-        configuration.label
-            .brightness(configuration.isPressed ? -0.08 : hovering ? -0.04 : 0)
-            .contentShape(Capsule())
-            .modifier(HoverTracking(hovering: $hovering))
-            #if os(macOS)
-            .pointerStyle(.link)
-            #endif
     }
 }

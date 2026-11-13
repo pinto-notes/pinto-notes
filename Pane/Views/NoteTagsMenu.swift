@@ -107,6 +107,7 @@ struct NewTagSheet: View {
                         Button { picked = c } label: {
                             Circle().fill(Color(tagColor: c))
                                 .frame(width: 26, height: 26)
+                                .hoverOverlay(Circle(), .hoverDarken)
                                 .padding(4)
                                 .overlay(Circle().strokeBorder(Color(tagColor: c), lineWidth: 2).opacity(shown == c ? 1 : 0))
                                 .contentShape(Circle())

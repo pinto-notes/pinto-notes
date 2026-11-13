@@ -407,6 +407,7 @@ enum SettingsPageWord: String, TelemetryWord {
     case shortcuts
     case aiConnection = "ai_connection"
     case addAI = "add_ai"
+    case experimental
 
     init(_ page: SettingsPage) {
         switch page {

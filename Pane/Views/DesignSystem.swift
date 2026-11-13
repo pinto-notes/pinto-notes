@@ -523,6 +523,33 @@ extension ButtonStyle where Self == HoverTextButtonStyle {
     static var hoverLink: HoverTextButtonStyle { .init(link: true) }
 }
 
+/// A chip that opens its tag: a touch darker under the pointer and when pressed, with the link
+/// pointer, as every clickable has a hover.
+struct LabelChipButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        LabelChipButton(configuration: configuration)
+    }
+}
+
+private struct LabelChipButton: View {
+    let configuration: ButtonStyleConfiguration
+    @State private var hovering = false
+
+    var body: some View {
+        configuration.label
+            .brightness(configuration.isPressed ? -0.08 : hovering ? -0.04 : 0)
+            .contentShape(Capsule())
+            .modifier(HoverTracking(hovering: $hovering))
+            #if os(macOS)
+            .pointerStyle(.link)
+            #endif
+    }
+}
+
+extension ButtonStyle where Self == LabelChipButtonStyle {
+    static var labelChip: LabelChipButtonStyle { .init() }
+}
+
 /// Something that draws its own look and only needs a press: an embed's card, a format bar's
 /// glyph, Apple's and Google's sign-in buttons. It dips to 0.97 in 120 ms.
 struct PressScale: ButtonStyle {
