@@ -12,6 +12,7 @@ export const SHELVES: Shelf[] = [
     items: [
       { slug: "forgot-apple-notes-password", ask: "Forgot your Notes password?" },
       { slug: "recover-deleted-apple-notes", ask: "Deleted a note by mistake?" },
+      { slug: "apple-notes-version-history", ask: "Can I get an old version of a note back?" },
       { slug: "apple-notes-not-syncing", ask: "Notes not syncing between iPhone and Mac?" },
       { slug: "apple-notes-ios-27", ask: "What's new in Notes on iOS 27?" },
       { slug: "apple-notes-tables", ask: "Can a table in Notes add up a column?" },
