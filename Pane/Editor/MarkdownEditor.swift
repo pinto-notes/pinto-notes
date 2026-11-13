@@ -46,10 +46,12 @@ struct MarkdownEditor: View {
     var foot: NoteLinks? = nil
     /// The note whose collapsed sections this device keeps (HeadingFolds); nil keeps them only while open.
     var foldsID: UUID? = nil
+    /// The note's own link scope, so its first styling colours links for it. Nil: the controller's.
+    var wiki: WikiScope? = nil
     let onChange: (String) -> Void
 
     var body: some View {
-        PlatformEditor(initialText: initialText, header: header, controller: controller, autofocus: autofocus, identifier: identifier, titleLine: titleLine, followsInitialText: followsInitialText, dateShown: dateShown, foot: foot, foldsID: foldsID, onChange: onChange)
+        PlatformEditor(initialText: initialText, header: header, controller: controller, autofocus: autofocus, identifier: identifier, titleLine: titleLine, followsInitialText: followsInitialText, dateShown: dateShown, foot: foot, foldsID: foldsID, wiki: wiki ?? controller.wiki, onChange: onChange)
     }
 }
 
@@ -791,12 +793,13 @@ private struct PlatformEditor: UIViewRepresentable {
     let dateShown: Bool
     let foot: NoteLinks?
     let foldsID: UUID?
+    let wiki: WikiScope?
     let onChange: (String) -> Void
 
     func makeUIView(context: Context) -> PaneTextView {
         let view = PaneTextView(frame: .zero)
         view.core.styler.firstLineIsTitle = titleLine
-        view.core.styler.wiki = controller.wiki
+        view.core.styler.wiki = wiki
         view.dateShown = dateShown
         view.core.folds.noteID = foldsID
         view.configure(text: initialText, header: header)
@@ -818,7 +821,7 @@ private struct PlatformEditor: UIViewRepresentable {
         view.setHeader(header)
         if followsInitialText { view.syncExternal(initialText) }
         if controller.target !== view { controller.target = view }
-        view.setWiki(controller.wiki)
+        view.setWiki(wiki)
         view.setImages(controller.imagesArrived)
         // Recently Deleted: no keyboard, no caret.
         if view.isEditable == controller.readOnly { view.isEditable = !controller.readOnly }
@@ -923,7 +926,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         textLayoutManager?.delegate = core.layoutDelegate
         (textLayoutManager?.textContentManager as? NSTextContentStorage)?.delegate = core.foldDelegate
         core.folds.showsAtCaret = true
-        delegate = self
         textDropDelegate = self
         // A text view only looks at drops of what it can paste: notes dragged from the list
         // (linked where they are dropped) are added to that.
@@ -948,6 +950,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         if !watchingCells { watchingCells = true; watchCells() }
         core.observe(textStorage)
         core.restyle(textStorage, selection: nil, force: true)
+        // Only now: setting the text tells the delegate the selection changed, and that styled the
+        // whole note once more before the line above (as on the Mac, 2 November).
+        delegate = self
         typingAttributes = core.typingAttributes(text, at: selectedRange.location)
         observeChangeHighlight()
         core.watchDays { [weak self] in
@@ -2399,6 +2404,7 @@ private struct PlatformEditor: NSViewRepresentable {
     let dateShown: Bool
     let foot: NoteLinks?
     let foldsID: UUID?
+    let wiki: WikiScope?
     let onChange: (String) -> Void
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -2412,7 +2418,7 @@ private struct PlatformEditor: NSViewRepresentable {
         view.renderContext = context.environment.modelContext
         #endif
         view.core.styler.firstLineIsTitle = titleLine
-        view.core.styler.wiki = controller.wiki
+        view.core.styler.wiki = wiki
         view.core.folds.noteID = foldsID
         view.configure(text: initialText, header: header)
         view.setAccessibilityIdentifier(identifier)
@@ -2439,7 +2445,7 @@ private struct PlatformEditor: NSViewRepresentable {
         view.setHeader(header)
         if followsInitialText { view.syncExternal(initialText) }
         if controller.target !== view { controller.target = view }
-        view.setWiki(controller.wiki)
+        view.setWiki(wiki)
         view.setImages(controller.imagesArrived)
         view.showRemoteCarets(controller.remoteCarets)
         // A shared note keeps its own undo (only your edits); the system's would undo everyone's.

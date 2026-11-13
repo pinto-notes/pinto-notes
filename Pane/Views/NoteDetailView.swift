@@ -1849,8 +1849,13 @@ private struct NoteEditorText: View {
         if let text = NoteVault.shared.text(of: note) {
             // The note the welcome becomes opens as the welcome showed it, date and all.
             let handoff = WelcomeHandoff.shared.opening == note.id
+            // This note's link scope from the start. The controller's is the note opened before
+            // until noteOpened runs, and the new one arriving then styled the whole note again.
+            // Read so a rename elsewhere (refreshLinks) still colours the links again.
+            let _ = controller.wiki
+            let wiki = note.modelContext.map { WikiDirectory.scope(for: note, in: $0) }
             MarkdownEditor(initialText: text, header: DateBucket.header(note.updatedAt), controller: controller, autofocus: autofocus,
-                           followsInitialText: followsInitialText, dateShown: handoff, foot: foot, foldsID: note.id, onChange: onChange)
+                           followsInitialText: followsInitialText, dateShown: handoff, foot: foot, foldsID: note.id, wiki: wiki, onChange: onChange)
         }
     }
 }
@@ -1872,8 +1877,11 @@ private struct SendCopyItem: View {
         #else
         // Readable text, and a picture of the note as a page for the sheet's header, as Notes
         // sends (Emil, 4 November 2026: the header showed iOS's blank icon, the text "## Plan").
-        ShareLink(item: ReadableText.from(markdown: note.body),
-                  preview: SharePreview(note.title.isEmpty ? "Note" : note.title, image: NoteThumbnail.image(for: note))) {
+        // Both are made when the sheet asks for them: the menu is built with the note, and making
+        // them here took more of each open than the editor did (13 November 2026).
+        let title = note.title.isEmpty ? "Note" : note.title
+        ShareLink(item: NoteCopy(body: note.body),
+                  preview: SharePreview(title, image: NoteThumbnail(title: title, body: note.body))) {
             Label("Send a Copy…", systemImage: "square.and.arrow.up")
         }
         #endif
@@ -1881,13 +1889,40 @@ private struct SendCopyItem: View {
 }
 
 #if os(iOS)
-/// A note drawn as a small page: its title and first lines, for the share sheet's header.
-@MainActor
-enum NoteThumbnail {
-    static func image(for note: Note) -> Image {
-        let lines = ReadableText.from(markdown: note.body).split(separator: "\n", omittingEmptySubsequences: true).dropFirst().prefix(6)
+/// What Send a Copy sends: the note as readable text, worked out when it's sent.
+struct NoteCopy: Transferable {
+    let body: String
+
+    var text: String { ReadableText.from(markdown: body) }
+
+    static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation(exporting: \.text)
+    }
+}
+
+/// A note drawn as a small page: its title and first lines, for the share sheet's header. Drawn
+/// when the sheet asks for it.
+struct NoteThumbnail: Transferable {
+    let title: String
+    let body: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .png) { thumb in
+            try await MainActor.run {
+                guard let data = thumb.image()?.pngData() else { throw CocoaError(.fileWriteUnknown) }
+                return data
+            }
+        }
+    }
+
+    @MainActor
+    func image() -> UIImage? {
+        #if DEBUG
+        RenderProbe.count("NoteThumbnail")
+        #endif
+        let lines = ReadableText.from(markdown: body).split(separator: "\n", omittingEmptySubsequences: true).dropFirst().prefix(6)
         let page = VStack(alignment: .leading, spacing: 3) {
-            Text(note.title.isEmpty ? "Note" : note.title)
+            Text(title)
                 .font(.system(size: 13, weight: .bold)).lineLimit(2)
             ForEach(Array(lines.enumerated()), id: \.offset) { _, l in
                 Text(String(l)).font(.system(size: 8)).foregroundStyle(Color(white: 0.35)).lineLimit(1)
@@ -1900,7 +1935,7 @@ enum NoteThumbnail {
         .environment(\.colorScheme, .light)
         let r = ImageRenderer(content: page)
         r.scale = 3
-        return r.uiImage.map { Image(uiImage: $0) } ?? Image(systemName: "note.text")
+        return r.uiImage
     }
 }
 #endif

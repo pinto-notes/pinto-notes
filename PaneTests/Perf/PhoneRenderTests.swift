@@ -203,6 +203,55 @@ import UIKit
         #expect(PerfTiming.median(backs) < 400 * PerfBudget.slack)
     }
 
+    /// A note opened is styled once. The editor used to start with the link scope of the note
+    /// opened before, so the new note's scope arriving a moment later styled the whole note again:
+    /// on the first open after launch and on every open in another folder.
+    @Test func openStylesOnce() async throws {
+        let (window, c, notes) = try Self.window(notes: 4)
+        defer { window.isHidden = true }
+        let other = Folder(name: "Work")
+        c.mainContext.insert(other)
+        notes[1].folder = other
+        notes[1].body = "Note 1\n\nSee [[Note 2]] and [[Nowhere]].\n"
+        try c.mainContext.save()
+        await Self.settle(window, seconds: 1)
+        for note in [notes[0], notes[1], notes[2]] {
+            try await Self.open(note, in: window)
+            await Self.settle(window)
+            let editor = try #require(Self.editor(in: window))
+            #expect(editor.core.lastRegions == ["full"], "\(note.title) is styled once on opening, not \(editor.core.lastRegions)")
+            try await Self.back(in: window)
+            await Self.settle(window)
+        }
+    }
+
+    /// Send a Copy's text and picture are made when the share sheet asks for them, not each time
+    /// a note opens: the toolbar's menu is built with the note, and drawing the picture and
+    /// converting the text there took more of an open than making the editor did.
+    @Test func openingLeavesSendACopyForLater() async throws {
+        let (window, _, notes) = try Self.window(notes: 4)
+        defer { window.isHidden = true; HoverProbe.enabled = false }
+        notes[1].body = "Plan\n\n## Today\n- [ ] Tram 28\n- [x] Book flights\n"
+        await Self.settle(window, seconds: 1)
+        HoverProbe.enabled = true
+        RenderProbe.counts = [:]
+        for note in notes.prefix(3) {
+            try await Self.open(note, in: window)
+            await Self.settle(window)
+            try await Self.back(in: window)
+            await Self.settle(window)
+        }
+        #expect(RenderProbe.counts["NoteThumbnail"] == nil, "no picture is drawn for a note that is only opened")
+        // What the sheet gets once asked: readable text, and the page as a picture.
+        let text = try await NoteCopy(body: notes[1].body).exported(as: .utf8PlainText)
+        #expect(String(decoding: text, as: UTF8.self) == ReadableText.from(markdown: notes[1].body))
+        #expect(!String(decoding: text, as: UTF8.self).contains("- [ ]"))
+        let png = try await NoteThumbnail(title: "Plan", body: notes[1].body).exported(as: .png)
+        let picture = try #require(UIImage(data: png))
+        #expect(picture.size.width * picture.scale == 360 && picture.size.height * picture.scale == 360)
+        #expect(RenderProbe.counts["NoteThumbnail"] == 1)
+    }
+
     @Test func typing() async throws {
         let (window, c, notes) = try Self.window(notes: 200)
         defer { window.isHidden = true }
