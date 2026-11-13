@@ -213,6 +213,7 @@ enum SettingsIndex {
         e("Open today\u{2019}s note when Pinto starts", .todaysNote, "settings.today.launch", also: ["Open on launch", "Daily note"]),
         e("Ticked items move to the bottom", .general, "settings.notes.ticked", also: ["Checklist", "Sort checked items", "Ticked"]),
         e("Share diagnostics and usage", .security, "settings.diagnostics"),
+        e(PrivacyWords.name, .security, "settings.privacyMode", also: ["Privacy mode", "Blur", "Screen sharing", "Screen recording", "Meetings", "Previews"]),
         e("Light or dark mode", .appearance, "settings.mode.system"), e("Theme", .appearance, "settings.theme.default"),
         e("Font", .appearance, "settings.font", also: ["Typeface", "Serif", "Rounded", "Mono", "Monospace", "New York"]),
         e("Storage used", .storage, "settings.storage", also: ["Space", "Recently Deleted", "Earlier versions", "Full"]),
