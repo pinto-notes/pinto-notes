@@ -1,4 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostCta } from "@/lib/PostCta";
 import { Answer, Capture, Checklist, Paths, PostFigure, Steps } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
@@ -66,6 +67,10 @@ export default function Page() {
             Settings, Import. Google Keep can&apos;t import anything, so you copy and paste one note at a time. Unlock locked notes
             first, whichever app you pick.
           </p>
+          {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
+          <PostCta slug="move-apple-notes-to-obsidian-notion-keep" position="answer" title="Or move to an app that works like Apple Notes.">
+            <p>Pinto Notes imports your Apple Notes on your Mac in one go, folders included, and ChatGPT and Claude can read them. Apple Notes isn&apos;t changed.</p>
+          </PostCta>
         </Answer>
       }
       // Paper-cut art above the intro (decoration, made with the Codex image tool like the API post's). The

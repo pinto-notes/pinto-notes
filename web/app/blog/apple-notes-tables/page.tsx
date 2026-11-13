@@ -1,4 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostCta } from "@/lib/PostCta";
 import { Answer, Keep, MenuPaths, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
@@ -62,6 +63,10 @@ export default function Page() {
             Format, Table (Option-Command-T) makes one, and Tab in the last cell adds a row. Notes can&apos;t sum a column, sort a table or
             set a width. For a total, name each number under the table and Math Results adds them up for you.
           </p>
+          {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
+          <PostCta slug="apple-notes-tables" position="answer" title="A table you can just ask.">
+            <p>Pinto Notes brings your Apple Notes tables over in one import. Connect ChatGPT or Claude, and they add the row you mention and do the sum when you ask.</p>
+          </PostCta>
         </Answer>
       }
       hero={<PostFigure priority src="/blog/macos27/notes27-table-reading-list" width={1400} height={554} maxWidth={700}

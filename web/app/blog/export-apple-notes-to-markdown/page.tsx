@@ -1,4 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostCta } from "@/lib/PostCta";
 import { Answer, MenuPaths, PostFigure } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
@@ -38,6 +39,10 @@ export default function Page() {
             On macOS 26 and iOS 26 or later, Apple Notes exports a note as a Markdown file: File, Export To, Markdown on a Mac (Export as
             in macOS 26), and Share, Export as Markdown on iPhone. It works one note at a time. For a whole library you need a free exporter.
           </p>
+          {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
+          <PostCta slug="export-apple-notes-to-markdown" position="answer" title="Every note as Markdown, without exporting.">
+            <p>Pinto Notes works like Apple Notes, and every note is Markdown underneath. On a Mac it brings over the notes you pick in one go, in their folders. Apple Notes isn&apos;t changed.</p>
+          </PostCta>
         </Answer>
       }
       hero={<PostFigure priority src="/blog/macos27/notes27-export-to" width={1138} height={855} maxWidth={569}
