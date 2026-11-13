@@ -347,6 +347,6 @@ struct CanvasMarkView: View {
         Image(systemName: CanvasNote.symbol)
             .font(.system(size: size * 0.86, weight: .semibold))
             .foregroundStyle(Color.muted)
-            .accessibilityLabel("Canvas")
+            .accessibilityLabel("Whiteboard")
     }
 }

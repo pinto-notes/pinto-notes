@@ -64,7 +64,7 @@ final class NotePageWebView: WKWebView {
 
     /// The canvas's own menu: what acts on the selection, then the whole drawing.
     func canvasMenu() -> NSMenu {
-        let menu = NSMenu(title: "Canvas")
+        let menu = NSMenu(title: "Whiteboard")
         let selected = canvas?.state.hasSelection ?? false
         func item(_ title: String, _ action: CanvasCommand.Action, enabled: Bool = true) -> NSMenuItem {
             let i = CanvasMenuItem(title: title) { [weak self] in self?.canvas?.run(action) }

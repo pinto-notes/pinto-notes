@@ -23,7 +23,7 @@ import AppKit
         let c = try Self.container()
         let pages = NotePageStore(file: nil), data = NotePageDataStore(file: nil)
         let note = CanvasNote.make(in: .all, context: c.mainContext, pages: pages, data: data)
-        #expect(note.body == "Canvas")
+        #expect(note.body == "Whiteboard")
         #expect(note.folder != nil)
         let page = try #require(pages[note.id])
         #expect(CanvasNote.isCanvas(page.html))

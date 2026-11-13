@@ -25,10 +25,10 @@ import AppKit
     // MARK: The three
 
     @Test func theThreeHaveTheirOwnNamesGlyphsAndKeys() {
-        #expect(CreateKind.allCases.map(\.title) == ["New Note", "New Canvas", "New App"])
+        #expect(CreateKind.allCases.map(\.title) == ["New Note", "New Whiteboard", "New App"])
         #expect(CreateKind.app.menuTitle == "New App\u{2026}")
         #expect(CreateKind.allCases.map(\.keys) == ["\u{2318}N", "\u{2325}\u{2318}N", "\u{2303}\u{2318}N"])
-        #expect(CreateKind.canvas.help == "New Canvas (\u{2325}\u{2318}N)")
+        #expect(CreateKind.canvas.help == "New Whiteboard (\u{2325}\u{2318}N)")
         // Three different pictures, each its own outline: compose's boxed pencil, a bare scribble
         // (no box, no pencil), and a wand for New App (no grid: it read as "show all", 11-13).
         #expect(Set(CreateKind.allCases.map(\.symbol)).count == 3)

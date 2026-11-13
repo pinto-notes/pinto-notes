@@ -20,7 +20,10 @@ enum CanvasNote {
     /// has its own outline. Shapes on shapes (square.on.circle) read as Copy (13 November 2026).
     /// The list marks canvases with it too.
     static let symbol = "scribble.variable"
-    static let title = "Canvas"
+    /// What people call it (Emil, 13 November 2026): "whiteboard" says draw and explain, and it's
+    /// what people search for; "canvas" is a document in Slack and note cards in Obsidian. The
+    /// code and the stored format keep "canvas".
+    static let title = "Whiteboard"
 
     /// Whether a page (one HTML file, or a project as a note's page stores it) is the canvas.
     /// Only a page that names the canvas at all is parsed.
@@ -38,7 +41,7 @@ enum CanvasNote {
     \(marker)
     <meta name="amber-base" content="none">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Canvas</title>
+    <title>Whiteboard</title>
     <link rel="stylesheet" href="amber-lib:///canvas/canvas.css">
     <div id="canvas"></div>
     <script>window.EXCALIDRAW_ASSET_PATH = "amber-lib:///canvas/";</script>
@@ -47,9 +50,9 @@ enum CanvasNote {
 
     /// What an AI reads first (the server tells it to read an app's README.md).
     static let readme = """
-    # Canvas
+    # Whiteboard
 
-    This note is a canvas: a drawing board in Pinto Notes, not an app to build. Don't change index.html.
+    This note is a whiteboard (a canvas): a drawing board in Pinto Notes, not an app to build. Don't change index.html.
 
     The drawing is in data.json, as `values.scene`: a standard Excalidraw scene, the same JSON an .excalidraw file holds.
 

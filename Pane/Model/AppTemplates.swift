@@ -13,7 +13,7 @@ enum CreateKind: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .note: "New Note"
-        case .canvas: "New Canvas"
+        case .canvas: "New Whiteboard"
         case .app: "New App"
         }
     }
@@ -25,7 +25,7 @@ enum CreateKind: String, CaseIterable, Identifiable {
     var noun: String {
         switch self {
         case .note: "Note"
-        case .canvas: "Canvas"
+        case .canvas: "Whiteboard"
         case .app: "App"
         }
     }

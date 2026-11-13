@@ -690,7 +690,7 @@ struct CanvasTitleField: View {
             .onChange(of: note.title) { _, t in if !focused { text = t } }
             .onChange(of: focused) { _, now in if !now { commit() } }
             .help("Rename")
-            .accessibilityLabel("Canvas name")
+            .accessibilityLabel("Whiteboard name")
             .accessibilityIdentifier("canvas.title")
     }
 

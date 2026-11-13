@@ -1168,7 +1168,7 @@ struct NoteDetailView: View {
             }
             .accessibilityIdentifier("canvas.background")
         case .canvasClear:
-            DestructiveMenuButton("Clear Canvas\u{2026}", systemImage: "trash.slash") { confirmingClearCanvas = true }
+            DestructiveMenuButton("Clear Whiteboard\u{2026}", systemImage: "trash.slash") { confirmingClearCanvas = true }
                 .accessibilityIdentifier("canvas.clear")
         case .recover:
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
@@ -1321,8 +1321,8 @@ struct NoteDetailView: View {
             } message: {
                 Text(Self.recoverMessage)
             }
-            .confirmationDialog("Clear this canvas?", isPresented: $confirmingClearCanvas, titleVisibility: .visible) {
-                Button("Clear Canvas", role: .destructive) { canvasControls.run(.clear) }
+            .confirmationDialog("Clear this whiteboard?", isPresented: $confirmingClearCanvas, titleVisibility: .visible) {
+                Button("Clear Whiteboard", role: .destructive) { canvasControls.run(.clear) }
             } message: {
                 Text("Everything on it is removed. Undo brings it back.")
             }
