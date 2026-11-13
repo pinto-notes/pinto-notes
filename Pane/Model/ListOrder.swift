@@ -87,6 +87,7 @@ final class ListOrderStore {
                           reversed: defaults.bool(forKey: Self.reversedKey),
                           groupsByDate: defaults.object(forKey: Self.groupKey) as? Bool ?? true)
         groups = defaults.dictionary(forKey: Self.groupsKey) as? [String: Bool] ?? [:]
+        galleries = Set(defaults.object(forKey: Self.galleriesKey) as? [String] ?? [])
     }
 
     /// The order one list is shown in: the sort every list shares, with that folder's grouping.
@@ -98,6 +99,20 @@ final class ListOrderStore {
 
     /// Group By Date in one folder, as in Apple Notes, where each folder keeps its own.
     func setGroupsByDate(_ on: Bool, for scope: Scope) { groups[Self.key(of: scope)] = on }
+
+    /// The folders shown as a gallery of cards (FolderGallery), by `key(of:)`. Each folder keeps
+    /// its own, as View as Gallery does in Apple Notes. Never Recently Deleted.
+    private var galleries: Set<String> {
+        didSet { if galleries != oldValue { defaults.set(galleries.sorted(), forKey: Self.galleriesKey) } }
+    }
+    static let galleriesKey = "list.gallery.byFolder"
+
+    func showsGallery(_ scope: Scope) -> Bool { scope != .trash && galleries.contains(Self.key(of: scope)) }
+
+    func setGallery(_ on: Bool, for scope: Scope) {
+        guard scope != .trash else { return }
+        if on { galleries.insert(Self.key(of: scope)) } else { galleries.remove(Self.key(of: scope)) }
+    }
 
     static func key(of scope: Scope) -> String {
         switch scope {

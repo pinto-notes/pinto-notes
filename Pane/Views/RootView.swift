@@ -54,6 +54,8 @@ struct RootView: View {
     /// Every tag in the library, for the sidebar's Tags and the tags offered while one is typed.
     @State private var tags = TagIndex()
     @State private var justCreated: UUID?
+    /// The scope is being put back as it was at launch: a gallery keeps the note that was open.
+    @State private var restoringScope = false
     #if os(iOS)
     /// The notes links opened, for Back to the note or app a link was in.
     @State private var trail = LinkTrail()
@@ -355,7 +357,7 @@ struct RootView: View {
             #if os(iOS)
             if sizeClass != .compact { twoColumns } else { threeColumns }
             #else
-            threeColumns
+            if galleryScope != nil { galleryColumns } else { threeColumns }
             #endif
         }
         .environment(editor)
@@ -494,32 +496,69 @@ struct RootView: View {
     }
     #endif
 
+    /// The folders, the same beside the list or beside a folder's gallery.
+    @ViewBuilder
+    private var sidebarColumn: some View {
+        // The folders and the list are compared before they're worked out again (see their `==`):
+        // on the Mac the split view hands its columns over again whenever one is hidden or shown,
+        // and on iPhone every pass of this view (each note opened or closed) worked out the
+        // folders under the stack and the list again (ios-render-audit-2026-11-02.md).
+        SidebarView(scope: $scope, onNewNote: newNote, onOpenNote: openFound, onNewNoteIn: newNote(inFolder:))
+            .equatable()
+            .environment(library)
+            .environment(tags)
+            #if os(macOS)
+            // The sidebar hides with its own button, first beside the window's buttons as in
+            // Notes, and with View › Hide Sidebar (⌃⌘S) (Emil, 11-04: with only the menu and
+            // keys it looked like it couldn't). Ours, not the system's, so it stays in its
+            // place with the sidebar shown or hidden; New Folder moved to the Folders heading.
+            .toolbar(removing: .sidebarToggle)
+            .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
+            .environment(\.toggleSidebar, ToggleSidebarAction(shown: visibility == .all) {
+                withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) {
+                    visibility = SidebarToggle.toggled(visibility)
+                }
+            })
+            #else
+            // iPad: room for the title beside the account button.
+            .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
+            #endif
+    }
+
+    #if os(macOS)
+    /// The folder shown as a gallery, when the one open is (ListOrderStore.showsGallery).
+    private var galleryScope: Scope? { scope.flatMap { ListOrderStore.shared.showsGallery($0) ? $0 : nil } }
+
+    /// A folder as a gallery: the sidebar, and the cards in the list's and the note's place. A
+    /// card opens its note there, with a way back to the cards, as in Apple Notes.
+    private var galleryColumns: some View {
+        NavigationSplitView(columnVisibility: $visibility) {
+            sidebarColumn
+        } detail: {
+            Group {
+                if shown.isEmpty, let s = galleryScope {
+                    FolderGallery(scope: s, library: library, open: { selectedNote = $0 }, newNote: newNote)
+                } else {
+                    detail
+                        .toolbar {
+                            ToolbarItem(placement: .navigation) {
+                                Button { selection = [] } label: {
+                                    Label(galleryScope.map { FolderGallery.title(of: $0, context: context) } ?? "Back", systemImage: "chevron.backward")
+                                }
+                                .help("Back to the gallery")
+                                .accessibilityIdentifier("gallery.back")
+                            }
+                        }
+                }
+            }
+            .navigationSplitViewColumnWidth(min: 360, ideal: 760)
+        }
+    }
+    #endif
+
     private var threeColumns: some View {
         NavigationSplitView(columnVisibility: $visibility) {
-            // The folders and the list are compared before they're worked out again (see their `==`):
-            // on the Mac the split view hands its columns over again whenever one is hidden or shown,
-            // and on iPhone every pass of this view (each note opened or closed) worked out the
-            // folders under the stack and the list again (ios-render-audit-2026-11-02.md).
-            SidebarView(scope: $scope, onNewNote: newNote, onOpenNote: openFound, onNewNoteIn: newNote(inFolder:))
-                .equatable()
-                .environment(library)
-                .environment(tags)
-                #if os(macOS)
-                // The sidebar hides with its own button, first beside the window's buttons as in
-                // Notes, and with View › Hide Sidebar (⌃⌘S) (Emil, 11-04: with only the menu and
-                // keys it looked like it couldn't). Ours, not the system's, so it stays in its
-                // place with the sidebar shown or hidden; New Folder moved to the Folders heading.
-                .toolbar(removing: .sidebarToggle)
-                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
-                .environment(\.toggleSidebar, ToggleSidebarAction(shown: visibility == .all) {
-                    withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) {
-                        visibility = SidebarToggle.toggled(visibility)
-                    }
-                })
-                #else
-                // iPad: room for the title beside the account button.
-                .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
-                #endif
+            sidebarColumn
         } content: {
             NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty, showsResults: $listSearching)
                 .equatable()
@@ -652,6 +691,9 @@ struct RootView: View {
                 // beside Notes, its Recover banner over nothing).
                 if let new, let id = selectedNote, let note = context.note(id),
                    ModelContext.lists(new, note) == false { selection = [] }
+                // A folder shown as a gallery opens on its cards, unless a note was just made in it.
+                if restoringScope { restoringScope = false }
+                else if let new, ListOrderStore.shared.showsGallery(new), selectedNote != justCreated { selection = [] }
                 #endif
                 #if os(iOS)
                 // Back on the iPhone folder list nothing is open: a note left selected would keep
@@ -759,6 +801,10 @@ struct RootView: View {
         if old != nil { NotificationCenter.default.post(name: .paneNoteClosed, object: nil) }
         discardIfEmpty(old)
         if let new { lastNote = new.uuidString }
+        #if os(macOS)
+        // Back to a gallery's cards: the next launch opens on them, not on the note.
+        if new == nil, let s = scope, ListOrderStore.shared.showsGallery(s) { lastNote = PhoneLaunchSpot.list }
+        #endif
         #if os(iOS)
         // Back out of a note on iPhone: the next launch opens the list it was in, not the note,
         // as in Notes. Leaving the app with the note open changes nothing here, so it reopens.
@@ -1133,6 +1179,9 @@ struct RootView: View {
         #if os(iOS)
         // You went Back out of the note last time: the list (or the folders) opens, with no note.
         if sizeClass == .compact, lastNote == PhoneLaunchSpot.list || scope == nil { return }
+        #else
+        // You went back to a gallery's cards last time: they're what opens.
+        if lastNote == PhoneLaunchSpot.list, let s = scope, ListOrderStore.shared.showsGallery(s) { return }
         #endif
         // A file kept in a folder reopens like a note.
         if let id = UUID(uuidString: lastNote), let f = context.attachment(id), f.folderID != nil, f.deletedAt == nil, f.trashedAt == nil {
@@ -1152,6 +1201,7 @@ struct RootView: View {
         #endif
         if let s = try? JSONDecoder().decode(Scope.self, from: lastScopeData),
            !({ if case .folder(let id) = s { return context.folder(id) == nil } else { return false } }()) {
+            restoringScope = s != scope
             scope = s
         } else if scope == nil {
             scope = .all

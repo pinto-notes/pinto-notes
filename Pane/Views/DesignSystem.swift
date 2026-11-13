@@ -966,3 +966,16 @@ struct CoverButtonStyle: ButtonStyle {
     }
 }
 
+
+// MARK: Gallery cards (FolderGallery)
+
+/// A card in a folder's gallery: a light fill around it under the pointer, dimmed while pressed.
+struct GalleryCardStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(8)
+            .hoverHighlight(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .padding(-8)
+    }
+}
