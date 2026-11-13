@@ -26,6 +26,13 @@ enum NoteWindows {
         context.note(id).flatMap { $0.deletedAt == nil ? $0 : nil }
     }
 
+    /// A shared note's window closes once you're no longer in the note (removed, the owner stopped
+    /// sharing, or you left): the main window's list lets go of it, and its own window stayed
+    /// open on "This note was deleted" (collab-fixes-r7).
+    static func closes(window note: UUID, showing shown: UUID?, removed: Set<UUID>) -> Bool {
+        removed.contains(shown ?? note)
+    }
+
     /// What a folder's window shows: the folder, while it is still there.
     @MainActor static func folder(_ id: UUID, in context: ModelContext) -> Folder? {
         context.folder(id).flatMap { $0.deletedAt == nil ? $0 : nil }
@@ -41,6 +48,7 @@ struct NoteWindowView: View {
     @State private var shown: UUID?
     @State private var history = OpenedNotes()
     @State private var editor = EditorController()
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         let id = shown ?? noteID
@@ -62,6 +70,9 @@ struct NoteWindowView: View {
         .toolbar(removing: .title)
         .navigationTitle(note.map { $0.title.isEmpty ? "New Note" : $0.title } ?? "")
         .frame(minWidth: 480, minHeight: 360)
+        .onChange(of: CollabStore.shared?.removedFrom ?? [], initial: true) { _, removed in
+            if NoteWindows.closes(window: noteID, showing: shown, removed: removed) { dismiss() }
+        }
     }
 
     private func open(_ target: UUID) {

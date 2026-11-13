@@ -127,6 +127,8 @@ async function seed(pg: PGlite, me: string) {
   const template = linkId(16);
   await pg.query(`insert into public.shared_templates (id, user_id, note_id, template) values ($1, $2, $3, '{"v":1}')`, [template, me, note]);
   await pg.query(`insert into public.template_takedowns (note_id, user_id, template_id) values ($1, $2, $3)`, [crypto.randomUUID(), me, template]);
+  // Why access to someone else's shared note ended (20261112120000_collab_access_ended.sql).
+  await pg.query(`insert into public.note_access_ended (note_id, user_id, reason) values ($1, $2, 'left')`, [crypto.randomUUID(), me]);
   return { folder, note, trashed, locked, slug, tokenHash, acct: a };
 }
 

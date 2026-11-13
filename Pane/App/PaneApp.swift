@@ -855,6 +855,19 @@ final class AppSession {
         followers.append(Self.follow({ [backend] in backend.state }) { [weak self] in await self?.stateChanged() })
         // A first pull that answers late (a slow or failed first sync) still gets its answer heard.
         followers.append(Self.follow({ [sync] in sync.knowsAccount }) { [weak self] in await self?.firstPullAnswered() })
+        // The key check's answer: sharing stops when the key isn't ready (replaced, removed, a
+        // mismatch), and starts again under a key that changed while ready.
+        followers.append(Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                await Self.changed { AccountCrypto.shared.isReady ? AccountCrypto.shared.keyID ?? "" : nil }
+                guard !Task.isCancelled else { return }
+                let crypto = AccountCrypto.shared
+                guard CollabStore.keyChanged(ready: crypto.isReady, keyID: crypto.keyID), crypto.isReady,
+                      let self, case .signedIn = self.backend.state, let client = self.backend.client, let user = self.backend.userID else { continue }
+                let context = self.context
+                Task { @MainActor in await CollabStore.attach(client: client, account: user, context: context) }
+            }
+        })
         // The key opened after the gate (a device linked, a recovery key typed): the library opens.
         followers.append(Task { @MainActor [weak self] in
             while !Task.isCancelled {

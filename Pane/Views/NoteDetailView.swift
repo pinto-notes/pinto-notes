@@ -348,6 +348,7 @@ struct NoteDetailView: View {
             }
             // A version was restored (from the history, or Undo of an AI's edit): the editor
             // shows it at once, with nothing to undo back into, and an AI's marking goes.
+            .modifier(WaitingNotice(note: note.id, controller: controller))
             .onReceive(NotificationCenter.default.publisher(for: NoteHistory.restored)) { n in
                 guard n.object as? UUID == note.id, collab == nil, let text = vault.text(of: note) else { return }
                 withAnimation(.easeIn(duration: 0.2)) { receipt = nil }
@@ -2006,6 +2007,20 @@ enum SharedEditing {
         case true?: return .viewOnly
         case false?: return .none
         case nil: return .opening
+        }
+    }
+}
+
+/// What was left to say in this note from outside it (NoteNotices: a widget tick on a Can view
+/// list), said as a tap in the note says it, once the note shows.
+private struct WaitingNotice: ViewModifier {
+    let note: UUID
+    let controller: EditorController
+
+    func body(content: Content) -> some View {
+        content.onChange(of: NoteNotices.shared.waiting[note], initial: true) { _, waiting in
+            guard waiting != nil, let text = NoteNotices.shared.take(note) else { return }
+            controller.notice = EditorNotice(text: text)
         }
     }
 }

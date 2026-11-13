@@ -39,6 +39,24 @@ import Testing
         return (emil, sara, note, (emilID, saraID))
     }
 
+    /// Opening the link again on a device that's in the note opens it with no second join request.
+    /// The check looked up the open note by the shared note's id, but your copy of someone else's
+    /// note has its own id (SharedNotes.noteID), so every reopened link joined again.
+    @Test func reopeningALinkOpensTheNoteWithoutJoiningAgain() async throws {
+        let (emil, sara, note, _) = try await shared("Groceries\n- [ ] Milk\n")
+        let url = try #require(emil.store.linkURL(note))
+        let hers = try #require(sara.context.pointer(forShared: note.id)?.id)
+        let joins = server.calls.filter { $0 == "join_link" }.count
+        #expect(sara.store.openNote(forShared: note.id) == hers)
+        #expect(await sara.store.join(url))
+        #expect(server.calls.filter { $0 == "join_link" }.count == joins)
+        #expect(NoteOpener.shared.request == hers)
+        // Its owner reopening their own link: the same, by the note's own id.
+        #expect(await emil.store.join(url))
+        #expect(server.calls.filter { $0 == "join_link" }.count == joins)
+        #expect(NoteOpener.shared.request == note.id)
+    }
+
     @Test func twoPeopleTypeAtOnceAndBothSeeTheSameText() async throws {
         let (emil, sara, note, _) = try await shared("Offsite plan\n\nAgenda\n")
         let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
@@ -204,7 +222,10 @@ import Testing
         defer { CollabStore.shared = previous; SharedRemovals.shared.clear() }
         try await emil.store.remove(ids.1, from: note)
         await sara.store.checkMemberships()
+        await sara.store.library?.told()
         #expect(SharedRemovals.shared.current?.title == "Plan")
+        #expect(SharedRemovals.shared.current?.reason == .removed)
+        #expect(SharedRemovals.shared.current?.message == "Emil removed you from this note.")
     }
 
     @Test func aRemovedPersonFindsOutAtOnceNotAtTheNextCheck() async throws {

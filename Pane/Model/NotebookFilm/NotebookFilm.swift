@@ -142,6 +142,10 @@ enum FilmEligibility {
     static let minActiveDays = 7
     /// Links don't count: most notes link to nothing, and the film's shape comes from folders.
     static let minNotes = 10
+    /// More than this and it isn't offered: a notebook this big in its first three months was
+    /// brought in, not grown, and reading every note's history at launch cost a 20,000-note account
+    /// 18% CPU and hundreds of requests (release gate, 12 November 2026).
+    static let maxNotes = 5_000
     /// Times you've written in a note yourself (what an AI wrote, and notes you brought in arriving,
     /// don't count): notes brought in on a few days, never written in, aren't use.
     static let minEdits = 2
@@ -157,7 +161,7 @@ enum FilmEligibility {
 
     static func isReady(_ input: FilmInput, calendar: Calendar = .current) -> Bool {
         let s = FilmStats(input, calendar: calendar)
-        return s.days >= minDays && s.days <= maxDays && s.activeDays >= minActiveDays && s.notes >= minNotes && s.written >= minEdits
+        return s.days >= minDays && s.days <= maxDays && s.activeDays >= minActiveDays && s.notes >= minNotes && s.notes <= maxNotes && s.written >= minEdits
     }
 }
 

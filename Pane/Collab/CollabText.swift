@@ -74,6 +74,60 @@ enum CollabText {
         return digest.heads()?.first
     }
 
+    /// Each change in a blob of them (what a device sends: one or more change chunks, one after
+    /// another), with its bytes and its hash, so the ones Automerge holds back for a change they
+    /// build on can be found and kept. A compressed chunk (Automerge deflates changes over 256
+    /// bytes) is hashed as the change it holds, as Automerge does; its checksum confirms it. Nil
+    /// for anything that isn't changes (a saved document), or bytes that don't parse.
+    static func changes(in blob: Data) -> [(bytes: Data, hash: ChangeHash)]? {
+        let b = [UInt8](blob)
+        var out: [(bytes: Data, hash: ChangeHash)] = []
+        var i = 0
+        while i < b.count {
+            guard b.count - i > 9, b[i..<(i + 4)].elementsEqual(magic) else { return nil }
+            let type = b[i + 8]
+            var j = i + 9, length = 0, shift = 0
+            while true {
+                guard j < b.count, shift < 63 else { return nil }
+                let byte = b[j]
+                j += 1
+                length |= Int(byte & 0x7F) << shift
+                if byte & 0x80 == 0 { break }
+                shift += 7
+            }
+            let end = j + length
+            guard end <= b.count else { return nil }
+            let chunk: [UInt8]
+            switch type {
+            case 1:
+                chunk = Array(b[(i + 8)..<end])
+            case 2:
+                guard let raw = try? (Data(b[j..<end]) as NSData).decompressed(using: .zlib) as Data else { return nil }
+                chunk = [1] + leb128(raw.count) + [UInt8](raw)
+            default:
+                return nil
+            }
+            let digest = Data(SHA256.hash(data: chunk))
+            guard digest.prefix(4).elementsEqual(b[(i + 4)..<(i + 8)]), let hash = digest.heads()?.first else { return nil }
+            out.append((Data(b[i..<end]), hash))
+            i = end
+        }
+        return out
+    }
+
+    private static let magic: [UInt8] = [0x85, 0x6F, 0x4A, 0x83]
+
+    private static func leb128(_ n: Int) -> [UInt8] {
+        var n = n, out: [UInt8] = []
+        repeat {
+            var byte = UInt8(n & 0x7F)
+            n >>= 7
+            if n != 0 { byte |= 0x80 }
+            out.append(byte)
+        } while n != 0
+        return out
+    }
+
     /// The text as `doc` holds it without `change` (and anything built on it): everything else it
     /// has, read at that point in its history. Nil for a change it doesn't have.
     static func text(without change: ChangeHash, in doc: Document, _ body: ObjId) -> String? {

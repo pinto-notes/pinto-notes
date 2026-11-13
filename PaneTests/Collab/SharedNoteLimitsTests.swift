@@ -11,16 +11,28 @@ import Testing
 
     static func alone() -> ShareState { ShareState(people: [.init(id: me, name: "Emil Wagman", isMe: true, role: "owner")]) }
 
-    /// No launch argument and no default: sharing with people is off in Mac 1.3 (it ships
-    /// without it), so the store never starts and nothing about it shows.
-    @Test func sharingWithPeopleIsOffInThisRelease() {
+    /// No launch argument and no default: sharing with people is on in the sharing update for
+    /// everyone signed in (it was off in Mac 1.3), and a stray old default doesn't turn it off.
+    @Test func sharingWithPeopleIsOnInThisRelease() {
         let forced = CollabFeature.forced
         defer { CollabFeature.forced = forced }
         CollabFeature.forced = nil
-        UserDefaults.standard.removeObject(forKey: "collabEnabled")
-        #expect(!CollabFeature.released)
-        #expect(!CollabFeature.isOn)
-        #expect(!CollabStore.isOn)
+        UserDefaults.standard.set(false, forKey: "collabEnabled")
+        defer { UserDefaults.standard.removeObject(forKey: "collabEnabled") }
+        #expect(CollabFeature.released)
+        #expect(CollabFeature.isOn)
+        #expect(CollabStore.isOn)
+    }
+
+    /// A shared note open in its own Mac window stayed open on "This note was deleted" once you
+    /// were removed: only the main window let go of it. Its window closes now, unless it has moved
+    /// on to another note (a link followed in it).
+    @Test func aSharedNotesOwnWindowClosesWhenYoureNoLongerInIt() {
+        let plan = UUID(), other = UUID()
+        #expect(NoteWindows.closes(window: plan, showing: nil, removed: [plan]))
+        #expect(!NoteWindows.closes(window: plan, showing: nil, removed: [other]))
+        #expect(NoteWindows.closes(window: plan, showing: other, removed: [other]))
+        #expect(!NoteWindows.closes(window: plan, showing: other, removed: [plan]), "it shows another note now")
     }
 
     /// The server can hold a copy of a standard account's key, so nothing about a shared note may
