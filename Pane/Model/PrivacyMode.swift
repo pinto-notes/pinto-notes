@@ -10,8 +10,9 @@ import WidgetKit
 // The note you have open stays as it is: you have to be able to work (Emil, the same day, after
 // an earlier build blurred the editor too). On the Mac the list's titles blur too, and show while
 // you point at the list (ListTitleReveal); the open note's title always shows. It
-// turns itself on when your screen is shared, after asking (the cover, PrivacyCover), and off
-// again when the sharing stops; turned on by hand, it stays on until you turn it off.
+// turns itself on when your screen is shared, or on the Mac when you're in a call
+// (CallDetection), after asking (the cover, PrivacyCover), and off again when both have stopped;
+// turned on by hand, it stays on until you turn it off. One remembered answer covers both.
 
 /// Says whether the screen is being shared or recorded right now. The iPhone asks the system
 /// (SceneCaptureDetector); the Mac has no way to ask, so it looks for the apps that share
@@ -60,11 +61,19 @@ final class PrivacyMode {
     private(set) var source: Source?
     /// The screen is shared or recorded, as the detector last said.
     private(set) var sharing = false
+    /// You're in a call (the Mac's CallDetector), as it last said.
+    private(set) var inCall = false
+    /// Sharing or a call: what asks, and what turns it back off when it ends.
+    var occasion: Bool { sharing || inCall }
+    /// The cover's title: sharing is said first, since it shows more than a call does.
+    var coverTitle: String { sharing || !inCall ? PrivacyWords.coverTitle : PrivacyWords.coverTitleCall }
     /// The frosted notice over the window, asking.
     private(set) var asking = false
-    /// "Show previews" was chosen for this sharing session: not asked again until it stops.
+    /// "Show previews" was chosen for this sharing session or call: not asked again until both
+    /// stop.
     private var declined = false
     private var detector: ScreenShareDetector?
+    private var callDetector: ScreenShareDetector?
 
     var whenShared: WhenShared {
         didSet { store.set(whenShared.rawValue, forKey: Self.whenSharedKey) }
@@ -101,7 +110,7 @@ final class PrivacyMode {
     /// Off now. While the screen is still shared it isn't asked again: you just said show them.
     private func turnOff() {
         update {
-            if sharing { declined = true }
+            if occasion { declined = true }
             asking = false
             source = nil
         }
@@ -132,15 +141,39 @@ final class PrivacyMode {
         detector.start { [weak self] on in self?.sharingChanged(on) }
     }
 
+    /// Starts listening for calls (the Mac does at launch; tests pass a CallDetector on a fake).
+    func watchCalls(_ detector: ScreenShareDetector) {
+        callDetector?.stop()
+        callDetector = detector
+        detector.start { [weak self] on in self?.callChanged(on) }
+    }
+
     func stopWatching() {
         detector?.stop()
         detector = nil
+        callDetector?.stop()
+        callDetector = nil
     }
 
     func sharingChanged(_ on: Bool) {
         guard on != sharing else { return }
+        let was = occasion
+        sharing = on
+        occasionChanged(from: was)
+    }
+
+    func callChanged(_ on: Bool) {
+        guard on != inCall else { return }
+        let was = occasion
+        inCall = on
+        occasionChanged(from: was)
+    }
+
+    /// Sharing or a call began (from none) or both ended. One already going doesn't ask again.
+    private func occasionChanged(from was: Bool) {
+        let on = occasion
+        guard on != was else { return }
         update {
-            sharing = on
             if on {
                 declined = false
                 guard source == nil else { return }
@@ -150,7 +183,8 @@ final class PrivacyMode {
                 case .nothing: break
                 }
             } else {
-                // Sharing stopped: what it turned on goes off, what you turned on stays.
+                // Sharing and the call stopped: what they turned on goes off, what you turned on
+                // stays.
                 asking = false
                 declined = false
                 if source == .automatic { source = nil }

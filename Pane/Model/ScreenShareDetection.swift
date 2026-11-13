@@ -11,8 +11,8 @@ import UIKit
 // Mac: there's no public way to ask whether another app is capturing the screen (checked for
 // macOS 26), so it looks at which processes run, every 2 seconds, off the main thread: their
 // names only (libproc), which needs no permission and shows no dialog. What it looks for is in
-// `ShareSignals.mac`; a meeting in a browser (Google Meet) can't be told apart from browsing, so
-// View › Privacy Mode (⌃⌘P) covers it.
+// `ShareSignals.mac`. A meeting in a browser (Google Meet) can't be told apart from browsing by
+// its processes; the microphone tells it (CallDetection).
 
 /// One app or system service that runs while the screen is shared.
 struct ShareSignal: Sendable, Equatable {
@@ -217,6 +217,7 @@ extension PrivacyMode {
         Self.watching = true
         #if os(macOS)
         watch(ProcessShareDetector())
+        watchCalls(CallDetector(source: CoreAudioMicSource()))
         #else
         watch(SceneCaptureDetector())
         #endif
