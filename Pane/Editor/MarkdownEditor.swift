@@ -287,7 +287,7 @@ final class EditorCore {
         if region == nil, ns.length > Self.progressiveThreshold {
             // A long note: style the top now and the rest a chunk at a time,
             // so it opens at once. The active line is styled with the top.
-            region = chunk(ns, structure: structure, from: 0, including: line)
+            region = chunk(ns, structure: structure, from: 0, size: Self.firstChunk, including: line)
             unstyledFrom = NSMaxRange(region!)
             styling = storage
             scheduleChunk()
@@ -395,8 +395,12 @@ final class EditorCore {
 
     // MARK: Progressive styling
 
-    /// Notes longer than this open with their top styled first.
-    static let progressiveThreshold = 24_000
+    /// Notes longer than this open with their top styled first: about a tall window of text, then
+    /// the rest a chunk at a time on the turns after. From 24,000 and a first chunk of 16,000: a
+    /// note of 200 checklist lines (12,500 characters) was styled whole before it showed, about a
+    /// quarter of opening it (Emil, 13 November 2026: "speed of actions and navigation").
+    static let progressiveThreshold = 8_000
+    private static let firstChunk = 6_000
     private static let chunkSize = 16_000
     /// Everything from here on hasn't been styled yet (Int.max: all styled).
     private(set) var unstyledFrom = Int.max
@@ -405,8 +409,8 @@ final class EditorCore {
 
     /// Whole lines from `from`, about one chunk long, never cutting a code block
     /// or table, and reaching at least to the end of `including`.
-    private func chunk(_ ns: NSString, structure: NoteStructure, from: Int, including: NSRange) -> NSRange {
-        var end = min(ns.length, from + Self.chunkSize)
+    private func chunk(_ ns: NSString, structure: NoteStructure, from: Int, size: Int = chunkSize, including: NSRange) -> NSRange {
+        var end = min(ns.length, from + size)
         if including.location != NSNotFound { end = max(end, min(ns.length, NSMaxRange(including))) }
         end = end < ns.length ? NSMaxRange(ns.lineRange(for: NSRange(location: end, length: 0))) : ns.length
         var r = NSRange(location: from, length: end - from)
