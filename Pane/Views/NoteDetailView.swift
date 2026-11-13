@@ -2088,6 +2088,8 @@ struct NoteToolbarStage<Pane: View>: View {
     var openScope: (Scope) -> Void = { _ in }
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
+    /// The width the breadcrumbs get in this column (NoteBreadcrumbs.room).
+    @State private var crumbRoom: CGFloat = NoteBreadcrumbs.titleWidth
     #if DEBUG
     @Environment(\.modelContext) private var context
     #endif
@@ -2108,6 +2110,11 @@ struct NoteToolbarStage<Pane: View>: View {
                 withTransaction(instant) { parts.wrappedValue = made }
             }
         }
+            // The breadcrumbs' width follows the column, never the note (NoteBreadcrumbs.room).
+            .onGeometryChange(for: CGFloat.self, of: \.size.width) { width in
+                let room = NoteBreadcrumbs.room(column: width, shared: self.parts?.people != nil)
+                if room != crumbRoom { crumbRoom = room }
+            }
             .toolbar {
                 if self.parts != nil {
                     // Back and forward on the left, then where the note is (Emil, 11-03:
@@ -2129,8 +2136,8 @@ struct NoteToolbarStage<Pane: View>: View {
                     }
                     .sharedBackgroundVisibility(.hidden)
                     .hidden(!showsItems)
-                    if let place {
-                        ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, open: openScope) }
+                    if let place, crumbRoom > 0 {
+                        ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, room: crumbRoom, open: openScope) }
                             .sharedBackgroundVisibility(.hidden)
                             .hidden(!showsItems)
                     }
@@ -2408,7 +2415,25 @@ struct NoteBreadcrumbs: View {
     static let titleWidth: CGFloat = 240
     let note: Note
     var controller: EditorController? = nil
+    /// The Mac's note column: the item's width, the same for every note. Sized by the note's own
+    /// path and title, a long title or a wider list left the note's items too little room, and
+    /// macOS gave up the bar's columns: the list lost its title and count and the bar turned one
+    /// grey band, note by note (Emil, 13 November 2026: "the top bar changes depending on note").
+    var room: CGFloat? = nil
     let open: (Scope) -> Void
+
+    /// What the rest of the note's bar takes in a column: back and forward with the edge (about
+    /// 100), the tools, Share and ••• (about 310), a gap, and who's in a shared note.
+    static func reserved(shared: Bool) -> CGFloat { 440 + (shared ? 48 : 0) }
+
+    /// The breadcrumbs' width in a note column `column` wide: what the rest leaves, up to the
+    /// path and a full title; none when even the path wouldn't fit. Whole points in steps of 8,
+    /// so dragging the divider doesn't rebuild the bar each point.
+    static func room(column: CGFloat, shared: Bool) -> CGFloat {
+        let left = ((column - reserved(shared: shared)) / 8).rounded(.down) * 8
+        guard left >= 72 else { return 0 }
+        return min(left, titleWidth + 100)
+    }
 
     /// The note's place, outermost first: Recently Deleted, its folders, or All Notes.
     static func path(_ note: Note) -> [(scope: Scope, name: String)] {
@@ -2449,17 +2474,31 @@ struct NoteBreadcrumbs: View {
                     .foregroundStyle(Color.ink)
                     .padding(.horizontal, ButtonSize.compact.padding * 0.75)
                     // Room kept for it all the time now, so a long title can't crowd out Share and •••.
-                    .frame(maxWidth: Self.titleWidth, alignment: .leading)
+                    .frame(maxWidth: room == nil ? Self.titleWidth : .infinity, alignment: .leading)
             }
             .opacity(titled ? 1 : 0)
             .accessibilityHidden(!titled)
             .animation(.easeOut(duration: 0.15), value: titled)
+            // The folders keep their names; the title takes what's left.
+            .layoutPriority(-1)
         }
         .lineLimit(1)
-        // Its own width: a toolbar item is otherwise given too little, and showed only "…".
-        .fixedSize()
+        .modifier(Width(room: room))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Location")
+    }
+
+    /// The column's width when given one; otherwise its own (a toolbar item is otherwise given too
+    /// little, and showed only "…").
+    private struct Width: ViewModifier {
+        let room: CGFloat?
+        func body(content: Content) -> some View {
+            if let room {
+                content.frame(width: room, alignment: .leading).clipped()
+            } else {
+                content.fixedSize()
+            }
+        }
     }
 
     private var chevron: some View {
