@@ -573,6 +573,8 @@ struct NoteListView: View {
         .onAppear {
             // A press on a row that moves a point or two is still a click (the sidebar's rows too).
             RowPressSlop.start()
+            // A dragged note or folder rides under the pointer, not off at the corner of its row.
+            DragUnderPointer.install()
             // What each click did, in the system log (RowClickLog).
             RowClickLog.start()
         }

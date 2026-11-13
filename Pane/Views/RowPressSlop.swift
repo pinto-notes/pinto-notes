@@ -169,4 +169,46 @@ enum RowPressSlop {
         return found(in: content)
     }
 }
+/// What a drag carries sits under the pointer, wherever on the row the press began. The lists'
+/// tables kept the chip where the row was, at the press's offset from the row's corner, so a note
+/// grabbed at the right of a wide row trailed its chip far to the left of the pointer (Emil,
+/// 13 November 2026). Every drag the app starts goes through `beginDraggingSession`, so the
+/// items are moved there, before the session takes them. Text keeps its own place: a selection
+/// dragged out of a note lifts from where it lies, as in every Mac text view.
+@MainActor
+enum DragUnderPointer {
+    private static var installed = false
+
+    static func install() {
+        guard !installed else { return }
+        installed = true
+        let sel = #selector(NSView.beginDraggingSession(with:event:source:))
+        guard let own = class_getInstanceMethod(NSView.self, sel),
+              let ours = class_getInstanceMethod(NSView.self, #selector(NSView.pinto_beginDraggingSession(with:event:source:)))
+        else { return }
+        method_exchangeImplementations(own, ours)
+    }
+
+    /// Moves each item so its middle is the pointer, keeping its size. A view that draws text
+    /// keeps its items where they are.
+    static func center(_ items: [NSDraggingItem], in view: NSView, at event: NSEvent) {
+        guard !(view is NSText), event.window === view.window else { return }
+        let pointer = view.convert(event.locationInWindow, from: nil)
+        for item in items { item.draggingFrame = centered(item.draggingFrame, on: pointer) }
+    }
+
+    /// `frame`, the same size, with its middle on `point`.
+    nonisolated static func centered(_ frame: NSRect, on point: NSPoint) -> NSRect {
+        NSRect(x: point.x - frame.width / 2, y: point.y - frame.height / 2, width: frame.width, height: frame.height)
+    }
+}
+
+extension NSView {
+    /// Swapped with `beginDraggingSession(with:event:source:)` by DragUnderPointer: calling it
+    /// here calls AppKit's own.
+    @objc func pinto_beginDraggingSession(with items: [NSDraggingItem], event: NSEvent, source: any NSDraggingSource) -> NSDraggingSession {
+        DragUnderPointer.center(items, in: self, at: event)
+        return pinto_beginDraggingSession(with: items, event: event, source: source)
+    }
+}
 #endif
