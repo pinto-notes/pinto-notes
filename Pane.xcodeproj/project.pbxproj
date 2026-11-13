@@ -85,6 +85,7 @@
 		0B1A600BBD3B2646B0BB41BD /* PersonaR7Shots.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE23F9691285F7E666E3698E /* PersonaR7Shots.swift */; };
 		0B539237013F58EB4BE10E60 /* NoteLinksSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6B2946C2164583F9A89F59B /* NoteLinksSection.swift */; };
 		0B6ECA502D42CD2E9BE658D5 /* template-app-trip-plan-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6E425B2B3B4E957325733F57 /* template-app-trip-plan-stage-narrow-dark.jpg */; };
+		0BA0A63A62CB811573A0CB92 /* CanvasBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F86798F3AD47E899DC25FE0 /* CanvasBridge.swift */; };
 		0BA88B107179AE56774F18B0 /* DemoHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E11FB95A2E7F9A4A70976E7 /* DemoHistory.swift */; };
 		0C05872843462398AB27FE32 /* preact.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 533FEF595166704617E0EA6B /* preact.module.js */; };
 		0C43F1BF69F7FC9B564AD1F5 /* template-app-study-flashcards.data.json in Resources */ = {isa = PBXBuildFile; fileRef = 6E7E10B519DA24BDFE5025EF /* template-app-study-flashcards.data.json */; };
@@ -334,6 +335,7 @@
 		37E2300D31A93CE81615645B /* SignInFlowRecordingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBEFA52C385608D258A4886 /* SignInFlowRecordingTests.swift */; };
 		37E350F33282AA113CB2A108 /* BackendSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BD099569894B6BB98E56F2A /* BackendSessionTests.swift */; };
 		37F3AC03E19B12BEB3E4C353 /* HistorySheetChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E05040B015193EEF9F44EC1 /* HistorySheetChromeTests.swift */; };
+		37F67893A3CA3DF22262B161 /* NotePageWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE43020C01E482CB0B0F873F /* NotePageWebView.swift */; };
 		3878F680D965FAC61CABEF1A /* OfflineHTML.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CA53D7CEAE7816342EA0A55 /* OfflineHTML.swift */; };
 		3884EF889DB6BFC2734A5792 /* NoteOpenClickTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25EBE4952652DEA4F4C367D6 /* NoteOpenClickTests.swift */; };
 		38AA7C49BB9C58937D725CC8 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C2F5BCCDFA4A6D60E39708 /* Platform.swift */; };
@@ -401,6 +403,7 @@
 		46BFEF129C92C8BA646178A5 /* WebAuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 622B499961F7BD5908B9A435 /* WebAuthSession.swift */; };
 		46D603A3A591F17331C22FBE /* FilmRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDF23B4B7CA8B544B1F3E573 /* FilmRenderer.swift */; };
 		46D98583579E2ECF209FF43D /* ListMenusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 013B39AAC56FEB3BD1C5CC69 /* ListMenusTests.swift */; };
+		47BAD3A91AD9AD89683B6D0F /* NotePageWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE43020C01E482CB0B0F873F /* NotePageWebView.swift */; };
 		47C38A4148DC095ED336FC53 /* NavigationStressUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2902D289A3A2604F93C3100B /* NavigationStressUITests.swift */; };
 		4815454E7475783A094F3508 /* preact-hooks.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 52D415B84CA735B3B8845F5E /* preact-hooks.module.js */; };
 		486F06F685010C3279CCBA3E /* WikiLinksUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14F9F8FBEB782DAC56C7A390 /* WikiLinksUITests.swift */; };
@@ -611,6 +614,7 @@
 		75B75A7713FF1676CE2A1BF8 /* HeardFromTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 787F5668426144E8B28D3830 /* HeardFromTests.swift */; };
 		7604B468DB3C21EF7D56D9DF /* JoinLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AC5205EF7FD68D7C5065C73 /* JoinLink.swift */; };
 		7637A309FB8BE9C4CFCBC611 /* NetworkPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9060604CABB2AA90D8EC1B77 /* NetworkPath.swift */; };
+		766E5D92D032BA29F495D472 /* CanvasControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC078EAB6AB91167B2ECB111 /* CanvasControls.swift */; };
 		76B80CE97B1BBCAE648D5D04 /* ShareNotePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66516BF38B1483418D07594C /* ShareNotePopover.swift */; };
 		76EEC0F802A3E143BF60CCBE /* Tips.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAEF55394E3ADF3DB9CF451B /* Tips.swift */; };
 		77150E16C095CB1A108E5FB2 /* ProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 412407ADE0BC387AF7A6D189 /* ProfileTests.swift */; };
@@ -644,6 +648,7 @@
 		7D697289EA910E92468E7993 /* hang-2026.txt in Resources */ = {isa = PBXBuildFile; fileRef = F94EFE0F3B6CF26645227E4B /* hang-2026.txt */; };
 		7D8F3EE478218893B6DE09EA /* NotionDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C7531A2015FDCBFA16D9DFF /* NotionDatabase.swift */; };
 		7DF4FFFA243AA929AED30850 /* ShareLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46BDB7DF9A108C6F27FC4853 /* ShareLinkTests.swift */; };
+		7DF8E0C2F5F4219C545A39EC /* CanvasControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC078EAB6AB91167B2ECB111 /* CanvasControls.swift */; };
 		7E1F1957AF95CA6938B89C1E /* Virgil-Regular.woff2 in Resources */ = {isa = PBXBuildFile; fileRef = 94C4DC7240BA770A8E585CCD /* Virgil-Regular.woff2 */; };
 		7E2EA31EB61B678C8D93773D /* ExtremesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DE676E076D7616ADB19BB34 /* ExtremesTests.swift */; };
 		7E4D089A2EACB9DEBABAB688 /* ListOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3E45D9F4A1C01EDA2629F7A /* ListOrder.swift */; };
@@ -688,6 +693,7 @@
 		848229C4EE00EBF2AF14884F /* PersonaImportShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B3F35DBDD3ABD83842BE5A /* PersonaImportShots.swift */; };
 		84C71D7A778F9E7F9847744A /* ImportGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = D43463B81A1A55A1FFE6B583 /* ImportGuide.swift */; };
 		84F999934D2C8E2260931A07 /* Updater.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBAD2D5CF280D4F4179CB2F7 /* Updater.swift */; };
+		8528A4714416FB386211C967 /* CanvasBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F86798F3AD47E899DC25FE0 /* CanvasBridge.swift */; };
 		854060861AA3A74D0AE454B7 /* KeyCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15D7726410B10FF37FF6EB51 /* KeyCopy.swift */; };
 		8541A44598F18945BC292E62 /* NoteDropTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9167656DA8E3D71E4E9CCB8B /* NoteDropTests.swift */; };
 		855DA45836BC9DAE0F52CE3A /* RowPressSlop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F3756CDFB4168E8DA883124 /* RowPressSlop.swift */; };
@@ -1093,6 +1099,7 @@
 		D88C0916587D588CEA7A3F9B /* AIReviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DEDC7354927F391C2ED487C /* AIReviewCard.swift */; };
 		D8B31E21521EF75B98996EF3 /* UntickAllTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07DF0EF729D4F2CAE8AA1224 /* UntickAllTests.swift */; };
 		D8C6573808152948DAAAEC38 /* NotePagesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86DCF211584370A9F0BE60AE /* NotePagesUITests.swift */; };
+		D8DFCAD99628F8426E48700C /* CanvasNativeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF6BF872C5018A9A9E39199E /* CanvasNativeUITests.swift */; };
 		D8E460522E8DD23119115323 /* GridTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14CD141158D5B7F6272D4DA9 /* GridTableTests.swift */; };
 		D92E5ED0953F386C71530F89 /* ConnectTerminalGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */; };
 		D99238A4F1F1EE32EDA155B3 /* RecentlyDeletedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A65489A5A3E4082CEE2D038C /* RecentlyDeletedTests.swift */; };
@@ -1439,6 +1446,7 @@
 		1E986333ADF78B16A0249D6D /* FilmScenes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilmScenes.swift; sourceTree = "<group>"; };
 		1EE4B05B29C95279C1F45CE8 /* QuoteBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuoteBarTests.swift; sourceTree = "<group>"; };
 		1F653B9FD402A31DD6E0FAE8 /* LegalLinksTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalLinksTests.swift; sourceTree = "<group>"; };
+		1F86798F3AD47E899DC25FE0 /* CanvasBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasBridge.swift; sourceTree = "<group>"; };
 		1FEB7015C9735D0998823A75 /* FilmSlides.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilmSlides.swift; sourceTree = "<group>"; };
 		205EB78628F64ADE88A5BF62 /* Info-Direct.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Info-Direct.plist"; sourceTree = "<group>"; };
 		209BA8BD7E2B2E18130FE1F6 /* NotePageNetLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePageNetLogTests.swift; sourceTree = "<group>"; };
@@ -1938,6 +1946,7 @@
 		AD8C8130AF61CA715C0082E4 /* ComicShanns-Regular-6e066e8de2ac57ea9283adb9c24d7f0c.woff2 */ = {isa = PBXFileReference; path = "ComicShanns-Regular-6e066e8de2ac57ea9283adb9c24d7f0c.woff2"; sourceTree = "<group>"; };
 		ADE746DF5EC2FAE02F068197 /* NotePreloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePreloadTests.swift; sourceTree = "<group>"; };
 		AE1734A774D6383627567A72 /* template-app-trip-plan-stage-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-trip-plan-stage-light.jpg"; sourceTree = "<group>"; };
+		AE43020C01E482CB0B0F873F /* NotePageWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePageWebView.swift; sourceTree = "<group>"; };
 		AE451C95D74DA3569B6F557A /* ShareModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareModel.swift; sourceTree = "<group>"; };
 		AF617FC2BCA1C1A89CE29D77 /* ImportPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPipeline.swift; sourceTree = "<group>"; };
 		AF6774AB59DBE4E8CF90BC1F /* OnboardingFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlow.swift; sourceTree = "<group>"; };
@@ -1985,6 +1994,7 @@
 		BED0CD995961135B2CEAD915 /* BigLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BigLibraryTests.swift; sourceTree = "<group>"; };
 		BEFA368EF8F56909D229B913 /* Library.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Library.swift; sourceTree = "<group>"; };
 		BF048ED9FB00FF3C28B4B09C /* NoteListMenus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteListMenus.swift; sourceTree = "<group>"; };
+		BF6BF872C5018A9A9E39199E /* CanvasNativeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasNativeUITests.swift; sourceTree = "<group>"; };
 		BF7B30DCB58346B0DD1A4EBD /* CheckRingContrastTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckRingContrastTests.swift; sourceTree = "<group>"; };
 		BFD0E9BB40489A8CB8356B19 /* template-app-habit-tracker.data.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-habit-tracker.data.json"; sourceTree = "<group>"; };
 		C0835B2D8323645A8216DE37 /* SignedOutPrivacyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedOutPrivacyTests.swift; sourceTree = "<group>"; };
@@ -2190,6 +2200,7 @@
 		FB2BE2DFB59EFA5FB2874ED3 /* NoteHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteHistoryTests.swift; sourceTree = "<group>"; };
 		FBA8BFC138D396F3BF6ED0B5 /* AIReviewCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIReviewCardTests.swift; sourceTree = "<group>"; };
 		FBAE6116415336DA1C500A87 /* FormatPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatPopover.swift; sourceTree = "<group>"; };
+		FC078EAB6AB91167B2ECB111 /* CanvasControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasControls.swift; sourceTree = "<group>"; };
 		FC2E45AC3676FB940406D0F9 /* SharedDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedDocument.swift; sourceTree = "<group>"; };
 		FC438BD287857509B0345BE3 /* ConnectOnMac.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectOnMac.swift; sourceTree = "<group>"; };
 		FC894B0D3C73CC7040468483 /* KeyFlowSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyFlowSnapshots.swift; sourceTree = "<group>"; };
@@ -2310,6 +2321,7 @@
 				187BCDDD3155D5979CC60AC7 /* ApplePins.swift */,
 				D66F73D19D6FC8E877D5EDCA /* AppPlace.swift */,
 				5A37C9F239F34435A2AC59C8 /* Backlinks.swift */,
+				1F86798F3AD47E899DC25FE0 /* CanvasBridge.swift */,
 				FE2168B61AFA1D3A7AD6CF68 /* CanvasNote.swift */,
 				88F1B99F935635F64B00833B /* ChecklistShelf.swift */,
 				33A4164E097B32FC526A9143 /* ChecklistShelfSync.swift */,
@@ -2474,6 +2486,7 @@
 				0764F99ACC543A8CA43370C0 /* AskAI.swift */,
 				3203BD32205C8FF6C76FEBEE /* AttachMenu.swift */,
 				99629D4F11ED9D35B4B851A2 /* BlurMotion.swift */,
+				FC078EAB6AB91167B2ECB111 /* CanvasControls.swift */,
 				38844D28999CCC179E6181D8 /* Charm.swift */,
 				39B15BAE937AA38FE2E0983D /* ChecklistWidgetView.swift */,
 				E30BFBB10DA2DD2468EE9BE2 /* CodeBoxes.swift */,
@@ -2522,6 +2535,7 @@
 				97049D2AEE2C89B14A54B08B /* NotePageNetwork.swift */,
 				1CE7E9207A8F80614C5BB35C /* NotePageProject.swift */,
 				34BFC88418CBABA209D07247 /* NotePageView.swift */,
+				AE43020C01E482CB0B0F873F /* NotePageWebView.swift */,
 				1ABEE5E0E13F4DD195A1FF52 /* NotePictureSheet.swift */,
 				C6B80EBC6BC8C83D0C1025B2 /* NotePreload.swift */,
 				8ED1C1A0F84C7EF832832101 /* NoteRowStatus.swift */,
@@ -2880,6 +2894,7 @@
 				3E33664A956D28AE3CE8157C /* BlurMotionTests.swift */,
 				0B2965B65AD833118261881C /* BundleRenameTests.swift */,
 				1D8FCB6149FD618F2DDC1846 /* CalloutsTests.swift */,
+				BF6BF872C5018A9A9E39199E /* CanvasNativeUITests.swift */,
 				0CE4F528E5562BA726B39177 /* CanvasTests.swift */,
 				7EE83FEA708670187B731359 /* CellTextTests.swift */,
 				BA7B4DACE2AD7BE6CDBB1E8B /* CharmTests.swift */,
@@ -4014,6 +4029,7 @@
 				EA70BEDD2F3F4EC520FF466C /* BundleRenameTests.swift in Sources */,
 				9916D8951F536A7EDD65146F /* CalloutShots.swift in Sources */,
 				74459F38B936B93771B28230 /* CalloutsTests.swift in Sources */,
+				D8DFCAD99628F8426E48700C /* CanvasNativeUITests.swift in Sources */,
 				5A5C834304C639FDED7E84D9 /* CanvasTests.swift in Sources */,
 				6933608C9BB3131FFAE85300 /* CaretFixTests.swift in Sources */,
 				DE9B4AB925C582E156DC725A /* CaretScrollTests.swift in Sources */,
@@ -4382,6 +4398,8 @@
 				C2BE09056520338EBE726005 /* BundleRename.swift in Sources */,
 				A5DFC5FA78B581E0AFF00B71 /* CalloutTypePicker.swift in Sources */,
 				B354439E976FD34CF3636F74 /* Callouts.swift in Sources */,
+				8528A4714416FB386211C967 /* CanvasBridge.swift in Sources */,
+				7DF8E0C2F5F4219C545A39EC /* CanvasControls.swift in Sources */,
 				2FA71D086EC60E3C49A0B3F0 /* CanvasNote.swift in Sources */,
 				05B78ACCABC34029545D70D7 /* Capture.swift in Sources */,
 				CAB01CDDDC766A30F3AC9024 /* CaptureBestApps.swift in Sources */,
@@ -4517,6 +4535,7 @@
 				5C6E98AB33671AE17E68D216 /* NotePageNetwork.swift in Sources */,
 				4E40076CD2A78F48319B1D0A /* NotePageProject.swift in Sources */,
 				83D3C7CBEE74D767F5D349E2 /* NotePageView.swift in Sources */,
+				37F67893A3CA3DF22262B161 /* NotePageWebView.swift in Sources */,
 				ED99F4D5ECECFE19B9357EC8 /* NotePicture.swift in Sources */,
 				C332BD64C0646FB55F66D43F /* NotePictureSheet.swift in Sources */,
 				0980170763580CCC44FE8B3B /* NotePreload.swift in Sources */,
@@ -4747,6 +4766,8 @@
 				1BCF71078355965AC9313B22 /* BundleRename.swift in Sources */,
 				5618776291D1F61568C88D48 /* CalloutTypePicker.swift in Sources */,
 				1D23E0981B03C260519CC31F /* Callouts.swift in Sources */,
+				0BA0A63A62CB811573A0CB92 /* CanvasBridge.swift in Sources */,
+				766E5D92D032BA29F495D472 /* CanvasControls.swift in Sources */,
 				F088FCECD377E0AF1BD227E0 /* CanvasNote.swift in Sources */,
 				85CE6CEEC52E3B261A4B199E /* Capture.swift in Sources */,
 				7FBD5A13A103939FE62E07D7 /* CaptureBestApps.swift in Sources */,
@@ -4882,6 +4903,7 @@
 				63B8C0E40C655A8710B468AD /* NotePageNetwork.swift in Sources */,
 				B29F2A3CDF3B7AB2C36912B9 /* NotePageProject.swift in Sources */,
 				2B69CBFA3196047D9F11B805 /* NotePageView.swift in Sources */,
+				47BAD3A91AD9AD89683B6D0F /* NotePageWebView.swift in Sources */,
 				B77283614CABE539B96B4CDE /* NotePicture.swift in Sources */,
 				0E3D95B8E3D15966A56B3620 /* NotePictureSheet.swift in Sources */,
 				33DE71908E0A7B856023B5C7 /* NotePreload.swift in Sources */,

@@ -7,6 +7,7 @@ struct NoteListView: View {
     @Environment(\.modelContext) private var context
     #if os(macOS)
     @Environment(\.listSidebarHidden) private var listSidebarHidden
+    @Environment(\.columnsToolbarHidden) private var columnsToolbarHidden
     #endif
     let scope: Scope
     /// Several notes can be selected (⌘-click, ⇧-click, ⌘A on the Mac; on iPhone, Select Notes in the ••• menu, Edit in Recently Deleted, or a two-finger swipe).
@@ -655,6 +656,9 @@ struct NoteListView: View {
             // made the bar rebuild mid-slide, and its buttons faded in from the wrong place. One
             // item, so one island like the note's own: as a group of two items macOS drew them
             // sometimes apart and sometimes together (Emil, 6 November 2026).
+            // Not while a canvas has the window, nor from the list peeking in over it (CanvasFocus):
+            // hidden items still took their room, and pushed the note's share and ••• to the middle.
+            if !columnsToolbarHidden {
             ToolbarSpacer(.flexible)
             ToolbarItem {
                 HStack(spacing: 0) {
@@ -666,6 +670,7 @@ struct NoteListView: View {
                     }
                 }
                 .labelStyle(.iconOnly)
+            }
             }
             #endif
         }

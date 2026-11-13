@@ -41,17 +41,38 @@ body { font-family: var(--amber-font); -webkit-user-select: none; user-select: n
   --shadow-island: 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
-/* Not here: the help button and dialog (links to the drawing engine's site), the shape library
-   (it browses a website), and anything that would reach the network. */
+/* None of the engine's own controls show: the app's toolbar (Mac), tool bar (iPhone), menus and style
+   popover stand in for them (CanvasBridge.swift). Its options turn off what they can (canvas actions,
+   the image tool, the top-right corner, the welcome screen); the rest has no option, so it goes here:
+   the tool bar, the main menu, the properties panel, the hint line, the zoom and undo pills, the help,
+   the library, toasts, its right-click menu and the mobile bars. The drawing and the text being typed
+   (.excalidraw-textEditorContainer) stay. */
+.excalidraw .layer-ui__wrapper,
+.excalidraw .App-menu,
+.excalidraw .App-menu_top,
+.excalidraw .App-bottom-bar,
+.excalidraw .App-toolbar,
+.excalidraw .App-toolbar-content,
+.excalidraw .App-mobile-menu,
+.excalidraw .mobile-misc-tools-container,
+.excalidraw .FixedSideContainer,
+.excalidraw .HintViewer,
+.excalidraw .layer-ui__wrapper__footer,
+.excalidraw .footer-center,
+.excalidraw .undo-redo-buttons,
+.excalidraw .zoom-actions,
 .excalidraw .help-icon,
 .excalidraw .HelpDialog,
+.excalidraw .Dialog,
+.excalidraw .Modal,
+.excalidraw .sidebar,
+.excalidraw .default-sidebar,
 .excalidraw .default-sidebar-trigger,
 .excalidraw .sidebar-trigger,
-.excalidraw .dropdown-menu-item[data-testid="toolbar-embeddable"],
-.excalidraw .dropdown-menu-item[data-testid="toolbar-magicframe"],
-.excalidraw .dropdown-menu-item[data-testid="toolbar-text-to-diagram"],
-.excalidraw .dropdown-menu-item[data-testid="toolbar-mermaid"] { display: none !important; }
-
-/* Welcome: Pinto's type, quiet. */
-.excalidraw .welcome-screen-center__heading { font-family: var(--amber-font); font-size: 1.25rem; font-weight: 500; color: var(--amber-text-secondary); }
-.excalidraw .welcome-screen-decor { font-family: var(--amber-font); color: var(--amber-text-secondary); }
+.excalidraw .context-menu,
+.excalidraw .popover,
+.excalidraw .Toast,
+.excalidraw .scroll-back-to-content,
+.excalidraw .excalidraw-hyperlinkContainer,
+.excalidraw .welcome-screen-center,
+.excalidraw .welcome-screen-decor { display: none !important; }

@@ -10,11 +10,16 @@
 //   since this page last saved comes in; what you changed here stays.
 // - Elements an AI wrote in the short "skeleton" form ({ type, x, y, width, height, label }) are
 //   filled out on load and saved back in full.
+// - Everything you press is the app's own (native) controls: none of the engine's toolbars, menus,
+//   hints or dialogs show. The app drives the page through amber._canvasCommand(command) and the page
+//   reports what's selected, the active tool and the current style through the amberCanvas message
+//   (CanvasBridge.swift has both shapes).
 import React, { useEffect, useState, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import {
-  Excalidraw, MainMenu, WelcomeScreen, restore, restoreElements, convertToExcalidrawElements, CaptureUpdateAction,
+  Excalidraw, MainMenu, restore, restoreElements, convertToExcalidrawElements, CaptureUpdateAction,
+  getCommonBounds, sceneCoordsToViewportCoords,
 } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import "./pinto.css";
@@ -65,6 +70,157 @@ function sceneFrom(elements, appState, files) {
     files: ownFiles,
   };
 }
+
+
+// MARK: The app's controls
+
+/** What the app's style controls set, as the engine's own actions (so each change is one Undo step). */
+const STYLE = {
+  strokeColor: (v) => ["changeStrokeColor", { currentItemStrokeColor: v }],
+  backgroundColor: (v) => ["changeBackgroundColor", { currentItemBackgroundColor: v }],
+  fillStyle: (v) => ["changeFillStyle", v],
+  strokeWidth: (v) => ["changeStrokeWidth", v],
+  strokeStyle: (v) => ["changeStrokeStyle", v],
+  opacity: (v) => ["changeOpacity", v],
+  fontFamily: (v) => ["changeFontFamily", { currentItemFontFamily: v }],
+  fontSize: (v) => ["changeFontSize", v],
+  startArrowhead: (v) => ["changeArrowhead", { position: "start", type: v }],
+  endArrowhead: (v) => ["changeArrowhead", { position: "end", type: v }],
+};
+/** The app's menu commands, by the engine's action names. */
+const ACTIONS = {
+  undo: "undo", redo: "redo", bringToFront: "bringToFront", sendToBack: "sendToBack", bringForward: "bringForward",
+  sendBackward: "sendBackward", duplicate: "duplicateSelection", delete: "deleteSelectedElements", selectAll: "selectAll",
+  zoomIn: "zoomIn", zoomOut: "zoomOut", resetZoom: "resetZoom", zoomToFit: "zoomToFit", clear: "clearCanvas",
+};
+const TOOLS = new Set(["selection", "hand", "rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text", "eraser"]);
+
+/** Keys that would open the engine's own dialogs and panels, which aren't shown here. */
+export function blockedKey(e) {
+  const cmd = e.metaKey || e.ctrlKey, k = (e.key || "").toLowerCase();
+  if (e.key === "?") return true;                                   // help
+  if (cmd && (k === "/" || k === "f" || k === "k" || (e.shiftKey && (k === "p" || k === "e")))) return true; // palette, search, link, export
+  if (e.altKey && e.code === "Slash") return true;                  // stats
+  if (!cmd && !e.altKey && (k === "f" || k === "k" || k === "i")) return true; // frame, laser, image
+  return false;
+}
+
+/** What the page tells the app: the tool, what's selected, and the style the controls show. */
+export function stateOf(api, app) {
+  const s = api.getAppState();
+  const ids = s.selectedElementIds || {};
+  const selected = Object.keys(ids).length ? api.getSceneElements().filter((e) => ids[e.id]) : [];
+  const first = selected[0];
+  const pick = (key, current) => (first && first[key] !== undefined ? first[key] : s[current]);
+  const history = app && app.history;
+  // Where the selection is on screen, in the page's points: the app floats its style bar above it.
+  let bounds = null;
+  if (selected.length) {
+    const [x1, y1, x2, y2] = getCommonBounds(selected);
+    const a = sceneCoordsToViewportCoords({ sceneX: x1, sceneY: y1 }, s), b = sceneCoordsToViewportCoords({ sceneX: x2, sceneY: y2 }, s);
+    bounds = { x: Math.round(a.x), y: Math.round(a.y), width: Math.round(b.x - a.x), height: Math.round(b.y - a.y) };
+  }
+  return {
+    tool: s.activeTool && s.activeTool.type,
+    selection: selected.map((e) => e.type),
+    bounds,
+    // Moving, resizing or drawing: the style bar stays out of the way.
+    busy: !!(s.selectedElementsAreBeingDragged || s.isResizing || s.isRotating || s.newElement || s.multiElement),
+    editing: !!s.editingTextElement,
+    style: {
+      strokeColor: pick("strokeColor", "currentItemStrokeColor"),
+      backgroundColor: pick("backgroundColor", "currentItemBackgroundColor"),
+      fillStyle: pick("fillStyle", "currentItemFillStyle"),
+      strokeWidth: pick("strokeWidth", "currentItemStrokeWidth"),
+      strokeStyle: pick("strokeStyle", "currentItemStrokeStyle"),
+      opacity: pick("opacity", "currentItemOpacity"),
+      fontFamily: pick("fontFamily", "currentItemFontFamily"),
+      fontSize: pick("fontSize", "currentItemFontSize"),
+      startArrowhead: first && first.type === "arrow" ? first.startArrowhead : s.currentItemStartArrowhead,
+      endArrowhead: first && first.type === "arrow" ? first.endArrowhead : s.currentItemEndArrowhead,
+    },
+    zoom: s.zoom && s.zoom.value,
+    background: s.viewBackgroundColor,
+    canUndo: history ? !history.isUndoStackEmpty : false,
+    canRedo: history ? !history.isRedoStackEmpty : false,
+  };
+}
+
+/** Joins the page to the app: commands in, state out. Returns a function that stops it. */
+function bridge(api) {
+  let app = null;
+  // The engine's action manager: reached through an action of our own, which sees the app on
+  // every key and never matches one.
+  api.registerAction({ name: "pintoBridge", label: "", trackEvent: false, perform: () => false,
+    keyTest: (e, s, els, a) => { app = a; return false; } });
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Unidentified", bubbles: true }));
+  const run = (name, value = null) => {
+    const action = app && app.actionManager.actions[name];
+    if (action) app.actionManager.executeAction(action, "api", value);
+  };
+  let last = null;
+  const report = () => {
+    const state = stateOf(api, app);
+    const json = JSON.stringify(state);
+    if (json === last) return;
+    last = json;
+    try { window.webkit.messageHandlers.amberCanvas.postMessage(state); } catch (e) {}
+  };
+  const command = (c) => {
+    if (!c || typeof c !== "object") return false;
+    switch (c.op) {
+      case "tool":
+        if (!TOOLS.has(c.tool)) return false;
+        api.setActiveTool({ type: c.tool });
+        break;
+      case "style": {
+        const f = STYLE[c.key];
+        if (!f) return false;
+        const [name, value] = f(c.value);
+        run(name, value);
+        break;
+      }
+      case "action":
+        if (!ACTIONS[c.name]) return false;
+        run(ACTIONS[c.name]);
+        break;
+      case "pan": {
+        const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
+        // At once: the next move's pan reads the scroll this one set.
+        flushSync(() => api.updateScene({ appState: { scrollX: s.scrollX + (+c.dx || 0) / z, scrollY: s.scrollY + (+c.dy || 0) / z }, captureUpdate: CaptureUpdateAction.NEVER }));
+        break;
+      }
+      case "background":
+        if (typeof c.color !== "string") return false;
+        run("changeViewBackgroundColor", { viewBackgroundColor: c.color });
+        break;
+      default:
+        return false;
+    }
+    report();
+    return true;
+  };
+  // Coalesced to one report a frame (a timer: a page off screen gets no animation frames): a pan or a drag changes the state on every move.
+  let queued = false;
+  const soon = () => { if (!queued) { queued = true; setTimeout(() => { queued = false; report(); }, 16); } };
+  const off = api.onChange(soon);
+  const offScroll = api.onScrollChange(soon);
+  const offHistory = app && app.history.onHistoryChangedEmitter.on(report);
+  // The engine's own dialogs never open; the app's menus keep their keys (⌘K, ⌘F).
+  const keys = (e) => { if (blockedKey(e)) e.stopImmediatePropagation(); };
+  // No right-click menu from the engine or the web view: the app shows its own (Mac).
+  const menu = (e) => { e.preventDefault(); e.stopImmediatePropagation(); };
+  window.addEventListener("keydown", keys, true);
+  window.addEventListener("contextmenu", menu, true);
+  Object.defineProperty(amber, "_canvasCommand", { value: command, configurable: true });
+  report();
+  return { command, state: () => stateOf(api, app), stop: () => {
+    off(); offScroll(); offHistory && offHistory(); window.removeEventListener("keydown", keys, true); window.removeEventListener("contextmenu", menu, true);
+  } };
+}
+
+/** Pinto's ink for new strokes (the canvas is drawn light and inverted in dark mode). */
+const PINTO_DEFAULTS = { currentItemStrokeColor: "#2a1d10", currentItemFontFamily: 5 };
 
 const prefersDark = () => window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
@@ -133,9 +289,10 @@ function Canvas({ initial }) {
     addEventListener("pagehide", flush);
     document.addEventListener("visibilitychange", hidden);
     Object.defineProperty(amber, "_flush", { value: flush, configurable: true });
-    // For the app's tests: the scene as it would be saved now.
-    Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save }, configurable: true });
-    return () => { off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };
+    const controls = bridge(api);
+    // For the app's tests: the scene as it would be saved now, and what the app's controls see.
+    Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });
+    return () => { controls.stop(); off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };
   }, [api]);
 
   const setRef = useCallback((a) => setApi(a), []);
@@ -143,30 +300,22 @@ function Canvas({ initial }) {
   return (
     <Excalidraw
       excalidrawAPI={setRef}
-      initialData={{ elements: initial.elements, appState: { ...initial.appState, theme }, files: initial.files, scrollToContent: true }}
+      initialData={{ elements: initial.elements, appState: { ...initial.appState, ...PINTO_DEFAULTS, theme }, files: initial.files, scrollToContent: true }}
       theme={theme}
       aiEnabled={false}
       autoFocus
       handleKeyboardGlobally
+      detectScroll={false}
+      // None of the engine's own controls: the app's toolbar, menus and style popover stand in.
       UIOptions={{
-        canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: false, toggleTheme: null, changeViewBackgroundColor: true, clearCanvas: true },
+        canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: false, toggleTheme: null, changeViewBackgroundColor: false, clearCanvas: false },
         tools: { image: false },
       }}
+      renderTopRightUI={() => null}
       validateEmbeddable={false}
     >
-      <MainMenu>
-        <MainMenu.DefaultItems.SearchMenu />
-        <MainMenu.DefaultItems.ClearCanvas />
-        <MainMenu.Separator />
-        <MainMenu.DefaultItems.ChangeCanvasBackground />
-      </MainMenu>
-      <WelcomeScreen>
-        <WelcomeScreen.Center>
-          <WelcomeScreen.Center.Heading>Draw anything. Your AI can draw here too.</WelcomeScreen.Center.Heading>
-        </WelcomeScreen.Center>
-        <WelcomeScreen.Hints.ToolbarHint>Pick a tool and start drawing</WelcomeScreen.Hints.ToolbarHint>
-        <WelcomeScreen.Hints.MenuHint>Background and clear</WelcomeScreen.Hints.MenuHint>
-      </WelcomeScreen>
+      {/* An empty main menu: no items (its button is hidden with the rest in pinto.css). */}
+      <MainMenu />
     </Excalidraw>
   );
 }

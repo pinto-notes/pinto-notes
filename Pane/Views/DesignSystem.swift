@@ -934,3 +934,13 @@ extension ButtonStyle where Self == BarIconButtonStyle {
     static var barIcon: BarIconButtonStyle { .init() }
 }
 #endif
+
+/// The canvas's dock and bar buttons: press scale 0.97 over 120 ms (DESIGN.md, Buttons); their
+/// hover is the grey well they draw themselves (CanvasBarButton).
+struct CanvasPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}

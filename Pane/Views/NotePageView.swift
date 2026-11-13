@@ -26,6 +26,8 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     var onFailure: ([String]) -> Void = { _ in }
     /// A text field in the page gained or lost focus (the app keeps receipts out of its way).
     var onFocus: (Bool) -> Void = { _ in }
+    /// A canvas page's state: its tool, selection and style (CanvasBridge).
+    var onCanvas: (Any) -> Void = { _ in }
     /// Requests and navigations the sandbox stopped (for the Dev readout and tests).
     private(set) var blocked: [String] = []
 
@@ -113,7 +115,11 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         config.dataDetectorTypes = []
         config.allowsInlineMediaPlayback = false
         #endif
+        #if os(macOS)
+        webView = NotePageWebView(frame: .zero, configuration: config)
+        #else
         webView = WKWebView(frame: .zero, configuration: config)
+        #endif
         super.init()
         scheme.owner = self
         // Through a weak proxy: the content controller keeps its handlers alive, and the sandbox
@@ -122,6 +128,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         config.userContentController.addScriptMessageHandler(proxy, contentWorld: .page, name: "amber")
         config.userContentController.add(proxy, contentWorld: .page, name: "amberReady")
         config.userContentController.addScriptMessageHandler(proxy, contentWorld: .page, name: "amberData")
+        config.userContentController.add(proxy, contentWorld: .page, name: "amberCanvas")
         webView.navigationDelegate = self
         webView.uiDelegate = self
         #if os(iOS)
@@ -146,7 +153,11 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         onFailure = { _ in }
         onFocus = { _ in }
         onUpdate = { _ in }
+        onCanvas = { _ in }
         files = { _ in nil }
+        #if os(macOS)
+        (webView as? NotePageWebView)?.canvas = nil
+        #endif
         // A canvas saves a moment after you stop drawing: its last strokes are sent now, and its
         // data handler stays half a second longer for them (the sandbox lives that long too).
         if isCanvas {
@@ -204,6 +215,12 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// Mac): --amber-inset-bottom, and the amber:insets event.
     func setInsets(bottom: CGFloat) {
         webView.callAsyncJavaScript("window.amber && window.amber._insets(bottom)", arguments: ["bottom": Double(bottom)], in: nil, in: .page) { _ in }
+    }
+
+    /// A command from the app's canvas controls (CanvasCommand).
+    func canvas(_ command: CanvasCommand) {
+        webView.callAsyncJavaScript("return window.amber && window.amber._canvasCommand ? window.amber._canvasCommand(c) : false",
+                                    arguments: ["c": command.payload], in: nil, in: .page) { _ in }
     }
 
     func push(body: String, data: NotePageData.Doc? = nil) {
@@ -545,6 +562,11 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     }
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "amberCanvas" {
+            guard isCanvas else { return }
+            onCanvas(message.body)
+            return
+        }
         guard message.name == "amberReady" else { return }
         let m = message.body as? [String: Any]
         if let focus = m?["focus"] as? Bool { onFocus(focus); return }
@@ -613,6 +635,8 @@ struct NotePageView: View {
     /// The page's zoom: under 1 lays it out wider than the view and draws it smaller (the template
     /// library keeps an app at one width on both of its stages, the width its picture has).
     var zoom: CGFloat = 1
+    /// A canvas's controls (CanvasBridge): joined to each page this view shows.
+    var canvas: CanvasController? = nil
     @State private var sandbox: NotePageSandbox?
     @State private var failed: String?
     @State private var ready = false
@@ -679,6 +703,13 @@ struct NotePageView: View {
                 s.onFailure = onFailure
                 s.onFocus = onFocus
                 s.onData = onData
+                if let canvas {
+                    s.onCanvas = { [weak canvas] m in canvas?.receive(m) }
+                    canvas.deliver = { [weak s] c in s?.canvas(c) }
+                    #if os(macOS)
+                    (s.webView as? NotePageWebView)?.canvas = canvas
+                    #endif
+                }
                 s.files = files
                 s.load(html: html, body: text, data: preview ?? NotePageDataStore.shared.doc(noteID), restore: restore)
                 sandbox?.disconnect()

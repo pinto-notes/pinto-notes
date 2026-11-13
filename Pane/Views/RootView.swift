@@ -27,6 +27,12 @@ struct RootView: View {
     @State private var sidebarFit = SidebarFit()
     /// Waits for the window's width to hold still before the sidebar acts on it.
     @State private var sidebarFitWait: Task<Void, Never>?
+    /// A canvas folds both columns away while it's open (CanvasFocus).
+    @State private var canvasFocus = CanvasFocus()
+    /// The note list slid in over a focused canvas, from the window's left edge.
+    @State private var peeking = CanvasEdgePeekFlag.startShown
+    /// The sidebar step, kept per window (SidebarToggle.next).
+    @SceneStorage("sidebarStep") private var storedStep = SidebarToggle.name(.all)
     #endif
     #if os(iOS)
     /// The open notes, for the list beside the note to draw (OpenNotes).
@@ -140,9 +146,12 @@ struct RootView: View {
             // View › Hide Sidebar / Show Sidebar, named for the state it's in (SidebarCommands
             // read "Show Sidebar" both ways beside this three-column split view).
             .focusedSceneValue(\.sidebarVisibility, $visibility)
+            .focusedSceneValue(\.sidebarStep, sidebarStep)
             // The list comes back at the width it had: hidden, it's held at 350 pt for the
             // sidebar's buttons, and kept that when the sidebar came back (council round 3).
             .background(ListWidthKeeper(probe: listWidth))
+            // The note alone: the list folded away by its split view item (ListFold).
+            .background(ListFold(folded: visibility == .detailOnly))
             .onChange(of: visibility) { old, new in listWidth.changed(from: old, to: new) }
             #endif
             .sharedDeleteConfirmation($pendingSharedDelete) { removeNow($0) }
@@ -394,6 +403,16 @@ struct RootView: View {
         }
         .onChange(of: visibility) { _, new in
             sidebarFit.changed(to: new)
+            if !canvasFocus.applying { storedStep = SidebarToggle.name(canvasFocus.isFocused ? (canvasFocus.before ?? new) : new) }
+            if new != .detailOnly { peeking = false }
+        }
+        .onAppear { if let v = SidebarToggle.visibility(named: storedStep), v != visibility { visibility = v } }
+        // A canvas opens with both columns folded away; a text note after it puts them back
+        // (Emil, 13 November 2026: "the folders and the list take too much room").
+        .onChange(of: shownNote, initial: true) { _, id in
+            let canvas = id.flatMap { context.note($0) }.map { CanvasNote.has($0) } ?? false
+            if let v = canvasFocus.opened(id, isCanvas: canvas, visibility: visibility) { setColumns(v, focus: true) }
+            peeking = CanvasEdgePeekFlag.startShown && canvasFocus.isFocused
         }
         // The list column shows its own title; no window title in the bar.
         .toolbar(removing: .title)
@@ -495,7 +514,7 @@ struct RootView: View {
     #endif
 
     private var threeColumns: some View {
-        NavigationSplitView(columnVisibility: $visibility) {
+        NavigationSplitView(columnVisibility: splitVisibility) {
             // The folders and the list are compared before they're worked out again (see their `==`):
             // on the Mac the split view hands its columns over again whenever one is hidden or shown,
             // and on iPhone every pass of this view (each note opened or closed) worked out the
@@ -511,11 +530,8 @@ struct RootView: View {
                 // place with the sidebar shown or hidden; New Folder moved to the Folders heading.
                 .toolbar(removing: .sidebarToggle)
                 .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
-                .environment(\.toggleSidebar, ToggleSidebarAction(shown: visibility == .all) {
-                    withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) {
-                        visibility = SidebarToggle.toggled(visibility)
-                    }
-                })
+                .environment(\.toggleSidebar, sidebarStep)
+                .environment(\.columnsToolbarHidden, canvasFocused)
                 #else
                 // iPad: room for the title beside the account button.
                 .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
@@ -526,6 +542,7 @@ struct RootView: View {
                 .environment(library)
                 #if os(macOS)
                 .environment(\.listSidebarHidden, visibility != .all)
+                .environment(\.columnsToolbarHidden, canvasFocused)
                 // Never narrower than the window's buttons, the sidebar's New Folder, Today and Search,
                 // and More and New Note need with the sidebar hidden: a narrower list had to grow
                 // and shrink back on every toggle (Emil, 6 November 2026). So a toggle only slides.
@@ -888,13 +905,16 @@ struct RootView: View {
             // Keep the stage across selections. Native toolbar visibility hides the items and
             // their glass without rebuilding the controls when a note opens again.
             let note = shownNote.flatMap { context.note($0) }.flatMap { $0.deletedAt == nil ? $0 : nil }
+            let focused = canvasFocused
             NoteToolbarStage(showsItems: note != nil,
                              showsWriting: note.map { ($0.isLocked || NoteApps.page($0.id) == nil) && $0.trashedAt == nil } ?? false,
                              history: historyActions, controller: editor, place: note,
                              openScope: { s in
                                  scope = s
                                  if visibility == .detailOnly { visibility = .doubleColumn }
-                             }) {
+                             },
+                             focusBack: focused ? { leaveCanvasFocus() } : nil,
+                             showColumns: visibility == .detailOnly && !focused ? sidebarStep : nil) {
                 if let note {
                     NoteDetailView(note: note, controller: editor, autofocus: justCreated == note.id, onNewNote: newNote) { target, edit in
                         if edit { justCreated = target }
@@ -903,6 +923,17 @@ struct RootView: View {
                         .id(note.id)
                 } else {
                     noNote
+                }
+            }
+            // A focused canvas: the note list slides in over it from the window's left edge.
+            .overlay(alignment: .leading) {
+                if focused {
+                    CanvasEdgePeek(shown: $peeking) {
+                        NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty, showsResults: $listSearching)
+                            .equatable()
+                            .environment(library)
+                            .environment(\.columnsToolbarHidden, true)
+                    }
                 }
             }
         }
@@ -924,6 +955,42 @@ struct RootView: View {
         }
         #endif
     }
+
+    /// What the split view is given. On the Mac a three-column split view doesn't take
+    /// `.detailOnly` (it reported `.all` straight back, 11-13): it gets `.doubleColumn`, and
+    /// ListFold folds the list away itself.
+    private var splitVisibility: Binding<NavigationSplitViewVisibility> {
+        #if os(macOS)
+        Binding(get: { visibility == .detailOnly ? .doubleColumn : visibility },
+                set: { new in if !(visibility == .detailOnly && new == .doubleColumn) { visibility = new } })
+        #else
+        $visibility
+        #endif
+    }
+
+    #if os(macOS)
+    /// A canvas has the window now (CanvasFocus).
+    private var canvasFocused: Bool { canvasFocus.isFocused && visibility == .detailOnly }
+
+    /// The sidebar button and View › Hide Sidebar: folders, list and note; list and note; the note.
+    private var sidebarStep: ToggleSidebarAction {
+        ToggleSidebarAction(visibility: visibility) {
+            canvasFocus.userChanged()
+            setColumns(SidebarToggle.next(visibility), focus: false)
+        }
+    }
+
+    /// The back control on a focused canvas: the columns as they were, the canvas still open.
+    private func leaveCanvasFocus() {
+        setColumns(canvasFocus.leave(), focus: true)
+    }
+
+    private func setColumns(_ v: NavigationSplitViewVisibility, focus: Bool) {
+        canvasFocus.applying = focus
+        withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) { visibility = v }
+        canvasFocus.applying = false
+    }
+    #endif
 
     /// The note pane with no note: several selected, or none.
     private var noNote: some View {
@@ -1417,6 +1484,8 @@ struct PaneCommands: Commands {
     @FocusedValue(\.showHistoryAction) private var showHistory
     @FocusedValue(\.todaysNote) private var todaysNote
     @FocusedValue(\.sidebarVisibility) private var sidebarVisibility
+    @FocusedValue(\.sidebarStep) private var sidebarStep
+    @FocusedValue(\.canvasController) private var canvas
     /// Read so the View menu's text size items enable and disable as the size changes.
     @AppStorage(TextSize.key) private var textSize: Double = 0
 
@@ -1463,15 +1532,10 @@ struct PaneCommands: Commands {
         // the rest. The sidebar group is replaced, not added to: an empty replacement (11-01)
         // took everything after it away.
         CommandGroup(replacing: .sidebar) {
-            Button(SidebarToggle.title(sidebarVisibility?.wrappedValue)) {
-                guard let v = sidebarVisibility else { return }
-                // Reduce Motion: it's there or gone, no slide (council round 4, 11-04).
-                withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) {
-                    v.wrappedValue = SidebarToggle.toggled(v.wrappedValue)
-                }
-            }
+            // The same three steps as the sidebar button (SidebarToggle.next).
+            Button(SidebarToggle.title(sidebarVisibility?.wrappedValue)) { sidebarStep?() }
             .keyboardShortcut("s", modifiers: [.command, .control])
-            .disabled(sidebarVisibility == nil)
+            .disabled(sidebarStep == nil)
             Divider()
             // As in Notes. The shortcuts are Xcode's Fold All and Unfold All.
             Button("Collapse All Sections") { editor?.collapseAllSections() }
@@ -1481,16 +1545,28 @@ struct PaneCommands: Commands {
                 .keyboardShortcut(.rightArrow, modifiers: [.command, .option, .shift])
                 .disabled(editor == nil)
             Divider()
-            // Note text, as in Notes' View menu. A PDF or picture open takes ⌘+ and ⌘− for its zoom.
-            Button(TextSize.biggerTitle) { TextSize.bigger() }
-                .keyboardShortcut("+", modifiers: .command)
-                .disabled(textSize >= Double(TextSize.steps.last!))
-            Button(TextSize.smallerTitle) { TextSize.smaller() }
-                .keyboardShortcut("-", modifiers: .command)
-                .disabled(textSize == 0 || textSize <= Double(TextSize.steps.first!))
-            Button(TextSize.actualTitle) { TextSize.actualSize() }
-                .keyboardShortcut("0", modifiers: .command)
-                .disabled(textSize == 0)
+            // Note text, as in Notes' View menu. A PDF or picture open takes ⌘+ and ⌘− for its zoom,
+            // and so does a canvas, for its drawing (CanvasBridge).
+            if let canvas {
+                Button(CanvasMenu.zoomIn) { canvas.run(.zoomIn) }
+                    .keyboardShortcut("+", modifiers: .command)
+                Button(CanvasMenu.zoomOut) { canvas.run(.zoomOut) }
+                    .keyboardShortcut("-", modifiers: .command)
+                Button(CanvasMenu.actualSize) { canvas.run(.resetZoom) }
+                    .keyboardShortcut("0", modifiers: .command)
+                Button(CanvasMenu.zoomToFit) { canvas.run(.zoomToFit) }
+                    .keyboardShortcut("1", modifiers: [.command, .shift])
+            } else {
+                Button(TextSize.biggerTitle) { TextSize.bigger() }
+                    .keyboardShortcut("+", modifiers: .command)
+                    .disabled(textSize >= Double(TextSize.steps.last!))
+                Button(TextSize.smallerTitle) { TextSize.smaller() }
+                    .keyboardShortcut("-", modifiers: .command)
+                    .disabled(textSize == 0 || textSize <= Double(TextSize.steps.first!))
+                Button(TextSize.actualTitle) { TextSize.actualSize() }
+                    .keyboardShortcut("0", modifiers: .command)
+                    .disabled(textSize == 0)
+            }
             Divider()
             Button("\(AIChangeCopy.title)\u{2026}") { AIChangesCenter.shared.show() }
                 .keyboardShortcut("a", modifiers: [.command, .option])
@@ -1710,14 +1786,87 @@ private struct NoteFirstStyle: ViewModifier {
 #if os(macOS)
 /// View › Hide Sidebar / Show Sidebar for the notes window's split view.
 enum SidebarToggle {
+    /// What the next step does, named for it: hide the folders, then the list, then show both.
     static func title(_ v: NavigationSplitViewVisibility?) -> String {
-        v == nil || v == .all ? "Hide Sidebar" : "Show Sidebar"
+        switch v {
+        case nil, .all?: "Hide Sidebar"
+        case .doubleColumn?: "Hide Note List"
+        default: "Show Sidebar"
+        }
     }
     static func animation(reduceMotion: Bool) -> Animation? { reduceMotion ? nil : .snappy(duration: 0.3) }
 
-    static func toggled(_ v: NavigationSplitViewVisibility) -> NavigationSplitViewVisibility {
-        v == .all ? .doubleColumn : .all
+    /// Three steps, for every note (Emil, 13 November 2026): folders, list and note; list and
+    /// note; the note alone; then all three again.
+    static func next(_ v: NavigationSplitViewVisibility) -> NavigationSplitViewVisibility {
+        switch v {
+        case .all: .doubleColumn
+        case .doubleColumn: .detailOnly
+        default: .all
+        }
     }
+
+    /// For the window's memory (SceneStorage).
+    static func name(_ v: NavigationSplitViewVisibility) -> String {
+        switch v {
+        case .doubleColumn: "list"
+        case .detailOnly: "note"
+        default: "all"
+        }
+    }
+    static func visibility(named name: String) -> NavigationSplitViewVisibility? {
+        ["all": .all, "list": .doubleColumn, "note": .detailOnly][name]
+    }
+}
+
+private struct SidebarStepKey: FocusedValueKey {
+    typealias Value = ToggleSidebarAction
+}
+
+extension FocusedValues {
+    var sidebarStep: ToggleSidebarAction? {
+        get { self[SidebarStepKey.self] }
+        set { self[SidebarStepKey.self] = newValue }
+    }
+}
+
+/// A canvas folds the folders and the list away while it's open, so the drawing has the window
+/// (Emil, 13 November 2026). A text note opened after it puts the columns back as they were.
+/// The back control (or the sidebar button) brings them back on the canvas; that canvas then stays
+/// with the columns until another canvas opens.
+struct CanvasFocus: Equatable {
+    /// The columns to put back, while a canvas has folded them away.
+    private(set) var before: NavigationSplitViewVisibility?
+    /// The canvas open now.
+    private(set) var canvas: UUID?
+    /// The change being made is this one's, not yours.
+    var applying = false
+
+    var isFocused: Bool { canvas != nil && before != nil }
+
+    /// The open note changed: the columns to show now, or nil to leave them.
+    mutating func opened(_ id: UUID?, isCanvas: Bool, visibility v: NavigationSplitViewVisibility) -> NavigationSplitViewVisibility? {
+        if isCanvas, let id {
+            guard canvas != id else { return nil }
+            canvas = id
+            if before == nil { before = v }
+            return v == .detailOnly ? nil : .detailOnly
+        }
+        canvas = nil
+        guard let b = before else { return nil }
+        before = nil
+        return b == v ? nil : b
+    }
+
+    /// Back to the notes, staying on the canvas: the columns as they were (all three if they were folded already).
+    mutating func leave() -> NavigationSplitViewVisibility {
+        let b = before ?? .all
+        before = nil
+        return b == .detailOnly ? .all : b
+    }
+
+    /// You changed the columns yourself: they're yours, nothing is put back later.
+    mutating func userChanged() { before = nil }
 }
 
 private struct SidebarVisibilityKey: FocusedValueKey {
@@ -1823,18 +1972,65 @@ struct ListWidthKeeper: NSViewRepresentable {
 #endif
 
 #if os(macOS)
+/// Folds the notes list away for the note alone (SidebarToggle.next), through the window's split
+/// view controller: SwiftUI's split view has no way to on the Mac.
+struct ListFold: NSViewRepresentable {
+    let folded: Bool
+
+    func makeNSView(context: Context) -> NSView { NSView() }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        let folded = folded
+        DispatchQueue.main.async { [weak view] in
+            guard let item = Self.listItem(in: view?.window) else { return }
+            guard item.isCollapsed != folded else {
+                if !folded { item.canCollapse = false }
+                return
+            }
+            // Collapsible only while it's folded: left on, the list folded away when its divider
+            // was dragged past its least width (MacWindowChromeTests, the narrowest list).
+            if folded { item.canCollapse = true }
+            let done = { if !folded { item.canCollapse = false } }
+            if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+                item.isCollapsed = folded
+                done()
+            } else {
+                NSAnimationContext.runAnimationGroup({ ctx in
+                    ctx.duration = 0.25
+                    item.animator().isCollapsed = folded
+                }, completionHandler: done)
+            }
+        }
+    }
+
+    /// The list's split view item: the middle of the window's three.
+    static func listItem(in window: NSWindow?) -> NSSplitViewItem? {
+        func find(_ v: NSView) -> NSSplitView? {
+            if let s = v as? NSSplitView, s.arrangedSubviews.count >= 3 { return s }
+            for k in v.subviews { if let f = find(k) { return f } }
+            return nil
+        }
+        guard let split = window?.contentView.flatMap(find), let controller = split.delegate as? NSSplitViewController,
+              controller.splitViewItems.count >= 3 else { return nil }
+        return controller.splitViewItems[1]
+    }
+}
+
 /// The sidebar button's action, and whether the sidebar shows now.
 struct ToggleSidebarAction: Equatable {
-    let shown: Bool
+    let visibility: NavigationSplitViewVisibility
     let run: () -> Void
     func callAsFunction() { run() }
-    var title: String { shown ? "Hide Sidebar" : "Show Sidebar" }
-    static func == (a: Self, b: Self) -> Bool { a.shown == b.shown }
+    var shown: Bool { visibility == .all }
+    var title: String { SidebarToggle.title(visibility) }
+    static func == (a: Self, b: Self) -> Bool { a.visibility == b.visibility }
 }
 
 extension EnvironmentValues {
     @Entry var toggleSidebar: ToggleSidebarAction? = nil
     @Entry var listSidebarHidden = false
+    /// A canvas has the window (CanvasFocus): the folders' and the list's toolbar items step away.
+    @Entry var columnsToolbarHidden = false
     /// The notes list: the window's sidebar is hidden, so its buttons sit beside the list's.
 }
 

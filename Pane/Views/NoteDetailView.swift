@@ -58,6 +58,9 @@ struct NoteDetailView: View {
     @State private var showNetLog = false
     @State private var showMakeApp = false
     @State private var showAppInfo = false
+    /// A canvas's controls (CanvasBridge): the toolbar's tools and style, the menus.
+    @State private var canvasControls = CanvasController()
+    @State private var confirmingClearCanvas = false
 
     struct HostAsk: Identifiable {
         let host: String
@@ -860,11 +863,16 @@ struct NoteDetailView: View {
                                          if held.at.timeIntervalSinceNow > -3 { showPageReceipt(held) }
                                      }
                                  },
-                                 insetBottom: pageInsetBottom)
+                                 insetBottom: pageInsetBottom, canvas: isCanvas ? canvasControls : nil)
                         .id(note.id)
                         .opacity(showingPage ? 1 : 0)
                         .allowsHitTesting(showingPage)
                         .accessibilityHidden(!showingPage)
+                        #if os(iOS)
+                        // A canvas runs edge to edge, under the bars (its controls float over it).
+                        .ignoresSafeArea(.container, edges: showingCanvas ? .all : [])
+                        #endif
+                        .overlay { if showingCanvas { CanvasOverlay(canvas: canvasControls) } }
                         // B: the first-open card inside the app, at its top, until Start.
                         .safeAreaInset(edge: .top, spacing: 0) {
                             if showingPage, let m = firstOpen, m.full, m.isApp, FirstOpen.variant == .b {
@@ -898,6 +906,9 @@ struct NoteDetailView: View {
     /// The version that runs: the newest that passed its checks and opens here (NotePageStore.live).
     private var notePage: NotePageStore.Page? { note.isLocked ? nil : NoteApps.page(note.id) }
     private var showingPage: Bool { notePage != nil && mode == .page }
+    /// The note is a canvas (CanvasNote), showing as one: its controls are the app's own.
+    private var isCanvas: Bool { CanvasNote.isCanvas(notePage?.html) }
+    private var showingCanvas: Bool { isCanvas && showingPage }
 
     /// A template just added from the website, opening for the first time.
     private var firstOpen: FirstOpen.Moment? { FirstOpen.shared.pending[note.id] }
@@ -1146,6 +1157,19 @@ struct NoteDetailView: View {
         case .askAI:
             // Only its name ("This Note"): the note's text read here worked out the pane again on every key.
             AskAIMenuItems(subject: .note(.init(title: "")), targets: askTargets) { asking = $0 }
+        case .canvasZoomToFit:
+            Button("Zoom to Fit", systemImage: "arrow.up.left.and.down.right.magnifyingglass") { canvasControls.run(.zoomToFit) }
+                .accessibilityIdentifier("canvas.zoomToFit")
+        case .canvasBackground:
+            Menu("Background", systemImage: "square.fill.on.square") {
+                ForEach(CanvasBackground.all, id: \.hex) { bg in
+                    Toggle(bg.name, isOn: Binding(get: { canvasControls.state.background.lowercased() == bg.hex }, set: { _ in canvasControls.send(.background(bg.hex)) }))
+                }
+            }
+            .accessibilityIdentifier("canvas.background")
+        case .canvasClear:
+            DestructiveMenuButton("Clear Canvas\u{2026}", systemImage: "trash.slash") { confirmingClearCanvas = true }
+                .accessibilityIdentifier("canvas.clear")
         case .recover:
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
                 .accessibilityIdentifier("editor.recover")
@@ -1297,6 +1321,12 @@ struct NoteDetailView: View {
             } message: {
                 Text(Self.recoverMessage)
             }
+            .confirmationDialog("Clear this canvas?", isPresented: $confirmingClearCanvas, titleVisibility: .visible) {
+                Button("Clear Canvas", role: .destructive) { canvasControls.run(.clear) }
+            } message: {
+                Text("Everything on it is removed. Undo brings it back.")
+            }
+            .focusedSceneValue(\.canvasController, showingCanvas ? canvasControls : nil)
             .confirmationDialog("Delete \u{201C}\(note.title)\u{201D} now?", isPresented: $confirmingPurge, titleVisibility: .visible) {
                 Button("Delete Now", role: .destructive) { withAnimation(.snappy) { context.purge(note) } }
             } message: {
@@ -1576,6 +1606,18 @@ struct NoteDetailView: View {
             ToolbarSpacer(.fixed, placement: .primaryAction)
         }
 
+        // A canvas: its own Undo and Redo, at the top as in Freeform (the tools are in its dock).
+        if showingCanvas {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button("Undo", systemImage: "arrow.uturn.backward") { canvasControls.run(.undo) }
+                    .disabled(!canvasControls.canUndo)
+                    .accessibilityIdentifier("canvas.undo")
+                Button("Redo", systemImage: "arrow.uturn.forward") { canvasControls.run(.redo) }
+                    .disabled(!canvasControls.canRedo)
+                    .accessibilityIdentifier("canvas.redo")
+            }
+            ToolbarSpacer(.fixed, placement: .primaryAction)
+        }
         if let collab {
             ToolbarItem(placement: .primaryAction) { PresenceStack(session: collab) { showPeople = true } }
         }
@@ -1737,7 +1779,7 @@ struct NoteDetailView: View {
         Menu {
             let groups = NoteMoreMenu.groups(locked: note.isLocked, vaultOpen: vault.isUnlocked, trashed: note.trashedAt != nil,
                                              hasApp: notePage != nil, appsEnabled: NoteApps.enabled, shared: note.isShared, inOwnWindow: inOwnWindow,
-                                             asks: !askTargets.isEmpty)
+                                             asks: !askTargets.isEmpty, canvas: showingCanvas)
             ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
                 if index > 0 { Divider() }
                 ForEach(group, id: \.self) { moreItem($0) }
@@ -1796,7 +1838,10 @@ enum NoteMoreMenu {
         #endif
     }
 
-    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, duplicate, moveTo, share, history, askAI, recover, delete }
+    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, duplicate, moveTo, share, history, askAI, recover, delete
+        /// A canvas's own: Zoom to Fit, its background, Clear Canvas.
+        case canvasZoomToFit, canvasBackground, canvasClear
+    }
 
     /// In groups split by lines, as Apple Notes groups a note's menu (Emil, 2 November 2026): Open
     /// Note in New Window on the Mac (not in the note's own window); what the note is (pinned,
@@ -1807,7 +1852,7 @@ enum NoteMoreMenu {
     /// `asks`: an AI is connected and can read this note, so Ask an AI About This Note is offered,
     /// in a group of its own above Delete (round 2 of the councils).
     static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool, shared: Bool = false,
-                       phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild, inOwnWindow: Bool = false, asks: Bool = false) -> [[Item]] {
+                       phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild, inOwnWindow: Bool = false, asks: Bool = false, canvas: Bool = false) -> [[Item]] {
         // A note in Recently Deleted can only come back or go for good, like Notes.
         if trashed { return [[.recover, .delete]] }
         var out: [[Item]] = []
@@ -1828,7 +1873,9 @@ enum NoteMoreMenu {
         let ask: [[Item]] = asks && !locked ? [[.askAI]] : []
         // As on the note's row (NoteRowMenu): a locked note's text isn't here to copy.
         let copy: [[Item]] = locked ? [] : [[.duplicate]]
-        return out + [about] + copy + [rest] + ask + [[.delete]]
+        // A canvas: its drawing's own items, first (what the engine's hamburger menu held).
+        let drawing: [[Item]] = canvas ? [[.canvasZoomToFit, .canvasBackground, .canvasClear]] : []
+        return out + drawing + [about] + copy + [rest] + ask + [[.delete]]
     }
 }
 
@@ -2087,6 +2134,11 @@ struct NoteToolbarStage<Pane: View>: View {
     var place: Note? = nil
     /// A breadcrumb's folder, shown in the list.
     var openScope: (Scope) -> Void = { _ in }
+    /// A canvas has the window (CanvasFocus): only a back control to the notes and the note's
+    /// title on the left, share and ••• on the right.
+    var focusBack: (() -> Void)? = nil
+    /// Only the note shows: the sidebar button, to bring the columns back (SidebarToggle.next).
+    var showColumns: ToggleSidebarAction? = nil
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
     #if DEBUG
@@ -2110,7 +2162,36 @@ struct NoteToolbarStage<Pane: View>: View {
             }
         }
             .toolbar {
-                if self.parts != nil {
+                if self.parts != nil, let focusBack {
+                    ToolbarItem(placement: .navigation) {
+                        Button("Notes", systemImage: "chevron.backward", action: focusBack)
+                            .help("Back to Notes (\u{2303}\u{2318}S)")
+                            .accessibilityIdentifier("canvas.back")
+                    }
+                    .hidden(!showsItems)
+                    if let place {
+                        ToolbarItem(placement: .navigation) {
+                            Text(place.title)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Color.muted)
+                                .lineLimit(1)
+                                .fixedSize()
+                                .accessibilityAddTraits(.isHeader)
+                                .accessibilityIdentifier("canvas.title")
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                        .hidden(!showsItems)
+                    }
+                } else if self.parts != nil {
+                    if let showColumns {
+                        ToolbarItem(placement: .navigation) {
+                            Button(showColumns.title, systemImage: "sidebar.left") { showColumns() }
+                                .help(showColumns.title + " (\u{2303}\u{2318}S)")
+                                .buttonStyle(.barIcon)
+                                .accessibilityIdentifier("note.showColumns")
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                    }
                     // Back and forward on the left, then where the note is (Emil, 11-03:
                     // breadcrumbs back), the note's tools on the right. In a note's own window
                     // they sit beside the window's buttons.

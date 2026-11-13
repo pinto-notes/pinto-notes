@@ -332,8 +332,9 @@ import Testing
             let search = items.filter { $0.label == "Search" }
             #expect(search.count == 1, "one Search button")
             let more = try #require(items.first { $0.label == "More" })
-            let buttons = ["Show Sidebar", "Today\u{2019}s note", "Search"].compactMap { l in items.first { $0.label == l } }
-            #expect(buttons.count == 3, "Show Sidebar where Hide Sidebar was, then Today and Search: \(items.map(\.label))")
+            // The sidebar button's next step is the list (SidebarToggle.next): Hide Note List.
+            let buttons = ["Hide Note List", "Today\u{2019}s note", "Search"].compactMap { l in items.first { $0.label == l } }
+            #expect(buttons.count == 3, "Hide Note List where Hide Sidebar was, then Today and Search: \(items.map(\.label))")
             #expect(!items.contains { $0.label == "New Folder" }, "a folder made with the sidebar hidden can't be seen; File › New Folder stays")
             #expect(zip(buttons, buttons.dropFirst()).allSatisfy { $0.frame.maxX <= $1.frame.minX }, "in that order, not overlapping")
             #expect(buttons.allSatisfy { $0.frame.maxX < more.frame.minX }, "before the list's More")

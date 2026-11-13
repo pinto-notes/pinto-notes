@@ -54,6 +54,8 @@ import WebKit
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let scenes = ProcessInfo.processInfo.environment["AMBER_PAGE_SCENES"].map { Set($0.split(separator: ",").map(String.init)) }
         func want(_ scene: String) -> Bool { scenes?.contains(scene) ?? true }
+        try await canvas(dir, want("canvas"))
+        guard scenes != ["canvas"] else { return }
         try await toolbar(dir, want("toolbar"))
         try await libraries(dir, want("lib"))
         try await training(dir, want("training"))
@@ -85,6 +87,37 @@ import WebKit
             let (w, _) = try await Self.open("October budget", size: size, dark: false)
             defer { w.orderOut(nil); w.close() }
             try await MacStoreShots.shoot(dir, "budget-\(name)-light", [("main", w)])
+        }
+    }
+
+    /// A canvas (13 November 2026, direction B): it has the window (both columns folded away), its
+    /// tools in the dock at the foot, a shape selected with the bar above it and its fill swatches
+    /// open, light and dark; and the note list peeking in from the left edge.
+    func canvas(_ dir: URL, _ on: Bool) async throws {
+        guard on else { return }
+        defer { CanvasSelectionBar.startTray = nil; CanvasEdgePeekFlag.startShown = false }
+        for (name, dark, select, peek) in [("canvas-focused-light", false, false, false), ("canvas-selected-light", false, true, false),
+                                           ("canvas-selected-dark", true, true, false), ("canvas-peek-light", false, false, true)] {
+            CanvasSelectionBar.startTray = select ? .fill : nil
+            CanvasEdgePeekFlag.startShown = peek
+            let c = try Self.library()
+            let note = CanvasNote.make(in: .all, context: c.mainContext)
+            note.body = "Publishing flow"
+            NotePageDataStore.shared.set(note.id, ["values": ["scene": CanvasNativeUITests.flowchart], "collections": [String: Any]()])
+            try c.mainContext.save()
+            let w = await AppSnapshotTests.withLastNote(c, "Publishing flow") {
+                MacStoreShots.window(RootView().modelContainer(c).environment(SetupStore()), size: CGSize(width: 1440, height: 900), dark: dark)
+            }
+            defer { w.orderOut(nil); w.close() }
+            try? await Task.sleep(for: .seconds(3))
+            if let web = BestWeb.find(in: w.contentView) {
+                _ = try? await web.evaluateJavaScript("amber._canvas.api.scrollToContent(undefined, { fitToViewport: true, viewportZoomFactor: 0.7 }); 1")
+                try? await Task.sleep(for: .seconds(0.6))
+                if select { _ = try? await web.evaluateJavaScript("amber._canvas.api.updateScene({ appState: { selectedElementIds: { draft: true } } }); 1") }
+                if !select { _ = try? await web.evaluateJavaScript("amber._canvas.api.setActiveTool({ type: 'rectangle' }); 1") }
+            }
+            try? await Task.sleep(for: .seconds(1.2))
+            try await MacStoreShots.shoot(dir, name, [("main", w)])
         }
     }
 
