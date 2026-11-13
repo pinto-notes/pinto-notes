@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import SwiftUI
 import Testing
 @testable import Pane
 
@@ -14,6 +15,39 @@ import Testing
                                                    windowNumber: 7, context: nil, eventNumber: 3, clickCount: 1, pressure: 1))
         let up = try #require(RowPressSlop.lift(after: drag))
         #expect(up.type == .leftMouseUp && up.locationInWindow == drag.locationInWindow && up.windowNumber == 7)
+    }
+
+    /// A dragged note's chip sits on the pointer, wherever on the row the press began (Emil,
+    /// 13 November 2026: grabbed at the row's right end, it trailed far off to the left; pressed
+    /// near a row's top or bottom, it hung below or above the pointer). The numbers are a real
+    /// drag's, logged on the Air: SwiftUI's item is the row, the chip in its middle.
+    @Test func aDragRidesOnThePointer() throws {
+        for below: CGFloat in [-58, -31, 1] {
+            let row = NSDraggingItem(pasteboardWriter: "row" as NSString)
+            row.setDraggingFrame(NSRect(x: -261, y: 1077, width: 272, height: 65), contents: nil)
+            let drawn = NSDraggingImageComponent(key: .icon)
+            drawn.frame = NSRect(x: 71.25, y: 18.5, width: 129.5, height: 28)
+            row.imageComponentsProvider = { [drawn] }
+            DragUnderPointer.center(row, bottomFromPointer: below)
+            let part = try #require(row.imageComponents?.first)
+            // Across: the item's x is from the pointer. Up and down: from the item's bottom, which is `below` from the pointer.
+            let across = row.draggingFrame.minX + part.frame.midX, up = below + part.frame.midY
+            #expect(abs(across) < 0.01 && abs(up) < 0.01, "pressed \(below) from the row's bottom: the chip's middle is \(across), \(up) from the pointer")
+            #expect(part.frame.size == NSSize(width: 129.5, height: 28))
+        }
+        // An item that draws nothing yet: its own middle, across.
+        let plain = NSDraggingItem(pasteboardWriter: "plain" as NSString)
+        plain.draggingFrame = NSRect(x: 40, y: 40, width: 160, height: 30)
+        DragUnderPointer.center(plain, bottomFromPointer: nil)
+        #expect(plain.draggingFrame == NSRect(x: -80, y: 40, width: 160, height: 30))
+        // SwiftUI's drags move; a text view's drag doesn't.
+        #expect(!DragUnderPointer.moves(from: NSTextView()) && !DragUnderPointer.moves(from: nil))
+        #expect(DragUnderPointer.moves(from: NSHostingView(rootView: Text("row"))))
+        // Installed, every session that begins goes through it.
+        DragUnderPointer.install()
+        let begin = try #require(class_getInstanceMethod(NSDraggingSession.self, NSSelectorFromString("setStartLocation:")))
+        let ours = try #require(class_getInstanceMethod(NSDraggingSession.self, #selector(NSDraggingSession.pinto_setStartLocation(_:))))
+        #expect(method_getImplementation(begin) != method_getImplementation(ours))
     }
 
     @Test func aPressUnderGoToNoteIsntOnARow() {

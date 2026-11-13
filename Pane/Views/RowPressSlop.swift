@@ -173,4 +173,70 @@ enum RowPressSlop {
         return found(in: content)
     }
 }
+/// What a drag carries sits on the pointer, wherever on the row the press began. SwiftUI kept the
+/// chip at the press's offset from the row, so a note grabbed at the right of a wide row trailed
+/// its chip far to the left of the pointer (Emil, 13 November 2026). SwiftUI's rows start their
+/// drags their own way: on the Air neither `NSView.beginDraggingSession` nor the table's
+/// `draggingSession(_:willBeginAt:)` ran. Every session sets where it starts as the drag begins,
+/// and there its items' frames are read across from the pointer (tried on the Air: an x of zero
+/// is the pointer). Only SwiftUI's drags are moved: text dragged out
+/// of a note keeps its place, as in every Mac text view.
+@MainActor
+enum DragUnderPointer {
+    private static var installed = false
+
+    static func install() {
+        guard !installed else { return }
+        installed = true
+        guard let own = class_getInstanceMethod(NSDraggingSession.self, NSSelectorFromString("setStartLocation:")),
+              let ours = class_getInstanceMethod(NSDraggingSession.self, #selector(NSDraggingSession.pinto_setStartLocation(_:)))
+        else { return }
+        method_exchangeImplementations(own, ours)
+    }
+
+    /// Whether a drag from `source` is moved: SwiftUI's views only (the rows, the sidebar, files).
+    nonisolated static func moves(from source: Any?) -> Bool {
+        guard let source else { return false }
+        return NSStringFromClass(type(of: source as AnyObject)).contains("SwiftUI")
+    }
+
+    /// Every item of a session that's beginning, onto the pointer.
+    nonisolated static func center(_ session: NSDraggingSession) {
+        // KVC reads the source and the image's offset without naming AppKit's private accessors.
+        guard moves(from: session.value(forKey: "source")) else { return }
+        let below = (session.value(forKey: "draggingImageOffset") as? NSValue)?.pointValue.y
+        session.enumerateDraggingItems(options: [], for: nil, classes: [NSPasteboardItem.self], searchOptions: [:]) { item, _, _ in
+            center(item, bottomFromPointer: below)
+        }
+    }
+
+    /// The middle of what the item draws onto the pointer. SwiftUI's item is the row, with the chip
+    /// in its middle, and stays where the row was against the pointer. Across, the item's x is read
+    /// from the pointer. Up and down AppKit keeps the item where it is and ignores a y set here (on
+    /// the Air, five values drew the chip in the same place); the session's image offset says how
+    /// far the item's bottom is from the pointer (-58 pressed near a row's top, 1 near its
+    /// bottom), so the chip moves inside the item by the difference.
+    nonisolated static func center(_ item: NSDraggingItem, bottomFromPointer below: CGFloat?) {
+        let parts = item.imageComponents ?? []
+        let drawn = parts.reduce(NSRect.null) { $0.union($1.frame) }
+        guard !drawn.isNull, !drawn.isEmpty else {
+            item.draggingFrame.origin.x = -item.draggingFrame.width / 2
+            return
+        }
+        item.draggingFrame.origin.x = -drawn.midX
+        guard let below else { return }
+        let up = -below - drawn.midY
+        for part in parts { part.frame.origin.y += up }
+        item.imageComponentsProvider = { parts }
+    }
+}
+
+extension NSDraggingSession {
+    /// Swapped with AppKit's `setStartLocation:` by DragUnderPointer: calling it here calls
+    /// AppKit's own.
+    @objc func pinto_setStartLocation(_ point: NSPoint) {
+        pinto_setStartLocation(point)
+        DragUnderPointer.center(self)
+    }
+}
 #endif
