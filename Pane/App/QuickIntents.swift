@@ -35,7 +35,11 @@ enum PrivacyWords {
     static let settingsFooterPhone = "Blurs the previews under each title in the note list. Titles and the note you have open still show."
     static let whenSharedTitle = "When your screen is shared"
     static let whenSharedFooter = "Privacy mode turns on while your screen is shared or recorded, and off again when it stops."
+    /// The Mac's: it hears calls too (CallDetection).
+    static let whenSharedTitleMac = "In calls and when sharing your screen"
+    static let whenSharedFooterMac = "Privacy mode turns on during a call or while your screen is shared or recorded, and off again when it ends."
     static let coverTitle = "Your screen is being shared"
+    static let coverTitleCall = "You\u{2019}re in a call"
     static let coverQuestion = "Blur note previews?"
     static let hide = "Blur previews"
     static let show = "Show previews"

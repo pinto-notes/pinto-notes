@@ -964,7 +964,7 @@ import Carbon.HIToolbox
     /// Privacy mode is on the Privacy page, and search finds it by what it does (13 November 2026).
     @Test func searchFindsPrivacyMode() {
         let all = Set(SettingsPage.allCases)
-        for words in ["privacy mode", "blur", "screen sharing", "screen recording", "meetings", "previews"] {
+        for words in ["privacy mode", "blur", "screen sharing", "screen recording", "meetings", "previews", "calls", "teams", "meet", "zoom"] {
             let found = SettingsIndex.matches(words, available: all)
             #expect(found.contains { $0.label == "Privacy mode" && $0.page == .security && $0.id == "settings.privacyMode" },
                     "\(words) finds Privacy mode on Privacy: \(found.map(\.label))")

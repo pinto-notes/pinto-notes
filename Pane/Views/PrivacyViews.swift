@@ -78,7 +78,7 @@ struct PrivacyCoverView: View {
                 .foregroundStyle(Color.amberInk)
                 .accessibilityHidden(true)
             VStack(spacing: 4) {
-                Text(PrivacyWords.coverTitle)
+                Text(mode.coverTitle)
                     .font(titleFont)
                     .multilineTextAlignment(.center)
                     .accessibilityAddTraits(.isHeader)
@@ -159,18 +159,27 @@ struct PrivacyModeSection: View {
             Toggle(PrivacyWords.name, isOn: Binding(get: { mode.isOn }, set: { mode.setManual($0) }))
                 .settingsSwitch()
                 .accessibilityIdentifier("settings.privacyMode")
-            Picker(PrivacyWords.whenSharedTitle, selection: Binding(get: { mode.whenShared }, set: { mode.whenShared = $0 })) {
+            Picker(Self.pickerTitle, selection: Binding(get: { mode.whenShared }, set: { mode.whenShared = $0 })) {
                 ForEach(PrivacyMode.WhenShared.allCases) { Text($0.title).tag($0) }
             }
             .accessibilityIdentifier("settings.privacyWhenShared")
         } footer: {
-            Text(footer).foregroundStyle(.secondary)
+            Text(Self.footer).foregroundStyle(.secondary)
         }
     }
 
-    private var footer: String {
+    /// The Mac hears calls too (CallDetection); the iPhone only knows about sharing.
+    static var pickerTitle: String {
         #if os(macOS)
-        "\(PrivacyWords.settingsFooter) \(PrivacyWords.whenSharedFooter) The Mac can tell when Zoom, Screen Sharing or a screen recording is on. For a meeting in a browser, use View \u{203A} \(PrivacyWords.menuTitle) (\u{2303}\u{2318}P)."
+        PrivacyWords.whenSharedTitleMac
+        #else
+        PrivacyWords.whenSharedTitle
+        #endif
+    }
+
+    static var footer: String {
+        #if os(macOS)
+        "\(PrivacyWords.settingsFooter) \(PrivacyWords.whenSharedFooterMac) Calls count in Teams, Zoom, FaceTime, Slack and other meeting apps, and in browsers. You can also use View \u{203A} \(PrivacyWords.menuTitle) (\u{2303}\u{2318}P)."
         #else
         "\(PrivacyWords.settingsFooterPhone) \(PrivacyWords.whenSharedFooter) You can also add it to Control Centre."
         #endif

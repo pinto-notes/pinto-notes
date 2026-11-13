@@ -58,9 +58,9 @@ import AppKit
     static func on() { PrivacyModeInteractionReset.reset(); PrivacyMode.shared.setManual(true) }
 
     /// A model that's asking, for the cover's picture (the app's own stays off).
-    static func asking() -> PrivacyMode {
+    static func asking(call: Bool = false) -> PrivacyMode {
         let m = PrivacyMode(store: MemoryDefaults())
-        m.sharingChanged(true)
+        if call { m.callChanged(true) } else { m.sharingChanged(true) }
         return m
     }
 
@@ -103,11 +103,13 @@ import AppKit
         }
         try Self.render(behind.overlay { PrivacyCoverView(mode: Self.asking()) }.modelContainer(c).frame(width: 900, height: 560),
                         dark: dark, to: dir.appending(path: "mac-cover-\(mode).png"))
+        try Self.render(behind.overlay { PrivacyCoverView(mode: Self.asking(call: true)) }.modelContainer(c).frame(width: 900, height: 560),
+                        dark: dark, to: dir.appending(path: "mac-cover-call-\(mode).png"))
         // The eye in the toolbar's place, and Settings › Privacy's section.
         try await VersionHistorySnapshots.shoot(PrivacyEyeButton().buttonStyle(.barIcon).padding(12),
                                                 to: dir.appending(path: "mac-eye-\(mode).png"), size: CGSize(width: 60, height: 52), dark: dark)
-        try await VersionHistorySnapshots.shoot(Form { PrivacyModeSection() }.formStyle(.grouped).frame(width: 560, height: 260),
-                                                to: dir.appending(path: "mac-settings-\(mode).png"), size: CGSize(width: 560, height: 260), dark: dark)
+        try await VersionHistorySnapshots.shoot(Form { PrivacyModeSection() }.formStyle(.grouped).frame(width: 560, height: 300),
+                                                to: dir.appending(path: "mac-settings-\(mode).png"), size: CGSize(width: 560, height: 300), dark: dark)
     }
     #endif
 
