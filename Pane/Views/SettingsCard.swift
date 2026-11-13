@@ -33,10 +33,10 @@ extension EnvironmentValues {
 
 /// Navigation uses this card's State storage, so an earlier callback reads the current path.
 /// Comparing the closure itself rebuilt the unchanged page on every search-field edit.
-struct OpenSettingsPage: Equatable {
+struct OpenSettingsPage: CustomEquatable {
     var open: (SettingsPage) -> Void
     func callAsFunction(_ place: SettingsPage) { open(place) }
-    static func == (a: Self, b: Self) -> Bool { true }
+    static func isEqual(_ a: Self, _ b: Self) -> Bool { true }
 }
 
 extension EnvironmentValues {

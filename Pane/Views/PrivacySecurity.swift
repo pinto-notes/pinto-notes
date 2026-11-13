@@ -148,7 +148,7 @@ extension AccountCrypto {
 
 /// What Settings › Security shows, read from the account: everything that can open your notes, in
 /// the groups the page draws. Pure, so tests check it without drawing a thing.
-struct SecurityContent: Equatable {
+struct SecurityContent: CustomEquatable {
     /// The AI whose mark a connection shows: its own, or the one its name says (round 20: a
     /// connected Claude and ChatGPT with a key beside them).
     static func aiMark(_ mark: String?, title: String) -> String? {
@@ -213,7 +213,7 @@ struct SecurityContent: Equatable {
         return out
     }
 
-    static func == (a: Self, b: Self) -> Bool { a.openers == b.openers && a.recovery == b.recovery && a.showsProtection == b.showsProtection && a.serverCopy == b.serverCopy }
+    static func isEqual(_ a: Self, _ b: Self) -> Bool { a.openers == b.openers && a.recovery == b.recovery && a.showsProtection == b.showsProtection && a.serverCopy == b.serverCopy }
 
     init(serverCopy: Bool, protection: KeyProtection?, recoverySaved: Bool, backedUp: Bool, others: [KeyDevice],
          connections: [Connection], platform: String = InstallID.platform, now: Date = .now) {
