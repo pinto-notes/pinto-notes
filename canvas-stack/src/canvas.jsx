@@ -141,6 +141,8 @@ export function stateOf(api, app) {
     },
     zoom: s.zoom && s.zoom.value,
     background: s.viewBackgroundColor,
+    // Nothing drawn yet: the app offers its templates (CanvasStart).
+    empty: api.getSceneElements().length === 0,
     canUndo: history ? !history.isUndoStackEmpty : false,
     canRedo: history ? !history.isRedoStackEmpty : false,
   };
@@ -188,6 +190,15 @@ function bridge(api) {
         const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
         // At once: the next move's pan reads the scroll this one set.
         flushSync(() => api.updateScene({ appState: { scrollX: s.scrollX + (+c.dx || 0) / z, scrollY: s.scrollY + (+c.dy || 0) / z }, captureUpdate: CaptureUpdateAction.NEVER }));
+        break;
+      }
+      case "insert": {
+        // A template (or any skeleton elements): added in one step you can undo, then shown whole.
+        if (!Array.isArray(c.elements) || !c.elements.length) return false;
+        const made = convertToExcalidrawElements(c.elements, { regenerateIds: true });
+        api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), ...made], captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+        api.setActiveTool({ type: "selection" });
+        api.scrollToContent(made, { fitToViewport: true, viewportZoomFactor: 0.8, animate: true });
         break;
       }
       case "background":

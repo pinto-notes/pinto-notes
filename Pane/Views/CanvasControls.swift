@@ -23,6 +23,10 @@ struct CanvasOverlay: View {
                 #if os(iOS)
                 .ignoresSafeArea()
                 #endif
+                if CanvasStart.shows(canvas.state) {
+                    CanvasStart(canvas: canvas)
+                        .transition(.opacity)
+                }
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
                     #if os(macOS)
@@ -41,6 +45,52 @@ struct CanvasOverlay: View {
                 }
             }
         }
+    }
+}
+
+// MARK: An empty whiteboard
+
+/// On an empty whiteboard: draw, or start from a template, or ask your AI (Emil, 13 November 2026).
+/// Blank costs nothing: picking a drawing tool or drawing puts it away; a template comes in as one
+/// step Undo takes back.
+struct CanvasStart: View {
+    let canvas: CanvasController
+
+    static func shows(_ s: CanvasState) -> Bool { s.empty && !s.busy && !s.editing && !s.tool.draws && s.tool != .eraser }
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Text("Draw anything, or start from a template")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color.muted)
+            HStack(spacing: 10) {
+                ForEach(WhiteboardTemplate.allCases) { t in
+                    Button { canvas.send(.insert(t)) } label: {
+                        VStack(spacing: 8) {
+                            Image(systemName: t.symbol)
+                                .font(.system(size: 22, weight: .regular))
+                                .frame(height: 26)
+                            Text(t.title)
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundStyle(Color.ink)
+                        .frame(width: 96, height: 80)
+                        .contentShape(.rect(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
+                    .help("Start from \(t.title.lowercased())")
+                    .accessibilityIdentifier("canvas.template.\(t.rawValue)")
+                }
+            }
+            Text("Or ask your AI to draw it for you.")
+                .font(.system(size: 12))
+                .foregroundStyle(Color.muted)
+        }
+        .padding(20)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Start this whiteboard")
+        .accessibilityIdentifier("canvas.start")
     }
 }
 

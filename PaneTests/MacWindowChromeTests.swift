@@ -60,7 +60,7 @@ import Testing
                 func column(_ label: String) -> [Int] { items.filter { $0.label == label }.map(\.column) }
                 try Self.expectSidebarButtons(w, items)
                 #expect(column("Hide Sidebar") == [0] && column("Show Sidebar").isEmpty, "a sidebar button you can see (Emil, 11-04)")
-                #expect(column("New Note").isEmpty && column("More").contains(1), "compose sits with the list, in one island with its More")
+                #expect(column("New Note") == [1] && column("More").contains(1), "the create buttons sit with the list, beside its More")
                 for label in ["Format", "Checklist", "Table", "Attach", "Share"] {
                     #expect(column(label) == [2], "\(label) stays with the note")
                 }
@@ -259,13 +259,15 @@ import Testing
         #expect(items.filter { $0.label == "Search" }.count == 1, "one Search button")
     }
 
-    /// The list's header: More then New Note, together on the right, the same with the sidebar
+    /// The list's header: More, then the create buttons (New Note, New Whiteboard, New App) as one
+    /// glass group (CreateBarItems, 13 November 2026), on the right, the same with the sidebar
     /// shown or hidden.
     static func expectListHeader(_ w: NSWindow, _ items: [(label: String, column: Int, frame: CGRect)]) throws {
-        // One toolbar item: More and New Note in one island.
         let more = try #require(items.first { $0.label == "More" && $0.column == 1 })
+        let create = try #require(items.first { $0.label == "New Note" && $0.column == 1 })
         #expect(!items.contains { $0.label == "Search" && $0.frame.minX > more.frame.maxX }, "no Search in the list's header")
-        #expect(more.frame.width >= 2 * 30, "room for both circles (\(more.frame.width))")
+        #expect(more.frame.width >= 30, "More's circle (\(more.frame.width))")
+        #expect(create.frame.minX >= more.frame.maxX && create.frame.width >= 3 * 30, "the three create buttons after More, one group (\(create.frame))")
         let split = try #require(w.contentView.flatMap { find(NSSplitView.self, in: $0) })
         // The list as seen: the sidebar floats over the column's leading part.
         var list = split.arrangedSubviews[1].convert(split.arrangedSubviews[1].bounds, to: nil)

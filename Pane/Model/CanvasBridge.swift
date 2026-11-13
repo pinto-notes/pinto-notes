@@ -189,6 +189,8 @@ struct CanvasState: Equatable, Sendable {
     var background = "#ffffff"
     var canUndo = false
     var canRedo = false
+    /// Nothing drawn yet (CanvasStart offers the templates). False until the page says so.
+    var empty = false
 
     init() {}
 
@@ -217,6 +219,7 @@ struct CanvasState: Equatable, Sendable {
         background = (m["background"] as? String) ?? background
         canUndo = (m["canUndo"] as? Bool) ?? false
         canRedo = (m["canRedo"] as? Bool) ?? false
+        empty = (m["empty"] as? Bool) ?? false
     }
 
     var hasSelection: Bool { !selection.isEmpty }
@@ -260,6 +263,8 @@ enum CanvasCommand: Equatable, Sendable {
     /// Moves the view by this many points (the drawing follows the pointer).
     case pan(dx: Double, dy: Double)
     case background(String)
+    /// Adds elements in the short form (a template), in one step Undo takes back.
+    case insert(WhiteboardTemplate)
 
     var payload: [String: Any] {
         switch self {
@@ -268,6 +273,7 @@ enum CanvasCommand: Equatable, Sendable {
         case .action(let a): ["op": "action", "name": a.rawValue]
         case .pan(let dx, let dy): ["op": "pan", "dx": dx, "dy": dy]
         case .background(let c): ["op": "background", "color": c]
+        case .insert(let t): ["op": "insert", "elements": t.elements]
         }
     }
 }
@@ -317,5 +323,104 @@ extension FocusedValues {
     var canvasController: CanvasController? {
         get { self[CanvasControllerKey.self] }
         set { self[CanvasControllerKey.self] = newValue }
+    }
+}
+
+/// What an empty whiteboard offers besides drawing (Emil, 13 November 2026: "a quick option to
+/// create a blank whiteboard or use some templates"). Blank costs nothing: draw and they go.
+/// Each is Excalidraw's short form, which the page fills out, so an AI can make the same.
+enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
+    case flowchart, mindMap, retro, kanban, meeting
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .flowchart: "Flowchart"
+        case .mindMap: "Mind map"
+        case .retro: "Retro"
+        case .kanban: "Kanban"
+        case .meeting: "Meeting"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .flowchart: "flowchart"
+        case .mindMap: "point.3.connected.trianglepath.dotted"
+        case .retro: "hand.thumbsup"
+        case .kanban: "rectangle.split.3x1"
+        case .meeting: "person.2"
+        }
+    }
+
+    // Excalidraw's light palette; the canvas inverts it in dark mode.
+    private static let ink = "#2a1d10", yellow = "#ffec99", green = "#b2f2bb", blue = "#a5d8ff", red = "#ffc9c9", violet = "#eebefa", grey = "#e9ecef"
+
+    private static func box(_ id: String, _ type: String = "rectangle", x: Double, y: Double, w: Double, h: Double, text: String, fill: String = "transparent", size: Double = 20) -> [String: Any] {
+        var e: [String: Any] = ["type": type, "id": id, "x": x, "y": y, "width": w, "height": h, "strokeColor": ink,
+                                "backgroundColor": fill, "fillStyle": "solid", "label": ["text": text, "fontSize": size]]
+        if type == "rectangle" { e["roundness"] = ["type": 3] }
+        return e
+    }
+    private static func arrow(from a: String, to b: String, x: Double, y: Double, dx: Double, dy: Double, line: Bool = false) -> [String: Any] {
+        ["type": line ? "line" : "arrow", "x": x, "y": y, "width": dx, "height": dy, "strokeColor": ink,
+         "points": [[0, 0], [dx, dy]], "start": ["id": a], "end": ["id": b]]
+    }
+    private static func text(_ s: String, x: Double, y: Double, size: Double = 28) -> [String: Any] {
+        ["type": "text", "x": x, "y": y, "text": s, "fontSize": size, "strokeColor": ink]
+    }
+    /// A column with its heading on top and cards under it.
+    private static func column(_ id: String, x: Double, title: String, fill: String, cards: [String]) -> [[String: Any]] {
+        var out: [[String: Any]] = [["type": "rectangle", "id": id, "x": x, "y": 0, "width": 300, "height": 460, "strokeColor": ink,
+                                     "backgroundColor": grey, "fillStyle": "solid", "roundness": ["type": 3], "strokeStyle": "dashed"],
+                                    text(title, x: x + 20, y: 16, size: 24)]
+        for (i, c) in cards.enumerated() {
+            out.append(box("\(id)-\(i)", x: x + 20, y: 70 + Double(i) * 110, w: 260, h: 90, text: c, fill: fill, size: 18))
+        }
+        return out
+    }
+
+    var elements: [[String: Any]] {
+        typealias T = WhiteboardTemplate
+        switch self {
+        case .flowchart:
+            return [
+                T.box("start", "ellipse", x: 0, y: 0, w: 180, h: 70, text: "Start", fill: T.green),
+                T.box("step", x: 0, y: 140, w: 180, h: 80, text: "Do the thing", fill: T.blue),
+                T.box("check", "diamond", x: -10, y: 290, w: 200, h: 130, text: "Did it work?", fill: T.yellow),
+                T.box("end", "ellipse", x: 0, y: 500, w: 180, h: 70, text: "Done", fill: T.green),
+                T.box("fix", x: 280, y: 315, w: 180, h: 80, text: "Fix it", fill: T.red),
+                T.arrow(from: "start", to: "step", x: 90, y: 70, dx: 0, dy: 70),
+                T.arrow(from: "step", to: "check", x: 90, y: 220, dx: 0, dy: 70),
+                T.arrow(from: "check", to: "end", x: 90, y: 420, dx: 0, dy: 80),
+                T.arrow(from: "check", to: "fix", x: 190, y: 355, dx: 90, dy: 0),
+                T.arrow(from: "fix", to: "step", x: 370, y: 315, dx: -190, dy: -135),
+            ]
+        case .mindMap:
+            let ideas: [(String, Double, Double, String)] = [("Why", -360, -170, T.yellow), ("Who", 360, -170, T.blue), ("How", -360, 170, T.green), ("When", 360, 170, T.violet)]
+            var out: [[String: Any]] = [T.box("main", "ellipse", x: -110, y: -50, w: 220, h: 100, text: "The big idea", fill: T.yellow, size: 24)]
+            for (i, idea) in ideas.enumerated() {
+                let (t, x, y, fill) = idea
+                out.append(T.box("idea\(i)", x: x - 80, y: y - 35, w: 160, h: 70, text: t, fill: fill))
+                out.append(T.arrow(from: "main", to: "idea\(i)", x: x > 0 ? 110 : -110, y: 0, dx: x > 0 ? x - 190 : x + 190, dy: y, line: true))
+            }
+            return out
+        case .retro:
+            return [T.text("Retro", x: 0, y: -80, size: 36)]
+                + T.column("well", x: 0, title: "Went well", fill: T.green, cards: ["Add a note"])
+                + T.column("better", x: 340, title: "Could be better", fill: T.red, cards: ["Add a note"])
+                + T.column("try", x: 680, title: "Try next", fill: T.blue, cards: ["Add a note"])
+        case .kanban:
+            return T.column("todo", x: 0, title: "To do", fill: T.yellow, cards: ["First task", "Second task"])
+                + T.column("doing", x: 340, title: "Doing", fill: T.blue, cards: ["In progress"])
+                + T.column("done", x: 680, title: "Done", fill: T.green, cards: [])
+        case .meeting:
+            return [T.text("Meeting", x: 0, y: -80, size: 36),
+                    T.box("agenda", x: 0, y: 0, w: 420, h: 260, text: "Agenda", fill: T.blue),
+                    T.box("notes", x: 460, y: 0, w: 420, h: 260, text: "Notes", fill: T.yellow),
+                    T.box("decisions", x: 0, y: 300, w: 420, h: 260, text: "Decisions", fill: T.green),
+                    T.box("actions", x: 460, y: 300, w: 420, h: 260, text: "Action items", fill: T.violet)]
+        }
     }
 }

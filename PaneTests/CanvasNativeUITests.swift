@@ -253,6 +253,29 @@ import UIKit
         #expect(webMenu.items.isEmpty)
     }
 
+    /// An empty whiteboard offers its templates; one comes in whole, joined up, as one step Undo
+    /// takes back (Emil, 13 November 2026: "a quick option to create a blank whiteboard or use
+    /// some templates").
+    @Test func anEmptyWhiteboardOffersTemplatesThatComeInAsOneUndoStep() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([]))
+        defer { j.close() }
+        try await j.ready()
+        await j.until("the page says it's empty") { j.canvas.state.empty }
+        #expect(CanvasStart.shows(j.canvas.state))
+        j.canvas.send(.insert(.flowchart))
+        await j.until("the flowchart is in") { !j.canvas.state.empty }
+        #expect(!CanvasStart.shows(j.canvas.state), "the templates step away")
+        let n = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.type !== 'text').length") as? Int
+        #expect(n == 10, "five shapes and five arrows: \(n ?? -1)")
+        let joined = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.type === 'arrow' && e.startBinding && e.endBinding).length") as? Int
+        #expect(joined == 5, "every arrow joins two shapes: \(joined ?? -1)")
+        let labels = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.type === 'text').map((e) => e.originalText).sort().join('|')") as? String
+        #expect(labels == "Did it work?|Do the thing|Done|Fix it|Start")
+        let web = try #require(j.web as? NotePageWebView)
+        NSApp.sendAction(#selector(NotePageWebView.undo(_:)), to: web, from: NSMenuItem(title: "Undo", action: #selector(NotePageWebView.undo(_:)), keyEquivalent: "z"))
+        await j.until("one Undo takes it back") { j.canvas.state.empty }
+    }
+
     @Test func editUndoAndRedoReachTheDrawingsHistory() async throws {
         let j = try await Joined(scene: CanvasTests.scene(Self.box))
         defer { j.close() }
@@ -292,6 +315,31 @@ import UIKit
         _ = f.enter(from: .all)
         f.userChanged()
         #expect(!f.isOn && f.leave() == nil, "the sidebar button takes over")
+    }
+
+    /// The templates: each a whole drawing whose arrows join shapes in it, with a picture that
+    /// exists; they show only while nothing is drawn and no drawing tool is picked.
+    @Test func theWhiteboardTemplatesAreWhole() {
+        for t in WhiteboardTemplate.allCases {
+            let ids = t.elements.compactMap { $0["id"] as? String }
+            #expect(Set(ids).count == ids.count, "\(t): ids are unique")
+            for e in t.elements where ["arrow", "line"].contains(e["type"] as? String) {
+                for end in ["start", "end"] {
+                    let id = (e[end] as? [String: Any])?["id"] as? String
+                    #expect(id.map(ids.contains) == true, "\(t): an arrow's \(end) is a shape in it")
+                }
+            }
+            #expect(NSImage(systemSymbolName: t.symbol, accessibilityDescription: nil) != nil, "\(t.symbol) exists")
+            #expect(CanvasCommand.insert(t).payload["op"] as? String == "insert")
+        }
+        var s = CanvasState()
+        #expect(!CanvasStart.shows(s), "not before the page has said it's empty")
+        s.empty = true
+        #expect(CanvasStart.shows(s))
+        s.tool = .freedraw
+        #expect(!CanvasStart.shows(s), "a drawing tool picked: you're drawing")
+        s.tool = .selection; s.busy = true
+        #expect(!CanvasStart.shows(s))
     }
 
     /// Naming a canvas: one line, trimmed; empty or unchanged leaves it (13 November 2026).
