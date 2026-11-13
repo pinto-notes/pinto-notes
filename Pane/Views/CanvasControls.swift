@@ -78,6 +78,7 @@ struct CanvasStart: View {
                         .contentShape(.rect(cornerRadius: 14))
                     }
                     .buttonStyle(.plain)
+                    .hoverHighlight(.rect(cornerRadius: 14))
                     .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
                     .help("Start from \(t.title.lowercased())")
                     .accessibilityIdentifier("canvas.template.\(t.rawValue)")
