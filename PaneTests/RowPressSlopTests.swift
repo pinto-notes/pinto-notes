@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import SwiftUI
 import Testing
 @testable import Pane
 
@@ -17,39 +18,35 @@ import Testing
     }
 
     /// A dragged note's chip sits on the pointer, wherever on the row the press began (Emil,
-    /// 13 November 2026: it trailed far off to one side when the row was grabbed at its end).
-    @Test func aDragRidesUnderThePointer() throws {
+    /// 13 November 2026: grabbed at the row's right end, it trailed far off to the left). As a
+    /// session begins, AppKit reads its items' frames from the pointer: zero is the pointer.
+    @Test func aDragRidesOnThePointer() throws {
         #expect(DragUnderPointer.centered(NSRect(x: 0, y: 0, width: 200, height: 30), on: NSPoint(x: 400, y: 50))
                 == NSRect(x: 300, y: 35, width: 200, height: 30))
-        let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 600, height: 100), styleMask: [.borderless], backing: .buffered, defer: false)
-        w.isReleasedWhenClosed = false
-        defer { w.close() }
-        let table = NSTableView(frame: CGRect(x: 0, y: 0, width: 600, height: 100))
-        let text = NSTextView(frame: CGRect(x: 0, y: 0, width: 600, height: 100))
-        w.contentView = NSView(frame: CGRect(x: 0, y: 0, width: 600, height: 100))
-        w.contentView?.addSubview(table)
-        w.contentView?.addSubview(text)
-        // Grabbed near the row's right end; the table put the chip at the row's left.
-        let drag = try #require(NSEvent.mouseEvent(with: .leftMouseDragged, location: NSPoint(x: 560, y: 40), modifierFlags: [], timestamp: 0,
-                                                   windowNumber: w.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
-        let chip = NSDraggingItem(pasteboardWriter: "note" as NSString)
-        chip.draggingFrame = NSRect(x: 0, y: 0, width: 160, height: 30)
-        DragUnderPointer.center([chip], in: table, at: drag)
-        let pointer = table.convert(drag.locationInWindow, from: nil)
-        #expect(abs(chip.draggingFrame.midX - pointer.x) < 0.5 && abs(chip.draggingFrame.midY - pointer.y) < 0.5)
-        #expect(chip.draggingFrame.size == NSSize(width: 160, height: 30))
-        // Text dragged out of a note lifts from where it lies.
-        let words = NSDraggingItem(pasteboardWriter: "words" as NSString)
-        words.draggingFrame = NSRect(x: 0, y: 0, width: 160, height: 30)
-        DragUnderPointer.center([words], in: text, at: drag)
-        #expect(words.draggingFrame == NSRect(x: 0, y: 0, width: 160, height: 30))
-        // Installed, every view's drag goes through it.
+        // SwiftUI's item is the row's width, the chip drawn at its left: the chip is what's centred.
+        let row = NSDraggingItem(pasteboardWriter: "row" as NSString)
+        row.setDraggingFrame(NSRect(x: -261, y: 1077, width: 272, height: 65), contents: nil)
+        let drawn = NSDraggingImageComponent(key: .icon)
+        drawn.frame = NSRect(x: 71.25, y: 18.5, width: 129.5, height: 28)
+        row.imageComponentsProvider = { [drawn] }
+        DragUnderPointer.center(row)
+        let part = try #require(row.imageComponents?.first)
+        let shown = part.frame.offsetBy(dx: row.draggingFrame.minX, dy: row.draggingFrame.minY)
+        #expect(abs(shown.midX) < 0.01 && abs(shown.midY) < 0.01, "the chip's middle on the pointer: \(shown)")
+        #expect(shown.size == NSSize(width: 129.5, height: 28))
+        // An item that draws nothing yet keeps its size, centred.
+        let plain = NSDraggingItem(pasteboardWriter: "plain" as NSString)
+        plain.draggingFrame = NSRect(x: 40, y: 40, width: 160, height: 30)
+        DragUnderPointer.center(plain)
+        #expect(plain.draggingFrame == NSRect(x: -80, y: -15, width: 160, height: 30))
+        // SwiftUI's drags move; a text view's drag doesn't.
+        #expect(!DragUnderPointer.moves(from: NSTextView()) && !DragUnderPointer.moves(from: nil))
+        #expect(DragUnderPointer.moves(from: NSHostingView(rootView: Text("row"))))
+        // Installed, every session that begins goes through it.
         DragUnderPointer.install()
-        let begin = try #require(class_getInstanceMethod(NSView.self, #selector(NSView.beginDraggingSession(with:event:source:))))
-        let ours = try #require(class_getInstanceMethod(NSView.self, #selector(NSView.pinto_beginDraggingSession(with:event:source:))))
+        let begin = try #require(class_getInstanceMethod(NSDraggingSession.self, NSSelectorFromString("setStartLocation:")))
+        let ours = try #require(class_getInstanceMethod(NSDraggingSession.self, #selector(NSDraggingSession.pinto_setStartLocation(_:))))
         #expect(method_getImplementation(begin) != method_getImplementation(ours))
-        #expect(method_getImplementation(class_getInstanceMethod(NSTableView.self, #selector(NSView.beginDraggingSession(with:event:source:)))!)
-                == method_getImplementation(begin), "the lists' tables don't start drags their own way")
     }
 
     @Test func aPressUnderGoToNoteIsntOnARow() {

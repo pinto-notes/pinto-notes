@@ -169,12 +169,14 @@ enum RowPressSlop {
         return found(in: content)
     }
 }
-/// What a drag carries sits under the pointer, wherever on the row the press began. The lists'
-/// tables kept the chip where the row was, at the press's offset from the row's corner, so a note
-/// grabbed at the right of a wide row trailed its chip far to the left of the pointer (Emil,
-/// 13 November 2026). Every drag the app starts goes through `beginDraggingSession`, so the
-/// items are moved there, before the session takes them. Text keeps its own place: a selection
-/// dragged out of a note lifts from where it lies, as in every Mac text view.
+/// What a drag carries sits on the pointer, wherever on the row the press began. SwiftUI kept the
+/// chip at the press's offset from the row, so a note grabbed at the right of a wide row trailed
+/// its chip far to the left of the pointer (Emil, 13 November 2026). SwiftUI's rows start their
+/// drags their own way: on the Air neither `NSView.beginDraggingSession` nor the table's
+/// `draggingSession(_:willBeginAt:)` ran. Every session sets where it starts as the drag begins,
+/// and there its items' frames are read from the pointer (tried on the Air: a frame centred on
+/// zero put the chip's middle on the pointer). Only SwiftUI's drags are moved: text dragged out
+/// of a note keeps its place, as in every Mac text view.
 @MainActor
 enum DragUnderPointer {
     private static var installed = false
@@ -182,19 +184,39 @@ enum DragUnderPointer {
     static func install() {
         guard !installed else { return }
         installed = true
-        let sel = #selector(NSView.beginDraggingSession(with:event:source:))
-        guard let own = class_getInstanceMethod(NSView.self, sel),
-              let ours = class_getInstanceMethod(NSView.self, #selector(NSView.pinto_beginDraggingSession(with:event:source:)))
+        guard let own = class_getInstanceMethod(NSDraggingSession.self, NSSelectorFromString("setStartLocation:")),
+              let ours = class_getInstanceMethod(NSDraggingSession.self, #selector(NSDraggingSession.pinto_setStartLocation(_:)))
         else { return }
         method_exchangeImplementations(own, ours)
     }
 
-    /// Moves each item so its middle is the pointer, keeping its size. A view that draws text
-    /// keeps its items where they are.
-    static func center(_ items: [NSDraggingItem], in view: NSView, at event: NSEvent) {
-        guard !(view is NSText), event.window === view.window else { return }
-        let pointer = view.convert(event.locationInWindow, from: nil)
-        for item in items { item.draggingFrame = centered(item.draggingFrame, on: pointer) }
+    /// Whether a drag from `source` is moved: SwiftUI's views only (the rows, the sidebar, files).
+    nonisolated static func moves(from source: Any?) -> Bool {
+        guard let source else { return false }
+        return NSStringFromClass(type(of: source as AnyObject)).contains("SwiftUI")
+    }
+
+    /// Every item of a session that's beginning, onto the pointer.
+    nonisolated static func center(_ session: NSDraggingSession) {
+        // KVC reads the source without naming AppKit's private accessor.
+        guard moves(from: session.value(forKey: "source")) else { return }
+        session.enumerateDraggingItems(options: [], for: nil, classes: [NSPasteboardItem.self], searchOptions: [:]) { item, _, _ in
+            center(item)
+        }
+    }
+
+    /// The item cut to what it draws (SwiftUI's is the row's width, the chip at its left), with
+    /// the middle of that on the pointer.
+    nonisolated static func center(_ item: NSDraggingItem) {
+        let parts = item.imageComponents ?? []
+        let drawn = parts.reduce(NSRect.null) { $0.union($1.frame) }
+        guard !drawn.isNull, !drawn.isEmpty else {
+            item.draggingFrame = centered(item.draggingFrame, on: .zero)
+            return
+        }
+        for part in parts { part.frame = part.frame.offsetBy(dx: -drawn.minX, dy: -drawn.minY) }
+        item.imageComponentsProvider = { parts }
+        item.draggingFrame = centered(NSRect(origin: .zero, size: drawn.size), on: .zero)
     }
 
     /// `frame`, the same size, with its middle on `point`.
@@ -203,12 +225,12 @@ enum DragUnderPointer {
     }
 }
 
-extension NSView {
-    /// Swapped with `beginDraggingSession(with:event:source:)` by DragUnderPointer: calling it
-    /// here calls AppKit's own.
-    @objc func pinto_beginDraggingSession(with items: [NSDraggingItem], event: NSEvent, source: any NSDraggingSource) -> NSDraggingSession {
-        DragUnderPointer.center(items, in: self, at: event)
-        return pinto_beginDraggingSession(with: items, event: event, source: source)
+extension NSDraggingSession {
+    /// Swapped with AppKit's `setStartLocation:` by DragUnderPointer: calling it here calls
+    /// AppKit's own.
+    @objc func pinto_setStartLocation(_ point: NSPoint) {
+        pinto_setStartLocation(point)
+        DragUnderPointer.center(self)
     }
 }
 #endif
