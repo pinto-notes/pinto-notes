@@ -74,6 +74,31 @@ enum SidebarAICopy {
     static let gap: CGFloat = 10
 }
 
+/// The notes open in an editor right now, in any window (a note can be open twice).
+@MainActor @Observable final class OpenNoteIDs {
+    static let shared = OpenNoteIDs()
+    private(set) var counts: [UUID: Int] = [:]
+    func opened(_ id: UUID) { counts[id, default: 0] += 1 }
+    func closed(_ id: UUID) {
+        guard let n = counts[id] else { return }
+        counts[id] = n > 1 ? n - 1 : nil
+    }
+    func contains(_ id: UUID) -> Bool { counts[id] != nil }
+}
+
+extension SidebarAICopy {
+    /// Not while its note is open: the note itself shows the change (Emil, 12 November 2026:
+    /// "if I have the note open I don't see why I need to see this").
+    /// Nor once you've seen it on the note: it watched itself being written there, so the
+    /// sidebar has nothing to add. `seenAt`: when you last saw an AI's edit of that note.
+    @MainActor static func showsChange(_ c: AIChange, connected: [String]?, open: OpenNoteIDs, seenAt: Date? = nil, now: Date = .now) -> Bool {
+        guard !open.contains(c.noteID) else { return false }
+        // The note's own time for the edit and the change log's can differ by a moment.
+        if let seenAt, seenAt >= c.at.addingTimeInterval(-60) { return false }
+        return showsChange(c, connected: connected, now: now)
+    }
+}
+
 #if os(macOS)
 /// The first row of the sidebar's foot on the Mac, for a week after an AI changed something: its
 /// mark, what it did and when, opening AI Changes. Nothing otherwise (council rounds 6 and 7 asked
@@ -86,7 +111,7 @@ struct SidebarAILine: View {
     var body: some View {
         // A stack, not a Group: with no row it is still there, so the task below still runs.
         VStack(spacing: 0) {
-            if let last, SidebarAICopy.showsChange(last, connected: ConnectedAIs.shared.knownNames) {
+            if let last, SidebarAICopy.showsChange(last, connected: ConnectedAIs.shared.knownNames, open: OpenNoteIDs.shared, seenAt: context.note(last.noteID)?.aiSeenAt) {
                 let title = Self.title(last, context: context)
                 row(ai: last.ai, line: SidebarAICopy.line(last, title: title), label: SidebarAICopy.accessibility(last, title: title)) {
                     TimelineView(.periodic(from: .now, by: 60)) { t in

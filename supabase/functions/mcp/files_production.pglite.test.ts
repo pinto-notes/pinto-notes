@@ -203,7 +203,7 @@ Deno.test("see_app never offers or takes real data unless real previews are serv
   const see = FILE_TOOLS.find((t) => t.name === "see_app")!;
   assert(!("data" in (see.inputSchema.properties as Record<string, unknown>)));
   assert(!/"real"/.test(see.description), see.description);
-  assertStringIncludes(await fails(tool(pg, a, "see_app", { path: "Habits.app", data: "real" })), "sample");
+  assertStringIncludes(await fails(tool(pg, a, "see_app", { path: "Notes/Habits.app", data: "real" })), "sample");
 });
 
 // Needs a browser for the render service (scripts/page-render); CI's server job has none.
@@ -217,15 +217,15 @@ Deno.test({ name: "an app made with the file tools: its tests run on every save,
     const pg = await schemaDB();
     const a = await account(pg);
     const made = await tool(pg, a, "create", { type: "app", path: "Groceries.md" });
-    assertEquals([made.app, made.tests, made.live.startsWith("Live")], ["Groceries.app/", "2 passed, 0 failed", true]);
-    const red = await tool(pg, a, "edit", { path: "Groceries.app/tests/app.test.tsx", old_string: `expect(saved()).toEqual(["Milk"])`, new_string: `expect(saved()).toEqual(["Cheese"])` });
+    assertEquals([made.app, made.tests, made.live.startsWith("Live")], ["Notes/Groceries.app/", "2 passed, 0 failed", true]);
+    const red = await tool(pg, a, "edit", { path: "Notes/Groceries.app/tests/app.test.tsx", old_string: `expect(saved()).toEqual(["Milk"])`, new_string: `expect(saved()).toEqual(["Cheese"])` });
     assertEquals([red.tests, red.live.startsWith("Held back")], ["1 passed, 1 failed", true]);
     // The AI keeps working on the held-back version; fixed, it goes live.
-    assertStringIncludes((await tool(pg, a, "fetch", { id: "Groceries.app/" })).metadata.held_back, "failed its checks");
-    const green = await tool(pg, a, "edit", { path: "Groceries.app/tests/app.test.tsx", old_string: `toEqual(["Cheese"])`, new_string: `toEqual(["Milk"])` });
+    assertStringIncludes((await tool(pg, a, "fetch", { id: "Notes/Groceries.app/" })).metadata.held_back, "failed its checks");
+    const green = await tool(pg, a, "edit", { path: "Notes/Groceries.app/tests/app.test.tsx", old_string: `toEqual(["Cheese"])`, new_string: `toEqual(["Milk"])` });
     assertEquals([green.tests, green.live.startsWith("Live")], ["2 passed, 0 failed", true]);
     // see_app with steps uses it on a throwaway copy.
-    const seen = await tool(pg, a, "see_app", { path: "Groceries.app", steps: [{ type: "Milk", into: "New item" }, { tap: "Add" }] });
+    const seen = await tool(pg, a, "see_app", { path: "Notes/Groceries.app", steps: [{ type: "Milk", into: "New item" }, { tap: "Add" }] });
     const steps = (seen.structured ?? seen).steps as { failed?: string; data_changed?: string[] }[];
     assertEquals(steps.map((s) => !s.failed), [true, true]);
   } finally {
@@ -325,10 +325,10 @@ Deno.test("what the bench found: an app's folders list, an empty Recently Delete
   const a = await account(pg);
   assertEquals((await tool(pg, a, "list", { path: "Recently Deleted/" })).entries, []);
   await tool(pg, a, "create", { type: "app", path: "Habits.md" });
-  const docs = await tool(pg, a, "list", { path: "Habits.app/docs/" });
-  assertEquals([docs.path, docs.files.map((f: { path: string }) => f.path)], ["Habits.app/docs/", ["Habits.app/docs/README.md"]]);
-  assertEquals((await tool(pg, a, "fetch", { id: "Habits.app/docs/" })).text.split("\n").map((l: string) => l.split("  ")[0]), ["Habits.app/docs/README.md"]);
-  assertStringIncludes(await fails(tool(pg, a, "list", { path: "Habits.app/nothing/" })), "No folder");
+  const docs = await tool(pg, a, "list", { path: "Notes/Habits.app/docs/" });
+  assertEquals([docs.path, docs.files.map((f: { path: string }) => f.path)], ["Notes/Habits.app/docs/", ["Notes/Habits.app/docs/README.md"]]);
+  assertEquals((await tool(pg, a, "fetch", { id: "Notes/Habits.app/docs/" })).text.split("\n").map((l: string) => l.split("  ")[0]), ["Notes/Habits.app/docs/README.md"]);
+  assertStringIncludes(await fails(tool(pg, a, "list", { path: "Notes/Habits.app/nothing/" })), "No folder");
   const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" }).format(new Date());
-  assertEquals((await tool(pg, a, "fetch", { id: "Habits.md" })).metadata.today, today);
+  assertEquals((await tool(pg, a, "fetch", { id: "Notes/Habits.md" })).metadata.today, today);
 });

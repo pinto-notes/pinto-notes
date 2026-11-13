@@ -293,3 +293,19 @@ Deno.test("a new sub-note says it was linked from its parent, and a parent read 
   assertStringIncludes(sub.linked_from, "Trips.md");
   assertStringIncludes(await fails(tool(pg, a, "edit", { path: "Trips.md", old_string: "Trips", new_string: "Trips 2027" })), "Read Trips.md with fetch");
 });
+
+Deno.test("a new note written at the top goes in the first folder, as in the app", async () => {
+  const pg = await schemaDB();
+  const a = await account(pg);
+  // No folders yet: one named Notes is made for it.
+  const first = await tool(pg, a, "write", { path: "Packing.md", content: "Packing\n\n- [ ] Passport" });
+  assertEquals(first.written ?? first.created, "Notes/Packing.md");
+  // The person's first folder, whatever its name.
+  const pg2 = await schemaDB();
+  const b = await account(pg2);
+  await folder(pg2, b, "Home");
+  const second = await tool(pg2, b, "create", { path: "Ideas.md", content: "Ideas\n\nOne." });
+  assertEquals(second.created ?? second.written, "Home/Ideas.md");
+  // A path with a folder keeps it.
+  assertEquals((await tool(pg2, b, "write", { path: "Work/Plan.md", content: "Plan" })).created, "Work/Plan.md");
+});

@@ -1673,7 +1673,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         guard markedTextRange == nil else { return }
         takeWhatArrivedWhileComposing()
         recordTyping()
-        core.layoutDelegate.tint.stop()
+        core.layoutDelegate.tint.typed(text)
         // Rows still sliding would cover the new text.
         core.endSlides()
         core.restyle(textStorage, selection: editingSelection, force: true)
@@ -1722,7 +1722,31 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
 
+    func markChanges(from previous: String, to after: String, color: PColor) {
+        let tint = core.layoutDelegate.tint
+        // In the same frame as the words: now if the text is in, else the moment it arrives.
+        tint.whenText(currentText, is: after) { [weak self] in
+            guard let self else { return }
+            tint.play(from: previous, to: after, color: color)
+            self.controller?.markTableCells(from: previous, to: after, color: color)
+            self.popTicks(ChangeTint.tickedLines(from: previous, to: after))
+        }
+    }
+
+    /// An AI's tick gets the pop yours does, once the line is laid out again.
+    private func popTicks(_ lines: [Int]) {
+        guard !lines.isEmpty else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            for line in lines {
+                guard let r = self.core.checkboxRect(line: line, layout: self.textLayoutManager) else { continue }
+                CheckPop.play(in: self.layer, rect: r.offsetBy(dx: self.textContainerInset.left, dy: self.textContainerInset.top))
+            }
+        }
+    }
+
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
+    var tintStrength: CGFloat { core.layoutDelegate.tint.strength }
 
     func clearTint() { core.layoutDelegate.tint.stop() }
 
@@ -1776,6 +1800,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // Until what you type next is saved, the note still holds this: not a change again.
         remember(new)
         replaceText(with: new)
+        // An AI's mark waiting for this text starts now, in the same frame (ChangeTint.textArrived).
+        core.layoutDelegate.tint.textArrived(new)
     }
 
     func takeRestored(_ new: String) {
@@ -1807,7 +1833,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     private func replaceText(with new: String) {
         guard new != text, markedTextRange == nil, let edit = TextDiff.edit(from: text, to: new) else { return }
-        core.layoutDelegate.tint.stop()
+        if !core.layoutDelegate.tint.follow(new) { core.layoutDelegate.tint.stop() }
         // Only what changed is replaced, so your caret, selection and scroll stay put.
         let keep = selectedRange
         let offset = contentOffset
@@ -2705,6 +2731,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
         // A short note still scrolls past its date: never shorter than the view plus the fold.
         var newSize = newSize
+        // Show lifted a change at the end clear of the receipt: the room under it stays until you type.
+        newSize.height = max(newSize.height, showRoom)
         if DesignLook.readingPage, hasDate, let scroll = enclosingScrollView {
             let view = scroll.contentView.bounds.height - scroll.contentInsets.top - scroll.contentInsets.bottom
             newSize.height = max(newSize.height, view + Self.fold)
@@ -3202,7 +3230,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     func textDidChange(_ notification: Notification) {
         guard !hasMarkedText() else { return }
         takeWhatArrivedWhileComposing()
-        core.layoutDelegate.tint.stop()
+        core.layoutDelegate.tint.typed(string)
+        showRoom = 0
         // Rows still sliding would cover the new text.
         core.endSlides()
         core.restyle(textStorage!, selection: editingSelection, force: true)
@@ -3248,7 +3277,91 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
 
+    func markChanges(from previous: String, to after: String, color: PColor) {
+        let tint = core.layoutDelegate.tint
+        // In the same frame as the words: now if the text is in, else the moment it arrives.
+        tint.whenText(currentText, is: after) { [weak self] in
+            guard let self else { return }
+            tint.play(from: previous, to: after, color: color)
+            tint.inView = { [weak self] in (self?.changePlacement(from: previous) ?? 0) == 0 }
+            // Room under the last line while the receipt is up, so the end of the note can scroll
+            // clear of it (council r5). It goes when you type.
+            if let tlm = self.textLayoutManager {
+                self.showRoom = max(self.showRoom, tlm.usageBoundsForTextContainer.maxY + self.textContainerOrigin.y * 2 + 72)
+                if self.frame.height < self.showRoom { self.setFrameSize(CGSize(width: self.frame.width, height: self.showRoom)) }
+            }
+            self.controller?.markTableCells(from: previous, to: after, color: color)
+            self.popTicks(ChangeTint.tickedLines(from: previous, to: after))
+        }
+    }
+
+    /// An AI's tick gets the pop yours does, once the line is laid out again.
+    private func popTicks(_ lines: [Int]) {
+        guard !lines.isEmpty else { return }
+        Task { @MainActor [weak self] in
+            guard let self, let host = self.layer else { return }
+            let origin = self.textContainerOrigin
+            for line in lines {
+                guard let r = self.core.checkboxRect(line: line, layout: self.textLayoutManager) else { continue }
+                self.effectiveAppearance.performAsCurrentDrawingAppearance {
+                    CheckPop.play(in: host, rect: r.offsetBy(dx: origin.x, dy: origin.y))
+                }
+            }
+        }
+    }
+
+    /// Where the first change from `previous` is: 1 below what you can see, -1 above, 0 in view.
+    func changePlacement(from previous: String) -> Int {
+        guard let rect = firstChangeRect(from: previous) else { return 0 }
+        let visible = visibleRect
+        if rect.minY > visible.maxY - 8 { return 1 }
+        if rect.maxY < visible.minY + 8 { return -1 }
+        return 0
+    }
+
+    /// Scrolls the first change from `previous` to a third of the way down, and marks it again.
+    /// The height Show grew the text to, so the change can sit above the receipt (0 when not).
+    private var showRoom: CGFloat = 0
+
+    func showChange(from previous: String) {
+        // TextKit estimates the height of text it hasn't laid out: measure, scroll, and measure again
+        // where it now is, until it holds still.
+        for _ in 0..<4 {
+            if let tlm = textLayoutManager {
+                tlm.ensureLayout(for: tlm.documentRange)
+                // The view grows to the laid-out text, so the scroll can reach the end of it.
+                let needed = tlm.usageBoundsForTextContainer.maxY + textContainerOrigin.y * 2
+                if frame.height < needed { setFrameSize(CGSize(width: frame.width, height: needed)) }
+            }
+            guard let rect = firstChangeRect(from: previous) else { return }
+            let visible = visibleRect
+            // Room under a change at the very end, so it scrolls up clear of the receipt rather
+            // than staying under it at the bottom edge (council r2 pictures).
+            // About 40% up from the bottom, its neighbours above it: a third of the way down left
+            // the page mostly empty under a change at the end (council r6).
+            showRoom = max(showRoom, rect.maxY + visible.height * 0.4)
+            if frame.height < showRoom { setFrameSize(CGSize(width: frame.width, height: showRoom)) }
+            let y = min(max(0, rect.minY - visible.height * 0.6), max(0, bounds.height - visible.height))
+            if abs(y - visible.minY) < 1 { break }
+            guard let scroller = enclosingScrollView else { scroll(CGPoint(x: visible.minX, y: y)); break }
+            let clip = scroller.contentView
+            clip.scroll(to: clip.convert(CGPoint(x: visible.minX, y: y), from: self))
+            scroller.reflectScrolledClipView(clip)
+        }
+        core.layoutDelegate.tint.replay(from: previous, to: currentText)
+    }
+
+    func firstChangeRect(from previous: String) -> CGRect? {
+        let text = currentText
+        let first = ChangeTint.changedWords(from: previous, to: text).first
+            ?? ChangeTint.removals(from: previous, to: text).first?.paragraph
+            ?? ChangeTint.paragraphRanges(changedFrom: previous, to: text).first
+        guard let first else { return nil }
+        return remoteRangeRects(first).first ?? remoteCaretRect(at: first.location)
+    }
+
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
+    var tintStrength: CGFloat { core.layoutDelegate.tint.strength }
 
     func clearTint() { core.layoutDelegate.tint.stop() }
 
@@ -3456,6 +3569,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Until what you type next is saved, the note still holds this: not a change again.
         remember(new)
         replaceText(with: new)
+        // An AI's mark waiting for this text starts now, in the same frame (ChangeTint.textArrived).
+        core.layoutDelegate.tint.textArrived(new)
     }
 
     func takeRestored(_ new: String) {
@@ -3485,7 +3600,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     private func replaceText(with new: String) {
         guard new != string, !hasMarkedText(), let storage = textStorage,
               let edit = TextDiff.edit(from: string, to: new) else { return }
-        core.layoutDelegate.tint.stop()
+        // The mark moves with the text: an AI's next edit builds on it (council r3).
+        if !core.layoutDelegate.tint.follow(new) { core.layoutDelegate.tint.stop() }
         // Only what changed is replaced, so your caret, selection and scroll stay put.
         let keep = selectedRange()
         storage.replaceCharacters(in: edit.range, with: edit.replacement)

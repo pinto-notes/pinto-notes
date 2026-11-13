@@ -72,11 +72,23 @@ struct AIGlyph: View {
         }
     }
 
+    /// The AI's caret and name flag while its edit writes itself in: its brand colour, as on the
+    /// welcome note (ChatGPT green, Claude orange); the app's amber for any other.
+    static func caretColor(_ ai: String) -> PColor {
+        switch ai {
+        case "ChatGPT", "Codex": PColor(red: 0.063, green: 0.639, blue: 0.498, alpha: 1)
+        case "Claude", "Claude Code": PColor(red: 0.851, green: 0.467, blue: 0.341, alpha: 1)
+        // Lighter and bluer-green than Google blue: that read as a text selection (council r4).
+        case "Gemini": PColor(red: 0.16, green: 0.66, blue: 0.92, alpha: 1)
+        default: Palette.amber
+        }
+    }
+
     static func color(_ ai: String) -> Color {
         switch ai {
         case "Claude", "Claude Code": Color(red: 0.851, green: 0.467, blue: 0.341)
         case "VS Code": Color(red: 0, green: 0.478, blue: 0.8) // #007ACC
-        case "Gemini": Color(red: 0.259, green: 0.522, blue: 0.957) // #4285F4, Google blue
+        case "Gemini": Color(red: 0.16, green: 0.66, blue: 0.92)
         default: .primary
         }
     }
@@ -188,6 +200,9 @@ struct AIReceipt: View {
     /// Review: each changed part in turn, kept or undone on its own (AIReviewCard). Only for an
     /// edit of the text, not a note the AI wrote.
     var review: (() -> Void)? = nil
+    /// The change is out of view: 1 below, -1 above. `show` scrolls to it.
+    var placement = 0
+    var show: (() -> Void)? = nil
     let undo: () -> Void
 
     /// Whether Review is offered for this receipt: an edit of the note's text, with the text from
@@ -199,59 +214,126 @@ struct AIReceipt: View {
 
     static func transition(reduceMotion: Bool) -> AnyTransition {
         guard slides(reduceMotion: reduceMotion) else { return .opacity }
-        return .asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: 0.96, anchor: .bottom)),
+        // Solid from its first frame: fading in, the note's words showed through it (council r3).
+        // A short rise, on screen the whole way (council r4: cut by the window's edge).
+        return .asymmetric(insertion: .offset(y: 14).combined(with: .scale(scale: 0.96, anchor: .bottom)),
                            removal: .opacity.combined(with: .offset(y: 6)))
     }
 
+    /// Review isn't offered from the receipt (Emil, 12 November 2026: "I can see the changes"):
+    /// the tint shows them, and Undo takes them all back.
+    static let offersReview = false
+    /// Seconds the receipt stays after it lands, a little past the tint's fade.
+    static let stays: Double = 6
+
+    /// A quiet glass capsule in the system's colours, like a Mac or iPhone notice: the AI's mark,
+    /// what it did in the text colour, and Undo in bold (Emil, 12 November 2026: the amber
+    /// capsule with amber words and three links was "super ugly").
     var body: some View {
-        HStack(spacing: 8) {
-            AIGlyph(ai: receipt.by, size: compact ? 12 : 14)
-            Text(compact ? receipt.shortSummary : receipt.summary)
-                .font(.system(size: compact ? 13 : Self.text, weight: .semibold))
+        HStack(spacing: compact ? 7 : 9) {
+            // Two AIs made this change: both their marks, the latest in front (council r5).
+            ZStack(alignment: .leading) {
+                if let other = receipt.earlierBy {
+                    AIGlyph(ai: other, size: compact ? 12 : 14).offset(x: compact ? 16 : 19)
+                }
+                AIGlyph(ai: receipt.by, size: compact ? 12 : 14)
+            }
+            // Side by side with a gap, not overlapping (council r6).
+            .padding(.trailing, receipt.earlierBy == nil ? 0 : (compact ? 16 : 19))
+            Text(compact ? receipt.shortSummary : receipt.summary + (Self.age(receipt.at).map { " \u{00B7} \($0)" } ?? ""))
+                .font(.system(size: compact ? 13 : Self.text, weight: .medium))
                 .lineLimit(1)
                 // Whole, never "ChatGPT changed 3 li…": the capsule grows instead (council round 5).
                 .fixedSize(horizontal: true, vertical: false)
-                .foregroundStyle(Color.amberInk)
-            if receipt.kind != .heldBack {
-            Divider().frame(height: 14)
-            Button("Undo", action: undo)
+                .foregroundStyle(.primary)
+                // A second edit's words replace the first's at once, never drawn over them (council r1).
+                .contentTransition(.identity)
+            if let show, placement != 0, !compact {
+                Button(action: show) {
+                    Label("Show", systemImage: placement > 0 ? "arrow.down" : "arrow.up")
+                        .labelStyle(.titleAndIcon)
+                }
                 .buttonStyle(.hoverLink)
-                .font(.system(size: compact ? 13 : Self.text, weight: .semibold))
-                .foregroundStyle(Color.amberInk)
-                .contentShape(.rect)
-                .accessibilityHint("Puts the note back the way it was before \(receipt.who)'s edit")
+                .font(.system(size: Self.text, weight: .bold))
+                .foregroundStyle(.primary)
+                .padding(.leading, 4)
+                .accessibilityLabel(placement > 0 ? "Show the change below" : "Show the change above")
+                .accessibilityIdentifier("receipt.show")
+            }
+            if receipt.kind != .heldBack {
+                // In the text colour, bolder than the words beside it: not the app's orange next to
+                // ChatGPT's green tint (Emil, 12 November 2026).
+                // "Undo" for one change or several, as Notes does; the width doesn't change
+                // mid-session (council r6). VoiceOver hears what it takes back (undoLabel).
+                // Two AIs' edits: say both go (council r7).
+                Button(receipt.earlierBy == nil ? "Undo" : "Undo both", action: undo)
+                    .buttonStyle(.hoverLink)
+                    .font(.system(size: compact ? 13 : Self.text, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .padding(.leading, compact ? 2 : 4)
+                    .contentShape(.rect)
+                    .accessibilityHint("Puts the note back the way it was before \(receipt.who)'s edit")
             }
             if let review, Self.reviews(receipt), !compact {
-                Divider().frame(height: 14)
                 Button("Review", action: review)
                     .buttonStyle(.hoverLink)
                     .font(.system(size: Self.text, weight: .semibold))
-                    .foregroundStyle(Color.amberInk)
+                    .foregroundStyle(Color.paneAccent)
                     .contentShape(.rect)
                     .accessibilityHint("Goes through each part \(receipt.who) changed, to keep or undo it")
                     .accessibilityIdentifier("receipt.review")
             }
-            // Undo and Review are enough beside each other; Review leads on to the rest (round 21: three
-            // equal links in a small strip). Only where there's no Review, the way to all of them.
-            if let seeAll, receipt.kind == .edit, !compact, review == nil {
-                Divider().frame(height: 14)
+            if let seeAll, receipt.kind == .edit, !compact, review == nil, !Self.quiet {
                 Button("See all changes", action: seeAll)
                     .buttonStyle(.hoverLink)
                     .font(.system(size: Self.text, weight: .semibold))
-                    .foregroundStyle(Color.amberInk)
+                    .foregroundStyle(Color.paneAccent)
                     .contentShape(.rect)
                     .accessibilityIdentifier("receipt.seeAll")
             }
         }
-        .padding(.horizontal, compact ? 11 : 14)
-        .frame(height: compact ? 32 : Self.height)
-        .background(Color.amberSoft, in: .capsule)
-        // A solid edge: the amber of the fill, a step deeper (nothing see-through).
-        .overlay(Capsule().strokeBorder(Color(light: Color(red: 0.96, green: 0.86, blue: 0.70), dark: Color(red: 0.36, green: 0.27, blue: 0.12)), lineWidth: 1))
-        .shadow(color: Color(red: 0.24, green: 0.12, blue: 0.02).opacity(0.12), radius: 12, y: 6)
-        .shadow(color: Color(red: 0.24, green: 0.12, blue: 0.02).opacity(0.08), radius: 2, y: 1)
+        .padding(.leading, compact ? 10 : 12)
+        .padding(.trailing, compact ? 12 : 14)
+        .frame(height: compact ? 30 : Self.height)
+        // A solid fill: the material greyed the words and showed at the ends (council r1).
+        // The shadow on the capsule alone, not on the words and buttons (it drew faint lines at
+        // the ends, council r1).
+        .background {
+            // A soft lift as rings of faint capsules, each a little wider and lower: no edge
+            // anywhere (council r2: layer shadow left stubs; r3: a blur drew as a grey band).
+            ForEach(1...5, id: \.self) { i in
+                Capsule().fill(Color.black.opacity(0.012))
+                    .padding(-CGFloat(i)).offset(y: 1 + CGFloat(i) * 0.6)
+            }
+            Capsule().fill(Self.fill)
+        }
+        .overlay(Capsule().strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5))
+        // A new edit's words, mark and width arrive in one step: no frame where the longer words
+        // run over Undo (council r2).
+        .animation(nil, value: receipt)
         .accessibilityElement(children: .contain)
     }
+
+    /// How long ago, for an edit you only see later ("2 h ago"); nil for one that just happened.
+    static func age(_ at: Date, now: Date = .now) -> String? {
+        let s = now.timeIntervalSince(at)
+        guard s >= 120 else { return nil }
+        if s < 3600 { return "\(Int(s / 60)) min ago" }
+        if s < 86400 { return "\(Int(s / 3600)) h ago" }
+        let days = Int(s / 86400)
+        return days == 1 ? "yesterday" : "\(days) days ago"
+    }
+
+    #if os(macOS)
+    static let fill = Color(nsColor: NSColor(name: nil) { a in
+        a.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.17, alpha: 1) : .white
+    })
+    #else
+    static let fill = Color(uiColor: UIColor { t in t.userInterfaceStyle == .dark ? UIColor(white: 0.17, alpha: 1) : .white })
+    #endif
+
+    /// Just the summary and Undo: AI Changes is in the sidebar and the menu.
+    static let quiet = true
 
     #if os(macOS)
     static let text: CGFloat = 12

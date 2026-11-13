@@ -23,6 +23,32 @@ struct GridTable: Equatable {
         return types[column]
     }
 
+    /// The cells an AI's edit changed, by table: a new row whole, a rewritten row only the cells
+    /// that differ. Tables are matched by their place in the note.
+    static func changedCells(from old: String, to new: String) -> [Int: Set<GridCell>] {
+        let a = find(in: old), b = find(in: new)
+        var out: [Int: Set<GridCell>] = [:]
+        for t in b {
+            let before = t.index < a.count ? a[t.index].rows : []
+            let key = { (r: [String]) in r.joined(separator: "\u{1F}") }
+            let rowsA = before.map(key), rowsB = t.rows.map(key)
+            var inserted = Set<Int>()
+            for change in rowsB.difference(from: rowsA) { if case .insert(let o, _, _) = change { inserted.insert(o) } }
+            let from = ChangeTint.replaced(from: rowsA, to: rowsB)
+            var cells = Set<GridCell>()
+            for r in inserted.sorted() {
+                let row = t.rows[r]
+                if let o = from[r] {
+                    for c in row.indices where c >= before[o].count || before[o][c] != row[c] { cells.insert(GridCell(row: r, column: c)) }
+                } else {
+                    for c in 0..<max(row.count, t.columns) { cells.insert(GridCell(row: r, column: c)) }
+                }
+            }
+            if !cells.isEmpty { out[t.index] = cells }
+        }
+        return out
+    }
+
     /// All tables in the text (code blocks excluded), typed or plain.
     static func find(in text: String) -> [GridTable] {
         let ns = text as NSString
@@ -551,6 +577,7 @@ struct TableGridView: View {
     /// Edges with more columns past them (see GridOverflow).
     @State private var overflow = GridOverflow()
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.colorScheme) private var colorScheme
     @FocusState private var focus: GridCell?
     /// Set when the keyboard (not a click) moves between cells: the caret goes to
     /// the end of the cell's text instead of selecting all of it.
@@ -722,6 +749,9 @@ struct TableGridView: View {
                 // The strip the row handles sit in.
                 Color.clear.frame(width: GridMetrics.handle)
                 grid(widths: widths)
+                    // Behind the words and inside the rounded corners (council r1: it spilled past them
+                    // and dulled the text).
+                    .background(alignment: .topLeading) { aiCellsTint(widths: widths) }
                     .overlay(alignment: .topLeading) { panelCross(widths: widths) }
                     .overlay(alignment: .topLeading) { pickedTint(widths: widths) }
             }
@@ -845,6 +875,28 @@ struct TableGridView: View {
             .accessibilityIdentifier("grid.cross")
             .accessibilityValue("row \(c.row), column \(c.column)")
         }
+    }
+
+    /// The cells an AI just changed, in its colour, as its words in the text are: in at once,
+    /// resting, then fading with them (EditorController.markTableCells).
+    @ViewBuilder
+    private func aiCellsTint(widths: [CGFloat]) -> some View {
+        let cells = controller?.aiCells[table.index] ?? []
+        let color = controller?.aiCellColor.map { Color($0) } ?? Color.paneAccent
+        // Stronger on a dark page, where 24% all but vanished (council r2).
+        let strength = controller?.aiCellsStrength ?? 1
+        let fill: Color = color.opacity((colorScheme == .dark ? 0.45 : 0.24) * strength)
+        ZStack(alignment: .topLeading) {
+            ForEach(Array(cells).filter { $0.row < draft.rows.count && $0.column < widths.count }, id: \.self) { (c: GridCell) in
+                Rectangle().fill(fill)
+                    .frame(width: widths[c.column], height: GridMetrics.row)
+                    .offset(x: widths[..<c.column].reduce(0, +), y: CGFloat(c.row) * GridMetrics.row)
+            }
+        }
+        .frame(width: widths.reduce(0, +), height: CGFloat(draft.rows.count) * GridMetrics.row, alignment: .topLeading)
+        .clipShape(RoundedRectangle(cornerRadius: GridLook.radius, style: .continuous))
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     /// The picked row or column, tinted like selected text.

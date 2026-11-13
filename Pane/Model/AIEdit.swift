@@ -59,6 +59,141 @@ enum AIEdit {
         arrived(note, previousBody: previousBody, previousEditAt: previousAt, quiet: false)
     }
 
+    /// The first heading in `after` that `previous` didn't have, short enough to name.
+    nonisolated static func newHeading(previous: String, after: String) -> String? {
+        let old = Set(previous.components(separatedBy: "\n"))
+        for line in after.components(separatedBy: "\n") where line.hasPrefix("#") && !old.contains(line) {
+            let name = line.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespaces))
+            if !name.isEmpty, name.count <= 30 { return name }
+        }
+        return nil
+    }
+
+    /// An edit in words, when it's one or two plain things: "ticked “Eggs”", "removed “Lemons”", "added
+    /// “Saffron”", "changed “Tuesday” to “Wednesday”", "renamed the note", "added a row to the
+    /// table". Nil for anything else ("changed 3 lines" then).
+    nonisolated static func describe(previous: String, after: String) -> String? {
+        let a = previous.components(separatedBy: "\n"), b = after.components(separatedBy: "\n")
+        let blank = { (l: String) in l.trimmingCharacters(in: .whitespaces).isEmpty }
+        var removed: [String] = [], added: [String] = []
+        for change in b.difference(from: a).inferringMoves() {
+            switch change {
+            case .remove(_, let l, let moved): if moved == nil, !blank(l) { removed.append(l) }
+            case .insert(_, let l, let moved): if moved == nil, !blank(l) { added.append(l) }
+            }
+        }
+        func untick(_ l: String) -> String { l.replacingOccurrences(of: "[x]", with: "[ ]").replacingOccurrences(of: "[X]", with: "[ ]") }
+        func words(_ l: String) -> String {
+            var t = l
+            if let p = ListPrefix(line: t) { t = (t as NSString).substring(from: p.length) }
+            t = t.trimmingCharacters(in: CharacterSet(charactersIn: "#*_`= "))
+            return short(t)
+        }
+        // Short enough that the pill never covers much of the note (council r1), whole when it fits
+        // (council r2: "Book 31: added by…" for 25 letters): cut at a word.
+        func short(_ t: String) -> String {
+            // One rule everywhere: about 30 letters, cut on a word (council r6).
+            guard t.count > 30 else { return t }
+            let head = String(t.prefix(31))
+            let cut = head.lastIndex(of: " ").map { String(head[..<$0]) } ?? head
+            return cut.trimmingCharacters(in: CharacterSet(charactersIn: " ,.;:")) + "…"
+        }
+        // One line changed in place: the title renamed, or a word or two swapped for others.
+        func inPlace(_ old: String, _ new: String) -> String? {
+            let first = { (lines: [String]) in lines.first { !blank($0) } }
+            if first(a) == old, first(b) == new {
+                // The new name, when it's short enough to say (council r4).
+                let name = new.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespaces))
+                return name.isEmpty || name.count > 30 ? "renamed the note" : "renamed the note to \u{201C}\(name)\u{201D}"
+            }
+            let x = old.split(separator: " ").map(String.init), y = new.split(separator: " ").map(String.init)
+            var gone: [Int] = [], put: [Int] = []
+            for change in y.difference(from: x) {
+                switch change {
+                case .remove(let o, _, _): gone.append(o)
+                case .insert(let o, _, _): put.append(o)
+                }
+            }
+            let together = { (i: [Int]) in i.sorted() == Array((i.min() ?? 0)...(i.max() ?? 0)) }
+            // Words only added to the line, or only taken out ("each." to "each, and a rain jacket.").
+            let bare = { (w: String) in w.trimmingCharacters(in: .punctuationCharacters) }
+            let bx = x.map(bare), by = y.map(bare)
+            func sub(_ small: [String], of big: [String]) -> [Int]? {
+                var i = 0, extra: [Int] = []
+                for (j, w) in big.enumerated() { if i < small.count, small[i] == w { i += 1 } else { extra.append(j) } }
+                return i == small.count ? extra : nil
+            }
+            if let more = sub(bx, of: by), !more.isEmpty, together(more) {
+                let words = more.map { by[$0] }.joined(separator: " ")
+                if words.count <= 30 { return "added \u{201C}\(words)\u{201D}" }
+            }
+            if let less = sub(by, of: bx), !less.isEmpty, together(less) {
+                let words = less.map { bx[$0] }.joined(separator: " ")
+                if words.count <= 30 { return "removed \u{201C}\(words)\u{201D}" }
+            }
+            // Words swapped in a few places: the first, and how many more (council r4: "changed 1 line").
+            func runs(_ i: [Int]) -> [[Int]] {
+                i.sorted().reduce(into: [[Int]]()) { out, k in
+                    if let last = out.last?.last, last == k - 1 { out[out.count - 1].append(k) } else { out.append([k]) }
+                }
+            }
+            let gr = runs(gone), pr = runs(put)
+            if gr.count > 1, gr.count == pr.count, gr.allSatisfy({ $0.count <= 3 }), pr.allSatisfy({ $0.count <= 3 }) {
+                let trim = CharacterSet.punctuationCharacters.union(.whitespaces)
+                let was = gr[0].map { x[$0] }.joined(separator: " ").trimmingCharacters(in: trim)
+                let now = pr[0].map { y[$0] }.joined(separator: " ").trimmingCharacters(in: trim)
+                if !was.isEmpty, !now.isEmpty, was.count + now.count <= 26 {
+                    return "changed \u{201C}\(was)\u{201D} to \u{201C}\(now)\u{201D} and made \(gr.count - 1) other change\(gr.count == 2 ? "" : "s")"
+                }
+            }
+            guard !gone.isEmpty, !put.isEmpty, gone.count <= 3, put.count <= 3, together(gone), together(put) else { return nil }
+            let trim = CharacterSet.punctuationCharacters.union(.whitespaces)
+            let was = gone.sorted().map { x[$0] }.joined(separator: " ").trimmingCharacters(in: trim)
+            let now = put.sorted().map { y[$0] }.joined(separator: " ").trimmingCharacters(in: trim)
+            guard !was.isEmpty, !now.isEmpty, was.count + now.count <= 30 else { return nil }
+            // "Dates" to "Dates: May" only added a word.
+            if now.hasPrefix(was) {
+                let more = String(now.dropFirst(was.count)).trimmingCharacters(in: trim)
+                if !more.isEmpty { return "added \u{201C}\(more)\u{201D}" }
+            }
+            return "changed \u{201C}\(was)\u{201D} to \u{201C}\(now)\u{201D}"
+        }
+        // Ticks first: a line whose only change is its box.
+        var ticks: [String] = [], unticks: [String] = []
+        for line in added {
+            guard let i = removed.firstIndex(where: { untick($0) == untick(line) && $0 != line }) else { continue }
+            removed.remove(at: i)
+            if line.contains("[x]") || line.contains("[X]") { ticks.append(line) } else { unticks.append(line) }
+        }
+        added.removeAll { ticks.contains($0) || unticks.contains($0) }
+        var parts: [String] = []
+        for (verb, lines) in [("ticked", ticks), ("unticked", unticks)] where !lines.isEmpty {
+            parts.append(lines.count == 1 ? "\(verb) \u{201C}\(words(lines[0]))\u{201D}" : "\(verb) \(lines.count) items")
+        }
+        let row = { (l: String) in l.trimmingCharacters(in: .whitespaces).hasPrefix("|") }
+        if !removed.isEmpty, !added.isEmpty {
+            guard removed.count == 1, added.count == 1, let one = inPlace(removed[0], added[0]) else { return nil }
+            parts.append(one)
+        } else if !removed.isEmpty {
+            parts.append(removed.count == 1 ? "removed \u{201C}\(words(removed[0]))\u{201D}" : "removed \(removed.count) lines")
+        } else if added.count == 1 {
+            if row(added[0]) {
+                // Named by its first cell: added “Food” to the table.
+                let first = added[0].split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty }
+                parts.append(first.map { "added \u{201C}\(short($0))\u{201D} to the table" } ?? "added a row to the table")
+            } else {
+                parts.append("added \u{201C}\(words(added[0]))\u{201D}")
+            }
+        } else if added.count > 1 {
+            guard !added.contains(where: row) else { return nil }
+            parts.append("added \(added.count) lines")
+        }
+        // One thing, or two short ones: "added “Saffron” and ticked “Eggs”" (council r1).
+        if parts.count == 1 { return parts[0] }
+        if parts.count == 2, parts[0].count + parts[1].count <= 48 { return parts.reversed().joined(separator: " and ") }
+        return nil
+    }
+
     /// You've opened it: the list marker goes. Returns what the receipt and tint need, once.
     static func markSeen(_ note: Note) -> Receipt? {
         guard isUnseen(note), let by = note.aiEditor, let at = note.aiEditedAt else { return nil }
@@ -163,6 +298,14 @@ enum AIEdit {
         var person: String? = nil
         /// How many of the AI's edits this is, in a row. They can come to fewer lines than edits.
         var edits = 1
+        /// The text before the latest of those edits, to say what it did (council r3).
+        var latestPrevious: String? = nil
+        /// Another AI's edit just before this one, as its own pill said it.
+        var earlierLine: String? = nil
+        /// More than one AI's edits in this change.
+        var mixed = false
+        /// The other AI, when two made this change (its glyph shows beside this one's).
+        var earlierBy: String? = nil
 
         enum Kind: Equatable { case edit, pageEdit, dataEdit, pageMade, pageChanged, reverted, heldBack }
 
@@ -219,14 +362,21 @@ enum AIEdit {
         /// all marked, and Undo takes all three back (round 17: it said 1 line, the last one).
         /// `earlier`: the receipt still on the note, if any. Typing between them keeps them apart.
         func continuing(_ earlier: Receipt?) -> Receipt {
-            guard let earlier, earlier.noteID == noteID, earlier.by == by, earlier.person == person,
+            guard let earlier, earlier.noteID == noteID, earlier.person == person,
                   earlier.kind == .edit, kind == .edit, !earlier.created, !created, earlier.after == previous,
                   abs(at.timeIntervalSince(earlier.at)) < Self.sameChangeWindow, let after else { return self }
             var both = self
+            both.latestPrevious = previous
             both.previous = earlier.previous
             both.previousVersion = earlier.previousVersion
             both.lines = AIReview.lineCount(previous: earlier.previous, after: after)
             both.edits = earlier.edits + 1
+            // Another AI's edit on top: the pill names both, and Undo takes both (council r3, r4).
+            if earlier.by != by || earlier.earlierLine != nil {
+                both.earlierLine = earlier.earlierLine == nil && earlier.edits == 1 ? earlier.summary : nil
+                both.earlierBy = earlier.by != by ? earlier.by : earlier.earlierBy
+                both.mixed = true
+            }
             return both
         }
 
@@ -244,6 +394,34 @@ enum AIEdit {
             if kind == .pageMade { return "\(who) made this note an app" }
             if kind == .pageChanged { return "\(who) changed this note's app" }
             if created { return "\(who) wrote this note" }
+            // Three or more edits in a row: a count, never one invented change (council r2).
+            // Two AIs: "Claude ticked “Eggs” · ChatGPT added “Saffron”".
+            if let earlierLine, let latestPrevious, let after, let what = AIEdit.describe(previous: latestPrevious, after: after) {
+                return "\(who) \(what) \u{00B7} \(earlierLine)"
+            }
+            if mixed { return "\(edits) changes by \(who) and others" }
+            // With the latest one named: "ChatGPT removed “Bread” · 3 changes" (council r3).
+            if edits > 2 {
+                if let latestPrevious, let after, let what = AIEdit.describe(previous: latestPrevious, after: after) {
+                    // "and 2 more" read as more of the same (council r5).
+                    return "\(who) \(what) and made \(edits - 1) other change\(edits == 2 ? "" : "s")"
+                }
+                return "\(who) made \(edits) changes"
+            }
+            // A new heading names the change: "added “Day 2”", "added “Work and projects” and
+            // changed 4 lines" (council r5: "changed 6 lines" said nothing).
+            if kind == .edit, let after, let section = AIEdit.newHeading(previous: previous, after: after) {
+                // Lines with words in them that didn't survive as they were: rewritten or removed.
+                let now = Set(after.components(separatedBy: "\n"))
+                let removedOrChanged = previous.components(separatedBy: "\n")
+                    .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty && !now.contains($0) }.count
+                return removedOrChanged <= 0 ? "\(who) added \u{201C}\(section)\u{201D}"
+                    : removedOrChanged == 1 ? "\(who) added \u{201C}\(section)\u{201D} and changed 1 line"
+                    // More than a line besides: "changed 2 lines" undersold it (council r6).
+                    : "\(who) rewrote \(removedOrChanged) lines and added \u{201C}\(section)\u{201D}"
+            }
+            // What it did, when that's one or two plain things: "ChatGPT ticked “Eggs”", "removed “Lemons”".
+            if kind == .edit, let after, let what = AIEdit.describe(previous: previous, after: after) { return "\(who) \(what)" }
             if edits > 1 { return "\(who) made \(edits) changes" }
             return lines == 0 ? "Updated by \(who)" : "\(who) changed \(lines == 1 ? "1 line" : "\(lines) lines")"
         }
