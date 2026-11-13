@@ -332,11 +332,15 @@ import UIKit
             defer { w.close() }
             await MacWindowChromeTests.settle(w, 20)
             #expect(try Self.collapsed(w) == [false, false], "the canvas leaves the columns open")
-            // The tools are in the window's toolbar, where a note's are, and its name beside where it is.
-            for id in ["canvas.tool.selection", "canvas.tool.freedraw", "canvas.tool.arrow", "canvas.tool.eraser", "canvas.title", "note.fullScreen"] {
-                let found = await MacEmptyDetailTests.waitForElement(id, in: w)
-                #expect(found != nil || MacEmptyDetailTests.element(id, in: w) != nil, "\(id) in the toolbar")
+            // The tools are in the window's toolbar, where a note's are, then Full Screen, Share and More.
+            let labels = try MacWindowChromeTests.items(w).map(\.label)
+            for l in ["Select", "Hand", "Pencil", "Shapes", "Arrow", "Text", "Eraser", "Full Screen", "Share"] {
+                #expect(labels.contains(l), "\(l) in the toolbar: \(labels)")
             }
+            // Its name, as a field you can type in, beside where it is.
+            @MainActor func fields(_ v: NSView) -> [NSTextField] { (v as? NSTextField).map { [$0] } ?? [] + v.subviews.flatMap(fields) }
+            let all = [w.contentView?.superview].compactMap { $0 }.flatMap(fields)
+            #expect(all.contains { $0.isEditable && $0.stringValue == "Publishing flow" }, "the name field: \(all.map(\.stringValue))")
             @MainActor func press(_ id: String) async throws {
                 let found = await MacEmptyDetailTests.waitForElement(id, in: w)
                 let direct = MacEmptyDetailTests.element(id, in: w)
